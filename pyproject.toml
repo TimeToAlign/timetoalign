@@ -1,0 +1,79 @@
+[project]
+name = "timetoalign"
+version = "0.1.0"
+description = "A library for representing and aligning musical timelines"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    {name = "TTA Team"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
+]
+
+# Core has no external dependencies
+dependencies = []
+
+[project.optional-dependencies]
+# Full library dependencies (added in later phases)
+full = [
+    "pandas>=2.0",
+    "pyarrow>=14.0",
+]
+delta = ["deltalake>=0.15.0"]
+plot = ["matplotlib>=3.5"]
+midi = ["mido>=1.3", "partitura>=1.0"]
+musicxml = ["music21>=9.0"]
+rdf = ["rdflib>=7.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1",
+]
+all = [
+    "timetoalign[full,delta,plot,midi,musicxml,rdf]"
+]
+
+[project.urls]
+Homepage = "https://github.com/tta-project/timetoalign"
+Documentation = "https://timetoalign.readthedocs.io"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["timetoalign"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=timetoalign --cov-report=term-missing --cov-fail-under=100"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+
+[tool.coverage.run]
+source = ["timetoalign"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@abstractmethod",
+]
