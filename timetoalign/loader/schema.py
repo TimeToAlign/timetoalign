@@ -46,6 +46,65 @@ def make_coordinate_type(unit: TimeUnit) -> pa.StructType:
     ])
 
 
+# Fraction struct for temporal columns (quarterbeats, duration, etc.)
+FRACTION_TYPE = pa.struct([
+    pa.field("num", pa.int64(), nullable=False),
+    pa.field("den", pa.int64(), nullable=False),
+])
+
+
+def make_fraction_field(
+    name: str, 
+    nullable: bool = True,
+    metadata: dict[str, str] | None = None,
+) -> pa.Field:
+    """Create a Fraction field with optional metadata.
+    
+    Args:
+        name: The field name.
+        nullable: Whether the field is nullable.
+        metadata: Additional metadata (e.g., unit, number_type).
+        
+    Returns:
+        A PyArrow field with FRACTION_TYPE.
+    """
+    meta = {"number_type": "fraction"}
+    if metadata:
+        meta.update(metadata)
+    return pa.field(name, FRACTION_TYPE, nullable=nullable, metadata=meta)
+
+
+def fraction_to_struct(frac: Fraction | int | float) -> dict[str, int]:
+    """Convert a Fraction to struct dict for PyArrow.
+    
+    Args:
+        frac: A Fraction, int, or float.
+        
+    Returns:
+        Dict with 'num' and 'den' keys.
+    """
+    if isinstance(frac, Fraction):
+        return {"num": frac.numerator, "den": frac.denominator}
+    elif isinstance(frac, int):
+        return {"num": frac, "den": 1}
+    else:
+        # Convert float to Fraction with reasonable denominator
+        f = Fraction(frac).limit_denominator(10000)
+        return {"num": f.numerator, "den": f.denominator}
+
+
+def struct_to_fraction(struct: dict[str, int]) -> Fraction:
+    """Convert a struct dict back to a Fraction.
+    
+    Args:
+        struct: Dict with 'num' and 'den' keys.
+        
+    Returns:
+        A Fraction.
+    """
+    return Fraction(struct["num"], struct["den"])
+
+
 def make_coordinate_field(name: str, unit: TimeUnit, nullable: bool = True) -> pa.Field:
     """Create a coordinate field with unit in metadata.
 

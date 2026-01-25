@@ -2,37 +2,34 @@
 
 from __future__ import annotations
 
+from fractions import Fraction
 from pathlib import Path
-from typing import Any, cast
 
 import partitura as pt
 import partitura.score as pts
-import partitura.score as pts
 
 from timetoalign.core import NumberType, TimeUnit
-from .base import ScoreLoader
-from .store import ScoreEventStore, ScoreEventType
+from timetoalign.loader.schema import fraction_to_struct
+from .bundle import ScoreBundle
+from .stores import NoteEventStore, MeasureEventStore, ControlEventStore, AnnotationEventStore
 
 
-class PartituraLoader(ScoreLoader):
+class PartituraLoader:
     """Load symbolic scores using partitura.
     
-    Supports MusicXML (fully typed) and MIDI (quantized/structured).
-    Extracts explicit categories: Measures, Notes, Controls, Annotations.
+    Supports MusicXML (fully typed) and MIDI (quantized).
+    Returns ScoreBundle with category-specific stores.
     """
 
     def __init__(
         self,
         *,
-        unit: TimeUnit | None = None,
-        number_type: NumberType = NumberType.float,
         force_note_ids: bool = True,
     ) -> None:
-        super().__init__(unit, number_type)
         self._force_note_ids = force_note_ids
 
-    def _load_source(self, source: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-        # Load score
+    def load(self, source: Path) -> ScoreBundle:
+        """Load score and return ScoreBundle."""
         score = pt.load_score(str(source), force_note_ids=self._force_note_ids)
         
         # Flatten parts
@@ -40,241 +37,241 @@ class PartituraLoader(ScoreLoader):
         if isinstance(score, pts.Score):
             parts = score.parts
         elif isinstance(score, (pts.Part, pts.PartGroup)):
-            # Helper to flatten PartGroup if needed, but usually load_score returns Score or Part
-            parts = [score] if isinstance(score, pts.Part) else score.children # type: ignore
+            parts = [score] if isinstance(score, pts.Part) else score.children
         elif isinstance(score, list):
             parts = score
         
-        events = []
+        note_rows = []
+        measure_rows = []
+        control_rows = []
+        annotation_rows = []
         has_rests = False
 
         for part_idx, part in enumerate(parts):
             part_id = getattr(part, "id", f"P{part_idx+1}")
             
-            # 1. Notes (using note_array for efficiency)
-            # We use Partitura's note_array to get onset, duration, pitch info efficiently
-            na = pt.utils.music.note_array_from_part(
-                part,
-                include_pitch_spelling=True,
-                include_key_signature=True,
-                include_time_signature=True,
-                include_staff=True,
-                # include_divs_per_quarter=True # If needed for unit conversion
-            )
-            
-            for row in na:
-                # Partitura note_array rows are numpy structured arrays
-                # Fields: onset_div, duration_div, pitch, step, alter, octave, voice, id, staff...
-                
-                # Check for rest (if Partitura includes them in note_array - usually it does ONLY if requested, 
-                # but standard note_array is for notes. We need to iterate objects for rests if not in array)
-                # Actually, iterate methods are safer for strict categorization.
-                pass 
-
-            # STRATEGY CHANGE: 
-            # Partitura's `iter_all` is safer to catch ALL objects including Rests and overlapping controls.
-            # `note_array` is great for analysis but might skip non-note events we need.
-            # We will use `iter_all` and manual extraction to ensure full coverage of "4 categories".
-
-            # 2. Iterate all objects
-            # Pre-calc measure map for performance
-            # part.measure_number_map is a function interpolating division time to measure number
-            # We need actual measure objects for the "Measure" category
-            
-            # Map for MC (1-based index)
-            # Create a sorted list of measure start times
-            measures = list(part.iter_all(pts.Measure))
-            # Sort by start just in case
-            measures.sort(key=lambda m: m.start.t)
-            
+            # Build measure map for MC lookup
+            measures = sorted(part.iter_all(pts.Measure), key=lambda m: m.start.t)
             measure_starts = [m.start.t for m in measures]
             
-            # Helper to find MC
             def get_mc(t: int) -> int:
-                # Find index of measure that starts <= t
                 import bisect
                 idx = bisect.bisect_right(measure_starts, t) - 1
-                return idx + 1 if idx >= 0 else 0
+                return idx + 1 if idx >= 0 else 1
 
-            # Collect raw objects
-            # Filter standard classes
+            # Get quarter beat mapping
+            beat_map = part.beat_map  # divs -> quarter beats
             
-            c_measure = set()
-            c_note = set()
-            c_control = set()
-            c_annotation = set()
-
-            for obj in part.iter_all(include_subclasses=True):
-                # Classify
-                if isinstance(obj, pts.Measure):
-                    c_measure.add(obj)
-                elif isinstance(obj, (pts.Note, pts.Rest, pts.GraceNote)):
-                    c_note.add(obj)
-                    if isinstance(obj, pts.Rest):
-                        has_rests = True
-                elif isinstance(obj, (pts.TimeSignature, pts.KeySignature, pts.Tempo, pts.Direction, pts.Slur, pts.DynamicLoudnessDirection)):
-                    # Note: Directions can be text (Annotation) or symbol (Control) depending on type
-                    # We'll put Directions in Control by default unless subclass suggests otherwise
-                    if isinstance(obj, pts.Words):
-                        c_annotation.add(obj)
-                    else:
-                        c_control.add(obj)
-                else:
-                    # Fallback
-                    # If it has start/end, keep it?
-                    if hasattr(obj, "start"):
-                        c_control.add(obj)
-
+            # Get divs_per_quarter for mc_onset calculation
+            divs_pq = getattr(part, "_quarter_durations", [480])[0] if hasattr(part, "_quarter_durations") else 480
+            
             # Process Measures
-            for m in c_measure:
-                events.append({
-                    "id": getattr(m, "id", None) or f"measure_{m.start.t}",
+            for i, m in enumerate(measures):
+                qb_start = Fraction(float(beat_map(m.start.t))).limit_denominator(10000)
+                qb_end = Fraction(float(beat_map(m.end.t))).limit_denominator(10000)
+                dur = qb_end - qb_start
+                
+                measure_rows.append({
+                    "id": getattr(m, "id", None) or f"measure_{i+1}",
+                    "name": str(m.number),
                     "temporal_type": "interval",
-                    "event_type": ScoreEventType.MEASURE,
-                    "event_category": ScoreEventType.CAT_MEASURE,
-                    "start": m.start.t,
-                    "end": m.end.t,
-                    "duration": m.end.t - m.start.t,
+                    "event_type": "Measure",
+                    "quarterbeats": fraction_to_struct(qb_start),
+                    "quarterbeats_float": float(qb_start),
+                    "duration_qb": fraction_to_struct(dur),
+                    "duration_qb_float": float(dur),
+                    "mc": i + 1,
                     "mn": str(m.number),
-                    "mc": get_mc(m.start.t),
+                    "timesig": None,  # Could extract from part
                     "part_id": part_id,
                 })
 
-            # Prepare Unit Conversion
-            to_quarters = lambda x: x
-            if self.unit == TimeUnit.quarters:
-                to_quarters = part.beat_map
-            
             # Process Notes/Rests
-            for n in c_note:
-                is_rest = isinstance(n, pts.Rest)
-                etype = ScoreEventType.REST if is_rest else ScoreEventType.NOTE
-                
-                # Pitch info
-                midi_pitch = None
-                spelled_pitch = None
-                octave = None
-                
-                if not is_rest:
-                    ep = None
-                    epc = None
-                    if hasattr(n, "midi_pitch"):
-                        ep = n.midi_pitch
-                        epc = ep % 12
-                        midi_pitch = {"ep": ep, "epc": epc}
-                        
-                    if hasattr(n, "octave"):
-                         octave = getattr(n, "octave", 4)
+            for obj in part.iter_all(include_subclasses=True):
+                if isinstance(obj, (pts.Note, pts.Rest, pts.GraceNote)):
+                    is_rest = isinstance(obj, pts.Rest)
+                    if is_rest:
+                        has_rests = True
 
-                    if hasattr(n, "step"): # Spelled
-                        step = n.step
-                        alter = int(getattr(n, "alter", 0) or 0)
-                        octave = int(getattr(n, "octave", 0) or 4) if octave is None else octave
+                    # Temporal
+                    start_div = obj.start.t
+                    dur_div = obj.duration if hasattr(obj, "duration") else 0
+                    
+                    qb_start = Fraction(float(beat_map(start_div))).limit_denominator(10000)
+                    qb_end = Fraction(float(beat_map(start_div + dur_div))).limit_denominator(10000)
+                    dur_qb = qb_end - qb_start
+                    
+                    # MC context
+                    mc = get_mc(start_div)
+                    mn = str(part.measure_number_map(start_div)) if hasattr(part, "measure_number_map") else str(mc)
+                    
+                    # mc_onset: offset from measure start
+                    if mc > 0 and mc <= len(measure_starts):
+                        m_start_div = measure_starts[mc - 1]
+                        mc_onset = Fraction(float(beat_map(start_div)) - float(beat_map(m_start_div))).limit_denominator(10000)
+                    else:
+                        mc_onset = Fraction(0)
+                    
+                    # Pitch
+                    midi_pitch = None
+                    spelled_pitch = None
+                    octave = None
+                    tpc = None
+                    
+                    if not is_rest and hasattr(obj, "midi_pitch"):
+                        ep = obj.midi_pitch
+                        midi_pitch = {"ep": int(ep), "epc": int(ep) % 12}
                         
-                        # Generic Pitch Class
-                        gpc_map = {'C': 0, 'D': 1, 'E': 2, 'F': 3, 'G': 4, 'A': 5, 'B': 6}
-                        gpc_int = gpc_map.get(step, 0)
-                        gpc_str = step
-                        
-                        # Accidental Normalization
-                        # Symbols: ♯ (U+266F), ♭ (U+266D)
-                        acc = alter
-                        acc_str = ""
-                        if acc > 0:
-                            acc_str = "♯" * acc
-                        elif acc < 0:
-                            acc_str = "♭" * abs(acc)
-                        
-                        # Spelled Pitch Class (TPC/Fifths)
-                        # C=0, G=1, D=2, A=3, E=4, B=5, F#=6, C#=7...
-                        # F=-1, Bb=-2, Eb=-3...
-                        # Base fifths: F=-1, C=0, G=1, D=2, A=3, E=4, B=5
-                        base_fifths = {'F': -1, 'C': 0, 'G': 1, 'D': 2, 'A': 3, 'E': 4, 'B': 5}
-                        spc_int = base_fifths.get(step, 0) + (7 * acc)
-                        
-                        # Names
-                        spc_str = f"{step}{acc_str}"
-                        sp = f"{spc_str}{octave}"
-                        
-                        spelled_pitch = {
-                            "gpc_int": gpc_int,
-                            "gpc_str": gpc_str,
-                            "acc": acc,
-                            "spc_int": spc_int,
-                            "spc_str": spc_str,
-                            "sp": sp,
-                            "cents": 0.0
-                        }
+                        if hasattr(obj, "step"):
+                            step = obj.step
+                            alter = int(getattr(obj, "alter", 0) or 0)
+                            octave = int(getattr(obj, "octave", 4) or 4)
+                            
+                            gpc_map = {'C': 0, 'D': 1, 'E': 2, 'F': 3, 'G': 4, 'A': 5, 'B': 6}
+                            gpc_int = gpc_map.get(step, 0)
+                            
+                            acc_str = ""
+                            if alter > 0:
+                                acc_str = "♯" * alter
+                            elif alter < 0:
+                                acc_str = "♭" * abs(alter)
+                            
+                            base_fifths = {'F': -1, 'C': 0, 'G': 1, 'D': 2, 'A': 3, 'E': 4, 'B': 5}
+                            spc_int = base_fifths.get(step, 0) + (7 * alter)
+                            tpc = spc_int
+                            
+                            spelled_pitch = {
+                                "gpc_int": gpc_int,
+                                "gpc_str": step,
+                                "acc": alter,
+                                "spc_int": spc_int,
+                                "spc_str": f"{step}{acc_str}",
+                                "sp": f"{step}{acc_str}{octave}",
+                                "cents": 0.0
+                            }
+                    
+                    note_rows.append({
+                        "id": getattr(obj, "id", None) or f"note_{float(qb_start)}",
+                        "name": "",
+                        "temporal_type": "interval" if dur_qb > 0 else "instant",
+                        "event_type": "Rest" if is_rest else "Note",
+                        "quarterbeats": fraction_to_struct(qb_start),
+                        "quarterbeats_float": float(qb_start),
+                        "duration_qb": fraction_to_struct(dur_qb),
+                        "duration_qb_float": float(dur_qb),
+                        "mc": mc,
+                        "mn": mn,
+                        "mc_onset": fraction_to_struct(mc_onset),
+                        "mn_onset": fraction_to_struct(mc_onset),  # Same as mc_onset for Partitura
+                        "timesig": None,
+                        "duration": None,
+                        "nominal_duration": None,
+                        "scalar": None,
+                        "midi_pitch": midi_pitch,
+                        "spelled_pitch": spelled_pitch,
+                        "tpc": tpc,
+                        "octave": octave,
+                        "velocity": 64,
+                        "tied": 0,
+                        "gracenote": "grace" if isinstance(obj, pts.GraceNote) else None,
+                        "chord_id": None,
+                        "voice": getattr(obj, "voice", None),
+                        "staff": getattr(obj, "staff", None),
+                        "part_id": part_id,
+                    })
 
-                # Timing
-                # Partitura times are in divs (ticks). Convert if needed.
-                start_t = to_quarters(n.start.t)
-                end_t = to_quarters(n.start.t + n.duration)
-                dur = end_t - start_t
-                
-                events.append({
-                    "id": getattr(n, "id", None),
-                    "temporal_type": "interval" if dur > 0 else "instant", # Grace notes?
-                    "event_type": etype,
-                    "event_category": "rest" if is_rest else ScoreEventType.CAT_NOTE,
-                    "start": float(start_t),
-                    "end": float(end_t),
-                    "duration": dur,
-                    "midi_pitch": midi_pitch,
-                    "spelled_pitch": spelled_pitch,
-                    "octave": octave,
-                    "voice": getattr(n, "voice", None),
-                    "staff": getattr(n, "staff", None),
-                    "mn": str(part.measure_number_map(n.start.t)) if hasattr(part, "measure_number_map") else None,
-                    "mc": get_mc(n.start.t),
-                    "part_id": part_id,
-                })
+                elif isinstance(obj, (pts.TimeSignature, pts.KeySignature, pts.Tempo, pts.Direction, pts.Slur)):
+                    if isinstance(obj, pts.Words):
+                        # Text annotation
+                        qb = Fraction(float(beat_map(obj.start.t))).limit_denominator(10000)
+                        annotation_rows.append({
+                            "id": getattr(obj, "id", None),
+                            "name": getattr(obj, "text", str(obj)),
+                            "temporal_type": "instant",
+                            "event_type": "Text",
+                            "quarterbeats": fraction_to_struct(qb),
+                            "quarterbeats_float": float(qb),
+                            "duration_qb": None,
+                            "duration_qb_float": 0.0,
+                            "mc": get_mc(obj.start.t),
+                            "mn": str(part.measure_number_map(obj.start.t)) if hasattr(part, "measure_number_map") else None,
+                            "mc_onset": None,
+                            "mn_onset": None,
+                            "subtype": "Text",
+                            "text": getattr(obj, "text", str(obj)),
+                            "staff": getattr(obj, "staff", None),
+                            "part_id": part_id,
+                        })
+                    else:
+                        # Control event
+                        qb = Fraction(float(beat_map(obj.start.t))).limit_denominator(10000)
+                        control_rows.append({
+                            "id": getattr(obj, "id", None) or f"ctrl_{float(qb)}",
+                            "name": obj.__class__.__name__,
+                            "temporal_type": "interval" if getattr(obj, "end", None) else "instant",
+                            "event_type": obj.__class__.__name__,
+                            "quarterbeats": fraction_to_struct(qb),
+                            "quarterbeats_float": float(qb),
+                            "duration_qb": None,
+                            "duration_qb_float": 0.0,
+                            "mc": get_mc(obj.start.t),
+                            "mn": str(part.measure_number_map(obj.start.t)) if hasattr(part, "measure_number_map") else None,
+                            "mc_onset": None,
+                            "mn_onset": None,
+                            "subtype": obj.__class__.__name__,
+                            "value": None,
+                            "text": str(obj),
+                            "voice": getattr(obj, "voice", None),
+                            "staff": getattr(obj, "staff", None),
+                            "part_id": part_id,
+                        })
 
-            # Process Controls
-            for c in c_control:
-                # determine type name
-                etype = c.__class__.__name__
-                events.append({
-                    "id": getattr(c, "id", None) or f"{etype}_{c.start.t}",
-                    "temporal_type": "interval" if getattr(c, "end", None) else "instant",
-                    "event_type": etype,
-                    "event_category": ScoreEventType.CAT_CONTROL,
-                    "start": c.start.t,
-                    "end": c.end.t if getattr(c, "end", None) else None,
-                    "duration": (c.end.t - c.start.t) if getattr(c, "end", None) else 0,
-                    "mn": str(part.measure_number_map(c.start.t)) if hasattr(part, "measure_number_map") else None,
-                    "mc": get_mc(c.start.t),
-                    "part_id": part_id,
-                })
+        # Normalize negative start times
+        if note_rows:
+            min_qb = min(r["quarterbeats_float"] for r in note_rows)
+            if min_qb < 0:
+                offset = Fraction(-min_qb).limit_denominator(10000)
+                for r in note_rows:
+                    old_qb = Fraction(r["quarterbeats"]["num"], r["quarterbeats"]["den"])
+                    new_qb = old_qb + offset
+                    r["quarterbeats"] = fraction_to_struct(new_qb)
+                    r["quarterbeats_float"] = float(new_qb)
 
-            # Process Annotations
-            for a in c_annotation:
-                events.append({
-                    "id": getattr(a, "id", None),
-                    "temporal_type": "instant", # Usually words are point events?
-                    "event_type": "Annotation",
-                    "event_category": ScoreEventType.CAT_ANNOTATION,
-                    "start": a.start.t,
-                    "name": getattr(a, "text", str(a)),
-                    "mn": str(part.measure_number_map(a.start.t)) if hasattr(part, "measure_number_map") else None,
-                    "mc": get_mc(a.start.t),
-                    "part_id": part_id,
-                })
+        # Build stores
+        notes_store = NoteEventStore.from_dicts(
+            note_rows,
+            unit=TimeUnit.quarters,
+            number_type=NumberType.fraction,
+            has_rests=has_rests
+        )
         
-        # Enforce non-negative coordinates (TTA requirement)
-        if events:
-            min_start = min(e["start"] for e in events)
-            if min_start < 0:
-                offset = abs(min_start)
-                for e in events:
-                    e["start"] += offset
-                    if "end" in e and e["end"] is not None:
-                        e["end"] += offset
-
-        metadata = {
-            "format": "score", 
-            "parser": "partitura", 
-            "has_rests": has_rests
-        }
+        measures_store = MeasureEventStore.from_dicts(
+            measure_rows,
+            unit=TimeUnit.quarters,
+            number_type=NumberType.fraction,
+        ) if measure_rows else MeasureEventStore.empty()
         
-        return metadata, events
+        controls_store = ControlEventStore.from_dicts(
+            control_rows,
+            unit=TimeUnit.quarters,
+            number_type=NumberType.fraction,
+        ) if control_rows else ControlEventStore.empty()
+        
+        annotations_store = AnnotationEventStore.from_dicts(
+            annotation_rows,
+            unit=TimeUnit.quarters,
+            number_type=NumberType.fraction,
+        ) if annotation_rows else AnnotationEventStore.empty()
+
+        return ScoreBundle(
+            notes=notes_store,
+            measures=measures_store,
+            controls=controls_store,
+            annotations=annotations_store,
+            metadata={
+                "format": "score",
+                "parser": "partitura",
+                "source": str(source),
+                "has_rests": has_rests,
+            }
+        )

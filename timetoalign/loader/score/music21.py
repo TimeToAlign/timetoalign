@@ -2,246 +2,270 @@
 
 from __future__ import annotations
 
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
 import music21 as m21
 
 from timetoalign.core import NumberType, TimeUnit
-from .base import ScoreLoader
-from .store import ScoreEventStore, ScoreEventType
+from timetoalign.loader.schema import fraction_to_struct
+from .bundle import ScoreBundle
+from .stores import NoteEventStore, MeasureEventStore, ControlEventStore, AnnotationEventStore
 
 
-class Music21Loader(ScoreLoader):
+class Music21Loader:
     """Load symbolic scores using music21.
     
+    Returns ScoreBundle with category-specific stores.
     Uses recursive element parsing to extract:
-    - Measures (structure)
     - Notes/Rests (with chord expansion)
+    - Measures (structure)
     - Controls (dynamics, tempo, etc.)
     - Annotations (text)
     """
 
-    def _load_source(self, source: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-        # Parse score
-        # forceSource=True ensures we don't pick up cached versions if file changed
+    def load(self, source: Path) -> ScoreBundle:
+        """Load score and return ScoreBundle."""
         score = m21.converter.parse(str(source), forceSource=True)
         
-        events = []
+        note_rows = []
+        measure_rows = []
+        control_rows = []
+        annotation_rows = []
         has_rests = False
-        
-        # Flatten parts? M21 streams can be nested.
-        # We start by separating parts.
+
         parts = score.parts if score.hasPartLikeStreams() else [score]
         
         for part_idx, part in enumerate(parts):
             part_id = part.id or f"P{part_idx+1}"
             
-            # Recurse flat stream is often easier for positioning
-            # But flattening can lose structural context if not careful.
-            # semiFlat is good compromise usually, or just recurse.
-            # Using .flat helps with absolute offsets.
-            flat_part = part.flat
-            
-            # Iterate elements
-            # We want offset, duration, and type
-            
-            # Pre-calculate Measure Map?
-            # In flat stream, measures are also elements.
-            # We can use .makeMeasures() if raw MIDI, but assuming MusicXML or structured source
-            
-            # Helper for MC/MN
-            # In a flat stream, matching an element to its measure is done via context
-            # element.measureNumber is available often.
-            
-            # Optimization: Iterate once and classify
-            
-            current_mc = 0
-            
-            for obj in flat_part:
-                offset = float(obj.offset)
-                duration = float(obj.duration.quarterLength)
-                end = offset + duration
-                
-                # Classify
-                category = None
-                etype = None
-                
-                # 1. Measure
-                if isinstance(obj, m21.stream.Measure):
-                    category = ScoreEventType.CAT_MEASURE
-                    etype = ScoreEventType.MEASURE
-                    # MC increments on each measure found in order? 
-                    # Note: in flat stream, measures overlap in time (end-to-end).
-                    # But measure objects in flat stream are actually just containers.
-                    # Actually, .flat usually Strips measures unless we do something else.
-                    # Wait, part.flat removes Measure containers and puts elements at absolute offsets.
-                    # Measure info is stored in `measureNumber` of elements or we find Barline objects?
-                    pass
-                
-                # Special handling: .flat DOES include Barline objects but maybe not Measure containers.
-                # If we want Measure EVENTS, we should maybe iterate the original part.recurse().
-                
-                # Let's try `recurse()` to keep hierarchy or just iterate original part measures for Measure events
-                # and flat part for Notes?
-            
-            # Better strategy: 
-            # 1. Get Measure Events from part.getElementsByClass(Measure)
-            # 2. Get other events from part.flat
-            
-            # 1. Measure Events
-            # Only valid if the part contains Measure objects (MusicXML does, MIDI import might)
+            # Get measure list for MC lookup
             measure_list = list(part.getElementsByClass(m21.stream.Measure))
-            if not measure_list and part.hasPartLikeStreams():
-                 # Sometimes parts are in score -> part -> measure
-                 pass
+            measure_offsets = [(float(m.offset), i+1, m) for i, m in enumerate(measure_list)]
+            
+            def get_mc_and_onset(offset: float) -> tuple[int | None, Fraction]:
+                """Find MC and offset from measure start."""
+                mc = None
+                mc_onset = Fraction(0)
+                for m_off, idx, m in reversed(measure_offsets):
+                    if m_off <= offset + 1e-5:
+                        mc = idx
+                        mc_onset = Fraction(offset - m_off).limit_denominator(10000)
+                        break
+                return mc, mc_onset
 
-            # 2. Other Events via Flattening
-            # We use flat to get absolute timing easily
+            # Process Measures
+            for i, m in enumerate(measure_list):
+                qb = Fraction(float(m.offset)).limit_denominator(10000)
+                dur = Fraction(float(m.duration.quarterLength)).limit_denominator(10000)
+                
+                measure_rows.append({
+                    "id": f"measure_{i+1}",
+                    "name": str(m.number),
+                    "temporal_type": "interval",
+                    "event_type": "Measure",
+                    "quarterbeats": fraction_to_struct(qb),
+                    "quarterbeats_float": float(qb),
+                    "duration_qb": fraction_to_struct(dur),
+                    "duration_qb_float": float(dur),
+                    "mc": i + 1,
+                    "mn": str(m.number),
+                    "timesig": None,
+                    "part_id": part_id,
+                })
+
+            # Process Notes/Rests/Controls
+            flat_part = part.flatten()
+            
             for obj in flat_part:
                 if isinstance(obj, (m21.stream.Measure, m21.stream.Part, m21.stream.Score)):
                     continue
-                    
-                offset = float(obj.offset) # This is relative to part if used on flat part
+                
+                offset = float(obj.offset)
                 duration = float(obj.duration.quarterLength)
-                
-                category = None
-                etype = None
-                
+                qb = Fraction(offset).limit_denominator(10000)
+                dur_qb = Fraction(duration).limit_denominator(10000)
+                mc, mc_onset = get_mc_and_onset(offset)
+                mn = str(obj.measureNumber) if obj.measureNumber is not None else str(mc) if mc else None
+
                 # Notes/Rests
                 if isinstance(obj, m21.note.GeneralNote):
-                    category = ScoreEventType.CAT_NOTE
                     if isinstance(obj, m21.note.Rest):
-                        etype = ScoreEventType.REST
-                        category = "rest" # Distinct category for filtering
                         has_rests = True
+                        note_rows.append(self._make_note_row(
+                            obj, qb, dur_qb, mc, mn, mc_onset, part_id, is_rest=True
+                        ))
                     elif isinstance(obj, m21.note.Note):
-                        etype = ScoreEventType.NOTE
+                        note_rows.append(self._make_note_row(
+                            obj, qb, dur_qb, mc, mn, mc_onset, part_id
+                        ))
                     elif isinstance(obj, m21.chord.Chord):
-                        etype = ScoreEventType.CHORD
-                    
-                # Controls
-                elif isinstance(obj, (m21.dynamics.Dynamic, m21.tempo.TempoIndication, 
-                                      m21.key.KeySignature, m21.meter.TimeSignature, m21.expressions.TextExpression)):
-                    # TextExpression could be Annotation
-                    if isinstance(obj, m21.expressions.TextExpression):
-                        category = ScoreEventType.CAT_ANNOTATION
-                        etype = ScoreEventType.TEXT_EXPRESSION
-                    else:
-                        category = ScoreEventType.CAT_CONTROL
-                        etype = obj.classes[0] # e.g. 'MetronomeMark'
-                
-                elif isinstance(obj, m21.spanner.Spanner):
-                    # Slurs, Wedges
-                    category = ScoreEventType.CAT_CONTROL
-                    etype = obj.classes[0]
-
-                if category:
-                    # Common fields
-                    processed_objs = [] # List of (obj, extra_data)
-                    
-                    if etype == ScoreEventType.CHORD:
-                         # Expand Chord
                         for note in obj.notes:
-                             processed_objs.append((note, {"parent_chord_id": obj.id}))
-                    else:
-                        processed_objs.append((obj, {}))
-                        
-                    for p_obj, extra in processed_objs:
-                        # Pitch extraction
-                        midi_pitch = None
-                        spelled_pitch = None
-                        octave = None
-                        
-                        if isinstance(p_obj, m21.note.Note):
-                            # MIDI
-                            ep = int(p_obj.pitch.midi)
-                            epc = ep % 12
-                            midi_pitch = {"ep": ep, "epc": epc}
-                            
-                            # Spelled
-                            step = p_obj.pitch.step
-                            alter = int(p_obj.pitch.alter or 0)
-                            octave = p_obj.pitch.octave
-                            if octave is None: octave = 4 # Default?
-                            
-                            # GPC
-                            gpc_map = {'C': 0, 'D': 1, 'E': 2, 'F': 3, 'G': 4, 'A': 5, 'B': 6}
-                            gpc_int = gpc_map.get(step, 0)
-                            gpc_str = step
-                            
-                            # Accidental Normalization
-                            acc = alter
-                            acc_str = ""
-                            if acc > 0:
-                                acc_str = "♯" * acc
-                            elif acc < 0:
-                                acc_str = "♭" * abs(acc)
-                                
-                            # SPC (Fifths)
-                            base_fifths = {'F': -1, 'C': 0, 'G': 1, 'D': 2, 'A': 3, 'E': 4, 'B': 5}
-                            spc_int = base_fifths.get(step, 0) + (7 * acc)
-                            
-                            # Names
-                            spc_str = f"{step}{acc_str}"
-                            sp = f"{spc_str}{octave}"
-                            
-                            spelled_pitch = {
-                                "gpc_int": gpc_int,
-                                "gpc_str": gpc_str,
-                                "acc": acc,
-                                "spc_int": spc_int,
-                                "spc_str": spc_str,
-                                "sp": sp,
-                                "cents": 0.0
-                            }
+                            note_rows.append(self._make_note_row(
+                                note, qb, dur_qb, mc, mn, mc_onset, part_id,
+                                chord_id=id(obj)
+                            ))
 
-                        # Context: Measure Number
-                        # In flat stream, we might lose measure number unless preserved
-                        mn = str(obj.measureNumber) if obj.measureNumber is not None else None
-                        
-                        # MC mapping
-                        # Find the last measure where start <= offset
-                        mc = None
-                        if measure_list:
-                            # Assuming measure_list is sorted by offset
-                            current_best_mc = None
-                            # Linear scan
-                            for i, m in enumerate(measure_list):
-                                m_off = float(m.getOffsetInHierarchy(score))
-                                # We want largest i such that m_off <= offset + epsilon
-                                # Epsilon usage: if offset is almost exactly m_off, it matches.
-                                if m_off <= offset + 1e-5:
-                                    current_best_mc = i + 1
-                                    if not mn: mn = str(m.number)
-                                else:
-                                    # Since sorted, if m_off > offset, we stop
-                                    break
-                            
-                            mc = current_best_mc
-
-                        events.append({
-                        "id": str(p_obj.id),
-                        "temporal_type": "interval" if duration > 0 else "instant",
-                        "event_type": ScoreEventType.NOTE if isinstance(p_obj, m21.note.Note) else str(etype),
-                        "event_category": str(category),
-                            "start": offset,
-                            "end": offset + duration,
-                            "duration": duration,
-                            "midi_pitch": midi_pitch,
-                            "spelled_pitch": spelled_pitch,
-                            "octave": octave,
-                            "mn": str(mn) if mn else None,
-                        "mc": int(mc) if mc is not None else None,
-                        "part_id": str(part_id),
-                        "voice": int(getattr(p_obj, "voice", 0)) if getattr(p_obj, "voice", None) is not None else None,  # M21 voice might be object?
-                        "name": str(extra.get("name") or getattr(p_obj, "content", "") or "") # For annotations
+                # Controls
+                elif isinstance(obj, (m21.dynamics.Dynamic, m21.tempo.TempoIndication,
+                                      m21.key.KeySignature, m21.meter.TimeSignature)):
+                    control_rows.append({
+                        "id": str(obj.id) if hasattr(obj, "id") else f"ctrl_{offset}",
+                        "name": obj.__class__.__name__,
+                        "temporal_type": "instant",
+                        "event_type": obj.__class__.__name__,
+                        "quarterbeats": fraction_to_struct(qb),
+                        "quarterbeats_float": float(qb),
+                        "duration_qb": None,
+                        "duration_qb_float": 0.0,
+                        "mc": mc,
+                        "mn": mn,
+                        "mc_onset": fraction_to_struct(mc_onset) if mc_onset is not None else None,
+                        "mn_onset": fraction_to_struct(mc_onset) if mc_onset is not None else None,
+                        "subtype": obj.__class__.__name__,
+                        "value": None,
+                        "text": str(obj),
+                        "voice": None,
+                        "staff": None,
+                        "part_id": part_id,
                     })
 
-        metadata = {
-            "format": "score",
-            "parser": "music21",
-            "has_rests": has_rests
-        }
+                # Annotations
+                elif isinstance(obj, m21.expressions.TextExpression):
+                    annotation_rows.append({
+                        "id": str(obj.id) if hasattr(obj, "id") else f"ann_{offset}",
+                        "name": getattr(obj, "content", str(obj)),
+                        "temporal_type": "instant",
+                        "event_type": "TextExpression",
+                        "quarterbeats": fraction_to_struct(qb),
+                        "quarterbeats_float": float(qb),
+                        "duration_qb": None,
+                        "duration_qb_float": 0.0,
+                        "mc": mc,
+                        "mn": mn,
+                        "mc_onset": fraction_to_struct(mc_onset) if mc_onset is not None else None,
+                        "mn_onset": fraction_to_struct(mc_onset) if mc_onset is not None else None,
+                        "subtype": "TextExpression",
+                        "text": getattr(obj, "content", str(obj)),
+                        "staff": None,
+                        "part_id": part_id,
+                    })
+
+        # Build stores
+        notes_store = NoteEventStore.from_dicts(
+            note_rows,
+            unit=TimeUnit.quarters,
+            number_type=NumberType.fraction,
+            has_rests=has_rests
+        )
         
-        return metadata, events
+        measures_store = MeasureEventStore.from_dicts(
+            measure_rows,
+            unit=TimeUnit.quarters,
+            number_type=NumberType.fraction,
+        ) if measure_rows else MeasureEventStore.empty()
+        
+        controls_store = ControlEventStore.from_dicts(
+            control_rows,
+            unit=TimeUnit.quarters,
+            number_type=NumberType.fraction,
+        ) if control_rows else ControlEventStore.empty()
+        
+        annotations_store = AnnotationEventStore.from_dicts(
+            annotation_rows,
+            unit=TimeUnit.quarters,
+            number_type=NumberType.fraction,
+        ) if annotation_rows else AnnotationEventStore.empty()
+
+        return ScoreBundle(
+            notes=notes_store,
+            measures=measures_store,
+            controls=controls_store,
+            annotations=annotations_store,
+            metadata={
+                "format": "score",
+                "parser": "music21",
+                "source": str(source),
+                "has_rests": has_rests,
+            }
+        )
+
+    def _make_note_row(
+        self,
+        obj: Any,
+        qb: Fraction,
+        dur_qb: Fraction,
+        mc: int | None,
+        mn: str | None,
+        mc_onset: Fraction,
+        part_id: str,
+        is_rest: bool = False,
+        chord_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Create note row dict."""
+        midi_pitch = None
+        spelled_pitch = None
+        octave = None
+        tpc = None
+        
+        if not is_rest and hasattr(obj, "pitch"):
+            ep = int(obj.pitch.midi)
+            midi_pitch = {"ep": ep, "epc": ep % 12}
+            
+            step = obj.pitch.step
+            alter = int(obj.pitch.alter or 0)
+            octave = obj.pitch.octave or 4
+            
+            gpc_map = {'C': 0, 'D': 1, 'E': 2, 'F': 3, 'G': 4, 'A': 5, 'B': 6}
+            gpc_int = gpc_map.get(step, 0)
+            
+            acc_str = ""
+            if alter > 0:
+                acc_str = "♯" * alter
+            elif alter < 0:
+                acc_str = "♭" * abs(alter)
+            
+            base_fifths = {'F': -1, 'C': 0, 'G': 1, 'D': 2, 'A': 3, 'E': 4, 'B': 5}
+            spc_int = base_fifths.get(step, 0) + (7 * alter)
+            tpc = spc_int
+            
+            spelled_pitch = {
+                "gpc_int": gpc_int,
+                "gpc_str": step,
+                "acc": alter,
+                "spc_int": spc_int,
+                "spc_str": f"{step}{acc_str}",
+                "sp": f"{step}{acc_str}{octave}",
+                "cents": 0.0
+            }
+        
+        return {
+            "id": str(obj.id) if hasattr(obj, "id") else f"note_{float(qb)}",
+            "name": "",
+            "temporal_type": "interval" if dur_qb > 0 else "instant",
+            "event_type": "Rest" if is_rest else "Note",
+            "quarterbeats": fraction_to_struct(qb),
+            "quarterbeats_float": float(qb),
+            "duration_qb": fraction_to_struct(dur_qb),
+            "duration_qb_float": float(dur_qb),
+            "mc": mc,
+            "mn": mn,
+            "mc_onset": fraction_to_struct(mc_onset),
+            "mn_onset": fraction_to_struct(mc_onset),
+            "timesig": None,
+            "duration": None,
+            "nominal_duration": None,
+            "scalar": None,
+            "midi_pitch": midi_pitch,
+            "spelled_pitch": spelled_pitch,
+            "tpc": tpc,
+            "octave": octave,
+            "velocity": 64,
+            "tied": 0,
+            "gracenote": None,
+            "chord_id": chord_id,
+            "voice": getattr(obj, "voice", None),
+            "staff": getattr(obj, "staff", None),
+            "part_id": part_id,
+        }
