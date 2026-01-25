@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from .note import NoteEventStore
-from .measure import MeasureEventStore
-from .control import ControlEventStore
 from .annotation import AnnotationEventStore
+from .control import ControlEventStore
+from .measure import MeasureEventStore
+from .note import NoteEventStore
 
 __all__ = [
     "NoteEventStore",

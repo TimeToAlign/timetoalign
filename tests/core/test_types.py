@@ -1,7 +1,8 @@
 """Tests for core/types.py."""
 
-import pytest
 from fractions import Fraction
+
+import pytest
 
 from timetoalign.core.enums import Domain, NumberType, TimeUnit
 from timetoalign.core.types import Coordinate

@@ -81,7 +81,9 @@ class Loader(ABC):
         self._number_type = number_type
         self._sources: list[Path] = []
         self._source_metadata: list[dict[str, Any]] = []
-        self._events: EventStore = self._event_store_class.empty(self._unit, self._number_type)
+        self._events: EventStore = self._event_store_class.empty(
+            self._unit, self._number_type
+        )
 
     # region Abstract Methods
 

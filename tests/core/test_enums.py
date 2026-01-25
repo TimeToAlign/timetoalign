@@ -1,9 +1,10 @@
 """Tests for core/enums.py."""
 
-import pytest
 from fractions import Fraction
 
-from timetoalign.core.enums import Domain, EventType, FancyStrEnum, NumberType, TimeUnit
+import pytest
+
+from timetoalign.core.enums import Domain, EventType, NumberType, TimeUnit
 
 
 class TestFancyStrEnum:

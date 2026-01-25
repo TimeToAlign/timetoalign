@@ -19,8 +19,8 @@ import pyarrow as pa
 
 from timetoalign.core import NumberType, TimeUnit
 
-
 # region Coordinate Schema
+
 
 def make_coordinate_type(unit: TimeUnit) -> pa.StructType:
     """Create a coordinate struct type.
@@ -39,32 +39,36 @@ def make_coordinate_type(unit: TimeUnit) -> pa.StructType:
     Returns:
         A PyArrow struct type.
     """
-    return pa.struct([
-        pa.field("value", pa.float64(), nullable=False),
-        pa.field("numerator", pa.int64(), nullable=True),
-        pa.field("denominator", pa.int64(), nullable=True),
-    ])
+    return pa.struct(
+        [
+            pa.field("value", pa.float64(), nullable=False),
+            pa.field("numerator", pa.int64(), nullable=True),
+            pa.field("denominator", pa.int64(), nullable=True),
+        ]
+    )
 
 
 # Fraction struct for temporal columns (quarterbeats, duration, etc.)
-FRACTION_TYPE = pa.struct([
-    pa.field("num", pa.int64(), nullable=False),
-    pa.field("den", pa.int64(), nullable=False),
-])
+FRACTION_TYPE = pa.struct(
+    [
+        pa.field("num", pa.int64(), nullable=False),
+        pa.field("den", pa.int64(), nullable=False),
+    ]
+)
 
 
 def make_fraction_field(
-    name: str, 
+    name: str,
     nullable: bool = True,
     metadata: dict[str, str] | None = None,
 ) -> pa.Field:
     """Create a Fraction field with optional metadata.
-    
+
     Args:
         name: The field name.
         nullable: Whether the field is nullable.
         metadata: Additional metadata (e.g., unit, number_type).
-        
+
     Returns:
         A PyArrow field with FRACTION_TYPE.
     """
@@ -76,10 +80,10 @@ def make_fraction_field(
 
 def fraction_to_struct(frac: Fraction | int | float) -> dict[str, int]:
     """Convert a Fraction to struct dict for PyArrow.
-    
+
     Args:
         frac: A Fraction, int, or float.
-        
+
     Returns:
         Dict with 'num' and 'den' keys.
     """
@@ -95,10 +99,10 @@ def fraction_to_struct(frac: Fraction | int | float) -> dict[str, int]:
 
 def struct_to_fraction(struct: dict[str, int]) -> Fraction:
     """Convert a struct dict back to a Fraction.
-    
+
     Args:
         struct: Dict with 'num' and 'den' keys.
-        
+
     Returns:
         A Fraction.
     """
@@ -205,16 +209,18 @@ def make_base_schema(unit: TimeUnit) -> pa.Schema:
     Returns:
         A PyArrow schema with base event columns.
     """
-    return pa.schema([
-        pa.field("id", pa.string(), nullable=False),
-        pa.field("name", pa.string(), nullable=True),
-        pa.field("temporal_type", pa.string(), nullable=False),
-        pa.field("event_type", pa.string(), nullable=False),
-        make_coordinate_field("instant", unit, nullable=True),
-        make_coordinate_field("start", unit, nullable=True),
-        make_coordinate_field("end", unit, nullable=True),
-        make_coordinate_field("duration", unit, nullable=True),
-    ])
+    return pa.schema(
+        [
+            pa.field("id", pa.string(), nullable=False),
+            pa.field("name", pa.string(), nullable=True),
+            pa.field("temporal_type", pa.string(), nullable=False),
+            pa.field("event_type", pa.string(), nullable=False),
+            make_coordinate_field("instant", unit, nullable=True),
+            make_coordinate_field("start", unit, nullable=True),
+            make_coordinate_field("end", unit, nullable=True),
+            make_coordinate_field("duration", unit, nullable=True),
+        ]
+    )
 
 
 def get_base_column_names() -> list[str]:
@@ -223,7 +229,16 @@ def get_base_column_names() -> list[str]:
     Returns:
         List of column names in the base schema.
     """
-    return ["id", "name", "temporal_type", "event_type", "instant", "start", "end", "duration"]
+    return [
+        "id",
+        "name",
+        "temporal_type",
+        "event_type",
+        "instant",
+        "start",
+        "end",
+        "duration",
+    ]
 
 
 def extend_schema(base: pa.Schema, extra_fields: list[pa.Field]) -> pa.Schema:
@@ -265,6 +280,7 @@ def get_unit_from_schema(schema: pa.Schema) -> TimeUnit | None:
 
 
 # region Schema Metadata
+
 
 def make_table_metadata(
     unit: TimeUnit,

@@ -1,18 +1,15 @@
 """Shared pytest fixtures for timetoalign tests."""
 
-import pytest
 from fractions import Fraction
+
+import pytest
 
 from timetoalign.core import (
     Coordinate,
-    Domain,
-    EventType,
     IdGenerator,
-    NumberType,
     ScopedId,
     TimeUnit,
 )
-
 
 # --- Coordinate fixtures ---
 

@@ -5,18 +5,18 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import partitura as pt
 from partitura.score import Part, PartGroup, Score
 
 from timetoalign.core import NumberType, TimeUnit
+
 from .base import MidiLoader
 from .constants import MidiEventType
 
 
 class ScoreMidiLoader(MidiLoader):
     """Load score MIDI files using partitura.
-    
+
     This loader uses partitura's sophisticated MIDI parsing to extract structural
     information like voices, parts, and spelled pitches (optional). It is ideal
     for quantized MIDI files representing scores.
@@ -93,6 +93,7 @@ class ScoreMidiLoader(MidiLoader):
                         flat.extend(flatten_parts(child))
                     return flat
                 return []
+
             parts = flatten_parts(score_data)
         elif isinstance(score_data, list):
             # List of Part/PartGroup
@@ -101,7 +102,7 @@ class ScoreMidiLoader(MidiLoader):
                 if isinstance(item, Part):
                     parts.append(item)
                 # ... theoretically could be PartGroup in list, but load_score_midi usually returns Score or parts
-        
+
         if not parts:
             # Empty score
             return {"format": "midi", "parser": "partitura", "parts": 0}, []
@@ -118,19 +119,19 @@ class ScoreMidiLoader(MidiLoader):
         note_array = pt.utils.music.note_array_from_part_list(
             parts,
             include_staff=True,
-            include_divs_per_quarter=True, # To get PPQ info
+            include_divs_per_quarter=True,  # To get PPQ info
         )
 
         # Extract events
         events = []
-        
+
         # Iterate over structured array
         for row in note_array:
             # row fields: onset_div, duration_div, pitch, voice, id, staff, divs_pq, ...
-            
+
             # Update PPQ if we found it
             if "divs_pq" in row.dtype.names and self._ticks_per_beat is None:
-                 self._ticks_per_beat = int(row["divs_pq"])
+                self._ticks_per_beat = int(row["divs_pq"])
 
             event = {
                 "id": str(row["id"]),
@@ -140,10 +141,10 @@ class ScoreMidiLoader(MidiLoader):
                 "end": int(row["onset_div"] + row["duration_div"]),
                 "duration": int(row["duration_div"]),
                 "pitch": int(row["pitch"]),
-                "velocity": 64, # Default for score
+                "velocity": 64,  # Default for score
                 "voice": int(row["voice"]) if "voice" in row.dtype.names else None,
                 "staff": int(row["staff"]) if "staff" in row.dtype.names else None,
-                # Part ID is tricky in unified array, but partitura usually encodes it in ID 
+                # Part ID is tricky in unified array, but partitura usually encodes it in ID
                 # or we can't easily get it per row without complex mapping.
                 # For now, we'll leave part_id null or extract from ID if encoded.
                 "part_id": None,
@@ -163,5 +164,5 @@ class ScoreMidiLoader(MidiLoader):
             "parts": len(parts),
             "ticks_per_beat": self._ticks_per_beat,
         }
-        
+
         return metadata, events

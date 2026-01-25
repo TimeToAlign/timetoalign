@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import pytest
-from timetoalign.core import TimeUnit
+
 from timetoalign.loader.midi import MidiEventType, PerformanceMidiLoader
 
 
@@ -20,7 +20,7 @@ class TestPerformanceMidiLoader:
 
         assert len(loader) > 0
         assert loader.ticks_per_beat is not None
-        
+
         # Check metadata
         meta = loader.metadata["sources"][0]
         assert meta["format"] == "midi"
@@ -41,7 +41,7 @@ class TestPerformanceMidiLoader:
         loader.load(chopin_perf_path)
 
         assert len(loader) > 0
-        
+
         # Should have notes and control changes (pedal)
         types = loader.count_events_by_type()
         assert MidiEventType.NOTE in types
@@ -52,24 +52,24 @@ class TestPerformanceMidiLoader:
         """Loader correctly pairs note_on and note_off."""
         # Create a simple MIDI file
         import mido
-        
+
         mid = mido.MidiFile(type=0)
         track = mido.MidiTrack()
         mid.tracks.append(track)
-        
+
         # Note C4, vel 100, duration 480 ticks
         track.append(mido.Message("note_on", note=60, velocity=100, time=0))
         track.append(mido.Message("note_off", note=60, velocity=0, time=480))
-        
+
         midi_path = tmp_path / "test.mid"
         mid.save(midi_path)
-        
+
         loader = PerformanceMidiLoader()
         loader.load(midi_path)
-        
+
         assert len(loader) == 1
         event = loader.events.to_dataframe().iloc[0]
-        
+
         assert event["event_type"] == MidiEventType.NOTE
         assert event["pitch"] == 60
         assert event["duration"]["value"] == 480

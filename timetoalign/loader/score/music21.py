@@ -10,13 +10,19 @@ import music21 as m21
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import fraction_to_struct
+
 from .bundle import ScoreBundle
-from .stores import NoteEventStore, MeasureEventStore, ControlEventStore, AnnotationEventStore
+from .stores import (
+    AnnotationEventStore,
+    ControlEventStore,
+    MeasureEventStore,
+    NoteEventStore,
+)
 
 
 class Music21Loader:
     """Load symbolic scores using music21.
-    
+
     Returns ScoreBundle with category-specific stores.
     Uses recursive element parsing to extract:
     - Notes/Rests (with chord expansion)
@@ -28,7 +34,7 @@ class Music21Loader:
     def load(self, source: Path) -> ScoreBundle:
         """Load score and return ScoreBundle."""
         score = m21.converter.parse(str(source), forceSource=True)
-        
+
         note_rows = []
         measure_rows = []
         control_rows = []
@@ -36,14 +42,16 @@ class Music21Loader:
         has_rests = False
 
         parts = score.parts if score.hasPartLikeStreams() else [score]
-        
+
         for part_idx, part in enumerate(parts):
             part_id = part.id or f"P{part_idx+1}"
-            
+
             # Get measure list for MC lookup
             measure_list = list(part.getElementsByClass(m21.stream.Measure))
-            measure_offsets = [(float(m.offset), i+1, m) for i, m in enumerate(measure_list)]
-            
+            measure_offsets = [
+                (float(m.offset), i + 1, m) for i, m in enumerate(measure_list)
+            ]
+
             def get_mc_and_onset(offset: float) -> tuple[int | None, Fraction]:
                 """Find MC and offset from measure start."""
                 mc = None
@@ -59,124 +67,187 @@ class Music21Loader:
             for i, m in enumerate(measure_list):
                 qb = Fraction(float(m.offset)).limit_denominator(10000)
                 dur = Fraction(float(m.duration.quarterLength)).limit_denominator(10000)
-                
-                measure_rows.append({
-                    "id": f"measure_{i+1}",
-                    "name": str(m.number),
-                    "temporal_type": "interval",
-                    "event_type": "Measure",
-                    "quarterbeats": fraction_to_struct(qb),
-                    "quarterbeats_float": float(qb),
-                    "duration_qb": fraction_to_struct(dur),
-                    "duration_qb_float": float(dur),
-                    "mc": i + 1,
-                    "mn": str(m.number),
-                    "timesig": None,
-                    "part_id": part_id,
-                })
+
+                measure_rows.append(
+                    {
+                        "id": f"measure_{i+1}",
+                        "name": str(m.number),
+                        "temporal_type": "interval",
+                        "event_type": "Measure",
+                        "quarterbeats": fraction_to_struct(qb),
+                        "quarterbeats_float": float(qb),
+                        "duration_qb": fraction_to_struct(dur),
+                        "duration_qb_float": float(dur),
+                        "mc": i + 1,
+                        "mn": str(m.number),
+                        "timesig": None,
+                        "part_id": part_id,
+                    }
+                )
 
             # Process Notes/Rests/Controls
             flat_part = part.flatten()
-            
+
             for obj in flat_part:
-                if isinstance(obj, (m21.stream.Measure, m21.stream.Part, m21.stream.Score)):
+                if isinstance(
+                    obj, (m21.stream.Measure, m21.stream.Part, m21.stream.Score)
+                ):
                     continue
-                
+
                 offset = float(obj.offset)
                 duration = float(obj.duration.quarterLength)
                 qb = Fraction(offset).limit_denominator(10000)
                 dur_qb = Fraction(duration).limit_denominator(10000)
                 mc, mc_onset = get_mc_and_onset(offset)
-                mn = str(obj.measureNumber) if obj.measureNumber is not None else str(mc) if mc else None
+                mn = (
+                    str(obj.measureNumber)
+                    if obj.measureNumber is not None
+                    else str(mc) if mc else None
+                )
 
                 # Notes/Rests
                 if isinstance(obj, m21.note.GeneralNote):
                     if isinstance(obj, m21.note.Rest):
                         has_rests = True
-                        note_rows.append(self._make_note_row(
-                            obj, qb, dur_qb, mc, mn, mc_onset, part_id, is_rest=True
-                        ))
+                        note_rows.append(
+                            self._make_note_row(
+                                obj, qb, dur_qb, mc, mn, mc_onset, part_id, is_rest=True
+                            )
+                        )
                     elif isinstance(obj, m21.note.Note):
-                        note_rows.append(self._make_note_row(
-                            obj, qb, dur_qb, mc, mn, mc_onset, part_id
-                        ))
+                        note_rows.append(
+                            self._make_note_row(
+                                obj, qb, dur_qb, mc, mn, mc_onset, part_id
+                            )
+                        )
                     elif isinstance(obj, m21.chord.Chord):
                         for note in obj.notes:
-                            note_rows.append(self._make_note_row(
-                                note, qb, dur_qb, mc, mn, mc_onset, part_id,
-                                chord_id=id(obj)
-                            ))
+                            note_rows.append(
+                                self._make_note_row(
+                                    note,
+                                    qb,
+                                    dur_qb,
+                                    mc,
+                                    mn,
+                                    mc_onset,
+                                    part_id,
+                                    chord_id=id(obj),
+                                )
+                            )
 
                 # Controls
-                elif isinstance(obj, (m21.dynamics.Dynamic, m21.tempo.TempoIndication,
-                                      m21.key.KeySignature, m21.meter.TimeSignature)):
-                    control_rows.append({
-                        "id": str(obj.id) if hasattr(obj, "id") else f"ctrl_{offset}",
-                        "name": obj.__class__.__name__,
-                        "temporal_type": "instant",
-                        "event_type": obj.__class__.__name__,
-                        "quarterbeats": fraction_to_struct(qb),
-                        "quarterbeats_float": float(qb),
-                        "duration_qb": None,
-                        "duration_qb_float": 0.0,
-                        "mc": mc,
-                        "mn": mn,
-                        "mc_onset": fraction_to_struct(mc_onset) if mc_onset is not None else None,
-                        "mn_onset": fraction_to_struct(mc_onset) if mc_onset is not None else None,
-                        "subtype": obj.__class__.__name__,
-                        "value": None,
-                        "text": str(obj),
-                        "voice": None,
-                        "staff": None,
-                        "part_id": part_id,
-                    })
+                elif isinstance(
+                    obj,
+                    (
+                        m21.dynamics.Dynamic,
+                        m21.tempo.TempoIndication,
+                        m21.key.KeySignature,
+                        m21.meter.TimeSignature,
+                    ),
+                ):
+                    control_rows.append(
+                        {
+                            "id": (
+                                str(obj.id) if hasattr(obj, "id") else f"ctrl_{offset}"
+                            ),
+                            "name": obj.__class__.__name__,
+                            "temporal_type": "instant",
+                            "event_type": obj.__class__.__name__,
+                            "quarterbeats": fraction_to_struct(qb),
+                            "quarterbeats_float": float(qb),
+                            "duration_qb": None,
+                            "duration_qb_float": 0.0,
+                            "mc": mc,
+                            "mn": mn,
+                            "mc_onset": (
+                                fraction_to_struct(mc_onset)
+                                if mc_onset is not None
+                                else None
+                            ),
+                            "mn_onset": (
+                                fraction_to_struct(mc_onset)
+                                if mc_onset is not None
+                                else None
+                            ),
+                            "subtype": obj.__class__.__name__,
+                            "value": None,
+                            "text": str(obj),
+                            "voice": None,
+                            "staff": None,
+                            "part_id": part_id,
+                        }
+                    )
 
                 # Annotations
                 elif isinstance(obj, m21.expressions.TextExpression):
-                    annotation_rows.append({
-                        "id": str(obj.id) if hasattr(obj, "id") else f"ann_{offset}",
-                        "name": getattr(obj, "content", str(obj)),
-                        "temporal_type": "instant",
-                        "event_type": "TextExpression",
-                        "quarterbeats": fraction_to_struct(qb),
-                        "quarterbeats_float": float(qb),
-                        "duration_qb": None,
-                        "duration_qb_float": 0.0,
-                        "mc": mc,
-                        "mn": mn,
-                        "mc_onset": fraction_to_struct(mc_onset) if mc_onset is not None else None,
-                        "mn_onset": fraction_to_struct(mc_onset) if mc_onset is not None else None,
-                        "subtype": "TextExpression",
-                        "text": getattr(obj, "content", str(obj)),
-                        "staff": None,
-                        "part_id": part_id,
-                    })
+                    annotation_rows.append(
+                        {
+                            "id": (
+                                str(obj.id) if hasattr(obj, "id") else f"ann_{offset}"
+                            ),
+                            "name": getattr(obj, "content", str(obj)),
+                            "temporal_type": "instant",
+                            "event_type": "TextExpression",
+                            "quarterbeats": fraction_to_struct(qb),
+                            "quarterbeats_float": float(qb),
+                            "duration_qb": None,
+                            "duration_qb_float": 0.0,
+                            "mc": mc,
+                            "mn": mn,
+                            "mc_onset": (
+                                fraction_to_struct(mc_onset)
+                                if mc_onset is not None
+                                else None
+                            ),
+                            "mn_onset": (
+                                fraction_to_struct(mc_onset)
+                                if mc_onset is not None
+                                else None
+                            ),
+                            "subtype": "TextExpression",
+                            "text": getattr(obj, "content", str(obj)),
+                            "staff": None,
+                            "part_id": part_id,
+                        }
+                    )
 
         # Build stores
         notes_store = NoteEventStore.from_dicts(
             note_rows,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
-            has_rests=has_rests
+            has_rests=has_rests,
         )
-        
-        measures_store = MeasureEventStore.from_dicts(
-            measure_rows,
-            unit=TimeUnit.quarters,
-            number_type=NumberType.fraction,
-        ) if measure_rows else MeasureEventStore.empty()
-        
-        controls_store = ControlEventStore.from_dicts(
-            control_rows,
-            unit=TimeUnit.quarters,
-            number_type=NumberType.fraction,
-        ) if control_rows else ControlEventStore.empty()
-        
-        annotations_store = AnnotationEventStore.from_dicts(
-            annotation_rows,
-            unit=TimeUnit.quarters,
-            number_type=NumberType.fraction,
-        ) if annotation_rows else AnnotationEventStore.empty()
+
+        measures_store = (
+            MeasureEventStore.from_dicts(
+                measure_rows,
+                unit=TimeUnit.quarters,
+                number_type=NumberType.fraction,
+            )
+            if measure_rows
+            else MeasureEventStore.empty()
+        )
+
+        controls_store = (
+            ControlEventStore.from_dicts(
+                control_rows,
+                unit=TimeUnit.quarters,
+                number_type=NumberType.fraction,
+            )
+            if control_rows
+            else ControlEventStore.empty()
+        )
+
+        annotations_store = (
+            AnnotationEventStore.from_dicts(
+                annotation_rows,
+                unit=TimeUnit.quarters,
+                number_type=NumberType.fraction,
+            )
+            if annotation_rows
+            else AnnotationEventStore.empty()
+        )
 
         return ScoreBundle(
             notes=notes_store,
@@ -188,7 +259,7 @@ class Music21Loader:
                 "parser": "music21",
                 "source": str(source),
                 "has_rests": has_rests,
-            }
+            },
         )
 
     def _make_note_row(
@@ -208,28 +279,28 @@ class Music21Loader:
         spelled_pitch = None
         octave = None
         tpc = None
-        
+
         if not is_rest and hasattr(obj, "pitch"):
             ep = int(obj.pitch.midi)
             midi_pitch = {"ep": ep, "epc": ep % 12}
-            
+
             step = obj.pitch.step
             alter = int(obj.pitch.alter or 0)
             octave = obj.pitch.octave or 4
-            
-            gpc_map = {'C': 0, 'D': 1, 'E': 2, 'F': 3, 'G': 4, 'A': 5, 'B': 6}
+
+            gpc_map = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6}
             gpc_int = gpc_map.get(step, 0)
-            
+
             acc_str = ""
             if alter > 0:
                 acc_str = "♯" * alter
             elif alter < 0:
                 acc_str = "♭" * abs(alter)
-            
-            base_fifths = {'F': -1, 'C': 0, 'G': 1, 'D': 2, 'A': 3, 'E': 4, 'B': 5}
+
+            base_fifths = {"F": -1, "C": 0, "G": 1, "D": 2, "A": 3, "E": 4, "B": 5}
             spc_int = base_fifths.get(step, 0) + (7 * alter)
             tpc = spc_int
-            
+
             spelled_pitch = {
                 "gpc_int": gpc_int,
                 "gpc_str": step,
@@ -237,9 +308,9 @@ class Music21Loader:
                 "spc_int": spc_int,
                 "spc_str": f"{step}{acc_str}",
                 "sp": f"{step}{acc_str}{octave}",
-                "cents": 0.0
+                "cents": 0.0,
             }
-        
+
         return {
             "id": str(obj.id) if hasattr(obj, "id") else f"note_{float(qb)}",
             "name": "",

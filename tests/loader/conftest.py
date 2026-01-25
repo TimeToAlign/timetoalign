@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import TimeUnit
 from timetoalign.loader import EventStore, Loader
 
 

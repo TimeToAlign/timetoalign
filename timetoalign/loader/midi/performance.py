@@ -9,16 +9,17 @@ from typing import Any
 import mido
 
 from timetoalign.core import NumberType, TimeUnit
+
 from .base import MidiLoader
 from .constants import MidiEventType
 
 
 class PerformanceMidiLoader(MidiLoader):
     """Load performance MIDI files using mido.
-    
+
     This loader parses raw MIDI messages, preserving the performance characteristics
     (timing, velocity, control changes) without attempting structural analysis.
-    
+
     It pairs note_on/note_off events into Note intervals and stores control
     changes as Instant events.
     """
@@ -71,28 +72,28 @@ class PerformanceMidiLoader(MidiLoader):
             raise ValueError(f"Invalid MIDI file {source}: {e}") from e
 
         self._ticks_per_beat = mid.ticks_per_beat
-        
+
         events = []
-        
+
         for i, track in enumerate(mid.tracks):
             absolute_time = 0
             # active_notes: (channel, pitch) -> event_dict
             active_notes: dict[tuple[int, int], dict[str, Any]] = {}
-            
+
             for msg in track:
                 absolute_time += msg.time
-                
+
                 # Handle Note Events
                 if msg.type == "note_on" or msg.type == "note_off":
                     channel = msg.channel
                     note = msg.note
                     velocity = msg.velocity
-                    
+
                     is_note_on = msg.type == "note_on" and velocity > 0
                     is_note_off = msg.type == "note_off" or (
                         self._on0_means_off and msg.type == "note_on" and velocity == 0
                     )
-                    
+
                     if is_note_on:
                         # Start of a note
                         note_event = {
@@ -121,19 +122,21 @@ class PerformanceMidiLoader(MidiLoader):
                             note_event["temporal_type"] = "instant"
                             note_event["instant"] = absolute_time
                             events.append(note_event)
-                            
+
                     elif is_note_off:
                         if self._parse_durations:
                             if (channel, note) in active_notes:
                                 note_event = active_notes.pop((channel, note))
                                 note_event["end"] = absolute_time
-                                note_event["duration"] = absolute_time - note_event["start"]
+                                note_event["duration"] = (
+                                    absolute_time - note_event["start"]
+                                )
                                 events.append(note_event)
                             else:
                                 # Orphaned note_off - ignore or warn?
                                 # For now, ignore to match legacy behavior
                                 pass
-                                
+
                 # Handle Control Changes
                 elif msg.type == "control_change" and self._include_controls:
                     cc_event = {
@@ -154,7 +157,7 @@ class PerformanceMidiLoader(MidiLoader):
                         "part_id": None,
                     }
                     events.append(cc_event)
-                    
+
                 # Handle Program Changes
                 elif msg.type == "program_change" and self._include_program_changes:
                     pc_event = {
@@ -195,5 +198,5 @@ class PerformanceMidiLoader(MidiLoader):
             "num_tracks": len(mid.tracks),
             "length_seconds": mid.length,
         }
-        
+
         return metadata, events

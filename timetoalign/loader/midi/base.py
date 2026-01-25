@@ -13,15 +13,15 @@ from .store import MidiEventStore
 
 class MidiLoader(Loader):
     """Abstract base class for MIDI loaders.
-    
+
     Subclasses must implement:
     - _load_source(): Parse MIDI file into event rows
     - ticks_per_beat: Property returning PPQ
     """
-    
+
     _default_unit: ClassVar[TimeUnit] = TimeUnit.ticks
     _event_store_class: ClassVar[type[MidiEventStore]] = MidiEventStore
-    
+
     @property
     @abstractmethod
     def ticks_per_beat(self) -> int | None:
