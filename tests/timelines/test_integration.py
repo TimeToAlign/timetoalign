@@ -212,8 +212,11 @@ class TestMidiLoaderIntegration:
         self, performance_midi_path: Path, score_midi_path: Path
     ):
         """Create parent timeline with MIDI children."""
-        perf_loader = PerformanceMidiLoader().load(performance_midi_path)
-        score_loader = ScoreMidiLoader().load(score_midi_path)
+        perf_loader = PerformanceMidiLoader()
+        perf_loader.load(performance_midi_path)
+
+        score_loader = ScoreMidiLoader()
+        score_loader.load(score_midi_path)
 
         # Use base Timeline to respect loader's number_type
         perf_tl = Timeline.from_event_store(perf_loader.events, uid="performance")
@@ -544,7 +547,8 @@ class TestPerformanceIntegration:
         midi_path = midi_files[0]
 
         start = time.perf_counter()
-        loader = PerformanceMidiLoader().load(midi_path)
+        loader = PerformanceMidiLoader()
+        loader.load(midi_path)
         load_elapsed = time.perf_counter() - start
 
         start = time.perf_counter()

@@ -27,9 +27,10 @@ class TestTSVLoader:
     """Tests for TSVLoader."""
 
     def test_returns_score_bundle(self, chopin_tsv_notes):
-        """TSVLoader.load() returns ScoreBundle."""
+        """TSVLoader.load() populates ScoreBundle."""
         loader = TSVLoader()
-        bundle = loader.load(chopin_tsv_notes)
+        loader.load(chopin_tsv_notes)
+        bundle = loader.bundle
 
         assert isinstance(bundle, ScoreBundle)
         assert len(bundle.notes) > 0
@@ -38,12 +39,16 @@ class TestTSVLoader:
 
     def test_note_count(self, chopin_tsv_notes):
         """TSV gold standard has 498 notes."""
-        bundle = TSVLoader().load(chopin_tsv_notes)
+        loader = TSVLoader()
+        loader.load(chopin_tsv_notes)
+        bundle = loader.bundle
         assert len(bundle.notes) == 498
 
     def test_fraction_schema(self, chopin_tsv_notes):
         """Temporal fields use Fraction struct."""
-        bundle = TSVLoader().load(chopin_tsv_notes)
+        loader = TSVLoader()
+        loader.load(chopin_tsv_notes)
+        bundle = loader.bundle
         first = list(bundle.notes)[0]
 
         qb = first.get("quarterbeats")
@@ -52,7 +57,9 @@ class TestTSVLoader:
 
     def test_pitch_schema(self, chopin_tsv_notes):
         """Pitch fields properly populated."""
-        bundle = TSVLoader().load(chopin_tsv_notes)
+        loader = TSVLoader()
+        loader.load(chopin_tsv_notes)
+        bundle = loader.bundle
         first = list(bundle.notes)[0]
 
         mp = first.get("midi_pitch")
@@ -68,9 +75,10 @@ class TestPartituraLoader:
     """Tests for PartituraLoader."""
 
     def test_returns_score_bundle(self, chopin_xml):
-        """PartituraLoader.load() returns ScoreBundle."""
+        """PartituraLoader.load() populates ScoreBundle."""
         loader = PartituraLoader()
-        bundle = loader.load(chopin_xml)
+        loader.load(chopin_xml)
+        bundle = loader.bundle
 
         assert isinstance(bundle, ScoreBundle)
         assert len(bundle.notes) > 0
@@ -79,7 +87,9 @@ class TestPartituraLoader:
 
     def test_note_count(self, chopin_xml):
         """Partitura matches TSV gold standard (498 notes)."""
-        bundle = PartituraLoader().load(chopin_xml)
+        loader = PartituraLoader()
+        loader.load(chopin_xml)
+        bundle = loader.bundle
 
         # Filter to Notes only (exclude Rests)
         df = bundle.notes.to_dataframe()
@@ -88,12 +98,16 @@ class TestPartituraLoader:
 
     def test_measure_count(self, chopin_xml):
         """Partitura extracts measures."""
-        bundle = PartituraLoader().load(chopin_xml)
+        loader = PartituraLoader()
+        loader.load(chopin_xml)
+        bundle = loader.bundle
         assert len(bundle.measures) == 22
 
     def test_fraction_schema(self, chopin_xml):
         """Temporal fields use Fraction struct."""
-        bundle = PartituraLoader().load(chopin_xml)
+        loader = PartituraLoader()
+        loader.load(chopin_xml)
+        bundle = loader.bundle
         first = list(bundle.notes)[0]
 
         qb = first.get("quarterbeats")
@@ -105,9 +119,10 @@ class TestMusic21Loader:
     """Tests for Music21Loader."""
 
     def test_returns_score_bundle(self, chopin_xml):
-        """Music21Loader.load() returns ScoreBundle."""
+        """Music21Loader.load() populates ScoreBundle."""
         loader = Music21Loader()
-        bundle = loader.load(chopin_xml)
+        loader.load(chopin_xml)
+        bundle = loader.bundle
 
         assert isinstance(bundle, ScoreBundle)
         assert len(bundle.notes) > 0
@@ -115,7 +130,9 @@ class TestMusic21Loader:
 
     def test_note_count(self, chopin_xml):
         """Music21 matches TSV gold standard (498 notes + optional rests)."""
-        bundle = Music21Loader().load(chopin_xml)
+        loader = Music21Loader()
+        loader.load(chopin_xml)
+        bundle = loader.bundle
 
         df = bundle.notes.to_dataframe()
         note_count = len(df[df["event_type"] == "Note"])
@@ -133,7 +150,9 @@ class TestMusic21Loader:
 
     def test_fraction_schema(self, chopin_xml):
         """Temporal fields use Fraction struct."""
-        bundle = Music21Loader().load(chopin_xml)
+        loader = Music21Loader()
+        loader.load(chopin_xml)
+        bundle = loader.bundle
         first = list(bundle.notes)[0]
 
         qb = first.get("quarterbeats")
@@ -146,9 +165,17 @@ class TestCrossValidation:
 
     def test_note_counts_match(self, chopin_xml, chopin_tsv_notes):
         """All loaders return same Note count (excluding rests)."""
-        tsv_bundle = TSVLoader().load(chopin_tsv_notes)
-        pt_bundle = PartituraLoader().load(chopin_xml)
-        m21_bundle = Music21Loader().load(chopin_xml)
+        l1 = TSVLoader()
+        l1.load(chopin_tsv_notes)
+        tsv_bundle = l1.bundle
+
+        l2 = PartituraLoader()
+        l2.load(chopin_xml)
+        pt_bundle = l2.bundle
+
+        l3 = Music21Loader()
+        l3.load(chopin_xml)
+        m21_bundle = l3.bundle
 
         tsv_df = tsv_bundle.notes.to_dataframe()
         pt_df = pt_bundle.notes.to_dataframe()
@@ -164,9 +191,17 @@ class TestCrossValidation:
 
     def test_first_note_pitch_match(self, chopin_xml, chopin_tsv_notes):
         """First note has same pitch across all loaders."""
-        tsv = TSVLoader().load(chopin_tsv_notes)
-        pt = PartituraLoader().load(chopin_xml)
-        m21 = Music21Loader().load(chopin_xml)
+        l1 = TSVLoader()
+        l1.load(chopin_tsv_notes)
+        tsv = l1.bundle
+
+        l2 = PartituraLoader()
+        l2.load(chopin_xml)
+        pt = l2.bundle
+
+        l3 = Music21Loader()
+        l3.load(chopin_xml)
+        m21 = l3.bundle
 
         tsv_first = list(tsv.notes)[0]
         pt_first = list(pt.notes)[0]
@@ -179,9 +214,17 @@ class TestCrossValidation:
 
     def test_mc_onset_populated(self, chopin_xml, chopin_tsv_notes):
         """mc_onset is populated for all loaders."""
-        tsv = TSVLoader().load(chopin_tsv_notes)
-        pt = PartituraLoader().load(chopin_xml)
-        m21 = Music21Loader().load(chopin_xml)
+        l1 = TSVLoader()
+        l1.load(chopin_tsv_notes)
+        tsv = l1.bundle
+
+        l2 = PartituraLoader()
+        l2.load(chopin_xml)
+        pt = l2.bundle
+
+        l3 = Music21Loader()
+        l3.load(chopin_xml)
+        m21 = l3.bundle
 
         for bundle, name in [(tsv, "TSV"), (pt, "Partitura"), (m21, "Music21")]:
             first = list(bundle.notes)[0]

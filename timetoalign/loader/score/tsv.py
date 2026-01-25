@@ -10,6 +10,7 @@ from typing import Any
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import fraction_to_struct
 
+from .base import ScoreLoader
 from .bundle import ScoreBundle
 from .stores import (
     AnnotationEventStore,
@@ -26,7 +27,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-class TSVLoader:
+class TSVLoader(ScoreLoader):
     """Load symbolic scores from DCML-style TSV files.
 
     Wraps ms3.load_tsv to load standard tabular data.
@@ -44,7 +45,7 @@ class TSVLoader:
     - tied, gracenote, chord_id: Note attributes
     """
 
-    def load(self, source: Path) -> ScoreBundle:
+    def _load_source(self, source: Path) -> ScoreBundle:
         """Load TSV file(s) and return ScoreBundle.
 
         Args:

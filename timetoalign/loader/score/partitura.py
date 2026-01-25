@@ -11,6 +11,7 @@ import partitura.score as pts
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import fraction_to_struct
 
+from .base import ScoreLoader
 from .bundle import ScoreBundle
 from .stores import (
     AnnotationEventStore,
@@ -20,7 +21,7 @@ from .stores import (
 )
 
 
-class PartituraLoader:
+class PartituraLoader(ScoreLoader):
     """Load symbolic scores using partitura.
 
     Supports MusicXML (fully typed) and MIDI (quantized).
@@ -32,9 +33,10 @@ class PartituraLoader:
         *,
         force_note_ids: bool = True,
     ) -> None:
+        super().__init__()
         self._force_note_ids = force_note_ids
 
-    def load(self, source: Path) -> ScoreBundle:
+    def _load_source(self, source: Path) -> ScoreBundle:
         """Load score and return ScoreBundle."""
         score = pt.load_score(str(source), force_note_ids=self._force_note_ids)
 

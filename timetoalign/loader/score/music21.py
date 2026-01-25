@@ -11,6 +11,7 @@ import music21 as m21
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import fraction_to_struct
 
+from .base import ScoreLoader
 from .bundle import ScoreBundle
 from .stores import (
     AnnotationEventStore,
@@ -20,7 +21,7 @@ from .stores import (
 )
 
 
-class Music21Loader:
+class Music21Loader(ScoreLoader):
     """Load symbolic scores using music21.
 
     Returns ScoreBundle with category-specific stores.
@@ -31,7 +32,7 @@ class Music21Loader:
     - Annotations (text)
     """
 
-    def load(self, source: Path) -> ScoreBundle:
+    def _load_source(self, source: Path) -> ScoreBundle:
         """Load score and return ScoreBundle."""
         score = m21.converter.parse(str(source), forceSource=True)
 

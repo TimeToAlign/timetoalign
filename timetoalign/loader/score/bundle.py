@@ -44,6 +44,21 @@ class ScoreBundle:
             metadata={},
         )
 
+    def extend(self, other: ScoreBundle) -> None:
+        """Extend this bundle with another bundle's data.
+
+        Args:
+            other: The ScoreBundle to add.
+        """
+        self.notes.extend(other.notes)
+        self.measures.extend(other.measures)
+        self.controls.extend(other.controls)
+        self.annotations.extend(other.annotations)
+        # Metadata aggregation strategy: keep last or list?
+        # Loader handles source metadata separately.
+        # We can merge non-source metadata if needed.
+        self.metadata.update(other.metadata)
+
     def summary(self) -> dict[str, Any]:
         """Get summary of all stores."""
         return {
