@@ -1,9 +1,14 @@
 """Profiling script for MIDI loaders."""
 
 import time
+import warnings
 from pathlib import Path
 
-import partitura as pt
+# Suppress pkg_resources deprecation warning from partitura
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=UserWarning, module="partitura.*")
+    warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
+    import partitura as pt
 
 from timetoalign.loader.midi import PerformanceMidiLoader, ScoreMidiLoader
 
