@@ -5,10 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from timetoalign.loader.score.stores.annotation import AnnotationEventStore
-from timetoalign.loader.score.stores.control import ControlEventStore
-from timetoalign.loader.score.stores.measure import MeasureEventStore
-from timetoalign.loader.score.stores.note import NoteEventStore
+from timetoalign.loader.score.stores.annotations import AnnotationEventStore
+from timetoalign.loader.score.stores.controls import ControlEventStore
+from timetoalign.loader.score.stores.measures import MeasureEventStore
+from timetoalign.loader.score.stores.notes import NoteEventStore
 
 
 @dataclass
