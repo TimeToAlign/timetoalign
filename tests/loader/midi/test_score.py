@@ -46,3 +46,6 @@ class TestScoreMidiLoader:
             loader.load(empty_file)
         except Exception:
             pass # Expected behavior varies, but shouldn't crash ungracefully
+
+if __name__ == "__main__":
+    pytest.main([__file__])

@@ -400,16 +400,18 @@ class EventStore:
         event_type: str | None = None,
         min_coord: float | None = None,
         max_coord: float | None = None,
+        **kwargs: Any,
     ) -> EventStore:
         """Filter events by criteria, returning a new EventStore.
 
         All criteria are AND-ed together.
-
+        
         Args:
             temporal_type: Filter by "instant" or "interval".
             event_type: Filter by event type name.
             min_coord: Minimum coordinate (inclusive).
             max_coord: Maximum coordinate (exclusive).
+            **kwargs: Exact match filters for other columns (e.g. event_category="note").
 
         Returns:
             A new EventStore with filtered events.
@@ -439,6 +441,13 @@ class EventStore:
 
             if max_coord is not None:
                 expr = pc.less(coord_val, max_coord)
+                mask = expr if mask is None else (mask & expr)
+        
+        # Generic kwargs filtering
+        for col, val in kwargs.items():
+            # Only if column exists in schema
+            if col in self.column_names():
+                expr = pc.equal(pc.field(col), val)
                 mask = expr if mask is None else (mask & expr)
 
         if mask is None:
@@ -498,23 +507,34 @@ class EventStore:
         if self.count == 0:
             return None
 
-        # Get coordinate values from both instant and start columns
-        instant_vals = pc.struct_field(self._table.column("instant"), "value")
-        start_vals = pc.struct_field(self._table.column("start"), "value")
-        end_vals = pc.struct_field(self._table.column("end"), "value")
+        # Get min/max iteratively to avoid PyArrow chunked_array type issues
+        min_val = None
+        max_val = None
 
-        # Combine all non-null values using chunked_array
-        all_vals = pa.chunked_array([
-            pc.drop_null(instant_vals),
-            pc.drop_null(start_vals),
-            pc.drop_null(end_vals),
-        ])
+        for col_name in ["instant", "start", "end"]:
+            try:
+                col = self._table.column(col_name)
+                # Check for null column
+                if col.null_count == len(col):
+                    continue
+                
+                vals = pc.struct_field(col, "value")
+                vals = pc.drop_null(vals)
+                
+                if len(vals) > 0:
+                    curr_min = pc.min(vals).as_py()
+                    curr_max = pc.max(vals).as_py()
+                    
+                    if min_val is None or curr_min < min_val:
+                        min_val = curr_min
+                    if max_val is None or curr_max > max_val:
+                        max_val = curr_max
+            except (ValueError, TypeError, KeyError):
+                continue
 
-        if all_vals.length() == 0:
+        if min_val is None:
             return None
-
-        min_val = pc.min(all_vals).as_py()
-        max_val = pc.max(all_vals).as_py()
+            
         return (min_val, max_val)
 
     def event_types(self) -> list[str]:
