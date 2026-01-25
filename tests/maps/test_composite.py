@@ -1,0 +1,148 @@
+"""Tests for composite maps (ChainMap, PiecewiseMap)."""
+
+import numpy as np
+import pytest
+
+from timetoalign.core.enums import TimeUnit
+from timetoalign.maps.composite import ChainMap, PiecewiseMap
+from timetoalign.maps.linear import LinearMap, ScalarMap
+
+
+class TestChainMap:
+    def test_initialization(self):
+        m1 = ScalarMap(scalar=2.0, source_unit="beats", target_unit="seconds")
+        m2 = ScalarMap(scalar=10.0, source_unit="seconds", target_unit="milliseconds")
+
+        chain = ChainMap([m1, m2])
+        assert chain.source_unit == TimeUnit.beats
+        assert chain.target_unit == TimeUnit.milliseconds
+        assert len(chain.maps) == 2
+
+        # Test unit validation
+        m3 = ScalarMap(scalar=1.0, source_unit="ticks")  # Incompatible with seconds
+        with pytest.raises(ValueError, match="Incompatible units"):
+            ChainMap([m1, m3])
+
+    def test_conversion(self):
+        m1 = ScalarMap(scalar=2.0)
+        m2 = LinearMap(scalar=0.5, offset=5.0)
+
+        chain = ChainMap([m1, m2])
+
+        # 10 -> 20 -> 0.5*20 + 5 = 15
+        assert chain(10) == 15.0
+
+        arr = np.array([10, 20])
+        # [10, 20] -> [20, 40] -> [15, 25]
+        expected = np.array([15.0, 25.0])
+        np.testing.assert_array_equal(chain(arr), expected)
+
+    def test_inverse(self):
+        m1 = ScalarMap(scalar=2.0)
+        m2 = LinearMap(scalar=0.5, offset=5.0)
+        chain = ChainMap([m1, m2])
+
+        inv = chain.inverse()
+        assert isinstance(inv, ChainMap)
+
+        # Inverse: reverse order, inverse maps
+        # m2_inv: y -> 2(y-5)
+        # m1_inv: z -> 0.5z
+        # Chain: y -> 2(y-5) -> 0.5 * 2(y-5) = y-5
+
+        assert inv(15.0) == 10.0  # (15-5) = 10
+
+        # Round trip
+        val = 42.0
+        assert inv(chain(val)) == val
+
+
+class TestPiecewiseMap:
+    def test_initialization(self):
+        m1 = ScalarMap(scalar=1.0)
+        m2 = ScalarMap(scalar=2.0)
+
+        pm = PiecewiseMap(breaks=[0, 10, 20], maps=[m1, m2])
+
+        assert len(pm.maps) == 2
+
+        with pytest.raises(ValueError, match="Number of maps"):
+            PiecewiseMap(breaks=[0, 10], maps=[m1, m2])
+
+        with pytest.raises(ValueError, match="strictly increasing"):
+            PiecewiseMap(breaks=[0, 0, 10], maps=[m1, m2])
+
+    def test_conversion(self):
+        # Map 1: y = x (0 <= x < 10)
+        # Map 2: y = 2x (10 <= x < 20)
+        m1 = ScalarMap(scalar=1.0)
+        m2 = ScalarMap(scalar=2.0)
+
+        pm = PiecewiseMap(breaks=[0, 10, 20], maps=[m1, m2])
+
+        # First interval
+        assert pm(5) == 5.0
+        assert pm(0) == 0.0
+
+        # Second interval
+        assert pm(10) == 20.0
+        assert pm(15) == 30.0
+
+        # Out of bounds
+        with pytest.raises(ValueError, match="out of bounds"):
+            pm(20)
+        with pytest.raises(ValueError, match="out of bounds"):
+            pm(-1)
+
+    def test_array_conversion(self):
+        m1 = ScalarMap(scalar=1.0)
+        m2 = ScalarMap(scalar=2.0)
+        pm = PiecewiseMap(breaks=[0, 10, 20], maps=[m1, m2])
+
+        # [5, 15] -> [5, 30]
+        arr = np.array([5, 15])
+        expected = np.array([5.0, 30.0])
+        np.testing.assert_array_equal(pm(arr), expected)
+
+        # Out of bounds
+        with pytest.raises(ValueError):
+            pm(np.array([5, 25]))
+
+    def test_inverse(self):
+        # m1: y = x [0, 10) -> [0, 10)
+        # m2: y = 2x [10, 20) -> [20, 40)
+        # Note: Gaps in target! [10, 20) is missing.
+        # This PiecewiseMap is technically invertible only on its image.
+
+        # Let's try a continuous one
+        # m1: y = x [0, 10) -> [0, 10)
+        # m2: y = x [10, 20) -> [10, 20)
+
+        m1 = ScalarMap(scalar=1.0)
+        m2 = ScalarMap(scalar=1.0)  # Identity
+        pm = PiecewiseMap(breaks=[0, 10, 20], maps=[m1, m2])
+
+        inv = pm.inverse()
+        # Breaks should be mapped: 0->0, 10->10, 20->20
+        # Maps inverted
+
+        assert inv(5) == 5.0
+        assert inv(15) == 15.0
+
+        # Now with scaling
+        # m1: y = 2x [0, 10) -> [0, 20)
+        # m2: y = x + 10 [10, 20) -> [20, 30) (Continuous at 10: 2*10=20, 10+10=20)
+        m1 = ScalarMap(scalar=2.0)
+        m2 = LinearMap(scalar=1.0, offset=10.0)
+
+        pm = PiecewiseMap(breaks=[0, 10, 20], maps=[m1, m2])
+        inv = pm.inverse()
+
+        # New breaks: 0->0, 10->20, 20->30
+        np.testing.assert_array_equal(inv.breaks, [0, 20, 30])
+
+        # Test inverse values
+        # 10 (in first interval) -> 5
+        assert inv(10) == 5.0
+        # 25 (in second interval) -> 15
+        assert inv(25) == 15.0
