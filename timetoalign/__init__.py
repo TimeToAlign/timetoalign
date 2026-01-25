@@ -33,6 +33,27 @@ from timetoalign.core import (
     TimeUnit,
 )
 from timetoalign.loader import EventStore, Loader
+from timetoalign.maps import (
+    ChainMap,
+    ConversionMap,
+    LinearMap,
+    PiecewiseMap,
+    ScalarMap,
+    ShiftMap,
+    TableMap,
+)
+from timetoalign.timelines import (
+    ContinuousGraphicalTimeline,
+    ContinuousLogicalTimeline,
+    ContinuousPhysicalTimeline,
+    DiscreteGraphicalTimeline,
+    DiscreteLogicalTimeline,
+    DiscretePhysicalTimeline,
+    GraphicalTimeline,
+    LogicalTimeline,
+    PhysicalTimeline,
+    Timeline,
+)
 
 __version__ = "0.1.0"
 
@@ -54,4 +75,23 @@ __all__ = [
     # Loader
     "EventStore",
     "Loader",
+    # Timelines
+    "Timeline",
+    "LogicalTimeline",
+    "PhysicalTimeline",
+    "GraphicalTimeline",
+    "ContinuousLogicalTimeline",
+    "DiscreteLogicalTimeline",
+    "ContinuousPhysicalTimeline",
+    "DiscretePhysicalTimeline",
+    "ContinuousGraphicalTimeline",
+    "DiscreteGraphicalTimeline",
+    # Maps
+    "ConversionMap",
+    "LinearMap",
+    "ScalarMap",
+    "ShiftMap",
+    "TableMap",
+    "ChainMap",
+    "PiecewiseMap",
 ]
