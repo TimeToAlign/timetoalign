@@ -48,17 +48,28 @@ class ScoreEventType:
     TEXT_EXPRESSION = "TextExpression"
 
 
-def make_spelled_pitch_type() -> pa.StructType:
-    """Create a spelled pitch struct type.
+def make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
+    """Create MIDI and Spelled pitch struct types.
 
     Returns:
-        A PyArrow struct type with step, alter, octave.
+        Tuple of (midi_pitch_type, spelled_pitch_type).
     """
-    return pa.struct([
-        pa.field("step", pa.string(), nullable=True),
-        pa.field("alter", pa.int64(), nullable=True),
-        pa.field("octave", pa.int64(), nullable=True),
+    midi_pitch = pa.struct([
+        pa.field("ep", pa.int64(), nullable=True),
+        pa.field("epc", pa.int64(), nullable=True),
     ])
+    
+    spelled_pitch = pa.struct([
+        pa.field("gpc_int", pa.int64(), nullable=True),
+        pa.field("gpc_str", pa.string(), nullable=True),
+        pa.field("acc", pa.int64(), nullable=True),
+        pa.field("spc_int", pa.int64(), nullable=True),
+        pa.field("spc_str", pa.string(), nullable=True),
+        pa.field("sp", pa.string(), nullable=True),
+        pa.field("cents", pa.float64(), nullable=False), # Default 0.0
+    ])
+    
+    return midi_pitch, spelled_pitch
 
 
 class ScoreEventStore(EventStore):
@@ -67,9 +78,9 @@ class ScoreEventStore(EventStore):
     Adds fields for pitch, measures, and score structure.
     
     Schema Extras:
-    - tpc (int64): Tonal Pitch Class
-    - ep (int64): Enharmonic Pitch (MIDI number)
-    - sp (struct): Spelled Pitch {step, alter, octave}
+    - octave (int64): Octave number.
+    - midi_pitch (struct): {ep, epc}
+    - spelled_pitch (struct): {gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}
     - mn (string): Measure Number label ("1", "1a")
     - mc (int64): Measure Count (monotonic index)
     - event_category (string): "measure", "note", "control", "annotation"
@@ -79,10 +90,12 @@ class ScoreEventStore(EventStore):
     - part_id (string): Part identifier
     """
 
+    _midi_type, _spelled_type = make_pitch_types()
+
     _extra_fields: ClassVar[list[pa.Field]] = [
-        pa.field("tpc", pa.int64(), nullable=True),
-        pa.field("ep", pa.int64(), nullable=True),
-        pa.field("sp", make_spelled_pitch_type(), nullable=True),
+        pa.field("octave", pa.int64(), nullable=True),
+        pa.field("midi_pitch", _midi_type, nullable=True),
+        pa.field("spelled_pitch", _spelled_type, nullable=True),
         pa.field("mn", pa.string(), nullable=True),
         pa.field("mc", pa.int64(), nullable=True),
         pa.field("event_category", pa.string(), nullable=False),
@@ -143,7 +156,7 @@ class ScoreEventStore(EventStore):
                     row[field] = str(row[field])
             
             # Ensure int fields are ints (handle 1.0 -> 1)
-            for field in ["mc", "voice", "staff", "tpc", "ep", "velocity"]:
+            for field in ["mc", "voice", "staff", "octave", "velocity"]:
                 val = row.get(field)
                 if val is not None:
                     try:
@@ -151,20 +164,33 @@ class ScoreEventStore(EventStore):
                     except (ValueError, TypeError):
                         row[field] = None
             
-            # Sanitize sp struct
-            sp = row.get("sp")
+            # Sanitize structs logic would go here if needed, but loaders should produce minimal dicts
+            # We trust loaders to produce correct nested dicts for midi_pitch and spelled_pitch
+            # Or we can add safety here.
+            
+            mp = row.get("midi_pitch")
+            if isinstance(mp, dict):
+                 for f in ["ep", "epc"]:
+                    if mp.get(f) is not None:
+                        try: mp[f] = int(mp[f])
+                        except: mp[f] = None
+            
+            sp = row.get("spelled_pitch")
             if isinstance(sp, dict):
-                # Ensure step is string
-                if sp.get("step") is not None:
-                    sp["step"] = str(sp["step"])
-                # Ensure alter/octave are ints
-                for field in ["alter", "octave"]:
-                    val = sp.get(field)
-                    if val is not None:
-                        try:
-                            sp[field] = int(val)
-                        except (ValueError, TypeError):
-                            sp[field] = None
+                # Strings
+                for f in ["gpc_str", "spc_str", "sp"]:
+                    if sp.get(f) is not None: sp[f] = str(sp[f])
+                # Ints
+                for f in ["gpc_int", "acc", "spc_int"]:
+                     if sp.get(f) is not None:
+                        try: sp[f] = int(sp[f])
+                        except: sp[f] = None
+                # Floats
+                if sp.get("cents") is not None:
+                    try: sp["cents"] = float(sp["cents"])
+                    except: sp["cents"] = 0.0
+                else:
+                    sp["cents"] = 0.0
 
         store = super().from_dicts(rows, unit, number_type)
         store._has_rests = has_rests

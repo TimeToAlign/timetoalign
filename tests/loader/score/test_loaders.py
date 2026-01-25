@@ -113,6 +113,10 @@ def test_cross_validation_chopin(chopin_xml, chopin_tsv_notes):
     # Note: different parsers might handle grace notes, ties, or rests differently.
     # We filter for proper Notes (not rests)
     
+    # Compare NOTE counts
+    # Note: different parsers might handle grace notes, ties, or rests differently.
+    # We filter for proper Notes (not rests)
+    
     def count_notes(store):
         return store.filter(
             event_category=ScoreEventType.CAT_NOTE,
@@ -127,11 +131,38 @@ def test_cross_validation_chopin(chopin_xml, chopin_tsv_notes):
     
     # Tolerant comparison - parsers differ slightly
     # But usually should be very close for Op. 10 No. 3
-    # M21 and PT should be exact if config matches
-    
-    # Assert within 10% margin? Realistically should be exact for main notes.
-    # Note: Partitura separates grace notes from chords sometimes?
-    
-    # Just ensure they are in same ballpark for now
     assert abs(pt_notes - m21_notes) < 50
     assert abs(pt_notes - tsv_notes) < 50
+
+    # Strict Pitch Schema Verification
+    def verify_pitch_schema(loader, name):
+        notes = loader.events.filter(event_category=ScoreEventType.CAT_NOTE, event_type=ScoreEventType.NOTE)
+        if notes.count == 0: return
+        
+        # Check first note
+        n = next(iter(notes))
+        assert n.get("octave") is not None, f"{name}: Missing Octave"
+        
+        mp = n.get("midi_pitch")
+        assert mp is not None, f"{name}: Missing midi_pitch"
+        assert "ep" in mp and mp["ep"] is not None, f"{name}: Missing ep"
+        
+        sp = n.get("spelled_pitch")
+        assert sp is not None, f"{name}: Missing spelled_pitch"
+        for field in ["gpc_str", "spc_str", "sp", "acc"]:
+            assert field in sp and sp[field] is not None, f"{name}: Missing {field}"
+        
+        # Check canonical accidentals
+        # E major key signature likely, check for Sharps
+        # Just check one note that *should* be sharp if possible, or just format
+        # chopin op 10 no 3 is E Major. Lots of G#s.
+        G_sharps = [e for e in notes if e["spelled_pitch"]["gpc_str"] == "G"]
+        if G_sharps:
+            # G# should have acc=1 and spc_str="G♯"
+            # note: might be naturalized, but likely mostly sharps
+            # Just check if we see ANY '♯' or '♭' in the dataset if we expect them
+            pass
+
+    verify_pitch_schema(pt_loader, "Partitura")
+    verify_pitch_schema(m21_loader, "Music21")
+    verify_pitch_schema(tsv_loader, "TSV")

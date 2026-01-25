@@ -1,0 +1,73 @@
+/home/laser/git/tta/timetoalign/timetoalign/loader/base.py:171: Music21DeprecationWarning: .flat is deprecated.  Call .flatten() instead
+  source_meta, event_rows = self._load_source(path)
+Using XML: /home/laser/git/tta/timetoalign/tests/data/midi/score/chopin_op10_no3.musicxml
+Loading TSV (Gold)...
+Loading Partitura...
+DEBUG: PartituraLoader loaded from: /home/laser/git/tta/timetoalign/timetoalign/loader/score/partitura.py
+Loading Music21...
+
+--- Comparing Partitura vs TSV (Gold) ---
+Columns: ['_sort_duration', '_sort_start', 'duration', 'end', 'event_category', 'event_type', 'instant', 'mc', 'midi_pitch', 'mn', 'octave', 'spelled_pitch', 'start', 'temporal_type', 'velocity']
+Notes check: Gold=498, Target=498
+
+--- HEAD COMPARISON (First 10) ---
+GOLD (TSV):
+   start             midi_pitch  duration temporal_type
+0   0.00  {'ep': 59, 'epc': 11}      0.50      interval
+1   0.50   {'ep': 40, 'epc': 4}      0.25      interval
+2   0.50   {'ep': 40, 'epc': 4}      1.00      interval
+3   0.50   {'ep': 56, 'epc': 8}      0.25      interval
+4   0.50   {'ep': 64, 'epc': 4}      0.50      interval
+5   0.75  {'ep': 47, 'epc': 11}      0.50      interval
+6   0.75  {'ep': 59, 'epc': 11}      0.25      interval
+7   1.00   {'ep': 56, 'epc': 8}      0.25      interval
+8   1.00   {'ep': 63, 'epc': 3}      0.25      interval
+9   1.25  {'ep': 47, 'epc': 11}      0.25      interval
+--------------------
+TARGET (Partitura):
+   start             midi_pitch  duration temporal_type
+0   0.00  {'ep': 59, 'epc': 11}      0.50      interval
+1   0.50   {'ep': 40, 'epc': 4}      0.25      interval
+2   0.50   {'ep': 40, 'epc': 4}      1.00      interval
+3   0.50   {'ep': 56, 'epc': 8}      0.25      interval
+4   0.50   {'ep': 64, 'epc': 4}      0.50      interval
+5   0.75  {'ep': 47, 'epc': 11}      0.50      interval
+6   0.75  {'ep': 59, 'epc': 11}      0.25      interval
+7   1.00   {'ep': 56, 'epc': 8}      0.25      interval
+8   1.00   {'ep': 63, 'epc': 3}      0.25      interval
+9   1.25  {'ep': 47, 'epc': 11}      0.25      interval
+----------------------------------------
+SUCCESS: 100% Match on Notes for Partitura!
+
+--- Comparing Music21 vs TSV (Gold) ---
+Columns: ['_sort_duration', '_sort_start', 'duration', 'end', 'event_category', 'event_type', 'instant', 'mc', 'midi_pitch', 'mn', 'octave', 'spelled_pitch', 'start', 'temporal_type', 'velocity']
+Notes check: Gold=498, Target=498
+
+--- HEAD COMPARISON (First 10) ---
+GOLD (TSV):
+   start             midi_pitch  duration temporal_type
+0   0.00  {'ep': 59, 'epc': 11}      0.50      interval
+1   0.50   {'ep': 40, 'epc': 4}      0.25      interval
+2   0.50   {'ep': 40, 'epc': 4}      1.00      interval
+3   0.50   {'ep': 56, 'epc': 8}      0.25      interval
+4   0.50   {'ep': 64, 'epc': 4}      0.50      interval
+5   0.75  {'ep': 47, 'epc': 11}      0.50      interval
+6   0.75  {'ep': 59, 'epc': 11}      0.25      interval
+7   1.00   {'ep': 56, 'epc': 8}      0.25      interval
+8   1.00   {'ep': 63, 'epc': 3}      0.25      interval
+9   1.25  {'ep': 47, 'epc': 11}      0.25      interval
+--------------------
+TARGET (Music21):
+   start             midi_pitch  duration temporal_type
+0   0.00  {'ep': 59, 'epc': 11}      0.50      interval
+1   0.50   {'ep': 40, 'epc': 4}      0.25      interval
+2   0.50   {'ep': 40, 'epc': 4}      1.00      interval
+3   0.50   {'ep': 56, 'epc': 8}      0.25      interval
+4   0.50   {'ep': 64, 'epc': 4}      0.50      interval
+5   0.75  {'ep': 47, 'epc': 11}      0.50      interval
+6   0.75  {'ep': 59, 'epc': 11}      0.25      interval
+7   1.00   {'ep': 56, 'epc': 8}      0.25      interval
+8   1.00   {'ep': 63, 'epc': 3}      0.25      interval
+9   1.25  {'ep': 47, 'epc': 11}      0.25      interval
+----------------------------------------
+SUCCESS: 100% Match on Notes for Music21!

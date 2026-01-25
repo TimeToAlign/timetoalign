@@ -65,6 +65,79 @@ class TSVLoader(ScoreLoader):
         # If 'midi' column has NaNs or special val? 
         # Usually rests are not in notes.tsv.
         
+        if not df.empty:
+            # Vectorized Pitch Logic
+            # 1. MIDI Pitch
+            if "midi" in df.columns:
+                df["ep"] = pd.to_numeric(df["midi"], errors="coerce").fillna(-1).astype(int)
+                df["epc"] = df["ep"] % 12
+                # Create struct column
+                df["midi_pitch"] = df.apply(lambda r: {"ep": r["ep"], "epc": r["epc"]} if r["ep"] >= 0 else None, axis=1)
+            else:
+                df["midi_pitch"] = None
+
+            # 2. Spelled Pitch
+            if "name" in df.columns and "step" not in df.columns:
+                # Derive step/alter from name
+                df["step"] = df["name"].astype(str).str[0]
+                # Alter is trickier. ms3 names are like "C#", "Bb".
+                # Count sharps/flats? Or specific map.
+                def get_alter_from_name(n):
+                    if pd.isna(n): return 0
+                    n = str(n)
+                    if len(n) > 1:
+                        if "#" in n: return n.count("#")
+                        if "b" in n: return -n.count("b")
+                        # Handle '-'?
+                        if "-" in n: return -n.count("-")
+                    return 0
+                df["alter"] = df["name"].apply(get_alter_from_name)
+
+            if "step" in df.columns and "octave" in df.columns:
+                # Ensure types
+                df["step"] = df["step"].astype(str)
+                df["octave"] = pd.to_numeric(df["octave"], errors="coerce").fillna(4).astype(int)
+                df["alter"] = pd.to_numeric(df.get("alter", 0), errors="coerce").fillna(0).astype(int)
+                
+                # GPC
+                gpc_map = {'C': 0, 'D': 1, 'E': 2, 'F': 3, 'G': 4, 'A': 5, 'B': 6}
+                df["gpc_int"] = df["step"].map(gpc_map).fillna(0).astype(int)
+                df["gpc_str"] = df["step"]
+                
+                # Accidental String
+                def get_acc_str(x):
+                    if x > 0: return "♯" * x
+                    if x < 0: return "♭" * abs(x)
+                    return ""
+                df["acc_str"] = df["alter"].apply(get_acc_str)
+                
+                # SPC (TPS)
+                if "tpc" in df.columns:
+                    df["spc_int"] = pd.to_numeric(df["tpc"], errors="coerce").fillna(0).astype(int)
+                else:
+                     base_fifths = {'F': -1, 'C': 0, 'G': 1, 'D': 2, 'A': 3, 'E': 4, 'B': 5}
+                     df["spc_int"] = df["step"].map(base_fifths).fillna(0) + (7 * df["alter"])
+                     df["spc_int"] = df["spc_int"].astype(int)
+                
+                df["spc_str"] = df["step"] + df["acc_str"]
+                df["sp"] = df["spc_str"] + df["octave"].astype(str)
+                df["cents"] = 0.0
+                
+                # Create struct column
+                def make_sp_struct(r):
+                    return {
+                        "gpc_int": r["gpc_int"],
+                        "gpc_str": r["gpc_str"],
+                        "acc": r["alter"],
+                        "spc_int": r["spc_int"],
+                        "spc_str": r["spc_str"],
+                        "sp": r["sp"],
+                        "cents": r["cents"]
+                    }
+                df["spelled_pitch"] = df.apply(make_sp_struct, axis=1)
+            else:
+                df["spelled_pitch"] = None
+
         events = []
         
         # Map DataFrame columns to ScoreEventStore schema
@@ -77,32 +150,10 @@ class TSVLoader(ScoreLoader):
             elif category == ScoreEventType.CAT_CONTROL:
                 etype = str(row.get("label", ScoreEventType.DIRECTION))
             
-            # Extract pitch info
-            ep = row.get("midi") # ms3 calls it 'midi'
-            if pd.isna(ep): ep = None
-            else: ep = int(ep)
-            
-            tpc = row.get("tpc")
-            if pd.isna(tpc): tpc = None
-            else: tpc = int(tpc)
-            
-            # Spelled pitch
-            sp = None
-            # ms3 uses 'name', 'octave' or just 'pitch'?
-            # Usually step/alter/octave columns exist if not strictly just tpc.
-            if "step" in row and "octave" in row:
-                sp = {
-                    "step": str(row["step"]),
-                    "alter": int(row.get("alter", 0)),
-                    "octave": int(row["octave"])
-                }
-            
             # Timing
-            # ms3 usually outputs 'onset', 'duration' in quarter lengths (musical time) which fits 'divs' or 'beats'?
-            # Actually ms3 aims for musical unity.
-            
-            start = float(row.get("onset", row.get("start", 0)))
-            dur = float(row.get("duration", 0))
+            # Prioritize 'quarterbeats', 'score_time', 'onset'
+            start = float(row.get("quarterbeats", row.get("score_time", row.get("onset", row.get("start", 0)))))
+            dur = float(row.get("duration_qb", row.get("duration", 0)))
             
             events.append({
                 "id": str(row.get("id", f"{category}_{start}_{row.name}")),
@@ -112,9 +163,9 @@ class TSVLoader(ScoreLoader):
                 "start": start,
                 "end": start + dur,
                 "duration": dur,
-                "ep": ep,
-                "tpc": tpc,
-                "sp": sp,
+                "midi_pitch": row.get("midi_pitch"),
+                "spelled_pitch": row.get("spelled_pitch"),
+                "octave": int(row["octave"]) if "octave" in row and pd.notna(row["octave"]) else None,
                 "mn": str(row.get("mn", "")),
                 "mc": int(row.get("mc", 0)) if not pd.isna(row.get("mc")) else None,
                 "voice": int(row.get("voice")) if "voice" in row and not pd.isna(row["voice"]) else None,
