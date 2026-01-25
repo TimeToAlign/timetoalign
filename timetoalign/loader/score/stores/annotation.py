@@ -31,15 +31,8 @@ class AnnotationEventStore(EventStore):
     """
 
     _extra_fields: ClassVar[list[pa.Field]] = [
-        # Temporal
-        make_fraction_field(
-            "quarterbeats", nullable=False, metadata={"unit": "quarters"}
-        ),
-        pa.field("quarterbeats_float", pa.float64(), nullable=False),
-        make_fraction_field(
-            "duration_qb", nullable=True, metadata={"unit": "quarters"}
-        ),
-        pa.field("duration_qb_float", pa.float64(), nullable=True),
+        # Temporal - Derived/Float
+        pa.field("duration_float", pa.float64(), nullable=True),
         # Measure context
         pa.field("mc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("mn", pa.string(), nullable=True),
@@ -82,7 +75,20 @@ class AnnotationEventStore(EventStore):
         processed_rows = []
         for row in rows:
             processed = dict(row)
-            for col in ["instant", "start", "end", "duration"]:
+
+            # Map legacy temporal columns to base
+            if "quarterbeats" in processed:
+                processed["start"] = processed.pop("quarterbeats")
+            if "duration_qb" in processed:
+                processed["duration"] = processed.pop("duration_qb")
+            if "duration_qb_float" in processed:
+                processed["duration_float"] = processed.pop("duration_qb_float")
+
+            # Remove unused
+            processed.pop("quarterbeats_float", None)
+
+            # Base columns need defaults
+            for col in ["start", "end", "duration"]:
                 if col not in processed:
                     processed[col] = None
             processed_rows.append(processed)
