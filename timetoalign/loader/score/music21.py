@@ -96,30 +96,6 @@ class Music21Loader(ScoreLoader):
                  # Sometimes parts are in score -> part -> measure
                  pass
 
-            # Map for MC
-            # We'll just count them index 1-based
-            measure_map = {} # onset -> {"mn": ..., "mc": ...}
-            
-            for i, m in enumerate(measure_list):
-                m_offset = float(m.getOffsetInHierarchy(score))
-                m_end = m_offset + float(m.duration.quarterLength)
-                
-                events.append({
-                    "id": m.id,
-                    "temporal_type": "interval",
-                    "event_type": ScoreEventType.MEASURE,
-                    "event_category": ScoreEventType.CAT_MEASURE,
-                    "start": m_offset,
-                    "end": m_end,
-                    "duration": m_end - m_offset,
-                    "mn": str(m.number),
-                    "mc": i + 1,
-                    "part_id": part_id,
-                })
-                
-                # Build context map - simplistic look up by range
-                # Or rely on m.measureNumber context on elements
-            
             # 2. Other Events via Flattening
             # We use flat to get absolute timing easily
             for obj in flat_part:
@@ -137,6 +113,7 @@ class Music21Loader(ScoreLoader):
                     category = ScoreEventType.CAT_NOTE
                     if isinstance(obj, m21.note.Rest):
                         etype = ScoreEventType.REST
+                        category = "rest" # Distinct category for filtering
                         has_rests = True
                     elif isinstance(obj, m21.note.Note):
                         etype = ScoreEventType.NOTE
@@ -172,40 +149,76 @@ class Music21Loader(ScoreLoader):
                         
                     for p_obj, extra in processed_objs:
                         # Pitch extraction
-                        ep = None
-                        tpc = None
-                        sp = None
+                        midi_pitch = None
+                        spelled_pitch = None
+                        octave = None
                         
                         if isinstance(p_obj, m21.note.Note):
-                            ep = p_obj.pitch.midi
-                            sp = {
-                                "step": p_obj.pitch.step,
-                                "alter": int(p_obj.pitch.alter or 0),
-                                "octave": p_obj.pitch.octave
+                            # MIDI
+                            ep = int(p_obj.pitch.midi)
+                            epc = ep % 12
+                            midi_pitch = {"ep": ep, "epc": epc}
+                            
+                            # Spelled
+                            step = p_obj.pitch.step
+                            alter = int(p_obj.pitch.alter or 0)
+                            octave = p_obj.pitch.octave
+                            if octave is None: octave = 4 # Default?
+                            
+                            # GPC
+                            gpc_map = {'C': 0, 'D': 1, 'E': 2, 'F': 3, 'G': 4, 'A': 5, 'B': 6}
+                            gpc_int = gpc_map.get(step, 0)
+                            gpc_str = step
+                            
+                            # Accidental Normalization
+                            acc = alter
+                            acc_str = ""
+                            if acc > 0:
+                                acc_str = "♯" * acc
+                            elif acc < 0:
+                                acc_str = "♭" * abs(acc)
+                                
+                            # SPC (Fifths)
+                            base_fifths = {'F': -1, 'C': 0, 'G': 1, 'D': 2, 'A': 3, 'E': 4, 'B': 5}
+                            spc_int = base_fifths.get(step, 0) + (7 * acc)
+                            
+                            # Names
+                            spc_str = f"{step}{acc_str}"
+                            sp = f"{spc_str}{octave}"
+                            
+                            spelled_pitch = {
+                                "gpc_int": gpc_int,
+                                "gpc_str": gpc_str,
+                                "acc": acc,
+                                "spc_int": spc_int,
+                                "spc_str": spc_str,
+                                "sp": sp,
+                                "cents": 0.0
                             }
-                            # TPC if available? 
-                            # m21 pitch has .pitchClass (0-11) but not TPC directly in dimcat sense usually?
-                            # Actually m21 doesn't store TPC by default, need calc. Leave None for now.
-                        
+
                         # Context: Measure Number
                         # In flat stream, we might lose measure number unless preserved
                         mn = str(obj.measureNumber) if obj.measureNumber is not None else None
                         
-                        # MC mapping?
-                        # If we have measure list, we can lookup
-                        # Simple lookup:
+                        # MC mapping
+                        # Find the last measure where start <= offset
                         mc = None
                         if measure_list:
-                            # find measure containing this offset
-                            # Optimization: Could be better but simple iteration for now
-                            # (music usually sequential)
+                            # Assuming measure_list is sorted by offset
+                            current_best_mc = None
+                            # Linear scan
                             for i, m in enumerate(measure_list):
                                 m_off = float(m.getOffsetInHierarchy(score))
-                                # Loose overlap check
-                                if m_off <= offset < (m_off + float(m.duration.quarterLength) + 0.001):
-                                    mc = i + 1
+                                # We want largest i such that m_off <= offset + epsilon
+                                # Epsilon usage: if offset is almost exactly m_off, it matches.
+                                if m_off <= offset + 1e-5:
+                                    current_best_mc = i + 1
                                     if not mn: mn = str(m.number)
+                                else:
+                                    # Since sorted, if m_off > offset, we stop
                                     break
+                            
+                            mc = current_best_mc
 
                         events.append({
                         "id": str(p_obj.id),
@@ -215,9 +228,9 @@ class Music21Loader(ScoreLoader):
                             "start": offset,
                             "end": offset + duration,
                             "duration": duration,
-                            "ep": ep,
-                            "tpc": tpc,
-                            "sp": sp,
+                            "midi_pitch": midi_pitch,
+                            "spelled_pitch": spelled_pitch,
+                            "octave": octave,
                             "mn": str(mn) if mn else None,
                         "mc": int(mc) if mc is not None else None,
                         "part_id": str(part_id),

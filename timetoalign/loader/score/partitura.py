@@ -11,7 +11,7 @@ import partitura.score as pts
 
 from timetoalign.core import NumberType, TimeUnit
 from .base import ScoreLoader
-from .store import ScoreEventStore, ScoreEventType, make_spelled_pitch_type
+from .store import ScoreEventStore, ScoreEventType
 
 
 class PartituraLoader(ScoreLoader):
@@ -140,45 +140,89 @@ class PartituraLoader(ScoreLoader):
                     "part_id": part_id,
                 })
 
+            # Prepare Unit Conversion
+            to_quarters = lambda x: x
+            if self.unit == TimeUnit.quarters:
+                to_quarters = part.beat_map
+            
             # Process Notes/Rests
             for n in c_note:
                 is_rest = isinstance(n, pts.Rest)
                 etype = ScoreEventType.REST if is_rest else ScoreEventType.NOTE
                 
                 # Pitch info
-                ep = None
-                tpc = None
-                sp = None
+                midi_pitch = None
+                spelled_pitch = None
+                octave = None
                 
                 if not is_rest:
+                    ep = None
+                    epc = None
                     if hasattr(n, "midi_pitch"):
                         ep = n.midi_pitch
-                    if hasattr(n, "step"): # Spelled
-                        sp = {
-                            "step": n.step,
-                            "alter": int(getattr(n, "alter", 0) or 0),
-                            "octave": int(getattr(n, "octave", 0) or 0)
-                        }
-                    # TPC calculation? Partitura usually has it or we compute from Step/Alter
-                    if hasattr(n, "tpc"):
-                         tpc = n.tpc
-                    elif sp:
-                        # Simple TPC logic or 0
-                        # step C=0, D=2.. + alter*7 .. this is complex to do right inline.
-                        # For now, if partitura doesn't give TPC, leave None or rely on downstream
-                        pass
+                        epc = ep % 12
+                        midi_pitch = {"ep": ep, "epc": epc}
+                        
+                    if hasattr(n, "octave"):
+                         octave = getattr(n, "octave", 4)
 
+                    if hasattr(n, "step"): # Spelled
+                        step = n.step
+                        alter = int(getattr(n, "alter", 0) or 0)
+                        octave = int(getattr(n, "octave", 0) or 4) if octave is None else octave
+                        
+                        # Generic Pitch Class
+                        gpc_map = {'C': 0, 'D': 1, 'E': 2, 'F': 3, 'G': 4, 'A': 5, 'B': 6}
+                        gpc_int = gpc_map.get(step, 0)
+                        gpc_str = step
+                        
+                        # Accidental Normalization
+                        # Symbols: ♯ (U+266F), ♭ (U+266D)
+                        acc = alter
+                        acc_str = ""
+                        if acc > 0:
+                            acc_str = "♯" * acc
+                        elif acc < 0:
+                            acc_str = "♭" * abs(acc)
+                        
+                        # Spelled Pitch Class (TPC/Fifths)
+                        # C=0, G=1, D=2, A=3, E=4, B=5, F#=6, C#=7...
+                        # F=-1, Bb=-2, Eb=-3...
+                        # Base fifths: F=-1, C=0, G=1, D=2, A=3, E=4, B=5
+                        base_fifths = {'F': -1, 'C': 0, 'G': 1, 'D': 2, 'A': 3, 'E': 4, 'B': 5}
+                        spc_int = base_fifths.get(step, 0) + (7 * acc)
+                        
+                        # Names
+                        spc_str = f"{step}{acc_str}"
+                        sp = f"{spc_str}{octave}"
+                        
+                        spelled_pitch = {
+                            "gpc_int": gpc_int,
+                            "gpc_str": gpc_str,
+                            "acc": acc,
+                            "spc_int": spc_int,
+                            "spc_str": spc_str,
+                            "sp": sp,
+                            "cents": 0.0
+                        }
+
+                # Timing
+                # Partitura times are in divs (ticks). Convert if needed.
+                start_t = to_quarters(n.start.t)
+                end_t = to_quarters(n.start.t + n.duration)
+                dur = end_t - start_t
+                
                 events.append({
                     "id": getattr(n, "id", None),
-                    "temporal_type": "interval" if n.duration > 0 else "instant", # Grace notes?
+                    "temporal_type": "interval" if dur > 0 else "instant", # Grace notes?
                     "event_type": etype,
-                    "event_category": ScoreEventType.CAT_NOTE,
-                    "start": n.start.t,
-                    "end": n.start.t + n.duration,
-                    "duration": n.duration,
-                    "ep": ep,
-                    "tpc": tpc,
-                    "sp": sp,
+                    "event_category": "rest" if is_rest else ScoreEventType.CAT_NOTE,
+                    "start": float(start_t),
+                    "end": float(end_t),
+                    "duration": dur,
+                    "midi_pitch": midi_pitch,
+                    "spelled_pitch": spelled_pitch,
+                    "octave": octave,
                     "voice": getattr(n, "voice", None),
                     "staff": getattr(n, "staff", None),
                     "mn": str(part.measure_number_map(n.start.t)) if hasattr(part, "measure_number_map") else None,
@@ -216,6 +260,16 @@ class PartituraLoader(ScoreLoader):
                     "mc": get_mc(a.start.t),
                     "part_id": part_id,
                 })
+        
+        # Enforce non-negative coordinates (TTA requirement)
+        if events:
+            min_start = min(e["start"] for e in events)
+            if min_start < 0:
+                offset = abs(min_start)
+                for e in events:
+                    e["start"] += offset
+                    if "end" in e and e["end"] is not None:
+                        e["end"] += offset
 
         metadata = {
             "format": "score", 
