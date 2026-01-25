@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -122,13 +121,15 @@ class TestEventStoreCreation:
 
     def test_from_dicts_with_explicit_none_coords(self) -> None:
         """from_dicts handles explicit None in coordinate columns."""
-        events = [{
-            "id": "e1",
-            "temporal_type": "instant",
-            "event_type": "NullEvent",
-            "instant": None,
-            "start": None
-        }]
+        events = [
+            {
+                "id": "e1",
+                "temporal_type": "instant",
+                "event_type": "NullEvent",
+                "instant": None,
+                "start": None,
+            }
+        ]
         store = EventStore.from_dicts(events, TimeUnit.ticks)
         assert len(store) == 1
         row = list(store)[0]
@@ -224,9 +225,7 @@ class TestEventStoreExtend:
         store_with_instants.extend(other)
         assert len(store_with_instants) == 5
 
-    def test_extend_unit_mismatch_raises(
-        self, store_with_instants: EventStore
-    ) -> None:
+    def test_extend_unit_mismatch_raises(self, store_with_instants: EventStore) -> None:
         """extend() raises on unit mismatch."""
         other = EventStore.empty(TimeUnit.seconds)
         with pytest.raises(ValueError, match="Unit mismatch"):
@@ -243,9 +242,7 @@ class TestEventStoreExtend:
         # Original unchanged
         assert len(store_with_instants) == 3
 
-    def test_concat_unit_mismatch_raises(
-        self, store_with_instants: EventStore
-    ) -> None:
+    def test_concat_unit_mismatch_raises(self, store_with_instants: EventStore) -> None:
         """concat() raises on unit mismatch."""
         other = EventStore.empty(TimeUnit.seconds)
         with pytest.raises(ValueError, match="Unit mismatch"):
@@ -346,12 +343,14 @@ class TestEventStoreStats:
 
     def test_coordinate_range_all_nulls(self) -> None:
         """coordinate_range() returns None if all coords are null."""
-        events = [{
-            "id": "e1", 
-            "temporal_type": "instant", 
-            "event_type": "NullEvent",
-            "instant": None
-        }]
+        events = [
+            {
+                "id": "e1",
+                "temporal_type": "instant",
+                "event_type": "NullEvent",
+                "instant": None,
+            }
+        ]
         store = EventStore.from_dicts(events, TimeUnit.ticks)
         assert store.count == 1
         assert store.coordinate_range() is None

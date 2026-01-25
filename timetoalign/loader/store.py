@@ -13,9 +13,7 @@ Design principles:
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterator
-from fractions import Fraction
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
@@ -28,16 +26,12 @@ from typing_extensions import Self
 from timetoalign.core import NumberType, TimeUnit
 
 from .schema import (
-    TEMPORAL_TYPE_INSTANT,
-    TEMPORAL_TYPE_INTERVAL,
     coordinate_to_struct,
     extend_schema,
     get_base_column_names,
-    get_unit_from_schema,
     make_base_schema,
     make_table_metadata,
     parse_table_metadata,
-    struct_to_coordinate,
 )
 
 if TYPE_CHECKING:
@@ -405,7 +399,7 @@ class EventStore:
         """Filter events by criteria, returning a new EventStore.
 
         All criteria are AND-ed together.
-        
+
         Args:
             temporal_type: Filter by "instant" or "interval".
             event_type: Filter by event type name.
@@ -442,7 +436,7 @@ class EventStore:
             if max_coord is not None:
                 expr = pc.less(coord_val, max_coord)
                 mask = expr if mask is None else (mask & expr)
-        
+
         # Generic kwargs filtering
         for col, val in kwargs.items():
             # Only if column exists in schema
@@ -493,10 +487,7 @@ class EventStore:
             Dict mapping column values to counts.
         """
         result = self._table.group_by(column).aggregate([(column, "count")])
-        return {
-            row[column]: row[f"{column}_count"]
-            for row in result.to_pylist()
-        }
+        return {row[column]: row[f"{column}_count"] for row in result.to_pylist()}
 
     def coordinate_range(self) -> tuple[float, float] | None:
         """Get the min and max coordinates across all events.
@@ -517,14 +508,14 @@ class EventStore:
                 # Check for null column
                 if col.null_count == len(col):
                     continue
-                
+
                 vals = pc.struct_field(col, "value")
                 vals = pc.drop_null(vals)
-                
+
                 if len(vals) > 0:
                     curr_min = pc.min(vals).as_py()
                     curr_max = pc.max(vals).as_py()
-                    
+
                     if min_val is None or curr_min < min_val:
                         min_val = curr_min
                     if max_val is None or curr_max > max_val:
@@ -534,7 +525,7 @@ class EventStore:
 
         if min_val is None:
             return None
-            
+
         return (min_val, max_val)
 
     def event_types(self) -> list[str]:

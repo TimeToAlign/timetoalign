@@ -8,8 +8,8 @@ import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
+from timetoalign.loader.schema import make_fraction_field
 from timetoalign.loader.store import EventStore
-from timetoalign.loader.schema import FRACTION_TYPE, make_fraction_field
 
 if TYPE_CHECKING:
     pass
@@ -17,13 +17,13 @@ if TYPE_CHECKING:
 
 class AnnotationEventStore(EventStore):
     """EventStore for text annotations.
-    
+
     Subtypes include:
     - TextBox: Free text annotations
     - TextExpression: Expression text (Allegro con brio)
     - Rehearsal: Rehearsal marks (A, B, etc.)
     - Direction: Performance directions
-    
+
     Schema:
     - quarterbeats: Annotation position (Fraction)
     - text: Annotation content
@@ -32,21 +32,22 @@ class AnnotationEventStore(EventStore):
 
     _extra_fields: ClassVar[list[pa.Field]] = [
         # Temporal
-        make_fraction_field("quarterbeats", nullable=False, metadata={"unit": "quarters"}),
+        make_fraction_field(
+            "quarterbeats", nullable=False, metadata={"unit": "quarters"}
+        ),
         pa.field("quarterbeats_float", pa.float64(), nullable=False),
-        make_fraction_field("duration_qb", nullable=True, metadata={"unit": "quarters"}),
+        make_fraction_field(
+            "duration_qb", nullable=True, metadata={"unit": "quarters"}
+        ),
         pa.field("duration_qb_float", pa.float64(), nullable=True),
-        
         # Measure context
         pa.field("mc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("mn", pa.string(), nullable=True),
         make_fraction_field("mc_onset", nullable=True),
         make_fraction_field("mn_onset", nullable=True),
-        
         # Annotation specifics
         pa.field("subtype", pa.string(), nullable=True),  # TextBox, Rehearsal, etc.
         pa.field("text", pa.string(), nullable=False),
-        
         # Context
         pa.field("staff", pa.int64(), nullable=True),
         pa.field("part_id", pa.string(), nullable=True),
@@ -54,8 +55,8 @@ class AnnotationEventStore(EventStore):
 
     @classmethod
     def empty(
-        cls, 
-        unit: TimeUnit = TimeUnit.quarters, 
+        cls,
+        unit: TimeUnit = TimeUnit.quarters,
         number_type: NumberType = NumberType.float,
     ) -> Self:
         """Create empty AnnotationEventStore."""
@@ -71,13 +72,13 @@ class AnnotationEventStore(EventStore):
         """Create from dicts."""
         if not rows:
             return cls.empty(unit, number_type)
-        
+
         from timetoalign.loader.schema import make_table_metadata
-        
+
         schema = cls.schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
-        
+
         processed_rows = []
         for row in rows:
             processed = dict(row)
@@ -85,6 +86,6 @@ class AnnotationEventStore(EventStore):
                 if col not in processed:
                     processed[col] = None
             processed_rows.append(processed)
-        
+
         table = pa.Table.from_pylist(processed_rows, schema=schema)
         return cls(table, unit, number_type)

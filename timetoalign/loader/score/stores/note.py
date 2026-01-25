@@ -8,8 +8,8 @@ import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
+from timetoalign.loader.schema import make_fraction_field
 from timetoalign.loader.store import EventStore
-from timetoalign.loader.schema import FRACTION_TYPE, make_fraction_field
 
 if TYPE_CHECKING:
     pass
@@ -17,27 +17,31 @@ if TYPE_CHECKING:
 
 def _make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
     """Create MIDI and Spelled pitch struct types."""
-    midi_pitch = pa.struct([
-        pa.field("ep", pa.int64(), nullable=True),
-        pa.field("epc", pa.int64(), nullable=True),
-    ])
-    
-    spelled_pitch = pa.struct([
-        pa.field("gpc_int", pa.int64(), nullable=True),
-        pa.field("gpc_str", pa.string(), nullable=True),
-        pa.field("acc", pa.int64(), nullable=True),
-        pa.field("spc_int", pa.int64(), nullable=True),
-        pa.field("spc_str", pa.string(), nullable=True),
-        pa.field("sp", pa.string(), nullable=True),
-        pa.field("cents", pa.float64(), nullable=False),
-    ])
-    
+    midi_pitch = pa.struct(
+        [
+            pa.field("ep", pa.int64(), nullable=True),
+            pa.field("epc", pa.int64(), nullable=True),
+        ]
+    )
+
+    spelled_pitch = pa.struct(
+        [
+            pa.field("gpc_int", pa.int64(), nullable=True),
+            pa.field("gpc_str", pa.string(), nullable=True),
+            pa.field("acc", pa.int64(), nullable=True),
+            pa.field("spc_int", pa.int64(), nullable=True),
+            pa.field("spc_str", pa.string(), nullable=True),
+            pa.field("sp", pa.string(), nullable=True),
+            pa.field("cents", pa.float64(), nullable=False),
+        ]
+    )
+
     return midi_pitch, spelled_pitch
 
 
 class NoteEventStore(EventStore):
     """EventStore for note, rest, and chord events.
-    
+
     Rich temporal schema following TSV gold standard:
     - quarterbeats: Continuous logical time (Fraction)
     - quarterbeats_float: Float representation
@@ -45,7 +49,7 @@ class NoteEventStore(EventStore):
     - duration_qb_float: Float duration
     - mc/mn: Measure context
     - mc_onset/mn_onset: Measure-relative offsets (Fraction)
-    
+
     Pitch fields:
     - midi_pitch: {ep, epc}
     - spelled_pitch: {gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}
@@ -57,35 +61,38 @@ class NoteEventStore(EventStore):
 
     _extra_fields: ClassVar[list[pa.Field]] = [
         # Temporal - Primary (Fractions)
-        make_fraction_field("quarterbeats", nullable=False, metadata={"unit": "quarters"}),
+        make_fraction_field(
+            "quarterbeats", nullable=False, metadata={"unit": "quarters"}
+        ),
         pa.field("quarterbeats_float", pa.float64(), nullable=False),
-        make_fraction_field("duration_qb", nullable=True, metadata={"unit": "quarters"}),
+        make_fraction_field(
+            "duration_qb", nullable=True, metadata={"unit": "quarters"}
+        ),
         pa.field("duration_qb_float", pa.float64(), nullable=True),
-        
         # Temporal - Measure context
         pa.field("mc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("mn", pa.string(), nullable=True),
         make_fraction_field("mc_onset", nullable=True),
         make_fraction_field("mn_onset", nullable=True),
         pa.field("timesig", pa.string(), nullable=True),
-        
         # Temporal - Symbolic duration
         make_fraction_field("duration", nullable=True),
         make_fraction_field("nominal_duration", nullable=True),
         make_fraction_field("scalar", nullable=True),
-        
         # Pitch
         pa.field("midi_pitch", _midi_type, nullable=True),
         pa.field("spelled_pitch", _spelled_type, nullable=True),
         pa.field("tpc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
-        pa.field("octave", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
-        
+        pa.field(
+            "octave", pa.int64(), nullable=True, metadata={"number_type": "int64"}
+        ),
         # Performance
-        pa.field("velocity", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
+        pa.field(
+            "velocity", pa.int64(), nullable=True, metadata={"number_type": "int64"}
+        ),
         pa.field("tied", pa.int64(), nullable=True),  # -1=end, 0=none, 1=start
         pa.field("gracenote", pa.string(), nullable=True),
         pa.field("chord_id", pa.int64(), nullable=True),
-        
         # Context
         pa.field("voice", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("staff", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
@@ -117,8 +124,8 @@ class NoteEventStore(EventStore):
 
     @classmethod
     def empty(
-        cls, 
-        unit: TimeUnit = TimeUnit.quarters, 
+        cls,
+        unit: TimeUnit = TimeUnit.quarters,
         number_type: NumberType = NumberType.float,
         has_rests: bool = False,
     ) -> Self:
@@ -136,18 +143,18 @@ class NoteEventStore(EventStore):
         has_rests: bool = False,
     ) -> Self:
         """Create from dicts with has_rests metadata.
-        
+
         Builds PyArrow table directly using NoteEventStore schema.
         """
         if not rows:
             return cls.empty(unit, number_type, has_rests)
-        
+
         from timetoalign.loader.schema import make_table_metadata
-        
+
         schema = cls.schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
-        
+
         # Ensure all required columns exist with proper defaults
         processed_rows = []
         for row in rows:
@@ -157,7 +164,7 @@ class NoteEventStore(EventStore):
                 if col not in processed:
                     processed[col] = None
             processed_rows.append(processed)
-        
+
         table = pa.Table.from_pylist(processed_rows, schema=schema)
         store = cls(table, unit, number_type, has_rests)
         return store

@@ -5,7 +5,6 @@ from __future__ import annotations
 from fractions import Fraction
 
 import pyarrow as pa
-import pytest
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader import (
@@ -229,6 +228,7 @@ class TestMakeTableMetadata:
     def test_includes_version(self) -> None:
         """Metadata includes timetoalign version."""
         import json
+
         metadata = make_table_metadata(TimeUnit.ticks, NumberType.int)
         parsed = json.loads(metadata[b"timetoalign"])
         assert "timetoalign_version" in parsed
@@ -236,6 +236,7 @@ class TestMakeTableMetadata:
     def test_includes_sources(self) -> None:
         """Metadata includes sources list."""
         import json
+
         sources = [{"path": "file.mid"}]
         metadata = make_table_metadata(TimeUnit.ticks, NumberType.int, sources=sources)
         parsed = json.loads(metadata[b"timetoalign"])
@@ -244,10 +245,9 @@ class TestMakeTableMetadata:
     def test_make_table_metadata_with_extra(self) -> None:
         """Metadata includes extra fields."""
         import json
+
         metadata = make_table_metadata(
-            TimeUnit.ticks, 
-            NumberType.int, 
-            extra={"custom": "value"}
+            TimeUnit.ticks, NumberType.int, extra={"custom": "value"}
         )
         parsed = json.loads(metadata[b"timetoalign"])
         assert parsed["custom"] == "value"

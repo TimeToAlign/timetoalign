@@ -3,7 +3,8 @@
 from pathlib import Path
 
 import pytest
-from timetoalign.loader.midi import MidiEventType, ScoreMidiLoader
+
+from timetoalign.loader.midi import ScoreMidiLoader
 
 
 class TestScoreMidiLoader:
@@ -19,7 +20,7 @@ class TestScoreMidiLoader:
 
         assert len(loader) > 0
         assert loader.ticks_per_beat is not None
-        
+
         # Check metadata
         meta = loader.metadata["sources"][0]
         assert meta["parser"] == "partitura"
@@ -31,21 +32,22 @@ class TestScoreMidiLoader:
         # Voice/Staff may be present
         if "voice" in df.columns:
             # Not all notes might have voice, but some should if mode=0
-            pass 
+            pass
 
     def test_load_empty_raises(self, tmp_path: Path) -> None:
         """Loading invalid/empty file raises error."""
         # ScoreMidiLoader uses partitura which raises its own errors or returns empty
         empty_file = tmp_path / "empty.mid"
         empty_file.touch()
-        
+
         loader = ScoreMidiLoader()
         # partitura might raise or return empty. Check behavior.
         # usually load_score_midi raises exception on empty file
         try:
             loader.load(empty_file)
         except Exception:
-            pass # Expected behavior varies, but shouldn't crash ungracefully
+            pass  # Expected behavior varies, but shouldn't crash ungracefully
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

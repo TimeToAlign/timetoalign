@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
+from timetoalign.loader.score.bundle import ScoreBundle
 from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.tsv import TSVLoader
-from timetoalign.loader.score.bundle import ScoreBundle
 
 DATA_DIR = Path(__file__).parents[2] / "data" / "midi" / "score"
 MS3_DIR = DATA_DIR / "ms3"
@@ -30,7 +30,7 @@ class TestTSVLoader:
         """TSVLoader.load() returns ScoreBundle."""
         loader = TSVLoader()
         bundle = loader.load(chopin_tsv_notes)
-        
+
         assert isinstance(bundle, ScoreBundle)
         assert len(bundle.notes) > 0
         assert "parser" in bundle.metadata
@@ -45,7 +45,7 @@ class TestTSVLoader:
         """Temporal fields use Fraction struct."""
         bundle = TSVLoader().load(chopin_tsv_notes)
         first = list(bundle.notes)[0]
-        
+
         qb = first.get("quarterbeats")
         assert qb is not None
         assert "num" in qb and "den" in qb
@@ -54,11 +54,11 @@ class TestTSVLoader:
         """Pitch fields properly populated."""
         bundle = TSVLoader().load(chopin_tsv_notes)
         first = list(bundle.notes)[0]
-        
+
         mp = first.get("midi_pitch")
         assert mp is not None
         assert "ep" in mp and mp["ep"] == 59  # B3
-        
+
         sp = first.get("spelled_pitch")
         assert sp is not None
         assert sp.get("gpc_str") == "B"
@@ -71,7 +71,7 @@ class TestPartituraLoader:
         """PartituraLoader.load() returns ScoreBundle."""
         loader = PartituraLoader()
         bundle = loader.load(chopin_xml)
-        
+
         assert isinstance(bundle, ScoreBundle)
         assert len(bundle.notes) > 0
         assert len(bundle.measures) > 0
@@ -80,7 +80,7 @@ class TestPartituraLoader:
     def test_note_count(self, chopin_xml):
         """Partitura matches TSV gold standard (498 notes)."""
         bundle = PartituraLoader().load(chopin_xml)
-        
+
         # Filter to Notes only (exclude Rests)
         df = bundle.notes.to_dataframe()
         note_count = len(df[df["event_type"] == "Note"])
@@ -95,7 +95,7 @@ class TestPartituraLoader:
         """Temporal fields use Fraction struct."""
         bundle = PartituraLoader().load(chopin_xml)
         first = list(bundle.notes)[0]
-        
+
         qb = first.get("quarterbeats")
         assert qb is not None
         assert "num" in qb and "den" in qb
@@ -108,7 +108,7 @@ class TestMusic21Loader:
         """Music21Loader.load() returns ScoreBundle."""
         loader = Music21Loader()
         bundle = loader.load(chopin_xml)
-        
+
         assert isinstance(bundle, ScoreBundle)
         assert len(bundle.notes) > 0
         assert bundle.metadata["parser"] == "music21"
@@ -116,14 +116,14 @@ class TestMusic21Loader:
     def test_note_count(self, chopin_xml):
         """Music21 matches TSV gold standard (498 notes + optional rests)."""
         bundle = Music21Loader().load(chopin_xml)
-        
+
         df = bundle.notes.to_dataframe()
         note_count = len(df[df["event_type"] == "Note"])
         rest_count = len(df[df["event_type"] == "Rest"])
-        
+
         # Notes must match exactly
         assert note_count == 498, f"Expected 498 notes, got {note_count}"
-        
+
         # Rests: if has_rests is True, we should have some
         # The exact count may vary by music21 version
         if bundle.notes.has_rests:
@@ -135,7 +135,7 @@ class TestMusic21Loader:
         """Temporal fields use Fraction struct."""
         bundle = Music21Loader().load(chopin_xml)
         first = list(bundle.notes)[0]
-        
+
         qb = first.get("quarterbeats")
         assert qb is not None
         assert "num" in qb and "den" in qb

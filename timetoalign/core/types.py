@@ -92,7 +92,9 @@ class Coordinate:
             return NumberType.float
         if isinstance(self.value, Fraction):
             return NumberType.fraction
-        raise TypeError(f"Unknown number type for {type(self.value)}")  # pragma: no cover
+        raise TypeError(
+            f"Unknown number type for {type(self.value)}"
+        )  # pragma: no cover
 
     @property
     def domain(self) -> Domain:
@@ -104,7 +106,9 @@ class Coordinate:
     def _check_compatible(self, other: object, operation: str) -> Coordinate:
         """Raise ValueError if units don't match. Returns typed other."""
         if not isinstance(other, Coordinate):
-            raise TypeError(f"Cannot {operation} Coordinate with {type(other).__name__}")
+            raise TypeError(
+                f"Cannot {operation} Coordinate with {type(other).__name__}"
+            )
         if self.unit != other.unit:
             raise ValueError(
                 f"Cannot {operation} coordinates with different units: "
@@ -137,7 +141,9 @@ class Coordinate:
 
     def __floordiv__(self, scalar: object) -> Coordinate:
         if not isinstance(scalar, (int, float, Fraction)):
-            raise TypeError(f"Cannot floor-divide Coordinate by {type(scalar).__name__}")
+            raise TypeError(
+                f"Cannot floor-divide Coordinate by {type(scalar).__name__}"
+            )
         if scalar == 0:
             raise ZeroDivisionError("Cannot divide Coordinate by zero")
         return Coordinate(self.value // scalar, self.unit)

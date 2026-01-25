@@ -137,7 +137,7 @@ CC_PURPOSE: dict[int, str] = {
 
 class MidiEventType:
     """String constants for MIDI event types."""
-    
+
     NOTE = "Note"
     CONTROL_CHANGE = "ControlChange"
     PROGRAM_CHANGE = "ProgramChange"

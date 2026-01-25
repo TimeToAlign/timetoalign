@@ -11,10 +11,11 @@ CHOPIN_TSV = MS3_DIR / "chopin_op10_no3.notes.tsv"
 
 def profile_loader(loader_cls, source, name, loops=5):
     """Run timing benchmark for a loader."""
+
     def _run():
         loader = loader_cls()
         loader.load(source)
-    
+
     # Warmup
     try:
         _run()
@@ -31,43 +32,47 @@ def profile_loader(loader_cls, source, name, loops=5):
 
 def profile_all():
     """Profile all loaders and print ScoreBundle summary."""
-    from timetoalign.loader.score.partitura import PartituraLoader
     from timetoalign.loader.score.music21 import Music21Loader
+    from timetoalign.loader.score.partitura import PartituraLoader
     from timetoalign.loader.score.tsv import TSVLoader
-    
+
     print("=" * 60)
     print("Score Loader Profiling (Chopin Op. 10 No. 3)")
     print("=" * 60)
     print()
-    
+
     # TSV
     print("--- TSVLoader (notes.tsv) ---")
     profile_loader(TSVLoader, CHOPIN_TSV, "TSVLoader")
     tsv_bundle = TSVLoader().load(CHOPIN_TSV)
     print(f"    {tsv_bundle}")
     print()
-    
+
     # Partitura
     print("--- PartituraLoader (MusicXML) ---")
     profile_loader(PartituraLoader, CHOPIN_XML, "PartituraLoader")
     pt_bundle = PartituraLoader().load(CHOPIN_XML)
     print(f"    {pt_bundle}")
     print()
-    
+
     # Music21
     print("--- Music21Loader (MusicXML) ---")
     profile_loader(Music21Loader, CHOPIN_XML, "Music21Loader")
     m21_bundle = Music21Loader().load(CHOPIN_XML)
     print(f"    {m21_bundle}")
     print()
-    
+
     # Summary
     print("=" * 60)
     print("Note Counts Comparison")
     print("=" * 60)
     print(f"TSV:       {len(tsv_bundle.notes)} notes")
-    print(f"Partitura: {len(pt_bundle.notes)} notes, {len(pt_bundle.measures)} measures")
-    print(f"Music21:   {len(m21_bundle.notes)} notes (has_rests={m21_bundle.notes.has_rests})")
+    print(
+        f"Partitura: {len(pt_bundle.notes)} notes, {len(pt_bundle.measures)} measures"
+    )
+    print(
+        f"Music21:   {len(m21_bundle.notes)} notes (has_rests={m21_bundle.notes.has_rests})"
+    )
 
 
 if __name__ == "__main__":

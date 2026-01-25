@@ -44,8 +44,12 @@ class ScopedId:
     SEPARATOR: ClassVar[str] = ":"
 
     # Validation patterns
-    _SCOPE_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_.\-]*$")
-    _LOCAL_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"^[^\s:]+$")  # No whitespace or colons
+    _SCOPE_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
+        r"^[a-zA-Z_][a-zA-Z0-9_.\-]*$"
+    )
+    _LOCAL_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
+        r"^[^\s:]+$"
+    )  # No whitespace or colons
 
     def __post_init__(self) -> None:
         # Allow empty scope

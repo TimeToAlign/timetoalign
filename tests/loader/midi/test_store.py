@@ -1,7 +1,5 @@
 """Tests for MidiEventStore."""
 
-import pyarrow as pa
-import pytest
 from timetoalign.core import TimeUnit
 from timetoalign.loader.midi import MidiEventStore
 
@@ -13,11 +11,11 @@ class TestMidiEventStore:
         """Schema should include MIDI-specific fields."""
         schema = MidiEventStore.schema(TimeUnit.ticks)
         names = schema.names
-        
+
         # Base fields
         assert "id" in names
         assert "start" in names
-        
+
         # MIDI fields
         assert "pitch" in names
         assert "velocity" in names
@@ -25,7 +23,7 @@ class TestMidiEventStore:
         assert "track" in names
         assert "control" in names
         assert "program" in names
-        
+
         # Score fields
         assert "voice" in names
         assert "staff" in names
@@ -34,7 +32,7 @@ class TestMidiEventStore:
     def test_nullable_fields(self) -> None:
         """Extra fields should be nullable."""
         schema = MidiEventStore.schema(TimeUnit.ticks)
-        
+
         assert schema.field("voice").nullable
         assert schema.field("control").nullable
         assert schema.field("pitch").nullable
@@ -54,7 +52,7 @@ class TestMidiEventStore:
             }
         ]
         store = MidiEventStore.from_dicts(events, TimeUnit.ticks)
-        
+
         assert len(store) == 1
         table = store.table
         assert table.column("pitch")[0].as_py() == 60

@@ -91,17 +91,19 @@ class TestLoaderLoading:
     def test_load_source_no_events(self, dummy_loader: DummyLoader) -> None:
         """load() handles sources returning no events."""
         from tempfile import NamedTemporaryFile
-        
+
         # Subclass that returns empty events
         class EmptySourceLoader(DummyLoader):
-            def _load_source(self, source: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+            def _load_source(
+                self, source: Path
+            ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
                 return {"format": "empty"}, []
 
         with NamedTemporaryFile(suffix=".empty") as f:
             path = Path(f.name)
             loader = EmptySourceLoader()
             loader.load(path)
-            
+
             assert len(loader.sources) == 1
             assert len(loader) == 0
 
@@ -144,9 +146,7 @@ class TestLoaderLoading:
 class TestLoaderClear:
     """Tests for Loader.clear method."""
 
-    def test_clear(
-        self, dummy_loader: DummyLoader, temp_source_file: Path
-    ) -> None:
+    def test_clear(self, dummy_loader: DummyLoader, temp_source_file: Path) -> None:
         """clear() removes all sources and events."""
         dummy_loader.load(temp_source_file)
         assert len(dummy_loader) == 2
