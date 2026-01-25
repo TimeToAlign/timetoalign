@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Any
 
-import partitura as pt
-from partitura.score import Part, PartGroup, Score
+# Suppress pkg_resources deprecation warning from partitura
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=UserWarning, module="partitura.*")
+    warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
+    import partitura as pt
+    from partitura.score import Part, PartGroup, Score
 
 from timetoalign.core import NumberType, TimeUnit
 

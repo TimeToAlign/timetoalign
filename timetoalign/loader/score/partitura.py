@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import warnings
 from fractions import Fraction
 from pathlib import Path
 
-import partitura as pt
-import partitura.score as pts
+# Suppress pkg_resources deprecation warning from partitura
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=UserWarning, module="partitura.*")
+    warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
+    import partitura as pt
+    import partitura.score as pts
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import fraction_to_struct
