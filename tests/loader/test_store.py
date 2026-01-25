@@ -1,0 +1,431 @@
+"""Tests for loader/store.py (EventStore)."""
+
+from __future__ import annotations
+
+import os
+from fractions import Fraction
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+import pyarrow as pa
+import pyarrow.compute as pc
+import pytest
+
+from timetoalign.core import NumberType, TimeUnit
+from timetoalign.loader import EventStore
+
+
+class TestEventStoreCreation:
+    """Tests for EventStore creation methods."""
+
+    def test_empty_store(self) -> None:
+        """Can create an empty EventStore."""
+        store = EventStore.empty(TimeUnit.ticks)
+        assert len(store) == 0
+        assert store.unit == TimeUnit.ticks
+        assert store.number_type == NumberType.float
+
+    def test_empty_with_number_type(self) -> None:
+        """Can specify number_type for empty store."""
+        store = EventStore.empty(TimeUnit.seconds, NumberType.fraction)
+        assert store.number_type == NumberType.fraction
+
+    def test_from_dicts_empty_list(self) -> None:
+        """from_dicts with empty list returns empty store."""
+        store = EventStore.from_dicts([], TimeUnit.ticks)
+        assert len(store) == 0
+
+    def test_from_dicts_instant_events(
+        self, sample_instant_events: list[dict[str, Any]]
+    ) -> None:
+        """from_dicts creates store from instant events."""
+        store = EventStore.from_dicts(sample_instant_events, TimeUnit.ticks)
+        assert len(store) == 3
+        assert store.unit == TimeUnit.ticks
+
+    def test_from_dicts_interval_events(
+        self, sample_interval_events: list[dict[str, Any]]
+    ) -> None:
+        """from_dicts creates store from interval events."""
+        store = EventStore.from_dicts(sample_interval_events, TimeUnit.ticks)
+        assert len(store) == 2
+
+    def test_from_dicts_mixed_events(
+        self, sample_mixed_events: list[dict[str, Any]]
+    ) -> None:
+        """from_dicts creates store from mixed events."""
+        store = EventStore.from_dicts(sample_mixed_events, TimeUnit.ticks)
+        assert len(store) == 5
+
+    def test_from_dicts_with_fractions(
+        self, sample_fraction_events: list[dict[str, Any]]
+    ) -> None:
+        """from_dicts handles Fraction coordinates."""
+        store = EventStore.from_dicts(
+            sample_fraction_events, TimeUnit.quarters, NumberType.fraction
+        )
+        assert len(store) == 3
+
+    def test_from_arrays_empty(self) -> None:
+        """from_arrays with empty columns returns empty store."""
+        store = EventStore.from_arrays({}, TimeUnit.ticks)
+        assert len(store) == 0
+
+    def test_from_arrays_instant_events(self) -> None:
+        """from_arrays creates store from column arrays."""
+        store = EventStore.from_arrays(
+            {
+                "id": ["b1", "b2"],
+                "temporal_type": ["instant", "instant"],
+                "event_type": ["Beat", "Beat"],
+                "instant": [0, 480],
+            },
+            TimeUnit.ticks,
+        )
+        assert len(store) == 2
+
+    def test_from_arrays_missing_columns(self) -> None:
+        """from_arrays fills missing columns with None."""
+        # Missing temporal_type, event_type, name
+        store = EventStore.from_arrays(
+            {
+                "id": ["b1"],
+                "instant": [0],
+            },
+            TimeUnit.ticks,
+        )
+        assert len(store) == 1
+        row = list(store)[0]
+        assert row["temporal_type"] is None
+        assert row["event_type"] is None
+        assert row["name"] is None
+
+    def test_from_dataframe_empty(self) -> None:
+        """from_dataframe with empty DataFrame returns empty store."""
+        df = pd.DataFrame()
+        store = EventStore.from_dataframe(df, TimeUnit.ticks)
+        assert len(store) == 0
+
+    def test_from_dataframe(self) -> None:
+        """from_dataframe creates store from DataFrame."""
+        df = pd.DataFrame(
+            {
+                "id": ["b1", "b2"],
+                "temporal_type": ["instant", "instant"],
+                "event_type": ["Beat", "Beat"],
+                "instant": [0, 480],
+            }
+        )
+        store = EventStore.from_dataframe(df, TimeUnit.ticks)
+        assert len(store) == 2
+
+    def test_from_dicts_with_explicit_none_coords(self) -> None:
+        """from_dicts handles explicit None in coordinate columns."""
+        events = [{
+            "id": "e1",
+            "temporal_type": "instant",
+            "event_type": "NullEvent",
+            "instant": None,
+            "start": None
+        }]
+        store = EventStore.from_dicts(events, TimeUnit.ticks)
+        assert len(store) == 1
+        row = list(store)[0]
+        # Check raw row values (structs should be null)
+        assert row["instant"] is None
+        assert row["start"] is None
+
+
+class TestEventStoreSchema:
+    """Tests for EventStore schema methods."""
+
+    def test_schema_returns_pyarrow_schema(self) -> None:
+        """schema() returns a PyArrow schema."""
+        schema = EventStore.schema(TimeUnit.ticks)
+        assert isinstance(schema, pa.Schema)
+
+    def test_schema_has_base_columns(self) -> None:
+        """schema() includes all base columns."""
+        schema = EventStore.schema(TimeUnit.ticks)
+        assert "id" in schema.names
+        assert "instant" in schema.names
+        assert "start" in schema.names
+
+    def test_column_names(self) -> None:
+        """column_names() returns list of column names."""
+        names = EventStore.column_names()
+        assert isinstance(names, list)
+        assert "id" in names
+        assert len(names) == 8  # Base columns only
+
+
+class TestEventStoreProperties:
+    """Tests for EventStore properties."""
+
+    def test_table_property(self, store_with_instants: EventStore) -> None:
+        """table property returns PyArrow table."""
+        assert isinstance(store_with_instants.table, pa.Table)
+
+    def test_unit_property(self, store_with_instants: EventStore) -> None:
+        """unit property returns TimeUnit."""
+        assert store_with_instants.unit == TimeUnit.ticks
+
+    def test_number_type_property(self, store_with_instants: EventStore) -> None:
+        """number_type property returns NumberType."""
+        assert store_with_instants.number_type == NumberType.float
+
+    def test_count_property(self, store_with_instants: EventStore) -> None:
+        """count property returns number of events."""
+        assert store_with_instants.count == 3
+
+    def test_len(self, store_with_instants: EventStore) -> None:
+        """__len__ returns count."""
+        assert len(store_with_instants) == 3
+
+
+class TestEventStoreIteration:
+    """Tests for EventStore iteration."""
+
+    def test_iter_yields_dicts(self, store_with_instants: EventStore) -> None:
+        """__iter__ yields row dictionaries."""
+        rows = list(store_with_instants)
+        assert len(rows) == 3
+        assert all(isinstance(r, dict) for r in rows)
+
+    def test_iter_includes_id(self, store_with_instants: EventStore) -> None:
+        """Iterated rows include id field."""
+        rows = list(store_with_instants)
+        ids = [r["id"] for r in rows]
+        assert "beat_1" in ids
+
+
+class TestEventStoreRepr:
+    """Tests for EventStore __repr__."""
+
+    def test_repr(self, store_with_instants: EventStore) -> None:
+        """__repr__ returns informative string."""
+        r = repr(store_with_instants)
+        assert "EventStore" in r
+        assert "3" in r  # count
+        assert "ticks" in r
+
+
+class TestEventStoreExtend:
+    """Tests for EventStore extend/concat methods."""
+
+    def test_extend(
+        self,
+        store_with_instants: EventStore,
+        sample_interval_events: list[dict[str, Any]],
+    ) -> None:
+        """extend() adds events from another store."""
+        other = EventStore.from_dicts(sample_interval_events, TimeUnit.ticks)
+        store_with_instants.extend(other)
+        assert len(store_with_instants) == 5
+
+    def test_extend_unit_mismatch_raises(
+        self, store_with_instants: EventStore
+    ) -> None:
+        """extend() raises on unit mismatch."""
+        other = EventStore.empty(TimeUnit.seconds)
+        with pytest.raises(ValueError, match="Unit mismatch"):
+            store_with_instants.extend(other)
+
+    def test_concat(
+        self,
+        store_with_instants: EventStore,
+        store_with_intervals: EventStore,
+    ) -> None:
+        """concat() returns new store with all events."""
+        combined = store_with_instants.concat(store_with_intervals)
+        assert len(combined) == 5
+        # Original unchanged
+        assert len(store_with_instants) == 3
+
+    def test_concat_unit_mismatch_raises(
+        self, store_with_instants: EventStore
+    ) -> None:
+        """concat() raises on unit mismatch."""
+        other = EventStore.empty(TimeUnit.seconds)
+        with pytest.raises(ValueError, match="Unit mismatch"):
+            store_with_instants.concat(other)
+
+
+class TestEventStoreFilter:
+    """Tests for EventStore filter method."""
+
+    def test_filter_by_temporal_type(self, store_with_mixed: EventStore) -> None:
+        """filter() by temporal_type works."""
+        instants = store_with_mixed.filter(temporal_type="instant")
+        assert len(instants) == 3
+
+        intervals = store_with_mixed.filter(temporal_type="interval")
+        assert len(intervals) == 2
+
+    def test_filter_by_event_type(self, store_with_mixed: EventStore) -> None:
+        """filter() by event_type works."""
+        beats = store_with_mixed.filter(event_type="Beat")
+        assert len(beats) == 3
+
+        notes = store_with_mixed.filter(event_type="Note")
+        assert len(notes) == 2
+
+    def test_filter_by_min_coord(self, store_with_instants: EventStore) -> None:
+        """filter() by min_coord works."""
+        filtered = store_with_instants.filter(min_coord=480)
+        assert len(filtered) == 2  # beat_2 at 480, beat_3 at 960
+
+    def test_filter_by_max_coord(self, store_with_instants: EventStore) -> None:
+        """filter() by max_coord works."""
+        filtered = store_with_instants.filter(max_coord=480)
+        assert len(filtered) == 1  # beat_1 at 0
+
+    def test_filter_combined(self, store_with_mixed: EventStore) -> None:
+        """filter() with multiple criteria."""
+        filtered = store_with_mixed.filter(
+            temporal_type="interval", event_type="Note", min_coord=100
+        )
+        assert len(filtered) == 1  # note_2 starts at 240
+
+    def test_filter_no_criteria_returns_self(
+        self, store_with_instants: EventStore
+    ) -> None:
+        """filter() with no criteria returns same store."""
+        filtered = store_with_instants.filter()
+        assert filtered is store_with_instants
+
+    def test_filter_returns_new_eventstore(
+        self, store_with_instants: EventStore
+    ) -> None:
+        """filter() returns new EventStore instance."""
+        filtered = store_with_instants.filter(min_coord=0)
+        assert isinstance(filtered, EventStore)
+
+
+class TestEventStoreSelect:
+    """Tests for EventStore select method."""
+
+    def test_select_columns(self, store_with_instants: EventStore) -> None:
+        """select() returns table with specified columns."""
+        result = store_with_instants.select(["id", "event_type"])
+        assert isinstance(result, pa.Table)
+        assert result.num_columns == 2
+        assert "id" in result.schema.names
+
+
+class TestEventStoreWhere:
+    """Tests for EventStore where method."""
+
+    def test_where_with_expression(self, store_with_instants: EventStore) -> None:
+        """where() filters with custom expression."""
+        expr = pc.equal(pc.field("event_type"), "Beat")
+        filtered = store_with_instants.where(expr)
+        assert len(filtered) == 3
+
+
+class TestEventStoreStats:
+    """Tests for EventStore stats methods."""
+
+    def test_count_by(self, store_with_mixed: EventStore) -> None:
+        """count_by() groups and counts."""
+        counts = store_with_mixed.count_by("temporal_type")
+        assert counts["instant"] == 3
+        assert counts["interval"] == 2
+
+    def test_coordinate_range_empty(self, empty_store: EventStore) -> None:
+        """coordinate_range() returns None for empty store."""
+        assert empty_store.coordinate_range() is None
+
+    def test_coordinate_range(self, store_with_mixed: EventStore) -> None:
+        """coordinate_range() returns min/max."""
+        range_ = store_with_mixed.coordinate_range()
+        assert range_ is not None
+        assert range_[0] == 0.0
+        assert range_[1] == 960.0  # beat_3 at 960
+
+    def test_coordinate_range_all_nulls(self) -> None:
+        """coordinate_range() returns None if all coords are null."""
+        events = [{
+            "id": "e1", 
+            "temporal_type": "instant", 
+            "event_type": "NullEvent",
+            "instant": None
+        }]
+        store = EventStore.from_dicts(events, TimeUnit.ticks)
+        assert store.count == 1
+        assert store.coordinate_range() is None
+
+    def test_event_types(self, store_with_mixed: EventStore) -> None:
+        """event_types() returns unique types."""
+        types = store_with_mixed.event_types()
+        assert set(types) == {"Beat", "Note"}
+
+    def test_summary(self, store_with_mixed: EventStore) -> None:
+        """summary() returns comprehensive stats."""
+        summary = store_with_mixed.summary()
+        assert summary["count"] == 5
+        assert "temporal_types" in summary
+        assert "event_types" in summary
+        assert "coordinate_range" in summary
+
+
+class TestEventStoreSerialization:
+    """Tests for EventStore Parquet serialization."""
+
+    def test_to_parquet(
+        self, store_with_mixed: EventStore, temp_parquet_path: Path
+    ) -> None:
+        """to_parquet() writes Parquet file."""
+        store_with_mixed.to_parquet(temp_parquet_path)
+        assert temp_parquet_path.exists()
+        os.unlink(temp_parquet_path)
+
+    def test_from_parquet(
+        self, store_with_mixed: EventStore, temp_parquet_path: Path
+    ) -> None:
+        """from_parquet() loads EventStore."""
+        store_with_mixed.to_parquet(temp_parquet_path)
+        loaded = EventStore.from_parquet(temp_parquet_path)
+
+        assert len(loaded) == len(store_with_mixed)
+        assert loaded.unit == store_with_mixed.unit
+        os.unlink(temp_parquet_path)
+
+    def test_from_parquet_no_metadata_raises(self, temp_parquet_path: Path) -> None:
+        """from_parquet() raises if no TimeToAlign metadata."""
+        # Create a parquet file without our metadata
+        table = pa.table({"id": ["a", "b"]})
+        import pyarrow.parquet as pq
+
+        pq.write_table(table, temp_parquet_path)
+
+        with pytest.raises(ValueError, match="lacks TimeToAlign"):
+            EventStore.from_parquet(temp_parquet_path)
+        os.unlink(temp_parquet_path)
+
+    def test_to_dataframe(self, store_with_mixed: EventStore) -> None:
+        """to_dataframe() returns pandas DataFrame."""
+        df = store_with_mixed.to_dataframe()
+        assert isinstance(df, pd.DataFrame)
+        assert len(df) == 5
+
+
+class TestEventStoreSubclass:
+    """Tests for EventStore subclassing."""
+
+    def test_subclass_with_extra_fields(self) -> None:
+        """Subclass can add extra fields."""
+
+        class NoteEventStore(EventStore):
+            _extra_fields = [
+                pa.field("pitch", pa.int8()),
+                pa.field("velocity", pa.int8()),
+            ]
+
+        schema = NoteEventStore.schema(TimeUnit.ticks)
+        assert "pitch" in schema.names
+        assert "velocity" in schema.names
+
+        names = NoteEventStore.column_names()
+        assert "pitch" in names

@@ -32,6 +32,7 @@ from timetoalign.core import (
     ScopedId,
     TimeUnit,
 )
+from timetoalign.loader import EventStore, Loader
 
 __version__ = "0.1.0"
 
@@ -50,4 +51,7 @@ __all__ = [
     # IDs
     "ScopedId",
     "IdGenerator",
+    # Loader
+    "EventStore",
+    "Loader",
 ]
