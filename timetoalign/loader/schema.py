@@ -215,7 +215,6 @@ def make_base_schema(unit: TimeUnit) -> pa.Schema:
             pa.field("name", pa.string(), nullable=True),
             pa.field("temporal_type", pa.string(), nullable=False),
             pa.field("event_type", pa.string(), nullable=False),
-            make_coordinate_field("instant", unit, nullable=True),
             make_coordinate_field("start", unit, nullable=True),
             make_coordinate_field("end", unit, nullable=True),
             make_coordinate_field("duration", unit, nullable=True),
@@ -234,7 +233,6 @@ def get_base_column_names() -> list[str]:
         "name",
         "temporal_type",
         "event_type",
-        "instant",
         "start",
         "end",
         "duration",
@@ -265,14 +263,13 @@ def get_unit_from_schema(schema: pa.Schema) -> TimeUnit | None:
     Returns:
         The TimeUnit if found, None otherwise.
     """
-    # Check the 'instant' field first, then 'start'
-    for field_name in ("instant", "start"):
-        try:
-            field = schema.field(field_name)
-            if field.metadata and b"unit" in field.metadata:
-                return TimeUnit(field.metadata[b"unit"].decode())
-        except KeyError:
-            continue
+    # Check the 'start' field
+    try:
+        field = schema.field("start")
+        if field.metadata and b"unit" in field.metadata:
+            return TimeUnit(field.metadata[b"unit"].decode())
+    except KeyError:
+        pass
     return None
 
 

@@ -51,9 +51,10 @@ class TestTSVLoader:
         bundle = loader.bundle
         first = list(bundle.notes)[0]
 
-        qb = first.get("quarterbeats")
+        qb = first.get("start")
         assert qb is not None
-        assert "num" in qb and "den" in qb
+        assert "numerator" in qb and "denominator" in qb
+        assert "value" in qb
 
     def test_pitch_schema(self, chopin_tsv_notes):
         """Pitch fields properly populated."""
@@ -110,9 +111,10 @@ class TestPartituraLoader:
         bundle = loader.bundle
         first = list(bundle.notes)[0]
 
-        qb = first.get("quarterbeats")
+        qb = first.get("start")
         assert qb is not None
-        assert "num" in qb and "den" in qb
+        assert "numerator" in qb and "denominator" in qb
+        assert "value" in qb
 
 
 class TestMusic21Loader:
@@ -155,9 +157,10 @@ class TestMusic21Loader:
         bundle = loader.bundle
         first = list(bundle.notes)[0]
 
-        qb = first.get("quarterbeats")
+        qb = first.get("start")
         assert qb is not None
-        assert "num" in qb and "den" in qb
+        assert "numerator" in qb and "denominator" in qb
+        assert "value" in qb
 
 
 class TestCrossValidation:

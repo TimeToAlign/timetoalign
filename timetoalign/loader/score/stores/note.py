@@ -26,13 +26,13 @@ def _make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
 
     spelled_pitch = pa.struct(
         [
-            pa.field("gpc_int", pa.int64(), nullable=True),
+            pa.field("gpc_int", pa.int64(), nullable=True, metadata={"unit": "steps"}),
             pa.field("gpc_str", pa.string(), nullable=True),
-            pa.field("acc", pa.int64(), nullable=True),
-            pa.field("spc_int", pa.int64(), nullable=True),
+            pa.field("acc", pa.int64(), nullable=True, metadata={"unit": "alter"}),
+            pa.field("spc_int", pa.int64(), nullable=True, metadata={"unit": "fifths"}),
             pa.field("spc_str", pa.string(), nullable=True),
             pa.field("sp", pa.string(), nullable=True),
-            pa.field("cents", pa.float64(), nullable=False),
+            pa.field("cents", pa.float64(), nullable=False, metadata={"unit": "cents"}),
         ]
     )
 
@@ -43,10 +43,9 @@ class NoteEventStore(EventStore):
     """EventStore for note, rest, and chord events.
 
     Rich temporal schema following TSV gold standard:
-    - quarterbeats: Continuous logical time (Fraction)
-    - quarterbeats_float: Float representation
-    - duration_qb: Duration in quarter beats (Fraction)
-    - duration_qb_float: Float duration
+    - start: Continuous logical time (Fraction) - from 'quarterbeats'
+    - duration: Duration (Fraction) - from 'duration_qb'
+    - duration_float: Float duration
     - mc/mn: Measure context
     - mc_onset/mn_onset: Measure-relative offsets (Fraction)
 
@@ -60,29 +59,22 @@ class NoteEventStore(EventStore):
     _midi_type, _spelled_type = _make_pitch_types()
 
     _extra_fields: ClassVar[list[pa.Field]] = [
-        # Temporal - Primary (Fractions)
-        make_fraction_field(
-            "quarterbeats", nullable=False, metadata={"unit": "quarters"}
-        ),
-        pa.field("quarterbeats_float", pa.float64(), nullable=False),
-        make_fraction_field(
-            "duration_qb", nullable=True, metadata={"unit": "quarters"}
-        ),
-        pa.field("duration_qb_float", pa.float64(), nullable=True),
+        # Temporal - Derived/Float
+        pa.field("duration_float", pa.float64(), nullable=True),
         # Temporal - Measure context
         pa.field("mc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("mn", pa.string(), nullable=True),
         make_fraction_field("mc_onset", nullable=True),
         make_fraction_field("mn_onset", nullable=True),
-        pa.field("timesig", pa.string(), nullable=True),
-        # Temporal - Symbolic duration
-        make_fraction_field("duration", nullable=True),
-        make_fraction_field("nominal_duration", nullable=True),
-        make_fraction_field("scalar", nullable=True),
         # Pitch
         pa.field("midi_pitch", _midi_type, nullable=True),
         pa.field("spelled_pitch", _spelled_type, nullable=True),
-        pa.field("tpc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
+        pa.field(
+            "tpc",
+            pa.int64(),
+            nullable=True,
+            metadata={"number_type": "int64", "unit": "fifths"},
+        ),
         pa.field(
             "octave", pa.int64(), nullable=True, metadata={"number_type": "int64"}
         ),
@@ -159,8 +151,27 @@ class NoteEventStore(EventStore):
         processed_rows = []
         for row in rows:
             processed = dict(row)
+
+            # Map legacy temporal columns to base
+            if "quarterbeats" in processed:
+                processed["start"] = processed.pop("quarterbeats")
+            if "duration_qb" in processed:
+                processed["duration"] = processed.pop("duration_qb")
+            if "duration_qb_float" in processed:
+                processed["duration_float"] = processed.pop("duration_qb_float")
+
+            # Remove unused/redundant fields
+            for k in [
+                "quarterbeats_float",
+                "nominal_duration",
+                "scalar",
+                "timesig",
+                "instant",
+            ]:
+                processed.pop(k, None)
+
             # Base columns need defaults
-            for col in ["instant", "start", "end", "duration"]:
+            for col in ["start", "end", "duration"]:
                 if col not in processed:
                     processed[col] = None
             processed_rows.append(processed)

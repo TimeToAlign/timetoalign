@@ -176,8 +176,16 @@ class EventStore:
         processed_rows = []
         for row in rows:
             processed = dict(row)
+
+            # Map 'instant' to 'start'
+            if "instant" in processed and processed.get("start") is None:
+                processed["start"] = processed.pop("instant")
+
+            # Remove 'instant' key if it remains
+            processed.pop("instant", None)
+
             # Handle coordinate columns
-            for coord_col in ("instant", "start", "end", "duration"):
+            for coord_col in ("start", "end", "duration"):
                 if coord_col in processed and processed[coord_col] is not None:
                     processed[coord_col] = coordinate_to_struct(processed[coord_col])
                 elif coord_col not in processed:
@@ -230,12 +238,18 @@ class EventStore:
         n_rows = len(columns["id"])
         processed = {}
 
+        # Helper to access columns including mapped ones
+        def get_col(name):
+            if name == "start" and "start" not in columns and "instant" in columns:
+                return columns["instant"]
+            return columns.get(name)
+
         for col_name in cls.column_names():
-            if col_name in ("instant", "start", "end", "duration"):
-                if col_name in columns:
+            if col_name in ("start", "end", "duration"):
+                vals = get_col(col_name)
+                if vals:
                     processed[col_name] = [
-                        coordinate_to_struct(v) if v is not None else None
-                        for v in columns[col_name]
+                        coordinate_to_struct(v) if v is not None else None for v in vals
                     ]
                 else:
                     processed[col_name] = [None] * n_rows
@@ -422,12 +436,8 @@ class EventStore:
 
         if min_coord is not None or max_coord is not None:
             # For coordinate filtering, we use the float 'value' field
-            # Check both instant.value and start.value
-            instant_val = pc.struct_field(pc.field("instant"), "value")
-            start_val = pc.struct_field(pc.field("start"), "value")
-
-            # Use coalesce to get whichever is not null
-            coord_val = pc.coalesce(instant_val, start_val)
+            # Check start.value
+            coord_val = pc.struct_field(pc.field("start"), "value")
 
             if min_coord is not None:
                 expr = pc.greater_equal(coord_val, min_coord)
@@ -502,7 +512,7 @@ class EventStore:
         min_val = None
         max_val = None
 
-        for col_name in ["instant", "start", "end"]:
+        for col_name in ["start", "end"]:
             try:
                 col = self._table.column(col_name)
                 # Check for null column
