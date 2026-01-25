@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from abc import abstractmethod
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Self
 
 from timetoalign.core import TimeUnit
 from timetoalign.loader.base import Loader
 
+from .bundle import ScoreBundle
 from .store import ScoreEventStore
 
 
@@ -17,13 +19,56 @@ class ScoreLoader(Loader):
     _default_unit = TimeUnit.ticks
     _event_store_class = ScoreEventStore
 
-    def load(self, *sources: Path | str) -> Self:
-        """Load sources and update store metadata."""
-        super().load(*sources)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._bundle = ScoreBundle.empty()
 
-        # Aggregate has_rests from source metadata
-        # If any source explicitly has rests, the store has rests
-        has_rests = any(m.get("has_rests", False) for m in self._source_metadata)
-        self.events._has_rests = has_rests
+    @property
+    def bundle(self) -> ScoreBundle:
+        """The ScoreBundle containing all loaded score elements."""
+        return self._bundle
 
-        return self
+    @property
+    def events(self) -> ScoreEventStore:
+        """The primary event store (notes), for compatibility."""
+        return self._bundle.notes
+
+    @abstractmethod
+    def _load_source(self, source: Path) -> ScoreBundle:
+        """Load a single source file into a ScoreBundle.
+
+        Args:
+            source: Path to the source file.
+
+        Returns:
+            A ScoreBundle containing the loaded data.
+        """
+        ...
+
+    def load(self, *sources: Path | str) -> None:
+        """Load sources into the bundle.
+
+        Args:
+            *sources: Paths to source files.
+        """
+        for source in sources:
+            path = Path(source)
+
+            # Load bundle from source
+            bundle = self._load_source(path)
+
+            # Update metadata
+            meta = bundle.metadata.copy()
+            meta["path"] = str(path)
+            meta["loaded_at"] = datetime.now(timezone.utc).isoformat()
+
+            self._sources.append(path)
+            self._source_metadata.append(meta)
+
+            # Extend internal bundle
+            self._bundle.extend(bundle)
+
+    def clear(self) -> None:
+        """Clear all loaded sources and bundle data."""
+        super().clear()
+        self._bundle = ScoreBundle.empty()
