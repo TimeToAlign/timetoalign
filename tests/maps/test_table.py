@@ -118,3 +118,51 @@ class TestTableMap:
 
         # 960 + 480 ticks (1 more quarter) @ 60 bpm -> 1.0 + 1.0 = 2.0 sec
         assert m(1440) == 2.0
+
+
+class TestTableMapConvertArray:
+    """Tests for TableMap.convert_array() public API."""
+
+    def test_convert_array_linear_interpolation(self):
+        """convert_array() with linear interpolation."""
+        m = TableMap(x_values=[0, 10, 20], y_values=[0, 100, 150])
+        values = np.array([0, 5, 10, 15, 20])
+
+        result = m.convert_array(values)
+
+        assert isinstance(result, np.ndarray)
+        np.testing.assert_array_equal(result, [0.0, 50.0, 100.0, 125.0, 150.0])
+
+    def test_convert_array_from_tempo(self):
+        """convert_array() with tempo-based table map."""
+        m = TableMap.from_tempo_changes(
+            tick_positions=[0, 960], tempos_bpm=[120.0, 60.0], ticks_per_quarter=480
+        )
+        values = np.array([0, 480, 960, 1440])
+
+        result = m.convert_array(values)
+
+        np.testing.assert_array_almost_equal(result, [0.0, 0.5, 1.0, 2.0])
+
+    def test_convert_array_matches_scalar(self):
+        """convert_array() results match element-wise scalar conversion."""
+        m = TableMap(x_values=[0, 5, 10, 15, 20], y_values=[0, 2, 8, 12, 20])
+        values = np.array([0, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20])
+
+        array_result = m.convert_array(values)
+        scalar_results = np.array([m(v) for v in values])
+
+        np.testing.assert_array_almost_equal(array_result, scalar_results)
+
+    def test_convert_array_extrapolation(self):
+        """convert_array() respects extrapolation policy."""
+        m = TableMap(
+            x_values=[0, 10],
+            y_values=[0, 20],
+            extrapolate=ExtrapolationPolicy.constant,
+        )
+        values = np.array([-5, 0, 5, 10, 15])
+
+        result = m.convert_array(values)
+
+        np.testing.assert_array_equal(result, [0.0, 0.0, 10.0, 20.0, 20.0])
