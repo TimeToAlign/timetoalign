@@ -275,6 +275,12 @@ class ConversionMap(ABC, Generic[T]):
 
         # Import all map types for dispatch
         from .composite import ChainMap, PiecewiseMap
+        from .convenience import (
+            QuartersToTicks,
+            SamplesToSeconds,
+            SecondsToSamples,
+            TicksToQuarters,
+        )
         from .linear import LinearMap, ScalarMap, ShiftMap
         from .table import TableMap
 
@@ -285,6 +291,11 @@ class ConversionMap(ABC, Generic[T]):
             "TableMap": TableMap,
             "ChainMap": ChainMap,
             "PiecewiseMap": PiecewiseMap,
+            # Convenience classes
+            "TicksToQuarters": TicksToQuarters,
+            "QuartersToTicks": QuartersToTicks,
+            "SamplesToSeconds": SamplesToSeconds,
+            "SecondsToSamples": SecondsToSamples,
         }
 
         if map_type not in type_map:

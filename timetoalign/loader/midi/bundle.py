@@ -13,10 +13,13 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from timetoalign.loader.bundle import EventBundle
 from timetoalign.loader.midi.store import MidiEventStore
+
+if TYPE_CHECKING:
+    from timetoalign.maps import ConversionMap
 
 # Event types that belong to "notes" category
 NOTE_EVENT_TYPES: frozenset[str] = frozenset({"Note"})
@@ -145,6 +148,74 @@ class MidiBundle(EventBundle):
             "controls_count": len(self.controls),
             **self.metadata,
         }
+
+    def get_cmaps(self) -> dict[str, ConversionMap]:
+        """Get ConversionMaps derivable from MIDI bundle metadata.
+
+        Returns C-Maps based on available metadata:
+        - "quarters": ticks -> quarters (if ticks_per_beat available)
+        - "seconds": ticks -> seconds (if tempo events available)
+
+        Returns:
+            Dict mapping target unit name to ConversionMap.
+
+        Examples:
+            >>> bundle = midi_loader.load("performance.mid")
+            >>> cmaps = bundle.get_cmaps()
+            >>> quarters_map = cmaps.get("quarters")
+            >>> if quarters_map:
+            ...     quarters = quarters_map(960)  # 2.0 quarters at 480 PPQ
+        """
+        from timetoalign.maps import ScalarMap, TableMap
+
+        cmaps: dict[str, ConversionMap] = {}
+
+        # Get PPQ from metadata
+        ppq = self.metadata.get("ticks_per_beat")
+        if ppq is None:
+            return cmaps
+
+        # Always available if we have PPQ: ticks -> quarters
+        cmaps["quarters"] = ScalarMap(
+            scalar=1 / ppq,
+            source_unit="ticks",
+            target_unit="quarters",
+        )
+
+        # Check for tempo events to build ticks -> seconds map
+        # Tempo events would be stored in controls as TempoChange events
+        # with 'tempo_bpm' or similar field
+        # For now, check if we have tempo data in metadata
+        tempo_events = self._extract_tempo_events()
+        if tempo_events:
+            tick_positions = [t for t, _ in tempo_events]
+            tempos_bpm = [bpm for _, bpm in tempo_events]
+            cmaps["seconds"] = TableMap.from_tempo_changes(
+                tick_positions=tick_positions,
+                tempos_bpm=tempos_bpm,
+                ticks_per_quarter=ppq,
+                source_unit="ticks",
+                target_unit="seconds",
+            )
+
+        return cmaps
+
+    def _extract_tempo_events(self) -> list[tuple[int, float]]:
+        """Extract tempo events from controls store or metadata.
+
+        Returns:
+            List of (tick_position, bpm) tuples, sorted by tick position.
+            Empty list if no tempo information available.
+        """
+        # First check metadata for pre-extracted tempo events
+        if "tempo_events" in self.metadata:
+            return self.metadata["tempo_events"]
+
+        # TODO: Extract from controls store if TempoChange events are stored there
+        # For now, return empty list - tempo extraction will be added when
+        # MIDI loaders are enhanced to capture set_tempo messages
+
+        return []
 
     # endregion
 
