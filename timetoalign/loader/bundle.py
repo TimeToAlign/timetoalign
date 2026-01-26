@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from timetoalign.loader.store import EventStore
+    from timetoalign.maps import ConversionMap
     from timetoalign.timelines.base import Timeline
 
 
@@ -120,6 +121,30 @@ class EventBundle(ABC):
             EventStores in canonical order.
         """
         yield from self
+
+    # endregion
+
+    # region Conversion Maps
+
+    def get_cmaps(self) -> dict[str, ConversionMap]:
+        """Get ConversionMaps derivable from bundle metadata.
+
+        Returns a dictionary mapping target unit names to ConversionMaps
+        that can convert from this bundle's native unit. Subclasses should
+        override to provide maps based on available metadata (PPQ, tempo
+        events, sample rate, etc.).
+
+        Returns:
+            Dict mapping target unit name (e.g., "quarters", "seconds") to
+            ConversionMap instances. Empty dict if no C-Maps can be derived.
+
+        Examples:
+            >>> bundle = midi_loader.load("performance.mid")
+            >>> cmaps = bundle.get_cmaps()
+            >>> if "quarters" in cmaps:
+            ...     quarters = cmaps["quarters"](960)  # Convert 960 ticks
+        """
+        return {}
 
     # endregion
 
