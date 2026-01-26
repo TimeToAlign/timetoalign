@@ -110,7 +110,7 @@ class Coordinate:
                 f"Cannot {operation} Coordinate with {type(other).__name__}"
             )
         if self.unit != other.unit:
-            raise ValueError(
+            raise TypeError(
                 f"Cannot {operation} coordinates with different units: "
                 f"{self.unit} vs {other.unit}"
             )
