@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
+from timetoalign.loader.bundle import EventBundle
 from timetoalign.loader.score.stores.annotations import AnnotationEventStore
 from timetoalign.loader.score.stores.controls import ControlEventStore
 from timetoalign.loader.score.stores.measures import MeasureEventStore
@@ -17,7 +18,7 @@ STORE_NAMES: tuple[str, ...] = ("notes", "measures", "controls", "annotations")
 
 
 @dataclass
-class ScoreBundle:
+class ScoreBundle(EventBundle):
     """Container for score data organized by category.
 
     A ScoreLoader returns a ScoreBundle containing separate EventStores

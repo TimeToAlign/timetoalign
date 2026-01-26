@@ -5,6 +5,8 @@ and storing events in efficient PyArrow tables.
 
 Classes:
     EventStore: PyArrow-based bulk event storage.
+    EventBundle: Abstract base class for collections of EventStores.
+    SingleStoreBundle: Bundle wrapper for a single EventStore.
     Loader: Abstract base class for file loaders.
 
 The package also exports schema utilities for working with coordinate
@@ -14,6 +16,7 @@ structures and table metadata.
 from __future__ import annotations
 
 from .base import Loader
+from .bundle import EventBundle, SingleStoreBundle
 from .schema import (
     TEMPORAL_TYPE_INSTANT,
     TEMPORAL_TYPE_INTERVAL,
@@ -33,6 +36,8 @@ from .store import EventStore
 __all__ = [
     # Main classes
     "EventStore",
+    "EventBundle",
+    "SingleStoreBundle",
     "Loader",
     # Schema utilities
     "make_coordinate_type",
