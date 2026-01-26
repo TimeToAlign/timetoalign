@@ -16,6 +16,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar, Iterator, Literal
 
+import numpy as np
+import pandas as pd
+import pyarrow as pa
+import pyarrow.compute as pc
 from typing_extensions import Self
 
 from timetoalign.core import Coordinate, CoordinateValue, Domain, NumberType, TimeUnit
@@ -1012,6 +1016,403 @@ class Timeline:
                 f"No conversion map found from '{self._unit}' to '{target}'"
             )
         return cmap(values)
+
+    # endregion
+
+    # region Timestamp Generation
+
+    def _extract_event_coordinates(self) -> pa.ChunkedArray:
+        """Extract all unique event coordinates as a sorted PyArrow array.
+
+        Uses PyArrow compute to efficiently extract coordinates from the
+        EventStore table without Python iteration.
+
+        Returns:
+            Sorted PyArrow ChunkedArray of unique coordinate values (float64).
+            Returns empty array if no events.
+
+        Notes:
+            - Extracts start.value from all events
+            - Extracts end.value from interval events (drops nulls)
+            - Deduplicates and sorts the result
+        """
+        table = self._events.table
+
+        if table.num_rows == 0:
+            return pa.chunked_array([], type=pa.float64())
+
+        # Extract start coordinates (all events have start)
+        # struct_field returns ChunkedArray
+        start_col = table.column("start")
+        start_vals = pc.struct_field(start_col, "value")
+
+        # Extract end coordinates (intervals only, filter nulls)
+        end_col = table.column("end")
+        end_vals = pc.struct_field(end_col, "value")
+        end_vals = pc.drop_null(end_vals)
+
+        # Combine chunks from both ChunkedArrays
+        all_chunks = start_vals.chunks + end_vals.chunks
+        if not all_chunks:
+            return pa.chunked_array([], type=pa.float64())
+
+        combined = pa.chunked_array(all_chunks, type=pa.float64())
+
+        # Deduplicate
+        unique_coords = pc.unique(combined)
+
+        # Sort ascending
+        sort_indices = pc.sort_indices(unique_coords)
+        sorted_coords = pc.take(unique_coords, sort_indices)
+
+        return sorted_coords
+
+    def _collect_all_coordinates(
+        self,
+        recursion_limit: int | None = None,
+        offset: float = 0.0,
+    ) -> pa.Array:
+        """Collect coordinates from this timeline and all children.
+
+        Recursively collects event coordinates, applying cumulative offset
+        to convert to root-relative coordinates.
+
+        Args:
+            recursion_limit: Maximum depth for child traversal. None = unlimited.
+            offset: Cumulative offset from root timeline (internal use).
+
+        Returns:
+            PyArrow array of unique, sorted, root-relative coordinates (float64).
+        """
+        # Get this timeline's coordinates
+        local_coords = self._extract_event_coordinates()
+
+        # Apply offset to make root-relative
+        if offset != 0.0 and len(local_coords) > 0:
+            local_coords = pc.add(local_coords, offset)
+
+        arrays = [local_coords]
+
+        # Recurse into children
+        if recursion_limit is None or recursion_limit > 0:
+            next_limit = None if recursion_limit is None else recursion_limit - 1
+            for child_id, child in self._children.items():
+                child_offset = self._child_offsets[child_id].value
+                child_coords = child._collect_all_coordinates(
+                    recursion_limit=next_limit,
+                    offset=offset + child_offset,
+                )
+                if len(child_coords) > 0:
+                    arrays.append(child_coords)
+
+        # Combine all and deduplicate
+        if len(arrays) == 1:
+            return arrays[0]
+
+        # Filter out empty arrays before concatenation
+        non_empty = [a for a in arrays if len(a) > 0]
+        if not non_empty:
+            return pa.array([], type=pa.float64())
+
+        combined = pa.concat_arrays(non_empty)
+        unique = pc.unique(combined)
+
+        # Sort ascending
+        sort_indices = pc.sort_indices(unique)
+        return pc.take(unique, sort_indices)
+
+    def _collect_boundary_coordinates(
+        self,
+        recursion_limit: int | None = None,
+        offset: float = 0.0,
+    ) -> pa.Array:
+        """Collect timeline boundary coordinates (start=0, end=length).
+
+        Recursively collects boundary coordinates from this timeline
+        and all children, applying cumulative offsets.
+
+        Args:
+            recursion_limit: Maximum depth for child traversal. None = unlimited.
+            offset: Cumulative offset from root timeline (internal use).
+
+        Returns:
+            PyArrow array of unique, sorted, root-relative boundary coordinates.
+        """
+        # This timeline's boundaries
+        boundaries = [offset, offset + self._length.value]
+        arrays = [pa.array(boundaries, type=pa.float64())]
+
+        # Recurse into children
+        if recursion_limit is None or recursion_limit > 0:
+            next_limit = None if recursion_limit is None else recursion_limit - 1
+            for child_id, child in self._children.items():
+                child_offset = self._child_offsets[child_id].value
+                child_bounds = child._collect_boundary_coordinates(
+                    recursion_limit=next_limit,
+                    offset=offset + child_offset,
+                )
+                if len(child_bounds) > 0:
+                    arrays.append(child_bounds)
+
+        # Combine and deduplicate
+        if len(arrays) == 1:
+            return arrays[0]
+
+        combined = pa.concat_arrays(arrays)
+        unique = pc.unique(combined)
+        sort_indices = pc.sort_indices(unique)
+        return pc.take(unique, sort_indices)
+
+    def _compute_local_coordinates(
+        self,
+        root_coords: pa.Array,
+        offset: float = 0.0,
+    ) -> pa.Array:
+        """Compute local coordinates from root coordinates.
+
+        Vectorized offset subtraction with bounds checking. Coordinates
+        outside [0, length] are replaced with null.
+
+        Args:
+            root_coords: Array of root-relative coordinates.
+            offset: This timeline's offset from root.
+
+        Returns:
+            PyArrow array with local coordinates, null for out-of-bounds.
+        """
+        if len(root_coords) == 0:
+            return pa.array([], type=pa.float64())
+
+        # Subtract offset: local = root - offset
+        local = pc.subtract(root_coords, offset)
+
+        # Create mask for out-of-bounds coordinates
+        too_low = pc.less(local, 0.0)
+        too_high = pc.greater(local, self._length.value)
+        out_of_bounds = pc.or_(too_low, too_high)
+
+        # Replace out-of-bounds with null
+        null_scalar = pa.scalar(None, type=pa.float64())
+        return pc.if_else(out_of_bounds, null_scalar, local)
+
+    def _build_timestamp_table(
+        self,
+        axis: pa.Array,
+        conversion_maps: list[ConversionMap[Any]] | None = None,
+        recursion_limit: int | None = None,
+    ) -> pa.Table:
+        """Build a timestamp table from axis coordinates.
+
+        Constructs a PyArrow table with:
+        - axis: Root coordinate values
+        - One column per timeline (root + children) with local coordinates
+        - One column per C-Map with converted values
+
+        Args:
+            axis: Array of root-relative coordinates (the timestamp axis).
+            conversion_maps: Optional list of C-Maps to include as columns.
+            recursion_limit: Maximum depth for child traversal. None = unlimited.
+
+        Returns:
+            PyArrow table with timestamp data.
+        """
+        columns: dict[str, pa.Array] = {"axis": axis}
+
+        # Add root timeline column (offset=0)
+        columns[self._id] = self._compute_local_coordinates(axis, offset=0.0)
+
+        # Add child columns recursively
+        for child_offset, child in self.iter_children(
+            recursion_limit=recursion_limit,
+            include_self=False,
+        ):
+            columns[child.id] = child._compute_local_coordinates(
+                axis, offset=float(child_offset.value)
+            )
+
+        # Add C-Map columns
+        if conversion_maps:
+            # C-Maps work on numpy arrays for flexibility
+            axis_np = axis.to_numpy()
+            for cmap in conversion_maps:
+                if hasattr(cmap, "convert_array"):
+                    converted = cmap.convert_array(axis_np)
+                else:
+                    # Fallback: apply element-wise (slower)
+                    converted = np.array([cmap(v) for v in axis_np])
+                columns[cmap.id] = pa.array(converted)
+
+        return pa.table(columns)
+
+    def get_timestamp_table(
+        self,
+        coordinates: pa.Array | np.ndarray | list[float] | None = None,
+        conversion_maps: list[ConversionMap[Any] | str] | None = None,
+        recursion_limit: int | None = None,
+        include_events: bool = True,
+        include_boundaries: bool = False,
+    ) -> pa.Table:
+        """Generate a timestamp table as a PyArrow Table.
+
+        A Timestamp is a cross-section through the timeline hierarchy showing
+        synchronous coordinates. This method computes local coordinates for
+        each timeline in the hierarchy at each axis coordinate.
+
+        Args:
+            coordinates: Explicit coordinates to use as the axis. If None,
+                coordinates are extracted from events (and optionally boundaries).
+            conversion_maps: C-Maps to include as columns. Can be ConversionMap
+                objects or string IDs of maps attached to this timeline.
+            recursion_limit: Maximum depth for child traversal. None = unlimited.
+            include_events: If True and coordinates is None, extract from events.
+            include_boundaries: If True, include timeline boundary coordinates.
+
+        Returns:
+            PyArrow Table with schema:
+                - axis: float64 (root coordinate)
+                - {timeline_id}: float64 (nullable, local coordinate per timeline)
+                - {cmap_id}: varies (converted value per C-Map)
+
+        Examples:
+            >>> table = timeline.get_timestamp_table()
+            >>> table.column_names
+            ['axis', 'tl:1', 'notes', 'measures']
+
+            >>> # Convert to pandas when needed
+            >>> df = table.to_pandas()
+
+            >>> # With explicit coordinates
+            >>> table = timeline.get_timestamp_table(
+            ...     coordinates=[0.0, 1.0, 2.0, 3.0]
+            ... )
+        """
+        # Resolve coordinates
+        if coordinates is not None:
+            # Use provided coordinates
+            if isinstance(coordinates, pa.Array):
+                axis = coordinates
+            elif isinstance(coordinates, np.ndarray):
+                axis = pa.array(coordinates, type=pa.float64())
+            else:
+                axis = pa.array(coordinates, type=pa.float64())
+        elif include_events:
+            # Extract from events
+            event_coords = self._collect_all_coordinates(
+                recursion_limit=recursion_limit
+            )
+            if include_boundaries:
+                boundary_coords = self._collect_boundary_coordinates(
+                    recursion_limit=recursion_limit
+                )
+                if len(event_coords) > 0 and len(boundary_coords) > 0:
+                    combined = pa.concat_arrays([event_coords, boundary_coords])
+                    unique = pc.unique(combined)
+                    sort_indices = pc.sort_indices(unique)
+                    axis = pc.take(unique, sort_indices)
+                elif len(boundary_coords) > 0:
+                    axis = boundary_coords
+                else:
+                    axis = event_coords
+            else:
+                axis = event_coords
+        else:
+            # Boundaries only
+            axis = self._collect_boundary_coordinates(recursion_limit=recursion_limit)
+
+        # Resolve C-Map references
+        resolved_maps: list[ConversionMap[Any]] = []
+        if conversion_maps:
+            for cmap in conversion_maps:
+                if isinstance(cmap, str):
+                    # Look up by ID
+                    if cmap in self._conversion_maps:
+                        resolved_maps.append(self._conversion_maps[cmap])
+                    else:
+                        raise KeyError(f"No conversion map with ID '{cmap}'")
+                else:
+                    resolved_maps.append(cmap)
+
+        return self._build_timestamp_table(
+            axis=axis,
+            conversion_maps=resolved_maps if resolved_maps else None,
+            recursion_limit=recursion_limit,
+        )
+
+    def get_timestamps(
+        self,
+        coordinates: pa.Array | np.ndarray | list[float] | None = None,
+        conversion_maps: list[ConversionMap[Any] | str] | None = None,
+        recursion_limit: int | None = None,
+        include_events: bool = True,
+        include_boundaries: bool = False,
+    ) -> pd.DataFrame:
+        """Generate timestamps as a pandas DataFrame.
+
+        Convenience wrapper around get_timestamp_table() for users who
+        prefer working with pandas.
+
+        Args:
+            coordinates: Explicit coordinates to use as the axis.
+            conversion_maps: C-Maps to include as columns.
+            recursion_limit: Maximum depth for child traversal.
+            include_events: If True and coordinates is None, extract from events.
+            include_boundaries: If True, include timeline boundary coordinates.
+
+        Returns:
+            pandas DataFrame with the same schema as get_timestamp_table().
+
+        Examples:
+            >>> df = timeline.get_timestamps()
+            >>> df.head()
+               axis    tl:1   notes  measures
+            0   0.0     0.0     0.0       0.0
+            1   1.5     1.5     1.5       NaN
+            2   4.0     4.0     4.0       4.0
+        """
+        table = self.get_timestamp_table(
+            coordinates=coordinates,
+            conversion_maps=conversion_maps,
+            recursion_limit=recursion_limit,
+            include_events=include_events,
+            include_boundaries=include_boundaries,
+        )
+        return table.to_pandas()
+
+    def get_boundary_table(
+        self,
+        conversion_maps: list[ConversionMap[Any] | str] | None = None,
+        recursion_limit: int | None = None,
+    ) -> pa.Table:
+        """Get timestamps for timeline boundaries only.
+
+        Returns a timestamp table containing only start (0) and end (length)
+        coordinates for this timeline and all children.
+
+        Args:
+            conversion_maps: C-Maps to include as columns.
+            recursion_limit: Maximum depth for child traversal.
+
+        Returns:
+            PyArrow Table with boundary timestamps.
+
+        Examples:
+            >>> table = timeline.get_boundary_table()
+            >>> table.to_pandas()
+               axis  tl:1  child:1
+            0   0.0   0.0      NaN
+            1  10.0  10.0     10.0
+            2  50.0   NaN      0.0
+            3  60.0   NaN     10.0
+        """
+        return self.get_timestamp_table(
+            coordinates=self._collect_boundary_coordinates(
+                recursion_limit=recursion_limit
+            ),
+            conversion_maps=conversion_maps,
+            recursion_limit=recursion_limit,
+            include_events=False,
+            include_boundaries=False,  # Already included in coordinates
+        )
 
     # endregion
 
