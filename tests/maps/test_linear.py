@@ -113,3 +113,97 @@ class TestShiftMap:
     def test_identity(self):
         m = ShiftMap(offset=0)
         assert m.is_identity
+
+
+# region Public convert_array() API Tests
+
+
+class TestConvertArrayPublicAPI:
+    """Tests for the public convert_array() method on all linear map types.
+
+    These tests verify the integration pattern used by the timestamp system.
+    """
+
+    def test_linear_map_convert_array_returns_ndarray(self):
+        """convert_array() returns numpy array."""
+        m = LinearMap(scalar=2.0, offset=1.0)
+        values = np.array([0.0, 1.0, 2.0, 3.0])
+
+        result = m.convert_array(values)
+
+        assert isinstance(result, np.ndarray)
+        assert result.shape == values.shape
+
+    def test_linear_map_convert_array_values(self):
+        """convert_array() computes correct values."""
+        m = LinearMap(scalar=2.0, offset=1.0)
+        values = np.array([0.0, 1.0, 2.0, 3.0])
+
+        result = m.convert_array(values)
+
+        np.testing.assert_array_equal(result, [1.0, 3.0, 5.0, 7.0])
+
+    def test_scalar_map_convert_array(self):
+        """ScalarMap.convert_array() works correctly."""
+        m = ScalarMap(scalar=10.0)
+        values = np.array([1.0, 2.0, 3.0])
+
+        result = m.convert_array(values)
+
+        assert isinstance(result, np.ndarray)
+        np.testing.assert_array_equal(result, [10.0, 20.0, 30.0])
+
+    def test_shift_map_convert_array(self):
+        """ShiftMap.convert_array() works correctly."""
+        m = ShiftMap(offset=5.0)
+        values = np.array([0.0, 10.0, 20.0])
+
+        result = m.convert_array(values)
+
+        assert isinstance(result, np.ndarray)
+        np.testing.assert_array_equal(result, [5.0, 15.0, 25.0])
+
+    def test_convert_array_empty_input(self):
+        """convert_array() handles empty arrays."""
+        m = LinearMap(scalar=2.0, offset=1.0)
+        values = np.array([])
+
+        result = m.convert_array(values)
+
+        assert isinstance(result, np.ndarray)
+        assert len(result) == 0
+
+    def test_convert_array_single_element(self):
+        """convert_array() handles single-element arrays."""
+        m = LinearMap(scalar=2.0, offset=1.0)
+        values = np.array([5.0])
+
+        result = m.convert_array(values)
+
+        assert len(result) == 1
+        assert result[0] == 11.0
+
+    def test_convert_array_large_array(self):
+        """convert_array() handles large arrays efficiently."""
+        m = LinearMap(scalar=2.0, offset=1.0)
+        values = np.arange(100000, dtype=np.float64)
+
+        result = m.convert_array(values)
+
+        assert len(result) == 100000
+        # Spot check some values
+        assert result[0] == 1.0
+        assert result[50000] == 100001.0
+
+    def test_convert_array_matches_scalar_conversion(self):
+        """convert_array() results match element-wise scalar conversion."""
+        m = LinearMap(scalar=1.5, offset=-3.0)
+        values = np.array([0.0, 1.0, -1.0, 100.0, -100.0])
+
+        array_result = m.convert_array(values)
+        scalar_results = np.array([m(v) for v in values])
+
+        np.testing.assert_array_almost_equal(array_result, scalar_results)
+
+
+# endregion

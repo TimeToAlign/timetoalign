@@ -146,3 +146,89 @@ class TestPiecewiseMap:
         assert inv(10) == 5.0
         # 25 (in second interval) -> 15
         assert inv(25) == 15.0
+
+
+class TestChainMapConvertArray:
+    """Tests for ChainMap.convert_array() public API."""
+
+    def test_convert_array_returns_ndarray(self):
+        """convert_array() returns numpy array."""
+        m1 = ScalarMap(scalar=2.0)
+        m2 = LinearMap(scalar=0.5, offset=5.0)
+        chain = ChainMap([m1, m2])
+
+        values = np.array([0.0, 10.0, 20.0])
+        result = chain.convert_array(values)
+
+        assert isinstance(result, np.ndarray)
+        assert result.shape == values.shape
+
+    def test_convert_array_correct_values(self):
+        """convert_array() computes correct values through chain."""
+        m1 = ScalarMap(scalar=2.0)  # x -> 2x
+        m2 = LinearMap(scalar=0.5, offset=5.0)  # x -> 0.5x + 5
+        chain = ChainMap([m1, m2])
+
+        values = np.array([0.0, 10.0, 20.0])
+        # 0 -> 0 -> 5
+        # 10 -> 20 -> 15
+        # 20 -> 40 -> 25
+
+        result = chain.convert_array(values)
+
+        np.testing.assert_array_equal(result, [5.0, 15.0, 25.0])
+
+    def test_convert_array_matches_scalar(self):
+        """convert_array() results match element-wise scalar conversion."""
+        m1 = LinearMap(scalar=1.5, offset=-3.0)
+        m2 = ScalarMap(scalar=0.1)
+        chain = ChainMap([m1, m2])
+
+        values = np.array([0.0, 10.0, -10.0, 100.0])
+
+        array_result = chain.convert_array(values)
+        scalar_results = np.array([chain(v) for v in values])
+
+        np.testing.assert_array_almost_equal(array_result, scalar_results)
+
+
+class TestPiecewiseMapConvertArray:
+    """Tests for PiecewiseMap.convert_array() public API."""
+
+    def test_convert_array_returns_ndarray(self):
+        """convert_array() returns numpy array."""
+        m1 = ScalarMap(scalar=1.0)
+        m2 = ScalarMap(scalar=2.0)
+        pm = PiecewiseMap(breaks=[0, 10, 20], maps=[m1, m2])
+
+        values = np.array([5.0, 15.0])
+        result = pm.convert_array(values)
+
+        assert isinstance(result, np.ndarray)
+        assert result.shape == values.shape
+
+    def test_convert_array_correct_values(self):
+        """convert_array() applies correct map per region."""
+        m1 = ScalarMap(scalar=1.0)  # [0, 10)
+        m2 = ScalarMap(scalar=2.0)  # [10, 20)
+        pm = PiecewiseMap(breaks=[0, 10, 20], maps=[m1, m2])
+
+        values = np.array([0.0, 5.0, 10.0, 15.0, 19.9])
+        # 0 -> 0, 5 -> 5, 10 -> 20, 15 -> 30, 19.9 -> 39.8
+
+        result = pm.convert_array(values)
+
+        np.testing.assert_array_almost_equal(result, [0.0, 5.0, 20.0, 30.0, 39.8])
+
+    def test_convert_array_matches_scalar(self):
+        """convert_array() results match element-wise scalar conversion."""
+        m1 = LinearMap(scalar=2.0, offset=0.0)  # [0, 10)
+        m2 = LinearMap(scalar=1.0, offset=10.0)  # [10, 20)
+        pm = PiecewiseMap(breaks=[0, 10, 20], maps=[m1, m2])
+
+        values = np.array([0.0, 5.0, 9.9, 10.0, 15.0, 19.9])
+
+        array_result = pm.convert_array(values)
+        scalar_results = np.array([pm(v) for v in values])
+
+        np.testing.assert_array_almost_equal(array_result, scalar_results)
