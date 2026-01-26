@@ -199,6 +199,34 @@ class ConversionMap(ABC, Generic[T]):
         vec_convert = np.vectorize(lambda x: self._convert_scalar(x, **kwargs))
         return vec_convert(values)
 
+    def convert_array(self, values: NDArray[Any], **kwargs: Any) -> NDArray[Any]:
+        """Convert an array of values.
+
+        This is the public API for array conversion, used by the timestamp
+        system and other batch operations. It delegates to _convert_array().
+
+        All ConversionMap subclasses support efficient array operations through
+        this method. Linear maps use NumPy broadcasting, TableMaps use np.interp,
+        and composite maps delegate to their sub-maps.
+
+        Args:
+            values: NumPy array of values to convert.
+            **kwargs: Subclass-specific arguments.
+
+        Returns:
+            NumPy array of converted values with same shape as input.
+
+        Examples:
+            >>> linear = LinearMap(scalar=2.0, offset=1.0)
+            >>> linear.convert_array(np.array([0.0, 1.0, 2.0]))
+            array([1., 3., 5.])
+
+            >>> tempo_map = TableMap.from_tempo_changes([0, 960], [120, 60], 480)
+            >>> tempo_map.convert_array(np.array([0, 480, 960]))
+            array([0.  , 0.5 , 1.5])
+        """
+        return self._convert_array(values, **kwargs)
+
     # endregion
 
     # region Inverse
