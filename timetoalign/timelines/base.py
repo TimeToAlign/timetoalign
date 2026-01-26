@@ -1231,15 +1231,12 @@ class Timeline:
             )
 
         # Add C-Map columns
+        # C-Maps work on NumPy arrays; we convert PyArrow <-> NumPy at the boundary
+        # See: .agent/skills/tta-guide/references/cmap_pyarrow_integration.md
         if conversion_maps:
-            # C-Maps work on numpy arrays for flexibility
             axis_np = axis.to_numpy()
             for cmap in conversion_maps:
-                if hasattr(cmap, "convert_array"):
-                    converted = cmap.convert_array(axis_np)
-                else:
-                    # Fallback: apply element-wise (slower)
-                    converted = np.array([cmap(v) for v in axis_np])
+                converted = cmap.convert_array(axis_np)
                 columns[cmap.id] = pa.array(converted)
 
         return pa.table(columns)
