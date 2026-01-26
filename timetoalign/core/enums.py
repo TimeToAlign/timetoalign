@@ -154,6 +154,8 @@ class TimeUnit(FancyStrEnum):
     """ticks (MIDI's time unit)"""
     pulses = ticks
     """ticks (MIDI's time unit)"""
+    divs = ticks
+    """ticks (MIDI's time unit)"""
 
     # physical domain
     milliseconds = auto()
