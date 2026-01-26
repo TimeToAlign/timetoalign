@@ -35,7 +35,7 @@ from .schema import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from timetoalign.timelines.base import Timeline
 
 
 class EventStore:
@@ -562,6 +562,51 @@ class EventStore:
             "event_types": self.count_by("event_type"),
             "coordinate_range": self.coordinate_range(),
         }
+
+    # endregion
+
+    # region Timeline Creation
+
+    def to_timeline(
+        self,
+        uid: str | None = None,
+        filters: dict[str, Any] | None = None,
+    ) -> "Timeline":
+        """Create a Timeline from this EventStore.
+
+        This is a convenience method that creates a timeline with the store's
+        events directly. The timeline class and number_type are inferred from
+        the store's unit (e.g., ticks -> DiscreteLogicalTimeline with int).
+
+        Args:
+            uid: Unique ID for the timeline. Auto-generated if None.
+            filters: Filter kwargs to apply before timeline creation.
+                Example: {"event_type": "Note"} to exclude rests.
+
+        Returns:
+            A Timeline containing the (filtered) events.
+
+        Examples:
+            >>> timeline = store.to_timeline(uid="notes")
+            >>> filtered = store.to_timeline(filters={"event_type": "Note"})
+        """
+        from timetoalign.timelines.factory import _infer_timeline_class_and_number_type
+
+        source = self.filter(**filters) if filters else self
+        timeline_class, effective_number_type = _infer_timeline_class_and_number_type(
+            self.unit, self.number_type
+        )
+        # Create timeline with corrected number_type
+        coord_range = source.coordinate_range()
+        length = coord_range[1] if coord_range else 0
+        timeline = timeline_class(
+            length=length,
+            unit=source.unit,
+            number_type=effective_number_type,
+            uid=uid,
+        )
+        timeline._events = source
+        return timeline
 
     # endregion
 

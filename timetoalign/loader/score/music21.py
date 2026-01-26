@@ -106,15 +106,14 @@ class Music21Loader(ScoreLoader):
                     else str(mc) if mc else None
                 )
 
-                # Notes/Rests
+                # Notes (Rests are tracked but not added to notes store)
+                # Music21 creates implicit rests that don't exist in source.
+                # Gold standard (MS3 TSV) and Partitura exclude these.
                 if isinstance(obj, m21.note.GeneralNote):
                     if isinstance(obj, m21.note.Rest):
+                        # Track that rests exist but don't add to notes store
                         has_rests = True
-                        note_rows.append(
-                            self._make_note_row(
-                                obj, qb, dur_qb, mc, mn, mc_onset, part_id, is_rest=True
-                            )
-                        )
+                        # Skip adding rest to notes store - matches gold standard
                     elif isinstance(obj, m21.note.Note):
                         note_rows.append(
                             self._make_note_row(

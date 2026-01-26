@@ -27,7 +27,7 @@ from timetoalign.core import NumberType, TimeUnit
 from .store import EventStore
 
 if TYPE_CHECKING:
-    pass
+    from timetoalign.loader.bundle import EventBundle
 
 
 class Loader(ABC):
@@ -145,6 +145,21 @@ class Loader(ABC):
             "source_count": len(self._sources),
             "sources": self._source_metadata,
         }
+
+    @property
+    def bundle(self) -> "EventBundle":
+        """Return an EventBundle wrapping the loader's events.
+
+        Subclasses may override to return specialized bundles
+        (e.g., ScoreBundle, MidiBundle). Default implementation
+        wraps self.events in a SingleStoreBundle.
+
+        Returns:
+            An EventBundle providing uniform access to loaded data.
+        """
+        from timetoalign.loader.bundle import SingleStoreBundle
+
+        return SingleStoreBundle(self._events, name="events")
 
     # endregion
 
