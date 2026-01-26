@@ -64,9 +64,39 @@ class Coordinate:
         """Convert value to float."""
         return float(self.value)
 
-    def to_int(self) -> int:
-        """Convert value to int (truncates towards zero)."""
-        return int(self.value)
+    def to_int(self, rounding: str = "truncate") -> int:
+        """Convert value to int.
+
+        Args:
+            rounding: Rounding mode. Options:
+                - "truncate": Truncate towards zero (default, same as int())
+                - "round": Round to nearest integer (half away from zero)
+                - "floor": Round towards negative infinity
+                - "ceil": Round towards positive infinity
+
+        Returns:
+            The integer value.
+
+        Raises:
+            ValueError: If rounding mode is unknown.
+        """
+        if rounding == "truncate":
+            return int(self.value)
+        elif rounding == "round":
+            return round(self.value)
+        elif rounding == "floor":
+            import math
+
+            return math.floor(self.value)
+        elif rounding == "ceil":
+            import math
+
+            return math.ceil(self.value)
+        else:
+            raise ValueError(
+                f"Unknown rounding mode: {rounding!r}. "
+                f"Use 'truncate', 'round', 'floor', or 'ceil'."
+            )
 
     def to_fraction(self) -> Fraction:
         """Convert value to Fraction.
