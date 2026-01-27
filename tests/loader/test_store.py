@@ -120,22 +120,26 @@ class TestEventStoreCreation:
         assert len(store) == 2
 
     def test_from_dicts_with_explicit_none_coords(self) -> None:
-        """from_dicts handles explicit None in coordinate columns."""
+        """from_dicts handles explicit None in coordinate columns.
+
+        Note: The schema no longer has an 'instant' column. InstantEvents
+        use 'start' with 'end' being null.
+        """
         events = [
             {
                 "id": "e1",
                 "temporal_type": "instant",
                 "event_type": "NullEvent",
-                "instant": None,
                 "start": None,
+                "end": None,
             }
         ]
         store = EventStore.from_dicts(events, TimeUnit.ticks)
         assert len(store) == 1
         row = list(store)[0]
         # Check raw row values (structs should be null)
-        assert row["instant"] is None
         assert row["start"] is None
+        assert row["end"] is None
 
 
 class TestEventStoreSchema:
@@ -147,18 +151,24 @@ class TestEventStoreSchema:
         assert isinstance(schema, pa.Schema)
 
     def test_schema_has_base_columns(self) -> None:
-        """schema() includes all base columns."""
+        """schema() includes all base columns.
+
+        Note: The schema no longer has a separate 'instant' column.
+        """
         schema = EventStore.schema(TimeUnit.ticks)
         assert "id" in schema.names
-        assert "instant" in schema.names
         assert "start" in schema.names
+        assert "end" in schema.names
 
     def test_column_names(self) -> None:
-        """column_names() returns list of column names."""
+        """column_names() returns list of column names.
+
+        Note: Base columns are: id, name, temporal_type, event_type, start, end, duration.
+        """
         names = EventStore.column_names()
         assert isinstance(names, list)
         assert "id" in names
-        assert len(names) == 8  # Base columns only
+        assert len(names) == 7  # Base columns only
 
 
 class TestEventStoreProperties:

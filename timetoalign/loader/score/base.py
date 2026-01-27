@@ -6,6 +6,8 @@ from abc import abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
 
+from typing_extensions import Self
+
 from timetoalign.core import TimeUnit
 from timetoalign.loader.base import Loader
 
@@ -45,11 +47,14 @@ class ScoreLoader(Loader):
         """
         ...
 
-    def load(self, *sources: Path | str) -> None:
+    def load(self, *sources: Path | str) -> Self:
         """Load sources into the bundle.
 
         Args:
             *sources: Paths to source files.
+
+        Returns:
+            Self, for method chaining.
         """
         for source in sources:
             path = Path(source)
@@ -67,6 +72,8 @@ class ScoreLoader(Loader):
 
             # Extend internal bundle
             self._bundle.extend(bundle)
+
+        return self
 
     def clear(self) -> None:
         """Clear all loaded sources and bundle data."""

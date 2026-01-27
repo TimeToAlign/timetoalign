@@ -195,14 +195,54 @@ class TestBeethovenWoO71DataIntegrity:
     """
 
     def test_notes_tsv_no_empty_quarterbeats(self):
-        """All notes have non-null quarterbeats values."""
+        """All main-timeline notes have non-null quarterbeats values.
+
+        MS3 TSV format has two quarterbeats columns:
+        - `quarterbeats`: Position in the main timeline (null for volta sections)
+        - `quarterbeats_all_endings`: Position including all volta branches
+
+        Notes in alternative endings (volta=1,2,...) have null `quarterbeats`
+        but valid `quarterbeats_all_endings`. This is correct MS3 behavior.
+
+        DOCUMENTED BEHAVIOR: Beethoven WoO71 has 8 notes in volta sections
+        with null quarterbeats but valid quarterbeats_all_endings.
+        """
         if not NOTES_TSV.exists():
             pytest.skip(f"Test data not found: {NOTES_TSV}")
 
         df = pd.read_csv(NOTES_TSV, sep="\t")
-        null_count = df["quarterbeats"].isna().sum()
+        null_qb = df["quarterbeats"].isna()
+        null_count = null_qb.sum()
 
-        assert null_count == 0, f"Found {null_count} notes with null quarterbeats"
+        if null_count > 0:
+            # Check if these are volta notes (expected to have null quarterbeats)
+            volta_notes = df[null_qb]
+
+            # Verify all null-quarterbeats notes are in volta sections
+            has_volta = "volta" in df.columns
+            if has_volta:
+                # Notes with null quarterbeats should have non-empty volta
+                # and valid quarterbeats_all_endings
+                volta_values = volta_notes["volta"]
+                in_volta = (~volta_values.isna()) & (volta_values != "")
+
+                assert in_volta.all(), (
+                    f"Found {(~in_volta).sum()} notes with null quarterbeats "
+                    "that are NOT in volta sections. This indicates a data issue."
+                )
+
+                # Verify they have valid quarterbeats_all_endings
+                if "quarterbeats_all_endings" in df.columns:
+                    qb_all = volta_notes["quarterbeats_all_endings"]
+                    assert (
+                        not qb_all.isna().any()
+                    ), "Volta notes should have quarterbeats_all_endings"
+
+        # Exact count: 8 notes in volta sections for Beethoven WoO71
+        assert null_count == 8, (
+            f"Expected exactly 8 volta notes with null quarterbeats, "
+            f"found {null_count}"
+        )
 
     def test_notes_tsv_no_empty_midi_pitch(self):
         """All notes have non-null MIDI pitch (no rests in notes file)."""
