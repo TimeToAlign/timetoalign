@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\datatypes\proxies.py
+# hypothesis_version: 6.151.2
+
+['1', '1.0', '10', 'ArithmeticProxy', 'BooleanProxy', 'DecimalProxy', 'DoubleProxy', 'DoubleProxy10', 'ErrorProxy', 'NumericProxy', 'StringProxy', '^(?:true|false|1|0)$', 'boolean', 'decimal', 'double', 'error', 'float', 'string', 't', 'xsd_version']

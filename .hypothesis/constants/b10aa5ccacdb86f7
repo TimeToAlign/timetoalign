@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\harwell_boeing.py
+# hypothesis_version: 6.151.2
+
+['BadFortranFormat', 'ExpFormat', 'FortranFormatParser', 'HBFile', 'HBInfo', 'HBMatrixType', 'IntFormat', 'MalformedHeader', '_harwell_boeing', 'harwell_boeing', 'hb', 'hb_read', 'hb_write', 'io']

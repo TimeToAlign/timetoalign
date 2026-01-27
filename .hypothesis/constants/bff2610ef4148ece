@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\platformdirs\windows.py
+# hypothesis_version: 6.151.2
+
+[255, 1024, 'ALLUSERSPROFILE', 'APPDATA', 'AppData', 'CSIDL_APPDATA', 'CSIDL_COMMON_APPDATA', 'CSIDL_DOWNLOADS', 'CSIDL_LOCAL_APPDATA', 'CSIDL_MYMUSIC', 'CSIDL_MYPICTURES', 'CSIDL_MYVIDEO', 'CSIDL_PERSONAL', 'Cache', 'Common AppData', 'Documents', 'Downloads', 'LOCALAPPDATA', 'Local AppData', 'Logs', 'Music', 'My Music', 'My Pictures', 'My Video', 'Personal', 'Pictures', 'Temp', 'USERPROFILE', 'Videos', 'Windows', 'win32', 'windll']

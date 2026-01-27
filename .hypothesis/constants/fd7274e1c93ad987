@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\validators\simple_types.py
+# hypothesis_version: 6.151.2
+
+['#all', '%s(item_type=%r)', '%s(member_types=%r)', '%s(name=%r)', '1.0', ':', 'XsdSimpleType', '\\s', '\\s+', '__iter__', '_admitted_facets', '_facets', 'allow_empty', 'atomic', 'base', 'base_type', 'collapse', 'datatype', 'empty', 'empty-sequence()', 'extension', 'fixed', 'from_python', 'instance_types', 'invalid value {!r}', 'itemType', 'item_type', 'lax', 'list', 'max_length', 'memberTypes', 'member_types', 'min_length', 'name', 'patterns', 'post_decode', 'primitive_type', 'prohibited', 'python_type', 'replace', 'required', 'restriction', 'simple', 'skip', 'strict', 'to_python', 'true', 'union', 'unknown type {!r}', 'utf-8', 'validators', 'value', 'variety', 'white_space', 'xs:untypedAtomic', '{']

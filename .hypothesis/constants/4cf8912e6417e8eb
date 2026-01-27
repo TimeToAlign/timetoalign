@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\lib\recfunctions.py
+# hypothesis_version: 6.151.2
+
+['1', '2', '__iter__', 'append_fields', 'apply_along_fields', "can't both be empty", 'drop_fields', 'f%i', 'find_duplicates', 'flatten_descr', 'formats', 'f{}', 'get_fieldstructure', 'get_names', 'get_names_flat', 'inner', 'itemsize', 'join_by', 'leftouter', 'merge_arrays', 'names', 'offsets', 'outer', 'rec_append_fields', 'rec_drop_fields', 'rec_join', 'rename_fields', 'repack_fields', 'require_fields', 'stack_arrays', 'unsafe']

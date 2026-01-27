@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\linalg\_basic.py
+# hypothesis_version: 6.151.2
+
+[0.0, 1.0, 1.01, '%s_lwork', '1', '1.14', 'All', 'C', 'C_CONTIGUOUS', 'D', 'E', 'I', 'Matrix is singular.', 'N', 'T', 'WRITEABLE', 'b', 'c', 'd', 'dD', 'det', 'f', 'fF', 'fd', 'fdFD', 'gbsv', 'gebal', 'gecon', 'gelsd', 'gelss', 'gelsy', 'gen', 'getrf', 'getri', 'getri_lwork', 'getrs', 'gtsv', 'hecon', 'her', 'hesv', 'hesv_lwork', 'inv', 'lamch', 'lange', 'lstsq', 'matmul_toeplitz', 'matrix_balance', 'pbsv', 'pinv', 'pinvh', 'pocon', 'pos', 'posv', 'ptsv', 'raise', 'singular matrix', 'solve', 'solve_banded', 'solve_circulant', 'solve_toeplitz', 'solve_triangular', 'solveh_banded', 'sycon', 'sym', 'sysv', 'sysv_lwork', 'trtrs']

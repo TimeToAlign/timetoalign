@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\regex\__init__.py
+# hypothesis_version: 6.151.2
+
+['CharacterClass', 'RegexError', 'UnicodeData', 'UnicodeSubset', 'install_unicode_data', 'iter_code_points', 'lazy_subset', 'translate_pattern', 'unicode_block', 'unicode_category', 'unicode_subset', 'unicode_version']

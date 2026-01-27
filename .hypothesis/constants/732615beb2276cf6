@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\optimize\_lbfgsb_py.py
+# hypothesis_version: 6.151.2
+
+[b'\x00', b'CONV', b'FG', b'NEW_X', 0.0, 2.220446049250313e-09, 1e-08, 1e-05, 10000000.0, 15000, 'LbfgsInvHessProduct', 'S60', 'START', 'callback', 'disp', 'eps', 'fmin_l_bfgs_b', 'ftol', 'fun', 'funcalls', 'grad', 'gtol', 'ij,ij->i', 'iprint', 'jac', 'maxcor', 'maxfun', 'maxiter', 'maxls', 'message', 'nfev', 'nit', 'status', 'task', 'warnflag', 'x']

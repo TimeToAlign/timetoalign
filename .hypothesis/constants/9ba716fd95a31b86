@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\linalg\_solvers.py
+# hypothesis_version: 6.151.2
+
+[0.0, 0.1, 1.0, 1000.0, 100, 'C', 'T', 'Unknown solver %s', 'aq', 'aqr', 'bilinear', 'care', 'complex', 'dare', 'direct', 'iuc', 'lhp', 'qr', 'real', 'solve_continuous_are', 'solve_discrete_are', 'solve_lyapunov', 'solve_sylvester', 'trsyl']

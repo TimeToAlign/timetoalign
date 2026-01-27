@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\packaging\specifiers.py
+# hypothesis_version: 6.151.2
+
+['!', '!=', ',', '.', '.*', '0', '<', '<=', '==', '===', '>', '>=', 'UnparsedVersionVar', '\\s*$', '^\\s*', 'a', 'arbitrary', 'b', 'compatible', 'dev', 'equal', 'greater_than', 'greater_than_equal', 'less_than', 'less_than_equal', 'not_equal', 'operator', 'post', 'prereleases', 'rc', 'version', '{}{}', '~=']

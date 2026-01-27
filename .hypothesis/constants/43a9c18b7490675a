@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\music21\braille\segment.py
+# hypothesis_version: 6.151.2
+
+[0.0, 0.5, '\n===', '---begin segment---', '---end segment---', '4/4', '====\n', 'Inaccord Grouping', 'None', 'Note Grouping', 'SegmentKey', 'Signature Grouping', 'Tempo Text Grouping', '_ThreeDigitNumber', '__main__', 'affinity', 'beginsMidMeasure', 'cancelOutgoingKeySig', 'descendingChords', 'dot', 'double', 'dummy', 'dummyRestLength', 'endHyphen', 'final', 'full_inaccord', 'hand', 'hundreds', 'internalList', 'keySignature', 'left', 'lineLength', 'measure', 'numRepeats', 'ones', 'ordinal', 'regular', 'repeat', 'right', 'segment.py', 'showClefSigns', 'showHand', 'showHeading', 'start', 'stop', 'suppressOctaveMarks', 'tens', 'timeSignature', 'withHyphen']

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\exportmatch.py
+# hypothesis_version: 6.151.2
+
+[480, 500000, '-', 'articulations', 'channel', 'clock_rate', 'clock_units', 'composer', 'deletion', 'diff_score_version', 'fermata', 'grace', 'id', 'insertion', 'keySignature', 'key_signatures', 'label', 'match', 'matchFileVersion', 'midiClockRate', 'midiClockUnits', 'midiFileName', 'midi_pitch', 'n', 'note_off', 'note_on', 'number', 'onset_div', 'ornament', 'ornaments', 'performance_data', 'performance_filename', 'performance_id', 'performer', 'piece', 'pitch', 'save_match', 'scoreFileName', 'score_data', 'score_filename', 'score_id', 'staff', 'technical', 'tempoIndication', 'tempo_indication', 'time', 'timeSignature', 'time_signatures', 'track', 'type', 'v1.0.0', 'value', 'velocity', 'version', 'voice', 'voice_overlap']

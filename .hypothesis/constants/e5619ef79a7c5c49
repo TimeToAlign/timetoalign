@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\importmatch.py
+# hypothesis_version: 6.151.2
+
+[0.01, 'Channel', 'F', 'G', 'P1', 'Track', 'Value', '__main__', 'accent', 'alter', 'appoggiatura', 'create_score', 'deletion', 'filename', 'fingering', 'generic_ornament', 'grace', 'id', 'insertion', 'leftOutTied', 'load_match', 'match', 'midiClockRate', 'midiClockUnits', 'note_off', 'note_off_tick', 'note_on', 'note_on_tick', 'octave', 'ornament', 'piece', 'previous', 'r', 's', 'sound_off', 'stac', 'staccato', 'staff', 'step', 'technical', 'trill', 'v', 'voice']

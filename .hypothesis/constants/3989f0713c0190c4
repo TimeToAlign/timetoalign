@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\ma\mrecords.py
+# hypothesis_version: 6.151.2
+
+['              )', '    fill_value', '#', '%%%is : %%s', ',', 'MaskedRecords', 'Wow, binary file', '\\x', '__dict__', '_baseclass', '_data', '_fieldmask', '_fill_value', '_mask', '_optinfo', 'addfield', 'b', 'b1', 'dtype', 'f%i', 'fieldmask', 'fromarrays', 'fromrecords', 'fromtextfile', 'mask', 'mask size is %i.', 'masked_records(', 'mrecarray', 'readline', '|b1']

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\matlab\_mio5.py
+# hypothesis_version: 6.151.2
+
+[b'\x00', b' \t\n\x00', b'IM', 126, 255, 256, 19785, '%d.%d', '<', '>', 'F', 'None', 'Read error: %s', 'S', 'S%d', 'S1', 'S2', 'U', 'UTF8', '_', '_0123456789', '__array__', '__dict__', '__globals__', '__header__', '__version__', 'array_flags', 'ascii', 'b', 'byte_count', 'byte_count_mdtype', 'c', 'c128', 'data', 'data_type', 'description', 'dtypes', 'endian_test', 'f8', 'file_header', 'flags_class', 'i1', 'i4', 'items', 'keys', 'latin1', 'logical', 'mdtype', 'nzmax', 'row', 'tag_full', 'tag_smalldata', 'unknown', 'values', 'version']

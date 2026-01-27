@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\music21\scale\intervalNetwork.py
+# hypothesis_version: 6.151.2
+
+[1e-05, 0.6, 0.9, 1.0, 100, 9999, 'A', 'B', 'B-', 'C', 'C#', 'C-', 'D', 'D#', 'D-', 'Direction.', 'E', 'E-', 'F', 'F#', 'G', 'G#', 'M2', 'Terminus.', 'Terminus.LOW', '__main__', 'ascending', 'bi', 'c4', 'connections', 'degree', 'descending', 'deterministic', 'direction', 'edgeIdCount', 'edges', 'got degree count', 'id', 'implicitDiatonic', 'interval', 'm2', 'maxAccidental', 'mostCommon', 'nodeIdCount', 'nodeStart', 'nodes', 'none', 'octaveDuplicating', 'pitchClass', 'pitchSimplification', 'pos', 'postEdge', 'ps', 'simplifyEnharmonic', 'solid', 'terminusHigh', 'terminusLow', 'weight']

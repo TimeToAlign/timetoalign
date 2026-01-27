@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\validators\helpers.py
+# hypothesis_version: 6.151.2
+
+[' | ', '##defaultNamespace', '##local', '##targetNamespace', '#all', '-128 <= x < 128', '-2^15 <= x < 2^15', '-2^31 <= x < 2^31', '-2^63 <= x < 2^63', '-INF', '-inf', '0', '0 <= x < 256', '0 <= x < 2^16', '0 <= x < 2^32', '0 <= x < 2^64', '1', 'INF', 'NaN', 'XsdAnnotation', 'XsdComponent', 'extension', 'false', 'inf', 'list', 'restriction', 'targetNamespace', 'true', 'union', 'value must be {:s}']

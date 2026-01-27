@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\exportparangonada.py
+# hypothesis_version: 6.151.2
+
+['\tdeletion\n', '%.20s', ',', '0', '1', '2', '<f4', 'U256', 'align.csv', 'alignment', 'articulation', 'channel', 'deletion', 'duration_beat', 'duration_div', 'duration_quarter', 'duration_sec', 'feature.csv', 'i4', 'id', 'idx', 'insertion', 'label', 'match', 'matchtype', 'midi_pitch', 'note_on', 'onset_beat', 'onset_div', 'onset_quarter', 'onset_sec', 'out', 'part.csv', 'partid', 'performance_data', 'performance_id', 'pitch', 'ppart.csv', 'ppartid', 'save_parangonada_csv', 'score_data', 'score_id', 'timing', 'track', 'undefined', 'velocity', 'voice', 'w', 'zalign.csv']

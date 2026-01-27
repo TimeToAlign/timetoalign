@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\sparse\sputils.py
+# hypothesis_version: 6.151.2
+
+['_sputils', 'asmatrix', 'check_reshape_kwargs', 'check_shape', 'downcast_intp_index', 'get_index_dtype', 'get_sum_dtype', 'getdata', 'getdtype', 'is_pydata_spmatrix', 'isdense', 'isintlike', 'ismatrix', 'isscalarlike', 'issequence', 'isshape', 'matrix', 'operator', 'prod', 'sparse', 'sputils', 'supported_dtypes', 'sys', 'to_native', 'upcast', 'upcast_char', 'upcast_scalar', 'validateaxis']

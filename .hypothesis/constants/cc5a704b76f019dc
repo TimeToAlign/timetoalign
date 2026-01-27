@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\stats\kde.py
+# hypothesis_version: 6.151.2
+
+['_kde', 'atleast_1d', 'atleast_2d', 'check_random_state', 'cov', 'exp', 'gaussian_kde', 'kde', 'linalg', 'logsumexp', 'newaxis', 'power', 'ravel', 'reshape', 'squeeze', 'stats', 'sum', 'transpose']

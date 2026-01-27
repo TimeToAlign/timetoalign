@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\namespaces.py
+# hypothesis_version: 6.151.2
+
+[':', 'Q', 'Q{', 'xml', '{', '{%s}ID', '{%s}IDREF', '{%s}IDREFS', '{%s}NOTATION', '{%s}anyAtomicType', '{%s}anySimpleType', '{%s}anyType', '{%s}base', '{%s}dateTimeStamp', '{%s}decimal', '{%s}double', '{%s}error', '{%s}float', '{%s}id', '{%s}lang', '{%s}nil', '{%s}numeric', '{%s}schema', '{%s}schemaLocation', '{%s}space', '{%s}string', '{%s}type', '{%s}untyped', '{%s}untypedAtomic', '}']

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\exportmidi.py
+# hypothesis_version: 6.151.2
+
+[480, 500000, 'beat_type', 'beats', 'channel', 'control_change', 'fifths', 'key_signature', 'midi_pitch', 'mode', 'note_off', 'note_on', 'number', 'pad_bar', 'performance_data', 'program', 'program_change', 'save_score_midi', 'score_data', 'set_tempo', 'shift', 'time', 'time_sig_change', 'time_signature', 'time_tick', 'track', 'value', 'velocity', 'write']

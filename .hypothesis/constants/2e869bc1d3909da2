@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pyarrow\acero.py
+# hypothesis_version: 6.151.2
+
+['aggregate', 'asofjoin', 'coalesce', 'filter', 'full outer', 'hashjoin', 'inner', 'left anti', 'left outer', 'left semi', 'order_by', 'project', 'right anti', 'right outer', 'right semi', 'scan', 'table_source']

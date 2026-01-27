@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pandas\io\excel\_openpyxl.py
+# hypothesis_version: 6.151.2
+
+['.xlsm', '.xlsx', 'Workbook', 'b', 'bgColor', 'bgcolor', 'bold', 'border', 'border_style', 'borders', 'bottom', 'color', 'diagonal', 'diagonalDown', 'diagonalUp', 'diagonaldown', 'diagonalup', 'end_color', 'error', 'fgColor', 'fgcolor', 'fill_type', 'format_code', 'i', 'italic', 'left', 'new', 'openpyxl', 'overlay', 'patternType', 'patterntype', 'r+', 'replace', 'right', 'size', 'start_color', 'stop', 'storage_options', 'strike', 'strikethrough', 'style', 'sz', 'top', 'type', 'u', 'underline', 'vertAlign', 'vertalign', 'w']

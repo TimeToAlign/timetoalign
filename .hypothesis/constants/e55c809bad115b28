@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\helpers.py
+# hypothesis_version: 6.151.2
+
+[0.0, 1e-07, 100, 127, 159, 365, 366, 400, 55295, 57344, 65533, 65536, 1114111, '\x08', '\r\n|\r|\n', '"', '%(?![a-fA-F\\d]{2})', '%dnd', '%drd', '%dst', '%dth', ') as ', '*', '+', '+INF', '+inf', '+infinity', ', ', '-INF', '-inf', '-infinity', '.', '/', '0', '1', '1.0', '?', 'INF', 'NaN', 'ROUND_HALF_DOWN', 'ROUND_HALF_UP', 'T', '[\\W_]', '[^\\S\\xa0]', '[^\\S\\xa0]+', '\\', '\\"', '\\/', '\\\\', '\\b', '\\f', '\\n', '\\r', '\\s?([()?*+,])\\s?', '\\t', '^\\d+', '_compiled', '_flags', '_name', '_pattern', '_value', 'false', 'function(', 'function(*)', 'inf', 'infinity', 'nan', 'position', 'true', 'urn', '{', '{([^}]+)}', '{*}', '{*}*', '{:.6f}', '{}', '{}*']

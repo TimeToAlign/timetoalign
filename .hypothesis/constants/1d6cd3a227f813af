@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\validators\xsdbase.py
+# hypothesis_version: 6.151.2
+
+['%r is not built', '%s(%r)', '%s(name=%r)', '%s(ref=%r)', '\'"', '*/fn:string()', ':', 'XsdAnnotation', 'XsdComponent', 'XsdElement', 'XsdGlobals', 'XsdGroup', 'XsdSimpleType', 'XsdType', 'XsdValidator', '__slots__', '_built', 'builders', 'elem', 'errors', 'extension', 'form', 'full', 'id', 'invalid', 'lax', 'maps', 'name', 'namespaces', 'none', 'notKnown', 'parent', 'partial', 'redefine', 'ref', 'restriction', 'schema', 'skip', 'source', 'strict', 'substitution', 'target_namespace', 'valid', 'validation', 'xmlns', 'xmlschema', 'xmlschema/validators', 'xsd_version', '{']

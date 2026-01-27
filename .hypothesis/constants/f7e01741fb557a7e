@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\importnakamura.py
+# hypothesis_version: 6.151.2
+
+['*', '//', 'Channel', 'ID', 'Offtime', 'Offvel', 'Ontime', 'Onvel', 'Sitch', 'U256', 'alignChannel', 'alignID', 'alignOfftime', 'alignOffvel', 'alignOntime', 'alignOnvel', 'alignPitch', 'alignSitch', 'alter', 'channel', 'deletion', 'duration_sec', 'errorindex', 'f', 'f4', 'filename', 'i', 'i4', 'id', 'insertion', 'match', 'matchstatus', 'n', 'octave', 'onset_div', 'onset_sec', 'pitch', 'refID', 'refOntime', 'refOnvel', 'refPitch', 'refSitch', 'skipindex', 'step', 'velocity']

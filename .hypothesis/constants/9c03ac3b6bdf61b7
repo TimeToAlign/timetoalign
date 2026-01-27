@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\sparse\linalg\_dsolve\_add_newdocs.py
+# hypothesis_version: 6.151.2
+
+['L', 'SuperLU', 'U', 'nnz', 'perm_c', 'perm_r', 'shape', 'solve']

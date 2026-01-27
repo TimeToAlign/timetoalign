@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\datatypes\numeric.py
+# hypothesis_version: 6.151.2
+
+[-3.4028235e+38, -1e-37, -0.0, 1e-37, 1e-07, 3.4028235e+38, '+INF', '-', '-INF', '1.0', '10', 'Byte', 'Float', 'Float10', 'INF', 'Int', 'Integer', 'Long', 'NaN', 'NegativeInteger', 'NonNegativeInteger', 'NonPositiveInteger', 'PositiveInteger', 'Short', 'UnsignedByte', 'UnsignedInt', 'UnsignedLong', 'UnsignedShort', '^[\\-+]?[0-9]+$', 'byte', 'float', 'int', 'integer', 'long', 'negativeInteger', 'nonNegativeInteger', 'nonPositiveInteger', 'positiveInteger', 'short', 'unsignedByte', 'unsignedInt', 'unsignedLong', 'unsignedShort']

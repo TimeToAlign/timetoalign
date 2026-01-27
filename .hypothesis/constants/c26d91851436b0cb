@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\_harwell_boeing\hb.py
+# hypothesis_version: 6.151.2
+
+['%14d%14d%14d%14d', '%14s%14d%14d%14d%14d', '%16s%16s%20s', '0', 'A', 'AllFloat', 'AllInteger', 'C', 'Default title', 'E', 'H', 'HBFile', 'HBInfo', 'HBMatrixType', 'I', 'MalformedHeader', 'No Title', 'P', 'R', 'S', 'U', 'Unrecognized type %s', 'Z', 'assembled', 'complex', 'elemental', 'hb_read', 'hb_write', 'hermitian', 'integer', 'pattern', 'read', 'real', 'rectangular', 'skewsymmetric', 'symmetric', 'unsymmetric', 'w', 'write', '|No Key']

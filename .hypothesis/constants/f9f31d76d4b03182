@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pandas\core\arrays\string_arrow.py
+# hypothesis_version: 6.151.2
+
+['$', '//$', '^', '__dict__', '_pa_array', 'all', 'any', 'argmax', 'argmin', 'average', 'keep', 'pyarrow', 'pyarrow_numpy', 'string', 'uint8']

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\lark\parsers\lalr_analysis.py
+# hypothesis_version: 6.151.2
+
+['\n\t- ', ' * %s', '$END', '$root_', 'Reduce', 'Shift', 'end_states', 'start_states', 'states', 'tokens']

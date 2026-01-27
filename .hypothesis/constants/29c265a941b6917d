@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\aliases.py
+# hypothesis_version: 6.151.2
+
+['AbstractSchemaProxy', 'AnyAtomicType', 'AttributeNode', 'CommentNode', 'Date', 'DateTime', 'DayTimeDuration', 'DocumentNode', 'DocumentProtocol', 'DocumentType', 'Duration', 'DurationType', 'ElementNode', 'ElementProtocol', 'ElementType', 'GregorianDay', 'GregorianMonth', 'GregorianMonthDay', 'GregorianYear', 'GregorianYearMonth', 'NamespaceNode', 'SchemaElemType', 'TextNode', 'Time', 'UntypedAtomic', 'XPath1Parser', 'XPath2Parser', 'XPath30Parser', 'XPath31Parser', 'XPathAxis', 'XPathConstructor', 'XPathContext', 'XPathFunction', 'XPathNode', 'XPathSchemaContext', 'XPathToken', 'XsdAttributeProtocol', 'XsdElementProtocol', 'YearMonthDuration', '_S', '_T']

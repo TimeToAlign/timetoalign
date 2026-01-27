@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\mido\backends\backend.py
+# hypothesis_version: 6.151.2
+
+['/', 'IOPort', 'MIDO_BACKEND', 'MIDO_DEFAULT_INPUT', 'MIDO_DEFAULT_IOPORT', 'MIDO_DEFAULT_OUTPUT', 'api', 'get_devices', 'is_input', 'is_output', 'loaded', 'mido.backends.rtmidi', 'name', 'not loaded']

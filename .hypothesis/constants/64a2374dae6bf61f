@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\matchlines_v1.py
+# hypothesis_version: 6.151.2
+
+[0.0, 'Anchor', 'AnnotationType', 'Attribute', 'Beat', 'Channel', 'EndInBeatsOriginal', 'EndInBeatsUnfolded', 'Id', 'Measure', 'MidiPitch', 'Offset', 'Onset', 'OnsetInBeats', 'Onsets', 'OrnamentType', 'RepeatEndType', 'StartInBeatsOriginal', 'StartInBeatsUnfolded', 'TimeInBeats', 'Track', 'Value', 'Velocity', 'approximateTempo', 'audioFileName', 'audioFilePath', 'audioFirstNote', 'audioLastNote', 'beatSubDivision', 'composer', 'directions', 'keySignature', 'matchFileVersion', 'midiClockRate', 'midiClockUnits', 'midiFileName', 'midiFilePath', 'performer', 'piece', 'scoreFileName', 'scoreFilePath', 'subtitle', 'tempoIndication', 'timeSignature', 'trill']

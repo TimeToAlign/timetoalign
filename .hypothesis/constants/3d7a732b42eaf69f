@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\_harwell_boeing\_fortran_format_parser.py
+# hypothesis_version: 6.151.2
+
+['%', '%d', '(', ')', '.', '.%d', 'BadFortranFormat', 'DOT', 'E', 'E%d', 'E%d.%d', 'EXP_ID', 'ExpFormat', 'ExpFormat(', 'FortranFormatParser', 'I', 'I%d', 'INT', 'INT_ID', 'IntFormat', 'IntFormat(', 'LPAR', 'RPAR', '\\(', '\\)', '\\.', '\\d+', 'd']

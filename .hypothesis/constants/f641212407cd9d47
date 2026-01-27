@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\sequences.py
+# hypothesis_version: 6.151.2
+
+['T', 'XSequence', '_S', '_items', 'empty-sequence()', 'empty_sequence', 'item()', 'item()*', 'iterate_sequence', 'sequence_concat', 'sequence_count', 'xlist']

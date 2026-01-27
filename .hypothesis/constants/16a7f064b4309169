@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\sparse\_construct.py
+# hypothesis_version: 6.151.2
+
+[0.01, 'A is not square', 'B is not square', 'block_array', 'block_diag', 'blocks must be 2-D', 'bmat', 'bsr', 'coo', 'csc', 'csr', 'd', 'diags', 'diags_array', 'eye', 'eye_array', 'hstack', 'identity', 'int32', 'kron', 'kronsum', 'object', 'rand', 'random', 'random_array', 'restructuredtext en', 'spdiags', 'vstack']

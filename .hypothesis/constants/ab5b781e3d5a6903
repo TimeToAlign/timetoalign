@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\optimize\tnc.py
+# hypothesis_version: 6.151.2
+
+['CONSTANT', 'FCONVERGED', 'INFEASIBLE', 'LOCALMINIMUM', 'LSFAIL', 'MAXFUN', 'MSGS', 'MSG_ALL', 'MSG_EXIT', 'MSG_INFO', 'MSG_ITER', 'MSG_NONE', 'MSG_VERS', 'MemoizeJac', 'NOPROGRESS', 'OptimizeResult', 'RCSTRINGS', 'USERABORT', 'XCONVERGED', '_tnc', 'array', 'fmin_tnc', 'inf', 'moduleTNC', 'old_bound_to_new', 'optimize', 'tnc', 'zeros']

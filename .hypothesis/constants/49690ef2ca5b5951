@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pandas\io\parsers\arrow_parser_wrapper.py
+# hypothesis_version: 6.151.2
+
+['decimal', 'decimal_point', 'delimiter', 'dtype_backend', 'encoding', 'escape_char', 'escapechar', 'false_values', 'ignore_empty_lines', 'include_columns', 'na_values', 'null_values', 'numpy_nullable', 'pyarrow', 'pyarrow.csv', 'quote_char', 'skip_blank_lines', 'skip_rows', 'skiprows', 'strings_can_be_null', 'timestamp_parsers', 'true_values', 'usecols', 'utf-8']

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\__init__.py
+# hypothesis_version: 6.151.2
+
+['0.1.0', 'ChainMap', 'ConversionMap', 'Coordinate', 'CoordinateValue', 'Domain', 'EventStore', 'EventType', 'GraphicalTimeline', 'IdGenerator', 'LinearMap', 'Loader', 'LogicalTimeline', 'NumberType', 'OptionalCoordinate', 'PhysicalTimeline', 'PiecewiseMap', 'ScalarMap', 'ScopedId', 'ShiftMap', 'TableMap', 'TimeUnit', 'Timeline', '__version__']

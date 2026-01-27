@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\_lib\array_api_compat\array_api_compat\common\_linalg.py
+# hypothesis_version: 6.151.2
+
+['2', 'EighResult', 'QRResult', 'SVDResult', 'SlogdetResult', 'cholesky', 'complete', 'cross', 'diagonal', 'eigh', 'fro', 'matmul', 'matrix_norm', 'matrix_rank', 'matrix_transpose', 'nuc', 'outer', 'pinv', 'qr', 'reduced', 'slogdet', 'svd', 'svdvals', 'tensordot', 'trace', 'vecdot', 'vector_norm']

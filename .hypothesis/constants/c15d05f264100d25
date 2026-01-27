@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\lark\parser_frontends.py
+# hypothesis_version: 6.151.2
+
+['__future_interface__', 'complete_lex', 'contextual', 'cyk', 'dynamic', 'dynamic_complete', 'earley', 'forest', 'lalr', 'lexer_conf', 'on_error', 'options', 'parser', 'parser_conf', 'resolve', 'standard', 'utf-8']

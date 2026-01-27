@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\music21\analysis\reduceChords.py
+# hypothesis_version: 6.151.2
+
+[0.0, 0.062, 0.063, 0.1, 0.125, 0.25, 0.333, 0.5, 1.0, 2.0, ' group[0]: ', ' groups: ', ' previousTimespan: ', ' should be before ', '4/4', 'C4 E4 F4 B4', 'C4 E4 G4 C5', 'F#4 A4 C5', '__main__', 'ignore', 'reduceChords']

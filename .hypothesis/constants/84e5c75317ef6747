@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pandas\util\_print_versions.py
+# hypothesis_version: 6.151.2
+
+['\nINSTALLED VERSIONS', '------------------', '.', 'Cython', 'IPython', 'LANG', 'LC_ALL', 'LOCALE', 'OS', 'OS-release', 'P', 'Version', 'blosc', 'byteorder', 'commit', 'dateutil', 'dependencies', 'encoding', 'feather', 'full-revisionid', 'html5lib', 'hypothesis', 'ignore', 'jinja2', 'language-code', 'lxml.etree', 'machine', 'numpy', 'pandas', 'pandas_datareader', 'pip', 'processor', 'psycopg2', 'pymysql', 'pytest', 'python', 'python-bits', 'pytz', 'setuptools', 'sphinx', 'system', 'utf8', 'wb', 'xlsxwriter']

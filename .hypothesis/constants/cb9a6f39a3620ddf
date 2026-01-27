@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\xpath1\_xpath1_operators.py
+# hypothesis_version: 6.151.2
+
+[100, '!=', '$', '(', ')', '*', '+', '-', '-inf', '.', '..', '/', '//', '1.0', ':', '<', '<=', '=', '>', '>=', 'FOAR0001', 'FOAR0002', 'FOCA0005', 'FODT0001', 'FODT0002', 'FORG0001', 'FORG0006', 'XPTY0004', 'XPTY0019', 'XPTY0020', 'XPath1Parser', '[', ']', 'and', 'axis', 'div', 'inf', 'kind test', 'mod', 'or', 'union', '|']

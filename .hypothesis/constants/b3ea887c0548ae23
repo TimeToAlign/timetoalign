@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\midi\score.py
+# hypothesis_version: 6.151.2
+
+['channel', 'control', 'divs_pq', 'duration', 'duration_div', 'end', 'event_type', 'format', 'id', 'ignore', 'interval', 'midi', 'onset_div', 'parser', 'part_id', 'partitura', 'partitura.*', 'parts', 'pitch', 'program', 'staff', 'start', 'temporal_type', 'ticks_per_beat', 'track', 'value', 'velocity', 'voice']

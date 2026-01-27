@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\linalg\matfuncs.py
+# hypothesis_version: 6.151.2
+
+['_matfuncs', 'absolute', 'amax', 'conjugate', 'coshm', 'cosm', 'eps', 'expm', 'expm_cond', 'expm_frechet', 'feps', 'funm', 'inv', 'isfinite', 'khatri_rao', 'linalg', 'logical_not', 'logm', 'matfuncs', 'norm', 'prod', 'ravel', 'rsf2csf', 'schur', 'sign', 'signm', 'single', 'sinhm', 'sinm', 'solve', 'sqrtm', 'svd', 'tanhm', 'tanm', 'transpose', 'triu']

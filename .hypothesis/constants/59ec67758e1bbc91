@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pandas\core\construction.py
+# hypothesis_version: 6.151.2
+
+['M', 'U', '__array__', '_typ', 'boolean', 'categoricalindex', 'datetime', 'datetimeindex', 'dtype', 'empty', 'floating', 'index', 'int64', 'integer', 'interval', 'intervalindex', 'iu', 'm', 'mM', 'mixed-integer-float', 'multiindex', 'ndim', 'npy_extension', 'object', 'period', 'periodindex', 'pyarrow_numpy', 'rangeindex', 'series', 'string', 'timedelta', 'timedeltaindex', 'uint64']

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\music21\figuredBass\notation.py
+# hypothesis_version: 6.151.2
+
+[0.0, ' to a music21 Pitch.', '#', '##', '###', '####', '([0-9_]*)', '([^0-9_]*)', '(extender)', '+', '++', '+++', '++++', '-', '--', '---', '-----', '/', 'Cannot convert ', 'Invalid Notation: ', '[,]', '\\', '_', '__main__', 'accidental', 'b', 'backslash', 'bb', 'bbb', 'bbbb', 'cross', 'double-sharp', 'figureStrings', 'figures', 'flat', 'flat-flat', 'hasExtender', 'modifier', 'modifierString', 'modifierStrings', 'modifiers', 'n', 'natural', 'notationColumn', 'number', 'numbers', 'origModStrings', 'origNumbers', 'pure-extender', 'sharp', 'slash', '̸', '⃥', '♭', '♮', '♯', '𝄪', '𝄫']

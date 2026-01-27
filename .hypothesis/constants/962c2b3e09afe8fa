@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\mido\messages\checks.py
+# hypothesis_version: 6.151.2
+
+[127, 'attribute_names', 'channel', 'channel must be int', 'control', 'data', 'frame_type', 'frame_value', 'note', 'pitch', 'pos', 'program', 'song', 'song pos must be int', 'time', 'type', 'value', 'velocity']

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\optimize\_minimize.py
+# hypothesis_version: 6.151.2
+
+['2-point', 'AllInteger', 'BFGS', 'L-BFGS-B', 'SLSQP', 'Unknown solver %s', '_custom', 'barrier_tol', 'bfgs', 'bounded', 'brent', 'cg', 'cobyla', 'disp', 'dogleg', 'fatol', 'ftol', 'fun', 'golden', 'gtol', 'hess_inv', 'jac', 'l-bfgs-b', 'minimize', 'minimize_scalar', 'nelder-mead', 'new', 'newton-cg', 'old', 'powell', 'return_all', 'slsqp', 'stop_iteration', 'tnc', 'tol', 'trust-constr', 'trust-exact', 'trust-krylov', 'trust-ncg', 'xatol', 'xtol']

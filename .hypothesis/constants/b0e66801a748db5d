@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\xpath_tokens\tokens.py
+# hypothesis_version: 6.151.2
+
+['#', '$', '(', '(name)', '(proxy)', '(string)', '(value)', '*', '+', '.', '..', '1', '1.0', '2.0', '3.0', ':', '::', '?', 'AsteriskToken', 'ContextItemToken', 'FOAR0002', 'FOCA0005', 'FODT0001', 'FODT0002', 'ParentShortcutToken', 'Q{', 'XPST0003', 'XPST0008', 'XPST0010', 'XPST0017', 'XPST0081', 'XPTY0004', 'XPathToken', 'XQST0046', 'XQST0070', 'array', 'attribute', 'expanded name', 'function', 'name', 'operator', 'shortcut expression', 'unknown variable %r', 'variable', 'wildcard symbol', 'xs:', '{', '{}*', '}']

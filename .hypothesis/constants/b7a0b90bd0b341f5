@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\sparse\lil.py
+# hypothesis_version: 6.151.2
+
+['INT_TYPES', 'IndexMixin', '_lil', 'bisect_left', 'check_reshape_kwargs', 'check_shape', 'getdtype', 'isscalarlike', 'isshape', 'isspmatrix_lil', 'lil', 'lil_matrix', 'sparse', 'spmatrix', 'upcast_scalar']

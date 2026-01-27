@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\arguments.py
+# hypothesis_version: 6.151.2
+
+['$', '@', 'Argument[T]', 'CRITICAL', 'DEBUG', 'ERROR', 'Element', 'INFO', 'WARN', '_', '__iter__', '__len__', '_check_only', '_default', '_name', 'all', 'always', "can't change {}", "can't delete {}", 'collapsed', 'file', 'io', 'lax', 'local', 'makeelement', 'never', 'none', 'nonlocal', 'remote', 'root-only', 'sandbox', 'skip', 'stacked', 'strict', 'text', 'tree', 'url']

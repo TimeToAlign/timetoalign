@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\spatial\_kdtree.py
+# hypothesis_version: 6.151.2
+
+[1.0, 2.0, 1000000, '<Rectangle %s>', 'KDTree', 'Rectangle', '_tree', 'c', 'distance_matrix', 'dok_matrix', 'float64', 'minkowski_distance', 'minkowski_distance_p', 'set']

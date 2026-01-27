@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\matchfile_base.py
+# hypothesis_version: 6.151.2
+
+['   {0}: {1}', ' Note', ' Ptime', ' Snote', ' Stime', ' {0}: {1}', '-deletion\\.', 'Anchor', 'AnnotationType', 'Attribute', 'Beat', 'Duration', 'Id', 'Measure', 'Modifier', 'NoteName', 'Octave', 'Offset', 'OffsetInBeats', 'Onset', 'OnsetInBeats', 'Onsets', 'ScoreAttributesList', 'Time', 'TimeInBeats', 'Value', 'Velocity', 'insertion-', 'insertion-{NoteLine}', 'keySignature', 'n', 'ptime({Onsets}).', 'snote', 'timeSignature', 'w']

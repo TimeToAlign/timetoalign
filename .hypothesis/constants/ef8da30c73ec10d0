@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\music21\alpha\analysis\hasher.py
+# hypothesis_version: 6.151.2
+
+[0.0, 0.625, 0.65625, 1.0, 1.5, 1.75, 1.78125, 1.783, 2.0, 2.4375, 2.5, 3.0, 4.0, 6.0, ')', ', ', '<037>', '<047>', '<>', '=', 'A5', 'B-2', 'C4', 'D5', 'Duration', 'E-5', 'E3', 'E4', 'E5', 'F#4', 'G4', 'IntervalFromLastNote', 'IsAccidental', 'KeySignature', 'M2', 'NormalOrderString', 'Note', 'NoteHash', 'Octave', 'Offset', 'Pitch', 'PrimeFormString', '__main__', 'bwv66.6', 'currKeySig', 'half', 'r', 'schoenberg', 'whole', 'z']

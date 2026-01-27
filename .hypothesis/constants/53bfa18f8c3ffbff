@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\arff\arffread.py
+# hypothesis_version: 6.151.2
+
+['ArffError', 'Attribute', 'DateAttribute', 'MetaData', 'NominalAttribute', 'NumericAttribute', 'ParseArffError', 'RelationalAttribute', 'StringAttribute', '_arffread', 'arffread', 'basic_stats', 'io.arff', 'loadarff', 'print_attribute', 'r_attribute', 'r_comattrval', 'r_comment', 'r_datameta', 'r_date', 'r_empty', 'r_headerline', 'r_meta', 'r_nominal', 'r_relation', 'r_wcomattrval', 'read_header', 'split_data_line', 'test_weka', 'to_attribute', 'tokenize_attribute']

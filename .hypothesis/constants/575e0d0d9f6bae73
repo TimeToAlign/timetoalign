@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\packaging\_tokenizer.py
+# hypothesis_version: 6.151.2
+
+['$', ',', ';', 'AT', 'BOOLOP', 'COMMA', 'END', 'IDENTIFIER', 'IN', 'LEFT_BRACKET', 'LEFT_PARENTHESIS', 'NOT', 'OP', 'QUOTED_STRING', 'RIGHT_BRACKET', 'RIGHT_PARENTHESIS', 'SEMICOLON', 'SPECIFIER', 'URL', 'VARIABLE', 'VERSION_PREFIX_TRAIL', 'WS', '[ \\t]+', '[^ \\t]+', '\\(', '\\)', '\\.\\*', '\\@', '\\[', '\\]', '\\b(or|and)\\b', '\\bin\\b', '\\bnot\\b', '^', '~']

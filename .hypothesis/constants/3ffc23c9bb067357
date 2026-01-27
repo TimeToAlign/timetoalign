@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\_mmio.py
+# hypothesis_version: 6.151.2
+
+['%', '%%%s\n', '%%.%ie\n', '%%.%ie %%.%ie\n', '%%MatrixMarket', '%i\n', '%i %i\n', '%i %i ', '%i %i %i\n', '%u\n', '.bz2', '.gz', '.mtx', '.mtx.bz2', '.mtx.gz', 'D', 'FD', 'MMFile', '__array__', '_cols', '_entries', '_field', '_format', '_rows', '_symmetry', 'array', 'ascii', 'c', 'complex', 'coordinate', 'd', 'f', 'fF', 'fd', 'float', 'general', 'hermitian', 'i', 'ignore', 'int8', 'intc', 'integer', 'intp', 'latin1', 'matrix', 'mminfo', 'mmread', 'mmwrite', 'pattern', 'r', 'rb', 'real', 'skew-symmetric', 'symmetric', 'u', 'uint64', 'unsigned-integer', 'wb']

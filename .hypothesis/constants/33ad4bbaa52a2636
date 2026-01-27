@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\musescore.py
+# hypothesis_version: 6.151.2
+
+['-*.png', '-2', '-T', '-f', '-o', '-r', '.mscz', '.musicxml', '10', '<', 'DISPLAY', 'Darwin', 'Linux', 'UTF-8', 'Windows', 'ensure_list', 'filename', 'out', 'pdf', 'png', 'r', 'score.musicxml', 'score_data', 'vertical', '{}']
