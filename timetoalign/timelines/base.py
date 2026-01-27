@@ -1021,11 +1021,19 @@ class Timeline:
 
     # region Timestamp Generation
 
-    def _extract_event_coordinates(self) -> pa.ChunkedArray:
+    def _extract_event_coordinates(
+        self,
+        event_filter: dict[str, Any] | pc.Expression | None = None,
+    ) -> pa.ChunkedArray:
         """Extract all unique event coordinates as a sorted PyArrow array.
 
         Uses PyArrow compute to efficiently extract coordinates from the
         EventStore table without Python iteration.
+
+        Args:
+            event_filter: Optional filter to apply before extracting coordinates.
+                Can be a dict (passed to EventStore.filter()) or a pc.Expression
+                (passed to EventStore.where()).
 
         Returns:
             Sorted PyArrow ChunkedArray of unique coordinate values (float64).
@@ -1036,7 +1044,15 @@ class Timeline:
             - Extracts end.value from interval events (drops nulls)
             - Deduplicates and sorts the result
         """
-        table = self._events.table
+        # Apply filter if provided
+        if event_filter is not None:
+            if isinstance(event_filter, pc.Expression):
+                filtered_store = self._events.where(event_filter)
+            else:
+                filtered_store = self._events.filter(**event_filter)
+            table = filtered_store.table
+        else:
+            table = self._events.table
 
         if table.num_rows == 0:
             return pa.chunked_array([], type=pa.float64())
@@ -1071,6 +1087,7 @@ class Timeline:
         self,
         recursion_limit: int | None = None,
         offset: float = 0.0,
+        event_filter: dict[str, Any] | pc.Expression | None = None,
     ) -> pa.Array:
         """Collect coordinates from this timeline and all children.
 
@@ -1080,12 +1097,16 @@ class Timeline:
         Args:
             recursion_limit: Maximum depth for child traversal. None = unlimited.
             offset: Cumulative offset from root timeline (internal use).
+            event_filter: Optional filter applied to each timeline's events.
+                Can be a dict (passed to EventStore.filter()) or a pc.Expression
+                (passed to EventStore.where()). The same filter is applied to
+                all timelines in the hierarchy.
 
         Returns:
             PyArrow array of unique, sorted, root-relative coordinates (float64).
         """
-        # Get this timeline's coordinates
-        local_coords = self._extract_event_coordinates()
+        # Get this timeline's coordinates (with optional filter)
+        local_coords = self._extract_event_coordinates(event_filter)
 
         # Apply offset to make root-relative
         if offset != 0.0 and len(local_coords) > 0:
@@ -1101,6 +1122,7 @@ class Timeline:
                 child_coords = child._collect_all_coordinates(
                     recursion_limit=next_limit,
                     offset=offset + child_offset,
+                    event_filter=event_filter,
                 )
                 if len(child_coords) > 0:
                     arrays.append(child_coords)
@@ -1410,6 +1432,135 @@ class Timeline:
             include_events=False,
             include_boundaries=False,  # Already included in coordinates
         )
+
+    def get_timestamp_table_filtered(
+        self,
+        event_filter: dict[str, Any] | pc.Expression,
+        conversion_maps: list[ConversionMap[Any] | str] | None = None,
+        recursion_limit: int | None = None,
+        include_boundaries: bool = False,
+    ) -> pa.Table:
+        """Generate timestamps for filtered events only.
+
+        Applies an event filter before extracting coordinates from EventStores.
+        This enables efficient timestamp generation for subsets of events
+        (e.g., only Note events, events above a certain duration, etc.).
+
+        The filter is applied to each timeline in the hierarchy using either
+        EventStore.filter() (for dict filters) or EventStore.where() (for
+        PyArrow compute expressions).
+
+        Args:
+            event_filter: Filter to apply before extracting coordinates.
+                - dict: Passed to EventStore.filter() for simple filters.
+                  Example: {"event_type": "Note"} or {"temporal_type": "interval"}
+                - pc.Expression: Passed to EventStore.where() for complex filters.
+                  Example: pc.greater(pc.struct_field(pc.field("start"), "value"), 10.0)
+            conversion_maps: C-Maps to include as columns.
+            recursion_limit: Maximum depth for child traversal.
+            include_boundaries: If True, also include timeline boundary coordinates.
+
+        Returns:
+            PyArrow Table with timestamp data for filtered events only.
+
+        Examples:
+            >>> # Dict filter: only Note events
+            >>> table = timeline.get_timestamp_table_filtered(
+            ...     {"event_type": "Note"}
+            ... )
+
+            >>> # Dict filter: only interval events
+            >>> table = timeline.get_timestamp_table_filtered(
+            ...     {"temporal_type": "interval"}
+            ... )
+
+            >>> # PyArrow Expression: events starting after coordinate 10
+            >>> import pyarrow.compute as pc
+            >>> expr = pc.greater(
+            ...     pc.struct_field(pc.field("start"), "value"),
+            ...     10.0
+            ... )
+            >>> table = timeline.get_timestamp_table_filtered(expr)
+
+            >>> # Combine with C-Maps
+            >>> table = timeline.get_timestamp_table_filtered(
+            ...     {"event_type": "Note"},
+            ...     conversion_maps=["seconds"],
+            ... )
+        """
+        # Extract filtered coordinates
+        filtered_coords = self._collect_all_coordinates(
+            recursion_limit=recursion_limit,
+            event_filter=event_filter,
+        )
+
+        # Optionally include boundaries
+        if include_boundaries:
+            boundary_coords = self._collect_boundary_coordinates(
+                recursion_limit=recursion_limit
+            )
+            if len(filtered_coords) > 0 and len(boundary_coords) > 0:
+                combined = pa.concat_arrays([filtered_coords, boundary_coords])
+                unique = pc.unique(combined)
+                sort_indices = pc.sort_indices(unique)
+                axis = pc.take(unique, sort_indices)
+            elif len(boundary_coords) > 0:
+                axis = boundary_coords
+            else:
+                axis = filtered_coords
+        else:
+            axis = filtered_coords
+
+        # Resolve C-Map references
+        resolved_maps: list[ConversionMap[Any]] = []
+        if conversion_maps:
+            for cmap in conversion_maps:
+                if isinstance(cmap, str):
+                    if cmap in self._conversion_maps:
+                        resolved_maps.append(self._conversion_maps[cmap])
+                    else:
+                        raise KeyError(f"No conversion map with ID '{cmap}'")
+                else:
+                    resolved_maps.append(cmap)
+
+        return self._build_timestamp_table(
+            axis=axis,
+            conversion_maps=resolved_maps if resolved_maps else None,
+            recursion_limit=recursion_limit,
+        )
+
+    def get_timestamps_filtered(
+        self,
+        event_filter: dict[str, Any] | pc.Expression,
+        conversion_maps: list[ConversionMap[Any] | str] | None = None,
+        recursion_limit: int | None = None,
+        include_boundaries: bool = False,
+    ) -> pd.DataFrame:
+        """Generate timestamps for filtered events as a pandas DataFrame.
+
+        Convenience wrapper around get_timestamp_table_filtered() for users
+        who prefer working with pandas.
+
+        Args:
+            event_filter: Filter to apply (dict for simple, pc.Expression for complex).
+            conversion_maps: C-Maps to include as columns.
+            recursion_limit: Maximum depth for child traversal.
+            include_boundaries: If True, include timeline boundary coordinates.
+
+        Returns:
+            pandas DataFrame with timestamps for filtered events.
+
+        Examples:
+            >>> df = timeline.get_timestamps_filtered({"event_type": "Note"})
+            >>> df.head()
+        """
+        table = self.get_timestamp_table_filtered(
+            event_filter=event_filter,
+            conversion_maps=conversion_maps,
+            recursion_limit=recursion_limit,
+            include_boundaries=include_boundaries,
+        )
+        return table.to_pandas()
 
     # endregion
 
