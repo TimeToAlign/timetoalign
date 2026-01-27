@@ -165,7 +165,7 @@ class Loader(ABC):
 
     # region Loading
 
-    def load(self, *sources: Path | str) -> None:
+    def load(self, *sources: Path | str) -> Self:
         """Load one or more source files.
 
         Events from all sources are aggregated into the EventStore.
@@ -173,6 +173,9 @@ class Loader(ABC):
 
         Args:
             *sources: Paths to source files.
+
+        Returns:
+            Self, for method chaining.
 
         Raises:
             FileNotFoundError: If any source doesn't exist.
@@ -198,6 +201,8 @@ class Loader(ABC):
                     event_rows, self._unit, self._number_type
                 )
                 self._events.extend(new_store)
+
+        return self
 
     def clear(self) -> None:
         """Clear all loaded sources and events."""

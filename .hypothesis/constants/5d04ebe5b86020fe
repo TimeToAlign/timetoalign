@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/score/__init__.py
+# hypothesis_version: 6.151.2
+
+['Music21Loader', 'PartituraLoader', 'ScoreBundle', 'ScoreEventStore', 'ScoreEventType']

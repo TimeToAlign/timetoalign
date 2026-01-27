@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/timelines/base.py
+# hypothesis_version: 6.151.2
+
+[0.0, ', ', 'Segment', 'axis', 'breadth_first', 'children', 'class', 'conversion_maps', 'depth_first', 'domain', 'duration', 'end', 'event_summary', 'event_type', 'events', 'id', 'instant', 'interval', 'is_locked', 'length', 'locked', 'meta', 'n_children', 'n_events', 'name', 'number_type', 'offset', 'set length', 'sorted', 'start', 'temporal_type', 'timeline', 'tl', 'unit', 'value']

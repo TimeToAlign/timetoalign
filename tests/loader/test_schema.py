@@ -141,14 +141,18 @@ class TestMakeBaseSchema:
         assert isinstance(schema, pa.Schema)
 
     def test_has_required_columns(self) -> None:
-        """Schema has all base columns."""
+        """Schema has all base columns.
+
+        Note: The schema no longer has a separate 'instant' column.
+        InstantEvents use 'start' with 'end' being null or equal to 'start'.
+        IntervalEvents use 'start' and 'end' with 'duration' computed.
+        """
         schema = make_base_schema(TimeUnit.ticks)
         names = schema.names
         assert "id" in names
         assert "name" in names
         assert "temporal_type" in names
         assert "event_type" in names
-        assert "instant" in names
         assert "start" in names
         assert "end" in names
         assert "duration" in names
@@ -174,11 +178,15 @@ class TestGetBaseColumnNames:
         assert all(isinstance(n, str) for n in names)
 
     def test_has_all_columns(self) -> None:
-        """Returns all 8 base columns."""
+        """Returns all 7 base columns.
+
+        Note: The schema no longer has a separate 'instant' column.
+        Base columns are: id, name, temporal_type, event_type, start, end, duration.
+        """
         names = get_base_column_names()
-        assert len(names) == 8
+        assert len(names) == 7
         assert "id" in names
-        assert "instant" in names
+        assert "start" in names
 
 
 class TestExtendSchema:

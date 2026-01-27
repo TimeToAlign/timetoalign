@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/score/tsv.py
+# hypothesis_version: 6.151.2
+
+[0.0, 10000, '#', '-', '/', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'Note', 'P1', 'Rest', 'acc', 'b', 'cents', 'chord_id', 'den', 'duration', 'duration_qb', 'duration_qb_float', 'ep', 'epc', 'event_type', 'format', 'gpc_int', 'gpc_str', 'gracenote', 'has_rests', 'id', 'instant', 'interval', 'mc', 'mc_onset', 'measures', 'midi', 'midi_pitch', 'mn', 'mn_onset', 'ms3', 'name', 'nominal_duration', 'notes', 'num', 'octave', 'parser', 'part', 'part_id', 'quarterbeats', 'quarterbeats_float', 'scalar', 'source', 'sp', 'spc_int', 'spc_str', 'spelled_pitch', 'staff', 'temporal_type', 'tied', 'timesig', 'tpc', 'tsv', 'velocity', 'voice', '♭', '♯']

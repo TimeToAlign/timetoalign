@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/score/stores/measures.py
+# hypothesis_version: 6.151.2
+
+['duration', 'duration_float', 'duration_qb', 'duration_qb_float', 'end', 'int64', 'keysig', 'keysig_fifths', 'keysig_mode', 'mc', 'mn', 'number_type', 'part_id', 'quarterbeats', 'quarterbeats_float', 'start', 'timesig', 'timesig_den', 'timesig_num']

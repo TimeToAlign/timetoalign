@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/score/stores/annotations.py
+# hypothesis_version: 6.151.2
+
+['duration', 'duration_float', 'duration_qb', 'duration_qb_float', 'end', 'int64', 'mc', 'mc_onset', 'mn', 'mn_onset', 'number_type', 'part_id', 'quarterbeats', 'quarterbeats_float', 'staff', 'start', 'subtype', 'text']

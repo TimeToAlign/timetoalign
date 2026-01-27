@@ -173,10 +173,10 @@ class TestCoordinateArithmetic:
         assert result.unit == TimeUnit.ticks
 
     def test_add_different_units_raises(self) -> None:
-        """Addition with different units raises ValueError."""
+        """Addition with different units raises TypeError."""
         c1 = Coordinate(100, TimeUnit.ticks)
         c2 = Coordinate(1.5, TimeUnit.seconds)
-        with pytest.raises(ValueError, match="different units"):
+        with pytest.raises(TypeError, match="different units"):
             c1 + c2
 
     def test_add_non_coordinate_raises(self) -> None:
@@ -194,10 +194,10 @@ class TestCoordinateArithmetic:
         assert result.unit == TimeUnit.ticks
 
     def test_sub_different_units_raises(self) -> None:
-        """Subtraction with different units raises ValueError."""
+        """Subtraction with different units raises TypeError."""
         c1 = Coordinate(100, TimeUnit.ticks)
         c2 = Coordinate(1.5, TimeUnit.seconds)
-        with pytest.raises(ValueError, match="different units"):
+        with pytest.raises(TypeError, match="different units"):
             c1 - c2
 
     def test_sub_non_coordinate_raises(self) -> None:
@@ -312,10 +312,10 @@ class TestCoordinateComparison:
         assert not c1 >= c2
 
     def test_comparison_different_units_raises(self) -> None:
-        """Comparison with different units raises ValueError."""
+        """Comparison with different units raises TypeError."""
         c1 = Coordinate(100, TimeUnit.ticks)
         c2 = Coordinate(1.5, TimeUnit.seconds)
-        with pytest.raises(ValueError, match="different units"):
+        with pytest.raises(TypeError, match="different units"):
             c1 < c2
 
     def test_comparison_non_coordinate_raises(self) -> None:
