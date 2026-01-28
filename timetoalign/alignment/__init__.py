@@ -9,11 +9,14 @@ Public API:
 - AlignmentAnchor: Atomic coordinate pair claim
 - MatchClaim: Low-level match between two events
 - MatchMetadata: Provenance information for matches
+- MatchGraph: Graph of MatchClaims (networkx integration)
+- MatchStamp: Cross-group timestamp at a single coordinate
 """
 
 from __future__ import annotations
 
 from .anchors import AlignmentAnchor, MatchClaim, MatchMetadata
+from .graph import MatchGraph, MatchStamp
 from .groups import PerfectAlignment, TimelineGroup
 
 __all__ = [
@@ -24,4 +27,7 @@ __all__ = [
     "AlignmentAnchor",
     "MatchClaim",
     "MatchMetadata",
+    # Graph and Stamps
+    "MatchGraph",
+    "MatchStamp",
 ]
