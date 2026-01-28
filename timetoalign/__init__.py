@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from timetoalign.alignment import (
     AlignmentAnchor,
+    AlignmentBundle,
     MatchClaim,
     MatchMetadata,
     PerfectAlignment,
@@ -102,6 +103,7 @@ __all__ = [
     "ChainMap",
     "PiecewiseMap",
     # Alignment
+    "AlignmentBundle",
     "PerfectAlignment",
     "TimelineGroup",
     "AlignmentAnchor",
