@@ -433,12 +433,21 @@ class TimelineGroup:
         source_align = self.alignments[from_timeline]
         target_align = self.alignments[to_timeline]
 
-        # Convert source -> reference
-        ref_coord = source_align.to_reference(
-            coord,
-            source_length=float(source_tl.length.value),
-            ref_length=float(ref_tl.length.value),
-        )
+        # Short-circuit: if source IS the reference, skip to_reference
+        if from_timeline == self.reference_timeline_id:
+            ref_coord = coord
+        else:
+            # Convert source -> reference
+            ref_coord = source_align.to_reference(
+                coord,
+                source_length=float(source_tl.length.value),
+                ref_length=float(ref_tl.length.value),
+            )
+
+        # Short-circuit: if target IS the reference, we're done
+        # This avoids unnecessary float division/multiplication that introduces error
+        if to_timeline == self.reference_timeline_id:
+            return ref_coord
 
         # Convert reference -> target
         return target_align.from_reference(
