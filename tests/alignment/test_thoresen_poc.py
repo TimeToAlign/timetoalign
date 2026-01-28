@@ -1,0 +1,503 @@
+"""Thoresen Proof of Concept - Integration Test Scaffold.
+
+This test validates the alignment infrastructure using the Thoresen example
+from the TTA manuscript (Figures in tta_appendix.tex).
+
+The example involves two graphical analyses of the same musical content:
+- DGT1 (Thoresen 2009): 5 equal-width segments
+- DGT2 (Thoresen 2010): 5 varying-width segments
+
+The goal is to transfer Event H from DGT2 to DGT1 via piecewise linear
+interpolation based on segment correspondence.
+
+=== DATA NEEDED FROM USER ===
+
+Please provide the following values from the manuscript/figures:
+
+1. Total pixel widths:
+   - DGT1 total width: ??? (currently placeholder: 4875)
+   - DGT2 total width: ??? (currently placeholder: 4328)
+
+2. Segment boundaries (pixel coordinates):
+   - DGT1 segment lengths: [???, ???, ???, ???, ???] (currently: all 975)
+   - DGT2 segment lengths: [???, ???, ???, ???, ???] (currently: [866,867,867,864,864])
+
+3. Event H location in DGT2:
+   - Segment index: ??? (currently: segment 2, 0-indexed)
+   - Start pixel within segment: ??? (currently: 378)
+   - End pixel within segment: ??? (currently: 517)
+
+4. Expected Event H' location in DGT1:
+   - Expected start pixel: ??? (for validation)
+   - Expected end pixel: ??? (for validation)
+
+5. Audio duration (if known):
+   - Total seconds: ??? (currently: 150)
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from timetoalign.alignment import (
+    MatchClaim,
+    MatchMetadata,
+    PerfectAlignment,
+    TimelineGroup,
+)
+from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
+from timetoalign.alignment.groups import _reset_group_ids
+from timetoalign.timelines import (
+    ContinuousPhysicalTimeline,
+    DiscreteGraphicalTimeline,
+)
+
+# region Actual Data from Applications.ipynb
+
+
+# === DGT1 (Thoresen 2009) ===
+# Single image with 5 horizontal systems (staves)
+# x-boundaries: x0=2, x1=969 for all systems
+# y-positions of each system: [18, 205, 396, 588, 785]
+DGT1_X0, DGT1_X1 = 2, 969
+DGT1_SEGMENT_LENGTH = DGT1_X1 - DGT1_X0  # 967 pixels per segment
+DGT1_SEGMENT_LENGTHS = [DGT1_SEGMENT_LENGTH] * 5  # [967, 967, 967, 967, 967]
+DGT1_TOTAL_WIDTH = sum(DGT1_SEGMENT_LENGTHS)  # 4835 pixels
+DGT1_Y_POSITIONS = [18, 205, 396, 588, 785]  # y-coordinate of each system
+
+
+# === DGT2 (Thoresen 2010) ===
+# 5 separate JPEG images with slightly different dimensions
+# Data from: thoresen2010_dims in Applications.ipynb
+DGT2_SEGMENT_DATA = [
+    # (filename, (x0, x1), y)
+    ("thoresen_2010_form-building-patterns_p90-91_page1_1.jpeg", (8, 874), 15),
+    ("thoresen_2010_form-building-patterns_p90-91_page1_2.jpeg", (7, 874), 18),
+    ("thoresen_2010_form-building-patterns_p90-91_page1_3.jpeg", (7, 874), 19),
+    ("thoresen_2010_form-building-patterns_p90-91_page1_4.jpeg", (8, 872), 15),
+    ("thoresen_2010_form-building-patterns_p90-91_page2_1.jpeg", (9, 873), 20),
+]
+DGT2_SEGMENT_LENGTHS = [
+    x1 - x0 for _, (x0, x1), _ in DGT2_SEGMENT_DATA
+]  # [866, 867, 867, 864, 864]
+DGT2_TOTAL_WIDTH = sum(DGT2_SEGMENT_LENGTHS)  # 4328 pixels
+
+
+# === Event H (rect_h2) from ground truth TSV ===
+# From events_df row 4: annot_cue_005, rect_h2
+# Ground truth: start_time_sec=43.5, duration_sec=4.50
+# Pixel coords in image: {'x': 385, 'y': 46, 'width': 139, 'height': 20}
+# Image: page1_2.jpeg (segment index 1, 0-indexed)
+#
+# The x coordinate (385) is in image space. To get segment-local coordinate:
+# Segment 2 has x0=7, so local_x = 385 - 7 = 378
+EVENT_H_SEGMENT_INDEX = 1  # Second segment (page1_2.jpeg)
+EVENT_H_IMAGE_X = 385  # x in image coordinates
+EVENT_H_IMAGE_WIDTH = 139  # width in image coordinates
+EVENT_H_X0_IN_IMAGE = DGT2_SEGMENT_DATA[EVENT_H_SEGMENT_INDEX][1][
+    0
+]  # x0=7 for this segment
+EVENT_H_START_IN_SEGMENT = EVENT_H_IMAGE_X - EVENT_H_X0_IN_IMAGE  # 385 - 7 = 378
+EVENT_H_END_IN_SEGMENT = (
+    EVENT_H_START_IN_SEGMENT + EVENT_H_IMAGE_WIDTH
+)  # 378 + 139 = 517
+
+# Ground truth timing for validation
+EVENT_H_GROUND_TRUTH_START_SEC = 43.5
+EVENT_H_GROUND_TRUTH_DURATION_SEC = 4.50
+EVENT_H_GROUND_TRUTH_END_SEC = (
+    EVENT_H_GROUND_TRUTH_START_SEC + EVENT_H_GROUND_TRUTH_DURATION_SEC
+)  # 48.0
+
+
+# === Audio Duration ===
+# Both analyses represent the same 150-second excerpt
+AUDIO_DURATION_SECONDS = 150.0
+
+
+# === Derived: Expected H' in DGT1 ===
+# Proportional transfer from DGT2 segment 2 to DGT1 segment 2
+# Ratio in DGT2: 378/867 and 517/867
+# Apply to DGT1 segment 2 (length 967)
+_dgt2_seg_len = DGT2_SEGMENT_LENGTHS[EVENT_H_SEGMENT_INDEX]  # 867
+_dgt1_seg_len = DGT1_SEGMENT_LENGTHS[EVENT_H_SEGMENT_INDEX]  # 967
+_dgt1_seg_offset = sum(DGT1_SEGMENT_LENGTHS[:EVENT_H_SEGMENT_INDEX])  # 967 (segment 1)
+
+EXPECTED_H_PRIME_START = (
+    _dgt1_seg_offset + (EVENT_H_START_IN_SEGMENT / _dgt2_seg_len) * _dgt1_seg_len
+)
+EXPECTED_H_PRIME_END = (
+    _dgt1_seg_offset + (EVENT_H_END_IN_SEGMENT / _dgt2_seg_len) * _dgt1_seg_len
+)
+# H' start: 967 + (378/867)*967 = 967 + 421.6 = 1388.6
+# H' end:   967 + (517/867)*967 = 967 + 576.6 = 1543.6
+
+
+# endregion
+
+
+# region Fixtures
+
+
+@pytest.fixture(autouse=True)
+def reset_ids() -> None:
+    """Reset ID generators before each test."""
+    _reset_group_ids()
+    _reset_anchor_ids()
+    _reset_claim_ids()
+
+
+@pytest.fixture
+def dgt1_timeline() -> DiscreteGraphicalTimeline:
+    """Create DGT1 (2009) timeline."""
+    return DiscreteGraphicalTimeline(
+        length=DGT1_TOTAL_WIDTH,
+        unit="pixels",
+        uid="dgt1",
+        name="Thoresen 2009",
+    )
+
+
+@pytest.fixture
+def dgt2_timeline() -> DiscreteGraphicalTimeline:
+    """Create DGT2 (2010) timeline."""
+    return DiscreteGraphicalTimeline(
+        length=DGT2_TOTAL_WIDTH,
+        unit="pixels",
+        uid="dgt2",
+        name="Thoresen 2010",
+    )
+
+
+@pytest.fixture
+def audio_timeline() -> ContinuousPhysicalTimeline:
+    """Create audio timeline (shared reference)."""
+    return ContinuousPhysicalTimeline(
+        length=AUDIO_DURATION_SECONDS,
+        unit="seconds",
+        uid="audio",
+        name="Audio",
+    )
+
+
+@pytest.fixture
+def dgt1_group(
+    dgt1_timeline: DiscreteGraphicalTimeline,
+    audio_timeline: ContinuousPhysicalTimeline,
+) -> TimelineGroup:
+    """Create TimelineGroup for DGT1 with audio alignment."""
+    group = TimelineGroup.from_reference(dgt1_timeline, name="DGT1_Group")
+
+    # Add audio with perfect alignment (pixels <-> seconds)
+    group.add_timeline(
+        audio_timeline,
+        alignment=PerfectAlignment(
+            source_start=0,
+            source_end=AUDIO_DURATION_SECONDS,
+            ref_start=0,
+            ref_end=DGT1_TOTAL_WIDTH,
+        ),
+    )
+    return group
+
+
+@pytest.fixture
+def dgt2_group(dgt2_timeline: DiscreteGraphicalTimeline) -> TimelineGroup:
+    """Create TimelineGroup for DGT2."""
+    return TimelineGroup.from_reference(dgt2_timeline, name="DGT2_Group")
+
+
+@pytest.fixture
+def segment_claims() -> list[MatchClaim]:
+    """Create the 5 segment correspondence claims between DGT1 and DGT2."""
+    claims = []
+    offset_dgt1 = 0
+    offset_dgt2 = 0
+
+    for i in range(5):
+        claim = MatchClaim.interval(
+            timeline_a_id="dgt1",
+            start_a=float(offset_dgt1),
+            end_a=float(offset_dgt1 + DGT1_SEGMENT_LENGTHS[i]),
+            timeline_b_id="dgt2",
+            start_b=float(offset_dgt2),
+            end_b=float(offset_dgt2 + DGT2_SEGMENT_LENGTHS[i]),
+            metadata=MatchMetadata(
+                agent="thoresen_analysis",
+                decision_criteria="segment_correspondence",
+                notes=f"Segment {i+1} of 5",
+            ),
+        )
+        claims.append(claim)
+
+        offset_dgt1 += DGT1_SEGMENT_LENGTHS[i]
+        offset_dgt2 += DGT2_SEGMENT_LENGTHS[i]
+
+    return claims
+
+
+# endregion
+
+
+# region Data Validation Tests
+
+
+class TestThoresenDataIntegrity:
+    """Validate the input data consistency."""
+
+    def test_dgt1_segments_sum_to_total(self) -> None:
+        """DGT1 segment lengths must sum to total width."""
+        assert sum(DGT1_SEGMENT_LENGTHS) == DGT1_TOTAL_WIDTH, (
+            f"DGT1 segments sum to {sum(DGT1_SEGMENT_LENGTHS)}, "
+            f"expected {DGT1_TOTAL_WIDTH}"
+        )
+
+    def test_dgt2_segments_sum_to_total(self) -> None:
+        """DGT2 segment lengths must sum to total width."""
+        assert sum(DGT2_SEGMENT_LENGTHS) == DGT2_TOTAL_WIDTH, (
+            f"DGT2 segments sum to {sum(DGT2_SEGMENT_LENGTHS)}, "
+            f"expected {DGT2_TOTAL_WIDTH}"
+        )
+
+    def test_dgt1_exact_values(self) -> None:
+        """DGT1 values match Applications.ipynb exactly."""
+        assert DGT1_SEGMENT_LENGTH == 967
+        assert DGT1_TOTAL_WIDTH == 4835
+        assert DGT1_SEGMENT_LENGTHS == [967, 967, 967, 967, 967]
+
+    def test_dgt2_exact_values(self) -> None:
+        """DGT2 values match Applications.ipynb exactly."""
+        assert DGT2_SEGMENT_LENGTHS == [866, 867, 867, 864, 864]
+        assert DGT2_TOTAL_WIDTH == 4328
+
+    def test_five_segments_each(self) -> None:
+        """Both analyses have exactly 5 segments."""
+        assert len(DGT1_SEGMENT_LENGTHS) == 5
+        assert len(DGT2_SEGMENT_LENGTHS) == 5
+
+    def test_event_h_within_segment(self) -> None:
+        """Event H coordinates must be within its segment."""
+        segment_length = DGT2_SEGMENT_LENGTHS[EVENT_H_SEGMENT_INDEX]
+        assert (
+            0 <= EVENT_H_START_IN_SEGMENT < segment_length
+        ), f"Event H start {EVENT_H_START_IN_SEGMENT} outside segment [0, {segment_length})"
+        assert (
+            EVENT_H_START_IN_SEGMENT < EVENT_H_END_IN_SEGMENT <= segment_length
+        ), f"Event H end {EVENT_H_END_IN_SEGMENT} invalid"
+
+    def test_event_h_exact_values(self) -> None:
+        """Event H pixel coordinates match ground truth TSV."""
+        # From rect_coords_json: {'x': 385, 'y': 46, 'width': 139, 'height': 20}
+        assert EVENT_H_IMAGE_X == 385
+        assert EVENT_H_IMAGE_WIDTH == 139
+        assert EVENT_H_START_IN_SEGMENT == 378  # 385 - 7 (x0 of segment 2)
+        assert EVENT_H_END_IN_SEGMENT == 517  # 378 + 139
+
+
+# endregion
+
+
+# region Group Setup Tests
+
+
+class TestThoresenGroupSetup:
+    """Test that groups are correctly configured."""
+
+    def test_dgt1_group_structure(self, dgt1_group: TimelineGroup) -> None:
+        """DGT1 group has reference + audio timelines."""
+        assert dgt1_group.n_timelines == 2
+        assert dgt1_group.reference_timeline_id == "dgt1"
+        assert "audio" in dgt1_group.timelines
+
+    def test_dgt2_group_structure(self, dgt2_group: TimelineGroup) -> None:
+        """DGT2 group has reference timeline."""
+        assert dgt2_group.n_timelines == 1
+        assert dgt2_group.reference_timeline_id == "dgt2"
+
+    def test_pixel_to_second_conversion(self, dgt1_group: TimelineGroup) -> None:
+        """DGT1 pixels convert correctly to seconds."""
+        # Midpoint: half of pixels -> half of seconds
+        mid_pixels = DGT1_TOTAL_WIDTH / 2
+        mid_seconds = dgt1_group.convert(mid_pixels, "dgt1", "audio")
+        assert mid_seconds == pytest.approx(AUDIO_DURATION_SECONDS / 2)
+
+        # Endpoints
+        assert dgt1_group.convert(0, "dgt1", "audio") == pytest.approx(0.0)
+        assert dgt1_group.convert(DGT1_TOTAL_WIDTH, "dgt1", "audio") == pytest.approx(
+            AUDIO_DURATION_SECONDS
+        )
+
+
+# endregion
+
+
+# region Segment Claims Tests
+
+
+class TestThoresenSegmentClaims:
+    """Test segment correspondence claims."""
+
+    def test_five_interval_claims(self, segment_claims: list[MatchClaim]) -> None:
+        """All 5 claims are interval (not instant) matches."""
+        assert len(segment_claims) == 5
+        assert all(c.is_interval for c in segment_claims)
+
+    def test_claims_connect_correct_timelines(
+        self, segment_claims: list[MatchClaim]
+    ) -> None:
+        """All claims connect DGT1 and DGT2."""
+        for claim in segment_claims:
+            assert claim.connects_both("dgt1", "dgt2")
+
+    def test_claims_are_contiguous(self, segment_claims: list[MatchClaim]) -> None:
+        """Segments form contiguous coverage (no gaps)."""
+        # Check DGT1 side
+        prev_end = 0.0
+        for claim in segment_claims:
+            start, end = claim.get_coordinates_for("dgt1")
+            assert start == pytest.approx(
+                prev_end
+            ), f"Gap before segment starting at {start}"
+            prev_end = end
+        assert prev_end == pytest.approx(DGT1_TOTAL_WIDTH)
+
+        # Check DGT2 side
+        prev_end = 0.0
+        for claim in segment_claims:
+            start, end = claim.get_coordinates_for("dgt2")
+            assert start == pytest.approx(
+                prev_end
+            ), f"Gap before segment starting at {start}"
+            prev_end = end
+        assert prev_end == pytest.approx(DGT2_TOTAL_WIDTH)
+
+    def test_claim_metadata(self, segment_claims: list[MatchClaim]) -> None:
+        """Claims have proper provenance metadata."""
+        for claim in segment_claims:
+            assert claim.metadata is not None
+            assert claim.metadata.agent == "thoresen_analysis"
+            assert claim.metadata.decision_criteria == "segment_correspondence"
+
+
+# endregion
+
+
+# region Event H Transfer Tests (Require Week 2-3 Implementation)
+
+
+class TestEventHTransfer:
+    """Test transferring Event H from DGT2 to DGT1.
+
+    These tests are SKIPPED until MatchGraph/MatchLine/WarpMap are implemented.
+    """
+
+    @pytest.mark.skip(reason="Requires MatchLine/WarpMap (Week 2-3)")
+    def test_event_h_transfer_proportional(
+        self,
+        segment_claims: list[MatchClaim],
+    ) -> None:
+        """Event H transfers with correct proportional position.
+
+        Event H is at position [378, 517] within segment 2 of DGT2.
+        Segment 2 of DGT2 has length 867 pixels.
+        Segment 2 of DGT1 has length 975 pixels.
+
+        Proportional transfer:
+        - H start: 378/867 = 0.436 through segment
+        - H' start: 0.436 * 975 = 425.1 pixels into DGT1 segment 2
+        - DGT1 segment 2 starts at pixel 975
+        - H' start absolute: 975 + 425.1 = 1400.1 pixels
+        """
+        # This will use:
+        # bundle.build_match_line("dgt2", "dgt1")
+        # warp = match_line.create_warp_map("dgt2", "dgt1")
+        # h_prime_start = warp(event_h_global_start)
+        pass
+
+    @pytest.mark.skip(reason="Requires MatchLine/WarpMap (Week 2-3)")
+    def test_event_h_in_correct_segment(
+        self,
+        segment_claims: list[MatchClaim],
+    ) -> None:
+        """Transferred event H' lands in segment 2 of DGT1."""
+        # H is in segment 2 of DGT2, so H' should be in segment 2 of DGT1
+        # Segment 2 of DGT1: [975, 1950)
+        pass
+
+
+# endregion
+
+
+# region Helper: Calculate Event H Global Coordinates
+
+
+def get_event_h_global_coords() -> tuple[float, float]:
+    """Calculate Event H absolute coordinates in DGT2.
+
+    Returns:
+        (start_pixel, end_pixel) in DGT2 global coordinates.
+    """
+    # Sum of segments before Event H's segment
+    segment_offset = sum(DGT2_SEGMENT_LENGTHS[:EVENT_H_SEGMENT_INDEX])
+
+    start = segment_offset + EVENT_H_START_IN_SEGMENT
+    end = segment_offset + EVENT_H_END_IN_SEGMENT
+
+    return (float(start), float(end))
+
+
+def calculate_expected_h_prime() -> tuple[float, float]:
+    """Calculate expected H' position in DGT1 using proportional transfer.
+
+    Returns:
+        (start_pixel, end_pixel) in DGT1 global coordinates.
+    """
+    dgt2_seg_length = DGT2_SEGMENT_LENGTHS[EVENT_H_SEGMENT_INDEX]
+    dgt1_seg_length = DGT1_SEGMENT_LENGTHS[EVENT_H_SEGMENT_INDEX]
+
+    # Proportional positions within segment
+    start_ratio = EVENT_H_START_IN_SEGMENT / dgt2_seg_length
+    end_ratio = EVENT_H_END_IN_SEGMENT / dgt2_seg_length
+
+    # DGT1 segment offset
+    dgt1_seg_offset = sum(DGT1_SEGMENT_LENGTHS[:EVENT_H_SEGMENT_INDEX])
+
+    # H' positions
+    h_prime_start = dgt1_seg_offset + start_ratio * dgt1_seg_length
+    h_prime_end = dgt1_seg_offset + end_ratio * dgt1_seg_length
+
+    return (h_prime_start, h_prime_end)
+
+
+class TestEventHCalculations:
+    """Test helper calculations for Event H."""
+
+    def test_event_h_global_coords(self) -> None:
+        """Verify Event H global coordinate calculation."""
+        start, end = get_event_h_global_coords()
+
+        # Segment 1 ends at 866, so segment 2 starts there
+        expected_start = (
+            sum(DGT2_SEGMENT_LENGTHS[:EVENT_H_SEGMENT_INDEX]) + EVENT_H_START_IN_SEGMENT
+        )
+        expected_end = (
+            sum(DGT2_SEGMENT_LENGTHS[:EVENT_H_SEGMENT_INDEX]) + EVENT_H_END_IN_SEGMENT
+        )
+
+        assert start == expected_start
+        assert end == expected_end
+
+    def test_h_prime_calculation(self) -> None:
+        """Verify H' calculation matches expected proportional transfer."""
+        h_prime_start, h_prime_end = calculate_expected_h_prime()
+
+        # Verify H' is in segment 2 of DGT1
+        seg2_start = sum(DGT1_SEGMENT_LENGTHS[:EVENT_H_SEGMENT_INDEX])
+        seg2_end = seg2_start + DGT1_SEGMENT_LENGTHS[EVENT_H_SEGMENT_INDEX]
+
+        assert seg2_start < h_prime_start < seg2_end
+        assert seg2_start < h_prime_end < seg2_end
+        assert h_prime_start < h_prime_end
+
+
+# endregion
