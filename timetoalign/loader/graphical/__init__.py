@@ -17,6 +17,8 @@ from images and PDFs. The key components are:
 
 - **GraphicalLoader**: Factory class for building bundles with a fluent interface.
 
+- **IIIFManifestLoader**: Load image metadata from IIIF Presentation API manifests.
+
 Examples:
     >>> from timetoalign.loader.graphical import GraphicalLoader
     >>> loader = GraphicalLoader()
@@ -29,11 +31,21 @@ Examples:
     >>> # Coordinate conversion
     >>> source_idx, (x, y) = bundle.timeline_to_image(250.0)
     >>> coord = bundle.image_to_timeline(source_idx, x, y)
+
+    >>> # Load IIIF manifest for image dimensions
+    >>> from timetoalign.loader.graphical import IIIFManifestLoader
+    >>> iiif = IIIFManifestLoader()
+    >>> iiif.load("manifest.json")
+    >>> iiif.dimensions
+    {'width': 4096, 'height': 299400}
 """
 
 from __future__ import annotations
 
 from .bundle import GraphicalBundle
+
+# IIIF manifest loader
+from .iiif import IIIFCanvasInfo, IIIFManifestInfo, IIIFManifestLoader
 
 # Loader factory
 from .loader import GraphicalLoader
@@ -66,6 +78,9 @@ __all__ = [
     # Segment and bundle
     "GraphicalSegment",
     "GraphicalBundle",
-    # Loader
+    # Loaders
     "GraphicalLoader",
+    "IIIFManifestLoader",
+    "IIIFManifestInfo",
+    "IIIFCanvasInfo",
 ]
