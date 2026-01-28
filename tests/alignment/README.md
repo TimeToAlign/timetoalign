@@ -186,13 +186,66 @@ This test validates that MatchClaims can represent the segment-to-segment corres
 
 ## What's NOT Tested (Yet)
 
-The following will be validated in Week 2-4:
+The following will be validated in Week 3-4:
 
-1. **MatchGraph construction** - Building graphs from claims
-2. **extend_to_groups()** - Propagating anchors through Group membership
-3. **MatchStamp extraction** - Cross-group coordinate snapshots
-4. **WarpMap creation** - Piecewise linear interpolation from MatchLine
-5. **Event H transfer** - The manuscript's canonical validation: transfer an event from DGT2 to DGT1
+1. **WarpMap creation** - Piecewise linear interpolation from MatchLine
+2. **Event H transfer** - The manuscript's canonical validation: transfer an event from DGT2 to DGT1
+
+---
+
+## Graphical Loader Tests (`test_graphical_loader.py`)
+
+### What We're Validating
+
+The graphical loader creates `GraphicalBundle` objects from images, mapping 2D pixel coordinates to 1D timeline coordinates.
+
+### Key Components
+
+| Component | Purpose |
+|-----------|---------|
+| `TimeAxisPath` | Abstract path mapping 1D -> 2D coordinates |
+| `HorizontalLinePath` | Time axis as horizontal line (most common) |
+| `ImageSource` | Unified image interface (files, PDFs) |
+| `GraphicalSegment` | Source + path + timeline offset |
+| `GraphicalBundle` | Complete timeline with coordinate conversion |
+| `GraphicalLoader` | Factory for building bundles |
+
+### Test Data
+
+Test images are in `tests/alignment/data/thoresen/`:
+
+| File | Description |
+|------|-------------|
+| `thoresen_2009_sound-objects_p312_page1_1.jpeg` | DGT1: single image, 5 horizontal systems |
+| `thoresen_2010_form-building-patterns_p90-91_page*.jpeg` | DGT2: 5 separate images |
+
+### Coordinate Data (from Applications.ipynb)
+
+**DGT1 (2009):**
+- Single image with 5 horizontal systems
+- x-boundaries: (2, 969) for all systems = 967 pixels each
+- y-positions: [18, 205, 396, 588, 785]
+- Total width: 4835 pixels
+
+**DGT2 (2010):**
+- 5 separate images with varying dimensions
+- Segment bounds (x0, x1, y): [(8,874,15), (7,874,18), (7,874,19), (8,872,15), (9,873,20)]
+- Segment lengths: [866, 867, 867, 864, 864]
+- Total width: 4328 pixels
+
+**Event H (rect_h2):**
+- Segment index: 1 (second segment)
+- Local coordinates: [378, 517] (385-7 to 385-7+139)
+- Global coordinates: [866+378, 866+517] = [1244, 1383]
+
+### Why These Values Are Exact
+
+The pixel coordinates come from:
+1. Manual measurement in image editing software (x0, x1, y for each system)
+2. Ground truth TSV files with annotated event locations
+3. Cross-validation between Applications.ipynb calculations and test assertions
+
+Any discrepancy between these sources indicates a bug that must be investigated--not tolerated
 
 ---
 
