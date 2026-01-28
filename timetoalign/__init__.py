@@ -21,6 +21,13 @@ For more information, see the documentation at https://timetoalign.readthedocs.i
 
 from __future__ import annotations
 
+from timetoalign.alignment import (
+    AlignmentAnchor,
+    MatchClaim,
+    MatchMetadata,
+    PerfectAlignment,
+    TimelineGroup,
+)
 from timetoalign.core import (
     Coordinate,
     CoordinateValue,
@@ -94,4 +101,10 @@ __all__ = [
     "TableMap",
     "ChainMap",
     "PiecewiseMap",
+    # Alignment
+    "PerfectAlignment",
+    "TimelineGroup",
+    "AlignmentAnchor",
+    "MatchClaim",
+    "MatchMetadata",
 ]
