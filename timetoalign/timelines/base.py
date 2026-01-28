@@ -102,6 +102,7 @@ class Timeline:
         number_type: NumberType | str | None = None,
         id_prefix: str = "tl",
         uid: str | None = None,
+        name: str | None = None,
         locked: bool = False,
         meta: dict[str, Any] | None = None,
     ) -> None:
@@ -113,6 +114,7 @@ class Timeline:
             number_type: The number type for coordinates. Defaults to class default.
             id_prefix: Prefix for auto-generated ID. Default "tl".
             uid: Explicit unique identifier. Overrides auto-generation.
+            name: Human-readable name for display (distinct from uid).
             locked: If True, timeline cannot expand. Default False.
             meta: Additional metadata dictionary.
 
@@ -151,6 +153,7 @@ class Timeline:
 
         # State
         self._locked = locked
+        self._name = name
         self._meta = dict(meta) if meta else {}
 
         # Event storage
@@ -308,6 +311,20 @@ class Timeline:
     def id(self) -> str:
         """Unique identifier for this timeline."""
         return self._id
+
+    @property
+    def name(self) -> str:
+        """Human-readable name for display.
+
+        Returns the explicit name if set, otherwise falls back to the ID.
+        Use this for user-facing displays (e.g., timestamp column headers).
+        """
+        return self._name if self._name is not None else self._id
+
+    @name.setter
+    def name(self, value: str | None) -> None:
+        """Set the human-readable name."""
+        self._name = value
 
     @property
     def class_name(self) -> str:
@@ -892,6 +909,7 @@ class Timeline:
 
         return {
             "id": self._id,
+            "name": self._name,
             "class": self.class_name,
             "unit": str(self._unit),
             "number_type": str(self._number_type),
@@ -920,6 +938,7 @@ class Timeline:
             unit=data["unit"],
             number_type=data["number_type"],
             uid=data["id"],
+            name=data.get("name"),
             locked=data.get("locked", False),
             meta=data.get("meta"),
         )
