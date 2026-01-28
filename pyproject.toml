@@ -33,6 +33,7 @@ dependencies = [
 [project.optional-dependencies]
 # Additional optional features (added in later phases)
 delta = ["deltalake>=0.15.0"]
+graphical = ["pymupdf>=1.24", "pillow>=10.0"]
 ms3 = ["ms3>=2.6.0"]
 music21 = ["music21>=9.0"]
 plot = ["matplotlib>=3.5"]
@@ -46,7 +47,7 @@ dev = [
     "ruff>=0.1",
 ]
 all = [
-    "timetoalign[delta,ms3,music21,plot,rdf]"
+    "timetoalign[delta,graphical,ms3,music21,plot,rdf]"
 ]
 
 [project.urls]

@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 
-from timetoalign import TimeUnit
 from timetoalign.alignment.anchors import AlignmentAnchor, MatchClaim
+from timetoalign.core.enums import TimeUnit
 
 if TYPE_CHECKING:
     from timetoalign.alignment.groups import TimelineGroup

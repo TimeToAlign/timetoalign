@@ -4,35 +4,14 @@ This test validates the alignment infrastructure using the Thoresen example
 from the TTA manuscript (Figures in tta_appendix.tex).
 
 The example involves two graphical analyses of the same musical content:
-- DGT1 (Thoresen 2009): 5 equal-width segments
-- DGT2 (Thoresen 2010): 5 varying-width segments
+- DGT1 (Thoresen 2009): 5 equal-width segments (single image, 5 systems)
+- DGT2 (Thoresen 2010): 5 varying-width segments (5 separate images)
 
 The goal is to transfer Event H from DGT2 to DGT1 via piecewise linear
 interpolation based on segment correspondence.
 
-=== DATA NEEDED FROM USER ===
-
-Please provide the following values from the manuscript/figures:
-
-1. Total pixel widths:
-   - DGT1 total width: ??? (currently placeholder: 4875)
-   - DGT2 total width: ??? (currently placeholder: 4328)
-
-2. Segment boundaries (pixel coordinates):
-   - DGT1 segment lengths: [???, ???, ???, ???, ???] (currently: all 975)
-   - DGT2 segment lengths: [???, ???, ???, ???, ???] (currently: [866,867,867,864,864])
-
-3. Event H location in DGT2:
-   - Segment index: ??? (currently: segment 2, 0-indexed)
-   - Start pixel within segment: ??? (currently: 378)
-   - End pixel within segment: ??? (currently: 517)
-
-4. Expected Event H' location in DGT1:
-   - Expected start pixel: ??? (for validation)
-   - Expected end pixel: ??? (for validation)
-
-5. Audio duration (if known):
-   - Total seconds: ??? (currently: 150)
+Test data is now loaded via GraphicalLoader fixtures in conftest.py.
+Coordinate values come from Applications.ipynb and ground truth TSV files.
 """
 
 from __future__ import annotations
@@ -498,6 +477,70 @@ class TestEventHCalculations:
         assert seg2_start < h_prime_start < seg2_end
         assert seg2_start < h_prime_end < seg2_end
         assert h_prime_start < h_prime_end
+
+
+# endregion
+
+
+# region Graphical Loader Integration Tests
+
+
+class TestThoresenGraphicalBundles:
+    """Test Thoresen data loaded via GraphicalLoader.
+
+    These tests validate that the graphical loader produces bundles
+    that match the expected dimensions from Applications.ipynb.
+    """
+
+    def test_dgt1_bundle_matches_expected_dimensions(self, dgt1_bundle) -> None:
+        """DGT1 bundle dimensions match test_thoresen_poc.py constants."""
+        assert dgt1_bundle.total_length == DGT1_TOTAL_WIDTH
+        assert dgt1_bundle.n_segments == 5
+
+        # Each segment should have DGT1_SEGMENT_LENGTH
+        for seg in dgt1_bundle.segments:
+            assert seg.length == DGT1_SEGMENT_LENGTH
+
+    def test_dgt2_bundle_matches_expected_dimensions(self, dgt2_bundle) -> None:
+        """DGT2 bundle dimensions match test_thoresen_poc.py constants."""
+        assert dgt2_bundle.total_length == DGT2_TOTAL_WIDTH
+        assert dgt2_bundle.n_segments == 5
+
+        # Segment lengths should match DGT2_SEGMENT_LENGTHS
+        for seg, expected_len in zip(dgt2_bundle.segments, DGT2_SEGMENT_LENGTHS):
+            assert seg.length == expected_len
+
+    def test_event_h_location_via_bundle(self, dgt2_bundle) -> None:
+        """Event H coordinates can be looked up via bundle."""
+        # Get Event H start location
+        h_start_global, h_end_global = get_event_h_global_coords()
+
+        # Verify it's in the correct segment
+        seg_idx = dgt2_bundle.get_segment_index_for_coord(h_start_global)
+        assert seg_idx == EVENT_H_SEGMENT_INDEX
+
+        # Convert to image coordinates
+        src_idx, (x, y) = dgt2_bundle.timeline_to_image(h_start_global)
+        assert src_idx == EVENT_H_SEGMENT_INDEX
+
+        # x should be x0 + local offset
+        expected_x = (
+            DGT2_SEGMENT_DATA[EVENT_H_SEGMENT_INDEX][1][0] + EVENT_H_START_IN_SEGMENT
+        )
+        assert x == pytest.approx(expected_x)
+
+    def test_bundles_create_correct_timelines(self, dgt1_bundle, dgt2_bundle) -> None:
+        """Bundles create timelines matching the fixtures."""
+        dgt1_tl = dgt1_bundle.to_timeline(uid="dgt1", name="Thoresen 2009")
+        dgt2_tl = dgt2_bundle.to_timeline(uid="dgt2", name="Thoresen 2010")
+
+        # timeline.length is a Coordinate object, compare the value
+        assert dgt1_tl.length.value == DGT1_TOTAL_WIDTH
+        assert dgt2_tl.length.value == DGT2_TOTAL_WIDTH
+
+        # These should match the fixtures created at the top of this file
+        assert dgt1_tl.id == "dgt1"
+        assert dgt2_tl.id == "dgt2"
 
 
 # endregion

@@ -1,0 +1,71 @@
+"""Graphical timeline loader module.
+
+This module provides tools for loading and constructing graphical timelines
+from images and PDFs. The key components are:
+
+- **TimeAxisPath**: Abstract path defining how 1D timeline coordinates map to 2D pixels.
+  Concrete implementations include HorizontalLinePath, VerticalLinePath,
+  DiagonalLinePath, and ParametricPath (for curves/spirals).
+
+- **ImageSource**: Unified interface for image data from files, PDF pages, or
+  embedded PDF images. Uses pymupdf as backend.
+
+- **GraphicalSegment**: Combines a source reference with a path and timeline offset.
+
+- **GraphicalBundle**: Collection of sources and segments forming a complete
+  graphical timeline with coordinate conversion and visualization methods.
+
+- **GraphicalLoader**: Factory class for building bundles with a fluent interface.
+
+Examples:
+    >>> from timetoalign.loader.graphical import GraphicalLoader
+    >>> loader = GraphicalLoader()
+    >>> idx = loader.add_image("score.png")
+    >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=100, name="system_1")
+    >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=200, name="system_2")
+    >>> bundle = loader.bundle
+    >>> timeline = bundle.to_timeline(uid="score", name="Score")
+
+    >>> # Coordinate conversion
+    >>> source_idx, (x, y) = bundle.timeline_to_image(250.0)
+    >>> coord = bundle.image_to_timeline(source_idx, x, y)
+"""
+
+from __future__ import annotations
+
+from .bundle import GraphicalBundle
+
+# Loader factory
+from .loader import GraphicalLoader
+
+# Path definitions
+from .paths import (
+    DiagonalLinePath,
+    HorizontalLinePath,
+    ParametricPath,
+    TimeAxisPath,
+    VerticalLinePath,
+)
+
+# Segment and bundle
+from .segment import GraphicalSegment
+
+# Image source
+from .source import ImageMetadata, ImageSource
+
+__all__ = [
+    # Paths
+    "TimeAxisPath",
+    "HorizontalLinePath",
+    "VerticalLinePath",
+    "DiagonalLinePath",
+    "ParametricPath",
+    # Source
+    "ImageSource",
+    "ImageMetadata",
+    # Segment and bundle
+    "GraphicalSegment",
+    "GraphicalBundle",
+    # Loader
+    "GraphicalLoader",
+]
