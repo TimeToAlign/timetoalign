@@ -43,7 +43,7 @@ from timetoalign.core import (
     ScopedId,
     TimeUnit,
 )
-from timetoalign.loader import EventData, EventStore, Loader, SingleEventStore
+from timetoalign.loader import EventData, EventStore, Loader, SingleStore
 from timetoalign.maps import (
     ChainMap,
     ConversionMap,
@@ -89,7 +89,7 @@ __all__ = [
     # Loader
     "EventData",
     "EventStore",
-    "SingleEventStore",
+    "SingleStore",
     "Loader",
     # Timelines
     "Timeline",

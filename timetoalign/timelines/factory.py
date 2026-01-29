@@ -218,7 +218,7 @@ def create_timeline(
     """Create a Timeline from various source types.
 
     This is the most flexible timeline creation API, supporting:
-    - EventStore (ScoreStore, MidiStore, SingleEventStore)
+    - EventStore (ScoreStore, MidiStore, SingleStore)
     - EventData (creates single child timeline)
     - Loader (uses loader.store)
 
@@ -266,14 +266,14 @@ def create_timeline(
         >>> timeline = create_timeline(data, uid="my_events")
     """
     from timetoalign.loader.base import Loader
-    from timetoalign.loader.bundle import EventStore, SingleEventStore
+    from timetoalign.loader.bundle import EventStore, SingleStore
     from timetoalign.loader.store import EventData
 
     # Normalize to EventStore
     if isinstance(source, EventStore):
         store = source
     elif isinstance(source, EventData):
-        store = SingleEventStore(source, name="events")
+        store = SingleStore(source, name="events")
     elif isinstance(source, Loader):
         store = source.store
     else:

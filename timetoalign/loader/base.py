@@ -152,14 +152,14 @@ class Loader(ABC):
 
         Subclasses may override to return specialized stores
         (e.g., ScoreStore, MidiStore). Default implementation
-        wraps self.events in a SingleEventStore.
+        wraps self.events in a SingleStore.
 
         Returns:
             An EventStore providing uniform access to loaded data.
         """
-        from timetoalign.loader.bundle import SingleEventStore
+        from timetoalign.loader.bundle import SingleStore
 
-        return SingleEventStore(self._events, name="events")
+        return SingleStore(self._events, name="events")
 
     # endregion
 

@@ -41,7 +41,7 @@ class EventStore(ABC):
     Subclasses:
         - ScoreStore: notes, measures, controls, annotations
         - MidiStore: notes, controls
-        - SingleEventStore: generic wrapper for any single EventData
+        - SingleStore: generic wrapper for any single EventData
 
     Examples:
         >>> # Iterate over stores
@@ -235,7 +235,7 @@ class EventStore(ABC):
     # endregion
 
 
-class SingleEventStore(EventStore):
+class SingleStore(EventStore):
     """Store wrapper for a single EventData.
 
     Provides EventStore interface compatibility for loaders that naturally
@@ -244,7 +244,7 @@ class SingleEventStore(EventStore):
     This is used as the default store type for loaders that don't have
     specialized store implementations (e.g., simple audio loaders).
 
-    NOTE: This class was renamed from SingleStoreBundle to SingleEventStore in
+    NOTE: This class was renamed from SingleStoreBundle to SingleStore in
     the 2026-01 API refactoring.
 
     Attributes:
@@ -253,12 +253,12 @@ class SingleEventStore(EventStore):
 
     Examples:
         >>> data = EventData.from_dicts([...], unit=TimeUnit.seconds)
-        >>> store = SingleEventStore(data, name="beats")
+        >>> store = SingleStore(data, name="beats")
         >>> timeline = store.to_default_timeline()
     """
 
     def __init__(self, data: "EventData", name: str = "events") -> None:
-        """Initialize SingleEventStore.
+        """Initialize SingleStore.
 
         Args:
             data: The EventData to wrap.
@@ -319,4 +319,4 @@ class SingleEventStore(EventStore):
 
     def __repr__(self) -> str:
         """Return string representation."""
-        return f"SingleEventStore({self._name}={len(self._data)} events)"
+        return f"SingleStore({self._name}={len(self._data)} events)"
