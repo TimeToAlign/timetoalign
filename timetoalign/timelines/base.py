@@ -1621,6 +1621,46 @@ class Timeline:
 
     # endregion
 
+    # region Display
+
+    def diagram(
+        self,
+        width: int = 70,
+        show_children: bool = True,
+        max_children: int = 6,
+        unicode: bool = True,
+    ) -> str:
+        """Generate ASCII diagram for this timeline.
+
+        Args:
+            width: Total width of the diagram in characters.
+            show_children: Whether to show child timelines (one per row).
+            max_children: Maximum children to show before truncating.
+            unicode: Use Unicode characters (True) or ASCII fallback (False).
+
+        Returns:
+            Multi-line string with ASCII diagram.
+
+        Examples:
+            >>> print(timeline.diagram())
+            DiscreteGraphicalTimeline[dgt1:1] (11 events, 5 children)
+            0 :::::::::::::::::::::::::::::::::::::::::::::: 4835 pixels
+              ├─ system_1     0   :::::::                        967
+              ├─ system_2   967          ::::::::               1934
+              └─ ...
+        """
+        from timetoalign.display.ascii import timeline_diagram
+
+        return timeline_diagram(
+            self,
+            width=width,
+            show_children=show_children,
+            max_children=max_children,
+            unicode=unicode,
+        )
+
+    # endregion
+
     # region Magic Methods
 
     def __len__(self) -> int:

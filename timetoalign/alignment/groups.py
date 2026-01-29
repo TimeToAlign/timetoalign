@@ -1084,6 +1084,14 @@ class TimelineGroup:
             f"n_timestamps={self.n_timestamps}, locked={self._is_locked})"
         )
 
+    def __str__(self) -> str:
+        """Return human-readable ASCII diagram of the group.
+
+        Uses the diagram() method to generate a visual representation
+        showing all member timelines in a boxed layout.
+        """
+        return self.diagram()
+
     # endregion
 
     # region Compatibility Methods (Deprecated)
@@ -1150,6 +1158,49 @@ class TimelineGroup:
             "is_locked": self._is_locked,
             "meta": self.meta,
         }
+
+    # endregion
+
+    # region Display
+
+    def diagram(
+        self,
+        width: int = 70,
+        show_children: bool = True,
+        max_children: int = 6,
+        unicode: bool = True,
+    ) -> str:
+        """Generate ASCII diagram for this group.
+
+        Args:
+            width: Total width of the diagram in characters.
+            show_children: Whether to expand child timelines.
+            max_children: Maximum children per timeline.
+            unicode: Use Unicode characters (True) or ASCII fallback (False).
+
+        Returns:
+            Multi-line string with ASCII diagram.
+
+        Examples:
+            >>> print(group.diagram())
+            TimelineGroup[my_group] (2 timelines, 2 timestamps)
+            ┌────────────────────────────────────────────────────────────┐
+            │ DiscreteGraphicalTimeline[dgt1:1] (11 events, 5 children)  │
+            │ 0 ::::::::::::::::::::::::::::::::::::::::: 4835 pixels    │
+            │   ├─ system_1     0   :::::::                    967       │
+            │   └─ ...                                                   │
+            └────────────────────────────────────────────────────────────┘
+            Timestamps: 2
+        """
+        from timetoalign.display.ascii import group_diagram
+
+        return group_diagram(
+            self,
+            width=width,
+            show_children=show_children,
+            max_children=max_children,
+            unicode=unicode,
+        )
 
     # endregion
 

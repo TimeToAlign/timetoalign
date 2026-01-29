@@ -502,6 +502,59 @@ class AlignmentBundle:
             f"timelines={len(self.timelines)}, groups={len(self.groups)})"
         )
 
+    def __str__(self) -> str:
+        """Return human-readable ASCII diagram of the bundle.
+
+        Uses the diagram() method to generate a visual representation
+        showing all groups and their member timelines.
+        """
+        return self.diagram()
+
+    # endregion
+
+    # region Display
+
+    def diagram(
+        self,
+        width: int = 80,
+        show_children: bool = True,
+        max_children: int = 6,
+        unicode: bool = True,
+    ) -> str:
+        """Generate ASCII diagram for this bundle.
+
+        Args:
+            width: Total width of the diagram in characters.
+            show_children: Whether to expand child timelines.
+            max_children: Maximum children per timeline.
+            unicode: Use Unicode characters (True) or ASCII fallback (False).
+
+        Returns:
+            Multi-line string with ASCII diagram.
+
+        Examples:
+            >>> print(bundle.diagram())
+            AlignmentBundle[thoresen_alignment]
+
+              TimelineGroup[dgt1_group] (2 timelines, 2 timestamps)
+              ┌──────────────────────────────────────────────────────┐
+              │ DiscreteGraphicalTimeline[dgt1:1] (11 events)        │
+              │ 0 ::::::::::::::::::::::::::::::::::: 4835 pixels    │
+              └──────────────────────────────────────────────────────┘
+              Timestamps: 2
+
+              MatchClaims: 5
+        """
+        from timetoalign.display.ascii import bundle_diagram
+
+        return bundle_diagram(
+            self,
+            width=width,
+            show_children=show_children,
+            max_children=max_children,
+            unicode=unicode,
+        )
+
     # endregion
 
 
