@@ -1,6 +1,6 @@
-"""Tests for EventStore ABC and SingleEventStore.
+"""Tests for EventStore ABC and SingleStore.
 
-This module tests the EventStore protocol and the SingleEventStore wrapper
+This module tests the EventStore protocol and the SingleStore wrapper
 that provides store interface for single-store loaders.
 """
 
@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.core import TimeUnit
-from timetoalign.loader import EventData, EventStore, SingleEventStore
+from timetoalign.loader import EventData, EventStore, SingleStore
 
 
 class TestEventStoreProtocol:
@@ -32,8 +32,8 @@ class TestEventStoreProtocol:
             IncompleteStore()  # type: ignore[abstract]
 
 
-class TestSingleEventStore:
-    """Tests for SingleEventStore wrapper."""
+class TestSingleStore:
+    """Tests for SingleStore wrapper."""
 
     @pytest.fixture
     def sample_data(self) -> EventData:
@@ -57,21 +57,21 @@ class TestSingleEventStore:
         )
 
     def test_initialization(self, sample_data: EventData):
-        """SingleEventStore initializes correctly."""
-        single_store = SingleEventStore(sample_data, name="beats")
+        """SingleStore initializes correctly."""
+        single_store = SingleStore(sample_data, name="beats")
 
         assert single_store.data is sample_data
         assert single_store.name == "beats"
 
     def test_default_name(self, sample_data: EventData):
         """Default name is 'events'."""
-        store = SingleEventStore(sample_data)
+        store = SingleStore(sample_data)
 
         assert store.name == "events"
 
     def test_iteration(self, sample_data: EventData):
         """Iteration yields the single data."""
-        store = SingleEventStore(sample_data, name="beats")
+        store = SingleStore(sample_data, name="beats")
 
         data_items = list(store)
 
@@ -80,7 +80,7 @@ class TestSingleEventStore:
 
     def test_items(self, sample_data: EventData):
         """items() yields (name, data) pairs."""
-        store = SingleEventStore(sample_data, name="beats")
+        store = SingleStore(sample_data, name="beats")
 
         items = list(store.items())
 
@@ -89,13 +89,13 @@ class TestSingleEventStore:
 
     def test_keys(self, sample_data: EventData):
         """keys() returns tuple of data names."""
-        store = SingleEventStore(sample_data, name="beats")
+        store = SingleStore(sample_data, name="beats")
 
         assert store.keys() == ("beats",)
 
     def test_values(self, sample_data: EventData):
         """values() yields data objects."""
-        store = SingleEventStore(sample_data, name="beats")
+        store = SingleStore(sample_data, name="beats")
 
         values = list(store.values())
 
@@ -104,43 +104,43 @@ class TestSingleEventStore:
 
     def test_getitem(self, sample_data: EventData):
         """Can access data by name."""
-        store = SingleEventStore(sample_data, name="beats")
+        store = SingleStore(sample_data, name="beats")
 
         assert store["beats"] is sample_data
 
     def test_getitem_invalid_raises_keyerror(self, sample_data: EventData):
         """Invalid name raises KeyError."""
-        store = SingleEventStore(sample_data, name="beats")
+        store = SingleStore(sample_data, name="beats")
 
         with pytest.raises(KeyError, match="notes"):
             _ = store["notes"]
 
     def test_len(self, sample_data: EventData):
         """Length is always 1."""
-        store = SingleEventStore(sample_data, name="beats")
+        store = SingleStore(sample_data, name="beats")
 
         assert len(store) == 1
 
     def test_contains(self, sample_data: EventData):
         """Membership check works."""
-        store = SingleEventStore(sample_data, name="beats")
+        store = SingleStore(sample_data, name="beats")
 
         assert "beats" in store
         assert "notes" not in store
 
     def test_repr(self, sample_data: EventData):
         """repr includes name and count."""
-        store = SingleEventStore(sample_data, name="beats")
+        store = SingleStore(sample_data, name="beats")
 
         repr_str = repr(store)
 
-        assert "SingleEventStore" in repr_str
+        assert "SingleStore" in repr_str
         assert "beats" in repr_str
         assert "2" in repr_str  # 2 events
 
 
-class TestSingleEventStoreToTimeline:
-    """Test timeline creation from SingleEventStore."""
+class TestSingleStoreToTimeline:
+    """Test timeline creation from SingleStore."""
 
     @pytest.fixture
     def sample_data(self) -> EventData:
@@ -167,7 +167,7 @@ class TestSingleEventStoreToTimeline:
 
     def test_to_default_timeline_creates_child(self, sample_data: EventData):
         """to_default_timeline creates parent with one child."""
-        store = SingleEventStore(sample_data, name="notes")
+        store = SingleStore(sample_data, name="notes")
 
         timeline = store.to_default_timeline(uid="test")
 
@@ -177,7 +177,7 @@ class TestSingleEventStoreToTimeline:
 
     def test_child_has_correct_events(self, sample_data: EventData):
         """Child timeline contains the data's events."""
-        store = SingleEventStore(sample_data, name="notes")
+        store = SingleStore(sample_data, name="notes")
 
         timeline = store.to_default_timeline()
         child = timeline.get_child("notes")
@@ -187,7 +187,7 @@ class TestSingleEventStoreToTimeline:
 
     def test_child_at_offset_zero(self, sample_data: EventData):
         """Child is embedded at offset 0."""
-        store = SingleEventStore(sample_data, name="notes")
+        store = SingleStore(sample_data, name="notes")
 
         timeline = store.to_default_timeline()
         offset = timeline.get_child_offset("notes")
@@ -196,7 +196,7 @@ class TestSingleEventStoreToTimeline:
 
     def test_flatten_mode_no_children(self, sample_data: EventData):
         """flatten=True creates timeline without children."""
-        store = SingleEventStore(sample_data, name="notes")
+        store = SingleStore(sample_data, name="notes")
 
         timeline = store.to_timeline(flatten=True)
 

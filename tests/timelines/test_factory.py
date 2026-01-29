@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader import EventData, SingleEventStore
+from timetoalign.loader import EventData, SingleStore
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
@@ -98,7 +98,7 @@ class TestCreateTimelineFromStore:
     """Tests for create_timeline with EventStore source."""
 
     @pytest.fixture
-    def multi_data_store(self) -> SingleEventStore:
+    def multi_data_store(self) -> SingleStore:
         """Store with multiple event types for filter testing."""
         data = EventData.from_dicts(
             [
@@ -126,16 +126,16 @@ class TestCreateTimelineFromStore:
             ],
             unit=TimeUnit.ticks,
         )
-        return SingleEventStore(data, name="notes")
+        return SingleStore(data, name="notes")
 
-    def test_creates_children(self, multi_data_store: SingleEventStore):
+    def test_creates_children(self, multi_data_store: SingleStore):
         """Default mode creates children at offset 0."""
         timeline = create_timeline(multi_data_store, uid="test")
 
         assert timeline.id == "test"
         assert timeline.n_children == 1
 
-    def test_store_filters_applied(self, multi_data_store: SingleEventStore):
+    def test_store_filters_applied(self, multi_data_store: SingleStore):
         """store_filters excludes filtered events."""
         timeline = create_timeline(
             multi_data_store,
@@ -166,7 +166,7 @@ class TestCreateTimelineIncludeExclude:
             ],
             unit=TimeUnit.ticks,
         )
-        return SingleEventStore(data, name="events")
+        return SingleStore(data, name="events")
 
     def test_include_stores_limits_children(self, two_data_store):
         """include_stores only includes specified data."""
@@ -301,7 +301,7 @@ class TestTimelineChildrenStructure:
 
     def test_parent_length_equals_max_child(self, notes_data: EventData):
         """Parent timeline length is max of children lengths."""
-        store = SingleEventStore(notes_data, name="notes")
+        store = SingleStore(notes_data, name="notes")
         timeline = store.to_default_timeline()
 
         # Child ends at 200, so parent length should be at least 200
@@ -309,7 +309,7 @@ class TestTimelineChildrenStructure:
 
     def test_children_locked_after_addition(self, notes_data: EventData):
         """Children are locked after being added to parent."""
-        store = SingleEventStore(notes_data, name="notes")
+        store = SingleStore(notes_data, name="notes")
         timeline = store.to_default_timeline()
 
         child = timeline.get_child("notes")
@@ -317,7 +317,7 @@ class TestTimelineChildrenStructure:
 
     def test_children_maintain_own_coordinates(self, notes_data: EventData):
         """Children maintain their own 0-based coordinate system."""
-        store = SingleEventStore(notes_data, name="notes")
+        store = SingleStore(notes_data, name="notes")
         timeline = store.to_default_timeline()
 
         child = timeline.get_child("notes")
