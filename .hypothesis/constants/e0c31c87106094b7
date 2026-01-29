@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\algorithms\cycles.py
+# hypothesis_version: 6.151.2
+
+['Gi_weight', 'No cycle found.', 'chordless_cycles', 'cycle_basis', 'directed', 'find_cycle', 'girth', 'ignore', 'minimum_cycle_basis', 'multigraph', 'original', 'reverse', 'simple_cycles', 'undirected', 'weight']

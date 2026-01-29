@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\algorithms\operators\product.py
+# hypothesis_version: 6.151.2
+
+['G', 'H', 'cartesian_product', 'corona_product', 'directed', 'modular_product', 'multigraph', 'power', 'rooted_product', 'strong_product', 'tensor_product']

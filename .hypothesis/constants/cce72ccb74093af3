@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\readwrite\pajek.py
+# hypothesis_version: 6.151.2
+
+[0.0, 1.0, '*arcs', '*edge', '*edges', '*matrix', '*network', '*vertices', 'NetworkX', 'UTF-8', 'ellipse', 'generate_pajek', 'id', 'name', 'parse_pajek', 'rb', 'read_pajek', 'shape', 'utf-8', 'wb', 'weight', 'write_pajek', 'x', 'y']

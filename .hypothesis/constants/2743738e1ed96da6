@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\__init__.py
+# hypothesis_version: 6.151.2
+
+['EventData', 'EventStore', 'Loader', 'SingleStore', 'coordinate_to_struct', 'extend_schema', 'get_unit_from_schema', 'make_base_schema', 'make_coordinate_type', 'make_table_metadata', 'parse_table_metadata', 'struct_to_coordinate']

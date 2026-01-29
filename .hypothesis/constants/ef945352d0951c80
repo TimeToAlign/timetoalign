@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\generators\classic.py
+# hypothesis_version: 6.151.2
+
+['adj', 'balanced_tree', 'barbell_graph', 'binomial_tree', 'circulant_graph', 'complete_graph', 'cycle_graph', 'empty_graph', 'full_rary_tree', 'kneser_graph', 'ladder_graph', 'lollipop_graph', 'null_graph', 'path_graph', 'star_graph', 'tadpole_graph', 'trivial_graph', 'turan_graph', 'wheel_graph']

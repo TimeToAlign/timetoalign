@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\algorithms\isomorphism\vf2pp.py
+# hypothesis_version: 6.151.2
+
+['G1', 'G1_labels', 'G2', 'G2_labels', 'G2_nodes_of_degree', 'T1', 'T1_in', 'T1_tilde', 'T1_tilde_in', 'T2', 'T2_in', 'T2_tilde', 'T2_tilde_in', '_GraphParameters', '_StateParameters', 'default_label', 'mapping', 'node_label', 'nodes_of_G1Labels', 'nodes_of_G2Labels', 'reverse_mapping', 'vf2pp_is_isomorphic', 'vf2pp_isomorphism']

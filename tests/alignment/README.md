@@ -64,6 +64,7 @@ The manuscript states Groups contain timelines with "perfect alignment"--any coo
 | `TestTimelineGroupConversion` | `convert()` method, same-timeline identity, cross-timeline mapping |
 | `TestTimelineGroupLocking` | Lock/unlock, `allow_extension` parameter |
 | `TestBackwardCompatibility` | Deprecated `from_reference()` and `iter_timelines()` methods |
+| `TestTimelineGroupUnifiedTimestamp` | Unified TimeStamp API (Phase 6.5), InterpolationMap-based coordinate resolution |
 
 ### Key Evidence
 
@@ -89,6 +90,78 @@ def test_floating_point_precision(self):
 ```
 
 This test validates that the source timeline's coordinate is stored exactly, not computed through interpolation (which would introduce floating-point error).
+
+---
+
+## Unified TimeStamp API Tests (`test_groups.py::TestTimelineGroupUnifiedTimestamp`)
+
+### What We're Validating
+
+Phase 6.5 introduced a unified `TimeStamp` architecture where both `Timeline` (with children) and `TimelineGroup` (with member timelines) use the same coordinate resolution mechanism via `InterpolationMap`. This enables O(log n) coordinate conversion without table scans.
+
+### Key API
+
+```python
+from timetoalign.core import TimeStamp, TimeIntervalStamp
+
+# TimelineGroup unified API
+group = TimelineGroup(id="my_group", timelines=[audio, dgt])
+ts = group.get_unified_timestamp(75.0, "audio")
+ts["dgt"]                  # Converted coordinate via InterpolationMap
+ts.axis                    # 75.0 (source coordinate)
+ts.source_id               # "audio"
+
+# Interval stamps
+interval = group.get_unified_interval_stamp(0.0, 100.0, "audio")
+interval.duration          # 100.0
+interval["dgt"]            # (start, end) tuple on dgt timeline
+```
+
+### Key Evidence
+
+| Test | Validates |
+|------|-----------|
+| `test_get_unified_timestamp_basic` | Creates valid `TimeStamp` object with correct axis and source_id |
+| `test_get_unified_timestamp_coordinate_conversion` | Converts coordinates between timelines via InterpolationMap |
+| `test_get_unified_timestamp_bidirectional` | Conversion works in both directions (audio->dgt and dgt->audio) |
+| `test_get_unified_timestamp_unknown_timeline_raises` | KeyError for unknown timeline IDs |
+| `test_get_unified_interval_stamp` | Creates `TimeIntervalStamp` with correct duration and interval conversion |
+| `test_unified_timestamp_with_three_timelines` | Coordinate conversion works with 3+ timelines |
+| `test_unified_timestamp_same_timeline_returns_axis` | Subscript with source ID returns axis value |
+| `test_interpolation_maps_built_on_add` | Maps are built automatically when timelines are added |
+| `test_interpolation_maps_updated_on_remove` | Maps are rebuilt when timelines are removed |
+| `test_implements_timestamp_source_protocol` | TimelineGroup implements `TimeStampSource` protocol |
+| `test_get_related_timeline_ids` | `_get_related_timeline_ids()` returns all timeline IDs |
+| `test_get_available_units_returns_empty` | Groups don't have C-Maps (empty list) |
+
+### InterpolationMap Management
+
+The TimelineGroup maintains a dictionary of pairwise `InterpolationMap` objects:
+
+```python
+group._interpolation_maps = {
+    "audio:dgt1": InterpolationMap(...),  # audio -> dgt1
+    "dgt1:audio": InterpolationMap(...),  # dgt1 -> audio
+    "audio:score": InterpolationMap(...), # audio -> score
+    ...
+}
+```
+
+Maps are:
+- **Built** when `add_timeline()` is called (for all pairwise combinations)
+- **Rebuilt** when `remove_timeline()` is called (removing invalidated maps)
+- **Used** by `get_unified_timestamp()` for O(log n) coordinate lookup
+
+### Relationship to Timeline TimeStamp
+
+The same `TimeStamp` class works for both:
+
+| Source | Method | Child/Member Access |
+|--------|--------|---------------------|
+| `Timeline` | `get_timestamp(coord)` | `ts["child:id"]` via offset subtraction |
+| `TimelineGroup` | `get_unified_timestamp(coord, source_id)` | `ts["other_id"]` via InterpolationMap |
+
+Both implement the `TimeStampSource` protocol, enabling code reuse.
 
 ---
 
@@ -333,13 +406,13 @@ cd timetoalign
 python -m pytest tests/alignment/ -v
 ```
 
-**Phase 7.4 Status**: 272 tests pass, 2 skipped. Coverage is ~80% for the alignment module.
+**Phase 7.4 Status**: 285+ tests pass, 2 skipped. Coverage is ~80% for the alignment module.
 
 ### Test Files
 
 | File | Tests | Description |
 |------|-------|-------------|
-| `test_groups.py` | 45 | TimelineGroup and GroupTimestamp (Phase 7.4 API) |
+| `test_groups.py` | 58 | TimelineGroup, GroupTimestamp, and unified TimeStamp API (Phase 6.5) |
 | `test_bundle.py` | 30 | AlignmentBundle with linear and partial alignment |
 | `test_anchors.py` | 50 | AlignmentAnchor, MatchClaim, MatchMetadata |
 | `test_graph.py` | 35 | MatchGraph operations |

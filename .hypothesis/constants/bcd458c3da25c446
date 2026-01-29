@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\alignment\graph.py
+# hypothesis_version: 6.151.2
+
+[', ', 'MatchGraph', 'MatchStamp', 'MatchStamp | None', 'TimelineGroup', 'anchor_edges', 'claim_id', 'claims', 'coordinates', 'explicit', 'group', 'inferred_edges', 'synchronous']

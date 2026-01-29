@@ -27,12 +27,15 @@ from .convenience import (
     SecondsToSamples,
     TicksToQuarters,
 )
+from .interpolation import InterpolationMap
 from .linear import LinearMap, ScalarMap, ShiftMap
 from .table import TableMap
 
 __all__ = [
     # Base
     "ConversionMap",
+    # Interpolation (internal engine)
+    "InterpolationMap",
     # Linear maps
     "LinearMap",
     "ScalarMap",

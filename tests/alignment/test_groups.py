@@ -782,3 +782,221 @@ class TestBackwardCompatibility:
 
 
 # endregion
+
+
+# region Unified Timestamp API Tests
+
+
+class TestTimelineGroupUnifiedTimestamp:
+    """Tests for unified TimeStamp API (Phase 6.5 migration)."""
+
+    def test_get_unified_timestamp_basic(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test basic unified timestamp creation."""
+        from timetoalign.core import TimeStamp
+
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        ts = group.get_unified_timestamp(75.0, "audio")
+        assert isinstance(ts, TimeStamp)
+        assert ts.axis == 75.0
+        assert ts.source_id == "audio"
+
+    def test_get_unified_timestamp_coordinate_conversion(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test coordinate conversion via unified timestamp."""
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        # audio: 0 -> 150, dgt: 0 -> 4875
+        # At audio=75 (half), dgt should be 4875/2 = 2437.5
+        ts = group.get_unified_timestamp(75.0, "audio")
+
+        dgt_coord = ts["dgt1"]
+        assert dgt_coord is not None
+        assert dgt_coord == pytest.approx(2437.5)
+
+    def test_get_unified_timestamp_bidirectional(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test bidirectional coordinate conversion."""
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        # From dgt to audio
+        ts = group.get_unified_timestamp(2437.5, "dgt1")
+        audio_coord = ts["audio"]
+        assert audio_coord is not None
+        assert audio_coord == pytest.approx(75.0)
+
+    def test_get_unified_timestamp_unknown_timeline_raises(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+    ) -> None:
+        """Test that unknown timeline raises KeyError."""
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
+
+        with pytest.raises(KeyError, match="nonexistent"):
+            group.get_unified_timestamp(50.0, "nonexistent")
+
+    def test_get_unified_timestamp_empty_group_raises(self) -> None:
+        """Test that empty group raises KeyError (no timelines)."""
+        group = TimelineGroup(id="empty_group")
+
+        # Empty group has no timelines, so KeyError is raised first
+        with pytest.raises(KeyError, match="not in group"):
+            group.get_unified_timestamp(50.0, "any_timeline")
+
+    def test_get_unified_interval_stamp(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test unified interval stamp creation."""
+        from timetoalign.core import TimeIntervalStamp
+
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        interval = group.get_unified_interval_stamp(0.0, 100.0, "audio")
+
+        assert isinstance(interval, TimeIntervalStamp)
+        assert interval.duration == 100.0
+        assert interval.source_id == "audio"
+
+        # Check interval on dgt
+        dgt_interval = interval["dgt1"]
+        assert dgt_interval is not None
+        # audio 0->100 maps to dgt 0->3250 (100/150 * 4875)
+        assert dgt_interval[0] == pytest.approx(0.0)
+        assert dgt_interval[1] == pytest.approx(3250.0)
+
+    def test_unified_timestamp_with_three_timelines(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+        score_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test coordinate conversion with three timelines."""
+        group = TimelineGroup(
+            id="test_group",
+            timelines=[dgt_timeline, audio_timeline, score_timeline],
+        )
+
+        # All timelines aligned start-to-start and end-to-end
+        # At audio midpoint (75.0):
+        # - dgt should be 2437.5
+        # - score should be 50.0 (midpoint of 0-100)
+
+        ts = group.get_unified_timestamp(75.0, "audio")
+
+        assert ts["dgt1"] == pytest.approx(2437.5)
+        assert ts["score"] == pytest.approx(50.0)
+        assert ts["audio"] == pytest.approx(75.0)
+
+    def test_unified_timestamp_same_timeline_returns_axis(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test that getting the same timeline returns axis value."""
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        ts = group.get_unified_timestamp(75.0, "audio")
+
+        # Getting the source timeline should return axis
+        assert ts["audio"] == 75.0
+        assert ts.get("audio") == 75.0
+
+    def test_interpolation_maps_built_on_add(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test that interpolation maps are built when timelines are added."""
+        group = TimelineGroup(id="test_group")
+
+        # Initially empty
+        assert len(group._interpolation_maps) == 0
+
+        # Add first timeline - still empty (need at least 2 for pairwise maps)
+        group.add_timeline(dgt_timeline)
+        assert len(group._interpolation_maps) == 0
+
+        # Add second timeline - should have 2 maps (dgt->audio, audio->dgt)
+        group.add_timeline(audio_timeline)
+        assert len(group._interpolation_maps) == 2
+        assert "dgt1:audio" in group._interpolation_maps
+        assert "audio:dgt1" in group._interpolation_maps
+
+    def test_interpolation_maps_updated_on_remove(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+        score_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test that interpolation maps are updated when a timeline is removed."""
+        group = TimelineGroup(
+            id="test_group",
+            timelines=[dgt_timeline, audio_timeline, score_timeline],
+        )
+
+        # Should have 6 maps (3 timelines, each direction)
+        assert len(group._interpolation_maps) == 6
+
+        # Remove score
+        group.remove_timeline("score")
+
+        # Should have 2 maps now
+        assert len(group._interpolation_maps) == 2
+        assert "dgt1:audio" in group._interpolation_maps
+        assert "audio:dgt1" in group._interpolation_maps
+        assert "score:audio" not in group._interpolation_maps
+
+    def test_implements_timestamp_source_protocol(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test that TimelineGroup implements TimeStampSource protocol."""
+        from timetoalign.core.timestamp import TimeStampSource
+
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        # Check protocol compliance
+        assert isinstance(group, TimeStampSource)
+        assert hasattr(group, "_get_interpolation_map")
+        assert hasattr(group, "_get_unit_map")
+        assert hasattr(group, "_get_related_timeline_ids")
+        assert hasattr(group, "_get_available_units")
+
+    def test_get_related_timeline_ids(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test _get_related_timeline_ids method."""
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        ids = group._get_related_timeline_ids()
+        assert "dgt1" in ids
+        assert "audio" in ids
+        assert len(ids) == 2
+
+    def test_get_available_units_returns_empty(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+    ) -> None:
+        """Test _get_available_units returns empty (groups don't have C-Maps)."""
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
+
+        units = group._get_available_units()
+        assert units == []
+
+
+# endregion

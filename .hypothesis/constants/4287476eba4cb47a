@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\classes\reportviews.py
+# hypothesis_version: 6.151.2
+
+['DegreeView', 'DiDegreeView', 'DiMultiDegreeView', 'EdgeDataView', 'EdgeView', 'InDegreeView', 'InEdgeDataView', 'InEdgeView', 'InMultiDegreeView', 'InMultiEdgeDataView', 'InMultiEdgeView', 'MultiDegreeView', 'MultiEdgeDataView', 'MultiEdgeView', 'NodeDataView', 'NodeView', 'OutDegreeView', 'OutEdgeDataView', 'OutEdgeView', 'OutMultiDegreeView', 'OutMultiEdgeDataView', 'OutMultiEdgeView', '_adjdict', '_data', '_default', '_graph', '_nbunch', '_nodes', '_nodes_nbrs', '_pred', '_report', '_succ', '_viewer', 'data', 'default', 'keys', 'nbunch', 'pred', 'succ', 'unhashable', 'viewer']

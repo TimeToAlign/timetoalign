@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\alignment\anchors.py
+# hypothesis_version: 6.151.2
+
+[0.0, 1.0, 'AlignmentAnchor', 'MatchClaim', 'MatchMetadata', 'agent', 'algorithm_params', 'anchor', 'certainty', 'claim', 'conceptual', 'coordinate_a', 'coordinate_b', 'created_at', 'decision_criteria', 'end_anchor', 'id', 'inferred', 'instant', 'interval', 'is_explicit', 'is_synchronous', 'metadata', 'notes', 'start_anchor', 'timeline_a_id', 'timeline_b_id']

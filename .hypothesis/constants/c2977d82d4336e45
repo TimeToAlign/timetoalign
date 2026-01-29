@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\readwrite\gml.py
+# hypothesis_version: 6.151.2
+
+['    id ', '    source ', '    target ', '  ]', '  directed 1', '  edge [', '  multigraph 1', '  node [', ' "', ' 0', ' 1', ' [', ' is duplicated\n', '"', '".*?"', '#', '#.*$|\\s+', '&#', "'['", "']'", '(', '()', ')', '+', ',', ',)', '--', '->', '.', ':', ';', 'E', 'EOF', 'INF', 'NAN', '[', '[+-]?[0-9]+', '[]', '[^ -~]|[&"]', '\\[', '\\]', ']', '_networkx_list_start', 'ascii', 'data', 'directed', 'edge', 'generate_gml', 'graph', 'graph [', 'id', 'inf', 'key', 'keys', 'label', 'latin1', 'multigraph', 'node', 'parse_gml', 'rb', 'read_gml', 'source', 'target', 'u', 'wb', 'write_gml', 'x', '{', '|', '}']

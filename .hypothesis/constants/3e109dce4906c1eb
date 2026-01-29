@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\generators\directed.py
+# hypothesis_version: 6.151.2
+
+[1e-09, 0.05, 0.2, 0.41, 0.54, 1.0, '_adj', 'alpha must be > 0.', 'beta must be > 0.', 'gamma must be > 0.', 'gn_graph', 'gnc_graph', 'gnr_graph', 'random_k_out_graph', 'scale_free_graph']

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\algorithms\similarity.py
+# hypothesis_version: 6.151.2
+
+[0.0, 0.0001, 0.1, 0.5, 0.9, 1.0, 1000, 'G1', 'G2', 'graph_edit_distance', 'optimal_edit_paths', 'optimize_edit_paths', 'panther_similarity', 'seed', 'simrank_similarity', 'weight']

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\generators\random_graphs.py
+# hypothesis_version: 6.151.2
+
+[0.5, 1.0, 2.0, 100, 'binomial_graph', 'erdos_renyi_graph', 'gnm_random_graph', 'gnp_random_graph', 'n * d must be even', 'random_kernel_graph', 'random_lobster', 'random_lobster_graph', 'random_powerlaw_tree', 'random_regular_graph', 'random_shell_graph', 'watts_strogatz_graph']

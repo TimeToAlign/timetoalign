@@ -14,7 +14,7 @@ Design principles:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, Iterator, Literal
+from typing import Any, ClassVar, Iterator, Literal
 
 import numpy as np
 import pandas as pd
@@ -23,11 +23,9 @@ import pyarrow.compute as pc
 from typing_extensions import Self
 
 from timetoalign.core import Coordinate, CoordinateValue, Domain, NumberType, TimeUnit
+from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
 from timetoalign.loader import EventData
-from timetoalign.maps import ConversionMap
-
-if TYPE_CHECKING:
-    pass
+from timetoalign.maps import ConversionMap, InterpolationMap
 
 module_logger = logging.getLogger(__name__)
 
@@ -165,6 +163,12 @@ class Timeline:
 
         # Conversion maps
         self._conversion_maps: dict[str, ConversionMap[Any]] = {}
+
+        # InterpolationMaps for O(log n) coordinate conversion (unified timestamp system)
+        # Maps child_id -> InterpolationMap for child<->parent conversion
+        self._interpolation_maps: dict[str, InterpolationMap] = {}
+        # Maps TimeUnit -> InterpolationMap for unit-based conversion via C-Maps
+        self._unit_maps: dict[TimeUnit, InterpolationMap] = {}
 
         # Logger
         self._logger = module_logger.getChild(self._id)
@@ -699,6 +703,7 @@ class Timeline:
         """Embed a child timeline at the specified offset.
 
         The child timeline will be locked after being added.
+        An InterpolationMap is built for O(log n) coordinate conversion.
 
         Args:
             child: The timeline to embed.
@@ -721,6 +726,13 @@ class Timeline:
         # Store child reference
         self._children[child.id] = child
         self._child_offsets[child.id] = offset_coord
+
+        # Build InterpolationMap for bidirectional coordinate conversion
+        self._interpolation_maps[child.id] = InterpolationMap.from_child_relationship(
+            parent=self,
+            child=child,
+            offset=float(offset_coord.value),
+        )
 
         # Lock the child
         child._locked = True
@@ -980,18 +992,28 @@ class Timeline:
     def add_conversion_map(self, cmap: ConversionMap[Any]) -> None:
         """Add a ConversionMap to this timeline.
 
+        If the map has a target_unit and is a TableMap, an InterpolationMap
+        is also built for O(log n) unit-based lookup in the unified timestamp system.
+
         Args:
             cmap: The ConversionMap to add.
 
         Raises:
             ValueError: If the map's source unit is incompatible.
         """
+        from timetoalign.maps import TableMap
+
         if cmap.source_unit is not None and cmap.source_unit != self._unit:
             raise ValueError(
                 f"Map source unit '{cmap.source_unit}' does not match "
                 f"timeline unit '{self._unit}'"
             )
         self._conversion_maps[cmap.id] = cmap
+
+        # Build InterpolationMap for unit-based lookup if applicable
+        if cmap.target_unit is not None and isinstance(cmap, TableMap):
+            self._unit_maps[cmap.target_unit] = InterpolationMap.from_table_map(cmap)
+
         self._logger.debug(f"Added conversion map '{cmap.id}'")
 
     def get_conversion_map(
@@ -1035,6 +1057,149 @@ class Timeline:
                 f"No conversion map found from '{self._unit}' to '{target}'"
             )
         return cmap(values)
+
+    # endregion
+
+    # region Unified Timestamp API (InterpolationMap-based)
+
+    def _get_interpolation_map(
+        self, target_id: str, source_id: str | None = None
+    ) -> InterpolationMap | None:
+        """Get InterpolationMap for coordinate conversion to target.
+
+        This method is part of the TimeStampSource protocol.
+
+        Args:
+            target_id: Target timeline ID.
+            source_id: Source timeline ID (ignored for Timeline, always self).
+
+        Returns:
+            InterpolationMap for conversion, or None if not available.
+        """
+        return self._interpolation_maps.get(target_id)
+
+    def _get_unit_map(self, unit: TimeUnit) -> InterpolationMap | None:
+        """Get InterpolationMap for unit-based conversion.
+
+        This method is part of the TimeStampSource protocol.
+
+        Args:
+            unit: Target unit.
+
+        Returns:
+            InterpolationMap for conversion, or None if no C-Map available.
+        """
+        return self._unit_maps.get(unit)
+
+    def _get_related_timeline_ids(self) -> list[str]:
+        """Get IDs of all related timelines (children).
+
+        This method is part of the TimeStampSource protocol.
+
+        Returns:
+            List of child timeline IDs.
+        """
+        return list(self._children.keys())
+
+    def _get_available_units(self) -> list[TimeUnit]:
+        """Get all units available via C-Maps.
+
+        This method is part of the TimeStampSource protocol.
+
+        Returns:
+            List of target units available for conversion.
+        """
+        return list(self._unit_maps.keys())
+
+    def get_timestamp(
+        self,
+        coord: CoordinateValue | Coordinate,
+        unit: TimeUnit | str | None = None,
+    ) -> TimeStamp:
+        """Get a TimeStamp at a specific coordinate.
+
+        This is the primary coordinate resolution API. The TimeStamp provides
+        access to all equivalent coordinates across children and C-Map units.
+
+        Uses InterpolationMaps for O(log n) coordinate conversion.
+
+        Args:
+            coord: Coordinate value. Can be:
+                - int/float/Fraction: Value in timeline's native unit
+                - Coordinate: Must match unit or specify via `unit` param
+            unit: If provided, interpret coord as being in this unit.
+                The coordinate is first converted via inverse C-Map.
+
+        Returns:
+            TimeStamp object for the resolved coordinate.
+
+        Raises:
+            ValueError: If unit specified but no inverse C-Map available.
+
+        Examples:
+            >>> ts = timeline.get_timestamp(5.0)
+            >>> ts["child_a"]  # Get coordinate on child_a
+            2.5
+
+            >>> # Query with unit conversion
+            >>> ts = timeline.get_timestamp(10.5, unit=TimeUnit.seconds)
+            >>> ts.axis  # Converted from seconds to timeline's unit
+            5.0
+        """
+        # Resolve coordinate value
+        if isinstance(coord, Coordinate):
+            if unit is None and coord.unit != self._unit:
+                unit = coord.unit
+            axis = float(coord.value)
+        else:
+            axis = float(coord)
+
+        # Convert from specified unit if needed
+        if unit is not None:
+            target_unit = TimeUnit(unit) if isinstance(unit, str) else unit
+            if target_unit != self._unit:
+                imap = self._get_unit_map(target_unit)
+                if imap is None:
+                    raise ValueError(
+                        f"No C-Map available for unit '{target_unit}'. "
+                        f"Cannot resolve coordinate."
+                    )
+                # Inverse: target unit -> timeline's unit
+                axis = float(imap.inverse(axis))
+
+        return TimeStamp(
+            axis=axis,
+            source=self,
+            source_id=self._id,
+        )
+
+    def get_interval_stamp(
+        self,
+        start: CoordinateValue | Coordinate,
+        end: CoordinateValue | Coordinate,
+        unit: TimeUnit | str | None = None,
+    ) -> TimeIntervalStamp:
+        """Get a TimeIntervalStamp for a coordinate range.
+
+        Args:
+            start: Start coordinate.
+            end: End coordinate.
+            unit: If provided, interpret both coords as being in this unit.
+
+        Returns:
+            TimeIntervalStamp with start and end TimeStamps.
+
+        Examples:
+            >>> interval = timeline.get_interval_stamp(0.0, 10.0)
+            >>> interval.duration
+            10.0
+            >>> interval["child:1"]  # Get (start, end) tuple for child
+            (0.0, 7.5)
+        """
+        return TimeIntervalStamp(
+            start=self.get_timestamp(start, unit),
+            end=self.get_timestamp(end, unit),
+        )
 
     # endregion
 
@@ -1679,8 +1844,12 @@ class Timeline:
         )
 
     def __str__(self) -> str:
-        """Return human-readable string."""
-        return f"{self.class_name}[{self._id}]: 0-{self._length.value} {self._unit}"
+        """Return human-readable ASCII diagram of the timeline.
+
+        Uses the diagram() method to generate a visual representation
+        showing the timeline bar and any children.
+        """
+        return self.diagram()
 
     def __contains__(self, item: str | Timeline) -> bool:
         """Check if a child (by ID or object) is in this timeline."""

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\convert_matrix.py
+# hypothesis_version: 6.151.2
+
+[0.0, 1.0, 'S', 'U', 'V', 'b', 'c', 'csc', 'csr', 'dok', 'f', 'from_numpy_array', 'from_pandas_edgelist', 'i', 'nan', 'source', 'target', 'to_numpy_array', 'to_pandas_adjacency', 'to_pandas_edgelist', 'u', 'void', 'weight']

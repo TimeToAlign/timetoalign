@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\classes\filters.py
+# hypothesis_version: 6.151.2
+
+['hide_diedges', 'hide_edges', 'hide_multidiedges', 'hide_multiedges', 'hide_nodes', 'no_filter', 'show_diedges', 'show_edges', 'show_multidiedges', 'show_multiedges', 'show_nodes']

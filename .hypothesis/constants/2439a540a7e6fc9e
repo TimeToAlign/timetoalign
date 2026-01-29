@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\readwrite\json_graph\cytoscape.py
+# hypothesis_version: 6.151.2
+
+['cytoscape_data', 'cytoscape_graph', 'data', 'directed', 'edges', 'elements', 'id', 'key', 'multigraph', 'name', 'nodes', 'source', 'target', 'value']

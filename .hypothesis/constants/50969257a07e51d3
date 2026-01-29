@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\algorithms\connectivity\kcutsets.py
+# hypothesis_version: 6.151.2
+
+['all_node_cuts', 'capacity', 'flow', 'flow_value', 'id', 'mapping', 'residual', 'two_phase']
