@@ -12,10 +12,10 @@ from images and PDFs. The key components are:
 
 - **GraphicalSegment**: Combines a source reference with a path and timeline offset.
 
-- **GraphicalBundle**: Collection of sources and segments forming a complete
+- **GraphicalStore**: Collection of sources and segments forming a complete
   graphical timeline with coordinate conversion and visualization methods.
 
-- **GraphicalLoader**: Factory class for building bundles with a fluent interface.
+- **GraphicalLoader**: Factory class for building stores with a fluent interface.
 
 - **IIIFManifestLoader**: Load image metadata from IIIF Presentation API manifests.
 
@@ -25,12 +25,12 @@ Examples:
     >>> idx = loader.add_image("score.png")
     >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=100, name="system_1")
     >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=200, name="system_2")
-    >>> bundle = loader.bundle
-    >>> timeline = bundle.to_timeline(uid="score", name="Score")
+    >>> store = loader.bundle
+    >>> timeline = store.to_timeline(uid="score", name="Score")
 
     >>> # Coordinate conversion
-    >>> source_idx, (x, y) = bundle.timeline_to_image(250.0)
-    >>> coord = bundle.image_to_timeline(source_idx, x, y)
+    >>> source_idx, (x, y) = store.timeline_to_image(250.0)
+    >>> coord = store.image_to_timeline(source_idx, x, y)
 
     >>> # Load IIIF manifest for image dimensions
     >>> from timetoalign.loader.graphical import IIIFManifestLoader
@@ -42,7 +42,7 @@ Examples:
 
 from __future__ import annotations
 
-from .bundle import GraphicalBundle
+from .bundle import GraphicalStore
 
 # IIIF manifest loader
 from .iiif import IIIFCanvasInfo, IIIFManifestInfo, IIIFManifestLoader
@@ -75,9 +75,9 @@ __all__ = [
     # Source
     "ImageSource",
     "ImageMetadata",
-    # Segment and bundle
+    # Segment and store
     "GraphicalSegment",
-    "GraphicalBundle",
+    "GraphicalStore",
     # Loaders
     "GraphicalLoader",
     "IIIFManifestLoader",

@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, ClassVar, cast
 from timetoalign.core import TimeUnit
 from timetoalign.loader import Loader
 
-from .store import MidiEventStore
+from .store import MidiEventData
 
 if TYPE_CHECKING:
-    from timetoalign.loader.midi.bundle import MidiBundle
+    from timetoalign.loader.midi.bundle import MidiStore
 
 
 class MidiLoader(Loader):
@@ -23,7 +23,7 @@ class MidiLoader(Loader):
     """
 
     _default_unit: ClassVar[TimeUnit] = TimeUnit.ticks
-    _event_store_class: ClassVar[type[MidiEventStore]] = MidiEventStore
+    _event_store_class: ClassVar[type[MidiEventData]] = MidiEventData
 
     @property
     @abstractmethod
@@ -32,20 +32,20 @@ class MidiLoader(Loader):
         ...
 
     @property
-    def events(self) -> MidiEventStore:
-        """The MidiEventStore containing all loaded events."""
-        return cast(MidiEventStore, self._events)
+    def events(self) -> MidiEventData:
+        """The MidiEventData containing all loaded events."""
+        return cast(MidiEventData, self._events)
 
     @property
-    def bundle(self) -> "MidiBundle":
-        """Return a MidiBundle wrapping the loader's events.
+    def store(self) -> "MidiStore":
+        """Return a MidiStore wrapping the loader's events.
 
-        The single MidiEventStore is split into notes and controls
-        for consistent interface with ScoreBundle.
+        The single MidiEventData is split into notes and controls
+        for consistent interface with ScoreStore.
 
         Returns:
-            A MidiBundle with notes and controls separated.
+            A MidiStore with notes and controls separated.
         """
-        from timetoalign.loader.midi.bundle import MidiBundle
+        from timetoalign.loader.midi.bundle import MidiStore
 
-        return MidiBundle.from_store(self.events, metadata=self.metadata)
+        return MidiStore.from_data(self.events, metadata=self.metadata)

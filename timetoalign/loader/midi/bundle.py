@@ -1,11 +1,11 @@
-"""MidiBundle: Container for MIDI EventStores split by event category.
+"""MidiStore: Container for MIDI EventData split by event category.
 
-This module provides a bundle class that separates MIDI events into
-notes and control events, mirroring the ScoreBundle structure.
+This module provides a store class that separates MIDI events into
+notes and control events, mirroring the ScoreStore structure.
 
 Design principles:
-- Consistent interface with ScoreBundle
-- Automatic splitting of MidiEventStore by event_type
+- Consistent interface with ScoreStore
+- Automatic splitting of MidiEventData by event_type
 - Support for both performance and score MIDI
 """
 
@@ -15,8 +15,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from timetoalign.loader.bundle import EventBundle
-from timetoalign.loader.midi.store import MidiEventStore
+from timetoalign.loader.bundle import EventStore
+from timetoalign.loader.midi.store import MidiEventData
 
 if TYPE_CHECKING:
     from timetoalign.maps import ConversionMap
@@ -38,82 +38,82 @@ STORE_NAMES: tuple[str, ...] = ("notes", "controls")
 
 
 @dataclass
-class MidiBundle(EventBundle):
+class MidiStore(EventStore):
     """Container for MIDI data organized by category.
 
-    Splits a single MidiEventStore into notes and control events
-    for consistent bundle interface with ScoreBundle. This enables
+    Splits a single MidiEventData into notes and control events
+    for consistent store interface with ScoreStore. This enables
     uniform timeline creation across all loader types.
 
     Attributes:
-        notes: MidiEventStore containing Note events.
-        controls: MidiEventStore containing ControlChange, ProgramChange,
+        notes: MidiEventData containing Note events.
+        controls: MidiEventData containing ControlChange, ProgramChange,
             PitchBend, and other control events.
         metadata: Source metadata (ticks_per_beat, format, etc.).
 
     Examples:
-        >>> # Create from a loaded MidiEventStore
-        >>> bundle = MidiBundle.from_store(loader.events)
+        >>> # Create from a loaded MidiEventData
+        >>> store = MidiStore.from_data(loader.events)
 
-        >>> # Access stores
-        >>> print(f"Notes: {len(bundle.notes)}")
-        >>> print(f"Controls: {len(bundle.controls)}")
+        >>> # Access data
+        >>> print(f"Notes: {len(store.notes)}")
+        >>> print(f"Controls: {len(store.controls)}")
 
         >>> # Create timeline
-        >>> timeline = bundle.to_default_timeline(uid="midi_score")
+        >>> timeline = store.to_default_timeline(uid="midi_score")
     """
 
-    notes: MidiEventStore
-    controls: MidiEventStore
+    notes: MidiEventData
+    controls: MidiEventData
     metadata: dict[str, Any] = field(default_factory=dict)
 
     # region Class Methods
 
     @classmethod
-    def empty(cls) -> MidiBundle:
-        """Create an empty MidiBundle with empty stores.
+    def empty(cls) -> MidiStore:
+        """Create an empty MidiStore with empty data.
 
         Returns:
-            A MidiBundle with empty notes and controls stores.
+            A MidiStore with empty notes and controls data.
         """
         from timetoalign.core import TimeUnit
 
         return cls(
-            notes=MidiEventStore.empty(TimeUnit.ticks),
-            controls=MidiEventStore.empty(TimeUnit.ticks),
+            notes=MidiEventData.empty(TimeUnit.ticks),
+            controls=MidiEventData.empty(TimeUnit.ticks),
             metadata={},
         )
 
     @classmethod
-    def from_store(
+    def from_data(
         cls,
-        store: MidiEventStore,
+        data: MidiEventData,
         metadata: dict[str, Any] | None = None,
-    ) -> MidiBundle:
-        """Create a MidiBundle by splitting a single MidiEventStore.
+    ) -> MidiStore:
+        """Create a MidiStore by splitting a single MidiEventData.
 
         Separates Note events from control events (ControlChange,
-        ProgramChange, PitchBend) into separate stores.
+        ProgramChange, PitchBend) into separate data.
 
         Args:
-            store: The source MidiEventStore containing all events.
-            metadata: Optional metadata to attach to the bundle.
+            data: The source MidiEventData containing all events.
+            metadata: Optional metadata to attach to the store.
 
         Returns:
-            A MidiBundle with notes and controls separated.
+            A MidiStore with notes and controls separated.
 
         Examples:
             >>> loader = PerformanceMidiLoader()
             >>> loader.load("piece.mid")
-            >>> bundle = MidiBundle.from_store(loader.events)
+            >>> store = MidiStore.from_data(loader.events)
         """
         # Filter notes
-        notes = store.filter(event_type="Note")
+        notes = data.filter(event_type="Note")
 
         # Filter controls: accumulate all control event types
-        controls = MidiEventStore.empty(store.unit, store.number_type)
+        controls = MidiEventData.empty(data.unit, data.number_type)
         for event_type in CONTROL_EVENT_TYPES:
-            filtered = store.filter(event_type=event_type)
+            filtered = data.filter(event_type=event_type)
             if len(filtered) > 0:
                 controls.extend(filtered)
 
@@ -127,18 +127,18 @@ class MidiBundle(EventBundle):
 
     # region Instance Methods
 
-    def extend(self, other: MidiBundle) -> None:
-        """Extend this bundle with another bundle's data.
+    def extend(self, other: MidiStore) -> None:
+        """Extend this store with another store's data.
 
         Args:
-            other: The MidiBundle to merge into this one.
+            other: The MidiStore to merge into this one.
         """
         self.notes.extend(other.notes)
         self.controls.extend(other.controls)
         self.metadata.update(other.metadata)
 
     def summary(self) -> dict[str, Any]:
-        """Get summary of all stores.
+        """Get summary of all data.
 
         Returns:
             Dict with counts and metadata.
@@ -150,7 +150,7 @@ class MidiBundle(EventBundle):
         }
 
     def get_cmaps(self) -> dict[str, ConversionMap]:
-        """Get ConversionMaps derivable from MIDI bundle metadata.
+        """Get ConversionMaps derivable from MIDI store metadata.
 
         Returns C-Maps based on available metadata:
         - "quarters": ticks -> quarters (if ticks_per_beat available)
@@ -160,8 +160,8 @@ class MidiBundle(EventBundle):
             Dict mapping target unit name to ConversionMap.
 
         Examples:
-            >>> bundle = midi_loader.load("performance.mid")
-            >>> cmaps = bundle.get_cmaps()
+            >>> store = midi_loader.load("performance.mid")
+            >>> cmaps = store.get_cmaps()
             >>> quarters_map = cmaps.get("quarters")
             >>> if quarters_map:
             ...     quarters = quarters_map(960)  # 2.0 quarters at 480 PPQ
@@ -201,7 +201,7 @@ class MidiBundle(EventBundle):
         return cmaps
 
     def _extract_tempo_events(self) -> list[tuple[int, float]]:
-        """Extract tempo events from controls store or metadata.
+        """Extract tempo events from controls data or metadata.
 
         Returns:
             List of (tick_position, bpm) tuples, sorted by tick position.
@@ -211,7 +211,7 @@ class MidiBundle(EventBundle):
         if "tempo_events" in self.metadata:
             return self.metadata["tempo_events"]
 
-        # TODO: Extract from controls store if TempoChange events are stored there
+        # TODO: Extract from controls data if TempoChange events are stored there
         # For now, return empty list - tempo extraction will be added when
         # MIDI loaders are enhanced to capture set_tempo messages
 
@@ -223,33 +223,33 @@ class MidiBundle(EventBundle):
 
     def __repr__(self) -> str:
         """Return string representation."""
-        return f"MidiBundle(notes={len(self.notes)}, controls={len(self.controls)})"
+        return f"MidiStore(notes={len(self.notes)}, controls={len(self.controls)})"
 
     # endregion
 
-    # region EventBundle Protocol
+    # region EventStore Protocol
 
-    def __iter__(self) -> Iterator[MidiEventStore]:
-        """Iterate over stores in canonical order.
+    def __iter__(self) -> Iterator[MidiEventData]:
+        """Iterate over data in canonical order.
 
         Yields:
-            MidiEventStores: notes, then controls.
+            MidiEventData: notes, then controls.
         """
         yield self.notes
         yield self.controls
 
     def __len__(self) -> int:
-        """Return number of stores (always 2)."""
+        """Return number of data (always 2)."""
         return len(STORE_NAMES)
 
-    def __getitem__(self, name: str) -> MidiEventStore:
-        """Get store by name.
+    def __getitem__(self, name: str) -> MidiEventData:
+        """Get data by name.
 
         Args:
-            name: Store name ("notes" or "controls").
+            name: Data name ("notes" or "controls").
 
         Returns:
-            The MidiEventStore for that category.
+            The MidiEventData for that category.
 
         Raises:
             KeyError: If name is not valid.
@@ -258,30 +258,30 @@ class MidiBundle(EventBundle):
             return self.notes
         elif name == "controls":
             return self.controls
-        raise KeyError(f"Unknown store: {name!r}. Valid: {STORE_NAMES}")
+        raise KeyError(f"Unknown data: {name!r}. Valid: {STORE_NAMES}")
 
     def keys(self) -> tuple[str, ...]:
-        """Return store names in canonical order.
+        """Return data names in canonical order.
 
         Returns:
             ("notes", "controls")
         """
         return STORE_NAMES
 
-    def items(self) -> Iterator[tuple[str, MidiEventStore]]:
-        """Iterate over (name, store) pairs.
+    def items(self) -> Iterator[tuple[str, MidiEventData]]:
+        """Iterate over (name, data) pairs.
 
         Yields:
-            Tuples of (name, MidiEventStore) in canonical order.
+            Tuples of (name, MidiEventData) in canonical order.
         """
         yield ("notes", self.notes)
         yield ("controls", self.controls)
 
-    def values(self) -> Iterator[MidiEventStore]:
-        """Iterate over stores.
+    def values(self) -> Iterator[MidiEventData]:
+        """Iterate over data.
 
         Yields:
-            MidiEventStores in canonical order.
+            MidiEventData in canonical order.
         """
         yield self.notes
         yield self.controls

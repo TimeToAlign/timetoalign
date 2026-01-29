@@ -1,4 +1,4 @@
-"""ControlEventStore: Storage for control events (dynamics, tempo, etc.)."""
+"""ControlEventData: Storage for control events (dynamics, tempo, etc.)."""
 
 from __future__ import annotations
 
@@ -9,14 +9,14 @@ from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import make_fraction_field
-from timetoalign.loader.store import EventStore
+from timetoalign.loader.store import EventData
 
 if TYPE_CHECKING:
     pass
 
 
-class ControlEventStore(EventStore):
-    """EventStore for control events.
+class ControlEventData(EventData):
+    """EventData for control events.
 
     Subtypes include:
     - Dynamic: velocity/dynamics markings (pp, ff, mf)
@@ -57,7 +57,7 @@ class ControlEventStore(EventStore):
         unit: TimeUnit = TimeUnit.quarters,
         number_type: NumberType = NumberType.float,
     ) -> Self:
-        """Create empty ControlEventStore."""
+        """Create empty ControlEventData."""
         return super().empty(unit, number_type)
 
     @classmethod

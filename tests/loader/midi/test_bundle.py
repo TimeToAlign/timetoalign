@@ -1,7 +1,7 @@
-"""Tests for MidiBundle.
+"""Tests for MidiStore.
 
-This module tests the MidiBundle class which splits a MidiEventStore
-into separate notes and controls stores.
+This module tests the MidiStore class which splits a MidiEventData
+into separate notes and controls data.
 """
 
 from __future__ import annotations
@@ -9,16 +9,16 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.core import TimeUnit
-from timetoalign.loader.midi import MidiBundle, MidiEventStore
+from timetoalign.loader.midi import MidiEventData, MidiStore
 
 
-class TestMidiBundleFromStore:
-    """Tests for MidiBundle.from_store() splitting behavior."""
+class TestMidiStoreFromData:
+    """Tests for MidiStore.from_data() splitting behavior."""
 
     @pytest.fixture
-    def mixed_midi_store(self) -> MidiEventStore:
-        """MidiEventStore with notes and control events."""
-        return MidiEventStore.from_dicts(
+    def mixed_midi_data(self) -> MidiEventData:
+        """MidiEventData with notes and control events."""
+        return MidiEventData.from_dicts(
             [
                 {
                     "id": "n1",
@@ -61,68 +61,68 @@ class TestMidiBundleFromStore:
             unit=TimeUnit.ticks,
         )
 
-    def test_from_store_splits_notes(self, mixed_midi_store: MidiEventStore):
-        """from_store separates Note events into notes store."""
-        bundle = MidiBundle.from_store(mixed_midi_store)
+    def test_from_store_splits_notes(self, mixed_midi_data: MidiEventData):
+        """from_store separates Note events into notes data."""
+        store = MidiStore.from_data(mixed_midi_data)
 
         # Exact count: 2 notes
-        assert len(bundle.notes) == 2
+        assert len(store.notes) == 2
 
-    def test_from_store_splits_controls(self, mixed_midi_store: MidiEventStore):
-        """from_store separates control events into controls store."""
-        bundle = MidiBundle.from_store(mixed_midi_store)
+    def test_from_store_splits_controls(self, mixed_midi_data: MidiEventData):
+        """from_store separates control events into controls data."""
+        store = MidiStore.from_data(mixed_midi_data)
 
         # Exact count: 1 ControlChange + 1 ProgramChange = 2
-        assert len(bundle.controls) == 2
+        assert len(store.controls) == 2
 
-    def test_notes_have_correct_event_type(self, mixed_midi_store: MidiEventStore):
-        """All events in notes store have event_type='Note'."""
-        bundle = MidiBundle.from_store(mixed_midi_store)
+    def test_notes_have_correct_event_type(self, mixed_midi_data: MidiEventData):
+        """All events in notes data have event_type='Note'."""
+        store = MidiStore.from_data(mixed_midi_data)
 
-        for event in bundle.notes:
+        for event in store.notes:
             assert event["event_type"] == "Note"
 
-    def test_controls_have_control_event_types(self, mixed_midi_store: MidiEventStore):
-        """All events in controls store have control event types."""
-        bundle = MidiBundle.from_store(mixed_midi_store)
+    def test_controls_have_control_event_types(self, mixed_midi_data: MidiEventData):
+        """All events in controls data have control event types."""
+        store = MidiStore.from_data(mixed_midi_data)
 
         valid_types = {"ControlChange", "ProgramChange", "PitchBend"}
-        for event in bundle.controls:
+        for event in store.controls:
             assert event["event_type"] in valid_types
 
-    def test_metadata_preserved(self, mixed_midi_store: MidiEventStore):
-        """Metadata is attached to bundle."""
+    def test_metadata_preserved(self, mixed_midi_data: MidiEventData):
+        """Metadata is attached to store."""
         metadata = {"ticks_per_beat": 480, "format": 1}
-        bundle = MidiBundle.from_store(mixed_midi_store, metadata=metadata)
+        store = MidiStore.from_data(mixed_midi_data, metadata=metadata)
 
-        assert bundle.metadata["ticks_per_beat"] == 480
-        assert bundle.metadata["format"] == 1
-
-
-class TestMidiBundleEmpty:
-    """Tests for MidiBundle.empty()."""
-
-    def test_empty_bundle_has_empty_stores(self):
-        """Empty bundle has zero events in both stores."""
-        bundle = MidiBundle.empty()
-
-        assert len(bundle.notes) == 0
-        assert len(bundle.controls) == 0
-
-    def test_empty_bundle_metadata(self):
-        """Empty bundle has empty metadata."""
-        bundle = MidiBundle.empty()
-
-        assert bundle.metadata == {}
+        assert store.metadata["ticks_per_beat"] == 480
+        assert store.metadata["format"] == 1
 
 
-class TestMidiBundleExtend:
-    """Tests for MidiBundle.extend()."""
+class TestMidiStoreEmpty:
+    """Tests for MidiStore.empty()."""
+
+    def test_empty_store_has_empty_data(self):
+        """Empty store has zero events in both data objects."""
+        store = MidiStore.empty()
+
+        assert len(store.notes) == 0
+        assert len(store.controls) == 0
+
+    def test_empty_store_metadata(self):
+        """Empty store has empty metadata."""
+        store = MidiStore.empty()
+
+        assert store.metadata == {}
+
+
+class TestMidiStoreExtend:
+    """Tests for MidiStore.extend()."""
 
     @pytest.fixture
-    def bundle_a(self) -> MidiBundle:
-        """First MidiBundle with 2 notes."""
-        store = MidiEventStore.from_dicts(
+    def store_a(self) -> MidiStore:
+        """First MidiStore with 2 notes."""
+        data = MidiEventData.from_dicts(
             [
                 {
                     "id": "a_n1",
@@ -143,12 +143,12 @@ class TestMidiBundleExtend:
             ],
             unit=TimeUnit.ticks,
         )
-        return MidiBundle.from_store(store, metadata={"source": "a"})
+        return MidiStore.from_data(data, metadata={"source": "a"})
 
     @pytest.fixture
-    def bundle_b(self) -> MidiBundle:
-        """Second MidiBundle with 1 note and 1 control."""
-        store = MidiEventStore.from_dicts(
+    def store_b(self) -> MidiStore:
+        """Second MidiStore with 1 note and 1 control."""
+        data = MidiEventData.from_dicts(
             [
                 {
                     "id": "b_n1",
@@ -168,36 +168,36 @@ class TestMidiBundleExtend:
             ],
             unit=TimeUnit.ticks,
         )
-        return MidiBundle.from_store(store, metadata={"source": "b"})
+        return MidiStore.from_data(data, metadata={"source": "b"})
 
-    def test_extend_merges_notes(self, bundle_a: MidiBundle, bundle_b: MidiBundle):
-        """extend() merges notes from both bundles."""
-        bundle_a.extend(bundle_b)
+    def test_extend_merges_notes(self, store_a: MidiStore, store_b: MidiStore):
+        """extend() merges notes from both stores."""
+        store_a.extend(store_b)
 
         # Exact count: 2 from a + 1 from b = 3
-        assert len(bundle_a.notes) == 3
+        assert len(store_a.notes) == 3
 
-    def test_extend_merges_controls(self, bundle_a: MidiBundle, bundle_b: MidiBundle):
-        """extend() merges controls from both bundles."""
-        bundle_a.extend(bundle_b)
+    def test_extend_merges_controls(self, store_a: MidiStore, store_b: MidiStore):
+        """extend() merges controls from both stores."""
+        store_a.extend(store_b)
 
         # Exact count: 0 from a + 1 from b = 1
-        assert len(bundle_a.controls) == 1
+        assert len(store_a.controls) == 1
 
-    def test_extend_updates_metadata(self, bundle_a: MidiBundle, bundle_b: MidiBundle):
+    def test_extend_updates_metadata(self, store_a: MidiStore, store_b: MidiStore):
         """extend() updates metadata (last wins)."""
-        bundle_a.extend(bundle_b)
+        store_a.extend(store_b)
 
-        assert bundle_a.metadata["source"] == "b"
+        assert store_a.metadata["source"] == "b"
 
 
-class TestMidiBundleProtocol:
-    """Tests for MidiBundle EventBundle protocol compliance."""
+class TestMidiStoreProtocol:
+    """Tests for MidiStore EventStore protocol compliance."""
 
     @pytest.fixture
-    def sample_bundle(self) -> MidiBundle:
-        """MidiBundle for protocol testing."""
-        store = MidiEventStore.from_dicts(
+    def sample_store(self) -> MidiStore:
+        """MidiStore for protocol testing."""
+        data = MidiEventData.from_dicts(
             [
                 {
                     "id": "n1",
@@ -216,56 +216,56 @@ class TestMidiBundleProtocol:
             ],
             unit=TimeUnit.ticks,
         )
-        return MidiBundle.from_store(store)
+        return MidiStore.from_data(data)
 
-    def test_keys_canonical_order(self, sample_bundle: MidiBundle):
+    def test_keys_canonical_order(self, sample_store: MidiStore):
         """keys() returns canonical order."""
-        assert sample_bundle.keys() == ("notes", "controls")
+        assert sample_store.keys() == ("notes", "controls")
 
-    def test_iteration_order(self, sample_bundle: MidiBundle):
-        """Iteration yields stores in canonical order."""
-        stores = list(sample_bundle)
+    def test_iteration_order(self, sample_store: MidiStore):
+        """Iteration yields data in canonical order."""
+        data_items = list(sample_store)
 
-        assert stores[0] is sample_bundle.notes
-        assert stores[1] is sample_bundle.controls
+        assert data_items[0] is sample_store.notes
+        assert data_items[1] is sample_store.controls
 
-    def test_items_order(self, sample_bundle: MidiBundle):
+    def test_items_order(self, sample_store: MidiStore):
         """items() yields in canonical order."""
-        items = list(sample_bundle.items())
+        items = list(sample_store.items())
 
-        assert items[0] == ("notes", sample_bundle.notes)
-        assert items[1] == ("controls", sample_bundle.controls)
+        assert items[0] == ("notes", sample_store.notes)
+        assert items[1] == ("controls", sample_store.controls)
 
-    def test_getitem_notes(self, sample_bundle: MidiBundle):
+    def test_getitem_notes(self, sample_store: MidiStore):
         """Can access notes by name."""
-        assert sample_bundle["notes"] is sample_bundle.notes
+        assert sample_store["notes"] is sample_store.notes
 
-    def test_getitem_controls(self, sample_bundle: MidiBundle):
+    def test_getitem_controls(self, sample_store: MidiStore):
         """Can access controls by name."""
-        assert sample_bundle["controls"] is sample_bundle.controls
+        assert sample_store["controls"] is sample_store.controls
 
-    def test_getitem_invalid_raises(self, sample_bundle: MidiBundle):
+    def test_getitem_invalid_raises(self, sample_store: MidiStore):
         """Invalid name raises KeyError."""
         with pytest.raises(KeyError, match="invalid"):
-            _ = sample_bundle["invalid"]
+            _ = sample_store["invalid"]
 
-    def test_len(self, sample_bundle: MidiBundle):
+    def test_len(self, sample_store: MidiStore):
         """Length is always 2."""
-        assert len(sample_bundle) == 2
+        assert len(sample_store) == 2
 
-    def test_contains(self, sample_bundle: MidiBundle):
+    def test_contains(self, sample_store: MidiStore):
         """Membership check works."""
-        assert "notes" in sample_bundle
-        assert "controls" in sample_bundle
-        assert "invalid" not in sample_bundle
+        assert "notes" in sample_store
+        assert "controls" in sample_store
+        assert "invalid" not in sample_store
 
 
-class TestMidiBundleSummary:
-    """Tests for MidiBundle.summary()."""
+class TestMidiStoreSummary:
+    """Tests for MidiStore.summary()."""
 
     def test_summary_counts(self):
         """summary() includes correct counts."""
-        store = MidiEventStore.from_dicts(
+        data = MidiEventData.from_dicts(
             [
                 {
                     "id": "n1",
@@ -290,22 +290,22 @@ class TestMidiBundleSummary:
             ],
             unit=TimeUnit.ticks,
         )
-        bundle = MidiBundle.from_store(store)
+        store = MidiStore.from_data(data)
 
-        summary = bundle.summary()
+        summary = store.summary()
 
         # Exact counts
         assert summary["notes_count"] == 2
         assert summary["controls_count"] == 1
 
 
-class TestMidiBundleToTimeline:
-    """Tests for MidiBundle timeline creation."""
+class TestMidiStoreToTimeline:
+    """Tests for MidiStore timeline creation."""
 
     @pytest.fixture
-    def sample_bundle(self) -> MidiBundle:
-        """MidiBundle with notes and controls."""
-        store = MidiEventStore.from_dicts(
+    def sample_store(self) -> MidiStore:
+        """MidiStore with notes and controls."""
+        data = MidiEventData.from_dicts(
             [
                 {
                     "id": "n1",
@@ -333,34 +333,34 @@ class TestMidiBundleToTimeline:
             ],
             unit=TimeUnit.ticks,
         )
-        return MidiBundle.from_store(store)
+        return MidiStore.from_data(data)
 
-    def test_to_default_timeline_creates_children(self, sample_bundle: MidiBundle):
+    def test_to_default_timeline_creates_children(self, sample_store: MidiStore):
         """to_default_timeline creates parent with children."""
-        timeline = sample_bundle.to_default_timeline(uid="test")
+        timeline = sample_store.to_default_timeline(uid="test")
 
         assert timeline.id == "test"
         # 2 children: notes and controls
         assert timeline.n_children == 2
 
-    def test_children_at_offset_zero(self, sample_bundle: MidiBundle):
+    def test_children_at_offset_zero(self, sample_store: MidiStore):
         """Children are embedded at offset 0."""
-        timeline = sample_bundle.to_default_timeline()
+        timeline = sample_store.to_default_timeline()
 
         assert timeline.get_child_offset("notes").value == 0
         assert timeline.get_child_offset("controls").value == 0
 
-    def test_notes_child_has_correct_count(self, sample_bundle: MidiBundle):
+    def test_notes_child_has_correct_count(self, sample_store: MidiStore):
         """Notes child has exact event count."""
-        timeline = sample_bundle.to_default_timeline()
+        timeline = sample_store.to_default_timeline()
 
         notes_tl = timeline.get_child("notes")
         # Exact count: 2 notes
         assert notes_tl.n_events == 2
 
-    def test_controls_child_has_correct_count(self, sample_bundle: MidiBundle):
+    def test_controls_child_has_correct_count(self, sample_store: MidiStore):
         """Controls child has exact event count."""
-        timeline = sample_bundle.to_default_timeline()
+        timeline = sample_store.to_default_timeline()
 
         controls_tl = timeline.get_child("controls")
         # Exact count: 1 control change

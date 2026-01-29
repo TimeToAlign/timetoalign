@@ -11,12 +11,12 @@ from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import fraction_to_struct
 
 from .base import ScoreLoader
-from .bundle import ScoreBundle
+from .bundle import ScoreStore
 from .stores import (
-    AnnotationEventStore,
-    ControlEventStore,
-    MeasureEventStore,
-    NoteEventStore,
+    AnnotationEventData,
+    ControlEventData,
+    MeasureEventData,
+    NoteEventData,
 )
 
 try:
@@ -31,7 +31,7 @@ class TSVLoader(ScoreLoader):
     """Load symbolic scores from DCML-style TSV files.
 
     Wraps ms3.load_tsv to load standard tabular data.
-    Returns a ScoreBundle with category-specific stores.
+    Returns a ScoreStore with category-specific data.
 
     TSV columns (notes.tsv gold standard):
     - mc, mn: Measure count/number
@@ -45,14 +45,14 @@ class TSVLoader(ScoreLoader):
     - tied, gracenote, chord_id: Note attributes
     """
 
-    def _load_source(self, source: Path) -> ScoreBundle:
-        """Load TSV file(s) and return ScoreBundle.
+    def _load_source(self, source: Path) -> ScoreStore:
+        """Load TSV file(s) and return ScoreStore.
 
         Args:
             source: Path to TSV file or directory.
 
         Returns:
-            ScoreBundle with populated stores.
+            ScoreStore with populated data.
         """
         try:
             import ms3
@@ -71,7 +71,7 @@ class TSVLoader(ScoreLoader):
             # Default to notes if has pitch columns
             if "midi" in df.columns or "tpc" in df.columns:
                 return self._load_notes(df, source)
-            return ScoreBundle.empty()
+            return ScoreStore.empty()
 
     def _parse_fraction(self, val: Any) -> Fraction | None:
         """Parse fraction from TSV value (string like '3/4' or float)."""
@@ -91,12 +91,12 @@ class TSVLoader(ScoreLoader):
             return Fraction(val).limit_denominator(10000)
         return None
 
-    def _load_notes(self, df: pd.DataFrame, source: Path) -> ScoreBundle:
-        """Load notes TSV into NoteEventStore."""
+    def _load_notes(self, df: pd.DataFrame, source: Path) -> ScoreStore:
+        """Load notes TSV into NoteEventData."""
         import pandas as pd
 
         if df.empty:
-            return ScoreBundle.empty()
+            return ScoreStore.empty()
 
         note_rows = []
         has_rests = False
@@ -242,18 +242,18 @@ class TSVLoader(ScoreLoader):
                 }
             )
 
-        notes_store = NoteEventStore.from_dicts(
+        notes_data = NoteEventData.from_dicts(
             note_rows,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
             has_rests=has_rests,
         )
 
-        return ScoreBundle(
-            notes=notes_store,
-            measures=MeasureEventStore.empty(),
-            controls=ControlEventStore.empty(),
-            annotations=AnnotationEventStore.empty(),
+        return ScoreStore(
+            notes=notes_data,
+            measures=MeasureEventData.empty(),
+            controls=ControlEventData.empty(),
+            annotations=AnnotationEventData.empty(),
             metadata={
                 "format": "tsv",
                 "parser": "ms3",
@@ -262,7 +262,7 @@ class TSVLoader(ScoreLoader):
             },
         )
 
-    def _load_measures(self, df: pd.DataFrame, source: Path) -> ScoreBundle:
-        """Load measures TSV into MeasureEventStore."""
+    def _load_measures(self, df: pd.DataFrame, source: Path) -> ScoreStore:
+        """Load measures TSV into MeasureEventData."""
         # Placeholder - can be implemented similarly
-        return ScoreBundle.empty()
+        return ScoreStore.empty()

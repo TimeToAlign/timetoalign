@@ -1,4 +1,4 @@
-"""MeasureEventStore: Storage for measure boundary events."""
+"""MeasureEventData: Storage for measure boundary events."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader.store import EventStore
+from timetoalign.loader.store import EventData
 
 if TYPE_CHECKING:
     pass
 
 
-class MeasureEventStore(EventStore):
-    """EventStore for measure boundary events.
+class MeasureEventData(EventData):
+    """EventData for measure boundary events.
 
     Schema:
     - quarterbeats: Measure start in continuous logical time (Fraction)
@@ -49,7 +49,7 @@ class MeasureEventStore(EventStore):
         unit: TimeUnit = TimeUnit.quarters,
         number_type: NumberType = NumberType.float,
     ) -> Self:
-        """Create empty MeasureEventStore."""
+        """Create empty MeasureEventData."""
         return super().empty(unit, number_type)
 
     @classmethod

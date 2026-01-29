@@ -4,10 +4,15 @@ This package provides the infrastructure for loading music representations
 and storing events in efficient PyArrow tables.
 
 Classes:
-    EventStore: PyArrow-based bulk event storage.
-    EventBundle: Abstract base class for collections of EventStores.
-    SingleStoreBundle: Bundle wrapper for a single EventStore.
+    EventData: PyArrow-based bulk event storage.
+    EventStore: Abstract base class for collections of EventData.
+    SingleEventStore: Store wrapper for a single EventData.
     Loader: Abstract base class for file loaders.
+
+NOTE: Class naming was updated in the 2026-01 API refactoring:
+- EventStore -> EventData (PyArrow table storage)
+- EventBundle -> EventStore (container for EventData)
+- SingleStoreBundle -> SingleEventStore
 
 The package also exports schema utilities for working with coordinate
 structures and table metadata.
@@ -16,7 +21,7 @@ structures and table metadata.
 from __future__ import annotations
 
 from .base import Loader
-from .bundle import EventBundle, SingleStoreBundle
+from .bundle import EventStore, SingleEventStore
 from .schema import (
     TEMPORAL_TYPE_INSTANT,
     TEMPORAL_TYPE_INTERVAL,
@@ -31,13 +36,13 @@ from .schema import (
     parse_table_metadata,
     struct_to_coordinate,
 )
-from .store import EventStore
+from .store import EventData
 
 __all__ = [
     # Main classes
+    "EventData",
     "EventStore",
-    "EventBundle",
-    "SingleStoreBundle",
+    "SingleEventStore",
     "Loader",
     # Schema utilities
     "make_coordinate_type",

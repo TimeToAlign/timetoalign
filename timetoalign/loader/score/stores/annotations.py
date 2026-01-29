@@ -1,4 +1,4 @@
-"""AnnotationEventStore: Storage for text annotations and directions."""
+"""AnnotationEventData: Storage for text annotations and directions."""
 
 from __future__ import annotations
 
@@ -9,14 +9,14 @@ from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import make_fraction_field
-from timetoalign.loader.store import EventStore
+from timetoalign.loader.store import EventData
 
 if TYPE_CHECKING:
     pass
 
 
-class AnnotationEventStore(EventStore):
-    """EventStore for text annotations.
+class AnnotationEventData(EventData):
+    """EventData for text annotations.
 
     Subtypes include:
     - TextBox: Free text annotations
@@ -52,7 +52,7 @@ class AnnotationEventStore(EventStore):
         unit: TimeUnit = TimeUnit.quarters,
         number_type: NumberType = NumberType.float,
     ) -> Self:
-        """Create empty AnnotationEventStore."""
+        """Create empty AnnotationEventData."""
         return super().empty(unit, number_type)
 
     @classmethod

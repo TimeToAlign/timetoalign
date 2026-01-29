@@ -1,8 +1,12 @@
-"""EventStore: PyArrow-based bulk event storage for TimeToAlign!
+"""EventData: PyArrow-based bulk event storage for TimeToAlign!
 
-This module provides the EventStore class which stores events in a PyArrow table
+This module provides the EventData class which stores events in a PyArrow table
 with efficient columnar operations. Events are NOT wrapped in Python objects -
 they are rows in the table.
+
+NOTE: This class was renamed from EventStore to EventData in the 2026-01 API
+refactoring. EventStore now refers to the container class (formerly EventBundle)
+that holds one or more EventData tables.
 
 Design principles:
 - Bulk operations are the primary API (from_dicts, from_arrays, from_dataframe)
@@ -38,10 +42,10 @@ if TYPE_CHECKING:
     from timetoalign.timelines.base import Timeline
 
 
-class EventStore:
+class EventData:
     """PyArrow-based storage for timeline events.
 
-    EventStore wraps a PyArrow table containing events. Events are rows in the
+    EventData wraps a PyArrow table containing events. Events are rows in the
     table, not Python wrapper objects. The primary API is bulk operations:
 
     - from_dicts(): Create from list of row dictionaries
@@ -51,19 +55,23 @@ class EventStore:
     The schema is fixed at class definition time but can be extended by
     subclasses to add domain-specific columns (e.g., pitch, velocity for notes).
 
+    NOTE: This class was renamed from EventStore to EventData in the 2026-01 API
+    refactoring. EventStore now refers to the container class (formerly EventBundle)
+    that holds one or more EventData tables.
+
     Attributes:
         table: The underlying PyArrow table.
         unit: The time unit for all coordinates.
         number_type: The number type used for coordinates.
 
     Examples:
-        >>> store = EventStore.from_dicts([
+        >>> data = EventData.from_dicts([
         ...     {"id": "e1", "temporal_type": "instant", "event_type": "Beat",
         ...      "instant": 0.0},
         ...     {"id": "e2", "temporal_type": "interval", "event_type": "Note",
         ...      "start": 0.0, "end": 1.0},
         ... ], unit=TimeUnit.seconds)
-        >>> len(store)
+        >>> len(data)
         2
     """
 
@@ -76,7 +84,7 @@ class EventStore:
         unit: TimeUnit,
         number_type: NumberType = NumberType.float,
     ) -> None:
-        """Initialize EventStore with an existing table.
+        """Initialize EventData with an existing table.
 
         Use class methods (from_dicts, from_arrays, etc.) to create instances.
 
@@ -93,7 +101,7 @@ class EventStore:
 
     @classmethod
     def schema(cls, unit: TimeUnit) -> pa.Schema:
-        """Get the PyArrow schema for this EventStore class.
+        """Get the PyArrow schema for this EventData class.
 
         Args:
             unit: The time unit for coordinate columns.
@@ -108,7 +116,7 @@ class EventStore:
 
     @classmethod
     def column_names(cls) -> list[str]:
-        """Get the list of column names for this EventStore class.
+        """Get the list of column names for this EventData class.
 
         Returns:
             List of all column names (base + extra).
@@ -123,14 +131,14 @@ class EventStore:
 
     @classmethod
     def empty(cls, unit: TimeUnit, number_type: NumberType = NumberType.float) -> Self:
-        """Create an empty EventStore.
+        """Create an empty EventData.
 
         Args:
             unit: The time unit for coordinates.
             number_type: The number type for coordinates.
 
         Returns:
-            An empty EventStore with the appropriate schema.
+            An empty EventData with the appropriate schema.
         """
         schema = cls.schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
@@ -145,7 +153,7 @@ class EventStore:
         unit: TimeUnit,
         number_type: NumberType = NumberType.float,
     ) -> Self:
-        """Create EventStore from a list of row dictionaries.
+        """Create EventData from a list of row dictionaries.
 
         Coordinate values (instant, start, end, duration) are automatically
         converted to the internal struct format.
@@ -161,10 +169,10 @@ class EventStore:
             number_type: The number type for coordinates.
 
         Returns:
-            A new EventStore containing the events.
+            A new EventData containing the events.
 
         Examples:
-            >>> store = EventStore.from_dicts([
+            >>> data = EventData.from_dicts([
             ...     {"id": "e1", "temporal_type": "instant",
             ...      "event_type": "Beat", "instant": 0},
             ... ], unit=TimeUnit.ticks)
@@ -209,7 +217,7 @@ class EventStore:
         unit: TimeUnit,
         number_type: NumberType = NumberType.float,
     ) -> Self:
-        """Create EventStore from column-oriented arrays.
+        """Create EventData from column-oriented arrays.
 
         This is the most efficient creation method as it matches PyArrow's
         native columnar format.
@@ -221,10 +229,10 @@ class EventStore:
             number_type: The number type for coordinates.
 
         Returns:
-            A new EventStore containing the events.
+            A new EventData containing the events.
 
         Examples:
-            >>> store = EventStore.from_arrays({
+            >>> data = EventData.from_arrays({
             ...     "id": ["e1", "e2"],
             ...     "temporal_type": ["instant", "instant"],
             ...     "event_type": ["Beat", "Beat"],
@@ -274,7 +282,7 @@ class EventStore:
         unit: TimeUnit,
         number_type: NumberType = NumberType.float,
     ) -> Self:
-        """Create EventStore from a pandas DataFrame.
+        """Create EventData from a pandas DataFrame.
 
         Args:
             df: DataFrame with event data. Column names should match the schema.
@@ -282,7 +290,7 @@ class EventStore:
             number_type: The number type for coordinates.
 
         Returns:
-            A new EventStore containing the events.
+            A new EventData containing the events.
         """
         if df.empty:
             return cls.empty(unit, number_type)
@@ -291,13 +299,13 @@ class EventStore:
 
     @classmethod
     def from_parquet(cls, path: Path | str) -> Self:
-        """Load EventStore from a Parquet file.
+        """Load EventData from a Parquet file.
 
         Args:
             path: Path to the Parquet file.
 
         Returns:
-            An EventStore loaded from the file.
+            An EventData loaded from the file.
 
         Raises:
             ValueError: If the file lacks required TimeToAlign! metadata.
@@ -362,11 +370,11 @@ class EventStore:
 
     # region Extend/Merge
 
-    def extend(self, other: EventStore) -> None:
-        """Extend this store with events from another store (in-place).
+    def extend(self, other: "EventData") -> None:
+        """Extend this data with events from another EventData (in-place).
 
         Args:
-            other: Another EventStore with compatible schema.
+            other: Another EventData with compatible schema.
 
         Raises:
             ValueError: If units don't match.
@@ -376,14 +384,14 @@ class EventStore:
 
         self._table = pa.concat_tables([self._table, other._table])
 
-    def concat(self, *others: EventStore) -> EventStore:
-        """Concatenate with other stores, returning a new store.
+    def concat(self, *others: "EventData") -> "EventData":
+        """Concatenate with other EventData, returning a new EventData.
 
         Args:
-            *others: Other EventStores to concatenate.
+            *others: Other EventData to concatenate.
 
         Returns:
-            A new EventStore containing all events.
+            A new EventData containing all events.
 
         Raises:
             ValueError: If any units don't match.
@@ -409,8 +417,8 @@ class EventStore:
         min_coord: float | None = None,
         max_coord: float | None = None,
         **kwargs: Any,
-    ) -> EventStore:
-        """Filter events by criteria, returning a new EventStore.
+    ) -> "EventData":
+        """Filter events by criteria, returning a new EventData.
 
         All criteria are AND-ed together.
 
@@ -422,7 +430,7 @@ class EventStore:
             **kwargs: Exact match filters for other columns (e.g. event_category="note").
 
         Returns:
-            A new EventStore with filtered events.
+            A new EventData with filtered events.
         """
         mask = None
 
@@ -471,14 +479,14 @@ class EventStore:
         """
         return self._table.select(columns)
 
-    def where(self, expression: pc.Expression) -> EventStore:
+    def where(self, expression: pc.Expression) -> "EventData":
         """Filter with a custom PyArrow compute expression.
 
         Args:
             expression: A PyArrow compute expression.
 
         Returns:
-            A new EventStore with filtered events.
+            A new EventData with filtered events.
         """
         filtered = self._table.filter(expression)
         return self.__class__(filtered, self.unit, self.number_type)
@@ -572,11 +580,11 @@ class EventStore:
         uid: str | None = None,
         filters: dict[str, Any] | None = None,
     ) -> "Timeline":
-        """Create a Timeline from this EventStore.
+        """Create a Timeline from this EventData.
 
-        This is a convenience method that creates a timeline with the store's
+        This is a convenience method that creates a timeline with the data's
         events directly. The timeline class and number_type are inferred from
-        the store's unit (e.g., ticks -> DiscreteLogicalTimeline with int).
+        the data's unit (e.g., ticks -> DiscreteLogicalTimeline with int).
 
         Args:
             uid: Unique ID for the timeline. Auto-generated if None.
@@ -587,8 +595,8 @@ class EventStore:
             A Timeline containing the (filtered) events.
 
         Examples:
-            >>> timeline = store.to_timeline(uid="notes")
-            >>> filtered = store.to_timeline(filters={"event_type": "Note"})
+            >>> timeline = data.to_timeline(uid="notes")
+            >>> filtered = data.to_timeline(filters={"event_type": "Note"})
         """
         from timetoalign.timelines.factory import _infer_timeline_class_and_number_type
 
@@ -613,7 +621,7 @@ class EventStore:
     # region Serialization
 
     def to_parquet(self, path: Path | str) -> None:
-        """Save the EventStore to a Parquet file.
+        """Save the EventData to a Parquet file.
 
         Args:
             path: Path to write the Parquet file.

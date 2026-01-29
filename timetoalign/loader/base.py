@@ -2,14 +2,14 @@
 
 A Loader orchestrates:
 - Loading one or more source files
-- Aggregating events into an EventStore
+- Aggregating events into an EventData
 - Storing file/source metadata
 - Future: C-maps, Matches
 
 Design principles:
 - Multi-source: One Loader can aggregate multiple files
 - Metadata in table: Deterministic, stored in PyArrow schema metadata
-- Delegation: Stats/queries delegate to EventStore
+- Delegation: Stats/queries delegate to EventData
 - Subclassable: Domain-specific loaders (MidiLoader, etc.) extend this
 """
 
@@ -24,17 +24,17 @@ from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
 
-from .store import EventStore
+from .store import EventData
 
 if TYPE_CHECKING:
-    from timetoalign.loader.bundle import EventBundle
+    from timetoalign.loader.bundle import EventStore
 
 
 class Loader(ABC):
     """Abstract base class for loading music representations.
 
     Loader provides a unified interface for loading one or more source files
-    and aggregating their events into an EventStore. Metadata about the sources
+    and aggregating their events into an EventData. Metadata about the sources
     is stored in the PyArrow table's schema metadata for determinism.
 
     Subclasses must implement:
@@ -42,7 +42,7 @@ class Loader(ABC):
     - _default_unit: The default time unit for this loader type
 
     Attributes:
-        events: The EventStore containing all loaded events.
+        events: The EventData containing all loaded events.
         sources: List of loaded source file paths.
         unit: The time unit for coordinates.
         number_type: The number type for coordinates.
@@ -51,7 +51,7 @@ class Loader(ABC):
         >>> # Subclass implementation
         >>> class MidiLoader(Loader):
         ...     _default_unit = TimeUnit.ticks
-        ...     _event_store_class = EventStore
+        ...     _event_data_class = EventData
         ...
         ...     def _load_source(self, path):
         ...         # Parse MIDI file, return (metadata_dict, event_rows)
@@ -64,7 +64,7 @@ class Loader(ABC):
 
     # Class-level configuration (subclasses override)
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
-    _event_store_class: ClassVar[type[EventStore]] = EventStore
+    _event_data_class: ClassVar[type[EventData]] = EventData
 
     def __init__(
         self,
@@ -81,7 +81,7 @@ class Loader(ABC):
         self._number_type = number_type
         self._sources: list[Path] = []
         self._source_metadata: list[dict[str, Any]] = []
-        self._events: EventStore = self._event_store_class.empty(
+        self._events: EventData = self._event_data_class.empty(
             self._unit, self._number_type
         )
 
@@ -99,7 +99,7 @@ class Loader(ABC):
         Returns:
             A tuple of (metadata_dict, event_rows):
             - metadata_dict: File-specific metadata (format, duration, etc.)
-            - event_rows: List of event dictionaries ready for EventStore
+            - event_rows: List of event dictionaries ready for EventData
 
         Raises:
             FileNotFoundError: If the source file doesn't exist.
@@ -112,8 +112,8 @@ class Loader(ABC):
     # region Properties
 
     @property
-    def events(self) -> EventStore:
-        """The EventStore containing all loaded events."""
+    def events(self) -> EventData:
+        """The EventData containing all loaded events."""
         return self._events
 
     @property
@@ -147,19 +147,19 @@ class Loader(ABC):
         }
 
     @property
-    def bundle(self) -> "EventBundle":
-        """Return an EventBundle wrapping the loader's events.
+    def store(self) -> "EventStore":
+        """Return an EventStore wrapping the loader's events.
 
-        Subclasses may override to return specialized bundles
-        (e.g., ScoreBundle, MidiBundle). Default implementation
-        wraps self.events in a SingleStoreBundle.
+        Subclasses may override to return specialized stores
+        (e.g., ScoreStore, MidiStore). Default implementation
+        wraps self.events in a SingleEventStore.
 
         Returns:
-            An EventBundle providing uniform access to loaded data.
+            An EventStore providing uniform access to loaded data.
         """
-        from timetoalign.loader.bundle import SingleStoreBundle
+        from timetoalign.loader.bundle import SingleEventStore
 
-        return SingleStoreBundle(self._events, name="events")
+        return SingleEventStore(self._events, name="events")
 
     # endregion
 
@@ -168,7 +168,7 @@ class Loader(ABC):
     def load(self, *sources: Path | str) -> Self:
         """Load one or more source files.
 
-        Events from all sources are aggregated into the EventStore.
+        Events from all sources are aggregated into the EventData.
         Metadata for each source is recorded separately.
 
         Args:
@@ -197,10 +197,10 @@ class Loader(ABC):
 
             # Add events
             if event_rows:
-                new_store = self._event_store_class.from_dicts(
+                new_data = self._event_data_class.from_dicts(
                     event_rows, self._unit, self._number_type
                 )
-                self._events.extend(new_store)
+                self._events.extend(new_data)
 
         return self
 
@@ -208,11 +208,11 @@ class Loader(ABC):
         """Clear all loaded sources and events."""
         self._sources.clear()
         self._source_metadata.clear()
-        self._events = self._event_store_class.empty(self._unit, self._number_type)
+        self._events = self._event_data_class.empty(self._unit, self._number_type)
 
     # endregion
 
-    # region Stats (delegated to EventStore)
+    # region Stats (delegated to EventData)
 
     def event_summary(self) -> dict[str, Any]:
         """Get a summary of loaded events.
@@ -275,7 +275,7 @@ class Loader(ABC):
     def from_parquet(cls, path: Path | str) -> Self:
         """Load a Loader from a Parquet file.
 
-        Note: This creates a new Loader with the EventStore loaded,
+        Note: This creates a new Loader with the EventData loaded,
         but source paths may not be accessible for re-loading.
 
         Args:
@@ -284,7 +284,7 @@ class Loader(ABC):
         Returns:
             A new Loader with events loaded from the file.
         """
-        events = cls._event_store_class.from_parquet(path)
+        events = cls._event_data_class.from_parquet(path)
         loader = cls.__new__(cls)
         loader._unit = events.unit
         loader._number_type = events.number_type

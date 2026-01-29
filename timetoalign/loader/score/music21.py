@@ -12,19 +12,19 @@ from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import fraction_to_struct
 
 from .base import ScoreLoader
-from .bundle import ScoreBundle
+from .bundle import ScoreStore
 from .stores import (
-    AnnotationEventStore,
-    ControlEventStore,
-    MeasureEventStore,
-    NoteEventStore,
+    AnnotationEventData,
+    ControlEventData,
+    MeasureEventData,
+    NoteEventData,
 )
 
 
 class Music21Loader(ScoreLoader):
     """Load symbolic scores using music21.
 
-    Returns ScoreBundle with category-specific stores.
+    Returns ScoreStore with category-specific data.
     Uses recursive element parsing to extract:
     - Notes/Rests (with chord expansion)
     - Measures (structure)
@@ -32,8 +32,8 @@ class Music21Loader(ScoreLoader):
     - Annotations (text)
     """
 
-    def _load_source(self, source: Path) -> ScoreBundle:
-        """Load score and return ScoreBundle."""
+    def _load_source(self, source: Path) -> ScoreStore:
+        """Load score and return ScoreStore."""
         score = m21.converter.parse(str(source), forceSource=True)
 
         note_rows = []
@@ -211,49 +211,49 @@ class Music21Loader(ScoreLoader):
                         }
                     )
 
-        # Build stores
-        notes_store = NoteEventStore.from_dicts(
+        # Build data
+        notes_data = NoteEventData.from_dicts(
             note_rows,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
             has_rests=has_rests,
         )
 
-        measures_store = (
-            MeasureEventStore.from_dicts(
+        measures_data = (
+            MeasureEventData.from_dicts(
                 measure_rows,
                 unit=TimeUnit.quarters,
                 number_type=NumberType.fraction,
             )
             if measure_rows
-            else MeasureEventStore.empty()
+            else MeasureEventData.empty()
         )
 
-        controls_store = (
-            ControlEventStore.from_dicts(
+        controls_data = (
+            ControlEventData.from_dicts(
                 control_rows,
                 unit=TimeUnit.quarters,
                 number_type=NumberType.fraction,
             )
             if control_rows
-            else ControlEventStore.empty()
+            else ControlEventData.empty()
         )
 
-        annotations_store = (
-            AnnotationEventStore.from_dicts(
+        annotations_data = (
+            AnnotationEventData.from_dicts(
                 annotation_rows,
                 unit=TimeUnit.quarters,
                 number_type=NumberType.fraction,
             )
             if annotation_rows
-            else AnnotationEventStore.empty()
+            else AnnotationEventData.empty()
         )
 
-        return ScoreBundle(
-            notes=notes_store,
-            measures=measures_store,
-            controls=controls_store,
-            annotations=annotations_store,
+        return ScoreStore(
+            notes=notes_data,
+            measures=measures_data,
+            controls=controls_data,
+            annotations=annotations_data,
             metadata={
                 "format": "score",
                 "parser": "music21",

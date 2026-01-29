@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from .bundle import ScoreBundle
+from .bundle import ScoreStore
 from .music21 import Music21Loader
 from .partitura import PartituraLoader
-from .store import ScoreEventStore, ScoreEventType
+from .store import ScoreEventData, ScoreEventType
 
 __all__ = [
     "Music21Loader",
     "PartituraLoader",
-    "ScoreBundle",
-    "ScoreEventStore",
+    "ScoreStore",
+    "ScoreEventData",
     "ScoreEventType",
 ]

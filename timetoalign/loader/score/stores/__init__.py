@@ -1,15 +1,15 @@
-"""Stores package for category-specific EventStores."""
+"""Stores package for category-specific EventData classes."""
 
 from __future__ import annotations
 
-from .annotations import AnnotationEventStore
-from .controls import ControlEventStore
-from .measures import MeasureEventStore
-from .notes import NoteEventStore
+from .annotations import AnnotationEventData
+from .controls import ControlEventData
+from .measures import MeasureEventData
+from .notes import NoteEventData
 
 __all__ = [
-    "NoteEventStore",
-    "MeasureEventStore",
-    "ControlEventStore",
-    "AnnotationEventStore",
+    "NoteEventData",
+    "MeasureEventData",
+    "ControlEventData",
+    "AnnotationEventData",
 ]

@@ -31,16 +31,19 @@ from timetoalign.alignment import (
 )
 from timetoalign.core import (
     Coordinate,
+    CoordinateSpec,
     CoordinateValue,
+    CoordinateWithTimeline,
     Domain,
     EventType,
+    IdCoordinate,
     IdGenerator,
     NumberType,
     OptionalCoordinate,
     ScopedId,
     TimeUnit,
 )
-from timetoalign.loader import EventStore, Loader
+from timetoalign.loader import EventData, EventStore, Loader, SingleEventStore
 from timetoalign.maps import (
     ChainMap,
     ConversionMap,
@@ -75,13 +78,18 @@ __all__ = [
     "EventType",
     # Types
     "Coordinate",
+    "IdCoordinate",
     "CoordinateValue",
+    "CoordinateSpec",
+    "CoordinateWithTimeline",
     "OptionalCoordinate",
     # IDs
     "ScopedId",
     "IdGenerator",
     # Loader
+    "EventData",
     "EventStore",
+    "SingleEventStore",
     "Loader",
     # Timelines
     "Timeline",
