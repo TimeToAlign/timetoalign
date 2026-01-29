@@ -1,6 +1,6 @@
-"""GraphicalBundle for graphical timelines.
+"""GraphicalStore for graphical timelines.
 
-The bundle combines image sources, segments, and events into a
+The store combines image sources, segments, and events into a
 cohesive unit for graphical timeline processing and visualization.
 """
 
@@ -21,8 +21,8 @@ module_logger = logging.getLogger(__name__)
 
 
 @dataclass
-class GraphicalBundle:
-    """Bundle for graphical timeline data.
+class GraphicalStore:
+    """Store for graphical timeline data.
 
     Combines:
     - Image sources (one or more)
@@ -30,7 +30,7 @@ class GraphicalBundle:
     - Optional events with pixel coordinates
     - Visualization methods
 
-    The bundle provides:
+    The store provides:
     - Coordinate conversion between timeline and image space
     - Segment lookup by coordinate
     - Drawing utilities for visualization
@@ -43,10 +43,10 @@ class GraphicalBundle:
         metadata: Additional metadata dictionary.
 
     Examples:
-        >>> bundle = GraphicalBundle(sources=[src1, src2], segments=[seg1, seg2])
-        >>> bundle.total_length
+        >>> store = GraphicalStore(sources=[src1, src2], segments=[seg1, seg2])
+        >>> store.total_length
         1000.0
-        >>> source_idx, (x, y) = bundle.timeline_to_image(500.0)
+        >>> source_idx, (x, y) = store.timeline_to_image(500.0)
     """
 
     sources: list[ImageSource] = field(default_factory=list)
@@ -56,7 +56,7 @@ class GraphicalBundle:
 
     def __post_init__(self) -> None:
         """Validate and sort segments."""
-        self._logger = module_logger.getChild("GraphicalBundle")
+        self._logger = module_logger.getChild("GraphicalStore")
         # Sort segments by timeline offset
         self.segments = sorted(self.segments, key=lambda s: s.timeline_offset)
 
@@ -355,7 +355,7 @@ class GraphicalBundle:
 
     def __repr__(self) -> str:
         return (
-            f"GraphicalBundle(sources={len(self.sources)}, "
+            f"GraphicalStore(sources={len(self.sources)}, "
             f"segments={len(self.segments)}, "
             f"length={self.total_length:.1f})"
         )

@@ -1,4 +1,4 @@
-"""MidiEventStore: Specialized EventStore for MIDI data."""
+"""MidiEventData: Specialized EventData for MIDI data."""
 
 from __future__ import annotations
 
@@ -6,13 +6,13 @@ from typing import ClassVar
 
 import pyarrow as pa
 
-from timetoalign.loader.store import EventStore
+from timetoalign.loader.store import EventData
 
 
-class MidiEventStore(EventStore):
-    """EventStore for MIDI events (notes, control changes, program changes).
+class MidiEventData(EventData):
+    """EventData for MIDI events (notes, control changes, program changes).
 
-    This store harmonizes fields from both performance MIDI (mido) and
+    This data class harmonizes fields from both performance MIDI (mido) and
     score MIDI (partitura) into a single schema. Score-specific fields
     like voice, staff, and part_id are nullable.
     """

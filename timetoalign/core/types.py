@@ -1,7 +1,12 @@
 """Core type definitions for the TTA model.
 
-This module defines the Coordinate dataclass, the fundamental
-building block for representing positions on timelines.
+This module defines the Coordinate dataclass and IdCoordinate, the fundamental
+building blocks for representing positions on timelines.
+
+Coordinate Specification Hierarchy:
+- Least specific: Just a number (int, float, Fraction) - function may guess unit/timeline
+- More specific: A Coordinate (has value + unit) - function may guess timeline
+- Most specific: An IdCoordinate (has value + unit + timeline_id) - fully specified
 """
 
 from __future__ import annotations
@@ -17,6 +22,15 @@ CoordinateValue = Union[int, float, Fraction]
 
 # Type alias for optional coordinates (common pattern)
 OptionalCoordinate = Union["Coordinate", None]
+
+# Type aliases for flexible coordinate specification (layered API)
+# NOTE: These are defined after IdCoordinate class below, but documented here for clarity.
+# - int/float/Fraction: Just a number, function guesses unit and timeline
+# - Coordinate: Has value and unit, function guesses timeline
+# - IdCoordinate: Fully specified with timeline_id
+
+# NOTE: CoordinateSpec and CoordinateWithTimeline type aliases are defined at end of file
+# after IdCoordinate class to avoid forward reference issues.
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,3 +241,154 @@ class Coordinate:
         This is for reinterpretation only (e.g., aliasing units).
         """
         return Coordinate(self.value, new_unit)
+
+    def with_timeline(self, timeline_id: str) -> "IdCoordinate":
+        """Return an IdCoordinate with the same value and unit, plus a timeline ID.
+
+        Args:
+            timeline_id: The ID of the timeline this coordinate belongs to.
+
+        Returns:
+            An IdCoordinate that carries the timeline reference.
+        """
+        return IdCoordinate(self.value, self.unit, timeline_id)
+
+
+@dataclass(frozen=True, slots=True)
+class IdCoordinate(Coordinate):
+    """A Coordinate that carries the ID of the timeline it belongs to.
+
+    IdCoordinate extends Coordinate with a timeline_id field, providing
+    the most specific form of coordinate specification. This enables
+    unambiguous coordinate operations across multiple timelines.
+
+    The layered coordinate specification API:
+    - Least specific: Just a number (int, float, Fraction)
+    - More specific: A Coordinate (value + unit)
+    - Most specific: An IdCoordinate (value + unit + timeline_id)
+
+    Attributes:
+        value: The numeric position (int, float, or Fraction)
+        unit: The time unit (e.g., seconds, quarters, pixels)
+        timeline_id: The unique identifier of the timeline this coordinate belongs to
+
+    Examples:
+        >>> c = IdCoordinate(120, TimeUnit.ticks, "midi:1")
+        >>> c.timeline_id
+        'midi:1'
+
+        >>> # Create from existing Coordinate
+        >>> coord = Coordinate(1.5, TimeUnit.seconds)
+        >>> id_coord = coord.with_timeline("audio:1")
+        >>> id_coord.timeline_id
+        'audio:1'
+
+        >>> # Downcast to Coordinate (drops timeline_id)
+        >>> base_coord = id_coord.to_coordinate()
+        >>> isinstance(base_coord, IdCoordinate)
+        False
+    """
+
+    timeline_id: str
+
+    def __post_init__(self) -> None:
+        # Call parent validation
+        super().__post_init__()
+        # Validate timeline_id
+        if not isinstance(self.timeline_id, str):
+            raise TypeError(
+                f"timeline_id must be a string, got {type(self.timeline_id).__name__}"
+            )
+        if not self.timeline_id:
+            raise ValueError("timeline_id cannot be empty")
+
+    # --- Factory methods ---
+
+    @classmethod
+    def from_coordinate(cls, coord: Coordinate, timeline_id: str) -> "IdCoordinate":
+        """Create an IdCoordinate from a Coordinate and timeline ID.
+
+        Args:
+            coord: The base Coordinate.
+            timeline_id: The timeline ID to attach.
+
+        Returns:
+            A new IdCoordinate.
+        """
+        return cls(coord.value, coord.unit, timeline_id)
+
+    def to_coordinate(self) -> Coordinate:
+        """Return a base Coordinate without the timeline_id.
+
+        Useful when you need to pass the coordinate to functions that
+        don't support IdCoordinate.
+
+        Returns:
+            A Coordinate with the same value and unit.
+        """
+        return Coordinate(self.value, self.unit)
+
+    # --- Override arithmetic to return IdCoordinate ---
+
+    def __add__(self, other: object) -> "IdCoordinate":
+        result = super().__add__(other)
+        return IdCoordinate(result.value, result.unit, self.timeline_id)
+
+    def __sub__(self, other: object) -> "IdCoordinate":
+        result = super().__sub__(other)
+        return IdCoordinate(result.value, result.unit, self.timeline_id)
+
+    def __mul__(self, scalar: object) -> "IdCoordinate":
+        result = super().__mul__(scalar)
+        return IdCoordinate(result.value, result.unit, self.timeline_id)
+
+    def __rmul__(self, scalar: object) -> "IdCoordinate":
+        return self.__mul__(scalar)
+
+    def __truediv__(self, scalar: object) -> "IdCoordinate":
+        result = super().__truediv__(scalar)
+        return IdCoordinate(result.value, result.unit, self.timeline_id)
+
+    def __floordiv__(self, scalar: object) -> "IdCoordinate":
+        result = super().__floordiv__(scalar)
+        return IdCoordinate(result.value, result.unit, self.timeline_id)
+
+    # --- Override factory methods ---
+
+    def with_value(self, new_value: CoordinateValue) -> "IdCoordinate":
+        """Return a new IdCoordinate with a different value but same unit and timeline."""
+        return IdCoordinate(new_value, self.unit, self.timeline_id)
+
+    def with_unit(self, new_unit: TimeUnit) -> "IdCoordinate":
+        """Return a new IdCoordinate with a different unit but same value and timeline.
+
+        Warning: This does NOT convert the value - use a ConversionMap for that.
+        """
+        return IdCoordinate(self.value, new_unit, self.timeline_id)
+
+    def with_timeline(self, timeline_id: str) -> "IdCoordinate":
+        """Return a new IdCoordinate with a different timeline_id."""
+        return IdCoordinate(self.value, self.unit, timeline_id)
+
+    # --- String representations ---
+
+    def __repr__(self) -> str:
+        return f"IdCoordinate({self.value!r}, {self.unit}, {self.timeline_id!r})"
+
+    def __str__(self) -> str:
+        return f"{self.value} {self.unit} @{self.timeline_id}"
+
+
+# Type aliases for flexible coordinate specification (layered API)
+# Defined after classes to avoid forward reference issues.
+
+# CoordinateSpec: Any form of coordinate specification
+# - int/float/Fraction: Just a number, function guesses unit and timeline
+# - Coordinate: Has value and unit, function guesses timeline
+# - IdCoordinate: Fully specified with timeline_id
+CoordinateSpec = Union[int, float, Fraction, Coordinate, IdCoordinate]
+
+# CoordinateWithTimeline: Coordinate specification with optional explicit timeline
+# - (coord, timeline_id): Tuple form for explicit timeline reference
+# - CoordinateSpec: Any of the coordinate types above
+CoordinateWithTimeline = Union[tuple[CoordinateSpec, str], CoordinateSpec]

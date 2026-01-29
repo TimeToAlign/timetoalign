@@ -1,10 +1,10 @@
 """Factory functions for creating Timelines from various sources.
 
 This module provides the `create_timeline` function and its helpers,
-enabling timeline creation from EventBundles, EventStores, and Loaders.
+enabling timeline creation from EventStores, EventData, and Loaders.
 
 Design principles:
-- Multiple entry points (EventStore.to_timeline, Bundle.to_timeline, create_timeline)
+- Multiple entry points (EventData.to_timeline, EventStore.to_timeline, create_timeline)
 - Children maintain their own 0-based coordinate systems
 - Parent length equals max of all child lengths
 """
@@ -17,8 +17,7 @@ from typing import TYPE_CHECKING, Any
 from timetoalign.core import Domain, NumberType, TimeUnit
 
 if TYPE_CHECKING:
-    from timetoalign.loader import EventStore, Loader
-    from timetoalign.loader.bundle import EventBundle
+    from timetoalign.loader import EventData, EventStore, Loader
     from timetoalign.timelines.base import Timeline
 
 module_logger = logging.getLogger(__name__)
@@ -36,7 +35,7 @@ def _infer_timeline_class_and_number_type(
 
     Args:
         unit: The time unit.
-        number_type: The number type from the EventStore.
+        number_type: The number type from the EventData.
 
     Returns:
         Tuple of (Timeline subclass, effective number_type).
@@ -95,110 +94,110 @@ def _infer_timeline_class(
 
 
 def create_timeline_from_bundle(
-    bundle: EventBundle,
+    store: "EventStore",
     uid: str | None = None,
     store_filters: dict[str, dict[str, Any]] | None = None,
     include_stores: list[str] | None = None,
     exclude_stores: list[str] | None = None,
     flatten: bool = False,
-) -> Timeline:
-    """Create a Timeline from an EventBundle.
+) -> "Timeline":
+    """Create a Timeline from an EventStore.
 
-    This is the core implementation called by EventBundle.to_timeline().
+    This is the core implementation called by EventStore.to_timeline().
 
     Args:
-        bundle: The source EventBundle.
+        store: The source EventStore (container for EventData).
         uid: Unique ID for the parent timeline. Auto-generated if None.
-        store_filters: Per-store filter kwargs to apply before adding.
+        store_filters: Per-data filter kwargs to apply before adding.
             Example: {"notes": {"event_type": "Note"}}
-        include_stores: Only include these stores (default: all non-empty).
-        exclude_stores: Exclude these stores.
+        include_stores: Only include these data (default: all non-empty).
+        exclude_stores: Exclude these data.
         flatten: If True, merge all events into parent timeline.
-            If False (default), each store becomes a child at offset 0.
+            If False (default), each data becomes a child at offset 0.
 
     Returns:
         A Timeline with the requested structure.
 
     Raises:
-        ValueError: If no stores remain after filtering, or all are empty.
+        ValueError: If no data remain after filtering, or all are empty.
     """
-    from timetoalign.loader.store import EventStore
+    from timetoalign.loader.store import EventData
 
     store_filters = store_filters or {}
     exclude_set = set(exclude_stores or [])
 
-    # Determine which stores to include
-    store_names = list(bundle.keys())
+    # Determine which data to include
+    data_names = list(store.keys())
     if include_stores is not None:
-        store_names = [n for n in store_names if n in include_stores]
-    store_names = [n for n in store_names if n not in exclude_set]
+        data_names = [n for n in data_names if n in include_stores]
+    data_names = [n for n in data_names if n not in exclude_set]
 
-    if not store_names:
-        raise ValueError("No stores to include after filtering")
+    if not data_names:
+        raise ValueError("No data to include after filtering")
 
-    # Collect stores (with filters applied), skip empty
-    stores_to_use: list[tuple[str, EventStore]] = []
-    for name in store_names:
-        store = bundle[name]
+    # Collect data (with filters applied), skip empty
+    data_to_use: list[tuple[str, EventData]] = []
+    for name in data_names:
+        data = store[name]
         if name in store_filters:
-            store = store.filter(**store_filters[name])
-        if len(store) > 0:
-            stores_to_use.append((name, store))
+            data = data.filter(**store_filters[name])
+        if len(data) > 0:
+            data_to_use.append((name, data))
 
-    if not stores_to_use:
-        raise ValueError("All stores are empty after filtering")
+    if not data_to_use:
+        raise ValueError("All data are empty after filtering")
 
-    # Infer timeline class and effective number_type from first store
-    first_name, first_store = stores_to_use[0]
+    # Infer timeline class and effective number_type from first data
+    first_name, first_data = data_to_use[0]
     timeline_class, effective_number_type = _infer_timeline_class_and_number_type(
-        first_store.unit, first_store.number_type
+        first_data.unit, first_data.number_type
     )
 
     if flatten:
         # Merge all events into single timeline
-        merged_store = first_store
-        for _, store in stores_to_use[1:]:
-            merged_store = merged_store.concat(store)
+        merged_data = first_data
+        for _, data in data_to_use[1:]:
+            merged_data = merged_data.concat(data)
         # Create timeline with corrected number_type
-        coord_range = merged_store.coordinate_range()
+        coord_range = merged_data.coordinate_range()
         length = coord_range[1] if coord_range else 0
         timeline = timeline_class(
             length=length,
-            unit=merged_store.unit,
+            unit=merged_data.unit,
             number_type=effective_number_type,
             uid=uid,
         )
-        timeline._events = merged_store
+        timeline._events = merged_data
         return timeline
 
     else:
         # Create parent with children at offset 0
         # Parent length = max of all child lengths
         max_length: float = 0.0
-        for _, store in stores_to_use:
-            coord_range = store.coordinate_range()
+        for _, data in data_to_use:
+            coord_range = data.coordinate_range()
             if coord_range:
                 max_length = max(max_length, coord_range[1])
 
         parent = timeline_class(
             length=max_length,
-            unit=first_store.unit,
+            unit=first_data.unit,
             number_type=effective_number_type,
             uid=uid,
         )
 
-        # Add each store as a child at offset 0
-        for name, store in stores_to_use:
+        # Add each data as a child at offset 0
+        for name, data in data_to_use:
             # Create child with corrected number_type
-            child_coord_range = store.coordinate_range()
+            child_coord_range = data.coordinate_range()
             child_length = child_coord_range[1] if child_coord_range else 0
             child = timeline_class(
                 length=child_length,
-                unit=store.unit,
+                unit=data.unit,
                 number_type=effective_number_type,
                 uid=name,
             )
-            child._events = store
+            child._events = data
             parent.add_child(child, offset=0, allow_expansion=True)
 
         module_logger.debug(
@@ -209,39 +208,39 @@ def create_timeline_from_bundle(
 
 
 def create_timeline(
-    source: EventBundle | EventStore | Loader,
+    source: "EventStore | EventData | Loader",
     uid: str | None = None,
     store_filters: dict[str, dict[str, Any]] | None = None,
     include_stores: list[str] | None = None,
     exclude_stores: list[str] | None = None,
     flatten: bool = False,
-) -> Timeline:
+) -> "Timeline":
     """Create a Timeline from various source types.
 
     This is the most flexible timeline creation API, supporting:
-    - EventBundle (ScoreBundle, MidiBundle, SingleStoreBundle)
-    - EventStore (creates single child timeline)
-    - Loader (uses loader.bundle)
+    - EventStore (ScoreStore, MidiStore, SingleEventStore)
+    - EventData (creates single child timeline)
+    - Loader (uses loader.store)
 
-    By default, each store in the source becomes a child timeline at offset 0,
+    By default, each data in the source becomes a child timeline at offset 0,
     maintaining its own 0-based coordinate system.
 
     Args:
-        source: The data source (EventBundle, EventStore, or Loader).
+        source: The data source (EventStore, EventData, or Loader).
         uid: Unique ID for the parent timeline. Auto-generated if None.
-        store_filters: Per-store filter kwargs to apply before adding.
+        store_filters: Per-data filter kwargs to apply before adding.
             Example: {"notes": {"event_type": "Note"}} to exclude rests.
-        include_stores: Only include these stores (default: all non-empty).
-        exclude_stores: Exclude these stores from the timeline.
+        include_stores: Only include these data (default: all non-empty).
+        exclude_stores: Exclude these data from the timeline.
         flatten: If True, merge all events into a single parent timeline.
-            If False (default), each store becomes a child at offset 0.
+            If False (default), each data becomes a child at offset 0.
 
     Returns:
         A Timeline with the requested structure.
 
     Raises:
         TypeError: If source is not a supported type.
-        ValueError: If no stores remain after filtering.
+        ValueError: If no data remain after filtering.
 
     Examples:
         >>> # From a loader (most common)
@@ -263,28 +262,28 @@ def create_timeline(
         >>> # Flattened (all events in one timeline)
         >>> timeline = create_timeline(loader, flatten=True)
 
-        >>> # From a single EventStore
-        >>> timeline = create_timeline(store, uid="my_events")
+        >>> # From a single EventData
+        >>> timeline = create_timeline(data, uid="my_events")
     """
     from timetoalign.loader.base import Loader
-    from timetoalign.loader.bundle import EventBundle, SingleStoreBundle
-    from timetoalign.loader.store import EventStore
+    from timetoalign.loader.bundle import EventStore, SingleEventStore
+    from timetoalign.loader.store import EventData
 
-    # Normalize to EventBundle
-    if isinstance(source, EventBundle):
-        bundle = source
-    elif isinstance(source, EventStore):
-        bundle = SingleStoreBundle(source, name="events")
+    # Normalize to EventStore
+    if isinstance(source, EventStore):
+        store = source
+    elif isinstance(source, EventData):
+        store = SingleEventStore(source, name="events")
     elif isinstance(source, Loader):
-        bundle = source.bundle
+        store = source.store
     else:
         raise TypeError(
-            f"source must be EventBundle, EventStore, or Loader, "
+            f"source must be EventStore, EventData, or Loader, "
             f"got {type(source).__name__}"
         )
 
     return create_timeline_from_bundle(
-        bundle,
+        store,
         uid=uid,
         store_filters=store_filters,
         include_stores=include_stores,

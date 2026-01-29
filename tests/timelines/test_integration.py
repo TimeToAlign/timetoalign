@@ -9,8 +9,8 @@ This module tests:
 Validity Rationale:
     The Timeline class must integrate seamlessly with the loader infrastructure.
     These tests verify:
-    1. Events from MidiEventStore can populate a DiscreteLogicalTimeline
-    2. Events from ScoreEventStore can populate a ContinuousLogicalTimeline
+    1. Events from MidiEventData can populate a DiscreteLogicalTimeline
+    2. Events from ScoreEventData can populate a ContinuousLogicalTimeline
     3. Multiple sources can be combined into a hierarchical timeline structure
     4. Real-world test data produces valid timelines with expected event counts
 """
@@ -34,7 +34,7 @@ from timetoalign.timelines import (
 # Try to import loaders (they may not all be available)
 try:
     from timetoalign.loader.midi import (
-        MidiEventStore,
+        MidiEventData,
         PerformanceMidiLoader,
         ScoreMidiLoader,
     )
@@ -53,26 +53,26 @@ MIDI_SCORE_DIR = TEST_DATA_DIR / "midi" / "score"
 # endregion
 
 
-# region EventStore Integration Tests
+# region EventData Integration Tests
 
 
-class TestEventStoreIntegration:
-    """Test Timeline integration with EventStore."""
+class TestEventDataIntegration:
+    """Test Timeline integration with EventData."""
 
-    def test_timeline_from_event_store_empty(self):
-        """Empty EventStore creates empty timeline."""
-        from timetoalign.loader import EventStore
+    def test_timeline_from_event_data_empty(self):
+        """Empty EventData creates empty timeline."""
+        from timetoalign.loader import EventData
 
-        store = EventStore.empty(TimeUnit.seconds, NumberType.float)
-        tl = Timeline.from_event_store(store)
+        data = EventData.empty(TimeUnit.seconds, NumberType.float)
+        tl = Timeline.from_event_store(data)
 
         assert tl.length.value == 0
         assert tl.n_events == 0
         assert tl.unit == TimeUnit.seconds
 
-    def test_timeline_from_event_store_with_events(self):
-        """EventStore with events creates populated timeline."""
-        from timetoalign.loader import EventStore
+    def test_timeline_from_event_data_with_events(self):
+        """EventData with events creates populated timeline."""
+        from timetoalign.loader import EventData
 
         events = [
             {
@@ -95,16 +95,16 @@ class TestEventStoreIntegration:
                 "end": 8.0,
             },
         ]
-        store = EventStore.from_dicts(events, TimeUnit.seconds, NumberType.float)
-        tl = Timeline.from_event_store(store)
+        data = EventData.from_dicts(events, TimeUnit.seconds, NumberType.float)
+        tl = Timeline.from_event_store(data)
 
         assert tl.length.value == 8.0  # Max end coordinate
         assert tl.n_events == 3
         assert tl.unit == TimeUnit.seconds
 
-    def test_timeline_preserves_event_store_unit(self):
-        """Timeline inherits unit from EventStore."""
-        from timetoalign.loader import EventStore
+    def test_timeline_preserves_event_data_unit(self):
+        """Timeline inherits unit from EventData."""
+        from timetoalign.loader import EventData
 
         events = [
             {
@@ -114,8 +114,8 @@ class TestEventStoreIntegration:
                 "instant": 480,
             },
         ]
-        store = EventStore.from_dicts(events, TimeUnit.ticks, NumberType.int)
-        tl = Timeline.from_event_store(store)
+        data = EventData.from_dicts(events, TimeUnit.ticks, NumberType.int)
+        tl = Timeline.from_event_store(data)
 
         assert tl.unit == TimeUnit.ticks
         assert tl.number_type == NumberType.int
@@ -131,8 +131,8 @@ class TestEventStoreIntegration:
 class TestMidiLoaderIntegration:
     """Test Timeline integration with MIDI loaders."""
 
-    def test_discrete_timeline_from_midi_store(self):
-        """DiscreteLogicalTimeline can hold MidiEventStore events."""
+    def test_discrete_timeline_from_midi_data(self):
+        """DiscreteLogicalTimeline can hold MidiEventData events."""
         # Create sample MIDI-like events
         events = [
             {
@@ -161,8 +161,8 @@ class TestMidiLoaderIntegration:
             },
         ]
 
-        store = MidiEventStore.from_dicts(events, TimeUnit.ticks, NumberType.int)
-        tl = DiscreteLogicalTimeline.from_event_store(store)
+        data = MidiEventData.from_dicts(events, TimeUnit.ticks, NumberType.int)
+        tl = DiscreteLogicalTimeline.from_event_store(data)
 
         assert tl.unit == TimeUnit.ticks
         assert tl.number_type == NumberType.int
@@ -244,11 +244,11 @@ class TestMidiLoaderIntegration:
 class TestScoreLoaderIntegration:
     """Test Timeline integration with Score loaders."""
 
-    def test_continuous_timeline_from_note_store(self):
-        """ContinuousLogicalTimeline can hold NoteEventStore events."""
-        from timetoalign.loader import EventStore
+    def test_continuous_timeline_from_note_data(self):
+        """ContinuousLogicalTimeline can hold NoteEventData events."""
+        from timetoalign.loader import EventData
 
-        # Create sample note events in quarter notes using base EventStore
+        # Create sample note events in quarter notes using base EventData
         events = [
             {
                 "id": "n1",
@@ -276,20 +276,20 @@ class TestScoreLoaderIntegration:
             },
         ]
 
-        store = EventStore.from_dicts(events, TimeUnit.quarters, NumberType.float)
-        tl = ContinuousLogicalTimeline.from_event_store(store)
+        data = EventData.from_dicts(events, TimeUnit.quarters, NumberType.float)
+        tl = ContinuousLogicalTimeline.from_event_store(data)
 
         assert tl.unit == TimeUnit.quarters
         assert tl.number_type == NumberType.float
         assert tl.length.value == 4.0  # Max end coordinate
         assert tl.n_events == 3
 
-    def test_timeline_from_score_bundle_combined(self):
-        """Create timeline containing all events from a ScoreBundle."""
-        from timetoalign.loader import EventStore
+    def test_timeline_from_score_store_combined(self):
+        """Create timeline containing all events from a ScoreStore."""
+        from timetoalign.loader import EventData
 
-        # Create a mock score data with events using base EventStore
-        notes = EventStore.from_dicts(
+        # Create a mock score data with events using base EventData
+        notes = EventData.from_dicts(
             [
                 {
                     "id": "n1",
@@ -316,7 +316,7 @@ class TestScoreLoaderIntegration:
             length=max_coord * 2, unit=TimeUnit.quarters, uid="score_parent"
         )
 
-        # Create child timeline from note store
+        # Create child timeline from note data
         notes_tl = ContinuousLogicalTimeline.from_event_store(notes, uid="notes")
         parent.add_child(notes_tl, offset=0.0)
 
@@ -503,9 +503,9 @@ class TestComplexHierarchy:
 class TestPerformanceIntegration:
     """Performance tests for loader integration."""
 
-    def test_large_event_store_to_timeline(self, profiler):
-        """Benchmark creating timeline from large EventStore."""
-        from timetoalign.loader import EventStore
+    def test_large_event_data_to_timeline(self, profiler):
+        """Benchmark creating timeline from large EventData."""
+        from timetoalign.loader import EventData
 
         n_events = 50000
         events = [
@@ -520,10 +520,10 @@ class TestPerformanceIntegration:
             for i in range(n_events)
         ]
 
-        store = EventStore.from_dicts(events, TimeUnit.seconds, NumberType.float)
+        data = EventData.from_dicts(events, TimeUnit.seconds, NumberType.float)
 
         start = time.perf_counter()
-        tl = Timeline.from_event_store(store)
+        tl = Timeline.from_event_store(data)
         elapsed = time.perf_counter() - start
 
         profiler.record("timeline_from_50k_events", elapsed)

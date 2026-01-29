@@ -40,7 +40,7 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from timetoalign.loader.score.bundle import ScoreBundle
+from timetoalign.loader.score.bundle import ScoreStore
 from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.tsv import TSVLoader
@@ -51,9 +51,9 @@ CHOPIN_XML = DATA_DIR / "chopin_op10_no3.musicxml"
 CHOPIN_TSV = MS3_DIR / "chopin_op10_no3.notes.tsv"
 
 
-def extract_notes_df(bundle: ScoreBundle, loader_name: str) -> pd.DataFrame:
+def extract_notes_df(store: ScoreStore, loader_name: str) -> pd.DataFrame:
     """Extract notes as sorted DataFrame with flattened struct columns."""
-    df = bundle.notes.to_dataframe()
+    df = store.notes.to_dataframe()
 
     # Filter to Notes only (exclude Rests for fair comparison)
     df = df[df["event_type"] == "Note"].reset_index(drop=True)
@@ -106,21 +106,21 @@ class MismatchExplanation:
 def gold_df():
     """Load TSV gold standard."""
     loader = TSVLoader().load(CHOPIN_TSV)
-    return extract_notes_df(loader.bundle, "TSV")
+    return extract_notes_df(loader.store, "TSV")
 
 
 @pytest.fixture
 def partitura_df():
     """Load Partitura MusicXML."""
     loader = PartituraLoader().load(CHOPIN_XML)
-    return extract_notes_df(loader.bundle, "Partitura")
+    return extract_notes_df(loader.store, "Partitura")
 
 
 @pytest.fixture
 def music21_df():
     """Load Music21 MusicXML."""
     loader = Music21Loader().load(CHOPIN_XML)
-    return extract_notes_df(loader.bundle, "Music21")
+    return extract_notes_df(loader.store, "Music21")
 
 
 class TestCrossValidationRationale:

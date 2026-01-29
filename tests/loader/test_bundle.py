@@ -1,7 +1,7 @@
-"""Tests for EventBundle ABC and SingleStoreBundle.
+"""Tests for EventStore ABC and SingleEventStore.
 
-This module tests the EventBundle protocol and the SingleStoreBundle wrapper
-that provides bundle interface for single-store loaders.
+This module tests the EventStore protocol and the SingleEventStore wrapper
+that provides store interface for single-store loaders.
 """
 
 from __future__ import annotations
@@ -9,36 +9,36 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.core import TimeUnit
-from timetoalign.loader import EventBundle, EventStore, SingleStoreBundle
+from timetoalign.loader import EventData, EventStore, SingleEventStore
 
 
-class TestEventBundleProtocol:
-    """Verify EventBundle ABC contract."""
+class TestEventStoreProtocol:
+    """Verify EventStore ABC contract."""
 
     def test_cannot_instantiate_abstract(self):
-        """EventBundle cannot be instantiated directly."""
+        """EventStore cannot be instantiated directly."""
         with pytest.raises(TypeError, match="abstract"):
-            EventBundle()  # type: ignore[abstract]
+            EventStore()  # type: ignore[abstract]
 
     def test_protocol_methods_required(self):
         """Subclasses must implement all abstract methods."""
 
         # Incomplete implementation should fail
-        class IncompleteBundle(EventBundle):
+        class IncompleteStore(EventStore):
             def __iter__(self):
                 yield None
 
         with pytest.raises(TypeError, match="abstract"):
-            IncompleteBundle()  # type: ignore[abstract]
+            IncompleteStore()  # type: ignore[abstract]
 
 
-class TestSingleStoreBundle:
-    """Tests for SingleStoreBundle wrapper."""
+class TestSingleEventStore:
+    """Tests for SingleEventStore wrapper."""
 
     @pytest.fixture
-    def sample_store(self) -> EventStore:
-        """Create a sample EventStore for testing."""
-        return EventStore.from_dicts(
+    def sample_data(self) -> EventData:
+        """Create a sample EventData for testing."""
+        return EventData.from_dicts(
             [
                 {
                     "id": "e1",
@@ -56,96 +56,96 @@ class TestSingleStoreBundle:
             unit=TimeUnit.ticks,
         )
 
-    def test_initialization(self, sample_store: EventStore):
-        """SingleStoreBundle initializes correctly."""
-        bundle = SingleStoreBundle(sample_store, name="beats")
+    def test_initialization(self, sample_data: EventData):
+        """SingleEventStore initializes correctly."""
+        single_store = SingleEventStore(sample_data, name="beats")
 
-        assert bundle.store is sample_store
-        assert bundle.name == "beats"
+        assert single_store.data is sample_data
+        assert single_store.name == "beats"
 
-    def test_default_name(self, sample_store: EventStore):
+    def test_default_name(self, sample_data: EventData):
         """Default name is 'events'."""
-        bundle = SingleStoreBundle(sample_store)
+        store = SingleEventStore(sample_data)
 
-        assert bundle.name == "events"
+        assert store.name == "events"
 
-    def test_iteration(self, sample_store: EventStore):
-        """Iteration yields the single store."""
-        bundle = SingleStoreBundle(sample_store, name="beats")
+    def test_iteration(self, sample_data: EventData):
+        """Iteration yields the single data."""
+        store = SingleEventStore(sample_data, name="beats")
 
-        stores = list(bundle)
+        data_items = list(store)
 
-        assert len(stores) == 1
-        assert stores[0] is sample_store
+        assert len(data_items) == 1
+        assert data_items[0] is sample_data
 
-    def test_items(self, sample_store: EventStore):
-        """items() yields (name, store) pairs."""
-        bundle = SingleStoreBundle(sample_store, name="beats")
+    def test_items(self, sample_data: EventData):
+        """items() yields (name, data) pairs."""
+        store = SingleEventStore(sample_data, name="beats")
 
-        items = list(bundle.items())
+        items = list(store.items())
 
         assert len(items) == 1
-        assert items[0] == ("beats", sample_store)
+        assert items[0] == ("beats", sample_data)
 
-    def test_keys(self, sample_store: EventStore):
-        """keys() returns tuple of store names."""
-        bundle = SingleStoreBundle(sample_store, name="beats")
+    def test_keys(self, sample_data: EventData):
+        """keys() returns tuple of data names."""
+        store = SingleEventStore(sample_data, name="beats")
 
-        assert bundle.keys() == ("beats",)
+        assert store.keys() == ("beats",)
 
-    def test_values(self, sample_store: EventStore):
-        """values() yields stores."""
-        bundle = SingleStoreBundle(sample_store, name="beats")
+    def test_values(self, sample_data: EventData):
+        """values() yields data objects."""
+        store = SingleEventStore(sample_data, name="beats")
 
-        values = list(bundle.values())
+        values = list(store.values())
 
         assert len(values) == 1
-        assert values[0] is sample_store
+        assert values[0] is sample_data
 
-    def test_getitem(self, sample_store: EventStore):
-        """Can access store by name."""
-        bundle = SingleStoreBundle(sample_store, name="beats")
+    def test_getitem(self, sample_data: EventData):
+        """Can access data by name."""
+        store = SingleEventStore(sample_data, name="beats")
 
-        assert bundle["beats"] is sample_store
+        assert store["beats"] is sample_data
 
-    def test_getitem_invalid_raises_keyerror(self, sample_store: EventStore):
+    def test_getitem_invalid_raises_keyerror(self, sample_data: EventData):
         """Invalid name raises KeyError."""
-        bundle = SingleStoreBundle(sample_store, name="beats")
+        store = SingleEventStore(sample_data, name="beats")
 
         with pytest.raises(KeyError, match="notes"):
-            _ = bundle["notes"]
+            _ = store["notes"]
 
-    def test_len(self, sample_store: EventStore):
+    def test_len(self, sample_data: EventData):
         """Length is always 1."""
-        bundle = SingleStoreBundle(sample_store, name="beats")
+        store = SingleEventStore(sample_data, name="beats")
 
-        assert len(bundle) == 1
+        assert len(store) == 1
 
-    def test_contains(self, sample_store: EventStore):
+    def test_contains(self, sample_data: EventData):
         """Membership check works."""
-        bundle = SingleStoreBundle(sample_store, name="beats")
+        store = SingleEventStore(sample_data, name="beats")
 
-        assert "beats" in bundle
-        assert "notes" not in bundle
+        assert "beats" in store
+        assert "notes" not in store
 
-    def test_repr(self, sample_store: EventStore):
+    def test_repr(self, sample_data: EventData):
         """repr includes name and count."""
-        bundle = SingleStoreBundle(sample_store, name="beats")
+        store = SingleEventStore(sample_data, name="beats")
 
-        repr_str = repr(bundle)
+        repr_str = repr(store)
 
-        assert "SingleStoreBundle" in repr_str
+        assert "SingleEventStore" in repr_str
         assert "beats" in repr_str
         assert "2" in repr_str  # 2 events
 
 
-class TestSingleStoreBundleToTimeline:
-    """Test timeline creation from SingleStoreBundle."""
+class TestSingleEventStoreToTimeline:
+    """Test timeline creation from SingleEventStore."""
 
     @pytest.fixture
-    def sample_store(self) -> EventStore:
-        """Create a sample EventStore for testing."""
-        return EventStore.from_dicts(
+    def sample_data(self) -> EventData:
+        """Create a sample EventData for testing."""
+        return EventData.from_dicts(
             [
                 {
                     "id": "n1",
@@ -165,40 +165,40 @@ class TestSingleStoreBundleToTimeline:
             unit=TimeUnit.ticks,
         )
 
-    def test_to_default_timeline_creates_child(self, sample_store: EventStore):
+    def test_to_default_timeline_creates_child(self, sample_data: EventData):
         """to_default_timeline creates parent with one child."""
-        bundle = SingleStoreBundle(sample_store, name="notes")
+        store = SingleEventStore(sample_data, name="notes")
 
-        timeline = bundle.to_default_timeline(uid="test")
+        timeline = store.to_default_timeline(uid="test")
 
         assert timeline.id == "test"
         assert timeline.n_children == 1
         assert "notes" in timeline
 
-    def test_child_has_correct_events(self, sample_store: EventStore):
-        """Child timeline contains the store's events."""
-        bundle = SingleStoreBundle(sample_store, name="notes")
+    def test_child_has_correct_events(self, sample_data: EventData):
+        """Child timeline contains the data's events."""
+        store = SingleEventStore(sample_data, name="notes")
 
-        timeline = bundle.to_default_timeline()
+        timeline = store.to_default_timeline()
         child = timeline.get_child("notes")
 
         # Exact count validation
         assert child.n_events == 2
 
-    def test_child_at_offset_zero(self, sample_store: EventStore):
+    def test_child_at_offset_zero(self, sample_data: EventData):
         """Child is embedded at offset 0."""
-        bundle = SingleStoreBundle(sample_store, name="notes")
+        store = SingleEventStore(sample_data, name="notes")
 
-        timeline = bundle.to_default_timeline()
+        timeline = store.to_default_timeline()
         offset = timeline.get_child_offset("notes")
 
         assert offset.value == 0
 
-    def test_flatten_mode_no_children(self, sample_store: EventStore):
+    def test_flatten_mode_no_children(self, sample_data: EventData):
         """flatten=True creates timeline without children."""
-        bundle = SingleStoreBundle(sample_store, name="notes")
+        store = SingleEventStore(sample_data, name="notes")
 
-        timeline = bundle.to_timeline(flatten=True)
+        timeline = store.to_timeline(flatten=True)
 
         assert timeline.n_children == 0
         assert timeline.n_events == 2

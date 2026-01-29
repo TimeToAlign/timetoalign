@@ -4,11 +4,11 @@ This directory contains tests and profiling scripts for the `timetoalign.loader.
 
 ## Architecture
 
-All score loaders return a `ScoreBundle` containing category-specific stores:
-- `NoteEventStore`: Notes, rests, chords
-- `MeasureEventStore`: Measure boundaries
-- `ControlEventStore`: Dynamics, tempo, signatures
-- `AnnotationEventStore`: Text annotations
+All score loaders return a `ScoreStore` containing category-specific data:
+- `NoteEventData`: Notes, rests, chords
+- `MeasureEventData`: Measure boundaries
+- `ControlEventData`: Dynamics, tempo, signatures
+- `AnnotationEventData`: Text annotations
 
 ## Testing Strategy
 
@@ -31,9 +31,9 @@ We load *Chopin Op. 10 No. 3* using three loaders and verify consistency:
 
 ### `test_loaders.py`
 Unit tests for each loader:
-- `test_partitura_loader_bundle`: Verify ScoreBundle structure
-- `test_music21_loader_bundle`: Verify ScoreBundle structure
-- `test_tsv_loader_bundle`: Verify ScoreBundle structure
+- `test_partitura_loader_store`: Verify ScoreStore structure
+- `test_music21_loader_store`: Verify ScoreStore structure
+- `test_tsv_loader_store`: Verify ScoreStore structure
 - `test_cross_validation_notes`: Compare note counts across loaders
 - `test_fraction_preservation`: Verify Fraction structs round-trip
 

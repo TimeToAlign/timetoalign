@@ -1,6 +1,6 @@
-"""ScoreEventStore: Storage for symbolic score events.
+"""ScoreEventData: Storage for symbolic score events.
 
-This module defines the ScoreEventStore, which extends EventStore with
+This module defines the ScoreEventData, which extends EventData with
 score-specific fields like pitch, measure numbers, and voices.
 """
 
@@ -12,7 +12,7 @@ import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader.store import EventStore
+from timetoalign.loader.store import EventData
 
 if TYPE_CHECKING:
     pass
@@ -77,8 +77,8 @@ def make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
     return midi_pitch, spelled_pitch
 
 
-class ScoreEventStore(EventStore):
-    """EventStore for symbolic music scores.
+class ScoreEventData(EventData):
+    """EventData for symbolic music scores.
 
     Adds fields for pitch, measures, and score structure.
 
@@ -117,7 +117,7 @@ class ScoreEventStore(EventStore):
         number_type: NumberType = NumberType.float,
         has_rests: bool | None = None,
     ) -> None:
-        """Initialize ScoreEventStore.
+        """Initialize ScoreEventData.
 
         Args:
             table: PyArrow table.
@@ -140,7 +140,7 @@ class ScoreEventStore(EventStore):
         number_type: NumberType = NumberType.float,
         has_rests: bool | None = None,
     ) -> Self:
-        """Create empty ScoreEventStore."""
+        """Create empty ScoreEventData."""
         store = super().empty(unit, number_type)
         store._has_rests = has_rests
         return store

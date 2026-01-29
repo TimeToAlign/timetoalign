@@ -2,8 +2,8 @@
 
 This module tests the timeline creation API including:
 - create_timeline() universal factory
-- Bundle.to_timeline() and to_default_timeline()
-- EventStore.to_timeline()
+- EventStore.to_timeline() and to_default_timeline()
+- EventData.to_timeline()
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader import EventStore, SingleStoreBundle
+from timetoalign.loader import EventData, SingleEventStore
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
@@ -45,13 +45,13 @@ class TestInferTimelineClass:
         assert cls is ContinuousPhysicalTimeline
 
 
-class TestCreateTimelineFromEventStore:
-    """Tests for create_timeline with EventStore source."""
+class TestCreateTimelineFromEventData:
+    """Tests for create_timeline with EventData source."""
 
     @pytest.fixture
-    def sample_store(self) -> EventStore:
-        """EventStore with sample events."""
-        return EventStore.from_dicts(
+    def sample_data(self) -> EventData:
+        """EventData with sample events."""
+        return EventData.from_dicts(
             [
                 {
                     "id": "e1",
@@ -69,38 +69,38 @@ class TestCreateTimelineFromEventStore:
             unit=TimeUnit.ticks,
         )
 
-    def test_creates_timeline_with_child(self, sample_store: EventStore):
-        """create_timeline wraps store in bundle, creates child."""
-        timeline = create_timeline(sample_store, uid="test")
+    def test_creates_timeline_with_child(self, sample_data: EventData):
+        """create_timeline wraps data in store, creates child."""
+        timeline = create_timeline(sample_data, uid="test")
 
         assert timeline.id == "test"
         assert timeline.n_children == 1
         assert "events" in timeline
 
-    def test_child_has_correct_events(self, sample_store: EventStore):
-        """Child timeline has the store's events."""
-        timeline = create_timeline(sample_store)
+    def test_child_has_correct_events(self, sample_data: EventData):
+        """Child timeline has the data's events."""
+        timeline = create_timeline(sample_data)
 
         child = timeline.get_child("events")
         # Exact count: 2 events
         assert child.n_events == 2
 
-    def test_flatten_mode(self, sample_store: EventStore):
+    def test_flatten_mode(self, sample_data: EventData):
         """flatten=True creates timeline without children."""
-        timeline = create_timeline(sample_store, flatten=True)
+        timeline = create_timeline(sample_data, flatten=True)
 
         assert timeline.n_children == 0
         # Exact count: 2 events
         assert timeline.n_events == 2
 
 
-class TestCreateTimelineFromBundle:
-    """Tests for create_timeline with EventBundle source."""
+class TestCreateTimelineFromStore:
+    """Tests for create_timeline with EventStore source."""
 
     @pytest.fixture
-    def multi_store_bundle(self) -> SingleStoreBundle:
-        """Bundle with multiple event types for filter testing."""
-        store = EventStore.from_dicts(
+    def multi_data_store(self) -> SingleEventStore:
+        """Store with multiple event types for filter testing."""
+        data = EventData.from_dicts(
             [
                 {
                     "id": "n1",
@@ -126,19 +126,19 @@ class TestCreateTimelineFromBundle:
             ],
             unit=TimeUnit.ticks,
         )
-        return SingleStoreBundle(store, name="notes")
+        return SingleEventStore(data, name="notes")
 
-    def test_creates_children(self, multi_store_bundle: SingleStoreBundle):
+    def test_creates_children(self, multi_data_store: SingleEventStore):
         """Default mode creates children at offset 0."""
-        timeline = create_timeline(multi_store_bundle, uid="test")
+        timeline = create_timeline(multi_data_store, uid="test")
 
         assert timeline.id == "test"
         assert timeline.n_children == 1
 
-    def test_store_filters_applied(self, multi_store_bundle: SingleStoreBundle):
+    def test_store_filters_applied(self, multi_data_store: SingleEventStore):
         """store_filters excludes filtered events."""
         timeline = create_timeline(
-            multi_store_bundle,
+            multi_data_store,
             store_filters={"notes": {"event_type": "Note"}},
         )
 
@@ -151,11 +151,11 @@ class TestCreateTimelineIncludeExclude:
     """Tests for include_stores and exclude_stores parameters."""
 
     @pytest.fixture
-    def two_store_bundle(self):
-        """Create two separate bundles and combine manually for testing."""
-        # We'll test with ScoreBundle once we have it available
-        # For now, use a simple store
-        store = EventStore.from_dicts(
+    def two_data_store(self):
+        """Create two separate stores and combine manually for testing."""
+        # We'll test with ScoreStore once we have it available
+        # For now, use a simple data
+        data = EventData.from_dicts(
             [
                 {
                     "id": "e1",
@@ -166,23 +166,23 @@ class TestCreateTimelineIncludeExclude:
             ],
             unit=TimeUnit.ticks,
         )
-        return SingleStoreBundle(store, name="events")
+        return SingleEventStore(data, name="events")
 
-    def test_include_stores_limits_children(self, two_store_bundle):
-        """include_stores only includes specified stores."""
+    def test_include_stores_limits_children(self, two_data_store):
+        """include_stores only includes specified data."""
         timeline = create_timeline(
-            two_store_bundle,
+            two_data_store,
             include_stores=["events"],
         )
 
         assert timeline.n_children == 1
         assert "events" in timeline
 
-    def test_empty_after_filtering_raises(self, two_store_bundle):
-        """ValueError if all stores filtered out."""
-        with pytest.raises(ValueError, match="No stores"):
+    def test_empty_after_filtering_raises(self, two_data_store):
+        """ValueError if all data filtered out."""
+        with pytest.raises(ValueError, match="No data"):
             create_timeline(
-                two_store_bundle,
+                two_data_store,
                 include_stores=["nonexistent"],
             )
 
@@ -192,17 +192,17 @@ class TestCreateTimelineErrors:
 
     def test_invalid_source_type_raises(self):
         """TypeError for unsupported source type."""
-        with pytest.raises(TypeError, match="must be EventBundle"):
+        with pytest.raises(TypeError, match="must be EventStore"):
             create_timeline("invalid")  # type: ignore[arg-type]
 
 
-class TestEventStoreToTimeline:
-    """Tests for EventStore.to_timeline() method."""
+class TestEventDataToTimeline:
+    """Tests for EventData.to_timeline() method."""
 
     @pytest.fixture
-    def sample_store(self) -> EventStore:
-        """EventStore for testing."""
-        return EventStore.from_dicts(
+    def sample_data(self) -> EventData:
+        """EventData for testing."""
+        return EventData.from_dicts(
             [
                 {
                     "id": "n1",
@@ -229,17 +229,17 @@ class TestEventStoreToTimeline:
             unit=TimeUnit.ticks,
         )
 
-    def test_creates_timeline_directly(self, sample_store: EventStore):
-        """to_timeline creates timeline with store's events."""
-        timeline = sample_store.to_timeline(uid="direct")
+    def test_creates_timeline_directly(self, sample_data: EventData):
+        """to_timeline creates timeline with data's events."""
+        timeline = sample_data.to_timeline(uid="direct")
 
         assert timeline.id == "direct"
         # Exact count: 3 events (2 notes + 1 rest)
         assert timeline.n_events == 3
 
-    def test_with_filters(self, sample_store: EventStore):
+    def test_with_filters(self, sample_data: EventData):
         """to_timeline with filters excludes filtered events."""
-        timeline = sample_store.to_timeline(
+        timeline = sample_data.to_timeline(
             uid="filtered",
             filters={"event_type": "Note"},
         )
@@ -247,16 +247,16 @@ class TestEventStoreToTimeline:
         # Exact count: 2 notes only
         assert timeline.n_events == 2
 
-    def test_infers_correct_timeline_class(self, sample_store: EventStore):
+    def test_infers_correct_timeline_class(self, sample_data: EventData):
         """to_timeline creates appropriate timeline subclass."""
-        timeline = sample_store.to_timeline()
+        timeline = sample_data.to_timeline()
 
         # ticks -> DiscreteLogicalTimeline
         assert isinstance(timeline, DiscreteLogicalTimeline)
 
-    def test_seconds_store_creates_physical_timeline(self):
-        """Seconds store creates ContinuousPhysicalTimeline."""
-        store = EventStore.from_dicts(
+    def test_seconds_data_creates_physical_timeline(self):
+        """Seconds data creates ContinuousPhysicalTimeline."""
+        data = EventData.from_dicts(
             [
                 {
                     "id": "e1",
@@ -268,7 +268,7 @@ class TestEventStoreToTimeline:
             unit=TimeUnit.seconds,
         )
 
-        timeline = store.to_timeline()
+        timeline = data.to_timeline()
 
         assert isinstance(timeline, ContinuousPhysicalTimeline)
 
@@ -277,9 +277,9 @@ class TestTimelineChildrenStructure:
     """Tests for timeline structure with children."""
 
     @pytest.fixture
-    def notes_store(self) -> EventStore:
-        """EventStore with note events."""
-        return EventStore.from_dicts(
+    def notes_data(self) -> EventData:
+        """EventData with note events."""
+        return EventData.from_dicts(
             [
                 {
                     "id": "n1",
@@ -299,26 +299,26 @@ class TestTimelineChildrenStructure:
             unit=TimeUnit.ticks,
         )
 
-    def test_parent_length_equals_max_child(self, notes_store: EventStore):
+    def test_parent_length_equals_max_child(self, notes_data: EventData):
         """Parent timeline length is max of children lengths."""
-        bundle = SingleStoreBundle(notes_store, name="notes")
-        timeline = bundle.to_default_timeline()
+        store = SingleEventStore(notes_data, name="notes")
+        timeline = store.to_default_timeline()
 
         # Child ends at 200, so parent length should be at least 200
         assert timeline.length.value >= 200
 
-    def test_children_locked_after_addition(self, notes_store: EventStore):
+    def test_children_locked_after_addition(self, notes_data: EventData):
         """Children are locked after being added to parent."""
-        bundle = SingleStoreBundle(notes_store, name="notes")
-        timeline = bundle.to_default_timeline()
+        store = SingleEventStore(notes_data, name="notes")
+        timeline = store.to_default_timeline()
 
         child = timeline.get_child("notes")
         assert child.is_locked
 
-    def test_children_maintain_own_coordinates(self, notes_store: EventStore):
+    def test_children_maintain_own_coordinates(self, notes_data: EventData):
         """Children maintain their own 0-based coordinate system."""
-        bundle = SingleStoreBundle(notes_store, name="notes")
-        timeline = bundle.to_default_timeline()
+        store = SingleEventStore(notes_data, name="notes")
+        timeline = store.to_default_timeline()
 
         child = timeline.get_child("notes")
 

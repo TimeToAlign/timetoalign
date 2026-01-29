@@ -9,11 +9,11 @@ MIDI files (`.mid`) are used for two fundamentally different types of musical da
 1.  **Performance Data**: A linear stream of timestamped events (Note On/Off, Control Changes). Timing is often in seconds or high-resolution ticks. There is no concept of "measure", "voice", or "staff".
 2.  **Score Data**: A structured representation of music. Timing is strictly quantized (beats, measures). Notes belong to specific voices and staves.
 
-To handle this, `timetoalign` provides two specialized loaders that map these distinct paradigms into a unified `MidiEventStore` schema.
+To handle this, `timetoalign` provides two specialized loaders that map these distinct paradigms into a unified `MidiEventData` schema.
 
 ## 2. Loader Schemata & Fields
 
-The `MidiEventStore` uses a superset schema. Each loader populates a subset of fields appropriate for its paradigm.
+The `MidiEventData` uses a superset schema. Each loader populates a subset of fields appropriate for its paradigm.
 
 | Field | Type | `PerformanceMidiLoader` (mido) | `ScoreMidiLoader` (partitura) | Notes |
 | :--- | :--- | :--- | :--- | :--- |

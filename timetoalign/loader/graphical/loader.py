@@ -1,10 +1,10 @@
 """GraphicalLoader for building graphical timelines.
 
-This module provides a factory class for creating GraphicalBundle objects
+This module provides a factory class for creating GraphicalStore objects
 from images and PDFs. The loader handles:
 - Adding image sources (files, PDF pages, embedded images)
 - Defining segments with TimeAxisPath geometry
-- Building the final bundle with all components
+- Building the final store with all components
 
 The loader is completely generic - test-case-specific configuration
 belongs in test fixtures, not production code.
@@ -16,7 +16,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .bundle import GraphicalBundle
+from .bundle import GraphicalStore
 from .paths import HorizontalLinePath, TimeAxisPath, VerticalLinePath
 from .segment import GraphicalSegment
 from .source import ImageSource
@@ -28,9 +28,9 @@ module_logger = logging.getLogger(__name__)
 
 
 class GraphicalLoader:
-    """Factory for building GraphicalBundle objects.
+    """Factory for building GraphicalStore objects.
 
-    The loader accumulates sources and segments, then builds a bundle.
+    The loader accumulates sources and segments, then builds a store.
     This provides a fluent interface for constructing graphical timelines.
 
     Examples:
@@ -38,7 +38,7 @@ class GraphicalLoader:
         >>> idx = loader.add_image("score.png")
         >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=100, name="system_1")
         >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=200, name="system_2")
-        >>> bundle = loader.bundle
+        >>> store = loader.bundle
 
         >>> # From PDF
         >>> import pymupdf
@@ -48,14 +48,14 @@ class GraphicalLoader:
         >>> loader.add_horizontal_segment(idx, x0=50, x1=550, y=100, name="page1")
 
     Attributes:
-        metadata: Optional metadata dictionary attached to the bundle.
+        metadata: Optional metadata dictionary attached to the store.
     """
 
     def __init__(self, metadata: dict | None = None):
         """Initialize the loader.
 
         Args:
-            metadata: Optional metadata to attach to the bundle.
+            metadata: Optional metadata to attach to the store.
         """
         self._sources: list[ImageSource] = []
         self._segments: list[GraphicalSegment] = []
@@ -273,23 +273,23 @@ class GraphicalLoader:
         return len(self._segments)
 
     @property
-    def bundle(self) -> GraphicalBundle:
-        """Build and return the GraphicalBundle.
+    def bundle(self) -> GraphicalStore:
+        """Build and return the GraphicalStore.
 
         Returns:
-            GraphicalBundle containing all sources and segments.
+            GraphicalStore containing all sources and segments.
         """
-        return GraphicalBundle(
+        return GraphicalStore(
             sources=list(self._sources),
             segments=list(self._segments),
             metadata=dict(self._metadata),
         )
 
-    def build(self) -> GraphicalBundle:
+    def build(self) -> GraphicalStore:
         """Alias for bundle property (explicit build method).
 
         Returns:
-            GraphicalBundle containing all sources and segments.
+            GraphicalStore containing all sources and segments.
         """
         return self.bundle
 

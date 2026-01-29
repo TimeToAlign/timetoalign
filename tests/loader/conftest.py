@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 from timetoalign.core import TimeUnit
-from timetoalign.loader import EventStore, Loader
+from timetoalign.loader import EventData, Loader
 
 
 @pytest.fixture
@@ -100,27 +100,27 @@ def sample_fraction_events() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def empty_store() -> EventStore:
-    """An empty EventStore."""
-    return EventStore.empty(TimeUnit.ticks)
+def empty_store() -> EventData:
+    """An empty EventData."""
+    return EventData.empty(TimeUnit.ticks)
 
 
 @pytest.fixture
-def store_with_instants(sample_instant_events: list[dict[str, Any]]) -> EventStore:
-    """EventStore with instant events."""
-    return EventStore.from_dicts(sample_instant_events, TimeUnit.ticks)
+def store_with_instants(sample_instant_events: list[dict[str, Any]]) -> EventData:
+    """EventData with instant events."""
+    return EventData.from_dicts(sample_instant_events, TimeUnit.ticks)
 
 
 @pytest.fixture
-def store_with_intervals(sample_interval_events: list[dict[str, Any]]) -> EventStore:
-    """EventStore with interval events."""
-    return EventStore.from_dicts(sample_interval_events, TimeUnit.ticks)
+def store_with_intervals(sample_interval_events: list[dict[str, Any]]) -> EventData:
+    """EventData with interval events."""
+    return EventData.from_dicts(sample_interval_events, TimeUnit.ticks)
 
 
 @pytest.fixture
-def store_with_mixed(sample_mixed_events: list[dict[str, Any]]) -> EventStore:
-    """EventStore with mixed event types."""
-    return EventStore.from_dicts(sample_mixed_events, TimeUnit.ticks)
+def store_with_mixed(sample_mixed_events: list[dict[str, Any]]) -> EventData:
+    """EventData with mixed event types."""
+    return EventData.from_dicts(sample_mixed_events, TimeUnit.ticks)
 
 
 @pytest.fixture

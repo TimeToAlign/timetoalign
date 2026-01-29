@@ -1,4 +1,4 @@
-"""ScoreBundle: Container for category-specific EventStores."""
+"""ScoreStore: Container for category-specific EventData classes."""
 
 from __future__ import annotations
 
@@ -6,12 +6,12 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from timetoalign.loader.bundle import EventBundle
-from timetoalign.loader.score.stores.annotations import AnnotationEventStore
-from timetoalign.loader.score.stores.controls import ControlEventStore
-from timetoalign.loader.score.stores.measures import MeasureEventStore
-from timetoalign.loader.score.stores.notes import NoteEventStore
-from timetoalign.loader.store import EventStore
+from timetoalign.loader.bundle import EventStore
+from timetoalign.loader.score.stores.annotations import AnnotationEventData
+from timetoalign.loader.score.stores.controls import ControlEventData
+from timetoalign.loader.score.stores.measures import MeasureEventData
+from timetoalign.loader.score.stores.notes import NoteEventData
+from timetoalign.loader.store import EventData
 
 if TYPE_CHECKING:
     from timetoalign.maps import ConversionMap
@@ -21,43 +21,43 @@ STORE_NAMES: tuple[str, ...] = ("notes", "measures", "controls", "annotations")
 
 
 @dataclass
-class ScoreBundle(EventBundle):
+class ScoreStore(EventStore):
     """Container for score data organized by category.
 
-    A ScoreLoader returns a ScoreBundle containing separate EventStores
+    A ScoreLoader returns a ScoreStore containing separate EventData
     for each category (notes, measures, controls, annotations).
 
     Attributes:
-        notes: NoteEventStore with note/rest/chord events.
-        measures: MeasureEventStore with measure boundaries.
-        controls: ControlEventStore with dynamics, tempo, etc.
-        annotations: AnnotationEventStore with text annotations.
+        notes: NoteEventData with note/rest/chord events.
+        measures: MeasureEventData with measure boundaries.
+        controls: ControlEventData with dynamics, tempo, etc.
+        annotations: AnnotationEventData with text annotations.
         metadata: Source metadata (format, parser, has_rests, divs_per_quarter).
     """
 
-    notes: NoteEventStore
-    measures: MeasureEventStore
-    controls: ControlEventStore
-    annotations: AnnotationEventStore
+    notes: NoteEventData
+    measures: MeasureEventData
+    controls: ControlEventData
+    annotations: AnnotationEventData
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def empty(cls) -> ScoreBundle:
-        """Create an empty ScoreBundle with empty stores."""
+    def empty(cls) -> ScoreStore:
+        """Create an empty ScoreStore with empty data."""
 
         return cls(
-            notes=NoteEventStore.empty(),
-            measures=MeasureEventStore.empty(),
-            controls=ControlEventStore.empty(),
-            annotations=AnnotationEventStore.empty(),
+            notes=NoteEventData.empty(),
+            measures=MeasureEventData.empty(),
+            controls=ControlEventData.empty(),
+            annotations=AnnotationEventData.empty(),
             metadata={},
         )
 
-    def extend(self, other: ScoreBundle) -> None:
-        """Extend this bundle with another bundle's data.
+    def extend(self, other: ScoreStore) -> None:
+        """Extend this store with another store's data.
 
         Args:
-            other: The ScoreBundle to add.
+            other: The ScoreStore to add.
         """
         self.notes.extend(other.notes)
         self.measures.extend(other.measures)
@@ -200,21 +200,21 @@ class ScoreBundle(EventBundle):
 
     def __repr__(self) -> str:
         return (
-            f"ScoreBundle(notes={len(self.notes)}, measures={len(self.measures)}, "
+            f"ScoreStore(notes={len(self.notes)}, measures={len(self.measures)}, "
             f"controls={len(self.controls)}, annotations={len(self.annotations)})"
         )
 
     # region Iterator Protocol
 
-    def __iter__(self) -> Iterator[EventStore]:
-        """Iterate over stores.
+    def __iter__(self) -> Iterator[EventData]:
+        """Iterate over data.
 
         Yields:
-            EventStores in canonical order: notes, measures, controls, annotations.
+            EventData in canonical order: notes, measures, controls, annotations.
 
         Examples:
-            >>> for store in bundle:
-            ...     timeline = Timeline.from_event_store(store)
+            >>> for data in store:
+            ...     timeline = Timeline.from_event_data(data)
         """
         yield self.notes
         yield self.measures
@@ -225,20 +225,20 @@ class ScoreBundle(EventBundle):
         """Return the number of stores (always 4)."""
         return len(STORE_NAMES)
 
-    def __getitem__(self, name: str) -> EventStore:
-        """Get a store by name.
+    def __getitem__(self, name: str) -> EventData:
+        """Get data by name.
 
         Args:
-            name: Store name (notes, measures, controls, annotations).
+            name: Data name (notes, measures, controls, annotations).
 
         Returns:
-            The EventStore for that category.
+            The EventData for that category.
 
         Raises:
-            KeyError: If name is not a valid store name.
+            KeyError: If name is not a valid data name.
 
         Examples:
-            >>> notes_store = bundle["notes"]
+            >>> notes_data = store["notes"]
         """
         if name == "notes":
             return self.notes
@@ -252,48 +252,48 @@ class ScoreBundle(EventBundle):
             raise KeyError(f"Unknown store name: {name!r}. Valid: {STORE_NAMES}")
 
     def __contains__(self, name: object) -> bool:
-        """Check if a store name is valid.
+        """Check if a data name is valid.
 
         Args:
-            name: Store name to check.
+            name: Data name to check.
 
         Returns:
-            True if name is a valid store name.
+            True if name is a valid data name.
         """
         return name in STORE_NAMES
 
     def keys(self) -> tuple[str, ...]:
-        """Return store names.
+        """Return data names.
 
         Returns:
-            Tuple of store names in canonical order.
+            Tuple of data names in canonical order.
         """
         return STORE_NAMES
 
-    def values(self) -> Iterator[EventStore]:
-        """Iterate over stores.
+    def values(self) -> Iterator[EventData]:
+        """Iterate over data.
 
         Yields:
-            EventStores in canonical order.
+            EventData in canonical order.
 
         Examples:
-            >>> for store in bundle.values():
-            ...     print(len(store))
+            >>> for data in store.values():
+            ...     print(len(data))
         """
         yield self.notes
         yield self.measures
         yield self.controls
         yield self.annotations
 
-    def items(self) -> Iterator[tuple[str, EventStore]]:
-        """Iterate over (name, store) pairs.
+    def items(self) -> Iterator[tuple[str, EventData]]:
+        """Iterate over (name, data) pairs.
 
         Yields:
-            Tuples of (name, EventStore) in canonical order.
+            Tuples of (name, EventData) in canonical order.
 
         Examples:
-            >>> for name, store in bundle.items():
-            ...     timeline = Timeline.from_event_store(store, uid=name)
+            >>> for name, data in store.items():
+            ...     timeline = Timeline.from_event_data(data, uid=name)
         """
         yield ("notes", self.notes)
         yield ("measures", self.measures)

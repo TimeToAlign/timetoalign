@@ -1,10 +1,15 @@
-"""EventBundle: Base class for collections of EventStores.
+"""EventStore: Base class for collections of EventData.
 
-This module provides the abstract base class for bundles (collections of
-EventStores) and a simple wrapper for single-store loaders.
+This module provides the abstract base class for stores (collections of
+EventData) and a simple wrapper for single-data stores.
+
+NOTE: This class was renamed from EventBundle to EventStore in the 2026-01 API
+refactoring. EventStore holds one or more EventData tables.
+- EventData (formerly EventStore): PyArrow-based storage for timeline events
+- EventStore (formerly EventBundle): Container for multiple EventData
 
 Design principles:
-- Uniform interface for both single-store and multi-store bundles
+- Uniform interface for both single-data and multi-data stores
 - Consistent timeline creation across all loader types
 - Children timelines maintain their own 0-based coordinate systems
 """
@@ -16,24 +21,27 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from timetoalign.loader.store import EventStore
+    from timetoalign.loader.store import EventData
     from timetoalign.maps import ConversionMap
     from timetoalign.timelines.base import Timeline
 
 
-class EventBundle(ABC):
-    """Abstract base class for collections of EventStores.
+class EventStore(ABC):
+    """Abstract base class for collections of EventData.
 
-    Provides a uniform interface for both single-store and multi-store
-    bundles, enabling consistent timeline creation across loader types.
+    Provides a uniform interface for both single-data and multi-data
+    stores, enabling consistent timeline creation across loader types.
 
-    All bundles must implement the collection protocol (iteration, keys,
-    items, getitem) to allow uniform access to their constituent stores.
+    All stores must implement the collection protocol (iteration, keys,
+    items, getitem) to allow uniform access to their constituent data.
+
+    NOTE: This class was renamed from EventBundle to EventStore in the 2026-01 API
+    refactoring. EventStore holds one or more EventData tables.
 
     Subclasses:
-        - ScoreBundle: notes, measures, controls, annotations
-        - MidiBundle: notes, controls
-        - SingleStoreBundle: generic wrapper for any single store
+        - ScoreStore: notes, measures, controls, annotations
+        - MidiStore: notes, controls
+        - SingleEventStore: generic wrapper for any single EventData
 
     Examples:
         >>> # Iterate over stores
@@ -53,50 +61,50 @@ class EventBundle(ABC):
     # region Abstract Methods
 
     @abstractmethod
-    def __iter__(self) -> Iterator[EventStore]:
-        """Iterate over stores in canonical order.
+    def __iter__(self) -> Iterator["EventData"]:
+        """Iterate over data in canonical order.
 
         Yields:
-            EventStores in the bundle's canonical order.
+            EventData in the store's canonical order.
         """
         ...
 
     @abstractmethod
-    def items(self) -> Iterator[tuple[str, EventStore]]:
-        """Iterate over (name, store) pairs in canonical order.
+    def items(self) -> Iterator[tuple[str, "EventData"]]:
+        """Iterate over (name, data) pairs in canonical order.
 
         Yields:
-            Tuples of (store_name, EventStore).
+            Tuples of (data_name, EventData).
         """
         ...
 
     @abstractmethod
     def keys(self) -> tuple[str, ...]:
-        """Return store names in canonical order.
+        """Return data names in canonical order.
 
         Returns:
-            Tuple of store names.
+            Tuple of data names.
         """
         ...
 
     @abstractmethod
-    def __getitem__(self, name: str) -> EventStore:
-        """Get store by name.
+    def __getitem__(self, name: str) -> "EventData":
+        """Get data by name.
 
         Args:
-            name: The store name.
+            name: The data name.
 
         Returns:
-            The EventStore for that name.
+            The EventData for that name.
 
         Raises:
-            KeyError: If name is not a valid store name.
+            KeyError: If name is not a valid data name.
         """
         ...
 
     @abstractmethod
     def __len__(self) -> int:
-        """Return number of stores in the bundle."""
+        """Return number of EventData in the store."""
         ...
 
     # endregion
@@ -104,21 +112,21 @@ class EventBundle(ABC):
     # region Collection Protocol
 
     def __contains__(self, name: object) -> bool:
-        """Check if store name exists in the bundle.
+        """Check if data name exists in the store.
 
         Args:
-            name: Store name to check.
+            name: Data name to check.
 
         Returns:
-            True if name is a valid store name.
+            True if name is a valid data name.
         """
         return name in self.keys()
 
-    def values(self) -> Iterator[EventStore]:
-        """Iterate over stores.
+    def values(self) -> Iterator["EventData"]:
+        """Iterate over data.
 
         Yields:
-            EventStores in canonical order.
+            EventData in canonical order.
         """
         yield from self
 
@@ -126,8 +134,8 @@ class EventBundle(ABC):
 
     # region Conversion Maps
 
-    def get_cmaps(self) -> dict[str, ConversionMap]:
-        """Get ConversionMaps derivable from bundle metadata.
+    def get_cmaps(self) -> dict[str, "ConversionMap"]:
+        """Get ConversionMaps derivable from store metadata.
 
         Returns a dictionary mapping target unit names to ConversionMaps
         that can convert from this bundle's native unit. Subclasses should
@@ -157,38 +165,38 @@ class EventBundle(ABC):
         include_stores: list[str] | None = None,
         exclude_stores: list[str] | None = None,
         flatten: bool = False,
-    ) -> Timeline:
-        """Create a Timeline from this bundle.
+    ) -> "Timeline":
+        """Create a Timeline from this store.
 
-        By default, each store becomes a child timeline embedded at offset 0,
+        By default, each data becomes a child timeline embedded at offset 0,
         maintaining its own 0-based coordinate system. The parent timeline's
         length equals the maximum length across all children.
 
         Args:
             uid: Unique ID for the parent timeline. Auto-generated if None.
-            store_filters: Per-store filter kwargs to apply before timeline
+            store_filters: Per-data filter kwargs to apply before timeline
                 creation. Example: {"notes": {"event_type": "Note"}} excludes
-                rests from the notes store.
-            include_stores: Only include these stores (default: all non-empty).
-            exclude_stores: Exclude these stores from the timeline.
+                rests from the notes data.
+            include_stores: Only include these data (default: all non-empty).
+            exclude_stores: Exclude these data from the timeline.
             flatten: If True, merge all events into a single parent timeline
-                without children. If False (default), each store becomes a
+                without children. If False (default), each data becomes a
                 child timeline at offset 0.
 
         Returns:
             A Timeline with the requested structure.
 
         Raises:
-            ValueError: If no stores remain after filtering, or all stores
+            ValueError: If no data remain after filtering, or all data
                 are empty.
 
         Examples:
-            >>> # Default: each store as a child
-            >>> timeline = bundle.to_timeline(uid="my_score")
+            >>> # Default: each data as a child
+            >>> timeline = store.to_timeline(uid="my_score")
             >>> notes = timeline.get_child("notes")
 
             >>> # Filtered: only Note events, exclude annotations
-            >>> timeline = bundle.to_timeline(
+            >>> timeline = store.to_timeline(
             ...     store_filters={"notes": {"event_type": "Note"}},
             ...     exclude_stores=["annotations"],
             ... )
@@ -204,10 +212,10 @@ class EventBundle(ABC):
             flatten=flatten,
         )
 
-    def to_default_timeline(self, uid: str | None = None) -> Timeline:
-        """Create a canonical timeline with all stores as children.
+    def to_default_timeline(self, uid: str | None = None) -> "Timeline":
+        """Create a canonical timeline with all data as children.
 
-        Each non-empty store becomes a child timeline at offset 0, preserving
+        Each non-empty data becomes a child timeline at offset 0, preserving
         its own 0-based coordinate system. This is the recommended way to
         create timelines from loaded data.
 
@@ -215,10 +223,10 @@ class EventBundle(ABC):
             uid: Unique ID for the parent timeline.
 
         Returns:
-            A parent Timeline with child timelines for each non-empty store.
+            A parent Timeline with child timelines for each non-empty data.
 
         Examples:
-            >>> timeline = bundle.to_default_timeline(uid="chopin_score")
+            >>> timeline = store.to_default_timeline(uid="chopin_score")
             >>> for offset, child in timeline.iter_children():
             ...     print(f"{child.id}: {child.n_events} events at offset {offset}")
         """
@@ -227,67 +235,70 @@ class EventBundle(ABC):
     # endregion
 
 
-class SingleStoreBundle(EventBundle):
-    """Bundle wrapper for a single EventStore.
+class SingleEventStore(EventStore):
+    """Store wrapper for a single EventData.
 
-    Provides EventBundle interface compatibility for loaders that naturally
-    produce a single EventStore rather than multiple categorized stores.
+    Provides EventStore interface compatibility for loaders that naturally
+    produce a single EventData rather than multiple categorized data.
 
-    This is used as the default bundle type for loaders that don't have
-    specialized bundle implementations (e.g., simple audio loaders).
+    This is used as the default store type for loaders that don't have
+    specialized store implementations (e.g., simple audio loaders).
+
+    NOTE: This class was renamed from SingleStoreBundle to SingleEventStore in
+    the 2026-01 API refactoring.
 
     Attributes:
-        store: The wrapped EventStore.
-        name: The store name.
+        data: The wrapped EventData.
+        name: The data name.
 
     Examples:
-        >>> store = EventStore.from_dicts([...], unit=TimeUnit.seconds)
-        >>> bundle = SingleStoreBundle(store, name="beats")
-        >>> timeline = bundle.to_default_timeline()
+        >>> data = EventData.from_dicts([...], unit=TimeUnit.seconds)
+        >>> store = SingleEventStore(data, name="beats")
+        >>> timeline = store.to_default_timeline()
     """
 
-    def __init__(self, store: EventStore, name: str = "events") -> None:
-        """Initialize SingleStoreBundle.
+    def __init__(self, data: "EventData", name: str = "events") -> None:
+        """Initialize SingleEventStore.
 
         Args:
-            store: The EventStore to wrap.
-            name: The name for this store. Used as the child timeline ID.
+            data: The EventData to wrap.
+            name: The name for this data. Used as the child timeline ID.
         """
-        self._store = store
+        self._data = data
         self._name = name
 
-    # region EventBundle Protocol
+    # region EventStore Protocol
 
-    def __iter__(self) -> Iterator[EventStore]:
-        """Yield the single store."""
-        yield self._store
+    def __iter__(self) -> Iterator["EventData"]:
+        """Yield the single data."""
+        yield self._data
 
-    def items(self) -> Iterator[tuple[str, EventStore]]:
-        """Yield (name, store) pair."""
-        yield (self._name, self._store)
+    def items(self) -> Iterator[tuple[str, "EventData"]]:
+        """Yield (name, data) pair."""
+        yield (self._name, self._data)
 
     def keys(self) -> tuple[str, ...]:
-        """Return tuple with single store name."""
+        """Return tuple with single data name."""
         return (self._name,)
 
-    def __getitem__(self, name: str) -> EventStore:
-        """Get store by name.
+    def __getitem__(self, name: str) -> "EventData":
+        """Get data by name.
 
         Args:
-            name: Must match the store name.
+            name: Must match the data name.
 
         Returns:
-            The wrapped EventStore.
+            The wrapped EventData.
 
         Raises:
             KeyError: If name doesn't match.
         """
         if name == self._name:
-            return self._store
-        raise KeyError(f"Unknown store: {name!r}. Valid: {self.keys()}")
+            return self._data
+        raise KeyError(f"Unknown data: {name!r}. Valid: {self.keys()}")
 
     def __len__(self) -> int:
-        """Return 1 (single store)."""
+        """Return 1 (single data)."""
         return 1
 
     # endregion
@@ -295,17 +306,17 @@ class SingleStoreBundle(EventBundle):
     # region Properties
 
     @property
-    def store(self) -> EventStore:
-        """The wrapped EventStore."""
-        return self._store
+    def data(self) -> "EventData":
+        """The wrapped EventData."""
+        return self._data
 
     @property
     def name(self) -> str:
-        """The store name."""
+        """The data name."""
         return self._name
 
     # endregion
 
     def __repr__(self) -> str:
         """Return string representation."""
-        return f"SingleStoreBundle({self._name}={len(self._store)} events)"
+        return f"SingleEventStore({self._name}={len(self._data)} events)"

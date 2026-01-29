@@ -1,4 +1,4 @@
-"""NoteEventStore: Storage for note/rest/chord events."""
+"""NoteEventData: Storage for note/rest/chord events."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import make_fraction_field
-from timetoalign.loader.store import EventStore
+from timetoalign.loader.store import EventData
 
 if TYPE_CHECKING:
     pass
@@ -39,8 +39,8 @@ def _make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
     return midi_pitch, spelled_pitch
 
 
-class NoteEventStore(EventStore):
-    """EventStore for note, rest, and chord events.
+class NoteEventData(EventData):
+    """EventData for note, rest, and chord events.
 
     Rich temporal schema following TSV gold standard:
     - start: Continuous logical time (Fraction) - from 'quarterbeats'
@@ -98,7 +98,7 @@ class NoteEventStore(EventStore):
         number_type: NumberType = NumberType.float,
         has_rests: bool = False,
     ) -> None:
-        """Initialize NoteEventStore.
+        """Initialize NoteEventData.
 
         Args:
             table: PyArrow table.
@@ -121,7 +121,7 @@ class NoteEventStore(EventStore):
         number_type: NumberType = NumberType.float,
         has_rests: bool = False,
     ) -> Self:
-        """Create empty NoteEventStore."""
+        """Create empty NoteEventData."""
         store = super().empty(unit, number_type)
         store._has_rests = has_rests
         return store
@@ -136,7 +136,7 @@ class NoteEventStore(EventStore):
     ) -> Self:
         """Create from dicts with has_rests metadata.
 
-        Builds PyArrow table directly using NoteEventStore schema.
+        Builds PyArrow table directly using NoteEventData schema.
         """
         if not rows:
             return cls.empty(unit, number_type, has_rests)

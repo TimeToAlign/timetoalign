@@ -1,11 +1,11 @@
 """Timeline: The central object of TimeToAlign!
 
 A Timeline is a positive coordinate axis defined by an origin (zero) and a
-measuring unit. It can hold events (via an EventStore) and nested child
+measuring unit. It can hold events (via an EventData) and nested child
 timelines (segments) that share the same coordinate type.
 
 Design principles:
-- Events stored in PyArrow-based EventStore (no flyweight pattern)
+- Events stored in PyArrow-based EventData (no flyweight pattern)
 - Children stored as direct object references AND as segment events
 - Unit validation at add-time prevents coordinate type mismatches
 - Locking mechanism prevents modification when embedded as child
@@ -23,7 +23,7 @@ import pyarrow.compute as pc
 from typing_extensions import Self
 
 from timetoalign.core import Coordinate, CoordinateValue, Domain, NumberType, TimeUnit
-from timetoalign.loader import EventStore
+from timetoalign.loader import EventData
 from timetoalign.maps import ConversionMap
 
 if TYPE_CHECKING:
@@ -36,7 +36,7 @@ _TIMELINE_COUNTER: dict[str, int] = {}
 
 # region Constants
 
-# Event type name for segment events in the EventStore
+# Event type name for segment events in the EventData
 SEGMENT_EVENT_TYPE = "Segment"
 
 # Traversal order options for iterating children
@@ -50,7 +50,7 @@ class Timeline:
 
     A Timeline represents a temporal dimension in one of three domains
     (Logical, Physical, Graphical) with either continuous or discrete
-    coordinates. It stores events in an EventStore and can contain
+    coordinates. It stores events in an EventData and can contain
     nested child timelines (segments) at specified offsets.
 
     Attributes:
@@ -88,8 +88,8 @@ class Timeline:
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
     _default_number_type: ClassVar[NumberType] = NumberType.float
 
-    # EventStore class to use (subclasses can override for domain-specific stores)
-    _event_store_class: ClassVar[type[EventStore]] = EventStore
+    # EventData class to use (subclasses can override for domain-specific data)
+    _event_data_class: ClassVar[type[EventData]] = EventData
 
     # endregion
 
@@ -157,7 +157,7 @@ class Timeline:
         self._meta = dict(meta) if meta else {}
 
         # Event storage
-        self._events = self._event_store_class.empty(self._unit, self._number_type)
+        self._events = self._event_data_class.empty(self._unit, self._number_type)
 
         # Child timeline storage
         self._children: dict[str, Timeline] = {}
@@ -277,30 +277,30 @@ class Timeline:
         return timeline
 
     @classmethod
-    def from_event_store(
+    def from_event_data(
         cls,
-        store: EventStore,
+        data: EventData,
         **kwargs: Any,
     ) -> Self:
-        """Create a Timeline from an existing EventStore.
+        """Create a Timeline from an existing EventData.
 
         Args:
-            store: The EventStore containing events.
+            data: The EventData containing events.
             **kwargs: Additional arguments passed to __init__ (except unit/number_type).
 
         Returns:
-            A new Timeline wrapping the EventStore.
+            A new Timeline wrapping the EventData.
         """
-        coord_range = store.coordinate_range()
+        coord_range = data.coordinate_range()
         length = coord_range[1] if coord_range else 0
 
         timeline = cls(
             length=length,
-            unit=store.unit,
-            number_type=store.number_type,
+            unit=data.unit,
+            number_type=data.number_type,
             **kwargs,
         )
-        timeline._events = store
+        timeline._events = data
         return timeline
 
     # endregion
@@ -438,8 +438,8 @@ class Timeline:
         return len(self._children)
 
     @property
-    def events(self) -> EventStore:
-        """The underlying EventStore (read-only access)."""
+    def events(self) -> EventData:
+        """The underlying EventData (read-only access)."""
         return self._events
 
     # endregion
@@ -581,10 +581,10 @@ class Timeline:
         if not rows:
             return
 
-        new_store = self._event_store_class.from_dicts(
+        new_data = self._event_data_class.from_dicts(
             rows, self._unit, self._number_type
         )
-        self._events.extend(new_store)
+        self._events.extend(new_data)
 
     def _get_event_end_coordinate(self, row: dict[str, Any]) -> float:
         """Extract the end coordinate from an event dict.
@@ -612,7 +612,7 @@ class Timeline:
         include_segments: bool = False,
         min_coord: float | None = None,
         max_coord: float | None = None,
-    ) -> EventStore:
+    ) -> EventData:
         """Filter and retrieve events.
 
         Args:
@@ -623,7 +623,7 @@ class Timeline:
             max_coord: Maximum coordinate (exclusive).
 
         Returns:
-            A filtered EventStore.
+            A filtered EventData.
         """
         result = self._events
 
@@ -636,10 +636,10 @@ class Timeline:
         if not include_segments:
             # Exclude segment events by getting all and filtering
             # Note: This could be optimized with a NOT filter
-            segment_store = result.filter(event_type=SEGMENT_EVENT_TYPE)
-            if len(segment_store) > 0:
+            segment_data = result.filter(event_type=SEGMENT_EVENT_TYPE)
+            if len(segment_data) > 0:
                 # Filter by getting non-segment events
-                result = EventStore.from_dicts(
+                result = EventData.from_dicts(
                     [
                         row
                         for row in result
@@ -725,7 +725,7 @@ class Timeline:
         # Lock the child
         child._locked = True
 
-        # Add segment event to EventStore
+        # Add segment event to EventData
         segment_event = {
             "id": child.id,
             "name": child.id,
@@ -1046,22 +1046,22 @@ class Timeline:
     ) -> pa.ChunkedArray:
         """Extract all unique event coordinates as a sorted PyArrow array.
 
-        Uses PyArrow compute to efficiently extract coordinates from the
-        EventStore table without Python iteration.
+                Uses PyArrow compute to efficiently extract coordinates from the
+                EventData table without Python iteration.
 
-        Args:
-            event_filter: Optional filter to apply before extracting coordinates.
-                Can be a dict (passed to EventStore.filter()) or a pc.Expression
-                (passed to EventStore.where()).
+                Args:
+                    event_filter: Optional filter to apply before extracting coordinates.
+        Can be a dict (passed to EventData.filter()) or a pc.Expression
+                        (passed to EventData.where()).
 
-        Returns:
-            Sorted PyArrow ChunkedArray of unique coordinate values (float64).
-            Returns empty array if no events.
+                Returns:
+                    Sorted PyArrow ChunkedArray of unique coordinate values (float64).
+                    Returns empty array if no events.
 
-        Notes:
-            - Extracts start.value from all events
-            - Extracts end.value from interval events (drops nulls)
-            - Deduplicates and sorts the result
+                Notes:
+                    - Extracts start.value from all events
+                    - Extracts end.value from interval events (drops nulls)
+                    - Deduplicates and sorts the result
         """
         # Apply filter if provided
         if event_filter is not None:
@@ -1117,8 +1117,8 @@ class Timeline:
             recursion_limit: Maximum depth for child traversal. None = unlimited.
             offset: Cumulative offset from root timeline (internal use).
             event_filter: Optional filter applied to each timeline's events.
-                Can be a dict (passed to EventStore.filter()) or a pc.Expression
-                (passed to EventStore.where()). The same filter is applied to
+                Can be a dict (passed to EventData.filter()) or a pc.Expression
+                (passed to EventData.where()). The same filter is applied to
                 all timelines in the hierarchy.
 
         Returns:
@@ -1461,19 +1461,19 @@ class Timeline:
     ) -> pa.Table:
         """Generate timestamps for filtered events only.
 
-        Applies an event filter before extracting coordinates from EventStores.
+        Applies an event filter before extracting coordinates from EventData.
         This enables efficient timestamp generation for subsets of events
         (e.g., only Note events, events above a certain duration, etc.).
 
         The filter is applied to each timeline in the hierarchy using either
-        EventStore.filter() (for dict filters) or EventStore.where() (for
+        EventData.filter() (for dict filters) or EventData.where() (for
         PyArrow compute expressions).
 
         Args:
             event_filter: Filter to apply before extracting coordinates.
-                - dict: Passed to EventStore.filter() for simple filters.
+                - dict: Passed to EventData.filter() for simple filters.
                   Example: {"event_type": "Note"} or {"temporal_type": "interval"}
-                - pc.Expression: Passed to EventStore.where() for complex filters.
+                - pc.Expression: Passed to EventData.where() for complex filters.
                   Example: pc.greater(pc.struct_field(pc.field("start"), "value"), 10.0)
             conversion_maps: C-Maps to include as columns.
             recursion_limit: Maximum depth for child traversal.

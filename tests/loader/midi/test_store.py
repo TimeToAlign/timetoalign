@@ -1,15 +1,15 @@
-"""Tests for MidiEventStore."""
+"""Tests for MidiEventData."""
 
 from timetoalign.core import TimeUnit
-from timetoalign.loader.midi import MidiEventStore
+from timetoalign.loader.midi import MidiEventData
 
 
-class TestMidiEventStore:
-    """Tests for MidiEventStore schema and functionality."""
+class TestMidiEventData:
+    """Tests for MidiEventData schema and functionality."""
 
     def test_schema_fields(self) -> None:
         """Schema should include MIDI-specific fields."""
-        schema = MidiEventStore.schema(TimeUnit.ticks)
+        schema = MidiEventData.schema(TimeUnit.ticks)
         names = schema.names
 
         # Base fields
@@ -31,14 +31,14 @@ class TestMidiEventStore:
 
     def test_nullable_fields(self) -> None:
         """Extra fields should be nullable."""
-        schema = MidiEventStore.schema(TimeUnit.ticks)
+        schema = MidiEventData.schema(TimeUnit.ticks)
 
         assert schema.field("voice").nullable
         assert schema.field("control").nullable
         assert schema.field("pitch").nullable
 
     def test_creation_from_dicts(self) -> None:
-        """Can create store from dicts with MIDI fields."""
+        """Can create data from dicts with MIDI fields."""
         events = [
             {
                 "id": "n1",
@@ -51,9 +51,9 @@ class TestMidiEventStore:
                 "channel": 1,
             }
         ]
-        store = MidiEventStore.from_dicts(events, TimeUnit.ticks)
+        data = MidiEventData.from_dicts(events, TimeUnit.ticks)
 
-        assert len(store) == 1
-        table = store.table
+        assert len(data) == 1
+        table = data.table
         assert table.column("pitch")[0].as_py() == 60
         assert table.column("voice")[0].as_py() is None  # Missing field is None
