@@ -12,7 +12,6 @@ import pytest
 from timetoalign.alignment import (
     MatchClaim,
     MatchMetadata,
-    PerfectAlignment,
     TimelineGroup,
 )
 from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
@@ -114,17 +113,14 @@ def dgt1_group(
     dgt1_timeline: DiscreteGraphicalTimeline,
     audio_timeline: ContinuousPhysicalTimeline,
 ) -> TimelineGroup:
-    """Group with DGT1 and audio timelines."""
-    group = TimelineGroup.from_reference(dgt1_timeline, name="DGT1_Group")
-    group.add_timeline(
-        audio_timeline,
-        alignment=PerfectAlignment(
-            source_start=0,
-            source_end=100.0,
-            ref_start=0,
-            ref_end=1000,
-        ),
-    )
+    """Group with DGT1 and audio timelines.
+
+    DGT1: 1000 pixels, Audio: 100 seconds
+    Audio's full extent (0-100) maps to DGT1's full extent (0-1000).
+    """
+    group = TimelineGroup(id="dgt1_group", name="DGT1_Group")
+    group.add_timeline(dgt1_timeline)
+    group.add_timeline(audio_timeline)
     return group
 
 

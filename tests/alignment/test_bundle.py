@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from timetoalign.alignment import AlignmentBundle, PerfectAlignment
+from timetoalign.alignment import AlignmentBundle, TimelineGroup
 from timetoalign.alignment.bundle import _reset_bundle_ids
 from timetoalign.timelines import Timeline
 
@@ -168,8 +168,8 @@ class TestGroupManagement:
         group = bundle.default_group
         assert group is not None
         # Groups use actual timeline.id, not bundle UIDs
-        assert simple_timeline.id in group.timelines
-        assert second_timeline.id in group.timelines
+        assert simple_timeline.id in group
+        assert second_timeline.id in group
 
     def test_reference_timeline_is_first(
         self, simple_timeline: Timeline, second_timeline: Timeline
@@ -314,31 +314,32 @@ class TestCoordinateTransfer:
 
 
 class TestCustomAlignment:
-    """Tests for custom PerfectAlignment specifications."""
+    """Tests for custom alignment specifications.
 
-    def test_partial_alignment(
+    NOTE: As of Phase 7.4, PerfectAlignment is deprecated. Partial alignment
+    is now specified via start/end parameters on TimelineGroup.add_timeline().
+    The AlignmentBundle currently only supports linear (full-extent) alignment.
+    """
+
+    def test_partial_alignment_via_group(
         self, simple_timeline: Timeline, second_timeline: Timeline
     ) -> None:
-        """Can specify partial alignment ranges."""
-        bundle = AlignmentBundle()
-        bundle.add_timeline(simple_timeline, uid="tl1")  # length=100
-
-        # Map only 0-100 of tl2 to 0-50 of tl1
-        alignment = PerfectAlignment(
-            source_start=0,
-            source_end=100,
-            ref_start=0,
-            ref_end=50,
-        )
-        bundle.add_timeline(
-            second_timeline, uid="tl2", aligned_to="tl1", alignment=alignment
+        """Can specify partial alignment ranges via group API."""
+        # Create group directly with partial alignment
+        group = TimelineGroup(id="test_group")
+        group.add_timeline(simple_timeline)
+        # Map second_timeline's full extent (0-200) to simple_timeline's 0-50
+        group.add_timeline(
+            second_timeline,
+            end=(50.0, simple_timeline.id),  # Map to first 50 units of tl1
         )
 
-        # At source coord 50: ratio = 50/100 = 0.5, ref = 0.5 * 50 = 25
-        # But we're going FROM tl2 TO tl1, so:
-        # 50 in tl2 -> (50 - 0) / (100 - 0) = 0.5 ratio -> 0 + 0.5 * 50 = 25 in ref
-        result = bundle.transfer(50.0, "tl2", "tl1")
-        assert result == 25.0
+        # At tl2 coord 50: 25% through tl2's range (0-200)
+        # Should map to 25% through the mapped range (0-50) = 12.5 in tl1
+        result = group.convert(
+            50.0, source=second_timeline.id, target=simple_timeline.id
+        )
+        assert result == pytest.approx(12.5)
 
 
 # endregion

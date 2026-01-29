@@ -6,6 +6,9 @@ bundle manages timelines, groups, and coordinate transfer operations.
 
 Phase 1 supports single-group scenarios (perfect alignment).
 Future phases will add cross-group matching and WarpMap transfer.
+
+NOTE: As of Phase 7.4, TimelineGroup uses a timestamp-based architecture.
+The bundle now uses the new add_timeline() API internally.
 """
 
 from __future__ import annotations
@@ -16,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 from timetoalign.core import IdGenerator
 
-from .groups import PerfectAlignment, TimelineGroup
+from .groups import TimelineGroup
 
 if TYPE_CHECKING:
     from timetoalign.timelines import Timeline
@@ -114,8 +117,9 @@ class AlignmentBundle:
         *,
         uid: str | None = None,
         aligned_to: str | None = None,
-        alignment: PerfectAlignment | str = "linear",
         as_group: str | None = None,
+        start: tuple[float, str] | float | None = None,
+        end: tuple[float, str] | float | None = None,
     ) -> "AlignmentBundle":
         """Add a timeline, optionally aligned to an existing timeline.
 
@@ -129,10 +133,15 @@ class AlignmentBundle:
                 If provided, both timelines become part of the same group.
                 If the target timeline is not yet in a group, a new group
                 is created with the target as reference.
-            alignment: How to align. "linear" creates a PerfectAlignment
-                mapping full extent to full extent. Can also pass an
-                explicit PerfectAlignment for partial or custom mappings.
             as_group: Name for the group if creating a new one.
+            start: Where this timeline's 0-origin starts in the group.
+                - (coord, timeline_id): Position in an existing group timeline
+                - float: Coordinate in the aligned_to timeline
+                - None: Use group's current start (default for linear alignment)
+            end: Where this timeline's end (length) aligns in the group.
+                - (coord, timeline_id): Position in an existing group timeline
+                - float: Coordinate in the aligned_to timeline
+                - None: Use group's current end (default for linear alignment)
 
         Returns:
             self (for method chaining)
@@ -140,6 +149,23 @@ class AlignmentBundle:
         Raises:
             ValueError: If uid already exists in bundle.
             KeyError: If aligned_to references a non-existent timeline.
+
+        Examples:
+            Linear (full-extent) alignment:
+
+                >>> bundle.add_timeline(audio, uid="dgt1")
+                >>> bundle.add_timeline(midi, uid="dlt1", aligned_to="dgt1")
+
+            Partial alignment (SUPRA piano roll):
+
+                >>> bundle.add_timeline(image, uid="dgt1")  # Full image
+                >>> bundle.add_timeline(
+                ...     holes,
+                ...     uid="dgt1_holes",
+                ...     aligned_to="dgt1",
+                ...     start=(15343.0, "dgt1"),  # Musical region starts here
+                ...     end=(293119.0, "dgt1"),   # Musical region ends here
+                ... )
         """
         # Determine the bundle UID to use
         bundle_uid = uid if uid is not None else timeline.id
@@ -151,13 +177,6 @@ class AlignmentBundle:
         actual_tl_id = timeline.id
         self._uid_to_timeline_id[bundle_uid] = actual_tl_id
         self._timeline_id_to_uid[actual_tl_id] = bundle_uid
-
-        # Resolve alignment object
-        if isinstance(alignment, str):
-            if alignment == "linear":
-                alignment = PerfectAlignment()
-            else:
-                raise ValueError(f"Unknown alignment type: {alignment}")
 
         # Store timeline with bundle UID as key
         self.timelines[bundle_uid] = timeline
@@ -172,46 +191,37 @@ class AlignmentBundle:
                 group_id = self.timeline_to_group[aligned_to]
                 group = self.groups[group_id]
             else:
-                # Create new group with target as reference
+                # Create new group with target as first timeline
                 target_timeline = self.timelines[aligned_to]
                 group_id = as_group or f"group_{aligned_to}"
-                group = TimelineGroup.from_reference(
-                    target_timeline, uid=group_id, name=as_group
-                )
+                group = TimelineGroup(id=group_id, name=as_group)
+                group.add_timeline(target_timeline)
                 self.groups[group_id] = group
                 self.timeline_to_group[aligned_to] = group_id
 
-            # If aligned_to is not the group reference, we need to compose alignments
-            # The new timeline's alignment is relative to aligned_to, but the group
-            # stores alignments relative to the reference.
-            target_actual_id = self._uid_to_timeline_id[aligned_to]
-            if target_actual_id != group.reference_timeline_id:
-                # Compose: new -> aligned_to -> reference
-                alignment = self._compose_alignments(
-                    timeline=timeline,
-                    new_alignment=alignment,
-                    target_timeline=self.timelines[aligned_to],
-                    target_alignment=group.alignments[target_actual_id],
-                    reference_timeline=group.reference,
-                )
+            # Process start/end parameters for partial alignment
+            # Convert bundle UIDs in (coord, uid) tuples to actual timeline IDs
+            start_spec = self._convert_boundary_spec(start, aligned_to)
+            end_spec = self._convert_boundary_spec(end, aligned_to)
 
-            # Add current timeline to the group
-            group.add_timeline(timeline, alignment=alignment)
+            # Add current timeline to the group with optional partial alignment
+            group.add_timeline(timeline, start=start_spec, end=end_spec)
             self.timeline_to_group[bundle_uid] = group_id
 
             self._logger.debug(
                 f"Added timeline '{bundle_uid}' (internal: {actual_tl_id}) "
                 f"aligned to '{aligned_to}' in group '{group_id}'"
+                f"{' with partial alignment' if start is not None or end is not None else ''}"
             )
 
         elif as_group is not None:
-            # Create standalone group with this timeline as reference
-            group = TimelineGroup.from_reference(timeline, uid=as_group, name=as_group)
+            # Create standalone group with this timeline
+            group = TimelineGroup(id=as_group, name=as_group, timelines=[timeline])
             self.groups[as_group] = group
             self.timeline_to_group[bundle_uid] = as_group
 
             self._logger.debug(
-                f"Added timeline '{bundle_uid}' as reference in new group '{as_group}'"
+                f"Added timeline '{bundle_uid}' as first timeline in new group '{as_group}'"
             )
 
         else:
@@ -297,55 +307,41 @@ class AlignmentBundle:
         """List of all group IDs in the bundle."""
         return list(self.groups.keys())
 
-    def _compose_alignments(
+    def _convert_boundary_spec(
         self,
-        timeline: "Timeline",
-        new_alignment: PerfectAlignment,
-        target_timeline: "Timeline",
-        target_alignment: PerfectAlignment,
-        reference_timeline: "Timeline",
-    ) -> PerfectAlignment:
-        """Compose two alignments to get alignment relative to reference.
-
-        When a new timeline is aligned to a non-reference timeline, we need
-        to compose the alignments:
-        - new_alignment: new timeline -> target timeline
-        - target_alignment: target timeline -> reference timeline
-
-        The result is: new timeline -> reference timeline
+        spec: tuple[float, str] | float | None,
+        aligned_to: str,
+    ) -> tuple[float, str] | float | None:
+        """Convert a boundary specification from bundle UIDs to timeline IDs.
 
         Args:
-            timeline: The new timeline being added.
-            new_alignment: Alignment from new to target.
-            target_timeline: The intermediate timeline.
-            target_alignment: Alignment from target to reference.
-            reference_timeline: The group's reference timeline.
+            spec: The boundary specification (start or end).
+            aligned_to: The bundle UID of the aligned_to timeline.
 
         Returns:
-            PerfectAlignment from new timeline directly to reference.
+            The converted specification for use with TimelineGroup.add_timeline().
         """
-        # Get lengths
-        new_length = float(timeline.length.value)
-        target_length = float(target_timeline.length.value)
-        ref_length = float(reference_timeline.length.value)
+        if spec is None:
+            return None
 
-        # Resolve the new alignment's endpoints
-        new_src_start, new_src_end, new_tgt_start, new_tgt_end = new_alignment.resolve(
-            new_length, target_length
-        )
+        if isinstance(spec, (int, float)):
+            # Float: assume it refers to the aligned_to timeline
+            # Convert bundle UID to actual timeline ID
+            actual_tl_id = self._uid_to_timeline_id[aligned_to]
+            return (float(spec), actual_tl_id)
 
-        # Convert the target endpoints to reference coordinates
-        ref_start = target_alignment.to_reference(
-            new_tgt_start, target_length, ref_length
-        )
-        ref_end = target_alignment.to_reference(new_tgt_end, target_length, ref_length)
+        if isinstance(spec, tuple):
+            coord, bundle_uid = spec
+            # Convert bundle UID to actual timeline ID
+            if bundle_uid not in self._uid_to_timeline_id:
+                raise KeyError(
+                    f"Timeline '{bundle_uid}' not found in bundle. "
+                    f"Available: {list(self._uid_to_timeline_id.keys())}"
+                )
+            actual_tl_id = self._uid_to_timeline_id[bundle_uid]
+            return (float(coord), actual_tl_id)
 
-        return PerfectAlignment(
-            source_start=new_src_start,
-            source_end=new_src_end,
-            ref_start=ref_start,
-            ref_end=ref_end,
-        )
+        raise ValueError(f"Invalid boundary specification: {spec}")
 
     # endregion
 
@@ -486,7 +482,7 @@ class AlignmentBundle:
                 "name": grp.name,
                 "reference": grp.reference_timeline_id,
                 "n_timelines": grp.n_timelines,
-                "timeline_ids": sorted(grp.timelines.keys()),
+                "timeline_ids": sorted(grp.timeline_ids),
             }
 
         return {

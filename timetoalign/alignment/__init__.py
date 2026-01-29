@@ -5,8 +5,9 @@ synchronization as described in the TTA manuscript.
 
 Public API:
 - AlignmentBundle: Primary entry point for alignment workflows (Phase 1+)
-- PerfectAlignment: Bijective coordinate mapping definition
-- TimelineGroup: Collection of perfectly aligned timelines
+- TimelineGroup: Container for commensurable timelines (timestamp-based)
+- GroupTimestamp: A synchronized instant across all timelines in a group
+- PerfectAlignment: DEPRECATED - Use TimelineGroup.add_timeline() instead
 - AlignmentAnchor: Atomic coordinate pair claim
 - MatchClaim: Low-level match between two events
 - MatchMetadata: Provenance information for matches
@@ -19,14 +20,16 @@ from __future__ import annotations
 from .anchors import AlignmentAnchor, MatchClaim, MatchMetadata
 from .bundle import AlignmentBundle
 from .graph import MatchGraph, MatchStamp
-from .groups import PerfectAlignment, TimelineGroup
+from .groups import GroupTimestamp, PerfectAlignment, TimelineGroup
 
 __all__ = [
     # Bundle (Primary Entry Point)
     "AlignmentBundle",
     # Groups
-    "PerfectAlignment",
     "TimelineGroup",
+    "GroupTimestamp",
+    # DEPRECATED - kept for backward compatibility
+    "PerfectAlignment",
     # Anchors and Claims
     "AlignmentAnchor",
     "MatchClaim",

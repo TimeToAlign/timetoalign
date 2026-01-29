@@ -388,13 +388,17 @@ class MatchGraph:
                 continue
 
             # Add inferred edges to all other timelines in group
-            for other_tl_id, other_tl in group.timelines.items():
+            for other_tl_id in group.timeline_ids:
                 if other_tl_id == timeline_id:
                     continue
 
                 # Convert coordinate to other timeline
                 try:
-                    other_coord = group.convert(coord, timeline_id, other_tl_id)
+                    other_coord = group.convert(
+                        coord, source=timeline_id, target=other_tl_id
+                    )
+                    if other_coord is None:
+                        continue
                 except (KeyError, ValueError):
                     continue
 
