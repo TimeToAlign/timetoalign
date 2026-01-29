@@ -14,6 +14,13 @@ IMPORTANT CONCEPTUAL DISTINCTION:
 - Perfect Alignment: Bijective coordinate mapping (linear interpolation).
   Does NOT imply the alignment is musically/temporally correct.
 - Correct Alignment: A special case where mapping corresponds to reality.
+
+UNIFIED TIMESTAMP ARCHITECTURE (Phase 6.5):
+TimelineGroup now implements the TimeStampSource protocol and uses the same
+TimeStamp/TimeIntervalStamp classes as Timeline. This enables:
+- Consistent API across Timeline and TimelineGroup
+- O(log n) coordinate conversion via InterpolationMaps
+- Unified traversal of hierarchies spanning both
 """
 
 from __future__ import annotations
@@ -23,12 +30,16 @@ import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Iterator, Literal
 
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 
 from timetoalign.core import IdGenerator
+from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
+from timetoalign.maps.interpolation import InterpolationMap
 
 if TYPE_CHECKING:
+    from timetoalign.core.enums import TimeUnit
     from timetoalign.timelines import Timeline
 
 module_logger = logging.getLogger(__name__)
@@ -53,6 +64,11 @@ class GroupTimestamp:
     This is a view object created from a row in the group's timestamp table.
     Not stored directly - the table is the source of truth.
 
+    .. note::
+        Consider using ``TimelineGroup.get_unified_timestamp()`` instead, which
+        returns a ``TimeStamp`` object compatible with ``Timeline.get_timestamp()``.
+        This provides a consistent API across both Timeline and TimelineGroup.
+
     Attributes:
         coordinates: Dictionary mapping timeline IDs to coordinates.
             None values indicate the timeline is not present at this instant.
@@ -65,6 +81,10 @@ class GroupTimestamp:
         2437.5
         >>> ts.present_timelines  # Which timelines have values here
         ['dgt1:1', 'audio:1']
+
+    See Also:
+        TimelineGroup.get_unified_timestamp: Returns unified TimeStamp object.
+        TimeStamp: The unified timestamp class from ``timetoalign.core``.
     """
 
     coordinates: dict[str, float | None]
@@ -273,6 +293,9 @@ class TimelineGroup:
         default_factory=dict, init=False, repr=False
     )
     _timestamp_table: pa.Table | None = field(default=None, init=False, repr=False)
+    _interpolation_maps: dict[str, InterpolationMap] = field(
+        default_factory=dict, init=False, repr=False
+    )
     _is_locked: bool = field(default=False, init=False, repr=False)
     _logger: logging.Logger = field(
         default_factory=lambda: module_logger, init=False, repr=False
@@ -304,6 +327,7 @@ class TimelineGroup:
         self.meta = dict(meta) if meta else {}
         self._timelines = {}
         self._timestamp_table = None
+        self._interpolation_maps = {}
         self._is_locked = False  # Temporarily unlocked during init
         self._logger = module_logger.getChild(self.id)
 
@@ -396,6 +420,9 @@ class TimelineGroup:
         self._insert_timeline(timeline, start_spec, end_spec)
         self._timelines[timeline.id] = timeline
 
+        # Rebuild interpolation maps for O(log n) coordinate conversion
+        self._build_interpolation_maps()
+
         self._logger.debug(
             f"Added timeline '{timeline.id}' with {self.n_timestamps} timestamps"
         )
@@ -420,6 +447,9 @@ class TimelineGroup:
 
         timeline = self._timelines.pop(timeline_id)
         self._remove_timeline_column(timeline_id)
+
+        # Rebuild interpolation maps
+        self._build_interpolation_maps()
 
         self._logger.debug(f"Removed timeline '{timeline_id}'")
         return timeline
@@ -727,6 +757,200 @@ class TimelineGroup:
             return None
 
         return (start_val, end_val)
+
+    # endregion
+
+    # region Unified Timestamp API (TimeStampSource Protocol)
+
+    def _get_interpolation_map(
+        self, target_id: str, source_id: str | None = None
+    ) -> InterpolationMap | None:
+        """Get InterpolationMap for coordinate conversion to target.
+
+        This method is part of the TimeStampSource protocol.
+
+        For TimelineGroup, the map key is source_id:target_id since
+        groups have multiple member timelines.
+
+        Args:
+            target_id: Target timeline ID.
+            source_id: Source timeline ID (required for TimelineGroup).
+
+        Returns:
+            InterpolationMap for conversion, or None if not available.
+        """
+        if source_id is None:
+            return None
+        map_key = f"{source_id}:{target_id}"
+        return self._interpolation_maps.get(map_key)
+
+    def _get_unit_map(self, unit: "TimeUnit") -> InterpolationMap | None:
+        """Get InterpolationMap for unit-based conversion.
+
+        This method is part of the TimeStampSource protocol.
+        TimelineGroup does not support unit conversion directly
+        (individual timelines may have their own C-Maps).
+
+        Args:
+            unit: Target unit.
+
+        Returns:
+            None (TimelineGroup does not have C-Maps).
+        """
+        return None
+
+    def _get_related_timeline_ids(self) -> list[str]:
+        """Get IDs of all related timelines (members).
+
+        This method is part of the TimeStampSource protocol.
+
+        Returns:
+            List of member timeline IDs.
+        """
+        return list(self._timelines.keys())
+
+    def _get_available_units(self) -> list["TimeUnit"]:
+        """Get all units available via C-Maps.
+
+        This method is part of the TimeStampSource protocol.
+        TimelineGroup does not have C-Maps directly.
+
+        Returns:
+            Empty list.
+        """
+        return []
+
+    def get_unified_timestamp(
+        self,
+        coordinate: float,
+        timeline_id: str,
+    ) -> TimeStamp:
+        """Get a unified TimeStamp at a specific coordinate.
+
+        This is the new unified API that returns a TimeStamp object
+        compatible with Timeline.get_timestamp(). It provides the same
+        interface as Timeline and enables consistent traversal.
+
+        Uses InterpolationMaps for O(log n) coordinate conversion.
+
+        Args:
+            coordinate: The query coordinate.
+            timeline_id: Which timeline the coordinate refers to.
+
+        Returns:
+            TimeStamp with the axis coordinate and source set to this group.
+
+        Raises:
+            KeyError: If timeline_id is not in the group.
+            ValueError: If group has no timestamps.
+
+        Examples:
+            >>> ts = group.get_unified_timestamp(75.0, "audio:1")
+            >>> ts.axis  # The resolved coordinate
+            75.0
+            >>> ts["dgt1:1"]  # Get coordinate on another timeline
+            2437.5
+        """
+        if timeline_id not in self._timelines:
+            raise KeyError(f"Timeline '{timeline_id}' not in group")
+
+        if self._timestamp_table is None:
+            raise ValueError(f"Group '{self.id}' has no timestamps")
+
+        # The axis coordinate is the coordinate on the specified timeline
+        return TimeStamp(
+            axis=coordinate,
+            source=self,
+            source_id=timeline_id,  # Use the timeline_id as source_id for lookups
+        )
+
+    def get_unified_interval_stamp(
+        self,
+        start: float,
+        end: float,
+        timeline_id: str,
+    ) -> TimeIntervalStamp:
+        """Get a unified TimeIntervalStamp for a coordinate range.
+
+        Args:
+            start: Start coordinate.
+            end: End coordinate.
+            timeline_id: Which timeline the coordinates refer to.
+
+        Returns:
+            TimeIntervalStamp with start and end TimeStamps.
+
+        Examples:
+            >>> interval = group.get_unified_interval_stamp(0.0, 100.0, "audio:1")
+            >>> interval.duration
+            100.0
+            >>> interval["dgt1:1"]  # Get (start, end) tuple
+            (0.0, 3250.0)
+        """
+        return TimeIntervalStamp(
+            start=self.get_unified_timestamp(start, timeline_id),
+            end=self.get_unified_timestamp(end, timeline_id),
+        )
+
+    def _build_interpolation_maps(self) -> None:
+        """Build InterpolationMaps from the timestamp table.
+
+        Called after timeline additions/removals to update the
+        interpolation maps for O(log n) coordinate conversion.
+        """
+        if self._timestamp_table is None or self._timestamp_table.num_rows < 2:
+            self._interpolation_maps = {}
+            return
+
+        # Build pairwise maps between all timelines
+        timeline_ids = list(self._timelines.keys())
+        new_maps: dict[str, InterpolationMap] = {}
+
+        for i, source_id in enumerate(timeline_ids):
+            source_col = self._timestamp_table.column(source_id).to_pylist()
+
+            for j, target_id in enumerate(timeline_ids):
+                if i == j:
+                    continue
+
+                target_col = self._timestamp_table.column(target_id).to_pylist()
+
+                # Extract pairs where both have values
+                source_vals: list[float] = []
+                target_vals: list[float] = []
+
+                for s, t in zip(source_col, target_col):
+                    if s is not None and t is not None:
+                        source_vals.append(s)
+                        target_vals.append(t)
+
+                if len(source_vals) >= 2:
+                    # Create InterpolationMap: source -> target
+                    # Key is (source_id, target_id) combined
+                    map_key = f"{source_id}:{target_id}"
+                    new_maps[map_key] = InterpolationMap(
+                        source_coords=np.array(source_vals, dtype=np.float64),
+                        target_coords=np.array(target_vals, dtype=np.float64),
+                        source_id=source_id,
+                        target_id=target_id,
+                    )
+
+        self._interpolation_maps = new_maps
+
+    def _get_pairwise_map(
+        self, source_id: str, target_id: str
+    ) -> InterpolationMap | None:
+        """Get the InterpolationMap for converting between two timelines.
+
+        Args:
+            source_id: Source timeline ID.
+            target_id: Target timeline ID.
+
+        Returns:
+            InterpolationMap for the conversion, or None if not available.
+        """
+        map_key = f"{source_id}:{target_id}"
+        return self._interpolation_maps.get(map_key)
 
     # endregion
 
