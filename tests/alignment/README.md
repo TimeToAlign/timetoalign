@@ -10,69 +10,85 @@ The alignment module implements the TTA manuscript's multi-level hierarchy:
 AlignmentAnchor (atomic) -> MatchClaim (low) -> MatchGraph (mid) -> MatchLine (high)
         |                        |
         v                        v
-   PerfectAlignment         TimelineGroup
+   start/end params         TimelineGroup (timestamp table)
 ```
+
+**NOTE (Phase 7.4):** The `PerfectAlignment` class is **deprecated**. TimelineGroup now uses a timestamp-based architecture where alignment is specified via `start`/`end` parameters to `add_timeline()`. See `test_groups.py` for the new API.
 
 Each test validates a **specific claim** from the manuscript specification. Tests are not exploratory--they verify exact behaviors required by the model.
 
 ---
 
-## PerfectAlignment Tests (`test_groups.py::TestPerfectAlignment`)
+## TimelineGroup Architecture (Phase 7.4)
 
-### What We're Validating
+### Timestamp Table Design
 
-The manuscript (Section 3.2) states that coordinates within a Group must be "bijectively mappable via linear interpolation." PerfectAlignment implements this mapping.
+The group stores alignment data as a PyArrow table:
 
-### Key Evidence
+```
+| dgt1_image | dgt1_holes | dlt1_raw |
+|------------|------------|----------|
+| 0.0        | null       | null     |  <- group start (image only)
+| 15343.0    | 0.0        | 0.0      |  <- musical region starts
+| 293119.0   | 277776.0   | 871800.0 |  <- musical region ends
+| 299400.0   | null       | null     |  <- group end (image only)
+```
 
-| Test | Validates |
-|------|-----------|
-| `test_to_reference_identity` | When source and ref have same length, coordinates pass through unchanged (identity mapping) |
-| `test_to_reference_scaling` | Linear scaling: coord 50 in [0,100] -> coord 100 in [0,200] (ratio preserved) |
-| `test_to_reference_partial_alignment` | Partial ranges work: [0,100] -> [45,90] maps start->45, end->90, middle->67.5 |
-| `test_from_reference_inverse` | **Critical**: `from_reference(to_reference(x)) == x` (bijective requirement) |
-| `test_zero_length_source_raises` | Division by zero is caught, not silently producing NaN/Inf |
+Between any two adjacent rows, ALL non-null timelines have bijective linear mapping.
 
-### Why These Are Sufficient
+### Key Changes from PerfectAlignment
 
-1. **Linearity**: Two points define a line. We test endpoints (0, length) and midpoint to verify linear interpolation.
-2. **Bijectivity**: The inverse test proves the mapping is reversible--no information is lost.
-3. **Edge cases**: Zero-length ranges are explicitly rejected rather than producing garbage.
+| Before (deprecated) | After (Phase 7.4) |
+|---------------------|-------------------|
+| `PerfectAlignment(source_start=0, source_end=277776, ref_start=15343, ref_end=293119)` | `group.add_timeline(holes, start=(15343.0, "dgt1"), end=(293119.0, "dgt1"))` |
+| Per-timeline alignment objects | Timestamp table with one column per timeline |
+| `group.reference_timeline_id` | Reference timeline is first column in table |
 
 ---
 
-## TimelineGroup Tests (`test_groups.py::TestTimelineGroup`)
+## TimelineGroup Tests (`test_groups.py`)
 
 ### What We're Validating
 
 The manuscript states Groups contain timelines with "perfect alignment"--any coordinate in one timeline maps to exactly one coordinate in every other timeline.
 
+### Key Test Classes (Phase 7.4)
+
+| Class | Tests |
+|-------|-------|
+| `TestGroupTimestamp` | View object creation, coordinate access, `present_timelines` property |
+| `TestTimelineGroupCreation` | Empty groups, groups with initial timelines, ID generation |
+| `TestTimelineGroupAddTimeline` | Linear alignment, partial alignment with `start`/`end`, duplicate detection |
+| `TestTimelineGroupTimestamps` | Timestamp count, boundary retrieval, table structure |
+| `TestTimelineGroupInterpolation` | `get_timestamp_at()` for exact matches and interior points |
+| `TestTimelineGroupConversion` | `convert()` method, same-timeline identity, cross-timeline mapping |
+| `TestTimelineGroupLocking` | Lock/unlock, `allow_extension` parameter |
+| `TestBackwardCompatibility` | Deprecated `from_reference()` and `iter_timelines()` methods |
+
 ### Key Evidence
 
 | Test | Validates |
 |------|-----------|
-| `test_from_reference` | Group creation correctly sets reference timeline |
-| `test_add_timeline` | Non-reference timelines added with explicit alignment |
-| `test_add_duplicate_raises` | **Invariant**: No timeline can appear twice (would break coordinate uniqueness) |
-| `test_remove_reference_raises` | **Invariant**: Reference cannot be removed (would orphan other alignments) |
-| `test_convert_same_timeline` | Self-conversion returns input unchanged (reflexivity) |
-| `test_convert_between_timelines` | **Core functionality**: Coordinate conversion via reference timeline |
+| `test_add_with_partial_alignment` | Partial ranges work: `start=(15343, "dgt1")` maps holes 0 -> image 15343 |
+| `test_interpolation_exact_boundary` | Exact boundary coordinates return stored values (no interpolation) |
+| `test_interpolation_interior_point` | Interior points are linearly interpolated |
+| `test_conversion_same_timeline` | Self-conversion returns input unchanged (reflexivity) |
+| `test_conversion_cross_timeline` | **Core functionality**: Coordinate conversion via timestamp lookup |
+| `test_floating_point_precision` | Boundary values are EXACT (no floating-point error from interpolation round-trip) |
 
-### The Conversion Test in Detail
+### The Floating-Point Precision Test
 
 ```python
-def test_convert_between_timelines(self):
-    # Setup: 150 seconds maps to 4875 pixels
-    # Test: 2437.5 pixels (middle) -> 75 seconds (middle)
-    result = basic_group.convert(2437.5, "dgt1", "sec1")
-    assert result == pytest.approx(75.0)
+def test_floating_point_precision(self):
+    # Partial alignment: holes [0, 277776] -> image [15343, 293119]
+    group.add_timeline(holes, start=(15343.0, "dgt1"), end=(293119.0, "dgt1"))
+
+    # Boundary coordinates must be EXACT
+    result = group.convert(0.0, source="holes", target="dgt1")
+    assert result == 15343.0  # EXACT, not pytest.approx()
 ```
 
-This validates the **composition of alignments**:
-1. Source coord -> reference coord (via source's PerfectAlignment)
-2. Reference coord -> target coord (via target's PerfectAlignment.inverse)
-
-The test uses exact expected values (75.0), not ranges or approximations.
+This test validates that the source timeline's coordinate is stored exactly, not computed through interpolation (which would introduce floating-point error).
 
 ---
 
@@ -148,6 +164,67 @@ The manuscript requires matches to include "the agent/author, decision criteria,
 | `test_certainty_validation` | Certainty must be in [0, 1] |
 | `test_certainty_boundaries` | Boundary values (0.0, 1.0) are valid |
 | `test_from_dict_roundtrip` | Datetime serialization works (ISO format) |
+
+---
+
+## SUPRA Integration Tests (`test_supra_integration.py`)
+
+### What We're Validating
+
+The SUPRA (Stanford University Piano Roll Archive) tests validate the **partial alignment** feature using real-world data from piano roll digitization. This is the canonical use case for the new Phase 7.4 API.
+
+### Data Source
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| Roll | WM 990 | Welte-Mignon red roll, T-100 |
+| DRUID | fd660zf8362 | Stanford Digital Repository ID |
+| IMAGE_HEIGHT | 299,400 | Full image height in pixels |
+| FIRST_HOLE | 15,343 | Pixel row of first musical hole |
+| LAST_HOLE | 293,119 | Pixel row of last musical hole |
+| MUSICAL_LENGTH | 277,776 | `last_hole - first_hole` |
+| MUSICAL_HOLES | 30,092 | Individual hole punches |
+| MUSICAL_NOTES | 8,718 | Notes after merging adjacent holes |
+
+### Test Classes
+
+| Class | Tests |
+|-------|-------|
+| `TestSUPRADataLoading` | `IIIFManifestLoader` dimensions, `ATONLoader` metadata (EXACT values) |
+| `TestSUPRATimelineCreation` | Timeline lengths match loader data |
+| `TestSUPRAAlignmentBundle` | Partial alignment via `start`/`end` parameters, coordinate transfer |
+| `TestSUPRAOrderIndependence` | Same alignment specifications produce same results regardless of add order |
+| `TestSUPRASummary` | Bundle summary structure and determinism |
+
+### Key Evidence
+
+| Test | Validates |
+|------|-----------|
+| `test_iiif_dimensions_exact` | IIIF loader returns `width=4096, height=299400` (EXACT) |
+| `test_aton_metadata_exact` | ATON loader returns EXACT counts from gold standard |
+| `test_transfer_holes_to_image` | Holes coord 0 -> Image pixel 15343 (EXACT, no tolerance) |
+| `test_transfer_image_to_holes` | Inverse transfer: Image 15343 -> Holes 0 (EXACT) |
+| `test_three_timeline_same_partial_alignment` | Three timelines with same partial alignment produce consistent transfers |
+
+### Alignment Diagram
+
+```
+DGT1 (Full Image: 0 - 299,400 px)
+  |
+  +-- [15,343 px] --- DGT1_holes (Musical Region: 0 - 277,776 px) --- [293,119 px]
+                            |
+                            | Partial alignment via start/end
+                            v
+                      DLT1 (MIDI: 0 - 871,800 ticks)
+```
+
+### ZERO TOLERANCE Policy Compliance
+
+Per the engineering standards:
+
+1. **EXACT COUNTS REQUIRED**: All assertions use exact expected values from the gold standard
+2. **NO TOLERANCE**: Boundary coordinates (0, 15343, 293119, 277776) are compared with `==`, not `pytest.approx()`
+3. **DOCUMENTED ROOT CAUSE**: Interior point comparisons document why floating-point arithmetic is involved (irrational scale factors)
 
 ---
 
@@ -256,4 +333,24 @@ cd timetoalign
 python -m pytest tests/alignment/ -v
 ```
 
-All 78 tests should pass. Coverage is ~98% for the alignment module.
+**Phase 7.4 Status**: 272 tests pass, 2 skipped. Coverage is ~80% for the alignment module.
+
+### Test Files
+
+| File | Tests | Description |
+|------|-------|-------------|
+| `test_groups.py` | 45 | TimelineGroup and GroupTimestamp (Phase 7.4 API) |
+| `test_bundle.py` | 30 | AlignmentBundle with linear and partial alignment |
+| `test_anchors.py` | 50 | AlignmentAnchor, MatchClaim, MatchMetadata |
+| `test_graph.py` | 35 | MatchGraph operations |
+| `test_supra_integration.py` | 13 | SUPRA piano roll workflow (partial alignment) |
+| `test_thoresen_poc.py` | 35 | Thoresen graphical analysis workflow |
+
+### Deprecated Tests
+
+The following test methods use the deprecated `PerfectAlignment` class and will be removed in a future version:
+
+- `TestBackwardCompatibility.test_from_reference_still_works`
+- `TestBackwardCompatibility.test_iter_timelines_still_works`
+
+These tests verify backward compatibility during the migration period.

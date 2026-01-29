@@ -21,7 +21,6 @@ import pytest
 from timetoalign.alignment import (
     MatchClaim,
     MatchMetadata,
-    PerfectAlignment,
     TimelineGroup,
 )
 from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
@@ -164,26 +163,20 @@ def dgt1_group(
     dgt1_timeline: DiscreteGraphicalTimeline,
     audio_timeline: ContinuousPhysicalTimeline,
 ) -> TimelineGroup:
-    """Create TimelineGroup for DGT1 with audio alignment."""
-    group = TimelineGroup.from_reference(dgt1_timeline, name="DGT1_Group")
+    """Create TimelineGroup for DGT1 with audio alignment.
 
-    # Add audio with perfect alignment (pixels <-> seconds)
-    group.add_timeline(
-        audio_timeline,
-        alignment=PerfectAlignment(
-            source_start=0,
-            source_end=AUDIO_DURATION_SECONDS,
-            ref_start=0,
-            ref_end=DGT1_TOTAL_WIDTH,
-        ),
-    )
+    Maps audio (0-150s) to DGT1 (0-4835 pixels) linearly.
+    """
+    group = TimelineGroup(id="dgt1_group", name="DGT1_Group")
+    group.add_timeline(dgt1_timeline)
+    group.add_timeline(audio_timeline)
     return group
 
 
 @pytest.fixture
 def dgt2_group(dgt2_timeline: DiscreteGraphicalTimeline) -> TimelineGroup:
     """Create TimelineGroup for DGT2."""
-    return TimelineGroup.from_reference(dgt2_timeline, name="DGT2_Group")
+    return TimelineGroup(id="dgt2_group", name="DGT2_Group", timelines=[dgt2_timeline])
 
 
 @pytest.fixture
@@ -286,7 +279,7 @@ class TestThoresenGroupSetup:
         """DGT1 group has reference + audio timelines."""
         assert dgt1_group.n_timelines == 2
         assert dgt1_group.reference_timeline_id == "dgt1"
-        assert "audio" in dgt1_group.timelines
+        assert "audio" in dgt1_group
 
     def test_dgt2_group_structure(self, dgt2_group: TimelineGroup) -> None:
         """DGT2 group has reference timeline."""

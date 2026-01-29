@@ -3,9 +3,13 @@
 Tests the full SUPRA piano roll alignment workflow using:
 - IIIFManifestLoader for image dimensions
 - ATONLoader for hole punch data
-- AlignmentBundle for coordinate transfer
+- AlignmentBundle for coordinate transfer with partial alignment
 
 Per ZERO TOLERANCE policy, all assertions use exact expected values.
+
+NOTE: As of Phase 7.4, these tests use the new TimelineGroup timestamp-based
+architecture. The old PerfectAlignment class is deprecated. Partial alignment
+is achieved via the start/end parameters in AlignmentBundle.add_timeline().
 """
 
 from __future__ import annotations
@@ -14,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign.alignment import AlignmentBundle, PerfectAlignment
+from timetoalign.alignment import AlignmentBundle
 from timetoalign.loader.graphical.aton import ATONLoader
 from timetoalign.loader.graphical.iiif import IIIFManifestLoader
 from timetoalign.timelines import Timeline
@@ -127,7 +131,11 @@ class TestSUPRATimelineCreation:
 
 
 class TestSUPRAAlignmentBundle:
-    """Tests for SUPRA workflow using AlignmentBundle."""
+    """Tests for SUPRA workflow using AlignmentBundle with partial alignment.
+
+    Uses the new Phase 7.4 API where partial alignment is specified via
+    start/end parameters in add_timeline(), rather than PerfectAlignment objects.
+    """
 
     def test_create_supra_bundle(
         self,
@@ -135,26 +143,26 @@ class TestSUPRAAlignmentBundle:
         holes_timeline: Timeline,
         aton_loader: ATONLoader,
     ) -> None:
-        """Can create a bundle with SUPRA timelines."""
+        """Can create a bundle with SUPRA timelines using partial alignment."""
         bundle = AlignmentBundle(name="SUPRA WM 990")
 
         # Add image as reference
         bundle.add_timeline(image_timeline, uid="dgt1")
 
-        # Add holes region aligned to image
+        # Add holes timeline with partial alignment
         # Holes region spans first_hole to last_hole in image coordinates
-        alignment = PerfectAlignment(
-            source_start=0,  # Holes region starts at 0
-            source_end=aton_loader.musical_length,  # 277776
-            ref_start=aton_loader.first_hole,  # 15343 in image
-            ref_end=aton_loader.last_hole,  # 293119 in image
-        )
         bundle.add_timeline(
-            holes_timeline, uid="dgt1_holes", aligned_to="dgt1", alignment=alignment
+            holes_timeline,
+            uid="dgt1_holes",
+            aligned_to="dgt1",
+            start=(float(aton_loader.first_hole), "dgt1"),
+            end=(float(aton_loader.last_hole), "dgt1"),
         )
 
         assert bundle.n_timelines == 2
         assert bundle.n_groups == 1
+        assert "dgt1" in bundle.timeline_ids
+        assert "dgt1_holes" in bundle.timeline_ids
 
     def test_transfer_holes_to_image(
         self,
@@ -166,14 +174,13 @@ class TestSUPRAAlignmentBundle:
         bundle = AlignmentBundle(name="SUPRA WM 990")
         bundle.add_timeline(image_timeline, uid="dgt1")
 
-        alignment = PerfectAlignment(
-            source_start=0,
-            source_end=aton_loader.musical_length,
-            ref_start=aton_loader.first_hole,
-            ref_end=aton_loader.last_hole,
-        )
+        # Add holes with partial alignment via start/end
         bundle.add_timeline(
-            holes_timeline, uid="dgt1_holes", aligned_to="dgt1", alignment=alignment
+            holes_timeline,
+            uid="dgt1_holes",
+            aligned_to="dgt1",
+            start=(float(aton_loader.first_hole), "dgt1"),  # 15343.0
+            end=(float(aton_loader.last_hole), "dgt1"),  # 293119.0
         )
 
         # Coordinate 0 in holes -> first_hole in image - EXACT
@@ -202,14 +209,12 @@ class TestSUPRAAlignmentBundle:
         bundle = AlignmentBundle(name="SUPRA WM 990")
         bundle.add_timeline(image_timeline, uid="dgt1")
 
-        alignment = PerfectAlignment(
-            source_start=0,
-            source_end=aton_loader.musical_length,
-            ref_start=aton_loader.first_hole,
-            ref_end=aton_loader.last_hole,
-        )
         bundle.add_timeline(
-            holes_timeline, uid="dgt1_holes", aligned_to="dgt1", alignment=alignment
+            holes_timeline,
+            uid="dgt1_holes",
+            aligned_to="dgt1",
+            start=(float(aton_loader.first_hole), "dgt1"),
+            end=(float(aton_loader.last_hole), "dgt1"),
         )
 
         # first_hole in image -> 0 in holes - EXACT
@@ -234,6 +239,8 @@ class TestSUPRAOrderIndependence:
 
     The bundle must produce identical transfer results regardless
     of the order in which timelines are added.
+
+    Uses the new Phase 7.4 API with start/end parameters for partial alignment.
     """
 
     def test_order_1_image_first(
@@ -246,14 +253,12 @@ class TestSUPRAOrderIndependence:
 
         bundle = AlignmentBundle(id="order1")
         bundle.add_timeline(image_tl, uid="dgt1")
-        alignment = PerfectAlignment(
-            source_start=0,
-            source_end=277776,
-            ref_start=15343,
-            ref_end=293119,
-        )
         bundle.add_timeline(
-            holes_tl, uid="dgt1_holes", aligned_to="dgt1", alignment=alignment
+            holes_tl,
+            uid="dgt1_holes",
+            aligned_to="dgt1",
+            start=(15343.0, "dgt1"),
+            end=(293119.0, "dgt1"),
         )
 
         # Test transfer - interior point, compute expected exactly
@@ -275,14 +280,12 @@ class TestSUPRAOrderIndependence:
 
         b1 = AlignmentBundle(id="b1")
         b1.add_timeline(image_tl_1, uid="dgt1")
-        alignment = PerfectAlignment(
-            source_start=0,
-            source_end=277776,
-            ref_start=15343,
-            ref_end=293119,
-        )
         b1.add_timeline(
-            holes_tl_1, uid="dgt1_holes", aligned_to="dgt1", alignment=alignment
+            holes_tl_1,
+            uid="dgt1_holes",
+            aligned_to="dgt1",
+            start=(15343.0, "dgt1"),
+            end=(293119.0, "dgt1"),
         )
 
         # Order 2: Same order but with different uid assignment
@@ -291,14 +294,12 @@ class TestSUPRAOrderIndependence:
 
         b2 = AlignmentBundle(id="b2")
         b2.add_timeline(image_tl_2, uid="image")  # Different bundle UID
-        alignment2 = PerfectAlignment(
-            source_start=0,
-            source_end=277776,
-            ref_start=15343,
-            ref_end=293119,
-        )
         b2.add_timeline(
-            holes_tl_2, uid="holes", aligned_to="image", alignment=alignment2
+            holes_tl_2,
+            uid="holes",
+            aligned_to="image",
+            start=(15343.0, "image"),
+            end=(293119.0, "image"),
         )
 
         # Both should produce same coordinate values (just with different UIDs)
@@ -309,9 +310,13 @@ class TestSUPRAOrderIndependence:
 
         assert result1 == result2
 
-    def test_three_timeline_order_independence(self) -> None:
-        """Three timelines in different orders produce same transfers."""
-        # Order 1: image -> holes -> midi
+    def test_three_timeline_same_partial_alignment(self) -> None:
+        """Three timelines with same partial alignment produce identical transfers.
+
+        When all three timelines are partial-aligned to the same region,
+        the transfer between any two should be consistent regardless of order.
+        """
+        # Order 1: image -> holes -> midi (both partial to same region)
         b1 = AlignmentBundle(id="b1")
         img1 = Timeline(length=299400, uid="i1")
         holes1 = Timeline(length=277776, uid="h1")
@@ -322,18 +327,18 @@ class TestSUPRAOrderIndependence:
             holes1,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            alignment=PerfectAlignment(
-                source_start=0, source_end=277776, ref_start=15343, ref_end=293119
-            ),
+            start=(15343.0, "dgt1"),
+            end=(293119.0, "dgt1"),
         )
         b1.add_timeline(
             midi1,
             uid="dlt1",
-            aligned_to="dgt1_holes",
-            alignment=PerfectAlignment(),  # Linear full-extent
+            aligned_to="dgt1",
+            start=(15343.0, "dgt1"),
+            end=(293119.0, "dgt1"),
         )
 
-        # Order 2: image -> midi -> holes (but midi aligned to image)
+        # Order 2: image -> midi -> holes (same partial alignments, different order)
         b2 = AlignmentBundle(id="b2")
         img2 = Timeline(length=299400, uid="i2")
         holes2 = Timeline(length=277776, uid="h2")
@@ -344,39 +349,34 @@ class TestSUPRAOrderIndependence:
             midi2,
             uid="dlt1",
             aligned_to="dgt1",
-            alignment=PerfectAlignment(
-                source_start=0, source_end=871800, ref_start=15343, ref_end=293119
-            ),
+            start=(15343.0, "dgt1"),
+            end=(293119.0, "dgt1"),
         )
         b2.add_timeline(
             holes2,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            alignment=PerfectAlignment(
-                source_start=0, source_end=277776, ref_start=15343, ref_end=293119
-            ),
+            start=(15343.0, "dgt1"),
+            end=(293119.0, "dgt1"),
         )
 
-        # Image -> MIDI should give same result
-        # In b1: dgt1 -> dgt1_holes (15343 -> 0) -> dlt1 (0 -> 0)
-        # Wait, that's not right - the paths are different
+        # Both bundles have holes and midi aligned to the same image region
+        # So holes -> midi should give the same result in both
 
-        # Let's test what should be identical: dgt1_holes -> dlt1 in both
-        # But in b2, midi is aligned to image, not holes
-        # So this test needs to compare the same alignment structure
-
-        # Actually, let's just verify that within each bundle, transfer works
-        # and that the same alignment specification produces the same result
+        # Test holes -> midi transfer (should be same in both bundles)
         result1_holes_to_midi = b1.transfer(100000.0, "dgt1_holes", "dlt1")
         result2_holes_to_midi = b2.transfer(100000.0, "dgt1_holes", "dlt1")
 
-        # These will be different because the alignment structures are different
-        # (b1 has holes->midi linear, b2 has holes->image->midi)
-        # This is expected - order independence means same ADD order, same result
-        # Not that different structures give same results
-
         assert result1_holes_to_midi is not None
         assert result2_holes_to_midi is not None
+        # Both have same partial alignment, so results should be equal
+        assert result1_holes_to_midi == result2_holes_to_midi
+
+        # Verify the actual value: 100000 in holes -> midi
+        # holes spans [0, 277776], midi spans [0, 871800], both over same image region
+        # ratio = 100000 / 277776, result = ratio * 871800
+        expected = (100000.0 / 277776.0) * 871800.0
+        assert result1_holes_to_midi == expected
 
 
 # endregion
@@ -386,7 +386,10 @@ class TestSUPRAOrderIndependence:
 
 
 class TestSUPRASummary:
-    """Tests for bundle summary with SUPRA data."""
+    """Tests for bundle summary with SUPRA data.
+
+    Uses the new Phase 7.4 API with start/end parameters for partial alignment.
+    """
 
     def test_summary_structure(
         self,
@@ -397,14 +400,12 @@ class TestSUPRASummary:
         """Summary has correct structure."""
         bundle = AlignmentBundle(id="supra_bundle", name="SUPRA WM 990")
         bundle.add_timeline(image_timeline, uid="dgt1")
-        alignment = PerfectAlignment(
-            source_start=0,
-            source_end=277776,
-            ref_start=15343,
-            ref_end=293119,
-        )
         bundle.add_timeline(
-            holes_timeline, uid="dgt1_holes", aligned_to="dgt1", alignment=alignment
+            holes_timeline,
+            uid="dgt1_holes",
+            aligned_to="dgt1",
+            start=(float(aton_loader.first_hole), "dgt1"),
+            end=(float(aton_loader.last_hole), "dgt1"),
         )
 
         summary = bundle.summary()
@@ -430,9 +431,8 @@ class TestSUPRASummary:
             holes1,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            alignment=PerfectAlignment(
-                source_start=0, source_end=277776, ref_start=15343, ref_end=293119
-            ),
+            start=(15343.0, "dgt1"),
+            end=(293119.0, "dgt1"),
         )
 
         summary1 = b1.summary()
