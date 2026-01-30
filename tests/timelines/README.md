@@ -11,8 +11,16 @@ which implements the central Timeline class and its 6 domain-specific subclasses
 | `timelines/types.py` | 100% | Complete |
 | `timelines/mixins.py` | 100% | Complete |
 | `timelines/beatgrid.py` | 95% | Excellent |
+| `timelines/regions.py` | 94% | Excellent |
 
 ## Test Files
+
+### `test_timeline_relationships.py` - NEW: Region, SegmentLine, derive()
+
+**56 tests** covering TTA architecture harmonization concepts. See detailed
+documentation below in its own section.
+
+---
 
 ### `test_base.py` - Core Timeline Functionality
 
@@ -359,6 +367,101 @@ pytest tests/timelines/test_base.py -v
 # Run performance tests only
 pytest tests/timelines/ -v -k "performance"
 ```
+
+---
+
+### `test_timeline_relationships.py` - Region, SegmentLine, derive(), partition()
+
+**Purpose:** Validates the TTA architecture harmonization features that distinguish
+between different timeline relationship concepts.
+
+**TTA Manuscript Concepts Tested:**
+
+| Concept | Definition | Test Category |
+|---------|------------|---------------|
+| **Region** | A named TimeInterval (NOT a timeline) | `TestRegionDataclass`, `TestTimelineRegionManagement` |
+| **Child** | A timeline nested in a parent (same unit) | Tested in `test_nesting.py` |
+| **Segment** | A Child that is contiguous with siblings | `TestSegmentLineBasics` |
+| **SegmentLine** | A parent where ALL children are Segments | `TestSegmentLineFromSegmentation` |
+| **Derivative** | A new timeline created via C-map (different unit) | `TestTimelineDerive` |
+
+**Test Categories:**
+
+1. **Region Dataclass Tests** (9 tests)
+   - Creation with name, start, end, meta
+   - Duration computation (end - start)
+   - as_interval property (tuple)
+   - contains() follows [start, end) convention (left-inclusive, right-exclusive)
+   - overlaps() detection
+   - Rejects end < start
+   - Rejects mismatched units
+   - Immutability (frozen dataclass)
+
+2. **Timeline Region Management Tests** (9 tests)
+   - add_region() returns Region object
+   - get_region() returns dict (backwards compat)
+   - get_region_object() returns Region
+   - has_region(), iter_regions(), list_regions()
+   - n_regions property
+   - Duplicate name rejection
+   - Locked timeline rejection
+
+3. **Partition Tests** (7 tests)
+   - partition() creates child at region's offset
+   - Copies events within region to child
+   - Adjusts event coordinates relative to child origin
+   - copy_events=False creates empty child
+   - Raises KeyError for nonexistent region
+   - Raises RuntimeError on locked timeline
+
+4. **SegmentLine Basics Tests** (8 tests)
+   - Empty creation
+   - append_segment() adds contiguous children
+   - Segment offsets form contiguous sequence
+   - Rejects non-contiguous offsets
+   - First segment must start at 0
+   - get_segment_by_index()
+   - get_segment_at() finds segment by coordinate
+
+5. **SegmentLine from_segmentation Tests** (5 tests)
+   - Creates correct number of segments
+   - Segments have correct lengths
+   - Copies events to respective segments
+   - Requires at least 2 split coordinates
+   - Fails if source has existing children
+
+6. **Timeline.derive() Tests** (8 tests)
+   - Creates timeline in target unit
+   - Creates correct Timeline subclass for domain
+   - Attaches inverse C-map for roundtrip
+   - Roundtrip accuracy verification
+   - Raises ValueError without C-map
+   - Uses custom name if provided
+   - copy_events=True copies and converts events
+   - copy_events=False (default) creates empty timeline
+
+7. **get_timeline_class() Tests** (7 tests)
+   - Returns correct class for all 6 domain/modality combinations
+   - Raises ValueError for unknown domain
+
+8. **Integration Tests** (3 tests)
+   - Regions used to create SegmentLine structure
+   - Derived timeline can have children added
+   - SegmentLine with individual segment C-maps
+
+**Validity Rationale:**
+
+From TTA Manuscript (Section 3.4-3.5):
+- "A Region is a named part of a timeline that is defined by a TimeInterval."
+- "When all Children of the same parent timeline are contiguous, we call them
+  Segments and the parent a SegmentLine."
+- "A ConversionMap implies the presence of a derived timeline in the target unit."
+
+These tests ensure:
+1. Region is NOT a Timeline (immutable dataclass, no events/C-maps)
+2. SegmentLine enforces strict contiguity (no gaps/overlaps)
+3. derive() creates proper cross-domain relationships via C-maps
+4. Inverse C-maps enable accurate roundtrip conversions
 
 ---
 
