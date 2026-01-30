@@ -302,6 +302,7 @@ class ConversionMap(ABC, Generic[T]):
             raise ValueError("Map dictionary must include 'type'")
 
         # Import all map types for dispatch
+        from .combination import CombinationMap
         from .composite import ChainMap, PiecewiseMap
         from .convenience import (
             QuartersToTicks,
@@ -310,6 +311,7 @@ class ConversionMap(ABC, Generic[T]):
             TicksToQuarters,
         )
         from .linear import LinearMap, ScalarMap, ShiftMap
+        from .periodic import FloorMap, RotationMap
         from .table import TableMap
 
         type_map = {
@@ -319,6 +321,11 @@ class ConversionMap(ABC, Generic[T]):
             "TableMap": TableMap,
             "ChainMap": ChainMap,
             "PiecewiseMap": PiecewiseMap,
+            # Multi-output maps
+            "CombinationMap": CombinationMap,
+            # Periodic/floor maps
+            "RotationMap": RotationMap,
+            "FloorMap": FloorMap,
             # Convenience classes
             "TicksToQuarters": TicksToQuarters,
             "QuartersToTicks": QuartersToTicks,

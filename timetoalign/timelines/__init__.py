@@ -11,17 +11,22 @@ Modalities:
 - Continuous: Float or Fraction coordinates
 - Discrete: Integer coordinates
 
+Specialized timelines:
+- BeatGrid: Metrical timeline with measure/beat C-Maps
+
 Public API:
 - Timeline: Base class
 - ContinuousLogicalTimeline, DiscreteLogicalTimeline
 - ContinuousPhysicalTimeline, DiscretePhysicalTimeline
 - ContinuousGraphicalTimeline, DiscreteGraphicalTimeline
+- BeatGrid: Metrical timeline for measure/beat information
 - create_timeline: Factory function for creating timelines from bundles/stores
 """
 
 from __future__ import annotations
 
 from .base import Timeline
+from .beatgrid import BeatGrid
 from .factory import create_timeline
 from .types import (
     ContinuousGraphicalTimeline,
@@ -51,4 +56,6 @@ __all__ = [
     "DiscretePhysicalTimeline",
     "ContinuousGraphicalTimeline",
     "DiscreteGraphicalTimeline",
+    # Specialized timelines
+    "BeatGrid",
 ]

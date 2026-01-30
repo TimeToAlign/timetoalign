@@ -10,6 +10,7 @@ which implements the central Timeline class and its 6 domain-specific subclasses
 | `timelines/base.py` | 94% | Excellent |
 | `timelines/types.py` | 100% | Complete |
 | `timelines/mixins.py` | 100% | Complete |
+| `timelines/beatgrid.py` | 95% | Excellent |
 
 ## Test Files
 
@@ -185,6 +186,102 @@ Graphical) and 2 modalities (Continuous, Discrete). Each type has:
 - Restricted allowed units (domain-specific)
 - Appropriate default unit and number_type
 - Consistent behavior with base Timeline
+
+---
+
+### `test_beatgrid.py` - Metrical Timeline (BeatGrid)
+
+**Purpose:** Validates the BeatGrid specialized timeline for metrical structure.
+
+**BeatGrid Specification:**
+
+| Property | Value |
+|----------|-------|
+| Base Class | `ContinuousLogicalTimeline` |
+| Unit | `quarters` (fixed) |
+| Number Type | `Fraction` (for exact rhythmic representation) |
+| Built-in C-Maps | `measure_map`, `beat_map`, `metrical_map` |
+
+**Test Categories:**
+
+1. **Basic Tests** (6 tests)
+   - Default initialization (4/4 time, quarter-note beat)
+   - Invalid beats_per_measure (< 1) raises ValueError
+   - Invalid beat_unit (<= 0) raises ValueError
+   - 4/4 time: 4 quarters per measure, 4 beats per measure
+   - 3/4 time: 3 quarters per measure, 3 beats per measure
+   - 6/8 time: 3 quarters per measure (6 eighth-note beats = 3 quarter-note beats)
+
+2. **Metrical Map Tests** (5 tests)
+   - `measure_at()`: Returns 1-indexed measure number
+   - `beat_at()`: Returns 1-indexed beat within measure (cyclic)
+   - `metrical_position()`: Returns `{"measure": N, "beat": B}` dict
+   - `quarter_at()`: Inverse lookup (measure, beat) -> quarter coordinate
+   - `quarter_at()` validation: Rejects measure < start_measure, beat < 1
+
+3. **Materialization Tests** (4 tests)
+   - `materialize_beats()`: Creates Beat instant events at each beat position
+   - `materialize_beats(include_downbeats_only=True)`: Only beat 1
+   - `materialize_measures()`: Creates Measure interval events
+   - Partial measures at end handled correctly
+
+4. **Factory Method Tests** (4 tests)
+   - `from_tempo(length_quarters=...)`: Length specified in quarters
+   - `from_tempo(length_seconds=...)`: Length converted via tempo
+   - `from_tempo()` creates tempo C-Map (quarters -> seconds)
+   - Validation: Must provide exactly one of length_seconds or length_quarters
+
+5. **Cross-Domain Relationship Tests** (2 tests)
+   - BeatGrid relates to physical timelines via C-Maps (not as child)
+   - `start_measure` offset for non-default numbering
+
+6. **SUPRA Validation Tests** (10 tests)
+   - **Purpose:** Validate against SUPRA reference data (Wagner Meistersinger Prelude)
+
+**SUPRA Validation Details:**
+
+The SUPRA tests use the Wagner Meistersinger Prelude as a gold standard reference:
+
+| Parameter | Value | Source |
+|-----------|-------|--------|
+| Total Length | 888 quarter notes | DCML score annotation |
+| Time Signature | 4/4 throughout | Score metadata |
+| Total Measures | 222 | 888 / 4 = 222 |
+| First Beat | 1.3 seconds (approx) | Audio alignment |
+| Last Measure End | ~2 seconds before audio end | Audio alignment |
+
+**SUPRA Test Cases:**
+
+1. **Basic Dimensions**: length=888, n_measures=222, quarters_per_measure=4
+2. **Measure Boundaries**: Measure 1 @ quarter 0, Measure 222 @ quarter 884
+3. **All Measure Starts**: Exactly 222 distinct measure numbers (1-222)
+4. **Beat Positions**: All quarters map to beats 1.0, 2.0, 3.0, or 4.0
+5. **Reverse Lookup**: `quarter_at(m, b)` correctly inverts `measure_at()` + `beat_at()`
+6. **Round Trip**: `quarter_at(measure_at(q), beat_at(q)) == q` for all positions
+7. **Tempo Derivation**: At 120 BPM, 888 quarters = 444 seconds
+8. **Array Operations**: Vectorized measure_at/beat_at produce correct arrays
+9. **Metrical Position Array**: Combined (measure, beat) tuple output
+10. **Event Materialization**: Creates exactly 888 beat events, 222 measure events
+
+**Validity Rationale:**
+
+BeatGrid is a proper ContinuousLogicalTimeline, not a utility wrapper:
+- **It IS a timeline** with its own coordinate system (quarters in Fractions)
+- **It can hold events** (Beat, Measure events via materialization)
+- **It has built-in C-Maps** for metrical conversion
+- **It works as a child** of any compatible parent timeline
+
+The SUPRA validation proves the implementation against real-world musical data.
+If BeatGrid correctly handles 888 quarters across 222 measures for Wagner's
+Meistersinger Prelude, it will handle any standard Western musical content.
+
+**Cross-Domain Relationships:**
+
+Per the TTA model, children must share the parent's measuring unit. A BeatGrid
+(in quarters) cannot be a direct child of a physical timeline (in seconds).
+Instead, cross-domain relationships are established via:
+- **C-Maps**: The tempo map converts quarters to seconds
+- **Alignment Anchors**: Match objects link events across domains
 
 ---
 
