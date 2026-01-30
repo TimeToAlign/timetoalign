@@ -64,7 +64,7 @@ class TestEventDataIntegration:
         from timetoalign.loader import EventData
 
         data = EventData.empty(TimeUnit.seconds, NumberType.float)
-        tl = Timeline.from_event_store(data)
+        tl = Timeline.from_event_data(data)
 
         assert tl.length.value == 0
         assert tl.n_events == 0
@@ -96,7 +96,7 @@ class TestEventDataIntegration:
             },
         ]
         data = EventData.from_dicts(events, TimeUnit.seconds, NumberType.float)
-        tl = Timeline.from_event_store(data)
+        tl = Timeline.from_event_data(data)
 
         assert tl.length.value == 8.0  # Max end coordinate
         assert tl.n_events == 3
@@ -115,7 +115,7 @@ class TestEventDataIntegration:
             },
         ]
         data = EventData.from_dicts(events, TimeUnit.ticks, NumberType.int)
-        tl = Timeline.from_event_store(data)
+        tl = Timeline.from_event_data(data)
 
         assert tl.unit == TimeUnit.ticks
         assert tl.number_type == NumberType.int
@@ -162,7 +162,7 @@ class TestMidiLoaderIntegration:
         ]
 
         data = MidiEventData.from_dicts(events, TimeUnit.ticks, NumberType.int)
-        tl = DiscreteLogicalTimeline.from_event_store(data)
+        tl = DiscreteLogicalTimeline.from_event_data(data)
 
         assert tl.unit == TimeUnit.ticks
         assert tl.number_type == NumberType.int
@@ -191,7 +191,7 @@ class TestMidiLoaderIntegration:
         loader.load(performance_midi_path)
 
         # Use base Timeline to respect loader's number_type (which may be float)
-        tl = Timeline.from_event_store(loader.events)
+        tl = Timeline.from_event_data(loader.events)
 
         assert tl.unit == TimeUnit.ticks
         assert tl.n_events > 0
@@ -203,7 +203,7 @@ class TestMidiLoaderIntegration:
         loader.load(score_midi_path)
 
         # Use base Timeline to respect loader's number_type
-        tl = Timeline.from_event_store(loader.events)
+        tl = Timeline.from_event_data(loader.events)
 
         assert tl.unit == TimeUnit.ticks
         assert tl.n_events > 0
@@ -219,8 +219,8 @@ class TestMidiLoaderIntegration:
         score_loader.load(score_midi_path)
 
         # Use base Timeline to respect loader's number_type
-        perf_tl = Timeline.from_event_store(perf_loader.events, uid="performance")
-        score_tl = Timeline.from_event_store(score_loader.events, uid="score")
+        perf_tl = Timeline.from_event_data(perf_loader.events, uid="performance")
+        score_tl = Timeline.from_event_data(score_loader.events, uid="score")
 
         # Determine max length for parent
         max_len = max(perf_tl.length.value, score_tl.length.value)
@@ -277,7 +277,7 @@ class TestScoreLoaderIntegration:
         ]
 
         data = EventData.from_dicts(events, TimeUnit.quarters, NumberType.float)
-        tl = ContinuousLogicalTimeline.from_event_store(data)
+        tl = ContinuousLogicalTimeline.from_event_data(data)
 
         assert tl.unit == TimeUnit.quarters
         assert tl.number_type == NumberType.float
@@ -317,7 +317,7 @@ class TestScoreLoaderIntegration:
         )
 
         # Create child timeline from note data
-        notes_tl = ContinuousLogicalTimeline.from_event_store(notes, uid="notes")
+        notes_tl = ContinuousLogicalTimeline.from_event_data(notes, uid="notes")
         parent.add_child(notes_tl, offset=0.0)
 
         assert parent.n_children == 1
@@ -523,7 +523,7 @@ class TestPerformanceIntegration:
         data = EventData.from_dicts(events, TimeUnit.seconds, NumberType.float)
 
         start = time.perf_counter()
-        tl = Timeline.from_event_store(data)
+        tl = Timeline.from_event_data(data)
         elapsed = time.perf_counter() - start
 
         profiler.record("timeline_from_50k_events", elapsed)
@@ -553,7 +553,7 @@ class TestPerformanceIntegration:
 
         start = time.perf_counter()
         # Use base Timeline to respect loader's number_type
-        tl = Timeline.from_event_store(loader.events)
+        tl = Timeline.from_event_data(loader.events)
         timeline_elapsed = time.perf_counter() - start
 
         profiler.record(f"load_midi_{midi_path.name}", load_elapsed)

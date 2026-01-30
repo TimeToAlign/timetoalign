@@ -667,7 +667,14 @@ class Timeline:
         child: Timeline,
         offset: CoordinateValue | Coordinate,
     ) -> None:
-        """Validate that a child can be added at the given offset.
+        """Validate that a timeline can be added as a child.
+
+        From the TTA manuscript (Section 3.4 - Nested Timelines):
+        "A timeline can accommodate not only events but also other timelines,
+        called Children, as long as they use the same measuring unit."
+
+        For cross-domain relationships (e.g., physical to logical), use
+        TimelineGroup instead of parent-child nesting.
 
         Args:
             child: The timeline to validate.
@@ -683,7 +690,9 @@ class Timeline:
         if child.unit != self._unit:
             raise ValueError(
                 f"Child unit '{child.unit}' does not match "
-                f"parent unit '{self._unit}'"
+                f"parent unit '{self._unit}'. "
+                f"Per TTA specification, Children must share the parent's unit. "
+                f"For cross-domain relationships, use TimelineGroup instead."
             )
 
         if child.id in self._children:
@@ -704,6 +713,12 @@ class Timeline:
 
         The child timeline will be locked after being added.
         An InterpolationMap is built for O(log n) coordinate conversion.
+
+        From the TTA manuscript (Section 3.4 - Nested Timelines):
+        "A timeline can accommodate not only events but also other timelines,
+        called Children, as long as they use the same measuring unit."
+
+        For cross-domain relationships, use TimelineGroup instead.
 
         Args:
             child: The timeline to embed.
@@ -1831,6 +1846,152 @@ class Timeline:
             include_boundaries=include_boundaries,
         )
         return table.to_pandas()
+
+    # endregion
+
+    # region Regions
+
+    def add_region(
+        self,
+        name: str,
+        start: CoordinateValue | Coordinate,
+        end: CoordinateValue | Coordinate,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Add a named Region to this timeline.
+
+        A Region is a named part of a timeline defined by a TimeInterval.
+        Regions are NOT timelines - they do not hold events or C-Maps.
+        However, they can be used for:
+        - Referring to parts of a timeline by name (e.g., "Chorus", "Verse")
+        - Partitioning: creating a Child corresponding to a Region
+
+        From the TTA manuscript (Section 3.5):
+        "A Region is a named part of a timeline that is defined by a TimeInterval.
+        Regions are useful for referring to parts of a timeline by name...
+        They can be used for partitioning, i.e., creating a Child corresponding to a Region."
+
+        Args:
+            name: Unique name for this region.
+            start: Start coordinate.
+            end: End coordinate (must be >= start).
+            metadata: Optional metadata dictionary.
+
+        Raises:
+            ValueError: If name already exists or end < start.
+            RuntimeError: If timeline is locked.
+
+        Examples:
+            >>> timeline.add_region("Chorus", 10.0, 30.0)
+            >>> timeline.add_region("Verse", 30.0, 50.0, metadata={"repeat": 2})
+        """
+        self._check_not_locked("add region")
+
+        # Initialize regions storage if needed
+        if not hasattr(self, "_regions"):
+            self._regions: dict[str, dict[str, Any]] = {}
+
+        if name in self._regions:
+            raise ValueError(f"Region '{name}' already exists")
+
+        start_coord = self._make_coordinate(start)
+        end_coord = self._make_coordinate(end)
+
+        if end_coord.value < start_coord.value:
+            raise ValueError(
+                f"Region end ({end_coord.value}) cannot be before start ({start_coord.value})"
+            )
+
+        self._regions[name] = {
+            "name": name,
+            "start": start_coord,
+            "end": end_coord,
+            "metadata": dict(metadata) if metadata else {},
+        }
+
+        self._logger.debug(
+            f"Added region '{name}' [{start_coord.value}, {end_coord.value})"
+        )
+
+    def get_region(self, name: str) -> dict[str, Any]:
+        """Get a Region by name.
+
+        Args:
+            name: The region name.
+
+        Returns:
+            Dict with 'name', 'start', 'end', 'metadata'.
+
+        Raises:
+            KeyError: If region not found.
+        """
+        if not hasattr(self, "_regions") or name not in self._regions:
+            raise KeyError(f"No region with name '{name}'")
+        return dict(self._regions[name])
+
+    def list_regions(self) -> list[str]:
+        """List all region names.
+
+        Returns:
+            List of region names in no particular order.
+        """
+        if not hasattr(self, "_regions"):
+            return []
+        return list(self._regions.keys())
+
+    def region_to_child(
+        self,
+        region_name: str,
+        transfer_events: bool = False,
+        child_name: str | None = None,
+    ) -> Timeline:
+        """Create a Child timeline from a Region.
+
+        This is the "partitioning" operation from the manuscript.
+        Creates a new Child at the Region's start coordinate with
+        length equal to the Region's duration.
+
+        Args:
+            region_name: Name of the region to convert.
+            transfer_events: If True, move events within the region to the child.
+            child_name: Name for the child timeline (defaults to region name).
+
+        Returns:
+            The newly created Child timeline.
+
+        Raises:
+            KeyError: If region not found.
+        """
+        region = self.get_region(region_name)
+        start = region["start"]
+        end = region["end"]
+        length = end.value - start.value
+
+        # Create child of same type
+        child = self.__class__(
+            length=length,
+            unit=self._unit,
+            number_type=self._number_type,
+            name=child_name or region_name,
+        )
+
+        # Add as child
+        self.add_child(child, offset=start)
+
+        # Optionally transfer events
+        if transfer_events:
+            # Get events within region
+            # events_in_region = self.get_events(
+            #     min_coord=float(start.value),
+            #     max_coord=float(end.value),
+            # )
+            # Note: Event transfer would require removing from parent and
+            # adding to child with offset adjustment. Left as future work.
+            self._logger.warning(
+                "Event transfer in region_to_child not yet implemented"
+            )
+
+        return child
 
     # endregion
 

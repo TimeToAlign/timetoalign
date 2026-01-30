@@ -1,13 +1,23 @@
 """BeatGrid: A metrical timeline measured in quarter notes.
 
 A BeatGrid is a ContinuousLogicalTimeline that represents metrical structure
-(measures, beats) using quarter-note coordinates. It can be added as a child
-to any parent timeline to provide metrical information.
+(measures, beats) using quarter-note coordinates. It can be connected to
+other timelines via TimelineGroups to provide metrical information.
+
+**Note**: BeatGrid is retained for backward compatibility and simple use cases.
+For more complex meter structures (anacrusis, varying time signatures, repeat
+endings), use the MeterMap-based approach via:
+- `ContinuousPhysicalTimeline.create_metrical_grid()` - convenience method
+- `MeterMap.from_boundaries()` - explicit measure boundaries
+
+Per TTA specification (Section 3.4), children must share the parent's unit.
+Cross-domain relationships (physical-logical) are established via TimelineGroups,
+not parent-child embedding.
 
 Key features:
 - Coordinate system in quarters (Fractions for exact representation)
-- Built-in C-Maps: quarters -> measure_number, quarters -> beat_in_measure
-- CombinationMap for (measure, beat) tuple output
+- Built-in C-Maps: quarters -> measure_count (int), quarters -> beat_in_measure (Fraction)
+- MetricalPositionMap for {mc, beat, mn} output
 - Optional materialization of Beat and Measure events
 - Factory method for creation from tempo information
 """
@@ -18,8 +28,8 @@ from fractions import Fraction
 from typing import Any, ClassVar
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.maps import CombinationMap, LinearMap
-from timetoalign.maps.periodic import FloorMap, RotationMap
+from timetoalign.maps import LinearMap
+from timetoalign.maps.meter import BeatInMeasureMap, MeterMap, MetricalPositionMap
 
 from .types import ContinuousLogicalTimeline
 
@@ -35,6 +45,13 @@ class BeatGrid(ContinuousLogicalTimeline):
     representation. Built-in C-Maps automatically convert quarters to
     measure numbers and beat positions.
 
+    **Architecture**: BeatGrid now uses the generalized MeterMap internally,
+    which correctly handles:
+    - Proper integer types for measure counts (MC)
+    - Proper Fraction types for beat positions
+    - Anacrusis (pickup measures)
+    - Varying time signatures (via MeterMap.from_boundaries)
+
     Attributes:
         beats_per_measure: Number of beats per measure.
         beat_unit: The note value of one beat (e.g., Fraction(1, 4) for quarter note).
@@ -42,9 +59,9 @@ class BeatGrid(ContinuousLogicalTimeline):
         quarters_per_measure: Derived: quarters per measure.
 
     C-Maps (automatically created):
-        - quarters -> measures (FloorMap): Integer measure numbers
-        - quarters -> beats (RotationMap): Beat position within measure (1-indexed)
-        - quarters -> (measure, beat) (CombinationMap): Combined tuple output
+        - quarters -> mc (MeterMap): Integer measure count
+        - quarters -> beat (BeatInMeasureMap): Beat position as Fraction (1-indexed)
+        - quarters -> {mc, beat} (MetricalPositionMap): Combined output
 
     Examples:
         >>> from fractions import Fraction
@@ -57,9 +74,9 @@ class BeatGrid(ContinuousLogicalTimeline):
         ... )
         >>>
         >>> # Query measure and beat at quarter 100
-        >>> grid.measure_at(100)  # -> 26 (measure 26)
-        >>> grid.beat_at(100)     # -> 1.0 (beat 1)
-        >>> grid.metrical_position(100)  # -> {"measure": 26, "beat": 1.0}
+        >>> grid.measure_at(100)  # -> 26 (integer!)
+        >>> grid.beat_at(100)     # -> Fraction(1, 1) (proper Fraction!)
+        >>> grid.metrical_position(100)  # -> {"mc": 26, "beat": Fraction(1, 1)}
         >>>
         >>> # Attach to audio timeline
         >>> audio = ContinuousPhysicalTimeline(length=300.0, unit=TimeUnit.seconds)
@@ -83,6 +100,8 @@ class BeatGrid(ContinuousLogicalTimeline):
         beats_per_measure: int = 4,
         beat_unit: Fraction = Fraction(1, 4),
         start_measure: int = 1,
+        start_mn: str | None = None,
+        anacrusis_quarters: Fraction | None = None,
         uid: str | None = None,
         name: str | None = None,
     ) -> None:
@@ -93,7 +112,10 @@ class BeatGrid(ContinuousLogicalTimeline):
             beats_per_measure: Number of beats per measure. Default 4.
             beat_unit: Note value of one beat. Default Fraction(1, 4) (quarter note).
                        Use Fraction(1, 8) for eighth-note beats (e.g., 6/8 time).
-            start_measure: Number of the first measure. Default 1.
+            start_measure: MC (measure count) of the first measure. Default 1.
+            start_mn: MN (measure number label) of the first measure.
+                     Default: same as start_measure. Use "0" for anacrusis.
+            anacrusis_quarters: If set, the first measure is shorter (pickup).
             uid: Explicit unique identifier.
             name: Human-readable name.
 
@@ -122,18 +144,26 @@ class BeatGrid(ContinuousLogicalTimeline):
         self._beats_per_measure = beats_per_measure
         self._beat_unit = Fraction(beat_unit)
         self._start_measure = start_measure
+        self._start_mn = start_mn if start_mn is not None else str(start_measure)
+        self._anacrusis_quarters = anacrusis_quarters
 
-        # Calculate quarters per measure
+        # Calculate quarters per measure/beat
         # beat_unit is the fraction of a whole note that equals one beat
-        # e.g., 1/4 means quarter note = 1 beat
-        # quarters per beat = (1/4) / beat_unit = 1 / (4 * beat_unit)
-        # Actually: if beat_unit = 1/4, then 1 beat = 1 quarter
-        #           if beat_unit = 1/8, then 1 beat = 0.5 quarters
         # quarters_per_beat = beat_unit * 4 (since 4 quarters = 1 whole note)
         self._quarters_per_beat = self._beat_unit * 4
         self._quarters_per_measure = self._quarters_per_beat * beats_per_measure
 
-        # Create and attach metrical C-Maps
+        # Calculate number of measures
+        if anacrusis_quarters is not None:
+            remaining = length - anacrusis_quarters
+            n_full = int(remaining // self._quarters_per_measure)
+            self._n_measures = 1 + n_full
+        else:
+            self._n_measures = int(length // self._quarters_per_measure)
+            if self._n_measures == 0:
+                self._n_measures = 1
+
+        # Create and attach metrical C-Maps using the new MeterMap infrastructure
         self._setup_metrical_cmaps()
 
     @property
@@ -148,8 +178,13 @@ class BeatGrid(ContinuousLogicalTimeline):
 
     @property
     def start_measure(self) -> int:
-        """Number of the first measure."""
+        """MC (measure count) of the first measure."""
         return self._start_measure
+
+    @property
+    def start_mn(self) -> str:
+        """MN (measure number label) of the first measure."""
+        return self._start_mn
 
     @property
     def quarters_per_measure(self) -> Fraction:
@@ -164,60 +199,71 @@ class BeatGrid(ContinuousLogicalTimeline):
     @property
     def n_measures(self) -> int:
         """Number of complete measures in this grid."""
-        return int(self._length.value // self._quarters_per_measure)
+        return self._n_measures
 
     def _setup_metrical_cmaps(self) -> None:
-        """Create and attach the metrical conversion maps."""
-        qpm = float(self._quarters_per_measure)
-        qpb = float(self._quarters_per_beat)
-
-        # quarters -> measure number (1-indexed by default)
-        self._measure_map = FloorMap(
-            divisor=qpm,
-            base=self._start_measure,
-            source_unit=TimeUnit.quarters,
-            target_unit=TimeUnit.measures,
-            uid=f"{self.id}_measure_map",
+        """Create and attach the metrical conversion maps using MeterMap."""
+        # Create the MeterMap with uniform measure lengths
+        self._meter_map = MeterMap.from_uniform(
+            n_measures=self._n_measures,
+            quarters_per_measure=self._quarters_per_measure,
+            start_mc=self._start_measure,
+            start_mn=self._start_mn,
+            anacrusis_quarters=self._anacrusis_quarters,
+            uid=f"{self.id}_meter_map",
         )
-        self.add_conversion_map(self._measure_map)
+        self.add_conversion_map(self._meter_map)
 
-        # quarters -> beat in measure (1-indexed, using rotation)
-        # First normalize quarters to within-measure position, then convert to beats
-        # beat = (quarters % qpm) / qpb + 1
-        # RotationMap: ((input - offset) % period) * scale + base
-        # We need: ((quarters - 0) % qpm) * (1/qpb) + 1
-        self._beat_map = RotationMap(
-            period=qpm,
-            scale=1.0 / qpb,  # Convert quarter position to beat position
-            base=1.0,  # 1-indexed
-            offset=0.0,
-            source_unit=TimeUnit.quarters,
-            target_unit=TimeUnit.beats,
+        # Create the BeatInMeasureMap
+        self._beat_map = BeatInMeasureMap(
+            self._meter_map,
             uid=f"{self.id}_beat_map",
         )
         self.add_conversion_map(self._beat_map)
 
-        # Combined map for (measure, beat) tuple
-        self._metrical_map = CombinationMap(
-            maps={"measure": self._measure_map, "beat": self._beat_map},
-            source_unit=TimeUnit.quarters,
+        # Create the MetricalPositionMap (combination of both)
+        self._metrical_map = MetricalPositionMap(
+            self._meter_map,
             uid=f"{self.id}_metrical_map",
         )
         self.add_conversion_map(self._metrical_map)
 
     def measure_at(self, quarters: float | Fraction) -> int:
-        """Get the measure number at a given quarter-note position.
+        """Get the measure count (MC) at a given quarter-note position.
 
         Args:
             quarters: Position in quarter notes.
 
         Returns:
-            The measure number (1-indexed by default).
+            The measure count (integer, 1-indexed by default).
         """
-        return self._measure_map(float(quarters))
+        return self._meter_map(float(quarters))
 
-    def beat_at(self, quarters: float | Fraction) -> float:
+    def mn_at(self, quarters: float | Fraction) -> str | None:
+        """Get the measure number label (MN) at a given quarter-note position.
+
+        Args:
+            quarters: Position in quarter notes.
+
+        Returns:
+            The measure number label (string like "1", "0", "1a").
+        """
+        mc = self._meter_map(float(quarters))
+        return self._meter_map.get_mn(mc)
+
+    def beat_at(self, quarters: float | Fraction) -> Fraction:
         """Get the beat position within the measure at a given quarter-note position.
+
+        Args:
+            quarters: Position in quarter notes.
+
+        Returns:
+            The beat position as Fraction (1-indexed, e.g., Fraction(3, 2) for beat 1.5).
+        """
+        return self._meter_map.beat_in_measure(quarters)
+
+    def beat_at_float(self, quarters: float | Fraction) -> float:
+        """Get the beat position as a float (for backward compatibility).
 
         Args:
             quarters: Position in quarter notes.
@@ -225,25 +271,29 @@ class BeatGrid(ContinuousLogicalTimeline):
         Returns:
             The beat position (1-indexed, may be fractional).
         """
-        return self._beat_map(float(quarters))
+        return float(self.beat_at(quarters))
 
     def metrical_position(self, quarters: float | Fraction) -> dict[str, Any]:
-        """Get the full metrical position (measure and beat) at a given quarter position.
+        """Get the full metrical position (mc and beat) at a given quarter position.
 
         Args:
             quarters: Position in quarter notes.
 
         Returns:
-            Dictionary with 'measure' and 'beat' keys.
+            Dictionary with 'mc' (int), 'beat' (Fraction), and 'mn' (str) keys.
         """
-        return self._metrical_map(float(quarters))
+        mc = self._meter_map(float(quarters))
+        beat = self._meter_map.beat_in_measure(quarters)
+        return {"mc": mc, "beat": beat, "mn": self._meter_map.get_mn(mc)}
 
-    def quarter_at(self, measure: int, beat: float = 1.0) -> Fraction:
+    def quarter_at(
+        self, measure: int, beat: float | Fraction = Fraction(1, 1)
+    ) -> Fraction:
         """Get the quarter-note position for a given measure and beat.
 
         Args:
-            measure: Measure number (uses start_measure as reference).
-            beat: Beat within the measure (1-indexed). Default 1.0.
+            measure: Measure count (MC, uses start_measure as reference).
+            beat: Beat within the measure (1-indexed). Default Fraction(1, 1).
 
         Returns:
             Position in quarter notes.
@@ -251,17 +301,7 @@ class BeatGrid(ContinuousLogicalTimeline):
         Raises:
             ValueError: If measure < start_measure or beat < 1.
         """
-        if measure < self._start_measure:
-            raise ValueError(
-                f"Measure {measure} is before start_measure {self._start_measure}"
-            )
-        if beat < 1:
-            raise ValueError(f"Beat must be >= 1, got {beat}")
-
-        # Calculate quarters from measure and beat
-        measure_offset = (measure - self._start_measure) * self._quarters_per_measure
-        beat_offset = Fraction(beat - 1) * self._quarters_per_beat
-        return measure_offset + beat_offset
+        return self._metrical_map.quarters_at(measure, beat)
 
     def materialize_beats(
         self,
@@ -280,10 +320,11 @@ class BeatGrid(ContinuousLogicalTimeline):
 
         while position < self._length.value:
             beat = self.beat_at(position)
-            measure = self.measure_at(position)
+            mc = self.measure_at(position)
+            mn = self.mn_at(position)
 
             # Check if we should include this beat
-            is_downbeat = abs(beat - 1.0) < 0.001  # Beat 1 (floating point tolerance)
+            is_downbeat = beat == Fraction(1, 1)
             if include_downbeats_only and not is_downbeat:
                 position += self._quarters_per_beat
                 continue
@@ -294,8 +335,9 @@ class BeatGrid(ContinuousLogicalTimeline):
                     "temporal_type": "instant",
                     "event_type": "Beat",
                     "instant": float(position),
-                    "measure": measure,
-                    "beat_in_measure": beat,
+                    "mc": mc,
+                    "mn": mn,
+                    "beat": str(beat),  # Store as string to preserve Fraction
                     "is_downbeat": is_downbeat,
                 }
             )
@@ -316,35 +358,23 @@ class BeatGrid(ContinuousLogicalTimeline):
             Number of measure events created.
         """
         events = []
-        position = Fraction(0, 1)
-        measure_num = self._start_measure
 
-        while position + self._quarters_per_measure <= self._length.value:
+        for i in range(self._n_measures):
+            mc = self._meter_map._mcs[i]
+            info = self._meter_map.get_measure_info(int(mc))
+            if info is None:
+                continue
+
             events.append(
                 {
-                    "id": f"measure_{measure_num}",
+                    "id": f"measure_{info['mc']}",
+                    "name": f"M{info['mn']}",
                     "temporal_type": "interval",
                     "event_type": "Measure",
-                    "start": float(position),
-                    "end": float(position + self._quarters_per_measure),
-                    "measure_number": measure_num,
-                }
-            )
-
-            position += self._quarters_per_measure
-            measure_num += 1
-
-        # Handle final partial measure if present
-        if position < self._length.value:
-            events.append(
-                {
-                    "id": f"measure_{measure_num}",
-                    "temporal_type": "interval",
-                    "event_type": "Measure",
-                    "start": float(position),
-                    "end": float(self._length.value),
-                    "measure_number": measure_num,
-                    "is_partial": True,
+                    "start": float(info["start"]),
+                    "end": float(info["end"]),
+                    "mc": info["mc"],
+                    "mn": info["mn"],
                 }
             )
 
@@ -362,6 +392,8 @@ class BeatGrid(ContinuousLogicalTimeline):
         length_seconds: float | None = None,
         length_quarters: Fraction | int | None = None,
         start_measure: int = 1,
+        start_mn: str | None = None,
+        anacrusis_quarters: Fraction | None = None,
         uid: str | None = None,
         name: str | None = None,
     ) -> BeatGrid:
@@ -375,7 +407,9 @@ class BeatGrid(ContinuousLogicalTimeline):
             beat_unit: Note value of one beat. Default 1/4 (quarter note).
             length_seconds: Duration in seconds (converted using tempo).
             length_quarters: Duration in quarter notes.
-            start_measure: Number of the first measure. Default 1.
+            start_measure: MC of the first measure. Default 1.
+            start_mn: MN label of the first measure. Default: same as start_measure.
+            anacrusis_quarters: If set, first measure is shorter (pickup).
             uid: Explicit unique identifier.
             name: Human-readable name.
 
@@ -399,10 +433,6 @@ class BeatGrid(ContinuousLogicalTimeline):
                 length = length_quarters
         else:
             # Convert seconds to quarters using tempo
-            # tempo_bpm = beats per minute
-            # quarters_per_beat = beat_unit * 4
-            # beats_per_second = tempo_bpm / 60
-            # quarters_per_second = beats_per_second * quarters_per_beat
             quarters_per_beat = Fraction(beat_unit) * 4
             beats_per_second = tempo_bpm / 60.0
             quarters_per_second = float(quarters_per_beat) * beats_per_second
@@ -415,6 +445,8 @@ class BeatGrid(ContinuousLogicalTimeline):
             beats_per_measure=beats_per_measure,
             beat_unit=beat_unit,
             start_measure=start_measure,
+            start_mn=start_mn,
+            anacrusis_quarters=anacrusis_quarters,
             uid=uid,
             name=name,
         )
@@ -423,7 +455,6 @@ class BeatGrid(ContinuousLogicalTimeline):
         grid._tempo_bpm = tempo_bpm
 
         # Create a tempo C-Map: quarters -> seconds
-        # seconds = quarters / quarters_per_second
         quarters_per_beat = Fraction(beat_unit) * 4
         beats_per_second = tempo_bpm / 60.0
         quarters_per_second = float(quarters_per_beat) * beats_per_second
@@ -444,6 +475,11 @@ class BeatGrid(ContinuousLogicalTimeline):
     def tempo_bpm(self) -> float | None:
         """Tempo in BPM, if created via from_tempo()."""
         return getattr(self, "_tempo_bpm", None)
+
+    @property
+    def meter_map(self) -> MeterMap:
+        """The underlying MeterMap (for advanced access)."""
+        return self._meter_map
 
     def __repr__(self) -> str:
         return (

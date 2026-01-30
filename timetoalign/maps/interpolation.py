@@ -260,7 +260,12 @@ class InterpolationMap:
             InterpolationMap for child -> parent conversion.
         """
         child_length = float(child.length.value)
-        child_coords = np.array([0.0, child_length], dtype=np.float64)
+
+        # Handle zero-length children (single-instant timelines)
+        # Use a minimal positive length to ensure monotonicity for interpolation
+        effective_length = child_length if child_length > 0 else 1e-10
+
+        child_coords = np.array([0.0, effective_length], dtype=np.float64)
         parent_coords = child_coords + offset
 
         return cls(
