@@ -820,6 +820,22 @@ class TimelineGroup:
         """
         return []
 
+    def _get_unit_for_timeline(self, timeline_id: str) -> "TimeUnit | None":
+        """Get the TimeUnit for a timeline in the group.
+
+        This method is part of the TimeStampSource protocol. It enables
+        TimeStamp to construct proper Coordinate objects with correct units.
+
+        Args:
+            timeline_id: The timeline ID to look up.
+
+        Returns:
+            The TimeUnit for the timeline, or None if not found.
+        """
+        if timeline_id in self._timelines:
+            return self._timelines[timeline_id].unit
+        return None
+
     def get_unified_timestamp(
         self,
         coordinate: float,
@@ -1141,6 +1157,19 @@ class TimelineGroup:
         """
         # Handle empty group
         if self._timestamp_table is None:
+            # Create initial table with schema including unit metadata
+            schema = pa.schema(
+                [
+                    pa.field(
+                        timeline.id,
+                        pa.float64(),
+                        metadata={
+                            b"unit": timeline.unit.value.encode("utf-8"),
+                            b"timeline_id": timeline.id.encode("utf-8"),
+                        },
+                    )
+                ]
+            )
             self._timestamp_table = pa.table(
                 {
                     timeline.id: pa.array(
@@ -1150,7 +1179,8 @@ class TimelineGroup:
                         ],
                         type=pa.float64(),
                     )
-                }
+                },
+                schema=schema,
             )
             return
 
@@ -1200,9 +1230,17 @@ class TimelineGroup:
                 )
                 new_col.append(coord)
 
-        # Add column
+        # Add column with unit metadata
+        new_field = pa.field(
+            timeline.id,
+            pa.float64(),
+            metadata={
+                b"unit": timeline.unit.value.encode("utf-8"),
+                b"timeline_id": timeline.id.encode("utf-8"),
+            },
+        )
         self._timestamp_table = self._timestamp_table.append_column(
-            timeline.id, pa.array(new_col, type=pa.float64())
+            new_field, pa.array(new_col, type=pa.float64())
         )
 
     def _insert_timestamp_row(
@@ -1220,12 +1258,19 @@ class TimelineGroup:
             return
 
         # Build a single-row table for the new timestamp
+        # Preserve the existing schema with metadata
         new_row_data: dict[str, list[float | None]] = {}
         for col_name in self._timestamp_table.column_names:
             new_row_data[col_name] = [coordinates.get(col_name)]
 
+        # Create arrays and use existing schema to preserve metadata
+        arrays = [
+            pa.array([new_row_data[name][0]], type=pa.float64())
+            for name in self._timestamp_table.column_names
+        ]
         new_row_table = pa.table(
-            {k: pa.array(v, type=pa.float64()) for k, v in new_row_data.items()}
+            dict(zip(self._timestamp_table.column_names, arrays)),
+            schema=self._timestamp_table.schema,
         )
 
         # Split existing table and concatenate

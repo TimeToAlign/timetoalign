@@ -1111,6 +1111,27 @@ class Timeline:
         """
         return list(self._unit_maps.keys())
 
+    def _get_unit_for_timeline(self, timeline_id: str) -> TimeUnit | None:
+        """Get the TimeUnit for a timeline in the hierarchy.
+
+        This method is part of the TimeStampSource protocol. It enables
+        TimeStamp to construct proper Coordinate objects with correct units.
+
+        Args:
+            timeline_id: The timeline ID to look up.
+
+        Returns:
+            The TimeUnit for the timeline, or None if not found.
+        """
+        if timeline_id == self._id:
+            return self._unit
+
+        # Check children
+        if timeline_id in self._children:
+            return self._children[timeline_id].unit
+
+        return None
+
     def get_timestamp(
         self,
         coord: CoordinateValue | Coordinate,
@@ -1414,18 +1435,47 @@ class Timeline:
         - One column per timeline (root + children) with local coordinates
         - One column per C-Map with converted values
 
+        Each column includes field metadata:
+        - unit: The TimeUnit for this column's coordinates
+        - timeline_id: The timeline ID (for timeline columns)
+        - cmap_id: The C-Map ID (for C-Map columns)
+
         Args:
             axis: Array of root-relative coordinates (the timestamp axis).
             conversion_maps: Optional list of C-Maps to include as columns.
             recursion_limit: Maximum depth for child traversal. None = unlimited.
 
         Returns:
-            PyArrow table with timestamp data.
+            PyArrow table with timestamp data and field-level unit metadata.
         """
-        columns: dict[str, pa.Array] = {"axis": axis}
+        columns: dict[str, pa.Array] = {}
+        fields: list[pa.Field] = []
+
+        # Add axis column (root timeline coordinate)
+        columns["axis"] = axis
+        fields.append(
+            pa.field(
+                "axis",
+                pa.float64(),
+                metadata={
+                    b"unit": self._unit.value.encode("utf-8"),
+                    b"timeline_id": self._id.encode("utf-8"),
+                },
+            )
+        )
 
         # Add root timeline column (offset=0)
         columns[self._id] = self._compute_local_coordinates(axis, offset=0.0)
+        fields.append(
+            pa.field(
+                self._id,
+                pa.float64(),
+                metadata={
+                    b"unit": self._unit.value.encode("utf-8"),
+                    b"timeline_id": self._id.encode("utf-8"),
+                },
+            )
+        )
 
         # Add child columns recursively
         for child_offset, child in self.iter_children(
@@ -1434,6 +1484,16 @@ class Timeline:
         ):
             columns[child.id] = child._compute_local_coordinates(
                 axis, offset=float(child_offset.value)
+            )
+            fields.append(
+                pa.field(
+                    child.id,
+                    pa.float64(),
+                    metadata={
+                        b"unit": child.unit.value.encode("utf-8"),
+                        b"timeline_id": child.id.encode("utf-8"),
+                    },
+                )
             )
 
         # Add C-Map columns
@@ -1444,8 +1504,23 @@ class Timeline:
             for cmap in conversion_maps:
                 converted = cmap.convert_array(axis_np)
                 columns[cmap.id] = pa.array(converted)
+                # C-Map columns include target unit from the C-Map
+                target_unit = getattr(cmap, "target_unit", None)
+                unit_value = target_unit.value if target_unit else "unknown"
+                fields.append(
+                    pa.field(
+                        cmap.id,
+                        pa.float64(),
+                        metadata={
+                            b"unit": unit_value.encode("utf-8"),
+                            b"cmap_id": cmap.id.encode("utf-8"),
+                        },
+                    )
+                )
 
-        return pa.table(columns)
+        # Build table with explicit schema to preserve metadata
+        schema = pa.schema(fields)
+        return pa.table(columns, schema=schema)
 
     def get_timestamp_table(
         self,
@@ -1476,10 +1551,21 @@ class Timeline:
                 - {timeline_id}: float64 (nullable, local coordinate per timeline)
                 - {cmap_id}: varies (converted value per C-Map)
 
+            Each field includes metadata:
+                - unit: TimeUnit.value string (e.g., "seconds", "pixels")
+                - timeline_id: Timeline ID (for timeline columns)
+                - cmap_id: C-Map ID (for C-Map columns)
+
+            Access metadata via: ``table.schema.field(col_name).metadata``
+
         Examples:
             >>> table = timeline.get_timestamp_table()
             >>> table.column_names
             ['axis', 'tl:1', 'notes', 'measures']
+
+            >>> # Access unit metadata
+            >>> table.schema.field('axis').metadata[b'unit']
+            b'seconds'
 
             >>> # Convert to pandas when needed
             >>> df = table.to_pandas()

@@ -1000,3 +1000,114 @@ class TestTimelineGroupUnifiedTimestamp:
 
 
 # endregion
+
+
+# region TimelineGroup Unit Metadata Tests
+
+
+class TestTimelineGroupUnitMetadata:
+    """Tests for unit metadata in TimelineGroup timestamp tables."""
+
+    def test_get_unit_for_timeline(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test _get_unit_for_timeline returns correct unit for each timeline."""
+        from timetoalign.core.enums import TimeUnit
+
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        dgt_unit = group._get_unit_for_timeline("dgt1")
+        assert dgt_unit == TimeUnit.pixels
+
+        audio_unit = group._get_unit_for_timeline("audio")
+        assert audio_unit == TimeUnit.seconds
+
+    def test_get_unit_for_unknown_timeline_returns_none(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+    ) -> None:
+        """Test _get_unit_for_timeline returns None for unknown timeline."""
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
+
+        unit = group._get_unit_for_timeline("nonexistent")
+        assert unit is None
+
+    def test_timestamp_table_has_unit_metadata(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test that get_timestamp_table includes unit metadata on columns."""
+        # Creating group with two timelines auto-creates boundaries
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        table = group.get_timestamp_table()
+
+        # Check each timeline column has correct unit metadata
+        dgt_field = table.schema.field("dgt1")
+        assert dgt_field.metadata is not None
+        assert dgt_field.metadata[b"unit"] == b"pixels"
+        assert dgt_field.metadata[b"timeline_id"] == b"dgt1"
+
+        audio_field = table.schema.field("audio")
+        assert audio_field.metadata is not None
+        assert audio_field.metadata[b"unit"] == b"seconds"
+        assert audio_field.metadata[b"timeline_id"] == b"audio"
+
+    def test_timestamp_table_preserves_metadata_after_insert(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+        score_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test that unit metadata is preserved when adding timelines."""
+        # Start with two timelines
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        # Add a third timeline which inserts more rows
+        group.add_timeline(score_timeline, start=(45.0, "audio"), end=(135.0, "audio"))
+
+        table = group.get_timestamp_table()
+
+        # Metadata should still be present after adding timeline
+        dgt_field = table.schema.field("dgt1")
+        assert dgt_field.metadata is not None
+        assert dgt_field.metadata[b"unit"] == b"pixels"
+
+        audio_field = table.schema.field("audio")
+        assert audio_field.metadata is not None
+        assert audio_field.metadata[b"unit"] == b"seconds"
+
+        # New timeline also has metadata
+        score_field = table.schema.field("score")
+        assert score_field.metadata is not None
+        assert score_field.metadata[b"unit"] == b"seconds"
+        assert score_field.metadata[b"timeline_id"] == b"score"
+
+    def test_add_timeline_creates_metadata_for_new_column(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Test that adding a timeline creates column with correct metadata."""
+        # Start with one timeline
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
+
+        table_before = group.get_timestamp_table()
+        assert "audio" not in table_before.schema.names
+
+        # Add second timeline
+        group.add_timeline(audio_timeline, start=0.0, end=150.0)
+
+        table_after = group.get_timestamp_table()
+
+        # New column should have metadata
+        audio_field = table_after.schema.field("audio")
+        assert audio_field.metadata is not None
+        assert audio_field.metadata[b"unit"] == b"seconds"
+        assert audio_field.metadata[b"timeline_id"] == b"audio"
+
+
+# endregion

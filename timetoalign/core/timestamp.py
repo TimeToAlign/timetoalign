@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Iterator, Literal, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from ..core.enums import TimeUnit
+    from ..core.types import Coordinate
     from ..maps.interpolation import InterpolationMap
 
 module_logger = logging.getLogger(__name__)
@@ -67,6 +68,17 @@ class TimeStampSource(Protocol):
 
     def _get_available_units(self) -> list["TimeUnit"]:
         """Get all units available via C-Maps."""
+        ...
+
+    def _get_unit_for_timeline(self, timeline_id: str) -> "TimeUnit | None":
+        """Get the TimeUnit for a timeline in the hierarchy.
+
+        Args:
+            timeline_id: The timeline ID to look up.
+
+        Returns:
+            The TimeUnit for the timeline, or None if not found.
+        """
         ...
 
 
@@ -152,6 +164,64 @@ class TimeStamp:
         if imap is None:
             return None
         return float(imap.forward(self.axis))
+
+    def get_coordinate(self, timeline_id: str) -> "Coordinate | None":
+        """Get a proper Coordinate object for a timeline.
+
+        Unlike get() which returns a float, this returns a Coordinate
+        with the correct TimeUnit attached.
+
+        Args:
+            timeline_id: The timeline to get coordinate for.
+
+        Returns:
+            Coordinate with value and unit, or None if not reachable.
+
+        Examples:
+            >>> ts = timeline.get_timestamp(50.0)
+            >>> coord = ts.get_coordinate("child:1")
+            >>> coord.value
+            25.0
+            >>> coord.unit
+            <TimeUnit.seconds: 'seconds'>
+        """
+        from ..core.types import Coordinate
+
+        value = self.get(timeline_id)
+        if value is None:
+            return None
+
+        unit = self.source._get_unit_for_timeline(timeline_id)
+        if unit is None:
+            return None
+
+        return Coordinate(value, unit)
+
+    @property
+    def axis_coordinate(self) -> "Coordinate":
+        """Get the axis value as a proper Coordinate object.
+
+        This provides the axis coordinate with its correct TimeUnit,
+        enabling proper coordinate arithmetic and serialization.
+
+        Returns:
+            Coordinate with the axis value and source unit.
+
+        Examples:
+            >>> ts = timeline.get_timestamp(50.0)
+            >>> ts.axis_coordinate
+            Coordinate(50.0, seconds)
+        """
+        from ..core.types import Coordinate
+
+        unit = self.source._get_unit_for_timeline(self.source_id)
+        # source_id should always be valid, so unit should never be None
+        # but we fall back to a safe default just in case
+        if unit is None:
+            from ..core.enums import TimeUnit
+
+            unit = TimeUnit.seconds  # Fallback
+        return Coordinate(self.axis, unit)
 
     def to_dict(
         self,
@@ -333,6 +403,32 @@ class TimeIntervalStamp:
         e = self.end.get_unit(unit)
         if s is not None and e is not None:
             return (s, e)
+        return None
+
+    def get_coordinate_interval(
+        self, timeline_id: str
+    ) -> "tuple[Coordinate, Coordinate] | None":
+        """Get (start, end) as proper Coordinate objects.
+
+        Unlike get_interval() which returns floats, this returns Coordinates
+        with the correct TimeUnit attached.
+
+        Args:
+            timeline_id: The timeline to get interval for.
+
+        Returns:
+            Tuple of (start, end) Coordinates, or None if not reachable.
+
+        Examples:
+            >>> interval = timeline.get_interval_stamp(10.0, 50.0)
+            >>> start, end = interval.get_coordinate_interval("child:1")
+            >>> start.unit
+            <TimeUnit.seconds: 'seconds'>
+        """
+        start_coord = self.start.get_coordinate(timeline_id)
+        end_coord = self.end.get_coordinate(timeline_id)
+        if start_coord is not None and end_coord is not None:
+            return (start_coord, end_coord)
         return None
 
     def zip_intervals(
