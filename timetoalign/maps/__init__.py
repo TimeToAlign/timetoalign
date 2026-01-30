@@ -33,6 +33,7 @@ from .convenience import (
 )
 from .interpolation import InterpolationMap
 from .linear import LinearMap, ScalarMap, ShiftMap
+from .meter import BeatInMeasureMap, MeterMap, MetricalPositionMap
 from .periodic import FloorMap, RotationMap
 from .table import TableMap
 
@@ -55,6 +56,10 @@ __all__ = [
     # Periodic/floor maps
     "RotationMap",
     "FloorMap",
+    # Meter maps
+    "MeterMap",
+    "BeatInMeasureMap",
+    "MetricalPositionMap",
     # Convenience classes
     "TicksToQuarters",
     "QuartersToTicks",

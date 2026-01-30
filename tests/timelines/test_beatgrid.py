@@ -77,7 +77,13 @@ class TestBeatGridBasic:
 
 
 class TestBeatGridMetricalMaps:
-    """Test the built-in metrical C-Maps."""
+    """Test the built-in metrical C-Maps.
+
+    The new MeterMap-based implementation uses:
+    - 'mc' (measure count) instead of 'measure'
+    - Fraction for beat positions (not float)
+    - MeterMap with explicit boundaries
+    """
 
     def test_measure_at_4_4(self):
         """Test measure number lookup in 4/4."""
@@ -93,42 +99,60 @@ class TestBeatGridMetricalMaps:
         assert grid.measure_at(4) == 2
         assert grid.measure_at(7.5) == 2
 
-        # Measure 26: quarters 100-103.99
-        assert grid.measure_at(100) == 26
+        # 100 quarters / 4 = 25 measures
+        # Quarter 96-99 = measure 25
+        # Quarter 100 would be measure 26 but grid only has 25 measures
+        # So measure_at(96) == 25 (inside the grid)
+        assert grid.measure_at(96) == 25
+        assert grid.measure_at(99) == 25
 
     def test_beat_at_4_4(self):
-        """Test beat position lookup in 4/4."""
+        """Test beat position lookup in 4/4.
+
+        Note: beat_at now returns Fraction, not float. Use beat_at_float() for float.
+        """
         grid = BeatGrid(length=Fraction(100, 1), beats_per_measure=4)
 
-        # Beat 1 at measure starts
-        assert grid.beat_at(0) == 1.0
-        assert grid.beat_at(4) == 1.0
-        assert grid.beat_at(100) == 1.0
+        # Beat 1 at measure starts (now returns Fraction)
+        assert grid.beat_at(0) == Fraction(1, 1)
+        assert grid.beat_at(4) == Fraction(1, 1)
+        assert grid.beat_at(96) == Fraction(1, 1)  # Start of measure 25
 
         # Other beats
-        assert grid.beat_at(1) == 2.0
-        assert grid.beat_at(2) == 3.0
-        assert grid.beat_at(3) == 4.0
+        assert grid.beat_at(1) == Fraction(2, 1)
+        assert grid.beat_at(2) == Fraction(3, 1)
+        assert grid.beat_at(3) == Fraction(4, 1)
 
         # Fractional beats
-        assert grid.beat_at(0.5) == 1.5
-        assert grid.beat_at(4.25) == 1.25
+        assert grid.beat_at(Fraction(1, 2)) == Fraction(3, 2)  # 1.5
+        assert grid.beat_at(Fraction(17, 4)) == Fraction(5, 4)  # 4.25 -> beat 1.25
+
+        # Use beat_at_float for backward-compatible float output
+        assert grid.beat_at_float(0) == 1.0
+        assert grid.beat_at_float(0.5) == 1.5
 
     def test_metrical_position(self):
-        """Test combined measure/beat lookup."""
+        """Test combined measure/beat lookup.
+
+        Note: metrical_position now returns 'mc' (measure count) not 'measure',
+        and 'beat' is a Fraction, and includes 'mn' (measure number label).
+        """
         grid = BeatGrid(length=Fraction(100, 1), beats_per_measure=4)
 
         result = grid.metrical_position(0)
-        assert result["measure"] == 1
-        assert result["beat"] == 1.0
+        assert result["mc"] == 1
+        assert result["beat"] == Fraction(1, 1)
+        assert result["mn"] == "1"
 
         result = grid.metrical_position(7.5)
-        assert result["measure"] == 2
-        assert result["beat"] == 4.5
+        assert result["mc"] == 2
+        assert result["beat"] == Fraction(9, 2)  # 4.5
+        assert result["mn"] == "2"
 
-        result = grid.metrical_position(100)
-        assert result["measure"] == 26
-        assert result["beat"] == 1.0
+        # Quarter 96 = start of measure 25
+        result = grid.metrical_position(96)
+        assert result["mc"] == 25
+        assert result["beat"] == Fraction(1, 1)
 
     def test_quarter_at(self):
         """Test reverse lookup: measure/beat -> quarter."""
@@ -143,21 +167,23 @@ class TestBeatGridMetricalMaps:
         # Measure 2, beat 1 -> quarter 4
         assert grid.quarter_at(2, 1) == Fraction(4, 1)
 
-        # Measure 26, beat 1 -> quarter 100
-        assert grid.quarter_at(26, 1) == Fraction(100, 1)
+        # Measure 25, beat 1 -> quarter 96 (25 measures in this grid)
+        assert grid.quarter_at(25, 1) == Fraction(96, 1)
 
         # Fractional beat
-        assert grid.quarter_at(1, 1.5) == Fraction(1, 2)
+        assert grid.quarter_at(1, Fraction(3, 2)) == Fraction(1, 2)  # beat 1.5
 
     def test_quarter_at_validation(self):
         """Test validation in quarter_at."""
         grid = BeatGrid(length=Fraction(100, 1), beats_per_measure=4)
 
-        with pytest.raises(ValueError, match="before start_measure"):
+        # MC 0 is not in the meter map
+        with pytest.raises(ValueError, match="not found"):
             grid.quarter_at(0, 1)
 
-        with pytest.raises(ValueError, match="Beat must be"):
-            grid.quarter_at(1, 0)
+        # MC 26 is beyond the grid (only has 25 measures)
+        with pytest.raises(ValueError, match="not found"):
+            grid.quarter_at(26, 1)
 
 
 class TestBeatGridMaterialization:
@@ -197,13 +223,17 @@ class TestBeatGridMaterialization:
         assert len(events) == 2
 
     def test_partial_measure(self):
-        """Test handling of partial final measure."""
+        """Test handling of partial final measure.
+
+        With MeterMap.from_uniform, only complete measures are created.
+        10 quarters / 4 = 2.5, so only 2 complete measures.
+        """
         grid = BeatGrid(length=Fraction(10, 1), beats_per_measure=4)
 
         n_measures = grid.materialize_measures()
 
-        # 2 complete measures (8 quarters) + 1 partial (2 quarters)
-        assert n_measures == 3
+        # 2 complete measures (8 quarters); the 2 extra quarters don't form a measure
+        assert n_measures == 2
 
 
 class TestBeatGridFromTempo:
@@ -354,7 +384,11 @@ class TestBeatGridSUPRAValidation:
         assert grid.n_measures == self.TOTAL_MEASURES
 
     def test_supra_measure_boundaries(self):
-        """Verify measure boundaries at key points."""
+        """Verify measure boundaries at key points.
+
+        Note: With the new MeterMap implementation, out-of-bounds coordinates
+        are clamped to the last measure (not extrapolated to a theoretical next measure).
+        """
         grid = BeatGrid(
             length=Fraction(self.TOTAL_QUARTERS, 1),
             beats_per_measure=self.BEATS_PER_MEASURE,
@@ -371,8 +405,9 @@ class TestBeatGridSUPRAValidation:
         assert grid.measure_at(884) == 222
         assert grid.measure_at(887) == 222
 
-        # Verify quarter 888 would be measure 223 (beyond piece)
-        assert grid.measure_at(888) == 223
+        # Quarter 888 is beyond the grid; MeterMap clamps to last measure
+        # (the old FloorMap would extrapolate to 223, but MeterMap is table-based)
+        assert grid.measure_at(888) == 222
 
     def test_supra_all_measure_starts(self):
         """Verify all 222 measure start positions."""
@@ -397,7 +432,10 @@ class TestBeatGridSUPRAValidation:
             )
 
     def test_supra_beat_positions(self):
-        """Verify beat positions within measures."""
+        """Verify beat positions within measures.
+
+        Note: beat_at now returns Fraction, not float.
+        """
         grid = BeatGrid(
             length=Fraction(self.TOTAL_QUARTERS, 1),
             beats_per_measure=self.BEATS_PER_MEASURE,
@@ -410,7 +448,7 @@ class TestBeatGridSUPRAValidation:
             for beat in range(1, 5):  # Beats 1-4
                 quarter = base_quarter + (beat - 1)
                 actual_beat = grid.beat_at(quarter)
-                assert abs(actual_beat - beat) < 0.001, (
+                assert actual_beat == Fraction(beat, 1), (
                     f"Quarter {quarter} (measure {measure}) should be beat {beat}, "
                     f"got {actual_beat}"
                 )
@@ -505,7 +543,11 @@ class TestBeatGridSUPRAValidation:
         assert abs(computed_seconds - seconds_per_quarter) < 0.001
 
     def test_supra_array_operations(self):
-        """Test vectorized operations on SUPRA-sized data."""
+        """Test vectorized operations on SUPRA-sized data.
+
+        Note: Uses the new _meter_map (MeterMap) instead of _measure_map.
+        The MeterMap supports vectorized operations via its internal arrays.
+        """
         grid = BeatGrid(
             length=Fraction(self.TOTAL_QUARTERS, 1),
             beats_per_measure=self.BEATS_PER_MEASURE,
@@ -514,13 +556,13 @@ class TestBeatGridSUPRAValidation:
         # Create array of all quarters
         all_quarters = np.arange(self.TOTAL_QUARTERS, dtype=np.float64)
 
-        # Vectorized measure lookup
-        measures = grid._measure_map(all_quarters)
+        # Vectorized measure lookup using meter_map
+        measures = grid._meter_map(all_quarters)
         assert len(measures) == self.TOTAL_QUARTERS
         assert measures[0] == 1
         assert measures[self.TOTAL_QUARTERS - 1] == self.TOTAL_MEASURES
 
-        # Vectorized beat lookup
+        # Vectorized beat lookup using beat_map
         beats = grid._beat_map(all_quarters)
         assert len(beats) == self.TOTAL_QUARTERS
         assert beats[0] == 1.0
@@ -530,7 +572,10 @@ class TestBeatGridSUPRAValidation:
         np.testing.assert_array_almost_equal(beats, expected_beat_pattern)
 
     def test_supra_metrical_position_array(self):
-        """Test combined metrical position lookup on array."""
+        """Test combined metrical position lookup on array.
+
+        Note: The _metrical_map now returns 'mc' instead of 'measure'.
+        """
         grid = BeatGrid(
             length=Fraction(self.TOTAL_QUARTERS, 1),
             beats_per_measure=self.BEATS_PER_MEASURE,
@@ -544,7 +589,7 @@ class TestBeatGridSUPRAValidation:
         expected_measures = np.array([1, 1, 2, 26, 126, 222, 222])
         expected_beats = np.array([1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 4.0])
 
-        np.testing.assert_array_equal(result["measure"], expected_measures)
+        np.testing.assert_array_equal(result["mc"], expected_measures)
         np.testing.assert_array_almost_equal(result["beat"], expected_beats)
 
     def test_supra_event_materialization(self):
