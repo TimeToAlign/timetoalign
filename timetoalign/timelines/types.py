@@ -8,18 +8,19 @@ This module provides the 6 concrete Timeline types:
 Each class restricts valid units to its domain and modality,
 and provides sensible defaults.
 
-Additionally provides convenience methods for creating metrical
-timelines that are connected via TimelineGroups (NOT as children,
-per TTA specification that children must share the parent's unit).
+Additionally provides:
+- SegmentLine: A timeline where all children are contiguous (Segments)
+- Convenience methods for creating metrical timelines via TimelineGroups
+  (NOT as children, per TTA specification that children must share parent's unit)
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Iterator, Literal
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import Coordinate, CoordinateValue, NumberType, TimeUnit
 
 from .base import Timeline
 from .mixins import ContinuousMixin, DiscreteMixin
@@ -793,6 +794,409 @@ class DiscreteGraphicalTimeline(DiscreteMixin, GraphicalTimeline):
     _allowed_units: ClassVar[frozenset[TimeUnit]] = DISCRETE_GRAPHICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.pixels
     _default_number_type: ClassVar[NumberType] = NumberType.int
+
+
+# endregion
+
+
+# region SegmentLine
+
+
+class SegmentLine(Timeline):
+    """A timeline containing only contiguous Segments.
+
+    Segments are children that:
+    - Start exactly where the previous segment ends
+    - Have no gaps or overlaps
+
+    SegmentLine provides additional convenience methods for
+    segment-based access patterns and C-map concatenation.
+
+    From TTA manuscript (Section 3.4):
+    "When all Children of the same parent timeline ('siblings') are
+    contiguous with each other, we call them Segments and the parent
+    a SegmentLine."
+
+    The key advantage of SegmentLine is that C-maps from individual
+    segments can be concatenated into a single PiecewiseMap, enabling
+    cumulative coordinate conversion across the entire timeline.
+
+    Attributes:
+        segment_order: Ordered list of segment IDs (insertion order).
+
+    Examples:
+        >>> # Create measures as segments
+        >>> score = SegmentLine.empty(unit=TimeUnit.quarters)
+        >>> for i in range(4):
+        ...     measure = ContinuousLogicalTimeline(length=Fraction(4))
+        ...     score.append_segment(measure, name=f"m{i+1}")
+        >>> score.length
+        Coordinate(16, quarters)
+
+        >>> # Access by index
+        >>> offset, segment = score.get_segment_by_index(2)
+        >>> offset
+        Coordinate(8, quarters)
+
+        >>> # Find segment containing a coordinate
+        >>> idx, seg, ts = score.get_segment_at(10.0)
+        >>> idx
+        2  # Third segment (0-indexed)
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize a SegmentLine.
+
+        Args:
+            **kwargs: Arguments passed to Timeline.__init__.
+        """
+        super().__init__(**kwargs)
+        self._segment_order: list[str] = []
+
+    def validate_child(
+        self,
+        child: Timeline,
+        offset: CoordinateValue | Coordinate,
+    ) -> None:
+        """Override to enforce contiguity.
+
+        Segments must start exactly where the previous segment ends.
+        The first segment must start at 0.
+
+        Args:
+            child: The timeline to validate.
+            offset: The proposed start coordinate.
+
+        Raises:
+            ValueError: If offset doesn't produce contiguous placement.
+        """
+        super().validate_child(child, offset)
+
+        offset_val = offset.value if isinstance(offset, Coordinate) else offset
+
+        # First segment must start at 0 (or current length if empty)
+        expected_offset = self.length.value if self._segment_order else 0
+
+        if offset_val != expected_offset:
+            raise ValueError(
+                f"SegmentLine requires contiguous segments. "
+                f"Expected offset {expected_offset}, got {offset_val}. "
+                f"Use append_segment() for automatic offset calculation."
+            )
+
+    def add_child(
+        self,
+        child: Timeline,
+        offset: CoordinateValue | Coordinate,
+        allow_expansion: bool = False,
+    ) -> None:
+        """Add a segment at the specified offset.
+
+        Overrides Timeline.add_child to also track segment order.
+
+        Args:
+            child: The segment to add.
+            offset: The start coordinate (must be contiguous).
+            allow_expansion: If True, expand timeline if needed.
+
+        Raises:
+            ValueError: If placement would not be contiguous.
+        """
+        # Validate first (will check contiguity)
+        super().add_child(child, offset, allow_expansion)
+        # Track segment order
+        self._segment_order.append(child.id)
+
+    def append_segment(
+        self,
+        segment: Timeline,
+        name: str | None = None,
+    ) -> None:
+        """Append a segment at the current end coordinate.
+
+        The segment's offset is automatically set to current length.
+
+        Args:
+            segment: Timeline to add as segment.
+            name: Optional name override for the segment.
+        """
+        offset = self.length
+
+        # Override name if provided
+        if name:
+            segment._name = name
+
+        # Use add_child (validates unit match, builds InterpolationMap)
+        self.add_child(segment, offset, allow_expansion=True)
+
+    def get_segment_at(
+        self,
+        coord: CoordinateValue,
+    ) -> tuple[int, Timeline, Any]:
+        """Get segment containing a coordinate.
+
+        Args:
+            coord: Coordinate in this SegmentLine.
+
+        Returns:
+            Tuple of (segment_index, segment, timestamp_in_segment).
+
+        Raises:
+            ValueError: If no segment contains the coordinate.
+        """
+        ts = self.get_timestamp(coord)
+        coord_val = (
+            float(coord) if not isinstance(coord, Coordinate) else float(coord.value)
+        )
+
+        for i, seg_id in enumerate(self._segment_order):
+            seg_coord = ts.get(seg_id)
+            if seg_coord is not None and seg_coord >= 0:
+                segment = self._children[seg_id]
+                if seg_coord <= segment.length.value:
+                    seg_ts = segment.get_timestamp(seg_coord)
+                    return (i, segment, seg_ts)
+
+        raise ValueError(f"No segment contains coordinate {coord_val}")
+
+    def get_segment_by_index(self, index: int) -> tuple[Coordinate, Timeline]:
+        """Get segment by 0-based index.
+
+        Args:
+            index: Segment index (0-based).
+
+        Returns:
+            Tuple of (offset, segment).
+
+        Raises:
+            IndexError: If index is out of range.
+        """
+        if index < 0 or index >= len(self._segment_order):
+            raise IndexError(f"Segment index {index} out of range")
+
+        seg_id = self._segment_order[index]
+        return (self._child_offsets[seg_id], self._children[seg_id])
+
+    @property
+    def n_segments(self) -> int:
+        """Number of segments."""
+        return len(self._segment_order)
+
+    def iter_segments(self) -> Iterator[tuple[int, Coordinate, Timeline]]:
+        """Iterate over segments in order.
+
+        Yields:
+            Tuples of (index, offset, segment).
+        """
+        for i, seg_id in enumerate(self._segment_order):
+            yield (i, self._child_offsets[seg_id], self._children[seg_id])
+
+    def concatenate_cmaps(
+        self,
+        target_unit: TimeUnit,
+    ) -> Any:
+        """Concatenate segment C-maps into a single PiecewiseMap.
+
+        Each segment must have a C-map to the target unit.
+        The resulting map converts SegmentLine coordinates to the
+        cumulative target unit coordinates.
+
+        From manuscript (Section 3.4):
+        "The main technical reason why a contiguous subtype is useful is
+        that it allows us to concatenate local coordinate systems by
+        cumulatively summing segment lengths, but also to apply the same
+        operation to the segments' C-maps."
+
+        Args:
+            target_unit: The target unit all segment C-maps must convert to.
+
+        Returns:
+            PiecewiseMap combining all segment conversions.
+
+        Raises:
+            ValueError: If any segment lacks a C-map to target_unit.
+        """
+        from timetoalign.maps import PiecewiseMap
+
+        pieces = []
+        cumulative_offset = 0.0
+
+        for i, offset, segment in self.iter_segments():
+            cmap = segment.get_conversion_map(target_unit)
+            if cmap is None:
+                raise ValueError(
+                    f"Segment '{segment.id}' has no C-map to {target_unit}"
+                )
+
+            # Get segment bounds in SegmentLine coordinates
+            segment_start = float(offset.value)
+            segment_end = segment_start + float(segment.length.value)
+
+            # Create piece definition
+            pieces.append(
+                {
+                    "start": segment_start,
+                    "end": segment_end,
+                    "map": cmap,
+                    "offset": cumulative_offset,
+                }
+            )
+
+            # Cumulate the converted length
+            converted_length = cmap(segment.length.value)
+            cumulative_offset += float(converted_length)
+
+        return PiecewiseMap.from_segments(
+            pieces=pieces,
+            source_unit=self.unit,
+            target_unit=target_unit,
+        )
+
+    @classmethod
+    def from_segmentation(
+        cls,
+        source: Timeline,
+        split_coords: list[CoordinateValue],
+        copy_events: bool = True,
+    ) -> "SegmentLine":
+        """Create a SegmentLine by segmenting an existing timeline.
+
+        From manuscript (Section 3.4):
+        "A special case of partitioning is segmentation, which is the
+        creation of one or several Segments from two or more segmentation
+        points on a timeline."
+
+        Note: The segmented timeline is NOT modified. A new SegmentLine
+        is created with copies of the relevant portions.
+
+        Args:
+            source: Timeline to segment (not modified).
+            split_coords: Coordinates defining segment boundaries.
+                k+1 coordinates create k segments.
+            copy_events: If True, copy events to their respective segments.
+
+        Returns:
+            New SegmentLine with segments.
+
+        Raises:
+            ValueError: If source already has children (ambiguous nesting).
+            ValueError: If fewer than 2 split coordinates provided.
+
+        Examples:
+            >>> source = ContinuousLogicalTimeline(length=100)
+            >>> source.add_events([...])  # Some events
+            >>> # Split into 4 segments at [0, 25, 50, 75, 100]
+            >>> segments = SegmentLine.from_segmentation(
+            ...     source, [0, 25, 50, 75, 100]
+            ... )
+            >>> segments.n_segments
+            4
+        """
+        if source.n_children > 0:
+            raise ValueError(
+                "Cannot segment a timeline that already has children. "
+                "This would create conflicting nesting hierarchies."
+            )
+
+        if len(split_coords) < 2:
+            raise ValueError(
+                f"Segmentation requires at least 2 coordinates, got {len(split_coords)}"
+            )
+
+        # Sort and validate coordinates
+        coords = sorted(float(c) for c in split_coords)
+
+        # Create the SegmentLine
+        segment_line = cls(
+            length=coords[-1] - coords[0],
+            unit=source.unit,
+            number_type=source.number_type,
+        )
+
+        # Create segments
+        for i in range(len(coords) - 1):
+            start = coords[i]
+            end = coords[i + 1]
+            length = end - start
+
+            segment = Timeline(
+                length=length,
+                unit=source.unit,
+                number_type=source.number_type,
+                name=f"segment_{i}",
+            )
+
+            if copy_events:
+                # Get events in this range from source
+                events_in_range = source.get_events(
+                    min_coord=start,
+                    max_coord=end,
+                )
+
+                # Convert EventData to list of dicts and adjust coordinates
+                adjusted_events = []
+                for event in events_in_range:
+                    adjusted = dict(event)
+                    for coord_col in ("instant", "start", "end"):
+                        val = adjusted.get(coord_col)
+                        if val is not None:
+                            # Handle coordinate struct or raw value
+                            if isinstance(val, dict) and "value" in val:
+                                adjusted[coord_col] = val["value"] - start
+                            else:
+                                adjusted[coord_col] = float(val) - start
+                    adjusted_events.append(adjusted)
+
+                if adjusted_events:
+                    segment.add_events(adjusted_events)
+
+            segment_line.append_segment(segment)
+
+        return segment_line
+
+
+# endregion
+
+
+# region Factory Function
+
+
+def get_timeline_class(
+    domain: str,
+    discrete: bool = False,
+) -> type[Timeline]:
+    """Get the appropriate Timeline class for a domain and modality.
+
+    Args:
+        domain: One of "logical", "physical", "graphical".
+        discrete: If True, return discrete variant; else continuous.
+
+    Returns:
+        The appropriate Timeline subclass.
+
+    Raises:
+        ValueError: If domain is not recognized.
+
+    Examples:
+        >>> get_timeline_class("logical", discrete=False)
+        <class 'ContinuousLogicalTimeline'>
+        >>> get_timeline_class("physical", discrete=True)
+        <class 'DiscretePhysicalTimeline'>
+    """
+    classes = {
+        ("logical", False): ContinuousLogicalTimeline,
+        ("logical", True): DiscreteLogicalTimeline,
+        ("physical", False): ContinuousPhysicalTimeline,
+        ("physical", True): DiscretePhysicalTimeline,
+        ("graphical", False): ContinuousGraphicalTimeline,
+        ("graphical", True): DiscreteGraphicalTimeline,
+    }
+
+    key = (domain.lower(), discrete)
+    if key not in classes:
+        raise ValueError(f"Unknown domain '{domain}'")
+
+    return classes[key]
 
 
 # endregion

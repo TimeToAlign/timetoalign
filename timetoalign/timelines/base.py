@@ -27,6 +27,8 @@ from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
 from timetoalign.loader import EventData
 from timetoalign.maps import ConversionMap, InterpolationMap
 
+from .regions import Region
+
 module_logger = logging.getLogger(__name__)
 
 # Module-level counter for unique ID generation
@@ -169,6 +171,12 @@ class Timeline:
         self._interpolation_maps: dict[str, InterpolationMap] = {}
         # Maps TimeUnit -> InterpolationMap for unit-based conversion via C-Maps
         self._unit_maps: dict[TimeUnit, InterpolationMap] = {}
+
+        # Region storage (named TimeIntervals)
+        # From TTA manuscript: "A Region is a named part of a timeline that is
+        # defined by a TimeInterval. Regions are useful for referring to parts
+        # of a timeline by name."
+        self._regions: dict[str, Region] = {}
 
         # Logger
         self._logger = module_logger.getChild(self._id)
@@ -1073,6 +1081,146 @@ class Timeline:
             )
         return cmap(values)
 
+    def derive(
+        self,
+        target_unit: TimeUnit | str,
+        name: str | None = None,
+        copy_events: bool = False,
+    ) -> "Timeline":
+        """Create a derivative timeline in a different unit via C-Map conversion.
+
+        From TTA manuscript (Section 3.3):
+        "A ConversionMap implies the presence of a derived timeline in the
+        target unit. The derive() method makes this implicit timeline explicit."
+
+        The derived timeline:
+        - Has coordinates in the target unit
+        - Has length equal to the converted source length
+        - Automatically has an inverse C-Map back to the source unit
+        - Optionally copies and converts events from the source
+
+        This operation creates a NEW timeline, NOT a child timeline.
+        The source and derived timelines have different units, so per TTA
+        specification, they cannot be parent-child (children must share
+        the parent's unit). Use TimelineGroup to connect them.
+
+        Args:
+            target_unit: The unit for the derived timeline.
+            name: Optional name for the derived timeline.
+            copy_events: If True, copy and convert events to the derived timeline.
+
+        Returns:
+            A new Timeline in the target unit.
+
+        Raises:
+            ValueError: If no C-Map exists for the target unit.
+            ValueError: If C-Map is not invertible (needed for roundtrip).
+
+        Examples:
+            >>> # Create physical timeline with tempo C-Map
+            >>> audio = ContinuousPhysicalTimeline(length=60.0)
+            >>> audio.add_conversion_map(LinearMap(2.0, 0.0,
+            ...     source_unit=TimeUnit.seconds, target_unit=TimeUnit.quarters))
+            >>> # Derive a logical timeline
+            >>> score = audio.derive(TimeUnit.quarters, name="score")
+            >>> score.unit
+            TimeUnit.quarters
+            >>> score.length
+            Coordinate(120.0, quarters)  # 60 seconds * 2 q/s
+        """
+        target = TimeUnit(target_unit) if isinstance(target_unit, str) else target_unit
+
+        # Get the C-Map for this conversion
+        cmap = self.get_conversion_map(target)
+        if cmap is None:
+            raise ValueError(
+                f"No C-Map from '{self._unit}' to '{target}'. "
+                f"Add a ConversionMap with add_conversion_map() first."
+            )
+
+        # Convert length
+        derived_length = cmap(self._length.value)
+
+        # Determine appropriate Timeline class for target domain
+        from .types import get_timeline_class
+
+        target_domain = target.domain.name.lower()
+        # Determine discrete vs continuous based on target unit
+        # Ticks, samples, frames, pixels are discrete
+        discrete_units = {
+            TimeUnit.ticks,
+            TimeUnit.samples,
+            TimeUnit.frames,
+            TimeUnit.pixels,
+        }
+        is_discrete = target in discrete_units
+
+        try:
+            derived_class = get_timeline_class(target_domain, discrete=is_discrete)
+        except ValueError:
+            # Fallback to base Timeline if domain lookup fails
+            derived_class = Timeline
+
+        # Create derived timeline
+        derived = derived_class(
+            length=derived_length,
+            unit=target,
+            name=name or f"{self._id}_derived",
+        )
+
+        # Add inverse C-Map if available (for roundtrip conversion)
+        if cmap.is_invertible:
+            inverse = cmap.inverse()
+            derived.add_conversion_map(inverse)
+        else:
+            self._logger.warning(
+                f"C-Map '{cmap.id}' is not invertible. "
+                f"The derived timeline will not have a C-Map back to '{self._unit}'."
+            )
+
+        # Copy and convert events if requested
+        if copy_events:
+            converted_events = []
+            for event in self._events:
+                # Skip segment events
+                if event.get("event_type") == SEGMENT_EVENT_TYPE:
+                    continue
+
+                converted = dict(event)
+                for coord_col in ("instant", "start", "end"):
+                    val = converted.get(coord_col)
+                    if val is not None:
+                        # Handle coordinate struct or raw value
+                        if isinstance(val, dict) and "value" in val:
+                            converted[coord_col] = float(cmap(val["value"]))
+                        else:
+                            converted[coord_col] = float(cmap(val))
+
+                # Convert duration if present
+                if converted.get("duration") is not None:
+                    duration_val = converted["duration"]
+                    if isinstance(duration_val, dict) and "value" in duration_val:
+                        # Duration needs to be converted using rate, not absolute value
+                        # For linear maps: derived_duration = source_duration * scalar
+                        converted["duration"] = float(
+                            cmap(duration_val["value"])
+                        ) - float(cmap(0))
+                    else:
+                        converted["duration"] = float(cmap(duration_val)) - float(
+                            cmap(0)
+                        )
+
+                converted_events.append(converted)
+
+            if converted_events:
+                derived.add_events(converted_events)
+
+        self._logger.debug(
+            f"Derived timeline '{derived.id}' in {target} from '{self._id}'"
+        )
+
+        return derived
+
     # endregion
 
     # region Unified Timestamp API (InterpolationMap-based)
@@ -1856,8 +2004,8 @@ class Timeline:
         name: str,
         start: CoordinateValue | Coordinate,
         end: CoordinateValue | Coordinate,
-        metadata: dict[str, Any] | None = None,
-    ) -> None:
+        meta: dict[str, Any] | None = None,
+    ) -> Region:
         """Add a named Region to this timeline.
 
         A Region is a named part of a timeline defined by a TimeInterval.
@@ -1875,7 +2023,10 @@ class Timeline:
             name: Unique name for this region.
             start: Start coordinate.
             end: End coordinate (must be >= start).
-            metadata: Optional metadata dictionary.
+            meta: Optional metadata dictionary.
+
+        Returns:
+            The created Region object.
 
         Raises:
             ValueError: If name already exists or end < start.
@@ -1883,13 +2034,9 @@ class Timeline:
 
         Examples:
             >>> timeline.add_region("Chorus", 10.0, 30.0)
-            >>> timeline.add_region("Verse", 30.0, 50.0, metadata={"repeat": 2})
+            >>> timeline.add_region("Verse", 30.0, 50.0, meta={"repeat": 2})
         """
         self._check_not_locked("add region")
-
-        # Initialize regions storage if needed
-        if not hasattr(self, "_regions"):
-            self._regions: dict[str, dict[str, Any]] = {}
 
         if name in self._regions:
             raise ValueError(f"Region '{name}' already exists")
@@ -1897,37 +2044,76 @@ class Timeline:
         start_coord = self._make_coordinate(start)
         end_coord = self._make_coordinate(end)
 
-        if end_coord.value < start_coord.value:
-            raise ValueError(
-                f"Region end ({end_coord.value}) cannot be before start ({start_coord.value})"
-            )
+        # Region class validates end >= start in __post_init__
+        region = Region(
+            name=name,
+            start=start_coord,
+            end=end_coord,
+            meta=meta or {},
+        )
 
-        self._regions[name] = {
-            "name": name,
-            "start": start_coord,
-            "end": end_coord,
-            "metadata": dict(metadata) if metadata else {},
-        }
-
+        self._regions[name] = region
         self._logger.debug(
             f"Added region '{name}' [{start_coord.value}, {end_coord.value})"
         )
+        return region
 
-    def get_region(self, name: str) -> dict[str, Any]:
-        """Get a Region by name.
+    def get_region(self, name: str) -> dict[str, Any] | None:
+        """Get a Region by name as a dictionary.
+
+        For backwards compatibility, returns a dictionary representation.
+        Use get_region_object() for the Region instance.
 
         Args:
             name: The region name.
 
         Returns:
-            Dict with 'name', 'start', 'end', 'metadata'.
-
-        Raises:
-            KeyError: If region not found.
+            Dict with 'name', 'start', 'end', 'meta' keys, or None if not found.
         """
-        if not hasattr(self, "_regions") or name not in self._regions:
-            raise KeyError(f"No region with name '{name}'")
-        return dict(self._regions[name])
+        region = self._regions.get(name)
+        if region is None:
+            return None
+        return {
+            "name": region.name,
+            "start": float(region.start.value),
+            "end": float(region.end.value),
+            "meta": region.meta,
+        }
+
+    def get_region_object(self, name: str) -> Region | None:
+        """Get a Region object by name.
+
+        Args:
+            name: Name of the region.
+
+        Returns:
+            The Region object, or None if not found.
+        """
+        return self._regions.get(name)
+
+    def has_region(self, name: str) -> bool:
+        """Check if a region exists.
+
+        Args:
+            name: Name of the region.
+
+        Returns:
+            True if the region exists.
+        """
+        return name in self._regions
+
+    def iter_regions(self) -> Iterator[Region]:
+        """Iterate over all regions (in undefined order).
+
+        Yields:
+            Region objects.
+        """
+        yield from self._regions.values()
+
+    @property
+    def n_regions(self) -> int:
+        """Number of regions on this timeline."""
+        return len(self._regions)
 
     def list_regions(self) -> list[str]:
         """List all region names.
@@ -1935,25 +2121,96 @@ class Timeline:
         Returns:
             List of region names in no particular order.
         """
-        if not hasattr(self, "_regions"):
-            return []
         return list(self._regions.keys())
+
+    def partition(
+        self,
+        region_name: str,
+        copy_events: bool = True,
+    ) -> "Timeline":
+        """Create a Child timeline from a Region.
+
+        From TTA manuscript (Section 3.5):
+        "Regions can be used to partition a timeline into Children."
+
+        This creates a new timeline covering the region's interval,
+        optionally copying events from that interval. The new timeline
+        is added as a Child at the region's start offset.
+
+        Args:
+            region_name: Name of the region to partition.
+            copy_events: If True, copy events within the region to the child.
+
+        Returns:
+            The created Child timeline.
+
+        Raises:
+            KeyError: If region does not exist.
+            RuntimeError: If timeline is locked.
+
+        Examples:
+            >>> tl.add_region("Verse", start=0, end=16)
+            >>> verse_tl = tl.partition("Verse")
+            >>> verse_tl.length
+            Coordinate(16, quarters)
+        """
+        region = self._regions.get(region_name)
+        if region is None:
+            raise KeyError(f"Region '{region_name}' not found on timeline '{self._id}'")
+
+        self._check_not_locked("partition")
+
+        # Create child timeline with the region's length
+        child = self.__class__(
+            length=region.duration,
+            unit=self._unit,
+            number_type=self._number_type,
+            name=region.name,
+        )
+
+        # Copy events if requested
+        if copy_events:
+            events_in_region = self.get_events(
+                min_coord=float(region.start.value),
+                max_coord=float(region.end.value),
+            )
+
+            # Adjust coordinates to be relative to the region's start
+            adjusted_events = []
+            for event in events_in_region:
+                adjusted = dict(event)
+                for coord_col in ("instant", "start", "end"):
+                    val = adjusted.get(coord_col)
+                    if val is not None:
+                        # Handle coordinate struct or raw value
+                        if isinstance(val, dict) and "value" in val:
+                            adjusted[coord_col] = val["value"] - region.start.value
+                        else:
+                            adjusted[coord_col] = float(val) - region.start.value
+                adjusted_events.append(adjusted)
+
+            if adjusted_events:
+                child.add_events(adjusted_events)
+
+        # Add as child at the region's start offset
+        self.add_child(child, offset=region.start)
+
+        return child
 
     def region_to_child(
         self,
         region_name: str,
         transfer_events: bool = False,
         child_name: str | None = None,
-    ) -> Timeline:
+    ) -> "Timeline":
         """Create a Child timeline from a Region.
 
-        This is the "partitioning" operation from the manuscript.
-        Creates a new Child at the Region's start coordinate with
-        length equal to the Region's duration.
+        DEPRECATED: Use partition() instead. This method is kept for
+        backwards compatibility.
 
         Args:
             region_name: Name of the region to convert.
-            transfer_events: If True, move events within the region to the child.
+            transfer_events: If True, copy events within the region to the child.
             child_name: Name for the child timeline (defaults to region name).
 
         Returns:
@@ -1962,34 +2219,51 @@ class Timeline:
         Raises:
             KeyError: If region not found.
         """
-        region = self.get_region(region_name)
-        start = region["start"]
-        end = region["end"]
-        length = end.value - start.value
+        import warnings
+
+        warnings.warn(
+            "region_to_child() is deprecated, use partition() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        region = self._regions.get(region_name)
+        if region is None:
+            raise KeyError(f"Region '{region_name}' not found")
 
         # Create child of same type
         child = self.__class__(
-            length=length,
+            length=region.duration,
             unit=self._unit,
             number_type=self._number_type,
             name=child_name or region_name,
         )
 
         # Add as child
-        self.add_child(child, offset=start)
+        self.add_child(child, offset=region.start)
 
-        # Optionally transfer events
+        # Copy events if requested
         if transfer_events:
-            # Get events within region
-            # events_in_region = self.get_events(
-            #     min_coord=float(start.value),
-            #     max_coord=float(end.value),
-            # )
-            # Note: Event transfer would require removing from parent and
-            # adding to child with offset adjustment. Left as future work.
-            self._logger.warning(
-                "Event transfer in region_to_child not yet implemented"
+            events_in_region = self.get_events(
+                min_coord=float(region.start.value),
+                max_coord=float(region.end.value),
             )
+
+            # Adjust coordinates to be relative to the region's start
+            adjusted_events = []
+            for event in events_in_region:
+                adjusted = dict(event)
+                for coord_col in ("instant", "start", "end"):
+                    val = adjusted.get(coord_col)
+                    if val is not None:
+                        if isinstance(val, dict) and "value" in val:
+                            adjusted[coord_col] = val["value"] - region.start.value
+                        else:
+                            adjusted[coord_col] = float(val) - region.start.value
+                adjusted_events.append(adjusted)
+
+            if adjusted_events:
+                child.add_events(adjusted_events)
 
         return child
 
