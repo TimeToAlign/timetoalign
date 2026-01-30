@@ -125,16 +125,21 @@ def make_coordinate_field(name: str, unit: TimeUnit, nullable: bool = True) -> p
 
 
 def coordinate_to_struct(
-    coord: int | float | Fraction,
+    coord: int | float | Fraction | dict[str, Any],
 ) -> dict[str, Any]:
     """Convert a coordinate value to struct dict for PyArrow.
 
     Args:
-        coord: The coordinate value (int, float, or Fraction).
+        coord: The coordinate value (int, float, Fraction, or already-converted dict).
 
     Returns:
         Dict with 'value', 'numerator', 'denominator' keys.
     """
+    # If already a struct dict, return as-is (idempotent)
+    if isinstance(coord, dict):
+        if "value" in coord:
+            return coord
+        raise ValueError(f"Invalid coordinate dict structure: {coord}")
     if isinstance(coord, Fraction):
         return {
             "value": float(coord),

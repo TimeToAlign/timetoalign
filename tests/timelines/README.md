@@ -15,9 +15,9 @@ which implements the central Timeline class and its 6 domain-specific subclasses
 
 ## Test Files
 
-### `test_timeline_relationships.py` - NEW: Region, SegmentLine, derive()
+### `test_timeline_relationships.py` - Region, SegmentLine, derive(), Hierarchical Queries
 
-**56 tests** covering TTA architecture harmonization concepts. See detailed
+**74 tests** covering TTA architecture harmonization concepts. See detailed
 documentation below in its own section.
 
 ---
@@ -444,10 +444,32 @@ between different timeline relationship concepts.
    - Returns correct class for all 6 domain/modality combinations
    - Raises ValueError for unknown domain
 
-8. **Integration Tests** (3 tests)
-   - Regions used to create SegmentLine structure
-   - Derived timeline can have children added
-   - SegmentLine with individual segment C-maps
+8. **query_events_hierarchical() Tests** (8 tests)
+   - Returns root events when no children
+   - Includes events from children
+   - Root-relative coordinates in root_start field
+   - Nested children (grandchildren) with correct offsets
+   - Filter by event_types
+   - Filter by coord_range (root-relative)
+   - Recursion limit controls depth
+   - include_children=False excludes child events
+
+9. **get_events_at() Tests** (10 tests)
+   - Returns instant events at exact coordinate
+   - Uses tolerance for instant matching
+   - Interval left-inclusive (start included)
+   - Interval right-exclusive (end excluded)
+   - Interval middle coordinates included
+   - Includes events from children
+   - include_children=False excludes child events
+   - Returns dict keyed by timeline ID
+   - Returns empty dict when no match
+   - Accepts Coordinate object input
+
+10. **Integration Tests** (3 tests)
+    - Regions used to create SegmentLine structure
+    - Derived timeline can have children added
+    - SegmentLine with individual segment C-maps
 
 **Validity Rationale:**
 
@@ -462,6 +484,8 @@ These tests ensure:
 2. SegmentLine enforces strict contiguity (no gaps/overlaps)
 3. derive() creates proper cross-domain relationships via C-maps
 4. Inverse C-maps enable accurate roundtrip conversions
+5. query_events_hierarchical() enables cross-hierarchy event queries with root-relative coordinates
+6. get_events_at() enables point-in-time queries following [start, end) interval semantics
 
 ---
 

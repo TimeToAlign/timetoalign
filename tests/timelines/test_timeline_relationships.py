@@ -805,6 +805,462 @@ class TestGetTimelineClass:
 # endregion
 
 
+# region Hierarchical Query Tests
+
+
+class TestQueryEventsHierarchical:
+    """Test query_events_hierarchical() method for cross-hierarchy event queries."""
+
+    def test_query_events_from_root_only(self):
+        """query_events_hierarchical returns root events when no children."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {
+                    "id": "e1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 10.0,
+                },
+                {
+                    "id": "e2",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 50.0,
+                },
+            ]
+        )
+
+        events = tl.query_events_hierarchical()
+
+        assert len(events) == 2
+        assert all(e["source_timeline"] == tl.id for e in events)
+
+    def test_query_events_includes_children(self):
+        """query_events_hierarchical includes events from children."""
+        parent = Timeline(length=100, unit=TimeUnit.seconds)
+        parent.add_events(
+            [
+                {
+                    "id": "p1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 5.0,
+                },
+            ]
+        )
+
+        child = Timeline(length=20, unit=TimeUnit.seconds, name="child")
+        child.add_events(
+            [
+                {
+                    "id": "c1",
+                    "temporal_type": "instant",
+                    "event_type": "Note",
+                    "instant": 5.0,
+                },
+                {
+                    "id": "c2",
+                    "temporal_type": "instant",
+                    "event_type": "Note",
+                    "instant": 15.0,
+                },
+            ]
+        )
+        parent.add_child(child, offset=30)
+
+        events = parent.query_events_hierarchical()
+
+        assert len(events) == 3  # 1 from parent + 2 from child
+
+    def test_query_events_root_relative_coordinates(self):
+        """Events have root-relative coordinates in root_start field."""
+        parent = Timeline(length=100, unit=TimeUnit.seconds)
+
+        child = Timeline(length=20, unit=TimeUnit.seconds)
+        child.add_events(
+            [
+                {
+                    "id": "c1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 5.0,
+                },
+            ]
+        )
+        parent.add_child(child, offset=30)  # Child at offset 30
+
+        events = parent.query_events_hierarchical()
+
+        child_event = next(e for e in events if e["id"] == "c1")
+        # Event at local 5.0 + offset 30 = root 35.0
+        assert child_event["root_start"] == pytest.approx(35.0)
+
+    def test_query_events_nested_children(self):
+        """query_events_hierarchical works with nested children."""
+        root = Timeline(length=100, unit=TimeUnit.seconds)
+        child = Timeline(length=40, unit=TimeUnit.seconds)
+        grandchild = Timeline(length=10, unit=TimeUnit.seconds)
+
+        grandchild.add_events(
+            [
+                {
+                    "id": "g1",
+                    "temporal_type": "instant",
+                    "event_type": "Note",
+                    "instant": 2.0,
+                },
+            ]
+        )
+        child.add_child(grandchild, offset=10)  # grandchild at child offset 10
+        root.add_child(child, offset=20)  # child at root offset 20
+
+        events = root.query_events_hierarchical()
+
+        grandchild_event = next(e for e in events if e["id"] == "g1")
+        # Local 2.0 + child offset 10 + root offset 20 = 32.0
+        assert grandchild_event["root_start"] == pytest.approx(32.0)
+
+    def test_query_events_filter_by_event_type(self):
+        """query_events_hierarchical can filter by event type."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {
+                    "id": "e1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 10.0,
+                },
+                {
+                    "id": "e2",
+                    "temporal_type": "instant",
+                    "event_type": "Note",
+                    "instant": 20.0,
+                },
+                {
+                    "id": "e3",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 30.0,
+                },
+            ]
+        )
+
+        events = tl.query_events_hierarchical(event_types={"Beat"})
+
+        assert len(events) == 2
+        assert all(e["event_type"] == "Beat" for e in events)
+
+    def test_query_events_filter_by_coord_range(self):
+        """query_events_hierarchical can filter by coordinate range."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {
+                    "id": "e1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 10.0,
+                },
+                {
+                    "id": "e2",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 50.0,
+                },
+                {
+                    "id": "e3",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 90.0,
+                },
+            ]
+        )
+
+        events = tl.query_events_hierarchical(coord_range=(40.0, 70.0))
+
+        assert len(events) == 1
+        assert events[0]["id"] == "e2"
+
+    def test_query_events_recursion_limit(self):
+        """query_events_hierarchical respects recursion_limit."""
+        root = Timeline(length=100, unit=TimeUnit.seconds)
+        child = Timeline(length=40, unit=TimeUnit.seconds)
+        grandchild = Timeline(length=10, unit=TimeUnit.seconds)
+
+        root.add_events(
+            [{"id": "r", "temporal_type": "instant", "event_type": "X", "instant": 1.0}]
+        )
+        child.add_events(
+            [{"id": "c", "temporal_type": "instant", "event_type": "X", "instant": 1.0}]
+        )
+        grandchild.add_events(
+            [{"id": "g", "temporal_type": "instant", "event_type": "X", "instant": 1.0}]
+        )
+
+        child.add_child(grandchild, offset=0)
+        root.add_child(child, offset=0)
+
+        # Limit 1: root + child, no grandchild
+        events = root.query_events_hierarchical(recursion_limit=1)
+        ids = {e["id"] for e in events}
+        assert ids == {"r", "c"}
+
+    def test_query_events_exclude_children(self):
+        """query_events_hierarchical with include_children=False."""
+        parent = Timeline(length=100, unit=TimeUnit.seconds)
+        parent.add_events(
+            [
+                {
+                    "id": "p1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 5.0,
+                },
+            ]
+        )
+
+        child = Timeline(length=20, unit=TimeUnit.seconds)
+        child.add_events(
+            [
+                {
+                    "id": "c1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 5.0,
+                },
+            ]
+        )
+        parent.add_child(child, offset=30)
+
+        events = parent.query_events_hierarchical(include_children=False)
+
+        assert len(events) == 1
+        assert events[0]["id"] == "p1"
+
+
+class TestGetEventsAt:
+    """Test get_events_at() method for point-in-time queries."""
+
+    def test_get_events_at_instant(self):
+        """get_events_at returns instant events at exact coordinate."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {
+                    "id": "e1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 50.0,
+                },
+            ]
+        )
+
+        result = tl.get_events_at(50.0)
+
+        assert tl.id in result
+        assert len(result[tl.id]) == 1
+        assert result[tl.id][0]["id"] == "e1"
+
+    def test_get_events_at_with_tolerance(self):
+        """get_events_at uses tolerance for instant matching."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {
+                    "id": "e1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 50.0,
+                },
+            ]
+        )
+
+        # Without tolerance - no match
+        result_strict = tl.get_events_at(50.5)
+        assert tl.id not in result_strict or len(result_strict.get(tl.id, [])) == 0
+
+        # With tolerance - matches
+        result_tolerant = tl.get_events_at(50.5, tolerance=1.0)
+        assert tl.id in result_tolerant
+        assert len(result_tolerant[tl.id]) == 1
+
+    def test_get_events_at_interval_left_inclusive(self):
+        """get_events_at includes intervals where coord is at start (left-inclusive)."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {
+                    "id": "e1",
+                    "temporal_type": "interval",
+                    "event_type": "Note",
+                    "start": 30.0,
+                    "end": 40.0,
+                },
+            ]
+        )
+
+        # At start coordinate (30.0) - included
+        result = tl.get_events_at(30.0)
+        assert tl.id in result
+        assert len(result[tl.id]) == 1
+
+    def test_get_events_at_interval_right_exclusive(self):
+        """get_events_at excludes intervals where coord is at end (right-exclusive)."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {
+                    "id": "e1",
+                    "temporal_type": "interval",
+                    "event_type": "Note",
+                    "start": 30.0,
+                    "end": 40.0,
+                },
+            ]
+        )
+
+        # At end coordinate (40.0) - NOT included (right-exclusive)
+        result = tl.get_events_at(40.0)
+        assert tl.id not in result or len(result.get(tl.id, [])) == 0
+
+    def test_get_events_at_interval_middle(self):
+        """get_events_at includes intervals where coord is in the middle."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {
+                    "id": "e1",
+                    "temporal_type": "interval",
+                    "event_type": "Note",
+                    "start": 30.0,
+                    "end": 40.0,
+                },
+            ]
+        )
+
+        result = tl.get_events_at(35.0)
+        assert tl.id in result
+        assert len(result[tl.id]) == 1
+
+    def test_get_events_at_includes_children(self):
+        """get_events_at includes events from children."""
+        parent = Timeline(length=100, unit=TimeUnit.seconds)
+        child = Timeline(length=20, unit=TimeUnit.seconds, name="child")
+
+        child.add_events(
+            [
+                {
+                    "id": "c1",
+                    "temporal_type": "instant",
+                    "event_type": "Note",
+                    "instant": 5.0,
+                },
+            ]
+        )
+        parent.add_child(child, offset=30)
+
+        # Query at coord 35 in parent = coord 5 in child
+        result = parent.get_events_at(35.0)
+
+        # Should find the child event
+        assert any("c1" in str(events) for events in result.values())
+
+    def test_get_events_at_exclude_children(self):
+        """get_events_at with include_children=False."""
+        parent = Timeline(length=100, unit=TimeUnit.seconds)
+        parent.add_events(
+            [
+                {
+                    "id": "p1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 35.0,
+                },
+            ]
+        )
+
+        child = Timeline(length=20, unit=TimeUnit.seconds)
+        child.add_events(
+            [
+                {
+                    "id": "c1",
+                    "temporal_type": "instant",
+                    "event_type": "Note",
+                    "instant": 5.0,
+                },
+            ]
+        )
+        parent.add_child(child, offset=30)
+
+        result = parent.get_events_at(35.0, include_children=False)
+
+        # Only parent event, not child
+        assert len(result) == 1
+        assert parent.id in result
+
+    def test_get_events_at_returns_dict_by_timeline_id(self):
+        """get_events_at returns dict keyed by timeline ID."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds, name="my_timeline")
+        tl.add_events(
+            [
+                {
+                    "id": "e1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 50.0,
+                },
+            ]
+        )
+
+        result = tl.get_events_at(50.0)
+
+        assert isinstance(result, dict)
+        assert tl.id in result
+
+    def test_get_events_at_empty_when_no_match(self):
+        """get_events_at returns empty dict when no events match."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {
+                    "id": "e1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 50.0,
+                },
+            ]
+        )
+
+        result = tl.get_events_at(99.0)  # No events here
+
+        assert result == {} or tl.id not in result
+
+    def test_get_events_at_accepts_coordinate_object(self):
+        """get_events_at accepts Coordinate object as input."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {
+                    "id": "e1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 50.0,
+                },
+            ]
+        )
+
+        coord = Coordinate(50.0, TimeUnit.seconds)
+        result = tl.get_events_at(coord)
+
+        assert tl.id in result
+        assert len(result[tl.id]) == 1
+
+
+# endregion
+
+
 # region Integration Tests
 
 
