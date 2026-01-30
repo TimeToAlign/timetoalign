@@ -666,6 +666,218 @@ class Timeline:
 
         return result
 
+    def query_events_hierarchical(
+        self,
+        coord_range: tuple[float, float] | None = None,
+        event_types: set[str] | None = None,
+        include_children: bool = True,
+        recursion_limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Query events across the timeline hierarchy.
+
+        Returns events from this timeline and all children, with coordinates
+        adjusted to the root timeline's coordinate system.
+
+        From TTA manuscript: Hierarchical timelines should support querying
+        events across the entire hierarchy with root-relative coordinates.
+
+        Args:
+            coord_range: Optional (min, max) range filter in ROOT coordinates.
+            event_types: Optional set of event types to include.
+            include_children: If True, include events from children.
+            recursion_limit: Maximum depth for child traversal. None = unlimited.
+
+        Returns:
+            List of event dictionaries, each augmented with:
+            - "source_timeline": ID of the timeline containing the event
+            - "root_start": Root-relative start coordinate
+            - "root_end": Root-relative end coordinate (for intervals)
+
+        Examples:
+            >>> # Get all notes in a range
+            >>> events = score.query_events_hierarchical(
+            ...     coord_range=(16.0, 40.0),
+            ...     event_types={"Note"},
+            ... )
+            >>> len(events)
+            127
+        """
+        return self._query_events_recursive(
+            coord_range=coord_range,
+            event_types=event_types,
+            include_children=include_children,
+            recursion_limit=recursion_limit,
+            root_offset=0.0,
+        )
+
+    def _query_events_recursive(
+        self,
+        coord_range: tuple[float, float] | None,
+        event_types: set[str] | None,
+        include_children: bool,
+        recursion_limit: int | None,
+        root_offset: float,
+    ) -> list[dict[str, Any]]:
+        """Internal recursive helper for query_events_hierarchical."""
+        result: list[dict[str, Any]] = []
+
+        # Get this timeline's events (excluding segment events)
+        local_events = self.get_events(include_segments=False)
+
+        for event in local_events:
+            # Filter by event type if specified
+            if event_types and event.get("event_type") not in event_types:
+                continue
+
+            # Extract coordinates
+            start_val = self._extract_coord_value(event, "start", "instant")
+            end_val = self._extract_coord_value(event, "end")
+
+            # Calculate root-relative coordinates
+            root_start = start_val + root_offset if start_val is not None else None
+            root_end = end_val + root_offset if end_val is not None else None
+
+            # Filter by coordinate range (using root_start)
+            if coord_range and root_start is not None:
+                if root_start < coord_range[0] or root_start >= coord_range[1]:
+                    continue
+
+            # Create augmented event
+            augmented = dict(event)
+            augmented["source_timeline"] = self._id
+            augmented["root_start"] = root_start
+            augmented["root_end"] = root_end
+            result.append(augmented)
+
+        # Recurse into children
+        if include_children and (recursion_limit is None or recursion_limit > 0):
+            next_limit = None if recursion_limit is None else recursion_limit - 1
+
+            for child_id, child in self._children.items():
+                child_offset = float(self._child_offsets[child_id].value)
+                combined_offset = root_offset + child_offset
+
+                child_events = child._query_events_recursive(
+                    coord_range=coord_range,
+                    event_types=event_types,
+                    include_children=True,
+                    recursion_limit=next_limit,
+                    root_offset=combined_offset,
+                )
+                result.extend(child_events)
+
+        return result
+
+    def _extract_coord_value(
+        self,
+        event: dict[str, Any],
+        *keys: str,
+    ) -> float | None:
+        """Extract coordinate value from event, trying multiple keys.
+
+        Args:
+            event: Event dictionary.
+            *keys: Keys to try in order (e.g., "start", "instant").
+
+        Returns:
+            The coordinate value as float, or None if not found.
+        """
+        for key in keys:
+            val = event.get(key)
+            if val is not None:
+                if isinstance(val, dict) and "value" in val:
+                    return float(val["value"])
+                return float(val)
+        return None
+
+    def get_events_at(
+        self,
+        coord: CoordinateValue | Coordinate,
+        tolerance: float = 0.0,
+        include_children: bool = True,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Get all events active at a specific coordinate.
+
+        Returns events from this timeline and all children that are
+        active (containing or at) the specified coordinate.
+
+        For instant events, an event is "at" the coordinate if its instant
+        is within tolerance of the query coordinate.
+
+        For interval events, an event is "active" if the coordinate falls
+        within [start, end).
+
+        Args:
+            coord: Coordinate to query (in this timeline's unit).
+            tolerance: Tolerance for instant event matching (default 0).
+            include_children: If True, include events from children.
+
+        Returns:
+            Dict mapping timeline_id to list of events active at that coordinate.
+            Child events have coordinates in their local coordinate system.
+
+        Examples:
+            >>> events = score.get_events_at(50.0)
+            >>> events["score:1"]  # Events in root at coord 50
+            [{"id": "n1", "event_type": "Note", ...}]
+            >>> events["measure_5"]  # Events in measure 5
+            [...]
+        """
+        coord_val = float(coord.value if isinstance(coord, Coordinate) else coord)
+        result: dict[str, list[dict[str, Any]]] = {}
+
+        # Get events from this timeline
+        local_events = self._get_events_at_local(coord_val, tolerance)
+        if local_events:
+            result[self._id] = local_events
+
+        # Check children
+        if include_children:
+            ts = self.get_timestamp(coord_val)
+
+            for child_id in self._children.keys():
+                child_coord = ts.get(child_id)
+                if child_coord is not None and child_coord >= 0:
+                    child = self._children[child_id]
+                    if child_coord <= child.length.value:
+                        # Recursively get events in child
+                        child_result = child.get_events_at(
+                            child_coord,
+                            tolerance=tolerance,
+                            include_children=True,
+                        )
+                        result.update(child_result)
+
+        return result
+
+    def _get_events_at_local(
+        self,
+        coord: float,
+        tolerance: float,
+    ) -> list[dict[str, Any]]:
+        """Get events at a coordinate in this timeline (local, no children)."""
+        result = []
+
+        for event in self.get_events(include_segments=False):
+            temporal_type = event.get("temporal_type")
+
+            if temporal_type == "instant":
+                instant_val = self._extract_coord_value(event, "instant", "start")
+                if instant_val is not None:
+                    if abs(instant_val - coord) <= tolerance:
+                        result.append(dict(event))
+
+            elif temporal_type == "interval":
+                start_val = self._extract_coord_value(event, "start")
+                end_val = self._extract_coord_value(event, "end")
+
+                if start_val is not None and end_val is not None:
+                    # Left-inclusive, right-exclusive: [start, end)
+                    if start_val <= coord < end_val:
+                        result.append(dict(event))
+
+        return result
+
     # endregion
 
     # region Child Management
