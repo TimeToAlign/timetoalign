@@ -1,0 +1,524 @@
+"""AudioLoader for loading audio file metadata into TimeToAlign!
+
+This module provides a manifest-style loader that extracts metadata from audio
+files (WAV, FLAC, OGG, MP3, etc.) without loading the actual sample data.
+The resulting information can be used to create DiscretePhysicalTimelines
+with appropriate sample-to-seconds conversion maps.
+
+Design Philosophy:
+    AudioLoader follows the same pattern as IIIFManifestLoader: it extracts
+    dimensions and metadata from files without loading the heavy content.
+    This allows users to:
+    1. Create timelines representing audio files
+    2. Attach conversion maps for coordinate transformations
+    3. Add events from other loaders (annotations, beat markers, etc.)
+
+Backend Support:
+    The loader uses soundfile as the primary backend (for WAV, FLAC, OGG, etc.)
+    with optional mutagen support for MP3/M4A metadata. If neither is available,
+    it falls back to Python's built-in wave module for WAV files only.
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from timetoalign.maps import SamplesToSeconds
+    from timetoalign.timelines import DiscretePhysicalTimeline
+
+module_logger = logging.getLogger(__name__)
+
+
+# region Backend Detection
+
+
+def _get_soundfile():
+    """Lazy import of soundfile with helpful error message."""
+    try:
+        import soundfile
+
+        return soundfile
+    except ImportError:
+        return None
+
+
+def _get_mutagen():
+    """Lazy import of mutagen for MP3/M4A support."""
+    try:
+        import mutagen
+
+        return mutagen
+    except ImportError:
+        return None
+
+
+def _get_wave():
+    """Built-in wave module as fallback for WAV files."""
+    import wave
+
+    return wave
+
+
+# endregion
+
+
+# region AudioInfo
+
+
+@dataclass
+class AudioInfo:
+    """Metadata for an audio file.
+
+    This dataclass holds all relevant information about an audio file
+    that is needed to create a DiscretePhysicalTimeline.
+
+    Attributes:
+        n_samples: Total number of samples in the file (frames).
+        sample_rate: Sample rate in Hz (e.g., 44100, 48000).
+        channels: Number of audio channels (1=mono, 2=stereo).
+        duration_seconds: Duration in seconds (computed from n_samples/sample_rate).
+        format: Audio format/codec (e.g., "WAV", "FLAC", "MP3").
+        subtype: Audio subtype/encoding (e.g., "PCM_16", "PCM_24", "VORBIS").
+        bits_per_sample: Bit depth (e.g., 16, 24, 32). May be None for lossy formats.
+        source_path: Path to the source file.
+        extra: Additional format-specific metadata.
+    """
+
+    n_samples: int
+    sample_rate: int
+    channels: int
+    duration_seconds: float
+    format: str
+    subtype: str | None = None
+    bits_per_sample: int | None = None
+    source_path: Path | None = None
+    extra: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def length_in_samples(self) -> int:
+        """Alias for n_samples, matching timeline terminology."""
+        return self.n_samples
+
+    @property
+    def is_mono(self) -> bool:
+        """Whether the audio is mono (single channel)."""
+        return self.channels == 1
+
+    @property
+    def is_stereo(self) -> bool:
+        """Whether the audio is stereo (two channels)."""
+        return self.channels == 2
+
+
+# endregion
+
+
+# region AudioLoader
+
+
+class AudioLoader:
+    """Load audio file metadata for creating physical timelines.
+
+    AudioLoader extracts metadata from audio files without loading the actual
+    sample data. This is efficient for creating DiscretePhysicalTimelines
+    that represent audio files in the TimeToAlign! framework.
+
+    The loader automatically:
+    - Detects the best available backend (soundfile > mutagen > wave)
+    - Extracts sample count, sample rate, channels, and format info
+    - Provides methods to create timelines with appropriate C-maps
+
+    Supported formats depend on installed backends:
+    - soundfile: WAV, FLAC, OGG, AIFF, and many more (via libsndfile)
+    - mutagen: MP3, M4A, FLAC, OGG (metadata only, may not have exact sample count)
+    - wave (builtin): WAV only
+
+    Examples:
+        >>> loader = AudioLoader()
+        >>> loader.load("recording.wav")
+        >>> loader.n_samples
+        7938048
+        >>> loader.sample_rate
+        44100
+        >>> loader.duration_seconds
+        180.0
+
+        >>> # Create a timeline
+        >>> timeline = loader.to_timeline(uid="my_audio")
+        >>> timeline.unit
+        <TimeUnit.samples: 'samples'>
+        >>> timeline.length
+        Coordinate(7938048, samples)
+
+        >>> # The timeline has a SamplesToSeconds C-map attached
+        >>> timeline.convert(44100, target_unit="seconds")
+        1.0
+
+    Attributes:
+        audio_info: Parsed audio metadata (after loading).
+    """
+
+    def __init__(self) -> None:
+        """Initialize the loader."""
+        self._audio_info: AudioInfo | None = None
+        self._source_path: Path | None = None
+        self._logger = module_logger.getChild("AudioLoader")
+
+    # region Loading
+
+    def load(self, path: Path | str) -> Self:
+        """Load audio file metadata.
+
+        Args:
+            path: Path to the audio file.
+
+        Returns:
+            Self, for method chaining.
+
+        Raises:
+            FileNotFoundError: If the file doesn't exist.
+            ValueError: If the file format is not supported or cannot be read.
+        """
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"Audio file not found: {path}")
+
+        # Try backends in order of preference
+        sf = _get_soundfile()
+        if sf is not None:
+            try:
+                self._audio_info = self._load_with_soundfile(sf, path)
+                self._source_path = path
+                self._logger.debug(
+                    f"Loaded audio metadata from {path} using soundfile: "
+                    f"{self._audio_info.n_samples} samples @ {self._audio_info.sample_rate} Hz"
+                )
+                return self
+            except Exception as e:
+                self._logger.debug(f"soundfile failed for {path}: {e}")
+
+        # Try mutagen for MP3/M4A
+        mutagen = _get_mutagen()
+        if mutagen is not None:
+            try:
+                self._audio_info = self._load_with_mutagen(mutagen, path)
+                self._source_path = path
+                self._logger.debug(
+                    f"Loaded audio metadata from {path} using mutagen: "
+                    f"{self._audio_info.n_samples} samples @ {self._audio_info.sample_rate} Hz"
+                )
+                return self
+            except Exception as e:
+                self._logger.debug(f"mutagen failed for {path}: {e}")
+
+        # Fallback to wave module for WAV files
+        if path.suffix.lower() in (".wav", ".wave"):
+            try:
+                self._audio_info = self._load_with_wave(path)
+                self._source_path = path
+                self._logger.debug(
+                    f"Loaded audio metadata from {path} using wave: "
+                    f"{self._audio_info.n_samples} samples @ {self._audio_info.sample_rate} Hz"
+                )
+                return self
+            except Exception as e:
+                self._logger.debug(f"wave module failed for {path}: {e}")
+
+        raise ValueError(
+            f"Cannot read audio file '{path}'. "
+            "Install soundfile (pip install soundfile) for broad format support, "
+            "or mutagen (pip install mutagen) for MP3/M4A support."
+        )
+
+    def _load_with_soundfile(self, sf, path: Path) -> AudioInfo:
+        """Load metadata using soundfile (libsndfile backend)."""
+        info = sf.info(str(path))
+
+        return AudioInfo(
+            n_samples=info.frames,
+            sample_rate=info.samplerate,
+            channels=info.channels,
+            duration_seconds=info.duration,
+            format=info.format,
+            subtype=info.subtype,
+            bits_per_sample=self._subtype_to_bits(info.subtype),
+            source_path=path,
+            extra={
+                "sections": info.sections,
+                "seekable": info.seekable,
+            },
+        )
+
+    def _load_with_mutagen(self, mutagen, path: Path) -> AudioInfo:
+        """Load metadata using mutagen (for MP3, M4A, etc.)."""
+        audio = mutagen.File(str(path))
+        if audio is None:
+            raise ValueError(f"mutagen could not parse {path}")
+
+        # Get audio info
+        info = audio.info
+
+        # Sample rate
+        sample_rate = getattr(info, "sample_rate", None)
+        if sample_rate is None:
+            raise ValueError(f"Could not determine sample rate for {path}")
+
+        # Duration and sample count
+        duration = getattr(info, "length", None)
+        if duration is None:
+            raise ValueError(f"Could not determine duration for {path}")
+
+        # Compute sample count from duration (may not be exact for VBR)
+        n_samples = int(duration * sample_rate)
+
+        # Channels
+        channels = getattr(info, "channels", 2)
+
+        # Bits per sample (if available)
+        bits = getattr(info, "bits_per_sample", None)
+
+        # Determine format from file extension
+        ext = path.suffix.lower()
+        format_map = {
+            ".mp3": "MP3",
+            ".m4a": "M4A",
+            ".aac": "AAC",
+            ".flac": "FLAC",
+            ".ogg": "OGG",
+            ".opus": "OPUS",
+        }
+        fmt = format_map.get(ext, ext.upper().lstrip("."))
+
+        return AudioInfo(
+            n_samples=n_samples,
+            sample_rate=sample_rate,
+            channels=channels,
+            duration_seconds=duration,
+            format=fmt,
+            subtype=None,
+            bits_per_sample=bits,
+            source_path=path,
+            extra={
+                "bitrate": getattr(info, "bitrate", None),
+                "codec": getattr(info, "codec", None),
+            },
+        )
+
+    def _load_with_wave(self, path: Path) -> AudioInfo:
+        """Load metadata using Python's built-in wave module (WAV only)."""
+        wave = _get_wave()
+
+        with wave.open(str(path), "rb") as wf:
+            n_samples = wf.getnframes()
+            sample_rate = wf.getframerate()
+            channels = wf.getnchannels()
+            bits_per_sample = wf.getsampwidth() * 8
+
+            duration_seconds = n_samples / sample_rate
+
+            return AudioInfo(
+                n_samples=n_samples,
+                sample_rate=sample_rate,
+                channels=channels,
+                duration_seconds=duration_seconds,
+                format="WAV",
+                subtype=f"PCM_{bits_per_sample}",
+                bits_per_sample=bits_per_sample,
+                source_path=path,
+            )
+
+    def _subtype_to_bits(self, subtype: str | None) -> int | None:
+        """Convert soundfile subtype to bits per sample."""
+        if subtype is None:
+            return None
+
+        bit_map = {
+            "PCM_16": 16,
+            "PCM_24": 24,
+            "PCM_32": 32,
+            "PCM_S8": 8,
+            "PCM_U8": 8,
+            "FLOAT": 32,
+            "DOUBLE": 64,
+        }
+        return bit_map.get(subtype)
+
+    # endregion
+
+    # region Properties
+
+    @property
+    def audio_info(self) -> AudioInfo:
+        """Return parsed audio metadata.
+
+        Raises:
+            RuntimeError: If no audio file has been loaded.
+        """
+        if self._audio_info is None:
+            raise RuntimeError("No audio file loaded. Call load() first.")
+        return self._audio_info
+
+    @property
+    def n_samples(self) -> int:
+        """Total number of samples (frames) in the audio file."""
+        return self.audio_info.n_samples
+
+    @property
+    def sample_rate(self) -> int:
+        """Sample rate in Hz."""
+        return self.audio_info.sample_rate
+
+    @property
+    def channels(self) -> int:
+        """Number of audio channels."""
+        return self.audio_info.channels
+
+    @property
+    def duration_seconds(self) -> float:
+        """Duration in seconds."""
+        return self.audio_info.duration_seconds
+
+    @property
+    def format(self) -> str:
+        """Audio format (e.g., 'WAV', 'FLAC', 'MP3')."""
+        return self.audio_info.format
+
+    @property
+    def source_path(self) -> Path | None:
+        """Path to the loaded audio file."""
+        return self._source_path
+
+    # endregion
+
+    # region Timeline Creation
+
+    def to_timeline(
+        self,
+        uid: str | None = None,
+        name: str | None = None,
+        attach_cmap: bool = True,
+    ) -> "DiscretePhysicalTimeline":
+        """Create a DiscretePhysicalTimeline from the loaded audio.
+
+        The timeline is created with:
+        - unit=TimeUnit.samples
+        - length=n_samples
+        - Optionally, a SamplesToSeconds C-map for coordinate conversion
+
+        Args:
+            uid: Unique identifier for the timeline. If None, uses filename.
+            name: Human-readable name. If None, uses filename.
+            attach_cmap: If True, attach a SamplesToSeconds conversion map.
+
+        Returns:
+            A DiscretePhysicalTimeline representing the audio file.
+
+        Raises:
+            RuntimeError: If no audio file has been loaded.
+
+        Examples:
+            >>> loader = AudioLoader().load("song.wav")
+            >>> timeline = loader.to_timeline()
+            >>> timeline.unit
+            <TimeUnit.samples: 'samples'>
+
+            >>> # Convert sample coordinates to seconds
+            >>> timeline.convert(44100, target_unit="seconds")
+            1.0
+        """
+        from timetoalign.core import NumberType, TimeUnit
+        from timetoalign.timelines import DiscretePhysicalTimeline
+
+        info = self.audio_info
+
+        # Default uid/name from filename
+        if uid is None and info.source_path is not None:
+            uid = info.source_path.stem
+        if name is None and info.source_path is not None:
+            name = info.source_path.name
+
+        # Create the timeline
+        timeline = DiscretePhysicalTimeline(
+            length=info.n_samples,
+            unit=TimeUnit.samples,
+            number_type=NumberType.int,
+            uid=uid,
+            name=name,
+        )
+
+        # Attach SamplesToSeconds C-map
+        if attach_cmap:
+            from timetoalign.maps import SamplesToSeconds
+
+            cmap = SamplesToSeconds(sample_rate=info.sample_rate)
+            timeline.add_conversion_map(cmap)
+
+        # Store metadata on the timeline
+        timeline._metadata = {
+            "source_path": str(info.source_path) if info.source_path else None,
+            "sample_rate": info.sample_rate,
+            "channels": info.channels,
+            "duration_seconds": info.duration_seconds,
+            "format": info.format,
+            "subtype": info.subtype,
+            "bits_per_sample": info.bits_per_sample,
+        }
+
+        return timeline
+
+    def create_samples_to_seconds_map(self) -> "SamplesToSeconds":
+        """Create a SamplesToSeconds conversion map for this audio.
+
+        Returns:
+            A SamplesToSeconds C-map configured with this audio's sample rate.
+
+        Raises:
+            RuntimeError: If no audio file has been loaded.
+        """
+        from timetoalign.maps import SamplesToSeconds
+
+        return SamplesToSeconds(sample_rate=self.audio_info.sample_rate)
+
+    # endregion
+
+    # region Convenience Methods
+
+    @classmethod
+    def from_file(cls, path: Path | str) -> "AudioLoader":
+        """Load an audio file and return the loader (convenience constructor).
+
+        Args:
+            path: Path to the audio file.
+
+        Returns:
+            An AudioLoader with the file already loaded.
+
+        Examples:
+            >>> loader = AudioLoader.from_file("song.wav")
+            >>> print(loader.duration_seconds)
+        """
+        loader = cls()
+        loader.load(path)
+        return loader
+
+    # endregion
+
+    def __repr__(self) -> str:
+        if self._audio_info is None:
+            return "AudioLoader(not loaded)"
+        return (
+            f"AudioLoader("
+            f"samples={self._audio_info.n_samples}, "
+            f"rate={self._audio_info.sample_rate}Hz, "
+            f"duration={self._audio_info.duration_seconds:.2f}s, "
+            f"format={self._audio_info.format})"
+        )
+
+
+# endregion

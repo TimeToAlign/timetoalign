@@ -43,7 +43,14 @@ from timetoalign.core import (
     ScopedId,
     TimeUnit,
 )
-from timetoalign.loader import EventData, EventStore, Loader, SingleStore
+from timetoalign.loader import (
+    AudioInfo,
+    AudioLoader,
+    EventData,
+    EventStore,
+    Loader,
+    SingleStore,
+)
 from timetoalign.maps import (
     ChainMap,
     ConversionMap,
@@ -86,11 +93,14 @@ __all__ = [
     # IDs
     "ScopedId",
     "IdGenerator",
-    # Loader
+    # Loader - Event-based (Type 2)
     "EventData",
     "EventStore",
     "SingleStore",
     "Loader",
+    # Loader - Manifest-based (Type 1)
+    "AudioLoader",
+    "AudioInfo",
     # Timelines
     "Timeline",
     "LogicalTimeline",
