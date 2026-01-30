@@ -1106,9 +1106,9 @@ class SegmentLine(Timeline):
         # Sort and validate coordinates
         coords = sorted(float(c) for c in split_coords)
 
-        # Create the SegmentLine
+        # Create the SegmentLine with length=0 (will expand as segments are added)
         segment_line = cls(
-            length=coords[-1] - coords[0],
+            length=0,
             unit=source.unit,
             number_type=source.number_type,
         )
