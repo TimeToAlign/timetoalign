@@ -32,6 +32,8 @@ dependencies = [
 
 [project.optional-dependencies]
 # Additional optional features (added in later phases)
+audio = ["soundfile>=0.12"]  # For AudioLoader (broad format support)
+audiofull = ["soundfile>=0.12", "mutagen>=1.47"]  # AudioLoader + MP3/M4A metadata
 delta = ["deltalake>=0.15.0"]
 graphical = ["pymupdf>=1.24", "pillow>=10.0"]
 ms3 = ["ms3>=2.6.0"]
@@ -45,9 +47,10 @@ dev = [
     "pytest-benchmark>=4.0",
     "hypothesis>=6.100",
     "ruff>=0.1",
+    "soundfile>=0.12",  # For testing AudioLoader
 ]
 all = [
-    "timetoalign[delta,graphical,ms3,music21,plot,rdf]"
+    "timetoalign[audio,delta,graphical,ms3,music21,plot,rdf]"
 ]
 
 [project.urls]
