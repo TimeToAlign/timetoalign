@@ -358,3 +358,176 @@ class TestTimelineTimeStampSourceProtocol:
 
         units = tl._get_available_units()
         assert TimeUnit.seconds in units
+
+
+class TestTimeStampWithUnits:
+    """Tests for unit metadata and Coordinate access in TimeStamps."""
+
+    def test_axis_coordinate_property(self):
+        """axis_coordinate returns proper Coordinate object."""
+        from timetoalign.core import Coordinate
+
+        tl = Timeline(length=100, unit=TimeUnit.seconds, uid="test:1")
+        ts = tl.get_timestamp(50.0)
+
+        coord = ts.axis_coordinate
+        assert isinstance(coord, Coordinate)
+        assert coord.value == 50.0
+        assert coord.unit == TimeUnit.seconds
+
+    def test_get_coordinate_for_self(self):
+        """get_coordinate returns Coordinate for source timeline."""
+        from timetoalign.core import Coordinate
+
+        tl = Timeline(length=100, unit=TimeUnit.seconds, uid="test:1")
+        ts = tl.get_timestamp(50.0)
+
+        coord = ts.get_coordinate("test:1")
+        assert isinstance(coord, Coordinate)
+        assert coord.value == 50.0
+        assert coord.unit == TimeUnit.seconds
+
+    def test_get_coordinate_for_child(self):
+        """get_coordinate returns proper Coordinate for child."""
+        from timetoalign.core import Coordinate
+
+        # Children must share parent's unit (TTA model constraint)
+        parent = Timeline(length=100, unit=TimeUnit.seconds, uid="parent:1")
+        child = Timeline(length=40, unit=TimeUnit.seconds, uid="child:1")
+
+        parent.add_child(child, offset=20)
+
+        ts = parent.get_timestamp(30.0)
+
+        # Child coordinate at parent 30 is 10 (30 - 20)
+        child_coord = ts.get_coordinate("child:1")
+        assert isinstance(child_coord, Coordinate)
+        assert child_coord.value == 10.0
+        assert child_coord.unit == TimeUnit.seconds  # Same unit as parent
+
+    def test_get_coordinate_unknown_timeline_returns_none(self):
+        """get_coordinate returns None for unknown timeline."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds, uid="test:1")
+        ts = tl.get_timestamp(50.0)
+
+        result = ts.get_coordinate("unknown:1")
+        assert result is None
+
+    def test_get_unit_for_timeline_self(self):
+        """_get_unit_for_timeline returns own unit for source."""
+        tl = Timeline(length=100, unit=TimeUnit.pixels, uid="test:1")
+
+        unit = tl._get_unit_for_timeline("test:1")
+        assert unit == TimeUnit.pixels
+
+    def test_get_unit_for_timeline_child(self):
+        """_get_unit_for_timeline returns child's unit (same as parent per TTA model)."""
+        # Children must share parent's unit (TTA model constraint)
+        parent = Timeline(length=100, unit=TimeUnit.seconds, uid="parent:1")
+        child = Timeline(length=40, unit=TimeUnit.seconds, uid="child:1")
+
+        parent.add_child(child, offset=20)
+
+        unit = parent._get_unit_for_timeline("child:1")
+        assert unit == TimeUnit.seconds  # Same as parent
+
+    def test_get_unit_for_timeline_unknown(self):
+        """_get_unit_for_timeline returns None for unknown."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds, uid="test:1")
+
+        unit = tl._get_unit_for_timeline("unknown:1")
+        assert unit is None
+
+
+class TestTimeIntervalStampWithUnits:
+    """Tests for unit metadata in TimeIntervalStamp."""
+
+    def test_get_coordinate_interval(self):
+        """get_coordinate_interval returns Coordinate tuples."""
+        from timetoalign.core import Coordinate
+
+        # Children must share parent's unit (TTA model constraint)
+        parent = Timeline(length=100, unit=TimeUnit.seconds, uid="parent:1")
+        child = Timeline(length=80, unit=TimeUnit.seconds, uid="child:1")
+
+        parent.add_child(child, offset=10)
+
+        interval = parent.get_interval_stamp(20.0, 60.0)
+
+        # Child interval should be [10, 50] in seconds (same as parent)
+        child_interval = interval.get_coordinate_interval("child:1")
+        assert child_interval is not None
+
+        start, end = child_interval
+        assert isinstance(start, Coordinate)
+        assert isinstance(end, Coordinate)
+        assert start.value == 10.0
+        assert end.value == 50.0
+        assert start.unit == TimeUnit.seconds
+        assert end.unit == TimeUnit.seconds
+
+    def test_get_coordinate_interval_unknown(self):
+        """get_coordinate_interval returns None for unknown timeline."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds, uid="test:1")
+        interval = tl.get_interval_stamp(10.0, 50.0)
+
+        result = interval.get_coordinate_interval("unknown:1")
+        assert result is None
+
+
+class TestTimestampTableMetadata:
+    """Tests for unit metadata in timestamp tables."""
+
+    def test_timestamp_table_has_unit_metadata(self):
+        """get_timestamp_table includes unit metadata on columns."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds, uid="test:1")
+        table = tl.get_timestamp_table(coordinates=[0.0, 50.0, 100.0])
+
+        # Check axis column metadata
+        axis_field = table.schema.field("axis")
+        assert axis_field.metadata is not None
+        assert axis_field.metadata[b"unit"] == b"seconds"
+        assert axis_field.metadata[b"timeline_id"] == b"test:1"
+
+        # Check timeline column metadata
+        tl_field = table.schema.field("test:1")
+        assert tl_field.metadata is not None
+        assert tl_field.metadata[b"unit"] == b"seconds"
+
+    def test_timestamp_table_child_metadata(self):
+        """Child columns have unit metadata (same as parent per TTA model)."""
+        # Children must share parent's unit (TTA model constraint)
+        parent = Timeline(length=100, unit=TimeUnit.seconds, uid="parent:1")
+        child = Timeline(length=40, unit=TimeUnit.seconds, uid="child:1")
+
+        parent.add_child(child, offset=20)
+
+        table = parent.get_timestamp_table(coordinates=[30.0, 50.0])
+
+        # Check child column has its unit metadata
+        child_field = table.schema.field("child:1")
+        assert child_field.metadata is not None
+        assert child_field.metadata[b"unit"] == b"seconds"  # Same as parent
+        assert child_field.metadata[b"timeline_id"] == b"child:1"
+
+    def test_timestamp_table_cmap_metadata(self):
+        """C-Map columns have target unit metadata."""
+        tl = Timeline(length=960, unit=TimeUnit.ticks, uid="test:1")
+
+        tempo_map = TableMap(
+            x_values=[0, 960],
+            y_values=[0.0, 2.0],
+            source_unit=TimeUnit.ticks,
+            target_unit=TimeUnit.seconds,
+        )
+        tl.add_conversion_map(tempo_map)
+
+        table = tl.get_timestamp_table(
+            coordinates=[0.0, 480.0, 960.0], conversion_maps=[tempo_map]
+        )
+
+        # Find the C-Map column
+        cmap_field = table.schema.field(tempo_map.id)
+        assert cmap_field.metadata is not None
+        assert cmap_field.metadata[b"unit"] == b"seconds"  # Target unit
+        assert cmap_field.metadata[b"cmap_id"] == tempo_map.id.encode("utf-8")
