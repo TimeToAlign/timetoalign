@@ -168,7 +168,7 @@ class EventStore(ABC):
 
     # region Timeline Creation
 
-    def to_timeline(
+    def create_timeline(
         self,
         uid: str | None = None,
         store_filters: dict[str, dict[str, Any]] | None = None,
@@ -202,11 +202,11 @@ class EventStore(ABC):
 
         Examples:
             >>> # Default: each data as a child
-            >>> timeline = store.to_timeline(uid="my_score")
+            >>> timeline = store.create_timeline(uid="my_score")
             >>> notes = timeline.get_child("notes")
 
             >>> # Filtered: only Note events, exclude annotations
-            >>> timeline = store.to_timeline(
+            >>> timeline = store.create_timeline(
             ...     store_filters={"notes": {"event_type": "Note"}},
             ...     exclude_stores=["annotations"],
             ... )
@@ -215,6 +215,34 @@ class EventStore(ABC):
 
         return create_timeline_from_bundle(
             self,
+            uid=uid,
+            store_filters=store_filters,
+            include_stores=include_stores,
+            exclude_stores=exclude_stores,
+            flatten=flatten,
+        )
+
+    def to_timeline(
+        self,
+        uid: str | None = None,
+        store_filters: dict[str, dict[str, Any]] | None = None,
+        include_stores: list[str] | None = None,
+        exclude_stores: list[str] | None = None,
+        flatten: bool = False,
+    ) -> "Timeline":
+        """Deprecated alias for create_timeline().
+
+        .. deprecated:: 0.2.0
+            Use :meth:`create_timeline` instead.
+        """
+        import warnings
+
+        warnings.warn(
+            "to_timeline() is deprecated, use create_timeline() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.create_timeline(
             uid=uid,
             store_filters=store_filters,
             include_stores=include_stores,
@@ -240,7 +268,7 @@ class EventStore(ABC):
             >>> for offset, child in timeline.iter_children():
             ...     print(f"{child.id}: {child.n_events} events at offset {offset}")
         """
-        return self.to_timeline(uid=uid, flatten=False)
+        return self.create_timeline(uid=uid, flatten=False)
 
     # endregion
 
@@ -264,7 +292,7 @@ class SingleStore(EventStore):
     Examples:
         >>> data = EventData.from_dicts([...], unit=TimeUnit.seconds)
         >>> store = SingleStore(data, name="beats")
-        >>> timeline = store.to_default_timeline()
+        >>> timeline = store.create_timeline()
     """
 
     def __init__(self, data: "EventData", name: str = "events") -> None:

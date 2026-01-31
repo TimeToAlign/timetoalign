@@ -28,7 +28,7 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from typing_extensions import Self
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import Coordinate, NumberType, TimeUnit
 
 from .parsing import ArrayValidator, CoordinateParser
 from .schema import (
@@ -396,6 +396,34 @@ class EventData:
                 # All null - use default
                 processed["event_type"] = pa.array(["Event"] * n_rows)
 
+        # Handle extra columns not in base schema
+        # These are columns passed by loaders via extra_columns configuration
+        base_col_names = set(schema.names)
+        extra_col_names = set(columns.keys()) - base_col_names - {"instant"}
+
+        extra_fields = []
+        for col_name in extra_col_names:
+            col_data = columns[col_name]
+            if col_data is None:
+                continue
+
+            # Infer PyArrow type from the data
+            if isinstance(col_data, (pa.Array, pa.ChunkedArray)):
+                arr = col_data
+                if isinstance(arr, pa.ChunkedArray):
+                    arr = arr.combine_chunks()
+            elif isinstance(col_data, np.ndarray):
+                arr = pa.array(col_data)
+            else:
+                arr = pa.array(col_data)
+
+            processed[col_name] = arr
+            extra_fields.append(pa.field(col_name, arr.type, nullable=True))
+
+        # Extend schema with extra fields
+        if extra_fields:
+            schema = extend_schema(schema, extra_fields)
+
         # Validate arrays if requested (vectorized validation)
         if validate:
             ArrayValidator.validate_column_dict(processed, schema)
@@ -762,7 +790,7 @@ class EventData:
 
     # region Timeline Creation
 
-    def to_timeline(
+    def create_timeline(
         self,
         uid: str | None = None,
         filters: dict[str, Any] | None = None,
@@ -782,8 +810,8 @@ class EventData:
             A Timeline containing the (filtered) events.
 
         Examples:
-            >>> timeline = data.to_timeline(uid="notes")
-            >>> filtered = data.to_timeline(filters={"event_type": "Note"})
+            >>> timeline = data.create_timeline(uid="notes")
+            >>> filtered = data.create_timeline(filters={"event_type": "Note"})
         """
         from timetoalign.timelines.factory import _infer_timeline_class_and_number_type
 
@@ -803,6 +831,25 @@ class EventData:
         timeline._events = source
         return timeline
 
+    def to_timeline(
+        self,
+        uid: str | None = None,
+        filters: dict[str, Any] | None = None,
+    ) -> "Timeline":
+        """Deprecated alias for create_timeline().
+
+        .. deprecated:: 0.2.0
+            Use :meth:`create_timeline` instead.
+        """
+        import warnings
+
+        warnings.warn(
+            "to_timeline() is deprecated, use create_timeline() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.create_timeline(uid=uid, filters=filters)
+
     # endregion
 
     # region Serialization
@@ -815,12 +862,148 @@ class EventData:
         """
         pq.write_table(self._table, path)
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_pandas(
+        self,
+        *,
+        raw: bool = False,
+        coordinates: bool = False,
+    ) -> pd.DataFrame:
         """Convert to a pandas DataFrame.
 
+        By default, coordinate columns (start, end, duration) are converted from
+        the internal struct representation to the appropriate Python number type:
+        - Fraction if numerator/denominator are present
+        - float otherwise
+
+        Args:
+            raw: If True, return the raw PyArrow-to-pandas conversion with struct
+                dicts for coordinate columns. Default False shows cleaned numbers.
+            coordinates: If True, wrap coordinate values in Coordinate objects that
+                include unit information. Only effective when raw=False.
+
         Returns:
-            A DataFrame with the event data.
+            A pandas DataFrame with the event data.
+
+        Examples:
+            >>> # Default: clean number format
+            >>> df = events.to_pandas()
+            >>> df.iloc[0]['start']  # Fraction(1, 4) or 0.25
+
+            >>> # Raw struct dicts (for debugging)
+            >>> df = events.to_pandas(raw=True)
+            >>> df.iloc[0]['start']  # {'value': 0.25, 'numerator': 1, 'denominator': 4}
+
+            >>> # Coordinate objects with unit
+            >>> df = events.to_pandas(coordinates=True)
+            >>> df.iloc[0]['start']  # Coordinate(value=Fraction(1, 4), unit=quarters)
         """
-        return self._table.to_pandas()
+        df = self._table.to_pandas()
+
+        if raw:
+            return df
+
+        # Convert coordinate columns to appropriate number types
+        coord_cols = ["start", "end", "duration"]
+        for col in coord_cols:
+            if col in df.columns:
+                if coordinates:
+                    df[col] = df[col].apply(
+                        lambda s: self._struct_to_coordinate(s, self._unit)
+                    )
+                else:
+                    df[col] = df[col].apply(self._struct_to_number)
+
+        return df
+
+    def to_dataframe(
+        self,
+        format: str = "pandas",
+        *,
+        raw: bool = False,
+        coordinates: bool = False,
+    ) -> pd.DataFrame:
+        """Convert to a DataFrame in the specified format.
+
+        Higher-level method that dispatches to format-specific implementations.
+        Currently supports pandas; polars support can be added later.
+
+        Args:
+            format: DataFrame format ("pandas"). Default "pandas".
+            raw: If True, return raw conversion with struct dicts for coordinates.
+            coordinates: If True, wrap values in Coordinate objects with unit info.
+
+        Returns:
+            A DataFrame in the requested format.
+
+        Raises:
+            ValueError: If format is not supported.
+
+        Examples:
+            >>> df = events.to_dataframe()  # pandas DataFrame
+            >>> df = events.to_dataframe("pandas", raw=True)
+        """
+        if format == "pandas":
+            return self.to_pandas(raw=raw, coordinates=coordinates)
+        else:
+            raise ValueError(
+                f"Unsupported DataFrame format: {format!r}. "
+                f"Supported formats: 'pandas'"
+            )
+
+    def _struct_to_number(self, struct: dict | None) -> Any:
+        """Convert a coordinate struct to a native Python number.
+
+        Extracts the appropriate number type from the internal struct representation:
+        - Returns Fraction if numerator/denominator are present and valid
+        - Returns float if only value is present
+        - Returns None for null coordinates
+
+        Args:
+            struct: A dict with 'value', 'numerator', 'denominator' keys,
+                    or None for null coordinates.
+
+        Returns:
+            Fraction, float, or None.
+        """
+        if struct is None:
+            return None
+
+        from fractions import Fraction
+
+        num = struct.get("numerator")
+        den = struct.get("denominator")
+
+        if num is not None and den is not None:
+            # Handle NaN values from pandas conversion (int64 with nulls -> float)
+            try:
+                num_int = int(num)
+                den_int = int(den)
+                return Fraction(num_int, den_int)
+            except (ValueError, TypeError):
+                pass
+
+        # Fall back to float value
+        return struct.get("value")
+
+    def _struct_to_coordinate(
+        self, struct: dict | None, unit: TimeUnit
+    ) -> "Coordinate | None":
+        """Convert a coordinate struct to a Coordinate object with unit.
+
+        Args:
+            struct: A dict with 'value', 'numerator', 'denominator' keys,
+                    or None for null coordinates.
+            unit: The time unit for the coordinate.
+
+        Returns:
+            Coordinate object or None.
+        """
+        if struct is None:
+            return None
+
+        from timetoalign.core.types import Coordinate
+
+        value = self._struct_to_number(struct)
+        return Coordinate(value=value, unit=unit)
 
     # endregion

@@ -148,9 +148,14 @@ class Ms3Loader(TabularLoader):
     # ms3 column mapping
     id_column: ClassVar[str | None] = None  # Auto-generate
     name_column: ClassVar[str | None] = "name"
-    start_column: ClassVar[str] = "quarterbeats"
+    # Use quarterbeats_all_endings as primary (includes notes in volta brackets),
+    # fall back to quarterbeats if not present
+    start_column: ClassVar[str] = "quarterbeats_all_endings"
+    _fallback_start_column: ClassVar[str | None] = "quarterbeats"  # type: ignore[assignment]
     end_column: ClassVar[str | None] = None  # Use duration instead
-    duration_column: ClassVar[str | None] = "duration_qb"
+    # Use "duration" column (fraction strings like "1/4") instead of "duration_qb" (floats)
+    # This preserves exact rational values for musical durations
+    duration_column: ClassVar[str | None] = "duration"
     event_type_column: ClassVar[str | None] = None
     default_event_type: ClassVar[str] = "Note"
 
@@ -159,16 +164,16 @@ class Ms3Loader(TabularLoader):
     coordinate_type: ClassVar[NumberType] = NumberType.fraction
 
     # Extra columns from ms3 format
-    extra_columns: ClassVar[dict[str, str]] = {
-        "midi": "midi",
-        "octave": "octave",
-        "tpc": "tpc",
-        "staff": "staff",
-        "voice": "voice",
-        "chord_id": "chord_id",
-        "mc": "mc",  # Measure count
-        "mn": "mn",  # Measure number
-    }
+    extra_columns: ClassVar[list] = [
+        "midi",
+        "octave",
+        "tpc",
+        "staff",
+        "voice",
+        "chord_id",
+        "mc",  # Measure count
+        "mn",  # Measure number
+    ]
 
 
 # endregion

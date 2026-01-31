@@ -39,6 +39,7 @@ LoadSourceResult = Union[
 
 if TYPE_CHECKING:
     from timetoalign.loader.bundle import AlignmentStore, EventStore
+    from timetoalign.timelines.base import Timeline
 
 module_logger = logging.getLogger(__name__)
 
@@ -189,6 +190,42 @@ class Loader(ABC):
 
         return SingleStore(self._events, name="events")
 
+    def create_timeline(
+        self,
+        uid: str | None = None,
+        store_filters: dict[str, dict[str, Any]] | None = None,
+        include_stores: list[str] | None = None,
+        exclude_stores: list[str] | None = None,
+        flatten: bool = False,
+    ) -> "Timeline":
+        """Create a Timeline from the loaded events.
+
+        Convenience method that delegates to self.store.create_timeline().
+
+        Args:
+            uid: Unique ID for the parent timeline. Auto-generated if None.
+            store_filters: Per-data filter kwargs to apply before timeline
+                creation. Example: {"notes": {"event_type": "Note"}}.
+            include_stores: Only include these data (default: all non-empty).
+            exclude_stores: Exclude these data from the timeline.
+            flatten: If True, merge all events into a single parent timeline.
+
+        Returns:
+            A Timeline containing the loaded events.
+
+        Examples:
+            >>> loader = Ms3Loader()
+            >>> loader.load("notes.tsv")
+            >>> timeline = loader.create_timeline(uid="my_score")
+        """
+        return self.store.create_timeline(
+            uid=uid,
+            store_filters=store_filters,
+            include_stores=include_stores,
+            exclude_stores=exclude_stores,
+            flatten=flatten,
+        )
+
     # endregion
 
     # region Loading
@@ -247,7 +284,13 @@ class Loader(ABC):
                     new_data = self._event_data_class.from_dicts(
                         row_dicts, self._unit, self._number_type
                     )
-                self._events.extend(new_data)
+
+                # For the first source with events, replace the empty _events
+                # This handles cases where extra columns create a different schema
+                if len(self._events) == 0:
+                    self._events = new_data
+                else:
+                    self._events.extend(new_data)
 
         return self
 
