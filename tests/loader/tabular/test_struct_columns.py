@@ -1,6 +1,6 @@
 """Tests for struct column support in TabularLoader.
 
-Tests the Field, ComputedField, and ExtraField struct features that enable:
+Tests the Field, ComputedField, and ConvertedField struct features that enable:
 - JSON string to struct column parsing
 - Struct field access for start/end columns
 - Computed fields from expressions
@@ -14,7 +14,12 @@ import pyarrow as pa
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader import ComputedField, ExtraField, Field, parse_json_to_struct
+from timetoalign.loader import (
+    ComputedField,
+    ConvertedField,
+    Field,
+    parse_json_to_struct,
+)
 from timetoalign.loader.tabular import TsvLoader
 
 # region Test Fixtures
@@ -174,38 +179,38 @@ class TestComputedField:
 # endregion
 
 
-# region ExtraField Struct Tests
+# region ConvertedField Struct Tests
 
 
-class TestExtraFieldStruct:
-    """Tests for ExtraField with struct types."""
+class TestConvertedFieldStruct:
+    """Tests for ConvertedField with struct types."""
 
-    def test_extrafield_dict_type(self):
-        """Test ExtraField with dtype=dict."""
-        ef = ExtraField("rect_coords", dict, source="rect_coords_json")
+    def test_convertedfield_dict_type(self):
+        """Test ConvertedField with dtype=dict."""
+        ef = ConvertedField("rect_coords", dict, source="rect_coords_json")
         assert ef.is_struct is True
         assert ef.dtype is None  # Will be inferred
         assert ef.source == "rect_coords_json"
 
-    def test_extrafield_struct_string(self):
-        """Test ExtraField with dtype='struct'."""
-        ef = ExtraField("rect_coords", "struct", source="rect_coords_json")
+    def test_convertedfield_struct_string(self):
+        """Test ConvertedField with dtype='struct'."""
+        ef = ConvertedField("rect_coords", "struct", source="rect_coords_json")
         assert ef.is_struct is True
         assert ef.dtype is None
 
-    def test_extrafield_explicit_schema(self):
-        """Test ExtraField with explicit struct schema."""
-        ef = ExtraField(
+    def test_convertedfield_explicit_schema(self):
+        """Test ConvertedField with explicit struct schema."""
+        ef = ConvertedField(
             "rect_coords", {"x": int, "y": int, "width": int, "height": int}
         )
         assert ef.is_struct is True
         assert ef.struct_schema == {"x": int, "y": int, "width": int, "height": int}
         assert pa.types.is_struct(ef.dtype)
 
-    def test_extrafield_pyarrow_struct(self):
-        """Test ExtraField with PyArrow struct type."""
+    def test_convertedfield_pyarrow_struct(self):
+        """Test ConvertedField with PyArrow struct type."""
         struct_type = pa.struct([("x", pa.int64()), ("y", pa.int64())])
-        ef = ExtraField("rect", struct_type, source="rect_json")
+        ef = ConvertedField("rect", struct_type, source="rect_json")
         assert ef.is_struct is True
         assert ef.dtype == struct_type
 
@@ -310,7 +315,7 @@ class TestTabularLoaderStructIntegration:
             """Loader for Thoresen TSV using pixel coordinates from struct."""
 
             extra_columns = [
-                ExtraField("rect_coords", dict, source="rect_coords_json"),
+                ConvertedField("rect_coords", dict, source="rect_coords_json"),
             ]
             start_column = Field("rect_coords", "x")
             end_column = ComputedField(
@@ -352,7 +357,7 @@ class TestTabularLoaderStructIntegration:
             """Loader using tuple syntax for struct field."""
 
             extra_columns = [
-                ExtraField("rect_coords", dict, source="rect_coords_json"),
+                ConvertedField("rect_coords", dict, source="rect_coords_json"),
             ]
             # Tuple is shorthand for Field("rect_coords", "x")
             start_column = ("rect_coords", "x")
@@ -377,7 +382,7 @@ class TestTabularLoaderStructIntegration:
             """Loader that outputs struct column."""
 
             extra_columns = [
-                ExtraField("rect_coords", dict, source="rect_coords_json"),
+                ConvertedField("rect_coords", dict, source="rect_coords_json"),
             ]
             start_column = "start_time_sec"
             _default_unit = TimeUnit.seconds
@@ -398,13 +403,13 @@ class TestTabularLoaderStructIntegration:
         assert pa.types.is_struct(rect_col.type)
 
     def test_explicit_struct_schema(self, sample_tsv_with_json: Path):
-        """Test ExtraField with explicit struct schema."""
+        """Test ConvertedField with explicit struct schema."""
 
         class ExplicitSchemaLoader(TsvLoader):
             """Loader with explicit struct schema."""
 
             extra_columns = [
-                ExtraField(
+                ConvertedField(
                     "rect_coords",
                     {"x": int, "y": int, "width": int, "height": int},
                     source="rect_coords_json",

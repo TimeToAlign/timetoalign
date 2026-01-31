@@ -395,7 +395,7 @@ class Field:
         >>> # In loader configuration
         >>> class MyLoader(TsvLoader):
         ...     extra_columns = [
-        ...         ExtraField("rect_coords", dict, source="rect_coords_json"),
+        ...         ConvertedField("rect_coords", dict, source="rect_coords_json"),
         ...     ]
         ...     start_column = Field("rect_coords", "x")
     """
@@ -419,6 +419,8 @@ class Field:
         """Resolve the field reference to a PyArrow array.
 
         Uses PyArrow compute functions for vectorized struct field access.
+        If the source column is a string (not already a struct), automatically
+        parses it as JSON to extract nested fields.
 
         Args:
             table: The PyArrow table containing the struct column.
@@ -428,18 +430,24 @@ class Field:
 
         Raises:
             KeyError: If the column doesn't exist.
-            ValueError: If the field path is invalid.
+            ValueError: If the field path is invalid or JSON parsing fails.
         """
         if self.column not in table.column_names:
             raise KeyError(f"Column '{self.column}' not found in table")
 
         array = table.column(self.column).combine_chunks()
 
+        # Auto-detect JSON string columns and parse them
+        if pa.types.is_string(array.type) or pa.types.is_large_string(array.type):
+            # Column is a string - assume it's JSON and parse it
+            array = parse_json_to_struct(array.to_pylist())
+
         # Navigate through nested fields
         for field_name in self.fields:
             if not pa.types.is_struct(array.type):
                 raise ValueError(
-                    f"Cannot access field '{field_name}' on non-struct type {array.type}"
+                    f"Cannot access field '{field_name}' on non-struct type {array.type}. "
+                    f"Column '{self.column}' may not contain valid JSON."
                 )
             array = pc.struct_field(array, field_name)
 
@@ -611,11 +619,19 @@ class ComputedField:
 
         array = table.column(parts[0]).combine_chunks()
 
+        # Auto-detect JSON string columns and parse them (same as Field.resolve)
+        if len(parts) > 1 and (
+            pa.types.is_string(array.type) or pa.types.is_large_string(array.type)
+        ):
+            # Column is a string but we need struct access - assume it's JSON
+            array = parse_json_to_struct(array.to_pylist())
+
         # Navigate struct fields
         for field_name in parts[1:]:
             if not pa.types.is_struct(array.type):
                 raise ValueError(
-                    f"Cannot access field '{field_name}' on non-struct type {array.type}"
+                    f"Cannot access field '{field_name}' on non-struct type {array.type}. "
+                    f"Column '{parts[0]}' may not contain valid JSON."
                 )
             array = pc.struct_field(array, field_name)
 
@@ -639,15 +655,19 @@ class ComputedField:
 # endregion
 
 
-class ExtraField:
-    """Specification for an extra column in a loader schema.
+class ConvertedField:
+    """Specification for a column requiring type conversion or transformation.
 
-    ExtraField defines how a column from the source data maps to the schema,
-    including its name, type, source column name (if different), and optional
-    converter function.
+    ConvertedField defines how a source column maps to an output column with
+    explicit type conversion, renaming, or custom transformation. Use this when
+    you need to:
+    - Convert JSON strings to struct types for nested field access
+    - Apply custom converter functions
+    - Rename columns during loading
+    - Specify explicit PyArrow types
 
-    Supports struct types for JSON column parsing, enabling nested field access
-    in TabularLoader configurations.
+    For simple extra columns without conversion, use a plain string or dict
+    in the loader's extra_columns attribute instead.
 
     Attributes:
         name: The column name in the output schema.
@@ -659,26 +679,17 @@ class ExtraField:
         struct_schema: The struct schema dict if is_struct is True.
 
     Examples:
-        >>> # Simple field with inferred type
-        >>> ExtraField("midi")
-
-        >>> # Field with explicit type
-        >>> ExtraField("velocity", int)
-
-        >>> # Field with different source column name
-        >>> ExtraField("pitch", int, source="midi_note")
-
-        >>> # Field with converter function
-        >>> ExtraField("name", str, converter=lambda x: x.strip().upper())
-
-        >>> # Struct field from JSON column (auto-infer schema)
-        >>> ExtraField("rect_coords", dict, source="rect_coords_json")
+        >>> # Parse JSON column into struct for nested access
+        >>> ConvertedField("rect_coords", dict, source="rect_coords_json")
 
         >>> # Struct field with explicit schema
-        >>> ExtraField("rect_coords", {"x": int, "y": int, "width": int, "height": int})
+        >>> ConvertedField("coords", {"x": int, "y": int, "width": int, "height": int})
 
-        >>> # Struct field with PyArrow struct type
-        >>> ExtraField("rect_coords", pa.struct([("x", pa.int64()), ("y", pa.int64())]))
+        >>> # Field with converter function
+        >>> ConvertedField("name", str, converter=lambda x: x.strip().upper())
+
+        >>> # Field with different source column name and type
+        >>> ConvertedField("pitch", int, source="midi_note")
     """
 
     def __init__(
@@ -690,7 +701,7 @@ class ExtraField:
         converter: Any | None = None,
         nullable: bool = True,
     ) -> None:
-        """Initialize ExtraField.
+        """Initialize ConvertedField.
 
         Args:
             name: Column name in output schema.
@@ -791,7 +802,7 @@ class ExtraField:
             parts.append("converter=...")
         if self.is_struct:
             parts.append("is_struct=True")
-        return f"ExtraField({', '.join(parts)})"
+        return f"ConvertedField({', '.join(parts)})"
 
 
 def parse_json_to_struct(
@@ -919,7 +930,7 @@ class TableSchema:
     1. **Existing schema**: Pass a pa.Schema to use as-is or extend
     2. **Column names**: Pass strings to auto-infer types from source data
     3. **Type specifications**: Pass {name: type} dict or name=type kwargs
-    4. **Field objects**: Pass ExtraField for full control over conversion
+    4. **Field objects**: Pass ConvertedField for full control over conversion
 
     The schema always includes the base event columns (id, name, temporal_type,
     event_type, start, end, duration). Extra columns are appended.
@@ -927,7 +938,7 @@ class TableSchema:
     Attributes:
         unit: The time unit for coordinate columns.
         base_schema: The base schema with event columns.
-        extra_fields: List of ExtraField specifications.
+        extra_fields: List of ConvertedField specifications.
         infer_remaining: Whether to infer types for columns not explicitly specified.
 
     Examples:
@@ -945,7 +956,7 @@ class TableSchema:
         >>> schema = TableSchema(
         ...     TimeUnit.quarters,
         ...     "midi", "velocity", "channel",  # Simple column names
-        ...     ExtraField("pitch", int, source="midi_note"),  # Rename + type
+        ...     ConvertedField("pitch", int, source="midi_note"),  # Rename + type
         ... )
 
         >>> # Use existing schema as base
@@ -965,7 +976,7 @@ class TableSchema:
     def __init__(
         self,
         unit: TimeUnit,
-        *args: str | ExtraField | dict[str, Any] | pa.Schema,
+        *args: str | ConvertedField | dict[str, Any] | pa.Schema,
         base: pa.Schema | None = None,
         infer_remaining: bool = False,
         include_columns: list[str] | None = None,
@@ -978,7 +989,7 @@ class TableSchema:
             unit: Time unit for coordinate columns.
             *args: Extra field specifications. Can be:
                 - str: Column name (type inferred from data)
-                - ExtraField: Full field specification
+                - ConvertedField: Full field specification
                 - dict: Mapping of {name: type} pairs
                 - pa.Schema: Use as base schema
             base: Base schema to use instead of default event schema.
@@ -999,33 +1010,33 @@ class TableSchema:
         self._base_schema = base or make_base_schema(unit)
 
         # Collect extra field specifications
-        self._extra_fields: list[ExtraField] = []
+        self._extra_fields: list[ConvertedField] = []
         self._explicit_names: set[str] = set()
 
         # Process args
         for arg in args:
             if isinstance(arg, str):
                 # Column name - infer type
-                self._add_field(ExtraField(arg))
-            elif isinstance(arg, ExtraField):
+                self._add_field(ConvertedField(arg))
+            elif isinstance(arg, ConvertedField):
                 self._add_field(arg)
             elif isinstance(arg, dict):
                 for name, dtype in arg.items():
-                    self._add_field(ExtraField(name, dtype))
+                    self._add_field(ConvertedField(name, dtype))
             elif isinstance(arg, pa.Schema):
                 # Use as base schema
                 self._base_schema = arg
             else:
                 raise TypeError(
-                    f"Invalid arg type {type(arg)}. Expected str, ExtraField, "
+                    f"Invalid arg type {type(arg)}. Expected str, ConvertedField, "
                     f"dict, or pa.Schema."
                 )
 
         # Process kwargs
         for name, dtype in kwargs.items():
-            self._add_field(ExtraField(name, dtype))
+            self._add_field(ConvertedField(name, dtype))
 
-    def _add_field(self, field: ExtraField) -> None:
+    def _add_field(self, field: ConvertedField) -> None:
         """Add an extra field specification."""
         if field.name in self._explicit_names:
             raise ValueError(f"Duplicate field name: {field.name}")
@@ -1038,7 +1049,7 @@ class TableSchema:
         return self._base_schema
 
     @property
-    def extra_fields(self) -> list[ExtraField]:
+    def extra_fields(self) -> list[ConvertedField]:
         """List of extra field specifications."""
         return list(self._extra_fields)
 

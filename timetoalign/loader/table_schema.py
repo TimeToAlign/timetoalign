@@ -195,7 +195,7 @@ class MatchColumn:
 class ExtraColumn:
     """Specification for an extra data column.
 
-    This is a simplified version of the existing ExtraField for the new schema.
+    This is a simplified version of the existing ConvertedField for the new schema.
 
     Attributes:
         name: Output column name in the EventData.

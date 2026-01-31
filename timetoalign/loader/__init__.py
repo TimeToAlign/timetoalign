@@ -51,7 +51,7 @@ from .schema import (
     TEMPORAL_TYPE_INSTANT,
     TEMPORAL_TYPE_INTERVAL,
     ComputedField,
-    ExtraField,
+    ConvertedField,
     Field,
 )
 from .schema import TableSchema as BasicTableSchema  # Legacy simple schema
@@ -115,7 +115,7 @@ __all__ = [
     "ColumnRole",
     # Legacy basic schema
     "BasicTableSchema",
-    "ExtraField",
+    "ConvertedField",
     "Field",
     "ComputedField",
     "parse_json_to_struct",
