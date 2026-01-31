@@ -1,24 +1,27 @@
-"""Loader: Base class for loading music representations into TimeToAlign!
+"""Loader: Base classes for loading music representations into TimeToAlign!
 
-A Loader orchestrates:
-- Loading one or more source files
-- Aggregating events into an EventData
-- Storing file/source metadata
-- Future: C-maps, Matches
+This module provides the loader hierarchy for TimeToAlign!:
+
+- **Loader (ABC)**: Base class for all loaders
+- **EventLoader (ABC)**: Returns EventStore (events only)
+- **ManifestLoader (ABC)**: Returns ManifestData (dimensions/metadata only)
+- **AlignmentLoader (ABC)**: Returns AlignmentStore (events + C-maps + Matches)
 
 Design principles:
 - Multi-source: One Loader can aggregate multiple files
 - Metadata in table: Deterministic, stored in PyArrow schema metadata
-- Delegation: Stats/queries delegate to EventData
-- Subclassable: Domain-specific loaders (MidiLoader, etc.) extend this
+- Polymorphic returns: Different loader categories return different types
+- Subclassable: Domain-specific loaders extend these ABCs
 """
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from typing_extensions import Self
 
@@ -27,7 +30,12 @@ from timetoalign.core import NumberType, TimeUnit
 from .store import EventData
 
 if TYPE_CHECKING:
-    from timetoalign.loader.bundle import EventStore
+    from timetoalign.loader.bundle import AlignmentStore, EventStore
+
+module_logger = logging.getLogger(__name__)
+
+# Type variable for polymorphic loader returns
+T = TypeVar("T")
 
 
 class Loader(ABC):
@@ -294,3 +302,333 @@ class Loader(ABC):
         return loader
 
     # endregion
+
+
+# Alias for backwards compatibility and clarity
+EventLoader = Loader
+"""EventLoader is an alias for Loader - the base class for loaders that return EventStore."""
+
+
+# region ManifestData
+
+
+@dataclass
+class ManifestData:
+    """Container for manifest/metadata from ManifestLoader.
+
+    ManifestData holds structural information about a source without events.
+    This includes dimensions, sample rates, page counts, etc.
+
+    Attributes:
+        dimensions: Dict of named dimensions (e.g., {"width": 1920, "height": 1080}).
+        metadata: Additional metadata about the source.
+        source_path: Path to the source file.
+        source_type: Type of source (e.g., "audio", "image", "pdf").
+
+    Examples:
+        >>> # Audio manifest
+        >>> manifest = ManifestData(
+        ...     dimensions={"duration_samples": 44100 * 60, "duration_seconds": 60.0},
+        ...     metadata={"sample_rate": 44100, "channels": 2},
+        ...     source_type="audio",
+        ... )
+
+        >>> # PDF manifest
+        >>> manifest = ManifestData(
+        ...     dimensions={"pages": 10, "width": 612, "height": 792},
+        ...     metadata={"title": "Score", "dpi": 72},
+        ...     source_type="pdf",
+        ... )
+    """
+
+    dimensions: dict[str, int | float] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    source_path: Path | None = None
+    source_type: str = "unknown"
+
+    def __repr__(self) -> str:
+        dims_str = ", ".join(f"{k}={v}" for k, v in self.dimensions.items())
+        return f"ManifestData({self.source_type}, {dims_str})"
+
+
+# endregion
+
+
+# region ManifestLoader
+
+
+class ManifestLoader(ABC):
+    """Abstract base class for loaders that return ManifestData.
+
+    ManifestLoader is for sources that provide dimensional/structural
+    information without timeline events:
+    - Audio files -> duration, sample rate, channels
+    - PDF files -> pages, dimensions
+    - Images -> width, height, DPI
+
+    Subclasses must implement:
+    - _load_source(): Parse a single source into ManifestData
+
+    The loaded ManifestData can be used to create empty timelines with
+    correct dimensions, or to configure subsequent event loading.
+
+    Examples:
+        >>> class AudioManifestLoader(ManifestLoader):
+        ...     def _load_source(self, source: Path) -> ManifestData:
+        ...         # Read audio header
+        ...         return ManifestData(
+        ...             dimensions={"duration_samples": n_samples},
+        ...             metadata={"sample_rate": sr},
+        ...             source_type="audio",
+        ...         )
+    """
+
+    def __init__(self) -> None:
+        """Initialize the ManifestLoader."""
+        self._sources: list[Path] = []
+        self._manifests: list[ManifestData] = []
+        self._logger = module_logger.getChild(self.__class__.__name__)
+
+    # region Abstract Methods
+
+    @abstractmethod
+    def _load_source(self, source: Path) -> ManifestData:
+        """Load a single source file into ManifestData.
+
+        Subclasses implement this to parse their specific format.
+
+        Args:
+            source: Path to the source file.
+
+        Returns:
+            ManifestData containing dimensions and metadata.
+
+        Raises:
+            FileNotFoundError: If the source file doesn't exist.
+            ValueError: If the source file is invalid.
+        """
+        ...
+
+    # endregion
+
+    # region Properties
+
+    @property
+    def sources(self) -> list[Path]:
+        """List of loaded source file paths."""
+        return list(self._sources)
+
+    @property
+    def manifests(self) -> list[ManifestData]:
+        """List of loaded ManifestData objects."""
+        return list(self._manifests)
+
+    @property
+    def manifest(self) -> ManifestData | None:
+        """The first (or only) manifest, for convenience."""
+        return self._manifests[0] if self._manifests else None
+
+    # endregion
+
+    # region Loading
+
+    def load(self, *sources: Path | str) -> Self:
+        """Load one or more source files.
+
+        Args:
+            *sources: Paths to source files.
+
+        Returns:
+            Self, for method chaining.
+
+        Raises:
+            FileNotFoundError: If any source doesn't exist.
+            ValueError: If any source is invalid.
+        """
+        for source in sources:
+            path = Path(source)
+            manifest = self._load_source(path)
+            manifest.source_path = path
+
+            self._sources.append(path)
+            self._manifests.append(manifest)
+            self._logger.debug(f"Loaded manifest from {path}")
+
+        return self
+
+    def clear(self) -> None:
+        """Clear all loaded sources and manifests."""
+        self._sources.clear()
+        self._manifests.clear()
+
+    # endregion
+
+    # region Magic Methods
+
+    def __len__(self) -> int:
+        """Return the number of loaded manifests."""
+        return len(self._manifests)
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        return f"{self.__class__.__name__}(sources={len(self._sources)})"
+
+    # endregion
+
+
+# endregion
+
+
+# region AlignmentLoader
+
+
+class AlignmentLoader(ABC):
+    """Abstract base class for loaders that return AlignmentStore.
+
+    AlignmentLoader is for formats that encode aligned multimodal data:
+    - IEEE 1599 -> score + audio + graphical alignments
+    - TiLiA JSON -> hierarchical annotations with alignments
+    - Match files -> score-to-performance alignment
+
+    Subclasses must implement:
+    - _load_source(): Parse a single source into AlignmentStore
+
+    AlignmentStore contains:
+    - EventData tables for each domain/layer
+    - ConversionMaps between coordinate systems
+    - Match objects representing alignment claims
+
+    Examples:
+        >>> class Ieee1599Loader(AlignmentLoader):
+        ...     def _load_source(self, source: Path) -> AlignmentStore:
+        ...         # Parse IEEE 1599 XML
+        ...         return AlignmentStore(
+        ...             events=event_store,
+        ...             cmaps=[tick_to_seconds_map],
+        ...             matches=match_data,
+        ...         )
+    """
+
+    def __init__(self) -> None:
+        """Initialize the AlignmentLoader."""
+        self._sources: list[Path] = []
+        self._source_metadata: list[dict[str, Any]] = []
+        self._store: AlignmentStore | None = None
+        self._logger = module_logger.getChild(self.__class__.__name__)
+
+    # region Abstract Methods
+
+    @abstractmethod
+    def _load_source(self, source: Path) -> "AlignmentStore":
+        """Load a single source file into AlignmentStore.
+
+        Subclasses implement this to parse their specific format.
+
+        Args:
+            source: Path to the source file.
+
+        Returns:
+            AlignmentStore containing events, C-maps, and matches.
+
+        Raises:
+            FileNotFoundError: If the source file doesn't exist.
+            ValueError: If the source file is invalid.
+        """
+        ...
+
+    # endregion
+
+    # region Properties
+
+    @property
+    def sources(self) -> list[Path]:
+        """List of loaded source file paths."""
+        return list(self._sources)
+
+    @property
+    def store(self) -> "AlignmentStore | None":
+        """The AlignmentStore containing all loaded data."""
+        return self._store
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Aggregated metadata from all sources."""
+        return {
+            "loader_class": self.__class__.__name__,
+            "source_count": len(self._sources),
+            "sources": self._source_metadata,
+        }
+
+    # endregion
+
+    # region Loading
+
+    def load(self, *sources: Path | str) -> Self:
+        """Load one or more source files.
+
+        For multiple sources, stores are merged (events concatenated,
+        C-maps and matches aggregated).
+
+        Args:
+            *sources: Paths to source files.
+
+        Returns:
+            Self, for method chaining.
+
+        Raises:
+            FileNotFoundError: If any source doesn't exist.
+            ValueError: If any source is invalid.
+        """
+        for source in sources:
+            path = Path(source)
+
+            # Load store from source
+            loaded_store = self._load_source(path)
+
+            # Track metadata
+            source_meta = {
+                "path": str(path),
+                "loaded_at": datetime.now(timezone.utc).isoformat(),
+            }
+            self._sources.append(path)
+            self._source_metadata.append(source_meta)
+
+            # Merge or set store
+            if self._store is None:
+                self._store = loaded_store
+            else:
+                self._store.extend(loaded_store)
+
+            self._logger.debug(f"Loaded alignment from {path}")
+
+        return self
+
+    def clear(self) -> None:
+        """Clear all loaded sources and store."""
+        self._sources.clear()
+        self._source_metadata.clear()
+        self._store = None
+
+    # endregion
+
+    # region Magic Methods
+
+    def __len__(self) -> int:
+        """Return total event count across all stores."""
+        if self._store is None:
+            return 0
+        return self._store.event_count
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        n_events = len(self) if self._store else 0
+        return (
+            f"{self.__class__.__name__}("
+            f"sources={len(self._sources)}, "
+            f"events={n_events})"
+        )
+
+    # endregion
+
+
+# endregion
