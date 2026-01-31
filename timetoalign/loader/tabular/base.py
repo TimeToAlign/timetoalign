@@ -32,7 +32,7 @@ from timetoalign.loader.base import Loader
 from timetoalign.loader.parsing import CoordinateParser
 from timetoalign.loader.schema import (
     ComputedField,
-    ExtraField,
+    ConvertedField,
     Field,
     parse_json_to_struct,
 )
@@ -65,7 +65,7 @@ class TabularLoader(Loader):
         default_event_type: Default event type if column not specified.
         extra_columns: List of extra columns to include. Can be:
             - Column names as strings: ["midi", "velocity"]
-            - ExtraField objects for type/converter control
+            - ConvertedField objects for type/converter control
         coordinate_unit: TimeUnit for coordinate values.
         coordinate_type: NumberType for coordinate parsing.
 
@@ -87,11 +87,11 @@ class TabularLoader(Loader):
         ...     extra_columns = ["velocity", "channel"]  # Simple column names
 
         >>> # For advanced cases with type/converter:
-        >>> from timetoalign.loader.schema import ExtraField
+        >>> from timetoalign.loader.schema import ConvertedField
         >>> class AdvancedLoader(TabularLoader):
         ...     extra_columns = [
         ...         "velocity",  # Simple
-        ...         ExtraField("pitch", int, source="midi_note"),  # Renamed + typed
+        ...         ConvertedField("pitch", int, source="midi_note"),  # Renamed + typed
         ...     ]
 
         >>> loader = MyLoader()
@@ -131,11 +131,13 @@ class TabularLoader(Loader):
     # Extra columns to include from source data.
     # Can be:
     #   - List of column names: ["midi", "velocity", "staff"]
-    #   - List mixing names and ExtraField for advanced cases:
-    #     ["midi", ExtraField("pitch", int, source="note_num")]
-    #   - ExtraField with struct type for JSON parsing:
-    #     [ExtraField("rect_coords", dict, source="rect_coords_json")]
-    extra_columns: ClassVar[list] = []  # list[str | ExtraField]
+    #   - List mixing names and ConvertedField for advanced cases:
+    #     ["midi", ConvertedField("pitch", int, source="note_num")]
+    #   - ConvertedField with struct type for JSON parsing:
+    #     [ConvertedField("rect_coords", dict, source="rect_coords_json")]
+    #   - True: Auto-include all remaining columns (inferred types)
+    #   - Dict mapping column names to types: {"midi": int, "velocity": float}
+    extra_columns: ClassVar[list | bool | dict] = []
 
     # Coordinate configuration
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
@@ -284,17 +286,67 @@ class TabularLoader(Loader):
                     f"Available columns: {list(df.columns)}"
                 )
 
-    def _get_struct_source_columns(self) -> dict[str, ExtraField]:
-        """Get mapping of struct column names to their ExtraField definitions.
+    def _get_struct_source_columns(self) -> dict[str, ConvertedField]:
+        """Get mapping of struct column names to their ConvertedField definitions.
 
         Returns:
-            Dict mapping output column name to ExtraField for struct columns.
+            Dict mapping output column name to ConvertedField for struct columns.
         """
+        # Only lists can contain ConvertedField with struct types
+        # True and dict forms don't support struct parsing
+        if not isinstance(self.extra_columns, list):
+            return {}
+
         result = {}
         for col_spec in self.extra_columns:
-            if isinstance(col_spec, ExtraField) and col_spec.is_struct:
+            if isinstance(col_spec, ConvertedField) and col_spec.is_struct:
                 result[col_spec.name] = col_spec
         return result
+
+    def _normalize_extra_columns(self, df: pd.DataFrame) -> list[str | ConvertedField]:
+        """Normalize extra_columns to a list based on DataFrame.
+
+        Handles three formats:
+        - list: Return as-is
+        - True: Return all non-core columns from DataFrame
+        - dict: Convert to list of column names (types used for future validation)
+
+        Args:
+            df: The loaded DataFrame.
+
+        Returns:
+            Normalized list of column specs.
+        """
+        if isinstance(self.extra_columns, list):
+            return self.extra_columns
+
+        if self.extra_columns is True:
+            # Auto-include all columns not already used by core fields
+            core_columns = {
+                self.id_column,
+                self.name_column,
+                self.event_type_column,
+                self.duration_column,
+            }
+            # Handle start_column (could be str, tuple, or Field)
+            if isinstance(self.start_column, str):
+                core_columns.add(self.start_column)
+            if self._fallback_start_column:
+                core_columns.add(self._fallback_start_column)
+            # Handle end_column
+            if isinstance(self.end_column, str):
+                core_columns.add(self.end_column)
+
+            # Return all columns not in core set
+            return [col for col in df.columns if col not in core_columns]
+
+        if isinstance(self.extra_columns, dict):
+            # Dict format: {"col_name": type, ...}
+            # For now, just return the column names (types are for future validation)
+            return list(self.extra_columns.keys())
+
+        # Fallback: empty list
+        return []
 
     def _extract_column_arrays(
         self, df: pd.DataFrame
@@ -307,7 +359,7 @@ class TabularLoader(Loader):
         - Direct column names (str)
         - Struct field access via Field or tuple
         - Computed columns via ComputedField
-        - JSON to struct parsing for ExtraField with is_struct=True
+        - JSON to struct parsing for ConvertedField with is_struct=True
 
         Args:
             df: The loaded DataFrame.
@@ -319,11 +371,14 @@ class TabularLoader(Loader):
         n = len(df)
         columns: dict[str, Any] = {}
 
+        # Normalize extra_columns to a list (handles True, dict, and list forms)
+        extra_cols = self._normalize_extra_columns(df)
+
         # Step 1: Parse struct columns (JSON -> struct) FIRST
         # This builds a temporary table we can use for Field/ComputedField resolution
         struct_columns: dict[str, pa.Array] = {}
-        for col_spec in self.extra_columns:
-            if isinstance(col_spec, ExtraField) and col_spec.is_struct:
+        for col_spec in extra_cols:
+            if isinstance(col_spec, ConvertedField) and col_spec.is_struct:
                 source_col = col_spec.source
                 if source_col in df.columns:
                     struct_arr = parse_json_to_struct(
@@ -390,16 +445,16 @@ class TabularLoader(Loader):
             columns["event_type"] = np.full(n, self.default_event_type, dtype=object)
 
         # Step 6: Extract extra columns (non-struct, already handled struct above)
-        for col_spec in self.extra_columns:
+        for col_spec in extra_cols:
             if isinstance(col_spec, str):
                 # Simple case: column name, same in source and output
                 if col_spec in df.columns:
                     columns[col_spec] = df[col_spec].to_numpy()
-            elif isinstance(col_spec, ExtraField):
+            elif isinstance(col_spec, ConvertedField):
                 # Skip struct fields (already processed)
                 if col_spec.is_struct:
                     continue
-                # ExtraField case: may have different source name, type, converter
+                # ConvertedField case: may have different source name, type, converter
                 schema_field = col_spec.name
                 source_col = col_spec.source
                 if source_col in df.columns:

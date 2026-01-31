@@ -10,7 +10,7 @@ This directory contains comprehensive tests for the `timetoalign.loader.tabular`
 | `test_vectorized.py` | 10 | Vectorized pipeline integration tests |
 | `test_correctness.py` | 11 | ZERO TOLERANCE validation with real specimens |
 | `test_error_handling.py` | 15 | Graceful degradation and error message clarity |
-| `test_struct_columns.py` | 20 | Struct field parsing, ExtraField, Field, ComputedField |
+| `test_struct_columns.py` | 20 | Struct field parsing, ConvertedField, Field, ComputedField |
 | `test_table_schema.py` | 25 | TableSchema system for semantic column specifications |
 | `profile_vectorized.py` | - | Performance profiling script (not a test file) |
 
@@ -236,9 +236,9 @@ The `TableSchema` system (`timetoalign.loader.table_schema`) provides a declarat
 | `RegionSpec` | Extracts named TimeIntervals from columns |
 | `MatchSpec` | Specifies columns referencing events on other timelines |
 | `CMapColumn` | Declares a column as C-Map target (different unit than primary) |
-| `Field` | Accesses a field within a struct column |
+| `Field` | Accesses nested struct/JSON fields (auto-parses JSON) |
 | `ComputedField` | Computes derived columns via formula or callable |
-| `ExtraField` | Parses JSON columns into PyArrow structs |
+| `ConvertedField` | Explicit type conversion/transformation for columns |
 
 ### Example Usage
 
