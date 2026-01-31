@@ -2584,6 +2584,17 @@ class Timeline:
         """
         return self.diagram()
 
+    def _repr_html_(self) -> str:
+        """Return HTML representation for Jupyter notebooks.
+
+        Displays the ASCII diagram in a monospace pre block so it
+        renders correctly in notebook output cells.
+        """
+        import html
+
+        diagram_text = html.escape(self.diagram())
+        return f'<pre style="font-family: monospace; line-height: 1.2;">{diagram_text}</pre>'
+
     def __contains__(self, item: str | Timeline) -> bool:
         """Check if a child (by ID or object) is in this timeline."""
         if isinstance(item, Timeline):

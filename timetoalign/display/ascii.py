@@ -302,17 +302,26 @@ def timeline_diagram(
     # Coordinate width based on largest coordinate
     coord_width = max(len(end_label), 5)
 
-    # Bar width: total - indent - "0 " - " end unit" - margins
+    # Calculate left margin to align with child bars
+    # Child structure: "  {tree}─ {name:<name_width} {coord:>coord_width} {bar}"
+    # For parent, we use empty tree prefix space and show unit label after bar
+    # Left margin: 2 (indent) + 3 (tree placeholder) + name_width + 1 + coord_width + 1
+    name_width = DEFAULT_NAME_WIDTH
+    left_margin = 2 + 3 + name_width + 1 + coord_width + 1
+
+    # Bar width: total - indent - left_margin - " end unit" - margins
     right_label_len = len(end_label) + 1 + len(unit_label)
-    bar_width = width - indent - 2 - right_label_len - 2
+    bar_width = width - indent - left_margin - right_label_len - 1
     bar_width = max(bar_width, 20)
 
     # 3. Get timeline character and build parent bar
     line_char = _get_timeline_char(timeline, unicode)
     bar = line_char * bar_width
 
-    # 4. Format parent bar line
-    bar_line = f"{prefix}0 {bar} {end_label} {unit_label}"
+    # 4. Format parent bar line (aligned with child bars)
+    # Structure matches child: padding + "0" coord + bar + end coord + unit
+    padding = " " * (left_margin - coord_width - 1)  # Space for tree/name area
+    bar_line = f"{prefix}{padding}{'0':>{coord_width}} {bar} {end_label} {unit_label}"
     lines.append(bar_line)
 
     # 5. Render children (one per row)

@@ -4,14 +4,23 @@ This module tests the timeline creation API including:
 - create_timeline() universal factory
 - EventStore.to_timeline() and to_default_timeline()
 - EventData.to_timeline()
+
+Behavior tested:
+- **Single data source**: Events are placed directly on the timeline (no children).
+- **Multiple data sources** (e.g., ScoreStore): Each data becomes a child timeline.
 """
 
 from __future__ import annotations
+
+from collections.abc import Iterator
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader import EventData, SingleStore
+from timetoalign.loader.bundle import EventStore
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
@@ -19,6 +28,53 @@ from timetoalign.timelines import (
     create_timeline,
 )
 from timetoalign.timelines.factory import _infer_timeline_class
+
+if TYPE_CHECKING:
+    pass
+
+
+# region Test Helper: DictStore
+
+
+@dataclass
+class DictStore(EventStore):
+    """Simple multi-data store for testing.
+
+    Implements EventStore protocol with a dict of name -> EventData.
+    """
+
+    _data: dict[str, EventData]
+
+    def __init__(self, data: dict[str, EventData]) -> None:
+        """Initialize DictStore."""
+        self._data = data
+
+    def __iter__(self) -> Iterator[EventData]:
+        """Iterate over data."""
+        yield from self._data.values()
+
+    def items(self) -> Iterator[tuple[str, EventData]]:
+        """Iterate over (name, data) pairs."""
+        yield from self._data.items()
+
+    def keys(self) -> tuple[str, ...]:
+        """Return data names."""
+        return tuple(self._data.keys())
+
+    def __getitem__(self, name: str) -> EventData:
+        """Get data by name."""
+        return self._data[name]
+
+    def __len__(self) -> int:
+        """Return number of data."""
+        return len(self._data)
+
+    def __contains__(self, name: object) -> bool:
+        """Check if name is in data."""
+        return name in self._data
+
+
+# endregion
 
 
 class TestInferTimelineClass:
@@ -46,7 +102,11 @@ class TestInferTimelineClass:
 
 
 class TestCreateTimelineFromEventData:
-    """Tests for create_timeline with EventData source."""
+    """Tests for create_timeline with EventData source (single data).
+
+    Since EventData is a single data source, events should be placed
+    directly on the timeline (no children).
+    """
 
     @pytest.fixture
     def sample_data(self) -> EventData:
@@ -69,37 +129,43 @@ class TestCreateTimelineFromEventData:
             unit=TimeUnit.ticks,
         )
 
-    def test_creates_timeline_with_child(self, sample_data: EventData):
-        """create_timeline wraps data in store, creates child."""
+    def test_creates_timeline_with_events_directly(self, sample_data: EventData):
+        """Single data source: events are placed directly on timeline (no children)."""
         timeline = create_timeline(sample_data, uid="test")
 
         assert timeline.id == "test"
-        assert timeline.n_children == 1
-        assert "events" in timeline
-
-    def test_child_has_correct_events(self, sample_data: EventData):
-        """Child timeline has the data's events."""
-        timeline = create_timeline(sample_data)
-
-        child = timeline.get_child("events")
-        # Exact count: 2 events
-        assert child.n_events == 2
-
-    def test_flatten_mode(self, sample_data: EventData):
-        """flatten=True creates timeline without children."""
-        timeline = create_timeline(sample_data, flatten=True)
-
+        # No children for single data source
         assert timeline.n_children == 0
+        # Events are directly on the timeline
         # Exact count: 2 events
         assert timeline.n_events == 2
 
+    def test_timeline_has_correct_length(self, sample_data: EventData):
+        """Timeline length matches max event coordinate."""
+        timeline = create_timeline(sample_data)
+
+        # Events go from 0 to 480
+        assert timeline.length.value == 480
+
+    def test_flatten_mode_same_as_default(self, sample_data: EventData):
+        """flatten=True behaves same as default for single data source."""
+        timeline_default = create_timeline(sample_data)
+        timeline_flatten = create_timeline(sample_data, flatten=True)
+
+        assert timeline_default.n_children == timeline_flatten.n_children == 0
+        assert timeline_default.n_events == timeline_flatten.n_events == 2
+
 
 class TestCreateTimelineFromStore:
-    """Tests for create_timeline with EventStore source."""
+    """Tests for create_timeline with EventStore source.
+
+    SingleStore has 1 data source -> events directly on timeline (no children).
+    DictStore with 2+ data sources -> children created for each.
+    """
 
     @pytest.fixture
-    def multi_data_store(self) -> SingleStore:
-        """Store with multiple event types for filter testing."""
+    def single_store(self) -> SingleStore:
+        """SingleStore with one data source (notes)."""
         data = EventData.from_dicts(
             [
                 {
@@ -128,22 +194,85 @@ class TestCreateTimelineFromStore:
         )
         return SingleStore(data, name="notes")
 
-    def test_creates_children(self, multi_data_store: SingleStore):
-        """Default mode creates children at offset 0."""
-        timeline = create_timeline(multi_data_store, uid="test")
+    @pytest.fixture
+    def multi_store(self) -> DictStore:
+        """DictStore with multiple data sources."""
+        notes = EventData.from_dicts(
+            [
+                {
+                    "id": "n1",
+                    "temporal_type": "interval",
+                    "event_type": "Note",
+                    "start": 0,
+                    "end": 480,
+                },
+                {
+                    "id": "n2",
+                    "temporal_type": "interval",
+                    "event_type": "Note",
+                    "start": 480,
+                    "end": 960,
+                },
+            ],
+            unit=TimeUnit.ticks,
+        )
+        measures = EventData.from_dicts(
+            [
+                {
+                    "id": "m1",
+                    "temporal_type": "interval",
+                    "event_type": "Measure",
+                    "start": 0,
+                    "end": 1920,
+                },
+            ],
+            unit=TimeUnit.ticks,
+        )
+
+        return DictStore({"notes": notes, "measures": measures})
+
+    def test_single_store_no_children(self, single_store: SingleStore):
+        """SingleStore (1 data source): events directly on timeline, no children."""
+        timeline = create_timeline(single_store, uid="test")
 
         assert timeline.id == "test"
-        assert timeline.n_children == 1
+        # SingleStore has 1 data source -> no children
+        assert timeline.n_children == 0
+        # Events directly on timeline: 3 events
+        assert timeline.n_events == 3
 
-    def test_store_filters_applied(self, multi_data_store: SingleStore):
-        """store_filters excludes filtered events."""
+    def test_multi_store_creates_children(self, multi_store: DictStore):
+        """DictStore (2 data sources): children created at offset 0."""
+        timeline = create_timeline(multi_store, uid="test")
+
+        assert timeline.id == "test"
+        # DictStore has 2 data sources -> 2 children
+        assert timeline.n_children == 2
+        assert "notes" in timeline
+        assert "measures" in timeline
+
+    def test_store_filters_applied(self, single_store: SingleStore):
+        """store_filters excludes filtered events (single store case)."""
         timeline = create_timeline(
-            multi_data_store,
+            single_store,
             store_filters={"notes": {"event_type": "Note"}},
         )
 
-        child = timeline.get_child("notes")
+        # Single store: events directly on timeline, no children
+        assert timeline.n_children == 0
         # Exact count: 2 notes, rest excluded
+        assert timeline.n_events == 2
+
+    def test_store_filters_on_multi_store(self, multi_store: DictStore):
+        """store_filters work on multi-store (children case)."""
+        timeline = create_timeline(
+            multi_store,
+            store_filters={"notes": {"event_type": "Note"}},
+        )
+
+        # Multi-store: children created
+        child = timeline.get_child("notes")
+        # Exact count: 2 notes (all notes pass filter)
         assert child.n_events == 2
 
 
@@ -151,38 +280,76 @@ class TestCreateTimelineIncludeExclude:
     """Tests for include_stores and exclude_stores parameters."""
 
     @pytest.fixture
-    def two_data_store(self):
-        """Create two separate stores and combine manually for testing."""
-        # We'll test with ScoreStore once we have it available
-        # For now, use a simple data
-        data = EventData.from_dicts(
+    def multi_store(self) -> DictStore:
+        """DictStore with multiple data sources for filtering tests."""
+        notes = EventData.from_dicts(
             [
                 {
-                    "id": "e1",
+                    "id": "n1",
+                    "temporal_type": "interval",
+                    "event_type": "Note",
+                    "start": 0,
+                    "end": 480,
+                },
+            ],
+            unit=TimeUnit.ticks,
+        )
+        measures = EventData.from_dicts(
+            [
+                {
+                    "id": "m1",
+                    "temporal_type": "interval",
+                    "event_type": "Measure",
+                    "start": 0,
+                    "end": 1920,
+                },
+            ],
+            unit=TimeUnit.ticks,
+        )
+        controls = EventData.from_dicts(
+            [
+                {
+                    "id": "c1",
                     "temporal_type": "instant",
-                    "event_type": "Beat",
+                    "event_type": "Tempo",
                     "instant": 0,
                 },
             ],
             unit=TimeUnit.ticks,
         )
-        return SingleStore(data, name="events")
 
-    def test_include_stores_limits_children(self, two_data_store):
+        return DictStore({"notes": notes, "measures": measures, "controls": controls})
+
+    def test_include_stores_limits_children(self, multi_store: DictStore):
         """include_stores only includes specified data."""
         timeline = create_timeline(
-            two_data_store,
-            include_stores=["events"],
+            multi_store,
+            include_stores=["notes", "measures"],
         )
 
-        assert timeline.n_children == 1
-        assert "events" in timeline
+        # Only notes and measures included
+        assert timeline.n_children == 2
+        assert "notes" in timeline
+        assert "measures" in timeline
+        assert "controls" not in timeline
 
-    def test_empty_after_filtering_raises(self, two_data_store):
+    def test_exclude_stores_removes_children(self, multi_store: DictStore):
+        """exclude_stores removes specified data."""
+        timeline = create_timeline(
+            multi_store,
+            exclude_stores=["controls"],
+        )
+
+        # Controls excluded
+        assert "notes" in timeline
+        assert "measures" in timeline
+        assert "controls" not in timeline
+
+    def test_empty_after_filtering_raises(self, multi_store: DictStore):
         """ValueError if all data filtered out."""
         with pytest.raises(ValueError, match="No data"):
             create_timeline(
-                two_data_store,
+                multi_store,
                 include_stores=["nonexistent"],
             )
 
@@ -274,12 +441,16 @@ class TestEventDataToTimeline:
 
 
 class TestTimelineChildrenStructure:
-    """Tests for timeline structure with children."""
+    """Tests for timeline structure with children.
+
+    Uses DictStore (multi-data) to test parent-child relationships.
+    SingleStore results in no children (events directly on timeline).
+    """
 
     @pytest.fixture
-    def notes_data(self) -> EventData:
-        """EventData with note events."""
-        return EventData.from_dicts(
+    def multi_store(self) -> DictStore:
+        """DictStore with notes and measures for children testing."""
+        notes = EventData.from_dicts(
             [
                 {
                     "id": "n1",
@@ -298,27 +469,38 @@ class TestTimelineChildrenStructure:
             ],
             unit=TimeUnit.ticks,
         )
+        measures = EventData.from_dicts(
+            [
+                {
+                    "id": "m1",
+                    "temporal_type": "interval",
+                    "event_type": "Measure",
+                    "start": 0,
+                    "end": 400,
+                },
+            ],
+            unit=TimeUnit.ticks,
+        )
 
-    def test_parent_length_equals_max_child(self, notes_data: EventData):
+        return DictStore({"notes": notes, "measures": measures})
+
+    def test_parent_length_equals_max_child(self, multi_store: DictStore):
         """Parent timeline length is max of children lengths."""
-        store = SingleStore(notes_data, name="notes")
-        timeline = store.to_default_timeline()
+        timeline = multi_store.to_default_timeline()
 
-        # Child ends at 200, so parent length should be at least 200
-        assert timeline.length.value >= 200
+        # Measures end at 400, so parent length should be at least 400
+        assert timeline.length.value >= 400
 
-    def test_children_locked_after_addition(self, notes_data: EventData):
+    def test_children_locked_after_addition(self, multi_store: DictStore):
         """Children are locked after being added to parent."""
-        store = SingleStore(notes_data, name="notes")
-        timeline = store.to_default_timeline()
+        timeline = multi_store.to_default_timeline()
 
         child = timeline.get_child("notes")
         assert child.is_locked
 
-    def test_children_maintain_own_coordinates(self, notes_data: EventData):
+    def test_children_maintain_own_coordinates(self, multi_store: DictStore):
         """Children maintain their own 0-based coordinate system."""
-        store = SingleStore(notes_data, name="notes")
-        timeline = store.to_default_timeline()
+        timeline = multi_store.to_default_timeline()
 
         child = timeline.get_child("notes")
 
@@ -329,3 +511,25 @@ class TestTimelineChildrenStructure:
         events = list(child.events)
         first_event = events[0]
         assert first_event["start"]["value"] == 0
+
+    def test_single_store_no_children(self):
+        """SingleStore (1 data) puts events directly on timeline, no children."""
+        data = EventData.from_dicts(
+            [
+                {
+                    "id": "n1",
+                    "temporal_type": "interval",
+                    "event_type": "Note",
+                    "start": 0,
+                    "end": 100,
+                },
+            ],
+            unit=TimeUnit.ticks,
+        )
+        store = SingleStore(data, name="notes")
+        timeline = store.to_default_timeline()
+
+        # SingleStore: no children, events directly on timeline
+        assert timeline.n_children == 0
+        assert timeline.n_events == 1
+        assert timeline.length.value == 100
