@@ -105,18 +105,25 @@ def create_timeline_from_bundle(
 
     This is the core implementation called by EventStore.to_timeline().
 
+    Behavior depends on the number of data sources:
+    - **Single data source**: Events are placed directly on the timeline
+      (no children). This is the common case for simple loaders.
+    - **Multiple data sources**: Each data becomes a child timeline at
+      offset 0. This is used by ScoreStore, MidiStore, etc.
+    - **flatten=True**: Always merge all events into a single timeline.
+
     Args:
         store: The source EventStore (container for EventData).
-        uid: Unique ID for the parent timeline. Auto-generated if None.
+        uid: Unique ID for the timeline. Auto-generated if None.
         store_filters: Per-data filter kwargs to apply before adding.
             Example: {"notes": {"event_type": "Note"}}
         include_stores: Only include these data (default: all non-empty).
         exclude_stores: Exclude these data.
-        flatten: If True, merge all events into parent timeline.
-            If False (default), each data becomes a child at offset 0.
+        flatten: If True, merge all events into timeline (no children).
+            If False (default), multiple data become children at offset 0.
 
     Returns:
-        A Timeline with the requested structure.
+        A Timeline with events (single data) or children (multiple data).
 
     Raises:
         ValueError: If no data remain after filtering, or all are empty.
@@ -153,7 +160,9 @@ def create_timeline_from_bundle(
         first_data.unit, first_data.number_type
     )
 
-    if flatten:
+    # Single data case: put events directly on the timeline (no children)
+    # This applies when flatten=True OR when there's only one data to use
+    if flatten or len(data_to_use) == 1:
         # Merge all events into single timeline
         merged_data = first_data
         for _, data in data_to_use[1:]:
@@ -168,10 +177,15 @@ def create_timeline_from_bundle(
             uid=uid,
         )
         timeline._events = merged_data
+
+        module_logger.debug(
+            f"Created timeline '{timeline.id}' with {len(merged_data)} events"
+        )
+
         return timeline
 
     else:
-        # Create parent with children at offset 0
+        # Multiple data: create parent with children at offset 0
         # Parent length = max of all child lengths
         max_length: float = 0.0
         for _, data in data_to_use:
@@ -219,36 +233,44 @@ def create_timeline(
 
     This is the most flexible timeline creation API, supporting:
     - EventStore (ScoreStore, MidiStore, SingleStore)
-    - EventData (creates single child timeline)
+    - EventData (creates timeline with events directly on it)
     - Loader (uses loader.store)
 
-    By default, each data in the source becomes a child timeline at offset 0,
-    maintaining its own 0-based coordinate system.
+    Behavior depends on the number of data sources:
+    - **Single data source** (typical for simple loaders): Events are placed
+      directly on the timeline. No child timelines are created.
+    - **Multiple data sources** (ScoreStore, MidiStore): Each data becomes
+      a child timeline at offset 0, maintaining its own coordinate system.
 
     Args:
         source: The data source (EventStore, EventData, or Loader).
-        uid: Unique ID for the parent timeline. Auto-generated if None.
+        uid: Unique ID for the timeline. Auto-generated if None.
         store_filters: Per-data filter kwargs to apply before adding.
             Example: {"notes": {"event_type": "Note"}} to exclude rests.
         include_stores: Only include these data (default: all non-empty).
         exclude_stores: Exclude these data from the timeline.
-        flatten: If True, merge all events into a single parent timeline.
-            If False (default), each data becomes a child at offset 0.
+        flatten: If True, merge all events into a single timeline (no children).
+            If False (default), multiple data sources become children.
 
     Returns:
-        A Timeline with the requested structure.
+        A Timeline with events (single source) or children (multiple sources).
 
     Raises:
         TypeError: If source is not a supported type.
         ValueError: If no data remain after filtering.
 
     Examples:
-        >>> # From a loader (most common)
+        >>> # From a simple loader (single EventData -> events on timeline)
+        >>> loader = TsvLoader()
+        >>> loader.load("annotations.tsv")
+        >>> timeline = create_timeline(loader, uid="my_timeline")
+        >>> timeline.n_events  # Events are directly on the timeline
+        100
+
+        >>> # From a score loader (multiple stores -> children)
         >>> loader = PartituraLoader()
         >>> loader.load("score.musicxml")
         >>> timeline = create_timeline(loader, uid="my_score")
-
-        >>> # Access children
         >>> notes_tl = timeline.get_child("notes")
         >>> measures_tl = timeline.get_child("measures")
 
@@ -259,11 +281,8 @@ def create_timeline(
         ...     exclude_stores=["annotations"],
         ... )
 
-        >>> # Flattened (all events in one timeline)
+        >>> # Flattened (merge multiple stores into one timeline)
         >>> timeline = create_timeline(loader, flatten=True)
-
-        >>> # From a single EventData
-        >>> timeline = create_timeline(data, uid="my_events")
     """
     from timetoalign.loader.base import Loader
     from timetoalign.loader.bundle import EventStore, SingleStore
