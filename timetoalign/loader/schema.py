@@ -26,12 +26,15 @@ def make_coordinate_type(unit: TimeUnit) -> pa.StructType:
     """Create a coordinate struct type.
 
     The struct contains:
-    - value: float64 representation (always present, for queries)
+    - value: float64 representation (nullable when struct is null)
     - numerator: int64 (for Fraction, nullable)
     - denominator: int64 (for Fraction, nullable)
 
     Note: Unit metadata is stored at the Field level, not the StructType level.
     Use make_coordinate_field() to create a field with unit metadata.
+
+    Note: All fields are nullable to allow for null struct values (e.g., missing
+    end coordinates for instant events).
 
     Args:
         unit: The time unit (unused here, kept for API consistency).
@@ -41,7 +44,7 @@ def make_coordinate_type(unit: TimeUnit) -> pa.StructType:
     """
     return pa.struct(
         [
-            pa.field("value", pa.float64(), nullable=False),
+            pa.field("value", pa.float64(), nullable=True),
             pa.field("numerator", pa.int64(), nullable=True),
             pa.field("denominator", pa.int64(), nullable=True),
         ]

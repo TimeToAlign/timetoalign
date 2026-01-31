@@ -151,14 +151,22 @@ class CoordinateParser:
         num_arr = arr.astype(np.int64)
         den_arr = np.ones(n, dtype=np.int64)
 
-        # Build struct array
+        # Build struct array with proper field types
+        coord_type = pa.struct(
+            [
+                pa.field("value", pa.float64(), nullable=True),
+                pa.field("numerator", pa.int64(), nullable=True),
+                pa.field("denominator", pa.int64(), nullable=True),
+            ]
+        )
+
         return pa.StructArray.from_arrays(
             [
-                pa.array(value_arr),
-                pa.array(num_arr),
-                pa.array(den_arr),
+                pa.array(value_arr, type=pa.float64()),
+                pa.array(num_arr, type=pa.int64()),
+                pa.array(den_arr, type=pa.int64()),
             ],
-            names=["value", "numerator", "denominator"],
+            fields=list(coord_type),
         )
 
     @staticmethod
@@ -180,14 +188,22 @@ class CoordinateParser:
 
         value_arr = arr.astype(np.float64)
 
-        # Build struct array with null numerator/denominator
+        # Build struct array with proper field types
+        coord_type = pa.struct(
+            [
+                pa.field("value", pa.float64(), nullable=True),
+                pa.field("numerator", pa.int64(), nullable=True),
+                pa.field("denominator", pa.int64(), nullable=True),
+            ]
+        )
+
         return pa.StructArray.from_arrays(
             [
-                pa.array(value_arr),
+                pa.array(value_arr, type=pa.float64()),
                 pa.nulls(n, type=pa.int64()),
                 pa.nulls(n, type=pa.int64()),
             ],
-            names=["value", "numerator", "denominator"],
+            fields=list(coord_type),
         )
 
     @staticmethod
@@ -214,13 +230,20 @@ class CoordinateParser:
         if first_val is None:
             # All null array
             n = len(arr)
+            coord_type = pa.struct(
+                [
+                    pa.field("value", pa.float64(), nullable=True),
+                    pa.field("numerator", pa.int64(), nullable=True),
+                    pa.field("denominator", pa.int64(), nullable=True),
+                ]
+            )
             return pa.StructArray.from_arrays(
                 [
                     pa.nulls(n, type=pa.float64()),
                     pa.nulls(n, type=pa.int64()),
                     pa.nulls(n, type=pa.int64()),
                 ],
-                names=["value", "numerator", "denominator"],
+                fields=list(coord_type),
             )
 
         # Case 1: String-encoded fractions "num/den"
@@ -237,17 +260,23 @@ class CoordinateParser:
 
     @staticmethod
     def _parse_string_fractions(arr: np.ndarray) -> pa.StructArray:
-        """Parse string-encoded fractions (vectorized).
+        """Parse string-encoded fractions and integers (vectorized).
 
-        Example: ["1/4", "3/8", "1/2"] -> struct arrays
+        Handles mixed format strings:
+        - Pure integers: "0", "1", "42" -> num/1
+        - Fractions: "1/4", "3/8", "1/2" -> num/den
+        - Null values: None, NaN -> null struct
+
+        Example: ["0", "1/2", "3", "3/4", None] -> struct arrays
 
         Strategy:
-        - Use pandas str.split() for vectorization
-        - Convert to int64 arrays
-        - Compute float values vectorized
+        - Detect nulls first (vectorized)
+        - Detect which values contain "/" (vectorized)
+        - Parse pure integers and fractions separately
+        - Merge results vectorized with null mask
 
         Args:
-            arr: Array of strings in "num/den" format.
+            arr: Array of strings in "num" or "num/den" format (may contain nulls).
 
         Returns:
             StructArray with parsed fractions.
@@ -255,33 +284,90 @@ class CoordinateParser:
         Raises:
             ValueError: If string format is invalid.
         """
+        n = len(arr)
+
         # Convert to pandas Series for str operations
         s = pd.Series(arr)
 
-        # Vectorized split on '/'
-        parts = s.str.split("/", expand=True)
+        # Detect nulls first (vectorized)
+        is_null = s.isna()
 
-        if parts.shape[1] != 2:
-            raise ValueError(f"Invalid fraction format (expected 'num/den'): {arr[0]}")
+        # Detect which values contain "/" (vectorized)
+        # na=False means null values return False
+        is_fraction = s.str.contains("/", na=False)
 
-        # Convert to int64 arrays (vectorized)
-        numerators = parts[0].astype(np.int64).to_numpy()
-        denominators = parts[1].astype(np.int64).to_numpy()
+        # Values that are non-null and non-fraction are integers
+        is_integer = ~is_null & ~is_fraction
 
-        # Validate denominators (vectorized)
-        if np.any(denominators == 0):
-            raise ValueError("Fraction with zero denominator found")
+        # Initialize output arrays with NaN for float, 0 for int
+        values = np.full(n, np.nan, dtype=np.float64)
+        numerators = np.zeros(n, dtype=np.int64)
+        denominators = np.ones(n, dtype=np.int64)  # Default to 1
 
-        # Compute float values (vectorized division)
-        values = numerators.astype(np.float64) / denominators.astype(np.float64)
+        # Parse pure integers (vectorized) - only non-null non-fraction values
+        if is_integer.any():
+            int_indices = np.where(is_integer)[0]
+            # Convert integer strings to int64 (vectorized)
+            int_values = s[is_integer].astype(np.int64).to_numpy()
+            numerators[int_indices] = int_values
+            values[int_indices] = int_values.astype(np.float64)
+            # denominators already defaulted to 1
+
+        # Parse fractions (vectorized)
+        if is_fraction.any():
+            frac_indices = np.where(is_fraction)[0]
+            frac_series = s[is_fraction]
+
+            # Vectorized split on '/'
+            parts = frac_series.str.split("/", expand=True)
+
+            if parts.shape[1] != 2:
+                # Find problematic value for error message
+                bad_idx = frac_indices[0]
+                raise ValueError(
+                    f"Invalid fraction format (expected 'num/den'): '{arr[bad_idx]}'"
+                )
+
+            # Convert to int64 arrays (vectorized)
+            frac_nums = parts[0].astype(np.int64).to_numpy()
+            frac_dens = parts[1].astype(np.int64).to_numpy()
+
+            # Validate denominators (vectorized)
+            if np.any(frac_dens == 0):
+                zero_idx = np.where(frac_dens == 0)[0][0]
+                raise ValueError(
+                    f"Fraction with zero denominator: '{frac_series.iloc[zero_idx]}'"
+                )
+
+            # Scatter into output arrays
+            numerators[frac_indices] = frac_nums
+            denominators[frac_indices] = frac_dens
+            values[frac_indices] = frac_nums.astype(np.float64) / frac_dens.astype(
+                np.float64
+            )
+
+        # Build struct array with proper field types and null mask
+        coord_type = pa.struct(
+            [
+                pa.field("value", pa.float64(), nullable=True),
+                pa.field("numerator", pa.int64(), nullable=True),
+                pa.field("denominator", pa.int64(), nullable=True),
+            ]
+        )
+
+        # Create null mask for the struct array (True = null)
+        null_mask = is_null.to_numpy()
+
+        # Build PyArrow arrays with null handling
+        # For numerator/denominator, null where the struct is null
+        value_pa = pa.array(values, type=pa.float64(), mask=null_mask)
+        num_pa = pa.array(numerators, type=pa.int64(), mask=null_mask)
+        den_pa = pa.array(denominators, type=pa.int64(), mask=null_mask)
 
         return pa.StructArray.from_arrays(
-            [
-                pa.array(values),
-                pa.array(numerators),
-                pa.array(denominators),
-            ],
-            names=["value", "numerator", "denominator"],
+            [value_pa, num_pa, den_pa],
+            fields=list(coord_type),
+            mask=pa.array(null_mask),
         )
 
     @staticmethod
@@ -308,13 +394,22 @@ class CoordinateParser:
         # Vectorized float conversion
         values = numerators.astype(np.float64) / denominators.astype(np.float64)
 
+        # Build struct array with proper field types
+        coord_type = pa.struct(
+            [
+                pa.field("value", pa.float64(), nullable=True),
+                pa.field("numerator", pa.int64(), nullable=True),
+                pa.field("denominator", pa.int64(), nullable=True),
+            ]
+        )
+
         return pa.StructArray.from_arrays(
             [
-                pa.array(values),
-                pa.array(numerators),
-                pa.array(denominators),
+                pa.array(values, type=pa.float64()),
+                pa.array(numerators, type=pa.int64()),
+                pa.array(denominators, type=pa.int64()),
             ],
-            names=["value", "numerator", "denominator"],
+            fields=list(coord_type),
         )
 
     @staticmethod
@@ -448,7 +543,9 @@ class ArrayValidator:
             # Handle both PyArrow StructArray and numpy array
             end_col = columns["end"]
             if isinstance(end_col, pa.StructArray):
-                end_is_null = end_col.is_null().to_numpy()
+                end_is_null = end_col.is_null().to_numpy(zero_copy_only=False)
+            elif isinstance(end_col, pa.ChunkedArray):
+                end_is_null = end_col.is_null().to_numpy(zero_copy_only=False)
             else:
                 end_arr = pd.Series(ArrayValidator._to_numpy(end_col))
                 end_is_null = end_arr.isna().to_numpy()
@@ -472,7 +569,9 @@ class ArrayValidator:
             # Check that interval events have non-null end
             end_col = columns["end"]
             if isinstance(end_col, pa.StructArray):
-                end_is_null = end_col.is_null().to_numpy()
+                end_is_null = end_col.is_null().to_numpy(zero_copy_only=False)
+            elif isinstance(end_col, pa.ChunkedArray):
+                end_is_null = end_col.is_null().to_numpy(zero_copy_only=False)
             else:
                 end_arr = pd.Series(ArrayValidator._to_numpy(end_col))
                 end_is_null = end_arr.isna().to_numpy()
@@ -503,7 +602,9 @@ class ArrayValidator:
         elif isinstance(values, pd.Series):
             return values.to_numpy()
         elif isinstance(values, pa.Array):
-            return values.to_numpy()
+            return values.to_numpy(zero_copy_only=False)
+        elif isinstance(values, pa.ChunkedArray):
+            return values.to_numpy(zero_copy_only=False)
         elif isinstance(values, list):
             return np.array(values)
         else:

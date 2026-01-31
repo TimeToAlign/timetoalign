@@ -13,10 +13,12 @@ Classes:
 from __future__ import annotations
 
 from .base import TabularLoader
-from .csv import CsvLoader, TsvLoader
+from .csv import CsvLoader, LabLoader, Ms3Loader, TsvLoader
 
 __all__ = [
     "TabularLoader",
     "CsvLoader",
     "TsvLoader",
+    "LabLoader",
+    "Ms3Loader",
 ]

@@ -108,6 +108,72 @@ class TsvLoader(TabularLoader):
 # endregion
 
 
+# region Ms3Loader
+
+
+class Ms3Loader(TabularLoader):
+    """Loader for ms3 (MuseScore3) TSV annotation files.
+
+    Ms3Loader handles the TSV format produced by the ms3 parser library.
+    These files contain detailed note/chord/measure annotations from MuseScore files.
+
+    File Format (notes.tsv):
+        mc  mn  quarterbeats  quarterbeats_all_endings  duration_qb  ...
+        1   0   0             0                         1.0          ...
+        1   0   1/2           1/2                       0.5          ...
+
+    Column Mapping:
+        - start: "quarterbeats" (fraction format: "0", "1/2", "3/4")
+        - duration: "duration_qb" (float in quarter beats)
+        - name: "name" (note name like "A4", "C#5")
+        - event_type: Defaults to "Note"
+
+    Extra columns captured:
+        - midi: MIDI note number
+        - octave: Note octave
+        - tpc: Tonal pitch class
+        - staff: Staff number
+        - voice: Voice number
+        - chord_id: Chord identifier
+
+    Examples:
+        >>> loader = Ms3Loader()
+        >>> loader.load("beethoven.notes.tsv")
+        >>> print(f"Loaded {len(loader.events)} notes")
+    """
+
+    # TSV format with tab delimiter
+    delimiter: ClassVar[str] = "\t"
+
+    # ms3 column mapping
+    id_column: ClassVar[str | None] = None  # Auto-generate
+    name_column: ClassVar[str | None] = "name"
+    start_column: ClassVar[str] = "quarterbeats"
+    end_column: ClassVar[str | None] = None  # Use duration instead
+    duration_column: ClassVar[str | None] = "duration_qb"
+    event_type_column: ClassVar[str | None] = None
+    default_event_type: ClassVar[str] = "Note"
+
+    # Coordinate configuration: quarter beats as fractions
+    _default_unit: ClassVar[TimeUnit] = TimeUnit.quarters
+    coordinate_type: ClassVar[NumberType] = NumberType.fraction
+
+    # Extra columns from ms3 format
+    extra_columns: ClassVar[dict[str, str]] = {
+        "midi": "midi",
+        "octave": "octave",
+        "tpc": "tpc",
+        "staff": "staff",
+        "voice": "voice",
+        "chord_id": "chord_id",
+        "mc": "mc",  # Measure count
+        "mn": "mn",  # Measure number
+    }
+
+
+# endregion
+
+
 # region LabLoader
 
 

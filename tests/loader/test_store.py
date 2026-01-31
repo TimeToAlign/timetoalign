@@ -85,7 +85,15 @@ class TestEventDataCreation:
         assert len(store) == 2
 
     def test_from_arrays_missing_columns(self) -> None:
-        """from_arrays fills missing columns with None."""
+        """from_arrays infers missing temporal_type/event_type from data.
+
+        When temporal_type and event_type are not provided:
+        - temporal_type is inferred from presence of end coordinate:
+          - "instant" if no end coordinate
+          - "interval" if end coordinate present
+        - event_type defaults to "Event"
+        - name remains None
+        """
         # Missing temporal_type, event_type, name
         store = EventData.from_arrays(
             {
@@ -96,8 +104,11 @@ class TestEventDataCreation:
         )
         assert len(store) == 1
         row = list(store)[0]
-        assert row["temporal_type"] is None
-        assert row["event_type"] is None
+        # temporal_type inferred as "instant" because no end coordinate
+        assert row["temporal_type"] == "instant"
+        # event_type defaults to "Event"
+        assert row["event_type"] == "Event"
+        # name remains None
         assert row["name"] is None
 
     def test_from_dataframe_empty(self) -> None:
