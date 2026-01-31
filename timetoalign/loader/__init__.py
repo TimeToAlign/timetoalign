@@ -4,25 +4,32 @@ This package provides the infrastructure for loading music representations
 and storing events in efficient PyArrow tables.
 
 Loader Taxonomy:
-    The package contains three types of loaders:
+    The package contains three categories of loaders:
 
-    **Type 1 - Manifest/Metadata Loaders** (dimensions + metadata only):
+    **EventLoader (Loader)** - Returns EventStore (events only):
+        - ScoreLoader subclasses: Music21Loader, PartituraLoader, Ms3Loader
+        - MidiLoader subclasses: ScoreMidiLoader, PerformanceMidiLoader
+        - TabularLoader subclasses: CsvLoader, TsvLoader
+
+    **ManifestLoader** - Returns ManifestData (dimensions + metadata only):
         - AudioLoader: Audio file -> DiscretePhysicalTimeline (samples)
         - IIIFManifestLoader: IIIF manifest -> Graphical dimensions
 
-    **Type 2 - Event Loaders** (events only, dimensions derived):
-        - ScoreLoader subclasses: Music21Loader, PartituraLoader, TSVLoader
-        - MidiLoader subclasses: ScoreMidiLoader, PerformanceMidiLoader
-
-    **Type 3 - Hybrid Loaders** (both fixed dimensions + events):
-        - GraphicalLoader: Image sources + segments
-        - ATONLoader: Piano roll image dimensions + hole punch events
+    **AlignmentLoader** - Returns AlignmentStore (events + C-maps + matches):
+        - Ieee1599Loader: IEEE 1599 multimodal alignment
+        - TiliaLoader: TiLiA hierarchical annotations
+        - MatchfileLoader: Score-to-performance alignment
 
 Classes:
     EventData: PyArrow-based bulk event storage.
     EventStore: Abstract base class for collections of EventData.
     SingleStore: Store wrapper for a single EventData.
-    Loader: Abstract base class for event-based file loaders.
+    AlignmentStore: Container for aligned multimodal data.
+    MatchData: Container for alignment matches.
+    ManifestData: Container for manifest/metadata.
+    Loader/EventLoader: Abstract base class for event-based loaders.
+    ManifestLoader: Abstract base class for manifest loaders.
+    AlignmentLoader: Abstract base class for alignment loaders.
     AudioLoader: Manifest loader for audio files.
     AudioInfo: Metadata container for audio files.
 
@@ -37,8 +44,8 @@ structures and table metadata.
 
 from __future__ import annotations
 
-from .base import Loader
-from .bundle import EventStore, SingleStore
+from .base import AlignmentLoader, EventLoader, Loader, ManifestData, ManifestLoader
+from .bundle import AlignmentStore, EventStore, MatchData, SingleStore
 from .physical import AudioInfo, AudioLoader
 from .schema import (
     TEMPORAL_TYPE_INSTANT,
@@ -61,8 +68,15 @@ __all__ = [
     "EventData",
     "EventStore",
     "SingleStore",
+    "AlignmentStore",
+    "MatchData",
+    "ManifestData",
+    # Loader ABCs
     "Loader",
-    # Physical domain loaders (Type 1 - Manifest)
+    "EventLoader",
+    "ManifestLoader",
+    "AlignmentLoader",
+    # Physical domain loaders (Manifest)
     "AudioLoader",
     "AudioInfo",
     # Schema utilities
