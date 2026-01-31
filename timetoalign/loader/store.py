@@ -21,6 +21,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -29,6 +30,7 @@ from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
 
+from .parsing import ArrayValidator, CoordinateParser
 from .schema import (
     coordinate_to_struct,
     extend_schema,
@@ -213,31 +215,216 @@ class EventData:
     @classmethod
     def from_arrays(
         cls,
+        columns: dict[str, np.ndarray | pa.Array | list[Any]],
+        unit: TimeUnit,
+        number_type: NumberType = NumberType.float,
+        *,
+        validate: bool = True,
+    ) -> Self:
+        """Create EventData from column-oriented arrays (VECTORIZED).
+
+        This is the PRIMARY construction method for loaders. All operations
+        are vectorized - NO row iteration occurs.
+
+        Args:
+            columns: Dict mapping column names to arrays. Supports:
+                - np.ndarray: NumPy arrays
+                - pa.Array: PyArrow arrays (including StructArray for coords)
+                - list: Python lists (converted to numpy)
+
+                For coordinate columns (start, end, duration):
+                - If pa.StructArray: used directly
+                - If numeric/string array: parsed via CoordinateParser
+
+            unit: The time unit for coordinates.
+            number_type: The number type for coordinates.
+            validate: Whether to validate arrays before table construction.
+
+        Returns:
+            A new EventData containing the events.
+
+        Raises:
+            ValueError: If validation fails (missing columns, length mismatch, etc.)
+
+        Examples:
+            >>> # Vectorized construction from arrays
+            >>> data = EventData.from_arrays({
+            ...     "id": np.array(["e1", "e2"]),
+            ...     "temporal_type": np.array(["instant", "instant"]),
+            ...     "event_type": np.array(["Beat", "Beat"]),
+            ...     "start": CoordinateParser.parse([0, 480], NumberType.int, unit),
+            ... }, unit=TimeUnit.ticks)
+
+            >>> # Direct from loader output (StructArrays already parsed)
+            >>> data = EventData.from_arrays(loader_columns, unit=TimeUnit.quarters)
+        """
+        if not columns:
+            return cls.empty(unit, number_type)
+
+        # Check if any column has data
+        first_col = next(iter(columns.values()), None)
+        if first_col is None or len(first_col) == 0:
+            return cls.empty(unit, number_type)
+
+        n_rows = len(first_col)
+
+        # Helper to get column or mapped name
+        def get_col(name: str) -> Any:
+            if name == "start" and "start" not in columns and "instant" in columns:
+                return columns["instant"]
+            return columns.get(name)
+
+        # Build processed columns dict for PyArrow table
+        processed: dict[str, Any] = {}
+        schema = cls.schema(unit)
+
+        for field in schema:
+            col_name = field.name
+            col_data = get_col(col_name)
+
+            if col_name in ("start", "end", "duration"):
+                # Coordinate columns - may be StructArray or need parsing
+                if col_data is None:
+                    # Create null struct array (vectorized)
+                    processed[col_name] = pa.nulls(n_rows, type=field.type)
+                elif isinstance(col_data, pa.StructArray):
+                    # Already a StructArray (from CoordinateParser)
+                    processed[col_name] = col_data
+                elif isinstance(col_data, pa.ChunkedArray):
+                    # Combine chunks into single array
+                    processed[col_name] = col_data.combine_chunks()
+                else:
+                    # Need to parse via CoordinateParser (vectorized)
+                    arr = CoordinateParser._to_numpy(col_data)
+                    # Handle None/NaN values (create mask)
+                    if arr.dtype == object:
+                        # Check for None values
+                        mask = pd.Series(arr).isna().to_numpy()
+                        if mask.any():
+                            # Create valid array and null array, combine
+                            valid_indices = ~mask
+                            if valid_indices.any():
+                                valid_arr = arr[valid_indices]
+                                parsed = CoordinateParser.parse(
+                                    valid_arr, number_type, unit
+                                )
+                                # Build full array with nulls (VECTORIZED)
+                                # Extract parsed struct fields
+                                parsed_values = parsed.field("value").to_numpy()
+                                parsed_nums = parsed.field("numerator").to_numpy()
+                                parsed_dens = parsed.field("denominator").to_numpy()
+
+                                # Create full arrays with None placeholders (vectorized)
+                                full_values = np.full(n_rows, np.nan, dtype=np.float64)
+                                full_nums = np.full(n_rows, np.nan, dtype=np.float64)
+                                full_dens = np.full(n_rows, np.nan, dtype=np.float64)
+
+                                # Place valid values using boolean indexing (vectorized)
+                                full_values[valid_indices] = parsed_values
+                                full_nums[valid_indices] = parsed_nums
+                                full_dens[valid_indices] = parsed_dens
+
+                                # Convert to PyArrow with proper nulls
+                                processed[col_name] = pa.StructArray.from_arrays(
+                                    [
+                                        pa.array(full_values),
+                                        pa.array(
+                                            full_nums.astype(object), type=pa.int64()
+                                        ),
+                                        pa.array(
+                                            full_dens.astype(object), type=pa.int64()
+                                        ),
+                                    ],
+                                    names=["value", "numerator", "denominator"],
+                                    mask=mask,
+                                )
+                            else:
+                                processed[col_name] = pa.nulls(n_rows, type=field.type)
+                        else:
+                            processed[col_name] = CoordinateParser.parse(
+                                arr, number_type, unit
+                            )
+                    else:
+                        processed[col_name] = CoordinateParser.parse(
+                            arr, number_type, unit
+                        )
+            elif col_name == "id":
+                if col_data is not None:
+                    # Ensure string type (vectorized)
+                    if isinstance(col_data, np.ndarray):
+                        processed[col_name] = pa.array(col_data.astype(str))
+                    elif isinstance(col_data, pa.Array):
+                        processed[col_name] = col_data.cast(pa.string())
+                    else:
+                        processed[col_name] = pa.array(
+                            [str(x) for x in col_data], type=pa.string()
+                        )
+                else:
+                    # Auto-generate IDs (vectorized)
+                    ids = np.array([f"e{i:06d}" for i in range(n_rows)])
+                    processed[col_name] = pa.array(ids)
+            elif col_data is not None:
+                # Regular column - convert to PyArrow array
+                if isinstance(col_data, (pa.Array, pa.ChunkedArray)):
+                    processed[col_name] = col_data
+                elif isinstance(col_data, np.ndarray):
+                    processed[col_name] = pa.array(col_data)
+                else:
+                    processed[col_name] = pa.array(col_data)
+            else:
+                # Column not provided - fill with nulls
+                processed[col_name] = pa.nulls(n_rows, type=field.type)
+
+        # Infer temporal_type if not provided or all null (vectorized)
+        if "temporal_type" in processed:
+            tt_col = processed["temporal_type"]
+            if isinstance(tt_col, pa.Array) and tt_col.null_count == len(tt_col):
+                # All null - infer from end column
+                end_col = processed.get("end")
+                if end_col is not None and isinstance(end_col, pa.StructArray):
+                    has_end = ~end_col.is_null().to_numpy(zero_copy_only=False)
+                    inferred = np.where(has_end, "interval", "instant")
+                    processed["temporal_type"] = pa.array(inferred)
+                else:
+                    # No end column - all instant
+                    processed["temporal_type"] = pa.array(["instant"] * n_rows)
+
+        # Infer event_type if not provided or all null (vectorized)
+        if "event_type" in processed:
+            et_col = processed["event_type"]
+            if isinstance(et_col, pa.Array) and et_col.null_count == len(et_col):
+                # All null - use default
+                processed["event_type"] = pa.array(["Event"] * n_rows)
+
+        # Validate arrays if requested (vectorized validation)
+        if validate:
+            ArrayValidator.validate_column_dict(processed, schema)
+
+        # Build table in single operation
+        metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
+        schema = schema.with_metadata(metadata)
+
+        table = pa.table(processed, schema=schema)
+        return cls(table, unit, number_type)
+
+    @classmethod
+    def from_arrays_legacy(
+        cls,
         columns: dict[str, list[Any]],
         unit: TimeUnit,
         number_type: NumberType = NumberType.float,
     ) -> Self:
-        """Create EventData from column-oriented arrays.
+        """Legacy from_arrays using row-based coordinate_to_struct.
 
-        This is the most efficient creation method as it matches PyArrow's
-        native columnar format.
+        DEPRECATED: Use from_arrays() instead for vectorized operations.
 
         Args:
             columns: Dict mapping column names to lists of values.
-                Coordinate columns should contain coordinate values (not structs).
             unit: The time unit for coordinates.
             number_type: The number type for coordinates.
 
         Returns:
             A new EventData containing the events.
-
-        Examples:
-            >>> data = EventData.from_arrays({
-            ...     "id": ["e1", "e2"],
-            ...     "temporal_type": ["instant", "instant"],
-            ...     "event_type": ["Beat", "Beat"],
-            ...     "instant": [0, 480],
-            ... }, unit=TimeUnit.ticks)
         """
         if not columns or not columns.get("id"):
             return cls.empty(unit, number_type)

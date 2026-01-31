@@ -21,13 +21,21 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, Union
 
+import numpy as np
+import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
 
 from .store import EventData
+
+# Type alias for _load_source return: supports both vectorized and legacy modes
+LoadSourceResult = Union[
+    tuple[dict[str, Any], dict[str, np.ndarray | pa.Array]],  # Vectorized: column dict
+    tuple[dict[str, Any], list[dict[str, Any]]],  # Legacy: row dicts
+]
 
 if TYPE_CHECKING:
     from timetoalign.loader.bundle import AlignmentStore, EventStore
@@ -96,18 +104,30 @@ class Loader(ABC):
     # region Abstract Methods
 
     @abstractmethod
-    def _load_source(self, source: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    def _load_source(self, source: Path) -> LoadSourceResult:
         """Load a single source file.
 
         Subclasses implement this to parse their specific format.
+
+        VECTORIZED API (preferred):
+            Return (metadata_dict, column_dict) where column_dict contains
+            numpy/pyarrow arrays for each column. This enables zero-iteration
+            table construction.
+
+        LEGACY API (deprecated):
+            Return (metadata_dict, row_dicts) where row_dicts is a list of
+            event dictionaries. This requires row iteration and should be
+            migrated to the vectorized API.
 
         Args:
             source: Path to the source file.
 
         Returns:
-            A tuple of (metadata_dict, event_rows):
+            A tuple of (metadata_dict, event_data):
             - metadata_dict: File-specific metadata (format, duration, etc.)
-            - event_rows: List of event dictionaries ready for EventData
+            - event_data: Either:
+                - dict[str, np.ndarray | pa.Array]: Column arrays (vectorized)
+                - list[dict[str, Any]]: Row dicts (legacy, deprecated)
 
         Raises:
             FileNotFoundError: If the source file doesn't exist.
@@ -179,6 +199,10 @@ class Loader(ABC):
         Events from all sources are aggregated into the EventData.
         Metadata for each source is recorded separately.
 
+        Supports both vectorized (column dict) and legacy (row dicts) modes:
+        - Vectorized: _load_source returns dict[str, np.ndarray | pa.Array]
+        - Legacy: _load_source returns list[dict[str, Any]]
+
         Args:
             *sources: Paths to source files.
 
@@ -192,8 +216,8 @@ class Loader(ABC):
         for source in sources:
             path = Path(source)
 
-            # Get source metadata and event rows
-            source_meta, event_rows = self._load_source(path)
+            # Get source metadata and event data
+            source_meta, event_data = self._load_source(path)
 
             # Add loading metadata
             source_meta["path"] = str(path)
@@ -203,11 +227,26 @@ class Loader(ABC):
             self._sources.append(path)
             self._source_metadata.append(source_meta)
 
-            # Add events
-            if event_rows:
-                new_data = self._event_data_class.from_dicts(
-                    event_rows, self._unit, self._number_type
-                )
+            # Add events - detect vectorized vs legacy mode
+            if event_data:
+                if isinstance(event_data, dict):
+                    # VECTORIZED MODE: event_data is column dict
+                    # Use from_arrays for zero-iteration construction
+                    column_dict: dict[str, Any] = event_data
+                    new_data = self._event_data_class.from_arrays(
+                        column_dict, self._unit, self._number_type
+                    )
+                else:
+                    # LEGACY MODE: event_data is list of row dicts
+                    # Use from_dicts (triggers row iteration - deprecated)
+                    module_logger.debug(
+                        f"Using legacy row-based loading for {path.name}. "
+                        "Consider migrating to vectorized API."
+                    )
+                    row_dicts: list[dict[str, Any]] = event_data
+                    new_data = self._event_data_class.from_dicts(
+                        row_dicts, self._unit, self._number_type
+                    )
                 self._events.extend(new_data)
 
         return self
