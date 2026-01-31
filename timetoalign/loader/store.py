@@ -220,6 +220,7 @@ class EventData:
         number_type: NumberType = NumberType.float,
         *,
         validate: bool = True,
+        extra_fields: list[pa.Field] | None = None,
     ) -> Self:
         """Create EventData from column-oriented arrays (VECTORIZED).
 
@@ -239,6 +240,9 @@ class EventData:
             unit: The time unit for coordinates.
             number_type: The number type for coordinates.
             validate: Whether to validate arrays before table construction.
+            extra_fields: Optional list of PyArrow fields for extra columns.
+                These fields include metadata (e.g., unit for CoordinateFields).
+                If not provided, fields are inferred from the data arrays.
 
         Returns:
             A new EventData containing the events.
@@ -401,7 +405,13 @@ class EventData:
         base_col_names = set(schema.names)
         extra_col_names = set(columns.keys()) - base_col_names - {"instant"}
 
-        extra_fields = []
+        # Build lookup for provided extra_fields (has proper metadata)
+        provided_fields: dict[str, pa.Field] = {}
+        if extra_fields:
+            for f in extra_fields:
+                provided_fields[f.name] = f
+
+        inferred_fields = []
         for col_name in extra_col_names:
             col_data = columns[col_name]
             if col_data is None:
@@ -418,11 +428,31 @@ class EventData:
                 arr = pa.array(col_data)
 
             processed[col_name] = arr
-            extra_fields.append(pa.field(col_name, arr.type, nullable=True))
+
+            # Use provided field if available (has metadata from CoordinateField etc.)
+            if col_name in provided_fields:
+                inferred_fields.append(provided_fields[col_name])
+            else:
+                # For coordinate struct columns, add unit metadata
+                # This enables to_pandas() to properly convert them
+                from timetoalign.loader.schema import is_coordinate_type
+
+                if is_coordinate_type(arr.type):
+                    # Coordinate column - add unit metadata (use default unit)
+                    inferred_fields.append(
+                        pa.field(
+                            col_name,
+                            arr.type,
+                            nullable=True,
+                            metadata={"unit": str(unit)},
+                        )
+                    )
+                else:
+                    inferred_fields.append(pa.field(col_name, arr.type, nullable=True))
 
         # Extend schema with extra fields
-        if extra_fields:
-            schema = extend_schema(schema, extra_fields)
+        if inferred_fields:
+            schema = extend_schema(schema, inferred_fields)
 
         # Validate arrays if requested (vectorized validation)
         if validate:
@@ -902,16 +932,35 @@ class EventData:
         if raw:
             return df
 
-        # Convert coordinate columns to appropriate number types
-        coord_cols = ["start", "end", "duration"]
-        for col in coord_cols:
-            if col in df.columns:
+        # Detect coordinate columns from schema (struct with value/num/den fields)
+        # This handles both core columns (start, end, duration) and extra
+        # CoordinateField columns
+        from timetoalign.loader.schema import is_coordinate_type
+
+        for field in self._table.schema:
+            col_name = field.name
+            if col_name not in df.columns:
+                continue
+
+            if is_coordinate_type(field.type):
+                # Get unit from field metadata, fall back to EventData unit
+                unit = self._unit
+                if field.metadata:
+                    unit_str = field.metadata.get(b"unit")
+                    if unit_str:
+                        try:
+                            unit = TimeUnit(unit_str.decode("utf-8"))
+                        except ValueError:
+                            pass  # Use default unit
+
                 if coordinates:
-                    df[col] = df[col].apply(
-                        lambda s: self._struct_to_coordinate(s, self._unit)
+                    # Capture unit in closure for lambda
+                    col_unit = unit
+                    df[col_name] = df[col_name].apply(
+                        lambda s, u=col_unit: self._struct_to_coordinate(s, u)
                     )
                 else:
-                    df[col] = df[col].apply(self._struct_to_number)
+                    df[col_name] = df[col_name].apply(self._struct_to_number)
 
         return df
 

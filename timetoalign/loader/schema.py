@@ -128,6 +128,26 @@ def make_coordinate_field(name: str, unit: TimeUnit, nullable: bool = True) -> p
     return pa.field(name, coord_type, nullable=nullable, metadata={"unit": str(unit)})
 
 
+def is_coordinate_type(dtype: pa.DataType) -> bool:
+    """Check if a PyArrow type is a coordinate struct type.
+
+    Coordinate structs have three specific fields: value, numerator, denominator.
+    This is used to detect coordinate columns regardless of where they appear
+    in the schema.
+
+    Args:
+        dtype: The PyArrow data type to check.
+
+    Returns:
+        True if the type is a coordinate struct, False otherwise.
+    """
+    if not pa.types.is_struct(dtype):
+        return False
+
+    field_names = {f.name for f in dtype}
+    return field_names == {"value", "numerator", "denominator"}
+
+
 def coordinate_to_struct(
     coord: int | float | Fraction | dict[str, Any],
 ) -> dict[str, Any]:

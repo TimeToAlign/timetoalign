@@ -165,6 +165,9 @@ class TabularLoader(Loader):
 
         super().__init__(unit=unit, number_type=number_type)
         self._logger = module_logger.getChild(self.__class__.__name__)
+        # Extra fields for coordinate columns from CoordinateField definitions
+        # These are built during _extract_column_arrays and passed to from_arrays
+        self._extra_schema_fields: list[pa.Field] = []
 
     # region Vectorized Loading
 
@@ -446,6 +449,9 @@ class TabularLoader(Loader):
             columns["event_type"] = np.full(n, self.default_event_type, dtype=object)
 
         # Step 6: Extract extra columns (non-struct, already handled struct above)
+        # Reset extra schema fields for this load
+        self._extra_schema_fields = []
+
         for col_spec in extra_cols:
             if isinstance(col_spec, str):
                 # Simple case: column name, same in source and output
@@ -453,12 +459,28 @@ class TabularLoader(Loader):
                     columns[col_spec] = df[col_spec].to_numpy()
             elif isinstance(col_spec, CoordinateField):
                 # CoordinateField: parse as coordinate struct using CoordinateParser
+                # Source can be a string column name or a Field for nested access
                 source_col = col_spec.source
-                if source_col in df.columns:
-                    values = df[source_col].to_numpy()
-                    columns[col_spec.name] = CoordinateParser.parse(
+                parsed = None
+                if isinstance(source_col, (Field, tuple, ComputedField)):
+                    # Resolve Field/tuple/ComputedField to get values
+                    values = self._resolve_column_reference(
+                        source_col, df, temp_table, col_spec.name
+                    )
+                    parsed = CoordinateParser.parse(
                         values, col_spec.number_type, col_spec.unit
                     )
+                elif isinstance(source_col, str) and source_col in df.columns:
+                    values = df[source_col].to_numpy()
+                    parsed = CoordinateParser.parse(
+                        values, col_spec.number_type, col_spec.unit
+                    )
+
+                if parsed is not None:
+                    columns[col_spec.name] = parsed
+                    # Store the field with proper metadata (unit from CoordinateField)
+                    self._extra_schema_fields.append(col_spec.to_field())
+
             elif isinstance(col_spec, ConvertedField):
                 # Skip struct fields (already processed)
                 if col_spec.is_struct:

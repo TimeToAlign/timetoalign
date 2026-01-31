@@ -270,8 +270,13 @@ class Loader(ABC):
                     # VECTORIZED MODE: event_data is column dict
                     # Use from_arrays for zero-iteration construction
                     column_dict: dict[str, Any] = event_data
+                    # Check for extra schema fields (e.g., from CoordinateField)
+                    extra_fields = getattr(self, "_extra_schema_fields", None)
                     new_data = self._event_data_class.from_arrays(
-                        column_dict, self._unit, self._number_type
+                        column_dict,
+                        self._unit,
+                        self._number_type,
+                        extra_fields=extra_fields,
                     )
                 else:
                     # LEGACY MODE: event_data is list of row dicts
