@@ -244,21 +244,18 @@ class TestZeroToleranceTemporalTypes:
 
         types = loader.count_events_by_temporal_type()
 
-        # Most notes should be intervals (have duration)
+        # All notes should be intervals (have duration)
+        # The Ms3Loader uses quarterbeats_all_endings column, so all notes
+        # including those in volta brackets have valid start coordinates.
         interval_count = types.get("interval", 0)
         instant_count = types.get("instant", 0)
 
-        # At least 99% should be intervals for a notes file
+        # All notes should be intervals
         assert interval_count > 0, "No interval events found"
-        assert interval_count >= 0.99 * len(loader.events), (
-            f"Expected >99% intervals, got {interval_count}/{len(loader.events)} "
-            f"({100*interval_count/len(loader.events):.1f}%)"
+        assert interval_count == len(loader.events), (
+            f"Expected all {len(loader.events)} to be intervals, "
+            f"got {interval_count} intervals and {instant_count} instants"
         )
-
-        # Any instants are due to null quarterbeats (8 in this file)
-        assert (
-            instant_count == 8
-        ), f"Expected 8 instant events (null quarterbeats), got {instant_count}"
 
     def test_beethoven_all_note_event_type(self, beethoven_notes: Path) -> None:
         """Validate all events have event_type='Note'.

@@ -50,6 +50,12 @@ from .physical import AudioInfo, AudioLoader
 from .schema import (
     TEMPORAL_TYPE_INSTANT,
     TEMPORAL_TYPE_INTERVAL,
+    ComputedField,
+    ExtraField,
+    Field,
+)
+from .schema import TableSchema as BasicTableSchema  # Legacy simple schema
+from .schema import (
     coordinate_to_struct,
     extend_schema,
     get_base_column_names,
@@ -58,10 +64,25 @@ from .schema import (
     make_coordinate_field,
     make_coordinate_type,
     make_table_metadata,
+    parse_json_to_struct,
     parse_table_metadata,
     struct_to_coordinate,
 )
 from .store import EventData
+from .table_schema import (
+    CMapColumn,
+    ColumnRole,
+    CoordinateSpec,
+    ExtraColumn,
+    HierarchySpec,
+    MatchColumn,
+    MatchSpec,
+    PartitionMode,
+    PartitionSpec,
+    RegionSpec,
+    TableSchema,
+    TimelineDefaults,
+)
 
 __all__ = [
     # Main classes
@@ -79,6 +100,25 @@ __all__ = [
     # Physical domain loaders (Manifest)
     "AudioLoader",
     "AudioInfo",
+    # TableSchema - Semantic column specifications (NEW)
+    "TableSchema",
+    "TimelineDefaults",
+    "CoordinateSpec",
+    "PartitionSpec",
+    "PartitionMode",
+    "HierarchySpec",
+    "RegionSpec",
+    "MatchSpec",
+    "CMapColumn",
+    "MatchColumn",
+    "ExtraColumn",
+    "ColumnRole",
+    # Legacy basic schema
+    "BasicTableSchema",
+    "ExtraField",
+    "Field",
+    "ComputedField",
+    "parse_json_to_struct",
     # Schema utilities
     "make_coordinate_type",
     "make_coordinate_field",

@@ -38,9 +38,11 @@ from __future__ import annotations
 from .base import Path
 from .linear import LinearPath
 from .polyline import PolylinePath
+from .rect import RectPath
 
 __all__ = [
     "Path",
     "LinearPath",
     "PolylinePath",
+    "RectPath",
 ]

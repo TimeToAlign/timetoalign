@@ -174,7 +174,8 @@ abc,Note
     def test_invalid_fraction_format_error(self) -> None:
         """Validate clear error on invalid fraction format."""
         # TSV content with tab delimiter (Ms3Loader uses tab)
-        content = "quarterbeats\tduration_qb\n1/2/3\t1.0\n1/4\t0.5\n"
+        # Ms3Loader uses quarterbeats_all_endings as primary column
+        content = "quarterbeats_all_endings\tduration\n1/2/3\t1/4\n1/4\t1/8\n"
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False) as f:
             f.write(content)
@@ -191,7 +192,8 @@ abc,Note
     def test_zero_denominator_error(self) -> None:
         """Validate clear error on zero denominator in fractions."""
         # TSV content with tab delimiter
-        content = "quarterbeats\tduration_qb\n1/0\t1.0\n"
+        # Ms3Loader uses quarterbeats_all_endings as primary column
+        content = "quarterbeats_all_endings\tduration\n1/0\t1/4\n"
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False) as f:
             f.write(content)
@@ -236,10 +238,10 @@ class TestNullValueHandling:
 
     def test_null_duration_creates_instant(self) -> None:
         """Validate null duration creates instant event."""
-        # TSV content with tab delimiter
+        # TSV content with tab delimiter - uses quarterbeats_all_endings and duration (fraction)
         content = (
-            "quarterbeats\tduration_qb\tname\n0\t1.0\tinterval_note\n1\t\t"
-            "instant_note\n2\t1.0\tanother_interval\n"
+            "quarterbeats_all_endings\tduration\tname\n0\t1/4\tinterval_note\n1\t\t"
+            "instant_note\n2\t1/4\tanother_interval\n"
         )
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False) as f:
