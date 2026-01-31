@@ -349,6 +349,193 @@ class Loader(ABC):
 
     # endregion
 
+    # region C-Map Creation
+
+    def create_cmap(
+        self,
+        source_column: str,
+        target_column: str,
+        *,
+        map_type: type | None = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Create a ConversionMap from two coordinate columns.
+
+        This method creates a C-Map from loaded coordinate data, enabling
+        conversion between different coordinate systems (e.g., seconds to pixels).
+
+        Both columns must contain coordinate data (either core coordinates like
+        'start'/'end', or CoordinateField extra columns).
+
+        Args:
+            source_column: Name of the source coordinate column.
+            target_column: Name of the target coordinate column.
+            map_type: The map class to create. Defaults to TableMap.
+                Supported: TableMap, LinearMap, ScalarMap.
+            **kwargs: Additional arguments passed to the map constructor.
+                For TableMap: kind, extrapolate
+                For LinearMap: (computed automatically from data)
+
+        Returns:
+            A ConversionMap instance.
+
+        Raises:
+            ValueError: If columns don't exist or aren't coordinate columns.
+            ValueError: If insufficient data points for the map type.
+
+        Examples:
+            >>> # Load data with dual coordinates
+            >>> loader.load("data.tsv")
+
+            >>> # Create TableMap (default) from start -> x_pixels
+            >>> cmap = loader.create_cmap("start", "x_pixels")
+
+            >>> # Create LinearMap (fits y = ax + b to data)
+            >>> cmap = loader.create_cmap("start", "x_pixels", map_type=LinearMap)
+
+            >>> # TableMap with custom interpolation
+            >>> cmap = loader.create_cmap("start", "x_pixels", kind="cubic")
+        """
+        from timetoalign.maps import LinearMap, ScalarMap, TableMap
+
+        # Default to TableMap
+        if map_type is None:
+            map_type = TableMap
+
+        # Extract coordinate values from columns
+        source_values = self._extract_coordinate_values(source_column)
+        target_values = self._extract_coordinate_values(target_column)
+
+        if len(source_values) != len(target_values):
+            raise ValueError(
+                f"Column length mismatch: {source_column} has {len(source_values)} "
+                f"values, {target_column} has {len(target_values)}"
+            )
+
+        if len(source_values) < 2:
+            raise ValueError(
+                f"Need at least 2 data points to create a C-Map, got {len(source_values)}"
+            )
+
+        # Get units from column metadata
+        source_unit = self._get_column_unit(source_column)
+        target_unit = self._get_column_unit(target_column)
+
+        # Create the appropriate map type
+        if map_type is TableMap:
+            return TableMap(
+                x_values=source_values,
+                y_values=target_values,
+                source_unit=source_unit,
+                target_unit=target_unit,
+                **kwargs,
+            )
+        elif map_type is LinearMap:
+            # Fit linear regression: y = ax + b
+            x = np.array(source_values, dtype=np.float64)
+            y = np.array(target_values, dtype=np.float64)
+            # Use numpy's polyfit for simple linear regression
+            coeffs = np.polyfit(x, y, 1)
+            scalar, offset = coeffs[0], coeffs[1]
+            return LinearMap(
+                scalar=float(scalar),
+                offset=float(offset),
+                source_unit=source_unit,
+                target_unit=target_unit,
+                **kwargs,
+            )
+        elif map_type is ScalarMap:
+            # Fit pure scaling: y = ax (no offset)
+            x = np.array(source_values, dtype=np.float64)
+            y = np.array(target_values, dtype=np.float64)
+            # Least squares fit through origin: scalar = sum(x*y) / sum(x*x)
+            scalar = np.sum(x * y) / np.sum(x * x)
+            return ScalarMap(
+                scalar=float(scalar),
+                source_unit=source_unit,
+                target_unit=target_unit,
+                **kwargs,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported map_type: {map_type}. "
+                f"Supported: TableMap, LinearMap, ScalarMap"
+            )
+
+    def _extract_coordinate_values(self, column_name: str) -> list[float]:
+        """Extract float values from a coordinate column.
+
+        Args:
+            column_name: The column name to extract.
+
+        Returns:
+            List of float coordinate values.
+
+        Raises:
+            ValueError: If column doesn't exist or isn't a coordinate column.
+        """
+        import pyarrow.compute as pc
+
+        table = self._events._table
+
+        if column_name not in table.column_names:
+            raise ValueError(
+                f"Column '{column_name}' not found. " f"Available: {table.column_names}"
+            )
+
+        column = table.column(column_name)
+
+        # Check if it's a coordinate struct (has 'value' field)
+        if pa.types.is_struct(column.type):
+            field_names = [f.name for f in column.type]
+            if "value" in field_names:
+                # Extract the 'value' field from the struct
+                values = pc.struct_field(column, "value")
+                return values.to_pylist()
+            else:
+                raise ValueError(
+                    f"Column '{column_name}' is a struct but doesn't have a 'value' "
+                    f"field. Fields: {field_names}"
+                )
+        elif pa.types.is_floating(column.type) or pa.types.is_integer(column.type):
+            # Plain numeric column
+            return [float(v) for v in column.to_pylist() if v is not None]
+        else:
+            raise ValueError(
+                f"Column '{column_name}' is not a coordinate column. "
+                f"Type: {column.type}"
+            )
+
+    def _get_column_unit(self, column_name: str) -> str | None:
+        """Get the unit metadata from a coordinate column.
+
+        Args:
+            column_name: The column name.
+
+        Returns:
+            The unit string, or None if not specified.
+        """
+        table = self._events._table
+        schema = table.schema
+
+        field_idx = schema.get_field_index(column_name)
+        if field_idx < 0:
+            return None
+
+        field = schema.field(field_idx)
+        if field.metadata:
+            unit = field.metadata.get(b"unit")
+            if unit:
+                return unit.decode("utf-8")
+
+        # For core coordinate columns (start, end, duration), use loader's unit
+        if column_name in ("start", "end", "duration"):
+            return str(self._unit.value) if self._unit else None
+
+        return None
+
+    # endregion
+
     # region Serialization
 
     def to_parquet(self, path: Path | str) -> None:
