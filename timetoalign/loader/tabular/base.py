@@ -33,6 +33,7 @@ from timetoalign.loader.parsing import CoordinateParser
 from timetoalign.loader.schema import (
     ComputedField,
     ConvertedField,
+    CoordinateField,
     Field,
     parse_json_to_struct,
 )
@@ -450,6 +451,14 @@ class TabularLoader(Loader):
                 # Simple case: column name, same in source and output
                 if col_spec in df.columns:
                     columns[col_spec] = df[col_spec].to_numpy()
+            elif isinstance(col_spec, CoordinateField):
+                # CoordinateField: parse as coordinate struct using CoordinateParser
+                source_col = col_spec.source
+                if source_col in df.columns:
+                    values = df[source_col].to_numpy()
+                    columns[col_spec.name] = CoordinateParser.parse(
+                        values, col_spec.number_type, col_spec.unit
+                    )
             elif isinstance(col_spec, ConvertedField):
                 # Skip struct fields (already processed)
                 if col_spec.is_struct:

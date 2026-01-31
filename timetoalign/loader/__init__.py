@@ -52,6 +52,7 @@ from .schema import (
     TEMPORAL_TYPE_INTERVAL,
     ComputedField,
     ConvertedField,
+    CoordinateField,
     Field,
 )
 from .schema import TableSchema as BasicTableSchema  # Legacy simple schema
@@ -116,6 +117,7 @@ __all__ = [
     # Legacy basic schema
     "BasicTableSchema",
     "ConvertedField",
+    "CoordinateField",
     "Field",
     "ComputedField",
     "parse_json_to_struct",

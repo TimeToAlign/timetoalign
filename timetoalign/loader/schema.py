@@ -805,6 +805,102 @@ class ConvertedField:
         return f"ConvertedField({', '.join(parts)})"
 
 
+class CoordinateField:
+    """Specification for a column to be parsed as a Coordinate struct.
+
+    CoordinateField allows extra columns to be loaded as proper Coordinate
+    structs (with value/numerator/denominator), enabling:
+    - Dual-coordinate timelines (e.g., seconds AND pixels from same file)
+    - C-Map creation from loaded coordinate pairs
+    - Full precision preservation with Fraction number type
+
+    The coordinate struct uses the same format as the core event coordinates:
+    - value: float64 representation
+    - numerator: int64 (for Fraction, nullable)
+    - denominator: int64 (for Fraction, nullable)
+
+    Attributes:
+        name: Output column name in the schema.
+        source: Source column name in the data (defaults to name).
+        unit: The TimeUnit for these coordinates.
+        number_type: How to parse values (float, int, fraction).
+
+    Examples:
+        >>> from timetoalign.loader import CoordinateField
+        >>> from timetoalign.core import TimeUnit, NumberType
+
+        >>> # Basic usage: seconds column from x_seconds
+        >>> CoordinateField("x_seconds", unit=TimeUnit.seconds)
+
+        >>> # Different source column name
+        >>> CoordinateField("x_pixels", source="x_px", unit=TimeUnit.pixels)
+
+        >>> # With Fraction precision
+        >>> CoordinateField(
+        ...     "quarterbeats",
+        ...     source="qb",
+        ...     unit=TimeUnit.quarters,
+        ...     number_type=NumberType.fraction
+        ... )
+
+        >>> # In a loader
+        >>> class DualLoader(TsvLoader):
+        ...     start_column = "time_sec"
+        ...     _default_unit = TimeUnit.seconds
+        ...     extra_columns = [
+        ...         CoordinateField("x_pixels", source="x_px", unit=TimeUnit.pixels),
+        ...         "image_filename",  # Regular string column
+        ...     ]
+    """
+
+    def __init__(
+        self,
+        name: str,
+        *,
+        source: str | None = None,
+        unit: TimeUnit,
+        number_type: NumberType = NumberType.float,
+    ) -> None:
+        """Initialize CoordinateField.
+
+        Args:
+            name: Output column name in the schema.
+            source: Source column name. Defaults to name if not specified.
+            unit: The TimeUnit for these coordinates (required).
+            number_type: How to parse coordinate values. Defaults to float.
+        """
+        self.name = name
+        self.source = source or name
+        self.unit = unit
+        self.number_type = number_type
+
+    @property
+    def dtype(self) -> pa.StructType:
+        """The PyArrow coordinate struct type."""
+        return make_coordinate_type(self.unit)
+
+    def to_field(self) -> pa.Field:
+        """Create a PyArrow Field for this coordinate column.
+
+        Returns:
+            PyArrow Field with coordinate struct type and unit metadata.
+        """
+        metadata = {
+            "unit": str(self.unit.value),
+            "number_type": self.number_type.name,
+        }
+        return pa.field(self.name, self.dtype, nullable=True, metadata=metadata)
+
+    def __repr__(self) -> str:
+        parts = [f"name={self.name!r}"]
+        if self.source != self.name:
+            parts.append(f"source={self.source!r}")
+        parts.append(f"unit={self.unit.name}")
+        if self.number_type != NumberType.float:
+            parts.append(f"number_type={self.number_type.name}")
+        return f"CoordinateField({', '.join(parts)})"
+
+
 def parse_json_to_struct(
     json_strings: Any,
     struct_schema: dict[str, type] | None = None,
