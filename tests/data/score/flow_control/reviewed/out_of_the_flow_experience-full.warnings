@@ -1,0 +1,77 @@
+Warnings encountered during the last execution of ms3 review
+============================================================
+
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/TimeSig/sigD') ms3.Parse.flow_control.out_of_the_flow_experience-full
+	mc 1: The values ['4' '2'] in 'voice/TimeSig/sigD' of
+	 'staff' [2, 3, 4] are lost.
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/TimeSig/sigN') ms3.Parse.flow_control.out_of_the_flow_experience-full
+	mc 1: The values ['5' '2' '3'] in 'voice/TimeSig/sigN' of
+	 'staff' [2, 3, 4] are lost.
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/TimeSig/stretchD') ms3.Parse.flow_control.out_of_the_flow_experience-full
+	mc 1: The value '4' in 'voice/TimeSig/stretchD' of 'staff' [2, 4] is lost.
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/TimeSig/stretchN') ms3.Parse.flow_control.out_of_the_flow_experience-full
+	mc 1: The values ['5' '3'] in 'voice/TimeSig/stretchN' of
+	 'staff' [2, 4] are lost.
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/TimeSig/subtype') ms3.Parse.flow_control.out_of_the_flow_experience-full
+	mc 1: The missing value in 'voice/TimeSig/subtype' was filled with '2', present in 'staff' [3]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
+ERROR    ms3.Parse.flow_control.out_of_the_flow_experience-full
+	No starting point for the repeatEnd in MC 8 could be determined. It is being ignored.
+MISSING_END_REPEAT_WARNING (5, 9) ms3.Parse.flow_control.out_of_the_flow_experience-full
+	The startRepeat in MC 9 is missing its endRepeat.
+	For correction, MC 9 is interpreted as such because it precedes the next startRepeat.
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 3) ms3.Parse.flow_control.out_of_the_flow_experience-full
+	None of the MCs following the irregular MC 3 complete it.
+	   nominal_duration actual_duration expected_completion       next
+	mc
+	3               3/2             1/4                 5/4     (1, 4)
+	1               3/2             1/4                 5/4       (2,)
+	4               3/2             1/4                 5/4  (5, 6, 7)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 4) ms3.Parse.flow_control.out_of_the_flow_experience-full
+	None of the MCs following the irregular MC 4 complete it.
+	   nominal_duration actual_duration expected_completion       next
+	mc
+	4               3/2             1/4                 5/4  (5, 6, 7)
+	5               3/2             1/2                   1       (4,)
+	6               3/2             1/4                 5/4       (8,)
+	7               3/2             1/2                   1      (-1,)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 5) ms3.Parse.flow_control.out_of_the_flow_experience-full
+	None of the MCs following the irregular MC 5 complete it.
+	   nominal_duration actual_duration expected_completion       next
+	mc
+	5               3/2             1/2                   1       (4,)
+	4               3/2             1/4                 5/4  (5, 6, 7)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 6) ms3.Parse.flow_control.out_of_the_flow_experience-full
+	None of the MCs following the irregular MC 6 complete it.
+	   nominal_duration actual_duration expected_completion  next
+	mc
+	6               3/2             1/4                 5/4  (8,)
+	8               3/2             3/2                   0  (9,)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 12) ms3.Parse.flow_control.out_of_the_flow_experience-full
+	None of the MCs following the irregular MC 12 complete it.
+	   nominal_duration actual_duration expected_completion         next
+	mc
+	12              3/2             1/2                   1         (9,)
+	9               3/2             3/2                   0  (9, 10, 13)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 13) ms3.Parse.flow_control.out_of_the_flow_experience-full
+	None of the MCs following the irregular MC 13 complete it.
+	   nominal_duration actual_duration expected_completion      next
+	mc
+	13              3/2             1/2                   1  (14, 15)
+	14              3/2             1/2                   1     (12,)
+	15              3/2             3/4                 3/4      (1,)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 14) ms3.Parse.flow_control.out_of_the_flow_experience-full
+	None of the MCs following the irregular MC 14 complete it.
+	   nominal_duration actual_duration expected_completion   next
+	mc
+	14              3/2             1/2                   1  (12,)
+	12              3/2             1/2                   1   (9,)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 15) ms3.Parse.flow_control.out_of_the_flow_experience-full
+	None of the MCs following the irregular MC 15 complete it.
+	   nominal_duration actual_duration expected_completion  next
+	mc
+	15              3/2             3/4                 3/4  (1,)
+	1               3/2             1/4                 5/4  (2,)
+INCORRECT_VOLTA_MN_WARNING (2, 7) ms3.Parse.flow_control.out_of_the_flow_experience-full
+	MC 7, the 1st measure of a 3rd volta, should have MN 2, not MN 3.
+INCORRECT_VOLTA_MN_WARNING (2, 15) ms3.Parse.flow_control.out_of_the_flow_experience-full
+	MC 15, the 1st measure of a 2nd volta, should have MN 9, not MN 10.

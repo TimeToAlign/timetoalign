@@ -1,0 +1,16 @@
+mc	mn	quarterbeats	quarterbeats_all_endings	duration_qb	keysig	timesig	act_dur	mc_offset	volta	numbering_offset	dont_count	barline	breaks	repeats	markers	jump_bwd	jump_fwd	play_until	next
+1	0	0	0	1.0	-7	12/8	1/4	5/4			1			firstMeasure					2
+2	1	1	1	6.0	-7	12/8	3/2	0											3
+3	2	7	7	1.0	-7	12/8	1/4	0						end					1, 4
+4	2	8	8	1.0	-7	12/8	1/4	0			1			start					5, 6, 7
+5	2		9	2.0	-7	12/8	1/2	0	1		1			end					4
+6	2	9	11	1.0	-7	12/8	1/4	0	2		1	double							8
+7	3		12	2.0	-7	12/8	1/2	0	3			end	line		fine				-1
+8	4	10	14	6.0	-7	12/8	3/2	0						end					9
+9	5	16	20	6.0	-7	12/8	3/2	0						start	segno & coda				9, 10, 13
+10	6	22	26	6.0	-7	12/8	3/2	0						startend					10, 11
+11	7	28	32	6.0	-7	12/8	3/2	0						end					11, 12
+12	8	34	38	2.0	-7	12/8	1/2	0				end	line			segno	codab	coda	9
+13	9	36	40	2.0	-7	12/8	1/2	0							codab				14, 15
+14	9		42	2.0	-7	12/8	1/2	0	1		1			end					12
+15	10	38	44	3.0	-7	12/8	3/4	0	2					lastMeasure		start		fine	1
