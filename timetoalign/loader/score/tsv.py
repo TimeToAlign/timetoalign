@@ -15,7 +15,7 @@ from .bundle import ScoreStore
 from .stores import (
     AnnotationEventData,
     ControlEventData,
-    MeasureEventData,
+    MeasureData,
     NoteEventData,
 )
 
@@ -251,7 +251,7 @@ class TSVLoader(ScoreLoader):
 
         return ScoreStore(
             notes=notes_data,
-            measures=MeasureEventData.empty(),
+            measures=MeasureData.empty(),
             controls=ControlEventData.empty(),
             annotations=AnnotationEventData.empty(),
             metadata={
@@ -263,7 +263,7 @@ class TSVLoader(ScoreLoader):
         )
 
     def _load_measures(self, df: pd.DataFrame, source: Path) -> ScoreStore:
-        """Load measures TSV into MeasureEventData.
+        """Load measures TSV into MeasureData.
 
         Parses ms3/DCML measures.tsv format with columns:
         - mc, mn: Measure count/number
@@ -287,7 +287,7 @@ class TSVLoader(ScoreLoader):
             source: Path to source file.
 
         Returns:
-            ScoreStore with populated MeasureEventData.
+            ScoreStore with populated MeasureData.
         """
         import pandas as pd
 
@@ -448,7 +448,7 @@ class TSVLoader(ScoreLoader):
                 }
             )
 
-        measures_data = MeasureEventData.from_dicts(
+        measures_data = MeasureData.from_dicts(
             measure_rows,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,

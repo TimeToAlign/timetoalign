@@ -6,7 +6,7 @@ This directory contains tests and profiling scripts for the `timetoalign.loader.
 
 All score loaders return a `ScoreStore` containing category-specific data:
 - `NoteEventData`: Notes, rests, chords
-- `MeasureEventData`: Measure boundaries
+- `MeasureData`: Measure boundaries
 - `ControlEventData`: Dynamics, tempo, signatures
 - `AnnotationEventData`: Text annotations
 
@@ -87,7 +87,7 @@ Located in `tests/data/midi/score/`:
 Tests for the `MeasureMapLoader` implementation (Phase 1 of Measure Handling Design).
 
 **Purpose**: Validates MeasureMapLoader which parses MeasureMap JSON files and returns
-`ScoreStore` with populated `MeasureEventData`.
+`ScoreStore` with populated `MeasureData`.
 
 ### Test Categories
 
@@ -98,7 +98,7 @@ Tests for the `MeasureMapLoader` implementation (Phase 1 of Measure Handling Des
 | `TestMeasureMapValidation` | Validation rules | MC unique, qstamp monotonic, next valid |
 | `TestMeasureMapTraversal` | Traversal computation | Simple, repeat, unfolded count |
 | `TestMeasureMapCrossValidation` | Cross-loader validation | Count match, MC match, flow control |
-| `TestMeasureEventDataSchema` | Schema validation | Flow control fields, identity fields |
+| `TestMeasureDataSchema` | Schema validation | Flow control fields, identity fields |
 | `TestFlowControlSpecimen` | Complex flow control | Load flow_control specimen |
 
 ### Gold Standard Specimens
@@ -139,9 +139,9 @@ pytest tests/loader/score/test_measuremap_loader.py --cov=timetoalign.loader.sco
 | Validation (MC/qstamp/next) | Complete | Unit tests |
 | Traversal computation | Complete | Unfolded TSV (505 measures) |
 | TSVLoader._load_measures() | Complete | Cross-validation |
-| MeasureEventData schema | Complete | Schema tests |
+| MeasureData schema | Complete | Schema tests |
 
-### MeasureEventData Fields
+### MeasureData Fields
 
 | Category | Fields |
 |----------|--------|

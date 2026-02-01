@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from .annotations import AnnotationEventData
 from .controls import ControlEventData
-from .measures import MeasureEventData
+from .measures import MeasureData
 from .notes import NoteEventData
 
 __all__ = [
     "NoteEventData",
-    "MeasureEventData",
+    "MeasureData",
     "ControlEventData",
     "AnnotationEventData",
 ]
