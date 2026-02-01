@@ -18,6 +18,13 @@ Specialized timelines:
 Structural components:
 - Region: Named TimeInterval (not a timeline itself)
 
+Flow API (Phase 3.7):
+- FlowMode: Enum for flow computation modes
+- FlowStep: A single step in a Flow sequence
+- Flow: A computed flow (sequence of measure visitations)
+- FlowMap: Attached to timelines for coordinate transformation
+- FlowController: Compute Flow paths from MeasureData
+
 Public API:
 - Timeline: Base class
 - ContinuousLogicalTimeline, DiscreteLogicalTimeline
@@ -35,6 +42,7 @@ from __future__ import annotations
 from .base import Timeline
 from .beatgrid import BeatGrid
 from .factory import create_timeline
+from .flow import Flow, FlowController, FlowMap, FlowMode, FlowStep
 from .regions import Region
 from .types import (
     ContinuousGraphicalTimeline,
@@ -72,4 +80,10 @@ __all__ = [
     "SegmentLine",
     # Structural components
     "Region",
+    # Flow API (Phase 3.7)
+    "FlowMode",
+    "FlowStep",
+    "Flow",
+    "FlowMap",
+    "FlowController",
 ]
