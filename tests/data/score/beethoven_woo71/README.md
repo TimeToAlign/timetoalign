@@ -1,6 +1,5 @@
 # Beethoven WoO71 Test Specimen
 
-## Overview
 
 Piano Trio in B-flat major, WoO 71, by Ludwig van Beethoven.
 
@@ -54,3 +53,12 @@ assert notes_timeline.n_events == BEETHOVEN_WOO71_GOLD_NOTES
 - This is a complex piece with 397 measures spanning multiple movements
 - Useful for stress-testing loaders with larger scores
 - Complements the Chopin Op.10 No.3 specimen (498 notes, 22 measures)
+
+## Overview
+|          file_name          |measures|labels|
+|-----------------------------|-------:|-----:|
+|WoO71                        |     371|     0|
+|original_file_before_cleaning|     370|     0|
+
+
+*Overview table automatically updated using [ms3](https://ms3.readthedocs.io/).*

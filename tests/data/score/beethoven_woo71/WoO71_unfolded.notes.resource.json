@@ -1,7 +1,7 @@
 {
-  "name": "original_file_before_cleaning.chords",
+  "name": "woo71_unfolded.notes",
   "type": "table",
-  "path": "original_file_before_cleaning.chords.tsv",
+  "path": "WoO71_unfolded.notes.tsv",
   "scheme": "file",
   "format": "tsv",
   "mediatype": "text/tsv",
@@ -15,175 +15,171 @@
     "fields": [
       {
         "name": "mc",
+        "type": "integer",
         "title": "Measure Count",
         "description": "Running count of encoded <Measure> tags which do not necessarily express a full measure (e.g. in case of an anacrusis).",
-        "type": "integer",
         "constraints": {
           "required": true
         }
       },
       {
         "name": "mn",
+        "type": "string",
         "title": "Measure Number",
-        "description": "Measure number as printed in the score, computed from mc, dont_count and numbering_offset.",
+        "description": "Measure number as printed in the score, computed from mc, dont_count and numbering_offset."
+      },
+      {
+        "name": "mc_playthrough",
+        "type": "integer",
+        "title": "Measure Count Unfolded",
+        "description": "Has the function of the \"mc\" column in tables with unfolded repeats where \"mc\" is not unique.",
+        "constraints": {
+          "required": true
+        }
+      },
+      {
+        "name": "mn_playthrough",
         "type": "string"
       },
       {
-        "name": "quarterbeats",
-        "title": "Offset from Beginning (leaving out alternative endings)",
-        "description": "Distance from the piece's beginning. By default, only second endings are taken into account to reflect the proportions of a simply playthrough without repeats.",
+        "name": "quarterbeats_playthrough",
         "type": "string",
+        "title": "Offset from the beginning, including all repeats (in unfolded tables)",
+        "description": "Distance from the piece's beginning, including all repeats. This column is present in unfolded representations that correspond to a full 'playthrough' including all repetitions.",
         "constraints": {
           "pattern": "\\d+(?:\\/\\d+)?"
         }
       },
       {
         "name": "quarterbeats_all_endings",
+        "type": "string",
         "title": "Offset from Beginning (counting through alternative endings as if they were adjacent bars)",
         "description": "Distance from the piece's beginning, taking all endings into account for addressability purposes.",
-        "type": "string",
         "constraints": {
           "pattern": "\\d+(?:\\/\\d+)?"
         }
       },
       {
         "name": "duration_qb",
+        "type": "number",
         "title": "Duration in \u2669",
-        "description": "A float corresponding to duration * 4",
-        "type": "number"
+        "description": "A float corresponding to duration * 4"
       },
       {
         "name": "volta",
+        "type": "integer",
         "title": "Volta",
-        "description": "Number of an ending bracket, given as integer.",
-        "type": "integer"
+        "description": "Number of an ending bracket, given as integer."
       },
       {
         "name": "mc_onset",
+        "type": "string",
         "title": "Offset within Encoded Measure",
         "description": "Distance of an event from the beginning of the <Measure> tag.",
-        "type": "string",
         "constraints": {
           "pattern": "\\d+(?:\\/\\d+)?"
         }
       },
       {
         "name": "mn_onset",
+        "type": "string",
         "title": "Offset within Logical Measure",
         "description": "Distance from the beginning of the logical measure. Relevant, for example, to compute the metric position of an event.",
-        "type": "string",
         "constraints": {
           "pattern": "\\d+(?:\\/\\d+)?"
         }
       },
       {
-        "name": "event",
-        "type": "string"
-      },
-      {
         "name": "timesig",
+        "type": "string",
         "title": "Time Signature",
-        "description": "Given as string, e.g. \"4/4\".",
-        "type": "string"
+        "description": "Given as string, e.g. \"4/4\"."
       },
       {
         "name": "staff",
+        "type": "integer",
         "title": "Staff",
-        "description": "Number of the staff where an event occurs, 1 designating the top staff.",
-        "type": "integer"
+        "description": "Number of the staff where an event occurs, 1 designating the top staff."
       },
       {
         "name": "voice",
+        "type": "integer",
         "title": "Notational Layer",
-        "description": "A number between 1-4 where 1 is MuseScore's default layer (blue), 2 the second layer in green with downward stems, etc.",
-        "type": "integer"
+        "description": "A number between 1-4 where 1 is MuseScore's default layer (blue), 2 the second layer in green with downward stems, etc."
       },
       {
         "name": "duration",
+        "type": "string",
         "title": "Duration",
         "description": "As fraction of a whole note.",
-        "type": "string",
         "constraints": {
           "pattern": "\\d+(?:\\/\\d+)?"
         }
       },
       {
         "name": "gracenote",
+        "type": "string",
         "title": "Grace Note",
-        "description": "Name given to a type of grace note in the MuseScore encoding, e.g. \"grace16\"",
-        "type": "string"
+        "description": "Name given to a type of grace note in the MuseScore encoding, e.g. \"grace16\""
       },
       {
         "name": "nominal_duration",
+        "type": "string",
         "title": "Nominal Duration",
         "description": "The duration corresponding to a note/rest value without applying any dots or n-tuplets, as fraction of a whole note. Multiplied with \"scalar\" to yield the actual duration of the note/rest.",
-        "type": "string",
         "constraints": {
           "pattern": "\\d+(?:\\/\\d+)?"
         }
       },
       {
         "name": "scalar",
+        "type": "string",
         "title": "Scalar",
         "description": "Decimal value reflecting all dots and n-tuplets modifying the duration of a note/rest. Yields the actual duration when multiplied with \"nominal_duration\".",
-        "type": "string",
         "constraints": {
           "pattern": "\\d+(?:\\/\\d+)?"
         }
       },
       {
+        "name": "tied",
+        "type": "integer",
+        "title": "Tied Note",
+        "description": "1 if a note is tied to the following one, -1 if it is being tied to by the previous one, 0 if both."
+      },
+      {
+        "name": "tpc",
+        "type": "integer",
+        "title": "Tonal Pitch Class",
+        "description": "Specified on the line of fifths such that 0 = C, 1 = G, -1 = F, etc."
+      },
+      {
+        "name": "midi",
+        "type": "integer",
+        "title": "MIDI pitch",
+        "description": "Value between 0 and 127 where 60 = C4, 61 = C#4/Db4, etc."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "title": "Name"
+      },
+      {
+        "name": "octave",
+        "type": "integer",
+        "title": "Octave",
+        "description": "Octave number where 4 is the middle octave (' in Helmholtz notation)."
+      },
+      {
         "name": "chord_id",
+        "type": "integer",
         "title": "Chord ID",
-        "description": "Row in the chords table.",
-        "type": "integer"
-      },
-      {
-        "name": "dynamics",
-        "type": "string"
-      },
-      {
-        "name": "articulation",
-        "type": "string"
-      },
-      {
-        "name": "staff_text",
-        "type": "string"
-      },
-      {
-        "name": "system_text",
-        "type": "string"
-      },
-      {
-        "name": "tempo",
-        "type": "string"
-      },
-      {
-        "name": "qpm",
-        "type": "string"
-      },
-      {
-        "name": "tempo_visible",
-        "type": "string"
-      },
-      {
-        "name": "slur",
-        "title": "Slur",
-        "description": "IDs of active slurs that a chord falls under, as a tuple of integers.",
-        "type": "string"
-      },
-      {
-        "name": "diminuendo_line",
-        "type": "string"
-      },
-      {
-        "name": "HairPin:3_decresc.",
-        "type": "string"
+        "description": "Row in the chords table."
       }
     ],
-    "facet": "chords",
-    "identifier": "emuzThvSAMTGaQ",
-    "filepath": "chords/emuzThvSAMTGaQ.schema.yaml",
-    "used_in": "original_file_before_cleaning"
+    "facet": "notes",
+    "identifier": "HA3wp_yyrdZ7fw",
+    "filepath": "notes/HA3wp_yyrdZ7fw.schema.yaml",
+    "used_in": "n04op18-4_04_unfolded"
   },
   "creator": {
     "@context": "https://schema.org/",
@@ -196,7 +192,5 @@
       "@id": "https://orcid.org/0000-0002-1986-9545"
     },
     "softwareVersion": "2.6.0.post1.dev1+ga429209ac.d20260201"
-  },
-  "git_revision": "58ade9316308281f97c014da7c6d05e8d2b4255c",
-  "git_tag": "58ade93"
+  }
 }

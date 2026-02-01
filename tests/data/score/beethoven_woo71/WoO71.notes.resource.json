@@ -1,7 +1,7 @@
 {
-  "name": "wo071.notes",
+  "name": "woo71.notes",
   "type": "table",
-  "path": "Wo071.notes.tsv",
+  "path": "WoO71.notes.tsv",
   "scheme": "file",
   "format": "tsv",
   "mediatype": "text/tsv",
@@ -22,6 +22,8 @@
       "name": "Johannes Hentschel",
       "@id": "https://orcid.org/0000-0002-1986-9545"
     },
-    "softwareVersion": "2.6.0"
-  }
+    "softwareVersion": "2.6.0.post1.dev1+ga429209ac.d20260201"
+  },
+  "git_revision": "58ade9316308281f97c014da7c6d05e8d2b4255c",
+  "git_tag": "58ade93"
 }

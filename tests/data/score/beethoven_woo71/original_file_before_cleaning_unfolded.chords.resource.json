@@ -1,7 +1,7 @@
 {
-  "name": "original_file_before_cleaning.chords",
+  "name": "original_file_before_cleaning_unfolded.chords",
   "type": "table",
-  "path": "original_file_before_cleaning.chords.tsv",
+  "path": "original_file_before_cleaning_unfolded.chords.tsv",
   "scheme": "file",
   "format": "tsv",
   "mediatype": "text/tsv",
@@ -29,9 +29,22 @@
         "type": "string"
       },
       {
-        "name": "quarterbeats",
-        "title": "Offset from Beginning (leaving out alternative endings)",
-        "description": "Distance from the piece's beginning. By default, only second endings are taken into account to reflect the proportions of a simply playthrough without repeats.",
+        "name": "mc_playthrough",
+        "title": "Measure Count Unfolded",
+        "description": "Has the function of the \"mc\" column in tables with unfolded repeats where \"mc\" is not unique.",
+        "type": "integer",
+        "constraints": {
+          "required": true
+        }
+      },
+      {
+        "name": "mn_playthrough",
+        "type": "string"
+      },
+      {
+        "name": "quarterbeats_playthrough",
+        "title": "Offset from the beginning, including all repeats (in unfolded tables)",
+        "description": "Distance from the piece's beginning, including all repeats. This column is present in unfolded representations that correspond to a full 'playthrough' including all repetitions.",
         "type": "string",
         "constraints": {
           "pattern": "\\d+(?:\\/\\d+)?"
@@ -181,9 +194,9 @@
       }
     ],
     "facet": "chords",
-    "identifier": "emuzThvSAMTGaQ",
-    "filepath": "chords/emuzThvSAMTGaQ.schema.yaml",
-    "used_in": "original_file_before_cleaning"
+    "identifier": "Obg-DaOGlEHOyw",
+    "filepath": "chords/Obg-DaOGlEHOyw.schema.yaml",
+    "used_in": "original_file_before_cleaning_unfolded"
   },
   "creator": {
     "@context": "https://schema.org/",
@@ -196,7 +209,5 @@
       "@id": "https://orcid.org/0000-0002-1986-9545"
     },
     "softwareVersion": "2.6.0.post1.dev1+ga429209ac.d20260201"
-  },
-  "git_revision": "58ade9316308281f97c014da7c6d05e8d2b4255c",
-  "git_tag": "58ade93"
+  }
 }
