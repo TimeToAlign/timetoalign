@@ -12,7 +12,7 @@ These types have no dependencies on other TTA modules.
 
 from __future__ import annotations
 
-from .enums import Domain, EventType, NumberType, TimeUnit
+from .enums import Domain, EventType, FlowControlType, NumberType, TimeUnit
 from .ids import IdGenerator, ScopedId
 from .timestamp import TimeIntervalStamp, TimeStamp, TimeStampSource
 from .types import (
@@ -30,6 +30,7 @@ __all__ = [
     "TimeUnit",
     "NumberType",
     "EventType",
+    "FlowControlType",
     # Types
     "Coordinate",
     "IdCoordinate",

@@ -79,10 +79,10 @@ class TestBeatGridBasic:
 class TestBeatGridMetricalMaps:
     """Test the built-in metrical C-Maps.
 
-    The new MeterMap-based implementation uses:
+    The new MetricMap-based implementation uses:
     - 'mc' (measure count) instead of 'measure'
     - Fraction for beat positions (not float)
-    - MeterMap with explicit boundaries
+    - MetricMap with explicit boundaries
     """
 
     def test_measure_at_4_4(self):
@@ -225,7 +225,7 @@ class TestBeatGridMaterialization:
     def test_partial_measure(self):
         """Test handling of partial final measure.
 
-        With MeterMap.from_uniform, only complete measures are created.
+        With MetricMap.from_uniform, only complete measures are created.
         10 quarters / 4 = 2.5, so only 2 complete measures.
         """
         grid = BeatGrid(length=Fraction(10, 1), beats_per_measure=4)
@@ -386,7 +386,7 @@ class TestBeatGridSUPRAValidation:
     def test_supra_measure_boundaries(self):
         """Verify measure boundaries at key points.
 
-        Note: With the new MeterMap implementation, out-of-bounds coordinates
+        Note: With the new MetricMap implementation, out-of-bounds coordinates
         are clamped to the last measure (not extrapolated to a theoretical next measure).
         """
         grid = BeatGrid(
@@ -405,8 +405,8 @@ class TestBeatGridSUPRAValidation:
         assert grid.measure_at(884) == 222
         assert grid.measure_at(887) == 222
 
-        # Quarter 888 is beyond the grid; MeterMap clamps to last measure
-        # (the old FloorMap would extrapolate to 223, but MeterMap is table-based)
+        # Quarter 888 is beyond the grid; MetricMap clamps to last measure
+        # (the old FloorMap would extrapolate to 223, but MetricMap is table-based)
         assert grid.measure_at(888) == 222
 
     def test_supra_all_measure_starts(self):
@@ -545,8 +545,8 @@ class TestBeatGridSUPRAValidation:
     def test_supra_array_operations(self):
         """Test vectorized operations on SUPRA-sized data.
 
-        Note: Uses the new _meter_map (MeterMap) instead of _measure_map.
-        The MeterMap supports vectorized operations via its internal arrays.
+        Note: Uses the new _meter_map (MetricMap) instead of _measure_map.
+        The MetricMap supports vectorized operations via its internal arrays.
         """
         grid = BeatGrid(
             length=Fraction(self.TOTAL_QUARTERS, 1),
