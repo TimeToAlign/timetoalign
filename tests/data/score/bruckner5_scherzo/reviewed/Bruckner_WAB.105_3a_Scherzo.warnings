@@ -1,150 +1,150 @@
 Warnings encountered during the last execution of ms3 review
 ============================================================
 
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/KeySig/actualKey') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
-	mc 1: The values ['1' '0'] in 'voice/KeySig/actualKey' of
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/KeySig/actualKey') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
+	mc 1: The values ['1' '0'] in 'voice/KeySig/actualKey' of 
 	 'staff' [5, 6, 9, 10, 11, 12, 13, 14, 15] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/KeySig/custom') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/KeySig/custom') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 1: The missing value in 'voice/KeySig/custom' was filled with '1', present in 'staff' [20]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/KeySig/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/KeySig/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 1: The values ['8108898254871' '14723147890711' '22544283336727' '29570849832983'
 	 '37185826848791' '44195213475863' '49611167236119' '54876797141015'
 	 '61336427954199' '66907000537111' '72228465016855' '77064598192151'
 	 '82673825480727' '87561498263575' '92208652877847' '96623879258135'
 	 '100948911325207' '105123619536919' '108344845008919' '111840948387863'
-	 '126834679218199' '141424683122711' '157573760155671' '171656957919255'] in 'voice/KeySig/eid' of
+	 '126834679218199' '141424683122711' '157573760155671' '171656957919255'] in 'voice/KeySig/eid' of 
 	 'staff' [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/KeySig/mode') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/KeySig/mode') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 1: The missing value in 'voice/KeySig/mode' was filled with 'none', present in 'staff' [20]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/TimeSig/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/TimeSig/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 1: The values ['8113193222169' '14727442858009' '22548578304025' '29575144800281'
 	 '37190121816089' '44199508443161' '49615462203417' '54881092108313'
 	 '61340722921497' '66911295504409' '72232759984153' '77068893159449'
 	 '82678120448025' '87565793230873' '92212947845145' '96628174225433'
 	 '100953206292505' '105127914504217' '108349139976217' '111845243355161'
-	 '126838974185497' '141428978090009' '157578055122969' '171661252886553'] in 'voice/TimeSig/eid' of
+	 '126838974185497' '141428978090009' '157578055122969' '171661252886553'] in 'voice/TimeSig/eid' of 
 	 'staff' [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 47, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 47, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 47: The values ['113507395698700' '128836133978124' '143778325200908' '159588099817484'
-	 '173662707646476'] in 'voice/BarLine/eid' of
+	 '173662707646476'] in 'voice/BarLine/eid' of 
 	 'staff' [21, 22, 23, 24, 25] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 47, 'voice/BarLine/spanFromOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 47, 'voice/BarLine/spanFromOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 47: The missing value in 'voice/BarLine/spanFromOffset' was filled with '-4', present in 'staff' [22, 23, 24, 25]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 47, 'voice/BarLine/spanToOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 47, 'voice/BarLine/spanToOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 47: The missing value in 'voice/BarLine/spanToOffset' was filled with '4', present in 'staff' [21, 22, 23, 24]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 59, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 59, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 59: The values ['9723805958156' '16260746182668' '24081881628684' '31185757536268'
 	 '38800734552076' '45135811313676' '50547470106636' '55757265436684'
 	 '62049392525324' '67619965108236' '72941429587980' '77927886618636'
 	 '83485574299660' '88330297409548' '92887257710604' '97311074025484'
 	 '101584566485004' '105591770972172' '108830176313356' '114048561577996'
-	 '129381594824716' '144319491080204' '160124970729484' '174199578558476'] in 'voice/BarLine/eid' of
+	 '129381594824716' '144319491080204' '160124970729484' '174199578558476'] in 'voice/BarLine/eid' of 
 	 'staff' [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 79, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 79, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 79: The values ['9917079486476' '16531329122316' '24352464568332' '31452045508620'
 	 '39067022524428' '45354854645772' '56246891708428' '62551903698956'
 	 '68010807132172' '114989159415820' '129755256979468' '145324513427468'
-	 '161031208828940' '175028507246604'] in 'voice/BarLine/eid' of
+	 '161031208828940' '175028507246604'] in 'voice/BarLine/eid' of 
 	 'staff' [2, 3, 4, 5, 6, 7, 9, 10, 11, 21, 22, 23, 24, 25] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 79, 'voice/BarLine/spanFromOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
-	mc 79: The values ['-4' '-3' '-2'] in 'voice/BarLine/spanFromOffset' of
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 79, 'voice/BarLine/spanFromOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
+	mc 79: The values ['-4' '-3' '-2'] in 'voice/BarLine/spanFromOffset' of 
 	 'staff' [2, 3, 4, 5, 6, 7, 10, 11, 22, 23, 24, 25] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 79, 'voice/BarLine/spanToOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
-	mc 79: The values ['4' '3' '9' '6'] in 'voice/BarLine/spanToOffset' of
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 79, 'voice/BarLine/spanToOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
+	mc 79: The values ['4' '3' '9' '6'] in 'voice/BarLine/spanToOffset' of 
 	 'staff' [2, 3, 4, 5, 6, 9, 10, 21, 22, 23, 24] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 132, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 132, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 132: The values ['10587094384652' '17201344020492' '25022479466508' '32122060406796'
 	 '39737037422604' '45840185950220' '51247549775884' '56904021704716'
 	 '63209033695244' '68564857913356' '73864847556620' '78812649881612'
 	 '84340272791564' '89163521064972' '93660351823884' '98071283236876'
 	 '102336185761804' '106309030510604' '109762184216588' '117119463194636'
-	 '131563438211084' '147257248710668' '162903814569996' '176901112987660'] in 'voice/BarLine/eid' of
+	 '131563438211084' '147257248710668' '162903814569996' '176901112987660'] in 'voice/BarLine/eid' of 
 	 'staff' [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 149, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 149, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 149: The values ['10690173599756' '17553531338764' '25125558681612' '32474247725068'
-	 '39840116637708' '45917495361548'] in 'voice/BarLine/eid' of
+	 '39840116637708' '45917495361548'] in 'voice/BarLine/eid' of 
 	 'staff' [2, 3, 4, 5, 6, 7] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 149, 'voice/BarLine/spanFromOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 149, 'voice/BarLine/spanFromOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 149: The missing value in 'voice/BarLine/spanFromOffset' was filled with '-4', present in 'staff' [2, 3, 4, 5, 6, 7]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 191, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 191, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 191: The values ['119099443118092' '133298604998668' '149009595367436' '164050570838028'
-	 '177914725269516'] in 'voice/BarLine/eid' of
+	 '177914725269516'] in 'voice/BarLine/eid' of 
 	 'staff' [21, 22, 23, 24, 25] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 191, 'voice/BarLine/spanFromOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 191, 'voice/BarLine/spanFromOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 191: The missing value in 'voice/BarLine/spanFromOffset' was filled with '-4', present in 'staff' [22, 24, 25]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 191, 'voice/BarLine/spanToOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 191, 'voice/BarLine/spanToOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 191: The missing value in 'voice/BarLine/spanToOffset' was filled with '4', present in 'staff' [21, 23, 24]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 207, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
-	mc 207: The values ['119593364357132' '133874130616332'] in 'voice/BarLine/eid' of
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 207, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
+	mc 207: The values ['119593364357132' '133874130616332'] in 'voice/BarLine/eid' of 
 	 'staff' [21, 22] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 207, 'voice/BarLine/spanFromOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 207, 'voice/BarLine/spanFromOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 207: The missing value in 'voice/BarLine/spanFromOffset' was filled with '-4', present in 'staff' [22]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 207, 'voice/BarLine/spanToOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 207, 'voice/BarLine/spanToOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 207: The missing value in 'voice/BarLine/spanToOffset' was filled with '6', present in 'staff' [21]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 221, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 221, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 221: The values ['120246199386124' '134591390154764' '150302380523532' '164810780049420'
-	 '178619099906060'] in 'voice/BarLine/eid' of
+	 '178619099906060'] in 'voice/BarLine/eid' of 
 	 'staff' [21, 22, 23, 24, 25] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 221, 'voice/BarLine/spanFromOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 221, 'voice/BarLine/spanFromOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 221: The missing value in 'voice/BarLine/spanFromOffset' was filled with '-4', present in 'staff' [22, 23, 24, 25]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 221, 'voice/BarLine/spanToOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
-	mc 221: The values ['7' '5'] in 'voice/BarLine/spanToOffset' of
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 221, 'voice/BarLine/spanToOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
+	mc 221: The values ['7' '5'] in 'voice/BarLine/spanToOffset' of 
 	 'staff' [21, 22, 23, 24] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 225, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
-	mc 225: The values ['120456652783628' '134801843552268' '150555783593996' '165025528414220'] in 'voice/BarLine/eid' of
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 225, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
+	mc 225: The values ['120456652783628' '134801843552268' '150555783593996' '165025528414220'] in 'voice/BarLine/eid' of 
 	 'staff' [21, 22, 23, 24] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 226, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
-	mc 226: The values ['19237158518796' '26255135080460'] in 'voice/BarLine/eid' of
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 226, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
+	mc 226: The values ['19237158518796' '26255135080460'] in 'voice/BarLine/eid' of 
 	 'staff' [3, 4] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 226, 'voice/BarLine/spanFromOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 226, 'voice/BarLine/spanFromOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 226: The missing value in 'voice/BarLine/spanFromOffset' was filled with '-4', present in 'staff' [4]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 226, 'voice/BarLine/spanToOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 226, 'voice/BarLine/spanToOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 226: The missing value in 'voice/BarLine/spanToOffset' was filled with '3', present in 'staff' [3]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 291, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 291, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 291: The values ['12910671691788' '20783346745356' '27809913241612' '35300336205836'
 	 '42309722832908' '48533130444812' '122904784142348' '137589277327372'
-	 '153742649327628' '167860206829580' '180895432572940'] in 'voice/BarLine/eid' of
+	 '153742649327628' '167860206829580' '180895432572940'] in 'voice/BarLine/eid' of 
 	 'staff' [2, 3, 4, 5, 6, 7, 21, 22, 23, 24, 25] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 291, 'voice/BarLine/spanFromOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 291, 'voice/BarLine/spanFromOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 291: The missing value in 'voice/BarLine/spanFromOffset' was filled with '-4', present in 'staff' [2, 3, 4, 5, 6, 7, 22, 23, 24, 25]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 291, 'voice/BarLine/spanToOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
-	mc 291: The values ['3' '4' '5'] in 'voice/BarLine/spanToOffset' of
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 291, 'voice/BarLine/spanToOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
+	mc 291: The values ['3' '4' '5'] in 'voice/BarLine/spanToOffset' of 
 	 'staff' [2, 3, 4, 5, 6, 21, 22, 23, 24] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 323, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 323, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 323: The values ['13499082211340' '21380347199500' '28406913695756' '35966056136716'
-	 '42975442763788' '49022756716556'] in 'voice/BarLine/eid' of
+	 '42975442763788' '49022756716556'] in 'voice/BarLine/eid' of 
 	 'staff' [2, 3, 4, 5, 6, 7] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 323, 'voice/BarLine/spanFromOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 323, 'voice/BarLine/spanFromOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 323: The missing value in 'voice/BarLine/spanFromOffset' was filled with '-4', present in 'staff' [2, 3, 4, 5, 6, 7]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 324, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
-	mc 324: The values ['60425894887436' '66000762437644' '71446780968972'] in 'voice/BarLine/eid' of
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 324, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
+	mc 324: The values ['60425894887436' '66000762437644' '71446780968972'] in 'voice/BarLine/eid' of 
 	 'staff' [9, 10, 11] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 324, 'voice/BarLine/spanFromOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 324, 'voice/BarLine/spanFromOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 324: The missing value in 'voice/BarLine/spanFromOffset' was filled with '-4', present in 'staff' [10, 11]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 324, 'voice/BarLine/spanToOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 324, 'voice/BarLine/spanToOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 324: The missing value in 'voice/BarLine/spanToOffset' was filled with '3', present in 'staff' [9, 10]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 328, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 328, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 328: The values ['60554743906316' '66129611456524' '71468255805452' '76304388980748'
-	 '81617263525900' '86552180949004' '91263760072716'] in 'voice/BarLine/eid' of
+	 '81617263525900' '86552180949004' '91263760072716'] in 'voice/BarLine/eid' of 
 	 'staff' [9, 10, 11, 12, 13, 14, 15] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 328, 'voice/BarLine/spanFromOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
-	mc 328: The values ['-4' '-3' '-2'] in 'voice/BarLine/spanFromOffset' of
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 328, 'voice/BarLine/spanFromOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
+	mc 328: The values ['-4' '-3' '-2'] in 'voice/BarLine/spanFromOffset' of 
 	 'staff' [10, 11, 12, 13, 14, 15] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 328, 'voice/BarLine/spanToOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
-	mc 328: The values ['3' '4' '7'] in 'voice/BarLine/spanToOffset' of
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 328, 'voice/BarLine/spanToOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
+	mc 328: The values ['3' '4' '7'] in 'voice/BarLine/spanToOffset' of 
 	 'staff' [9, 10, 11, 12, 13, 14] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 341, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
-	mc 341: The values ['139887084830732' '156057636700172'] in 'voice/BarLine/eid' of
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 341, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
+	mc 341: The values ['139887084830732' '156057636700172'] in 'voice/BarLine/eid' of 
 	 'staff' [22, 23] are lost.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 341, 'voice/BarLine/spanFromOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 341, 'voice/BarLine/spanFromOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 341: The missing value in 'voice/BarLine/spanFromOffset' was filled with '-4', present in 'staff' [23]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 341, 'voice/BarLine/spanToOffset') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 341, 'voice/BarLine/spanToOffset') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 341: The missing value in 'voice/BarLine/spanToOffset' was filled with '4', present in 'staff' [22]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
-COMPETING_MEASURE_INFO_WARNING (9, 'mc', 382, 'voice/BarLine/eid') ms3.Parse.hauptstimme.Bruckner_WAB105_3a_Scherzo
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 382, 'voice/BarLine/eid') ms3.Parse.bruckner5_scherzo.Bruckner_WAB105_3a_Scherzo
 	mc 382: The values ['14718852923404' '22539988369420' '29566554865676' '37181531881484'
 	 '44190918508556' '49606872268812' '54872502173708' '61332132986892'
 	 '66902705569804' '72224170049548' '77060303224844' '82669530513420'
 	 '87557203296268' '92200062943244' '96615289323532' '100944616357900'
 	 '105119324569612' '108340550041612' '111836653420556' '126830384250892'
-	 '141420388155404' '157569465188364' '171652662951948' '184584809480204'] in 'voice/BarLine/eid' of
+	 '141420388155404' '157569465188364' '171652662951948' '184584809480204'] in 'voice/BarLine/eid' of 
 	 'staff' [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25] are lost.

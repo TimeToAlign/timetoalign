@@ -4,7 +4,7 @@ Warnings encountered during the last execution of ms3 review
 INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 240) ms3.Parse.beethoven_woo71.original_file_before_cleaning
 	None of the MCs following the irregular MC 240 complete it.
 	    nominal_duration actual_duration expected_completion    next
-	mc
+	mc                                                              
 	240              3/4             3/8                 3/8  (241,)
 	241              3/4             3/4                   0  (242,)
 FIRST_BAR_MISSING_TEMPO_MARK_WARNING (29,) ms3.Parse.beethoven_woo71.original_file_before_cleaning

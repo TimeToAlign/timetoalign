@@ -166,18 +166,6 @@
         "type": "string"
       },
       {
-        "name": "decrescendo_hairpin",
-        "type": "string"
-      },
-      {
-        "name": "crescendo_hairpin",
-        "type": "string"
-      },
-      {
-        "name": "Ottava:8va",
-        "type": "string"
-      },
-      {
         "name": "Trill:trill",
         "type": "string"
       },
@@ -190,11 +178,23 @@
       {
         "name": "Pedal_<sym>keyboardPedalPed</sym>",
         "type": "string"
+      },
+      {
+        "name": "crescendo_hairpin",
+        "type": "string"
+      },
+      {
+        "name": "decrescendo_hairpin",
+        "type": "string"
+      },
+      {
+        "name": "Ottava:8va",
+        "type": "string"
       }
     ],
     "facet": "chords",
-    "identifier": "SHPMROoDBuJteA",
-    "filepath": "chords/SHPMROoDBuJteA.schema.yaml",
+    "identifier": "Wc_tCrDF1Jf9_w",
+    "filepath": "chords/Wc_tCrDF1Jf9_w.schema.yaml",
     "used_in": "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff"
   },
   "creator": {
@@ -207,8 +207,6 @@
       "name": "Johannes Hentschel",
       "@id": "https://orcid.org/0000-0002-1986-9545"
     },
-    "softwareVersion": "2.6.0.post1.dev1+ga429209ac.d20260201"
-  },
-  "git_revision": "def8236456d53555071962838d228ab28adc5980",
-  "git_tag": "def8236"
+    "softwareVersion": "2.6.0"
+  }
 }

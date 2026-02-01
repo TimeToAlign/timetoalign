@@ -1,23 +1,23 @@
 Warnings encountered during the last execution of ms3 review
 ============================================================
 
-WARNING  ms3.Parse.OpenScoreSQ.sq8913219
+WARNING  ms3.Parse.beethoven_op18-4iv_multimodal.sq8913219
 	The file seems to include separately encoded parts, encoded with their own <Score> tags. Only the first one will be considered.
-ERROR    ms3.Parse.OpenScoreSQ.sq8913219
+ERROR    ms3.Parse.beethoven_op18-4iv_multimodal.sq8913219
 	No starting point for the repeatEnd in MC 303 could be determined. It is being ignored.
-ERROR    ms3.Parse.OpenScoreSQ.sq8913219
+ERROR    ms3.Parse.beethoven_op18-4iv_multimodal.sq8913219
 	No starting point for the repeatEnd in MC 491 could be determined. It is being ignored.
-ERROR    ms3.Parse.OpenScoreSQ.sq8913219
+ERROR    ms3.Parse.beethoven_op18-4iv_multimodal.sq8913219
 	No starting point for the repeatEnd in MC 555 could be determined. It is being ignored.
-ERROR    ms3.Parse.OpenScoreSQ.sq8913219
+ERROR    ms3.Parse.beethoven_op18-4iv_multimodal.sq8913219
 	No starting point for the repeatEnd in MC 592 could be determined. It is being ignored.
-INCORRECT_VOLTA_MN_WARNING (2, 79) ms3.Parse.OpenScoreSQ.sq8913219
+INCORRECT_VOLTA_MN_WARNING (2, 79) ms3.Parse.beethoven_op18-4iv_multimodal.sq8913219
 	MC 79, the 1st measure of a 2nd volta, should have MN 76, not MN 77.
-INCORRECT_VOLTA_MN_WARNING (2, 535) ms3.Parse.OpenScoreSQ.sq8913219
+INCORRECT_VOLTA_MN_WARNING (2, 535) ms3.Parse.beethoven_op18-4iv_multimodal.sq8913219
 	MC 535, the 1st measure of a 2nd volta, should have MN 529, not MN 530.
-INCORRECT_VOLTA_MN_WARNING (2, 628) ms3.Parse.OpenScoreSQ.sq8913219
+INCORRECT_VOLTA_MN_WARNING (2, 628) ms3.Parse.beethoven_op18-4iv_multimodal.sq8913219
 	MC 628, the 1st measure of a 2nd volta, should have MN 617, not MN 618.
-INCORRECT_VOLTA_MN_WARNING (2, 677) ms3.Parse.OpenScoreSQ.sq8913219
+INCORRECT_VOLTA_MN_WARNING (2, 677) ms3.Parse.beethoven_op18-4iv_multimodal.sq8913219
 	MC 677, the 1st measure of a 2nd volta, should have MN 663, not MN 664.
-INCORRECT_VOLTA_MN_WARNING (2, 686) ms3.Parse.OpenScoreSQ.sq8913219
+INCORRECT_VOLTA_MN_WARNING (2, 686) ms3.Parse.beethoven_op18-4iv_multimodal.sq8913219
 	MC 686, the 1st measure of a 2nd volta, should have MN 671, not MN 672.

@@ -4,6 +4,6 @@ mc	mn	quarterbeats	quarterbeats_all_endings	duration_qb	volta	mc_onset	mn_onset	
 quasiAllegretto"	92.0	1.0
 483	480	2535/2	2543/2	0.0		0	0	Tempo	3/4	1	1	0				Allegretto	116.0	1.0
 584	578	3125/2	3137/2	0.0		0	0	Tempo	2/2	1	1	0				Allegro	160.0	1.0
-676	663		3825/2	1.0	1	0	0	Chord	2/2	1	1	1/4	1/4	1	0
-677	664	3807/2	1916	1.0	2	0	0	Chord	2/2	1	1	1/4	1/4	1	1
-808	794	4847/2	2440	1.0		0	0	Chord	2/2	1	1	1/4	1/4	1	2
+676	663		3825/2	1.0	1	0	0	Chord	2/2	1	1	1/4	1/4	1	0			
+677	664	3807/2	1916	1.0	2	0	0	Chord	2/2	1	1	1/4	1/4	1	1			
+808	794	4847/2	2440	1.0		0	0	Chord	2/2	1	1	1/4	1/4	1	2			

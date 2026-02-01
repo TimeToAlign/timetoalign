@@ -31,8 +31,8 @@
       {
         "name": "quarterbeats",
         "type": "string",
-        "title": "Offset from Beginning (leaving out alternative endings)",
-        "description": "Distance from the piece's beginning. By default, only second endings are taken into account to reflect the proportions of a simply playthrough without repeats.",
+        "title": "Offset from Beginning",
+        "description": "Distance of an event from the piece's beginning. By default, only second endings are taken into account to reflect the proportions of a simply playthrough without repeats.",
         "constraints": {
           "pattern": "\\d+(?:\\/\\d+)?"
         }
@@ -40,7 +40,7 @@
       {
         "name": "quarterbeats_all_endings",
         "type": "string",
-        "title": "Offset from Beginning (counting through alternative endings as if they were adjacent bars)",
+        "title": "Offset from Beginning (Including Endings)",
         "description": "Distance from the piece's beginning, taking all endings into account for addressability purposes.",
         "constraints": {
           "pattern": "\\d+(?:\\/\\d+)?"
@@ -155,7 +155,7 @@
     "facet": "chords",
     "identifier": "6nXIdvXupDEdwQ",
     "filepath": "chords/6nXIdvXupDEdwQ.schema.yaml",
-    "used_in": "BWV815_05_Air"
+    "used_in": "BWV1002_06_Double"
   },
   "creator": {
     "@context": "https://schema.org/",
@@ -167,8 +167,6 @@
       "name": "Johannes Hentschel",
       "@id": "https://orcid.org/0000-0002-1986-9545"
     },
-    "softwareVersion": "2.6.0.post1.dev1+ga429209ac.d20260201"
-  },
-  "git_revision": "d9ea7adde5f4bab44e7063daafd12df9bf20b0ed",
-  "git_tag": "d9ea7ad"
+    "softwareVersion": "2.6.0"
+  }
 }
