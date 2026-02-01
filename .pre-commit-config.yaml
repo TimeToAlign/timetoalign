@@ -5,6 +5,7 @@ repos:
   rev: v6.0.0
   hooks:
   - id: trailing-whitespace
+    exclude: '\.(tsv|csv)$'
   - id: check-ast
   - id: check-json
   - id: check-merge-conflict
