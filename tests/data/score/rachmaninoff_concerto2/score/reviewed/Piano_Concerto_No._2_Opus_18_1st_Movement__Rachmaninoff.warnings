@@ -1,0 +1,16 @@
+Warnings encountered during the last execution of ms3 review
+============================================================
+
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 1, 'voice/KeySig/accidental') ms3.Parse.score.Piano_Concerto_No_2_Opus_18_1st_Movement__Rachmaninoff
+	mc 1: The values ['-3' '-1'] in 'voice/KeySig/accidental' of
+	 'staff' [2, 3] are lost.
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 26, 'vspacerFixed') ms3.Parse.score.Piano_Concerto_No_2_Opus_18_1st_Movement__Rachmaninoff
+	mc 26: The missing value in 'vspacerFixed' was filled with '12.0786', present in 'staff' [6]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 48, 'vspacerFixed') ms3.Parse.score.Piano_Concerto_No_2_Opus_18_1st_Movement__Rachmaninoff
+	mc 48: The missing value in 'vspacerFixed' was filled with '7.47658', present in 'staff' [13]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 52, 'vspacerFixed') ms3.Parse.score.Piano_Concerto_No_2_Opus_18_1st_Movement__Rachmaninoff
+	mc 52: The missing value in 'vspacerFixed' was filled with '7.60639', present in 'staff' [13]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 121, 'voice/KeySig/accidental') ms3.Parse.score.Piano_Concerto_No_2_Opus_18_1st_Movement__Rachmaninoff
+	mc 121: The missing value in 'voice/KeySig/accidental' was filled with '-1', present in 'staff' [3]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.
+COMPETING_MEASURE_INFO_WARNING (9, 'mc', 144, 'voice/KeySig/accidental') ms3.Parse.score.Piano_Concerto_No_2_Opus_18_1st_Movement__Rachmaninoff
+	mc 144: The missing value in 'voice/KeySig/accidental' was filled with '-1', present in 'staff' [3]. In rare cases, this may lead to incorrect values in the measures table because it ambiguous which staff contains the relevant information.

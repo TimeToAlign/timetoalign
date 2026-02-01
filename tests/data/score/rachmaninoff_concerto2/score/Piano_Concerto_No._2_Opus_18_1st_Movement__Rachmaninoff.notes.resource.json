@@ -1,0 +1,29 @@
+{
+  "name": "piano_concerto_no._2_opus_18_1st_movement__rachmaninoff.notes",
+  "type": "table",
+  "path": "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.notes.tsv",
+  "scheme": "file",
+  "format": "tsv",
+  "mediatype": "text/tsv",
+  "encoding": "utf-8",
+  "dialect": {
+    "csv": {
+      "delimiter": "\t"
+    }
+  },
+  "schema": "https://raw.githubusercontent.com/DCMLab/frictionless_schemas/main/notes/OBTh-WN_llExNw.schema.yaml",
+  "creator": {
+    "@context": "https://schema.org/",
+    "@type": "SoftwareApplication",
+    "@id": "https://pypi.org/project/ms3/",
+    "name": "ms3",
+    "description": "A parser for MuseScore 3 files and data factory for annotated music corpora.",
+    "author": {
+      "name": "Johannes Hentschel",
+      "@id": "https://orcid.org/0000-0002-1986-9545"
+    },
+    "softwareVersion": "2.6.0.post1.dev1+ga429209ac.d20260201"
+  },
+  "git_revision": "def8236456d53555071962838d228ab28adc5980",
+  "git_tag": "def8236"
+}
