@@ -6,9 +6,9 @@ other timelines via TimelineGroups to provide metrical information.
 
 **Note**: BeatGrid is retained for backward compatibility and simple use cases.
 For more complex meter structures (anacrusis, varying time signatures, repeat
-endings), use the MeterMap-based approach via:
+endings), use the MetricMap-based approach via:
 - `ContinuousPhysicalTimeline.create_metrical_grid()` - convenience method
-- `MeterMap.from_boundaries()` - explicit measure boundaries
+- `MetricMap.from_boundaries()` - explicit measure boundaries
 
 Per TTA specification (Section 3.4), children must share the parent's unit.
 Cross-domain relationships (physical-logical) are established via TimelineGroups,
@@ -29,7 +29,7 @@ from typing import Any, ClassVar
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.maps import LinearMap
-from timetoalign.maps.meter import BeatInMeasureMap, MeterMap, MetricalPositionMap
+from timetoalign.maps.meter import BeatInMeasureMap, MetricalPositionMap, MetricMap
 
 from .types import ContinuousLogicalTimeline
 
@@ -45,12 +45,12 @@ class BeatGrid(ContinuousLogicalTimeline):
     representation. Built-in C-Maps automatically convert quarters to
     measure numbers and beat positions.
 
-    **Architecture**: BeatGrid now uses the generalized MeterMap internally,
+    **Architecture**: BeatGrid now uses the generalized MetricMap internally,
     which correctly handles:
     - Proper integer types for measure counts (MC)
     - Proper Fraction types for beat positions
     - Anacrusis (pickup measures)
-    - Varying time signatures (via MeterMap.from_boundaries)
+    - Varying time signatures (via MetricMap.from_boundaries)
 
     Attributes:
         beats_per_measure: Number of beats per measure.
@@ -59,7 +59,7 @@ class BeatGrid(ContinuousLogicalTimeline):
         quarters_per_measure: Derived: quarters per measure.
 
     C-Maps (automatically created):
-        - quarters -> mc (MeterMap): Integer measure count
+        - quarters -> mc (MetricMap): Integer measure count
         - quarters -> beat (BeatInMeasureMap): Beat position as Fraction (1-indexed)
         - quarters -> {mc, beat} (MetricalPositionMap): Combined output
 
@@ -163,7 +163,7 @@ class BeatGrid(ContinuousLogicalTimeline):
             if self._n_measures == 0:
                 self._n_measures = 1
 
-        # Create and attach metrical C-Maps using the new MeterMap infrastructure
+        # Create and attach metrical C-Maps using the new MetricMap infrastructure
         self._setup_metrical_cmaps()
 
     @property
@@ -202,9 +202,9 @@ class BeatGrid(ContinuousLogicalTimeline):
         return self._n_measures
 
     def _setup_metrical_cmaps(self) -> None:
-        """Create and attach the metrical conversion maps using MeterMap."""
-        # Create the MeterMap with uniform measure lengths
-        self._meter_map = MeterMap.from_uniform(
+        """Create and attach the metrical conversion maps using MetricMap."""
+        # Create the MetricMap with uniform measure lengths
+        self._meter_map = MetricMap.from_uniform(
             n_measures=self._n_measures,
             quarters_per_measure=self._quarters_per_measure,
             start_mc=self._start_measure,
@@ -477,8 +477,8 @@ class BeatGrid(ContinuousLogicalTimeline):
         return getattr(self, "_tempo_bpm", None)
 
     @property
-    def meter_map(self) -> MeterMap:
-        """The underlying MeterMap (for advanced access)."""
+    def meter_map(self) -> MetricMap:
+        """The underlying MetricMap (for advanced access)."""
         return self._meter_map
 
     def __repr__(self) -> str:

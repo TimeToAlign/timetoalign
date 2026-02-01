@@ -27,7 +27,7 @@ from .mixins import ContinuousMixin, DiscreteMixin
 
 if TYPE_CHECKING:
     from timetoalign.alignment.groups import TimelineGroup
-    from timetoalign.maps.meter import MeterMap, MetricalPositionMap
+    from timetoalign.maps.meter import MetricalPositionMap, MetricMap
 
 
 # region MetricalResult
@@ -45,14 +45,14 @@ class MetricalResult:
         grid: The created ContinuousLogicalTimeline (in quarters).
         group: TimelineGroup connecting the physical and logical timelines.
         physical_timeline: The original physical timeline.
-        meter_map: The MeterMap providing measure boundaries.
+        meter_map: The MetricMap providing measure boundaries.
         metrical_map: The MetricalPositionMap for {mc, beat} lookups.
     """
 
     grid: ContinuousLogicalTimeline
     group: TimelineGroup
     physical_timeline: ContinuousPhysicalTimeline
-    meter_map: MeterMap
+    meter_map: MetricMap
     metrical_map: MetricalPositionMap
 
     def timestamp_at_seconds(self, seconds: float) -> dict[str, Any]:
@@ -354,7 +354,7 @@ class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
         """
         from timetoalign.alignment.groups import TimelineGroup
         from timetoalign.maps import LinearMap
-        from timetoalign.maps.meter import MeterMap, MetricalPositionMap
+        from timetoalign.maps.meter import MetricalPositionMap, MetricMap
 
         # Validate inputs
         if first_beat_at < 0:
@@ -396,8 +396,8 @@ class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
             if n_measures == 0:
                 n_measures = 1  # At least one measure
 
-        # Create the MeterMap
-        meter_map = MeterMap.from_uniform(
+        # Create the MetricMap
+        meter_map = MetricMap.from_uniform(
             n_measures=n_measures,
             quarters_per_measure=quarters_per_measure,
             start_mc=start_mc,
@@ -475,7 +475,7 @@ class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
     def _materialize_measures_as_events(
         self,
         grid: ContinuousLogicalTimeline,
-        meter_map: MeterMap,
+        meter_map: MetricMap,
     ) -> int:
         """Create Measure IntervalEvents in the grid timeline."""
         events = []
@@ -504,7 +504,7 @@ class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
     def _materialize_measures_as_children(
         self,
         grid: ContinuousLogicalTimeline,
-        meter_map: MeterMap,
+        meter_map: MetricMap,
     ) -> int:
         """Create each measure as a Child timeline of the grid.
 
@@ -532,7 +532,7 @@ class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
     def _materialize_beats_as_instants(
         self,
         grid: ContinuousLogicalTimeline,
-        meter_map: MeterMap,
+        meter_map: MetricMap,
         quarters_per_beat: Fraction,
     ) -> int:
         """Create Beat InstantEvents in the grid timeline."""
@@ -568,7 +568,7 @@ class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
     def _materialize_beats_as_intervals(
         self,
         grid: ContinuousLogicalTimeline,
-        meter_map: MeterMap,
+        meter_map: MetricMap,
         quarters_per_beat: Fraction,
     ) -> int:
         """Create Beat IntervalEvents (with duration) in the grid timeline."""
@@ -610,7 +610,7 @@ class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
     def _materialize_beats_as_segments(
         self,
         grid: ContinuousLogicalTimeline,
-        meter_map: MeterMap,
+        meter_map: MetricMap,
         quarters_per_beat: Fraction,
     ) -> int:
         """Create beats as a SegmentLine (contiguous Child timelines).

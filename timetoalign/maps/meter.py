@@ -1,7 +1,7 @@
 """Meter-aware maps for metrical structure.
 
 This module provides maps for handling real-world musical meter:
-- MeterMap: Table-based measure boundaries with MC (monotonic count) and MN (measure number)
+- MetricMap: Table-based measure boundaries with MC (monotonic count) and MN (measure number)
 - MetricalPositionMap: CombinationMap returning {mc: int, beat: Fraction}
 
 These maps handle idiosyncratic measure structures including:
@@ -33,13 +33,13 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
 
-# region MeterMap
+# region MetricMap
 
 
-class MeterMap(ConversionMap[int]):
+class MetricMap(ConversionMap[int]):
     """Table-based map from quarters to measure count (MC).
 
-    Unlike FloorMap which assumes uniform measure lengths, MeterMap uses
+    Unlike FloorMap which assumes uniform measure lengths, MetricMap uses
     explicit anchor points for each measure boundary. This correctly handles:
 
     - **Anacrusis**: Incomplete first measure (MC=1 but MN=0 or "")
@@ -55,7 +55,7 @@ class MeterMap(ConversionMap[int]):
 
     Examples:
         >>> # Standard 4/4, 10 measures starting at MC=1, MN=1
-        >>> meter = MeterMap.from_uniform(
+        >>> meter = MetricMap.from_uniform(
         ...     n_measures=10,
         ...     quarters_per_measure=Fraction(4, 1),
         ...     start_mc=1,
@@ -67,7 +67,7 @@ class MeterMap(ConversionMap[int]):
         2
 
         >>> # With anacrusis (pickup measure)
-        >>> meter = MeterMap.from_uniform(
+        >>> meter = MetricMap.from_uniform(
         ...     n_measures=10,
         ...     quarters_per_measure=Fraction(4, 1),
         ...     anacrusis_quarters=Fraction(1, 1),  # 1 beat pickup
@@ -80,7 +80,7 @@ class MeterMap(ConversionMap[int]):
         '0'
 
         >>> # From explicit boundaries (loaded from TSV)
-        >>> meter = MeterMap.from_boundaries(
+        >>> meter = MetricMap.from_boundaries(
         ...     boundaries=[
         ...         (Fraction(0, 1), 1, "0", Fraction(1, 1)),    # Anacrusis
         ...         (Fraction(1, 1), 2, "1", Fraction(4, 1)),    # M1
@@ -100,7 +100,7 @@ class MeterMap(ConversionMap[int]):
         target_unit: TimeUnit | str = TimeUnit.measures,
         uid: str | None = None,
     ) -> None:
-        """Initialize a MeterMap from explicit boundary data.
+        """Initialize a MetricMap from explicit boundary data.
 
         Use factory methods `from_uniform()` or `from_boundaries()` for convenience.
 
@@ -126,7 +126,7 @@ class MeterMap(ConversionMap[int]):
         if not (len(starts) == len(mcs) == len(mns) == len(lengths)):
             raise ValueError("All arrays must have the same length")
         if len(starts) == 0:
-            raise ValueError("MeterMap requires at least one measure")
+            raise ValueError("MetricMap requires at least one measure")
 
         # Store as numpy arrays for fast lookup
         self._starts = np.array([float(s) for s in starts], dtype=np.float64)
@@ -162,7 +162,7 @@ class MeterMap(ConversionMap[int]):
 
     @property
     def is_invertible(self) -> bool:
-        """MeterMap is NOT invertible (many quarters map to same MC)."""
+        """MetricMap is NOT invertible (many quarters map to same MC)."""
         return False
 
     def get_mn(self, mc: int) -> str | None:
@@ -231,13 +231,13 @@ class MeterMap(ConversionMap[int]):
         return self._mcs[indices]
 
     def inverse(self) -> Self:
-        """MeterMap is not invertible.
+        """MetricMap is not invertible.
 
         Raises:
             NotImplementedError: Always.
         """
         raise NotImplementedError(
-            "MeterMap is not invertible: multiple quarters map to the same MC"
+            "MetricMap is not invertible: multiple quarters map to the same MC"
         )
 
     def beat_in_measure(self, quarters: float | Fraction) -> Fraction:
@@ -280,7 +280,7 @@ class MeterMap(ConversionMap[int]):
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> MeterMap:
+    def from_dict(cls, data: dict[str, Any]) -> MetricMap:
         """Deserialize from dictionary."""
         starts = [Fraction(s) for s in data["starts"]]
         lengths = [Fraction(ln) for ln in data["lengths"]]
@@ -304,8 +304,8 @@ class MeterMap(ConversionMap[int]):
         start_mn: str = "1",
         anacrusis_quarters: Fraction | int | None = None,
         uid: str | None = None,
-    ) -> MeterMap:
-        """Create a MeterMap with uniform measure lengths.
+    ) -> MetricMap:
+        """Create a MetricMap with uniform measure lengths.
 
         This is the simple case equivalent to the old FloorMap approach,
         but with proper support for anacrusis.
@@ -320,14 +320,14 @@ class MeterMap(ConversionMap[int]):
             uid: Optional explicit ID.
 
         Returns:
-            A new MeterMap instance.
+            A new MetricMap instance.
 
         Examples:
             >>> # 10 measures of 4/4
-            >>> meter = MeterMap.from_uniform(10, Fraction(4, 1))
+            >>> meter = MetricMap.from_uniform(10, Fraction(4, 1))
 
             >>> # With 1-beat anacrusis
-            >>> meter = MeterMap.from_uniform(
+            >>> meter = MetricMap.from_uniform(
             ...     n_measures=10,
             ...     quarters_per_measure=Fraction(4, 1),
             ...     anacrusis_quarters=Fraction(1, 1),
@@ -387,15 +387,15 @@ class MeterMap(ConversionMap[int]):
         cls,
         boundaries: Sequence[tuple[Fraction, int, str, Fraction]],
         uid: str | None = None,
-    ) -> MeterMap:
-        """Create a MeterMap from explicit boundary tuples.
+    ) -> MetricMap:
+        """Create a MetricMap from explicit boundary tuples.
 
         Args:
             boundaries: List of (start_quarters, mc, mn, length_quarters) tuples.
             uid: Optional explicit ID.
 
         Returns:
-            A new MeterMap instance.
+            A new MetricMap instance.
         """
         if not boundaries:
             raise ValueError("At least one boundary is required")
@@ -415,7 +415,7 @@ class MeterMap(ConversionMap[int]):
 
     def __repr__(self) -> str:
         return (
-            f"MeterMap(n_measures={self.n_measures}, "
+            f"MetricMap(n_measures={self.n_measures}, "
             f"total_length={self.total_length})"
         )
 
@@ -429,13 +429,13 @@ class MeterMap(ConversionMap[int]):
 class BeatInMeasureMap(ConversionMap[Fraction]):
     """Map from quarters to beat-in-measure as Fraction.
 
-    Uses a MeterMap to determine measure boundaries, then computes
+    Uses a MetricMap to determine measure boundaries, then computes
     the beat position within that measure as a proper Fraction.
 
     Beat positions are 1-indexed (beat 1 = downbeat).
 
     Examples:
-        >>> meter = MeterMap.from_uniform(10, Fraction(4, 1))
+        >>> meter = MetricMap.from_uniform(10, Fraction(4, 1))
         >>> beat_map = BeatInMeasureMap(meter)
         >>> beat_map(0)      # Quarter 0 → beat 1
         Fraction(1, 1)
@@ -447,7 +447,7 @@ class BeatInMeasureMap(ConversionMap[Fraction]):
 
     def __init__(
         self,
-        meter_map: MeterMap,
+        meter_map: MetricMap,
         *,
         source_unit: TimeUnit | str = TimeUnit.quarters,
         target_unit: TimeUnit | str = TimeUnit.beats,
@@ -456,7 +456,7 @@ class BeatInMeasureMap(ConversionMap[Fraction]):
         """Initialize a BeatInMeasureMap.
 
         Args:
-            meter_map: The MeterMap providing measure boundaries.
+            meter_map: The MetricMap providing measure boundaries.
             source_unit: Source coordinate unit (default: quarters).
             target_unit: Target unit (default: beats).
             uid: Optional explicit ID.
@@ -512,7 +512,7 @@ class BeatInMeasureMap(ConversionMap[Fraction]):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> BeatInMeasureMap:
         """Deserialize from dictionary."""
-        meter_map = MeterMap.from_dict(data["meter_map"])
+        meter_map = MetricMap.from_dict(data["meter_map"])
         return cls(
             meter_map,
             source_unit=data.get("source_unit", TimeUnit.quarters),
@@ -533,14 +533,14 @@ class BeatInMeasureMap(ConversionMap[Fraction]):
 class MetricalPositionMap(CombinationMap):
     """CombinationMap that returns metrical position as {mc: int, beat: Fraction}.
 
-    This is a convenience wrapper combining MeterMap and BeatInMeasureMap.
+    This is a convenience wrapper combining MetricMap and BeatInMeasureMap.
 
     Unlike the generic CombinationMap, this class:
     1. Returns proper types: int for MC, Fraction for beat
     2. Provides convenience method for reverse lookup (mc, beat) → quarters
 
     Examples:
-        >>> meter = MeterMap.from_uniform(10, Fraction(4, 1))
+        >>> meter = MetricMap.from_uniform(10, Fraction(4, 1))
         >>> pos_map = MetricalPositionMap(meter)
         >>> pos_map(7.5)
         {'mc': 2, 'beat': Fraction(9, 2)}  # M2, beat 4.5
@@ -552,14 +552,14 @@ class MetricalPositionMap(CombinationMap):
 
     def __init__(
         self,
-        meter_map: MeterMap,
+        meter_map: MetricMap,
         *,
         uid: str | None = None,
     ) -> None:
         """Initialize a MetricalPositionMap.
 
         Args:
-            meter_map: The MeterMap providing measure structure.
+            meter_map: The MetricMap providing measure structure.
             uid: Optional explicit ID.
         """
         self._meter_map = meter_map
@@ -572,8 +572,8 @@ class MetricalPositionMap(CombinationMap):
         )
 
     @property
-    def meter_map(self) -> MeterMap:
-        """The underlying MeterMap."""
+    def meter_map(self) -> MetricMap:
+        """The underlying MetricMap."""
         return self._meter_map
 
     def quarters_at(self, mc: int, beat: Fraction | float = Fraction(1, 1)) -> Fraction:
@@ -622,7 +622,7 @@ class MetricalPositionMap(CombinationMap):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> MetricalPositionMap:
         """Deserialize from dictionary."""
-        meter_map = MeterMap.from_dict(data["meter_map"])
+        meter_map = MetricMap.from_dict(data["meter_map"])
         return cls(meter_map, uid=data.get("id"))
 
     def __repr__(self) -> str:

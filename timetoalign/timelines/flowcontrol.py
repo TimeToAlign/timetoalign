@@ -18,13 +18,13 @@ at JumpTo contiguous with any event ending at JumpFrom."
 Common music notation mappings:
 | Notation        | Break?  | Jump?  | Notes                           |
 |-----------------|---------|--------|----------------------------------|
-| Repeat End (:∥) | No      | Yes    | Jump back to repeat start       |
-| Repeat Start    | Marker  | -      | Target for repeat end           |
-| First Ending    | Yes     | Yes    | Break after; Jump at end        |
+| Repeat End (:∥) | Maybe   | Yes    | Jump back; may be break if at section end |
+| Repeat Start    | No      | -      | Structural marker, target for repeat_end |
+| First Ending    | -       | -      | Volta info is measure attribute, not break |
 | Fine            | Yes     | No     | End of piece (conditional)      |
 | Da Capo         | No      | Yes    | Jump to coordinate 0            |
-| Dal Segno       | No      | Yes    | Jump to Segno coordinate        |
-| Section End     | Yes     | No     | Always voids contiguity         |
+| Dal Segno       | No      | Yes    | Jump to Segno marker by name    |
+| Section Break   | Yes     | No     | Single instant voiding contiguity |
 """
 
 from __future__ import annotations
@@ -36,33 +36,11 @@ from fractions import Fraction
 from typing import Any
 
 from timetoalign.core import Coordinate, TimeUnit
+from timetoalign.core.enums import FlowControlType
 
 module_logger = logging.getLogger(__name__)
 
 # region Enums
-
-
-class FlowControlType(Enum):
-    """Types of flow control events.
-
-    These map to common musical notation symbols and structures.
-    """
-
-    # Break types
-    SECTION_END = auto()  # End of a section (always active)
-    FINE = auto()  # End of piece (conditional, after DC/DS)
-    VOLTA_START = auto()  # Start of an alternative ending bracket
-
-    # Jump types
-    REPEAT = auto()  # Simple repeat (end → start)
-    DA_CAPO = auto()  # Jump to beginning
-    DAL_SEGNO = auto()  # Jump to Segno marker
-    TO_CODA = auto()  # Jump to Coda marker
-
-    # Marker types (targets, not control events themselves)
-    REPEAT_START = auto()  # ∥: Start repeat marker
-    SEGNO = auto()  # 𝄋 Segno marker
-    CODA = auto()  # 𝄌 Coda marker
 
 
 class ActivationCondition(Enum):
@@ -95,47 +73,53 @@ class Break:
       TimeInterval (unless the spanning element "adopts" the break)
     - TimeIntervals cannot span a coordinate containing a Break
 
+    Note on Voltas (Alternative Endings):
+        Volta information is a MEASURE ATTRIBUTE, not a Break type.
+        Each measure has a `volta` field (1, 2, None) indicating which
+        alternative ending it belongs to. The traversal logic evaluates
+        the volta attribute when processing repeat_end jumps.
+
     Attributes:
         coordinate: The coordinate where contiguity is voided.
-        control_type: The type of break (SECTION_END, FINE, VOLTA_START).
+        control_type: The type of break (section_break, fine).
         condition: When the break becomes active.
-        volta_number: For VOLTA_START, which ending number (1, 2, ...).
         repeat_count: For FINE, how many DC/DS must occur before active.
         label: Optional human-readable label (e.g., "End of Var. XI").
+        name: For target markers, the instance name (e.g., "fine", "fine2").
         meta: Additional metadata.
 
     Examples:
         >>> from timetoalign.core import Coordinate, TimeUnit
-        >>> # Section end break
-        >>> section_break = Break(
+        >>> # Section break
+        >>> brk = Break(
         ...     coordinate=Coordinate(100.0, TimeUnit.quarters),
-        ...     control_type=FlowControlType.SECTION_END,
+        ...     control_type=FlowControlType.section_break,
         ... )
 
-        >>> # First ending bracket start
-        >>> volta1 = Break(
-        ...     coordinate=Coordinate(64.0, TimeUnit.quarters),
-        ...     control_type=FlowControlType.VOLTA_START,
-        ...     condition=ActivationCondition.FIRST_N,
-        ...     volta_number=1,
+        >>> # Fine marker (conditional break after DC/DS)
+        >>> fine = Break(
+        ...     coordinate=Coordinate(200.0, TimeUnit.quarters),
+        ...     control_type=FlowControlType.fine,
+        ...     condition=ActivationCondition.AFTER_DC_DS,
+        ...     name="fine",  # Default name, can be customized
         ... )
     """
 
     coordinate: Coordinate
-    control_type: FlowControlType = FlowControlType.SECTION_END
+    control_type: FlowControlType = FlowControlType.section_break
     condition: ActivationCondition = ActivationCondition.ALWAYS
-    volta_number: int | None = None
     repeat_count: int = 1
     label: str | None = None
+    name: str | None = None  # Instance name for target markers
     meta: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate break configuration."""
-        if self.control_type == FlowControlType.VOLTA_START:
-            if self.volta_number is None or self.volta_number < 1:
-                raise ValueError(
-                    f"VOLTA_START requires volta_number >= 1, got {self.volta_number}"
-                )
+        # Validate that control_type is actually a break type
+        if not self.control_type.is_break:
+            module_logger.warning(
+                f"Break created with non-break type: {self.control_type}"
+            )
 
     @property
     def position(self) -> float | Fraction:
@@ -170,8 +154,8 @@ class Break:
     def __repr__(self) -> str:
         type_str = self.control_type.name
         pos = self.position
-        if self.volta_number:
-            return f"Break({type_str} #{self.volta_number} @ {pos})"
+        if self.name:
+            return f"Break({type_str} '{self.name}' @ {pos})"
         return f"Break({type_str} @ {pos})"
 
 
@@ -189,13 +173,19 @@ class Jump:
     JumpTo Instant. When active, it makes any event located or starting
     at JumpTo contiguous with any event ending at JumpFrom."
 
+    Target Resolution:
+        Jump instructions reference target markers by NAME, not just type.
+        For example, dal_segno jumps to a marker named "segno" by default,
+        but the target_name can be customized to "segno2" etc. This allows
+        multiple markers of the same type to coexist in a score.
+
     Attributes:
         from_coordinate: The coordinate where the jump originates.
         to_coordinate: The coordinate where the jump lands.
-        control_type: The type of jump (REPEAT, DA_CAPO, DAL_SEGNO, TO_CODA).
+        control_type: The type of jump (repeat_end, da_capo, dal_segno, to_coda).
         condition: When the jump becomes active.
-        repeat_count: For REPEAT, how many times to take the jump.
-        volta_number: For volta-associated jumps, which ending.
+        repeat_count: For repeat_end, how many times to take the jump.
+        target_name: For target-based jumps, the marker name to resolve.
         label: Optional human-readable label.
         meta: Additional metadata.
 
@@ -205,7 +195,7 @@ class Jump:
         >>> repeat_jump = Jump(
         ...     from_coordinate=Coordinate(64.0, TimeUnit.quarters),
         ...     to_coordinate=Coordinate(16.0, TimeUnit.quarters),
-        ...     control_type=FlowControlType.REPEAT,
+        ...     control_type=FlowControlType.repeat_end,
         ...     repeat_count=1,  # Take jump once (play section twice)
         ... )
 
@@ -213,16 +203,24 @@ class Jump:
         >>> dc_jump = Jump(
         ...     from_coordinate=Coordinate(200.0, TimeUnit.quarters),
         ...     to_coordinate=Coordinate(0.0, TimeUnit.quarters),
-        ...     control_type=FlowControlType.DA_CAPO,
+        ...     control_type=FlowControlType.da_capo,
+        ... )
+
+        >>> # Dal Segno to custom-named marker
+        >>> ds_jump = Jump(
+        ...     from_coordinate=Coordinate(300.0, TimeUnit.quarters),
+        ...     to_coordinate=Coordinate(50.0, TimeUnit.quarters),
+        ...     control_type=FlowControlType.dal_segno,
+        ...     target_name="segno2",  # Resolve to marker named "segno2"
         ... )
     """
 
     from_coordinate: Coordinate
     to_coordinate: Coordinate
-    control_type: FlowControlType = FlowControlType.REPEAT
+    control_type: FlowControlType = FlowControlType.repeat_end
     condition: ActivationCondition = ActivationCondition.FIRST_N
     repeat_count: int = 1
-    volta_number: int | None = None
+    target_name: str | None = None  # Name of target marker to resolve
     label: str | None = None
     meta: dict[str, Any] = field(default_factory=dict)
 
@@ -421,22 +419,17 @@ class FlowControlRegistry:
     @property
     def has_repeats(self) -> bool:
         """Check if there are any repeat jumps."""
-        return any(j.control_type == FlowControlType.REPEAT for j in self.jumps)
-
-    @property
-    def has_voltas(self) -> bool:
-        """Check if there are any volta brackets."""
-        return any(b.control_type == FlowControlType.VOLTA_START for b in self.breaks)
+        return any(j.control_type == FlowControlType.repeat_end for j in self.jumps)
 
     @property
     def has_da_capo(self) -> bool:
         """Check if there's a Da Capo jump."""
-        return any(j.control_type == FlowControlType.DA_CAPO for j in self.jumps)
+        return any(j.control_type == FlowControlType.da_capo for j in self.jumps)
 
     @property
     def has_dal_segno(self) -> bool:
         """Check if there's a Dal Segno jump."""
-        return any(j.control_type == FlowControlType.DAL_SEGNO for j in self.jumps)
+        return any(j.control_type == FlowControlType.dal_segno for j in self.jumps)
 
     def clear(self) -> None:
         """Clear all flow control events."""
