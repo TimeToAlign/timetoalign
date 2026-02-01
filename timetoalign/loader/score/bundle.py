@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from timetoalign.loader.bundle import EventStore
 from timetoalign.loader.score.stores.annotations import AnnotationEventData
 from timetoalign.loader.score.stores.controls import ControlEventData
-from timetoalign.loader.score.stores.measures import MeasureEventData
+from timetoalign.loader.score.stores.measures import MeasureData
 from timetoalign.loader.score.stores.notes import NoteEventData
 from timetoalign.loader.store import EventData
 
@@ -29,14 +29,14 @@ class ScoreStore(EventStore):
 
     Attributes:
         notes: NoteEventData with note/rest/chord events.
-        measures: MeasureEventData with measure boundaries.
+        measures: MeasureData with measure boundaries.
         controls: ControlEventData with dynamics, tempo, etc.
         annotations: AnnotationEventData with text annotations.
         metadata: Source metadata (format, parser, has_rests, divs_per_quarter).
     """
 
     notes: NoteEventData
-    measures: MeasureEventData
+    measures: MeasureData
     controls: ControlEventData
     annotations: AnnotationEventData
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -47,7 +47,7 @@ class ScoreStore(EventStore):
 
         return cls(
             notes=NoteEventData.empty(),
-            measures=MeasureEventData.empty(),
+            measures=MeasureData.empty(),
             controls=ControlEventData.empty(),
             annotations=AnnotationEventData.empty(),
             metadata={},

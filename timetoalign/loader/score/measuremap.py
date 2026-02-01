@@ -2,7 +2,7 @@
 
 MeasureMap is a platform-neutral format for capturing measure structure and
 flow control information. This loader parses the JSON format (both compressed
-and expanded forms) and returns a ScoreStore with MeasureEventData.
+and expanded forms) and returns a ScoreStore with MeasureData.
 
 From the MeasureMap paper:
 > "We propose the 'Measure Map' for capturing the information about each
@@ -47,7 +47,7 @@ from .bundle import ScoreStore
 from .stores import (
     AnnotationEventData,
     ControlEventData,
-    MeasureEventData,
+    MeasureData,
     NoteEventData,
 )
 
@@ -58,7 +58,7 @@ class MeasureMapLoader(ScoreLoader):
     """Load MeasureMap JSON files into ScoreStore.
 
     MeasureMapLoader parses the MeasureMap JSON format (as specified in the
-    MeasureMap paper) and returns a ScoreStore with populated MeasureEventData.
+    MeasureMap paper) and returns a ScoreStore with populated MeasureData.
 
     The loader handles:
     - Compressed MeasureMap (minimal entries, defaults inferred)
@@ -99,7 +99,7 @@ class MeasureMapLoader(ScoreLoader):
             source: Path to the .mm.json file.
 
         Returns:
-            ScoreStore with populated MeasureEventData.
+            ScoreStore with populated MeasureData.
 
         Raises:
             FileNotFoundError: If source doesn't exist.
@@ -125,10 +125,10 @@ class MeasureMapLoader(ScoreLoader):
         # Validate the expanded data
         self._validate_measuremap(expanded)
 
-        # Convert to MeasureEventData rows
+        # Convert to MeasureData rows
         rows = self._to_event_rows(expanded)
 
-        measures_data = MeasureEventData.from_dicts(
+        measures_data = MeasureData.from_dicts(
             rows,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
@@ -328,13 +328,13 @@ class MeasureMapLoader(ScoreLoader):
                     )
 
     def _to_event_rows(self, expanded: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Convert expanded MeasureMap to MeasureEventData row format.
+        """Convert expanded MeasureMap to MeasureData row format.
 
         Args:
             expanded: The expanded measure list.
 
         Returns:
-            List of row dictionaries for MeasureEventData.from_dicts().
+            List of row dictionaries for MeasureData.from_dicts().
         """
         from timetoalign.loader.schema import coordinate_to_struct
 
@@ -351,7 +351,7 @@ class MeasureMapLoader(ScoreLoader):
                 "name": f"M{bar['name']}",
                 "temporal_type": "interval",
                 "event_type": "Measure",
-                # MeasureMap fields -> MeasureEventData mapping
+                # MeasureMap fields -> MeasureData mapping
                 "mc": bar["count"],
                 "mn": bar["name"],
                 "mn_int": bar["number"],

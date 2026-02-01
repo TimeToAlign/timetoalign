@@ -1,6 +1,6 @@
-"""MeasureEventData: Storage for measure boundary events.
+"""MeasureData: Storage for measure boundary events.
 
-This module provides the MeasureEventData class which stores measure information
+This module provides the MeasureData class which stores measure information
 from both MeasureMap JSON files and measures.tsv files. The schema is designed
 to support:
 
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 module_logger = logging.getLogger(__name__)
 
 
-class MeasureEventData(EventData):
+class MeasureData(EventData):
     """EventData for measure boundary events.
 
     This schema supports both MeasureMap JSON and measures.tsv formats,
@@ -192,7 +192,7 @@ class MeasureEventData(EventData):
         unit: TimeUnit = TimeUnit.quarters,
         number_type: NumberType = NumberType.float,
     ) -> Self:
-        """Create empty MeasureEventData."""
+        """Create empty MeasureData."""
         return super().empty(unit, number_type)
 
     @classmethod
@@ -212,7 +212,7 @@ class MeasureEventData(EventData):
             number_type: Number type for coordinates.
 
         Returns:
-            MeasureEventData instance.
+            MeasureData instance.
         """
         if not rows:
             return cls.empty(unit, number_type)

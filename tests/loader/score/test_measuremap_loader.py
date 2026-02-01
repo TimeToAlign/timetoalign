@@ -299,15 +299,15 @@ class TestMeasureMapCrossValidation:
         )
 
 
-class TestMeasureEventDataSchema:
-    """Tests for the enhanced MeasureEventData schema."""
+class TestMeasureDataSchema:
+    """Tests for the enhanced MeasureData schema."""
 
     def test_schema_has_flow_control_fields(self):
-        """MeasureEventData schema includes flow control fields."""
+        """MeasureData schema includes flow control fields."""
         from timetoalign.core import TimeUnit
-        from timetoalign.loader.score.stores import MeasureEventData
+        from timetoalign.loader.score.stores import MeasureData
 
-        schema = MeasureEventData.schema(TimeUnit.quarters)
+        schema = MeasureData.schema(TimeUnit.quarters)
         field_names = [f.name for f in schema]
 
         assert "start_repeat" in field_names
@@ -317,11 +317,11 @@ class TestMeasureEventDataSchema:
         assert "breaks" in field_names
 
     def test_schema_has_identity_fields(self):
-        """MeasureEventData schema includes identity fields."""
+        """MeasureData schema includes identity fields."""
         from timetoalign.core import TimeUnit
-        from timetoalign.loader.score.stores import MeasureEventData
+        from timetoalign.loader.score.stores import MeasureData
 
-        schema = MeasureEventData.schema(TimeUnit.quarters)
+        schema = MeasureData.schema(TimeUnit.quarters)
         field_names = [f.name for f in schema]
 
         assert "mc" in field_names
@@ -332,7 +332,7 @@ class TestMeasureEventDataSchema:
     def test_flow_control_summary(self):
         """get_flow_control_summary works correctly."""
         from timetoalign.loader.schema import coordinate_to_struct
-        from timetoalign.loader.score.stores import MeasureEventData
+        from timetoalign.loader.score.stores import MeasureData
 
         # Use coordinate_to_struct for temporal fields (schema expects struct type)
         rows = [
@@ -361,7 +361,7 @@ class TestMeasureEventDataSchema:
                 "end_repeat": True,
             },
         ]
-        data = MeasureEventData.from_dicts(rows)
+        data = MeasureData.from_dicts(rows)
         summary = data.get_flow_control_summary()
 
         assert summary["total_measures"] == 3

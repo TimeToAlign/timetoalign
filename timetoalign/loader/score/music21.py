@@ -16,7 +16,7 @@ from .bundle import ScoreStore
 from .stores import (
     AnnotationEventData,
     ControlEventData,
-    MeasureEventData,
+    MeasureData,
     NoteEventData,
 )
 
@@ -220,13 +220,13 @@ class Music21Loader(ScoreLoader):
         )
 
         measures_data = (
-            MeasureEventData.from_dicts(
+            MeasureData.from_dicts(
                 measure_rows,
                 unit=TimeUnit.quarters,
                 number_type=NumberType.fraction,
             )
             if measure_rows
-            else MeasureEventData.empty()
+            else MeasureData.empty()
         )
 
         controls_data = (
