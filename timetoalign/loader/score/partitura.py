@@ -83,15 +83,152 @@ class PartituraLoader(ScoreLoader):
             #     else 480
             # )
 
+            # ===== Extract Flow Control from part.repeats =====
+            # Build sets of MCs that have repeat start/end markers
+            repeat_start_mcs: set[int] = set()
+            repeat_end_mcs: set[int] = set()
+
+            if hasattr(part, "repeats") and part.repeats:
+                for rep in part.repeats:
+                    # Get MC for repeat start
+                    start_mc = get_mc(rep.start.t)
+                    repeat_start_mcs.add(start_mc)
+
+                    # Add RepeatStart control event
+                    qb_start = Fraction(float(beat_map(rep.start.t))).limit_denominator(
+                        10000
+                    )
+                    control_rows.append(
+                        {
+                            "id": f"repeat_start_{start_mc}",
+                            "name": "RepeatStart",
+                            "temporal_type": "instant",
+                            "event_type": "RepeatStart",
+                            "quarterbeats": fraction_to_struct(qb_start),
+                            "quarterbeats_float": float(qb_start),
+                            "duration_qb": None,
+                            "duration_qb_float": 0.0,
+                            "mc": start_mc,
+                            "mn": (
+                                str(part.measure_number_map(rep.start.t))
+                                if hasattr(part, "measure_number_map")
+                                else str(start_mc)
+                            ),
+                            "mc_onset": None,
+                            "mn_onset": None,
+                            "subtype": "RepeatStart",
+                            "value": None,
+                            "text": "||:",
+                            "voice": None,
+                            "staff": None,
+                            "part_id": part_id,
+                        }
+                    )
+
+                    # Get MC for repeat end and add RepeatEnd control event
+                    if rep.end:
+                        end_mc = get_mc(rep.end.t)
+                        repeat_end_mcs.add(end_mc)
+
+                        qb_end = Fraction(float(beat_map(rep.end.t))).limit_denominator(
+                            10000
+                        )
+                        control_rows.append(
+                            {
+                                "id": f"repeat_end_{end_mc}",
+                                "name": "RepeatEnd",
+                                "temporal_type": "instant",
+                                "event_type": "RepeatEnd",
+                                "quarterbeats": fraction_to_struct(qb_end),
+                                "quarterbeats_float": float(qb_end),
+                                "duration_qb": None,
+                                "duration_qb_float": 0.0,
+                                "mc": end_mc,
+                                "mn": (
+                                    str(part.measure_number_map(rep.end.t))
+                                    if hasattr(part, "measure_number_map")
+                                    else str(end_mc)
+                                ),
+                                "mc_onset": None,
+                                "mn_onset": None,
+                                "subtype": "RepeatEnd",
+                                "value": None,
+                                "text": ":||",
+                                "voice": None,
+                                "staff": None,
+                                "part_id": part_id,
+                            }
+                        )
+
+            # ===== Extract Endings (Volta) and other flow control markers =====
+            ending_mcs: dict[int, int] = {}  # MC -> ending number
+
+            # Flow control marker types to extract
+            flow_marker_types = (
+                pts.Ending,
+                pts.DaCapo,
+                pts.DalSegno,
+                pts.Fine,
+                pts.Segno,
+                pts.Coda,
+                pts.ToCoda,
+            )
+
+            for obj in part.iter_all():
+                if isinstance(obj, flow_marker_types):
+                    marker_mc = get_mc(obj.start.t)
+                    qb = Fraction(float(beat_map(obj.start.t))).limit_denominator(10000)
+
+                    if isinstance(obj, pts.Ending):
+                        # Ensure volta number is an int (partitura may return string)
+                        ending_num = getattr(obj, "number", 1)
+                        try:
+                            ending_mcs[marker_mc] = int(ending_num)
+                        except (TypeError, ValueError):
+                            ending_mcs[marker_mc] = 1
+
+                    # Add to control_rows
+                    control_rows.append(
+                        {
+                            "id": f"{type(obj).__name__.lower()}_{marker_mc}",
+                            "name": type(obj).__name__,
+                            "temporal_type": "instant",
+                            "event_type": type(obj).__name__,
+                            "quarterbeats": fraction_to_struct(qb),
+                            "quarterbeats_float": float(qb),
+                            "duration_qb": None,
+                            "duration_qb_float": 0.0,
+                            "mc": marker_mc,
+                            "mn": (
+                                str(part.measure_number_map(obj.start.t))
+                                if hasattr(part, "measure_number_map")
+                                else str(marker_mc)
+                            ),
+                            "mc_onset": None,
+                            "mn_onset": None,
+                            "subtype": type(obj).__name__,
+                            "value": (
+                                float(ending_mcs.get(marker_mc, 1))
+                                if isinstance(obj, pts.Ending)
+                                else None
+                            ),
+                            "text": type(obj).__name__,
+                            "voice": None,
+                            "staff": None,
+                            "part_id": part_id,
+                        }
+                    )
+
             # Process Measures
             for i, m in enumerate(measures):
                 qb_start = Fraction(float(beat_map(m.start.t))).limit_denominator(10000)
                 qb_end = Fraction(float(beat_map(m.end.t))).limit_denominator(10000)
                 dur = qb_end - qb_start
+                mc = i + 1
 
                 measure_rows.append(
                     {
-                        "id": getattr(m, "id", None) or f"measure_{i+1}",
+                        "id": getattr(m, "id", None) or f"measure_{mc}",
                         "name": str(m.number),
                         "temporal_type": "interval",
                         "event_type": "Measure",
@@ -99,9 +236,13 @@ class PartituraLoader(ScoreLoader):
                         "quarterbeats_float": float(qb_start),
                         "duration_qb": fraction_to_struct(dur),
                         "duration_qb_float": float(dur),
-                        "mc": i + 1,
+                        "mc": mc,
                         "mn": str(m.number),
                         "timesig": None,  # Could extract from part
+                        # Flow control fields
+                        "start_repeat": mc in repeat_start_mcs,
+                        "end_repeat": mc in repeat_end_mcs,
+                        "volta": ending_mcs.get(mc),
                         "part_id": part_id,
                     }
                 )
