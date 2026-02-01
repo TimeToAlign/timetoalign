@@ -263,6 +263,207 @@ class TSVLoader(ScoreLoader):
         )
 
     def _load_measures(self, df: pd.DataFrame, source: Path) -> ScoreStore:
-        """Load measures TSV into MeasureEventData."""
-        # Placeholder - can be implemented similarly
-        return ScoreStore.empty()
+        """Load measures TSV into MeasureEventData.
+
+        Parses ms3/DCML measures.tsv format with columns:
+        - mc, mn: Measure count/number
+        - quarterbeats: Start position in quarter notes
+        - quarterbeats_all_endings: Alternative qstamp including all endings
+        - duration_qb: Duration in quarter beats
+        - keysig: Key signature (fifths value or string)
+        - timesig: Time signature string
+        - act_dur: Actual duration as fraction string
+        - mc_offset: Offset for split bars
+        - volta: Ending number (1, 2, ...)
+        - numbering_offset: MN offset
+        - dont_count: Skip in MN counting
+        - barline: Barline type
+        - breaks: Section boundary marker
+        - repeats: "start", "end", "firstMeasure"
+        - next: Comma-separated list of possible next MCs
+
+        Args:
+            df: pandas DataFrame from ms3.load_tsv.
+            source: Path to source file.
+
+        Returns:
+            ScoreStore with populated MeasureEventData.
+        """
+        import pandas as pd
+
+        if df.empty:
+            return ScoreStore.empty()
+
+        measure_rows = []
+
+        for idx, row in df.iterrows():
+            # ===== Core Identity =====
+            mc = int(row["mc"]) if pd.notna(row.get("mc")) else idx + 1
+            mn = str(row.get("mn", mc)) if pd.notna(row.get("mn")) else str(mc)
+
+            # Parse MN as integer (strip suffix if present)
+            try:
+                mn_int = int("".join(c for c in mn if c.isdigit() or c == "-"))
+            except ValueError:
+                mn_int = mc
+
+            # ===== Temporal =====
+            qb = self._parse_fraction(row.get("quarterbeats", 0))
+            qb_float = float(qb) if qb else 0.0
+
+            dur_qb = self._parse_fraction(row.get("duration_qb", 0))
+            dur_qb_float = float(dur_qb) if dur_qb else 0.0
+
+            # act_dur is often a fraction string like "1/2" for half a bar
+            act_dur = row.get("act_dur")
+            if pd.notna(act_dur):
+                act_dur_frac = self._parse_fraction(act_dur)
+                actual_length = float(act_dur_frac * 4) if act_dur_frac else None
+            else:
+                actual_length = dur_qb_float
+
+            # mc_offset for split bars
+            mc_offset = (
+                str(row.get("mc_offset"))
+                if pd.notna(row.get("mc_offset"))
+                and row.get("mc_offset") not in (0, "0")
+                else None
+            )
+
+            # quarterbeats_all_endings
+            qb_all = (
+                str(row.get("quarterbeats_all_endings"))
+                if pd.notna(row.get("quarterbeats_all_endings"))
+                else None
+            )
+
+            # ===== Signatures =====
+            timesig = (
+                str(row.get("timesig", "")) if pd.notna(row.get("timesig")) else None
+            )
+
+            # Parse timesig components
+            timesig_num = None
+            timesig_den = None
+            nominal_length = None
+            if timesig and "/" in timesig:
+                try:
+                    parts = timesig.split("/")
+                    timesig_num = int(parts[0])
+                    timesig_den = int(parts[1])
+                    # nominal_length in quarters = (num / den) * 4
+                    nominal_length = (timesig_num / timesig_den) * 4
+                except (ValueError, IndexError):
+                    pass
+
+            # keysig: can be int (fifths) or string
+            keysig = row.get("keysig")
+            keysig_fifths = None
+            if pd.notna(keysig):
+                try:
+                    keysig_fifths = int(keysig)
+                    keysig = None  # Will use fifths value
+                except (ValueError, TypeError):
+                    keysig = str(keysig)
+
+            # ===== Flow Control =====
+            # repeats column: "start", "end", "firstMeasure"
+            repeats_val = (
+                str(row.get("repeats", "")) if pd.notna(row.get("repeats")) else None
+            )
+
+            start_repeat = repeats_val in ("start",) if repeats_val else False
+            end_repeat = repeats_val in ("end",) if repeats_val else False
+
+            # volta (ending number)
+            volta = int(row["volta"]) if pd.notna(row.get("volta")) else None
+
+            # breaks (section boundary)
+            breaks_val = (
+                str(row.get("breaks", "")) if pd.notna(row.get("breaks")) else None
+            )
+
+            # dont_count
+            dont_count = (
+                bool(row.get("dont_count")) if pd.notna(row.get("dont_count")) else None
+            )
+
+            # numbering_offset
+            numbering_offset = (
+                int(row["numbering_offset"])
+                if pd.notna(row.get("numbering_offset"))
+                else None
+            )
+
+            # barline
+            barline = (
+                str(row.get("barline", "")) if pd.notna(row.get("barline")) else None
+            )
+
+            # next: comma-separated list of possible next MCs
+            next_val = row.get("next")
+            if pd.notna(next_val):
+                next_str = str(next_val).strip()
+            else:
+                next_str = None
+
+            # ===== Build row =====
+            measure_rows.append(
+                {
+                    # Identity
+                    "id": f"measure_{mc}",
+                    "name": f"M{mn}",
+                    "temporal_type": "interval",
+                    "event_type": "Measure",
+                    # Core fields
+                    "mc": mc,
+                    "mn": mn,
+                    "mn_int": mn_int,
+                    # Temporal
+                    "start": qb_float,
+                    "duration": dur_qb_float,
+                    "end": qb_float + dur_qb_float,
+                    "duration_float": dur_qb_float,
+                    "nominal_length": nominal_length,
+                    "actual_length": actual_length,
+                    "mc_offset": mc_offset,
+                    "quarterbeats_all_endings": qb_all,
+                    # Signatures
+                    "timesig": timesig,
+                    "timesig_num": timesig_num,
+                    "timesig_den": timesig_den,
+                    "keysig": keysig,
+                    "keysig_fifths": keysig_fifths,
+                    # Flow control
+                    "start_repeat": start_repeat,
+                    "end_repeat": end_repeat,
+                    "next": next_str,
+                    "volta": volta,
+                    "repeats": repeats_val,
+                    "breaks": breaks_val,
+                    "dont_count": dont_count,
+                    "numbering_offset": numbering_offset,
+                    # Context
+                    "barline": barline,
+                }
+            )
+
+        measures_data = MeasureEventData.from_dicts(
+            measure_rows,
+            unit=TimeUnit.quarters,
+            number_type=NumberType.fraction,
+        )
+
+        return ScoreStore(
+            notes=NoteEventData.empty(),
+            measures=measures_data,
+            controls=ControlEventData.empty(),
+            annotations=AnnotationEventData.empty(),
+            metadata={
+                "format": "tsv",
+                "parser": "ms3",
+                "source": str(source),
+                "n_measures": len(measure_rows),
+                "flow_control": measures_data.get_flow_control_summary(),
+            },
+        )
