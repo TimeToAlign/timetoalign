@@ -11,3 +11,19 @@ partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,6,17,B
 partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,17,32,C
 partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,32,58,D
 partitura_maximal,c05n05_musete.musicxml,partitura v1.7.0,ERROR,RecursionError,cyclic segment graph
+music21_musicxml,c05n05_musete.musicxml,music21 v9.1.0,1,16,
+music21_musicxml,c05n05_musete.musicxml,music21 v9.1.0,1,31,
+music21_musicxml,c05n05_musete.musicxml,music21 v9.1.0,16,58,
+music21_musicxml,c05n05_musete.musicxml,music21 v9.1.0,31,58,
+music21_mei,c05n05_musete.mei,music21 v9.1.0,2,8,
+music21_mei,c05n05_musete.mei,music21 v9.1.0,7,16,
+music21_mei,c05n05_musete.mei,music21 v9.1.0,2,8,
+music21_mei,c05n05_musete.mei,music21 v9.1.0,7,16,
+music21_mei,c05n05_musete.mei,music21 v9.1.0,20,20,
+music21_mei,c05n05_musete.mei,music21 v9.1.0,18,31,
+music21_mei,c05n05_musete.mei,music21 v9.1.0,20,20,
+music21_mei,c05n05_musete.mei,music21 v9.1.0,18,31,
+music21_mei,c05n05_musete.mei,music21 v9.1.0,36,36,
+music21_mei,c05n05_musete.mei,music21 v9.1.0,33,58,
+music21_mei,c05n05_musete.mei,music21 v9.1.0,36,36,
+music21_mei,c05n05_musete.mei,music21 v9.1.0,33,58,
