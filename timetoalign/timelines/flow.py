@@ -50,17 +50,25 @@ class FlowMode(Enum):
     """Flow computation modes.
 
     Different contexts require different unfoldings:
-    - DEFAULT: Most complete flow (all repeats taken)
-    - MS3: Match ms3/dcml unfolding style (gold standard)
-    - PARTITURA: Match partitura region-based model
+
+    General modes:
+    - DEFAULT: Most complete flow (all repeats taken), equivalent to MS3
     - PRINTED: All bars as printed (no unfolding)
     - SINGLE_PASS: Single playthrough (last volta only)
     - CUSTOM: User-provided flow sequence
+
+    Software-specific modes (for ground truth validation):
+    - MS3: From ms3's *_unfolded.measures.tsv (gold standard)
+    - PARTITURA_MINIMAL: partitura's unfold_part_minimal()
+    - PARTITURA_MAXIMAL: partitura's unfold_part_maximal()
+    - MUSIC21: music21's expandRepeats()
     """
 
     DEFAULT = "default"
     MS3 = "ms3"
-    PARTITURA = "partitura"
+    PARTITURA_MINIMAL = "partitura_minimal"
+    PARTITURA_MAXIMAL = "partitura_maximal"
+    MUSIC21 = "music21"
     PRINTED = "printed"
     SINGLE_PASS = "single"
     CUSTOM = "custom"
