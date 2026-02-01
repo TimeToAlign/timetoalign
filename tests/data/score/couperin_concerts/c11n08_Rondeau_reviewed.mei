@@ -1,0 +1,2411 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="https://music-encoding.org/schema/5.1/mei-basic.rng" type="application/xml" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="https://music-encoding.org/schema/5.1/mei-basic.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei" xml:id="mscore-flTiDHKbBIC_mCvmlB7IG0I" meiversion="5.1+basic">
+   <meiHead>
+      <fileDesc>
+         <titleStmt>
+            <title type="main">Nouveau Concert, ou Les Goûts-Réunis no. 11</title>
+            <respStmt>
+               <persName role="composer">François Couperin</persName>
+            </respStmt>
+         </titleStmt>
+         <pubStmt>
+            <date isodate="2026-02-01T22:38:09" />
+         </pubStmt>
+      </fileDesc>
+   </meiHead>
+   <music>
+      <body>
+         <mdiv>
+            <score>
+               <scoreDef>
+                  <pgHead>
+                     <rend halign="center" valign="top">
+                        <rend type="title" fontsize="x-large">Rondeau</rend>
+                        <lb />
+                        <rend type="subtitle" fontsize="large">c11n08</rend>
+                     </rend>
+                     <rend halign="right" valign="bottom">
+                        <rend type="composer">Francois Couperin</rend>
+                     </rend>
+                  </pgHead>
+                  <staffGrp>
+                     <staffGrp bar.thru="true" symbol="brace">
+                        <label>Piano</label>
+                        <labelAbbr>Pno.</labelAbbr>
+                        <instrDef midi.instrnum="0" />
+                        <staffDef n="1" lines="5" keysig="2f" meter.count="3" meter.unit="8">
+                           <clef shape="G" line="2" />
+                        </staffDef>
+                        <staffDef n="2" lines="5" keysig="2f" meter.count="3" meter.unit="8">
+                           <clef shape="F" line="4" />
+                        </staffDef>
+                     </staffGrp>
+                  </staffGrp>
+               </scoreDef>
+               <section xml:id="s1">
+                  <measure xml:id="mscore-skVnCS71V2E_HIGm9RpNEZC" metcon="false">
+                     <staff xml:id="m1s1" n="1">
+                        <layer xml:id="m1s1l1" n="1">
+                           <note xml:id="mscore-RwxQrOg-arE_ETyJaHrrdSI" dur="8" pname="g" oct="4" stem.dir="up" />
+                        </layer>
+                     </staff>
+                     <staff xml:id="m1s2" n="2">
+                        <layer xml:id="m1s2l1" n="1">
+                           <note xml:id="mscore-pwlOGFWWvD_pTGlc6pbbOF" dur="8" pname="c" oct="4" stem.dir="down" />
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-4r2pQdLUTGD_fJ41fi5M1gI" type="mscore-roman" startid="#mscore-RwxQrOg-arE_ETyJaHrrdSI">c.i{</harm>
+                     <tempo xml:id="mscore-Krn84OD9HaL_cNGwbt0KEAL" type="mscore-infer-from-text" midi.bpm="99" staff="1" tstamp="1">
+                        <rend glyph.auth="smufl"></rend> <rend glyph.auth="smufl"></rend> = 66</tempo>
+                  </measure>
+                  <measure xml:id="mscore-UZ8.ucIQKnM_zOzobgvATQH" n="1">
+                     <staff xml:id="m2s1" n="1">
+                        <layer xml:id="m2s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-oYX3H8oBsMM_W0XCVfRFHpK" type="mscore-beam-begin" dur="8" pname="c" oct="5" />
+                              <note xml:id="mscore-bT-y-wUQapP_9Y4eK-4lg9C" type="mscore-beam-mid" dur="16" pname="e" oct="5" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-O-rrPaAAVgI_XuQDg4C2TrJ" type="mscore-beam-mid" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-xanF-f4xhLJ_LwtxxU8XR3B" type="mscore-beam-mid" dur="16" pname="c" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-K5qR8oCGAFL_fneo5WE2-SD" dur="16" pname="b" oct="4">
+                                 <accid xml:id="mscore-470PGjfun5_lcDUENPbmlC" accid="n" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m2s2" n="2">
+                        <layer xml:id="m2s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-rBiEPTfgtOK_oDGkakdFKcH" type="mscore-beam-begin" dur="8" pname="a" oct="3">
+                                 <accid xml:id="mscore-UFeir19X4dF_WDyHOyM5JZM" accid="f" />
+                              </note>
+                              <note xml:id="mscore-o97C.yjhuNG_Q0Tpr7sva7D" type="mscore-beam-mid" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-e3NTDzMj0AC_-L.LL5CVidD" dur="8" pname="g" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <dir xml:id="mscore-ZdbjaPSzceH_J6j-aOAAB9N" type="mscore-staff-text" startid="#mscore-oYX3H8oBsMM_W0XCVfRFHpK">Légérement et galament</dir>
+                     <harm xml:id="mscore-HNNF6BqHgBI_SurRkOpxw0B" type="mscore-roman" startid="#mscore-oYX3H8oBsMM_W0XCVfRFHpK">VI</harm>
+                     <mordent xml:id="mscore-TNtTBgOp-UC_o4u23G1r6DN" form="lower" startid="#mscore-oYX3H8oBsMM_W0XCVfRFHpK" />
+                     <harm xml:id="mscore-Ax8Gjm-UTYM_DVrKzBtW49K" type="mscore-roman" startid="#mscore-bT-y-wUQapP_9Y4eK-4lg9C">ii%65</harm>
+                     <slur xml:id="mscore-V0cAV9O9Q3I_oMAVJCdJkAI" startid="#mscore-bT-y-wUQapP_9Y4eK-4lg9C" endid="#mscore-O-rrPaAAVgI_XuQDg4C2TrJ" />
+                     <harm xml:id="mscore-OVsHSM.2L0I_Xgdi75M6G.E" type="mscore-roman" startid="#mscore-xanF-f4xhLJ_LwtxxU8XR3B">V</harm>
+                     <slur xml:id="mscore-AJ1eTbqErIG_S6TEDO0bkhF" startid="#mscore-xanF-f4xhLJ_LwtxxU8XR3B" endid="#mscore-K5qR8oCGAFL_fneo5WE2-SD" />
+                     <harm startid="#mscore-o97C.yjhuNG_Q0Tpr7sva7D">
+                        <fb xml:id="mscore-CFyLXG6nMNH_DfR.bElOqy">
+                           <f xml:id="mscore-qA2gu.KDfME_V5Tya2Qx0FO">6</f>
+                           <f xml:id="mscore-j0q.Do6mrd_lA67J5WcKVG">5</f>
+                           <f xml:id="mscore-VkGfiobjKNH_FDM8QtOvnD">b3</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-e3NTDzMj0AC_-L.LL5CVidD">
+                        <fb xml:id="mscore-xf7o4n.8RRH_XkUEvvbfH8B">
+                           <f xml:id="mscore-ah1oOqPDxBG_yn..GeRi1DD">h3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-vtITzr1.d0C_PibrUumpLZL" n="2">
+                     <staff xml:id="m3s1" n="1">
+                        <layer xml:id="m3s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-6EGse6NowdO_V-wtNSXBUYB" dur="8" pname="b" oct="4" color="#FF0000">
+                                 <accid xml:id="mscore-0T0VA-trnKF_udX0vSDRDdP" accid="n" />
+                              </note>
+                           </graceGrp>
+                           <beam>
+                              <note xml:id="mscore-aivlM9uACjM_zNbic5pSaFI" type="mscore-beam-begin" dur="8" pname="c" oct="5" />
+                              <note xml:id="mscore-ANVVqg3GAPJ_muAXVV1OusH" type="mscore-beam-mid" dur="8" pname="d" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-CNfgWDoKiVD_UIVt1k6ajvB" dur="8" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m3s2" n="2">
+                        <layer xml:id="m3s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-KjSK4.T6on_d4nCpCoY2oL" type="mscore-beam-begin" dur="8" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-MxDRERIUwcB_x-5r633ymDJ" type="mscore-beam-mid" dur="8" pname="d" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-.Bw2RXPqNlD_tUFqgFS4AaN" dur="8" pname="c" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-tAopaYQuE.O_0ZiH6UhBqLH" type="mscore-roman" startid="#mscore-6EGse6NowdO_V-wtNSXBUYB">i6</harm>
+                     <slur xml:id="mscore-Ti8IK8VXtC_OJ-SmLHY99P" startid="#mscore-6EGse6NowdO_V-wtNSXBUYB" endid="#mscore-aivlM9uACjM_zNbic5pSaFI" />
+                     <harm xml:id="mscore-tAopaYQuE.O_0ZiH6UhBqLH" type="mscore-roman" startid="#mscore-aivlM9uACjM_zNbic5pSaFI">i6</harm>
+                     <harm xml:id="mscore-v5J8bDo5OJJ_xTh2U04eNMG" type="mscore-roman" startid="#mscore-CNfgWDoKiVD_UIVt1k6ajvB">i</harm>
+                     <harm startid="#mscore-KjSK4.T6on_d4nCpCoY2oL">
+                        <fb xml:id="mscore-8esFazlHrrP_Gvl7bwG3BBL">
+                           <f xml:id="mscore-gFR.9yx8aSH_ZbU36nd1t6D">6_</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-ij76ZEbt-mE_Rk1aC43UUaK" n="3">
+                     <staff xml:id="m4s1" n="1">
+                        <layer xml:id="m4s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-WMqnzdLWgAM_mAQuu7SUazM" dur="8" pname="e" oct="5" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </graceGrp>
+                           <beam>
+                              <note xml:id="mscore-NPnL9HredsI_M0SXt1wd2VP" type="mscore-beam-begin" dur="8" pname="d" oct="5" />
+                              <note xml:id="mscore-NZQIApidVnK_hc2.amhp3lL" type="mscore-beam-mid" dur="16" pname="f" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-GMBYGk7PAN_OmSG1R7hYQ" type="mscore-beam-mid" dur="16" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-NrHDDiLwmoC_GzucAm8b7ZB" type="mscore-beam-mid" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-I2Lj6jrOrHO_ci.laB0WnLF" dur="16" pname="c" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m4s2" n="2">
+                        <layer xml:id="m4s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-92HnnxA.j7M_wAs-ORFu9AE" type="mscore-beam-begin" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-nu9dhP-QBZF_srOVfTtVaPN" type="mscore-beam-mid" dur="8" pname="g" oct="3" />
+                              <note xml:id="mscore-uDLEvshEfuE_eRLbMu9BzmN" dur="8" pname="a" oct="3">
+                                 <accid xml:id="mscore-ggP.RwP.DKB_xGiBxkY7w7O" accid="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-ePNuFuxjXZC_6ASS1KGJTBE" type="mscore-roman" startid="#mscore-WMqnzdLWgAM_mAQuu7SUazM">ii%65</harm>
+                     <slur xml:id="mscore-F5lEp25JPfO_AF0Y8ZzkA-K" startid="#mscore-WMqnzdLWgAM_mAQuu7SUazM" endid="#mscore-NPnL9HredsI_M0SXt1wd2VP" />
+                     <harm xml:id="mscore-ePNuFuxjXZC_6ASS1KGJTBE" type="mscore-roman" startid="#mscore-NPnL9HredsI_M0SXt1wd2VP">ii%65</harm>
+                     <harm xml:id="mscore-PQjI.D6KsGH_7TjqyH69vHF" type="mscore-roman" startid="#mscore-NZQIApidVnK_hc2.amhp3lL">i64</harm>
+                     <slur xml:id="mscore-QS0CtdMvqdC_cGJf13hNDDE" startid="#mscore-NZQIApidVnK_hc2.amhp3lL" endid="#mscore-GMBYGk7PAN_OmSG1R7hYQ" />
+                     <harm xml:id="mscore-GfW56g0FGEL_OoAHl-SRyoH" type="mscore-roman" startid="#mscore-NrHDDiLwmoC_GzucAm8b7ZB">ii%43</harm>
+                     <slur xml:id="mscore-ZLD7CF6da-P_IHX5DIemffP" startid="#mscore-NrHDDiLwmoC_GzucAm8b7ZB" endid="#mscore-I2Lj6jrOrHO_ci.laB0WnLF" />
+                     <harm startid="#mscore-92HnnxA.j7M_wAs-ORFu9AE">
+                        <fb xml:id="mscore-tiDvKsXCncL_Ld2yPUc0wJM">
+                           <f xml:id="mscore-pu4o-V98pGM_f0PfJdpYh5K">6</f>
+                           <f xml:id="mscore-z7kAVgTjSbM_jWQL09dzqAD">5</f>
+                           <f xml:id="mscore-XMeTS0EGz3N_.EAGZjM4x3D">b3</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-nu9dhP-QBZF_srOVfTtVaPN">
+                        <fb xml:id="mscore-PH35IdjyT.B_tfnJR4ExK1N">
+                           <f xml:id="mscore-YCKkXeOEB7K_9jpYBF9CgJD">6</f>
+                           <f xml:id="mscore-JcwD2qZmnZB_RJf3yhTWaqI">4</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-uDLEvshEfuE_eRLbMu9BzmN">
+                        <fb xml:id="mscore-AtzYmjQwcBD_kQyFXw3LZ1J">
+                           <f xml:id="mscore-qUe5Xg19CoG_BlO9c-QRGxF">6</f>
+                           <f xml:id="mscore-bQ1TpNneEWH_rqCnhNbnWEL">4+</f>
+                           <f xml:id="mscore-qVPu1YmulSM_veupQaLEcJB">3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-j6k3JQSMNmH_bODGFWLsvgJ" n="4">
+                     <staff xml:id="m5s1" n="1">
+                        <layer xml:id="m5s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-Kmp7KkkuXWE_BfsnXhbxa5M" type="mscore-beam-begin" dur="8" pname="b" oct="4">
+                                 <accid xml:id="mscore-x-8TgZV-PTB_C33CAJsY4GE" accid="n" />
+                              </note>
+                              <graceGrp grace="acc">
+                                 <note xml:id="mscore-JQfVgqPnh9E_i3bX1FEDAzD" dur="8" pname="a" oct="4" color="#FF0000" />
+                              </graceGrp>
+                              <note xml:id="mscore-OgCrf1Xf8OI_zVA1jaEBzzN" dur="8" pname="g" oct="4" />
+                              <note xml:id="mscore-bihvs0CKXsJ_UZvM8ZpxMFH" dur="8" pname="e" oct="5" stem.dir="down">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m5s2" n="2">
+                        <layer xml:id="m5s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-gMJE1YJlA4H_Re-nxZqT83M" type="mscore-beam-begin" dur="8" pname="g" oct="3" />
+                              <note xml:id="mscore-PiR.plWgpXC_s686a1tYS-B" type="mscore-beam-mid" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-3ixRixtePrI_jDuOUMCWxdL" dur="8" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-zj.MeheRB4O_9vIkUAEDPdM" type="mscore-roman" startid="#mscore-Kmp7KkkuXWE_BfsnXhbxa5M">V</harm>
+                     <mordent xml:id="mscore-92CsdZ3msl_CtfiPgarr.H" form="upper" startid="#mscore-Kmp7KkkuXWE_BfsnXhbxa5M" />
+                     <harm xml:id="mscore-DJ5P2ytFgPO_PuRJg5fiLoO" type="mscore-roman" startid="#mscore-JQfVgqPnh9E_i3bX1FEDAzD">V2</harm>
+                     <dir xml:id="mscore-qS5Ew2JYA5M_Npsd5zmebJN" type="mscore-staff-text" startid="#mscore-JQfVgqPnh9E_i3bX1FEDAzD">)</dir>
+                     <slur xml:id="mscore-tziU3iUpUrE_WwbowdX-kmK" startid="#mscore-JQfVgqPnh9E_i3bX1FEDAzD" endid="#mscore-OgCrf1Xf8OI_zVA1jaEBzzN" />
+                     <harm xml:id="mscore-DJ5P2ytFgPO_PuRJg5fiLoO" type="mscore-roman" startid="#mscore-OgCrf1Xf8OI_zVA1jaEBzzN">V2</harm>
+                     <dir xml:id="mscore-qS5Ew2JYA5M_Npsd5zmebJN" type="mscore-staff-text" startid="#mscore-OgCrf1Xf8OI_zVA1jaEBzzN">)</dir>
+                     <harm xml:id="mscore-a1lAq9.afZI_UWIyD9Z7eYP" type="mscore-roman" startid="#mscore-bihvs0CKXsJ_UZvM8ZpxMFH">i6</harm>
+                     <harm startid="#mscore-gMJE1YJlA4H_Re-nxZqT83M">
+                        <fb xml:id="mscore-IZNlR5OdfkG_reZHO4Y3CwI">
+                           <f xml:id="mscore-JsSOSmb0uzK_WDxtuvzu35K">3_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-3ixRixtePrI_jDuOUMCWxdL">
+                        <fb xml:id="mscore-YrVqLh9hLEF_yMX6zf2BN2E">
+                           <f xml:id="mscore-sTuKGY---GC_RZ21bZl.UzE">h6</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-d1ipUPhyN0J_fPp9SwS3kmJ" n="5">
+                     <staff xml:id="m6s1" n="1">
+                        <layer xml:id="m6s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-2TJzx3SfttF_7eh48OyHkNN" dur="8" pname="e" oct="5" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </graceGrp>
+                           <beam>
+                              <note xml:id="mscore-Mo.aEKY3mpN_72KT9oI05MC" type="mscore-beam-begin" dur="8" pname="d" oct="5" />
+                              <note xml:id="mscore-.ihIOkIMzoG_IqZaiqZtpVG" type="mscore-beam-mid" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-L2u021SWfVE_mdagzFJQK1E" type="mscore-beam-mid" dur="16" pname="e" oct="5" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-LAwF9-45VvO_GW.8qmz1oyL" type="mscore-beam-mid" dur="16" pname="f" oct="5" />
+                              <note xml:id="mscore-SX5C5N5KZ1_myeMXOVJ52M" dur="16" pname="a" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m6s2" n="2">
+                        <layer xml:id="m6s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-g6mLekohGD_t1tEvu-V5TO" type="mscore-beam-begin" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-nU.Wd9cCKzM_zUMPXW4NP4C" type="mscore-beam-mid" dur="8" pname="e" oct="3" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-qdTiFN64dVB_2Z1KxMbzU5D" dur="8" pname="d" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-uc3YM-zT6nM_O-ycxPlcd6O" type="mscore-roman" startid="#mscore-2TJzx3SfttF_7eh48OyHkNN">ii%65</harm>
+                     <slur xml:id="mscore-Bkv66YjMQsK_rHs5W7DAgeP" startid="#mscore-2TJzx3SfttF_7eh48OyHkNN" endid="#mscore-Mo.aEKY3mpN_72KT9oI05MC" />
+                     <harm xml:id="mscore-uc3YM-zT6nM_O-ycxPlcd6O" type="mscore-roman" startid="#mscore-Mo.aEKY3mpN_72KT9oI05MC">ii%65</harm>
+                     <harm xml:id="mscore-64x2EvPYryJ_WuMU5REgOlG" type="mscore-roman" startid="#mscore-LAwF9-45VvO_GW.8qmz1oyL">ii7</harm>
+                     <harm startid="#mscore-g6mLekohGD_t1tEvu-V5TO">
+                        <fb xml:id="mscore-ISOsXluvjmG_TNdZi-kw3FO">
+                           <f xml:id="mscore-14Eyed9pMEK_vOSOuGZmmBO">6</f>
+                           <f xml:id="mscore-TaZMKQMBKQP_SAYNcSGwekO">5</f>
+                           <f xml:id="mscore-cg.ciMsci3F_mehQ30tniYN">b3_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-qdTiFN64dVB_2Z1KxMbzU5D">
+                        <fb xml:id="mscore-RaxoFmx.XwM_w1STl8X9dDN">
+                           <f xml:id="mscore-tdFmBbGDnvL_E0U-c0y-HkL">7</f>
+                           <f xml:id="mscore-5Aqt9-oq6NH_in84MypPxxK">5</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-YGWEITNMpFL_QEeNGH7YRXC" n="6">
+                     <staff xml:id="m7s1" n="1">
+                        <layer xml:id="m7s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-y7GL6tBJcNO_E8MhA1x4KqC" type="mscore-beam-begin" dur="8" pname="b" oct="4">
+                                 <accid xml:id="mscore-HGMTgxaU4KM_lbiEU8uKVdE" accid="n" />
+                              </note>
+                              <graceGrp grace="acc">
+                                 <note xml:id="mscore-YQioehDGs1M_gb.gbelwToP" dur="8" pname="a" oct="4" color="#FF0000" />
+                              </graceGrp>
+                              <note xml:id="mscore-k.sH84MJELF_dus83MRma9N" type="mscore-beam-mid" dur="8" pname="g" oct="4" />
+                              <note xml:id="mscore-pTD0.iA08bP_.OjZDtCwmYN" dur="8" pname="c" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m7s2" n="2">
+                        <layer xml:id="m7s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-wkko9ZTIB4C_1uOLuzUJ6fO" type="mscore-beam-begin" dur="16" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-ouRhUfXyB0D_KbwexlsFUDF" type="mscore-beam-mid" dur="16" pname="f" oct="3" />
+                              <note xml:id="mscore-Xu0mC0TUHUC_kEQlV7UPnTJ" type="mscore-beam-mid" dur="16" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-oYzNopbGTTK_XlNiJdShOXF" type="mscore-beam-mid" dur="16" pname="d" oct="3" />
+                              <note xml:id="mscore-CT1MaVrRypH_zvyGk3marjP" dur="8" pname="c" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-Rske-6vmGPK_ePtAv8aeGrL" type="mscore-roman" startid="#mscore-y7GL6tBJcNO_E8MhA1x4KqC">III+M7(9)</harm>
+                     <slur xml:id="mscore-7mcizImrlAD_oETLiDmaMPH" startid="#mscore-YQioehDGs1M_gb.gbelwToP" endid="#mscore-k.sH84MJELF_dus83MRma9N" />
+                     <harm xml:id="mscore--ESZMLkZQxG_ucVkTt4eRWL" type="mscore-roman" startid="#mscore-pTD0.iA08bP_.OjZDtCwmYN">i</harm>
+                     <mordent xml:id="mscore-pgmP9Tv2CiJ_ogjbV.KArjB" form="lower" startid="#mscore-pTD0.iA08bP_.OjZDtCwmYN" />
+                     <tie xml:id="mscore-LWYE4rVo6MH_y4D8zX2G4PG" startid="#mscore-pTD0.iA08bP_.OjZDtCwmYN" endid="#mscore-odxtyrONyDM_1q.tA3IwlgC" />
+                     <harm startid="#mscore-wkko9ZTIB4C_1uOLuzUJ6fO">
+                        <fb xml:id="mscore-lDKUusyMoYB_AAqvn6cuHRJ">
+                           <f xml:id="mscore-WfoaqvYCrnE_V6QNR9HVzKH">7</f>
+                           <f xml:id="mscore-AzU018MKTMD_K0t7hGB01ZC">h5</f>
+                           <f xml:id="mscore-EC.bjks4DQH_hG0dXRgWQXC">3</f>
+                           <f xml:id="mscore-5sz6bCGbrDC_umO-80YtBlB">2_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-CT1MaVrRypH_zvyGk3marjP">
+                        <fb xml:id="mscore-X88vBZbZpiN_S45UMPEsWHI">
+                           <f xml:id="mscore-UXB3a7olq7G_mlDq7UCz91E">3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-k7Fhg8.GvxP_7vmc0i544bN" n="7">
+                     <staff xml:id="m8s1" n="1">
+                        <layer xml:id="m8s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-odxtyrONyDM_1q.tA3IwlgC" type="mscore-beam-begin" dur="16" pname="c" oct="5" />
+                              <note xml:id="mscore-CCAR6f0wG9B_tekaKOmkplC" type="mscore-beam-mid" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-ZAjh1CM7hdK_6wltdoQYBUN" type="mscore-beam-mid" dots="1" dur="8" pname="b" oct="4">
+                                 <accid xml:id="mscore-6FbovjV5K0L_JL393Ut6r3P" accid="n" />
+                              </note>
+                              <note xml:id="mscore-z7WOfN0P9dN_yonvJ2YY3t" type="mscore-beam-mid" dur="32" pname="a" oct="4" color="#FF0000">
+                                 <accid xml:id="mscore-vZcHdrOoqYP_O50Po1K00YK" accid="n" />
+                              </note>
+                              <note xml:id="mscore-w2Duw6BEYFJ_gtDnShgthLJ" dur="32" pname="b" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m8s2" n="2">
+                        <layer xml:id="m8s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-LS2of5XkAiO_CaJPH03mDbD" type="mscore-beam-begin" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-bVR40GFbB8L_sjKB5zdKPuB" type="mscore-beam-mid" dur="8" pname="g" oct="3" />
+                              <note xml:id="mscore-8FziHCnkLaO_.UpFp8yuhPG" dur="8" pname="g" oct="2" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-sws97PRzYXJ_P-oz4TpzZsM" type="mscore-roman" startid="#mscore-odxtyrONyDM_1q.tA3IwlgC">ii65</harm>
+                     <harm xml:id="mscore-neNahK2I5pK_wih0dz1IOCG" type="mscore-roman" startid="#mscore-ZAjh1CM7hdK_6wltdoQYBUN">V</harm>
+                     <slur xml:id="mscore-xj77FEZbYTI_zH9TxmHpSvC" startid="#mscore-ZAjh1CM7hdK_6wltdoQYBUN" endid="#mscore-w2Duw6BEYFJ_gtDnShgthLJ" />
+                     <mordent xml:id="mscore-6k6vORVj8xH_uf.er8I-2pN" form="upper" startid="#mscore-ZAjh1CM7hdK_6wltdoQYBUN" />
+                     <harm startid="#mscore-LS2of5XkAiO_CaJPH03mDbD">
+                        <fb xml:id="mscore-gUmmjpgjdiF_c5mzb-8sbRE">
+                           <f xml:id="mscore-7UTNJJzCCCP_Lku1CtFCpFL">6</f>
+                           <f xml:id="mscore-JqQF2umYbRD_ivrU69C7izN">5</f>
+                           <f xml:id="mscore-F24p-Fpc.fE_YTx-irpnOOF">h3_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-bVR40GFbB8L_sjKB5zdKPuB">
+                        <fb xml:id="mscore-Sg6BS0vxKTL_cNREZArMpuL">
+                           <f xml:id="mscore--o-sbdAKL3E_zKIFLy-cVcJ">h3_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-8FziHCnkLaO_.UpFp8yuhPG">
+                        <fb xml:id="mscore-TOtCUg0kx6L_XKMB37f-z6L">
+                           <f xml:id="mscore-.w.XmBMTB8D_GKVjSiWPAdF">7</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-CvkhOY--56M_gn7nBYl.mpD" type="mscore-repeat-2" right="rptend" metcon="false" n="8">
+                     <staff xml:id="m9s1" n="1">
+                        <layer xml:id="m9s1l1" n="1">
+                           <note xml:id="mscore-OlS26tDt9bC_LVIQOsAAvaH" dur="4" pname="c" oct="5" stem.dir="down" />
+                        </layer>
+                     </staff>
+                     <staff xml:id="m9s2" n="2">
+                        <layer xml:id="m9s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-OHhvM9OuYOH_KxQEWYsJU-L" type="mscore-beam-begin" dur="8" pname="c" oct="3" />
+                              <note xml:id="mscore-nKH6s0rNsdN_od3iaxlaaK" dur="8" pname="c" oct="2" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <repeatMark xml:id="mscore-MihjlrPzChI_30vGa4vr-YG" func="segno" tstamp="0" />
+                     <harm xml:id="mscore-k9Ys-iufxTP_R6eWRLIMQ5J" type="mscore-roman" startid="#mscore-OlS26tDt9bC_LVIQOsAAvaH">i|PAC}</harm>
+                     <fermata xml:id="mscore-6D5r6bnig0_7ZNfi-Tf8CF" startid="#mscore-OlS26tDt9bC_LVIQOsAAvaH" />
+                     <fermata xml:id="mscore-.mgMqoArnFN_bWxa.22VTiB" startid="#mscore-OHhvM9OuYOH_KxQEWYsJU-L" />
+                  </measure>
+                  <measure xml:id="mscore-0LKH5VLrMlO_tOI2.H0Bt.F" left="rptstart" metcon="false">
+                     <staff xml:id="m10s1" n="1">
+                        <layer xml:id="m10s1l1" n="1">
+                           <note xml:id="mscore-CmqkchH0zNB_PL3ADSchQnE" dur="8" pname="g" oct="4" stem.dir="up" />
+                        </layer>
+                     </staff>
+                     <staff xml:id="m10s2" n="2">
+                        <layer xml:id="m10s2l1" n="1">
+                           <note xml:id="mscore-m7WlaofnpzI_VRQjPzOVaIM" dur="8" pname="c" oct="4" stem.dir="down" />
+                        </layer>
+                     </staff>
+                     <repeatMark xml:id="mscore-p0IRgAB.LIM_fz54-6.wq5B" func="segno" tstamp="0">1e Couplet</repeatMark>
+                     <harm xml:id="mscore-QwQ01QQw7NN_NnQvev4izD" type="mscore-roman" startid="#mscore-CmqkchH0zNB_PL3ADSchQnE">i{</harm>
+                  </measure>
+                  <measure xml:id="mscore-ntViyk5AmmG_XAVV0V1SEaI" n="9">
+                     <staff xml:id="m11s1" n="1">
+                        <layer xml:id="m11s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-IBZf7ZGRczN_c2s54sEz-lL" dur="8" pname="g" oct="4" color="#FF0000" />
+                           </graceGrp>
+                           <beam>
+                              <note xml:id="mscore-lVdbX94Zx5G_-RT7ZQumlSH" type="mscore-beam-begin" dur="8" pname="a" oct="4">
+                                 <accid xml:id="mscore-XDskhw7Bj1P_IdCfdp5P0gN" accid="f" />
+                              </note>
+                              <graceGrp grace="acc">
+                                 <note xml:id="mscore-1OlT0S8hk-_WRC07jD2UqJ" dur="8" pname="g" oct="4" color="#FF0000" />
+                              </graceGrp>
+                              <note xml:id="mscore-lecNIYPw00G_MoDlLUU2sZE" type="mscore-beam-mid" dur="8" pname="f" oct="4" />
+                              <note xml:id="mscore-BT0YhpRI6CP_Ymua8TExfC" dur="8" pname="b" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m11s2" n="2">
+                        <layer xml:id="m11s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-S1Y3Ww7IX1_4JCSN5JvXyH" type="mscore-beam-begin" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-TlO9hLZoVcL_nftzD3Y5EoJ" type="mscore-beam-mid" dur="8" pname="b" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-0paKbstif1C_6WwXJuXq3DF" dur="8" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-fNV1cz4rB1C_8oMwc4ceg0C" type="mscore-roman" startid="#mscore-IBZf7ZGRczN_c2s54sEz-lL">III.ii7</harm>
+                     <slur xml:id="mscore--H8bi4pCndO_cHxhOo0RjXM" startid="#mscore-IBZf7ZGRczN_c2s54sEz-lL" endid="#mscore-lVdbX94Zx5G_-RT7ZQumlSH" />
+                     <harm xml:id="mscore-fNV1cz4rB1C_8oMwc4ceg0C" type="mscore-roman" startid="#mscore-lVdbX94Zx5G_-RT7ZQumlSH">III.ii7</harm>
+                     <harm xml:id="mscore-hnBjN58CXSP_oT8QpzchjAO" type="mscore-roman" startid="#mscore-1OlT0S8hk-_WRC07jD2UqJ">V</harm>
+                     <slur xml:id="mscore-w11j-ludnAB_v3xdoX2IpvI" startid="#mscore-1OlT0S8hk-_WRC07jD2UqJ" endid="#mscore-lecNIYPw00G_MoDlLUU2sZE" />
+                     <harm xml:id="mscore-hnBjN58CXSP_oT8QpzchjAO" type="mscore-roman" startid="#mscore-lecNIYPw00G_MoDlLUU2sZE">V</harm>
+                     <harm xml:id="mscore-MsEZB7YtPE_eJsZgMhD9AP" type="mscore-roman" startid="#mscore-BT0YhpRI6CP_Ymua8TExfC">V7</harm>
+                     <harm startid="#mscore-S1Y3Ww7IX1_4JCSN5JvXyH">
+                        <fb xml:id="mscore-HBg0IWc6jMF_onBBdzCg4nK">
+                           <f xml:id="mscore-0Nesz9CBUnM_EaRy9Ap5.fH">7</f>
+                           <f xml:id="mscore-BKXmtRrrYDG_LwP71LM64IM">b3</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-0paKbstif1C_6WwXJuXq3DF">
+                        <fb xml:id="mscore-wSMLKjVwvD_T8ennYSiuRM">
+                           <f xml:id="mscore-KwVPH2-sr1J_Ms7nrH5c3pJ">b7</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore--L--vx0JT9D_ruy-T-D9ZzG" n="10">
+                     <staff xml:id="m12s1" n="1">
+                        <layer xml:id="m12s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-43c8djf3MvO_x9lZcs1eB4F" type="mscore-beam-begin" dur="8" pname="g" oct="4" />
+                              <note xml:id="mscore-SvyzVJQca_7QOvy.c0l6D" dur="8" pname="e" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-NJCXXZpJR3D_lqbGWKEkH7C" dur="8" pname="b" oct="4" stem.dir="down">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m12s2" n="2">
+                        <layer xml:id="m12s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-5.Ma9tcPcHK_cyXhIVdQ4pM" type="mscore-beam-begin" dots="1" dur="8" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-EIU9oeuE4RH_GN9OWasBdIF" type="mscore-beam-mid" dur="16" pname="f" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-jkTV539PygE_rLu6cdiCv2B" type="mscore-beam-mid" dur="16" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-kvkOOd0pm2I_uVUAIU6J-CF" dur="16" pname="d" oct="3" color="#FF0000" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-MTAtkGJysVI_GzzDny8oXlK" type="mscore-roman" startid="#mscore-43c8djf3MvO_x9lZcs1eB4F">I|IAC}</harm>
+                     <mordent xml:id="mscore-ZFHd9RtviLF_4itaEa-UQPC" form="upper" startid="#mscore-43c8djf3MvO_x9lZcs1eB4F" />
+                     <dir xml:id="mscore-Sqw3n.H5wSO_1dDNHCI1rBM" type="mscore-staff-text" startid="#mscore-SvyzVJQca_7QOvy.c0l6D">)</dir>
+                     <harm xml:id="mscore-46RohsYPlsI_26UFU6tDFKL" type="mscore-roman" startid="#mscore-NJCXXZpJR3D_lqbGWKEkH7C">{</harm>
+                  </measure>
+                  <measure xml:id="mscore-Ite4cXT4MSM_ablxrInAHhN" n="11">
+                     <staff xml:id="m13s1" n="1">
+                        <layer xml:id="m13s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-7ZcTxmHs20K_NpwBUzrzO6E" type="mscore-beam-begin" dur="8" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <graceGrp grace="acc">
+                                 <note xml:id="mscore-HVgLsh7nV.H_tgqk9v08F9P" dur="8" pname="d" oct="5" color="#FF0000" />
+                              </graceGrp>
+                              <note xml:id="mscore-PcoRJiEvT1H_LuTXf9mRKVI" type="mscore-beam-mid" dur="8" pname="c" oct="5" />
+                              <note xml:id="mscore-XfgPIxI6z3P_3TsVslOYNzJ" dur="8" pname="f" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m13s2" n="2">
+                        <layer xml:id="m13s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-PBAHev2mkoL_2Tk9oOClbXO" type="mscore-beam-begin" dur="8" pname="c" oct="3" />
+                              <note xml:id="mscore-hDByij9o3UH_XmICd96IGhJ" type="mscore-beam-mid" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-c.5JeWJA36M_hazc.HopPTO" dur="8" pname="f" oct="2" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-Kv3uqYiouh_7TGecsFQaT" type="mscore-roman" startid="#mscore-7ZcTxmHs20K_NpwBUzrzO6E">VII.ii7</harm>
+                     <harm xml:id="mscore-0MPty7LuIsG_HYRdO2zjbjI" type="mscore-roman" startid="#mscore-HVgLsh7nV.H_tgqk9v08F9P">V</harm>
+                     <slur xml:id="mscore-2WkKNE2hxDC_OxyNvl01F8K" startid="#mscore-HVgLsh7nV.H_tgqk9v08F9P" endid="#mscore-PcoRJiEvT1H_LuTXf9mRKVI" />
+                     <harm xml:id="mscore-0MPty7LuIsG_HYRdO2zjbjI" type="mscore-roman" startid="#mscore-PcoRJiEvT1H_LuTXf9mRKVI">V</harm>
+                     <harm xml:id="mscore-ygpj7NoXVp_Qrc5GYRvxW" type="mscore-roman" startid="#mscore-XfgPIxI6z3P_3TsVslOYNzJ">V7</harm>
+                     <harm startid="#mscore-PBAHev2mkoL_2Tk9oOClbXO">
+                        <fb xml:id="mscore-rLzAXfZeblF_vJJBiCinOJB">
+                           <f xml:id="mscore-KO1.hynddIL_gKvbnfhmpT">7</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-c.5JeWJA36M_hazc.HopPTO">
+                        <fb xml:id="mscore-lSVMpgtfErJ_Lwjn719nBCJ">
+                           <f xml:id="mscore-UrfsNqn79fL_pzsDZoRuIdK">7</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-6uuL6bxqa6P_rzQZL9agfpG" n="12">
+                     <staff xml:id="m14s1" n="1">
+                        <layer xml:id="m14s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-gFdA3Z2Y7eB_eRxVxX1rH-F" type="mscore-beam-begin" dur="8" pname="d" oct="5" />
+                              <note xml:id="mscore-nJ-y8B4n96I_-RreiCOeqyD" dur="8" pname="b" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-V1HUspSvk.E_nfyrYkyRXuB" dur="8" pname="d" oct="5" stem.dir="down" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m14s2" n="2">
+                        <layer xml:id="m14s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-kd.rGnJWPME_JWVoIAfIV2P" type="mscore-beam-begin" dots="1" dur="8" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-46NLibTB9IC_FiLkv-1FSVK" type="mscore-beam-mid" dur="16" pname="a" oct="2" color="#FF0000" />
+                              <note xml:id="mscore-gMgs.4mdGrK_NdgkFfw0I6B" dur="8" pname="g" oct="2" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-MykLuvCbrGB_JxWSRvjqhJ" type="mscore-roman" startid="#mscore-gFdA3Z2Y7eB_eRxVxX1rH-F">I|IAC}</harm>
+                     <mordent xml:id="mscore-CsCf76iZTa_1IbSYEojrqF" form="upper" startid="#mscore-gFdA3Z2Y7eB_eRxVxX1rH-F" />
+                     <dir xml:id="mscore-PnnXXnRFrPL_RAPA9xu0UyJ" type="mscore-staff-text" startid="#mscore-nJ-y8B4n96I_-RreiCOeqyD">)</dir>
+                     <harm xml:id="mscore-8gWGrcM0FtH_jhAp7Y1h6pI" type="mscore-roman" startid="#mscore-V1HUspSvk.E_nfyrYkyRXuB">v.i{</harm>
+                  </measure>
+                  <measure xml:id="mscore-ddzLa9xxXSP_hWMxryl5-7F" n="13">
+                     <staff xml:id="m15s1" n="1">
+                        <layer xml:id="m15s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-XOqVeJF7J8F_D.qAtyz7v4I" type="mscore-beam-begin" dur="8" pname="c" oct="5" />
+                              <note xml:id="mscore-XbM8mDVcBSO_TxacJD1cSVL" type="mscore-beam-mid" dur="8" pname="b" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-ZaAgmG2XUrJ_0Tp.nyoV3PB" dur="8" pname="a" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m15s2" n="2">
+                        <layer xml:id="m15s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-YL9xmPCeEAK_dAgpurPBzmP" type="mscore-beam-begin" dur="8" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-wNwMhwF8ElB_IAUgFoHPkII" type="mscore-beam-mid" dur="8" pname="d" oct="3" />
+                              <note xml:id="mscore-1kpsn9koSTK_9drXfdqBAjM" dur="8" pname="c" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-ToOCXElld6P_IvxyfAOh9kL" type="mscore-roman" startid="#mscore-XOqVeJF7J8F_D.qAtyz7v4I">ii%43</harm>
+                     <slur xml:id="mscore-PgNaIKYhAiB_Qb-xy1BkQSE" startid="#mscore-XOqVeJF7J8F_D.qAtyz7v4I" endid="#mscore-XbM8mDVcBSO_TxacJD1cSVL" />
+                     <harm xml:id="mscore-oF-cXjYxTsP_1p3IuEcujpJ" type="mscore-roman" startid="#mscore-XbM8mDVcBSO_TxacJD1cSVL">i64</harm>
+                     <mordent xml:id="mscore-S3V1ERVxW8F_KRUXwgsLZGB" form="upper" startid="#mscore-XbM8mDVcBSO_TxacJD1cSVL" />
+                     <harm xml:id="mscore-xKrXTP.MwzG_AbbuLzTKqUL" type="mscore-roman" startid="#mscore-ZaAgmG2XUrJ_0Tp.nyoV3PB">V2</harm>
+                     <harm startid="#mscore-YL9xmPCeEAK_dAgpurPBzmP">
+                        <fb xml:id="mscore-SpQ3z8v2j1N_TaZxQA198YL">
+                           <f xml:id="mscore-zb4grcQo1MG_Fi64qWm0KM">6</f>
+                           <f xml:id="mscore-yShGedCHoCM_UEAb2E3DpjO">4+</f>
+                           <f xml:id="mscore-4SkCpoSxADH_kH8O-CsgJiJ">3</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-wNwMhwF8ElB_IAUgFoHPkII">
+                        <fb xml:id="mscore-Xboh.9.HQDN_qT2ucViGtPF">
+                           <f xml:id="mscore-4gK70.EDY6G_0Npe.sXILZD">6</f>
+                           <f xml:id="mscore-9pIh1MoL-UJ_4XTcM.2gcID">4</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-1kpsn9koSTK_9drXfdqBAjM">
+                        <fb xml:id="mscore-3Bh6ndqX5ZL_AFXHkJzE0Y">
+                           <f xml:id="mscore-gDxZoOxTeWN_fkPyvNr8SoF">4+</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-cgpGW0WVMmP_H9-dCqVT5qF" n="14">
+                     <staff xml:id="m16s1" n="1">
+                        <layer xml:id="m16s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-1W3oBjJLhNB_PszQ5s1U72O" type="mscore-beam-begin" dots="1" dur="8" pname="d" oct="5" />
+                              <note xml:id="mscore-xhYwlJ6g6xP_XIrj9qHLHWM" type="mscore-beam-mid" dur="16" pname="f" oct="4">
+                                 <accid xml:id="mscore-n4LRslljw5L_g3wAshFzIRE" accid="s" />
+                              </note>
+                              <note xml:id="mscore-OGrxaz5lsn_iUnwZ0yD8rB" dur="8" pname="g" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m16s2" n="2">
+                        <layer xml:id="m16s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-cqkdg-bRXf_.BjEp-b6kDJ" type="mscore-beam-begin" dur="8" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-sBghUWJnfmE_kq7iVow6VtP" type="mscore-beam-mid" dur="8" pname="a" oct="2" />
+                              <note xml:id="mscore-FUw0Xn8cnqN_B-iqFCXTOs" dur="8" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-Kddx5s5rBhF_brCe0QjuClI" type="mscore-roman" startid="#mscore-1W3oBjJLhNB_PszQ5s1U72O">i6</harm>
+                     <harm xml:id="mscore-mBHd9D6gItO_CsI.q0UMuhG" type="mscore-roman" startid="#mscore-OGrxaz5lsn_iUnwZ0yD8rB">i6</harm>
+                     <harm startid="#mscore-cqkdg-bRXf_.BjEp-b6kDJ">
+                        <fb xml:id="mscore-HMMLKwGUzJO_PmZUurRkEaB">
+                           <f xml:id="mscore-jAwvw6W0PmK_MTNnd.pJQBM">6</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-sBghUWJnfmE_kq7iVow6VtP">
+                        <fb xml:id="mscore-y.4-NnxTZ4C_SkXZoAUxG-M">
+                           <f xml:id="mscore-xq1TIsgRMCE_iQTpXJmLvRE">#6</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-FUw0Xn8cnqN_B-iqFCXTOs">
+                        <fb xml:id="mscore-Y4ZxQ2u10SH_TcgoKrBG5rE">
+                           <f xml:id="mscore-ZIxnhh8G0_6H2zMHx6GzL">6</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-xQXGg2QlALM_BEgI94FjhzC" n="15">
+                     <staff xml:id="m17s1" n="1">
+                        <layer xml:id="m17s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-19PZZbTDPrO_PxBeK-BWdZJ" type="mscore-beam-begin" dur="8" pname="a" oct="4" />
+                              <graceGrp grace="acc">
+                                 <beam>
+                                    <note xml:id="mscore-oDGQTquQJGL_68CRIsQjbHK" dur="8" pname="a" oct="4" />
+                                    <note xml:id="mscore-jg.QGeecYbB_hvQQvb1iMfL" dur="8" pname="b" oct="4" color="#FF0000">
+                                       <accid accid.ges="f" />
+                                    </note>
+                                 </beam>
+                              </graceGrp>
+                              <note xml:id="mscore-mzX2HLWJEnK_ywq368YUqAJ" type="mscore-beam-mid" dots="1" dur="8" pname="c" oct="5" />
+                              <note xml:id="mscore-LfIUK4p8N9L_gfuZ1QvXEnB" dur="16" pname="b" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m17s2" n="2">
+                        <layer xml:id="m17s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-hVzOjuB5VAM_LfWO8dnM4IE" type="mscore-beam-begin" dur="8" pname="c" oct="3" />
+                              <note xml:id="mscore-GieMn5M4apI_lFSKDSYi4R" type="mscore-beam-mid" dur="8" pname="f" oct="2">
+                                 <accid xml:id="mscore-7zLBeKYzs9L_dHSs16Wp4D" accid="s" />
+                              </note>
+                              <note xml:id="mscore-4j59aW8aIrM_Yl.3e36WLRD" dur="8" pname="g" oct="2" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-1NdsnzowcRP_qqWottoSN.M" type="mscore-roman" startid="#mscore-19PZZbTDPrO_PxBeK-BWdZJ">ii%65</harm>
+                     <harm xml:id="mscore-ms9AXqJrJqE_yg505CQbrTE" type="mscore-roman" startid="#mscore-oDGQTquQJGL_68CRIsQjbHK">V65</harm>
+                     <slur xml:id="mscore-GDcDpkOu4pE_7gAEMWV.zHM" startid="#mscore-oDGQTquQJGL_68CRIsQjbHK" endid="#mscore-jg.QGeecYbB_hvQQvb1iMfL" />
+                     <harm xml:id="mscore-ms9AXqJrJqE_yg505CQbrTE" type="mscore-roman" startid="#mscore-jg.QGeecYbB_hvQQvb1iMfL">V65</harm>
+                     <harm xml:id="mscore-ms9AXqJrJqE_yg505CQbrTE" type="mscore-roman" startid="#mscore-mzX2HLWJEnK_ywq368YUqAJ">V65</harm>
+                     <harm startid="#mscore-hVzOjuB5VAM_LfWO8dnM4IE">
+                        <fb xml:id="mscore-AJURsIgitsL_psfi72hHEdL">
+                           <f xml:id="mscore-hT.31qBPiKJ_-er-yaDOxVN">6</f>
+                           <f xml:id="mscore-zaCHX86lBLD_jMe4LDSHatO">5</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-GieMn5M4apI_lFSKDSYi4R">
+                        <fb xml:id="mscore-ivQwxJeFOhP_NxDeTiyi2ZG">
+                           <f xml:id="mscore-Y7xiqQDZiuC_KhaciC7l1pF">5/</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-a5tP-FffJwH_qPYU28aImhB" type="mscore-repeat-2" right="rptend" metcon="false" n="16">
+                     <staff xml:id="m18s1" n="1">
+                        <layer xml:id="m18s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-iRaCA2a5bFN_tSt30ktWTZG" type="mscore-beam-begin" dur="8" pname="a" oct="4" />
+                              <note xml:id="mscore-ymuPUmFzbq_lIsL.f2gZDP" dur="8" pname="g" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m18s2" n="2">
+                        <layer xml:id="m18s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-0-CINFNztnI_kMhXi66C9jE" type="mscore-beam-begin" dur="8" pname="d" oct="3" />
+                              <note xml:id="mscore-KVQv.jU9XLH_2osHMvVM83" dur="8" pname="g" oct="2" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <repeatMark xml:id="mscore-hTiajo3.U0K_lT8evH4qy1L" func="daCapo" tstamp="0">D.C.</repeatMark>
+                     <harm xml:id="mscore-wMauItZi8cK_KynJNUNkGZG" type="mscore-roman" startid="#mscore-iRaCA2a5bFN_tSt30ktWTZG">V</harm>
+                     <mordent xml:id="mscore-89LSjhlni9P_ApJ8Emr-xdP" form="upper" startid="#mscore-iRaCA2a5bFN_tSt30ktWTZG" />
+                     <harm xml:id="mscore-VvexdJUT2WM_pmJLDxWJupK" type="mscore-roman" startid="#mscore-ymuPUmFzbq_lIsL.f2gZDP">I|PAC}</harm>
+                     <dir xml:id="mscore-bXTtATeXkdD_lvykikKJdEI" type="mscore-staff-text" startid="#mscore-ymuPUmFzbq_lIsL.f2gZDP">)</dir>
+                     <harm startid="#mscore-0-CINFNztnI_kMhXi66C9jE">
+                        <fb xml:id="mscore-lPaBUtBGvSL_XZRM8suUu7C">
+                           <f xml:id="mscore-U6VmQ.2s8eO_IGsagyQ6cxJ">#3</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-KVQv.jU9XLH_2osHMvVM83">
+                        <fb xml:id="mscore-cUzup-P9rdO_z.VQMm780KD">
+                           <f xml:id="mscore-XEU0v8IbjDO_0S.z5jAZY3G">h3</f>
+                        </fb>
+                     </harm>
+                     <dir xml:id="mscore-f6omqWdfvcO_5yD-zoLWyRC" type="mscore-staff-text" startid="#mscore-KVQv.jU9XLH_2osHMvVM83">)</dir>
+                  </measure>
+                  <measure xml:id="mscore-XVi4fQVsOfI_8.bSYSt7sPB" left="rptstart" metcon="false">
+                     <staff xml:id="m19s1" n="1">
+                        <layer xml:id="m19s1l1" n="1">
+                           <note xml:id="mscore-CGn7gnykx0G_aGRXHm2yHkG" dur="8" pname="d" oct="5" stem.dir="down" />
+                        </layer>
+                     </staff>
+                     <staff xml:id="m19s2" n="2">
+                        <layer xml:id="m19s2l1" n="1">
+                           <note xml:id="mscore-x4QHIXAjaBB_oxgjANtoDNM" dur="8" pname="g" oct="3" stem.dir="down" />
+                        </layer>
+                     </staff>
+                     <repeatMark xml:id="mscore--urs-4UJGiM_-6JfMZVEciK" func="segno" tstamp="0">2e Couplet</repeatMark>
+                     <harm xml:id="mscore-5EoVKtqKKZG_KFwb93dBT3I" type="mscore-roman" startid="#mscore-CGn7gnykx0G_aGRXHm2yHkG">i.V{</harm>
+                     <harm startid="#mscore-x4QHIXAjaBB_oxgjANtoDNM">
+                        <fb xml:id="mscore-gZEK0GLOnLP_1Ufsvv.aFMF">
+                           <f xml:id="mscore-grPgaWtFa.F_0sqdOLtQbv">h3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-DWDVj1t0-mB_O8oJW6QgzSE" n="17">
+                     <staff xml:id="m20s1" n="1">
+                        <layer xml:id="m20s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-LObiVfM8NhH_q1QtLXDnooF" dur="8" pname="d" oct="5" color="#FF0000" />
+                           </graceGrp>
+                           <beam>
+                              <note xml:id="mscore-pvzZ4.yQHoN_MkI653xDrnL" dur="8" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <graceGrp grace="acc">
+                                 <note xml:id="mscore-QPMqcym0GsD_svqVfKFKVgJ" dur="8" pname="d" oct="5" color="#FF0000" />
+                              </graceGrp>
+                              <note xml:id="mscore-PIzhJSz.4yG_VI8EMtKQsWF" dur="8" pname="c" oct="5" />
+                              <graceGrp grace="acc">
+                                 <note xml:id="mscore-eNS6BXksIGF_NhmW6PpqgWO" dur="8" pname="b" oct="4" color="#FF0000">
+                                    <accid accid.ges="f" />
+                                 </note>
+                              </graceGrp>
+                              <note xml:id="mscore-9UgqD96s5HH_r7K99v.c-9I" dur="8" pname="a" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m20s2" n="2">
+                        <layer xml:id="m20s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-Kzw6DjYKIpC_HI0So4HD1RC" type="mscore-beam-begin" dur="8" pname="c" oct="3" />
+                              <note xml:id="mscore-seIC30i4OfG_4RwGGilXBQJ" type="mscore-beam-mid" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-0QDyRu16hhP_NyKqmNIjxsB" dur="8" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-gCnWjq3BA4P_nF8rgCoxn.M" type="mscore-roman" startid="#mscore-LObiVfM8NhH_q1QtLXDnooF">i</harm>
+                     <slur xml:id="mscore-FAJIs-7tyNP_zmljsWCReSH" startid="#mscore-LObiVfM8NhH_q1QtLXDnooF" endid="#mscore-pvzZ4.yQHoN_MkI653xDrnL" />
+                     <harm xml:id="mscore-gCnWjq3BA4P_nF8rgCoxn.M" type="mscore-roman" startid="#mscore-pvzZ4.yQHoN_MkI653xDrnL">i</harm>
+                     <harm xml:id="mscore-lboZDKfySQN_C1KR6oQAtaD" type="mscore-roman" startid="#mscore-QPMqcym0GsD_svqVfKFKVgJ">VII.V</harm>
+                     <slur xml:id="mscore-9jCPqJl8w1M_R1vpEFB0-FN" startid="#mscore-QPMqcym0GsD_svqVfKFKVgJ" endid="#mscore-PIzhJSz.4yG_VI8EMtKQsWF" />
+                     <harm xml:id="mscore-lboZDKfySQN_C1KR6oQAtaD" type="mscore-roman" startid="#mscore-PIzhJSz.4yG_VI8EMtKQsWF">VII.V</harm>
+                     <harm xml:id="mscore-tLpo.McQCg_6qfxm3oCJHF" type="mscore-roman" startid="#mscore-eNS6BXksIGF_NhmW6PpqgWO">V2</harm>
+                     <slur xml:id="mscore-E5ZbX0Lm2TG_I9fAxf7ruRB" startid="#mscore-eNS6BXksIGF_NhmW6PpqgWO" endid="#mscore-9UgqD96s5HH_r7K99v.c-9I" />
+                     <harm xml:id="mscore-tLpo.McQCg_6qfxm3oCJHF" type="mscore-roman" startid="#mscore-9UgqD96s5HH_r7K99v.c-9I">V2</harm>
+                     <harm startid="#mscore-seIC30i4OfG_4RwGGilXBQJ">
+                        <fb xml:id="mscore-EmM2Bvrd.VM_1XmMSbaV9e">
+                           <f xml:id="mscore-ib41OyIKorH_XK9BrMt856L">_</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-8ehrEFchTSO_rkxwJuD3r2C" n="18">
+                     <staff xml:id="m21s1" n="1">
+                        <layer xml:id="m21s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-o6zohAve1gI_RSUfFIJeFcJ" dur="8" pname="a" oct="4" color="#FF0000" />
+                           </graceGrp>
+                           <beam>
+                              <note xml:id="mscore-2HkE0ep.3xN_oaKGN5LXaAC" type="mscore-beam-begin" dots="1" dur="8" pname="b" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-vG-qnvEJqCN_xzzCBP4KKzH" type="mscore-beam-mid" dur="16" pname="c" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-4pTlWiMCIc_dFNb8JnUh4L" dur="8" pname="d" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m21s2" n="2">
+                        <layer xml:id="m21s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-0AXsd2DFaPF_gGSI3jhhfBB" type="mscore-beam-begin" dur="8" pname="d" oct="3" />
+                              <note xml:id="mscore-Bg-NrRZRdLG_1X-IKjCcztE" type="mscore-beam-mid" dur="8" pname="c" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-qUiaPUVbZ7K_uTaMb2R-HwB" dur="8" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-Qvou3sgXBLI_0.hvhjO2L2L" type="mscore-roman" startid="#mscore-o6zohAve1gI_RSUfFIJeFcJ">I6</harm>
+                     <slur xml:id="mscore-V8.cFptnn4I_TfqibRmecgO" startid="#mscore-o6zohAve1gI_RSUfFIJeFcJ" endid="#mscore-2HkE0ep.3xN_oaKGN5LXaAC" />
+                     <harm xml:id="mscore-Qvou3sgXBLI_0.hvhjO2L2L" type="mscore-roman" startid="#mscore-2HkE0ep.3xN_oaKGN5LXaAC">I6</harm>
+                     <mordent xml:id="mscore-60C1K2Qi.VM_D1htvbcnyzI" form="lower" startid="#mscore-2HkE0ep.3xN_oaKGN5LXaAC" />
+                     <harm xml:id="mscore-fqyuaU8Er.L_D6U-CS.RLED" type="mscore-roman" startid="#mscore-4pTlWiMCIc_dFNb8JnUh4L">I</harm>
+                     <harm startid="#mscore-0AXsd2DFaPF_gGSI3jhhfBB">
+                        <fb xml:id="mscore-0PR-mC9oueO_o64SXoG7NsF">
+                           <f xml:id="mscore-x5QHqHg-58P_GTJLhTJy2GF">6_</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-qdBokrIFLpF_sv0eimZRMWL" n="19">
+                     <staff xml:id="m22s1" n="1">
+                        <layer xml:id="m22s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-3LurGjsclHE_FccyqweSlLC" dur="8" pname="c" oct="5" color="#FF0000" />
+                           </graceGrp>
+                           <beam>
+                              <note xml:id="mscore--AJXd0oF10G_1x-1-rnWvTC" type="mscore-beam-begin" dur="8" pname="b" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-KURW8wcaSvE_0GtWdtp8-cF" type="mscore-beam-mid" dots="1" dur="8" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-eC4Si2Sx6MH_TOw3Z-YnlLE" dur="16" pname="d" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m22s2" n="2">
+                        <layer xml:id="m22s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-hu..wosDRIO_com.MjwOTtG" type="mscore-beam-begin" dur="16" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-ks.fdHKv.aE_q3mpRQAuGME" type="mscore-beam-mid" dur="16" pname="d" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-h8DeIWApBRL_zBIWY2sLYl" type="mscore-beam-mid" dur="8" pname="c" oct="3" />
+                              <note xml:id="mscore-jY2aglDoMuB_h5mSRBWcJ6G" dur="8" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-fwKb4xK7PSB_EmM1flpmPxI" type="mscore-roman" startid="#mscore-3LurGjsclHE_FccyqweSlLC">IV</harm>
+                     <slur xml:id="mscore-F8oXFp5wFr_s0iYZQ5eDNJ" startid="#mscore-3LurGjsclHE_FccyqweSlLC" endid="#mscore--AJXd0oF10G_1x-1-rnWvTC" />
+                     <harm xml:id="mscore-fwKb4xK7PSB_EmM1flpmPxI" type="mscore-roman" startid="#mscore--AJXd0oF10G_1x-1-rnWvTC">IV</harm>
+                     <harm xml:id="mscore-DFS9OGzLfVO_Hbeu150zG0D" type="mscore-roman" startid="#mscore-KURW8wcaSvE_0GtWdtp8-cF">V43</harm>
+                     <mordent xml:id="mscore-hlFaHM4q8FK_xnT171UQNgJ" form="lower" startid="#mscore-KURW8wcaSvE_0GtWdtp8-cF" />
+                     <harm startid="#mscore-h8DeIWApBRL_zBIWY2sLYl">
+                        <fb xml:id="mscore-.5m49Du-DIE_kiqZhDtU2GK">
+                           <f xml:id="mscore-c7JNkWVSnZG_1WvNSNFQQuL">6</f>
+                           <f xml:id="mscore-o0VkdvpPAB_aCFIirAde6G">4</f>
+                           <f xml:id="mscore-L7CCKEqL9FE_Y5oz4rDsgU">3</f>
+                        </fb>
+                     </harm>
+                     <mordent xml:id="mscore-dFkC8xC0-RB_V-HB4HYJZ-M" form="upper" startid="#mscore-h8DeIWApBRL_zBIWY2sLYl" />
+                  </measure>
+                  <measure xml:id="mscore-Q3jHooeZO7C_f5xUQuBd0gB" n="20">
+                     <staff xml:id="m23s1" n="1">
+                        <layer xml:id="m23s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-LJmEb0JDNyE_553ObAQ0BZF" type="mscore-beam-begin" dur="8" pname="c" oct="5" />
+                              <note xml:id="mscore-5jfjLmLzFiN_2BHFNojJBXN" dur="8" pname="b" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                           <beam>
+                              <note xml:id="mscore-TMeWxag3jpP_wNchsd4mXtC" type="mscore-beam-begin" dur="16" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-6nkbuWXeGND_ms.cF-5-9vI" dur="16" pname="d" oct="5" color="#FF0000" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m23s2" n="2">
+                        <layer xml:id="m23s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-gGmky5CVCUO_Wpvt2dmyj5L" type="mscore-beam-begin" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-gMIfxrd3YLO_1atQcpIffcP" type="mscore-beam-mid" dur="16" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-Lqz6K42oy8F_Qe0DfiBwmgC" type="mscore-beam-mid" dur="16" pname="a" oct="2" color="#FF0000">
+                                 <accid xml:id="mscore-.gz-1ZDi91G_su0eSjn4WMK" accid="f" />
+                              </note>
+                              <note xml:id="mscore-WzmBy9pRYIG_TukfMyaT7JI" dur="8" pname="g" oct="2" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-clKFKb6itIK_p3V9E-m5LUB" type="mscore-roman" startid="#mscore-LJmEb0JDNyE_553ObAQ0BZF">V</harm>
+                     <mordent xml:id="mscore-tScmHvhnZlI_QVhV5XZ2kdL" form="upper" startid="#mscore-LJmEb0JDNyE_553ObAQ0BZF" />
+                     <harm xml:id="mscore-HnfZLCbu2.J_d-QQewCZhgM" type="mscore-roman" startid="#mscore-5jfjLmLzFiN_2BHFNojJBXN">I</harm>
+                     <dir xml:id="mscore--aent8TX9qB_7n1CDwcNcjM" type="mscore-staff-text" startid="#mscore-5jfjLmLzFiN_2BHFNojJBXN">)</dir>
+                     <harm xml:id="mscore-61.irtvEJMF_jlK7ci1UL9N" type="mscore-roman" startid="#mscore-TMeWxag3jpP_wNchsd4mXtC">III.I6</harm>
+                     <harm startid="#mscore-gGmky5CVCUO_Wpvt2dmyj5L">
+                        <fb xml:id="mscore-IK1FEbf5THE_Qz14qBkRpJP">
+                           <f xml:id="mscore-j6aUIXmmMoG_hft3EsZhO0O">_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-WzmBy9pRYIG_TukfMyaT7JI">
+                        <fb xml:id="mscore-fORjQPzPHuE_ppItyjEkbPG">
+                           <f xml:id="mscore-mk2gROHDK1L_IZlBakFSsTF">6</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-3e6jMmLd.CL_M0kY5Vec0zO" n="21">
+                     <staff xml:id="m24s1" n="1">
+                        <layer xml:id="m24s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-D62JjnBHAON_l5rkc6WbtvP" type="mscore-beam-begin" dur="8" pname="c" oct="5" />
+                              <note xml:id="mscore-KupJsRwvmJD_PJEz3qcNZG" type="mscore-beam-mid" dots="1" dur="8" pname="b" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-AGgk2.7qAVE_Y1xxdFZP-b" dur="16" pname="a" oct="4">
+                                 <accid xml:id="mscore-8tsADEZOYBE_AhXt5QA.gbI" accid="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m24s2" n="2">
+                        <layer xml:id="m24s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-YdPJI98.t6D_bfzc7C7ONXF" type="mscore-beam-begin" dur="8" pname="a" oct="2">
+                                 <accid xml:id="mscore-AVcHzNL6OwG_QrhrV6Q8NdG" accid="f" />
+                              </note>
+                              <note xml:id="mscore-t6S1LyegdLH_syKHmsZ3Ne" type="mscore-beam-mid" dur="8" pname="g" oct="2" />
+                              <note xml:id="mscore-Gg2NOh8Ux-O_I-BcywxRkED" dur="8" pname="f" oct="2" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-Csdoo2NuqwI_muGG5J30fFD" type="mscore-roman" startid="#mscore-D62JjnBHAON_l5rkc6WbtvP">IV</harm>
+                     <harm xml:id="mscore-O99opAJI0E_ImxO22PeFzB" type="mscore-roman" startid="#mscore-KupJsRwvmJD_PJEz3qcNZG">I6</harm>
+                     <mordent xml:id="mscore-2mZIiTx3FaD_H5ExOoC5tG" form="upper" startid="#mscore-KupJsRwvmJD_PJEz3qcNZG" />
+                     <harm startid="#mscore-t6S1LyegdLH_syKHmsZ3Ne">
+                        <fb xml:id="mscore-iNp8Dr5fbAC_gq4p8b662UE">
+                           <f xml:id="mscore-H.Y2tZhFPaG_VqaE7cuYzGI">6</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-Gg2NOh8Ux-O_I-BcywxRkED">
+                        <fb xml:id="mscore-lqAZOIjtMgH_XfFnrqTZVWG">
+                           <f xml:id="mscore-W7REx9Eft4J_WRh9MEOZ.DF">6</f>
+                           <f xml:id="mscore-gJC83Zg1A2G_rgU01KDBF2M">4</f>
+                           <f xml:id="mscore-gIMKJiS0qfO_w7KnWfQ2wRO">b3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-ZJf1Lo6i1EL_CjoS29-TjeO" n="22">
+                     <staff xml:id="m25s1" n="1">
+                        <layer xml:id="m25s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-ugAb0c2WncP_Gr-T-a.leYH" type="mscore-beam-begin" dots="1" dur="8" pname="g" oct="4" />
+                              <note xml:id="mscore-OUk7qoSIEs_zkWI3lDrdOK" type="mscore-beam-mid" dur="16" pname="a" oct="4" color="#FF0000">
+                                 <accid xml:id="mscore-K3bqlI4.lz_0lshbprvunI" accid="f" />
+                              </note>
+                              <note xml:id="mscore-nxjdCBCMYeN_1ohDu48nXJN" dur="8" pname="b" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m25s2" n="2">
+                        <layer xml:id="m25s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-GyEcxV9yiZH_S4YZL5qy5AM" type="mscore-beam-begin" dur="8" pname="e" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-VPCJZNZ6R6K_C.-ePzMMLwC" type="mscore-beam-mid" dur="16" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-SN.4.KtromG_d0EWjJNxmU" type="mscore-beam-mid" dur="16" pname="f" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-smicio0xKTP_Ut6vQoyVMIO" dur="8" pname="g" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-PjRMzpD0EIM_1J4SkksqtUF" type="mscore-roman" startid="#mscore-ugAb0c2WncP_Gr-T-a.leYH">I</harm>
+                     <mordent xml:id="mscore--7b1YDRZAXP_ybkCGIzr4lE" form="upper" startid="#mscore-ugAb0c2WncP_Gr-T-a.leYH" />
+                     <harm xml:id="mscore-Fzcm5wgA82K_ixINXZJjo5G" type="mscore-roman" startid="#mscore-nxjdCBCMYeN_1ohDu48nXJN">I6</harm>
+                     <harm startid="#mscore-GyEcxV9yiZH_S4YZL5qy5AM">
+                        <fb xml:id="mscore-mjyQZR6ShRM_h.0BZ-suNUC">
+                           <f xml:id="mscore-Pn31Bzt5MgL_gtLmsYEhLpK">_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-smicio0xKTP_Ut6vQoyVMIO">
+                        <fb xml:id="mscore-tVwiaEKhVr_02-ibv1fNv">
+                           <f xml:id="mscore-yzBdpC3Uuj_uIlulNy4eDI">6</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-FeLJ8kMkxrD_.D8Fjg3XDLH" n="23">
+                     <staff xml:id="m26s1" n="1">
+                        <layer xml:id="m26s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-eDUWG6gG5BH_dcAoHRbnk1C" type="mscore-beam-begin" dur="8" pname="c" oct="5" />
+                              <graceGrp grace="acc">
+                                 <note xml:id="mscore-JXSO.uuRzvI_dBbXbKuj7uK" dur="8" pname="c" oct="5" color="#FF0000" />
+                              </graceGrp>
+                              <note xml:id="mscore-JONtDo-eX1I_stVfSFDbBMB" type="mscore-beam-mid" dots="1" dur="8" pname="d" oct="5" />
+                              <note xml:id="mscore-64U5kpXDvGI_XbV.LIbQq5E" dur="16" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m26s2" n="2">
+                        <layer xml:id="m26s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-4s9pZKPUbHJ_JUFrvHhC9uK" type="mscore-beam-begin" dur="16" pname="a" oct="3">
+                                 <accid xml:id="mscore-XopeAGum1FJ_oSjYxs5ulIE" accid="f" />
+                              </note>
+                              <note xml:id="mscore-N7XGi4dAANH_qq9P6tNoBzH" type="mscore-beam-mid" dur="16" pname="g" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-9faQtPq7ZzM_T7RAOPLji8G" type="mscore-beam-mid" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-udK2CNvKQ-J_wH9.ZUhcm3E" dur="8" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-MPpQH6nfAOO_CspacVZXUcI" type="mscore-roman" startid="#mscore-eDUWG6gG5BH_dcAoHRbnk1C">IV</harm>
+                     <harm xml:id="mscore-VOWxpQQJlUH_jtvgmG5zk0O" type="mscore-roman" startid="#mscore-JXSO.uuRzvI_dBbXbKuj7uK">V43</harm>
+                     <slur xml:id="mscore-ziA6VIx83PF_aGCDUkArAbG" startid="#mscore-JXSO.uuRzvI_dBbXbKuj7uK" endid="#mscore-JONtDo-eX1I_stVfSFDbBMB" />
+                     <harm xml:id="mscore-VOWxpQQJlUH_jtvgmG5zk0O" type="mscore-roman" startid="#mscore-JONtDo-eX1I_stVfSFDbBMB">V43</harm>
+                     <mordent xml:id="mscore-XJOfBeHvPI_2fE5AmXKo7C" form="lower" startid="#mscore-JONtDo-eX1I_stVfSFDbBMB" />
+                     <harm startid="#mscore-4s9pZKPUbHJ_JUFrvHhC9uK">
+                        <fb xml:id="mscore-sTkbNlYi-dD_qMqN4wHAwCC">
+                           <f xml:id="mscore-araHNKSpfLN_qVDmqxDgTaO">_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-9faQtPq7ZzM_T7RAOPLji8G">
+                        <fb xml:id="mscore-jVs45ImyExK_Jv8rKS2sOiK">
+                           <f xml:id="mscore-Fd-2CXf-VYD_ZPDJzk.FbbL">6</f>
+                           <f xml:id="mscore-5wHBsoOzJEM_nQF8CgdZbtG">4+</f>
+                           <f xml:id="mscore-UBSFQySKu8B_LKqIJTavzI">3</f>
+                        </fb>
+                     </harm>
+                     <mordent xml:id="mscore-aw.KjLpiDG_dbzYQEy-V7B" form="upper" startid="#mscore-9faQtPq7ZzM_T7RAOPLji8G" />
+                  </measure>
+                  <measure xml:id="mscore-Y7zqDxiarAK_saxD72xb1gG" type="mscore-repeat-2" right="rptend" metcon="false" n="24">
+                     <staff xml:id="m27s1" n="1">
+                        <layer xml:id="m27s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-BC9pvpx-WsK_RdP.dUGm9a" type="mscore-beam-begin" dur="8" pname="f" oct="4" />
+                              <note xml:id="mscore-jRPe4gry2-E_Sw5Y3Etf6DC" dur="8" pname="e" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m27s2" n="2">
+                        <layer xml:id="m27s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-3gj.EVF6xEP_2AMLC2y63OF" type="mscore-beam-begin" dur="8" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-5j0XqrVUMtF_v2zSEWxOMjP" dur="8" pname="e" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <repeatMark xml:id="mscore-ia6t-eNv5U_hMvrxXCOMZC" func="daCapo" tstamp="0">D.C.</repeatMark>
+                     <harm xml:id="mscore-PeMOuNexmkD_7yTZ8iQhLHF" type="mscore-roman" startid="#mscore-BC9pvpx-WsK_RdP.dUGm9a">V</harm>
+                     <mordent xml:id="mscore-2SR-pvWR7BG_VZ77HihS73" form="upper" startid="#mscore-BC9pvpx-WsK_RdP.dUGm9a" />
+                     <harm xml:id="mscore-bPvMRMwXLUF_Wm902BwcM1B" type="mscore-roman" startid="#mscore-jRPe4gry2-E_Sw5Y3Etf6DC">I|PAC}</harm>
+                     <dir xml:id="mscore-T94DIIu18QC_aYWFaOmrzTM" type="mscore-staff-text" startid="#mscore-jRPe4gry2-E_Sw5Y3Etf6DC">)</dir>
+                  </measure>
+                  <measure xml:id="mscore-20C01HUWNlC_8zKp3ZI9RW" left="rptstart" metcon="false">
+                     <staff xml:id="m28s1" n="1">
+                        <layer xml:id="m28s1l1" n="1">
+                           <note xml:id="mscore-imsJlvls2JC_EnKaJcwTqgJ" dur="4" pname="c" oct="5" />
+                           <rest xml:id="mscore-mg9lcNAwzfE_MNKicVTuTxH" type="mscore-beam-none" dur="16" />
+                           <beam>
+                              <note xml:id="mscore-6Wx8xQXrOXK_WEot.vutHOL" type="mscore-beam-begin" dur="16" pname="a" oct="4">
+                                 <accid xml:id="mscore-tYpWorCA4-E_cHl2c841h7B" accid="f" />
+                              </note>
+                              <note xml:id="mscore-TzlRWaSxW2H_x3OzBqCzWOG" type="mscore-beam-mid" dur="16" pname="g" oct="4" color="#FF0000" />
+                              <note xml:id="mscore-achsQn8qITL_.a5MXMmrLDC" dur="16" pname="f" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m28s2" n="2">
+                        <layer xml:id="m28s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-4XjuN2HLhSB_jThyvUW98kI" dur="8" pname="c" oct="3" />
+                              <note xml:id="mscore-33NoH6RG.uO_WS15a1E.aUN" dur="8" pname="c" oct="2" />
+                           </beam>
+                           <rest xml:id="mscore-0886agvC8zI_IOyn8YYyrjP" dur="4" />
+                        </layer>
+                     </staff>
+                     <repeatMark xml:id="mscore-ZQFZOiU36yL_oNU4ZO7FjoL" func="segno" tstamp="0">3e Couplet</repeatMark>
+                     <harm xml:id="mscore-QWj3O9eTP6B_kJ8YXgWZYNN" type="mscore-roman" startid="#mscore-imsJlvls2JC_EnKaJcwTqgJ">i.i{</harm>
+                     <fermata xml:id="mscore-k6DlLmDkenD_ucHY-6NcRdM" startid="#mscore-imsJlvls2JC_EnKaJcwTqgJ" />
+                     <harm xml:id="mscore-b-0eKy9P2jC_8C0yPR7gFjF" type="mscore-roman" startid="#mscore-6Wx8xQXrOXK_WEot.vutHOL">iv</harm>
+                     <dir xml:id="mscore-J8H-Vlt4u-P_2zrGhwL2AtI" type="mscore-staff-text" startid="#mscore-4XjuN2HLhSB_jThyvUW98kI">Fin.</dir>
+                     <fermata xml:id="mscore--hCBTZuKqCK_e5BePmjIzMB" startid="#mscore-4XjuN2HLhSB_jThyvUW98kI" />
+                  </measure>
+                  <measure xml:id="mscore-Pggv1UvVZAF_bRFn6pLi9aK" n="25">
+                     <staff xml:id="m29s1" n="1">
+                        <layer xml:id="m29s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-F31MhFFL7-_aVTua-a866I" type="mscore-beam-begin" dur="16" pname="e" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-9dndbRVanKF_0bYoZQC7MNP" type="mscore-beam-mid" dur="16" pname="d" oct="4" color="#FF0000" />
+                              <note xml:id="mscore-Q2GqLqRtl0G_M4EgXMitzLH" type="mscore-beam-mid" dur="16" pname="c" oct="4" />
+                              <note xml:id="mscore-8XDwCEgtcUM_cXWw6SmltoG" type="mscore-beam-mid" dur="16" pname="d" oct="4" color="#FF0000" />
+                              <note xml:id="mscore-DN8iOK7EygB_SO6dpa-R5JD" type="mscore-beam-mid" dur="16" pname="e" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-Z8oDjyKxBdG_wlleD4SyKyH" dur="16" pname="f" oct="4" color="#FF0000" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m29s2" n="2">
+                        <layer xml:id="m29s2l1" n="1">
+                           <rest xml:id="mscore-86mXO.CkH6D_ucXmRM7Qd3P" type="mscore-beam-none" dur="8" />
+                           <rest xml:id="mscore-9.QsQm83gGO_FaH.c11U2KO" type="mscore-beam-none" dur="16" />
+                           <beam>
+                              <note xml:id="mscore-skVZnvf64eO_J1Ol1cReqJF" type="mscore-beam-begin" dur="16" pname="a" oct="3" color="#FF0000">
+                                 <accid xml:id="mscore-dKMMeNn5d0H_86luONGWI3B" accid="f" />
+                              </note>
+                              <note xml:id="mscore-4KAhuVx5YJF_qbRWqguOi0O" type="mscore-beam-mid" dur="16" pname="g" oct="3" />
+                              <note xml:id="mscore-D.UTXUGsfoL_QK4bS1EuyEJ" dur="16" pname="f" oct="3" color="#FF0000" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-NKAomHjY9tI_R6BWnnlB.RC" type="mscore-roman" startid="#mscore-F31MhFFL7-_aVTua-a866I">i</harm>
+                     <mordent xml:id="mscore-QvTHs6qVq5O_n.2JBsAHtLH" form="upper" startid="#mscore-F31MhFFL7-_aVTua-a866I" />
+                  </measure>
+                  <measure xml:id="mscore-LIQ9MGmMGhN_s5FPTclAERC" n="26">
+                     <staff xml:id="m30s1" n="1">
+                        <layer xml:id="m30s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-Gn7gXsmVqBM_Qm0beM.H68F" dur="8" pname="f" oct="4" color="#FF0000" />
+                           </graceGrp>
+                           <beam>
+                              <note xml:id="mscore-r-ue2CyUqhO_xz.0GwT2SGE" type="mscore-beam-begin" dots="1" dur="8" pname="g" oct="4" />
+                              <note xml:id="mscore-mmiaXkHLkFE_Z6pNjXx.agK" type="mscore-beam-mid" dur="16" pname="g" oct="4" />
+                              <note xml:id="mscore-QYNNfNppqiH_AvXVh33HnlF" dur="8" pname="c" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m30s2" n="2">
+                        <layer xml:id="m30s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-nuK6hPs0czP_zg10muevp4N" type="mscore-beam-begin" dur="16" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-EbhOGxSx.u_RWiIweV3sjH" type="mscore-beam-mid" dur="16" pname="d" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-ofPCbPaFBnI_mILBm7eeK1M" type="mscore-beam-mid" dur="16" pname="c" oct="3" />
+                              <note xml:id="mscore-XUsio6npAsP_OCr3cQpGnP" type="mscore-beam-mid" dur="16" pname="d" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-gB6A14x1h.D_AJ5t8O3n1F" type="mscore-beam-mid" dur="16" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-d7N-COm1kEE_XUiYo8i.H1D" dur="16" pname="f" oct="3" color="#FF0000" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-WLFEK7yFbpL_XFiTqgFiBtM" type="mscore-roman" startid="#mscore-Gn7gXsmVqBM_Qm0beM.H68F">i6</harm>
+                     <slur xml:id="mscore-a-.Iv.pHP5P_c-E2jgQP44L" startid="#mscore-Gn7gXsmVqBM_Qm0beM.H68F" endid="#mscore-r-ue2CyUqhO_xz.0GwT2SGE" />
+                     <harm xml:id="mscore-WLFEK7yFbpL_XFiTqgFiBtM" type="mscore-roman" startid="#mscore-r-ue2CyUqhO_xz.0GwT2SGE">i6</harm>
+                     <mordent xml:id="mscore-wT1rINhzArB_iMkRW86NUgK" form="lower" startid="#mscore-r-ue2CyUqhO_xz.0GwT2SGE" />
+                     <harm startid="#mscore-nuK6hPs0czP_zg10muevp4N">
+                        <fb xml:id="mscore-ulFMiT7geFM_hhlHClAf8tE">
+                           <f xml:id="mscore-cYUkcs9ENtF_E8wZfI0kuMD">6_</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-y3gZqegywmJ_3hY8VH9.diN" n="27">
+                     <staff xml:id="m31s1" n="1">
+                        <layer xml:id="m31s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-Ajjpw2B1zfJ_FFshmJtI6pO" type="mscore-beam-begin" dur="8" pname="b" oct="4">
+                                 <accid xml:id="mscore-6RXGIL97EoJ_eWOOhVbLn1" accid="n" />
+                              </note>
+                              <note xml:id="mscore-Mtvo0MY.N1I_esT4crTLZEB" type="mscore-beam-mid" dur="8" pname="c" oct="5" />
+                              <note xml:id="mscore-NXgnM8u2q0B_gYjSGtekfzM" dur="8" pname="d" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m31s2" n="2">
+                        <layer xml:id="m31s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-yhjIspfSP5D_jE3m6BSWIkL" type="mscore-beam-begin" dur="16" pname="g" oct="3" />
+                              <note xml:id="mscore-N1QyUitveqF_axqefHZfR9B" type="mscore-beam-mid" dur="16" pname="b" oct="3">
+                                 <accid xml:id="mscore-Zlvm72pWsXG_YseuY7fstCF" accid="n" />
+                              </note>
+                              <note xml:id="mscore-hs-caU43xuC_VvafwkGdt7J" type="mscore-beam-mid" dur="16" pname="a" oct="3" />
+                              <note xml:id="mscore-0Zc8Eu5-A2N_gS1haPpCkvP" type="mscore-beam-mid" dur="16" pname="c" oct="4" />
+                              <note xml:id="mscore--ynrYClAOuN_Zws5y48IrKG" type="mscore-beam-mid" dur="16" pname="b" oct="3" />
+                              <note xml:id="mscore-PYIdkWAIdtH_YvJm0EOi2WH" dur="16" pname="d" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-XJDCKt1xs3D_91agFECNoXC" type="mscore-roman" startid="#mscore-Ajjpw2B1zfJ_FFshmJtI6pO">V</harm>
+                     <mordent xml:id="mscore-zm1.hllvB7G_KMOlR9mmXTN" form="upper" startid="#mscore-Ajjpw2B1zfJ_FFshmJtI6pO" />
+                     <harm xml:id="mscore-u19rTkFxNmL_dmrtADlWWnH" type="mscore-roman" startid="#mscore-Mtvo0MY.N1I_esT4crTLZEB">IV6</harm>
+                     <harm xml:id="mscore-jZTX9Ujir6H_HbVt4C0.daC" type="mscore-roman" startid="#mscore-NXgnM8u2q0B_gYjSGtekfzM">V65</harm>
+                     <harm startid="#mscore-yhjIspfSP5D_jE3m6BSWIkL">
+                        <fb xml:id="mscore-qXakw8ec7gC_ELlOajx32jI">
+                           <f xml:id="mscore-JU2PVay8v6D_HkS1RBKiBdP">h3_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-hs-caU43xuC_VvafwkGdt7J">
+                        <fb xml:id="mscore-WiPnGiuMUAC_wbr7KjDvgXG">
+                           <f xml:id="mscore-xkc3DPxrLAE_05XCzrVB3nJ">6_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore--ynrYClAOuN_Zws5y48IrKG">
+                        <fb xml:id="mscore-uafXQ.dOz6L_8btGd61KPKB">
+                           <f xml:id="mscore-xuzIcuRB4yM_tuodE8RVCSB">5/_</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-XtL0Z487DiJ_znfHg01G-2O" n="28">
+                     <staff xml:id="m32s1" n="1">
+                        <layer xml:id="m32s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-iG27G8xUT-J_s7P1goVsluN" type="mscore-beam-begin" dur="16" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-OOiqLaatUKB_RNxRswy1spL" type="mscore-beam-mid" dur="16" pname="d" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-9vRqJMmtuPD_lmtE22TbaTF" type="mscore-beam-mid" dur="16" pname="c" oct="5" />
+                              <note xml:id="mscore-xpfJJX1PToO_qvkgLcb2c2N" type="mscore-beam-mid" dur="16" pname="d" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-8TNp7p7GM0J_DaZ2k1S4L3H" type="mscore-beam-mid" dots="1" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-EnuhE-dpqv_yTghyuVyHmF" type="mscore-beam-mid" dur="64" pname="c" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-.jdMnder--_.ghPX69WnOH" dur="64" pname="d" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m32s2" n="2">
+                        <layer xml:id="m32s2l1" n="1">
+                           <note xml:id="mscore-asjsMEH-JT_W0JPGR1-MkJ" dur="4" pname="c" oct="4" stem.dir="down" />
+                           <note xml:id="mscore-WpsHBw8dYwJ_IP61tFaHjtJ" dur="8" pname="g" oct="3" stem.dir="down" />
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-iFo9EsMChEF_Cr2nxXFdhqO" type="mscore-roman" startid="#mscore-iG27G8xUT-J_s7P1goVsluN">i</harm>
+                     <slur xml:id="mscore-u4J0.2N837_NYymjwJ4PMK" startid="#mscore-iG27G8xUT-J_s7P1goVsluN" endid="#mscore-.jdMnder--_.ghPX69WnOH" />
+                     <harm xml:id="mscore-G7DaPuiODQC_qxDF4bPiUzO" type="mscore-roman" startid="#mscore-8TNp7p7GM0J_DaZ2k1S4L3H">V</harm>
+                     <mordent xml:id="mscore--rwHOsO3xLB_0qjA92zps7I" form="upper" startid="#mscore-8TNp7p7GM0J_DaZ2k1S4L3H" />
+                     <harm startid="#mscore-WpsHBw8dYwJ_IP61tFaHjtJ">
+                        <fb xml:id="mscore-75Kh48CgVRD_He5mZNDzhbG">
+                           <f xml:id="mscore-juVo9YwaKtM_b12ywgB.D2N">h3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-2dgNNIL.geP_Q9B4H5Nn89H" n="29">
+                     <staff xml:id="m33s1" n="1">
+                        <layer xml:id="m33s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-DOwBn4cHcbO_25RR6v.krhK" type="mscore-beam-begin" dur="16" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-wC2LJ1wcdQN_n1Ikuir40aK" type="mscore-beam-mid" dur="16" pname="d" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-PFc6sfFYbtH_hy1DkNLu69D" type="mscore-beam-mid" dur="16" pname="c" oct="5" />
+                              <note xml:id="mscore-YWtrudk.DOJ_Ftn4u9MZ7iP" type="mscore-beam-mid" dur="16" pname="d" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-ljA6-seygIN_.oN1NYXbJWF" type="mscore-beam-mid" dots="1" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-QpGPN6X7bIN_an2QYXYCwMM" type="mscore-beam-mid" dur="64" pname="c" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-kVUKF4GD5mB_79V8hcnSIKK" dur="64" pname="d" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m33s2" n="2">
+                        <layer xml:id="m33s2l1" n="1">
+                           <note xml:id="mscore-8kN8ObbUzGO_k4hNmuQfeCK" dur="4" pname="c" oct="4" stem.dir="down" />
+                           <note xml:id="mscore-7-YPXihxpo_6Aoc24NI.5C" dur="8" pname="g" oct="3" stem.dir="down" />
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-UC9XxhZ61TP_iLsSSA-iW7C" type="mscore-roman" startid="#mscore-DOwBn4cHcbO_25RR6v.krhK">i</harm>
+                     <slur xml:id="mscore-yzWmm3.gj6B_78Y.7Q-wArE" startid="#mscore-DOwBn4cHcbO_25RR6v.krhK" endid="#mscore-kVUKF4GD5mB_79V8hcnSIKK" />
+                     <harm xml:id="mscore-nXqcYt0YU6P_7GzQtibr4v" type="mscore-roman" startid="#mscore-ljA6-seygIN_.oN1NYXbJWF">V</harm>
+                     <mordent xml:id="mscore-HZp1MNx67EE_IzH2RsYJEsC" form="upper" startid="#mscore-ljA6-seygIN_.oN1NYXbJWF" />
+                     <harm startid="#mscore-7-YPXihxpo_6Aoc24NI.5C">
+                        <fb xml:id="mscore-02X0dSEx6HM_EKEEOiEgv0">
+                           <f xml:id="mscore-nU82QazNakB_Z9VsLJHvOLI">h3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-TLEEn6J9YU_S9NYc6UcgxC" n="30">
+                     <staff xml:id="m34s1" n="1">
+                        <layer xml:id="m34s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-weseoti04hM_1cKILsvjK7D" type="mscore-beam-begin" dur="16" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-PMSVZzK9NNO_Ke23BerBOnL" type="mscore-beam-mid" dur="16" pname="d" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-jWDaZzXFXoL_njkriD4QuJE" type="mscore-beam-mid" dur="16" pname="c" oct="5" />
+                              <note xml:id="mscore-yVCD6G09AvN_pbTH1OsrwLO" type="mscore-beam-mid" dur="16" pname="d" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-05S8h94jM-N_ov8mtZWr-1O" type="mscore-beam-mid" dur="16" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-hfNmDoAHXjI_qhPa9Iku9DF" dur="16" pname="f" oct="5" color="#FF0000" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m34s2" n="2">
+                        <layer xml:id="m34s2l1" n="1">
+                           <note xml:id="mscore-Fr6vjaxTQ.N_tY0Ps1Be6cG" dur="4" pname="c" oct="4" stem.dir="down" />
+                           <note xml:id="mscore-Aj5aTo97NtO_PbSmzGV46BI" dur="8" pname="c" oct="3" stem.dir="up" />
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-k-rz222ti0N_KDoQwRcql.I" type="mscore-roman" startid="#mscore-weseoti04hM_1cKILsvjK7D">i</harm>
+                  </measure>
+                  <measure xml:id="mscore-MDtSQxneUeE_ok07lzK9wqK" n="31">
+                     <staff xml:id="m35s1" n="1">
+                        <layer xml:id="m35s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-G06vfynYl8_r0Gt6biXszK" type="mscore-beam-begin" dur="8" pname="g" oct="5" />
+                              <note xml:id="mscore-FNlA8oMZGXP_SU8UNlqew3D" type="mscore-beam-mid" dur="8" pname="g" oct="4" />
+                              <note xml:id="mscore-YM8NDrGP3oI_sNyXttNmiHL" dur="8" pname="c" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m35s2" n="2">
+                        <layer xml:id="m35s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-RvH51CAhqTD_lYpqAp9gt7K" type="mscore-beam-begin" dur="8" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-Eba3Cbys.iP_U2Kdg0fNS6D" type="mscore-beam-mid" dur="16" pname="c" oct="3" />
+                              <note xml:id="mscore-wHdcWe3v-XN_bbW4DTLA-xJ" type="mscore-beam-mid" dur="16" pname="b" oct="2" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-cicTJG6W9jE_WsWzlJPBqaK" dur="8" pname="a" oct="2">
+                                 <accid xml:id="mscore-KoXJ61Ad7pM_OkLTAIGKnUH" accid="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-vLUhbl9KhYI_bXyTJFVj5B" type="mscore-roman" startid="#mscore-G06vfynYl8_r0Gt6biXszK">v6</harm>
+                     <harm xml:id="mscore-I9QRQEF3KZC_0aAIVPZzS7M" type="mscore-roman" startid="#mscore-FNlA8oMZGXP_SU8UNlqew3D">i</harm>
+                     <harm xml:id="mscore-UmV79jjU1kP_mW6eAgZ.nED" type="mscore-roman" startid="#mscore-YM8NDrGP3oI_sNyXttNmiHL">ii%43</harm>
+                     <harm startid="#mscore-RvH51CAhqTD_lYpqAp9gt7K">
+                        <fb xml:id="mscore--TyN0YoVXnM_AO9V9nDGURJ">
+                           <f xml:id="mscore-xhLSu4VSnNB_aHMNRAQsqf">6</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-Eba3Cbys.iP_U2Kdg0fNS6D">
+                        <fb xml:id="mscore-9jHkQKuYyEN_Hhu3gfh8e8D">
+                           <f xml:id="mscore-EGVy7aXIZeO_s5TcqCAczSL">3_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-cicTJG6W9jE_WsWzlJPBqaK">
+                        <fb xml:id="mscore-wdsWqC-UmTO_oCn4G6UF2ID">
+                           <f xml:id="mscore-X131jdFmvxB_3CQwR0vKBdD">6</f>
+                           <f xml:id="mscore-mah-Jp4GQqB_hbR8OglrkzG">4+</f>
+                           <f xml:id="mscore-jXr4yIki4jB_run5jgmWlHL">3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-3cuJcnhIMcK_8QcqaAYCx-H" n="32">
+                     <staff xml:id="m36s1" n="1">
+                        <layer xml:id="m36s1l1" n="1">
+                           <note xml:id="mscore-lxN7njom8aF_RdHrT-jDbCM" dur="8" pname="b" oct="4" stem.dir="down">
+                              <accid xml:id="mscore-fQD-plNzaAC_sGA3BuUbFQP" accid="n" />
+                           </note>
+                           <rest xml:id="mscore-0Cr.AYwQQ2H_-GakNiibyPG" type="mscore-beam-none" dur="16" />
+                           <beam>
+                              <note xml:id="mscore-0m8vz1Dct0L_yhKPW0bc3iB" type="mscore-beam-begin" dur="16" pname="e" oct="5" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-yRwluT-S2j_RQDd4bi-gRP" type="mscore-beam-mid" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-PUO0D0LPHgD_Dq19Av5gCoL" dur="16" pname="c" oct="5" color="#FF0000" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m36s2" n="2">
+                        <layer xml:id="m36s2l1" n="1">
+                           <note xml:id="mscore-ut6b0Y4dDmI_Lv70ZUu4swM" dur="4" pname="g" oct="2" stem.dir="up" />
+                           <rest xml:id="mscore-frDeo6.8GCC_jIXQZY5t1LL" type="mscore-beam-none" dur="8" />
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-Cy6AAWUUpYK_O6RKxN94gCK" type="mscore-roman" startid="#mscore-lxN7njom8aF_RdHrT-jDbCM">V|HC.PHR}</harm>
+                     <dir xml:id="mscore-yPCACLwR9MD_OV96Z6ekiMG" type="mscore-staff-text" startid="#mscore-lxN7njom8aF_RdHrT-jDbCM">)</dir>
+                     <mordent xml:id="mscore-B4KwTHpVjQJ_SfU58FnNCoH" form="upper" startid="#mscore-lxN7njom8aF_RdHrT-jDbCM" />
+                     <harm xml:id="mscore-hs-YPA-fU.H_F-j7QBJwn7H" type="mscore-roman" startid="#mscore-0m8vz1Dct0L_yhKPW0bc3iB">{</harm>
+                     <harm startid="#mscore-ut6b0Y4dDmI_Lv70ZUu4swM">
+                        <fb xml:id="mscore-QN59QS6tUMC_zMY7jN4tCBH">
+                           <f xml:id="mscore-tvkHImN.xJC_wWNLHVK7x0B">h3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-bHQksys2aDP_Q4QF5azq3ZP" n="33">
+                     <staff xml:id="m37s1" n="1">
+                        <layer xml:id="m37s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-dfOteFeIViF_vz6XC-nzBEP" type="mscore-beam-begin" dur="16" pname="b" oct="4">
+                                 <accid xml:id="mscore-pZo65XlH93B_n7jZLYFBI2G" accid="f" />
+                              </note>
+                              <note xml:id="mscore-QCBPcvSWj3J_chmnvU10QQG" type="mscore-beam-mid" dur="16" pname="a" oct="4" color="#FF0000" />
+                              <note xml:id="mscore-m5IlnNWY3eP_xrAmqDL128P" type="mscore-beam-mid" dur="16" pname="g" oct="4" />
+                              <note xml:id="mscore--.BY-pQEXlC_CyJM0Gi2CGG" type="mscore-beam-mid" dur="16" pname="a" oct="4" color="#FF0000" />
+                              <note xml:id="mscore-qmsJh2DyAuP_gadZOXFOBW" type="mscore-beam-mid" dur="16" pname="b" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-VvjwZsjXO8I_bqSV.kHy6jN" dur="16" pname="c" oct="5" color="#FF0000">
+                                 <accid xml:id="mscore-8b7y.u5IdlG_iFr3cfhYmNM" accid="n" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m37s2" n="2">
+                        <layer xml:id="m37s2l1" n="1">
+                           <rest xml:id="mscore-FAU5QOoYQbN_pCmjdIE49s" type="mscore-beam-none" dur="8" />
+                           <rest xml:id="mscore-C5vhqxzKHAE_tTr2dPMPJuO" type="mscore-beam-none" dur="16" />
+                           <beam>
+                              <note xml:id="mscore-ib6gVM7TeIN_P4xYbSFVsCE" type="mscore-beam-begin" dur="16" pname="e" oct="3" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-sG7qLj4BbAO_LoaS698rg4O" type="mscore-beam-mid" dur="16" pname="d" oct="3" />
+                              <note xml:id="mscore-nh3rBXBq.IP_0RgP7p0gltK" dur="16" pname="c" oct="3" color="#FF0000" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-D5Rhm2lCwSI_XAI9TfRLSCF" type="mscore-roman" startid="#mscore-dfOteFeIViF_vz6XC-nzBEP">v.i</harm>
+                     <mordent xml:id="mscore-1EpAurYe63L_EQRL9M5E5kH" form="upper" startid="#mscore-dfOteFeIViF_vz6XC-nzBEP" accidupper="n" />
+                  </measure>
+                  <measure xml:id="mscore-1LvQYSNhMOI_kNUshmu4qbD" n="34">
+                     <staff xml:id="m38s1" n="1">
+                        <layer xml:id="m38s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-V1ol8ITH2vJ_pmCWN-mX2.P" type="mscore-beam-begin" dots="1" dur="8" pname="d" oct="5" />
+                              <note xml:id="mscore-L925bzsvYmN_x9jCS4-TdzK" type="mscore-beam-mid" dur="16" pname="d" oct="4" />
+                              <note xml:id="mscore-WjidN9knq1H_AISYSAEPw9" dur="8" pname="g" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m38s2" n="2">
+                        <layer xml:id="m38s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-2a6oOwizYq_fsxwcIgAczC" type="mscore-beam-begin" dur="16" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-5xSf0u0KfOO_-Eg2VO9rydC" type="mscore-beam-mid" dur="16" pname="a" oct="2" color="#FF0000" />
+                              <note xml:id="mscore-Yh3ruW2beGB_aOovHTbQBTF" type="mscore-beam-mid" dur="16" pname="g" oct="2" />
+                              <note xml:id="mscore-w-4ScXzxjgG_pYVbPA9BRtN" type="mscore-beam-mid" dur="16" pname="a" oct="2" color="#FF0000" />
+                              <note xml:id="mscore-GDEoUB0EjdO_GdPOOC5WboK" type="mscore-beam-mid" dur="16" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-x-dTQJynZqP_maweOrp5z.J" dur="16" pname="c" oct="3" color="#FF0000" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-whbfokbb4MN_1YHg9IobuPC" type="mscore-roman" startid="#mscore-V1ol8ITH2vJ_pmCWN-mX2.P">i6</harm>
+                     <harm startid="#mscore-2a6oOwizYq_fsxwcIgAczC">
+                        <fb xml:id="mscore-UCTvb5pVCtF_ZLFzG6yP-4D">
+                           <f xml:id="mscore-v3Ahl0yoLVI_DvpQjyxa2aD">6_</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-Mr-FGvhWnvN_FSBdi7fzm8O" n="35">
+                     <staff xml:id="m39s1" n="1">
+                        <layer xml:id="m39s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-KvnwtzVDjsM_CgTHgZakhXK" type="mscore-beam-begin" dur="8" pname="f" oct="4">
+                                 <accid xml:id="mscore-MB2oTfOVseI_SpB4dDHPAvJ" accid="s" />
+                              </note>
+                              <note xml:id="mscore-aClSDwpPBBC_OoVUYmqqB4L" type="mscore-beam-mid" dur="8" pname="g" oct="4" />
+                              <note xml:id="mscore-S9oL0FCKWdP_bYqQckr1UgO" dur="8" pname="a" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m39s2" n="2">
+                        <layer xml:id="m39s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-byArHSzmSSO_etakr0d9gEL" type="mscore-beam-begin" dur="16" pname="d" oct="3" />
+                              <note xml:id="mscore-w0Npzp9iSZB_VLWHY.joRBP" type="mscore-beam-mid" dur="16" pname="f" oct="3">
+                                 <accid xml:id="mscore-kGhhSc21gUD_9Mz7DXcyeEO" accid="s" />
+                              </note>
+                              <note xml:id="mscore-uY2HzW5IFfF_3U7S9uMMcyB" type="mscore-beam-mid" dur="16" pname="e" oct="3">
+                                 <accid xml:id="mscore-PanNBpnxRE_XRfj.Fg4QdC" accid="n" />
+                              </note>
+                              <note xml:id="mscore-W8H3pja3vB_AqLId12I66D" type="mscore-beam-mid" dur="16" pname="g" oct="3" />
+                              <note xml:id="mscore-eXwbphVNqVF_vXMR8gaRAoE" type="mscore-beam-mid" dur="16" pname="f" oct="3">
+                                 <accid accid.ges="s" />
+                              </note>
+                              <note xml:id="mscore-cHsPgolyx0_vvCmd6FhUVI" dur="16" pname="a" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-Puoob2DuDLG_F-JYJnULTTE" type="mscore-roman" startid="#mscore-KvnwtzVDjsM_CgTHgZakhXK">V</harm>
+                     <mordent xml:id="mscore-X-NMI2VzAPB_zWqo9OOQGdO" form="upper" startid="#mscore-KvnwtzVDjsM_CgTHgZakhXK" />
+                     <harm xml:id="mscore-4g.WrvsVCAC_PGDErKInCgF" type="mscore-roman" startid="#mscore-aClSDwpPBBC_OoVUYmqqB4L">IV6</harm>
+                     <harm xml:id="mscore-kebilH-DoKM_IfI3FuTLPXF" type="mscore-roman" startid="#mscore-S9oL0FCKWdP_bYqQckr1UgO">V65</harm>
+                     <harm startid="#mscore-byArHSzmSSO_etakr0d9gEL">
+                        <fb xml:id="mscore-lzuONNQaAgG_kHo86Y62gIK">
+                           <f xml:id="mscore-8PF1lucP9sP_q2Kg5wR8M1P">#3_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-uY2HzW5IFfF_3U7S9uMMcyB">
+                        <fb xml:id="mscore-t5poNP4NddM_Rscp-SjECCO">
+                           <f xml:id="mscore-gxvqesLiK3B_eDTNRKjNfKI">6_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-eXwbphVNqVF_vXMR8gaRAoE">
+                        <fb xml:id="mscore-ACWGMs0.Rl_iUiJShZNJvB">
+                           <f xml:id="mscore-x4bkYd1I.UD_y66i4ITEeQH">5/_</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-yr0MgEjS-2M_ZWvV9gLnmaG" n="36">
+                     <staff xml:id="m40s1" n="1">
+                        <layer xml:id="m40s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-cVrx.if.tkJ_yOVVu0HI8yG" dur="8" pname="a" oct="4" color="#FF0000" />
+                           </graceGrp>
+                           <note xml:id="mscore-8WVmWMgpbaD_IpeECMXrDOK" dur="8" pname="b" oct="4" stem.dir="down">
+                              <accid accid.ges="f" />
+                           </note>
+                           <beam>
+                              <note xml:id="mscore-.hn6BBYExuH_2daa0Qs8U.P" type="mscore-beam-begin" dur="8" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <graceGrp grace="acc">
+                                 <note xml:id="mscore-70ChUI6wnkI_ZeuDDZokiaG" dur="8" pname="d" oct="5" color="#FF0000" />
+                              </graceGrp>
+                              <note xml:id="mscore-TgkmXTlk9DF_yBe63B7iN5E" dur="8" pname="c" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m40s2" n="2">
+                        <layer xml:id="m40s2l1" n="1">
+                           <note xml:id="mscore-vEH7h6jwGuK_PUS2zlnRSqH" dur="8" pname="g" oct="3" stem.dir="down" />
+                           <rest xml:id="mscore-DKY3-Ois5rD_WR.wfTiJPLE" type="mscore-beam-none" dur="8" />
+                           <rest xml:id="mscore-pkeWJ1pITBE_n4y-OUrPoMD" type="mscore-beam-none" dur="8" />
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-O-jOflh62eM_afPuQa.rmWK" type="mscore-roman" startid="#mscore-cVrx.if.tkJ_yOVVu0HI8yG">i</harm>
+                     <dir xml:id="mscore-inGf-t53-NH_Lnh5DddautG" type="mscore-staff-text" startid="#mscore-cVrx.if.tkJ_yOVVu0HI8yG">)</dir>
+                     <slur xml:id="mscore-juq9j4z21EN_KdS.P99EdhE" startid="#mscore-cVrx.if.tkJ_yOVVu0HI8yG" endid="#mscore-8WVmWMgpbaD_IpeECMXrDOK" />
+                     <harm xml:id="mscore-O-jOflh62eM_afPuQa.rmWK" type="mscore-roman" startid="#mscore-8WVmWMgpbaD_IpeECMXrDOK">i</harm>
+                     <dir xml:id="mscore-inGf-t53-NH_Lnh5DddautG" type="mscore-staff-text" startid="#mscore-8WVmWMgpbaD_IpeECMXrDOK">)</dir>
+                     <mordent xml:id="mscore-Hcai4hgngQF_CjYFaA-OmqD" form="lower" startid="#mscore-8WVmWMgpbaD_IpeECMXrDOK" />
+                     <harm xml:id="mscore-YSZSeLrzLi_dFcx27lydsL" type="mscore-roman" startid="#mscore-.hn6BBYExuH_2daa0Qs8U.P">iv64</harm>
+                     <slur xml:id="mscore-esWBt1taQbE_lKPgT36cX7P" startid="#mscore-70ChUI6wnkI_ZeuDDZokiaG" endid="#mscore-TgkmXTlk9DF_yBe63B7iN5E" />
+                     <harm startid="#mscore-DKY3-Ois5rD_WR.wfTiJPLE">
+                        <fb xml:id="mscore-hn6yet1cM4H_.vBDuZKOgg">
+                           <f xml:id="mscore-qWhyIh8J7KP_AlZ9.JuMFXD">6</f>
+                           <f xml:id="mscore-d3aanmLOmOJ_MAm12CaJxGJ">4</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-5YhXR.aYT3E_3d8q3i22FRN" n="37">
+                     <staff xml:id="m41s1" n="1">
+                        <layer xml:id="m41s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-ube1J8hi7wN_4fboj6bA8AN" type="mscore-beam-begin" dur="8" pname="a" oct="4" />
+                              <note xml:id="mscore-hN.79.WN9yJ_73ceLjr2DSB" dur="8" pname="d" oct="5" />
+                              <graceGrp grace="acc">
+                                 <note xml:id="mscore-qCeYGDvj-kO_J8bKaIqufPN" dur="8" pname="c" oct="5" color="#FF0000" />
+                              </graceGrp>
+                              <note xml:id="mscore-3PftXY7CgNL_EEIM-9eLA5E" dur="8" pname="b" oct="4" stem.dir="down">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m41s2" n="2">
+                        <layer xml:id="m41s2l1" n="1">
+                           <note xml:id="mscore-nfHyZw3HKaD_bEocJtrul4P" dur="8" pname="f" oct="3" stem.dir="down" />
+                           <rest xml:id="mscore-4nbn-ezBzdB_Al29sxpGVwK" type="mscore-beam-none" dur="8" />
+                           <rest xml:id="mscore-4PZUtfspXON_fIktCABgnsF" type="mscore-beam-none" dur="8" />
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-lqVGxTPEVlI_CIUM97byrPJ" type="mscore-roman" startid="#mscore-ube1J8hi7wN_4fboj6bA8AN">VII7</harm>
+                     <mordent xml:id="mscore-qRHrj3is94E_oG0g7hpVlxL" form="upper" startid="#mscore-ube1J8hi7wN_4fboj6bA8AN" />
+                     <harm xml:id="mscore-y1pR3u1uvWE_DloB551pLcK" type="mscore-roman" startid="#mscore-hN.79.WN9yJ_73ceLjr2DSB">III64</harm>
+                     <slur xml:id="mscore-HXxz2ozBMbF_VYcE4CQU3BG" startid="#mscore-qCeYGDvj-kO_J8bKaIqufPN" endid="#mscore-3PftXY7CgNL_EEIM-9eLA5E" />
+                     <harm startid="#mscore-nfHyZw3HKaD_bEocJtrul4P">
+                        <fb xml:id="mscore-12TDPceK2.K_7ZZB78S9HGC">
+                           <f xml:id="mscore-pV3D3w6VZsC_dzKyYeHJQ3E">7</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-4nbn-ezBzdB_Al29sxpGVwK">
+                        <fb xml:id="mscore-UTSWtk0ZZVO_3yoeebxpsoN">
+                           <f xml:id="mscore-Wgdb7dZ.k4N_GLnGINFG3mJ">6</f>
+                           <f xml:id="mscore-kfoZPthqKC_WtEWdyUwdeB">4</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-aLHVIc-raHI_wiGpGkd9MYK" n="38">
+                     <staff xml:id="m42s1" n="1">
+                        <layer xml:id="m42s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-br7aUm3TKhI_EaQw31GynBL" type="mscore-beam-begin" dots="1" dur="8" pname="g" oct="4" />
+                              <note xml:id="mscore-swtDasiiJ6E_KCdMdHvcLM" dur="16" pname="f" oct="4" color="#FF0000">
+                                 <accid xml:id="mscore-kYm0hJusvWN_GDzuKE3B1.D" accid="s" />
+                              </note>
+                              <graceGrp grace="acc">
+                                 <note xml:id="mscore-AIFvW8Rl2iJ_d09w7eQnsqM" dur="8" pname="f" oct="4" color="#FF0000">
+                                    <accid accid.ges="s" />
+                                 </note>
+                              </graceGrp>
+                              <note xml:id="mscore-skhoJsUkfP_pJpOfRq-0wN" dur="8" pname="g" oct="4" stem.dir="up" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m42s2" n="2">
+                        <layer xml:id="m42s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-anMN0MMBEFK_iICi.3cw5d" type="mscore-beam-begin" dur="8" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-U9FLef8EFKH_T4enVkGB9sJ" type="mscore-beam-mid" dur="8" pname="d" oct="3" />
+                              <note xml:id="mscore-0TSaQbf-O-G_cZfaVfpDcCP" dur="8" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-XMUxq8jVjiB_zsr3xHryg9O" type="mscore-roman" startid="#mscore-br7aUm3TKhI_EaQw31GynBL">VIM7</harm>
+                     <mordent xml:id="mscore-qsm6IszyX2L_nO64sY9qm-O" form="upper" startid="#mscore-br7aUm3TKhI_EaQw31GynBL" />
+                     <harm xml:id="mscore-IslRA3qivdO_WXy2VZME2EB" type="mscore-roman" startid="#mscore-AIFvW8Rl2iJ_d09w7eQnsqM">ii%43</harm>
+                     <slur xml:id="mscore-QW1ejHPWmpC_eqbKZBLdKGK" startid="#mscore-AIFvW8Rl2iJ_d09w7eQnsqM" endid="#mscore-skhoJsUkfP_pJpOfRq-0wN" />
+                     <harm xml:id="mscore-IslRA3qivdO_WXy2VZME2EB" type="mscore-roman" startid="#mscore-skhoJsUkfP_pJpOfRq-0wN">ii%43</harm>
+                     <mordent xml:id="mscore-oDo6cNZlAEL_fupSrRApmDF" form="lower" startid="#mscore-skhoJsUkfP_pJpOfRq-0wN" />
+                     <tie xml:id="mscore-FDqzek1zaRK_hXVLneZa0nB" startid="#mscore-skhoJsUkfP_pJpOfRq-0wN" endid="#mscore-bfZJ4h1WVIM_18rboE.XAb" />
+                     <harm startid="#mscore-anMN0MMBEFK_iICi.3cw5d">
+                        <fb xml:id="mscore-l7tawWw1DJC_.QpzNpj0aIN">
+                           <f xml:id="mscore-.oUbSdEx67E_kgRl19g4ulN">7_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-0TSaQbf-O-G_cZfaVfpDcCP">
+                        <fb xml:id="mscore-65R-nFfsodF_eiFWbJCUfUG">
+                           <f xml:id="mscore-iqRuGPyvkCD_WvqlL4AlhyO">6</f>
+                           <f xml:id="mscore-ob7ltgRRw5_wF43-YX5ZWJ">4+</f>
+                           <f xml:id="mscore-prW6Y2MoEgN_RnmbbFA8uVJ">3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-ihrggQz.21_jUBI9tF33aK" n="39">
+                     <staff xml:id="m43s1" n="1">
+                        <layer xml:id="m43s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-bfZJ4h1WVIM_18rboE.XAb" type="mscore-beam-begin" dur="16" pname="g" oct="4" />
+                              <note xml:id="mscore-xrkZ7qu0yLI_ih.zrqfY4CB" type="mscore-beam-mid" dur="16" pname="a" oct="4" />
+                              <note xml:id="mscore-u7022lWCJ3D_9tkqHwzvxzI" type="mscore-beam-mid" dots="1" dur="8" pname="a" oct="4" />
+                              <note xml:id="mscore-tgveBSepGiL_2wHXTwzQCpG" dur="16" pname="g" oct="4" color="#FF0000" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m43s2" n="2">
+                        <layer xml:id="m43s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-elxmJEw2rwD_z4dPcxJ9YEN" type="mscore-beam-begin" dur="8" pname="c" oct="3" />
+                              <note xml:id="mscore-Av4bSpXydWI_85xhq2op9fM" type="mscore-beam-mid" dur="8" pname="d" oct="3" />
+                              <note xml:id="mscore-EbiFC5B2LLH_agF9XZxg1PC" dur="8" pname="d" oct="2" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-Dy..xwphwDC_9I3XhzUHEcH" type="mscore-roman" startid="#mscore-bfZJ4h1WVIM_18rboE.XAb">ii%65</harm>
+                     <harm xml:id="mscore-7dhd6RdGKbO_E8oXs7bsK9G" type="mscore-roman" startid="#mscore-u7022lWCJ3D_9tkqHwzvxzI">V(4)</harm>
+                     <mordent xml:id="mscore-2qABz3LRY3_HEze.a23XQF" form="upper" startid="#mscore-u7022lWCJ3D_9tkqHwzvxzI" />
+                     <harm startid="#mscore-elxmJEw2rwD_z4dPcxJ9YEN">
+                        <fb xml:id="mscore-KpgycymkKQD_DImelJlSGAO">
+                           <f xml:id="mscore-VKUjO87LP5I_uCaP1jwzc6I">6</f>
+                           <f xml:id="mscore-sSdkdZVO9tI_JkdWIbXddcL">5</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-Av4bSpXydWI_85xhq2op9fM">
+                        <fb xml:id="mscore-s2iGQlzF-wH_TOvMlu42drK">
+                           <f xml:id="mscore-Tubtw-ADmtP_niXjO6ZDC3D">4</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-EbiFC5B2LLH_agF9XZxg1PC">
+                        <fb xml:id="mscore-a3rZRQKsKAH_uOK.4ocQxGE">
+                           <f xml:id="mscore-sC0WBtxKwzC_3uk5Awzv6XM">#3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-lC3yCpPXH.N_sMsxAQFgdDJ" n="40">
+                     <staff xml:id="m44s1" n="1">
+                        <layer xml:id="m44s1l1" n="1">
+                           <note xml:id="mscore-DrWB65PZ.4M_KoshxqX6XN" dur="8" pname="g" oct="4" stem.dir="up" />
+                           <rest xml:id="mscore--Jc4cOubAbG_E-uCxEY3YgD" type="mscore-beam-none" dur="16" />
+                           <beam>
+                              <note xml:id="mscore-38kqovx8m2D_ysfFI2fjTnB" type="mscore-beam-begin" dur="16" pname="a" oct="4" color="#FF0000">
+                                 <accid xml:id="mscore-m5k5P8j.Ld_DuWtVyGiYcC" accid="f" />
+                              </note>
+                              <note xml:id="mscore-6WlTIz2poqJ_k4aomAh4YhK" type="mscore-beam-mid" dur="16" pname="g" oct="4" />
+                              <note xml:id="mscore-8p1DApvr3MC_GyOJdglgJiB" dur="16" pname="f" oct="4" color="#FF0000" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m44s2" n="2">
+                        <layer xml:id="m44s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-2GuBOhSgXVE_iv32Bh8zDVF" type="mscore-beam-begin" dur="16" pname="g" oct="2" />
+                              <note xml:id="mscore-8aueFH7IlqJ_Rmw5gYMy5qE" type="mscore-beam-mid" dur="16" pname="a" oct="3" color="#FF0000">
+                                 <accid xml:id="mscore-DCMBrcIDm7_4.0S9ZNezEE" accid="f" />
+                              </note>
+                              <note xml:id="mscore-893-k8ER7pK_r-36HyMERUG" type="mscore-beam-mid" dur="16" pname="g" oct="3" />
+                              <note xml:id="mscore-3sDtOnLK7mG_Lg6SONICvy" type="mscore-beam-mid" dur="16" pname="f" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-cOvcXJQ3ByL_s-QB7iZpJDI" type="mscore-beam-mid" dur="16" pname="e" oct="3" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-hIEv7Ot6RmK_zhRy8HwKdZN" dur="16" pname="d" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-2.d7dK6KDpC_l7H5HrZuAlC" type="mscore-roman" startid="#mscore-DrWB65PZ.4M_KoshxqX6XN">I|PAC}</harm>
+                     <dir xml:id="mscore-7gltHV8kzr_alSrtPNp6CP" type="mscore-staff-text" startid="#mscore-DrWB65PZ.4M_KoshxqX6XN">)</dir>
+                     <harm xml:id="mscore-NUENzRtdkAJ_VmyqcYni9tF" type="mscore-roman" startid="#mscore-38kqovx8m2D_ysfFI2fjTnB">{</harm>
+                     <harm startid="#mscore-2GuBOhSgXVE_iv32Bh8zDVF">
+                        <fb xml:id="mscore-WCg-ziWEZvL_Ud3bIukEtOE">
+                           <f xml:id="mscore-qqJMZQSvq1B_l7DmapYo5XP">h3</f>
+                        </fb>
+                     </harm>
+                     <slur xml:id="mscore-uoLYyBoTf2I_w4yBp9yVXLC" startid="#mscore-8aueFH7IlqJ_Rmw5gYMy5qE" endid="#mscore-hIEv7Ot6RmK_zhRy8HwKdZN" />
+                  </measure>
+                  <measure xml:id="mscore-DJhr8MYXjiB_SH-.QdJOwV" n="41">
+                     <staff xml:id="m45s1" n="1">
+                        <layer xml:id="m45s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-03JrWXHINoI_Y9ZQlI5f2HL" type="mscore-beam-begin" dur="8" pname="e" oct="4">
+                                 <accid xml:id="mscore-thoMjdTclVO_ezZUsBO07CJ" accid="n" />
+                              </note>
+                              <note xml:id="mscore-HjXDDnhQZ-D_QuzF4m.NZsO" type="mscore-beam-mid" dur="8" pname="c" oct="4" />
+                              <note xml:id="mscore-8BZLdlr.QGH_DHDWaZQUhqD" dur="8" pname="g" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m45s2" n="2">
+                        <layer xml:id="m45s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-THaLdZOficB_G0MiheZwWhM" type="mscore-beam-begin" dur="16" pname="c" oct="3" />
+                              <note xml:id="mscore-mXdFq6EZOVJ_PwobjtXBlJH" type="mscore-beam-mid" dur="16" pname="d" oct="3" color="#FF0000">
+                                 <accid xml:id="mscore-pwBKoPheHNE_VeaRcAOEM3I" accid="f" />
+                              </note>
+                              <note xml:id="mscore-j15VXiVl4gH_XqcREfUO4sF" type="mscore-beam-mid" dur="16" pname="c" oct="3" />
+                              <note xml:id="mscore-TXg2UJvydLL_s0Z6BhvRXX" type="mscore-beam-mid" dur="16" pname="b" oct="2" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-0rDMTHt.KQP_t-xyH5l58bO" type="mscore-beam-mid" dur="16" pname="a" oct="2" color="#FF0000">
+                                 <accid xml:id="mscore-Ey3dcA5PnYF_i0k8noEvr2C" accid="f" />
+                              </note>
+                              <note xml:id="mscore-rTZoq9DEa2_obfvw76JoDN" dur="16" pname="g" oct="2" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-rQfMHSbopzC_fxjxokRl47J" type="mscore-roman" startid="#mscore-03JrWXHINoI_Y9ZQlI5f2HL">i.V/iv</harm>
+                     <mordent xml:id="mscore-5l3-kRDkkqJ_zdX9iMBaCjE" form="upper" startid="#mscore-03JrWXHINoI_Y9ZQlI5f2HL" />
+                     <harm startid="#mscore-THaLdZOficB_G0MiheZwWhM">
+                        <fb xml:id="mscore-F5onkDaBzTM_6654tJMS1HJ">
+                           <f xml:id="mscore-RLWfXo2zjYI_BLYp7zH66kK">h3</f>
+                        </fb>
+                     </harm>
+                     <slur xml:id="mscore-tJJPxJSGujG_jJzLfCYO3pM" startid="#mscore-mXdFq6EZOVJ_PwobjtXBlJH" endid="#mscore-rTZoq9DEa2_obfvw76JoDN" />
+                  </measure>
+                  <measure xml:id="mscore-i5MTp5wIogG_keGD34JZlhH" n="42">
+                     <staff xml:id="m46s1" n="1">
+                        <layer xml:id="m46s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-PyBujSUoVCN_bFh-6MqMILH" dur="8" pname="g" oct="4" color="#FF0000" />
+                           </graceGrp>
+                           <beam>
+                              <note xml:id="mscore-tvXjYRq9skL_RlxnRuOr.-L" type="mscore-beam-begin" dots="1" dur="8" pname="a" oct="4">
+                                 <accid xml:id="mscore-9QllB-iShsK_pkMHtCVmK4P" accid="f" />
+                              </note>
+                              <note xml:id="mscore-vT5RITuAuqE_WIfgBrdBJ0O" type="mscore-beam-mid" dur="16" pname="g" oct="4" color="#FF0000" />
+                              <note xml:id="mscore-kGV1zgoSROL_2gcuf2dHx5I" type="mscore-beam-mid" dur="16" pname="f" oct="4" />
+                              <note xml:id="mscore-xcfXVlPIgzP_fZXZ9U70U4G" dur="16" pname="e" oct="4" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m46s2" n="2">
+                        <layer xml:id="m46s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-iSn8otqdHWE_dRzA64tCJ3H" type="mscore-beam-begin" dur="16" pname="f" oct="2" />
+                              <note xml:id="mscore-AticnrV2KoL_o6i36aDEA.J" type="mscore-beam-mid" dur="16" pname="g" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-Z7QAVbU0eyI_mIxasAftFtL" type="mscore-beam-mid" dur="16" pname="f" oct="3" />
+                              <note xml:id="mscore-Fxn7d4aLrs_xxxvzya4wMH" type="mscore-beam-mid" dur="16" pname="e" oct="3" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-mhKSOWt1EQO_RCKVvIpRteF" type="mscore-beam-mid" dur="16" pname="d" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-mn4D2Wx0oSK_H.Dp0GJlAwG" dur="16" pname="c" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-8yDwhegK0VO_Sf7howky.vJ" type="mscore-roman" startid="#mscore-PyBujSUoVCN_bFh-6MqMILH">iv</harm>
+                     <slur xml:id="mscore-8NO.VfTnnnL_jl7N0CWdE2K" startid="#mscore-PyBujSUoVCN_bFh-6MqMILH" endid="#mscore-tvXjYRq9skL_RlxnRuOr.-L" />
+                     <harm xml:id="mscore-8yDwhegK0VO_Sf7howky.vJ" type="mscore-roman" startid="#mscore-tvXjYRq9skL_RlxnRuOr.-L">iv</harm>
+                     <mordent xml:id="mscore-OzN9E0v8tuJ_MQLQZvYGjXI" form="lower" startid="#mscore-tvXjYRq9skL_RlxnRuOr.-L" />
+                     <harm startid="#mscore-iSn8otqdHWE_dRzA64tCJ3H">
+                        <fb xml:id="mscore-D8WVLFDKgKJ_jgoV13XB1dP">
+                           <f xml:id="mscore-bgneMZMpwmB_pm7hYlKzpFF">b3</f>
+                        </fb>
+                     </harm>
+                     <slur xml:id="mscore-qNyXFmbOfKI_NIHHT6UJjII" startid="#mscore-AticnrV2KoL_o6i36aDEA.J" endid="#mscore-mn4D2Wx0oSK_H.Dp0GJlAwG" />
+                  </measure>
+                  <measure xml:id="mscore-a0YFJJJir5D_ChB4jV7fUcD" n="43">
+                     <staff xml:id="m47s1" n="1">
+                        <layer xml:id="m47s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-eI46XpzhDJB_mD.mfLRlosJ" type="mscore-beam-begin" dur="8" pname="d" oct="4" />
+                              <note xml:id="mscore-LiMtBhpHWEF_C3rxAmloLDP" type="mscore-beam-mid" dur="8" pname="b" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-Dy92gWPpRGJ_7VdcAAgD8sP" dur="8" pname="b" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m47s2" n="2">
+                        <layer xml:id="m47s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-sf3AhsUu1dJ_M0nCNhhVA1B" type="mscore-beam-begin" dur="16" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-RYmv3d13GDJ_3hrbmEyoOxP" type="mscore-beam-mid" dur="16" pname="c" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-2.vNEv6yp5P_Uu.vfyDv1ZP" type="mscore-beam-mid" dur="16" pname="b" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-B6ublIWB2ZN_BLmcj2yjpjK" type="mscore-beam-mid" dur="16" pname="a" oct="2" color="#FF0000">
+                                 <accid xml:id="mscore-DW.Ow32E1dJ_ESaT5QIRrtO" accid="f" />
+                              </note>
+                              <note xml:id="mscore-kOr68LN0JQG_zYERFuxLRXJ" type="mscore-beam-mid" dur="16" pname="g" oct="2" color="#FF0000" />
+                              <note xml:id="mscore-PA5q8nNgmLB_qHebm6UWWuE" dur="16" pname="f" oct="2" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-nZ2krui7G.H_2s.eugd4BKP" type="mscore-roman" startid="#mscore-eI46XpzhDJB_mD.mfLRlosJ">V/III</harm>
+                     <mordent xml:id="mscore-YXPFhlTe7-J_F66RJ9iRUTG" form="upper" startid="#mscore-eI46XpzhDJB_mD.mfLRlosJ" />
+                  </measure>
+                  <measure xml:id="mscore-U1qP6UXGRAL_AEbLP-TDiiN" n="44">
+                     <staff xml:id="m48s1" n="1">
+                        <layer xml:id="m48s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-b.sXyuCqAiK_droAM9RHHXN" type="mscore-beam-begin" dur="16" pname="g" oct="4" />
+                              <note xml:id="mscore-pNrcLp5ZhDD_U7NSLcvHrEJ" type="mscore-beam-mid" dur="16" pname="f" oct="4" color="#FF0000" />
+                              <note xml:id="mscore-RKZBLFzslFF_8AW3vGB2cyG" type="mscore-beam-mid" dur="16" pname="g" oct="4" />
+                              <note xml:id="mscore-7F0VN1ayOpL_aSw3tuG8rvK" type="mscore-beam-mid" dur="16" pname="a" oct="4" color="#FF0000">
+                                 <accid xml:id="mscore-a.HXB3eRLYP_nFu7qYreA3M" accid="n" />
+                              </note>
+                              <note xml:id="mscore-ENFY4QxP.mJ_eNM1iiVXooH" type="mscore-beam-mid" dur="16" pname="b" oct="4">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-MoDQMVb5qOE_xmqAUdxu6vN" dur="16" pname="c" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m48s2" n="2">
+                        <layer xml:id="m48s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-9s2QsgWVwVH_RBTfGNJAIZB" type="mscore-beam-begin" dur="8" pname="e" oct="2">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-8qCoEv3GhsJ_msHrgUvMUvN" type="mscore-beam-mid" dur="8" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-0OX7ttUMZzO_FR49mE5kb1E" dur="8" pname="c" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <dir xml:id="mscore-MIpJm3SRlLF_BCSoK4UTSSD" type="mscore-staff-text" startid="#mscore-b.sXyuCqAiK_droAM9RHHXN">♭</dir>
+                     <harm xml:id="mscore-BMZaZujT18B_nd.apdVsvfH" type="mscore-roman" startid="#mscore-b.sXyuCqAiK_droAM9RHHXN">III</harm>
+                     <mordent xml:id="mscore-CiVWypBEaBK_LjmVeVNhstE" form="upper" startid="#mscore-b.sXyuCqAiK_droAM9RHHXN" />
+                     <harm xml:id="mscore-h8KgWrU9tvM_TXZD9t9K.zG" type="mscore-roman" startid="#mscore-RKZBLFzslFF_8AW3vGB2cyG">i6</harm>
+                     <harm xml:id="mscore-4xOYo1vHDmO_GNrJjTWEHXJ" type="mscore-roman" startid="#mscore-ENFY4QxP.mJ_eNM1iiVXooH">i7</harm>
+                     <harm startid="#mscore-8qCoEv3GhsJ_msHrgUvMUvN">
+                        <fb xml:id="mscore-gt832PWTFIK_xg7xaYwiivO">
+                           <f xml:id="mscore-DRQGhDVQ.tP_wcXzkqLlJFG">6_</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-tA1sca73qAO_.FkfXo5fmfH" n="45">
+                     <staff xml:id="m49s1" n="1">
+                        <layer xml:id="m49s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-W3Mfv8eeLhC_WMkUIWaEq8H" type="mscore-beam-begin" dur="16" pname="a" oct="4" />
+                              <note xml:id="mscore-P7kO7rS3IRK_d1ncgRcpnYD" type="mscore-beam-mid" dur="16" pname="g" oct="4" color="#FF0000" />
+                              <note xml:id="mscore-zBpuAselldH_BaN8bG0qOyM" type="mscore-beam-mid" dur="16" pname="a" oct="4" />
+                              <note xml:id="mscore-2Fi.F6wai.D_x.0Cu5-uZdB" type="mscore-beam-mid" dur="16" pname="b" oct="4" color="#FF0000">
+                                 <accid xml:id="mscore-LD8OGGbHASG_F8pTiZCsHIL" accid="n" />
+                              </note>
+                              <note xml:id="mscore-A1EJcTouNQL_Oke6ltjgBEO" type="mscore-beam-mid" dur="16" pname="c" oct="5" />
+                              <note xml:id="mscore-UpU4xpisWbD_Jj3nIcAxBqM" dur="16" pname="d" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m49s2" n="2">
+                        <layer xml:id="m49s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-2N1LAm-PG1_EC9Wj9nQ8TC" type="mscore-beam-begin" dur="8" pname="f" oct="2" />
+                              <note xml:id="mscore-mRW7RA7eUn_vdPskslheWF" type="mscore-beam-mid" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-ncHU5-iU1BJ_Ja-MTgdzchF" dur="8" pname="d" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-UlOjT9hMDQP_c9R-qLNWSAC" type="mscore-roman" startid="#mscore-W3Mfv8eeLhC_WMkUIWaEq8H">IV7</harm>
+                     <mordent xml:id="mscore-t8al.0NDHm_pqBKGcv6AnG" form="upper" startid="#mscore-W3Mfv8eeLhC_WMkUIWaEq8H" />
+                     <harm xml:id="mscore-lPQcj.k0awK_neIfPOayWgL" type="mscore-roman" startid="#mscore-zBpuAselldH_BaN8bG0qOyM">ii6</harm>
+                     <harm xml:id="mscore-nkke9mt7iqC_TkmPK-8D5N" type="mscore-roman" startid="#mscore-A1EJcTouNQL_Oke6ltjgBEO">ii7</harm>
+                     <harm startid="#mscore-2N1LAm-PG1_EC9Wj9nQ8TC">
+                        <fb xml:id="mscore-p0Rj30bHUFB_iFFb-Hr4JvJ">
+                           <f xml:id="mscore-RySHfYCdtTB_FvxaYwH6ODP">7</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-mRW7RA7eUn_vdPskslheWF">
+                        <fb xml:id="mscore-E8GbAWJj91_Pf0jYBX1YaH">
+                           <f xml:id="mscore-PC7GK8ASZfB_H0KooenXZ2N">6</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-ncHU5-iU1BJ_Ja-MTgdzchF">
+                        <fb xml:id="mscore--RszwXou6DK_XJxqm.p419E">
+                           <f xml:id="mscore-.2bEjug2cNE_P0YuXqPovUB">7</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-GISxLnqIj-P_JHH42RGS9iG" n="46">
+                     <staff xml:id="m50s1" n="1">
+                        <layer xml:id="m50s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-J3E4ISnGIPF_v3sPZ28f8PO" type="mscore-beam-begin" dots="1" dur="8" pname="b" oct="4">
+                                 <accid xml:id="mscore-t5eqHCUjamD_5At6wSEIpJK" accid="n" />
+                              </note>
+                              <note xml:id="mscore-BbS9psFhQ4F_kYrhISJb1.G" type="mscore-beam-mid" dur="16" pname="c" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-lWzPiMEYakJ_h9GmTOGU9HJ" type="mscore-beam-mid" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-WGEDvZDkwF_dgkEVmbRsiJ" dur="16" pname="e" oct="5" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m50s2" n="2">
+                        <layer xml:id="m50s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-1viTl.osiOB_-eNA30bWvzG" type="mscore-beam-begin" dur="8" pname="g" oct="2" />
+                              <note xml:id="mscore--nc-0VU12OK_P6RBXDAHgZC" type="mscore-beam-mid" dur="16" pname="g" oct="3" />
+                              <note xml:id="mscore-whlVQ8pb.AO_A5.eaeKbBVP" type="mscore-beam-mid" dur="16" pname="a" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-M12-3XwWznP_fm84tXhzqDL" dur="8" pname="b" oct="3">
+                                 <accid xml:id="mscore-UZzOdO.oTPD_z0cHTYHdhnI" accid="n" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-jDv9lplTu7C_tSAmuHc4elH" type="mscore-roman" startid="#mscore-J3E4ISnGIPF_v3sPZ28f8PO">V|HC}</harm>
+                     <mordent xml:id="mscore-Q-FYai0sTTE_wOWCyMC21oC" form="upper" startid="#mscore-J3E4ISnGIPF_v3sPZ28f8PO" />
+                     <harm xml:id="mscore-mW0Hd3sm9kE_4gK48D8SUsE" type="mscore-roman" startid="#mscore-BbS9psFhQ4F_kYrhISJb1.G">{</harm>
+                     <harm xml:id="mscore-ous.SVxJ1HL_mToi4JUIflL" type="mscore-roman" startid="#mscore-lWzPiMEYakJ_h9GmTOGU9HJ">V65</harm>
+                     <slur xml:id="mscore-l8cDZ8hyiPI_c1medgiELSH" startid="#mscore-lWzPiMEYakJ_h9GmTOGU9HJ" endid="#mscore-WGEDvZDkwF_dgkEVmbRsiJ" />
+                     <harm startid="#mscore-1viTl.osiOB_-eNA30bWvzG">
+                        <fb xml:id="mscore-22aFZjCS2RD_W.SriyYdcZE">
+                           <f xml:id="mscore-05fw4eJupzI_nATtiA3Fo.N">h3_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-M12-3XwWznP_fm84tXhzqDL">
+                        <fb xml:id="mscore--tO5HlCRsAI_UAV-V5LE7uH">
+                           <f xml:id="mscore-Tf94ky1cNaI_tPSnoPLPd1P">5/</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-7-YoPvNPEgE_IjJjXqhKLwN" n="47">
+                     <staff xml:id="m51s1" n="1">
+                        <layer xml:id="m51s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-T01gegM0deC_KyrJ.l2nEMN" type="mscore-beam-begin" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-W3.aHWEV87N_yJPPknfHzYB" type="mscore-beam-mid" dur="16" pname="e" oct="5" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-ClNt93FLvNF_GREjfwTDHbD" type="mscore-beam-mid" dur="16" pname="f" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-9WnySLG3ULC_QqJ4LC89rmE" type="mscore-beam-mid" dur="16" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-q58fdk5T21H_F9.9L7Eq8jN" type="mscore-beam-mid" dur="16" pname="d" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-YGqdX87KBpM_JXUIedkqaQC" dur="16" pname="c" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m51s2" n="2">
+                        <layer xml:id="m51s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-M6-ehML2YoD_ZPSnrvkX-ZD" type="mscore-beam-begin" dur="8" pname="g" oct="3" />
+                              <note xml:id="mscore-l5T9iYStv0P_TyYWBdmM2hB" type="mscore-beam-mid" dur="8" pname="c" oct="4" />
+                              <note xml:id="mscore-Q6qdiGtsO3C_W541lJ8PIsO" dur="8" pname="c" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-YTh2H8bxBtI_ykizoBRuQKO" type="mscore-roman" startid="#mscore-T01gegM0deC_KyrJ.l2nEMN">V7</harm>
+                     <slur xml:id="mscore-QYiX2wowWzH_5ogfp4twm-I" startid="#mscore-T01gegM0deC_KyrJ.l2nEMN" endid="#mscore-W3.aHWEV87N_yJPPknfHzYB" />
+                     <harm xml:id="mscore-wiFtN1xrtoB_HN..akA6E.M" type="mscore-roman" startid="#mscore-ClNt93FLvNF_GREjfwTDHbD">i</harm>
+                     <slur xml:id="mscore-tlHSHAQJzAN_sEU0AxvDbND" startid="#mscore-ClNt93FLvNF_GREjfwTDHbD" endid="#mscore-9WnySLG3ULC_QqJ4LC89rmE" />
+                     <slur xml:id="mscore-laR-5k2CwYE_KU2vfkAKMQB" startid="#mscore-q58fdk5T21H_F9.9L7Eq8jN" endid="#mscore-YGqdX87KBpM_JXUIedkqaQC" />
+                     <mordent xml:id="mscore-JIG12Xl2DZE_XqhGOKsQD2P" form="upper" startid="#mscore-q58fdk5T21H_F9.9L7Eq8jN" />
+                     <harm startid="#mscore-M6-ehML2YoD_ZPSnrvkX-ZD">
+                        <fb xml:id="mscore-dtSu87cmykE_Zau8KaWSBRP">
+                           <f xml:id="mscore-WP9KL5LbXhI_wSx6BAETf1G">7</f>
+                           <f xml:id="mscore-aoGMLe9Ki-I_Lg7nqtvpXNI">h3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-wDoZyq2DopC_DBqPmYusjYK" n="48">
+                     <staff xml:id="m52s1" n="1">
+                        <layer xml:id="m52s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-zhbRFbl2LnL_hpq8z-JAQ7E" type="mscore-beam-begin" dur="16" pname="e" oct="5" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-CqRpmJ2HsaO_Zod-qV8XasL" type="mscore-beam-mid" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-ER0iT.xTsML_.Qd6qW9g16N" type="mscore-beam-mid" dur="16" pname="c" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-evXo-QSMSvL_8ylsflgl6FO" type="mscore-beam-mid" dur="16" pname="b" oct="4">
+                                 <accid xml:id="mscore-lMPTTGPalrI_Hp8Ez7j2swI" accid="n" />
+                              </note>
+                              <note xml:id="mscore-uCMf.shvkCP_pqfRs.cEENC" type="mscore-beam-mid" dur="16" pname="a" oct="4" color="#FF0000" />
+                              <note xml:id="mscore-q9cQtzPeLeI_TUAPu4v9dGL" dur="16" pname="g" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m52s2" n="2">
+                        <layer xml:id="m52s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-YKWBpU4ft3N_23Qnhkra22O" type="mscore-beam-begin" dots="1" dur="8" pname="g" oct="3" />
+                              <note xml:id="mscore-ccq9CfIl6UB_D1d7f-C68jC" type="mscore-beam-mid" dur="16" pname="f" oct="3" color="#FF0000" />
+                              <note xml:id="mscore-5wNcoyHm6bI_Udj13hwSIwG" type="mscore-beam-mid" dur="16" pname="e" oct="3" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-kamKNfjuKeC_5PtLPO6YtwG" dur="16" pname="d" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-NEYrA7ALbRL_1fW7noFxKr" type="mscore-roman" startid="#mscore-zhbRFbl2LnL_hpq8z-JAQ7E">V</harm>
+                     <slur xml:id="mscore-Eqh1lTOaCzP_P9RviR.ZxLO" startid="#mscore-zhbRFbl2LnL_hpq8z-JAQ7E" endid="#mscore-CqRpmJ2HsaO_Zod-qV8XasL" />
+                     <slur xml:id="mscore-HtG7q.C-IwB_BmGh-xhn8p" startid="#mscore-ER0iT.xTsML_.Qd6qW9g16N" endid="#mscore-evXo-QSMSvL_8ylsflgl6FO" />
+                     <slur xml:id="mscore-zynFfwFk06_8ijA.KXQoUG" startid="#mscore-uCMf.shvkCP_pqfRs.cEENC" endid="#mscore-q9cQtzPeLeI_TUAPu4v9dGL" />
+                     <harm startid="#mscore-YKWBpU4ft3N_23Qnhkra22O">
+                        <fb xml:id="mscore-dSRJ78qwpU_b4Kq0OILwkO">
+                           <f xml:id="mscore-DOJSFt9qbWE_poAlHNvfK6H">h3_</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-Wfa02.5DEjB_t-bvxbF1wkK" n="49">
+                     <staff xml:id="m53s1" n="1">
+                        <layer xml:id="m53s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-O6YIbg4DXfP_9t.tWIBdiuI" type="mscore-beam-begin" dur="8" pname="c" oct="5" />
+                              <note xml:id="mscore-Xndied1oaFD_gxdjtLOgDXF" type="mscore-beam-mid" dur="16" pname="e" oct="5" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-JZlhjfo4qCN_7u3yvGJqH9C" type="mscore-beam-mid" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-zWtk1xMSzDH_ZtPRk.vYJWD" type="mscore-beam-mid" dur="16" pname="c" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-.Na7b6JcxtO_gj3M3bbuXrJ" dur="16" pname="b" oct="4">
+                                 <accid xml:id="mscore-1sS2m9E1-FJ_oAsKgkgp4WH" accid="n" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m53s2" n="2">
+                        <layer xml:id="m53s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-YHE-iLHnenJ_yqln8flJY-C" type="mscore-beam-begin" dur="8" pname="c" oct="3" />
+                              <note xml:id="mscore-hP8Sug-eVcN_MIypoVjFLB" type="mscore-beam-mid" dur="8" pname="f" oct="2" />
+                              <note xml:id="mscore-Vg0m80QQ0LC_NTUN7aCx16O" dur="8" pname="g" oct="2" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-tk1FWvN2ZWH_CT4OFyieKgD" type="mscore-roman" startid="#mscore-O6YIbg4DXfP_9t.tWIBdiuI">i</harm>
+                     <harm xml:id="mscore-RJZ3Xy8ikVP_Mrgm5LmPhdK" type="mscore-roman" startid="#mscore-Xndied1oaFD_gxdjtLOgDXF">ii%65</harm>
+                     <slur xml:id="mscore-R14hwuVHyEK_TcYURqL02gM" startid="#mscore-Xndied1oaFD_gxdjtLOgDXF" endid="#mscore-JZlhjfo4qCN_7u3yvGJqH9C" />
+                     <harm xml:id="mscore-cP9Z.fZS4QO_mknoo48i8PN" type="mscore-roman" startid="#mscore-zWtk1xMSzDH_ZtPRk.vYJWD">V</harm>
+                     <slur xml:id="mscore-ZUSh2YMC2jN_2S18Jr5iCxO" startid="#mscore-zWtk1xMSzDH_ZtPRk.vYJWD" endid="#mscore-.Na7b6JcxtO_gj3M3bbuXrJ" />
+                     <harm startid="#mscore-hP8Sug-eVcN_MIypoVjFLB">
+                        <fb xml:id="mscore-JcccMZccNYH_YaMLQVzWHwG">
+                           <f xml:id="mscore-BBSdw1OKnAN_U3WHut5QlIH">6</f>
+                           <f xml:id="mscore-ejTN8ipSGdO_IRG5go3FOhH">5</f>
+                           <f xml:id="mscore-zojfu799GnN_9XDM45s3EYK">b3</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-Vg0m80QQ0LC_NTUN7aCx16O">
+                        <fb xml:id="mscore-1yRN7a81hyG_UJDyztC5FuB">
+                           <f xml:id="mscore-8KtqqM0zAoJ_toCnc7RqOYD">h3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-dHF1Xywib3L_Z92zH1igg3C" n="50">
+                     <staff xml:id="m54s1" n="1">
+                        <layer xml:id="m54s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-y8eYTv2r4d_FC4CWBhZgRG" dur="8" pname="b" oct="4" color="#FF0000">
+                                 <accid xml:id="mscore-YuxFWar4qUI_kX6BAvUUIuB" accid="n" />
+                              </note>
+                           </graceGrp>
+                           <beam>
+                              <note xml:id="mscore-0eQSFOlaakI_L3XGhA-vkdB" type="mscore-beam-begin" dur="8" pname="c" oct="5" />
+                              <note xml:id="mscore-uLpFI6AtqmB_XlmSEjHKgjJ" type="mscore-beam-mid" dur="8" pname="d" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-SfzlYVYZavC_63eQLmp.nbD" dur="8" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m54s2" n="2">
+                        <layer xml:id="m54s2l1" n="1">
+                           <note xml:id="mscore-.9ylEEhFWiO_LCf77kqLcME" dur="8" pname="c" oct="2" stem.dir="up" />
+                           <rest xml:id="mscore-JtQmki0xf8I_vEfQGk2-.RO" type="mscore-beam-none" dur="8" />
+                           <note xml:id="mscore-RdECrJTs5FN_H4882.TL-lD" dur="8" pname="c" oct="3" stem.dir="up" />
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-v1aOvFvEdKB_Uj-ivSY6mqP" type="mscore-roman" startid="#mscore-y8eYTv2r4d_FC4CWBhZgRG">i|PAC}</harm>
+                     <slur xml:id="mscore-KaR1nVJj5zM_n47Z1AG8rUM" startid="#mscore-y8eYTv2r4d_FC4CWBhZgRG" endid="#mscore-0eQSFOlaakI_L3XGhA-vkdB" />
+                     <harm xml:id="mscore-v1aOvFvEdKB_Uj-ivSY6mqP" type="mscore-roman" startid="#mscore-0eQSFOlaakI_L3XGhA-vkdB">i|PAC}</harm>
+                     <harm xml:id="mscore-De2GK6DZHeB_lefC-YadXvO" type="mscore-roman" startid="#mscore-uLpFI6AtqmB_XlmSEjHKgjJ">{</harm>
+                     <turn xml:id="mscore-xx98a4TxiSJ_J24YDx5QXOH" form="upper" startid="#mscore-uLpFI6AtqmB_XlmSEjHKgjJ" />
+                     <dir xml:id="mscore-uFc11L4ph3N_2.yizCWuSLG" type="mscore-staff-text" startid="#mscore-.9ylEEhFWiO_LCf77kqLcME">Reprise du Rondeau, sans renvoi.</dir>
+                  </measure>
+                  <measure xml:id="mscore-TW.j36J8AiD_7DBiR2rySHC" n="51">
+                     <staff xml:id="m55s1" n="1">
+                        <layer xml:id="m55s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-PWT0oNcY-tN_16tP33eNBeB" dur="8" pname="e" oct="5" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </graceGrp>
+                           <beam>
+                              <note xml:id="mscore-MQrrpO9h6tN_aHaQC3AaxG" type="mscore-beam-begin" dur="8" pname="d" oct="5" />
+                              <note xml:id="mscore-K7bCkZFl-qO_U5yAJIF6e1E" type="mscore-beam-mid" dur="16" pname="f" oct="5" color="#FF0000" />
+                              <note xml:id="mscore-Hpc2yfF6xQJ_YzkyEKvNjsE" type="mscore-beam-mid" dur="16" pname="e" oct="5">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-OpIJIFRLI4G_4B8jDMdEmrK" type="mscore-beam-mid" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-feZNHfLMYQH_unp48KAx2rB" dur="16" pname="c" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m55s2" n="2">
+                        <layer xml:id="m55s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-cqMsOhaId2M_NVTyN0Cl1sJ" type="mscore-beam-begin" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-XzJnnXwf0LI_bcQAVop2xeG" type="mscore-beam-mid" dur="8" pname="g" oct="3" />
+                              <note xml:id="mscore-jUgDMBQ7N4P_mNWIfbUv7uO" dur="8" pname="a" oct="3">
+                                 <accid xml:id="mscore-FWgF03GZCFP_Tq4Vv6lLlLB" accid="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-Eudy7eJ0OsB_pBRWQBqPdzN" type="mscore-roman" startid="#mscore-PWT0oNcY-tN_16tP33eNBeB">ii%65</harm>
+                     <slur xml:id="mscore-fLv7TOiV7IL_Sqpw9AryXPJ" startid="#mscore-PWT0oNcY-tN_16tP33eNBeB" endid="#mscore-MQrrpO9h6tN_aHaQC3AaxG" />
+                     <harm xml:id="mscore-Eudy7eJ0OsB_pBRWQBqPdzN" type="mscore-roman" startid="#mscore-MQrrpO9h6tN_aHaQC3AaxG">ii%65</harm>
+                     <harm xml:id="mscore-0Xaf06yV1YK_szaxPEUeCqM" type="mscore-roman" startid="#mscore-K7bCkZFl-qO_U5yAJIF6e1E">i64</harm>
+                     <slur xml:id="mscore-FN9egTOEYED_dt6tKMo8dFB" startid="#mscore-K7bCkZFl-qO_U5yAJIF6e1E" endid="#mscore-Hpc2yfF6xQJ_YzkyEKvNjsE" />
+                     <harm xml:id="mscore-gejRX5yPmMC_lbdhGXqOMNP" type="mscore-roman" startid="#mscore-OpIJIFRLI4G_4B8jDMdEmrK">ii%43</harm>
+                     <slur xml:id="mscore-0oJM12KhgqG_uo1N-CWdo-I" startid="#mscore-OpIJIFRLI4G_4B8jDMdEmrK" endid="#mscore-feZNHfLMYQH_unp48KAx2rB" />
+                     <harm startid="#mscore-cqMsOhaId2M_NVTyN0Cl1sJ">
+                        <fb xml:id="mscore-9lGn9Fv.RYD_hCRiGBn.pLG">
+                           <f xml:id="mscore-xPq5Hp5re0C_qsbUrBMhuvL">6</f>
+                           <f xml:id="mscore-paWRbVN4zgM_afwhAuEe4MB">5</f>
+                           <f xml:id="mscore-Cc0rLItTnvO_j7thULSXTyP">b3</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-XzJnnXwf0LI_bcQAVop2xeG">
+                        <fb xml:id="mscore-MoOCeKx40cM_egap5lMrvZF">
+                           <f xml:id="mscore-PadB2Bbg8oP_NxDwurGWAuD">6</f>
+                           <f xml:id="mscore-SmSkkcJd2vH_LiKhWbhBvxN">4</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-jUgDMBQ7N4P_mNWIfbUv7uO">
+                        <fb xml:id="mscore-TOzi3MWdQJO_LOapATHnSNO">
+                           <f xml:id="mscore-uUwbxBXJX-N_cnztkYROJEO">6</f>
+                           <f xml:id="mscore-b3MrYnHE38D_pXNNsud33cJ">4+</f>
+                           <f xml:id="mscore-9b56XoPMHZ_wdk2mNIiZeK">3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-TCf-ZECLA1O_v9khJBo2tGP" n="52">
+                     <staff xml:id="m56s1" n="1">
+                        <layer xml:id="m56s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-CDAEQuB5GeC_LA26bSjDzAC" type="mscore-beam-begin" dur="8" pname="b" oct="4">
+                                 <accid xml:id="mscore-FKgIY0UyYAM_wqWHOkM0SDM" accid="n" />
+                              </note>
+                              <graceGrp grace="acc">
+                                 <note xml:id="mscore-uIP.TCL8RYI_jw8dznQlT5J" dur="8" pname="a" oct="4" color="#FF0000" />
+                              </graceGrp>
+                              <note xml:id="mscore-tSxjUmqP5JN_SI1iOE-KUvI" dur="8" pname="g" oct="4" />
+                              <note xml:id="mscore-FsGct5bnRHM_VFkv6uWcmUK" dur="8" pname="e" oct="5" stem.dir="down">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m56s2" n="2">
+                        <layer xml:id="m56s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-waUBGQYAZaM_H08UCMr0.zF" type="mscore-beam-begin" dur="8" pname="g" oct="3" />
+                              <note xml:id="mscore-MBMoTkI.fvH_lT5Pq8omm2H" type="mscore-beam-mid" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-u2gfk.ejHc_-ev1Yk.AM4" dur="8" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-Z0AjCnkyrY_BJVbVmXSDmJ" type="mscore-roman" startid="#mscore-CDAEQuB5GeC_LA26bSjDzAC">V</harm>
+                     <mordent xml:id="mscore--8q-wBpQqjI_SvJZmiBuivD" form="upper" startid="#mscore-CDAEQuB5GeC_LA26bSjDzAC" />
+                     <harm xml:id="mscore-zM75xt9szeN_lRFAa1iQjZP" type="mscore-roman" startid="#mscore-uIP.TCL8RYI_jw8dznQlT5J">V2</harm>
+                     <dir xml:id="mscore-2QkrkF371K_E5ur7jbUHWG" type="mscore-staff-text" startid="#mscore-uIP.TCL8RYI_jw8dznQlT5J">)</dir>
+                     <slur xml:id="mscore-9XUOZHP50rD_Gpg.nA3dPpN" startid="#mscore-uIP.TCL8RYI_jw8dznQlT5J" endid="#mscore-tSxjUmqP5JN_SI1iOE-KUvI" />
+                     <harm xml:id="mscore-zM75xt9szeN_lRFAa1iQjZP" type="mscore-roman" startid="#mscore-tSxjUmqP5JN_SI1iOE-KUvI">V2</harm>
+                     <dir xml:id="mscore-2QkrkF371K_E5ur7jbUHWG" type="mscore-staff-text" startid="#mscore-tSxjUmqP5JN_SI1iOE-KUvI">)</dir>
+                     <harm xml:id="mscore-02u9xf782JB_CxJK7uRJ5YN" type="mscore-roman" startid="#mscore-FsGct5bnRHM_VFkv6uWcmUK">i6</harm>
+                     <harm startid="#mscore-waUBGQYAZaM_H08UCMr0.zF">
+                        <fb xml:id="mscore-rlBmof67RHO_ZB-QroX7x1F">
+                           <f xml:id="mscore-CRLTk3UhBzJ_RJJOeBrY2GO">h3_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-u2gfk.ejHc_-ev1Yk.AM4">
+                        <fb xml:id="mscore-.nsQRWu9EOO_PgjK0kOBGrJ">
+                           <f xml:id="mscore--ncAdovJt0J_OIb-c-W3HkF">6</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-mX5b3EZHclI_jW2DLa6WYzP" n="53">
+                     <staff xml:id="m57s1" n="1">
+                        <layer xml:id="m57s1l1" n="1">
+                           <graceGrp grace="acc">
+                              <note xml:id="mscore-ui0JlRp1N4M_ZVQFLzGcHdM" dur="8" pname="e" oct="5" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                           </graceGrp>
+                           <beam>
+                              <note xml:id="mscore-JkcgAg09s8K_ChPqYLRwuTO" type="mscore-beam-begin" dur="8" pname="d" oct="5" />
+                              <note xml:id="mscore-waPUX9bn0wM_zppt5bzJB2K" type="mscore-beam-mid" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-TXQw-QXYMNM_zmD1jM7LgG" type="mscore-beam-mid" dur="16" pname="e" oct="5" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-WnjHqlQrzNK_Fq-3mw9sdnH" type="mscore-beam-mid" dur="16" pname="f" oct="5" />
+                              <note xml:id="mscore-tgaq8PTd4lN_AdwDQOG2U3C" dur="16" pname="a" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m57s2" n="2">
+                        <layer xml:id="m57s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-I2Z0tYAE3bP_0vlCo1v4oKO" type="mscore-beam-begin" dur="8" pname="f" oct="3" />
+                              <note xml:id="mscore-AuiD06zXO8_rAWCqd9L-1P" type="mscore-beam-mid" dur="8" pname="e" oct="3" color="#FF0000">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-WsVn--IJzpL_oFQ.KTY3zoP" dur="8" pname="d" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-bMCSzaW8a4I_XLFpyZMHjXO" type="mscore-roman" startid="#mscore-ui0JlRp1N4M_ZVQFLzGcHdM">ii%65</harm>
+                     <slur xml:id="mscore-w250JMjFIgP_iZ1ahit7j.G" startid="#mscore-ui0JlRp1N4M_ZVQFLzGcHdM" endid="#mscore-JkcgAg09s8K_ChPqYLRwuTO" />
+                     <harm xml:id="mscore-bMCSzaW8a4I_XLFpyZMHjXO" type="mscore-roman" startid="#mscore-JkcgAg09s8K_ChPqYLRwuTO">ii%65</harm>
+                     <harm xml:id="mscore-YMeBz-D.83M_GLtEotUJH4M" type="mscore-roman" startid="#mscore-WnjHqlQrzNK_Fq-3mw9sdnH">ii7</harm>
+                     <harm startid="#mscore-I2Z0tYAE3bP_0vlCo1v4oKO">
+                        <fb xml:id="mscore-MI9vYrRd4wH_vulNzv2-J9N">
+                           <f xml:id="mscore-ZNgYUC6JteF_YF0w-H--77B">6</f>
+                           <f xml:id="mscore-q.fcx1.Pj-N_ppX.T3vbnaP">5</f>
+                           <f xml:id="mscore-eVcA6bGz8lH_HFmueTsyYM">b3_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-WsVn--IJzpL_oFQ.KTY3zoP">
+                        <fb xml:id="mscore-r06C-5AQjOC_MdFBJEzS2s">
+                           <f xml:id="mscore-7wlqPQzSQyB_Kx6OX5jQN-I">7</f>
+                           <f xml:id="mscore-PjCwokE1BwJ_mVnDIgmfOIK">h5</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-aSxa.wFUJVL_HhZyM0IRrgN" n="54">
+                     <staff xml:id="m58s1" n="1">
+                        <layer xml:id="m58s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-ljiNiR79vJD_Xv.9sWphlCB" type="mscore-beam-begin" dur="8" pname="b" oct="4">
+                                 <accid xml:id="mscore-7x4dPbBJuWK_EsI5wLwCcCL" accid="n" />
+                              </note>
+                              <graceGrp grace="acc">
+                                 <note xml:id="mscore-vuLv4XFjtSJ_l0UlkKM9P8E" dur="8" pname="a" oct="4" color="#FF0000" />
+                              </graceGrp>
+                              <note xml:id="mscore-1-etPxGOyRP_3lIfadQYAt" type="mscore-beam-mid" dur="8" pname="g" oct="4" />
+                              <note xml:id="mscore-egzjESpscYB_gcyHr68v0OJ" dur="8" pname="c" oct="5" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m58s2" n="2">
+                        <layer xml:id="m58s2l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-RogaHZMwzJB_mXgYe77jI9G" type="mscore-beam-begin" dur="16" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-isyfIa89YhH_Db5byJp8NJF" type="mscore-beam-mid" dur="16" pname="f" oct="3" />
+                              <note xml:id="mscore-oJRD3WfdW-P_uLcnggn5wCM" type="mscore-beam-mid" dur="16" pname="e" oct="3">
+                                 <accid accid.ges="f" />
+                              </note>
+                              <note xml:id="mscore-PKGsgVevxEN_c2HwLOr-KqF" type="mscore-beam-mid" dur="16" pname="d" oct="3" />
+                              <note xml:id="mscore-eIQNEVuwPoD_5rOasM2e1jF" dur="8" pname="c" oct="3" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-S3JcyDy92UF_9-JlhoMtzhJ" type="mscore-roman" startid="#mscore-ljiNiR79vJD_Xv.9sWphlCB">III+M7(9)</harm>
+                     <mordent xml:id="mscore-CLFbzAlxgJF_tVFunHIbDSM" form="upper" startid="#mscore-ljiNiR79vJD_Xv.9sWphlCB" />
+                     <slur xml:id="mscore-yNnJgsv3EiO_S1L1FsVxhaB" startid="#mscore-vuLv4XFjtSJ_l0UlkKM9P8E" endid="#mscore-1-etPxGOyRP_3lIfadQYAt" />
+                     <harm xml:id="mscore-xf-2aahdxHH_--Zq6zJXdzD" type="mscore-roman" startid="#mscore-egzjESpscYB_gcyHr68v0OJ">i</harm>
+                     <mordent xml:id="mscore-TZJuxyO0ggC_brmQ0JYajBH" form="lower" startid="#mscore-egzjESpscYB_gcyHr68v0OJ" />
+                     <tie xml:id="mscore-VC4ldEk2C7J_vEY5CihI-FL" startid="#mscore-egzjESpscYB_gcyHr68v0OJ" endid="#mscore-xU4dVd3gYpI_5.InjIpvotI" />
+                     <harm startid="#mscore-RogaHZMwzJB_mXgYe77jI9G">
+                        <fb xml:id="mscore-BE-01TM29hN_QpqgvWkt0BC">
+                           <f xml:id="mscore-vp6WZIIr75K_AUBs2snc-i">7</f>
+                           <f xml:id="mscore-QShG04Uf8LO_CDsP9DW3qiC">h5</f>
+                           <f xml:id="mscore-P1HqaAcSIsF_BBsatn-zkaG">3</f>
+                           <f xml:id="mscore-Z7p86acJpLB_LYrjYmfCTEP">2_</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-eIQNEVuwPoD_5rOasM2e1jF">
+                        <fb xml:id="mscore-RWOtfiWFX6L_iQDiP42M6DJ">
+                           <f xml:id="mscore-3q8OdrDGh9J_kU0y9pwVZxE">3</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-kxMamweqxF_vVd6OmC1GSM" n="55">
+                     <staff xml:id="m59s1" n="1">
+                        <layer xml:id="m59s1l1" n="1">
+                           <beam>
+                              <note xml:id="mscore-xU4dVd3gYpI_5.InjIpvotI" type="mscore-beam-begin" dur="16" pname="c" oct="5" />
+                              <note xml:id="mscore-yHSsbdYRfiC_GZRihJrTjnD" type="mscore-beam-mid" dur="16" pname="d" oct="5" />
+                              <note xml:id="mscore-at77zRbr5zG_9awgltVM1JC" type="mscore-beam-mid" dots="1" dur="8" pname="b" oct="4">
+                                 <accid xml:id="mscore-LMi4Nh7BcPC_8N8JmiwfhYC" accid="n" />
+                              </note>
+                              <note xml:id="mscore-xJ3oVUSNoSJ_r3f.Qj7308I" type="mscore-beam-mid" dur="32" pname="a" oct="4" color="#FF0000" />
+                              <note xml:id="mscore-Lx0M.s.dK6L_6LIVVYa73YP" dur="32" pname="b" oct="4" />
+                           </beam>
+                        </layer>
+                     </staff>
+                     <staff xml:id="m59s2" n="2">
+                        <layer xml:id="m59s2l1" n="1">
+                           <note xml:id="mscore-3JkWtUk6uTO_Np52Q6YwXQ" dur="8" pname="f" oct="2" stem.dir="up" />
+                           <note xml:id="mscore-CMBFknoMbtI_tAuiYekp2LI" dur="4" pname="g" oct="2" stem.dir="up" />
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-LMO09uh7w5K_KdEgaJiyvI" type="mscore-roman" startid="#mscore-xU4dVd3gYpI_5.InjIpvotI">ii65</harm>
+                     <harm xml:id="mscore-6IJeSr.Fk3D_I5iYkzwphCO" type="mscore-roman" startid="#mscore-at77zRbr5zG_9awgltVM1JC">V</harm>
+                     <slur xml:id="mscore-LVinLy8m07B_a4mBUon1KyF" startid="#mscore-at77zRbr5zG_9awgltVM1JC" endid="#mscore-Lx0M.s.dK6L_6LIVVYa73YP" />
+                     <mordent xml:id="mscore-S.OJkZfjFCO_W4Ne.JCCbFO" form="upper" startid="#mscore-at77zRbr5zG_9awgltVM1JC" />
+                     <harm startid="#mscore-3JkWtUk6uTO_Np52Q6YwXQ">
+                        <fb xml:id="mscore-bWCa.DIWayI_zpfgGsy9TBN">
+                           <f xml:id="mscore-6J79Bkwp6ZN_VJ1EE1iHq1M">6</f>
+                           <f xml:id="mscore-yh5kH.Yy0TO_CGu-qrzdKDD">5</f>
+                           <f xml:id="mscore-uLLJZ5ocwjJ_Pk.W5w8AzMJ">b3</f>
+                        </fb>
+                     </harm>
+                     <harm startid="#mscore-CMBFknoMbtI_tAuiYekp2LI">
+                        <fb xml:id="mscore-0.d2Yx8m6hE_ZUPRyVoQ6YH">
+                           <f xml:id="mscore-KxzIIWc62RB_gCXUfjjcfpO">h3_</f>
+                        </fb>
+                     </harm>
+                  </measure>
+                  <measure xml:id="mscore-5ybZAKGkCXL_fgy-emsbklF" type="mscore-repeat-2" right="rptend" metcon="false" n="56">
+                     <staff xml:id="m60s1" n="1">
+                        <layer xml:id="m60s1l1" n="1">
+                           <note xml:id="mscore-4-sv583SZWC_BUSdNc.9XfN" dur="4" pname="c" oct="5" stem.dir="down" />
+                        </layer>
+                     </staff>
+                     <staff xml:id="m60s2" n="2">
+                        <layer xml:id="m60s2l1" n="1">
+                           <note xml:id="mscore-9WeKMsLOUlE_taoT48py9UH" dur="4" pname="c" oct="2" stem.dir="up" />
+                        </layer>
+                     </staff>
+                     <harm xml:id="mscore-Z-ciKQVDSMB_ENePFGWQlPD" type="mscore-roman" startid="#mscore-4-sv583SZWC_BUSdNc.9XfN">i|PAC}</harm>
+                  </measure>
+               </section>
+            </score>
+         </mdiv>
+      </body>
+   </music>
+</mei>

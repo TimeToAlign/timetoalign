@@ -1,0 +1,18 @@
+Warnings encountered during the last execution of ms3 review
+============================================================
+
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 9) ms3.Parse.couperin_concerts.c11n08_Rondeau
+	Some of the MCs following the irregular MC 9 do, some don't complete it.
+	   nominal_duration actual_duration expected_completion             next
+	mc                                                                      
+	9               3/8             1/4                 1/8  (1, 10, 19, 28)
+	1               3/8             1/8                 1/4             (2,)
+	10              3/8             1/8                 1/4            (11,)
+	19              3/8             1/8                 1/4            (20,)
+	28              3/8             1/2                   0            (29,)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 60) ms3.Parse.couperin_concerts.c11n08_Rondeau
+	None of the MCs following the irregular MC 60 complete it.
+	   nominal_duration actual_duration expected_completion      next
+	mc                                                               
+	60              3/8             1/4                 1/8  (28, -1)
+	28              3/8             1/2                   0     (29,)

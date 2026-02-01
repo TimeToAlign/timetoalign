@@ -1,0 +1,29 @@
+{
+  "name": "c05n05_musete.measures",
+  "type": "table",
+  "path": "c05n05_musete.measures.tsv",
+  "scheme": "file",
+  "format": "tsv",
+  "mediatype": "text/tsv",
+  "encoding": "utf-8",
+  "dialect": {
+    "csv": {
+      "delimiter": "\t"
+    }
+  },
+  "schema": "https://raw.githubusercontent.com/DCMLab/frictionless_schemas/main/measures/x6OuDsojf-RpsA.schema.yaml",
+  "creator": {
+    "@context": "https://schema.org/",
+    "@type": "SoftwareApplication",
+    "@id": "https://pypi.org/project/ms3/",
+    "name": "ms3",
+    "description": "A parser for MuseScore 3 files and data factory for annotated music corpora.",
+    "author": {
+      "name": "Johannes Hentschel",
+      "@id": "https://orcid.org/0000-0002-1986-9545"
+    },
+    "softwareVersion": "2.6.0.post1.dev1+ga429209ac.d20260201"
+  },
+  "git_revision": "6589d8c69c0aef65657a31a0b78ea85bb4341f33",
+  "git_tag": "6589d8c"
+}
