@@ -77,3 +77,75 @@ Located in `tests/data/midi/score/`:
 - `chopin_op10_no3.musicxml`: MusicXML source
 - `ms3/chopin_op10_no3.notes.tsv`: Gold standard notes (ms3 format)
 - `ms3/chopin_op10_no3.measures.tsv`: Measure info
+
+---
+
+## MeasureMapLoader Tests (Phase 1 Complete)
+
+### `test_measuremap_loader.py`
+
+Tests for the `MeasureMapLoader` implementation (Phase 1 of Measure Handling Design).
+
+**Purpose**: Validates MeasureMapLoader which parses MeasureMap JSON files and returns
+`ScoreStore` with populated `MeasureEventData`.
+
+### Test Categories
+
+| Class | Description | Tests |
+|-------|-------------|-------|
+| `TestMeasureMapLoaderBasic` | Basic loader functionality | Import, init, load specimen |
+| `TestMeasureMapExpansion` | Compression/expansion logic | Minimal, anacrusis, repeats |
+| `TestMeasureMapValidation` | Validation rules | MC unique, qstamp monotonic, next valid |
+| `TestMeasureMapTraversal` | Traversal computation | Simple, repeat, unfolded count |
+| `TestMeasureMapCrossValidation` | Cross-loader validation | Count match, MC match, flow control |
+| `TestMeasureEventDataSchema` | Schema validation | Flow control fields, identity fields |
+| `TestFlowControlSpecimen` | Complex flow control | Load flow_control specimen |
+
+### Gold Standard Specimens
+
+| File | Location | Description | Count |
+|------|----------|-------------|-------|
+| `WoO71.measures.mm.json` | `beethoven_woo71/` | Folded MeasureMap | 397 MCs |
+| `WoO71.measures.tsv` | `beethoven_woo71/` | Folded TSV (ms3) | 397 rows |
+| `WoO71_unfolded.measures.tsv` | `beethoven_woo71/` | Unfolded traversal | 505 rows |
+| `*.mm.json` | `flow_control/flow_only/` | Complex flow control | Variable |
+
+### Validation Policy
+
+Per the **ZERO TOLERANCE VALIDATION POLICY** (AGENTS.md):
+- EXACT counts required (no tolerances)
+- Every mismatch must be investigated
+- Gold standard is authoritative
+- Loader parity is required
+
+### Running MeasureMapLoader Tests
+
+```bash
+# Run all MeasureMapLoader tests
+pytest tests/loader/score/test_measuremap_loader.py -v
+
+# Run specific test class
+pytest tests/loader/score/test_measuremap_loader.py::TestMeasureMapCrossValidation -v
+
+# Run with coverage
+pytest tests/loader/score/test_measuremap_loader.py --cov=timetoalign.loader.score
+```
+
+### Implementation Status
+
+| Component | Status | Validated Against |
+|-----------|--------|-------------------|
+| JSON parsing & expansion | Complete | Beethoven WoO71 (397 MCs) |
+| Validation (MC/qstamp/next) | Complete | Unit tests |
+| Traversal computation | Complete | Unfolded TSV (505 measures) |
+| TSVLoader._load_measures() | Complete | Cross-validation |
+| MeasureEventData schema | Complete | Schema tests |
+
+### MeasureEventData Fields
+
+| Category | Fields |
+|----------|--------|
+| Identity | `mc`, `mn`, `mn_int`, `mm_id` |
+| Temporal | `nominal_length`, `actual_length`, `mc_offset`, `quarterbeats_all_endings` |
+| Flow Control | `start_repeat`, `end_repeat`, `next`, `volta`, `breaks`, `repeats`, `dont_count` |
+| Signatures | `timesig`, `keysig`, `timesig_num`, `timesig_den`, `keysig_fifths` |
