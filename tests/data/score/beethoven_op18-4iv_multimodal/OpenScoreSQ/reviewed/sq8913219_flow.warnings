@@ -1,0 +1,41 @@
+Warnings encountered during the last execution of ms3 review
+============================================================
+
+WARNING  ms3.Parse.OpenScoreSQ.sq8913219_flow
+	The file seems to include separately encoded parts, encoded with their own <Score> tags. Only the first one will be considered.
+ERROR    ms3.Parse.OpenScoreSQ.sq8913219_flow
+	No starting point for the repeatEnd in MC 303 could be determined. It is being ignored.
+ERROR    ms3.Parse.OpenScoreSQ.sq8913219_flow
+	No starting point for the repeatEnd in MC 491 could be determined. It is being ignored.
+ERROR    ms3.Parse.OpenScoreSQ.sq8913219_flow
+	No starting point for the repeatEnd in MC 555 could be determined. It is being ignored.
+ERROR    ms3.Parse.OpenScoreSQ.sq8913219_flow
+	No starting point for the repeatEnd in MC 592 could be determined. It is being ignored.
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 221) ms3.Parse.OpenScoreSQ.sq8913219_flow
+	None of the MCs following the irregular MC 221 complete it.
+	    nominal_duration actual_duration expected_completion    next
+	mc
+	221                1             3/4                 1/4  (222,)
+	222              3/8             3/8                   0  (223,)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 483) ms3.Parse.OpenScoreSQ.sq8913219_flow
+	None of the MCs following the irregular MC 483 complete it.
+	    nominal_duration actual_duration expected_completion    next
+	mc
+	483              3/4             1/4                 1/2  (484,)
+	484              3/4             3/4                   0  (485,)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 584) ms3.Parse.OpenScoreSQ.sq8913219_flow
+	None of the MCs following the irregular MC 584 complete it.
+	    nominal_duration actual_duration expected_completion    next
+	mc
+	584                1             1/4                 3/4  (585,)
+	585                1               1                   0  (586,)
+INCORRECT_VOLTA_MN_WARNING (2, 79) ms3.Parse.OpenScoreSQ.sq8913219_flow
+	MC 79, the 1st measure of a 2nd volta, should have MN 76, not MN 77.
+INCORRECT_VOLTA_MN_WARNING (2, 535) ms3.Parse.OpenScoreSQ.sq8913219_flow
+	MC 535, the 1st measure of a 2nd volta, should have MN 529, not MN 530.
+INCORRECT_VOLTA_MN_WARNING (2, 628) ms3.Parse.OpenScoreSQ.sq8913219_flow
+	MC 628, the 1st measure of a 2nd volta, should have MN 617, not MN 618.
+INCORRECT_VOLTA_MN_WARNING (2, 677) ms3.Parse.OpenScoreSQ.sq8913219_flow
+	MC 677, the 1st measure of a 2nd volta, should have MN 663, not MN 664.
+INCORRECT_VOLTA_MN_WARNING (2, 686) ms3.Parse.OpenScoreSQ.sq8913219_flow
+	MC 686, the 1st measure of a 2nd volta, should have MN 671, not MN 672.

@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="https://music-encoding.org/schema/5.1/mei-basic.rng" type="application/xml" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="https://music-encoding.org/schema/5.1/mei-basic.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<mei xmlns="http://www.music-encoding.org/ns/mei" xml:id="mscore-9Oq8qKT9S6C_7A3xqBoIhmG" meiversion="5.1+basic">
+   <meiHead>
+      <fileDesc>
+         <titleStmt>
+            <title />
+            <respStmt>
+               <persName role="composer">L van Beethoven</persName>
+            </respStmt>
+         </titleStmt>
+         <pubStmt>
+            <date isodate="2026-02-01T16:06:13" />
+            <availability>©</availability>
+         </pubStmt>
+      </fileDesc>
+   </meiHead>
+   <music>
+      <body>
+         <mdiv>
+            <score>
+               <scoreDef>
+                  <pgHead>
+                     <rend halign="center" valign="top">
+                        <rend type="title" fontsize="x-large">String Quartet Op18 No4</rend>
+                     </rend>
+                     <rend halign="right" valign="bottom">
+                        <rend type="composer">L van Beethoven</rend>
+                     </rend>
+                  </pgHead>
+                  <staffGrp>
+                     <staffDef n="1" lines="5" keysig="3f" meter.count="2" meter.unit="2">
+                        <label>Violoncello</label>
+                        <instrDef midi.instrnum="42" />
+                        <clef shape="F" line="4" />
+                     </staffDef>
+                  </staffGrp>
+               </scoreDef>
+               <section xml:id="s1">
+                  <measure xml:id="mscore-QgwZihUZqFO_6W0lrkaC1nE" metcon="false">
+                     <staff xml:id="m1s1" n="1">
+                        <layer xml:id="m1s1l1" n="1">
+                           <rest xml:id="mscore--lSIBG6Gu-P_g0zwDS-W.kM" dur="4" />
+                        </layer>
+                     </staff>
+                  </measure>
+                  <measure xml:id="mscore-Rhl1Soia.bH_zKB6PtqxguG" metcon="false" n="1">
+                     <staff xml:id="m2s1" n="1">
+                        <layer xml:id="m2s1l1" n="1" />
+                     </staff>
+                  </measure>
+                  <measure xml:id="mscore-bmscn-gUS-P_72m32hJC.qK" type="mscore-repeat-2" right="rptend" metcon="false" n="8">
+                     <staff xml:id="m3s1" n="1">
+                        <layer xml:id="m3s1l1" n="1">
+                           <rest xml:id="mscore-UrirxOLKm3G_GN3KDZkk2bK" dur="2" />
+                           <rest xml:id="mscore-0872g.6LyJB_.6lzaeW3zGJ" dur="4" />
+                        </layer>
+                     </staff>
+                  </measure>
+                  <measure xml:id="mscore-rsO7dOyObyE_RPnevrv87gG" left="rptstart" metcon="false">
+                     <staff xml:id="m4s1" n="1">
+                        <layer xml:id="m4s1l1" n="1">
+                           <rest xml:id="mscore-XAJ.T2ml.NE_.XIVKzSa.PF" dur="4" />
+                        </layer>
+                     </staff>
+                  </measure>
+                  <measure xml:id="mscore-dgnVvr2uVcD_2vp.nUn1JqC" metcon="false" n="9">
+                     <staff xml:id="m5s1" n="1">
+                        <layer xml:id="m5s1l1" n="1" />
+                     </staff>
+                  </measure>
+                  <measure xml:id="mscore-FPRo22PHLHP_gAM1Q0xOWFD" type="mscore-repeat-2" right="rptend" metcon="false" n="16">
+                     <staff xml:id="m6s1" n="1">
+                        <layer xml:id="m6s1l1" n="1">
+                           <rest xml:id="mscore-H1p8aV67iGM_uR3zKhmooGP" dur="2" />
+                           <rest xml:id="mscore-.RTtie5K40N_snGJvHWC27P" dur="4" />
+                        </layer>
+                     </staff>
+                  </measure>
+                  <measure xml:id="mscore-CyFIVyj3lMJ_Vcv1Pu9Y3DE" left="rptstart" metcon="false">
+                     <staff xml:id="m7s1" n="1">
+                        <layer xml:id="m7s1l1" n="1">
+                           <rest xml:id="mscore-QvbvaW9QI8O_ALFyJwft-PL" dur="4" />
+                        </layer>
+                     </staff>
+                  </measure>
+                  <measure xml:id="mscore-c4JUU.LzNgI_S8E0i.EeOAD" metcon="false" n="17">
+                     <staff xml:id="m8s1" n="1">
+                        <layer xml:id="m8s1l1" n="1" />
+                     </staff>
+                  </measure>
+                  <measure xml:id="mscore-jPhcyZ8jo2E_heBuR7lrFOH" type="mscore-repeat-2" right="rptend" metcon="false" n="24">
+                     <staff xml:id="m9s1" n="1">
+                        <layer xml:id="m9s1l1" n="1">
+                           <rest xml:id="mscore-HFJZPcsXr2B_5Z3KA-KsLyD" dur="2" />
+                           <rest xml:id="mscore-gXCLu8Ug7VB_FF9GvP-MaCC" dur="4" />
+                        </layer>
+                     </staff>
+                  </measure>
+                  <measure xml:id="mscore-up7EHugmuwI_vr6irKuDbq" metcon="false">
+                     <staff xml:id="m10s1" n="1">
+                        <layer xml:id="m10s1l1" n="1">
+                           <rest xml:id="mscore-.nSipUiaKoC_lyhn5YXALML" dur="4" />
+                        </layer>
+                     </staff>
+                  </measure>
+                  <measure xml:id="mscore-CVz0R5gSt5K_glcX.bu.dMP" left="rptstart" metcon="false" n="25">
+                     <staff xml:id="m11s1" n="1">
+                        <layer xml:id="m11s1l1" n="1" />
+                     </staff>
+                  </measure>
+                  <ending xml:id="mscore-QSWHwhb5MqO_ak-DOWTM5QH" label="1" type="mscore-ending-1" lendsym="none">
+                     <measure xml:id="mscore-MCLnfBHFktG_2oilw443eDM" type="mscore-repeat-2" right="rptend" n="40">
+                        <staff xml:id="m12s1" n="1">
+                           <layer xml:id="m12s1l1" n="1">
+                              <mRest xml:id="mscore-6KxeIEn.P9P_ShIFepbCQoL" />
+                           </layer>
+                        </staff>
+                     </measure>
+                     <ending xml:id="mscore-8SOXG5Y6S1D_1oIQYgiE2mO" label="2" type="mscore-ending-2" lendsym="none">
+                        <measure xml:id="mscore-nnADis.UuDO_LO7OQrrG0WI" n="41">
+                           <staff xml:id="m13s1" n="1">
+                              <layer xml:id="m13s1l1" n="1">
+                                 <mRest xml:id="mscore-LZV-daoFgVJ_tq4ebl9.BeM" />
+                              </layer>
+                           </staff>
+                        </measure>
+                     </ending>
+                     <measure xml:id="mscore-72ERE.t9DwI_xS48jCrTfYO" metcon="false" n="42">
+                        <staff xml:id="m14s1" n="1">
+                           <layer xml:id="m14s1l1" n="1" />
+                        </staff>
+                     </measure>
+                     <measure xml:id="mscore-uxs2CP9wn6F_eGYoBsKvSQE" metcon="false" n="73">
+                        <staff xml:id="m15s1" n="1">
+                           <layer xml:id="m15s1l1" n="1">
+                              <rest xml:id="mscore-dGW1O9HgarD_7yzzFqndWbG" dur="2" />
+                              <rest xml:id="mscore-7UHKkSJdfPN_ZebSG6HHHdI" dur="4" />
+                           </layer>
+                        </staff>
+                     </measure>
+                     <scoreDef keysig="0" />
+                     <measure xml:id="mscore-sRsHF4A-mzG_fRw7QUphRAJ" left="rptstart" metcon="false">
+                        <staff xml:id="m16s1" n="1">
+                           <layer xml:id="m16s1l1" n="1">
+                              <rest xml:id="mscore-mzfKCkKnNRD_iDlni3lWT3P" dur="4" />
+                           </layer>
+                        </staff>
+                     </measure>
+                     <measure xml:id="mscore-J4pNsRn3H6N_VcJJ8GpsISC" metcon="false" n="74">
+                        <staff xml:id="m17s1" n="1">
+                           <layer xml:id="m17s1l1" n="1" />
+                        </staff>
+                     </measure>
+                     <measure xml:id="mscore-F77NM24oH0F_NJ2hY6ArI8L" type="mscore-repeat-2" right="rptend" metcon="false" n="79">
+                        <staff xml:id="m18s1" n="1">
+                           <layer xml:id="m18s1l1" n="1">
+                              <rest xml:id="mscore-wEWLPnd59xL_GSh69tMQpWE" dur="2" />
+                              <rest xml:id="mscore-tvFfXaRysQH_rQLeX13jEYC" dur="4" />
+                           </layer>
+                        </staff>
+                     </measure>
+                     <measure xml:id="mscore-1f-c37hlH1O_YTq7OTf.ToM" left="rptstart" metcon="false">
+                        <staff xml:id="m19s1" n="1">
+                           <layer xml:id="m19s1l1" n="1">
+                              <rest xml:id="mscore-bMx4yTyALu_zKRNiH0wzZJ" dur="4" />
+                           </layer>
+                        </staff>
+                     </measure>
+                     <measure xml:id="mscore-upmaAb-IohK_xJzhJwppN6O" metcon="false" n="80">
+                        <staff xml:id="m20s1" n="1">
+                           <layer xml:id="m20s1l1" n="1" />
+                        </staff>
+                     </measure>
+                     <measure xml:id="mscore-7NLSWaFE30I_ZGOB6EES.kI" type="mscore-repeat-2" right="rptend" metcon="false" n="87">
+                        <staff xml:id="m21s1" n="1">
+                           <layer xml:id="m21s1l1" n="1">
+                              <note xml:id="mscore-9ZAq8JiEk8M_1o5oOEw-KeC" dur="4" pname="c" oct="3" stem.dir="up" />
+                              <rest xml:id="mscore-XxKcquSEuCC_pFWDPPY7x8" dur="4" />
+                              <rest xml:id="mscore-PyHYTBtwMyG_5P.VdCkhPJG" dur="4" />
+                           </layer>
+                        </staff>
+                     </measure>
+                     <measure xml:id="mscore-l2jWQ1UCEH_hpJNPDmfSRN" metcon="false">
+                        <staff xml:id="m22s1" n="1">
+                           <layer xml:id="m22s1l1" n="1">
+                              <rest xml:id="mscore-4Z1-ipvVNF_MYewpHJYb0C" dur="4" />
+                           </layer>
+                        </staff>
+                     </measure>
+                     <measure xml:id="mscore-mJii3vybRSC_r8vDWyZi-mM" left="rptstart" metcon="false" n="88">
+                        <staff xml:id="m23s1" n="1">
+                           <layer xml:id="m23s1l1" n="1" />
+                        </staff>
+                     </measure>
+                     <ending xml:id="mscore-uepEJcjI7yP_92i2.P6RLXN" label="1" type="mscore-ending-1">
+                        <measure xml:id="mscore-VBbpE42Ve7B_m4neE4ZNx2H" type="mscore-repeat-2" right="rptend" n="95">
+                           <staff xml:id="m24s1" n="1">
+                              <layer xml:id="m24s1l1" n="1">
+                                 <mRest xml:id="mscore-gOA-mg2okhH_FCVifP5wgGK" />
+                              </layer>
+                           </staff>
+                        </measure>
+                     </ending>
+                     <ending xml:id="mscore-It9F8IBEyjP_B69uF6Px.2J" label="2" type="mscore-ending-2" lendsym="none">
+                        <measure xml:id="mscore-GlpCrsi49kO_WKC.EakCep" n="96">
+                           <staff xml:id="m25s1" n="1">
+                              <layer xml:id="m25s1l1" n="1">
+                                 <mRest xml:id="mscore-sLmUTWcAUNL_HlqDAVTFvhF" />
+                              </layer>
+                           </staff>
+                        </measure>
+                     </ending>
+                     <measure xml:id="mscore-3IeMyk596qP_LED2BSxr82M" metcon="false" n="97">
+                        <staff xml:id="m26s1" n="1">
+                           <layer xml:id="m26s1l1" n="1" />
+                        </staff>
+                     </measure>
+                     <measure xml:id="mscore-CrMfeEk1usO_RX7Hfiw39eL" n="218">
+                        <staff xml:id="m27s1" n="1">
+                           <layer xml:id="m27s1l1" n="1">
+                              <note xml:id="mscore-y.4g4.yOfsE_7i9wth1YsHO" dur="4" pname="c" oct="3" />
+                              <rest xml:id="mscore-6VvljpNpRPB_Ha8Rrvc1IOM" dur="4" />
+                              <rest xml:id="mscore-t7vslDCUGGI_1wmNB3YyM5F" dur="2" />
+                           </layer>
+                        </staff>
+                     </measure>
+                     <measure xml:id="mscore-TY6ycKHMqzB_LQpG9lNIMbH" right="end" metcon="false" n="219">
+                        <staff xml:id="m28s1" n="1">
+                           <layer xml:id="m28s1l1" n="1">
+                              <rest xml:id="mscore-52RdWfNq2QL_BbgjiZoZYUE" dur="2" />
+                              <rest xml:id="mscore-D5QhqdcXAcO_BWZM3qJDHRE" dur="4" />
+                           </layer>
+                        </staff>
+                        <fermata xml:id="mscore-s6dgqXkcgQF_zz-67pDZSZN" startid="#mscore-D5QhqdcXAcO_BWZM3qJDHRE" />
+                     </measure>
+                  </ending>
+               </section>
+            </score>
+         </mdiv>
+      </body>
+   </music>
+</mei>

@@ -1,0 +1,4 @@
+mc	mn	mc_playthrough	mn_playthrough	quarterbeats_playthrough	quarterbeats_all_endings	duration_qb	mc_onset	mn_onset	timesig	staff	voice	volta	label	style	globalkey	localkey	pedal	chord	numeral	form	figbass	changes	relativeroot	pedalend	cadence	phraseend	chord_type	chord_tones	added_tones	root	bass_note
+93	86	143	86a	525	344	32.0	0	0	2/2	1	1	1	I\\	Chord Symbol	nan	nan		I	I							\\	M	0, 4, 1		0	0
+94	86	152	86b	557	695/2	552.0	0	0	2/2	1	1	2	I	Chord Symbol	nan	nan		I	I								M	0, 4, 1		0	0
+225	216	290	216a	1109	1743/2	7.0	0	0	2/2	1	1		I\\	Chord Symbol	nan	nan		I	I							\\	M	0, 4, 1		0	0

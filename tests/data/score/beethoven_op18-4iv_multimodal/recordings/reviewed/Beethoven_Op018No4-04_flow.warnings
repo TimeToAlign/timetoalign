@@ -1,0 +1,13 @@
+Warnings encountered during the last execution of ms3 review
+============================================================
+
+VOLTAS_WITH_DIFFERING_LENGTHS_WARNING (4, 44) ms3.Parse.recordings.Beethoven_Op018No4-04_flow
+	Volta group of MC 44 contains voltas with different lengths: [0, 1] Check for correct computation of MNs and copy this message into an IGNORED_WARNINGS file to make the warning disappear.
+WARNING  ms3.Parse.recordings.Beethoven_Op018No4-04_flow
+	The incorrect structure {1: [], 2: [45]} of the volta groupa of MC 44 has been corrected to {1: [44], 2: [45]}.
+INCORRECT_VOLTA_MN_WARNING (2, 45) ms3.Parse.recordings.Beethoven_Op018No4-04_flow
+	MC 45, the 1st measure of a 2nd volta, should have MN 40, not MN 41.
+INCORRECT_VOLTA_MN_WARNING (2, 103) ms3.Parse.recordings.Beethoven_Op018No4-04_flow
+	MC 103, the 1st measure of a 2nd volta, should have MN 95, not MN 96.
+FIRST_BAR_MISSING_TEMPO_MARK_WARNING (29,) ms3.Parse.recordings.Beethoven_Op018No4-04_flow
+	No metronome mark found in the first measure nor anywhere else in the score.

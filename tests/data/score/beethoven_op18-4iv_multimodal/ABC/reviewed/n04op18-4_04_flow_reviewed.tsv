@@ -1,0 +1,4 @@
+mc	mn	mc_onset	mn_onset	timesig	staff	voice	volta	label	style	globalkey	localkey	pedal	chord	numeral	form	figbass	changes	relativeroot	pedalend	cadence	phraseend	chord_type	chord_tones	added_tones	root	bass_note	n_colored	n_untouched	count_ratio	dur_colored	dur_untouched	dur_ratio
+93	86	0	0	2/2	1	1	1	I\\	Chord Symbol	nan	nan		I	I							\\	M	0, 4, 1		0	0	0	1	0.0	0.0	0.25	0.0
+94	86	0	0	2/2	1	1	2	I	Chord Symbol	nan	nan		I	I								M	0, 4, 1		0	0	0	1	0.0	0.0	0.25	0.0
+225	216	0	0	2/2	1	1		I\\	Chord Symbol	nan	nan		I	I							\\	M	0, 4, 1		0	0	0	1	0.0	0.0	0.25	0.0

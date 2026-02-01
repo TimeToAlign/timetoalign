@@ -1,0 +1,29 @@
+{
+  "name": "beethoven_op018no4-04.harmonies",
+  "type": "table",
+  "path": "Beethoven_Op018No4-04.harmonies.tsv",
+  "scheme": "file",
+  "format": "tsv",
+  "mediatype": "text/tsv",
+  "encoding": "utf-8",
+  "dialect": {
+    "csv": {
+      "delimiter": "\t"
+    }
+  },
+  "schema": "https://raw.githubusercontent.com/DCMLab/frictionless_schemas/main/harmonies/-wUs7rt0B8TaiQ.schema.yaml",
+  "creator": {
+    "@context": "https://schema.org/",
+    "@type": "SoftwareApplication",
+    "@id": "https://pypi.org/project/ms3/",
+    "name": "ms3",
+    "description": "A parser for MuseScore 3 files and data factory for annotated music corpora.",
+    "author": {
+      "name": "Johannes Hentschel",
+      "@id": "https://orcid.org/0000-0002-1986-9545"
+    },
+    "softwareVersion": "2.5.4.post1.dev5+g7441cab"
+  },
+  "git_revision": "ac372f480a8f050476aa63316fd472574e8e904d",
+  "git_tag": "ac372f4"
+}

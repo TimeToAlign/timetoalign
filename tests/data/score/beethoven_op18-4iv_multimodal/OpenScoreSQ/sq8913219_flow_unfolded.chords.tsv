@@ -1,0 +1,9 @@
+mc	mn	mc_playthrough	mn_playthrough	quarterbeats_playthrough	quarterbeats_all_endings	duration_qb	volta	mc_onset	mn_onset	event	timesig	staff	voice	duration	nominal_duration	scalar	chord_id	tempo	qpm	tempo_visible
+1	0	1	0a	0	0	0.0		0	3/4	Tempo	4/4	1	1	0				Allegromanontanto	108.0	1.0
+222	220	298	220a	1184	880	0.0		0	0	Tempo	3/8	1	1	0				"Andantescherzoso
+quasiAllegretto"	92.0	1.0
+483	480	559	480a	3151/2	2543/2	0.0		0	0	Tempo	3/4	1	1	0				Allegretto	116.0	1.0
+584	578	702	578a	3993/2	3137/2	0.0		0	0	Tempo	2/2	1	1	0				Allegro	160.0	1.0
+676	663	835	663a	4979/2	3825/2	1.0	1	0	0	Chord	2/2	1	1	1/4	1/4	1	0
+677	664	844	664a	5043/2	1916	1.0	2	0	0	Chord	2/2	1	1	1/4	1/4	1	1
+808	794	982	794a	6147/2	2440	1.0		0	0	Chord	2/2	1	1	1/4	1/4	1	2

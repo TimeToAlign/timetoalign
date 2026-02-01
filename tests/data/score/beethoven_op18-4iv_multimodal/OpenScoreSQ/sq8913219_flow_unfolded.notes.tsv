@@ -1,0 +1,4 @@
+mc	mn	mc_playthrough	mn_playthrough	quarterbeats_playthrough	quarterbeats_all_endings	duration_qb	volta	mc_onset	mn_onset	timesig	staff	voice	duration	nominal_duration	scalar	tied	tpc	midi	name	octave	chord_id
+676	663	835	663a	4979/2	3825/2	1.0	1	0	0	2/2	1	1	1/4	1/4	1		0	48	C3	3	0
+677	664	844	664a	5043/2	1916	1.0	2	0	0	2/2	1	1	1/4	1/4	1		0	48	C3	3	1
+808	794	982	794a	6147/2	2440	1.0		0	0	2/2	1	1	1/4	1/4	1		0	48	C3	3	2
