@@ -64,10 +64,44 @@ class Music21Loader(ScoreLoader):
                         break
                 return mc, mc_onset
 
+            # ===== Extract Volta (RepeatBracket) information =====
+            # Build mapping of measure offset -> volta number
+            volta_by_offset: dict[float, int] = {}
+            for rb in part.flatten().getElementsByClass(m21.spanner.RepeatBracket):
+                volta_num = rb.number
+                if volta_num is not None:
+                    for el in rb.getSpannedElements():
+                        if isinstance(el, m21.stream.Measure):
+                            volta_by_offset[float(el.offset)] = int(volta_num)
+
             # Process Measures
             for i, m in enumerate(measure_list):
                 qb = Fraction(float(m.offset)).limit_denominator(10000)
                 dur = Fraction(float(m.duration.quarterLength)).limit_denominator(10000)
+
+                # ===== Extract Repeat Barline Information =====
+                # Check left barline for repeat start
+                start_repeat = False
+                left_bl = m.leftBarline
+                if left_bl is not None:
+                    if isinstance(left_bl, m21.bar.Repeat):
+                        if getattr(left_bl, "direction", None) == "start":
+                            start_repeat = True
+                    elif left_bl.type == "heavy-light":
+                        start_repeat = True
+
+                # Check right barline for repeat end
+                end_repeat = False
+                right_bl = m.rightBarline
+                if right_bl is not None:
+                    if isinstance(right_bl, m21.bar.Repeat):
+                        if getattr(right_bl, "direction", None) == "end":
+                            end_repeat = True
+                    elif right_bl.type == "light-heavy":
+                        end_repeat = True
+
+                # Get volta number if this measure is in a repeat bracket
+                volta = volta_by_offset.get(float(m.offset))
 
                 measure_rows.append(
                     {
@@ -82,6 +116,10 @@ class Music21Loader(ScoreLoader):
                         "mc": i + 1,
                         "mn": str(m.number),
                         "timesig": None,
+                        # Flow control fields
+                        "start_repeat": start_repeat,
+                        "end_repeat": end_repeat,
+                        "volta": volta,
                         "part_id": part_id,
                     }
                 )
