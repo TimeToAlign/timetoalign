@@ -149,3 +149,152 @@ pytest tests/loader/score/test_measuremap_loader.py --cov=timetoalign.loader.sco
 | Temporal | `nominal_length`, `actual_length`, `mc_offset`, `quarterbeats_all_endings` |
 | Flow Control | `start_repeat`, `end_repeat`, `next`, `volta`, `breaks`, `repeats`, `dont_count` |
 | Signatures | `timesig`, `keysig`, `timesig_num`, `timesig_den`, `keysig_fifths` |
+
+---
+
+## Flow Control Parity Tests (Phase 3.6 Complete)
+
+### `test_flow_control_parity.py`
+
+Cross-validation tests ensuring all score loaders extract flow control information consistently.
+
+**Purpose**: Validates that TSVLoader, MeasureMapLoader, PartituraLoader, and Music21Loader
+all extract repeat markers, volta information, and other flow control data correctly.
+
+### Test Architecture
+
+The test suite uses two specimen sets:
+
+| Specimen | Location | MusicXML? | Purpose |
+|----------|----------|-----------|---------|
+| Beethoven WoO71 | `beethoven_woo71/` | No | TSV/MeasureMap validation (complex repeats) |
+| Flow Control | `flow_control/flow_only/` | Yes | All 4 loaders including Partitura/Music21 |
+
+### Test Classes
+
+| Class | Description | Tests |
+|-------|-------------|-------|
+| `TestGoldStandardVerification` | Verify TSV gold standard values | 6 |
+| `TestMeasureMapLoaderParity` | MeasureMap matches TSV | 4 |
+| `TestPartituraLoaderParity` | Partitura on WoO71 (skipped - no MusicXML) | 2 |
+| `TestMusic21LoaderParity` | Music21 on WoO71 (skipped - no MusicXML) | 3 |
+| `TestCrossLoaderConsistency` | Compare TSV vs MeasureMap | 2 |
+| `TestDiagnosticOutput` | Print comparison table | 1 |
+| `TestFlowControlTSVGold` | Verify flow_control TSV gold | 3 |
+| `TestFlowControlPartitura` | Partitura on flow_control specimen | 4 |
+| `TestFlowControlMusic21` | Music21 on flow_control specimen | 4 |
+| `TestFlowControlCrossLoader` | Cross-loader parity on flow_control | 4 |
+| `TestFlowControlDiagnostic` | Print all 4 loaders comparison | 1 |
+
+### Gold Standard Values
+
+#### Beethoven WoO71 (TSV)
+```python
+{
+    "total_measures": 397,
+    "repeat_starts": 11,
+    "repeat_ends": 11,
+    "section_breaks": 12,
+    "double_barlines": 4,
+    "volta_1_count": 1,
+    "volta_2_count": 1,
+}
+```
+
+#### Flow Control Specimen (TSV)
+```python
+{
+    "total_measures": 15,
+    "repeat_starts": 3,   # 2 "start" + 1 "startend"
+    "repeat_ends": 6,     # 5 "end" + 1 "startend"
+    "volta_1_count": 2,
+    "volta_2_count": 2,
+    "volta_3_count": 1,
+}
+```
+
+### Loader Model Classification
+
+The test suite distinguishes between two repeat extraction models:
+
+| Model | Loaders | Behavior |
+|-------|---------|----------|
+| **Marker** | TSV, MeasureMap, Music21 | Reports barline markers as individual events |
+| **Region** | Partitura | Infers missing start/end to create complete regions |
+
+**Marker-based loaders** produce identical counts and are validated together.
+**Partitura** is tested separately with adjusted expectations.
+
+### Known Discrepancy: Partitura Region Model
+
+Partitura models repeats as **regions** (start/end boundary pairs) rather than **markers**.
+When encountering an orphan repeat end without a start, Partitura infers a start point.
+
+For the flow_control specimen:
+- **TSV gold**: 3 starts, 6 ends (marker model)
+- **Partitura**: 7 starts, 7 ends (region model with inferred boundaries)
+
+This is **expected behavior** and documented in:
+1. Test docstrings
+2. `TestFlowControlPartitura` class docstring
+3. This README
+
+### Validation Logic
+
+Per the **ZERO TOLERANCE VALIDATION POLICY** (AGENTS.md):
+
+1. **EXACT COUNTS REQUIRED**: All assertions use exact expected values
+   ```python
+   # CORRECT
+   assert actual == 3, f"Repeat starts: got {actual}, expected 3"
+
+   # WRONG - Never use ranges or minimums
+   assert actual >= 3  # FORBIDDEN
+   ```
+
+2. **GOLD STANDARD IS AUTHORITATIVE**: TSV (ms3) defines correct values
+
+3. **LOADER PARITY REQUIRED**: Marker-based loaders must produce identical counts
+   ```python
+   starts = {"TSV": 3, "MeasureMap": 3, "Music21": 3}
+   assert len(set(starts.values())) == 1  # All must match
+   ```
+
+4. **DOCUMENTED DISCREPANCIES**: Known differences (like Partitura's region model)
+   are explicitly documented and tested with adjusted expectations
+
+### Running Flow Control Tests
+
+```bash
+# Run all flow control parity tests
+pytest tests/loader/score/test_flow_control_parity.py -v --no-cov
+
+# Run only the flow_control specimen tests (has MusicXML)
+pytest tests/loader/score/test_flow_control_parity.py -k "FlowControl" -v --no-cov
+
+# Run diagnostic output to see all loader values
+pytest tests/loader/score/test_flow_control_parity.py::TestFlowControlDiagnostic -v -s --no-cov
+```
+
+### Test Results (Feb 2026)
+
+```
+tests/loader/score/test_flow_control_parity.py: 29 passed, 5 skipped
+```
+
+- **5 skipped**: WoO71 Partitura/Music21 tests (no MusicXML available)
+- **29 passed**: All other tests including cross-loader parity
+
+### Implementation Files Modified
+
+| File | Changes |
+|------|---------|
+| `partitura.py` | Added flow control extraction from `part.repeats`, `pts.Ending` |
+| `music21.py` | Added barline extraction, `RepeatBracket` parsing |
+| `test_flow_control_parity.py` | New test suite (34 tests) |
+
+### Future Work
+
+1. **Export MusicXML for WoO71**: Enable Partitura/Music21 testing on primary specimen
+2. **Barline type extraction**: Add `barline` field (single, double, final)
+3. **Flow marker extraction**: Extract D.S., D.C., Fine, Coda from all loaders
