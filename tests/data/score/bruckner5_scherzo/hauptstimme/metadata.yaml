@@ -1,0 +1,33 @@
+objects:
+  composer:
+    id: 81752
+    path: Bruckner,_Anton
+    name: Anton Bruckner
+    gender: Male
+    born: 1824
+    died: 1896
+    desc: Austrian composer
+    sets: 1
+    scores: 4
+    wikidata: Q81752
+    wikipedia: https://en.wikipedia.org/wiki/Anton_Bruckner
+    imslp: https://imslp.org/wiki/Category:Bruckner,_Anton
+    image: https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Anton_Bruckner.jpg/220px-Anton_Bruckner.jpg
+  set:
+    id: 20
+    path: Bruckner,_Anton/Symphony_No.5,_WAB.105
+    name: Symphony No.5, WAB.105
+    scores: 5
+    imslp_link: https://imslp.org/wiki/Symphony_No.5_in_B-flat_major,_WAB_105_(Bruckner,_Anton)
+    composer_id: 81752
+  scores:
+    - id: 92
+      path: Bruckner,_Anton/Symphony_No.5,_WAB.105/3a
+      name: Scherzo. Molto vivace (schnell)
+      set_id: 20
+      comments: .nan
+    - id: 93
+      path: Bruckner,_Anton/Symphony_No.5,_WAB.105/3b
+      name: Trio. Im gleichen Tempo
+      set_id: 20
+      comments: .nan
