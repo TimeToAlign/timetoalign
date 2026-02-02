@@ -5,22 +5,34 @@
     This module is DEPRECATED. Its functionality has been subsumed by:
 
     - **test_flow_csv_validation.py**: Tests using Flow.is_equivalent() for
-      segment-based comparison against .flow.csv ground truth files
+      section-based comparison against .flow.csv ground truth files
     - **tests/timelines/test_flow.py**: Unit tests for AtomicSection,
       PlaythroughSection, Flow, and FlowController
 
-    The new segment-based architecture in `timetoalign.timelines.flow` provides:
+    The section-based architecture in `timetoalign.timelines.flow` provides:
     - AtomicSection and PlaythroughSection dataclasses
     - Flow.from_csv() / load_valid_flows() for loading ground truth
     - Flow.is_equivalent() for comparing flows by MC ranges
-    - FlowController.get_atomic_sections() for segment inspection
+    - FlowController.get_atomic_sections() for section inspection
+
+    **Architecture Change (Phase 10)**:
+
+    MeasureUnit-based architecture with semantic groupings:
+    - `MeasureUnit` replaces `FlowStep` as fundamental building block
+    - `MeasureGroup` hierarchy: IncompleteMeasure, CompleteMeasure, Volta, etc.
+    - AtomicSection/PlaythroughSection contain `groups: list[MeasureGroup]`
+    - FlowController.iter_units() iterates over MeasureUnits
+    - FlowController.iter_sections(mode=None) returns AtomicSections by default
+    - FlowController.get_volta_groups() returns all Volta objects (query, not structural)
 
     **Migration Path**:
     - MC sequence comparison -> Use Flow.is_equivalent()
     - Gold standard loading -> Use load_valid_flows() from .flow.csv
+    - MeasureUnit iteration -> Use controller.iter_units()
+    - Section iteration -> Use controller.iter_sections()
     - Diagnostic output -> See TestDiagnosticOutput in test_flow_csv_validation.py
 
-    See: .agent/prompts/score_parsing_test_matrix.md for the new architecture.
+    See: .agent/prompts/flowcontrol_architecture_redesign.md (Phase 10) for details.
 
 This module tests that different score loaders produce flows that match the
 ms3 gold standard (unfolded TSV). For each specimen, we:
