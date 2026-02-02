@@ -30,8 +30,8 @@ import pytest
 from timetoalign.loader.score import TSVLoader
 from timetoalign.timelines import Flow, FlowController, FlowMap, FlowMode, FlowStep
 from timetoalign.timelines.flow import (
-    AtomicSegment,
-    PlaythroughSegment,
+    AtomicSection,
+    PlaythroughSection,
     load_valid_flows,
 )
 
@@ -156,108 +156,115 @@ class TestFlowStep:
 
 # endregion
 
-# region Unit Tests: AtomicSegment
+# region Unit Tests: AtomicSection
 
 
-class TestAtomicSegment:
-    """Test AtomicSegment dataclass."""
+class TestAtomicSection:
+    """Test AtomicSection dataclass."""
 
     def test_creation(self) -> None:
-        """AtomicSegment can be created with all fields."""
-        seg = AtomicSegment(
+        """AtomicSection can be created with all fields."""
+        # Right-open: mc_end=5 means MCs 1,2,3,4 (4 MCs total)
+        sec = AtomicSection(
             id="A",
             mc_start=1,
-            mc_end=4,
+            mc_end=5,  # Right-open: includes MCs 1-4
             to=("A", "B"),
             await_to=("C",),
-            segment_type="leap_end",
+            section_type="leap_end",
         )
-        assert seg.id == "A"
-        assert seg.mc_start == 1
-        assert seg.mc_end == 4
-        assert seg.to == ("A", "B")
-        assert seg.await_to == ("C",)
-        assert seg.segment_type == "leap_end"
+        assert sec.id == "A"
+        assert sec.mc_start == 1
+        assert sec.mc_end == 5
+        assert sec.to == ("A", "B")
+        assert sec.await_to == ("C",)
+        assert sec.section_type == "leap_end"
 
     def test_mc_range(self) -> None:
-        """AtomicSegment mc_range property."""
-        seg = AtomicSegment(id="B", mc_start=5, mc_end=8)
-        assert seg.mc_range == (5, 8)
-        assert seg.mc_count == 4
+        """AtomicSection mc_range property."""
+        # Right-open: mc_end=9 means MCs 5,6,7,8 (4 MCs total)
+        sec = AtomicSection(id="B", mc_start=5, mc_end=9)
+        assert sec.mc_range == (5, 9)
+        assert sec.mc_count == 4  # 9 - 5 = 4
 
     def test_frozen(self) -> None:
-        """AtomicSegment is immutable."""
-        seg = AtomicSegment(id="A", mc_start=1, mc_end=4)
+        """AtomicSection is immutable."""
+        sec = AtomicSection(id="A", mc_start=1, mc_end=5)
         with pytest.raises(AttributeError):
-            seg.id = "B"  # type: ignore
+            sec.id = "B"  # type: ignore
 
     def test_invalid_range_raises(self) -> None:
-        """AtomicSegment raises on invalid mc range."""
+        """AtomicSection raises on invalid mc range."""
         with pytest.raises(ValueError, match="mc_end.*cannot be before mc_start"):
-            AtomicSegment(id="A", mc_start=10, mc_end=5)
+            AtomicSection(id="A", mc_start=10, mc_end=5)
 
-    def test_invalid_segment_type_raises(self) -> None:
-        """AtomicSegment raises on invalid segment_type."""
-        with pytest.raises(ValueError, match="invalid segment_type"):
-            AtomicSegment(id="A", mc_start=1, mc_end=4, segment_type="invalid")
+    def test_invalid_section_type_raises(self) -> None:
+        """AtomicSection raises on invalid section_type."""
+        with pytest.raises(ValueError, match="invalid section_type"):
+            AtomicSection(id="A", mc_start=1, mc_end=5, section_type="invalid")
 
     def test_to_dict(self) -> None:
-        """AtomicSegment can be converted to dict."""
-        seg = AtomicSegment(id="A", mc_start=1, mc_end=4, to=("B",))
-        d = seg.to_dict()
+        """AtomicSection can be converted to dict."""
+        # Right-open: mc_end=5 means MCs 1,2,3,4
+        sec = AtomicSection(id="A", mc_start=1, mc_end=5, to=("B",))
+        d = sec.to_dict()
         assert d["id"] == "A"
         assert d["mc_start"] == 1
-        assert d["mc_end"] == 4
+        assert d["mc_end"] == 5
         assert d["to"] == ["B"]
 
 
 # endregion
 
-# region Unit Tests: PlaythroughSegment
+# region Unit Tests: PlaythroughSection
 
 
-class TestPlaythroughSegment:
-    """Test PlaythroughSegment dataclass."""
+class TestPlaythroughSection:
+    """Test PlaythroughSection dataclass."""
 
     def test_creation(self) -> None:
-        """PlaythroughSegment can be created with all fields."""
-        seg = PlaythroughSegment(
+        """PlaythroughSection can be created with all fields."""
+        seg = PlaythroughSection(
             mc_start=1,
             mc_end=8,
-            atomic_segment_ids=("A", "B"),
+            atomic_section_ids=("A", "B"),
         )
         assert seg.mc_start == 1
         assert seg.mc_end == 8
-        assert seg.atomic_segment_ids == ("A", "B")
+        assert seg.atomic_section_ids == ("A", "B")
 
     def test_mc_range(self) -> None:
-        """PlaythroughSegment mc_range property."""
-        seg = PlaythroughSegment(mc_start=5, mc_end=12)
-        assert seg.mc_range == (5, 12)
-        assert seg.mc_count == 8
+        """PlaythroughSection mc_range property."""
+        # Right-open: mc_end=13 means MCs 5,6,7,8,9,10,11,12 (8 MCs total)
+        seg = PlaythroughSection(mc_start=5, mc_end=13)
+        assert seg.mc_range == (5, 13)
+        assert seg.mc_count == 8  # 13 - 5 = 8
 
     def test_frozen(self) -> None:
-        """PlaythroughSegment is immutable."""
-        seg = PlaythroughSegment(mc_start=1, mc_end=8)
+        """PlaythroughSection is immutable."""
+        # Right-open: mc_end=9 means MCs 1-8
+        seg = PlaythroughSection(mc_start=1, mc_end=9)
         with pytest.raises(AttributeError):
             seg.mc_start = 5  # type: ignore
 
     def test_invalid_range_raises(self) -> None:
-        """PlaythroughSegment raises on invalid mc range."""
+        """PlaythroughSection raises on invalid mc range."""
         with pytest.raises(ValueError, match="mc_end.*cannot be before mc_start"):
-            PlaythroughSegment(mc_start=10, mc_end=5)
+            PlaythroughSection(mc_start=10, mc_end=5)
 
     def test_to_dict(self) -> None:
-        """PlaythroughSegment can be converted to dict."""
-        seg = PlaythroughSegment(mc_start=1, mc_end=8, atomic_segment_ids=("A", "B"))
+        """PlaythroughSection can be converted to dict."""
+        # Right-open: mc_end=9 means MCs 1-8
+        seg = PlaythroughSection(mc_start=1, mc_end=9, atomic_section_ids=("A", "B"))
         d = seg.to_dict()
         assert d["mc_start"] == 1
-        assert d["mc_end"] == 8
-        assert d["atomic_segments"] == "A;B"
+        assert d["mc_end"] == 9
+        assert d["atomic_sections"] == "A;B"
 
     def test_to_mc_sequence(self) -> None:
-        """PlaythroughSegment to_mc_sequence expands range."""
-        seg = PlaythroughSegment(mc_start=5, mc_end=8)
+        """PlaythroughSection to_mc_sequence expands range."""
+        # Right-open: mc_end=9 means MCs 5,6,7,8 (4 MCs)
+        seg = PlaythroughSection(mc_start=5, mc_end=9)
         assert seg.to_mc_sequence() == [5, 6, 7, 8]
 
 
@@ -333,60 +340,65 @@ class TestFlow:
 class TestFlowSegmentBased:
     """Test Flow segment-based API."""
 
-    def test_from_segments(self) -> None:
+    def test_from_sections(self) -> None:
         """Flow can be created from segments."""
+        # Right-open: mc_end=5 means MCs 1-4, mc_end=9 means MCs 5-8
         segments = [
-            PlaythroughSegment(mc_start=1, mc_end=4, atomic_segment_ids=("A",)),
-            PlaythroughSegment(mc_start=5, mc_end=8, atomic_segment_ids=("B",)),
+            PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
+            PlaythroughSection(mc_start=5, mc_end=9, atomic_section_ids=("B",)),
         ]
-        flow = Flow.from_segments(segments, FlowMode.DEFAULT)
+        flow = Flow.from_sections(segments, FlowMode.DEFAULT)
 
-        assert len(flow.segments) == 2
+        assert len(flow.sections) == 2
         assert flow.mode == FlowMode.DEFAULT
-        assert flow.segments[0].mc_start == 1
-        assert flow.segments[1].mc_end == 8
+        assert flow.sections[0].mc_start == 1
+        assert flow.sections[1].mc_end == 9
 
     def test_from_records(self) -> None:
         """Flow can be created from records."""
+        # Right-open: mc_end=5 means MCs 1-4, mc_end=9 means MCs 5-8
         records = [
-            {"mc_start": 1, "mc_end": 4, "atomic_segments": "A"},
-            {"mc_start": 5, "mc_end": 8, "atomic_segments": "B"},
+            {"mc_start": 1, "mc_end": 5, "atomic_segments": "A"},
+            {"mc_start": 5, "mc_end": 9, "atomic_segments": "B"},
         ]
         flow = Flow.from_records(records, FlowMode.DEFAULT)
 
-        assert len(flow.segments) == 2
-        assert flow.segments[0].atomic_segment_ids == ("A",)
-        assert flow.segments[1].atomic_segment_ids == ("B",)
+        assert len(flow.sections) == 2
+        assert flow.sections[0].atomic_section_ids == ("A",)
+        assert flow.sections[1].atomic_section_ids == ("B",)
 
     def test_from_records_semicolon_separated(self) -> None:
         """Flow.from_records handles semicolon-separated atomic_segments."""
+        # Right-open: mc_end=9 means MCs 1-8
         records = [
-            {"mc_start": 1, "mc_end": 8, "atomic_segments": "A;B"},
+            {"mc_start": 1, "mc_end": 9, "atomic_segments": "A;B"},
         ]
         flow = Flow.from_records(records, FlowMode.DEFAULT)
 
-        assert flow.segments[0].atomic_segment_ids == ("A", "B")
+        assert flow.sections[0].atomic_section_ids == ("A", "B")
 
     def test_to_records(self) -> None:
         """Flow can be exported to records."""
+        # Right-open: mc_end=5 means MCs 1-4, mc_end=9 means MCs 5-8
         segments = [
-            PlaythroughSegment(mc_start=1, mc_end=4, atomic_segment_ids=("A",)),
-            PlaythroughSegment(mc_start=5, mc_end=8, atomic_segment_ids=("B",)),
+            PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
+            PlaythroughSection(mc_start=5, mc_end=9, atomic_section_ids=("B",)),
         ]
-        flow = Flow.from_segments(segments, FlowMode.DEFAULT)
+        flow = Flow.from_sections(segments, FlowMode.DEFAULT)
 
         records = flow.to_records()
         assert len(records) == 2
         assert records[0]["mc_start"] == 1
-        assert records[0]["atomic_segments"] == "A"
-        assert records[1]["mc_end"] == 8
+        assert records[0]["atomic_sections"] == "A"
+        assert records[1]["mc_end"] == 9
 
     def test_to_csv_rows(self) -> None:
         """Flow can be exported to CSV rows format."""
+        # Right-open: mc_end=5 means MCs 1-4
         segments = [
-            PlaythroughSegment(mc_start=1, mc_end=4, atomic_segment_ids=("A",)),
+            PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
         ]
-        flow = Flow.from_segments(segments, FlowMode.DEFAULT)
+        flow = Flow.from_sections(segments, FlowMode.DEFAULT)
 
         rows = flow.to_csv_rows("test.tsv", "test v1.0")
         assert len(rows) == 1
@@ -394,21 +406,22 @@ class TestFlowSegmentBased:
         assert rows[0]["source_file"] == "test.tsv"
         assert rows[0]["software_version"] == "test v1.0"
         assert rows[0]["mc_start"] == 1
-        assert rows[0]["mc_end"] == 4
+        assert rows[0]["mc_end"] == 5
 
     def test_is_equivalent_true(self) -> None:
         """Flow.is_equivalent returns True for matching flows."""
+        # Right-open: mc_end=5 means MCs 1-4, mc_end=9 means MCs 5-8
         flow1 = Flow.from_records(
             [
-                {"mc_start": 1, "mc_end": 4, "atomic_segments": "A"},
-                {"mc_start": 5, "mc_end": 8, "atomic_segments": "B"},
+                {"mc_start": 1, "mc_end": 5, "atomic_segments": "A"},
+                {"mc_start": 5, "mc_end": 9, "atomic_segments": "B"},
             ],
             FlowMode.DEFAULT,
         )
         flow2 = Flow.from_records(
             [
-                {"mc_start": 1, "mc_end": 4, "atomic_segments": "X"},  # Different ID
-                {"mc_start": 5, "mc_end": 8, "atomic_segments": "Y"},  # Different ID
+                {"mc_start": 1, "mc_end": 5, "atomic_segments": "X"},  # Different ID
+                {"mc_start": 5, "mc_end": 9, "atomic_segments": "Y"},  # Different ID
             ],
             FlowMode.PARTITURA_MINIMAL,  # Different mode
         )
@@ -417,14 +430,15 @@ class TestFlowSegmentBased:
 
     def test_is_equivalent_false_different_length(self) -> None:
         """Flow.is_equivalent returns False for different segment counts."""
+        # Right-open: mc_end=9 means MCs 1-8
         flow1 = Flow.from_records(
-            [{"mc_start": 1, "mc_end": 8, "atomic_segments": "A"}],
+            [{"mc_start": 1, "mc_end": 9, "atomic_segments": "A"}],
             FlowMode.DEFAULT,
         )
         flow2 = Flow.from_records(
             [
-                {"mc_start": 1, "mc_end": 4, "atomic_segments": "A"},
-                {"mc_start": 5, "mc_end": 8, "atomic_segments": "B"},
+                {"mc_start": 1, "mc_end": 5, "atomic_segments": "A"},
+                {"mc_start": 5, "mc_end": 9, "atomic_segments": "B"},
             ],
             FlowMode.DEFAULT,
         )
@@ -432,35 +446,38 @@ class TestFlowSegmentBased:
 
     def test_is_equivalent_false_different_ranges(self) -> None:
         """Flow.is_equivalent returns False for different MC ranges."""
+        # Right-open: mc_end=5 means MCs 1-4, mc_end=6 means MCs 1-5
         flow1 = Flow.from_records(
-            [{"mc_start": 1, "mc_end": 4, "atomic_segments": "A"}],
+            [{"mc_start": 1, "mc_end": 5, "atomic_segments": "A"}],
             FlowMode.DEFAULT,
         )
         flow2 = Flow.from_records(
-            [{"mc_start": 1, "mc_end": 5, "atomic_segments": "A"}],  # Different end
+            [{"mc_start": 1, "mc_end": 6, "atomic_segments": "A"}],  # Different end
             FlowMode.DEFAULT,
         )
         assert not flow1.is_equivalent(flow2)
 
-    def test_to_mc_sequence_from_segments(self) -> None:
+    def test_to_mc_sequence_from_sections(self) -> None:
         """Flow.to_mc_sequence works with segment-only flows."""
+        # Right-open: mc_end=5 means MCs 1-4, mc_end=9 means MCs 5-8
         segments = [
-            PlaythroughSegment(mc_start=1, mc_end=4, atomic_segment_ids=("A",)),
-            PlaythroughSegment(mc_start=5, mc_end=8, atomic_segment_ids=("B",)),
+            PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
+            PlaythroughSection(mc_start=5, mc_end=9, atomic_section_ids=("B",)),
         ]
-        flow = Flow.from_segments(segments, FlowMode.DEFAULT)
+        flow = Flow.from_sections(segments, FlowMode.DEFAULT)
 
         assert flow.to_mc_sequence() == [1, 2, 3, 4, 5, 6, 7, 8]
 
-    def test_unfolded_length_from_segments(self) -> None:
+    def test_unfolded_length_from_sections(self) -> None:
         """Flow.unfolded_length works with segment-only flows."""
+        # Right-open: mc_end=5 means MCs 1-4 (4 MCs each)
         segments = [
-            PlaythroughSegment(mc_start=1, mc_end=4, atomic_segment_ids=("A",)),
-            PlaythroughSegment(
-                mc_start=1, mc_end=4, atomic_segment_ids=("A",)
+            PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
+            PlaythroughSection(
+                mc_start=1, mc_end=5, atomic_section_ids=("A",)
             ),  # Repeat
         ]
-        flow = Flow.from_segments(segments, FlowMode.DEFAULT)
+        flow = Flow.from_sections(segments, FlowMode.DEFAULT)
 
         # 4 + 4 = 8 total MC visitations
         assert flow.unfolded_length == 8
@@ -478,9 +495,10 @@ class TestFlowCSVLoading:
         flow = Flow.from_csv(csv_path, FlowMode.PARTITURA_MINIMAL)
 
         assert flow.mode == FlowMode.PARTITURA_MINIMAL
-        assert len(flow.segments) == 4  # A, B, C, D
-        assert flow.segments[0].mc_start == 1
-        assert flow.segments[0].mc_end == 5
+        assert len(flow.sections) == 4  # A, B, C, D
+        assert flow.sections[0].mc_start == 1
+        # Right-open: mc_end=6 means MCs 1-5 (5 measures)
+        assert flow.sections[0].mc_end == 6
 
     def test_from_csv_invalid_mode_raises(self, target_flows_dir: Path) -> None:
         """Flow.from_csv raises for non-existent mode."""
@@ -501,7 +519,7 @@ class TestFlowCSVLoading:
 
         assert len(flows) >= 2  # At least default and partitura_minimal
         assert FlowMode.PARTITURA_MINIMAL in flows
-        assert len(flows[FlowMode.PARTITURA_MINIMAL].segments) == 4
+        assert len(flows[FlowMode.PARTITURA_MINIMAL].sections) == 4
 
 
 # endregion
@@ -546,7 +564,7 @@ class TestFlowController:
         assert controller._occurrence_to_suffix(27) == "aa"
         assert controller._occurrence_to_suffix(28) == "ab"
 
-    def test_get_atomic_segments(self, rachmaninoff_measures_tsv: Path) -> None:
+    def test_get_atomic_sections(self, rachmaninoff_measures_tsv: Path) -> None:
         """FlowController builds atomic segments from MeasureData."""
         if not rachmaninoff_measures_tsv.exists():
             pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
@@ -555,22 +573,23 @@ class TestFlowController:
         loader.load(rachmaninoff_measures_tsv)
 
         controller = FlowController(loader.store.measures)
-        segments = controller.get_atomic_segments()
+        segments = controller.get_atomic_sections()
 
         # Rachmaninoff has no flow control, should be 1 segment
         assert len(segments) >= 1
         assert segments[0].id == "A"
         assert segments[0].mc_start == 1
 
-    def test_from_atomic_segments(self) -> None:
+    def test_from_atomic_sections(self) -> None:
         """FlowController can be created from atomic segments directly."""
+        # Right-open: mc_end=5 means MCs 1-4, mc_end=9 means MCs 5-8
         segments = [
-            AtomicSegment(id="A", mc_start=1, mc_end=4, to=("B",)),
-            AtomicSegment(id="B", mc_start=5, mc_end=8, to=()),
+            AtomicSection(id="A", mc_start=1, mc_end=5, to=("B",)),
+            AtomicSection(id="B", mc_start=5, mc_end=9, to=()),
         ]
-        controller = FlowController.from_atomic_segments(segments)
+        controller = FlowController.from_atomic_sections(segments)
 
-        assert controller.get_atomic_segments() == segments
+        assert controller.get_atomic_sections() == segments
 
     def test_flow_has_segments(self, rachmaninoff_measures_tsv: Path) -> None:
         """Computed flow includes segments."""
@@ -585,7 +604,7 @@ class TestFlowController:
 
         # Flow should have both steps and segments
         assert len(flow.steps) == 374
-        assert len(flow.segments) >= 1
+        assert len(flow.sections) >= 1
 
 
 # endregion

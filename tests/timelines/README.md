@@ -495,32 +495,44 @@ These tests ensure:
 
 **Architecture (Feb 2026 Redesign):**
 
-The Flow API uses a **segment-based architecture** with dual representation:
+The Flow API uses a **section-based architecture** with dual representation:
 
 | Class | Purpose |
 |-------|---------|
-| `AtomicSegment` | Smallest indivisible traversal unit (partitura's segment model) |
-| `PlaythroughSegment` | Contiguous group of atomic segments in a traversal |
-| `Flow` | Sequence of PlaythroughSegments with serialization API |
+| `AtomicSection` | Smallest indivisible traversal unit (partitura's segment model) |
+| `PlaythroughSection` | Contiguous group of atomic sections in a traversal |
+| `Flow` | Sequence of PlaythroughSections with serialization API |
 | `FlowStep` | Legacy per-MC step (retained for detailed info) |
+
+**Naming Rationale**: Named "Section" (not "Segment") to avoid confusion with TTA manuscript's `Segment` concept (a child timeline contiguous with siblings). These are flow control concepts, not timeline children.
+
+**Interval Convention**: Uses **right-open** `[mc_start, mc_end)` intervals, aligning with:
+- TTA manuscript TimeInterval definition (left-inclusive, right-exclusive)
+- Python `range()` semantics
+- partitura convention
+
+| Old (Inclusive) | New (Right-open) | Meaning |
+|-----------------|------------------|---------|
+| `mc_start=1, mc_end=5` | `mc_start=1, mc_end=6` | MCs 1,2,3,4,5 (5 MCs) |
+| `mc_count = end - start + 1` | `mc_count = end - start` | Direct subtraction |
 
 **Test Categories:**
 
 1. **Dataclass Tests** (15 tests)
    - `TestFlowStep`: Creation, immutability, `to_dict()`
-   - `TestAtomicSegment`: Creation, `mc_range`, `mc_count`, frozen, validation
-   - `TestPlaythroughSegment`: Creation, `mc_range`, `mc_count`, frozen, `to_mc_sequence()`
+   - `TestAtomicSection`: Creation, `mc_range`, `mc_count`, frozen, validation
+   - `TestPlaythroughSection`: Creation, `mc_range`, `mc_count`, frozen, `to_mc_sequence()`
 
 2. **Flow Serialization Tests** (17 tests)
    - `TestFlow`: Empty flow, simple flow, flow with repeats, `to_dataframe()`
-   - `TestFlowSegmentBased`: `from_segments()`, `from_records()`, `to_records()`, `to_csv_rows()`, `is_equivalent()`, `to_mc_sequence()`, `unfolded_length`
+   - `TestFlowSegmentBased`: `from_sections()`, `from_records()`, `to_records()`, `to_csv_rows()`, `is_equivalent()`, `to_mc_sequence()`, `unfolded_length`
    - `TestFlowCSVLoading`: `Flow.from_csv()`, invalid mode raises, `load_valid_flows()`
 
 3. **FlowController Tests** (4 tests)
    - `_occurrence_to_suffix()` for mn_playthrough naming
-   - `get_atomic_segments()` returns derived segments
-   - `from_atomic_segments()` class method
-   - `compute_flow()` populates both steps and segments
+   - `get_atomic_sections()` returns derived sections
+   - `from_atomic_sections()` class method
+   - `compute_flow()` populates both steps and sections
 
 4. **Integration Tests** (9 tests)
    - `TestExample1Rachmaninoff`: No flow control baseline (3 tests)
@@ -534,17 +546,17 @@ The Flow API uses a **segment-based architecture** with dual representation:
 
 - **Status**: `xfail`
 - **Specimen**: c05n05_musete (D.S. al Fine)
-- **Failure**: `is_equivalent()` returns False due to segment ORDER mismatch
-- **Computed**: `(1-16), (1-31), (17-31), (6-16), (32-58)`
-- **Gold standard**: `(1-16), (1-31), (6-16), (17-31), (32-58)`
-- **Root cause**: `_steps_to_segments()` in `flow.py` groups by MC continuity; doesn't handle D.S. jump semantics
+- **Failure**: `is_equivalent()` returns False due to section ORDER mismatch
+- **Computed (right-open)**: `(1-17), (1-32), (17-32), (6-17), (32-59)`
+- **Gold standard (right-open)**: `(1-17), (1-32), (6-17), (17-32), (32-59)`
+- **Root cause**: `_steps_to_sections()` in `flow.py` groups by MC continuity; doesn't handle D.S. jump semantics
 
 **Validity Rationale:**
 
 Following AGENTS.md Section 3.6 (ZERO TOLERANCE), all tests use **exact value comparisons**:
-- EXACT segment counts (no ranges or minimums)
-- EXACT MC ranges: `(mc_start, mc_end)` pairs must match exactly
-- EXACT segment order (positional comparison)
+- EXACT section counts (no ranges or minimums)
+- EXACT MC ranges: `(mc_start, mc_end)` pairs must match exactly (right-open)
+- EXACT section order (positional comparison)
 
 ---
 
