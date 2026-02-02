@@ -13,7 +13,7 @@
     - AtomicSection and PlaythroughSection dataclasses
     - Flow.from_csv() / load_valid_flows() for loading ground truth
     - Flow.is_equivalent() for comparing flows by MC ranges
-    - FlowController.get_atomic_sections() for section inspection
+
 
     **Architecture Change (Phase 10)**:
 
