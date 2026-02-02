@@ -148,9 +148,102 @@ class TestMeasureUnit:
         d = unit.to_dict()
         assert d["mc"] == 5
         assert d["mn"] == "5"
-        assert d["duration_qb"] == Fraction(4)
+        assert d["duration_qb"] == 4.0  # Converted to float for serialization
         assert d["next"] == [6, 10]
         assert d["volta"] == 1
+
+    def test_flowcontrol_fields(self) -> None:
+        """MeasureUnit supports all FlowControlType fields."""
+        unit = MeasureUnit(
+            mc=5,
+            mn="5",
+            duration_qb=Fraction(4),
+            next=(6, 10),
+            volta=2,
+            timesig="4/4",
+            timesig_duration_qb=Fraction(4),
+            start_repeat=True,
+            end_repeat=False,
+            jump_from=True,
+            jump_to=False,
+            segno="segno",
+            coda=None,
+            fine=False,
+            section_break=False,
+            flow_control_types=("repeat_start", "segno", "jump_from"),
+        )
+        assert unit.jump_from is True
+        assert unit.jump_to is False
+        assert unit.segno == "segno"
+        assert unit.coda is None
+        assert unit.fine is False
+        assert unit.section_break is False
+        assert unit.timesig_duration_qb == Fraction(4)
+        assert unit.flow_control_types == ("repeat_start", "segno", "jump_from")
+
+    def test_to_dict_with_flowcontrol(self) -> None:
+        """MeasureUnit.to_dict() includes FlowControlType fields."""
+        unit = MeasureUnit(
+            mc=5,
+            mn="5",
+            duration_qb=Fraction(4),
+            next=(6,),
+            segno="segno",
+            fine=True,
+            flow_control_types=("segno", "fine"),
+        )
+        d = unit.to_dict()
+        assert d["segno"] == "segno"
+        assert d["fine"] is True
+        assert d["flow_control_types"] == "segno;fine"
+
+    def test_from_dict(self) -> None:
+        """MeasureUnit can be created from dict."""
+        d = {
+            "mc": 5,
+            "mn": "5",
+            "duration_qb": 4.0,
+            "next": [6, 10],
+            "volta": 2,
+            "timesig": "4/4",
+            "start_repeat": True,
+            "segno": "segno",
+            "flow_control_types": "repeat_start;segno;jump_from",
+        }
+        unit = MeasureUnit.from_dict(d)
+        assert unit.mc == 5
+        assert unit.mn == "5"
+        assert unit.duration_qb == Fraction(4)
+        assert unit.next == (6, 10)
+        assert unit.volta == 2
+        assert unit.start_repeat is True
+        assert unit.segno == "segno"
+        assert unit.flow_control_types == ("repeat_start", "segno", "jump_from")
+
+    def test_from_dict_roundtrip(self) -> None:
+        """MeasureUnit round-trip (to_dict -> from_dict) preserves data."""
+        original = MeasureUnit(
+            mc=5,
+            mn="5",
+            duration_qb=Fraction(4),
+            next=(6, 10),
+            volta=2,
+            timesig="4/4",
+            timesig_duration_qb=Fraction(4),
+            start_repeat=True,
+            segno="segno",
+            flow_control_types=("repeat_start", "segno", "jump_from"),
+        )
+        d = original.to_dict()
+        restored = MeasureUnit.from_dict(d)
+
+        assert restored.mc == original.mc
+        assert restored.mn == original.mn
+        assert restored.next == original.next
+        assert restored.volta == original.volta
+        assert restored.start_repeat == original.start_repeat
+        assert restored.segno == original.segno
+        assert restored.flow_control_types == original.flow_control_types
 
     def test_repr(self) -> None:
         """MeasureUnit has useful repr."""
@@ -605,8 +698,8 @@ class TestFlowController:
         assert controller._occurrence_to_suffix(27) == "aa"
         assert controller._occurrence_to_suffix(28) == "ab"
 
-    def test_get_atomic_sections(self, rachmaninoff_measures_tsv: Path) -> None:
-        """FlowController builds atomic segments from MeasureData."""
+    def test_get_sections(self, rachmaninoff_measures_tsv: Path) -> None:
+        """FlowController.get_sections() returns atomic sections by default."""
         if not rachmaninoff_measures_tsv.exists():
             pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
 
@@ -614,23 +707,38 @@ class TestFlowController:
         loader.load(rachmaninoff_measures_tsv)
 
         controller = FlowController(loader.store.measures)
-        segments = controller.get_atomic_sections()
+        sections = controller.get_sections()  # mode=None -> atomic sections
 
         # Rachmaninoff has no flow control, should be 1 segment
-        assert len(segments) >= 1
-        assert segments[0].id == "A"
-        assert segments[0].mc_start == 1
+        assert len(sections) >= 1
+        assert sections[0].id == "A"
+        assert sections[0].mc_start == 1
+
+    def test_get_sections_with_mode(self, rachmaninoff_measures_tsv: Path) -> None:
+        """FlowController.get_sections(mode) returns playthrough sections."""
+        if not rachmaninoff_measures_tsv.exists():
+            pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
+
+        loader = TSVLoader()
+        loader.load(rachmaninoff_measures_tsv)
+
+        controller = FlowController(loader.store.measures)
+        sections = controller.get_sections(FlowMode.DEFAULT)
+
+        # Should return PlaythroughSection objects
+        assert len(sections) >= 1
+        assert hasattr(sections[0], "atomic_section_ids")
 
     def test_from_atomic_sections(self) -> None:
-        """FlowController can be created from atomic segments directly."""
+        """FlowController can be created from atomic sections directly."""
         # Right-open: mc_end=5 means MCs 1-4, mc_end=9 means MCs 5-8
-        segments = [
+        sections = [
             AtomicSection(id="A", mc_start=1, mc_end=5, to=("B",)),
             AtomicSection(id="B", mc_start=5, mc_end=9, to=()),
         ]
-        controller = FlowController.from_atomic_sections(segments)
+        controller = FlowController.from_atomic_sections(sections)
 
-        assert controller.get_atomic_sections() == segments
+        assert controller.get_sections() == sections
 
     def test_flow_has_segments(self, rachmaninoff_measures_tsv: Path) -> None:
         """Computed flow includes segments."""

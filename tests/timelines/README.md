@@ -493,25 +493,24 @@ These tests ensure:
 
 **Purpose:** Validates the Flow API that computes unfolded measure sequences from flow control data (repeats, voltas, D.S., D.C., etc.).
 
-**Architecture (Feb 2026 Redesign → Phase 10 Enhancement):**
+**Architecture (Feb 2026 Redesign → Phase 10 MVP + Cleanup):**
 
-The Flow API uses a **MeasureUnit-based architecture** with semantic groupings:
+The Flow API uses a **MeasureUnit-based architecture** with FlowControlType integration:
 
 | Class | Purpose |
 |-------|---------|
-| `MeasureUnit` | Fundamental building block (one per MeasureData row) - replaces FlowStep |
-| `MeasureGroup` | Base for semantic groupings (CompleteMeasure, Volta, etc.) |
-| `AtomicSection` | Smallest traversal unit with `groups: list[MeasureGroup]` |
-| `PlaythroughSection` | Contiguous atomics in traversal with `groups: list[MeasureGroup]` |
+| `MeasureUnit` | Fundamental building block with FlowControlType fields |
+| `AtomicSection` | Smallest traversal unit (future: `typed_measures`, `groups`) |
+| `PlaythroughSection` | Contiguous atomics in traversal (future: `typed_measures`, `groups`) |
 | `Flow` | Sequence of PlaythroughSections, delegates iteration to controller |
 
-**Semantic Groupings** (within sections):
-- `IncompleteMeasure` / `CompleteMeasure` / `OverlengthMeasure`
-- `CompleteMeasureSection` (adjacent CompleteMeasures)
-- `Volta` (units under same volta bracket - within ONE section)
-- `CadenzaGroup` (overlength measures with same MN)
-
-**Note**: `get_volta_groups()` returns all Volta objects as a query. VoltaGroup can NEVER be inside a section (Breaks separate voltas).
+**MeasureUnit FlowControlType Fields (Phase 10 MVP Cleanup):**
+- `timesig_duration_qb`: Expected duration from time signature
+- `jump_from`: True if MC is a jump origin (D.C., D.S., multiple next)
+- `jump_to`: True if MC is a jump target (segno, coda, non-adjacent next target)
+- `segno`, `coda`, `fine`, `section_break`: Marker fields
+- `flow_control_types`: Tuple of FlowControlType.value strings for serialization
+- `to_dict()` / `from_dict()`: Round-trip serialization support
 
 **Naming Rationale**: Named "Section" (not "Segment") to avoid confusion with TTA manuscript's `Segment` concept (a child timeline contiguous with siblings). These are flow control concepts, not timeline children.
 
@@ -533,12 +532,20 @@ The Flow API uses a **MeasureUnit-based architecture** with semantic groupings:
 - `Flow._controller_ref` links Flow to its controller for `iter_units()` access
 - `Flow.steps` removed entirely (section-based only)
 
-**Deferred to Phase 10.2**: Semantic groupings (`MeasureGroup`, `CompleteMeasure`, `Volta`, `CadenzaGroup`, etc.)
+**Phase 10 MVP Cleanup (Feb 2026): COMPLETE**
+
+- Added FlowControlType fields to `MeasureUnit` (jump_from, jump_to, segno, coda, fine, etc.)
+- Added `MeasureUnit.from_dict()` for DataFrame round-trip serialization
+- Deprecated old `get_atomic_sections()` with DeprecationWarning
+- Removed `iter_mcs()` (unnecessary, derive from sections)
+- Updated `_build_units()` with helper methods for FlowControl detection
+
+**Deferred to Phase 10.2**: Semantic groupings (`MeasureGroup`, `IncompleteMeasure`, `Volta`, etc.)
 
 **Test Categories:**
 
-1. **Dataclass Tests** (16 tests)
-   - `TestMeasureUnit`: Creation, immutability, `to_dict()`, `__repr__` (Phase 10 MVP)
+1. **Dataclass Tests** (22 tests)
+   - `TestMeasureUnit`: Creation, immutability, `to_dict()`, `from_dict()`, round-trip, FlowControlType fields
    - `TestAtomicSection`: Creation, `mc_range`, `mc_count`, frozen, validation
    - `TestPlaythroughSection`: Creation, `mc_range`, `mc_count`, frozen, `to_mc_sequence()`
 
@@ -547,10 +554,11 @@ The Flow API uses a **MeasureUnit-based architecture** with semantic groupings:
    - `TestFlowSectionBased`: `from_sections()`, `from_records()`, `to_records()`, `to_csv_rows()`, `is_equivalent()`, `to_mc_sequence()`, `to_atomic_sequence()`, `diff_flows()`, `unfolded_length`
    - `TestFlowCSVLoading`: `Flow.from_csv()`, invalid mode raises, `load_valid_flows()`
 
-3. **FlowController Tests** (5 tests)
+3. **FlowController Tests** (6 tests)
    - `iter_units()`: Iterate over MeasureUnits (Phase 10 MVP)
    - `iter_sections(mode=None)`: AtomicSections by default (Phase 10 MVP)
-   - `get_atomic_sections()` returns derived sections
+   - `get_sections()`: Unified API (replaces get_atomic_sections)
+   - `get_sections(mode)`: Returns PlaythroughSections for specified mode
    - `from_atomic_sections()` class method
    - `compute_flow()` populates sections with controller ref
 
@@ -560,7 +568,7 @@ The Flow API uses a **MeasureUnit-based architecture** with semantic groupings:
    - `TestFlowMap`: FlowMap creation
    - `TestPrintedMode`: PRINTED mode returns folded count
 
-**Test Status: 50 passed**
+**Test Status: 55 passed**
 
 **New Methods (Feb 2026):**
 

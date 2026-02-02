@@ -97,8 +97,16 @@ class MeasureUnit:
         next: Tuple of possible next MCs. (-1 = end of piece)
         volta: Ending number (1, 2, ...) or None.
         timesig: Time signature string ("4/4", "3/4") or None.
+        timesig_duration_qb: Expected duration from time signature (computed).
         start_repeat: True if has repeat start marker (||:).
         end_repeat: True if has repeat end marker (:||).
+        jump_from: True if this MC is a jump origin (D.C., D.S., to_coda).
+        jump_to: True if this MC is a jump target (segno, coda destination).
+        segno: Segno marker name if present (e.g., "segno", "segno2").
+        coda: Coda marker name if present (e.g., "coda", "codab").
+        fine: True if Fine marker present.
+        section_break: True if section break at this MC.
+        flow_control_types: Tuple of FlowControlType.value strings for serialization.
 
     Examples:
         >>> unit = MeasureUnit(
@@ -119,21 +127,104 @@ class MeasureUnit:
     next: tuple[int, ...]
     volta: int | None = None
     timesig: str | None = None
+    timesig_duration_qb: Fraction | None = None
     start_repeat: bool = False
     end_repeat: bool = False
+    jump_from: bool = False
+    jump_to: bool = False
+    segno: str | None = None
+    coda: str | None = None
+    fine: bool = False
+    section_break: bool = False
+    flow_control_types: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for serialization."""
+        """Convert to dictionary for DataFrame serialization.
+
+        Returns:
+            Dict with all MeasureUnit fields, suitable for DataFrame conversion.
+            The flow_control_types tuple is joined with semicolons for CSV storage.
+        """
         return {
             "mc": self.mc,
             "mn": self.mn,
-            "duration_qb": self.duration_qb,
+            "duration_qb": float(self.duration_qb),
             "next": list(self.next),
             "volta": self.volta,
             "timesig": self.timesig,
+            "timesig_duration_qb": (
+                float(self.timesig_duration_qb) if self.timesig_duration_qb else None
+            ),
             "start_repeat": self.start_repeat,
             "end_repeat": self.end_repeat,
+            "jump_from": self.jump_from,
+            "jump_to": self.jump_to,
+            "segno": self.segno,
+            "coda": self.coda,
+            "fine": self.fine,
+            "section_break": self.section_break,
+            "flow_control_types": ";".join(self.flow_control_types),
         }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "MeasureUnit":
+        """Create MeasureUnit from dictionary (e.g., DataFrame row).
+
+        Args:
+            d: Dictionary with MeasureUnit field values.
+
+        Returns:
+            New MeasureUnit instance.
+        """
+        # Parse flow_control_types from semicolon-separated string
+        fct = d.get("flow_control_types", "")
+        if isinstance(fct, str):
+            flow_control_types = tuple(fct.split(";")) if fct else ()
+        else:
+            flow_control_types = tuple(fct) if fct else ()
+
+        # Parse next field
+        next_val = d.get("next", [-1])
+        if isinstance(next_val, str):
+            # Handle string representation like "[1, 2]" or "1, 2"
+            cleaned = next_val.strip().strip("[]()").replace(" ", "")
+            next_tuple = (
+                tuple(int(x) for x in cleaned.split(",") if x) if cleaned else (-1,)
+            )
+        elif isinstance(next_val, (list, tuple)):
+            next_tuple = tuple(next_val)
+        else:
+            next_tuple = (int(next_val),) if next_val is not None else (-1,)
+
+        # Parse duration
+        duration = d.get("duration_qb", 4)
+        if isinstance(duration, Fraction):
+            duration_qb = duration
+        else:
+            duration_qb = Fraction(duration) if duration else Fraction(4)
+
+        # Parse timesig_duration_qb
+        ts_dur = d.get("timesig_duration_qb")
+        timesig_duration_qb = Fraction(ts_dur) if ts_dur is not None else None
+
+        return cls(
+            mc=int(d["mc"]),
+            mn=str(d.get("mn", d["mc"])),
+            duration_qb=duration_qb,
+            next=next_tuple,
+            volta=d.get("volta"),
+            timesig=d.get("timesig"),
+            timesig_duration_qb=timesig_duration_qb,
+            start_repeat=bool(d.get("start_repeat")),
+            end_repeat=bool(d.get("end_repeat")),
+            jump_from=bool(d.get("jump_from")),
+            jump_to=bool(d.get("jump_to")),
+            segno=d.get("segno"),
+            coda=d.get("coda"),
+            fine=bool(d.get("fine")),
+            section_break=bool(d.get("section_break")),
+            flow_control_types=flow_control_types,
+        )
 
     def __repr__(self) -> str:
         volta_str = f", volta={self.volta}" if self.volta else ""
@@ -835,19 +926,28 @@ class FlowController:
     Attributes:
         measures: The source MeasureData.
 
+    Public API:
+        - get_sections(mode=None): Get sections (None=atomic, else playthrough)
+        - iter_sections(mode=None): Iterate over sections
+        - iter_units(): Iterate over MeasureUnits (folded skeleton)
+        - compute_flow(mode): Compute Flow for the given mode
+
     Examples:
         >>> controller = FlowController(measure_data)
         >>> flow = controller.compute_flow()
         >>> print(f"Unfolded: {flow.unfolded_length} measures")
 
-        >>> # Get section-based flow for .flow.csv comparison
-        >>> flow = controller.compute_flow()
-        >>> for sec in flow.sections:
+        >>> # Get atomic sections (folded structure)
+        >>> for sec in controller.get_sections():
+        ...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
+
+        >>> # Get playthrough sections for DEFAULT mode
+        >>> for sec in controller.get_sections(FlowMode.DEFAULT):
         ...     print(f"MC [{sec.mc_start},{sec.mc_end})")
 
-        >>> # Get atomic sections for debugging
-        >>> for sec in controller.get_atomic_sections():
-        ...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
+        >>> # Iterate over MeasureUnits
+        >>> for unit in controller.iter_units():
+        ...     print(f"MC {unit.mc}: next={unit.next}, jump_from={unit.jump_from}")
     """
 
     def __init__(self, measures: "MeasureData") -> None:
@@ -894,7 +994,12 @@ class FlowController:
         return instance
 
     def _build_lookup(self) -> None:
-        """Build MC -> measure dict lookup from MeasureData."""
+        """Build MC -> measure dict lookup from MeasureData.
+
+        Extracts all available columns including FlowControl markers:
+        - Basic: mc, mn, duration, next, quarterbeats
+        - FlowControl: volta, timesig, start_repeat, end_repeat, segno, coda, fine
+        """
         if len(self._measures) == 0:
             return
 
@@ -947,6 +1052,22 @@ class FlowController:
         else:
             qb_values = [Fraction(0)] * len(mc_col)
 
+        # Get FlowControl fields (with safe defaults)
+        def _get_column_safe(name: str, default: Any = None) -> list:
+            """Get column values or return list of defaults."""
+            if name in table.column_names:
+                return table.column(name).to_pylist()
+            return [default] * len(mc_col)
+
+        volta_col = _get_column_safe("volta")
+        timesig_col = _get_column_safe("timesig")
+        start_repeat_col = _get_column_safe("start_repeat", False)
+        end_repeat_col = _get_column_safe("end_repeat", False)
+        segno_col = _get_column_safe("segno")
+        coda_col = _get_column_safe("coda")
+        fine_col = _get_column_safe("fine", False)
+        section_break_col = _get_column_safe("section_break", False)
+
         for i, mc in enumerate(mc_col):
             # Parse 'next' field
             next_val = next_col[i]
@@ -991,29 +1112,209 @@ class FlowController:
                 "duration_qb": duration_values[i],
                 "quarterbeats": qb_values[i],
                 "next": next_list,
+                # FlowControl fields
+                "volta": volta_col[i],
+                "timesig": timesig_col[i],
+                "start_repeat": bool(start_repeat_col[i]),
+                "end_repeat": bool(end_repeat_col[i]),
+                "segno": segno_col[i] if segno_col[i] else None,
+                "coda": coda_col[i] if coda_col[i] else None,
+                "fine": bool(fine_col[i]),
+                "section_break": bool(section_break_col[i]),
             }
 
     def _build_units(self) -> None:
         """Create MeasureUnits from the measure lookup.
 
         MeasureUnits represent the folded score skeleton - one per MeasureData row.
+        Populates all FlowControlType fields including computed values:
+        - jump_from, jump_to derived from next[] patterns
+        - timesig_duration_qb computed from timesig string
+        - flow_control_types tuple for serialization
         """
         if not self._measure_lookup:
             return
 
-        for mc in sorted(self._measure_lookup.keys()):
+        sorted_mcs = sorted(self._measure_lookup.keys())
+
+        for mc in sorted_mcs:
             info = self._measure_lookup[mc]
+            next_list = info.get("next", [-1])
+
+            # Compute jump_from: MC where next[] indicates a jump
+            # A jump is when next != [MC+1] (non-contiguous)
+            mc_idx = sorted_mcs.index(mc)
+            is_jump_from = self._is_jump_from(mc, next_list, sorted_mcs, mc_idx)
+
+            # Compute jump_to: MC that is a jump target (segno, coda, or non-adjacent next target)
+            is_jump_to = self._is_jump_to(mc, info, sorted_mcs)
+
+            # Parse timesig to duration in quarterbeats
+            timesig = info.get("timesig")
+            timesig_duration_qb = self._parse_timesig_duration(timesig)
+
+            # Build flow_control_types tuple
+            flow_control_types = self._extract_flow_control_types(
+                info, is_jump_from, is_jump_to
+            )
+
             unit = MeasureUnit(
                 mc=mc,
                 mn=str(info.get("mn", mc)),
                 duration_qb=info.get("duration_qb", Fraction(4)),
-                next=tuple(info.get("next", [-1])),
+                next=tuple(next_list),
                 volta=info.get("volta"),
-                timesig=info.get("timesig"),
+                timesig=timesig,
+                timesig_duration_qb=timesig_duration_qb,
                 start_repeat=bool(info.get("start_repeat")),
                 end_repeat=bool(info.get("end_repeat")),
+                jump_from=is_jump_from,
+                jump_to=is_jump_to,
+                segno=info.get("segno"),
+                coda=info.get("coda"),
+                fine=bool(info.get("fine")),
+                section_break=bool(info.get("section_break")),
+                flow_control_types=flow_control_types,
             )
             self._units.append(unit)
+
+    def _is_jump_from(
+        self, mc: int, next_list: list[int], sorted_mcs: list[int], mc_idx: int
+    ) -> bool:
+        """Determine if this MC is a jump origin.
+
+        A jump origin is an MC where next[] indicates non-contiguous continuation:
+        - next has multiple options (volta/repeat choice)
+        - next jumps backward (repeat end)
+        - next jumps forward > MC+1 (skip/coda)
+
+        Args:
+            mc: Current MC.
+            next_list: List of possible next MCs.
+            sorted_mcs: Sorted list of all MCs.
+            mc_idx: Index of mc in sorted_mcs.
+
+        Returns:
+            True if this MC is a jump origin.
+        """
+        if len(next_list) > 1:
+            # Multiple next options (volta or conditional jump)
+            return True
+
+        if not next_list or next_list == [-1]:
+            # End of piece, not a jump
+            return False
+
+        next_mc = next_list[0]
+
+        # Check if next is contiguous
+        if mc_idx < len(sorted_mcs) - 1:
+            expected_next = sorted_mcs[mc_idx + 1]
+            if next_mc != expected_next:
+                return True
+
+        return False
+
+    def _is_jump_to(self, mc: int, info: dict[str, Any], sorted_mcs: list[int]) -> bool:
+        """Determine if this MC is a jump target.
+
+        A jump target is an MC that:
+        - Has a segno marker
+        - Has a coda marker
+        - Is the target of a non-adjacent next[] from another MC
+
+        Args:
+            mc: Current MC.
+            info: Measure info dict.
+            sorted_mcs: Sorted list of all MCs.
+
+        Returns:
+            True if this MC is a jump target.
+        """
+        # Explicit markers
+        if info.get("segno") or info.get("coda"):
+            return True
+
+        # Check if any other MC jumps to this MC (non-adjacent)
+        mc_idx = sorted_mcs.index(mc)
+        for other_mc in sorted_mcs:
+            if other_mc == mc:
+                continue
+            other_info = self._measure_lookup[other_mc]
+            other_next = other_info.get("next", [])
+            if mc in other_next:
+                other_idx = sorted_mcs.index(other_mc)
+                # Check if jump is non-adjacent
+                if mc_idx != other_idx + 1:
+                    return True
+
+        return False
+
+    def _parse_timesig_duration(self, timesig: str | None) -> Fraction | None:
+        """Parse time signature to expected duration in quarterbeats.
+
+        Args:
+            timesig: Time signature string like "4/4", "3/4", "6/8".
+
+        Returns:
+            Expected duration in quarterbeats, or None if unparseable.
+
+        Examples:
+            >>> _parse_timesig_duration("4/4")
+            Fraction(4, 1)
+            >>> _parse_timesig_duration("3/4")
+            Fraction(3, 1)
+            >>> _parse_timesig_duration("6/8")
+            Fraction(3, 1)  # 6 eighth notes = 3 quarterbeats
+        """
+        if timesig is None:
+            return None
+        try:
+            # Handle compound time signatures
+            parts = timesig.split("/")
+            if len(parts) != 2:
+                return None
+            num, denom = int(parts[0]), int(parts[1])
+            # Duration in quarterbeats = num * (4 / denom)
+            return Fraction(num * 4, denom)
+        except (ValueError, ZeroDivisionError):
+            return None
+
+    def _extract_flow_control_types(
+        self, info: dict[str, Any], is_jump_from: bool, is_jump_to: bool
+    ) -> tuple[str, ...]:
+        """Extract FlowControlType values from measure info.
+
+        Builds a tuple of FlowControlType.value strings for serialization.
+
+        Args:
+            info: Measure info dict.
+            is_jump_from: Whether this MC is a jump origin.
+            is_jump_to: Whether this MC is a jump target.
+
+        Returns:
+            Tuple of FlowControlType value strings.
+        """
+        types: list[str] = []
+
+        if info.get("start_repeat"):
+            types.append("repeat_start")
+        if info.get("end_repeat"):
+            types.append("repeat_end")
+        if info.get("segno"):
+            types.append("segno")
+        if info.get("coda"):
+            types.append("coda")
+        if info.get("fine"):
+            types.append("fine")
+        if info.get("section_break"):
+            types.append("section_break")
+        if is_jump_from:
+            types.append("jump_from")
+        if is_jump_to:
+            types.append("jump_to")
+
+        return tuple(types)
 
     def iter_units(self) -> Iterator[MeasureUnit]:
         """Iterate over MeasureUnits (the folded score skeleton).
@@ -1146,13 +1447,35 @@ class FlowController:
 
         self._atomic_sections = sections
 
-    def get_atomic_sections(self) -> list[AtomicSection]:
-        """Return the atomic sections (for debugging/testing).
+    def get_sections(
+        self, mode: FlowMode | None = None
+    ) -> list[AtomicSection] | list[PlaythroughSection]:
+        """Get list of sections.
+
+        This is the unified API for retrieving sections. Replaces the old
+        get_atomic_sections() method with added support for playthrough sections.
+
+        Args:
+            mode: If None, returns AtomicSections (default).
+                  If specified, returns PlaythroughSections for that mode.
 
         Returns:
-            Copy of the list of AtomicSection objects.
+            List of AtomicSection if mode is None, otherwise list of PlaythroughSection.
+
+        Examples:
+            >>> # Get atomic sections (folded structure)
+            >>> for sec in controller.get_sections():
+            ...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
+
+            >>> # Get playthrough sections for DEFAULT mode (unfolded)
+            >>> for sec in controller.get_sections(FlowMode.DEFAULT):
+            ...     print(f"MC [{sec.mc_start},{sec.mc_end})")
         """
-        return list(self._atomic_sections)
+        if mode is None:
+            return list(self._atomic_sections)
+        else:
+            flow = self.compute_flow(mode)
+            return list(flow.sections)
 
     def iter_sections(
         self, mode: FlowMode | None = None
@@ -1180,22 +1503,6 @@ class FlowController:
         else:
             flow = self.compute_flow(mode)
             yield from flow.sections
-
-    def iter_mcs(self, mode: FlowMode = FlowMode.DEFAULT) -> Iterator[int]:
-        """Iterate over MC sequence for the given mode.
-
-        Args:
-            mode: The FlowMode to use (default: DEFAULT).
-
-        Yields:
-            MC values in traversal order.
-
-        Examples:
-            >>> list(controller.iter_mcs())
-            [1, 2, 3, 4, 1, 2, 3, 4, 5, 6, 7, 8]
-        """
-        for section in self.iter_sections(mode):
-            yield from range(section.mc_start, section.mc_end)
 
     def _mcs_to_sections(self, mc_sequence: list[int]) -> list[PlaythroughSection]:
         """Convert MC sequence to PlaythroughSection list.
