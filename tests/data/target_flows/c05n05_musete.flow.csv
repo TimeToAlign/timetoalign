@@ -6,9 +6,11 @@ partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,32,59,D
 partitura_maximal,c05n05_musete.musicxml,partitura v1.7.0,ERROR,RecursionError,cyclic segment graph
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,1,17,A;B
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,1,32,A;B;C
-default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,6,17,B
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,17,32,C
+default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,6,17,B
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,32,59,D
+default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,32,59,D
+default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,6,17,B
 music21,c05n05_musete.musicxml,music21 v9.1.0,1,17,A;B
 music21,c05n05_musete.musicxml,music21 v9.1.0,1,32,A;B;C
 music21,c05n05_musete.musicxml,music21 v9.1.0,17,59,C;D

@@ -468,6 +468,49 @@ class TestFlowSegmentBased:
 
         assert flow.to_mc_sequence() == [1, 2, 3, 4, 5, 6, 7, 8]
 
+    def test_to_atomic_sequence(self) -> None:
+        """Flow.to_atomic_sequence returns flattened atomic IDs."""
+        segments = [
+            PlaythroughSection(mc_start=1, mc_end=17, atomic_section_ids=("A", "B")),
+            PlaythroughSection(
+                mc_start=1, mc_end=32, atomic_section_ids=("A", "B", "C")
+            ),
+            PlaythroughSection(mc_start=17, mc_end=32, atomic_section_ids=("C",)),
+            PlaythroughSection(mc_start=6, mc_end=17, atomic_section_ids=("B",)),
+        ]
+        flow = Flow.from_sections(segments, FlowMode.DEFAULT)
+
+        expected = ["A", "B", "A", "B", "C", "C", "B"]
+        assert flow.to_atomic_sequence() == expected
+
+    def test_to_atomic_sequence_empty(self) -> None:
+        """Flow.to_atomic_sequence handles empty flows."""
+        flow = Flow(steps=[], sections=[], mode=FlowMode.DEFAULT)
+        assert flow.to_atomic_sequence() == []
+
+    def test_diff_flows(self) -> None:
+        """Flow.diff_flows shows differences between flows."""
+        flow1 = Flow.from_sections(
+            [
+                PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
+                PlaythroughSection(mc_start=5, mc_end=9, atomic_section_ids=("B",)),
+                PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
+            ],
+            FlowMode.DEFAULT,
+        )
+        flow2 = Flow.from_sections(
+            [
+                PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
+                PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
+                PlaythroughSection(mc_start=5, mc_end=9, atomic_section_ids=("B",)),
+            ],
+            FlowMode.DEFAULT,
+        )
+        # diff_flows should show the swapped A and B
+        diff = flow1.diff_flows(flow2)
+        assert "---" in diff  # Has unified diff header
+        assert "+++" in diff
+
     def test_unfolded_length_from_sections(self) -> None:
         """Flow.unfolded_length works with segment-only flows."""
         # Right-open: mc_end=5 means MCs 1-4 (4 MCs each)
@@ -746,7 +789,6 @@ class TestExample3CouperinMusete:
             flow.unfolded_length > 58
         ), f"Expected unfolded > 58, got {flow.unfolded_length}"
 
-    @pytest.mark.skip(reason="Flow algorithm needs refinement for D.S. al Fine")
     def test_flow_matches_unfolded_gold_standard(
         self, musete_measures_tsv: Path, musete_unfolded_tsv: Path
     ) -> None:
