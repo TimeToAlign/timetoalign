@@ -523,9 +523,9 @@ The Flow API uses a **section-based architecture** with dual representation:
    - `TestAtomicSection`: Creation, `mc_range`, `mc_count`, frozen, validation
    - `TestPlaythroughSection`: Creation, `mc_range`, `mc_count`, frozen, `to_mc_sequence()`
 
-2. **Flow Serialization Tests** (17 tests)
+2. **Flow Serialization Tests** (16 tests)
    - `TestFlow`: Empty flow, simple flow, flow with repeats, `to_dataframe()`
-   - `TestFlowSegmentBased`: `from_sections()`, `from_records()`, `to_records()`, `to_csv_rows()`, `is_equivalent()`, `to_mc_sequence()`, `unfolded_length`
+   - `TestFlowSegmentBased`: `from_sections()`, `from_records()`, `to_records()`, `to_csv_rows()`, `is_equivalent()`, `to_mc_sequence()`, `to_atomic_sequence()`, `diff_flows()`, `unfolded_length`
    - `TestFlowCSVLoading`: `Flow.from_csv()`, invalid mode raises, `load_valid_flows()`
 
 3. **FlowController Tests** (4 tests)
@@ -534,22 +534,32 @@ The Flow API uses a **section-based architecture** with dual representation:
    - `from_atomic_sections()` class method
    - `compute_flow()` populates both steps and sections
 
-4. **Integration Tests** (9 tests)
+4. **Integration Tests** (10 tests)
    - `TestExample1Rachmaninoff`: No flow control baseline (3 tests)
-   - `TestExample3CouperinMusete`: D.S. al Fine (3 tests, 1 skipped)
+   - `TestExample3CouperinMusete`: D.S. al Fine (4 tests, all pass)
    - `TestFlowMap`: FlowMap creation
    - `TestPrintedMode`: PRINTED mode returns folded count
 
-**Test Status: 45 passed, 1 skipped**
+**Test Status: 49 passed**
 
-**Failing Test**: `tests/loader/score/test_flow_csv_validation.py::TestFlowEquivalence::test_loader_produces_valid_flow[c05n05_musete]`
+**New Methods (Feb 2026):**
 
-- **Status**: `xfail`
-- **Specimen**: c05n05_musete (D.S. al Fine)
-- **Failure**: `is_equivalent()` returns False due to section ORDER mismatch
-- **Computed (right-open)**: `(1-17), (1-32), (17-32), (6-17), (32-59)`
-- **Gold standard (right-open)**: `(1-17), (1-32), (6-17), (17-32), (32-59)`
-- **Root cause**: `_steps_to_sections()` in `flow.py` groups by MC continuity; doesn't handle D.S. jump semantics
+- `Flow.to_atomic_sequence()`: Returns flattened list of atomic section IDs from all sections
+- `Flow.diff_flows()`: Shows differences between flows using sequence alignment (difflib)
+
+**c05n05_musete Fix (Feb 2026):**
+
+The gold standard CSV was updated to include all 7 section occurrences in playthrough order:
+
+| # | MC Range | Atomic IDs | Notes |
+|---|----------|------------|-------|
+| 1 | (1-17) | A;B | First refrain |
+| 2 | (1-32) | A;B;C | Second refrain + 1e couplet |
+| 3 | (17-32) | C | Repeat of 1e couplet |
+| 4 | (6-17) | B | D.S. back to segno |
+| 5 | (32-59) | D | First 2e couplet |
+| 6 | (32-59) | D | Repeat of 2e couplet |
+| 7 | (6-17) | B | Final D.S. al Fine |
 
 **Validity Rationale:**
 

@@ -559,6 +559,55 @@ class Flow:
             result.extend(range(sec.mc_start, sec.mc_end))
         return result
 
+    def to_atomic_sequence(self) -> list[str]:
+        """Return flattened sequence of atomic section IDs.
+
+        This provides a canonical representation of the flow as a sequence
+        of atomic section traversals. Useful for comparing flows and debugging.
+
+        Returns:
+            List of atomic section IDs in traversal order.
+
+        Examples:
+            >>> flow = Flow.from_sections([
+            ...     PlaythroughSection(1, 17, ("A", "B")),
+            ...     PlaythroughSection(17, 32, ("C",)),
+            ...     PlaythroughSection(6, 17, ("B",)),
+            ... ], FlowMode.DEFAULT)
+            >>> flow.to_atomic_sequence()
+            ['A', 'B', 'C', 'B']
+        """
+        result = []
+        for sec in self.sections:
+            result.extend(sec.atomic_section_ids)
+        return result
+
+    def diff_flows(self, other: "Flow") -> str:
+        """Show differences between this flow and another using sequence alignment.
+
+        Uses difflib to produce a human-readable diff of atomic sequences.
+
+        Args:
+            other: Another Flow to compare against.
+
+        Returns:
+            String showing the alignment/diff between the two flows.
+        """
+        import difflib
+
+        self_seq = self.to_atomic_sequence()
+        other_seq = other.to_atomic_sequence()
+
+        # Use unified diff for readability
+        diff = difflib.unified_diff(
+            [f"{i+1}: {s}" for i, s in enumerate(other_seq)],
+            [f"{i+1}: {s}" for i, s in enumerate(self_seq)],
+            fromfile="other",
+            tofile="self",
+            lineterm="",
+        )
+        return "\n".join(diff)
+
     def to_dataframe(self) -> "pd.DataFrame":
         """Convert to pandas DataFrame matching unfolded TSV format.
 

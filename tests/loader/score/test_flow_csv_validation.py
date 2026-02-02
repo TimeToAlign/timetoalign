@@ -479,12 +479,7 @@ class TestFlowEquivalence:
         "specimen_name",
         [
             "out_of_the_flow_experience-polyrhythm_only",
-            pytest.param(
-                "c05n05_musete",
-                marks=pytest.mark.xfail(
-                    reason="D.S. al Fine segment grouping needs refinement"
-                ),
-            ),
+            "c05n05_musete",
             "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff",
         ],
     )
