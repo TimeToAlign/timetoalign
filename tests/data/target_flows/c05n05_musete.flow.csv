@@ -1,6 +1,4 @@
 flow_mode,source_file,software_version,mc_start,mc_end,atomic_segments
-# Partitura canonical atomic segments (INCLUSIVE mc_end):
-# A: MC 1-5 (t=0-108), B: MC 6-16 (t=108-348), C: MC 17-31 (t=348-684), D: MC 32-58 (t=684-1308)
 partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,1,5,A
 partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,6,16,B
 partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,17,31,C
@@ -11,9 +9,6 @@ default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,1,31,A;B;C
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,6,16,B
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,17,31,C
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,32,58,D
-music21_musicxml,c05n05_musete.musicxml,music21 v9.1.0,1,16,A;B
-music21_musicxml,c05n05_musete.musicxml,music21 v9.1.0,1,31,A;B;C
-music21_musicxml,c05n05_musete.musicxml,music21 v9.1.0,17,58,C;D
-music21_mei,c05n05_musete.mei,music21 v9.1.0,1,16,A;B
-music21_mei,c05n05_musete.mei,music21 v9.1.0,1,31,A;B;C
-music21_mei,c05n05_musete.mei,music21 v9.1.0,17,58,C;D
+music21,c05n05_musete.musicxml,music21 v9.1.0,1,16,A;B
+music21,c05n05_musete.musicxml,music21 v9.1.0,1,31,A;B;C
+music21,c05n05_musete.musicxml,music21 v9.1.0,17,58,C;D
