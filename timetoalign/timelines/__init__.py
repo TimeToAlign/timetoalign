@@ -18,9 +18,9 @@ Specialized timelines:
 Structural components:
 - Region: Named TimeInterval (not a timeline itself)
 
-Flow API (Phase 3.7):
+Flow API (Phase 3.7 + Phase 10 MeasureUnit Architecture):
 - FlowMode: Enum for flow computation modes
-- FlowStep: A single step in a Flow sequence (legacy, detailed per-MC)
+- MeasureUnit: Fundamental building block (one per MeasureData row)
 - AtomicSection: Smallest indivisible traversal unit
 - PlaythroughSection: Contiguous group of atomic sections
 - Flow: A computed flow (sequence of measure visitations)
@@ -56,7 +56,7 @@ from .flow import (
     FlowController,
     FlowMap,
     FlowMode,
-    FlowStep,
+    MeasureUnit,
     PlaythroughSection,
     load_valid_flows,
 )
@@ -97,9 +97,9 @@ __all__ = [
     "SegmentLine",
     # Structural components
     "Region",
-    # Flow API (Phase 3.7)
+    # Flow API (Phase 3.7 + Phase 10)
     "FlowMode",
-    "FlowStep",
+    "MeasureUnit",
     "Flow",
     "FlowMap",
     "FlowController",

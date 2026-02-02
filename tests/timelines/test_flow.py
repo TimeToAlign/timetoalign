@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 
 from timetoalign.loader.score import TSVLoader
-from timetoalign.timelines import Flow, FlowController, FlowMap, FlowMode, FlowStep
+from timetoalign.timelines import Flow, FlowController, FlowMap, FlowMode, MeasureUnit
 from timetoalign.timelines.flow import (
     AtomicSection,
     PlaythroughSection,
@@ -98,60 +98,66 @@ def rondeau_unfolded_tsv(data_dir: Path) -> Path:
 
 # endregion
 
-# region Unit Tests: FlowStep
+# region Unit Tests: MeasureUnit
 
 
-class TestFlowStep:
-    """Test FlowStep dataclass."""
+class TestMeasureUnit:
+    """Test MeasureUnit dataclass."""
 
     def test_creation(self) -> None:
-        """FlowStep can be created with all fields."""
-        step = FlowStep(
+        """MeasureUnit can be created with all fields."""
+        unit = MeasureUnit(
             mc=1,
             mn="1",
-            mc_playthrough=1,
-            mn_playthrough="1a",
-            quarterbeats=Fraction(0),
             duration_qb=Fraction(4),
-            visit_count=1,
+            next=(2,),
+            volta=None,
+            timesig="4/4",
+            start_repeat=False,
+            end_repeat=False,
         )
-        assert step.mc == 1
-        assert step.mn == "1"
-        assert step.mc_playthrough == 1
-        assert step.mn_playthrough == "1a"
-        assert step.quarterbeats == Fraction(0)
-        assert step.duration_qb == Fraction(4)
-        assert step.visit_count == 1
+        assert unit.mc == 1
+        assert unit.mn == "1"
+        assert unit.duration_qb == Fraction(4)
+        assert unit.next == (2,)
+        assert unit.volta is None
+        assert unit.timesig == "4/4"
+        assert unit.start_repeat is False
+        assert unit.end_repeat is False
 
     def test_frozen(self) -> None:
-        """FlowStep is immutable."""
-        step = FlowStep(
+        """MeasureUnit is immutable."""
+        unit = MeasureUnit(
             mc=1,
             mn="1",
-            mc_playthrough=1,
-            mn_playthrough="1a",
-            quarterbeats=Fraction(0),
             duration_qb=Fraction(4),
-            visit_count=1,
+            next=(2,),
         )
         with pytest.raises(AttributeError):
-            step.mc = 2  # type: ignore
+            unit.mc = 2  # type: ignore
 
     def test_to_dict(self) -> None:
-        """FlowStep can be converted to dict."""
-        step = FlowStep(
+        """MeasureUnit can be converted to dict."""
+        unit = MeasureUnit(
             mc=5,
             mn="5",
-            mc_playthrough=10,
-            mn_playthrough="5b",
-            quarterbeats=Fraction(20),
             duration_qb=Fraction(4),
-            visit_count=2,
+            next=(6, 10),
+            volta=1,
         )
-        d = step.to_dict()
+        d = unit.to_dict()
         assert d["mc"] == 5
-        assert d["mn_playthrough"] == "5b"
-        assert d["visit_count"] == 2
+        assert d["mn"] == "5"
+        assert d["duration_qb"] == Fraction(4)
+        assert d["next"] == [6, 10]
+        assert d["volta"] == 1
+
+    def test_repr(self) -> None:
+        """MeasureUnit has useful repr."""
+        unit = MeasureUnit(mc=1, mn="1", duration_qb=Fraction(4), next=(2,))
+        r = repr(unit)
+        assert "MC 1" in r
+        assert "next=(2,)" in r
 
 
 # endregion
@@ -278,36 +284,35 @@ class TestFlow:
 
     def test_empty_flow(self) -> None:
         """Empty flow has correct properties."""
-        flow = Flow(steps=[], mode=FlowMode.DEFAULT, folded_length=0)
+        flow = Flow(sections=[], mode=FlowMode.DEFAULT, folded_length=0)
         assert flow.unfolded_length == 0
         assert flow.total_quarterbeats == Fraction(0)
         assert flow.has_repeats is False
         assert flow.to_mc_sequence() == []
 
     def test_simple_flow(self) -> None:
-        """Simple flow with sequential measures."""
-        steps = [
-            FlowStep(1, "1", 1, "1a", Fraction(0), Fraction(4), 1),
-            FlowStep(2, "2", 2, "2a", Fraction(4), Fraction(4), 1),
-            FlowStep(3, "3", 3, "3a", Fraction(8), Fraction(4), 1),
+        """Simple flow with sequential measures (section-based)."""
+        # Right-open: mc_end=4 means MCs 1,2,3
+        sections = [
+            PlaythroughSection(mc_start=1, mc_end=4, atomic_section_ids=("A",)),
         ]
-        flow = Flow(steps=steps, mode=FlowMode.DEFAULT, folded_length=3)
+        flow = Flow.from_sections(sections, FlowMode.DEFAULT, folded_length=3)
 
         assert flow.unfolded_length == 3
         assert flow.folded_length == 3
         assert flow.has_repeats is False
-        assert flow.total_quarterbeats == Fraction(12)
+        # total_quarterbeats requires controller (returns 0 for detached flows)
+        assert flow.total_quarterbeats == Fraction(0)
         assert flow.to_mc_sequence() == [1, 2, 3]
 
     def test_flow_with_repeats(self) -> None:
         """Flow with repeated measures has correct properties."""
-        steps = [
-            FlowStep(1, "1", 1, "1a", Fraction(0), Fraction(4), 1),
-            FlowStep(2, "2", 2, "2a", Fraction(4), Fraction(4), 1),
-            FlowStep(1, "1", 3, "1b", Fraction(8), Fraction(4), 2),
-            FlowStep(2, "2", 4, "2b", Fraction(12), Fraction(4), 2),
+        # Right-open: mc_end=3 means MCs 1,2
+        sections = [
+            PlaythroughSection(mc_start=1, mc_end=3, atomic_section_ids=("A",)),
+            PlaythroughSection(mc_start=1, mc_end=3, atomic_section_ids=("A",)),
         ]
-        flow = Flow(steps=steps, mode=FlowMode.DEFAULT, folded_length=2)
+        flow = Flow.from_sections(sections, FlowMode.DEFAULT, folded_length=2)
 
         assert flow.unfolded_length == 4
         assert flow.folded_length == 2
@@ -315,26 +320,19 @@ class TestFlow:
         assert flow.to_mc_sequence() == [1, 2, 1, 2]
 
     def test_to_dataframe(self) -> None:
-        """Flow can be converted to DataFrame."""
-        steps = [
-            FlowStep(1, "1", 1, "1a", Fraction(0), Fraction(4), 1),
-            FlowStep(2, "2", 2, "2a", Fraction(4), Fraction(4), 1),
+        """Flow can be converted to DataFrame (section-based)."""
+        # Right-open: mc_end=3 means MCs 1,2
+        sections = [
+            PlaythroughSection(mc_start=1, mc_end=3, atomic_section_ids=("A",)),
+            PlaythroughSection(mc_start=3, mc_end=5, atomic_section_ids=("B",)),
         ]
-        flow = Flow(steps=steps, mode=FlowMode.DEFAULT, folded_length=2)
+        flow = Flow.from_sections(sections, FlowMode.DEFAULT)
 
         df = flow.to_dataframe()
         assert len(df) == 2
-        assert list(df.columns) == [
-            "mc",
-            "mn",
-            "mc_playthrough",
-            "mn_playthrough",
-            "quarterbeats",
-            "duration_qb",
-            "visit_count",
-        ]
-        assert df["mc"].tolist() == [1, 2]
-        assert df["mn_playthrough"].tolist() == ["1a", "2a"]
+        assert list(df.columns) == ["mc_start", "mc_end", "atomic_sections"]
+        assert df["mc_start"].tolist() == [1, 3]
+        assert df["mc_end"].tolist() == [3, 5]
 
 
 class TestFlowSegmentBased:
@@ -485,7 +483,7 @@ class TestFlowSegmentBased:
 
     def test_to_atomic_sequence_empty(self) -> None:
         """Flow.to_atomic_sequence handles empty flows."""
-        flow = Flow(steps=[], sections=[], mode=FlowMode.DEFAULT)
+        flow = Flow(sections=[], mode=FlowMode.DEFAULT)
         assert flow.to_atomic_sequence() == []
 
     def test_diff_flows(self) -> None:
@@ -645,9 +643,11 @@ class TestFlowController:
         controller = FlowController(loader.store.measures)
         flow = controller.compute_flow(FlowMode.DEFAULT)
 
-        # Flow should have both steps and segments
-        assert len(flow.steps) == 374
+        # Flow should have sections and correct unfolded length
+        assert flow.unfolded_length == 374
         assert len(flow.sections) >= 1
+        # Controller ref should be attached
+        assert flow.controller is not None
 
 
 # endregion
@@ -715,19 +715,10 @@ class TestExample1Rachmaninoff:
             gold
         ), f"Row count mismatch: {flow.unfolded_length} != {len(gold)}"
 
-        # EXACT mc_playthrough sequence
-        computed_mc_playthrough = [s.mc_playthrough for s in flow.steps]
-        gold_mc_playthrough = gold["mc_playthrough"].tolist()
-        assert (
-            computed_mc_playthrough == gold_mc_playthrough
-        ), "mc_playthrough sequence mismatch"
-
-        # EXACT mn_playthrough values
-        computed_mn_playthrough = [s.mn_playthrough for s in flow.steps]
-        gold_mn_playthrough = gold["mn_playthrough"].tolist()
-        assert (
-            computed_mn_playthrough == gold_mn_playthrough
-        ), "mn_playthrough sequence mismatch"
+        # EXACT MC sequence
+        computed_mc_sequence = flow.to_mc_sequence()
+        gold_mc_sequence = gold["mc"].tolist()
+        assert computed_mc_sequence == gold_mc_sequence, "MC sequence mismatch"
 
 
 # endregion
