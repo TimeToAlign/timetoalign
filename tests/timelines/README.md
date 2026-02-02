@@ -489,6 +489,65 @@ These tests ensure:
 
 ---
 
+### `test_flow.py` - Flow Control and Unfolding (Phase 3.7)
+
+**Purpose:** Validates the Flow API that computes unfolded measure sequences from flow control data (repeats, voltas, D.S., D.C., etc.).
+
+**Architecture (Feb 2026 Redesign):**
+
+The Flow API uses a **segment-based architecture** with dual representation:
+
+| Class | Purpose |
+|-------|---------|
+| `AtomicSegment` | Smallest indivisible traversal unit (partitura's segment model) |
+| `PlaythroughSegment` | Contiguous group of atomic segments in a traversal |
+| `Flow` | Sequence of PlaythroughSegments with serialization API |
+| `FlowStep` | Legacy per-MC step (retained for detailed info) |
+
+**Test Categories:**
+
+1. **Dataclass Tests** (15 tests)
+   - `TestFlowStep`: Creation, immutability, `to_dict()`
+   - `TestAtomicSegment`: Creation, `mc_range`, `mc_count`, frozen, validation
+   - `TestPlaythroughSegment`: Creation, `mc_range`, `mc_count`, frozen, `to_mc_sequence()`
+
+2. **Flow Serialization Tests** (17 tests)
+   - `TestFlow`: Empty flow, simple flow, flow with repeats, `to_dataframe()`
+   - `TestFlowSegmentBased`: `from_segments()`, `from_records()`, `to_records()`, `to_csv_rows()`, `is_equivalent()`, `to_mc_sequence()`, `unfolded_length`
+   - `TestFlowCSVLoading`: `Flow.from_csv()`, invalid mode raises, `load_valid_flows()`
+
+3. **FlowController Tests** (4 tests)
+   - `_occurrence_to_suffix()` for mn_playthrough naming
+   - `get_atomic_segments()` returns derived segments
+   - `from_atomic_segments()` class method
+   - `compute_flow()` populates both steps and segments
+
+4. **Integration Tests** (9 tests)
+   - `TestExample1Rachmaninoff`: No flow control baseline (3 tests)
+   - `TestExample3CouperinMusete`: D.S. al Fine (3 tests, 1 skipped)
+   - `TestFlowMap`: FlowMap creation
+   - `TestPrintedMode`: PRINTED mode returns folded count
+
+**Test Status: 45 passed, 1 skipped**
+
+**Failing Test**: `tests/loader/score/test_flow_csv_validation.py::TestFlowEquivalence::test_loader_produces_valid_flow[c05n05_musete]`
+
+- **Status**: `xfail`
+- **Specimen**: c05n05_musete (D.S. al Fine)
+- **Failure**: `is_equivalent()` returns False due to segment ORDER mismatch
+- **Computed**: `(1-16), (1-31), (17-31), (6-16), (32-58)`
+- **Gold standard**: `(1-16), (1-31), (6-16), (17-31), (32-58)`
+- **Root cause**: `_steps_to_segments()` in `flow.py` groups by MC continuity; doesn't handle D.S. jump semantics
+
+**Validity Rationale:**
+
+Following AGENTS.md Section 3.6 (ZERO TOLERANCE), all tests use **exact value comparisons**:
+- EXACT segment counts (no ranges or minimums)
+- EXACT MC ranges: `(mc_start, mc_end)` pairs must match exactly
+- EXACT segment order (positional comparison)
+
+---
+
 ## Validation Methodology
 
 All tests follow these principles:
