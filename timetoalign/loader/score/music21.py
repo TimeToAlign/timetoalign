@@ -45,7 +45,8 @@ class Music21Loader(ScoreLoader):
         parts = score.parts if score.hasPartLikeStreams() else [score]
 
         for part_idx, part in enumerate(parts):
-            part_id = part.id or f"P{part_idx+1}"
+            # Ensure part_id is always a string (MEI may return int IDs)
+            part_id = str(part.id) if part.id else f"P{part_idx+1}"
 
             # Get measure list for MC lookup
             measure_list = list(part.getElementsByClass(m21.stream.Measure))

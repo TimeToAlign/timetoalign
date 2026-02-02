@@ -3,4 +3,5 @@ default,out_of_the_flow_experience-polyrhythm_only_unfolded.measures.tsv,ms3 v2.
 mm_json,out_of_the_flow_experience-polyrhythm_only.measures.mm.json,timetoalign,1,14,A
 music21_musicxml,out_of_the_flow_experience-polyrhythm_only.musicxml,music21 v9.1.0,1,14,A
 music21_mei,out_of_the_flow_experience-polyrhythm_only.mei,music21 v9.1.0,1,14,A
+partitura_minimal,out_of_the_flow_experience-polyrhythm_only.musicxml,partitura v1.7.0,1,14,A
 partitura_musicxml,out_of_the_flow_experience-polyrhythm_only.musicxml,partitura v1.7.0,1,14,A
