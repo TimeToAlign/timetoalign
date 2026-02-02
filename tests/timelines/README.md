@@ -493,16 +493,25 @@ These tests ensure:
 
 **Purpose:** Validates the Flow API that computes unfolded measure sequences from flow control data (repeats, voltas, D.S., D.C., etc.).
 
-**Architecture (Feb 2026 Redesign):**
+**Architecture (Feb 2026 Redesign → Phase 10 Enhancement):**
 
-The Flow API uses a **section-based architecture** with dual representation:
+The Flow API uses a **MeasureUnit-based architecture** with semantic groupings:
 
 | Class | Purpose |
 |-------|---------|
-| `AtomicSection` | Smallest indivisible traversal unit (partitura's segment model) |
-| `PlaythroughSection` | Contiguous group of atomic sections in a traversal |
-| `Flow` | Sequence of PlaythroughSections with serialization API |
-| `FlowStep` | Legacy per-MC step (retained for detailed info) |
+| `MeasureUnit` | Fundamental building block (one per MeasureData row) - replaces FlowStep |
+| `MeasureGroup` | Base for semantic groupings (CompleteMeasure, Volta, etc.) |
+| `AtomicSection` | Smallest traversal unit with `groups: list[MeasureGroup]` |
+| `PlaythroughSection` | Contiguous atomics in traversal with `groups: list[MeasureGroup]` |
+| `Flow` | Sequence of PlaythroughSections, delegates iteration to controller |
+
+**Semantic Groupings** (within sections):
+- `IncompleteMeasure` / `CompleteMeasure` / `OverlengthMeasure`
+- `CompleteMeasureSection` (adjacent CompleteMeasures)
+- `Volta` (units under same volta bracket - within ONE section)
+- `CadenzaGroup` (overlength measures with same MN)
+
+**Note**: `get_volta_groups()` returns all Volta objects as a query. VoltaGroup can NEVER be inside a section (Breaks separate voltas).
 
 **Naming Rationale**: Named "Section" (not "Segment") to avoid confusion with TTA manuscript's `Segment` concept (a child timeline contiguous with siblings). These are flow control concepts, not timeline children.
 
@@ -518,21 +527,25 @@ The Flow API uses a **section-based architecture** with dual representation:
 
 **Test Categories:**
 
-1. **Dataclass Tests** (15 tests)
-   - `TestFlowStep`: Creation, immutability, `to_dict()`
-   - `TestAtomicSection`: Creation, `mc_range`, `mc_count`, frozen, validation
-   - `TestPlaythroughSection`: Creation, `mc_range`, `mc_count`, frozen, `to_mc_sequence()`
+1. **Dataclass Tests** (15+ tests)
+   - `TestMeasureUnit`: Creation, immutability, fields from MeasureData row (Phase 10)
+   - `TestMeasureGroup`: Semantic groupings (IncompleteMeasure, CompleteMeasure, etc.) (Phase 10)
+   - `TestAtomicSection`: Creation, `mc_range`, `mc_count`, `groups[]`, frozen, validation
+   - `TestPlaythroughSection`: Creation, `mc_range`, `mc_count`, `groups[]`, frozen, `to_mc_sequence()`
 
 2. **Flow Serialization Tests** (16 tests)
-   - `TestFlow`: Empty flow, simple flow, flow with repeats, `to_dataframe()`
-   - `TestFlowSegmentBased`: `from_sections()`, `from_records()`, `to_records()`, `to_csv_rows()`, `is_equivalent()`, `to_mc_sequence()`, `to_atomic_sequence()`, `diff_flows()`, `unfolded_length`
+   - `TestFlow`: Empty flow, simple flow, flow with repeats
+   - `TestFlowSectionBased`: `from_sections()`, `from_records()`, `to_records()`, `to_csv_rows()`, `is_equivalent()`, `to_mc_sequence()`, `to_atomic_sequence()`, `diff_flows()`, `unfolded_length`
    - `TestFlowCSVLoading`: `Flow.from_csv()`, invalid mode raises, `load_valid_flows()`
 
-3. **FlowController Tests** (4 tests)
-   - `_occurrence_to_suffix()` for mn_playthrough naming
+3. **FlowController Tests** (8+ tests)
+   - `iter_units()`: Iterate over MeasureUnits (Phase 10)
+   - `iter_sections(mode=None)`: AtomicSections by default (Phase 10)
+   - `iter_sections(mode=X)`: PlaythroughSections for mode X (Phase 10)
+   - `get_volta_groups()`: Query all Volta objects (Phase 10)
    - `get_atomic_sections()` returns derived sections
    - `from_atomic_sections()` class method
-   - `compute_flow()` populates both steps and sections
+   - `compute_flow()` populates sections
 
 4. **Integration Tests** (10 tests)
    - `TestExample1Rachmaninoff`: No flow control baseline (3 tests)
