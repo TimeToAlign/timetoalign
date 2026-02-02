@@ -6,14 +6,14 @@
 
     - **test_flow_csv_validation.py**: Tests using Flow.is_equivalent() for
       segment-based comparison against .flow.csv ground truth files
-    - **tests/timelines/test_flow.py**: Unit tests for AtomicSegment,
-      PlaythroughSegment, Flow, and FlowController
+    - **tests/timelines/test_flow.py**: Unit tests for AtomicSection,
+      PlaythroughSection, Flow, and FlowController
 
     The new segment-based architecture in `timetoalign.timelines.flow` provides:
-    - AtomicSegment and PlaythroughSegment dataclasses
+    - AtomicSection and PlaythroughSection dataclasses
     - Flow.from_csv() / load_valid_flows() for loading ground truth
     - Flow.is_equivalent() for comparing flows by MC ranges
-    - FlowController.get_atomic_segments() for segment inspection
+    - FlowController.get_atomic_sections() for segment inspection
 
     **Migration Path**:
     - MC sequence comparison -> Use Flow.is_equivalent()

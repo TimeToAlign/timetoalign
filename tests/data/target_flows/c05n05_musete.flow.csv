@@ -1,14 +1,14 @@
 flow_mode,source_file,software_version,mc_start,mc_end,atomic_segments
-partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,1,5,A
-partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,6,16,B
-partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,17,31,C
-partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,32,58,D
+partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,1,6,A
+partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,6,17,B
+partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,17,32,C
+partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,32,59,D
 partitura_maximal,c05n05_musete.musicxml,partitura v1.7.0,ERROR,RecursionError,cyclic segment graph
-default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,1,16,A;B
-default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,1,31,A;B;C
-default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,6,16,B
-default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,17,31,C
-default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,32,58,D
-music21,c05n05_musete.musicxml,music21 v9.1.0,1,16,A;B
-music21,c05n05_musete.musicxml,music21 v9.1.0,1,31,A;B;C
-music21,c05n05_musete.musicxml,music21 v9.1.0,17,58,C;D
+default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,1,17,A;B
+default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,1,32,A;B;C
+default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,6,17,B
+default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,17,32,C
+default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,32,59,D
+music21,c05n05_musete.musicxml,music21 v9.1.0,1,17,A;B
+music21,c05n05_musete.musicxml,music21 v9.1.0,1,32,A;B;C
+music21,c05n05_musete.musicxml,music21 v9.1.0,17,59,C;D

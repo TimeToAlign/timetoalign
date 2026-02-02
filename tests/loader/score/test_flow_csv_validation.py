@@ -5,7 +5,7 @@ Each flow.csv entry specifies:
 - flow_mode: which loader/parsing mode to use
 - source_file: the file to parse
 - software_version: expected software version
-- mc_start, mc_end: expected MC range (INCLUSIVE)
+- mc_start, mc_end: expected MC range (RIGHT-OPEN: mc_end excluded)
 - atomic_segments: partitura segment IDs covered
 
 This module includes:
@@ -16,7 +16,7 @@ This module includes:
 
 Per ZERO TOLERANCE VALIDATION POLICY (from AGENTS.md):
 - EXACT counts required (no tolerances)
-- mc_end is INCLUSIVE (standard musical convention)
+- mc_end is RIGHT-OPEN (aligns with TTA manuscript TimeInterval definition)
 - Every mismatch must be investigated
 """
 
@@ -228,8 +228,8 @@ class TestFlowCSVStructure:
             "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.flow.csv",
         ],
     )
-    def test_mc_end_is_inclusive(self, csv_name):
-        """Verify mc_end values follow INCLUSIVE convention (no overlapping ranges)."""
+    def test_mc_end_is_right_open(self, csv_name):
+        """Verify mc_end values follow RIGHT-OPEN convention (contiguous segments)."""
         csv_path = TARGET_FLOWS_DIR / csv_name
         if not csv_path.exists():
             pytest.skip(f"Flow CSV not found: {csv_path}")
@@ -243,19 +243,19 @@ class TestFlowCSVStructure:
                 by_mode[entry.flow_mode] = []
             by_mode[entry.flow_mode].append(entry)
 
-        # For partitura_minimal, check that segments don't overlap
+        # For partitura_minimal, check that segments are contiguous (right-open)
         if "partitura_minimal" in by_mode:
             minimal_entries = sorted(
-                by_mode["partitura_minimal"], key=lambda e: e.mc_start
+                by_mode["partitura_minimal"], key=lambda e: int(e.mc_start)
             )
             for i in range(len(minimal_entries) - 1):
                 current = minimal_entries[i]
                 next_entry = minimal_entries[i + 1]
-                # With INCLUSIVE mc_end, next segment should start at mc_end + 1
-                assert current.mc_end < next_entry.mc_start, (
-                    f"Overlapping segments in {csv_name} partitura_minimal: "
-                    f"segment ending at MC {current.mc_end} overlaps with "
-                    f"segment starting at MC {next_entry.mc_start}"
+                # With RIGHT-OPEN mc_end, next segment should start at current mc_end
+                assert int(current.mc_end) == int(next_entry.mc_start), (
+                    f"Non-contiguous segments in {csv_name} partitura_minimal: "
+                    f"segment ending at MC {current.mc_end} should equal "
+                    f"next segment starting at MC {next_entry.mc_start}"
                 )
 
 
@@ -270,19 +270,23 @@ class TestPartituraMinimalValidation:
     @pytest.mark.parametrize(
         "csv_name,expected_segments",
         [
+            # Right-open convention: mc_end is exclusive
+            # A: MCs 1-5 (5 MCs), B: MCs 6-16 (11 MCs), C: MCs 17-31 (15 MCs), D: MCs 32-58 (27 MCs)
             (
                 "c05n05_musete.flow.csv",
-                {"A": (1, 5), "B": (6, 16), "C": (17, 31), "D": (32, 58)},
+                {"A": (1, 6), "B": (6, 17), "C": (17, 32), "D": (32, 59)},
             ),
-            ("out_of_the_flow_experience-polyrhythm_only.flow.csv", {"A": (1, 14)}),
+            # A: MCs 1-14 (14 MCs)
+            ("out_of_the_flow_experience-polyrhythm_only.flow.csv", {"A": (1, 15)}),
+            # A: MCs 1-374 (374 MCs)
             (
                 "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.flow.csv",
-                {"A": (1, 374)},
+                {"A": (1, 375)},
             ),
         ],
     )
     def test_partitura_minimal_segments(self, csv_name, expected_segments):
-        """Verify partitura_minimal entries match expected segment boundaries."""
+        """Verify partitura_minimal entries match expected segment boundaries (right-open)."""
         csv_path = TARGET_FLOWS_DIR / csv_name
         if not csv_path.exists():
             pytest.skip(f"Flow CSV not found: {csv_path}")
@@ -544,9 +548,9 @@ class TestFlowEquivalence:
 
         if len(matches) == 0:
             # Build diagnostic message
-            computed_segs = [(s.mc_start, s.mc_end) for s in computed_flow.segments[:5]]
+            computed_segs = [(s.mc_start, s.mc_end) for s in computed_flow.sections[:5]]
             valid_summaries = {
-                mode.value: [(s.mc_start, s.mc_end) for s in flow.segments[:5]]
+                mode.value: [(s.mc_start, s.mc_end) for s in flow.sections[:5]]
                 for mode, flow in valid_flows.items()
             }
 
@@ -577,7 +581,7 @@ class TestFlowEquivalence:
         rows = flow.to_csv_rows("test.musicxml", "test v1.0")
 
         # Verify structure
-        assert len(rows) == len(flow.segments)
+        assert len(rows) == len(flow.sections)
         assert all(r["flow_mode"] == "partitura_minimal" for r in rows)
         assert all("mc_start" in r and "mc_end" in r for r in rows)
 
