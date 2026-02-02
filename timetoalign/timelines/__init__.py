@@ -20,10 +20,13 @@ Structural components:
 
 Flow API (Phase 3.7):
 - FlowMode: Enum for flow computation modes
-- FlowStep: A single step in a Flow sequence
+- FlowStep: A single step in a Flow sequence (legacy, detailed per-MC)
+- AtomicSegment: Smallest indivisible traversal unit (new)
+- PlaythroughSegment: Contiguous group of atomic segments (new)
 - Flow: A computed flow (sequence of measure visitations)
 - FlowMap: Attached to timelines for coordinate transformation
 - FlowController: Compute Flow paths from MeasureData
+- load_valid_flows: Load all valid flows from a .flow.csv file
 
 Public API:
 - Timeline: Base class
@@ -42,7 +45,16 @@ from __future__ import annotations
 from .base import Timeline
 from .beatgrid import BeatGrid
 from .factory import create_timeline
-from .flow import Flow, FlowController, FlowMap, FlowMode, FlowStep
+from .flow import (
+    AtomicSegment,
+    Flow,
+    FlowController,
+    FlowMap,
+    FlowMode,
+    FlowStep,
+    PlaythroughSegment,
+    load_valid_flows,
+)
 from .regions import Region
 from .types import (
     ContinuousGraphicalTimeline,
@@ -86,4 +98,7 @@ __all__ = [
     "Flow",
     "FlowMap",
     "FlowController",
+    "AtomicSegment",
+    "PlaythroughSegment",
+    "load_valid_flows",
 ]
