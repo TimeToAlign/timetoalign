@@ -29,11 +29,12 @@ Gold Standard Conventions (from ms3):
 from __future__ import annotations
 
 import logging
+import weakref
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from fractions import Fraction
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterator
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -74,6 +75,69 @@ class FlowMode(Enum):
     PRINTED = "printed"
     SINGLE_PASS = "single"
     CUSTOM = "custom"
+
+
+# endregion
+
+# region MeasureUnit
+
+
+@dataclass(frozen=True)
+class MeasureUnit:
+    """Single measure from the folded score (one MeasureData row).
+
+    This is the fundamental building block from which AtomicSections
+    are constructed. MeasureUnit represents the "folded" skeleton of
+    the score before any unfolding takes place.
+
+    Attributes:
+        mc: Measure Count (monotonic, 1-indexed).
+        mn: Measure Number label (may have suffix like "19a").
+        duration_qb: Duration in quarter beats.
+        next: Tuple of possible next MCs. (-1 = end of piece)
+        volta: Ending number (1, 2, ...) or None.
+        timesig: Time signature string ("4/4", "3/4") or None.
+        start_repeat: True if has repeat start marker (||:).
+        end_repeat: True if has repeat end marker (:||).
+
+    Examples:
+        >>> unit = MeasureUnit(
+        ...     mc=1,
+        ...     mn="1",
+        ...     duration_qb=Fraction(4),
+        ...     next=(2,),
+        ... )
+        >>> unit.mc
+        1
+        >>> unit.next
+        (2,)
+    """
+
+    mc: int
+    mn: str
+    duration_qb: Fraction
+    next: tuple[int, ...]
+    volta: int | None = None
+    timesig: str | None = None
+    start_repeat: bool = False
+    end_repeat: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "mc": self.mc,
+            "mn": self.mn,
+            "duration_qb": self.duration_qb,
+            "next": list(self.next),
+            "volta": self.volta,
+            "timesig": self.timesig,
+            "start_repeat": self.start_repeat,
+            "end_repeat": self.end_repeat,
+        }
+
+    def __repr__(self) -> str:
+        volta_str = f", volta={self.volta}" if self.volta else ""
+        return f"MeasureUnit(MC {self.mc}: {self.mn}, next={self.next}{volta_str})"
 
 
 # endregion
@@ -239,49 +303,6 @@ class PlaythroughSection:
 
 # endregion
 
-# region FlowStep
-
-
-@dataclass(frozen=True)
-class FlowStep:
-    """A single step in a Flow sequence.
-
-    Each FlowStep represents one measure visitation in the unfolded sequence.
-    The fields directly correspond to the unfolded TSV columns from ms3.
-
-    Attributes:
-        mc: Original Measure Count (may repeat in sequence).
-        mn: Original Measure Number label (may repeat).
-        mc_playthrough: Monotonic index in unfolded sequence (1-indexed).
-        mn_playthrough: MN with occurrence suffix (e.g., "19a", "19b").
-        quarterbeats: Cumulative position in unfolded time.
-        duration_qb: Duration of this measure in quarter beats.
-        visit_count: Which visit to this MC (1-indexed).
-    """
-
-    mc: int
-    mn: str
-    mc_playthrough: int
-    mn_playthrough: str
-    quarterbeats: Fraction
-    duration_qb: Fraction
-    visit_count: int
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for DataFrame creation."""
-        return {
-            "mc": self.mc,
-            "mn": self.mn,
-            "mc_playthrough": self.mc_playthrough,
-            "mn_playthrough": self.mn_playthrough,
-            "quarterbeats": self.quarterbeats,
-            "duration_qb": self.duration_qb,
-            "visit_count": self.visit_count,
-        }
-
-
-# endregion
-
 # region Flow
 
 
@@ -295,30 +316,75 @@ class Flow:
     - Loaded from .flow.csv ground truth
     - Compared using is_equivalent()
 
-    The Flow class supports two representations:
-    - **Section-based** (new): Uses `sections` (list of PlaythroughSection)
-    - **Step-based** (legacy): Uses `steps` (list of FlowStep)
+    Flows are section-based, using `sections` (list of PlaythroughSection)
+    for .flow.csv serialization and is_equivalent() comparison.
 
-    Section-based flows are used for .flow.csv serialization and is_equivalent()
-    comparison. Step-based flows provide detailed per-MC information.
+    Flows computed by FlowController have a controller reference, allowing
+    access to MeasureUnits via iter_units(). Flows loaded from CSV are
+    "detached" and do not have controller access.
 
     Note:
         MC ranges use the **right-open interval convention** [mc_start, mc_end),
         consistent with partitura and the TTA manuscript.
 
     Attributes:
-        steps: The sequence of FlowStep objects (legacy, detailed per-MC).
-        sections: The sequence of PlaythroughSection objects (new, grouped).
+        sections: The sequence of PlaythroughSection objects.
         mode: The FlowMode used to compute this flow.
         folded_length: Number of unique MCs (measures in printed score).
+        scope_id: Identifier for this flow (defaults to mode.value).
         source_metadata: Optional metadata from the source MeasureData.
     """
 
-    steps: list[FlowStep] = field(default_factory=list)
+    sections: list[PlaythroughSection] = field(default_factory=list)
     mode: FlowMode = FlowMode.DEFAULT
     folded_length: int = 0
+    scope_id: str = ""
     source_metadata: dict[str, Any] = field(default_factory=dict)
-    sections: list[PlaythroughSection] = field(default_factory=list)
+    _controller_ref: "weakref.ref[FlowController] | None" = field(
+        default=None, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        """Initialize scope_id from mode if not set."""
+        if not self.scope_id:
+            object.__setattr__(self, "scope_id", self.mode.value)
+
+    @property
+    def controller(self) -> "FlowController | None":
+        """Get the FlowController that created this Flow, if still alive.
+
+        Returns:
+            FlowController if this Flow was computed and controller is alive,
+            None if Flow was loaded from CSV or controller was garbage collected.
+        """
+        if self._controller_ref is None:
+            return None
+        return self._controller_ref()
+
+    def iter_units(self) -> Iterator[MeasureUnit]:
+        """Iterate over MeasureUnits via the controller.
+
+        This provides access to the folded score skeleton (one MeasureUnit
+        per MeasureData row).
+
+        Yields:
+            MeasureUnit objects in MC order.
+
+        Raises:
+            ValueError: If Flow is detached from controller (e.g., loaded from CSV).
+
+        Examples:
+            >>> flow = controller.compute_flow()
+            >>> for unit in flow.iter_units():
+            ...     print(f"MC {unit.mc}: next={unit.next}")
+        """
+        ctrl = self.controller
+        if ctrl is None:
+            raise ValueError(
+                "Flow is detached from controller. "
+                "iter_units() is only available for flows computed by FlowController."
+            )
+        yield from ctrl.iter_units()
 
     # === Class Methods (Constructors) ===
 
@@ -348,7 +414,6 @@ class Flow:
             folded_length = len(all_mcs)
 
         return cls(
-            steps=[],
             sections=sections,
             mode=mode,
             folded_length=folded_length,
@@ -520,23 +585,33 @@ class Flow:
             for a, b in zip(self.sections, other.sections)
         )
 
-    # === Properties (Backward Compatible) ===
+    # === Properties ===
 
     @property
     def unfolded_length(self) -> int:
         """Number of measure visitations in the unfolded sequence."""
-        if self.steps:
-            return len(self.steps)
         # Compute from sections (right-open: mc_count = end - start)
         return sum(sec.mc_count for sec in self.sections)
 
     @property
     def total_quarterbeats(self) -> Fraction:
-        """Total duration of the unfolded sequence in quarter beats."""
-        if not self.steps:
+        """Total duration of the unfolded sequence in quarter beats.
+
+        Note:
+            This requires controller access to get measure durations.
+            Returns 0 for detached flows (loaded from CSV).
+        """
+        ctrl = self.controller
+        if ctrl is None:
             return Fraction(0)
-        last = self.steps[-1]
-        return last.quarterbeats + last.duration_qb
+        # Sum durations from MeasureUnits for all MCs in the flow
+        total = Fraction(0)
+        mc_sequence = self.to_mc_sequence()
+        unit_lookup = {u.mc: u for u in ctrl.iter_units()}
+        for mc in mc_sequence:
+            if mc in unit_lookup:
+                total += unit_lookup[mc].duration_qb
+        return total
 
     @property
     def has_repeats(self) -> bool:
@@ -551,8 +626,6 @@ class Flow:
         Returns:
             List of MC values in the order they are visited (right-open intervals).
         """
-        if self.steps:
-            return [step.mc for step in self.steps]
         # Compute from sections (right-open: range(start, end) excludes end)
         result = []
         for sec in self.sections:
@@ -609,15 +682,19 @@ class Flow:
         return "\n".join(diff)
 
     def to_dataframe(self) -> "pd.DataFrame":
-        """Convert to pandas DataFrame matching unfolded TSV format.
+        """Convert to pandas DataFrame with section information.
 
         Returns:
-            DataFrame with columns: mc, mn, mc_playthrough, mn_playthrough,
-            quarterbeats, duration_qb, visit_count.
+            DataFrame with columns: mc_start, mc_end, atomic_sections
+            for each PlaythroughSection.
+
+        Note:
+            This returns section-level data. For per-MC data, use
+            iter_units() with controller access.
         """
         import pandas as pd
 
-        rows = [step.to_dict() for step in self.steps]
+        rows = [sec.to_dict() for sec in self.sections]
         return pd.DataFrame(rows)
 
     def __repr__(self) -> str:
@@ -703,21 +780,15 @@ class FlowMap:
 
         Returns:
             List of quarter beat positions in unfolded timeline.
+
+        Note:
+            This is a placeholder implementation. Full coordinate mapping
+            requires MeasureUnit data with quarterbeats positions.
         """
         qb = Fraction(qb) if not isinstance(qb, Fraction) else qb
-        results: list[Fraction] = []
-
-        # Find all steps that contain this folded coordinate
-        # We need to look at the original measure boundaries
-        # For now, simplified: find steps by MC that would contain qb
-        # TODO: Implement proper coordinate-to-MC lookup
-        for step in self.flow.steps:
-            # step_end = step.quarterbeats + step.duration_qb
-            # Check if qb falls within this step's range in unfolded time
-            # This is a placeholder - proper implementation needs folded qb mapping
-            results.append(step.quarterbeats)
-
-        return results
+        # TODO: Implement proper coordinate-to-MC lookup using controller
+        # For now, return the input coordinate
+        return [qb]
 
     def unfolded_to_folded(self, qb: Fraction | float) -> Fraction:
         """Convert an unfolded coordinate to folded coordinate.
@@ -730,19 +801,15 @@ class FlowMap:
 
         Raises:
             ValueError: If coordinate is outside the flow range.
+
+        Note:
+            This is a placeholder implementation. Full coordinate mapping
+            requires MeasureUnit data with quarterbeats positions.
         """
         qb = Fraction(qb) if not isinstance(qb, Fraction) else qb
-
-        for step in self.flow.steps:
-            step_end = step.quarterbeats + step.duration_qb
-            if step.quarterbeats <= qb < step_end:
-                # Found the step - compute offset within step
-                # offset = qb - step.quarterbeats
-                # TODO: Need original folded qb for this MC
-                # For now, return the unfolded position
-                return qb
-
-        raise ValueError(f"Coordinate {qb} outside flow range")
+        # TODO: Implement proper coordinate lookup using controller
+        # For now, return the input coordinate
+        return qb
 
     def __repr__(self) -> str:
         return f"FlowMap({self.flow})"
@@ -791,8 +858,10 @@ class FlowController:
         """
         self._measures = measures
         self._measure_lookup: dict[int, dict[str, Any]] = {}
+        self._units: list[MeasureUnit] = []
         self._atomic_sections: list[AtomicSection] = []
         self._build_lookup()
+        self._build_units()
         self._build_atomic_sections()
 
     @classmethod
@@ -814,11 +883,13 @@ class FlowController:
         instance = object.__new__(cls)
         instance._measures = measures
         instance._measure_lookup = {}
+        instance._units = []
         instance._atomic_sections = list(sections)
 
-        # Build lookup if measures provided
+        # Build lookup and units if measures provided
         if measures is not None:
             instance._build_lookup()
+            instance._build_units()
 
         return instance
 
@@ -921,6 +992,40 @@ class FlowController:
                 "quarterbeats": qb_values[i],
                 "next": next_list,
             }
+
+    def _build_units(self) -> None:
+        """Create MeasureUnits from the measure lookup.
+
+        MeasureUnits represent the folded score skeleton - one per MeasureData row.
+        """
+        if not self._measure_lookup:
+            return
+
+        for mc in sorted(self._measure_lookup.keys()):
+            info = self._measure_lookup[mc]
+            unit = MeasureUnit(
+                mc=mc,
+                mn=str(info.get("mn", mc)),
+                duration_qb=info.get("duration_qb", Fraction(4)),
+                next=tuple(info.get("next", [-1])),
+                volta=info.get("volta"),
+                timesig=info.get("timesig"),
+                start_repeat=bool(info.get("start_repeat")),
+                end_repeat=bool(info.get("end_repeat")),
+            )
+            self._units.append(unit)
+
+    def iter_units(self) -> Iterator[MeasureUnit]:
+        """Iterate over MeasureUnits (the folded score skeleton).
+
+        Yields:
+            MeasureUnit objects in MC order.
+
+        Examples:
+            >>> for unit in controller.iter_units():
+            ...     print(f"MC {unit.mc}: {unit.mn}, next={unit.next}")
+        """
+        yield from self._units
 
     def _build_atomic_sections(self) -> None:
         """Derive atomic sections from next[] arrays.
@@ -1049,8 +1154,51 @@ class FlowController:
         """
         return list(self._atomic_sections)
 
-    def _steps_to_sections(self, steps: list[FlowStep]) -> list[PlaythroughSection]:
-        """Convert FlowStep list to PlaythroughSection list.
+    def iter_sections(
+        self, mode: FlowMode | None = None
+    ) -> Iterator[AtomicSection | PlaythroughSection]:
+        """Iterate over sections.
+
+        Args:
+            mode: If None, iterates over AtomicSections (default).
+                  If specified, iterates over PlaythroughSections for that mode.
+
+        Yields:
+            AtomicSection objects if mode is None, otherwise PlaythroughSection objects.
+
+        Examples:
+            >>> # Iterate over atomic sections (folded structure)
+            >>> for sec in controller.iter_sections():
+            ...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
+
+            >>> # Iterate over playthrough sections (unfolded traversal)
+            >>> for sec in controller.iter_sections(FlowMode.DEFAULT):
+            ...     print(f"MC [{sec.mc_start},{sec.mc_end})")
+        """
+        if mode is None:
+            yield from self._atomic_sections
+        else:
+            flow = self.compute_flow(mode)
+            yield from flow.sections
+
+    def iter_mcs(self, mode: FlowMode = FlowMode.DEFAULT) -> Iterator[int]:
+        """Iterate over MC sequence for the given mode.
+
+        Args:
+            mode: The FlowMode to use (default: DEFAULT).
+
+        Yields:
+            MC values in traversal order.
+
+        Examples:
+            >>> list(controller.iter_mcs())
+            [1, 2, 3, 4, 1, 2, 3, 4, 5, 6, 7, 8]
+        """
+        for section in self.iter_sections(mode):
+            yield from range(section.mc_start, section.mc_end)
+
+    def _mcs_to_sections(self, mc_sequence: list[int]) -> list[PlaythroughSection]:
+        """Convert MC sequence to PlaythroughSection list.
 
         Groups consecutive MCs into sections. A new section starts when:
         - There's a non-consecutive MC jump
@@ -1060,25 +1208,22 @@ class FlowController:
             Uses right-open interval convention [mc_start, mc_end).
 
         Args:
-            steps: List of FlowStep objects in traversal order.
+            mc_sequence: List of MC values in traversal order.
 
         Returns:
             List of PlaythroughSection objects.
         """
-        if not steps:
+        if not mc_sequence:
             return []
 
         sections: list[PlaythroughSection] = []
-        current_start = steps[0].mc
-        current_end = steps[0].mc
-        # current_atomic_ids: list[str] = []
+        current_start = mc_sequence[0]
+        current_end = mc_sequence[0]
 
-        for i, step in enumerate(steps):
-            mc = step.mc
-
+        for i, mc in enumerate(mc_sequence):
             # Check if this continues the current section
             if i > 0:
-                prev_mc = steps[i - 1].mc
+                prev_mc = mc_sequence[i - 1]
                 # Non-consecutive or backward jump starts new section
                 if mc != prev_mc + 1:
                     # Save current section (right-open: mc_end is EXCLUSIVE)
@@ -1093,7 +1238,6 @@ class FlowController:
                     # Start new section
                     current_start = mc
                     current_end = mc
-                    # current_atomic_ids = []
                 else:
                     # Continue current section
                     current_end = mc
@@ -1155,42 +1299,17 @@ class FlowController:
         Returns:
             Flow with each MC visited exactly once.
         """
-        steps: list[FlowStep] = []
-        mn_occurrence: dict[str, int] = defaultdict(int)
-        cumulative_qb = Fraction(0)
-
-        # Sort MCs
+        # For printed flow, just use sorted MCs in order
         sorted_mcs = sorted(self._measure_lookup.keys())
 
-        for i, mc in enumerate(sorted_mcs):
-            bar = self._measure_lookup[mc]
-            mn = bar["mn"]
-            duration = bar["duration_qb"]
-
-            # Track MN occurrence for suffix
-            mn_occurrence[mn] += 1
-            suffix = self._occurrence_to_suffix(mn_occurrence[mn])
-
-            step = FlowStep(
-                mc=mc,
-                mn=mn,
-                mc_playthrough=i + 1,
-                mn_playthrough=f"{mn}{suffix}",
-                quarterbeats=cumulative_qb,
-                duration_qb=duration,
-                visit_count=1,
-            )
-            steps.append(step)
-            cumulative_qb += duration
-
-        # Convert steps to sections
-        sections = self._steps_to_sections(steps)
+        # Convert MC sequence to sections
+        sections = self._mcs_to_sections(sorted_mcs)
 
         return Flow(
-            steps=steps,
             sections=sections,
             mode=FlowMode.PRINTED,
             folded_length=len(sorted_mcs),
+            _controller_ref=weakref.ref(self),
         )
 
     def _compute_default_flow(self, mode: FlowMode) -> Flow:
@@ -1199,8 +1318,8 @@ class FlowController:
         The algorithm:
         1. Start at MC 1
         2. Follow 'next' field, using visit count to choose branch
-        3. Track MN occurrences for mn_playthrough suffix
-        4. Compute cumulative quarterbeats
+        3. Build MC sequence
+        4. Convert to PlaythroughSections
 
         Args:
             mode: FlowMode (DEFAULT or MS3).
@@ -1209,12 +1328,15 @@ class FlowController:
             Computed Flow.
         """
         if not self._measure_lookup:
-            return Flow(steps=[], mode=mode, folded_length=0)
+            return Flow(
+                sections=[],
+                mode=mode,
+                folded_length=0,
+                _controller_ref=weakref.ref(self),
+            )
 
-        steps: list[FlowStep] = []
+        mc_sequence: list[int] = []
         mc_visit_count: dict[int, int] = defaultdict(int)
-        mn_occurrence: dict[str, int] = defaultdict(int)
-        cumulative_qb = Fraction(0)
 
         # Start at MC 1 (or minimum MC)
         current_mc = min(self._measure_lookup.keys())
@@ -1230,38 +1352,21 @@ class FlowController:
             mc_visit_count[current_mc] += 1
             visit_count = mc_visit_count[current_mc]
 
-            mn = bar["mn"]
-            duration = bar["duration_qb"]
-
-            # Track MN occurrence for suffix
-            mn_occurrence[mn] += 1
-            suffix = self._occurrence_to_suffix(mn_occurrence[mn])
-
-            step = FlowStep(
-                mc=current_mc,
-                mn=mn,
-                mc_playthrough=len(steps) + 1,
-                mn_playthrough=f"{mn}{suffix}",
-                quarterbeats=cumulative_qb,
-                duration_qb=duration,
-                visit_count=visit_count,
-            )
-            steps.append(step)
-            cumulative_qb += duration
+            mc_sequence.append(current_mc)
 
             # Choose next MC based on visit count
             next_options = bar["next"]
             idx = min(visit_count - 1, len(next_options) - 1)
             current_mc = next_options[idx]
 
-        # Convert steps to sections
-        sections = self._steps_to_sections(steps)
+        # Convert MC sequence to sections
+        sections = self._mcs_to_sections(mc_sequence)
 
         return Flow(
-            steps=steps,
             sections=sections,
             mode=mode,
             folded_length=len(self._measure_lookup),
+            _controller_ref=weakref.ref(self),
         )
 
     def _occurrence_to_suffix(self, occurrence: int) -> str:

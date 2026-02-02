@@ -525,27 +525,34 @@ The Flow API uses a **MeasureUnit-based architecture** with semantic groupings:
 | `mc_start=1, mc_end=5` | `mc_start=1, mc_end=6` | MCs 1,2,3,4,5 (5 MCs) |
 | `mc_count = end - start + 1` | `mc_count = end - start` | Direct subtraction |
 
+**Phase 10 MVP Status (Feb 2026): COMPLETE**
+
+- `MeasureUnit` replaces `FlowStep` as the fundamental building block
+- `FlowController.iter_units()` iterates over MeasureUnits
+- `FlowController.iter_sections(mode=None)` defaults to AtomicSections
+- `Flow._controller_ref` links Flow to its controller for `iter_units()` access
+- `Flow.steps` removed entirely (section-based only)
+
+**Deferred to Phase 10.2**: Semantic groupings (`MeasureGroup`, `CompleteMeasure`, `Volta`, `CadenzaGroup`, etc.)
+
 **Test Categories:**
 
-1. **Dataclass Tests** (15+ tests)
-   - `TestMeasureUnit`: Creation, immutability, fields from MeasureData row (Phase 10)
-   - `TestMeasureGroup`: Semantic groupings (IncompleteMeasure, CompleteMeasure, etc.) (Phase 10)
-   - `TestAtomicSection`: Creation, `mc_range`, `mc_count`, `groups[]`, frozen, validation
-   - `TestPlaythroughSection`: Creation, `mc_range`, `mc_count`, `groups[]`, frozen, `to_mc_sequence()`
+1. **Dataclass Tests** (16 tests)
+   - `TestMeasureUnit`: Creation, immutability, `to_dict()`, `__repr__` (Phase 10 MVP)
+   - `TestAtomicSection`: Creation, `mc_range`, `mc_count`, frozen, validation
+   - `TestPlaythroughSection`: Creation, `mc_range`, `mc_count`, frozen, `to_mc_sequence()`
 
-2. **Flow Serialization Tests** (16 tests)
-   - `TestFlow`: Empty flow, simple flow, flow with repeats
+2. **Flow Serialization Tests** (17 tests)
+   - `TestFlow`: Empty flow, simple flow, flow with repeats, `to_dataframe()`
    - `TestFlowSectionBased`: `from_sections()`, `from_records()`, `to_records()`, `to_csv_rows()`, `is_equivalent()`, `to_mc_sequence()`, `to_atomic_sequence()`, `diff_flows()`, `unfolded_length`
    - `TestFlowCSVLoading`: `Flow.from_csv()`, invalid mode raises, `load_valid_flows()`
 
-3. **FlowController Tests** (8+ tests)
-   - `iter_units()`: Iterate over MeasureUnits (Phase 10)
-   - `iter_sections(mode=None)`: AtomicSections by default (Phase 10)
-   - `iter_sections(mode=X)`: PlaythroughSections for mode X (Phase 10)
-   - `get_volta_groups()`: Query all Volta objects (Phase 10)
+3. **FlowController Tests** (5 tests)
+   - `iter_units()`: Iterate over MeasureUnits (Phase 10 MVP)
+   - `iter_sections(mode=None)`: AtomicSections by default (Phase 10 MVP)
    - `get_atomic_sections()` returns derived sections
    - `from_atomic_sections()` class method
-   - `compute_flow()` populates sections
+   - `compute_flow()` populates sections with controller ref
 
 4. **Integration Tests** (10 tests)
    - `TestExample1Rachmaninoff`: No flow control baseline (3 tests)
@@ -553,7 +560,7 @@ The Flow API uses a **MeasureUnit-based architecture** with semantic groupings:
    - `TestFlowMap`: FlowMap creation
    - `TestPrintedMode`: PRINTED mode returns folded count
 
-**Test Status: 49 passed**
+**Test Status: 50 passed**
 
 **New Methods (Feb 2026):**
 
