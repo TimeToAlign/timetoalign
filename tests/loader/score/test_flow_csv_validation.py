@@ -396,11 +396,15 @@ class TestLoaderMeasureCounts:
         loader = loader_class()
         loader.load(source_path)
 
-        actual_count = len(loader.store.measures)
+        # Count unique MCs (not total rows, which includes all parts)
+        measures_table = loader.store.measures.table
+        mc_values = measures_table.column("mc").to_pylist()
+        actual_count = len(set(mc_values))
+
         assert actual_count == expected_total_measures, (
             f"Measure count mismatch for {csv_name} with {flow_mode}:\n"
-            f"  Expected: {expected_total_measures}\n"
-            f"  Actual: {actual_count}\n"
+            f"  Expected: {expected_total_measures} unique MCs\n"
+            f"  Actual: {actual_count} unique MCs (from {len(measures_table)} total rows)\n"
             f"  Source: {source_path}"
         )
 
