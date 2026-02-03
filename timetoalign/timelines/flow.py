@@ -233,6 +233,93 @@ class MeasureUnit:
 
 # endregion
 
+# region Typed MeasureUnit Subclasses
+
+
+class IncompletePosition(Enum):
+    """Position of an incomplete measure within the score.
+
+    Used by IncompleteMeasure to classify why a measure is incomplete:
+    - ANACRUSIS: Pickup measure at the start of the piece
+    - FINAL: Final incomplete measure (often pairs with anacrusis)
+    - SPLIT_FIRST: First part of a split measure
+    - SPLIT_SECOND: Second part of a split measure
+    - UNKNOWN: Position not yet determined
+    """
+
+    ANACRUSIS = "anacrusis"
+    FINAL = "final"
+    SPLIT_FIRST = "split_first"
+    SPLIT_SECOND = "split_second"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True)
+class IncompleteMeasure(MeasureUnit):
+    """A MeasureUnit that does not metrically complete on its own.
+
+    NOT a group - this is a typed copy of a MeasureUnit created during
+    Phase 1 (Typing) of the two-phase algorithm.
+
+    IncompleteMeasure inherits all MeasureUnit properties including
+    FlowControlTypes, enabling serialization round-trip.
+
+    Examples:
+        - Anacrusis (pickup): First measure shorter than time signature
+        - Final incomplete: Last measure shorter than time signature
+        - Split part: One half of a split measure
+
+    Note:
+        An IncompleteMeasure can later form part of a SplitMeasure group
+        (e.g., anacrusis + final measure after repeat = SplitMeasure).
+
+    Attributes:
+        position: Classification of why this measure is incomplete.
+    """
+
+    position: IncompletePosition = IncompletePosition.UNKNOWN
+
+
+@dataclass(frozen=True)
+class CompleteMeasure(MeasureUnit):
+    """A MeasureUnit that metrically completes on its own.
+
+    NOT a group - this is a typed copy of a MeasureUnit created during
+    Phase 1 (Typing) of the two-phase algorithm.
+
+    The simple, default case: duration_qb == timesig_duration_qb.
+
+    CompleteMeasure inherits all MeasureUnit properties including
+    FlowControlTypes, enabling serialization round-trip.
+    """
+
+    pass
+
+
+@dataclass(frozen=True)
+class OverlengthMeasure(MeasureUnit):
+    """A MeasureUnit that exceeds the expected metrical length.
+
+    NOT a group - this is a typed copy of a MeasureUnit created during
+    Phase 1 (Typing) of the two-phase algorithm.
+
+    OverlengthMeasure inherits all MeasureUnit properties including
+    FlowControlTypes, enabling serialization round-trip.
+
+    Examples:
+        - Fermata: Written duration > time signature
+        - Cadenza: Extended passage notated in single measure
+        - Ad lib: Performer-determined length
+    """
+
+    pass
+
+
+# Type alias for any typed measure
+TypedMeasure = IncompleteMeasure | CompleteMeasure | OverlengthMeasure
+
+# endregion
+
 # region AtomicSection
 
 
@@ -280,6 +367,7 @@ class AtomicSection:
     to: tuple[str, ...] = ()
     await_to: tuple[str, ...] = ()
     section_type: str = "default"  # "default" | "leap_end" | "leap_start"
+    typed_measures: tuple["TypedMeasure", ...] | None = None  # Phase 1 output
 
     def __post_init__(self) -> None:
         """Validate section configuration."""
@@ -305,7 +393,7 @@ class AtomicSection:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
-        return {
+        result = {
             "id": self.id,
             "mc_start": self.mc_start,
             "mc_end": self.mc_end,
@@ -313,9 +401,21 @@ class AtomicSection:
             "await_to": list(self.await_to),
             "section_type": self.section_type,
         }
+        if self.typed_measures is not None:
+            result["typed_measures_count"] = len(self.typed_measures)
+            result["incomplete_count"] = sum(
+                1 for m in self.typed_measures if isinstance(m, IncompleteMeasure)
+            )
+            result["overlength_count"] = sum(
+                1 for m in self.typed_measures if isinstance(m, OverlengthMeasure)
+            )
+        return result
 
     def __repr__(self) -> str:
-        return f"AtomicSection({self.id}: MC [{self.mc_start},{self.mc_end}), {self.section_type})"
+        typed_info = ""
+        if self.typed_measures is not None:
+            typed_info = f", {len(self.typed_measures)} typed"
+        return f"AtomicSection({self.id}: MC [{self.mc_start},{self.mc_end}), {self.section_type}{typed_info})"
 
 
 # endregion
@@ -352,6 +452,7 @@ class PlaythroughSection:
     mc_start: int
     mc_end: int
     atomic_section_ids: tuple[str, ...] = ()
+    typed_measures: tuple["TypedMeasure", ...] | None = None  # Phase 1 output
 
     def __post_init__(self) -> None:
         """Validate section configuration."""
@@ -373,11 +474,14 @@ class PlaythroughSection:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
-        return {
+        result = {
             "mc_start": self.mc_start,
             "mc_end": self.mc_end,
             "atomic_sections": ";".join(self.atomic_section_ids),
         }
+        if self.typed_measures is not None:
+            result["typed_measures_count"] = len(self.typed_measures)
+        return result
 
     def to_mc_sequence(self) -> list[int]:
         """Return list of all MCs in this section.
@@ -389,7 +493,10 @@ class PlaythroughSection:
 
     def __repr__(self) -> str:
         secs = ";".join(self.atomic_section_ids) if self.atomic_section_ids else "?"
-        return f"PlaythroughSection(MC [{self.mc_start},{self.mc_end}) [{secs}])"
+        typed_info = ""
+        if self.typed_measures is not None:
+            typed_info = f", {len(self.typed_measures)} typed"
+        return f"PlaythroughSection(MC [{self.mc_start},{self.mc_end}) [{secs}]{typed_info})"
 
 
 # endregion
@@ -1316,6 +1423,137 @@ class FlowController:
 
         return tuple(types)
 
+    def _type_measure(self, unit: MeasureUnit) -> TypedMeasure:
+        """Create a typed copy of a MeasureUnit (Phase 1 of two-phase algorithm).
+
+        Compares the measure's actual duration with the expected duration from
+        the time signature to classify measures as:
+        - IncompleteMeasure: actual < expected (anacrusis, final, split)
+        - CompleteMeasure: actual == expected (normal measure)
+        - OverlengthMeasure: actual > expected (fermata, cadenza)
+
+        The typed copy inherits all properties from the generating MeasureUnit,
+        including FlowControlTypes.
+
+        Args:
+            unit: The MeasureUnit to type.
+
+        Returns:
+            IncompleteMeasure, CompleteMeasure, or OverlengthMeasure.
+        """
+        # If no time signature info, default to CompleteMeasure
+        if unit.timesig_duration_qb is None:
+            return CompleteMeasure(
+                mc=unit.mc,
+                mn=unit.mn,
+                duration_qb=unit.duration_qb,
+                next=unit.next,
+                volta=unit.volta,
+                timesig=unit.timesig,
+                timesig_duration_qb=unit.timesig_duration_qb,
+                start_repeat=unit.start_repeat,
+                end_repeat=unit.end_repeat,
+                jump_from=unit.jump_from,
+                jump_to=unit.jump_to,
+                segno=unit.segno,
+                coda=unit.coda,
+                fine=unit.fine,
+                section_break=unit.section_break,
+                flow_control_types=unit.flow_control_types,
+            )
+
+        # Compare durations
+        if unit.duration_qb < unit.timesig_duration_qb:
+            position = self._determine_incomplete_position(unit)
+            return IncompleteMeasure(
+                mc=unit.mc,
+                mn=unit.mn,
+                duration_qb=unit.duration_qb,
+                next=unit.next,
+                volta=unit.volta,
+                timesig=unit.timesig,
+                timesig_duration_qb=unit.timesig_duration_qb,
+                start_repeat=unit.start_repeat,
+                end_repeat=unit.end_repeat,
+                jump_from=unit.jump_from,
+                jump_to=unit.jump_to,
+                segno=unit.segno,
+                coda=unit.coda,
+                fine=unit.fine,
+                section_break=unit.section_break,
+                flow_control_types=unit.flow_control_types,
+                position=position,
+            )
+        elif unit.duration_qb > unit.timesig_duration_qb:
+            return OverlengthMeasure(
+                mc=unit.mc,
+                mn=unit.mn,
+                duration_qb=unit.duration_qb,
+                next=unit.next,
+                volta=unit.volta,
+                timesig=unit.timesig,
+                timesig_duration_qb=unit.timesig_duration_qb,
+                start_repeat=unit.start_repeat,
+                end_repeat=unit.end_repeat,
+                jump_from=unit.jump_from,
+                jump_to=unit.jump_to,
+                segno=unit.segno,
+                coda=unit.coda,
+                fine=unit.fine,
+                section_break=unit.section_break,
+                flow_control_types=unit.flow_control_types,
+            )
+        else:
+            return CompleteMeasure(
+                mc=unit.mc,
+                mn=unit.mn,
+                duration_qb=unit.duration_qb,
+                next=unit.next,
+                volta=unit.volta,
+                timesig=unit.timesig,
+                timesig_duration_qb=unit.timesig_duration_qb,
+                start_repeat=unit.start_repeat,
+                end_repeat=unit.end_repeat,
+                jump_from=unit.jump_from,
+                jump_to=unit.jump_to,
+                segno=unit.segno,
+                coda=unit.coda,
+                fine=unit.fine,
+                section_break=unit.section_break,
+                flow_control_types=unit.flow_control_types,
+            )
+
+    def _determine_incomplete_position(self, unit: MeasureUnit) -> IncompletePosition:
+        """Determine the position of an incomplete measure.
+
+        Uses the unit's position in the score to classify:
+        - First measure -> ANACRUSIS
+        - Last measure -> FINAL
+        - Otherwise -> SPLIT_FIRST (may be refined by Phase 2 grouping)
+
+        Args:
+            unit: The incomplete MeasureUnit.
+
+        Returns:
+            IncompletePosition classification.
+        """
+        if not self._units:
+            return IncompletePosition.UNKNOWN
+
+        # Find index of this unit
+        idx = next((i for i, u in enumerate(self._units) if u.mc == unit.mc), -1)
+        if idx == -1:
+            return IncompletePosition.UNKNOWN
+
+        if idx == 0:
+            return IncompletePosition.ANACRUSIS
+        elif idx == len(self._units) - 1:
+            return IncompletePosition.FINAL
+        else:
+            # Check if this might be part of a split measure
+            # For now, classify as SPLIT_FIRST (Phase 2 will refine)
+            return IncompletePosition.SPLIT_FIRST
+
     def iter_units(self) -> Iterator[MeasureUnit]:
         """Iterate over MeasureUnits (the folded score skeleton).
 
@@ -1388,6 +1626,9 @@ class FlowController:
         section_id = ord("A")
         sections: list[AtomicSection] = []
 
+        # Build lookup from mc to MeasureUnit for typed_measures
+        unit_lookup: dict[int, MeasureUnit] = {u.mc: u for u in self._units}
+
         for i, start_mc in enumerate(boundaries):
             # Find end MC (last MC before next boundary, or last MC)
             if i + 1 < len(boundaries):
@@ -1434,6 +1675,19 @@ class FlowController:
                                 to_sections.append(chr(ord("A") + j))
                                 break
 
+            # Build typed_measures for this section (Phase 1 typing)
+            # Collect MeasureUnits in the range [start_mc, end_mc+1) (right-open)
+            section_units: list[MeasureUnit] = []
+            for mc in range(start_mc, end_mc + 1):
+                if mc in unit_lookup:
+                    section_units.append(unit_lookup[mc])
+
+            # Type each unit
+            typed_measures: tuple[TypedMeasure, ...] | None = None
+            if section_units:
+                typed_list = [self._type_measure(u) for u in section_units]
+                typed_measures = tuple(typed_list)
+
             sections.append(
                 AtomicSection(
                     id=chr(section_id),
@@ -1441,6 +1695,7 @@ class FlowController:
                     mc_end=end_mc + 1,  # Right-open: end is exclusive
                     to=tuple(to_sections),
                     section_type=section_type,
+                    typed_measures=typed_measures,
                 )
             )
             section_id += 1
@@ -1518,14 +1773,36 @@ class FlowController:
             mc_sequence: List of MC values in traversal order.
 
         Returns:
-            List of PlaythroughSection objects.
+            List of PlaythroughSection objects with typed_measures populated.
         """
         if not mc_sequence:
             return []
 
+        # Build lookup from mc to MeasureUnit for typed_measures
+        unit_lookup: dict[int, MeasureUnit] = {u.mc: u for u in self._units}
+
         sections: list[PlaythroughSection] = []
         current_start = mc_sequence[0]
         current_end = mc_sequence[0]
+
+        def _build_section(start_mc: int, end_mc: int) -> PlaythroughSection:
+            """Build a PlaythroughSection with typed_measures."""
+            atomic_ids = self._find_atomic_ids(start_mc, end_mc + 1)
+
+            # Collect and type MeasureUnits in the range
+            typed_list: list[TypedMeasure] = []
+            for mc in range(start_mc, end_mc + 1):
+                if mc in unit_lookup:
+                    typed_list.append(self._type_measure(unit_lookup[mc]))
+
+            typed_measures = tuple(typed_list) if typed_list else None
+
+            return PlaythroughSection(
+                mc_start=start_mc,
+                mc_end=end_mc + 1,  # Right-open: end is exclusive
+                atomic_section_ids=tuple(atomic_ids),
+                typed_measures=typed_measures,
+            )
 
         for i, mc in enumerate(mc_sequence):
             # Check if this continues the current section
@@ -1533,15 +1810,8 @@ class FlowController:
                 prev_mc = mc_sequence[i - 1]
                 # Non-consecutive or backward jump starts new section
                 if mc != prev_mc + 1:
-                    # Save current section (right-open: mc_end is EXCLUSIVE)
-                    atomic_ids = self._find_atomic_ids(current_start, current_end + 1)
-                    sections.append(
-                        PlaythroughSection(
-                            mc_start=current_start,
-                            mc_end=current_end + 1,  # Right-open: end is exclusive
-                            atomic_section_ids=tuple(atomic_ids),
-                        )
-                    )
+                    # Save current section
+                    sections.append(_build_section(current_start, current_end))
                     # Start new section
                     current_start = mc
                     current_end = mc
@@ -1551,15 +1821,8 @@ class FlowController:
             else:
                 current_end = mc
 
-        # Don't forget the last section (right-open: mc_end is EXCLUSIVE)
-        atomic_ids = self._find_atomic_ids(current_start, current_end + 1)
-        sections.append(
-            PlaythroughSection(
-                mc_start=current_start,
-                mc_end=current_end + 1,  # Right-open: end is exclusive
-                atomic_section_ids=tuple(atomic_ids),
-            )
-        )
+        # Don't forget the last section
+        sections.append(_build_section(current_start, current_end))
 
         return sections
 
