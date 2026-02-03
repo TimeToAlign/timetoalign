@@ -1,8 +1,8 @@
 flow_mode,source_file,software_version,mc_start,mc_end,atomic_segments
-partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,1,6,A
-partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,6,17,B
-partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,17,32,C
-partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,32,59,D
+atomic,c05n05_musete.musicxml,timetoalign v0.1.0,1,6,A
+atomic,c05n05_musete.musicxml,timetoalign v0.1.0,6,17,B
+atomic,c05n05_musete.musicxml,timetoalign v0.1.0,17,32,C
+atomic,c05n05_musete.musicxml,timetoalign v0.1.0,32,59,D
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,1,17,A;B
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,1,17,A;B
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,17,32,C

@@ -1,8 +1,8 @@
 flow_mode,source_file,software_version,mc_start,mc_end,atomic_segments
-partitura_minimal,out_of_the_flow_experience-flow_only.musicxml,partitura v1.7.0,1,4,A
-partitura_minimal,out_of_the_flow_experience-flow_only.musicxml,partitura v1.7.0,4,8,B
-partitura_minimal,out_of_the_flow_experience-flow_only.musicxml,partitura v1.7.0,8,13,C
-partitura_minimal,out_of_the_flow_experience-flow_only.musicxml,partitura v1.7.0,13,16,D
+atomic,out_of_the_flow_experience-flow_only.musicxml,timetoalign v0.1.0,1,4,A
+atomic,out_of_the_flow_experience-flow_only.musicxml,timetoalign v0.1.0,4,8,B
+atomic,out_of_the_flow_experience-flow_only.musicxml,timetoalign v0.1.0,8,13,C
+atomic,out_of_the_flow_experience-flow_only.musicxml,timetoalign v0.1.0,13,16,D
 default,canonical_flow_spec,human v2.0,1,4,A
 default,canonical_flow_spec,human v2.0,1,6,B
 default,canonical_flow_spec,human v2.0,4,5,C

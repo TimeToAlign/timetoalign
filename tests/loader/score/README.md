@@ -97,13 +97,22 @@ def test_loader_produces_valid_flow(loader, specimen):
 
 ### FlowMode Values
 
-| Value | Description | Typical Source | Required? |
-|-------|-------------|----------------|-----------|
-| `partitura_minimal` | partitura's atomic segments | MusicXML/MEI | **Always** |
-| `default` | Most complete flow (all repeats) | `*_unfolded.measures.tsv` | **Always** |
+**Deterministic modes (must be identical across all loaders):**
+
+| Value | Description | Source | Required in CSV? |
+|-------|-------------|--------|------------------|
+| `atomic` | True atomic sections from FlowController (= mode=None) | `timetoalign v0.1.0` | **Always** |
 | `single` | Single playthrough (last volta only) | `*.measures.tsv` | **Always** |
+| `printed` | All bars as printed (no unfolding) | Computed | Never (deterministic) |
+
+**Contingent modes:**
+
+| Value | Description | Source | Required in CSV? |
+|-------|-------------|--------|------------------|
+| `default` | Most complete flow (all repeats) | `*_unfolded.measures.tsv` | **Always** |
 | `partitura_maximal` | partitura's full unfolding | MusicXML/MEI | Only if diverges from `default` |
 | `music21` | music21's expandRepeats() | MusicXML/MEI | Only if diverges from `default` |
+| `partitura_minimal` | partitura's atomic segments | MusicXML/MEI | Only if diverges from `atomic` (rare) |
 
 ### Implicit Flow Convention
 
@@ -111,18 +120,9 @@ def test_loader_produces_valid_flow(loader, specimen):
 
 - **If `music21` is absent** → assumed to produce `default`
 - **If `partitura_maximal` is absent** → assumed to produce `default`
+- **If `partitura_minimal` is absent** → assumed to produce `atomic`
 
-This means: if you see `music21` or `partitura_maximal` entries in a `.flow.csv`, there is a **known discrepancy** that requires investigation.
-
-**Test logic with implicit fallback:**
-
-```python
-def get_expected_flow(target_flows: dict, mode: FlowMode) -> Flow:
-    if mode in target_flows:
-        return target_flows[mode]  # Explicit entry
-    else:
-        return target_flows[FlowMode.DEFAULT]  # Implicit: assume matches default
-```
+This means: if you see `music21`, `partitura_maximal`, or `partitura_minimal` entries in a `.flow.csv`, there is a **known discrepancy** that requires investigation.
 
 ## Cross-Validation Tests
 
