@@ -2288,8 +2288,18 @@ class FlowController:
             # Check if this continues the current section
             if i > 0:
                 prev_mc = mc_sequence[i - 1]
-                # Non-consecutive or backward jump starts new section
-                if mc != prev_mc + 1:
+                # Determine if we need a new section:
+                # 1. Non-consecutive or backward jump
+                # 2. Previous MC was a branch point (multiple next options)
+                #    This handles cases like Rondeau form where mc_end of refrain
+                #    has next=[1, 10, 19, 28] - even though 10 is consecutive,
+                #    it's semantically a different section (1er Couplet vs Refrain)
+                is_non_consecutive = mc != prev_mc + 1
+                is_branch_point = (
+                    prev_mc in self._measure_lookup
+                    and len(self._measure_lookup[prev_mc].get("next", [])) > 1
+                )
+                if is_non_consecutive or is_branch_point:
                     # Save current section
                     sections.append(_build_section(current_start, current_end))
                     # Start new section
