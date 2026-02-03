@@ -540,7 +540,9 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlType inte
 - Removed `iter_mcs()` (unnecessary, derive from sections)
 - Updated `_build_units()` with helper methods for FlowControl detection
 
-**Deferred to Phase 10.2**: Semantic groupings (`MeasureGroup`, `IncompleteMeasure`, `Volta`, etc.)
+**Phase 10.2a Complete**: Typed subclasses implemented (`IncompleteMeasure`, `CompleteMeasure`, `OverlengthMeasure`)
+
+**Phase 10.2b Pending**: MeasureGroup hierarchy (`SplitMeasure`, `Volta`, `CompleteMeasureGroup`)
 
 **Test Categories:**
 
@@ -548,6 +550,16 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlType inte
    - `TestMeasureUnit`: Creation, immutability, `to_dict()`, `from_dict()`, round-trip, FlowControlType fields
    - `TestAtomicSection`: Creation, `mc_range`, `mc_count`, frozen, validation
    - `TestPlaythroughSection`: Creation, `mc_range`, `mc_count`, frozen, `to_mc_sequence()`
+
+2. **Typed Measure Tests** (13 tests) - Phase 10.2a
+   - `TestTypedMeasures`: Creation and inheritance of typed subclasses
+     - `IncompleteMeasure`: Creation with `position` field, is MeasureUnit subclass
+     - `CompleteMeasure`: Creation, is MeasureUnit subclass
+     - `OverlengthMeasure`: Creation, is MeasureUnit subclass
+     - FlowControlType field preservation in typed measures
+     - `IncompletePosition` enum values
+   - `TestAtomicSectionTypedMeasures`: `typed_measures` field on AtomicSection
+   - `TestPlaythroughSectionTypedMeasures`: `typed_measures` field on PlaythroughSection
 
 2. **Flow Serialization Tests** (17 tests)
    - `TestFlow`: Empty flow, simple flow, flow with repeats, `to_dataframe()`
@@ -568,7 +580,7 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlType inte
    - `TestFlowMap`: FlowMap creation
    - `TestPrintedMode`: PRINTED mode returns folded count
 
-**Test Status: 55 passed**
+**Test Status: 68 passed** (Feb 2026 - Phase 10.2a)
 
 **New Methods (Feb 2026):**
 

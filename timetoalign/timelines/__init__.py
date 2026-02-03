@@ -21,8 +21,14 @@ Structural components:
 Flow API (Phase 3.7 + Phase 10 MeasureUnit Architecture):
 - FlowMode: Enum for flow computation modes
 - MeasureUnit: Fundamental building block (one per MeasureData row)
-- AtomicSection: Smallest indivisible traversal unit
-- PlaythroughSection: Contiguous group of atomic sections
+- Typed MeasureUnit subclasses (Phase 10.2a):
+  - IncompleteMeasure: Measure shorter than expected (anacrusis, final, split)
+  - CompleteMeasure: Measure matching expected duration
+  - OverlengthMeasure: Measure exceeding expected duration (fermata, cadenza)
+  - IncompletePosition: Enum for IncompleteMeasure position classification
+  - TypedMeasure: Type alias for any typed measure
+- AtomicSection: Smallest indivisible traversal unit (with typed_measures)
+- PlaythroughSection: Contiguous group of atomic sections (with typed_measures)
 - Flow: A computed flow (sequence of measure visitations)
 - FlowMap: Attached to timelines for coordinate transformation
 - FlowController: Compute Flow paths from MeasureData
@@ -52,12 +58,17 @@ from .beatgrid import BeatGrid
 from .factory import create_timeline
 from .flow import (
     AtomicSection,
+    CompleteMeasure,
     Flow,
     FlowController,
     FlowMap,
     FlowMode,
+    IncompleteMeasure,
+    IncompletePosition,
     MeasureUnit,
+    OverlengthMeasure,
     PlaythroughSection,
+    TypedMeasure,
     load_valid_flows,
 )
 from .regions import Region
@@ -100,6 +111,13 @@ __all__ = [
     # Flow API (Phase 3.7 + Phase 10)
     "FlowMode",
     "MeasureUnit",
+    # Typed MeasureUnit subclasses (Phase 10.2a)
+    "IncompleteMeasure",
+    "CompleteMeasure",
+    "OverlengthMeasure",
+    "IncompletePosition",
+    "TypedMeasure",
+    # Sections and Flow
     "Flow",
     "FlowMap",
     "FlowController",

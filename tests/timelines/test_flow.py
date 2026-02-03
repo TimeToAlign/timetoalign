@@ -255,6 +255,227 @@ class TestMeasureUnit:
 
 # endregion
 
+# region Unit Tests: Typed MeasureUnit Subclasses
+
+
+class TestTypedMeasures:
+    """Test typed MeasureUnit subclasses (Phase 10.2a).
+
+    These classes represent Phase 1 (Typing) of the two-phase algorithm:
+    - IncompleteMeasure: duration < expected
+    - CompleteMeasure: duration == expected
+    - OverlengthMeasure: duration > expected
+    """
+
+    def test_incomplete_measure_creation(self) -> None:
+        """IncompleteMeasure can be created with position field."""
+        from timetoalign.timelines import IncompleteMeasure, IncompletePosition
+
+        unit = IncompleteMeasure(
+            mc=1,
+            mn="0",  # Anacrusis typically has mn="0"
+            duration_qb=Fraction(1),  # 1 quarterbeat
+            next=(2,),
+            timesig="4/4",
+            timesig_duration_qb=Fraction(4),  # Expected 4 quarterbeats
+            position=IncompletePosition.ANACRUSIS,
+        )
+        assert unit.mc == 1
+        assert unit.duration_qb == Fraction(1)
+        assert unit.timesig_duration_qb == Fraction(4)
+        assert unit.position == IncompletePosition.ANACRUSIS
+
+    def test_incomplete_measure_is_measureunit(self) -> None:
+        """IncompleteMeasure is a MeasureUnit subclass."""
+        from timetoalign.timelines import IncompleteMeasure, IncompletePosition
+
+        unit = IncompleteMeasure(
+            mc=1,
+            mn="0",
+            duration_qb=Fraction(1),
+            next=(2,),
+            position=IncompletePosition.ANACRUSIS,
+        )
+        assert isinstance(unit, MeasureUnit)
+
+    def test_complete_measure_creation(self) -> None:
+        """CompleteMeasure can be created."""
+        from timetoalign.timelines import CompleteMeasure
+
+        unit = CompleteMeasure(
+            mc=2,
+            mn="1",
+            duration_qb=Fraction(4),
+            next=(3,),
+            timesig="4/4",
+            timesig_duration_qb=Fraction(4),
+        )
+        assert unit.mc == 2
+        assert unit.duration_qb == Fraction(4)
+        assert unit.timesig_duration_qb == Fraction(4)
+
+    def test_complete_measure_is_measureunit(self) -> None:
+        """CompleteMeasure is a MeasureUnit subclass."""
+        from timetoalign.timelines import CompleteMeasure
+
+        unit = CompleteMeasure(
+            mc=2,
+            mn="1",
+            duration_qb=Fraction(4),
+            next=(3,),
+        )
+        assert isinstance(unit, MeasureUnit)
+
+    def test_overlength_measure_creation(self) -> None:
+        """OverlengthMeasure can be created."""
+        from timetoalign.timelines import OverlengthMeasure
+
+        unit = OverlengthMeasure(
+            mc=10,
+            mn="9",
+            duration_qb=Fraction(9),  # 9/4 in a 4/4 measure
+            next=(11,),
+            timesig="4/4",
+            timesig_duration_qb=Fraction(4),
+        )
+        assert unit.mc == 10
+        assert unit.duration_qb == Fraction(9)
+        assert unit.timesig_duration_qb == Fraction(4)
+
+    def test_overlength_measure_is_measureunit(self) -> None:
+        """OverlengthMeasure is a MeasureUnit subclass."""
+        from timetoalign.timelines import OverlengthMeasure
+
+        unit = OverlengthMeasure(
+            mc=10,
+            mn="9",
+            duration_qb=Fraction(9),
+            next=(11,),
+        )
+        assert isinstance(unit, MeasureUnit)
+
+    def test_typed_measures_preserve_flowcontrol(self) -> None:
+        """Typed measures inherit all FlowControlType fields."""
+        from timetoalign.timelines import IncompleteMeasure, IncompletePosition
+
+        unit = IncompleteMeasure(
+            mc=1,
+            mn="0",
+            duration_qb=Fraction(1),
+            next=(2,),
+            start_repeat=True,
+            segno="segno",
+            jump_to=True,
+            flow_control_types=("repeat_start", "segno", "jump_to"),
+            position=IncompletePosition.ANACRUSIS,
+        )
+        assert unit.start_repeat is True
+        assert unit.segno == "segno"
+        assert unit.jump_to is True
+        assert unit.flow_control_types == ("repeat_start", "segno", "jump_to")
+
+    def test_incomplete_position_enum_values(self) -> None:
+        """IncompletePosition enum has expected values."""
+        from timetoalign.timelines import IncompletePosition
+
+        assert IncompletePosition.ANACRUSIS.value == "anacrusis"
+        assert IncompletePosition.FINAL.value == "final"
+        assert IncompletePosition.SPLIT_FIRST.value == "split_first"
+        assert IncompletePosition.SPLIT_SECOND.value == "split_second"
+        assert IncompletePosition.UNKNOWN.value == "unknown"
+
+
+# endregion
+
+# region Unit Tests: AtomicSection with typed_measures
+
+
+class TestAtomicSectionTypedMeasures:
+    """Test AtomicSection with typed_measures field (Phase 10.2a)."""
+
+    def test_atomic_section_typed_measures_field(self) -> None:
+        """AtomicSection has typed_measures field."""
+        from timetoalign.timelines import CompleteMeasure
+
+        typed = (
+            CompleteMeasure(mc=1, mn="1", duration_qb=Fraction(4), next=(2,)),
+            CompleteMeasure(mc=2, mn="2", duration_qb=Fraction(4), next=(3,)),
+        )
+        sec = AtomicSection(
+            id="A",
+            mc_start=1,
+            mc_end=3,
+            typed_measures=typed,
+        )
+        assert sec.typed_measures is not None
+        assert len(sec.typed_measures) == 2
+        assert sec.typed_measures[0].mc == 1
+        assert sec.typed_measures[1].mc == 2
+
+    def test_atomic_section_typed_measures_none_by_default(self) -> None:
+        """AtomicSection typed_measures is None by default."""
+        sec = AtomicSection(id="A", mc_start=1, mc_end=5)
+        assert sec.typed_measures is None
+
+    def test_atomic_section_to_dict_includes_typed_counts(self) -> None:
+        """AtomicSection to_dict includes typed measure counts."""
+        from timetoalign.timelines import (
+            CompleteMeasure,
+            IncompleteMeasure,
+            IncompletePosition,
+        )
+
+        typed = (
+            IncompleteMeasure(
+                mc=1,
+                mn="0",
+                duration_qb=Fraction(1),
+                next=(2,),
+                position=IncompletePosition.ANACRUSIS,
+            ),
+            CompleteMeasure(mc=2, mn="1", duration_qb=Fraction(4), next=(3,)),
+            CompleteMeasure(mc=3, mn="2", duration_qb=Fraction(4), next=(4,)),
+        )
+        sec = AtomicSection(
+            id="A",
+            mc_start=1,
+            mc_end=4,
+            typed_measures=typed,
+        )
+        d = sec.to_dict()
+        assert d["typed_measures_count"] == 3
+        assert d["incomplete_count"] == 1
+        assert d["overlength_count"] == 0
+
+
+class TestPlaythroughSectionTypedMeasures:
+    """Test PlaythroughSection with typed_measures field (Phase 10.2a)."""
+
+    def test_playthrough_section_typed_measures_field(self) -> None:
+        """PlaythroughSection has typed_measures field."""
+        from timetoalign.timelines import CompleteMeasure
+
+        typed = (
+            CompleteMeasure(mc=1, mn="1", duration_qb=Fraction(4), next=(2,)),
+            CompleteMeasure(mc=2, mn="2", duration_qb=Fraction(4), next=(3,)),
+        )
+        sec = PlaythroughSection(
+            mc_start=1,
+            mc_end=3,
+            atomic_section_ids=("A",),
+            typed_measures=typed,
+        )
+        assert sec.typed_measures is not None
+        assert len(sec.typed_measures) == 2
+
+    def test_playthrough_section_typed_measures_none_by_default(self) -> None:
+        """PlaythroughSection typed_measures is None by default."""
+        sec = PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",))
+        assert sec.typed_measures is None
+
+
+# endregion
+
 # region Unit Tests: AtomicSection
 
 
