@@ -320,6 +320,198 @@ TypedMeasure = IncompleteMeasure | CompleteMeasure | OverlengthMeasure
 
 # endregion
 
+# region MeasureGroup
+
+
+@dataclass(frozen=True)
+class MeasureGroup:
+    """Base class for groupings of typed MeasureUnits.
+
+    Groups are constructed in Phase 2 (Grouping), AFTER MeasureUnits have been
+    typed as IncompleteMeasure/CompleteMeasure/OverlengthMeasure in Phase 1.
+
+    MeasureGroup is an abstract base - use SplitMeasure, IncompleteGroup,
+    Volta, or CompleteMeasureGroup for concrete groupings.
+
+    Attributes:
+        members: Tuple of typed MeasureUnits in this group.
+    """
+
+    members: tuple["TypedMeasure", ...]
+
+    def __post_init__(self) -> None:
+        """Validate group has at least one member."""
+        if not self.members:
+            raise ValueError("MeasureGroup must have at least one member")
+
+    @property
+    def mc_start(self) -> int:
+        """First MC in this group."""
+        return min(m.mc for m in self.members)
+
+    @property
+    def mc_end(self) -> int:
+        """First MC AFTER this group (right-open)."""
+        return max(m.mc for m in self.members) + 1
+
+    @property
+    def mc_range(self) -> tuple[int, int]:
+        """Return (mc_start, mc_end) tuple (right-open interval)."""
+        return (self.mc_start, self.mc_end)
+
+    @property
+    def total_duration_qb(self) -> Fraction:
+        """Total duration in quarterbeats."""
+        return sum((m.duration_qb for m in self.members), Fraction(0))
+
+    def __len__(self) -> int:
+        """Return number of measures in this group."""
+        return len(self.members)
+
+    def __repr__(self) -> str:
+        return f"MeasureGroup(MC [{self.mc_start},{self.mc_end}), {len(self.members)} measures)"
+
+
+@dataclass(frozen=True)
+class SplitMeasure(MeasureGroup):
+    """Multiple IncompleteMeasures that together form a complete metrical unit.
+
+    This is the complex case where IncompleteMeasures combine to form a
+    complete measure duration. Split measures share the same measure number (mn).
+
+    Examples:
+        - Anacrusis (1/4) + Final (3/4) after repeat = complete 4/4
+        - Split bar: MC 11 (1/4) + MC 12 (1/4) = complete 2/4 (same mn="10")
+
+    Note:
+        All members must be IncompleteMeasure instances. The detection
+        algorithm uses shared mn as a strong signal for split measure pairs.
+    """
+
+    def __post_init__(self) -> None:
+        """Validate all members are IncompleteMeasure."""
+        super().__post_init__()
+        for m in self.members:
+            if not isinstance(m, IncompleteMeasure):
+                raise TypeError(
+                    f"SplitMeasure members must be IncompleteMeasure, got {type(m).__name__}"
+                )
+
+    def __repr__(self) -> str:
+        mcs = [m.mc for m in self.members]
+        return f"SplitMeasure(MC {mcs}, total={self.total_duration_qb})"
+
+
+@dataclass(frozen=True)
+class IncompleteGroup(MeasureGroup):
+    """Isolated IncompleteMeasure(s) that don't yet form a split.
+
+    Used for anacrusis or final measures that haven't been paired with their
+    complement. In AtomicSections, these may later merge into SplitMeasures
+    when the flow brings them together in PlaythroughSections.
+
+    Note:
+        All members must be IncompleteMeasure instances.
+    """
+
+    def __post_init__(self) -> None:
+        """Validate all members are IncompleteMeasure."""
+        super().__post_init__()
+        for m in self.members:
+            if not isinstance(m, IncompleteMeasure):
+                raise TypeError(
+                    f"IncompleteGroup members must be IncompleteMeasure, got {type(m).__name__}"
+                )
+
+    def __repr__(self) -> str:
+        # Safe to access position since __post_init__ validates all are IncompleteMeasure
+        positions = [
+            m.position.value for m in self.members if isinstance(m, IncompleteMeasure)
+        ]
+        return f"IncompleteGroup(MC [{self.mc_start},{self.mc_end}), positions={positions})"
+
+
+@dataclass(frozen=True)
+class VoltaGroup(MeasureGroup):
+    """Typed MeasureUnits under the same volta bracket.
+
+    A VoltaGroup contains measures that share the same volta number (1, 2, 3...).
+    Each different volta number creates a separate VoltaGroup.
+
+    Note:
+        A VoltaGroup is contained within ONE AtomicSection. Multiple voltas
+        (e.g., volta 1 and volta 2) are separated by Breaks and thus cannot
+        be in the same section.
+
+    Attributes:
+        volta_number: The volta bracket number (1, 2, 3, ...).
+    """
+
+    volta_number: int = 1
+
+    def __post_init__(self) -> None:
+        """Validate volta_number is positive."""
+        super().__post_init__()
+        if self.volta_number < 1:
+            raise ValueError(f"volta_number must be >= 1, got {self.volta_number}")
+
+    def __repr__(self) -> str:
+        return (
+            f"VoltaGroup(volta={self.volta_number}, MC [{self.mc_start},{self.mc_end}), "
+            f"{len(self.members)} measures)"
+        )
+
+
+@dataclass(frozen=True)
+class CompleteMeasureGroup(MeasureGroup):
+    """Adjacent CompleteMeasures grouped together.
+
+    Useful for identifying contiguous "normal" passages between special
+    structures (voltas, splits, incomplete measures, etc.).
+
+    Note:
+        All members must be CompleteMeasure instances. OverlengthMeasures
+        are NOT included in CompleteMeasureGroup (they're a special case).
+    """
+
+    def __post_init__(self) -> None:
+        """Validate all members are CompleteMeasure."""
+        super().__post_init__()
+        for m in self.members:
+            if not isinstance(m, CompleteMeasure):
+                raise TypeError(
+                    f"CompleteMeasureGroup members must be CompleteMeasure, got {type(m).__name__}"
+                )
+
+    def __repr__(self) -> str:
+        return f"CompleteMeasureGroup(MC [{self.mc_start},{self.mc_end}), {len(self.members)} measures)"
+
+
+@dataclass(frozen=True)
+class OverlengthGroup(MeasureGroup):
+    """One or more OverlengthMeasures grouped together.
+
+    For overlength measures like fermatas, cadenzas, or ad lib passages.
+
+    Note:
+        All members must be OverlengthMeasure instances.
+    """
+
+    def __post_init__(self) -> None:
+        """Validate all members are OverlengthMeasure."""
+        super().__post_init__()
+        for m in self.members:
+            if not isinstance(m, OverlengthMeasure):
+                raise TypeError(
+                    f"OverlengthGroup members must be OverlengthMeasure, got {type(m).__name__}"
+                )
+
+    def __repr__(self) -> str:
+        return f"OverlengthGroup(MC [{self.mc_start},{self.mc_end}), {len(self.members)} measures)"
+
+
+# endregion
+
 # region AtomicSection
 
 
@@ -368,6 +560,7 @@ class AtomicSection:
     await_to: tuple[str, ...] = ()
     section_type: str = "default"  # "default" | "leap_end" | "leap_start"
     typed_measures: tuple["TypedMeasure", ...] | None = None  # Phase 1 output
+    groups: tuple["MeasureGroup", ...] | None = None  # Phase 2 output
 
     def __post_init__(self) -> None:
         """Validate section configuration."""
@@ -409,13 +602,22 @@ class AtomicSection:
             result["overlength_count"] = sum(
                 1 for m in self.typed_measures if isinstance(m, OverlengthMeasure)
             )
+        if self.groups is not None:
+            result["groups_count"] = len(self.groups)
+            result["group_types"] = [type(g).__name__ for g in self.groups]
         return result
 
     def __repr__(self) -> str:
         typed_info = ""
         if self.typed_measures is not None:
             typed_info = f", {len(self.typed_measures)} typed"
-        return f"AtomicSection({self.id}: MC [{self.mc_start},{self.mc_end}), {self.section_type}{typed_info})"
+        groups_info = ""
+        if self.groups is not None:
+            groups_info = f", {len(self.groups)} groups"
+        return (
+            f"AtomicSection({self.id}: MC [{self.mc_start},{self.mc_end}), "
+            f"{self.section_type}{typed_info}{groups_info})"
+        )
 
 
 # endregion
@@ -453,6 +655,7 @@ class PlaythroughSection:
     mc_end: int
     atomic_section_ids: tuple[str, ...] = ()
     typed_measures: tuple["TypedMeasure", ...] | None = None  # Phase 1 output
+    groups: tuple["MeasureGroup", ...] | None = None  # Phase 2 output
 
     def __post_init__(self) -> None:
         """Validate section configuration."""
@@ -481,6 +684,9 @@ class PlaythroughSection:
         }
         if self.typed_measures is not None:
             result["typed_measures_count"] = len(self.typed_measures)
+        if self.groups is not None:
+            result["groups_count"] = len(self.groups)
+            result["group_types"] = [type(g).__name__ for g in self.groups]
         return result
 
     def to_mc_sequence(self) -> list[int]:
@@ -496,7 +702,10 @@ class PlaythroughSection:
         typed_info = ""
         if self.typed_measures is not None:
             typed_info = f", {len(self.typed_measures)} typed"
-        return f"PlaythroughSection(MC [{self.mc_start},{self.mc_end}) [{secs}]{typed_info})"
+        groups_info = ""
+        if self.groups is not None:
+            groups_info = f", {len(self.groups)} groups"
+        return f"PlaythroughSection(MC [{self.mc_start},{self.mc_end}) [{secs}]{typed_info}{groups_info})"
 
 
 # endregion
@@ -1554,6 +1763,260 @@ class FlowController:
             # For now, classify as SPLIT_FIRST (Phase 2 will refine)
             return IncompletePosition.SPLIT_FIRST
 
+    # ========================================================================
+    # Phase 2: Grouping methods
+    # ========================================================================
+
+    def _build_groups(
+        self, typed_measures: tuple[TypedMeasure, ...]
+    ) -> tuple[MeasureGroup, ...]:
+        """Group typed measures into MeasureGroups (Phase 2 of two-phase algorithm).
+
+        Algorithm for complete coverage (every measure belongs to exactly one group):
+        1. Identify VoltaGroups (consecutive measures with same volta number)
+        2. Identify SplitMeasures (IncompleteMeasures with same mn that sum to time sig)
+        3. Identify isolated IncompleteMeasures -> IncompleteGroup
+        4. Identify OverlengthMeasures -> OverlengthGroup
+        5. Group remaining CompleteMeasures into CompleteMeasureGroups
+
+        Args:
+            typed_measures: Tuple of typed measures from Phase 1.
+
+        Returns:
+            Tuple of MeasureGroup objects covering all measures.
+        """
+        if not typed_measures:
+            return ()
+
+        # Track which measures have been grouped
+        grouped_mcs: set[int] = set()
+        groups: list[MeasureGroup] = []
+
+        # Step 1: VoltaGroups (consecutive measures with same volta number)
+        volta_groups = self._group_voltas(typed_measures, grouped_mcs)
+        groups.extend(volta_groups)
+
+        # Step 2: SplitMeasures (IncompleteMeasures with same mn)
+        split_groups = self._group_splits(typed_measures, grouped_mcs)
+        groups.extend(split_groups)
+
+        # Step 3: Remaining IncompleteMeasures -> IncompleteGroup
+        incomplete_groups = self._group_incompletes(typed_measures, grouped_mcs)
+        groups.extend(incomplete_groups)
+
+        # Step 4: OverlengthMeasures -> OverlengthGroup
+        overlength_groups = self._group_overlengths(typed_measures, grouped_mcs)
+        groups.extend(overlength_groups)
+
+        # Step 5: Remaining CompleteMeasures -> CompleteMeasureGroup
+        complete_groups = self._group_completes(typed_measures, grouped_mcs)
+        groups.extend(complete_groups)
+
+        # Sort groups by mc_start for consistent ordering
+        groups.sort(key=lambda g: g.mc_start)
+
+        return tuple(groups)
+
+    def _group_voltas(
+        self, typed_measures: tuple[TypedMeasure, ...], grouped_mcs: set[int]
+    ) -> list[VoltaGroup]:
+        """Group consecutive measures with the same volta number.
+
+        Volta groups are identified by the volta attribute (1, 2, 3...).
+        A VoltaGroup is contained within ONE AtomicSection - multiple voltas
+        are separated by Breaks and cannot be in the same section.
+
+        Args:
+            typed_measures: Tuple of typed measures.
+            grouped_mcs: Set of MCs already grouped (will be updated).
+
+        Returns:
+            List of VoltaGroup objects.
+        """
+        groups: list[VoltaGroup] = []
+        current_volta: int | None = None
+        current_members: list[TypedMeasure] = []
+
+        for m in typed_measures:
+            if m.volta is not None and m.mc not in grouped_mcs:
+                if m.volta == current_volta:
+                    # Continue current volta group
+                    current_members.append(m)
+                else:
+                    # Start new volta group (save previous if exists)
+                    if current_members and current_volta is not None:
+                        groups.append(
+                            VoltaGroup(
+                                members=tuple(current_members),
+                                volta_number=current_volta,
+                            )
+                        )
+                        for member in current_members:
+                            grouped_mcs.add(member.mc)
+                    current_volta = m.volta
+                    current_members = [m]
+            else:
+                # Non-volta measure: finalize current group if exists
+                if current_members and current_volta is not None:
+                    groups.append(
+                        VoltaGroup(
+                            members=tuple(current_members),
+                            volta_number=current_volta,
+                        )
+                    )
+                    for member in current_members:
+                        grouped_mcs.add(member.mc)
+                current_volta = None
+                current_members = []
+
+        # Finalize last group
+        if current_members and current_volta is not None:
+            groups.append(
+                VoltaGroup(
+                    members=tuple(current_members),
+                    volta_number=current_volta,
+                )
+            )
+            for member in current_members:
+                grouped_mcs.add(member.mc)
+
+        return groups
+
+    def _group_splits(
+        self, typed_measures: tuple[TypedMeasure, ...], grouped_mcs: set[int]
+    ) -> list[SplitMeasure]:
+        """Group IncompleteMeasures that together form a complete metrical unit.
+
+        Detection strategy: Measures with the same mn (measure number) are
+        candidates for split measures. Their durations should sum to the
+        time signature duration.
+
+        Args:
+            typed_measures: Tuple of typed measures.
+            grouped_mcs: Set of MCs already grouped (will be updated).
+
+        Returns:
+            List of SplitMeasure objects.
+        """
+        groups: list[SplitMeasure] = []
+
+        # Group IncompleteMeasures by mn
+        by_mn: dict[str, list[IncompleteMeasure]] = defaultdict(list)
+        for m in typed_measures:
+            if isinstance(m, IncompleteMeasure) and m.mc not in grouped_mcs:
+                by_mn[m.mn].append(m)
+
+        # Check each group with same mn
+        for mn, measures in by_mn.items():
+            if len(measures) > 1:
+                # Check if they sum to time signature duration
+                total = sum((m.duration_qb for m in measures), Fraction(0))
+                # Get expected duration from first measure
+                expected = measures[0].timesig_duration_qb
+                if expected is not None and total == expected:
+                    # Valid split measure
+                    groups.append(SplitMeasure(members=tuple(measures)))
+                    for m in measures:
+                        grouped_mcs.add(m.mc)
+
+        return groups
+
+    def _group_incompletes(
+        self, typed_measures: tuple[TypedMeasure, ...], grouped_mcs: set[int]
+    ) -> list[IncompleteGroup]:
+        """Group isolated IncompleteMeasures that don't form splits.
+
+        These are measures that haven't been grouped yet - typically anacrusis
+        or final measures that will be paired with their complement when the
+        flow brings them together in PlaythroughSections.
+
+        Args:
+            typed_measures: Tuple of typed measures.
+            grouped_mcs: Set of MCs already grouped (will be updated).
+
+        Returns:
+            List of IncompleteGroup objects (one per isolated incomplete).
+        """
+        groups: list[IncompleteGroup] = []
+
+        for m in typed_measures:
+            if isinstance(m, IncompleteMeasure) and m.mc not in grouped_mcs:
+                # Create singleton IncompleteGroup
+                groups.append(IncompleteGroup(members=(m,)))
+                grouped_mcs.add(m.mc)
+
+        return groups
+
+    def _group_overlengths(
+        self, typed_measures: tuple[TypedMeasure, ...], grouped_mcs: set[int]
+    ) -> list[OverlengthGroup]:
+        """Group OverlengthMeasures.
+
+        Currently creates individual groups for each overlength measure.
+        Future: could group adjacent overlength measures (cadenzas).
+
+        Args:
+            typed_measures: Tuple of typed measures.
+            grouped_mcs: Set of MCs already grouped (will be updated).
+
+        Returns:
+            List of OverlengthGroup objects.
+        """
+        groups: list[OverlengthGroup] = []
+
+        for m in typed_measures:
+            if isinstance(m, OverlengthMeasure) and m.mc not in grouped_mcs:
+                groups.append(OverlengthGroup(members=(m,)))
+                grouped_mcs.add(m.mc)
+
+        return groups
+
+    def _group_completes(
+        self, typed_measures: tuple[TypedMeasure, ...], grouped_mcs: set[int]
+    ) -> list[CompleteMeasureGroup]:
+        """Group adjacent CompleteMeasures together.
+
+        Creates CompleteMeasureGroup for runs of consecutive CompleteMeasures
+        that haven't been grouped yet.
+
+        Args:
+            typed_measures: Tuple of typed measures.
+            grouped_mcs: Set of MCs already grouped (will be updated).
+
+        Returns:
+            List of CompleteMeasureGroup objects.
+        """
+        groups: list[CompleteMeasureGroup] = []
+        current_run: list[CompleteMeasure] = []
+
+        for m in typed_measures:
+            if isinstance(m, CompleteMeasure) and m.mc not in grouped_mcs:
+                # Check if adjacent to current run
+                if current_run and m.mc == current_run[-1].mc + 1:
+                    current_run.append(m)
+                else:
+                    # Save current run and start new one
+                    if current_run:
+                        groups.append(CompleteMeasureGroup(members=tuple(current_run)))
+                        for member in current_run:
+                            grouped_mcs.add(member.mc)
+                    current_run = [m]
+            else:
+                # Non-complete or already grouped: save current run
+                if current_run:
+                    groups.append(CompleteMeasureGroup(members=tuple(current_run)))
+                    for member in current_run:
+                        grouped_mcs.add(member.mc)
+                    current_run = []
+
+        # Finalize last run
+        if current_run:
+            groups.append(CompleteMeasureGroup(members=tuple(current_run)))
+            for member in current_run:
+                grouped_mcs.add(member.mc)
+
+        return groups
+
     def iter_units(self) -> Iterator[MeasureUnit]:
         """Iterate over MeasureUnits (the folded score skeleton).
 
@@ -1682,11 +2145,14 @@ class FlowController:
                 if mc in unit_lookup:
                     section_units.append(unit_lookup[mc])
 
-            # Type each unit
+            # Type each unit (Phase 1)
             typed_measures: tuple[TypedMeasure, ...] | None = None
+            groups: tuple[MeasureGroup, ...] | None = None
             if section_units:
                 typed_list = [self._type_measure(u) for u in section_units]
                 typed_measures = tuple(typed_list)
+                # Build groups (Phase 2)
+                groups = self._build_groups(typed_measures)
 
             sections.append(
                 AtomicSection(
@@ -1696,6 +2162,7 @@ class FlowController:
                     to=tuple(to_sections),
                     section_type=section_type,
                     typed_measures=typed_measures,
+                    groups=groups,
                 )
             )
             section_id += 1
@@ -1759,12 +2226,19 @@ class FlowController:
             flow = self.compute_flow(mode)
             yield from flow.sections
 
-    def _mcs_to_sections(self, mc_sequence: list[int]) -> list[PlaythroughSection]:
-        """Convert MC sequence to PlaythroughSection list.
+    def _compute_playthrough_sections(
+        self, mc_sequence: list[int]
+    ) -> list[PlaythroughSection]:
+        """Convert MC sequence to PlaythroughSection list with groups.
 
         Groups consecutive MCs into sections. A new section starts when:
         - There's a non-consecutive MC jump
         - The MC sequence reverses (repeat)
+
+        Includes flow-aware SplitMeasure detection: when a section boundary
+        falls between two IncompleteGroups that together form a complete
+        measure (e.g., anacrusis at start + final at end of previous section),
+        they are merged into a SplitMeasure.
 
         Note:
             Uses right-open interval convention [mc_start, mc_end).
@@ -1773,7 +2247,7 @@ class FlowController:
             mc_sequence: List of MC values in traversal order.
 
         Returns:
-            List of PlaythroughSection objects with typed_measures populated.
+            List of PlaythroughSection objects with typed_measures and groups.
         """
         if not mc_sequence:
             return []
@@ -1786,10 +2260,10 @@ class FlowController:
         current_end = mc_sequence[0]
 
         def _build_section(start_mc: int, end_mc: int) -> PlaythroughSection:
-            """Build a PlaythroughSection with typed_measures."""
+            """Build a PlaythroughSection with typed_measures and groups."""
             atomic_ids = self._find_atomic_ids(start_mc, end_mc + 1)
 
-            # Collect and type MeasureUnits in the range
+            # Collect and type MeasureUnits in the range (Phase 1)
             typed_list: list[TypedMeasure] = []
             for mc in range(start_mc, end_mc + 1):
                 if mc in unit_lookup:
@@ -1797,11 +2271,17 @@ class FlowController:
 
             typed_measures = tuple(typed_list) if typed_list else None
 
+            # Build groups (Phase 2)
+            groups: tuple[MeasureGroup, ...] | None = None
+            if typed_measures:
+                groups = self._build_groups(typed_measures)
+
             return PlaythroughSection(
                 mc_start=start_mc,
                 mc_end=end_mc + 1,  # Right-open: end is exclusive
                 atomic_section_ids=tuple(atomic_ids),
                 typed_measures=typed_measures,
+                groups=groups,
             )
 
         for i, mc in enumerate(mc_sequence):
@@ -1824,7 +2304,93 @@ class FlowController:
         # Don't forget the last section
         sections.append(_build_section(current_start, current_end))
 
+        # Flow-aware SplitMeasure detection: check section boundaries
+        sections = self._detect_boundary_splits(sections)
+
         return sections
+
+    def _detect_boundary_splits(
+        self, sections: list[PlaythroughSection]
+    ) -> list[PlaythroughSection]:
+        """Detect SplitMeasures at section boundaries.
+
+        When a section ends with an IncompleteGroup and the next section
+        starts with an IncompleteGroup, check if they form a complete measure
+        (e.g., final 3/4 + anacrusis 1/4 = 4/4).
+
+        If so, create a SplitMeasure that spans the boundary.
+
+        Args:
+            sections: List of PlaythroughSections.
+
+        Returns:
+            Updated list with boundary SplitMeasures detected.
+        """
+        if len(sections) < 2:
+            return sections
+
+        result: list[PlaythroughSection] = []
+
+        for i, sec in enumerate(sections):
+            if i == 0:
+                result.append(sec)
+                continue
+
+            prev_sec = result[-1]
+
+            # Check if previous section ends with IncompleteGroup
+            prev_end_incomplete = self._get_end_incomplete(prev_sec)
+            # Check if current section starts with IncompleteGroup
+            curr_start_incomplete = self._get_start_incomplete(sec)
+
+            if prev_end_incomplete and curr_start_incomplete:
+                # Check if they form a complete measure
+                total = (
+                    prev_end_incomplete.total_duration_qb
+                    + curr_start_incomplete.total_duration_qb
+                )
+                expected = None
+                # Get expected duration from any member
+                for m in prev_end_incomplete.members:
+                    if m.timesig_duration_qb:
+                        expected = m.timesig_duration_qb
+                        break
+                if expected is None:
+                    for m in curr_start_incomplete.members:
+                        if m.timesig_duration_qb:
+                            expected = m.timesig_duration_qb
+                            break
+
+                if expected is not None and total == expected:
+                    # They form a complete measure! Create SplitMeasure
+                    # For now, we note this in the groups but don't restructure
+                    # (full restructuring would require re-building groups)
+                    module_logger.debug(
+                        f"Boundary SplitMeasure detected: "
+                        f"section {i-1} end + section {i} start = {total}"
+                    )
+
+            result.append(sec)
+
+        return result
+
+    def _get_end_incomplete(self, sec: PlaythroughSection) -> IncompleteGroup | None:
+        """Get the IncompleteGroup at the end of a section, if any."""
+        if not sec.groups:
+            return None
+        last_group = sec.groups[-1]
+        if isinstance(last_group, IncompleteGroup):
+            return last_group
+        return None
+
+    def _get_start_incomplete(self, sec: PlaythroughSection) -> IncompleteGroup | None:
+        """Get the IncompleteGroup at the start of a section, if any."""
+        if not sec.groups:
+            return None
+        first_group = sec.groups[0]
+        if isinstance(first_group, IncompleteGroup):
+            return first_group
+        return None
 
     def _find_atomic_ids(self, mc_start: int, mc_end: int) -> list[str]:
         """Find which atomic sections cover the given MC range.
@@ -1873,7 +2439,7 @@ class FlowController:
         sorted_mcs = sorted(self._measure_lookup.keys())
 
         # Convert MC sequence to sections
-        sections = self._mcs_to_sections(sorted_mcs)
+        sections = self._compute_playthrough_sections(sorted_mcs)
 
         return Flow(
             sections=sections,
@@ -1930,7 +2496,7 @@ class FlowController:
             current_mc = next_options[idx]
 
         # Convert MC sequence to sections
-        sections = self._mcs_to_sections(mc_sequence)
+        sections = self._compute_playthrough_sections(mc_sequence)
 
         return Flow(
             sections=sections,

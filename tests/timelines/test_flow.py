@@ -476,6 +476,381 @@ class TestPlaythroughSectionTypedMeasures:
 
 # endregion
 
+# region Unit Tests: MeasureGroup (Phase 10.2b)
+
+
+class TestMeasureGroup:
+    """Test MeasureGroup base class and subclasses (Phase 10.2b).
+
+    MeasureGroup represents Phase 2 (Grouping) of the two-phase algorithm:
+    - VoltaGroup: measures under same volta bracket
+    - SplitMeasure: IncompleteMeasures that together complete
+    - IncompleteGroup: isolated IncompleteMeasures
+    - CompleteMeasureGroup: adjacent CompleteMeasures
+    - OverlengthGroup: OverlengthMeasures
+    """
+
+    def test_measure_group_base_class(self) -> None:
+        """MeasureGroup can be created with members."""
+        from timetoalign.timelines import CompleteMeasure, MeasureGroup
+
+        m1 = CompleteMeasure(mc=1, mn="1", duration_qb=Fraction(4), next=(2,))
+        m2 = CompleteMeasure(mc=2, mn="2", duration_qb=Fraction(4), next=(3,))
+        group = MeasureGroup(members=(m1, m2))
+
+        assert len(group) == 2
+        assert group.mc_start == 1
+        assert group.mc_end == 3  # Right-open
+        assert group.mc_range == (1, 3)
+        assert group.total_duration_qb == Fraction(8)
+
+    def test_measure_group_frozen(self) -> None:
+        """MeasureGroup is immutable."""
+        from timetoalign.timelines import CompleteMeasure, MeasureGroup
+
+        m1 = CompleteMeasure(mc=1, mn="1", duration_qb=Fraction(4), next=(2,))
+        group = MeasureGroup(members=(m1,))
+        with pytest.raises(AttributeError):
+            group.members = ()  # type: ignore
+
+    def test_measure_group_empty_raises(self) -> None:
+        """MeasureGroup raises on empty members."""
+        from timetoalign.timelines import MeasureGroup
+
+        with pytest.raises(ValueError, match="must have at least one member"):
+            MeasureGroup(members=())
+
+    def test_volta_group_creation(self) -> None:
+        """VoltaGroup can be created with volta_number."""
+        from timetoalign.timelines import CompleteMeasure, VoltaGroup
+
+        m1 = CompleteMeasure(mc=5, mn="5", duration_qb=Fraction(4), next=(6,), volta=1)
+        m2 = CompleteMeasure(mc=6, mn="6", duration_qb=Fraction(4), next=(7,), volta=1)
+        group = VoltaGroup(members=(m1, m2), volta_number=1)
+
+        assert group.volta_number == 1
+        assert len(group) == 2
+        assert "volta=1" in repr(group)
+
+    def test_volta_group_invalid_number_raises(self) -> None:
+        """VoltaGroup raises on invalid volta_number."""
+        from timetoalign.timelines import CompleteMeasure, VoltaGroup
+
+        m = CompleteMeasure(mc=1, mn="1", duration_qb=Fraction(4), next=(2,))
+        with pytest.raises(ValueError, match="volta_number must be >= 1"):
+            VoltaGroup(members=(m,), volta_number=0)
+
+    def test_split_measure_creation(self) -> None:
+        """SplitMeasure groups IncompleteMeasures that together complete."""
+        from timetoalign.timelines import (
+            IncompleteMeasure,
+            IncompletePosition,
+            SplitMeasure,
+        )
+
+        anacrusis = IncompleteMeasure(
+            mc=1,
+            mn="0",
+            duration_qb=Fraction(1),  # 1/4
+            next=(2,),
+            timesig="4/4",
+            timesig_duration_qb=Fraction(4),
+            position=IncompletePosition.ANACRUSIS,
+        )
+        final = IncompleteMeasure(
+            mc=58,
+            mn="57",
+            duration_qb=Fraction(3),  # 3/4
+            next=(-1,),
+            timesig="4/4",
+            timesig_duration_qb=Fraction(4),
+            position=IncompletePosition.FINAL,
+        )
+        split = SplitMeasure(members=(anacrusis, final))
+
+        assert len(split) == 2
+        assert split.total_duration_qb == Fraction(4)  # 1/4 + 3/4 = 4/4
+        assert "SplitMeasure" in repr(split)
+
+    def test_split_measure_non_incomplete_raises(self) -> None:
+        """SplitMeasure raises if member is not IncompleteMeasure."""
+        from timetoalign.timelines import CompleteMeasure, SplitMeasure
+
+        m = CompleteMeasure(mc=1, mn="1", duration_qb=Fraction(4), next=(2,))
+        with pytest.raises(TypeError, match="must be IncompleteMeasure"):
+            SplitMeasure(members=(m,))
+
+    def test_incomplete_group_creation(self) -> None:
+        """IncompleteGroup wraps isolated IncompleteMeasures."""
+        from timetoalign.timelines import (
+            IncompleteGroup,
+            IncompleteMeasure,
+            IncompletePosition,
+        )
+
+        anacrusis = IncompleteMeasure(
+            mc=1,
+            mn="0",
+            duration_qb=Fraction(1),
+            next=(2,),
+            position=IncompletePosition.ANACRUSIS,
+        )
+        group = IncompleteGroup(members=(anacrusis,))
+
+        assert len(group) == 1
+        assert "anacrusis" in repr(group)
+
+    def test_incomplete_group_non_incomplete_raises(self) -> None:
+        """IncompleteGroup raises if member is not IncompleteMeasure."""
+        from timetoalign.timelines import CompleteMeasure, IncompleteGroup
+
+        m = CompleteMeasure(mc=1, mn="1", duration_qb=Fraction(4), next=(2,))
+        with pytest.raises(TypeError, match="must be IncompleteMeasure"):
+            IncompleteGroup(members=(m,))
+
+    def test_complete_measure_group_creation(self) -> None:
+        """CompleteMeasureGroup groups adjacent CompleteMeasures."""
+        from timetoalign.timelines import CompleteMeasure, CompleteMeasureGroup
+
+        m1 = CompleteMeasure(mc=2, mn="1", duration_qb=Fraction(4), next=(3,))
+        m2 = CompleteMeasure(mc=3, mn="2", duration_qb=Fraction(4), next=(4,))
+        m3 = CompleteMeasure(mc=4, mn="3", duration_qb=Fraction(4), next=(5,))
+        group = CompleteMeasureGroup(members=(m1, m2, m3))
+
+        assert len(group) == 3
+        assert group.mc_start == 2
+        assert group.mc_end == 5  # Right-open
+        assert group.total_duration_qb == Fraction(12)
+        assert "CompleteMeasureGroup" in repr(group)
+
+    def test_complete_measure_group_non_complete_raises(self) -> None:
+        """CompleteMeasureGroup raises if member is not CompleteMeasure."""
+        from timetoalign.timelines import (
+            CompleteMeasureGroup,
+            IncompleteMeasure,
+            IncompletePosition,
+        )
+
+        m = IncompleteMeasure(
+            mc=1,
+            mn="0",
+            duration_qb=Fraction(1),
+            next=(2,),
+            position=IncompletePosition.ANACRUSIS,
+        )
+        with pytest.raises(TypeError, match="must be CompleteMeasure"):
+            CompleteMeasureGroup(members=(m,))
+
+    def test_overlength_group_creation(self) -> None:
+        """OverlengthGroup wraps OverlengthMeasures."""
+        from timetoalign.timelines import OverlengthGroup, OverlengthMeasure
+
+        m = OverlengthMeasure(
+            mc=100,
+            mn="100",
+            duration_qb=Fraction(10),  # Longer than expected
+            next=(101,),
+            timesig="4/4",
+            timesig_duration_qb=Fraction(4),
+        )
+        group = OverlengthGroup(members=(m,))
+
+        assert len(group) == 1
+        assert "OverlengthGroup" in repr(group)
+
+
+class TestBuildGroups:
+    """Test FlowController._build_groups() algorithm."""
+
+    def test_groups_populated_in_atomic_section(self) -> None:
+        """AtomicSection.groups is populated by FlowController."""
+        import pyarrow as pa
+
+        from timetoalign.timelines import FlowController
+
+        # Create test data with anacrusis + complete measures
+        table = pa.table(
+            {
+                "mc": [1, 2, 3],
+                "mn": ["0", "1", "2"],
+                "duration": [{"value": 1.0}, {"value": 4.0}, {"value": 4.0}],
+                "start": [{"value": 0}, {"value": 1}, {"value": 5}],
+                "next": [[2], [3], [-1]],
+                "timesig": ["4/4", "4/4", "4/4"],
+                "volta": [None, None, None],
+            }
+        )
+
+        class MockMeasureData:
+            def __init__(self, tbl):
+                self._table = tbl
+
+            def __len__(self):
+                return len(self._table)
+
+        md = MockMeasureData(table)
+        controller = FlowController(md)
+
+        sections = controller.get_sections()
+        assert len(sections) == 1
+
+        sec = sections[0]
+        assert sec.groups is not None
+        assert len(sec.groups) == 2  # IncompleteGroup + CompleteMeasureGroup
+
+    def test_groups_complete_coverage(self) -> None:
+        """Every typed_measure belongs to exactly one group."""
+        import pyarrow as pa
+
+        from timetoalign.timelines import FlowController
+
+        table = pa.table(
+            {
+                "mc": [1, 2, 3, 4, 5],
+                "mn": ["0", "1", "2", "3", "4"],
+                "duration": [
+                    {"value": 1.0},
+                    {"value": 4.0},
+                    {"value": 4.0},
+                    {"value": 4.0},
+                    {"value": 3.0},
+                ],
+                "start": [
+                    {"value": 0},
+                    {"value": 1},
+                    {"value": 5},
+                    {"value": 9},
+                    {"value": 13},
+                ],
+                "next": [[2], [3], [4], [5], [-1]],
+                "timesig": ["4/4", "4/4", "4/4", "4/4", "4/4"],
+                "volta": [None, None, None, None, None],
+            }
+        )
+
+        class MockMeasureData:
+            def __init__(self, tbl):
+                self._table = tbl
+
+            def __len__(self):
+                return len(self._table)
+
+        md = MockMeasureData(table)
+        controller = FlowController(md)
+
+        sections = controller.get_sections()
+        sec = sections[0]
+
+        # Count total measures in groups
+        grouped_mcs = set()
+        for g in sec.groups or []:
+            for m in g.members:
+                assert m.mc not in grouped_mcs, f"MC {m.mc} appears in multiple groups"
+                grouped_mcs.add(m.mc)
+
+        # Verify all typed_measures are covered
+        typed_mcs = {m.mc for m in sec.typed_measures or []}
+        assert grouped_mcs == typed_mcs, "Not all measures covered by groups"
+
+    def test_volta_groups_detected(self) -> None:
+        """VoltaGroups are created for measures with same volta number."""
+        import pyarrow as pa
+
+        from timetoalign.timelines import FlowController, VoltaGroup
+
+        table = pa.table(
+            {
+                "mc": [1, 2, 3, 4],
+                "mn": ["1", "2", "2", "3"],
+                "duration": [
+                    {"value": 4.0},
+                    {"value": 4.0},
+                    {"value": 4.0},
+                    {"value": 4.0},
+                ],
+                "start": [{"value": 0}, {"value": 4}, {"value": 8}, {"value": 12}],
+                "next": [[2, 3], [4], [4], [-1]],  # Volta at MC 2 and 3
+                "timesig": ["4/4", "4/4", "4/4", "4/4"],
+                "volta": [None, 1, 2, None],  # MC 2 is volta 1, MC 3 is volta 2
+            }
+        )
+
+        class MockMeasureData:
+            def __init__(self, tbl):
+                self._table = tbl
+
+            def __len__(self):
+                return len(self._table)
+
+        md = MockMeasureData(table)
+        controller = FlowController(md)
+
+        # Each volta should be in its own section due to breaks
+        sections = controller.get_sections()
+
+        # Find VoltaGroups
+        volta_groups = []
+        for sec in sections:
+            if sec.groups:
+                for g in sec.groups:
+                    if isinstance(g, VoltaGroup):
+                        volta_groups.append(g)
+
+        # Should have at least one VoltaGroup
+        assert len(volta_groups) >= 1
+
+    def test_split_measure_same_mn_detected(self) -> None:
+        """SplitMeasures are detected when IncompleteMeasures share same mn."""
+        import pyarrow as pa
+
+        from timetoalign.timelines import FlowController, SplitMeasure
+
+        # WoO71-style split measures: MC 11 and MC 12 both have mn="10"
+        table = pa.table(
+            {
+                "mc": [10, 11, 12, 13],
+                "mn": ["9", "10", "10", "11"],  # MC 11 and 12 share mn="10"
+                "duration": [
+                    {"value": 2.0},
+                    {"value": 1.0},
+                    {"value": 1.0},
+                    {"value": 2.0},
+                ],
+                "start": [{"value": 0}, {"value": 2}, {"value": 3}, {"value": 4}],
+                "next": [[11], [12], [13], [-1]],
+                "timesig": ["2/4", "2/4", "2/4", "2/4"],  # 2/4 = 2 quarterbeats
+                "volta": [None, None, None, None],
+            }
+        )
+
+        class MockMeasureData:
+            def __init__(self, tbl):
+                self._table = tbl
+
+            def __len__(self):
+                return len(self._table)
+
+        md = MockMeasureData(table)
+        controller = FlowController(md)
+
+        sections = controller.get_sections()
+
+        # Find SplitMeasures
+        split_measures = []
+        for sec in sections:
+            if sec.groups:
+                for g in sec.groups:
+                    if isinstance(g, SplitMeasure):
+                        split_measures.append(g)
+
+        # Should detect the split measure (MC 11 + MC 12 = 2 quarterbeats = 2/4)
+        assert len(split_measures) == 1
+        assert len(split_measures[0].members) == 2
+        assert split_measures[0].total_duration_qb == Fraction(2)
+
+
+# endregion
+
 # region Unit Tests: AtomicSection
 
 

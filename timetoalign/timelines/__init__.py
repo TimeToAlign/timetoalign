@@ -27,6 +27,13 @@ Flow API (Phase 3.7 + Phase 10 MeasureUnit Architecture):
   - OverlengthMeasure: Measure exceeding expected duration (fermata, cadenza)
   - IncompletePosition: Enum for IncompleteMeasure position classification
   - TypedMeasure: Type alias for any typed measure
+- MeasureGroup hierarchy (Phase 10.2b):
+  - MeasureGroup: Base class for groupings of typed measures
+  - SplitMeasure: IncompleteMeasures that together form a complete unit
+  - IncompleteGroup: Isolated IncompleteMeasures (will merge in playthrough)
+  - VoltaGroup: Measures under same volta bracket
+  - CompleteMeasureGroup: Adjacent CompleteMeasures
+  - OverlengthGroup: OverlengthMeasures
 - AtomicSection: Smallest indivisible traversal unit (with typed_measures)
 - PlaythroughSection: Contiguous group of atomic sections (with typed_measures)
 - Flow: A computed flow (sequence of measure visitations)
@@ -59,16 +66,22 @@ from .factory import create_timeline
 from .flow import (
     AtomicSection,
     CompleteMeasure,
+    CompleteMeasureGroup,
     Flow,
     FlowController,
     FlowMap,
     FlowMode,
+    IncompleteGroup,
     IncompleteMeasure,
     IncompletePosition,
+    MeasureGroup,
     MeasureUnit,
+    OverlengthGroup,
     OverlengthMeasure,
     PlaythroughSection,
+    SplitMeasure,
     TypedMeasure,
+    VoltaGroup,
     load_valid_flows,
 )
 from .regions import Region
@@ -117,6 +130,13 @@ __all__ = [
     "OverlengthMeasure",
     "IncompletePosition",
     "TypedMeasure",
+    # MeasureGroup hierarchy (Phase 10.2b)
+    "MeasureGroup",
+    "SplitMeasure",
+    "IncompleteGroup",
+    "VoltaGroup",
+    "CompleteMeasureGroup",
+    "OverlengthGroup",
     # Sections and Flow
     "Flow",
     "FlowMap",
