@@ -28,3 +28,13 @@ default,op18_no4_mov4_flow_unfolded.measures.tsv,ms3 v2.6.0,85,93,G
 default,op18_no4_mov4_flow_unfolded.measures.tsv,ms3 v2.6.0,94,103,H;I;I1
 default,op18_no4_mov4_flow_unfolded.measures.tsv,ms3 v2.6.0,95,102,I
 default,op18_no4_mov4_flow_unfolded.measures.tsv,ms3 v2.6.0,103,227,J
+single,op18_no4_mov4_flow.measures.tsv,ms3 v2.6.0,1,10,A
+single,op18_no4_mov4_flow.measures.tsv,ms3 v2.6.0,10,19,B
+single,op18_no4_mov4_flow.measures.tsv,ms3 v2.6.0,19,28,C
+single,op18_no4_mov4_flow.measures.tsv,ms3 v2.6.0,28,44,D
+single,op18_no4_mov4_flow.measures.tsv,ms3 v2.6.0,45,78,E
+single,op18_no4_mov4_flow.measures.tsv,ms3 v2.6.0,78,85,F
+single,op18_no4_mov4_flow.measures.tsv,ms3 v2.6.0,85,93,G
+single,op18_no4_mov4_flow.measures.tsv,ms3 v2.6.0,94,95,H
+single,op18_no4_mov4_flow.measures.tsv,ms3 v2.6.0,95,102,I
+single,op18_no4_mov4_flow.measures.tsv,ms3 v2.6.0,103,227,J

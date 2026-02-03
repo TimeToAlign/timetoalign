@@ -1,11 +1,8 @@
 flow_mode,source_file,software_version,mc_start,mc_end,atomic_segments
-# Partitura atomic segments (simplified - actual partitura shows 5 due to split bars at boundaries)
-# A=Refrain (MN 0-8), B=1er Couplet (MN 8-16), C=2e Couplet (MN 16-24), D=3e Couplet (MN 24-56)
 partitura_minimal,c11n08_Rondeau.musicxml,partitura v1.7.0,1,10,A
 partitura_minimal,c11n08_Rondeau.musicxml,partitura v1.7.0,10,19,B
 partitura_minimal,c11n08_Rondeau.musicxml,partitura v1.7.0,19,28,C
 partitura_minimal,c11n08_Rondeau.musicxml,partitura v1.7.0,28,61,D
-# ms3 gold standard: Rondeau form A A B B A C C A D D (138 measures, 10 sections)
 default,c11n08_Rondeau_unfolded.measures.tsv,ms3 v2.6.0,1,10,A
 default,c11n08_Rondeau_unfolded.measures.tsv,ms3 v2.6.0,1,10,A
 default,c11n08_Rondeau_unfolded.measures.tsv,ms3 v2.6.0,10,19,B
@@ -16,8 +13,6 @@ default,c11n08_Rondeau_unfolded.measures.tsv,ms3 v2.6.0,19,28,C
 default,c11n08_Rondeau_unfolded.measures.tsv,ms3 v2.6.0,1,10,A
 default,c11n08_Rondeau_unfolded.measures.tsv,ms3 v2.6.0,28,61,D
 default,c11n08_Rondeau_unfolded.measures.tsv,ms3 v2.6.0,28,61,D
-# music21.expandRepeats(): 120 measures, 5 sections - DOES NOT correctly handle D.S. al Segno
-# Sections span multiple atomic segments due to incorrect repeat handling
 music21,c11n08_Rondeau.musicxml,music21 v9.1.0,1,10,A
 music21,c11n08_Rondeau.musicxml,music21 v9.1.0,1,18,A;B
 music21,c11n08_Rondeau.musicxml,music21 v9.1.0,9,26,A;B;C

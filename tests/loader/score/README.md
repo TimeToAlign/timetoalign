@@ -97,13 +97,32 @@ def test_loader_produces_valid_flow(loader, specimen):
 
 ### FlowMode Values
 
-| Value | Description | Typical Source |
-|-------|-------------|----------------|
-| `default` | Most complete flow (all repeats) | `*_unfolded.measures.tsv` |
-| `partitura_minimal` | partitura's atomic segments | MusicXML/MEI |
-| `partitura_maximal` | partitura's full unfolding | MusicXML/MEI |
-| `music21` | music21's expandRepeats() | MusicXML/MEI |
-| `printed` | As printed (no unfolding) | Any |
+| Value | Description | Typical Source | Required? |
+|-------|-------------|----------------|-----------|
+| `partitura_minimal` | partitura's atomic segments | MusicXML/MEI | **Always** |
+| `default` | Most complete flow (all repeats) | `*_unfolded.measures.tsv` | **Always** |
+| `single` | Single playthrough (last volta only) | `*.measures.tsv` | **Always** |
+| `partitura_maximal` | partitura's full unfolding | MusicXML/MEI | Only if diverges from `default` |
+| `music21` | music21's expandRepeats() | MusicXML/MEI | Only if diverges from `default` |
+
+### Implicit Flow Convention
+
+**Only list divergent flows.** The `.flow.csv` files are self-documenting:
+
+- **If `music21` is absent** → assumed to produce `default`
+- **If `partitura_maximal` is absent** → assumed to produce `default`
+
+This means: if you see `music21` or `partitura_maximal` entries in a `.flow.csv`, there is a **known discrepancy** that requires investigation.
+
+**Test logic with implicit fallback:**
+
+```python
+def get_expected_flow(target_flows: dict, mode: FlowMode) -> Flow:
+    if mode in target_flows:
+        return target_flows[mode]  # Explicit entry
+    else:
+        return target_flows[FlowMode.DEFAULT]  # Implicit: assume matches default
+```
 
 ## Cross-Validation Tests
 
@@ -213,3 +232,242 @@ Located in `tests/data/`:
 - `midi/score/`: Chopin Op. 10 No. 3 (MusicXML + TSV)
 - `score/`: All specimens (see `.agent/skills/co-create-groundtruth/references/specimens.md`)
 - `target_flows/`: Ground truth `.flow.csv` files
+
+---
+
+## TOP-MOST GOAL
+
+**FlowController must reproduce ALL target flows in `.flow.csv` from ANY loader/format combination.**
+
+**The major goal: PRODUCE ALL TARGET FLOWS CORRECTLY.**
+
+### Test Logic
+
+```python
+def test_flowcontroller_reproduces_target_flows(specimen, loader, format):
+    # 1. Load target flows from CSV, associating with FlowMode
+    target_flows = load_valid_flows(specimen.flow_csv_path)  # {FlowMode: Flow}
+
+    # 2. Load score with loader/format, build FlowController
+    controller = FlowController.from_loader(loader.load(specimen.source_file))
+
+    # 3. Test if FlowController can reproduce each target flow
+    for mode, target in target_flows.items():
+        computed = controller.compute_flow(mode=mode)  # mode=None = "default"
+        if computed.is_equivalent(target):
+            # SUCCESS: FlowController reproduced this target flow!
+            pass
+        else:
+            # FAILURE: Document what information was lost
+            pass
+```
+
+### Test Outcomes
+
+| Outcome | Meaning | Action |
+|---------|---------|--------|
+| **Reproduces ALL** | FlowController computes default + all queried FlowModes | **HUGE WIN** - the goal |
+| **Reproduces SOME** | FlowController computes a few FlowModes correctly | **WIN** - document which ones |
+| **Cannot reproduce ANY** | Information lost in loader/format | **DOCUMENT** what was lost and why |
+
+### Parser Behavior Summary
+
+| Parser | Behavior | Recognizes | Information Loss |
+|--------|----------|------------|------------------|
+| **ms3/TSV** | Follows explicit `next[]` arrays | All flow control | None (gold standard) |
+| **partitura** | Derives from structural markers | Repeat barlines, some D.S./D.C. | May lose conditional jumps |
+| **music21** | `expandRepeats()` only | Repeat barlines ONLY | **Loses D.S./D.C./Fine entirely** |
+
+### Why Multiple Target Flows?
+
+Different parsers preserve different information. The `.flow.csv` convention:
+- **Always include**: `partitura_minimal`, `default`, `single` (the three required modes)
+- **Only include `music21` or `partitura_maximal` if they DIVERGE from `default`**
+- This makes discrepancies immediately visible: presence of `music21` = known issue
+
+**Example**: c05n05_musete has `music21` listed because music21 ignores D.S./Fine (116 vs 138 measures).
+**Example**: op18_no4_mov4_flow does NOT list `music21` because it matches `default` (no D.S./D.C./Fine).
+
+---
+
+## Specimen Documentation
+
+### Split Measure Notation
+
+For human documentation, we use **lowercase Roman numerals** to denote split measures:
+
+| Notation | Meaning |
+|----------|---------|
+| `4i` | First part of MN 4 |
+| `4ii` | Second part of MN 4 |
+| `14i` | First part of MN 14 |
+| `14ii` | Second part of MN 14 |
+
+Example: MN 4 is split into MC 5 (4i) and MC 6 (4ii).
+
+---
+
+### c05n05_musete (Couperin - Les Goûts-réunis, 5e Concert, V. Musete)
+
+**Musicological Context:**
+A **Musete** is a Baroque pastoral dance form named after the musette (bagpipe). The structure follows the typical **Rondeau-with-Couplets** pattern common in French Baroque suites.
+
+**Structural Analysis:**
+
+| Section | MN Range | MC Range | MC Interval | Description |
+|---------|----------|----------|-------------|-------------|
+| A (Intro) | 0--4i | 1--5 | [1, 6) | Anacrusis to Segno marker |
+| B (Refrain) | 4ii--14i | 6--16 | [6, 17) | Segno at start, Fine at end |
+| C (1er Couplet) | 14ii--28i | 17--31 | [17, 32) | First couplet with repeat |
+| D (2e Couplet) | 28ii--54 | 32--58 | [32, 59) | Second couplet with repeat |
+
+**Split Measures:**
+- MN 0: MC 1 (anacrusis)
+- MN 4: MC 5 (4i), MC 6 (4ii) - Segno at 4ii
+- MN 14: MC 16 (14i), MC 17 (14ii) - Fine at 14i, 1er Couplet starts at 14ii
+- MN 28: MC 31 (28i), MC 32 (28ii) - 2e Couplet starts at 28ii
+
+**Flow Control at MC 16:**
+`next = [1, 17, 32, -1]` with Fine marker - conditional branching based on visit count.
+
+**Parser Outputs:**
+
+| Parser | Sections | Measures | Behavior |
+|--------|----------|----------|----------|
+| **ms3 (default)** | 8 | 138 | Full D.S. al Segno/Fine execution |
+| **music21** | 6 | 116 | Repeat barlines only, ignores D.S./Fine |
+| **partitura_minimal** | 4 | 58 | Atomic segments (no unfolding) |
+
+**Why music21 produces 116 measures (not 138):**
+
+music21's `expandRepeats()` processes repeat barlines (`:||:`) but does NOT execute D.S. al Segno/Fine instructions. It sees:
+- Segno marker at M4 (but ignores it for navigation)
+- Fine marker at M14 (but ignores it for navigation)
+- Repeat barlines (processes these)
+
+Missing from music21:
+- D.S. al Segno after 1er Couplet (would add MC 6-16 = 11 measures)
+- D.S. al Fine after 2e Couplet (would add MC 6-16 = 11 measures)
+
+138 - 116 = 22 = 11 × 2 ✓
+
+**Performance Flow (ms3 gold standard):**
+
+| Pass | MC Range | Section | Notes |
+|------|----------|---------|-------|
+| 1 | 1-16 | Intro + Refrain | First time |
+| 2 | 1-16 | Intro + Refrain | Repeat |
+| 3 | 17-31 | 1er Couplet | First time |
+| 4 | 17-31 | 1er Couplet | Repeat |
+| 5 | 6-16 | Refrain (D.S.) | After Couplet 1 |
+| 6 | 32-58 | 2e Couplet | First time |
+| 7 | 32-58 | 2e Couplet | Repeat |
+| 8 | 6-16 | Refrain (D.S.) | Final, to Fine |
+
+---
+
+### c11n08_Rondeau (Couperin - Les Goûts-réunis, 11e Concert, VIII. Rondeau)
+
+**Musicological Context:**
+A **Rondeau** in French Baroque style with the form A-A-B-B-A-C-C-A-D-D where A is the refrain and B, C, D are couplets.
+
+**Parser Outputs:**
+
+| Parser | Sections | Measures | Behavior |
+|--------|----------|----------|----------|
+| **ms3 (default)** | 10 | 138 | Full Rondeau form execution |
+| **music21** | 5 | 120 | Incorrect D.S. handling |
+| **partitura_minimal** | 4 | 60 | Atomic segments |
+
+---
+
+### op18_no4_mov4_flow (Beethoven Op. 18 No. 4, Mov. 4 - Allegro)
+
+**Musicological Context:**
+The fourth movement of Beethoven's String Quartet Op. 18 No. 4 in C minor is a lively **Rondo** marked Allegro. The movement features extensive use of repeat barlines and first/second volta endings, but **no D.S./D.C./Fine markers**.
+
+**Source Data:**
+
+| File | Rows | Description |
+|------|------|-------------|
+| `op18_no4_mov4_flow.measures.tsv` | 227 MCs | Folded (printed) score |
+| `op18_no4_mov4_flow_unfolded.measures.tsv` | 291 | Gold standard unfolding |
+
+**Structural Analysis (13 Atomic Segments):**
+
+| Segment | MC Range | Type | Description |
+|---------|----------|------|-------------|
+| **A** | [1, 10) | leap_end | Opening theme, repeat back to MC 1 |
+| **B** | [10, 19) | leap_end | Second phrase, repeat back to MC 10 |
+| **C** | [19, 28) | leap_end | Third phrase, repeat back to MC 19 |
+| **D** | [28, 44) | leap_end | Development, branches to voltas |
+| **D1** | [44, 45) | volta 1 | Volta 1 ending, jumps back to MC 28 |
+| **E** | [45, 78) | default | Volta 2 + continuation |
+| **F** | [78, 85) | leap_end | Trio opening, repeat back to MC 78 |
+| **G** | [85, 93) | leap_end | Trio middle, branches to voltas |
+| **G1** | [93, 94) | volta 1 | Volta 1 ending, jumps back to MC 85 |
+| **H** | [94, 95) | default | Volta 2 bridge |
+| **I** | [95, 102) | leap_end | Trio closing, branches to voltas |
+| **I1** | [102, 103) | volta 1 | Volta 1 ending, jumps back to MC 95 |
+| **J** | [103, 227) | terminal | Coda to end |
+
+**Flow Control (from `next` column):**
+- MC 9: `next = [1, 10]` - repeat barline
+- MC 18: `next = [10, 19]` - repeat barline
+- MC 27: `next = [19, 28]` - repeat barline
+- MC 43: `next = [44, 45]` - volta branch (D1 vs E)
+- MC 84: `next = [78, 85]` - repeat barline
+- MC 92: `next = [93, 94]` - volta branch (G1 vs H)
+- MC 101: `next = [102, 103]` - volta branch (I1 vs J)
+
+**Volta 1 Measures (empty `quarterbeats` in folded TSV):**
+- MC 44 (D1), MC 93 (G1), MC 102 (I1)
+
+**Parser Outputs:**
+
+| Parser | FlowMode | Sections | Measures | In CSV? | Notes |
+|--------|----------|----------|----------|---------|-------|
+| **ms3** | `default` | 16 | 291 | Yes | Gold standard |
+| **partitura** | `partitura_minimal` | 13 | 227 | Yes | Atomic segments |
+| **ms3 folded** | `single` | 10 | 223 | Yes | Single pass |
+| **partitura** | `partitura_maximal` | 16 | 291 | **No** | Matches `default` |
+| **music21** | `music21` | 16 | 291 | **No** | Matches `default` |
+
+**Why `music21` and `partitura_maximal` are NOT in the CSV:**
+This piece uses **only repeat barlines and voltas** - no D.S., D.C., Segno, Coda, or Fine markers. All three parsers handle these identically, so they match `default`. Per the implicit flow convention, we only list flows that **diverge** from `default`.
+
+**Performance Flow (default, 16 sections):**
+
+| Pass | MC Range | Section | Notes |
+|------|----------|---------|-------|
+| 1 | 1-9 | A | First time |
+| 2 | 1-9 | A | Repeat |
+| 3 | 10-18 | B | First time |
+| 4 | 10-18 | B | Repeat |
+| 5 | 19-27 | C | First time |
+| 6 | 19-27 | C | Repeat |
+| 7 | 28-44 | D+D1 | First time with volta 1 |
+| 8 | 28-43 | D | Second time (to volta 2) |
+| 9 | 45-77 | E | Volta 2 + continuation |
+| 10 | 78-84 | F | First time |
+| 11 | 78-84 | F | Repeat |
+| 12 | 85-93 | G+G1 | First time with volta 1 |
+| 13 | 85-92 | G | Second time (to volta 2) |
+| 14 | 94-102 | H+I+I1 | Volta 2 bridge + I with volta 1 |
+| 15 | 95-101 | I | Second time (to volta 2) |
+| 16 | 103-226 | J | Coda to end |
+
+**Single Flow (10 sections, 223 measures):**
+Derived from folded TSV by excluding MCs with empty `quarterbeats` (volta 1 endings):
+A → B → C → D → E → F → G → H → I → J
+
+---
+
+### Additional Specimens (Pending Audit)
+
+The following specimens require collaborative ground truth creation:
+
+1. **WoO71** - Beethoven WoO71 12 Variations (Complex split bars)
+2. **flow_only** - Edge case specimen (D.S./D.C. + Voltas)
+
+See `.agent/skills/co-create-groundtruth/` for the audit workflow.
