@@ -542,7 +542,7 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlType inte
 
 **Phase 10.2a Complete**: Typed subclasses implemented (`IncompleteMeasure`, `CompleteMeasure`, `OverlengthMeasure`)
 
-**Phase 10.2b Pending**: MeasureGroup hierarchy (`SplitMeasure`, `Volta`, `CompleteMeasureGroup`)
+**Phase 10.2b Complete**: MeasureGroup hierarchy (`MeasureGroup`, `SplitMeasure`, `VoltaGroup`, `CompleteMeasureGroup`, `IncompleteGroup`, `OverlengthGroup`)
 
 **Test Categories:**
 
@@ -561,12 +561,26 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlType inte
    - `TestAtomicSectionTypedMeasures`: `typed_measures` field on AtomicSection
    - `TestPlaythroughSectionTypedMeasures`: `typed_measures` field on PlaythroughSection
 
-2. **Flow Serialization Tests** (17 tests)
+3. **MeasureGroup Tests** (16 tests) - Phase 10.2b
+   - `TestMeasureGroup`: MeasureGroup base class and subclasses (12 tests)
+     - `MeasureGroup`: Base frozen dataclass with `members`, `mc_start`, `mc_end`, `total_duration_qb`
+     - `SplitMeasure`: IncompleteMeasures that sum to time signature
+     - `IncompleteGroup`: Isolated IncompleteMeasures (anacrusis, final)
+     - `VoltaGroup`: Measures under same volta bracket with `volta_number`
+     - `CompleteMeasureGroup`: Adjacent CompleteMeasures
+     - `OverlengthGroup`: OverlengthMeasures grouped together
+   - `TestBuildGroups`: FlowController grouping algorithm (4 tests)
+     - `_build_groups()`: Phase 2 grouping algorithm
+     - `_group_voltas()`, `_group_splits()`, `_group_incompletes()`
+     - `_group_overlengths()`, `_group_completes()`
+     - `groups` field on AtomicSection and PlaythroughSection
+
+4. **Flow Serialization Tests** (17 tests)
    - `TestFlow`: Empty flow, simple flow, flow with repeats, `to_dataframe()`
    - `TestFlowSectionBased`: `from_sections()`, `from_records()`, `to_records()`, `to_csv_rows()`, `is_equivalent()`, `to_mc_sequence()`, `to_atomic_sequence()`, `diff_flows()`, `unfolded_length`
    - `TestFlowCSVLoading`: `Flow.from_csv()`, invalid mode raises, `load_valid_flows()`
 
-3. **FlowController Tests** (6 tests)
+5. **FlowController Tests** (6 tests)
    - `iter_units()`: Iterate over MeasureUnits (Phase 10 MVP)
    - `iter_sections(mode=None)`: AtomicSections by default (Phase 10 MVP)
    - `get_sections()`: Unified API (replaces get_atomic_sections)
@@ -574,13 +588,13 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlType inte
    - `from_atomic_sections()` class method
    - `compute_flow()` populates sections with controller ref
 
-4. **Integration Tests** (10 tests)
+6. **Integration Tests** (10 tests)
    - `TestExample1Rachmaninoff`: No flow control baseline (3 tests)
    - `TestExample3CouperinMusete`: D.S. al Fine (4 tests, all pass)
    - `TestFlowMap`: FlowMap creation
    - `TestPrintedMode`: PRINTED mode returns folded count
 
-**Test Status: 68 passed** (Feb 2026 - Phase 10.2a)
+**Test Status: 84 passed** (Feb 2026 - Phase 10.2b)
 
 **New Methods (Feb 2026):**
 
