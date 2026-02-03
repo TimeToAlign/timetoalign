@@ -1,16 +1,22 @@
 flow_mode,source_file,software_version,mc_start,mc_end,atomic_segments
+# Partitura atomic segments: A=intro, B=refrain+segno, C=1er Couplet, D=2e Couplet
 partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,1,6,A
 partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,6,17,B
 partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,17,32,C
 partitura_minimal,c05n05_musete.musicxml,partitura v1.7.0,32,59,D
+# Partitura maximal fails due to cyclic segment graph
 partitura_maximal,c05n05_musete.musicxml,partitura v1.7.0,ERROR,RecursionError,cyclic segment graph
+# ms3/default: Musete form with D.S. al Fine structure (8 sections)
+# Refrain(2x) -> 1er Couplet(2x) -> D.S. Segno -> 2e Couplet(2x) -> D.S. Fine
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,1,17,A;B
-default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,1,32,A;B;C
+default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,1,17,A;B
+default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,17,32,C
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,17,32,C
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,6,17,B
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,32,59,D
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,32,59,D
 default,c05n05_musete_unfolded.measures.tsv,ms3 v2.6.0,6,17,B
+# music21.expandRepeats(): Different interpretation (3 sections, merges some passes)
 music21,c05n05_musete.musicxml,music21 v9.1.0,1,17,A;B
 music21,c05n05_musete.musicxml,music21 v9.1.0,1,32,A;B;C
 music21,c05n05_musete.musicxml,music21 v9.1.0,17,59,C;D

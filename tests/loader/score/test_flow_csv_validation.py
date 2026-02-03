@@ -105,19 +105,35 @@ def find_source_file(source_filename: str, specimen_name: str) -> Path | None:
     # Map specimen names to directories
     specimen_dirs = {
         "c05n05_musete": SCORE_DATA_DIR / "couperin_concerts",
+        "c11n08_Rondeau": SCORE_DATA_DIR / "couperin_concerts",
         "out_of_the_flow_experience-polyrhythm_only": SCORE_DATA_DIR / "flow_control",
+        "out_of_the_flow_experience-flow_only": SCORE_DATA_DIR
+        / "flow_control"
+        / "flow_only",
         "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff": SCORE_DATA_DIR
         / "rachmaninoff",
+        "op18_no4_mov4_flow": SCORE_DATA_DIR
+        / "beethoven_op18-4iv_multimodal"
+        / "op18_no4_mov4_flow",
+        "WoO71": SCORE_DATA_DIR / "beethoven_woo71",
     }
 
     # Also check subdirectories for unfolded TSV files
     specimen_subdirs = {
         "c05n05_musete": SCORE_DATA_DIR / "couperin_concerts",
+        "c11n08_Rondeau": SCORE_DATA_DIR / "couperin_concerts",
         "out_of_the_flow_experience-polyrhythm_only": SCORE_DATA_DIR
         / "flow_control"
         / "polyrythm_only",
+        "out_of_the_flow_experience-flow_only": SCORE_DATA_DIR
+        / "flow_control"
+        / "flow_only",
         "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff": SCORE_DATA_DIR
         / "rachmaninoff",
+        "op18_no4_mov4_flow": SCORE_DATA_DIR
+        / "beethoven_op18-4iv_multimodal"
+        / "op18_no4_mov4_flow",
+        "WoO71": SCORE_DATA_DIR / "beethoven_woo71",
     }
 
     # Try main directory first
@@ -207,8 +223,12 @@ class TestFlowCSVStructure:
         "csv_name",
         [
             "c05n05_musete.flow.csv",
+            "c11n08_Rondeau.flow.csv",
             "out_of_the_flow_experience-polyrhythm_only.flow.csv",
+            "out_of_the_flow_experience-flow_only.flow.csv",
             "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.flow.csv",
+            "op18_no4_mov4_flow.flow.csv",
+            "WoO71.flow.csv",
         ],
     )
     def test_flow_csv_parseable(self, csv_name):
@@ -224,8 +244,12 @@ class TestFlowCSVStructure:
         "csv_name",
         [
             "c05n05_musete.flow.csv",
+            "c11n08_Rondeau.flow.csv",
             "out_of_the_flow_experience-polyrhythm_only.flow.csv",
+            "out_of_the_flow_experience-flow_only.flow.csv",
             "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.flow.csv",
+            "op18_no4_mov4_flow.flow.csv",
+            "WoO71.flow.csv",
         ],
     )
     def test_mc_end_is_right_open(self, csv_name):
@@ -479,8 +503,12 @@ class TestFlowEquivalence:
         "specimen_name",
         [
             "out_of_the_flow_experience-polyrhythm_only",
+            "out_of_the_flow_experience-flow_only",
             "c05n05_musete",
+            "c11n08_Rondeau",
             "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff",
+            "op18_no4_mov4_flow",
+            "WoO71",
         ],
     )
     def test_loader_produces_valid_flow(self, specimen_name: str) -> None:
@@ -512,8 +540,17 @@ class TestFlowEquivalence:
                 / "polyrythm_only"
                 / "out_of_the_flow_experience-polyrhythm_only.measures.tsv"
             ),
+            "out_of_the_flow_experience-flow_only": (
+                SCORE_DATA_DIR
+                / "flow_control"
+                / "flow_only"
+                / "out_of_the_flow_experience-flow_only.measures.tsv"
+            ),
             "c05n05_musete": (
                 SCORE_DATA_DIR / "couperin_concerts" / "c05n05_musete.measures.tsv"
+            ),
+            "c11n08_Rondeau": (
+                SCORE_DATA_DIR / "couperin_concerts" / "c11n08_Rondeau.measures.tsv"
             ),
             "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff": (
                 SCORE_DATA_DIR
@@ -521,6 +558,13 @@ class TestFlowEquivalence:
                 / "score"
                 / "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.measures.tsv"
             ),
+            "op18_no4_mov4_flow": (
+                SCORE_DATA_DIR
+                / "beethoven_op18-4iv_multimodal"
+                / "op18_no4_mov4_flow"
+                / "op18_no4_mov4_flow.measures.tsv"
+            ),
+            "WoO71": (SCORE_DATA_DIR / "beethoven_woo71" / "WoO71.measures.tsv"),
         }
 
         tsv_path = tsv_paths.get(specimen_name)

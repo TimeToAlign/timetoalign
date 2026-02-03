@@ -1,0 +1,25 @@
+flow_mode,source_file,software_version,mc_start,mc_end,atomic_segments
+partitura_minimal,out_of_the_flow_experience-flow_only.musicxml,partitura v1.7.0,1,4,A
+partitura_minimal,out_of_the_flow_experience-flow_only.musicxml,partitura v1.7.0,4,8,B
+partitura_minimal,out_of_the_flow_experience-flow_only.musicxml,partitura v1.7.0,8,13,C
+partitura_minimal,out_of_the_flow_experience-flow_only.musicxml,partitura v1.7.0,13,16,D
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,1,4,A
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,1,4,A
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,4,6,B1
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,4,7,B1;B2
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,8,10,C
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,9,10,C
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,10,11,C
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,10,11,C
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,11,12,C
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,11,12,C
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,12,13,C
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,9,10,C
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,13,15,D1
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,12,13,C
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,9,10,C
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,13,14,D1
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,15,16,D2
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,1,4,A
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,4,5,B1
+default,out_of_the_flow_experience-flow_only_unfolded.measures.tsv,ms3 v2.6.0,7,8,B3
