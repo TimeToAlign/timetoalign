@@ -463,11 +463,67 @@ A → B → C → D → E → F → G → H → I → J
 
 ---
 
+### flow_only (Out of the Flow Experience - Flow Control Edge Cases)
+
+**Musicological Context:**
+A synthetic edge-case specimen specifically designed to test complex flow control scenarios that most parsers cannot handle correctly. It combines:
+- Repeats with missing start barlines (implied repeats)
+- Nested repeats (a repeated bar within a repeated section)
+- D.S. al Coda with multiple visits
+- D.C. al Fine with "senza rep" (no repeat on return)
+- Three volta endings
+
+**Critical Encoding Issue: MC 8's Implied Repeat**
+
+MC 8 has an end-repeat barline but no preceding start-repeat. In conventional notation, humans recognize the end-barline at MC 7 (which is also a section boundary) as the implicit start of the repeating section. However, in encoded scores:
+- This would normally require a `section_break` marker
+- Most parsers (music21, partitura) fail to recognize implied repeats
+- MS3's TSV encodes `next = [9]` instead of canonical `next = [8, 9]`
+
+**Structural Analysis:**
+
+| Section | MC Range | Description |
+|---------|----------|-------------|
+| A | [1, 4) | Opening, repeated via D.C. |
+| B | [4, 8) | Volta region (1, 2, 3 endings) |
+| C | [8, 13) | Repeat section with D.S. al Coda |
+| D | [13, 16) | Coda section with volta 1/2 |
+
+**Parser Outputs:**
+
+| Parser | FlowMode | Sections | MC Visits | Notes |
+|--------|----------|----------|-----------|-------|
+| **Canonical** | `default` | 15 | 31 | Intended musicological flow |
+| **ms3** | `ms3` | 16 | 30 | Missing MC 8 self-repeat, different nested structure |
+| **partitura** | `partitura_minimal` | 4 | N/A | Atomic segments only, ignores D.S./Coda/Fine |
+| **music21** | N/A | FAILS | N/A | "badly formed repeats" error |
+
+**Why MS3 Differs from Canonical (5 discrepancies):**
+
+| MC | TSV `next[]` | Canonical `next[]` | Issue |
+|----|--------------|-------------------|-------|
+| 8 | `[9]` | `[8, 9]` | Missing implied self-repeat |
+| 9 | `[9, 10, 13]` | `[10, 10, 13]` | First element wrong |
+| 10 | `[10, 11]` | `[10, 11, 10, 11]` | Missing nested iterations |
+| 11 | `[11, 12]` | `[9, 12]` | Should jump to 9 (outer repeat) |
+| 14 | `[12]` | `[13]` | Should stay in coda section |
+
+**Canonical Flow (31 MC visits):**
+```
+1, 2, 3, 1, 2, 3, 4, 5, 4, 6, 8, 8, 9, 10, 10, 11, 9, 10, 10, 11, 12, 9, 13, 14, 13, 15, 1, 2, 3, 4, 7
+```
+
+**MS3 Flow (30 MC visits):**
+```
+1, 2, 3, 1, 2, 3, 4, 5, 4, 6, 8, 9, 9, 10, 10, 11, 11, 12, 9, 13, 14, 12, 9, 13, 15, 1, 2, 3, 4, 7
+```
+
+---
+
 ### Additional Specimens (Pending Audit)
 
 The following specimens require collaborative ground truth creation:
 
 1. **WoO71** - Beethoven WoO71 12 Variations (Complex split bars)
-2. **flow_only** - Edge case specimen (D.S./D.C. + Voltas)
 
 See `.agent/skills/co-create-groundtruth/` for the audit workflow.
