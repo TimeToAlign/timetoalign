@@ -1222,9 +1222,9 @@ class TestFlowCSVLoading:
         if not csv_path.exists():
             pytest.skip(f"Test data not found: {csv_path}")
 
-        flow = Flow.from_csv(csv_path, FlowMode.PARTITURA_MINIMAL)
+        flow = Flow.from_csv(csv_path, FlowMode.ATOMIC)
 
-        assert flow.mode == FlowMode.PARTITURA_MINIMAL
+        assert flow.mode == FlowMode.ATOMIC
         assert len(flow.sections) == 4  # A, B, C, D
         assert flow.sections[0].mc_start == 1
         # Right-open: mc_end=6 means MCs 1-5 (5 measures)
@@ -1247,9 +1247,9 @@ class TestFlowCSVLoading:
 
         flows = load_valid_flows(csv_path)
 
-        assert len(flows) >= 2  # At least default and partitura_minimal
-        assert FlowMode.PARTITURA_MINIMAL in flows
-        assert len(flows[FlowMode.PARTITURA_MINIMAL].sections) == 4
+        assert len(flows) >= 2  # At least default and atomic
+        assert FlowMode.ATOMIC in flows
+        assert len(flows[FlowMode.ATOMIC].sections) == 4
 
 
 # endregion
@@ -1262,6 +1262,7 @@ class TestFlowMode:
 
     def test_all_modes_exist(self) -> None:
         """All expected flow modes exist."""
+        assert FlowMode.ATOMIC.value == "atomic"
         assert FlowMode.DEFAULT.value == "default"
         assert FlowMode.MS3.value == "ms3"
         assert FlowMode.PARTITURA_MINIMAL.value == "partitura_minimal"

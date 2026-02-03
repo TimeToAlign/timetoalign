@@ -177,7 +177,12 @@ def get_loader_for_flow_mode(flow_mode: str):
 
         return MeasureMapLoader
 
-    if flow_mode in ("partitura_minimal", "partitura_musicxml", "partitura_maximal"):
+    if flow_mode in (
+        "atomic",
+        "partitura_minimal",
+        "partitura_musicxml",
+        "partitura_maximal",
+    ):
         try:
             from timetoalign.loader.score import PartituraLoader
 
@@ -267,29 +272,27 @@ class TestFlowCSVStructure:
                 by_mode[entry.flow_mode] = []
             by_mode[entry.flow_mode].append(entry)
 
-        # For partitura_minimal, check that segments are contiguous (right-open)
-        if "partitura_minimal" in by_mode:
-            minimal_entries = sorted(
-                by_mode["partitura_minimal"], key=lambda e: int(e.mc_start)
-            )
-            for i in range(len(minimal_entries) - 1):
-                current = minimal_entries[i]
-                next_entry = minimal_entries[i + 1]
+        # For atomic, check that segments are contiguous (right-open)
+        if "atomic" in by_mode:
+            atomic_entries = sorted(by_mode["atomic"], key=lambda e: int(e.mc_start))
+            for i in range(len(atomic_entries) - 1):
+                current = atomic_entries[i]
+                next_entry = atomic_entries[i + 1]
                 # With RIGHT-OPEN mc_end, next segment should start at current mc_end
                 assert int(current.mc_end) == int(next_entry.mc_start), (
-                    f"Non-contiguous segments in {csv_name} partitura_minimal: "
+                    f"Non-contiguous segments in {csv_name} atomic: "
                     f"segment ending at MC {current.mc_end} should equal "
                     f"next segment starting at MC {next_entry.mc_start}"
                 )
 
 
 # ============================================================================
-# Test: Validate partitura_minimal segments
+# Test: Validate atomic segments
 # ============================================================================
 
 
-class TestPartituraMinimalValidation:
-    """Validate partitura_minimal entries against actual partitura output."""
+class TestAtomicSegmentValidation:
+    """Validate atomic entries against expected segment boundaries."""
 
     @pytest.mark.parametrize(
         "csv_name,expected_segments",
@@ -309,21 +312,21 @@ class TestPartituraMinimalValidation:
             ),
         ],
     )
-    def test_partitura_minimal_segments(self, csv_name, expected_segments):
-        """Verify partitura_minimal entries match expected segment boundaries (right-open)."""
+    def test_atomic_segments(self, csv_name, expected_segments):
+        """Verify atomic entries match expected segment boundaries (right-open)."""
         csv_path = TARGET_FLOWS_DIR / csv_name
         if not csv_path.exists():
             pytest.skip(f"Flow CSV not found: {csv_path}")
 
         entries = parse_flow_csv(csv_path)
-        minimal_entries = [e for e in entries if e.flow_mode == "partitura_minimal"]
+        atomic_entries = [e for e in entries if e.flow_mode == "atomic"]
 
-        if not minimal_entries:
-            pytest.skip(f"No partitura_minimal entries in {csv_name}")
+        if not atomic_entries:
+            pytest.skip(f"No atomic entries in {csv_name}")
 
         # Build actual segments from CSV
         actual_segments = {}
-        for entry in minimal_entries:
+        for entry in atomic_entries:
             seg_id = entry.atomic_segments
             actual_segments[seg_id] = (entry.mc_start, entry.mc_end)
 
@@ -346,11 +349,11 @@ class TestLoaderMeasureCounts:
     @pytest.mark.parametrize(
         "csv_name,flow_mode,expected_total_measures",
         [
-            ("c05n05_musete.flow.csv", "partitura_minimal", 58),
+            ("c05n05_musete.flow.csv", "atomic", 58),
             ("c05n05_musete.flow.csv", "music21_musicxml", 58),
             (
                 "out_of_the_flow_experience-polyrhythm_only.flow.csv",
-                "partitura_minimal",
+                "atomic",
                 14,
             ),
             (
@@ -360,7 +363,7 @@ class TestLoaderMeasureCounts:
             ),
             (
                 "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.flow.csv",
-                "partitura_minimal",
+                "atomic",
                 374,
             ),
         ],
@@ -423,7 +426,11 @@ class TestLoaderMeasureCounts:
     ],
 )
 class TestPartituraSegmentValidation:
-    """Validate partitura_minimal segments against live partitura output."""
+    """Validate partitura_minimal segments against live partitura output.
+
+    Note: This test validates that partitura's segments match our atomic segments.
+    If partitura_minimal entries exist in the CSV, it means partitura diverges from atomic.
+    """
 
     def test_partitura_segment_boundaries(self, csv_name):
         """Verify CSV segment boundaries match actual partitura.add_segments() output."""
@@ -437,10 +444,13 @@ class TestPartituraSegmentValidation:
             pytest.skip(f"Flow CSV not found: {csv_path}")
 
         entries = parse_flow_csv(csv_path)
+        # Use partitura_minimal if present (divergent case), otherwise use atomic
         minimal_entries = [e for e in entries if e.flow_mode == "partitura_minimal"]
+        if not minimal_entries:
+            minimal_entries = [e for e in entries if e.flow_mode == "atomic"]
 
         if not minimal_entries:
-            pytest.skip(f"No partitura_minimal entries in {csv_name}")
+            pytest.skip(f"No atomic or partitura_minimal entries in {csv_name}")
 
         # Find source file
         specimen_name = csv_name.replace(".flow.csv", "")
@@ -618,16 +628,16 @@ class TestFlowEquivalence:
             pytest.skip(f"Flow CSV not found: {csv_path}")
 
         # Load
-        flow = Flow.from_csv(csv_path, FlowMode.PARTITURA_MINIMAL)
+        flow = Flow.from_csv(csv_path, FlowMode.ATOMIC)
 
         # Export
         rows = flow.to_csv_rows("test.musicxml", "test v1.0")
 
         # Verify structure
         assert len(rows) == len(flow.sections)
-        assert all(r["flow_mode"] == "partitura_minimal" for r in rows)
+        assert all(r["flow_mode"] == "atomic" for r in rows)
         assert all("mc_start" in r and "mc_end" in r for r in rows)
 
         # Reconstruct and compare
-        reconstructed = Flow.from_records(rows, FlowMode.PARTITURA_MINIMAL)
+        reconstructed = Flow.from_records(rows, FlowMode.ATOMIC)
         assert flow.is_equivalent(reconstructed)

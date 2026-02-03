@@ -54,19 +54,23 @@ class FlowMode(Enum):
 
     Different contexts require different unfoldings:
 
-    General modes:
-    - DEFAULT: Most complete flow (all repeats taken), equivalent to MS3
+    Deterministic modes (must be identical across all loaders):
+    - ATOMIC: True atomic sections from FlowController (= mode=None)
     - PRINTED: All bars as printed (no unfolding)
     - SINGLE_PASS: Single playthrough (last volta only)
-    - CUSTOM: User-provided flow sequence
 
-    Software-specific modes (for ground truth validation):
-    - MS3: From ms3's *_unfolded.measures.tsv (gold standard)
-    - PARTITURA_MINIMAL: partitura's unfold_part_minimal()
-    - PARTITURA_MAXIMAL: partitura's unfold_part_maximal()
-    - MUSIC21: music21's expandRepeats()
+    Contingent modes (may have alternatives if divergent):
+    - DEFAULT: Most complete flow (all repeats taken), equivalent to MS3
+    - MUSIC21: music21's expandRepeats() - only if diverges from DEFAULT
+    - PARTITURA_MAXIMAL: partitura's unfold_part_maximal() - only if diverges from DEFAULT
+    - PARTITURA_MINIMAL: partitura's atomic segments - only if diverges from ATOMIC
+
+    Other modes:
+    - MS3: From ms3's *_unfolded.measures.tsv (gold standard for DEFAULT)
+    - CUSTOM: User-provided flow sequence
     """
 
+    ATOMIC = "atomic"
     DEFAULT = "default"
     MS3 = "ms3"
     PARTITURA_MINIMAL = "partitura_minimal"
@@ -524,7 +528,7 @@ class AtomicSection:
     - next[] array analysis for TSV/MeasureMap
 
     Section IDs (A, B, C, ...) form a canonical reference for mapping all
-    flow modes. The partitura_minimal flow mode defines these canonical sections.
+    flow modes. The atomic flow mode defines these canonical sections.
 
     Note:
         MC ranges use the **right-open interval convention** [mc_start, mc_end),
@@ -2419,21 +2423,27 @@ class FlowController:
                 ids.append(sec.id)
         return ids
 
-    def compute_flow(self, mode: FlowMode = FlowMode.DEFAULT) -> Flow:
+    def compute_flow(self, mode: FlowMode | None = None) -> Flow:
         """Compute a single Flow using the specified mode.
 
         Args:
-            mode: The FlowMode to use (default: DEFAULT).
+            mode: The FlowMode to use. None is equivalent to ATOMIC.
 
         Returns:
             Computed Flow object.
         """
-        if mode == FlowMode.PRINTED:
+        # mode=None is equivalent to ATOMIC (the default for AtomicSections)
+        if mode is None:
+            mode = FlowMode.ATOMIC
+
+        if mode == FlowMode.ATOMIC:
+            return self._compute_atomic_flow()
+        elif mode == FlowMode.PRINTED:
             return self._compute_printed_flow()
         elif mode in (FlowMode.DEFAULT, FlowMode.MS3):
             return self._compute_default_flow(mode)
         else:
-            # TODO: Implement other modes
+            # TODO: Implement other modes (SINGLE_PASS, MUSIC21, etc.)
             module_logger.warning(
                 f"FlowMode.{mode.name} not yet implemented, using DEFAULT"
             )
@@ -2455,6 +2465,36 @@ class FlowController:
             sections=sections,
             mode=FlowMode.PRINTED,
             folded_length=len(sorted_mcs),
+            _controller_ref=weakref.ref(self),
+        )
+
+    def _compute_atomic_flow(self) -> Flow:
+        """Compute atomic flow from AtomicSections.
+
+        The atomic flow represents the canonical segment structure (A, B, C, ...)
+        without any unfolding. Each AtomicSection becomes a PlaythroughSection.
+
+        This is the default flow mode (mode=None) and defines the canonical
+        segment IDs used for mapping all other flow modes.
+
+        Returns:
+            Flow with one PlaythroughSection per AtomicSection.
+        """
+        sections = [
+            PlaythroughSection(
+                mc_start=sec.mc_start,
+                mc_end=sec.mc_end,
+                atomic_section_ids=(sec.id,),
+                typed_measures=sec.typed_measures,
+                groups=sec.groups,
+            )
+            for sec in self._atomic_sections
+        ]
+
+        return Flow(
+            sections=sections,
+            mode=FlowMode.ATOMIC,
+            folded_length=len(self._measure_lookup),
             _controller_ref=weakref.ref(self),
         )
 
