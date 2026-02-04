@@ -72,4 +72,4 @@ class TestPerformanceMidiLoader:
 
         assert event["event_type"] == MidiEventType.NOTE
         assert event["pitch"] == 60
-        assert event["duration"]["value"] == 480
+        assert event["duration"] == 480

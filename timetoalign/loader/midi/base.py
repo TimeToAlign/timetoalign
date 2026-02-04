@@ -23,7 +23,7 @@ class MidiLoader(Loader):
     """
 
     _default_unit: ClassVar[TimeUnit] = TimeUnit.ticks
-    _event_store_class: ClassVar[type[MidiEventData]] = MidiEventData
+    _event_data_class: ClassVar[type[MidiEventData]] = MidiEventData
 
     @property
     @abstractmethod
