@@ -2,6 +2,69 @@
 
 This directory contains tests and profiling scripts for the `timetoalign.loader.score` module.
 
+---
+
+## Score Parsing Test Matrix Summary
+
+**Ground Truth Target Flows: COMPLETE (7 specimens, 4+ flow modes each)**
+
+### Specimen Completion Status
+
+| # | Specimen               | Status   | Flow Modes | Folded | Unfolded | Notes                             |
+|---|------------------------|----------|------------|--------|----------|-----------------------------------|
+| 1 | **Rachmaninoff**       | COMPLETE | 3          | 374    | 374      | No flow control (baseline)        |
+| 2 | **polyrhythm_only**    | COMPLETE | 3          | 14     | 14       | Line breaks only                  |
+| 3 | **c05n05_musete**      | COMPLETE | 4          | 58     | 138      | D.S. al Fine - music21 diverges   |
+| 4 | **c11n08_Rondeau**     | COMPLETE | 4          | 60     | 138      | Rondeau form - music21 diverges   |
+| 5 | **op18_no4_mov4_flow** | COMPLETE | 3          | 226    | 291      | Repeats + Voltas - ALL agree      |
+| 6 | **flow_only**          | COMPLETE | 4          | 15     | 31       | D.S./D.C. + Voltas - ms3 diverges |
+| 7 | **WoO71**              | COMPLETE | 3          | 397    | 505      | Complex split bars                |
+
+### Loader/Format Test Matrix
+
+| Specimen           | TSV (gold) | MeasureMap | Music21 XML | Music21 MEI | Partitura XML | Partitura MEI |
+|--------------------|:----------:|:----------:|:-----------:|:-----------:|:-------------:|:-------------:|
+| Rachmaninoff       |    GOLD    |    PASS    |    PASS     |    PASS     |     PASS      |     PASS      |
+| polyrhythm_only    |    GOLD    |    PASS    |    PASS     |    PASS     |     PASS      |     PASS      |
+| c05n05_musete      |    GOLD    |    PASS    |  DIVERGE*   |  DIVERGE*   |     PASS      |     PASS      |
+| c11n08_Rondeau     |    GOLD    |    PASS    |  DIVERGE*   |  DIVERGE*   |     PASS      |     PASS      |
+| op18_no4_mov4_flow |    GOLD    |    PASS    |    PASS     |    PASS     |     PASS      |     PASS      |
+| flow_only          |    GOLD    |    PASS    |   FAIL**    |   FAIL**    |     PASS      |     PASS      |
+| WoO71              |    GOLD    |    PASS    |    PASS     |    PASS     |     PASS      |     PASS      |
+
+**Legend:**
+- **GOLD**: Gold standard (TSV from ms3, authoritative)
+- **PASS**: Flow matches a valid flow mode in `.flow.csv`
+- **DIVERGE***: Produces different but documented valid flow (e.g., music21 ignores D.S.)
+- **FAIL**: Cannot reproduce any valid flow
+
+### Known Parser Deviations
+
+| Parser | Behavior | Limitation | Affected Specimens |
+|--------|----------|------------|-------------------|
+| **ms3/TSV** | Gold standard | None | - |
+| **MeasureMap** | Matches TSV | None | - |
+| **Music21** | `expandRepeats()` only | **Ignores D.S./D.C./Fine** | c05n05, c11n08, flow_only |
+| **Partitura** | Region model | Infers missing repeats | - |
+
+### Deviation Details
+
+1. **c05n05_musete (music21)**:
+   - Expected: 138 unfolded MCs (D.S. al Fine)
+   - music21: 116 MCs (ignores D.S., only handles repeat barlines)
+   - Difference: 22 = 11 × 2 (two D.S. returns to Segno)
+
+2. **c11n08_Rondeau (music21)**:
+   - Expected: 138 unfolded MCs (Rondeau with D.S.)
+   - music21: 120 MCs (incorrect D.S. handling)
+
+3. **flow_only (ms3 vs canonical)**:
+   - Canonical: 31 MCs (human interpretation)
+   - ms3: 30 MCs (ambiguous encoding)
+   - music21: FAILS ("badly formed repeats" error)
+
+---
+
 ## Architecture Overview
 
 ```
