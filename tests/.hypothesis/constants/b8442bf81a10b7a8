@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/maps/convenience.py
+# hypothesis_version: 6.151.2
+
+[480, 44100, 'id', 'ppq', 'sample_rate', 'scalar']

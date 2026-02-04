@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/timelines/types.py
+# hypothesis_version: 6.151.2
+
+[0.0, 1.0, 60.0, '1', 'Beat', 'Measure', 'SegmentLine', 'beat', 'children', 'end', 'event_type', 'events', 'graphical', 'id', 'instant', 'instants', 'interval', 'intervals', 'is_downbeat', 'length', 'logical', 'map', 'mc', 'mn', 'name', 'none', 'offset', 'physical', 'quarters', 'seconds', 'segments', 'start', 'temporal_type', 'value']

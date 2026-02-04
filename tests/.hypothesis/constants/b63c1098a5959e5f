@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/midi/store.py
+# hypothesis_version: 6.151.2
+
+['channel', 'control', 'part_id', 'pitch', 'program', 'staff', 'track', 'value', 'velocity', 'voice']

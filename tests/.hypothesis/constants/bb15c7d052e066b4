@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/graphical/aton.py
+# hypothesis_version: 6.151.2
+
+[0.0, '.', ':', '@', '@@', '@@ ', '@@BEGIN: HOLE', '@@BEGIN: HOLES', '@@BEGIN: ROLLINFO', '@@END: HOLE', '@@END: HOLES', '@@END: ROLLINFO', 'AREA', 'ATONLoader', 'CENTROID_COL', 'CENTROID_ROW', 'CIRCULARITY', 'FIRST_HOLE', 'HPIXCOR', 'ID', 'IMAGE_LENGTH', 'IMAGE_WIDTH', 'LAST_HOLE', 'LENGTH_DPI', 'MAJOR_AXIS', 'MIDI_KEY', 'MUSICAL_HOLES', 'MUSICAL_LENGTH', 'MUSICAL_NOTES', 'NOTE_ATTACK', 'OFF_TIME', 'ORIGIN_COL', 'ORIGIN_ROW', 'PERIMETER', 'TRACKER_HOLE', 'WIDTH_COL', 'WIDTH_ROW', 'deg', 'height', 'ppi', 'ppm', 'px', 'sec', 'utf-8', 'width']

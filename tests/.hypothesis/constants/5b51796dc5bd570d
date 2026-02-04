@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/maps/periodic.py
+# hypothesis_version: 6.151.2
+
+[0.0, 1.0, 'base', 'divisor', 'id', 'offset', 'period', 'scale', 'source_unit', 'target_unit']

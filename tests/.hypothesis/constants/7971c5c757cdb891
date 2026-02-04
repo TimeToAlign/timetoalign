@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/maps/__init__.py
+# hypothesis_version: 6.151.2
+
+['BeatInMeasureMap', 'ChainMap', 'CombinationMap', 'ConversionMap', 'FloorMap', 'InterpolationMap', 'LinearMap', 'MetricMap', 'MetricalPositionMap', 'PiecewiseMap', 'QuartersToTicks', 'RotationMap', 'SamplesToSeconds', 'ScalarMap', 'SecondsToSamples', 'ShiftMap', 'TableMap', 'TicksToQuarters']

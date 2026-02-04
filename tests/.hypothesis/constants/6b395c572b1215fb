@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/score/stores/notes.py
+# hypothesis_version: 6.151.2
+
+['acc', 'alter', 'cents', 'chord_id', 'duration', 'duration_float', 'duration_qb', 'duration_qb_float', 'end', 'ep', 'epc', 'fifths', 'gpc_int', 'gpc_str', 'gracenote', 'instant', 'int64', 'mc', 'mc_onset', 'midi_pitch', 'mn', 'mn_onset', 'nominal_duration', 'number_type', 'octave', 'part_id', 'quarterbeats', 'quarterbeats_float', 'scalar', 'sp', 'spc_int', 'spc_str', 'spelled_pitch', 'staff', 'start', 'steps', 'tied', 'timesig', 'tpc', 'unit', 'velocity', 'voice']

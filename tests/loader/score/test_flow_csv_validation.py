@@ -67,26 +67,48 @@ def parse_flow_csv(csv_path: Path) -> list[FlowEntry]:
 
     Returns:
         List of FlowEntry objects (skips comment lines and ERROR entries)
+
+    Note:
+        The parser requires the first 6 columns in order:
+        flow_mode, source_file, software_version, mc_start, mc_end, atomic_segments
+
+        Optional extra columns (e.g., "comment") are allowed and ignored.
     """
     entries = []
+    required_columns = [
+        "flow_mode",
+        "source_file",
+        "software_version",
+        "mc_start",
+        "mc_end",
+        "atomic_segments",
+    ]
     with open(csv_path, newline="") as f:
         reader = csv.reader(f)
         header = next(reader)  # Skip header
-        assert header == [
-            "flow_mode",
-            "source_file",
-            "software_version",
-            "mc_start",
-            "mc_end",
-            "atomic_segments",
-        ], f"Unexpected header: {header}"
+
+        # Validate that required columns are present in correct order
+        if len(header) < 6:
+            raise ValueError(
+                f"Expected at least 6 columns, got {len(header)}: {header}"
+            )
+        assert (
+            header[:6] == required_columns
+        ), f"First 6 columns must be {required_columns}, got {header[:6]}"
 
         for row in reader:
             # Skip empty rows and comment lines
             if not row or row[0].startswith("#"):
                 continue
 
-            flow_mode, source_file, software_version, mc_start, mc_end, segments = row
+            # Ensure row has at least 6 columns
+            if len(row) < 6:
+                continue
+
+            # Unpack required columns (ignore any extra columns like "comment")
+            flow_mode, source_file, software_version, mc_start, mc_end, segments = row[
+                :6
+            ]
 
             # Skip ERROR entries
             if mc_start == "ERROR":
@@ -169,8 +191,72 @@ def find_source_file(source_filename: str, specimen_name: str) -> Path | None:
     return None
 
 
+def get_loader_for_source_file(source_filename: str):
+    """Get the appropriate loader class based on source file extension.
+
+    Loader is determined by file extension, NOT by flow_mode:
+    - .tsv: TSVLoader
+    - .mm.json, .json: MeasureMapLoader
+    - .musicxml, .xml: PartituraLoader (or Music21Loader as fallback)
+    - .mei: PartituraLoader (or Music21Loader as fallback)
+
+    Args:
+        source_filename: The source filename from the flow.csv
+
+    Returns:
+        Loader class or None if not available
+    """
+    ext = source_filename.lower()
+
+    if ext.endswith(".tsv"):
+        try:
+            from timetoalign.loader.score import TSVLoader
+
+            return TSVLoader
+        except ImportError:
+            return None
+
+    if ext.endswith(".mm.json") or ext.endswith(".json"):
+        from timetoalign.loader.score import MeasureMapLoader
+
+        return MeasureMapLoader
+
+    if ext.endswith(".musicxml") or ext.endswith(".xml"):
+        try:
+            from timetoalign.loader.score import PartituraLoader
+
+            return PartituraLoader
+        except ImportError:
+            pass
+        try:
+            from timetoalign.loader.score import Music21Loader
+
+            return Music21Loader
+        except ImportError:
+            return None
+
+    if ext.endswith(".mei"):
+        try:
+            from timetoalign.loader.score import PartituraLoader
+
+            return PartituraLoader
+        except ImportError:
+            pass
+        try:
+            from timetoalign.loader.score import Music21Loader
+
+            return Music21Loader
+        except ImportError:
+            return None
+
+    return None
+
+
 def get_loader_for_flow_mode(flow_mode: str):
     """Get the appropriate loader class for a flow mode.
+
+    DEPRECATED: Use get_loader_for_source_file() instead, which determines
+    the loader based on file extension rather than flow_mode.
 
     Flow modes map to loaders as follows:
     - atomic, partitura_minimal, partitura_maximal: PartituraLoader
@@ -398,10 +484,11 @@ class TestLoaderMeasureCounts:
         if not mode_entries:
             pytest.skip(f"No {flow_mode} entries in {csv_name}")
 
-        # Get loader
-        loader_class = get_loader_for_flow_mode(flow_mode)
+        # Get loader based on source file extension (NOT flow_mode)
+        source_file = mode_entries[0].source_file
+        loader_class = get_loader_for_source_file(source_file)
         if loader_class is None:
-            pytest.skip(f"Loader not available for {flow_mode}")
+            pytest.skip(f"No loader available for source file: {source_file}")
 
         # Find source file
         specimen_name = csv_name.replace(".flow.csv", "")
@@ -470,11 +557,25 @@ class TestPartituraSegmentValidation:
         if not minimal_entries:
             pytest.skip(f"No atomic or partitura_minimal entries in {csv_name}")
 
-        # Find source file
+        # Find MusicXML file for specimen (partitura requires XML, not TSV)
         specimen_name = csv_name.replace(".flow.csv", "")
-        source_path = find_source_file(minimal_entries[0].source_file, specimen_name)
-        if source_path is None:
-            pytest.skip(f"Source file not found: {minimal_entries[0].source_file}")
+
+        # Build MusicXML filename from specimen name
+        # e.g., "c05n05_musete.flow.csv" -> "c05n05_musete.musicxml"
+        musicxml_filename = specimen_name + ".musicxml"
+        source_path = find_source_file(musicxml_filename, specimen_name)
+
+        # Also try .xml extension
+        if source_path is None or not source_path.exists():
+            xml_filename = specimen_name + ".xml"
+            source_path = find_source_file(xml_filename, specimen_name)
+
+        if source_path is None or not source_path.exists():
+            pytest.skip(f"MusicXML not found for {specimen_name}")
+
+        # Verify it's actually an XML file (not TSV)
+        if source_path.suffix.lower() not in (".musicxml", ".xml"):
+            pytest.skip(f"Source file is not MusicXML: {source_path}")
 
         # Load with partitura
         import warnings
@@ -502,7 +603,7 @@ class TestPartituraSegmentValidation:
             start_t = seg.start.t if hasattr(seg.start, "t") else seg.start
             end_t = seg.end.t if hasattr(seg.end, "t") else seg.end
 
-            # Map t values to MC numbers (INCLUSIVE end)
+            # Map t values to MC numbers
             start_mc = None
             end_mc = None
             for i, m in enumerate(measures, start=1):
@@ -513,7 +614,8 @@ class TestPartituraSegmentValidation:
                 if m.start.t < end_t <= m.end.t:
                     end_mc = i
 
-            actual_segments[seg_id] = (start_mc, end_mc)
+            # Convert partitura's inclusive end to RIGHT-OPEN convention (mc_end exclusive)
+            actual_segments[seg_id] = (start_mc, end_mc + 1 if end_mc else None)
 
         # Compare
         assert csv_segments == actual_segments, (
