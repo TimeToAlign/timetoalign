@@ -79,3 +79,23 @@ On `supra_raw.mid`, we observed a difference of exactly 4 events:
 -   **Explanation**: The file contains 4 `ControlChange` messages. Mido captures them; Partitura (in score mode) ignores them. The 30,092 **Note** events match exactly.
 
 **Status**: VALIDATED. The loaders produce musically equivalent note data.
+
+## 6. Test Status (Feb 2026)
+
+**All 33 tests passing.**
+
+### Bug Fix History
+
+| Date | Issue | Root Cause | Fix |
+|------|-------|------------|-----|
+| Feb 2026 | `KeyError: 'pitch'` in all MIDI tests | `MidiLoader` used wrong class attribute name (`_event_store_class` instead of `_event_data_class`), causing base `EventData` schema to be used instead of `MidiEventData` | Renamed attribute in `loader/midi/base.py:26` |
+
+### Test Files
+
+| File | Tests | Purpose |
+|------|-------|---------|
+| `test_performance.py` | 3 | PerformanceMidiLoader (mido parsing) |
+| `test_score.py` | 2 | ScoreMidiLoader (partitura parsing) |
+| `test_harmonization.py` | 2 | Cross-loader validation |
+| `test_store.py` | 4 | MidiEventData schema |
+| `test_bundle.py` | 22 | MidiStore/MidiBundle operations |
