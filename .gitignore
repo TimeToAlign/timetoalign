@@ -1,0 +1,5 @@
+# Ignore all Jupyter Notebooks
+*.ipynb
+
+# Ignore Jupyter checkpoint folders
+.ipynb_checkpoints/
