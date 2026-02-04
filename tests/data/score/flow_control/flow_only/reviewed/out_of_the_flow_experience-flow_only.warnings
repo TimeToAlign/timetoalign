@@ -1,0 +1,52 @@
+Warnings encountered during the last execution of ms3 review
+============================================================
+
+ERROR    ms3.Parse.flow_only.out_of_the_flow_experience-flow_only
+	No starting point for the repeatEnd in MC 8 could be determined. It is being ignored.
+MISSING_END_REPEAT_WARNING (5, 9) ms3.Parse.flow_only.out_of_the_flow_experience-flow_only
+	The startRepeat in MC 9 is missing its endRepeat.
+	For correction, MC 9 is interpreted as such because it precedes the next startRepeat.
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 3) ms3.Parse.flow_only.out_of_the_flow_experience-flow_only
+	None of the MCs following the irregular MC 3 complete it.
+	   nominal_duration actual_duration expected_completion       next
+	mc                                                                
+	3                 1             1/4                 3/4     (1, 4)
+	1                 1             1/4                 3/4       (2,)
+	4                 1             1/4                 3/4  (5, 6, 7)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 4) ms3.Parse.flow_only.out_of_the_flow_experience-flow_only
+	None of the MCs following the irregular MC 4 complete it.
+	   nominal_duration actual_duration expected_completion       next
+	mc                                                                
+	4                 1             1/4                 3/4  (5, 6, 7)
+	5                 1             1/2                 1/2       (4,)
+	6                 1             1/4                 3/4       (8,)
+	7                 1             1/2                 1/2      (-1,)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 5) ms3.Parse.flow_only.out_of_the_flow_experience-flow_only
+	None of the MCs following the irregular MC 5 complete it.
+	   nominal_duration actual_duration expected_completion       next
+	mc                                                                
+	5                 1             1/2                 1/2       (4,)
+	4                 1             1/4                 3/4  (5, 6, 7)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 6) ms3.Parse.flow_only.out_of_the_flow_experience-flow_only
+	None of the MCs following the irregular MC 6 complete it.
+	   nominal_duration actual_duration expected_completion  next
+	mc                                                           
+	6                 1             1/4                 3/4  (8,)
+	8                 1               1                   0  (9,)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 12) ms3.Parse.flow_only.out_of_the_flow_experience-flow_only
+	None of the MCs following the irregular MC 12 complete it.
+	   nominal_duration actual_duration expected_completion         next
+	mc                                                                  
+	12                1             1/2                 1/2         (9,)
+	9                 1               1                   0  (9, 10, 13)
+INCOMPLETE_MC_WRONGLY_COMPLETED_WARNING (3, 13) ms3.Parse.flow_only.out_of_the_flow_experience-flow_only
+	Some of the MCs following the irregular MC 13 do, some don't complete it.
+	   nominal_duration actual_duration expected_completion      next
+	mc                                                               
+	13                1             1/2                 1/2  (14, 15)
+	14                1             1/2                 1/2     (12,)
+	15                1             3/4                 1/4      (1,)
+INCORRECT_VOLTA_MN_WARNING (2, 7) ms3.Parse.flow_only.out_of_the_flow_experience-flow_only
+	MC 7, the 1st measure of a 3rd volta, should have MN 2, not MN 3.
+INCORRECT_VOLTA_MN_WARNING (2, 15) ms3.Parse.flow_only.out_of_the_flow_experience-flow_only
+	MC 15, the 1st measure of a 2nd volta, should have MN 9, not MN 10.

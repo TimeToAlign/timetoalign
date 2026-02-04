@@ -151,7 +151,7 @@
     "facet": "measures",
     "identifier": "5OAfnMKp300gXA",
     "filepath": "measures/5OAfnMKp300gXA.schema.yaml",
-    "used_in": "sq8913219_unfolded"
+    "used_in": "out_of_the_flow_experience-flow_only_unfolded"
   },
   "creator": {
     "@context": "https://schema.org/",
@@ -163,8 +163,6 @@
       "name": "Johannes Hentschel",
       "@id": "https://orcid.org/0000-0002-1986-9545"
     },
-    "softwareVersion": "2.6.0.post1.dev1+ga429209ac.d20260201"
-  },
-  "git_revision": "d9ea7adde5f4bab44e7063daafd12df9bf20b0ed",
-  "git_tag": "d9ea7ad"
+    "softwareVersion": "2.6.0"
+  }
 }

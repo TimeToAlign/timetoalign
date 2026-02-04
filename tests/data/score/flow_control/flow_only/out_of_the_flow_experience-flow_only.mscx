@@ -276,6 +276,10 @@
             <followText>1</followText>
             <text><b></b><font face="ScoreText"></font><b><font face="Times New Roman"></font> = 160</b></text>
             </Tempo>
+          <StaffText>
+            <placement>below</placement>
+            <text>A</text>
+            </StaffText>
           <Chord>
             <durationType>quarter</durationType>
             <Note>
@@ -333,6 +337,10 @@
         <startRepeat/>
         <irregular>1</irregular>
         <voice>
+          <StaffText>
+            <placement>below</placement>
+            <text>B</text>
+            </StaffText>
           <Chord>
             <durationType>quarter</durationType>
             <Note>
@@ -346,6 +354,10 @@
         <endRepeat>2</endRepeat>
         <irregular>1</irregular>
         <voice>
+          <StaffText>
+            <placement>below</placement>
+            <text>C</text>
+            </StaffText>
           <Spanner type="Volta">
             <Volta>
               <endHookType>1</endHookType>
@@ -377,6 +389,10 @@
       <Measure len="1/4">
         <irregular>1</irregular>
         <voice>
+          <StaffText>
+            <placement>below</placement>
+            <text>D</text>
+            </StaffText>
           <Spanner type="Volta">
             <prev>
               <location>
@@ -420,6 +436,10 @@
           <subtype>line</subtype>
           </LayoutBreak>
         <voice>
+          <StaffText>
+            <placement>below</placement>
+            <text>E</text>
+            </StaffText>
           <Spanner type="Volta">
             <prev>
               <location>
@@ -464,6 +484,10 @@
       <Measure>
         <endRepeat>2</endRepeat>
         <voice>
+          <StaffText>
+            <placement>below</placement>
+            <text>F</text>
+            </StaffText>
           <Spanner type="Volta">
             <prev>
               <location>
@@ -514,6 +538,10 @@
           <label>coda</label>
           </Marker>
         <voice>
+          <StaffText>
+            <placement>below</placement>
+            <text>G</text>
+            </StaffText>
           <Chord>
             <durationType>quarter</durationType>
             <Note>
@@ -548,6 +576,10 @@
         <startRepeat/>
         <endRepeat>2</endRepeat>
         <voice>
+          <StaffText>
+            <placement>below</placement>
+            <text>H</text>
+            </StaffText>
           <Chord>
             <durationType>quarter</durationType>
             <Note>
@@ -581,6 +613,10 @@
       <Measure>
         <endRepeat>2</endRepeat>
         <voice>
+          <StaffText>
+            <placement>below</placement>
+            <text>I</text>
+            </StaffText>
           <Chord>
             <durationType>quarter</durationType>
             <Note>
@@ -614,6 +650,7 @@
       <Measure len="1/2">
         <Jump>
           <style>Repeat Text Right</style>
+          <offset x="3.015" y="-6.47387"/>
           <text>D.S. al Coda</text>
           <jumpTo>segno</jumpTo>
           <playUntil>coda</playUntil>
@@ -623,6 +660,10 @@
           <subtype>line</subtype>
           </LayoutBreak>
         <voice>
+          <StaffText>
+            <placement>below</placement>
+            <text>J</text>
+            </StaffText>
           <Chord>
             <durationType>quarter</durationType>
             <Note>
@@ -656,6 +697,10 @@
           <label>codab</label>
           </Marker>
         <voice>
+          <StaffText>
+            <placement>below</placement>
+            <text>K</text>
+            </StaffText>
           <Chord>
             <durationType>quarter</durationType>
             <Note>
@@ -682,6 +727,10 @@
         <endRepeat>2</endRepeat>
         <irregular>1</irregular>
         <voice>
+          <StaffText>
+            <placement>below</placement>
+            <text>L</text>
+            </StaffText>
           <Spanner type="Volta">
             <Volta>
               <endHookType>1</endHookType>
@@ -728,6 +777,11 @@
           <continueAt></continueAt>
           </Jump>
         <voice>
+          <StaffText>
+            <placement>below</placement>
+            <offset x="0.291774" y="5.54242"/>
+            <text>M</text>
+            </StaffText>
           <Spanner type="Volta">
             <prev>
               <location>

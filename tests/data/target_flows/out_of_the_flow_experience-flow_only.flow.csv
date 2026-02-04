@@ -1,33 +1,32 @@
-flow_mode,source_file,software_version,mc_start,mc_end,atomic_segments
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,1,4,A
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,4,5,B
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,5,6,C
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,6,7,D
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,7,8,E
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,8,9,F
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,9,10,G
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,10,11,H
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,11,12,I
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,12,13,J
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,13,14,K
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,14,15,L
-atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,15,16,M
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,1,4,A
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,1,6,A;B;C
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,4,5,B
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,6,7,D
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,8,10,F;G
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,9,11,G;H
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,10,12,H;I
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,11,13,I;J
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,9,10,G
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,13,15,K;L
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,12,13,J
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,9,10,G
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,13,14,K
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,15,16,M
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,1,5,A;B
-default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,7,8,E
-single,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,1,5,A;B
-single,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,6,14,D;E;F;G;H;I;J;K
-single,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,15,16,M
+flow_mode,source_file,software_version,mc_start,mc_end,atomic_segments,comment
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,1,4,A,
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,4,5,B,
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,5,6,C,
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,6,7,D,
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,7,8,E,
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,8,9,F,
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,9,10,G,
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,10,11,H,
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,11,12,I,
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,12,13,J,
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,13,14,K,
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,14,15,L,
+atomic,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,15,16,M,
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,1,4,A,
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,1,6,A;B;C,
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,4,5,B,
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,6,7,D,
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,8,9,F,Humans infer that the repeat-end pertains to this bar only which is preceded by an end-barline. A correctly encoded score would set a section break here.
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,8,11,F;G;H,
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,10,12,H;I,"H [10,11) is a nested repeat within the repeated [9,12)"
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,9,11,G;H,
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,10,13,H;I;J,"outer repeat complete, continue"
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,9,10,G,
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,13,15,K;L,
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,13,14,K,
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,15,16,M,Again: Humans infer that the repeat-end pertains to this bar only which is preceded by an end-barline. A correctly encoded score would set a section break here.
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,1,5,A;B,
+default,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,7,8,E,
+single,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,1,5,A;B,
+single,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,6,14,D;E;F;G;H;I;J;K,
+single,out_of_the_flow_experience-flow_only.measures.tsv,timetoalign v0.1.0,15,16,M,

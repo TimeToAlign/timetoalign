@@ -43,17 +43,12 @@
       },
       {
         "name": "quarterbeats_playthrough",
-        "type": "string",
-        "title": "Offset from the beginning, including all repeats (in unfolded tables)",
-        "description": "Distance from the piece's beginning, including all repeats. This column is present in unfolded representations that correspond to a full 'playthrough' including all repetitions.",
-        "constraints": {
-          "pattern": "\\d+(?:\\/\\d+)?"
-        }
+        "type": "string"
       },
       {
         "name": "quarterbeats_all_endings",
         "type": "string",
-        "title": "Offset from Beginning (counting through alternative endings as if they were adjacent bars)",
+        "title": "Offset from Beginning (Including Endings)",
         "description": "Distance from the piece's beginning, taking all endings into account for addressability purposes.",
         "constraints": {
           "pattern": "\\d+(?:\\/\\d+)?"
@@ -173,7 +168,7 @@
     "facet": "notes",
     "identifier": "Opr9hqgCY6UpsQ",
     "filepath": "notes/Opr9hqgCY6UpsQ.schema.yaml",
-    "used_in": "n04op18-4_04_flow_unfolded"
+    "used_in": "B097_unfolded"
   },
   "creator": {
     "@context": "https://schema.org/",
@@ -185,8 +180,6 @@
       "name": "Johannes Hentschel",
       "@id": "https://orcid.org/0000-0002-1986-9545"
     },
-    "softwareVersion": "2.6.0.post1.dev1+ga429209ac.d20260201"
-  },
-  "git_revision": "d9ea7adde5f4bab44e7063daafd12df9bf20b0ed",
-  "git_tag": "d9ea7ad"
+    "softwareVersion": "2.6.0"
+  }
 }
