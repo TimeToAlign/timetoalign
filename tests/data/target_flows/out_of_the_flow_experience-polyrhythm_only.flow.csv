@@ -2,4 +2,4 @@ flow_mode,source_file,software_version,mc_start,mc_end,atomic_segments
 default,out_of_the_flow_experience-polyrhythm_only_unfolded.measures.tsv,ms3 v2.6.0,1,15,A
 music21,out_of_the_flow_experience-polyrhythm_only.musicxml,music21 v9.1.0,1,15,A
 atomic,out_of_the_flow_experience-polyrhythm_only.musicxml,timetoalign v0.1.0,1,15,A
-partitura_musicxml,out_of_the_flow_experience-polyrhythm_only.musicxml,partitura v1.7.0,1,15,A
+partitura_maximal,out_of_the_flow_experience-polyrhythm_only.musicxml,partitura v1.7.0,1,15,A

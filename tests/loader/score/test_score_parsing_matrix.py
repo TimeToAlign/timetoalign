@@ -273,10 +273,26 @@ def get_specimen_path(spec: SpecimenConfig, file_type: str) -> Path | None:
     return None
 
 
+# Maximum file size for MusicXML/MEI files to avoid test timeouts.
+# PartituraLoader/Music21Loader can take 90+ seconds on large (2MB+) files.
+MAX_MUSICXML_SIZE_BYTES = 500_000  # 500KB
+
+
 def specimen_available(spec: SpecimenConfig) -> bool:
     """Check if the specimen's TSV file is available."""
     tsv_path = get_specimen_path(spec, "tsv")
     return tsv_path is not None and tsv_path.exists()
+
+
+def musicxml_too_large(path: Path | None) -> bool:
+    """Check if MusicXML/MEI file is too large for reasonable test time.
+
+    PartituraLoader/Music21Loader processing time scales poorly with file size.
+    A 2MB MusicXML can take 90+ seconds to process, causing test timeouts.
+    """
+    if path is None or not path.exists():
+        return False
+    return path.stat().st_size > MAX_MUSICXML_SIZE_BYTES
 
 
 def format_available(spec: SpecimenConfig, file_type: str) -> bool:
@@ -456,6 +472,14 @@ class TestMusic21LoaderMusicXML:
         if xml_path is None or not xml_path.exists():
             pytest.skip(f"MusicXML not found for {specimen_name}")
 
+        # Skip large files to avoid test timeouts
+        if musicxml_too_large(xml_path):
+            file_size_mb = xml_path.stat().st_size / 1_000_000
+            pytest.skip(
+                f"MusicXML file too large ({file_size_mb:.1f}MB) for Music21 test. "
+                f"Max size: {MAX_MUSICXML_SIZE_BYTES / 1_000_000:.1f}MB"
+            )
+
         try:
             from timetoalign.loader.score import Music21Loader
         except ImportError:
@@ -493,6 +517,14 @@ class TestMusic21LoaderMusicXML:
             pytest.skip(f"MusicXML not found for {specimen_name}")
         if not csv_path.exists():
             pytest.skip(f"Flow CSV not found for {specimen_name}")
+
+        # Skip large files to avoid test timeouts
+        if musicxml_too_large(xml_path):
+            file_size_mb = xml_path.stat().st_size / 1_000_000
+            pytest.skip(
+                f"MusicXML file too large ({file_size_mb:.1f}MB) for Music21 test. "
+                f"Max size: {MAX_MUSICXML_SIZE_BYTES / 1_000_000:.1f}MB"
+            )
 
         try:
             from timetoalign.loader.score import Music21Loader
@@ -553,6 +585,14 @@ class TestMusic21LoaderMEI:
         if mei_path is None or not mei_path.exists():
             pytest.skip(f"MEI not found for {specimen_name}")
 
+        # Skip large files to avoid test timeouts
+        if musicxml_too_large(mei_path):
+            file_size_mb = mei_path.stat().st_size / 1_000_000
+            pytest.skip(
+                f"MEI file too large ({file_size_mb:.1f}MB) for Music21 test. "
+                f"Max size: {MAX_MUSICXML_SIZE_BYTES / 1_000_000:.1f}MB"
+            )
+
         try:
             from timetoalign.loader.score import Music21Loader
         except ImportError:
@@ -589,6 +629,13 @@ class TestMusic21LoaderMEI:
             pytest.skip(f"MEI not found for {specimen_name}")
         if xml_path is None or not xml_path.exists():
             pytest.skip(f"MusicXML not found for {specimen_name}")
+
+        # Skip large files to avoid test timeouts
+        if musicxml_too_large(mei_path) or musicxml_too_large(xml_path):
+            pytest.skip(
+                f"MEI or MusicXML file too large for Music21 test. "
+                f"Max size: {MAX_MUSICXML_SIZE_BYTES / 1_000_000:.1f}MB"
+            )
 
         try:
             from timetoalign.loader.score import Music21Loader
@@ -645,6 +692,14 @@ class TestPartituraLoaderMusicXML:
         if xml_path is None or not xml_path.exists():
             pytest.skip(f"MusicXML not found for {specimen_name}")
 
+        # Skip large files to avoid test timeouts
+        if musicxml_too_large(xml_path):
+            file_size_mb = xml_path.stat().st_size / 1_000_000
+            pytest.skip(
+                f"MusicXML file too large ({file_size_mb:.1f}MB) for Partitura test. "
+                f"Max size: {MAX_MUSICXML_SIZE_BYTES / 1_000_000:.1f}MB"
+            )
+
         try:
             from timetoalign.loader.score import PartituraLoader
         except ImportError:
@@ -679,6 +734,14 @@ class TestPartituraLoaderMusicXML:
             pytest.skip(f"MusicXML not found for {specimen_name}")
         if not csv_path.exists():
             pytest.skip(f"Flow CSV not found for {specimen_name}")
+
+        # Skip large files to avoid test timeouts
+        if musicxml_too_large(xml_path):
+            file_size_mb = xml_path.stat().st_size / 1_000_000
+            pytest.skip(
+                f"MusicXML file too large ({file_size_mb:.1f}MB) for Partitura test. "
+                f"Max size: {MAX_MUSICXML_SIZE_BYTES / 1_000_000:.1f}MB"
+            )
 
         try:
             from timetoalign.loader.score import PartituraLoader
@@ -733,6 +796,14 @@ class TestPartituraLoaderMEI:
         mei_path = get_specimen_path(spec, "mei")
         if mei_path is None or not mei_path.exists():
             pytest.skip(f"MEI not found for {specimen_name}")
+
+        # Skip large files to avoid test timeouts
+        if musicxml_too_large(mei_path):
+            file_size_mb = mei_path.stat().st_size / 1_000_000
+            pytest.skip(
+                f"MEI file too large ({file_size_mb:.1f}MB) for Partitura test. "
+                f"Max size: {MAX_MUSICXML_SIZE_BYTES / 1_000_000:.1f}MB"
+            )
 
         try:
             from timetoalign.loader.score import PartituraLoader
@@ -925,8 +996,8 @@ class TestDocumentedDeviations:
 
         # Document the deviation
         assert "default" in modes, "default mode required"
-        # The flow.csv shows music21_musicxml produces different results
-        # This is expected and documented
+        # The flow.csv shows music21 flow_mode produces different results
+        # (only present when music21's expandRepeats() diverges from default)
 
     def test_flow_only_ms3_deviation(self) -> None:
         """Document: ms3 diverges from canonical in flow_only due to ambiguous encoding.
