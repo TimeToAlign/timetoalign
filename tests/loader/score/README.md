@@ -264,6 +264,24 @@ pytest tests/loader/score/ --cov=timetoalign.loader.score
 pytest tests/loader/score/test_flow_parity.py::TestDiagnosticOutput -v -s
 ```
 
+### Large File Timeout Handling
+
+Tests automatically skip MusicXML/MEI files larger than **500KB** to avoid timeouts:
+
+- `PartituraLoader` can take **90+ seconds** on large (2MB+) MusicXML files due to Fraction processing
+- Tests use `MAX_MUSICXML_SIZE_BYTES = 500_000` constant
+- Skip message includes file size and explains the reason
+
+**Affected tests:**
+- `test_flow_control_parity.py`: `partitura_measures`, `music21_measures` fixtures
+- `test_score_parsing_matrix.py`: `test_music21_musicxml_*`, `test_partitura_musicxml_*`
+
+**To adjust the threshold:**
+```python
+# In test_flow_control_parity.py or test_score_parsing_matrix.py
+MAX_MUSICXML_SIZE_BYTES = 1_000_000  # Increase to 1MB
+```
+
 ## Profiling
 
 Benchmarks on *Chopin Op. 10 No. 3*:
