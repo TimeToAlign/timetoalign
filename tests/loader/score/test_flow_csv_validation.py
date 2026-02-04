@@ -2,11 +2,25 @@
 
 This module validates score loaders against .flow.csv ground truth files.
 Each flow.csv entry specifies:
-- flow_mode: which loader/parsing mode to use
-- source_file: the file to parse
+- flow_mode: FlowMode enum value (atomic, default, single, ms3, music21,
+  partitura_minimal, partitura_maximal)
+- source_file: the file that was parsed to generate this flow
 - software_version: expected software version
 - mc_start, mc_end: expected MC range (RIGHT-OPEN: mc_end excluded)
 - atomic_segments: partitura segment IDs covered
+
+IMPORTANT: flow_mode values correspond to FlowMode enum members, NOT loader/format
+combinations. The loader type (Music21 vs Partitura) and format (MusicXML vs MEI)
+are determined by the source_file column, NOT the flow_mode.
+
+Valid FlowMode values (from timetoalign.timelines.flow.FlowMode):
+- atomic: Atomic sections from FlowController
+- default: Full unfolding (gold standard from ms3)
+- single: Single playthrough (last volta only)
+- ms3: From ms3's *_unfolded.measures.tsv (when different from default)
+- music21: music21's expandRepeats() (only if diverges from default)
+- partitura_minimal: partitura's atomic segments (only if diverges from atomic)
+- partitura_maximal: partitura's full unfolding (only if diverges from default)
 
 This module includes:
 1. Tests validating CSV file structure and format
@@ -158,13 +172,22 @@ def find_source_file(source_filename: str, specimen_name: str) -> Path | None:
 def get_loader_for_flow_mode(flow_mode: str):
     """Get the appropriate loader class for a flow mode.
 
+    Flow modes map to loaders as follows:
+    - atomic, partitura_minimal, partitura_maximal: PartituraLoader
+    - default, ms3, single: TSVLoader (gold standard)
+    - music21: Music21Loader
+    - mm_json: MeasureMapLoader
+
+    Note: Flow modes correspond to FlowMode enum values. The loader type
+    (MusicXML vs MEI) is determined by the source_file, not the flow_mode.
+
     Args:
-        flow_mode: The flow mode from the flow.csv
+        flow_mode: The flow mode from the flow.csv (must be a valid FlowMode value)
 
     Returns:
         Loader class or None if not available
     """
-    if flow_mode == "default":
+    if flow_mode in ("default", "ms3", "single"):
         try:
             from timetoalign.loader.score import TSVLoader
 
@@ -177,12 +200,7 @@ def get_loader_for_flow_mode(flow_mode: str):
 
         return MeasureMapLoader
 
-    if flow_mode in (
-        "atomic",
-        "partitura_minimal",
-        "partitura_musicxml",
-        "partitura_maximal",
-    ):
+    if flow_mode in ("atomic", "partitura_minimal", "partitura_maximal"):
         try:
             from timetoalign.loader.score import PartituraLoader
 
@@ -190,7 +208,7 @@ def get_loader_for_flow_mode(flow_mode: str):
         except ImportError:
             return None
 
-    if flow_mode in ("music21_musicxml", "music21_mei", "music21"):
+    if flow_mode == "music21":
         try:
             from timetoalign.loader.score import Music21Loader
 
@@ -350,7 +368,7 @@ class TestLoaderMeasureCounts:
         "csv_name,flow_mode,expected_total_measures",
         [
             ("c05n05_musete.flow.csv", "atomic", 58),
-            ("c05n05_musete.flow.csv", "music21_musicxml", 58),
+            ("c05n05_musete.flow.csv", "music21", 58),
             (
                 "out_of_the_flow_experience-polyrhythm_only.flow.csv",
                 "atomic",
@@ -358,7 +376,7 @@ class TestLoaderMeasureCounts:
             ),
             (
                 "out_of_the_flow_experience-polyrhythm_only.flow.csv",
-                "music21_musicxml",
+                "music21",
                 14,
             ),
             (

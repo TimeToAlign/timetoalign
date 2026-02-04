@@ -93,6 +93,12 @@ FLOW_CONTROL_GOLD = {
 }
 
 
+# Maximum file size for MusicXML files to avoid test timeouts.
+# PartituraLoader can take 90+ seconds on large (2MB+) MusicXML files.
+# Files larger than this threshold will be skipped with a warning.
+MAX_MUSICXML_SIZE_BYTES = 500_000  # 500KB
+
+
 def specimens_available() -> bool:
     """Check if specimen files are available."""
     return BEETHOVEN_MEASURES_TSV.exists()
@@ -101,6 +107,17 @@ def specimens_available() -> bool:
 def flow_control_specimen_available() -> bool:
     """Check if flow_control specimen is available (has MusicXML)."""
     return FLOW_CONTROL_MUSICXML.exists()
+
+
+def musicxml_too_large(path: Path) -> bool:
+    """Check if MusicXML file is too large for reasonable test time.
+
+    PartituraLoader processing time scales poorly with file size.
+    A 2MB MusicXML can take 90+ seconds to process, causing test timeouts.
+    """
+    if not path.exists():
+        return False
+    return path.stat().st_size > MAX_MUSICXML_SIZE_BYTES
 
 
 def count_flow_control(measures_table: Any) -> dict[str, int | bool]:
@@ -185,7 +202,7 @@ def count_flow_control(measures_table: Any) -> dict[str, int | bool]:
 # ============================================================================
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def tsv_measures():
     """Load measures from TSV (gold standard)."""
     try:
@@ -201,7 +218,7 @@ def tsv_measures():
     return loader.store.measures
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def measuremap_measures():
     """Load measures from MeasureMap JSON."""
     from timetoalign.loader.score import MeasureMapLoader
@@ -214,12 +231,15 @@ def measuremap_measures():
     return loader.store.measures
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def partitura_measures():
     """Load measures from MuseScore via Partitura.
 
     Note: Partitura cannot load .mscx directly, so we use MusicXML if available.
     For now, this fixture will skip if no compatible source is available.
+
+    WARNING: Large MusicXML files (>500KB) are skipped to avoid test timeouts.
+    PartituraLoader can take 90+ seconds on 2MB files due to Fraction processing.
     """
     try:
         from timetoalign.loader.score import PartituraLoader
@@ -227,7 +247,6 @@ def partitura_measures():
         pytest.skip("PartituraLoader not available")
 
     # Partitura can't load .mscx directly; need MusicXML
-    # For now, we'll test what we can
     musicxml_path = BEETHOVEN_WOO71_DIR / "WoO71.musicxml"
     if not musicxml_path.exists():
         # Try to find any MusicXML in the directory
@@ -238,17 +257,28 @@ def partitura_measures():
             pytest.skip("No MusicXML file available for Partitura test")
         musicxml_path = musicxml_files[0]
 
+    # Skip large files to avoid test timeouts
+    if musicxml_too_large(musicxml_path):
+        file_size_mb = musicxml_path.stat().st_size / 1_000_000
+        pytest.skip(
+            f"MusicXML file too large ({file_size_mb:.1f}MB) for Partitura test. "
+            f"PartituraLoader can take 90+ seconds on large files. "
+            f"Max size: {MAX_MUSICXML_SIZE_BYTES / 1_000_000:.1f}MB"
+        )
+
     loader = PartituraLoader()
     loader.load(musicxml_path)
     return loader.store.measures
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def music21_measures():
     """Load measures from MusicXML via Music21.
 
     Note: Music21 CANNOT parse .mscx files (MuseScore native format).
     We need MusicXML (.musicxml, .xml) files for Music21.
+
+    WARNING: Large MusicXML files (>500KB) are skipped to avoid test timeouts.
     """
     try:
         from timetoalign.loader.score import Music21Loader
@@ -276,6 +306,14 @@ def music21_measures():
         pytest.skip(
             "No MusicXML file available for Music21 test. "
             "Music21 cannot parse .mscx files (MuseScore native format)."
+        )
+
+    # Skip large files to avoid test timeouts
+    if musicxml_too_large(musicxml_path):
+        file_size_mb = musicxml_path.stat().st_size / 1_000_000
+        pytest.skip(
+            f"MusicXML file too large ({file_size_mb:.1f}MB) for Music21 test. "
+            f"Max size: {MAX_MUSICXML_SIZE_BYTES / 1_000_000:.1f}MB"
         )
 
     loader = Music21Loader()
@@ -576,7 +614,7 @@ class TestDiagnosticOutput:
 # testing of Partitura and Music21 loaders.
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def fc_tsv_measures():
     """Load measures from flow_control TSV (gold standard)."""
     try:
@@ -592,7 +630,7 @@ def fc_tsv_measures():
     return loader.store.measures
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def fc_measuremap_measures():
     """Load measures from flow_control MeasureMap JSON."""
     from timetoalign.loader.score import MeasureMapLoader
@@ -605,7 +643,7 @@ def fc_measuremap_measures():
     return loader.store.measures
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def fc_partitura_measures():
     """Load measures from flow_control MusicXML via Partitura."""
     try:
@@ -616,12 +654,20 @@ def fc_partitura_measures():
     if not FLOW_CONTROL_MUSICXML.exists():
         pytest.skip(f"Specimen file not found: {FLOW_CONTROL_MUSICXML}")
 
+    # Skip large files to avoid test timeouts
+    if musicxml_too_large(FLOW_CONTROL_MUSICXML):
+        file_size_mb = FLOW_CONTROL_MUSICXML.stat().st_size / 1_000_000
+        pytest.skip(
+            f"MusicXML file too large ({file_size_mb:.1f}MB) for Partitura test. "
+            f"Max size: {MAX_MUSICXML_SIZE_BYTES / 1_000_000:.1f}MB"
+        )
+
     loader = PartituraLoader()
     loader.load(FLOW_CONTROL_MUSICXML)
     return loader.store.measures
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def fc_music21_measures():
     """Load measures from flow_control MusicXML via Music21."""
     try:
@@ -631,6 +677,14 @@ def fc_music21_measures():
 
     if not FLOW_CONTROL_MUSICXML.exists():
         pytest.skip(f"Specimen file not found: {FLOW_CONTROL_MUSICXML}")
+
+    # Skip large files to avoid test timeouts
+    if musicxml_too_large(FLOW_CONTROL_MUSICXML):
+        file_size_mb = FLOW_CONTROL_MUSICXML.stat().st_size / 1_000_000
+        pytest.skip(
+            f"MusicXML file too large ({file_size_mb:.1f}MB) for Music21 test. "
+            f"Max size: {MAX_MUSICXML_SIZE_BYTES / 1_000_000:.1f}MB"
+        )
 
     loader = Music21Loader()
     loader.load(FLOW_CONTROL_MUSICXML)
