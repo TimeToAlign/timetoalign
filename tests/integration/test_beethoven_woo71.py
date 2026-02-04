@@ -148,10 +148,10 @@ class TestBeethovenWoO71WithTSVLoader:
             pytest.skip(f"Test data not found: {NOTES_TSV}")
 
         tsv_loader.load(NOTES_TSV)
-        bundle = tsv_loader.bundle
+        store = tsv_loader.store
 
-        assert bundle.notes.count == BEETHOVEN_WOO71_GOLD_NOTES, (
-            f"TSVLoader note count mismatch: got {bundle.notes.count}, "
+        assert store.notes.count == BEETHOVEN_WOO71_GOLD_NOTES, (
+            f"TSVLoader note count mismatch: got {store.notes.count}, "
             f"expected {BEETHOVEN_WOO71_GOLD_NOTES}"
         )
 

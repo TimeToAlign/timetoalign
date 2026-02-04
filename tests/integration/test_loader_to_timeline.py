@@ -62,7 +62,7 @@ class TestScoreLoaderToTimeline:
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.bundle.to_default_timeline(uid="chopin")
+        timeline = loader.store.to_default_timeline(uid="chopin")
 
         # Verify parent structure
         assert timeline.id == "chopin"
@@ -86,7 +86,7 @@ class TestScoreLoaderToTimeline:
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.bundle.to_default_timeline()
+        timeline = loader.store.to_default_timeline()
         notes_tl = timeline.get_child("notes")
 
         # EXACT count - no tolerance
@@ -105,7 +105,7 @@ class TestScoreLoaderToTimeline:
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.bundle.to_default_timeline()
+        timeline = loader.store.to_default_timeline()
         measures_tl = timeline.get_child("measures")
 
         # EXACT count - no tolerance
@@ -127,7 +127,7 @@ class TestScoreLoaderToTimeline:
         loader = Music21Loader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.bundle.to_default_timeline()
+        timeline = loader.store.to_default_timeline()
         notes_tl = timeline.get_child("notes")
 
         # EXACT count - no tolerance
@@ -143,7 +143,7 @@ class TestScoreLoaderToTimeline:
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.bundle.to_default_timeline()
+        timeline = loader.store.to_default_timeline()
 
         for _, child in timeline.iter_children():
             assert child.is_locked, f"Child {child.id} should be locked"
@@ -161,20 +161,24 @@ class TestScoreLoaderWithFilters:
         return path
 
     def test_filter_notes_only(self, chopin_musicxml: Path):
-        """Filter to notes store only."""
+        """Filter to notes store only.
+
+        When include_stores filters to a single store, events are placed
+        directly on the timeline (no children) per factory.py documentation.
+        """
         from timetoalign.loader.score import PartituraLoader
 
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.bundle.to_timeline(
+        timeline = loader.store.to_timeline(
             uid="notes_only",
             include_stores=["notes"],
         )
 
-        # Only notes child
-        assert timeline.n_children == 1
-        assert "notes" in timeline
+        # Single store: no children, events directly on timeline
+        assert timeline.n_children == 0
+        assert timeline.n_events == CHOPIN_GOLD_NOTES
 
     def test_exclude_controls_and_annotations(self, chopin_musicxml: Path):
         """Exclude controls and annotations stores."""
@@ -183,7 +187,7 @@ class TestScoreLoaderWithFilters:
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.bundle.to_timeline(
+        timeline = loader.store.to_timeline(
             exclude_stores=["controls", "annotations"],
         )
 
@@ -220,25 +224,33 @@ class TestMidiLoaderToTimeline:
         loader = ScoreMidiLoader()
         loader.load(beethoven_midi)
 
-        bundle = loader.bundle
+        store = loader.store
 
-        # MidiBundle has notes and controls
-        assert "notes" in bundle
-        assert "controls" in bundle
+        # MidiStore has notes and controls
+        assert "notes" in store
+        assert "controls" in store
 
     def test_score_midi_to_timeline_structure(self, beethoven_midi: Path):
-        """ScoreMidiLoader timeline has correct structure."""
+        """ScoreMidiLoader timeline has correct structure.
+
+        If controls store is empty, only notes remain, resulting in events
+        placed directly on the timeline (no children) per factory.py.
+        """
         from timetoalign.loader.midi import ScoreMidiLoader
 
         loader = ScoreMidiLoader()
         loader.load(beethoven_midi)
 
-        timeline = loader.bundle.to_default_timeline(uid="beethoven")
+        timeline = loader.store.to_default_timeline(uid="beethoven")
 
         assert timeline.id == "beethoven"
-        # At least notes child (controls may be empty)
-        assert timeline.n_children >= 1
-        assert "notes" in timeline
+        # Events are on the timeline (either directly or as children)
+        # If only notes exist (controls empty), events are directly on timeline
+        # If both exist, they become children
+        if timeline.n_children > 0:
+            assert "notes" in timeline
+        else:
+            assert timeline.n_events > 0
 
     def test_performance_midi_to_timeline(self, supra_midi: Path):
         """PerformanceMidiLoader creates timeline from piano roll."""
@@ -247,7 +259,7 @@ class TestMidiLoaderToTimeline:
         loader = PerformanceMidiLoader()
         loader.load(supra_midi)
 
-        timeline = loader.bundle.to_default_timeline(uid="supra")
+        timeline = loader.store.to_default_timeline(uid="supra")
 
         assert timeline.id == "supra"
         # Should have at least notes
@@ -260,7 +272,7 @@ class TestMidiLoaderToTimeline:
         loader = PerformanceMidiLoader()
         loader.load(supra_midi)
 
-        timeline = loader.bundle.to_default_timeline()
+        timeline = loader.store.to_default_timeline()
         notes_tl = timeline.get_child("notes")
 
         # Supra raw has notes - verify non-zero
@@ -293,12 +305,12 @@ class TestCrossLoaderConsistency:
 
         pt_loader = PartituraLoader()
         pt_loader.load(chopin_musicxml)
-        pt_timeline = pt_loader.bundle.to_default_timeline()
+        pt_timeline = pt_loader.store.to_default_timeline()
         pt_notes = pt_timeline.get_child("notes").n_events
 
         m21_loader = Music21Loader()
         m21_loader.load(chopin_musicxml)
-        m21_timeline = m21_loader.bundle.to_default_timeline()
+        m21_timeline = m21_loader.store.to_default_timeline()
         m21_notes = m21_timeline.get_child("notes").n_events
 
         # Both must equal gold standard
@@ -328,11 +340,11 @@ class TestCrossLoaderConsistency:
 
         pt_loader = PartituraLoader()
         pt_loader.load(chopin_musicxml)
-        pt_timeline = pt_loader.bundle.to_default_timeline()
+        pt_timeline = pt_loader.store.to_default_timeline()
 
         m21_loader = Music21Loader()
         m21_loader.load(chopin_musicxml)
-        m21_timeline = m21_loader.bundle.to_default_timeline()
+        m21_timeline = m21_loader.store.to_default_timeline()
 
         # Core children must be present in both
         core_children = {"notes", "measures", "controls"}
@@ -388,31 +400,36 @@ class TestCreateTimelineFunction:
         assert timeline.id == "from_loader"
         assert timeline.n_children >= 2
 
-    def test_create_timeline_from_bundle(self, chopin_musicxml: Path):
-        """create_timeline works with Bundle."""
+    def test_create_timeline_from_store(self, chopin_musicxml: Path):
+        """create_timeline works with EventStore."""
         from timetoalign.loader.score import PartituraLoader
 
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = create_timeline(loader.bundle, uid="from_bundle")
+        timeline = create_timeline(loader.store, uid="from_store")
 
-        assert timeline.id == "from_bundle"
+        assert timeline.id == "from_store"
         assert timeline.n_children >= 2
 
     def test_create_timeline_with_filters(self, chopin_musicxml: Path):
-        """create_timeline applies store_filters correctly."""
+        """create_timeline applies include_stores correctly.
+
+        When include_stores filters to a single store, events are placed
+        directly on the timeline (no children) per factory.py documentation.
+        """
         from timetoalign.loader.score import PartituraLoader
 
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        # Use store_filters to filter notes by event_type
-        # (This depends on the store having an event_type column)
+        # Use include_stores to select only notes
+        # Single store -> events directly on timeline (no children)
         timeline = create_timeline(
             loader,
             include_stores=["notes"],
         )
 
-        assert timeline.n_children == 1
-        assert "notes" in timeline
+        # Single store: no children, events directly on timeline
+        assert timeline.n_children == 0
+        assert timeline.n_events == CHOPIN_GOLD_NOTES
