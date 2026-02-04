@@ -1386,7 +1386,15 @@ class FlowController:
         segno_col = _get_column_safe("segno")
         coda_col = _get_column_safe("coda")
         fine_col = _get_column_safe("fine", False)
-        section_break_col = _get_column_safe("section_break", False)
+        # section_break: check 'section_break' column first, then 'breaks' column
+        if "section_break" in table.column_names:
+            section_break_col = _get_column_safe("section_break", False)
+        elif "breaks" in table.column_names:
+            # Convert breaks="section" to True, everything else to False
+            breaks_col = table.column("breaks").to_pylist()
+            section_break_col = [b == "section" for b in breaks_col]
+        else:
+            section_break_col = [False] * len(mc_col)
 
         for i, mc in enumerate(mc_col):
             # Parse 'next' field
@@ -2059,35 +2067,83 @@ class FlowController:
             return
 
         # Find segment boundaries
-        boundaries: list[int] = [sorted_mcs[0]]  # Start of first segment
+        # Boundaries occur at:
+        # 1. Start of piece (MC 1)
+        # 2. Jump targets (any MC that is destination of a non-adjacent next[])
+        #    - This includes repeat_start when repeat_end jumps back to it
+        # 3. MCs after jump sources (when next[] indicates non-sequential continuation)
+        # 4. After explicit section_break markers
+        # Note: Uses derived flow info (next column). When principal FlowControlTypes
+        # are available, they should be preferred for boundary detection.
+        boundaries: set[int] = {sorted_mcs[0]}  # Start of first segment
+        volta_endings: set[int] = set()  # Track volta ending MCs
 
+        # First pass: identify volta endings
+        # Voltas are mutually exclusive paths. A volta situation occurs when:
+        # - One target's next jumps backward (volta 1 goes back to repeat)
+        # - One target's next continues forward (volta 2 continues to next section)
+        for mc in sorted_mcs:
+            bar = self._measure_lookup[mc]
+            next_list = bar["next"]
+            if len(next_list) > 1:
+                # Check what each target does
+                target_goes_back = False
+                target_continues = False
+                for target_mc in next_list:
+                    if target_mc != -1 and target_mc in self._measure_lookup:
+                        target_bar = self._measure_lookup[target_mc]
+                        target_next = target_bar.get("next", [])
+                        if target_next and target_next[0] != -1:
+                            if target_next[0] < target_mc:
+                                target_goes_back = True
+                            else:
+                                target_continues = True
+                # Volta: one target goes back, one continues
+                if target_goes_back and target_continues:
+                    for target_mc in next_list:
+                        if target_mc != -1:
+                            volta_endings.add(target_mc)
+
+        # Second pass: find boundaries
         for i, mc in enumerate(sorted_mcs):
             bar = self._measure_lookup[mc]
             next_list = bar["next"]
 
-            # Check if this MC ends a segment
-            is_boundary = False
+            # NOTE: We do NOT add boundaries at repeat_start markers by themselves.
+            # A repeat_start is just a target marker - it only creates a boundary
+            # if something actually jumps to it, which is handled by the jump target
+            # detection below.
 
+            # Boundary at all jump targets (volta alternatives, conditional paths)
             if len(next_list) > 1:
-                # Multiple next options = volta or conditional jump
-                is_boundary = True
-            elif next_list == [-1]:
-                # End of piece
-                is_boundary = True
-            elif i < len(sorted_mcs) - 1:
-                next_mc = sorted_mcs[i + 1]
-                if next_list[0] != next_mc:
-                    # Jump (forward or backward)
-                    is_boundary = True
+                for target_mc in next_list:
+                    if target_mc != -1 and target_mc in self._measure_lookup:
+                        boundaries.add(target_mc)
+                # Also add the MC after this one (end of pre-jump section)
+                if i < len(sorted_mcs) - 1:
+                    boundaries.add(sorted_mcs[i + 1])
 
-            if is_boundary and i < len(sorted_mcs) - 1:
-                # Add next MC as start of new segment
-                next_mc_idx = i + 1
-                if next_mc_idx < len(sorted_mcs):
-                    boundaries.append(sorted_mcs[next_mc_idx])
+            # Boundary at jump targets (when next doesn't continue sequentially)
+            elif next_list and next_list[0] != -1:
+                target_mc = next_list[0]
+                if i < len(sorted_mcs) - 1:
+                    sequential_next = sorted_mcs[i + 1]
+                    if target_mc != sequential_next:
+                        # This is a jump - add boundary at target
+                        if target_mc in self._measure_lookup:
+                            boundaries.add(target_mc)
+                        # Add boundary at the sequential next MC too
+                        boundaries.add(sequential_next)
 
-        # Remove duplicates and sort
-        boundaries = sorted(set(boundaries))
+            # Boundary after section_break markers (a section break voids contiguity)
+            # Per TTA manuscript: TimeIntervals cannot span a coordinate containing a Break
+            if bar.get("section_break"):
+                # The section break is AT this MC, so the new section starts at next MC
+                if i < len(sorted_mcs) - 1:
+                    boundaries.add(sorted_mcs[i + 1])
+
+        # Convert to sorted list
+        boundaries_list: list[int] = sorted(boundaries)
 
         # Create atomic sections from boundaries
         section_id = ord("A")
@@ -2096,10 +2152,10 @@ class FlowController:
         # Build lookup from mc to MeasureUnit for typed_measures
         unit_lookup: dict[int, MeasureUnit] = {u.mc: u for u in self._units}
 
-        for i, start_mc in enumerate(boundaries):
+        for i, start_mc in enumerate(boundaries_list):
             # Find end MC (last MC before next boundary, or last MC)
-            if i + 1 < len(boundaries):
-                end_mc = boundaries[i + 1] - 1
+            if i + 1 < len(boundaries_list):
+                end_mc = boundaries_list[i + 1] - 1
             else:
                 end_mc = sorted_mcs[-1]
 
@@ -2132,9 +2188,9 @@ class FlowController:
                     if next_mc == -1:
                         continue
                     # Find which section contains next_mc
-                    for j, bnd in enumerate(boundaries):
-                        if j + 1 < len(boundaries):
-                            if bnd <= next_mc < boundaries[j + 1]:
+                    for j, bnd in enumerate(boundaries_list):
+                        if j + 1 < len(boundaries_list):
+                            if bnd <= next_mc < boundaries_list[j + 1]:
                                 to_sections.append(chr(ord("A") + j))
                                 break
                         else:
@@ -2293,17 +2349,15 @@ class FlowController:
             if i > 0:
                 prev_mc = mc_sequence[i - 1]
                 # Determine if we need a new section:
-                # 1. Non-consecutive or backward jump
-                # 2. Previous MC was a branch point (multiple next options)
-                #    This handles cases like Rondeau form where mc_end of refrain
-                #    has next=[1, 10, 19, 28] - even though 10 is consecutive,
-                #    it's semantically a different section (1er Couplet vs Refrain)
+                # 1. Non-consecutive or backward jump (repeat, D.S., etc.)
+                # 2. Previous MC has section_break=True (breaks=section in TSV)
+                #    A PlaythroughSection can NEVER span a section break.
                 is_non_consecutive = mc != prev_mc + 1
-                is_branch_point = (
+                has_section_break = (
                     prev_mc in self._measure_lookup
-                    and len(self._measure_lookup[prev_mc].get("next", [])) > 1
+                    and self._measure_lookup[prev_mc].get("section_break", False)
                 )
-                if is_non_consecutive or is_branch_point:
+                if is_non_consecutive or has_section_break:
                     # Save current section
                     sections.append(_build_section(current_start, current_end))
                     # Start new section
@@ -2440,10 +2494,12 @@ class FlowController:
             return self._compute_atomic_flow()
         elif mode == FlowMode.PRINTED:
             return self._compute_printed_flow()
+        elif mode == FlowMode.SINGLE_PASS:
+            return self._compute_single_pass_flow()
         elif mode in (FlowMode.DEFAULT, FlowMode.MS3):
             return self._compute_default_flow(mode)
         else:
-            # TODO: Implement other modes (SINGLE_PASS, MUSIC21, etc.)
+            # TODO: Implement other modes (MUSIC21, etc.)
             module_logger.warning(
                 f"FlowMode.{mode.name} not yet implemented, using DEFAULT"
             )
@@ -2465,6 +2521,50 @@ class FlowController:
             sections=sections,
             mode=FlowMode.PRINTED,
             folded_length=len(sorted_mcs),
+            _controller_ref=weakref.ref(self),
+        )
+
+    def _compute_single_pass_flow(self) -> Flow:
+        """Compute single-pass flow (no repeats, skip volta 1 endings).
+
+        SINGLE_PASS mode traverses the score once without taking any repeats.
+        For volta alternatives:
+        - Skip volta 1 endings (those that jump backward to repeat)
+        - Include only volta 2+ endings (those that continue forward)
+
+        This ensures musically impossible transitions (volta 1 → volta 2)
+        are never included in the flow.
+
+        Returns:
+            Flow with single traversal, volta 1 endings excluded.
+        """
+        sorted_mcs = sorted(self._measure_lookup.keys())
+
+        # Filter out volta 1 endings that jump backward
+        # Volta 1 endings are identified by:
+        # 1. volta field = 1
+        # 2. Their next[] jumps backward (to repeat start)
+        single_pass_mcs: list[int] = []
+        for mc in sorted_mcs:
+            bar = self._measure_lookup[mc]
+            volta = bar.get("volta")
+
+            # Skip volta 1 endings (they jump back, can't be in single pass)
+            if volta == 1:
+                next_list = bar.get("next", [])
+                if next_list and next_list[0] != -1 and next_list[0] < mc:
+                    # This volta 1 jumps backward - skip it
+                    continue
+
+            single_pass_mcs.append(mc)
+
+        # Convert MC sequence to sections
+        sections = self._compute_playthrough_sections(single_pass_mcs)
+
+        return Flow(
+            sections=sections,
+            mode=FlowMode.SINGLE_PASS,
+            folded_length=len(self._measure_lookup),
             _controller_ref=weakref.ref(self),
         )
 

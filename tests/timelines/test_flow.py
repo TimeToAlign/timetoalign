@@ -1236,8 +1236,9 @@ class TestFlowCSVLoading:
         if not csv_path.exists():
             pytest.skip(f"Test data not found: {csv_path}")
 
+        # MUSIC21 mode is not in the CSV, so this should raise
         with pytest.raises(ValueError, match="No entries for flow_mode"):
-            Flow.from_csv(csv_path, FlowMode.SINGLE_PASS)
+            Flow.from_csv(csv_path, FlowMode.MUSIC21)
 
     def test_load_valid_flows(self, target_flows_dir: Path) -> None:
         """load_valid_flows loads all modes from CSV."""
