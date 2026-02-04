@@ -1342,7 +1342,9 @@ class FlowController:
                 if d is None:
                     duration_values.append(Fraction(4))
                 elif isinstance(d, dict):
-                    duration_values.append(Fraction(d.get("value", 4)))
+                    # Handle case where key exists but value is None
+                    val = d.get("value")
+                    duration_values.append(Fraction(val if val is not None else 4))
                 else:
                     duration_values.append(Fraction(d))
         elif "actual_length" in table.column_names:
@@ -1366,7 +1368,9 @@ class FlowController:
                 if s is None:
                     qb_values.append(Fraction(0))
                 elif isinstance(s, dict):
-                    qb_values.append(Fraction(s.get("value", 0)))
+                    # Handle case where key exists but value is None
+                    val = s.get("value")
+                    qb_values.append(Fraction(val if val is not None else 0))
                 else:
                     qb_values.append(Fraction(s))
         else:

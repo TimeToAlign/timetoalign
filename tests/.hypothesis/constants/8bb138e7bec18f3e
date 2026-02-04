@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/graphical/iiif.py
+# hypothesis_version: 6.151.2
+
+['@context', '@id', 'Canvas', 'IIIFManifestLoader', 'canvases', 'en', 'height', 'id', 'items', 'label', 'metadata', 'none', 'presentation/3', 'sequences', 'type', 'und', 'utf-8', 'value', 'width']

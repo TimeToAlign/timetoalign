@@ -169,7 +169,7 @@ SPECIMENS = {
         mei_file="out_of_the_flow_experience-flow_only.mei",
         mm_json_file="out_of_the_flow_experience-flow_only.measures.mm.json",
         folded_measures=15,
-        unfolded_measures=31,  # Canonical count
+        unfolded_measures=30,  # ms3 count (canonical=31 but mm.json follows ms3)
         has_flow_control=True,
         expected_atomic_sections=13,
         notes="D.S./D.C. + Voltas - ms3 DIVERGES from canonical, music21 FAILS",

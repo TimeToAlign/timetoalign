@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/core/enums.py
+# hypothesis_version: 6.151.2
+
+[', ', 'FancyStrEnum | None', 'FlowControlType', 'NumberType', 'NumberType | None', 'beats', 'centimeters', 'double', 'end', 'firstMeasure', 'frames', 'inches', 'lastMeasure', 'measures', 'meters', 'millimeters', 'milliseconds', 'minutes', 'number', 'pixels', 'points', 'quarters', 'samples', 'seconds', 'section', 'start', 'ticks']

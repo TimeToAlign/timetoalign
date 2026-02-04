@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/paths/rect.py
+# hypothesis_version: 6.151.2
+
+['RectPath', 'height', 'width', 'x', 'y']

@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/graphical/bundle.py
+# hypothesis_version: 6.151.2
+
+[0.0, 255, 'GraphicalStore', 'metadata', 'n_sources', 'pixels', 'segments', 'total_length']

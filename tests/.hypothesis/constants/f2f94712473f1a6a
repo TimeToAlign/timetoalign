@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/maps/composite.py
+# hypothesis_version: 6.151.2
+
+['_convert_array', '_convert_scalar', 'breaks', 'id', 'maps', 'right', 'source_unit', 'target_unit']

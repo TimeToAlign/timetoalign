@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/display/ascii.py
+# hypothesis_version: 6.151.2
+
+['  MatchClaims: 0', '+', ',', '-', '.', '...', ':', '=', '?', 'AlignmentBundle', 'Timeline', 'TimelineGroup', '_', 'bottom_left', 'bottom_right', 'branch', 'float', 'fraction', 'graphical', 'horizontal', 'int', 'last', 'logical', 'matches', 'physical', 'top_left', 'top_right', 'vertical', '|', '~', '⋅', '─', '│', '┌', '┐', '└', '┘', '├']

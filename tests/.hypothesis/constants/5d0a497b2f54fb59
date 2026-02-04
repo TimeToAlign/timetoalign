@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/score/stores/measures.py
+# hypothesis_version: 6.151.2
+
+[', ', '/', 'ID', 'Skip in MN counting', 'act_dur', 'actual_length', 'barline', 'breaks', 'count', 'description', 'dont_count', 'duration', 'duration_float', 'duration_qb', 'duration_qb_float', 'end', 'end_repeat', 'has_breaks', 'has_repeats', 'has_voltas', 'keysig', 'keysig_fifths', 'keysig_mode', 'mc', 'mc_offset', 'mm_id', 'mn', 'mn_int', 'name', 'next', 'nominal_length', 'number', 'numbering_offset', 'part_id', 'qstamp', 'quarterbeats', 'quarterbeats_float', 'repeat_ends', 'repeat_starts', 'repeats', 'start', 'start_repeat', 'time_signature', 'timesig', 'timesig_den', 'timesig_num', 'total_measures', 'volta', 'voltas']

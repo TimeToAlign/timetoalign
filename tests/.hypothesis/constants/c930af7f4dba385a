@@ -1,0 +1,4 @@
+# file: /usr/share/pycharm/plugins/python-ce/helpers/pycharm/_jb_runner_tools.py
+# hypothesis_version: 6.151.2
+
+[1000, 86400000, '\x1b[0m', '\x1b[31m', '(', '--', '--offset', '--path', '--target', '.', '.py', '/', ':{}', 'AF_INET', 'AF_UNIX', 'Error', 'Failure', 'JB_DISABLE_BUFFERING', 'JB_VERBOSE', 'LOCAL', 'PWD', 'PYCHARM_HELPERS_DIR', 'Python target to run', 'Root node offset', 'Skip', 'append', 'duration', 'durationStrategy', 'enteredTheMatrix', 'file:/', 'lineno', 'localhost', 'locationHint', 'manual', 'metainfo', 'name', 'nodeId', 'open', 'parentNodeId', 'path', 'python<{0}>://{1}', 'setUpClass', 'stopped', 'tearDownClass', 'test setup', 'test teardown', 'testCount', 'testFinished', 'testIgnored', 'testStarted', 'testSuiteFinished', 'testSuiteStarted', 'true']

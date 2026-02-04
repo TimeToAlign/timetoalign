@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/graphical/__init__.py
+# hypothesis_version: 6.151.2
+
+['DiagonalLinePath', 'GraphicalLoader', 'GraphicalSegment', 'GraphicalStore', 'HorizontalLinePath', 'IIIFCanvasInfo', 'IIIFManifestInfo', 'IIIFManifestLoader', 'ImageMetadata', 'ImageSource', 'ParametricPath', 'TimeAxisPath', 'VerticalLinePath']

@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/bundle.py
+# hypothesis_version: 6.151.2
+
+['AlignmentStore', 'ConversionMap', 'ConversionMap | None', 'Domain', 'EventData', 'MatchData', 'Timeline', 'agent', 'cmap_count', 'confidence', 'denominator', 'domains', 'event_count', 'events', 'keys', 'match_count', 'match_id', 'method', 'numerator', 'source_coordinate', 'source_domain', 'source_event_id', 'source_unit', 'store_names', 'target_coordinate', 'target_domain', 'target_event_id', 'target_unit', 'unit', 'value']

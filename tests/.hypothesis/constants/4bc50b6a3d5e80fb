@@ -1,0 +1,4 @@
+# file: /home/laser/git/tta/timetoalign/timetoalign/loader/physical/__init__.py
+# hypothesis_version: 6.151.2
+
+['AudioInfo', 'AudioLoader']
