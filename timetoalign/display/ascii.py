@@ -527,7 +527,7 @@ def bundle_diagram(
     lines.append("")
 
     # Render each group with indentation
-    for group in bundle.groups:
+    for group in bundle.groups.values():
         group_str = group_diagram(
             group,
             width=width - 2,  # Account for indentation

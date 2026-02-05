@@ -16,7 +16,8 @@
 # %% [markdown]
 # # Core Concepts: Domains, Units, and Coordinates
 #
-# This tutorial introduces the fundamental building blocks of TimeToAlign!: Domains, TimeUnits, Coordinates, and Timelines.
+# This tutorial introduces the fundamental building blocks of TimeToAlign!:
+# Domains, TimeUnits, Coordinates, and Timelines.
 #
 # **Learning Objectives:**
 # - Understand the three temporal domains (Physical, Logical, Graphical)
@@ -37,7 +38,9 @@
 # - **An audio recording** represents music in physical time (seconds, samples)
 # - **A score image** represents music in visual space (pixels, coordinates)
 #
-# TimeToAlign! provides a unified framework for working across these representations. The key insight is that all musical time can be described using a small set of concepts:
+# TimeToAlign! provides a unified framework for working across these
+# representations. The key insight is that all musical time can be described
+# using a small set of concepts:
 #
 # 1. **Domain**: Which representation are we working with?
 # 2. **TimeUnit**: What are we measuring in?
@@ -105,7 +108,9 @@ Domain.physical == Domain.ph == Domain("physical") == Domain("ph")
 #
 # ## TimeUnits
 #
-# A **TimeUnit** specifies the measuring unit for coordinates. Each unit belongs to exactly one domain and is either **continuous** (any real number) or **discrete** (countable integers).
+# A **TimeUnit** specifies the measuring unit for coordinates. Each unit
+# belongs to exactly one domain and is either **continuous** (any real number)
+# or **discrete** (countable integers).
 
 # %%
 # Build a summary table of all TimeUnits
@@ -152,7 +157,8 @@ pd.Series({k: v.name for k, v in aliases.items()}, name="resolves_to")
 # | `NumberType.float` | `float` | Physical time (seconds, milliseconds) |
 # | `NumberType.fraction` | `Fraction` | Exact rational values (beats, quarters) |
 #
-# The `Fraction` type is particularly important for musical time, where triplets, dotted notes, and complex subdivisions require exact representation.
+# The `Fraction` type is particularly important for musical time, where
+# triplets, dotted notes, and complex subdivisions require exact representation.
 
 # %%
 # NumberType can be inferred from values
@@ -165,7 +171,9 @@ pd.Series({k: v.name for k, v in aliases.items()}, name="resolves_to")
 # %% [markdown]
 # ### Why Fractions Matter for Musical Time
 #
-# Floating-point numbers accumulate small errors when summed repeatedly. Consider a septuplet (7 notes spanning 4 beats) - each note is exactly 4/7 beats:
+# Floating-point numbers accumulate small errors when summed repeatedly.
+# Consider a septuplet (7 notes spanning 4 beats) - each note is exactly
+# 4/7 beats:
 
 # %%
 # Float vs Fraction precision - summing reveals accumulated error
@@ -190,7 +198,8 @@ fraction_sum = sum(septuplet_fraction for _ in range(7))
 #
 # ## Coordinates
 #
-# A **Coordinate** is the fundamental building block of TimeToAlign!. It pairs a numeric value with a TimeUnit.
+# A **Coordinate** is the fundamental building block of TimeToAlign!.
+# It pairs a numeric value with a TimeUnit.
 #
 # ```python
 # Coordinate(value, unit)
@@ -289,7 +298,7 @@ original = Coordinate(100, TimeUnit.ticks)
 # | Graphical | `ContinuousGraphicalTimeline` | `DiscreteGraphicalTimeline` |
 
 # %%
-from timetoalign import (
+from timetoalign import (  # noqa: E402
     ContinuousGraphicalTimeline,
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
@@ -391,7 +400,9 @@ pprint(score_tl.summary())
 # 5. **Timelines**: Six types combining domain × continuous/discrete
 #
 # **Key Takeaway:**
-# > A Coordinate pairs a numeric value with a unit, ensuring type-safe temporal arithmetic. Timelines organize coordinates into a consistent structure for events.
+# > A Coordinate pairs a numeric value with a unit, ensuring type-safe
+# > temporal arithmetic. Timelines organize coordinates into a consistent
+# > structure for events.
 
 # %% [markdown]
 # ## Next Steps
@@ -430,7 +441,8 @@ pprint(score_tl.summary())
 # # 3. Dotted half note (3 quarters) in ticks
 # dotted_half = Coordinate(3 * ppqn, TimeUnit.ticks)
 #
-# {"4 quarters": four_quarters, "tick 720 in quarters": quarter_position, "dotted half": dotted_half}
+# {"4 quarters": four_quarters, "tick 720 in quarters": quarter_position,
+# #  "dotted half": dotted_half}
 # ```
 #
 # </details>

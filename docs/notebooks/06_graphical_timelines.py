@@ -16,9 +16,11 @@
 # %% [markdown]
 # # 06: Graphical Timelines
 #
-# This notebook demonstrates how to load and work with graphical timelines using the `GraphicalLoader`.
+# This notebook demonstrates how to load and work with graphical timelines
+# using the `GraphicalLoader`.
 #
-# Graphical timelines map 2D pixel coordinates in images to 1D timeline coordinates. This is essential for:
+# Graphical timelines map 2D pixel coordinates in images to 1D timeline
+# coordinates. This is essential for:
 # - Musical score analysis (staff systems as timelines)
 # - Spectrograms (time on x-axis)
 # - Graphical analytical diagrams (like Thoresen's morphological analyses)
@@ -39,8 +41,7 @@
 # %%
 from pathlib import Path
 
-from timetoalign.loader.graphical import GraphicalLoader, HorizontalLinePath
-from timetoalign.timelines import DiscreteGraphicalTimeline
+from timetoalign.loader.graphical import GraphicalLoader
 
 # %% [markdown]
 # ## Example 1: Single Image with Multiple Systems
@@ -163,10 +164,10 @@ loader2 = GraphicalLoader(metadata={"source": "Multi-page Analysis"})
 #
 # For non-horizontal timelines, use custom TimeAxisPath classes.
 
-import math
+import math  # noqa: E402
 
 # %%
-from timetoalign.loader.graphical import (
+from timetoalign.loader.graphical import (  # noqa: E402
     DiagonalLinePath,
     ParametricPath,
     VerticalLinePath,

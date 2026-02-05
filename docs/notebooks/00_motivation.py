@@ -16,7 +16,8 @@
 # %% [markdown]
 # # Why TimeToAlign! Matters
 #
-# This introductory tutorial explains the problem that TimeToAlign! solves and previews its core capabilities.
+# This introductory tutorial explains the problem that TimeToAlign! solves
+# and previews its core capabilities.
 #
 # **Learning Objectives:**
 # - Understand the challenge of heterogeneous music representations
@@ -43,7 +44,8 @@
 # | **MIDI file** | "At tick 960" |
 # | **MusicXML score** | "At beat 1 of measure 2" |
 #
-# All four answers refer to the *same musical moment*, yet they use completely different coordinate systems.
+# All four answers refer to the *same musical moment*, yet they use completely
+# different coordinate systems.
 
 # %% [markdown]
 # ### The Same Music, Four Different Worlds
@@ -201,7 +203,9 @@
 #
 # ## Quick Demo: Consistent Data from Different Sources
 #
-# Here's a preview of TimeToAlign! in action. We'll load the same piece (Chopin Etude Op.10 No.3) from two different formats and verify they produce consistent results.
+# Here's a preview of TimeToAlign! in action. We'll load the same piece
+# (Chopin Etude Op.10 No.3) from two different formats and verify they
+# produce consistent results.
 
 # %%
 from pathlib import Path
@@ -209,8 +213,9 @@ from pathlib import Path
 from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.tsv import TSVLoader
 
-# Locate test data
-DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data" / "midi" / "score"
+# Locate test data - relative to notebook location
+_notebook_dir = Path(__file__).resolve().parent
+DATA_DIR = _notebook_dir.parent.parent / "tests" / "data" / "midi" / "score"
 
 # Same piece, two different formats
 MUSICXML_PATH = DATA_DIR / "chopin_op10_no3.musicxml"
@@ -225,9 +230,9 @@ pt_loader.load(MUSICXML_PATH)
 tsv_loader = TSVLoader()
 tsv_loader.load(TSV_PATH)
 
-# Both produce ScoreBundles with consistent note counts!
-pt_notes = pt_loader.bundle.notes.to_dataframe()
-tsv_notes = tsv_loader.bundle.notes.to_dataframe()
+# Both produce ScoreStores with consistent note counts!
+pt_notes = pt_loader.store.notes.to_dataframe()
+tsv_notes = tsv_loader.store.notes.to_dataframe()
 
 pt_count = len(pt_notes[pt_notes["event_type"] == "Note"])
 tsv_count = len(tsv_notes[tsv_notes["event_type"] == "Note"])
@@ -239,7 +244,8 @@ tsv_count = len(tsv_notes[tsv_notes["event_type"] == "Note"])
 }
 
 # %% [markdown]
-# Both loaders found **exactly 498 notes** in Chopin's Etude. This consistency is not accidental - it's a core design principle of TimeToAlign!:
+# Both loaders found **exactly 498 notes** in Chopin's Etude. This consistency
+# is not accidental - it's a core design principle of TimeToAlign!:
 #
 # > **Different formats, same musical content, identical event counts.**
 #
@@ -272,14 +278,15 @@ tsv_count = len(tsv_notes[tsv_notes["event_type"] == "Note"])
 #
 # ## Tutorial Roadmap
 #
-# This tutorial series will guide you through TimeToAlign! from fundamentals to advanced applications:
+# This tutorial series will guide you through TimeToAlign! from fundamentals
+# to advanced applications:
 #
 # | Notebook | Topic | Key Concepts |
 # |----------|-------|-------------|
-# | **01_core_concepts** | Domains, Units, Coordinates | The building blocks of temporal representation |
+# | **01_core_concepts** | Domains, Units, Coordinates | Building blocks |
 # | **02_loading_data** | Loaders and EventStores | Bringing music data into TimeToAlign! |
 # | **03_conversion_maps** | ConversionMaps (C-Maps) | Transforming coordinates between units |
-# | **04_building_timelines** | Timelines and Hierarchies | Organizing events into structured timelines |
+# | **04_building_timelines** | Timelines and Hierarchies | Structured events |
 # | **05_timestamps** | Cross-Section Views | Querying coordinates across the hierarchy |
 # | **06_alignment_basics** | Matches and Alignment | Connecting events across timelines |
 #
@@ -291,7 +298,9 @@ tsv_count = len(tsv_notes[tsv_notes["event_type"] == "Note"])
 # ## Summary
 #
 # **The Problem:**
-# Music data exists in many formats (audio, scores, images) with incompatible coordinate systems. Connecting these representations requires tedious, error-prone manual work.
+# Music data exists in many formats (audio, scores, images) with incompatible
+# coordinate systems. Connecting these representations requires tedious,
+# error-prone manual work.
 #
 # **The Solution:**
 # TimeToAlign! provides:
@@ -303,7 +312,8 @@ tsv_count = len(tsv_notes[tsv_notes["event_type"] == "Note"])
 # 5. **Explicit Alignment**: Formal encoding of correspondence
 #
 # **Key Takeaway:**
-# > TimeToAlign! provides a common language for representing musical time, regardless of the original format.
+# > TimeToAlign! provides a common language for representing musical time,
+# > regardless of the original format.
 
 # %% [markdown]
 # ## Next Steps

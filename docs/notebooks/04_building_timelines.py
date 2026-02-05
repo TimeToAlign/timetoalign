@@ -16,7 +16,8 @@
 # %% [markdown]
 # # Building Timelines: Events and Hierarchies
 #
-# This tutorial shows how to create **Timeline** objects, populate them with events, and build hierarchical structures with child timelines.
+# This tutorial shows how to create **Timeline** objects, populate them with
+# events, and build hierarchical structures with child timelines.
 #
 # **Learning Objectives:**
 # - Create Timeline objects of various types
@@ -65,7 +66,7 @@ from pprint import pprint
 import pandas as pd
 
 from timetoalign import TimeUnit
-from timetoalign.maps import ScalarMap, TicksToQuarters
+from timetoalign.maps import TicksToQuarters
 from timetoalign.timelines import Timeline
 
 # %% [markdown]
@@ -411,7 +412,7 @@ pd.DataFrame(
 # Timelines can be created directly from EventStores loaded via Loaders:
 
 # %%
-from timetoalign.loader.score.tsv import TSVLoader
+from timetoalign.loader.score.tsv import TSVLoader  # noqa: E402
 
 # Load some real score data
 DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data" / "midi" / "score"
@@ -477,12 +478,15 @@ print(f"Events: {restored_tl.n_events}")
 # 7. **Serialization**: `timeline.to_dict()` and `Timeline.from_dict()`
 #
 # **Key Takeaway:**
-# > Timelines organize events and their relationships across time. They support hierarchical nesting (children) and coordinate conversion via attached C-Maps.
+# > Timelines organize events and their relationships across time. They support
+# > hierarchical nesting (children) and coordinate conversion via attached
+# > C-Maps.
 
 # %% [markdown]
 # ## Next Steps
 #
-# - **05_timestamps.ipynb**: Generate cross-section timestamps showing events across timeline hierarchies
+# - **05_timestamps.ipynb**: Generate cross-section timestamps showing events
+# across timeline hierarchies
 
 # %% [markdown]
 # ---
