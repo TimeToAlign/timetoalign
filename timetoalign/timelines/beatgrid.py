@@ -25,13 +25,18 @@ Key features:
 from __future__ import annotations
 
 from fractions import Fraction
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
+
+import numpy as np
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.maps import LinearMap
 from timetoalign.maps.meter import BeatInMeasureMap, MetricalPositionMap, MetricMap
 
 from .types import ContinuousLogicalTimeline
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 class BeatGrid(ContinuousLogicalTimeline):
@@ -93,6 +98,24 @@ class BeatGrid(ContinuousLogicalTimeline):
     # Force quarters unit and Fraction number type
     _default_unit: ClassVar[TimeUnit] = TimeUnit.quarters
     _default_number_type: ClassVar[NumberType] = NumberType.fraction
+
+    # Instance attributes (set in __init__ or from_tempo)
+    _beats_per_measure: int
+    _beat_unit: Fraction
+    _start_measure: int
+    _start_mn: str
+    _anacrusis_quarters: Fraction | None
+    _quarters_per_beat: Fraction
+    _quarters_per_measure: Fraction
+    _n_measures: int
+    _meter_map: MetricMap
+    _beat_map: BeatInMeasureMap
+    _metrical_map: MetricalPositionMap
+
+    # Optional attributes (only set when using from_tempo)
+    _tempo_bpm: float | None
+    _start_seconds: float
+    _tempo_map: LinearMap | None
 
     def __init__(
         self,
@@ -162,6 +185,11 @@ class BeatGrid(ContinuousLogicalTimeline):
             self._n_measures = int(length // self._quarters_per_measure)
             if self._n_measures == 0:
                 self._n_measures = 1
+
+        # Initialize optional tempo attributes (set by from_tempo())
+        self._tempo_bpm = None
+        self._start_seconds = 0.0
+        self._tempo_map = None
 
         # Create and attach metrical C-Maps using the new MetricMap infrastructure
         self._setup_metrical_cmaps()
@@ -303,6 +331,151 @@ class BeatGrid(ContinuousLogicalTimeline):
         """
         return self._metrical_map.quarters_at(measure, beat)
 
+    # region Vectorized Accessors
+
+    @property
+    def n_beats(self) -> int:
+        """Total number of beats in this grid."""
+        return int(float(self._length.value) / float(self._quarters_per_beat))
+
+    def beat_quarters(self) -> "NDArray[np.floating[Any]]":
+        """All beat positions in quarters. Vectorized O(1).
+
+        Returns:
+            numpy array of beat positions in quarter notes.
+
+        Examples:
+            >>> grid = BeatGrid(length=16, beats_per_measure=4)
+            >>> grid.beat_quarters()
+            array([ 0.,  1.,  2.,  3.,  4.,  5., ...])
+        """
+        return np.arange(self.n_beats, dtype=np.float64) * float(
+            self._quarters_per_beat
+        )
+
+    def measure_quarters(self) -> "NDArray[np.floating[Any]]":
+        """All measure start positions in quarters. Vectorized O(1).
+
+        Returns:
+            numpy array of measure start positions in quarter notes.
+
+        Examples:
+            >>> grid = BeatGrid(length=16, beats_per_measure=4)
+            >>> grid.measure_quarters()
+            array([ 0.,  4.,  8., 12.])
+        """
+        return np.arange(self._n_measures, dtype=np.float64) * float(
+            self._quarters_per_measure
+        )
+
+    def beat_seconds(self) -> "NDArray[np.floating[Any]]":
+        """All beat times in seconds. Vectorized O(1).
+
+        Requires the grid to have been created with from_tempo() and start_seconds,
+        or to have a tempo_map attached.
+
+        Returns:
+            numpy array of beat times in seconds.
+
+        Raises:
+            RuntimeError: If no tempo information is available.
+
+        Examples:
+            >>> grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=60, start_seconds=0.5)
+            >>> grid.beat_seconds()[:4]
+            array([0.5 , 1.0 , 1.5 , 2.0 ])
+        """
+        if not hasattr(self, "_tempo_bpm") or self._tempo_bpm is None:
+            raise RuntimeError(
+                "beat_seconds() requires tempo. Use from_tempo() to create the grid."
+            )
+        start = getattr(self, "_start_seconds", 0.0)
+        beat_duration = 60.0 / self._tempo_bpm * float(self._quarters_per_beat)
+        return start + np.arange(self.n_beats, dtype=np.float64) * beat_duration
+
+    def measure_seconds(self) -> "NDArray[np.floating[Any]]":
+        """All measure start times in seconds. Vectorized O(1).
+
+        Requires the grid to have been created with from_tempo() and start_seconds,
+        or to have a tempo_map attached.
+
+        Returns:
+            numpy array of measure start times in seconds.
+
+        Raises:
+            RuntimeError: If no tempo information is available.
+
+        Examples:
+            >>> grid = BeatGrid.from_tempo(tempo_bpm=120, beats_per_measure=4,
+            ...                            length_seconds=60, start_seconds=0.5)
+            >>> grid.measure_seconds()[:4]
+            array([0.5 , 2.5 , 4.5 , 6.5 ])
+        """
+        if not hasattr(self, "_tempo_bpm") or self._tempo_bpm is None:
+            raise RuntimeError(
+                "measure_seconds() requires tempo. Use from_tempo() to create the grid."
+            )
+        start = getattr(self, "_start_seconds", 0.0)
+        measure_duration = 60.0 / self._tempo_bpm * float(self._quarters_per_measure)
+        return start + np.arange(self._n_measures, dtype=np.float64) * measure_duration
+
+    def downbeat_seconds(self) -> "NDArray[np.floating[Any]]":
+        """Alias for measure_seconds(). All downbeat times in seconds."""
+        return self.measure_seconds()
+
+    def measure_at_seconds(self, seconds: float) -> int:
+        """Get the measure number at a given time in seconds.
+
+        Args:
+            seconds: Time position in seconds.
+
+        Returns:
+            Measure count (MC, 1-indexed by default).
+
+        Raises:
+            RuntimeError: If no tempo information is available.
+            ValueError: If seconds is before the first beat.
+        """
+        if not hasattr(self, "_tempo_bpm") or self._tempo_bpm is None:
+            raise RuntimeError(
+                "measure_at_seconds() requires tempo. Use from_tempo() to create the grid."
+            )
+        start = getattr(self, "_start_seconds", 0.0)
+        if seconds < start:
+            raise ValueError(f"seconds ({seconds}) is before first beat ({start})")
+
+        measure_duration = 60.0 / self._tempo_bpm * float(self._quarters_per_measure)
+        measure_index = int((seconds - start) / measure_duration)
+        return self._start_measure + min(measure_index, self._n_measures - 1)
+
+    def beat_at_seconds(self, seconds: float) -> int:
+        """Get the beat number within the measure at a given time in seconds.
+
+        Args:
+            seconds: Time position in seconds.
+
+        Returns:
+            Beat number (1-indexed).
+
+        Raises:
+            RuntimeError: If no tempo information is available.
+            ValueError: If seconds is before the first beat.
+        """
+        if not hasattr(self, "_tempo_bpm") or self._tempo_bpm is None:
+            raise RuntimeError(
+                "beat_at_seconds() requires tempo. Use from_tempo() to create the grid."
+            )
+        start = getattr(self, "_start_seconds", 0.0)
+        if seconds < start:
+            raise ValueError(f"seconds ({seconds}) is before first beat ({start})")
+
+        beat_duration = 60.0 / self._tempo_bpm * float(self._quarters_per_beat)
+        beat_index = int((seconds - start) / beat_duration)
+        beat_in_measure = (beat_index % self._beats_per_measure) + 1
+        return beat_in_measure
+
+    # endregion
+
     def materialize_beats(
         self,
         include_downbeats_only: bool = False,
@@ -391,6 +564,7 @@ class BeatGrid(ContinuousLogicalTimeline):
         beat_unit: Fraction = Fraction(1, 4),
         length_seconds: float | None = None,
         length_quarters: Fraction | int | None = None,
+        start_seconds: float = 0.0,
         start_measure: int = 1,
         start_mn: str | None = None,
         anacrusis_quarters: Fraction | None = None,
@@ -406,7 +580,11 @@ class BeatGrid(ContinuousLogicalTimeline):
             beats_per_measure: Number of beats per measure. Default 4.
             beat_unit: Note value of one beat. Default 1/4 (quarter note).
             length_seconds: Duration in seconds (converted using tempo).
+                If start_seconds > 0, this should be the TOTAL audio duration;
+                the grid will span from start_seconds to length_seconds.
             length_quarters: Duration in quarter notes.
+            start_seconds: Offset in seconds where the first beat occurs.
+                Default 0.0. Used by beat_seconds() and measure_seconds().
             start_measure: MC of the first measure. Default 1.
             start_mn: MN label of the first measure. Default: same as start_measure.
             anacrusis_quarters: If set, first measure is shorter (pickup).
@@ -414,11 +592,26 @@ class BeatGrid(ContinuousLogicalTimeline):
             name: Human-readable name.
 
         Returns:
-            A new BeatGrid instance.
+            A new BeatGrid instance with vectorized accessors for beat/measure times.
 
         Raises:
             ValueError: If neither length_seconds nor length_quarters is provided.
             ValueError: If both length_seconds and length_quarters are provided.
+
+        Examples:
+            >>> # Audio track: 279 seconds, first beat at 0.092s, 160 BPM, 4/4
+            >>> grid = BeatGrid.from_tempo(
+            ...     tempo_bpm=160.0,
+            ...     beats_per_measure=4,
+            ...     length_seconds=279.0,
+            ...     start_seconds=0.092,
+            ... )
+            >>> grid.n_measures
+            186
+            >>> grid.beat_seconds()[:4]
+            array([0.092, 0.467, 0.842, 1.217])
+            >>> grid.measure_seconds()[:4]
+            array([0.092, 1.592, 3.092, 4.592])
         """
         if length_seconds is None and length_quarters is None:
             raise ValueError("Must provide either length_seconds or length_quarters")
@@ -433,12 +626,19 @@ class BeatGrid(ContinuousLogicalTimeline):
                 length = length_quarters
         else:
             # Convert seconds to quarters using tempo
+            # If start_seconds is provided, grid spans from start_seconds to length_seconds
+            effective_duration = length_seconds - start_seconds
+            if effective_duration <= 0:
+                raise ValueError(
+                    f"length_seconds ({length_seconds}) must be greater than "
+                    f"start_seconds ({start_seconds})"
+                )
             quarters_per_beat = Fraction(beat_unit) * 4
             beats_per_second = tempo_bpm / 60.0
             quarters_per_second = float(quarters_per_beat) * beats_per_second
-            length = Fraction(length_seconds * quarters_per_second).limit_denominator(
-                10000
-            )
+            length = Fraction(
+                effective_duration * quarters_per_second
+            ).limit_denominator(10000)
 
         grid = cls(
             length=length,
@@ -451,8 +651,9 @@ class BeatGrid(ContinuousLogicalTimeline):
             name=name,
         )
 
-        # Store tempo for reference
+        # Store tempo and start offset for vectorized accessors
         grid._tempo_bpm = tempo_bpm
+        grid._start_seconds = start_seconds
 
         # Create a tempo C-Map: quarters -> seconds
         quarters_per_beat = Fraction(beat_unit) * 4
