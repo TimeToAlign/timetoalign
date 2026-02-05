@@ -106,6 +106,25 @@ class ATONLoader:
         self._source_path: Path | None = None
         self._logger = module_logger.getChild("ATONLoader")
 
+    @classmethod
+    def from_file(cls, path: Path | str) -> Self:
+        """Create a loader and load an ATON file in one step.
+
+        Convenience constructor for loading a single file.
+
+        Args:
+            path: Path to the ATON file.
+
+        Returns:
+            A new ATONLoader instance with the file already loaded.
+
+        Examples:
+            >>> loader = ATONLoader.from_file("analysis.txt")
+            >>> loader.musical_holes
+            30092
+        """
+        return cls().load(path)
+
     # region Loading
 
     def load(self, path: Path | str) -> Self:

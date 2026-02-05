@@ -82,6 +82,7 @@ class ConversionMap(ABC, Generic[T]):
         source_unit: TimeUnit | str | None = None,
         target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a ConversionMap.
 
@@ -89,6 +90,9 @@ class ConversionMap(ABC, Generic[T]):
             source_unit: The unit of input coordinates. Defaults to class default.
             target_unit: The unit of output coordinates. Defaults to class default.
             uid: Optional explicit ID. If None, auto-generated.
+            name: Human-readable name for this map. Used as column header in
+                timestamp tables. Defaults to "source_to_target" if units are
+                provided, otherwise uses the map's ID.
         """
         # Generate or use provided ID
         if uid is not None:
@@ -107,6 +111,14 @@ class ConversionMap(ABC, Generic[T]):
         else:
             self._target_unit = self._default_target_unit
 
+        # Set name: explicit > "source_to_target" > id
+        if name is not None:
+            self._name = name
+        elif self._source_unit and self._target_unit:
+            self._name = f"{self._source_unit.value}_to_{self._target_unit.value}"
+        else:
+            self._name = self._id
+
         self._logger = module_logger.getChild(self.__class__.__name__)
 
     @property
@@ -123,6 +135,15 @@ class ConversionMap(ABC, Generic[T]):
     def target_unit(self) -> TimeUnit | None:
         """The unit of output coordinates, if specified."""
         return self._target_unit
+
+    @property
+    def name(self) -> str:
+        """Human-readable name for this map.
+
+        Used as column header in timestamp tables. Defaults to
+        "source_to_target" if units are provided, otherwise the map's ID.
+        """
+        return self._name
 
     @property
     def is_invertible(self) -> bool:

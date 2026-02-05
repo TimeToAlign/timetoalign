@@ -2004,12 +2004,18 @@ class Timeline:
         columns: dict[str, pa.Array] = {}
         fields: list[pa.Field] = []
 
+        # Helper to get PyArrow type from NumberType
+        def _get_pa_type(number_type: NumberType) -> pa.DataType:
+            """Map NumberType to PyArrow type: int -> int64, else float64."""
+            return pa.int64() if number_type == NumberType.int else pa.float64()
+
         # Add axis column (root timeline coordinate)
+        axis_pa_type = _get_pa_type(self._number_type)
         columns["axis"] = axis
         fields.append(
             pa.field(
                 "axis",
-                pa.float64(),
+                axis_pa_type,
                 metadata={
                     b"unit": self._unit.value.encode("utf-8"),
                     b"timeline_id": self._id.encode("utf-8"),
@@ -2022,7 +2028,7 @@ class Timeline:
         fields.append(
             pa.field(
                 self._id,
-                pa.float64(),
+                axis_pa_type,
                 metadata={
                     b"unit": self._unit.value.encode("utf-8"),
                     b"timeline_id": self._id.encode("utf-8"),
@@ -2035,13 +2041,14 @@ class Timeline:
             recursion_limit=recursion_limit,
             include_self=False,
         ):
+            child_pa_type = _get_pa_type(child._number_type)
             columns[child.id] = child._compute_local_coordinates(
                 axis, offset=float(child_offset.value)
             )
             fields.append(
                 pa.field(
                     child.id,
-                    pa.float64(),
+                    child_pa_type,
                     metadata={
                         b"unit": child.unit.value.encode("utf-8"),
                         b"timeline_id": child.id.encode("utf-8"),
@@ -2056,13 +2063,15 @@ class Timeline:
             axis_np = axis.to_numpy()
             for cmap in conversion_maps:
                 converted = cmap.convert_array(axis_np)
-                columns[cmap.id] = pa.array(converted)
+                # Use map's name property for human-readable column header
+                col_name = cmap.name
+                columns[col_name] = pa.array(converted)
                 # C-Map columns include target unit from the C-Map
                 target_unit = getattr(cmap, "target_unit", None)
                 unit_value = target_unit.value if target_unit else "unknown"
                 fields.append(
                     pa.field(
-                        cmap.id,
+                        col_name,
                         pa.float64(),
                         metadata={
                             b"unit": unit_value.encode("utf-8"),

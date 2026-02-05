@@ -24,6 +24,44 @@ class PerformanceMidiLoader(MidiLoader):
     changes as Instant events.
     """
 
+    @classmethod
+    def from_file(
+        cls,
+        path: Path | str,
+        *,
+        parse_durations: bool = True,
+        on0_means_off: bool = True,
+        include_controls: bool = True,
+        include_program_changes: bool = True,
+    ) -> "PerformanceMidiLoader":
+        """Create a loader and load a MIDI file in one step.
+
+        Convenience constructor for loading a single file.
+
+        Args:
+            path: Path to the MIDI file.
+            parse_durations: Whether to pair note_on/off into intervals.
+            on0_means_off: Treat note_on with velocity 0 as note_off.
+            include_controls: Include Control Change events.
+            include_program_changes: Include Program Change events.
+
+        Returns:
+            A new PerformanceMidiLoader instance with the file already loaded.
+
+        Examples:
+            >>> loader = PerformanceMidiLoader.from_file("performance.mid")
+            >>> loader.ticks_per_beat
+            480
+        """
+        loader = cls(
+            parse_durations=parse_durations,
+            on0_means_off=on0_means_off,
+            include_controls=include_controls,
+            include_program_changes=include_program_changes,
+        )
+        loader.load(path)
+        return loader
+
     def __init__(
         self,
         *,

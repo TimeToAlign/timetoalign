@@ -60,6 +60,7 @@ class LinearMap(ConversionMap[CoordinateValue]):
         source_unit: TimeUnit | str | None = None,
         target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a LinearMap.
 
@@ -69,6 +70,8 @@ class LinearMap(ConversionMap[CoordinateValue]):
             source_unit: The unit of input coordinates.
             target_unit: The unit of output coordinates.
             uid: Optional explicit ID.
+            name: Human-readable name for this map. Used as column header in
+                timestamp tables. Defaults to "source_to_target".
 
         Raises:
             ValueError: If scalar is zero (map would not be invertible).
@@ -77,6 +80,7 @@ class LinearMap(ConversionMap[CoordinateValue]):
             source_unit=source_unit,
             target_unit=target_unit,
             uid=uid,
+            name=name,
         )
         if scalar == 0:
             raise ValueError("LinearMap scalar cannot be zero (not invertible)")
@@ -215,6 +219,7 @@ class ScalarMap(ConversionMap[CoordinateValue]):
         source_unit: TimeUnit | str | None = None,
         target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a ScalarMap.
 
@@ -223,6 +228,9 @@ class ScalarMap(ConversionMap[CoordinateValue]):
             source_unit: The unit of input coordinates.
             target_unit: The unit of output coordinates.
             uid: Optional explicit ID.
+            name: Human-readable name for this map. Used as column header in
+                timestamp tables. Defaults to "source_to_target" (e.g.,
+                "pixels_to_inches").
 
         Raises:
             ValueError: If scalar is zero.
@@ -231,6 +239,7 @@ class ScalarMap(ConversionMap[CoordinateValue]):
             source_unit=source_unit,
             target_unit=target_unit,
             uid=uid,
+            name=name,
         )
         if scalar == 0:
             raise ValueError("ScalarMap scalar cannot be zero")
@@ -319,6 +328,7 @@ class ShiftMap(ConversionMap[CoordinateValue]):
         source_unit: TimeUnit | str | None = None,
         target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a ShiftMap.
 
@@ -327,11 +337,14 @@ class ShiftMap(ConversionMap[CoordinateValue]):
             source_unit: The unit of input coordinates.
             target_unit: The unit of output coordinates (typically same as source).
             uid: Optional explicit ID.
+            name: Human-readable name for this map. Used as column header in
+                timestamp tables. Defaults to "source_to_target".
         """
         super().__init__(
             source_unit=source_unit,
             target_unit=target_unit,
             uid=uid,
+            name=name,
         )
         self._offset = offset
 
