@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader.schema import fraction_to_struct
+from timetoalign.loader.schema import coordinate_to_struct, fraction_to_struct
 
 from .base import ScoreLoader
 from .bundle import ScoreStore
@@ -195,19 +195,21 @@ class TSVLoader(ScoreLoader):
                     "name": str(row.get("name", "")),
                     "temporal_type": "interval" if dur_qb_float > 0 else "instant",
                     "event_type": "Note" if midi_pitch else "Rest",
-                    # Temporal
+                    # Temporal - core coordinates use coordinate_to_struct
+                    # (value/numerator/denominator format for EventData)
                     "quarterbeats": (
-                        fraction_to_struct(qb)
+                        coordinate_to_struct(qb)
                         if qb is not None
-                        else {"num": 0, "den": 1}
+                        else coordinate_to_struct(0)
                     ),
                     "quarterbeats_float": qb_float,
                     "duration_qb": (
-                        fraction_to_struct(dur_qb) if dur_qb is not None else None
+                        coordinate_to_struct(dur_qb) if dur_qb is not None else None
                     ),
                     "duration_qb_float": dur_qb_float,
                     "mc": mc,
                     "mn": mn,
+                    # Extra fraction fields use fraction_to_struct (num/den format)
                     "mc_onset": (
                         fraction_to_struct(mc_onset) if mc_onset is not None else None
                     ),

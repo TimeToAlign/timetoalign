@@ -65,10 +65,14 @@ TRACKER_HOLES:       100   # Number of tracker bar holes (pitch resolution)
 
 | File | Expected Note Count | Description |
 |------|-------------------|-------------|
-| `fd660zf8362_raw.mid` | 8718 | One note per merged hole punch |
-| `fd660zf8362_exp.mid` | 8718 | Expressive interpretation with dynamics |
+| `fd660zf8362_raw.mid` | 30092 | One MIDI event per hole punch (matches MUSICAL_HOLES) |
+| `fd660zf8362_exp.mid` | 6380 | Merged notes with expressive dynamics |
 
-**Validation**: Raw MIDI note count MUST equal `MUSICAL_NOTES` from ATON (8718).
+**Validation**:
+- Raw MIDI note count MUST equal `MUSICAL_HOLES` from ATON (30092).
+- The expressive MIDI has merged adjacent holes into sustained notes (6380 total).
+- Note: The ATON `MUSICAL_NOTES` value (8718) represents a different merging algorithm
+  and does NOT directly correspond to the expressive MIDI note count.
 
 ### MP3 Audio
 
@@ -91,11 +95,11 @@ DGT1 (Piano Roll Image: 299400 px)
   |       |
   |       | 1:1 mapping: pixel_row -> tick (relative to first hole)
   |       v
-  +---- DLT1 (MIDI-raw: 8718 notes, N ticks total)
+  +---- DLT1 (MIDI-raw: 30092 notes, 277776 ticks total)
            |
-           | Same tempo, merged holes
+           | Merged adjacent holes
            v
-        DLT2 (MIDI-expressive: 8718 notes, same tick length)
+        DLT2 (MIDI-expressive: 6380 notes, 273249 ticks)
            |
            | Tempo map -> seconds
            v
@@ -103,7 +107,7 @@ DGT1 (Piano Roll Image: 299400 px)
            |
            | Perfect alignment (same performance)
            v
-        CLT1 (Score: 888 quarterbeats)
+        CLT1 (Score: 888 quarterbeats, 5577 notes)
 ```
 
 ### Alignment Anchors
