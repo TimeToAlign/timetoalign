@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.3
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -85,10 +85,11 @@
 
 # %% [markdown]
 # ## Setup
-
-import importlib.util
+#
+# import importlib.util
 
 # %%
+import importlib.util
 from pathlib import Path
 
 from timetoalign.alignment import AlignmentBundle, TimelineGroup
@@ -468,8 +469,9 @@ print(f"Music coord 8000 -> Image pixel {result_end}")
 # - **Cross-group transfer** via shared timelines (automated)
 #
 # ### Next Tutorial
-# See **Application A3: SUPRA Piano Roll** for a complete alignment workflow
-# with IIIF image metadata and ATON hole punch data.
+# See **08_supra_piano_roll.ipynb** for a complete alignment workflow
+# with IIIF image metadata, ATON hole punch data, MIDI files, audio, and score
+# annotations.
 
 # %% [markdown]
 # ---

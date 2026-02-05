@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.3
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -39,6 +39,7 @@
 # # !pip install timetoalign[graphical]
 
 # %%
+import math
 from pathlib import Path
 
 from timetoalign.loader.graphical import GraphicalLoader
@@ -163,8 +164,8 @@ loader2 = GraphicalLoader(metadata={"source": "Multi-page Analysis"})
 # ## Advanced: Custom Paths
 #
 # For non-horizontal timelines, use custom TimeAxisPath classes.
-
-import math  # noqa: E402
+#
+# import math  # noqa: E402
 
 # %%
 from timetoalign.loader.graphical import (  # noqa: E402
