@@ -349,6 +349,299 @@ class TestBeatGridAsChild:
         assert grid.measure_at(8) == 7
 
 
+class TestBeatGridVectorizedAccessors:
+    """Tests for vectorized beat/measure accessors.
+
+    These methods provide O(1) numpy-array access to all beat and measure
+    coordinates, avoiding iteration. Critical for audio beatgrid use cases.
+    """
+
+    def test_n_beats(self):
+        """Test n_beats property."""
+        grid = BeatGrid(length=Fraction(32, 1), beats_per_measure=4)
+        # 32 quarters / 1 quarter per beat = 32 beats
+        assert grid.n_beats == 32
+
+    def test_n_beats_with_eighth_note_beats(self):
+        """Test n_beats with non-quarter beat unit (6/8 time)."""
+        grid = BeatGrid(
+            length=Fraction(12, 1),  # 12 quarters
+            beats_per_measure=6,
+            beat_unit=Fraction(1, 8),  # Eighth note beats
+        )
+        # 1 eighth = 0.5 quarters, so 12 quarters / 0.5 = 24 beats
+        assert grid.n_beats == 24
+
+    def test_beat_quarters(self):
+        """Test beat_quarters returns correct numpy array."""
+        grid = BeatGrid(length=Fraction(8, 1), beats_per_measure=4)
+
+        quarters = grid.beat_quarters()
+
+        assert isinstance(quarters, np.ndarray)
+        assert quarters.dtype == np.float64
+        assert len(quarters) == 8
+        np.testing.assert_array_equal(quarters, [0, 1, 2, 3, 4, 5, 6, 7])
+
+    def test_measure_quarters(self):
+        """Test measure_quarters returns correct numpy array."""
+        grid = BeatGrid(length=Fraction(16, 1), beats_per_measure=4)
+
+        quarters = grid.measure_quarters()
+
+        assert isinstance(quarters, np.ndarray)
+        assert quarters.dtype == np.float64
+        assert len(quarters) == 4
+        np.testing.assert_array_equal(quarters, [0, 4, 8, 12])
+
+    def test_beat_seconds_requires_tempo(self):
+        """beat_seconds raises RuntimeError without tempo info."""
+        grid = BeatGrid(length=Fraction(16, 1), beats_per_measure=4)
+
+        with pytest.raises(RuntimeError, match="requires tempo"):
+            grid.beat_seconds()
+
+    def test_beat_seconds_with_tempo(self):
+        """Test beat_seconds with tempo information."""
+        # At 120 BPM: 0.5 seconds per quarter
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=120.0,
+            beats_per_measure=4,
+            length_quarters=Fraction(8, 1),
+            start_seconds=0.0,
+        )
+
+        seconds = grid.beat_seconds()
+
+        assert isinstance(seconds, np.ndarray)
+        assert len(seconds) == 8
+        # Expected: 0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5
+        np.testing.assert_array_almost_equal(
+            seconds, [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]
+        )
+
+    def test_beat_seconds_with_offset(self):
+        """Test beat_seconds respects start_seconds offset."""
+        # At 160 BPM: 0.375 seconds per quarter (60/160 = 0.375)
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=160.0,
+            beats_per_measure=4,
+            length_quarters=Fraction(8, 1),
+            start_seconds=0.092,  # First beat offset
+        )
+
+        seconds = grid.beat_seconds()
+
+        # Expected: 0.092, 0.467, 0.842, 1.217, ...
+        assert seconds[0] == pytest.approx(0.092)
+        assert seconds[1] == pytest.approx(0.467)
+        assert seconds[2] == pytest.approx(0.842)
+        assert seconds[3] == pytest.approx(1.217)
+
+    def test_measure_seconds_requires_tempo(self):
+        """measure_seconds raises RuntimeError without tempo info."""
+        grid = BeatGrid(length=Fraction(16, 1), beats_per_measure=4)
+
+        with pytest.raises(RuntimeError, match="requires tempo"):
+            grid.measure_seconds()
+
+    def test_measure_seconds_with_tempo(self):
+        """Test measure_seconds with tempo information."""
+        # At 120 BPM with 4/4: 2.0 seconds per measure
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=120.0,
+            beats_per_measure=4,
+            length_quarters=Fraction(16, 1),
+            start_seconds=0.0,
+        )
+
+        seconds = grid.measure_seconds()
+
+        assert isinstance(seconds, np.ndarray)
+        assert len(seconds) == 4
+        np.testing.assert_array_almost_equal(seconds, [0.0, 2.0, 4.0, 6.0])
+
+    def test_measure_seconds_with_offset(self):
+        """Test measure_seconds respects start_seconds offset."""
+        # At 160 BPM with 4/4: 1.5 seconds per measure (60/160 * 4 = 1.5)
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=160.0,
+            beats_per_measure=4,
+            length_quarters=Fraction(16, 1),
+            start_seconds=0.092,
+        )
+
+        seconds = grid.measure_seconds()
+
+        # Expected: 0.092, 1.592, 3.092, 4.592
+        np.testing.assert_array_almost_equal(seconds, [0.092, 1.592, 3.092, 4.592])
+
+    def test_downbeat_seconds_alias(self):
+        """downbeat_seconds is an alias for measure_seconds."""
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=120.0,
+            beats_per_measure=4,
+            length_quarters=Fraction(8, 1),
+            start_seconds=0.5,
+        )
+
+        np.testing.assert_array_equal(grid.downbeat_seconds(), grid.measure_seconds())
+
+    def test_measure_at_seconds(self):
+        """Test point query: measure number at a given time."""
+        # At 160 BPM with 4/4: 1.5 seconds per measure
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=160.0,
+            beats_per_measure=4,
+            length_seconds=279.336,
+            start_seconds=0.092,
+        )
+
+        # t=0.092 is start of measure 1
+        assert grid.measure_at_seconds(0.092) == 1
+        # t=1.0 is within measure 1 (measure 1 ends at 1.592)
+        assert grid.measure_at_seconds(1.0) == 1
+        # t=1.592 is start of measure 2
+        assert grid.measure_at_seconds(1.592) == 2
+        # t=60.0: (60.0 - 0.092) / 1.5 = 39.9 -> measure 40
+        assert grid.measure_at_seconds(60.0) == 40
+
+    def test_measure_at_seconds_before_start(self):
+        """measure_at_seconds raises ValueError if before first beat."""
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=160.0,
+            beats_per_measure=4,
+            length_seconds=60.0,
+            start_seconds=0.5,
+        )
+
+        with pytest.raises(ValueError, match="before first beat"):
+            grid.measure_at_seconds(0.1)
+
+    def test_beat_at_seconds(self):
+        """Test point query: beat-in-measure at a given time."""
+        # At 160 BPM: 0.375 seconds per beat
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=160.0,
+            beats_per_measure=4,
+            length_seconds=60.0,
+            start_seconds=0.0,
+        )
+
+        # t=0.0 is beat 1
+        assert grid.beat_at_seconds(0.0) == 1
+        # t=0.375 is beat 2
+        assert grid.beat_at_seconds(0.375) == 2
+        # t=0.75 is beat 3
+        assert grid.beat_at_seconds(0.75) == 3
+        # t=1.125 is beat 4
+        assert grid.beat_at_seconds(1.125) == 4
+        # t=1.5 is beat 1 of measure 2
+        assert grid.beat_at_seconds(1.5) == 1
+
+    def test_beat_at_seconds_before_start(self):
+        """beat_at_seconds raises ValueError if before first beat."""
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=160.0,
+            beats_per_measure=4,
+            length_seconds=60.0,
+            start_seconds=0.5,
+        )
+
+        with pytest.raises(ValueError, match="before first beat"):
+            grid.beat_at_seconds(0.1)
+
+
+class TestBeatGridAudioUseCase:
+    """Integration test: Audio beatgrid use case from tutorial.
+
+    Validates the full workflow for adding metrical structure to audio files
+    with known tempo and first-beat offset.
+    """
+
+    # Test data from tutorial: Hard techno tracks at 160 BPM, 4/4
+    TRACKS = {
+        "Ao Ceu": {"duration": 279.336, "first_beat": 0.092},
+        "Bye Bye": {"duration": 274.5, "first_beat": 0.035},
+        "Bass Kick": {"duration": 316.0, "first_beat": 0.061},
+    }
+    TEMPO_BPM = 160.0
+    BEATS_PER_MEASURE = 4
+
+    def test_ao_ceu_grid(self):
+        """Full validation for 'Ao Ceu' track."""
+        info = self.TRACKS["Ao Ceu"]
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=self.TEMPO_BPM,
+            beats_per_measure=self.BEATS_PER_MEASURE,
+            length_seconds=info["duration"],
+            start_seconds=info["first_beat"],
+        )
+
+        # Exact measure and beat counts
+        assert grid.n_measures == 186
+        assert grid.n_beats == 744
+
+        # First 4 beats
+        beats = grid.beat_seconds()[:4]
+        np.testing.assert_array_almost_equal(beats, [0.092, 0.467, 0.842, 1.217])
+
+        # First 4 measures
+        measures = grid.measure_seconds()[:4]
+        np.testing.assert_array_almost_equal(measures, [0.092, 1.592, 3.092, 4.592])
+
+    def test_bye_bye_grid(self):
+        """Full validation for 'Bye Bye' track."""
+        info = self.TRACKS["Bye Bye"]
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=self.TEMPO_BPM,
+            beats_per_measure=self.BEATS_PER_MEASURE,
+            length_seconds=info["duration"],
+            start_seconds=info["first_beat"],
+        )
+
+        assert grid.n_measures == 182
+        assert grid.n_beats == 731
+
+        # First 4 beats
+        beats = grid.beat_seconds()[:4]
+        np.testing.assert_array_almost_equal(beats, [0.035, 0.410, 0.785, 1.160])
+
+    def test_bass_kick_grid(self):
+        """Full validation for 'Bass Kick' track."""
+        info = self.TRACKS["Bass Kick"]
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=self.TEMPO_BPM,
+            beats_per_measure=self.BEATS_PER_MEASURE,
+            length_seconds=info["duration"],
+            start_seconds=info["first_beat"],
+        )
+
+        assert grid.n_measures == 210
+        assert grid.n_beats == 842
+
+        # First 4 beats
+        beats = grid.beat_seconds()[:4]
+        np.testing.assert_array_almost_equal(beats, [0.061, 0.436, 0.811, 1.186])
+
+    def test_beat_spacing_is_constant(self):
+        """Verify constant beat spacing (sanity check for linearity)."""
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=self.TEMPO_BPM,
+            beats_per_measure=self.BEATS_PER_MEASURE,
+            length_seconds=60.0,
+            start_seconds=0.0,
+        )
+
+        beats = grid.beat_seconds()
+        # All beat intervals should be exactly 0.375 seconds (60/160)
+        intervals = np.diff(beats)
+        expected_interval = 60.0 / self.TEMPO_BPM
+        np.testing.assert_array_almost_equal(
+            intervals, np.full_like(intervals, expected_interval)
+        )
+
+
 class TestBeatGridSUPRAValidation:
     """Validate BeatGrid against SUPRA piano roll data.
 
