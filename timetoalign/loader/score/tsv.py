@@ -45,6 +45,26 @@ class TSVLoader(ScoreLoader):
     - tied, gracenote, chord_id: Note attributes
     """
 
+    @classmethod
+    def from_file(cls, *paths: Path | str) -> "TSVLoader":
+        """Create a loader and load TSV files in one step.
+
+        Convenience constructor for loading one or more TSV files.
+
+        Args:
+            *paths: Paths to TSV files (notes, measures, harmonies, chords).
+
+        Returns:
+            A new TSVLoader instance with the files already loaded.
+
+        Examples:
+            >>> loader = TSVLoader.from_file("score.notes.tsv", "score.measures.tsv")
+            >>> loader.store.summary()
+        """
+        loader = cls()
+        loader.load(*paths)
+        return loader
+
     def _load_source(self, source: Path) -> ScoreStore:
         """Load TSV file(s) and return ScoreStore.
 
@@ -67,6 +87,10 @@ class TSVLoader(ScoreLoader):
             return self._load_measures(df, source)
         elif "notes" in fname:
             return self._load_notes(df, source)
+        elif "harmonies" in fname:
+            return self._load_annotations(df, source, subtype="Harmony")
+        elif "chords" in fname:
+            return self._load_annotations(df, source, subtype="Chord")
         else:
             # Default to notes if has pitch columns
             if "midi" in df.columns or "tpc" in df.columns:
@@ -467,5 +491,117 @@ class TSVLoader(ScoreLoader):
                 "source": str(source),
                 "n_measures": len(measure_rows),
                 "flow_control": measures_data.get_flow_control_summary(),
+            },
+        )
+
+    def _load_annotations(
+        self, df: "pd.DataFrame", source: Path, subtype: str
+    ) -> ScoreStore:
+        """Load annotations from TSV (harmonies, chords).
+
+        Parses ms3/DCML harmonies.tsv or chords.tsv format with columns:
+        - mc, mn: Measure context
+        - quarterbeats: Position in quarter notes
+        - label: The annotation text (harmony/chord symbol)
+        - chord, numeral, form, figbass, etc.: Parsed components
+
+        Args:
+            df: pandas DataFrame from ms3.load_tsv.
+            source: Path to source file.
+            subtype: The annotation subtype ("Harmony" or "Chord").
+
+        Returns:
+            ScoreStore with populated AnnotationEventData.
+        """
+        import pandas as pd
+
+        if df.empty:
+            return ScoreStore.empty()
+
+        annotation_rows = []
+
+        for idx, row in df.iterrows():
+            # Temporal
+            qb = self._parse_fraction(row.get("quarterbeats", 0))
+            qb_float = float(qb) if qb else 0.0
+
+            # Duration (if available)
+            dur_qb = self._parse_fraction(row.get("duration_qb"))
+            dur_qb_float = float(dur_qb) if dur_qb else None
+
+            # Measure context
+            mc = int(row["mc"]) if pd.notna(row.get("mc")) else None
+            mn = str(row.get("mn", "")) if pd.notna(row.get("mn")) else None
+            mc_onset = self._parse_fraction(row.get("mc_onset"))
+            mn_onset = self._parse_fraction(row.get("mn_onset"))
+
+            # Label - try various column names used in DCML
+            label = None
+            for label_col in ["label", "chord", "numeral", "globalkey_is_minor"]:
+                if pd.notna(row.get(label_col)):
+                    label = str(row[label_col])
+                    break
+
+            if label is None:
+                # Construct label from components if available
+                parts = []
+                for col in ["numeral", "form", "figbass", "relativeroot"]:
+                    if pd.notna(row.get(col)) and row.get(col):
+                        parts.append(str(row[col]))
+                label = "".join(parts) if parts else f"{subtype}_{idx}"
+
+            # Staff context
+            staff = int(row["staff"]) if pd.notna(row.get("staff")) else None
+
+            annotation_rows.append(
+                {
+                    "id": f"ann_{subtype.lower()}_{qb_float}_{idx}",
+                    "name": label,
+                    "temporal_type": "interval" if dur_qb_float else "instant",
+                    "event_type": "Annotation",
+                    "subtype": subtype,
+                    "text": label,
+                    # Temporal
+                    "quarterbeats": (
+                        coordinate_to_struct(qb)
+                        if qb is not None
+                        else coordinate_to_struct(0)
+                    ),
+                    "quarterbeats_float": qb_float,
+                    "duration_qb": (
+                        coordinate_to_struct(dur_qb) if dur_qb is not None else None
+                    ),
+                    "duration_float": dur_qb_float,
+                    # Measure context
+                    "mc": mc,
+                    "mn": mn,
+                    "mc_onset": (
+                        fraction_to_struct(mc_onset) if mc_onset is not None else None
+                    ),
+                    "mn_onset": (
+                        fraction_to_struct(mn_onset) if mn_onset is not None else None
+                    ),
+                    # Context
+                    "staff": staff,
+                }
+            )
+
+        annotations_data = AnnotationEventData.from_dicts(
+            annotation_rows,
+            unit=TimeUnit.quarters,
+            number_type=NumberType.fraction,
+        )
+
+        return ScoreStore(
+            notes=NoteEventData.empty(),
+            measures=MeasureData.empty(),
+            controls=ControlEventData.empty(),
+            annotations=annotations_data,
+            metadata={
+                "format": "tsv",
+                "parser": "ms3",
+                "source": str(source),
+                "annotation_type": subtype,
+                "n_annotations": len(annotation_rows),
             },
         )

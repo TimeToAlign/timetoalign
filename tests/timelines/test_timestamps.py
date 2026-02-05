@@ -666,14 +666,14 @@ class TestGetTimestampTableFiltered:
             conversion_maps=[cmap],
         )
 
-        # Should have C-Map column
-        assert cmap.id in table.column_names
+        # Should have C-Map column (uses cmap.name, not cmap.id)
+        assert cmap.name in table.column_names
 
         # Verify conversion is correct
         df = table.to_pandas()
         # axis values should be doubled in the C-Map column
         for _, row in df.iterrows():
-            assert row[cmap.id] == row["axis"] * 2.0
+            assert row[cmap.name] == row["axis"] * 2.0
 
 
 class TestGetTimestampsFiltered:
