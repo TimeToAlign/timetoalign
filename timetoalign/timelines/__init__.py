@@ -69,7 +69,9 @@ from .flow import (
     CompleteMeasureGroup,
     Flow,
     FlowController,
+    FlowControllerBase,
     FlowMap,
+    FlowMapSection,
     FlowMode,
     IncompleteGroup,
     IncompleteMeasure,
@@ -79,9 +81,11 @@ from .flow import (
     OverlengthGroup,
     OverlengthMeasure,
     PlaythroughSection,
+    ScoreFlowController,
     SplitMeasure,
     TypedMeasure,
     VoltaGroup,
+    create_unfolded_timeline,
     load_valid_flows,
 )
 from .regions import Region
@@ -140,8 +144,12 @@ __all__ = [
     # Sections and Flow
     "Flow",
     "FlowMap",
-    "FlowController",
+    "FlowMapSection",
+    "FlowController",  # Backwards-compatible alias for ScoreFlowController
+    "FlowControllerBase",  # Abstract base class (Phase 3.9)
+    "ScoreFlowController",  # Concrete implementation for score data (Phase 3.9)
     "AtomicSection",
     "PlaythroughSection",
     "load_valid_flows",
+    "create_unfolded_timeline",  # Phase 3.9 - create unfolded timeline from flow
 ]

@@ -28,13 +28,18 @@ Gold Standard Conventions (from ms3):
 
 from __future__ import annotations
 
+import bisect
 import logging
 import weakref
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Iterator
+
+from timetoalign.core import NumberType
+from timetoalign.loader.schema import struct_to_coordinate
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -42,6 +47,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from timetoalign.loader.score.stores.measures import MeasureData
+    from timetoalign.timelines.base import Timeline
 
 module_logger = logging.getLogger(__name__)
 
@@ -742,30 +748,30 @@ class Flow:
         sections: The sequence of PlaythroughSection objects.
         mode: The FlowMode used to compute this flow.
         folded_length: Number of unique MCs (measures in printed score).
-        scope_id: Identifier for this flow (defaults to mode.value).
+        id: Identifier for this flow (defaults to mode.value).
         source_metadata: Optional metadata from the source MeasureData.
     """
 
     sections: list[PlaythroughSection] = field(default_factory=list)
     mode: FlowMode = FlowMode.DEFAULT
     folded_length: int = 0
-    scope_id: str = ""
+    id: str = ""
     source_metadata: dict[str, Any] = field(default_factory=dict)
-    _controller_ref: "weakref.ref[FlowController] | None" = field(
+    _controller_ref: "weakref.ref[ScoreFlowController] | None" = field(
         default=None, repr=False, compare=False
     )
 
     def __post_init__(self) -> None:
-        """Initialize scope_id from mode if not set."""
-        if not self.scope_id:
-            object.__setattr__(self, "scope_id", self.mode.value)
+        """Initialize id from mode if not set."""
+        if not self.id:
+            object.__setattr__(self, "id", self.mode.value)
 
     @property
-    def controller(self) -> "FlowController | None":
-        """Get the FlowController that created this Flow, if still alive.
+    def controller(self) -> "ScoreFlowController | None":
+        """Get the ScoreFlowController that created this Flow, if still alive.
 
         Returns:
-            FlowController if this Flow was computed and controller is alive,
+            ScoreFlowController if this Flow was computed and controller is alive,
             None if Flow was loaded from CSV or controller was garbage collected.
         """
         if self._controller_ref is None:
@@ -1166,64 +1172,232 @@ def load_valid_flows(csv_path: "Path | str") -> dict[FlowMode, "Flow"]:
 
 
 @dataclass
-class FlowMap:
-    """A FlowMap attached to a timeline for coordinate transformation.
+class FlowMapSection:
+    """A section mapping in a FlowMap.
 
-    FlowMap encodes one specific Flow and enables:
-    - Folded -> Unfolded coordinate conversion (1:N, since repeats duplicate)
-    - Unfolded -> Folded coordinate lookup (N:1)
-    - Creating transformed timeline views
+    Represents one contiguous section that maps from a source coordinate range
+    to a target coordinate range. Used internally by FlowMap for coordinate
+    transformation.
+
+    In the context of flow control:
+    - Source coordinates: The "folded" timeline (with repeats/jumps compressed)
+    - Target coordinates: The "unfolded" timeline (linear playthrough order)
+
+    Attributes:
+        source_start: Start coordinate in source timeline (inclusive).
+        source_end: End coordinate in source timeline (exclusive).
+        target_start: Start coordinate in target timeline.
+    """
+
+    source_start: Fraction
+    source_end: Fraction
+    target_start: Fraction
+
+    @property
+    def duration(self) -> Fraction:
+        """Duration of this section."""
+        return self.source_end - self.source_start
+
+    @property
+    def target_end(self) -> Fraction:
+        """End coordinate in target timeline."""
+        return self.target_start + self.duration
+
+
+@dataclass
+class FlowMap:
+    """Coordinate transformation map for flow control.
+
+    FlowMap encodes one specific Flow and enables bidirectional coordinate
+    conversion between source (with flow control) and target (linearized) timelines:
+    - Source -> Target conversion (1:N, since repeats duplicate coordinates)
+    - Target -> Source lookup (N:1, always unique)
+
+    FlowMap stores sections for efficient lookup:
+    - `_sections`: List of FlowMapSection objects
+    - `_target_boundaries`: Sorted list of target section starts for binary search
 
     Attributes:
         flow: The computed Flow.
+        id: Identifier for this FlowMap (defaults to flow.mode.value).
     """
 
     flow: Flow
+    id: str = ""
+    _sections: list[FlowMapSection] = field(default_factory=list, repr=False)
+    _target_boundaries: list[Fraction] = field(default_factory=list, repr=False)
 
-    def folded_to_unfolded(self, qb: Fraction | float) -> list[Fraction]:
-        """Convert a folded coordinate to unfolded coordinates.
+    def __post_init__(self) -> None:
+        """Initialize id and build section lookup tables."""
+        if not self.id:
+            object.__setattr__(self, "id", self.flow.mode.value)
 
-        Since a folded coordinate may be visited multiple times (repeats),
-        this returns a list of all corresponding unfolded coordinates.
+        # Build section lookup tables from Flow sections
+        self._build_section_tables()
 
-        Args:
-            qb: Quarter beat position in folded timeline.
+    def _build_section_tables(self) -> None:
+        """Build section tables from the Flow for coordinate lookup.
 
-        Returns:
-            List of quarter beat positions in unfolded timeline.
-
-        Note:
-            This is a placeholder implementation. Full coordinate mapping
-            requires MeasureUnit data with quarterbeats positions.
+        Each PlaythroughSection defines a source coordinate range (start, end)
+        and its position in the target sequence is determined cumulatively.
         """
-        qb = Fraction(qb) if not isinstance(qb, Fraction) else qb
-        # TODO: Implement proper coordinate-to-MC lookup using controller
-        # For now, return the input coordinate
-        return [qb]
+        if not self.flow.sections:
+            return
 
-    def unfolded_to_folded(self, qb: Fraction | float) -> Fraction:
-        """Convert an unfolded coordinate to folded coordinate.
+        target_position = Fraction(0)
+
+        for sec in self.flow.sections:
+            source_start = Fraction(sec.mc_start)
+            source_end = Fraction(sec.mc_end)
+            section_duration = source_end - source_start
+
+            self._sections.append(
+                FlowMapSection(
+                    source_start=source_start,
+                    source_end=source_end,
+                    target_start=target_position,
+                )
+            )
+            self._target_boundaries.append(target_position)
+
+            target_position += section_duration
+
+    def unfold(self, coord: Fraction | float | int) -> list[Fraction]:
+        """Map source coordinate to target coordinates.
+
+        Since a source coordinate may be visited multiple times (due to repeats),
+        this returns a list of all corresponding target coordinates.
 
         Args:
-            qb: Quarter beat position in unfolded timeline.
+            coord: Coordinate in source timeline.
 
         Returns:
-            Quarter beat position in folded timeline.
+            List of coordinates in target timeline. Empty list if coord
+            is not within any section.
+
+        Examples:
+            >>> # Source coord 3 appears twice due to repeat
+            >>> flow_map.unfold(3)
+            [Fraction(2), Fraction(6)]
+        """
+        coord = Fraction(coord)
+        results: list[Fraction] = []
+
+        for sec in self._sections:
+            # Check if coord falls within this section [start, end)
+            if sec.source_start <= coord < sec.source_end:
+                offset = coord - sec.source_start
+                results.append(sec.target_start + offset)
+
+        return results
+
+    def fold(self, coord: Fraction | float | int) -> Fraction:
+        """Map target coordinate back to source coordinate.
+
+        The target timeline has unique coordinates, so this always returns
+        a single value.
+
+        Args:
+            coord: Coordinate in target timeline.
+
+        Returns:
+            Coordinate in source timeline.
 
         Raises:
             ValueError: If coordinate is outside the flow range.
 
-        Note:
-            This is a placeholder implementation. Full coordinate mapping
-            requires MeasureUnit data with quarterbeats positions.
+        Examples:
+            >>> # Target coord 6 maps back to source coord 3
+            >>> flow_map.fold(6)
+            Fraction(3)
         """
-        qb = Fraction(qb) if not isinstance(qb, Fraction) else qb
-        # TODO: Implement proper coordinate lookup using controller
-        # For now, return the input coordinate
-        return qb
+        coord = Fraction(coord)
+
+        if not self._sections:
+            raise ValueError(f"FlowMap has no sections, cannot fold coordinate {coord}")
+
+        # Binary search to find the section containing this target coordinate
+        idx = bisect.bisect_right(self._target_boundaries, coord) - 1
+
+        if idx < 0:
+            raise ValueError(
+                f"Coordinate {coord} is before the start of the flow "
+                f"(starts at {self._target_boundaries[0]})"
+            )
+
+        if idx >= len(self._sections):
+            raise ValueError(f"Coordinate {coord} is beyond the end of the flow")
+
+        sec = self._sections[idx]
+
+        # Check if coord is within this section's target range
+        if coord >= sec.target_end:
+            raise ValueError(
+                f"Coordinate {coord} is beyond the end of the flow "
+                f"(ends at {self._sections[-1].target_end})"
+            )
+
+        offset = coord - sec.target_start
+        return sec.source_start + offset
+
+    def inverse(self) -> "FlowMap":
+        """Create the inverse FlowMap (target -> source becomes source -> target).
+
+        The inverse FlowMap swaps the source and target coordinate systems.
+        This is useful for attaching to a target timeline to enable
+        tracing back to the original source.
+
+        Note:
+            The inverse FlowMap's unfold() returns coordinates in the original
+            source space, which may yield multiple results if the source coord
+            is visited multiple times.
+
+        Returns:
+            A new FlowMap with inverted sections.
+        """
+        inverse_sections = []
+
+        for sec in self._sections:
+            inverse_sections.append(
+                FlowMapSection(
+                    source_start=sec.target_start,
+                    source_end=sec.target_end,
+                    target_start=sec.source_start,
+                )
+            )
+
+        inverse = FlowMap(flow=self.flow, id=f"{self.id}_inverse")
+        inverse._sections = inverse_sections
+        inverse._target_boundaries = [sec.source_start for sec in inverse_sections]
+
+        return inverse
+
+    @property
+    def total_target_length(self) -> Fraction:
+        """Total length of the target timeline."""
+        if not self._sections:
+            return Fraction(0)
+        return self._sections[-1].target_end
+
+    @property
+    def n_sections(self) -> int:
+        """Number of sections in this FlowMap."""
+        return len(self._sections)
+
+    # Backwards-compatible aliases
+    def folded_to_unfolded(self, qb: Fraction | float) -> list[Fraction]:
+        """Alias for unfold() - backwards compatibility."""
+        return self.unfold(qb)
+
+    def unfolded_to_folded(self, qb: Fraction | float) -> Fraction:
+        """Alias for fold() - backwards compatibility."""
+        return self.fold(qb)
+
+    # Additional alias for new naming
+    total_unfolded_length = total_target_length
 
     def __repr__(self) -> str:
-        return f"FlowMap({self.flow})"
+        return f"FlowMap({self.flow.mode.value}: {self.n_sections} sections)"
 
 
 # endregion
@@ -1231,10 +1405,74 @@ class FlowMap:
 # region FlowController
 
 
-class FlowController:
-    """Compute Flow paths from MeasureData or atomic sections.
+class FlowControllerBase(ABC):
+    """Abstract base class for computing flow control transformations.
 
-    The FlowController operates at the section level:
+    FlowController is a factory for producing Flows and FlowMaps. It operates
+    as a background processor that computes flow control transformations but
+    is NOT stored on the Timeline itself. Instead, the FlowMaps it produces
+    are attached to Timelines.
+
+    Subclasses implement the specific logic for different data sources:
+    - ScoreFlowController: Works with MeasureData (mc, mn, next[], volta, etc.)
+    - Future: AudioFlowController, VideoFlowController for other media types.
+
+    Design Decisions (from Phase 3.9):
+    - FlowController is a factory, NOT stored on Timeline
+    - Sparse sections ARE allowed (atomic sections need not cover entire timeline)
+    - Unit independence: Flows are sequences of TimeIntervals in ANY unit
+
+    Public API:
+        - iter_atomic_sections(): Iterate atomic (indivisible) sections
+        - compute_flow(mode): Compute Flow for the given mode
+        - create_flow_map(flow): Create FlowMap from computed Flow
+    """
+
+    @abstractmethod
+    def iter_atomic_sections(self) -> Iterator[tuple[Fraction, Fraction]]:
+        """Iterate over atomic (indivisible) sections.
+
+        Each section is a tuple (start, end) representing a contiguous
+        portion that cannot be split by flow control.
+
+        Yields:
+            Tuples of (start_coordinate, end_coordinate).
+        """
+        ...
+
+    @abstractmethod
+    def compute_flow(self, mode: FlowMode | None = None) -> Flow:
+        """Compute a Flow for the given mode.
+
+        Args:
+            mode: The FlowMode to compute. None defaults to ATOMIC.
+
+        Returns:
+            The computed Flow.
+        """
+        ...
+
+    def create_flow_map(self, flow: Flow | None = None) -> FlowMap:
+        """Create a FlowMap from a computed Flow.
+
+        Args:
+            flow: The Flow to create a map from. If None, computes DEFAULT flow.
+
+        Returns:
+            FlowMap for coordinate transformation.
+        """
+        if flow is None:
+            flow = self.compute_flow(FlowMode.DEFAULT)
+        return FlowMap(flow=flow, id=flow.mode.value)
+
+
+class ScoreFlowController(FlowControllerBase):
+    """FlowController specialized for score data (MeasureData).
+
+    ScoreFlowController computes Flow paths from MeasureData, which contains
+    measure-level flow control information (mc, mn, next[], volta, etc.).
+
+    The algorithm operates at the section level:
     1. Derives atomic sections from next[] arrays OR accepts from partitura
     2. Uses flow control markers + volta attributes to execute flow logic
     3. Groups atomic sections into playthrough sections per FlowMode
@@ -1253,7 +1491,7 @@ class FlowController:
         - compute_flow(mode): Compute Flow for the given mode
 
     Examples:
-        >>> controller = FlowController(measure_data)
+        >>> controller = ScoreFlowController(measure_data)
         >>> flow = controller.compute_flow()
         >>> print(f"Unfolded: {flow.unfolded_length} measures")
 
@@ -1289,7 +1527,7 @@ class FlowController:
         cls,
         sections: list[AtomicSection],
         measures: "MeasureData | None" = None,
-    ) -> "FlowController":
+    ) -> "ScoreFlowController":
         """Initialize directly from atomic sections (e.g., from partitura).
 
         Args:
@@ -1297,7 +1535,7 @@ class FlowController:
             measures: Optional MeasureData for detailed step computation.
 
         Returns:
-            FlowController with pre-built atomic sections.
+            ScoreFlowController with pre-built atomic sections.
         """
         # Create instance without calling __init__
         instance = object.__new__(cls)
@@ -2695,8 +2933,21 @@ class FlowController:
             self.compute_flow(FlowMode.PRINTED),
         ]
 
-    def create_flow_map(self, mode: FlowMode = FlowMode.DEFAULT) -> FlowMap:
-        """Create a FlowMap for timeline attachment.
+    def create_flow_map(self, flow: Flow | None = None) -> FlowMap:
+        """Create a FlowMap from a computed Flow.
+
+        Args:
+            flow: The Flow to create a map from. If None, computes DEFAULT flow.
+
+        Returns:
+            FlowMap for coordinate transformation.
+        """
+        if flow is None:
+            flow = self.compute_flow(FlowMode.DEFAULT)
+        return FlowMap(flow=flow, id=flow.id)
+
+    def create_flow_map_for_mode(self, mode: FlowMode = FlowMode.DEFAULT) -> FlowMap:
+        """Convenience method to create a FlowMap for a specific mode.
 
         Args:
             mode: The FlowMode to use.
@@ -2705,7 +2956,187 @@ class FlowController:
             FlowMap wrapping the computed Flow.
         """
         flow = self.compute_flow(mode)
-        return FlowMap(flow=flow)
+        return self.create_flow_map(flow)
+
+    def iter_atomic_sections(self) -> Iterator[tuple[Fraction, Fraction]]:
+        """Iterate over atomic (indivisible) sections.
+
+        Each section is a tuple (start, end) representing a contiguous
+        portion that cannot be split by flow control. For ScoreFlowController,
+        these are MC-based coordinates from AtomicSections.
+
+        Yields:
+            Tuples of (start_mc, end_mc) as Fractions.
+        """
+        for sec in self._atomic_sections:
+            yield (Fraction(sec.mc_start), Fraction(sec.mc_end))
+
+
+# Backwards compatibility alias
+FlowController = ScoreFlowController
+
+# endregion
+
+# region Create Unfolded Timeline
+
+
+def create_unfolded_timeline(
+    source_timeline: "Timeline",
+    flow: Flow,
+    flow_controller: FlowControllerBase | None = None,
+) -> "Timeline":
+    """Create an unfolded timeline from a folded source.
+
+    This function creates a new Timeline where coordinates are in the unfolded
+    (performance/playback) order. Events from the source timeline are
+    duplicated and reordered according to the Flow.
+
+    The unfolded timeline has:
+    - Normal coordinates (0, 1, 2, ... or continuous) - NOT special playthrough units
+    - A reverse FlowMap attached to trace back to the folded source
+    - Events copied from source, duplicated for repeated sections
+
+    Design Decision (Phase 3.9): The unfolded timeline uses normal coordinates
+    with a reverse FlowMap attached, rather than special "playthrough" units.
+
+    Args:
+        source_timeline: The folded source timeline.
+        flow: The computed Flow (sequence of sections).
+        flow_controller: Optional controller used to compute the flow.
+            If provided, can be used for additional metadata.
+
+    Returns:
+        New Timeline with:
+        - Events reordered/duplicated per flow
+        - Reverse FlowMap attached (id="source")
+
+    Examples:
+        >>> controller = ScoreFlowController(measure_data)
+        >>> flow = controller.compute_flow(FlowMode.DEFAULT)
+        >>> unfolded = create_unfolded_timeline(source_tl, flow, controller)
+        >>> # The unfolded timeline has events in performance order
+        >>> unfolded.get_flow_map("source")  # Reverse map to trace back
+        FlowMap(default_inverse: 5 sections)
+    """
+    from timetoalign.timelines.base import Timeline
+
+    # Create forward FlowMap (folded -> unfolded)
+    forward_map = FlowMap(flow=flow, id=flow.id)
+
+    # Calculate unfolded length - preserve Fraction type
+    unfolded_length = forward_map.total_unfolded_length
+
+    # Create new timeline with unfolded coordinates
+    # Use same unit and number_type as source
+    number_type = source_timeline.number_type
+    unfolded = Timeline(
+        length=unfolded_length,
+        unit=source_timeline.unit,
+        number_type=number_type,
+        name=f"{source_timeline.name}_unfolded",
+    )
+
+    # Copy and transform events from source
+    # For each event in source, find all its unfolded positions
+    source_events = source_timeline.get_events(include_segments=False)
+
+    transformed_events: list[dict[str, Any]] = []
+    event_counter = 0
+
+    for event in source_events:
+        # Get the event's coordinate
+        if event.get("temporal_type") == "instant":
+            # Extract coordinate using 'start' key (EventData stores instant as start)
+            coord = _extract_coord_value(event, "start", number_type)
+            if coord is not None:
+                # Find all unfolded positions (returns list[Fraction])
+                unfolded_coords = forward_map.unfold(coord)
+                for unfolded_coord in unfolded_coords:
+                    new_event = dict(event)
+                    new_event["id"] = f"{event.get('id', 'e')}_{event_counter}"
+                    # Store Fraction directly - add_events handles conversion
+                    new_event["instant"] = unfolded_coord
+                    new_event["_source_coord"] = coord  # Preserve original
+                    # Remove start/end/duration from instant events
+                    new_event.pop("start", None)
+                    new_event.pop("end", None)
+                    new_event.pop("duration", None)
+                    transformed_events.append(new_event)
+                    event_counter += 1
+
+        elif event.get("temporal_type") == "interval":
+            start_coord = _extract_coord_value(event, "start", number_type)
+            end_coord = _extract_coord_value(event, "end", number_type)
+
+            if start_coord is not None and end_coord is not None:
+                # For intervals, find sections that contain this interval
+                # An interval may be split across sections or duplicated
+                unfolded_starts = forward_map.unfold(start_coord)
+                unfolded_ends = forward_map.unfold(end_coord)
+
+                # Match starts and ends (they should pair up)
+                # For simple cases, zip them
+                for unf_start, unf_end in zip(unfolded_starts, unfolded_ends):
+                    new_event = dict(event)
+                    new_event["id"] = f"{event.get('id', 'e')}_{event_counter}"
+                    # Store Fractions directly - add_events handles conversion
+                    new_event["start"] = unf_start
+                    new_event["end"] = unf_end
+                    new_event["duration"] = unf_end - unf_start
+                    new_event["_source_start"] = start_coord
+                    new_event["_source_end"] = end_coord
+                    transformed_events.append(new_event)
+                    event_counter += 1
+
+    # Add transformed events to unfolded timeline
+    if transformed_events:
+        unfolded.add_events(transformed_events, allow_expansion=True)
+
+    # Attach reverse FlowMap for traceability (unfolded -> folded)
+    reverse_map = forward_map.inverse()
+    unfolded.attach_flow_map(reverse_map, id="source")
+
+    # Also attach the forward map with a descriptive id
+    unfolded.attach_flow_map(forward_map, id=f"forward_{flow.id}")
+
+    return unfolded
+
+
+def _extract_coord_value(
+    event: dict[str, Any],
+    key: str,
+    number_type: NumberType,
+) -> int | float | Fraction | None:
+    """Extract coordinate value from event, preserving the number type.
+
+    Args:
+        event: Event dictionary.
+        key: The key to extract (e.g., "start", "end", "instant").
+        number_type: The number type for the coordinate.
+
+    Returns:
+        The coordinate value in the specified number type, or None if not found.
+    """
+    val = event.get(key)
+    if val is None:
+        return None
+
+    # Handle struct format (from EventData iteration)
+    if isinstance(val, dict):
+        if "value" in val:
+            return struct_to_coordinate(val, number_type)
+        return None
+
+    # Handle raw values (int, float, Fraction)
+    if isinstance(val, (int, float, Fraction)):
+        if number_type == NumberType.fraction:
+            return Fraction(val) if not isinstance(val, Fraction) else val
+        elif number_type == NumberType.int:
+            return int(val)
+        else:
+            return float(val)
+
+    return None
 
 
 # endregion

@@ -624,6 +624,32 @@ Following AGENTS.md Section 3.6 (ZERO TOLERANCE), all tests use **exact value co
 
 ---
 
+### Critical Coordinate Handling Requirements (Feb 2026)
+
+**The `create_unfolded_timeline()` function was fixed for a critical type preservation bug.**
+
+When working with coordinates in TimeToAlign!:
+
+| Requirement | Reason |
+|-------------|--------|
+| **Preserve number types** | Musical data uses `Fraction` for exact rhythmic representation |
+| **Use `struct_to_coordinate()`** | EventData stores coords as `{value, numerator, denominator}` structs |
+| **Never cast to `float` unnecessarily** | Loses Fraction precision, corrupts musical data |
+| **Let `add_events()` handle conversion** | It calls `coordinate_to_struct()` internally |
+
+```python
+# WRONG - loses precision:
+coord = float(event["start"]["value"])
+new_event["instant"] = float(unfolded_coord)
+
+# CORRECT - preserves type:
+from timetoalign.loader.schema import struct_to_coordinate
+coord = struct_to_coordinate(event["start"], number_type)
+new_event["instant"] = unfolded_coord  # Fraction, add_events handles it
+```
+
+---
+
 ## Validation Methodology
 
 All tests follow these principles:
