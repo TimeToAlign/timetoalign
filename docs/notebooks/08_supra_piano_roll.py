@@ -71,9 +71,7 @@ from pathlib import Path
 from timetoalign import TimeUnit
 from timetoalign.alignment import TimelineGroup
 from timetoalign.loader.graphical.aton import ATONLoader
-from timetoalign.loader.graphical.iiif import IIIFManifestLoader
 from timetoalign.maps import ScalarMap
-from timetoalign.timelines import Timeline
 
 # Data directory - relative to notebook location
 _notebook_dir = Path(".").resolve()
@@ -81,7 +79,6 @@ DATA_DIR = _notebook_dir.parent.parent / "tests" / "data" / "supra"
 assert DATA_DIR.is_dir(), f"SUPRA data directory not found: {DATA_DIR}"
 
 # File paths
-IIIF_MANIFEST = DATA_DIR / "image" / "ifff_manifest.json"
 ATON_FILE = DATA_DIR / "image" / "fd660zf8362_analysis.txt"
 MIDI_RAW_PATH = DATA_DIR / "midi" / "fd660zf8362_raw.mid"
 MIDI_EXP_PATH = DATA_DIR / "midi" / "fd660zf8362_exp.mid"
@@ -90,108 +87,21 @@ DCML_DIR = DATA_DIR / "dcml"
 
 {
     "Data directory": str(DATA_DIR),
-    "IIIF manifest": IIIF_MANIFEST.name,
     "ATON file": ATON_FILE.name,
 }
 
 # %% [markdown]
 # ---
 #
-# ## Part A: Create the Image Timeline (DGT1)
+# ## Part A: Create the Image Timeline (DGT1) from ATON Loader
 #
-# We start by loading the IIIF manifest to get the image dimensions. The IIIF
-# (International Image Interoperability Framework) standard provides structured
-# metadata about images without requiring the actual image files.
+# The ATON (Artistic Text-based Object Notation) file contains hole punch data
+# from the Stanford SUPRA project's piano roll analysis. The loader creates a
+# timeline with **all hole events already populated** at their absolute pixel
+# coordinates.
 
 # %%
-# Load the IIIF manifest
-iiif_loader = IIIFManifestLoader()
-iiif_loader.load(IIIF_MANIFEST)
-
-# Verify against gold standard (ZERO TOLERANCE)
-assert iiif_loader.width == 4096, f"Width mismatch: {iiif_loader.width} != 4096"
-assert iiif_loader.height == 299400, f"Height mismatch: {iiif_loader.height} != 299400"
-
-{
-    "Image width": f"{iiif_loader.width:,} pixels",
-    "Image height": f"{iiif_loader.height:,} pixels",
-    "Verification": "PASSED",
-}
-
-# %%
-# Create the image timeline using the loader's convenience method
-# The loader knows the dimensions and can extract a name from the manifest
-dgt1_image = iiif_loader.create_timeline(
-    uid="dgt1_image",
-    name="Piano Roll Image (WM 990)",
-)
-
-{
-    "Timeline": dgt1_image.id,
-    "Length": f"{dgt1_image.length.value:,} pixels",
-    "Unit": str(dgt1_image.unit),
-    "Manifest label": iiif_loader.name,
-}
-
-# %% [markdown]
-# ---
-#
-# ## Part B: Add Physical Unit C-Maps
-#
-# The piano roll was scanned at 300.25 DPI (dots per inch). We can attach
-# ConversionMaps to convert pixel coordinates to physical units (inches and
-# centimeters).
-#
-# **Calculation:**
-# - 299,400 pixels / 300.25 DPI = 997.17 inches = 25.33 meters
-
-# %%
-# Physical conversion constants
-LENGTH_DPI = 300.25  # pixels per inch (from ATON analysis)
-
-# Create C-Maps for physical units
-pixels_to_inches = ScalarMap(
-    scalar=1 / LENGTH_DPI,
-    source_unit="pixels",
-    target_unit="inches",
-)
-
-pixels_to_cm = ScalarMap(
-    scalar=2.54 / LENGTH_DPI,  # 2.54 cm per inch
-    source_unit="pixels",
-    target_unit="cm",
-)
-
-# Attach to the image timeline
-dgt1_image.add_conversion_map(pixels_to_inches)
-dgt1_image.add_conversion_map(pixels_to_cm)
-
-# Demonstrate conversions
-image_length_px = dgt1_image.length.value
-image_length_inches = dgt1_image.convert_to(image_length_px, "inches")
-image_length_cm = dgt1_image.convert_to(image_length_px, "cm")
-
-{
-    "Image length (pixels)": f"{image_length_px:,}",
-    "Image length (inches)": f"{image_length_inches:.2f}",
-    "Image length (cm)": f"{image_length_cm:.2f}",
-    "Image length (meters)": f"{image_length_cm / 100:.2f}",
-}
-
-# %% [markdown]
-# ---
-#
-# ## Part C: Create Holes Region as Child Timeline
-#
-# The musical content doesn't span the entire image. The actual hole punches
-# start at pixel 15,343 and end at pixel 293,119. We model this as a **child
-# timeline** of the image.
-#
-# **Key insight:** Instead of creating a separate timeline and aligning it
-# later, we use the parent-child relationship to establish the offset directly.
-
-# %%
-# Load ATON analysis file for hole punch data
+# Load ATON analysis file - this contains hole positions AND image dimensions
 aton_loader = ATONLoader()
 aton_loader.load(ATON_FILE)
 
@@ -201,10 +111,11 @@ assert aton_loader.musical_notes == 8718
 assert aton_loader.first_hole == 15343
 assert aton_loader.last_hole == 293119
 assert aton_loader.musical_length == 277776
+assert aton_loader.image_dimensions["height"] == 299400
 
 {
+    "Image height": f"{aton_loader.image_dimensions['height']:,} pixels",
     "Musical holes": f"{aton_loader.musical_holes:,}",
-    "Musical notes (merged)": f"{aton_loader.musical_notes:,}",
     "First hole (pixel)": f"{aton_loader.first_hole:,}",
     "Last hole (pixel)": f"{aton_loader.last_hole:,}",
     "Musical length": f"{aton_loader.musical_length:,} pixels",
@@ -212,34 +123,89 @@ assert aton_loader.musical_length == 277776
 }
 
 # %%
-# Create the holes region as a CHILD timeline using the parent's convenience method
-# This creates the child AND embeds it in one step - no separate add_child() needed
-dgt1_holes = dgt1_image.create_child(
-    length=aton_loader.musical_length,  # 277776 pixels
-    offset=aton_loader.first_hole,  # Start at pixel 15,343 in parent
-    uid="dgt1_holes",
+# Create the main graphical timeline (DGT1) - events are populated automatically!
+# The loader creates a timeline spanning the full image with holes at absolute coordinates
+dgt1 = aton_loader.create_timeline(uid="dgt1", name="Piano Roll Image (WM 990)")
+
+{
+    "Timeline": dgt1.id,
+    "Length": f"{dgt1.length.value:,} pixels",
+    "Events (holes)": f"{dgt1.n_events:,}",
+    "Note": "Events populated automatically by create_timeline()",
+}
+
+# %% [markdown]
+# ---
+#
+# ## Part B: Add Physical Unit C-Maps
+#
+# The piano roll was scanned at 300.25 DPI (dots per inch). We attach
+# ConversionMaps to convert pixel coordinates to physical units.
+#
+# **Calculation:**
+# - 299,400 pixels / 300.25 DPI = 997.17 inches = 25.33 meters
+
+# %%
+# Physical conversion constants
+LENGTH_DPI = 300.25  # pixels per inch (from ATON analysis)
+
+# Create and attach C-Maps for physical units
+dgt1.add_conversion_map(
+    ScalarMap(
+        scalar=1 / LENGTH_DPI,
+        source_unit="pixels",
+        target_unit="inches",
+    )
+)
+
+dgt1.add_conversion_map(
+    ScalarMap(
+        scalar=2.54 / LENGTH_DPI,  # 2.54 cm per inch
+        source_unit="pixels",
+        target_unit="cm",
+    )
+)
+
+# Demonstrate conversions - convert_to returns proper Coordinate objects with units
+image_length_inches = dgt1.convert_to(dgt1.length, "inches")
+image_length_cm = dgt1.convert_to(dgt1.length, "cm")
+
+{
+    "Image length": dgt1.length,  # Coordinate with pixels unit
+    "Image length (inches)": image_length_inches,  # Coordinate with inches unit
+    "Image length (cm)": image_length_cm,  # Coordinate with cm unit
+    "Image length (meters)": f"{image_length_cm / 100:.2f} m",
+}
+
+# %% [markdown]
+# ---
+#
+# ## Part C: Create Child Timeline for Relative Coordinates
+#
+# The musical content doesn't span the entire image - holes start at pixel 15,343.
+# We create a **child timeline** to provide a relative coordinate view where the
+# first hole = 0 pixels.
+#
+# **Key insight:** The child has no events of its own. It's purely a coordinate
+# transformation. When we get timestamps, we see event coordinates in BOTH
+# the parent (absolute) and child (relative) coordinate systems - for free!
+
+# %%
+# Create child timeline using create_child() convenience method
+# This gives us a "musical region" view where first_hole = 0
+dgt_holes = dgt1.create_child(
+    length=aton_loader.musical_length,  # 277,776 pixels
+    offset=aton_loader.first_hole,  # Starts at pixel 15,343 in parent
+    uid="dgt_holes",
     name="Musical Holes Region",
 )
 
-# Now add hole events to the child timeline
-# Coordinates are RELATIVE to the child's origin (0 = first hole)
-hole_events = [
-    {
-        "id": f"hole_{hole.id}",
-        "temporal_type": "instant",
-        "event_type": "Hole",
-        "instant": hole.origin_row - aton_loader.first_hole,  # Relative coordinate
-    }
-    for hole in aton_loader.holes
-]
-dgt1_holes.add_events(hole_events)
-
 {
-    "Child timeline": dgt1_holes.id,
-    "Child length": f"{dgt1_holes.length.value:,} pixels",
-    "Offset in parent": f"{aton_loader.first_hole:,} pixels",
-    "Events (holes)": f"{dgt1_holes.n_events:,}",
-    "Parent children": dgt1_image.n_children,
+    "Child timeline": dgt_holes.id,
+    "Child length": f"{dgt_holes.length}",
+    "Offset in parent": f"{aton_loader.first_hole} pixels",
+    "Child events": dgt_holes.n_events,  # 0 - events are in parent only!
+    "Parent events": dgt1.n_events,  # 30,092 holes
 }
 
 # %% [markdown]
@@ -254,7 +220,7 @@ dgt1_holes.add_events(hole_events)
 # %%
 # Get timestamp table showing parent and child coordinates, PLUS all attached C-Maps
 # Using conversion_maps=True includes the pixels->inches and pixels->cm conversions
-timestamps_df = dgt1_image.get_timestamps(conversion_maps=True)
+timestamps_df = dgt1.get_timestamps(conversion_maps=True)
 
 {
     "Total timestamps": len(timestamps_df),
@@ -265,36 +231,38 @@ timestamps_df = dgt1_image.get_timestamps(conversion_maps=True)
 # **Why 20,680 timestamps?**
 #
 # The timestamp table has one row per **unique** event coordinate in the hierarchy:
-# - Child timeline (dgt1_holes) contains 30,092 hole events
+# - Parent timeline (dgt1) contains 30,092 hole events at absolute pixel coordinates
 # - But many holes share the same pixel row (multiple notes at one time position)
 # - After de-duplication: ~20,676 unique coordinates plus 4 boundary coordinates
 #
-# Each row shows the coordinate in all coordinate systems simultaneously:
+# Each row shows the coordinate in **all** coordinate systems simultaneously:
 # - `axis`: The root (parent) coordinate in pixels
-# - `dgt1_image`: Same as axis (this IS the root timeline)
-# - `dgt1_holes`: Local coordinate in child timeline (NaN if outside child's bounds)
+# - `dgt1`: Same as axis (this IS the root timeline)
+# - `dgt_holes`: **Relative** coordinate in child timeline (first hole = 0, NaN if outside)
 # - C-Map columns: Physical units (inches, cm) computed via attached ScalarMaps
+#
+# **Key insight:** We get the child coordinates "for free" - no duplication of events!
 
 # %%
 # Show first few timestamps - note the C-Map columns show physical positions
 # The 'axis' column is the parent coordinate
-# The 'dgt1_holes' column is the child's local coordinate (or NaN if outside)
+# The 'dgt_holes' column is the child's local coordinate (or NaN if outside)
 timestamps_df.head(10)
 
 # %%
 # Query a specific coordinate
 # At pixel 100,000 in the image, what's the local coordinate in the holes region?
-ts = dgt1_image.get_timestamp(100000.0)
+ts = dgt1.get_timestamp(100000.0)
 
 {
     "Query (parent coord)": 100000.0,
-    "Child coord (dgt1_holes)": ts["dgt1_holes"],  # 100000 - 15343 = 84657
+    "Child coord (dgt_holes)": ts["dgt_holes"],  # 100000 - 15343 = 84657
     "Calculation": f"100000 - {aton_loader.first_hole} = {100000 - aton_loader.first_hole}",
 }
 
 # %%
 # Boundary table shows where child timelines start and end (with C-Maps)
-boundary_df = dgt1_image.get_boundary_table(conversion_maps=True).to_pandas()
+boundary_df = dgt1.get_boundary_table(conversion_maps=True).to_pandas()
 boundary_df
 
 # %% [markdown]
@@ -461,7 +429,7 @@ clt1_score = notes_loader.store.notes.create_timeline(uid="clt1_score")
 group = TimelineGroup(
     id="supra_alignment",
     name="SUPRA Piano Roll Alignment",
-    timelines=[dgt1_holes],
+    timelines=[dgt_holes],
 )
 
 # Add MIDI-raw (aligned to holes via linear full-extent mapping)
@@ -503,10 +471,10 @@ holes_midpoint = aton_loader.musical_length / 2  # 138888 pixels
 
 {
     "Query coordinate": f"{holes_midpoint:,.0f} pixels (holes midpoint)",
-    "-> MIDI raw": f"{group.convert(holes_midpoint, 'dgt1_holes', 'dlt1_raw'):,.0f} ticks",
-    "-> MIDI exp": f"{group.convert(holes_midpoint, 'dgt1_holes', 'dlt2_exp'):,.0f} ticks",
-    "-> Audio": f"{group.convert(holes_midpoint, 'dgt1_holes', 'dpt1_audio'):.2f} seconds",
-    "-> Score": f"{group.convert(holes_midpoint, 'dgt1_holes', 'clt1_score'):.2f} quarterbeats",
+    "-> MIDI raw": f"{group.convert(holes_midpoint, 'dgt_holes', 'dlt1_raw'):,.0f} ticks",
+    "-> MIDI exp": f"{group.convert(holes_midpoint, 'dgt_holes', 'dlt2_exp'):,.0f} ticks",
+    "-> Audio": f"{group.convert(holes_midpoint, 'dgt_holes', 'dpt1_audio'):.2f} seconds",
+    "-> Score": f"{group.convert(holes_midpoint, 'dgt_holes', 'clt1_score'):.2f} quarterbeats",
 }
 
 # %%
@@ -515,22 +483,22 @@ holes_midpoint = aton_loader.musical_length / 2  # 138888 pixels
 score_coord = 196.0  # Quarterbeat at start of measure 50
 
 midi_ticks = group.convert(score_coord, "clt1_score", "dlt1_raw")
-holes_pixels = group.convert(score_coord, "clt1_score", "dgt1_holes")
+holes_pixels = group.convert(score_coord, "clt1_score", "dgt_holes")
 audio_seconds = group.convert(score_coord, "clt1_score", "dpt1_audio")
 
 # Convert holes pixels to parent image coordinates
-image_pixels = holes_pixels + aton_loader.first_hole
+image_pixels = holes_pixels + aton_loader.first_hole  # type: ignore[operator]
 
-# Convert to physical units using the C-Map we attached earlier
-image_inches = dgt1_image.convert_to(image_pixels, "inches")
-image_cm = dgt1_image.convert_to(image_pixels, "cm")
+# Convert to physical units using C-Maps - returns Coordinate objects
+image_inches = dgt1.convert_to(image_pixels, "inches")
+image_cm = dgt1.convert_to(image_pixels, "cm")
 
 {
     "Score coord": f"{score_coord} quarterbeats (measure 50)",
     "-> MIDI ticks": f"{midi_ticks:,.0f}",
     "-> Holes region": f"{holes_pixels:,.0f} pixels",
     "-> Full image": f"{image_pixels:,.0f} pixels",
-    "-> Physical": f"{image_inches:.2f} inches ({image_cm:.2f} cm)",
+    "-> Physical": f"{image_inches} ({image_cm})",  # Coordinate objects display with units
     "-> Audio": f"{audio_seconds:.2f} seconds",
 }
 
@@ -546,15 +514,15 @@ image_cm = dgt1_image.convert_to(image_pixels, "cm")
 
 # Start of holes region (0) should map to start of other timelines
 holes_start = 0.0
-midi_start = group.convert(holes_start, "dgt1_holes", "dlt1_raw")
-audio_start = group.convert(holes_start, "dgt1_holes", "dpt1_audio")
-score_start = group.convert(holes_start, "dgt1_holes", "clt1_score")
+midi_start = group.convert(holes_start, "dgt_holes", "dlt1_raw")
+audio_start = group.convert(holes_start, "dgt_holes", "dpt1_audio")
+score_start = group.convert(holes_start, "dgt_holes", "clt1_score")
 
 # End of holes region should map to end of other timelines
 holes_end = float(aton_loader.musical_length)
-midi_end = group.convert(holes_end, "dgt1_holes", "dlt1_raw")
-audio_end = group.convert(holes_end, "dgt1_holes", "dpt1_audio")
-score_end = group.convert(holes_end, "dgt1_holes", "clt1_score")
+midi_end = group.convert(holes_end, "dgt_holes", "dlt1_raw")
+audio_end = group.convert(holes_end, "dgt_holes", "dpt1_audio")
+score_end = group.convert(holes_end, "dgt_holes", "clt1_score")
 
 {
     "Holes start (0 px)": {
@@ -574,12 +542,12 @@ score_end = group.convert(holes_end, "dgt1_holes", "clt1_score")
 test_coord = 100000.0
 
 # holes -> midi -> holes
-to_midi = group.convert(test_coord, "dgt1_holes", "dlt1_raw")
-back_to_holes = group.convert(to_midi, "dlt1_raw", "dgt1_holes")
+to_midi = group.convert(test_coord, "dgt_holes", "dlt1_raw")
+back_to_holes = group.convert(to_midi, "dlt1_raw", "dgt_holes")
 
 # holes -> audio -> holes
-to_audio = group.convert(test_coord, "dgt1_holes", "dpt1_audio")
-back_from_audio = group.convert(to_audio, "dpt1_audio", "dgt1_holes")
+to_audio = group.convert(test_coord, "dgt_holes", "dpt1_audio")
+back_from_audio = group.convert(to_audio, "dpt1_audio", "dgt_holes")
 
 {
     "Original": test_coord,

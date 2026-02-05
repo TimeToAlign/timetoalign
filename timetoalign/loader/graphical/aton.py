@@ -18,9 +18,12 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from timetoalign.timelines import Timeline
 
 module_logger = logging.getLogger(__name__)
 
@@ -385,6 +388,86 @@ class ATONLoader:
             List of holes with note_attack set.
         """
         return [h for h in self._holes if h.note_attack is not None]
+
+    # endregion
+
+    # region Timeline Creation
+
+    @property
+    def name(self) -> str:
+        """Human-readable name for the loaded data.
+
+        Returns the source filename stem, or 'ATON Data' if not loaded.
+        """
+        if self._source_path:
+            return self._source_path.stem
+        return "ATON Data"
+
+    def create_timeline(
+        self,
+        uid: str | None = None,
+        name: str | None = None,
+    ) -> "Timeline":
+        """Create a timeline populated with hole events.
+
+        Creates a graphical timeline (in pixels) spanning the full image height,
+        with all parsed holes as InstantEvents at their absolute pixel coordinates.
+
+        This is the primary timeline for the piano roll image. To get a relative
+        coordinate view (first hole = 0), create a child timeline at offset
+        first_hole using parent.create_child().
+
+        Args:
+            uid: Unique identifier for the timeline. Auto-generated if None.
+            name: Human-readable name. Uses source filename if None.
+
+        Returns:
+            A DiscreteGraphicalTimeline with hole events at absolute coordinates.
+
+        Raises:
+            RuntimeError: If no data has been loaded.
+
+        Examples:
+            >>> loader = ATONLoader()
+            >>> loader.load("analysis.txt")
+            >>> dgt1 = loader.create_timeline(uid="dgt1")
+            >>> dgt1.n_events
+            30092
+            >>> # Create child for relative coordinates (first hole = 0)
+            >>> dgt_holes = dgt1.create_child(
+            ...     length=loader.musical_length,
+            ...     offset=loader.first_hole,
+            ...     uid="dgt_holes",
+            ... )
+        """
+        from timetoalign import TimeUnit
+        from timetoalign.timelines import Timeline
+
+        if not self._holes:
+            raise RuntimeError("No data loaded. Call load() first.")
+
+        # Create timeline spanning full image
+        timeline = Timeline(
+            length=self.image_dimensions["height"],
+            unit=TimeUnit.pixels,
+            uid=uid,
+            name=name or self.name,
+        )
+
+        # Add holes as InstantEvents at absolute pixel coordinates
+        hole_events = [
+            {
+                "id": f"hole_{hole.id}",
+                "name": hole.id,
+                "temporal_type": "instant",
+                "event_type": "Hole",
+                "instant": hole.origin_row,  # Absolute coordinate
+            }
+            for hole in self._holes
+        ]
+        timeline.add_events(hole_events)
+
+        return timeline
 
     # endregion
 

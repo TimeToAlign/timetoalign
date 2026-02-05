@@ -13,9 +13,12 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from timetoalign.timelines import Timeline
 
 module_logger = logging.getLogger(__name__)
 
@@ -353,6 +356,84 @@ class IIIFManifestLoader:
             IndexError: If index is out of range.
         """
         return self.manifest_info.canvases[index]
+
+    # endregion
+
+    # region Timeline Creation
+
+    @property
+    def name(self) -> str:
+        """Human-readable name for the loaded image.
+
+        Returns the manifest label if available, otherwise uses the canvas label,
+        or falls back to the source filename.
+        """
+        if self._manifest_info is None:
+            return "Unknown"
+
+        # Try manifest label first
+        if self._manifest_info.label:
+            return self._manifest_info.label
+
+        # Try first canvas label
+        if self._manifest_info.canvases and self._manifest_info.canvases[0].label:
+            return self._manifest_info.canvases[0].label
+
+        # Fall back to source filename
+        if self._source_path:
+            return self._source_path.stem
+
+        return "IIIF Image"
+
+    def create_timeline(
+        self,
+        uid: str | None = None,
+        name: str | None = None,
+        axis: str = "height",
+    ) -> "Timeline":
+        """Create a graphical timeline from the loaded IIIF manifest.
+
+        The timeline length is determined by the image dimensions along the
+        specified axis (height by default, for vertical piano rolls).
+
+        Args:
+            uid: Unique identifier for the timeline. Auto-generated if None.
+            name: Human-readable name. Uses manifest/canvas label if None.
+            axis: Which dimension to use as the timeline axis:
+                - "height" (default): Timeline length = image height
+                - "width": Timeline length = image width
+
+        Returns:
+            A DiscreteGraphicalTimeline representing the image.
+
+        Raises:
+            RuntimeError: If no manifest has been loaded.
+            ValueError: If axis is not "height" or "width".
+
+        Examples:
+            >>> loader = IIIFManifestLoader()
+            >>> loader.load("manifest.json")
+            >>> timeline = loader.create_timeline(uid="dgt1_image")
+        """
+        from timetoalign import TimeUnit
+        from timetoalign.timelines import Timeline
+
+        if self._manifest_info is None:
+            raise RuntimeError("No manifest loaded. Call load() first.")
+
+        if axis == "height":
+            length = self.height
+        elif axis == "width":
+            length = self.width
+        else:
+            raise ValueError(f"axis must be 'height' or 'width', got: {axis!r}")
+
+        return Timeline(
+            length=length,
+            unit=TimeUnit.pixels,
+            uid=uid,
+            name=name or self.name,
+        )
 
     # endregion
 
