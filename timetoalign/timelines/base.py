@@ -14,7 +14,7 @@ Design principles:
 from __future__ import annotations
 
 import logging
-from typing import Any, ClassVar, Iterator, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Iterator, Literal
 
 import numpy as np
 import pandas as pd
@@ -28,6 +28,9 @@ from timetoalign.loader import EventData
 from timetoalign.maps import ConversionMap, InterpolationMap
 
 from .regions import Region
+
+if TYPE_CHECKING:
+    from .flow import FlowMap
 
 module_logger = logging.getLogger(__name__)
 
@@ -177,6 +180,12 @@ class Timeline:
         # defined by a TimeInterval. Regions are useful for referring to parts
         # of a timeline by name."
         self._regions: dict[str, Region] = {}
+
+        # FlowMap storage (coordinate transformations for flow control)
+        # From Phase 3.9: Timelines store FlowMaps (not FlowControllers).
+        # FlowMaps enable unfold/fold coordinate conversion for timelines
+        # that have flow control (repeats, jumps, etc.).
+        self._flow_maps: dict[str, "FlowMap"] = {}
 
         # Logger
         self._logger = module_logger.getChild(self._id)
@@ -2478,6 +2487,115 @@ class Timeline:
                 child.add_events(adjusted_events)
 
         return child
+
+    # endregion
+
+    # region FlowMaps (Phase 3.9)
+
+    def attach_flow_map(self, flow_map: "FlowMap", id: str | None = None) -> None:
+        """Attach a FlowMap to this timeline.
+
+        FlowMaps enable coordinate transformation for timelines with flow
+        control (repeats, jumps, D.S., D.C., etc.). They are created by
+        FlowController and attached to the timeline for later use.
+
+        Design Decision (Phase 3.9): Timelines store FlowMaps, NOT
+        FlowControllers. FlowControllers are factories that produce FlowMaps.
+
+        Args:
+            flow_map: The FlowMap to attach.
+            id: Identifier for this FlowMap. If None, uses flow_map.id.
+                Common values: "default", "atomic", "single".
+
+        Examples:
+            >>> controller = ScoreFlowController(measure_data)
+            >>> flow_map = controller.create_flow_map()
+            >>> timeline.attach_flow_map(flow_map)
+            >>> timeline.get_flow_map("default")  # Retrieve later
+            FlowMap(default: 5 sections)
+        """
+        if id is None:
+            id = flow_map.id
+        self._flow_maps[id] = flow_map
+        self._logger.debug(f"Attached FlowMap '{id}'")
+
+    def get_flow_map(self, id: str = "default") -> "FlowMap | None":
+        """Get an attached FlowMap by id.
+
+        Args:
+            id: Identifier of the FlowMap. Default is "default".
+
+        Returns:
+            The FlowMap if found, None otherwise.
+        """
+        return self._flow_maps.get(id)
+
+    def has_flow_map(self, id: str = "default") -> bool:
+        """Check if a FlowMap with the given id is attached.
+
+        Args:
+            id: Identifier to check.
+
+        Returns:
+            True if a FlowMap with that id exists.
+        """
+        return id in self._flow_maps
+
+    def list_flow_maps(self) -> list[str]:
+        """List all attached FlowMap ids.
+
+        Returns:
+            List of id strings.
+        """
+        return list(self._flow_maps.keys())
+
+    @property
+    def n_flow_maps(self) -> int:
+        """Number of attached FlowMaps."""
+        return len(self._flow_maps)
+
+    def unfold(self, coord: float | int, id: str = "default") -> list[float]:
+        """Convert a folded coordinate to unfolded coordinates.
+
+        Convenience method that delegates to the attached FlowMap.
+        Since repeats can cause a folded coordinate to appear multiple times
+        in the unfolded timeline, this returns a list.
+
+        Args:
+            coord: Coordinate in the folded timeline.
+            id: Which FlowMap to use.
+
+        Returns:
+            List of coordinates in the unfolded timeline.
+
+        Raises:
+            ValueError: If no FlowMap with the given id is attached.
+        """
+        flow_map = self._flow_maps.get(id)
+        if flow_map is None:
+            raise ValueError(f"No FlowMap attached with id '{id}'")
+        return [float(c) for c in flow_map.unfold(coord)]
+
+    def fold(self, coord: float | int, id: str = "default") -> float:
+        """Convert an unfolded coordinate to a folded coordinate.
+
+        Convenience method that delegates to the attached FlowMap.
+
+        Args:
+            coord: Coordinate in the unfolded timeline.
+            id: Which FlowMap to use.
+
+        Returns:
+            Coordinate in the folded timeline.
+
+        Raises:
+            ValueError: If no FlowMap with the given id is attached,
+                        or if the coordinate is outside the flow range.
+        """
+        flow_map = self._flow_maps.get(id)
+        if flow_map is None:
+            raise ValueError(f"No FlowMap attached with id '{id}'")
+        return float(flow_map.fold(coord))
 
     # endregion
 
