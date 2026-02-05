@@ -1008,7 +1008,7 @@ class Timeline:
 
     def create_child(
         self,
-        length: CoordinateValue,
+        length: CoordinateValue | Coordinate,
         offset: CoordinateValue | Coordinate,
         uid: str | None = None,
         name: str | None = None,
@@ -1027,7 +1027,8 @@ class Timeline:
         called Children, as long as they use the same measuring unit."
 
         Args:
-            length: Length of the child timeline (in parent's unit).
+            length: Length of the child timeline (in parent's unit). Can be a
+                Coordinate object if its unit matches the parent.
             offset: The start coordinate on this timeline where the child begins.
             uid: Unique identifier for the child. Auto-generated if None.
             name: Human-readable name for the child.
@@ -1038,6 +1039,7 @@ class Timeline:
 
         Raises:
             ValueError: If offset is negative or child would exceed parent bounds.
+            ValueError: If length/offset Coordinate has mismatched unit.
             RuntimeError: If this timeline is locked.
 
         Examples:
@@ -1051,6 +1053,15 @@ class Timeline:
             >>> # Now add events to the child
             >>> holes_region.add_events(hole_events)
         """
+        # Extract value from Coordinate if provided, validating unit
+        if isinstance(length, Coordinate):
+            if length.unit != self._unit:
+                raise ValueError(
+                    f"Length Coordinate unit mismatch: got {length.unit}, "
+                    f"expected {self._unit}"
+                )
+            length = length.value
+
         child = Timeline(
             length=length,
             unit=self._unit,
