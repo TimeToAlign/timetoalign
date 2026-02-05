@@ -45,6 +45,17 @@ SEGMENT_EVENT_TYPE = "Segment"
 # Traversal order options for iterating children
 TraversalOrder = Literal["sorted", "depth_first", "breadth_first"]
 
+# Type alias for flexible conversion_maps parameter in get_timestamps
+# Accepts: True (all), single cmap/str, or iterable of cmaps/strs
+ConversionMapsSpec = (
+    bool
+    | str
+    | TimeUnit
+    | ConversionMap[Any]
+    | list[ConversionMap[Any] | str | TimeUnit]
+    | None
+)
+
 # endregion
 
 
@@ -995,6 +1006,61 @@ class Timeline:
 
         self._logger.debug(f"Added child '{child.id}' at offset {offset_coord.value}")
 
+    def create_child(
+        self,
+        length: CoordinateValue,
+        offset: CoordinateValue | Coordinate,
+        uid: str | None = None,
+        name: str | None = None,
+        allow_expansion: bool = False,
+    ) -> "Timeline":
+        """Create a new child timeline and embed it at the specified offset.
+
+        Convenience method that creates a new timeline with the same unit as the
+        parent and immediately adds it as a child. This is equivalent to:
+
+            child = Timeline(length=length, unit=parent.unit, uid=uid, name=name)
+            parent.add_child(child, offset=offset)
+
+        From the TTA manuscript (Section 3.4 - Nested Timelines):
+        "A timeline can accommodate not only events but also other timelines,
+        called Children, as long as they use the same measuring unit."
+
+        Args:
+            length: Length of the child timeline (in parent's unit).
+            offset: The start coordinate on this timeline where the child begins.
+            uid: Unique identifier for the child. Auto-generated if None.
+            name: Human-readable name for the child.
+            allow_expansion: If True, expand parent timeline if needed.
+
+        Returns:
+            The newly created and embedded child Timeline.
+
+        Raises:
+            ValueError: If offset is negative or child would exceed parent bounds.
+            RuntimeError: If this timeline is locked.
+
+        Examples:
+            >>> # Create a child representing a region of interest
+            >>> holes_region = image_timeline.create_child(
+            ...     length=277776,
+            ...     offset=15343,
+            ...     uid="dgt1_holes",
+            ...     name="Musical Holes Region",
+            ... )
+            >>> # Now add events to the child
+            >>> holes_region.add_events(hole_events)
+        """
+        child = Timeline(
+            length=length,
+            unit=self._unit,
+            number_type=self._number_type,
+            uid=uid,
+            name=name,
+        )
+        self.add_child(child, offset=offset, allow_expansion=allow_expansion)
+        return child
+
     def get_child(self, child_id: str) -> Timeline:
         """Retrieve a child timeline by ID.
 
@@ -1279,20 +1345,33 @@ class Timeline:
 
     def convert_to(
         self,
-        values: Any,
+        values: CoordinateValue | Coordinate | np.ndarray,
         target_unit: TimeUnit | str,
-    ) -> Any:
+    ) -> Coordinate | np.ndarray:
         """Convert coordinates to another unit using attached C-Maps.
 
         Args:
-            values: Coordinates to convert (scalar, array, or Coordinate).
+            values: Coordinate value(s) to convert. Can be:
+                - Scalar (int, float, Fraction): Returns a Coordinate object
+                - Coordinate: Returns a Coordinate object
+                - numpy array: Returns a numpy array of converted values
             target_unit: Target unit.
 
         Returns:
-            Converted values in the target unit.
+            - For scalar/Coordinate input: Coordinate object in the target unit
+            - For array input: numpy array of converted values
 
         Raises:
             ValueError: If no suitable map is found.
+
+        Examples:
+            >>> timeline.add_conversion_map(ScalarMap(scalar=1/300, ...))
+            >>> coord = timeline.convert_to(15343, "inches")
+            >>> coord
+            Coordinate(51.1, inches)
+            >>> arr = timeline.convert_to(np.array([100, 200]), "inches")
+            >>> arr
+            array([0.333, 0.666])
         """
         target = TimeUnit(target_unit)
         cmap = self.get_conversion_map(target)
@@ -1300,7 +1379,12 @@ class Timeline:
             raise ValueError(
                 f"No conversion map found from '{self._unit}' to '{target}'"
             )
-        return cmap(values)
+        converted_value = cmap(values)
+
+        # Return array for array input, Coordinate for scalar input
+        if isinstance(values, np.ndarray):
+            return converted_value
+        return Coordinate(converted_value, target)
 
     def derive(
         self,
@@ -1806,6 +1890,80 @@ class Timeline:
         null_scalar = pa.scalar(None, type=pa.float64())
         return pc.if_else(out_of_bounds, null_scalar, local)
 
+    def _resolve_conversion_maps(
+        self, spec: ConversionMapsSpec
+    ) -> list[ConversionMap[Any]]:
+        """Resolve a flexible conversion_maps specification to a list of C-Maps.
+
+        Supports multiple input formats for convenience:
+        - True: Return all attached conversion maps
+        - False/None: Return empty list
+        - str: Look up by map ID, or find map by target unit name
+        - TimeUnit: Find map by target unit
+        - ConversionMap: Return as single-element list
+        - Iterable: Resolve each element recursively
+
+        Args:
+            spec: Flexible specification for which C-Maps to include.
+
+        Returns:
+            List of resolved ConversionMap objects.
+
+        Raises:
+            KeyError: If a string ID doesn't match any attached map.
+            ValueError: If a TimeUnit doesn't match any attached map's target.
+
+        Examples:
+            >>> tl._resolve_conversion_maps(True)  # All maps
+            >>> tl._resolve_conversion_maps("inches")  # Single map by ID/unit
+            >>> tl._resolve_conversion_maps(["inches", "cm"])  # Multiple
+            >>> tl._resolve_conversion_maps(TimeUnit.seconds)  # By unit enum
+        """
+        if spec is None or spec is False:
+            return []
+
+        if spec is True:
+            # Return all attached conversion maps
+            return list(self._conversion_maps.values())
+
+        # Single string: could be map ID or target unit name
+        if isinstance(spec, str):
+            # First try exact ID match
+            if spec in self._conversion_maps:
+                return [self._conversion_maps[spec]]
+            # Try as target unit name
+            try:
+                unit = TimeUnit(spec)
+                cmap = self.get_conversion_map(unit)
+                if cmap is not None:
+                    return [cmap]
+            except ValueError:
+                pass
+            raise KeyError(
+                f"No conversion map with ID '{spec}' or target unit '{spec}'. "
+                f"Available: {list(self._conversion_maps.keys())}"
+            )
+
+        # TimeUnit: find by target unit
+        if isinstance(spec, TimeUnit):
+            cmap = self.get_conversion_map(spec)
+            if cmap is not None:
+                return [cmap]
+            raise ValueError(
+                f"No conversion map with target unit '{spec}'. "
+                f"Available: {list(self._conversion_maps.keys())}"
+            )
+
+        # Single ConversionMap object
+        if isinstance(spec, ConversionMap):
+            return [spec]
+
+        # Iterable: resolve each element
+        resolved: list[ConversionMap[Any]] = []
+        for item in spec:
+            resolved.extend(self._resolve_conversion_maps(item))
+        return resolved
+
     def _build_timestamp_table(
         self,
         axis: pa.Array,
@@ -1909,7 +2067,7 @@ class Timeline:
     def get_timestamp_table(
         self,
         coordinates: pa.Array | np.ndarray | list[float] | None = None,
-        conversion_maps: list[ConversionMap[Any] | str] | None = None,
+        conversion_maps: ConversionMapsSpec = None,
         recursion_limit: int | None = None,
         include_events: bool = True,
         include_boundaries: bool = False,
@@ -1923,8 +2081,13 @@ class Timeline:
         Args:
             coordinates: Explicit coordinates to use as the axis. If None,
                 coordinates are extracted from events (and optionally boundaries).
-            conversion_maps: C-Maps to include as columns. Can be ConversionMap
-                objects or string IDs of maps attached to this timeline.
+            conversion_maps: C-Maps to include as columns. Flexible input:
+                - True: Include all attached conversion maps
+                - str: Map ID or target unit name (e.g., "inches", "seconds")
+                - TimeUnit: Find map by target unit enum
+                - ConversionMap: Include the specific map
+                - list: Mix of the above
+                - None/False: No conversion maps
             recursion_limit: Maximum depth for child traversal. None = unlimited.
             include_events: If True and coordinates is None, extract from events.
             include_boundaries: If True, include timeline boundary coordinates.
@@ -1947,17 +2110,15 @@ class Timeline:
             >>> table.column_names
             ['axis', 'tl:1', 'notes', 'measures']
 
+            >>> # Include all attached C-Maps
+            >>> table = timeline.get_timestamp_table(conversion_maps=True)
+
+            >>> # Include specific C-Maps by target unit
+            >>> table = timeline.get_timestamp_table(conversion_maps=["inches", "cm"])
+
             >>> # Access unit metadata
             >>> table.schema.field('axis').metadata[b'unit']
             b'seconds'
-
-            >>> # Convert to pandas when needed
-            >>> df = table.to_pandas()
-
-            >>> # With explicit coordinates
-            >>> table = timeline.get_timestamp_table(
-            ...     coordinates=[0.0, 1.0, 2.0, 3.0]
-            ... )
         """
         # Resolve coordinates
         if coordinates is not None:
@@ -1992,18 +2153,8 @@ class Timeline:
             # Boundaries only
             axis = self._collect_boundary_coordinates(recursion_limit=recursion_limit)
 
-        # Resolve C-Map references
-        resolved_maps: list[ConversionMap[Any]] = []
-        if conversion_maps:
-            for cmap in conversion_maps:
-                if isinstance(cmap, str):
-                    # Look up by ID
-                    if cmap in self._conversion_maps:
-                        resolved_maps.append(self._conversion_maps[cmap])
-                    else:
-                        raise KeyError(f"No conversion map with ID '{cmap}'")
-                else:
-                    resolved_maps.append(cmap)
+        # Resolve C-Map references using flexible helper
+        resolved_maps = self._resolve_conversion_maps(conversion_maps)
 
         return self._build_timestamp_table(
             axis=axis,
@@ -2014,7 +2165,7 @@ class Timeline:
     def get_timestamps(
         self,
         coordinates: pa.Array | np.ndarray | list[float] | None = None,
-        conversion_maps: list[ConversionMap[Any] | str] | None = None,
+        conversion_maps: ConversionMapsSpec = None,
         recursion_limit: int | None = None,
         include_events: bool = True,
         include_boundaries: bool = False,
@@ -2026,7 +2177,13 @@ class Timeline:
 
         Args:
             coordinates: Explicit coordinates to use as the axis.
-            conversion_maps: C-Maps to include as columns.
+            conversion_maps: C-Maps to include as columns. Flexible input:
+                - True: Include all attached conversion maps
+                - str: Map ID or target unit name (e.g., "inches", "seconds")
+                - TimeUnit: Find map by target unit enum
+                - ConversionMap: Include the specific map
+                - list: Mix of the above
+                - None/False: No conversion maps
             recursion_limit: Maximum depth for child traversal.
             include_events: If True and coordinates is None, extract from events.
             include_boundaries: If True, include timeline boundary coordinates.
@@ -2041,6 +2198,12 @@ class Timeline:
             0   0.0     0.0     0.0       0.0
             1   1.5     1.5     1.5       NaN
             2   4.0     4.0     4.0       4.0
+
+            >>> # Include all attached C-Maps
+            >>> df = timeline.get_timestamps(conversion_maps=True)
+
+            >>> # Include specific C-Maps
+            >>> df = timeline.get_timestamps(conversion_maps=["inches", "cm"])
         """
         table = self.get_timestamp_table(
             coordinates=coordinates,
@@ -2053,7 +2216,7 @@ class Timeline:
 
     def get_boundary_table(
         self,
-        conversion_maps: list[ConversionMap[Any] | str] | None = None,
+        conversion_maps: ConversionMapsSpec = None,
         recursion_limit: int | None = None,
     ) -> pa.Table:
         """Get timestamps for timeline boundaries only.
@@ -2062,7 +2225,7 @@ class Timeline:
         coordinates for this timeline and all children.
 
         Args:
-            conversion_maps: C-Maps to include as columns.
+            conversion_maps: C-Maps to include as columns (see get_timestamp_table).
             recursion_limit: Maximum depth for child traversal.
 
         Returns:
@@ -2090,7 +2253,7 @@ class Timeline:
     def get_timestamp_table_filtered(
         self,
         event_filter: dict[str, Any] | pc.Expression,
-        conversion_maps: list[ConversionMap[Any] | str] | None = None,
+        conversion_maps: ConversionMapsSpec = None,
         recursion_limit: int | None = None,
         include_boundaries: bool = False,
     ) -> pa.Table:
@@ -2110,7 +2273,7 @@ class Timeline:
                   Example: {"event_type": "Note"} or {"temporal_type": "interval"}
                 - pc.Expression: Passed to EventData.where() for complex filters.
                   Example: pc.greater(pc.struct_field(pc.field("start"), "value"), 10.0)
-            conversion_maps: C-Maps to include as columns.
+            conversion_maps: C-Maps to include as columns (see get_timestamp_table).
             recursion_limit: Maximum depth for child traversal.
             include_boundaries: If True, also include timeline boundary coordinates.
 
@@ -2165,17 +2328,8 @@ class Timeline:
         else:
             axis = filtered_coords
 
-        # Resolve C-Map references
-        resolved_maps: list[ConversionMap[Any]] = []
-        if conversion_maps:
-            for cmap in conversion_maps:
-                if isinstance(cmap, str):
-                    if cmap in self._conversion_maps:
-                        resolved_maps.append(self._conversion_maps[cmap])
-                    else:
-                        raise KeyError(f"No conversion map with ID '{cmap}'")
-                else:
-                    resolved_maps.append(cmap)
+        # Resolve C-Map references using flexible helper
+        resolved_maps = self._resolve_conversion_maps(conversion_maps)
 
         return self._build_timestamp_table(
             axis=axis,
@@ -2186,7 +2340,7 @@ class Timeline:
     def get_timestamps_filtered(
         self,
         event_filter: dict[str, Any] | pc.Expression,
-        conversion_maps: list[ConversionMap[Any] | str] | None = None,
+        conversion_maps: ConversionMapsSpec = None,
         recursion_limit: int | None = None,
         include_boundaries: bool = False,
     ) -> pd.DataFrame:
@@ -2197,7 +2351,7 @@ class Timeline:
 
         Args:
             event_filter: Filter to apply (dict for simple, pc.Expression for complex).
-            conversion_maps: C-Maps to include as columns.
+            conversion_maps: C-Maps to include as columns (see get_timestamp_table).
             recursion_limit: Maximum depth for child traversal.
             include_boundaries: If True, include timeline boundary coordinates.
 

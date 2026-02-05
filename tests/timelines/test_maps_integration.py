@@ -45,13 +45,16 @@ class TestMapIntegration:
         cmap = ScalarMap(scalar=1000, source_unit="seconds", target_unit="milliseconds")
         tl.add_conversion_map(cmap)
 
-        # Scalar
+        # Scalar returns Coordinate object
         val = tl.convert_to(1.5, "milliseconds")
-        assert val == 1500.0
+        assert isinstance(val, Coordinate)
+        assert val.value == 1500.0
+        assert val.unit == TimeUnit.milliseconds
 
-        # Array
+        # Array returns array (not Coordinate)
         arr = np.array([1.0, 2.0])
         conv = tl.convert_to(arr, "milliseconds")
+        assert isinstance(conv, np.ndarray)
         np.testing.assert_array_equal(conv, np.array([1000.0, 2000.0]))
 
         # Error if no map
@@ -63,9 +66,12 @@ class TestMapIntegration:
         cmap = ScalarMap(scalar=1000, source_unit="seconds", target_unit="milliseconds")
         tl.add_conversion_map(cmap)
 
+        # Coordinate input returns Coordinate output
         c = Coordinate(1.5, TimeUnit.seconds)
         val = tl.convert_to(c, "milliseconds")
-        assert val == 1500.0
+        assert isinstance(val, Coordinate)
+        assert val.value == 1500.0
+        assert val.unit == TimeUnit.milliseconds
 
     def test_serialization_with_maps(self):
         tl = Timeline(unit=TimeUnit.seconds, uid="tl1")
