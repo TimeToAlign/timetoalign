@@ -90,7 +90,7 @@ class TSVLoader(ScoreLoader):
         elif "harmonies" in fname:
             return self._load_annotations(df, source, subtype="Harmony")
         elif "chords" in fname:
-            return self._load_annotations(df, source, subtype="Chord")
+            return self._load_controls(df, source, subtype="Chord")
         else:
             # Default to notes if has pitch columns
             if "midi" in df.columns or "tpc" in df.columns:
@@ -497,18 +497,18 @@ class TSVLoader(ScoreLoader):
     def _load_annotations(
         self, df: "pd.DataFrame", source: Path, subtype: str
     ) -> ScoreStore:
-        """Load annotations from TSV (harmonies, chords).
+        """Load annotations from TSV (harmonies).
 
-        Parses ms3/DCML harmonies.tsv or chords.tsv format with columns:
+        Parses ms3/DCML harmonies.tsv format with columns:
         - mc, mn: Measure context
         - quarterbeats: Position in quarter notes
-        - label: The annotation text (harmony/chord symbol)
-        - chord, numeral, form, figbass, etc.: Parsed components
+        - label: The annotation text (Roman numeral harmony label)
+        - numeral, form, figbass, relativeroot, etc.: Parsed components
 
         Args:
             df: pandas DataFrame from ms3.load_tsv.
             source: Path to source file.
-            subtype: The annotation subtype ("Harmony" or "Chord").
+            subtype: The annotation subtype ("Harmony").
 
         Returns:
             ScoreStore with populated AnnotationEventData.
@@ -603,5 +603,120 @@ class TSVLoader(ScoreLoader):
                 "source": str(source),
                 "annotation_type": subtype,
                 "n_annotations": len(annotation_rows),
+            },
+        )
+
+    def _load_controls(
+        self, df: "pd.DataFrame", source: Path, subtype: str
+    ) -> ScoreStore:
+        """Load control events from TSV (chords).
+
+        Parses ms3/DCML chords.tsv format with columns:
+        - mc, mn: Measure context
+        - quarterbeats: Position in quarter notes
+        - chord: The chord symbol text
+        - pedal, numeral, form, figbass, etc.: Parsed components
+
+        Args:
+            df: pandas DataFrame from ms3.load_tsv.
+            source: Path to source file.
+            subtype: The control subtype ("Chord").
+
+        Returns:
+            ScoreStore with populated ControlEventData.
+        """
+        import pandas as pd
+
+        if df.empty:
+            return ScoreStore.empty()
+
+        control_rows = []
+
+        for idx, row in df.iterrows():
+            # Temporal
+            qb = self._parse_fraction(row.get("quarterbeats", 0))
+            qb_float = float(qb) if qb else 0.0
+
+            # Duration (if available)
+            dur_qb = self._parse_fraction(row.get("duration_qb"))
+            dur_qb_float = float(dur_qb) if dur_qb else None
+
+            # Measure context
+            mc = int(row["mc"]) if pd.notna(row.get("mc")) else None
+            mn = str(row.get("mn", "")) if pd.notna(row.get("mn")) else None
+            mc_onset = self._parse_fraction(row.get("mc_onset"))
+            mn_onset = self._parse_fraction(row.get("mn_onset"))
+
+            # Label - try various column names used in DCML
+            label = None
+            for label_col in ["chord", "label", "numeral"]:
+                if pd.notna(row.get(label_col)):
+                    label = str(row[label_col])
+                    break
+
+            if label is None:
+                # Construct label from components if available
+                parts = []
+                for col in ["numeral", "form", "figbass", "relativeroot"]:
+                    if pd.notna(row.get(col)) and row.get(col):
+                        parts.append(str(row[col]))
+                label = "".join(parts) if parts else f"{subtype}_{idx}"
+
+            # Staff/voice context
+            staff = int(row["staff"]) if pd.notna(row.get("staff")) else None
+            voice = int(row["voice"]) if pd.notna(row.get("voice")) else None
+
+            control_rows.append(
+                {
+                    "id": f"ctrl_{subtype.lower()}_{qb_float}_{idx}",
+                    "name": label,
+                    "temporal_type": "interval" if dur_qb_float else "instant",
+                    "event_type": "Control",
+                    "subtype": subtype,
+                    "text": label,
+                    "value": None,  # Chord symbols don't have numeric values
+                    # Temporal
+                    "quarterbeats": (
+                        coordinate_to_struct(qb)
+                        if qb is not None
+                        else coordinate_to_struct(0)
+                    ),
+                    "quarterbeats_float": qb_float,
+                    "duration_qb": (
+                        coordinate_to_struct(dur_qb) if dur_qb is not None else None
+                    ),
+                    "duration_float": dur_qb_float,
+                    # Measure context
+                    "mc": mc,
+                    "mn": mn,
+                    "mc_onset": (
+                        fraction_to_struct(mc_onset) if mc_onset is not None else None
+                    ),
+                    "mn_onset": (
+                        fraction_to_struct(mn_onset) if mn_onset is not None else None
+                    ),
+                    # Context
+                    "staff": staff,
+                    "voice": voice,
+                }
+            )
+
+        controls_data = ControlEventData.from_dicts(
+            control_rows,
+            unit=TimeUnit.quarters,
+            number_type=NumberType.fraction,
+        )
+
+        return ScoreStore(
+            notes=NoteEventData.empty(),
+            measures=MeasureData.empty(),
+            controls=controls_data,
+            annotations=AnnotationEventData.empty(),
+            metadata={
+                "format": "tsv",
+                "parser": "ms3",
+                "source": str(source),
+                "control_type": subtype,
+                "n_controls": len(control_rows),
             },
         )
