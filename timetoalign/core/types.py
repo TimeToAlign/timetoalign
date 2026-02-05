@@ -124,6 +124,55 @@ class Coordinate:
         # Float: use limit_denominator for reasonable precision
         return Fraction(self.value).limit_denominator(10000)
 
+    def __float__(self) -> float:
+        """Enable implicit float conversion via float(coord).
+
+        This allows Coordinates to be used directly in contexts expecting
+        float, such as math operations, plotting functions, and C APIs.
+
+        Examples:
+            >>> coord = Coordinate(15343, TimeUnit.pixels)
+            >>> float(coord)
+            15343.0
+            >>> import math
+            >>> math.sqrt(coord)  # Works because of __float__
+            123.86...
+        """
+        return float(self.value)
+
+    def __int__(self) -> int:
+        """Enable implicit int conversion via int(coord).
+
+        Uses truncation towards zero (same as int() on the value).
+
+        Examples:
+            >>> coord = Coordinate(15.7, TimeUnit.seconds)
+            >>> int(coord)
+            15
+        """
+        return int(self.value)
+
+    def __index__(self) -> int:
+        """Enable use as sequence index (requires integer value).
+
+        Only works when value is an integer type. This allows Coordinates
+        to be used in slice notation and as array indices.
+
+        Examples:
+            >>> coord = Coordinate(5, TimeUnit.pixels)
+            >>> "hello world"[coord]  # Works because of __index__
+            ' '
+
+        Raises:
+            TypeError: If value is not an integer.
+        """
+        if isinstance(self.value, int) and not isinstance(self.value, bool):
+            return self.value
+        raise TypeError(
+            f"Cannot use Coordinate with {type(self.value).__name__} value as index. "
+            f"Only integer Coordinates can be used as indices."
+        )
+
     @property
     def number_type(self) -> NumberType:
         """Infer the NumberType from the value."""

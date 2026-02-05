@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 from typing_extensions import Self
 
 if TYPE_CHECKING:
+    from timetoalign.core import Coordinate
     from timetoalign.timelines import Timeline
 
 module_logger = logging.getLogger(__name__)
@@ -308,19 +309,37 @@ class ATONLoader:
         return len(self._holes)
 
     @property
-    def first_hole(self) -> int:
-        """Pixel row of first musical hole (from ROLLINFO)."""
-        return int(self._rollinfo.get("FIRST_HOLE", 0))
+    def first_hole(self) -> "Coordinate":
+        """Pixel coordinate of first musical hole (from ROLLINFO).
+
+        Returns:
+            Coordinate with pixel unit, usable directly as offset in create_child().
+        """
+        from timetoalign.core import Coordinate, TimeUnit
+
+        return Coordinate(int(self._rollinfo.get("FIRST_HOLE", 0)), TimeUnit.pixels)
 
     @property
-    def last_hole(self) -> int:
-        """Pixel row of last musical hole (from ROLLINFO)."""
-        return int(self._rollinfo.get("LAST_HOLE", 0))
+    def last_hole(self) -> "Coordinate":
+        """Pixel coordinate of last musical hole (from ROLLINFO).
+
+        Returns:
+            Coordinate with pixel unit.
+        """
+        from timetoalign.core import Coordinate, TimeUnit
+
+        return Coordinate(int(self._rollinfo.get("LAST_HOLE", 0)), TimeUnit.pixels)
 
     @property
-    def musical_length(self) -> int:
-        """Pixel length from first to last hole (from ROLLINFO)."""
-        return int(self._rollinfo.get("MUSICAL_LENGTH", 0))
+    def musical_length(self) -> "Coordinate":
+        """Pixel length from first to last hole (from ROLLINFO).
+
+        Returns:
+            Coordinate with pixel unit (representing a length/distance).
+        """
+        from timetoalign.core import Coordinate, TimeUnit
+
+        return Coordinate(int(self._rollinfo.get("MUSICAL_LENGTH", 0)), TimeUnit.pixels)
 
     @property
     def musical_holes(self) -> int:

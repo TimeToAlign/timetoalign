@@ -395,3 +395,100 @@ class TestCoordinateUtilities:
         assert c2.value == 100
         assert c2.unit == TimeUnit.pulses
         assert c1.unit == TimeUnit.ticks  # Original unchanged
+
+
+class TestCoordinateNumericProtocols:
+    """Tests for Coordinate numeric protocol methods (__float__, __int__, __index__)."""
+
+    # --- __float__ tests ---
+
+    def test_float_from_int(self) -> None:
+        """__float__ converts int value to float."""
+        c = Coordinate(15343, TimeUnit.pixels)
+        result = float(c)
+        assert result == 15343.0
+        assert isinstance(result, float)
+
+    def test_float_from_float(self) -> None:
+        """__float__ returns float value unchanged."""
+        c = Coordinate(3.14159, TimeUnit.seconds)
+        result = float(c)
+        assert result == 3.14159
+        assert isinstance(result, float)
+
+    def test_float_from_fraction(self) -> None:
+        """__float__ converts Fraction value to float."""
+        c = Coordinate(Fraction(3, 4), TimeUnit.quarters)
+        result = float(c)
+        assert result == 0.75
+        assert isinstance(result, float)
+
+    def test_float_enables_math_functions(self) -> None:
+        """__float__ allows Coordinate to be used with math module."""
+        import math
+
+        c = Coordinate(16, TimeUnit.pixels)
+        # math.sqrt uses __float__ implicitly
+        assert math.sqrt(c) == 4.0
+
+    # --- __int__ tests ---
+
+    def test_int_from_int(self) -> None:
+        """__int__ returns int value unchanged."""
+        c = Coordinate(15343, TimeUnit.pixels)
+        result = int(c)
+        assert result == 15343
+        assert isinstance(result, int)
+
+    def test_int_from_float_truncates(self) -> None:
+        """__int__ truncates float value towards zero."""
+        c = Coordinate(3.9, TimeUnit.seconds)
+        assert int(c) == 3
+
+        c_neg = Coordinate(-3.9, TimeUnit.seconds)
+        assert int(c_neg) == -3
+
+    def test_int_from_fraction(self) -> None:
+        """__int__ truncates Fraction value."""
+        c = Coordinate(Fraction(7, 4), TimeUnit.quarters)
+        assert int(c) == 1
+
+    # --- __index__ tests ---
+
+    def test_index_from_int(self) -> None:
+        """__index__ returns int value for use as index."""
+        c = Coordinate(5, TimeUnit.pixels)
+        # Test as string index
+        assert "hello world"[c] == " "  # 5th character
+
+    def test_index_enables_slice_notation(self) -> None:
+        """__index__ allows Coordinate in slice notation."""
+        c = Coordinate(3, TimeUnit.pixels)
+        assert [0, 1, 2, 3, 4, 5][c] == 3
+
+    def test_index_from_float_raises(self) -> None:
+        """__index__ raises TypeError for float values."""
+        c = Coordinate(3.5, TimeUnit.seconds)
+        with pytest.raises(TypeError, match="Only integer Coordinates"):
+            "hello"[c]
+
+    def test_index_from_fraction_raises(self) -> None:
+        """__index__ raises TypeError for Fraction values."""
+        c = Coordinate(Fraction(3, 4), TimeUnit.quarters)
+        with pytest.raises(TypeError, match="Only integer Coordinates"):
+            [1, 2, 3][c]
+
+    # --- Integration tests ---
+
+    def test_float_in_tuple_construction(self) -> None:
+        """float(coord) can be used in tuple construction."""
+        c = Coordinate(15343, TimeUnit.pixels)
+        result = (float(c), "dgt1")
+        assert result == (15343.0, "dgt1")
+
+    def test_float_in_arithmetic_with_numbers(self) -> None:
+        """float(coord) enables arithmetic with plain numbers."""
+        c = Coordinate(100, TimeUnit.pixels)
+        # This would fail without float() conversion
+        result = 10.0 + float(c)
+        assert result == 110.0

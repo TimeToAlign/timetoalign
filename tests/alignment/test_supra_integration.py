@@ -60,7 +60,7 @@ def image_timeline(iiif_loader: IIIFManifestLoader) -> Timeline:
 def holes_timeline(aton_loader: ATONLoader) -> Timeline:
     """Graphical timeline for the musical region (hole punches)."""
     return Timeline(
-        length=aton_loader.musical_length,  # 277776 pixels
+        length=aton_loader.musical_length.value,  # 277776 pixels
         uid="dgt1_holes",
         name="Musical Holes Region",
     )
@@ -96,14 +96,15 @@ class TestSUPRADataLoading:
         """ATON loader extracts exact metadata."""
         assert aton_loader.musical_holes == 30092
         assert aton_loader.musical_notes == 8718
-        assert aton_loader.first_hole == 15343
-        assert aton_loader.last_hole == 293119
-        assert aton_loader.musical_length == 277776
+        # first_hole, last_hole, musical_length now return Coordinate objects
+        assert aton_loader.first_hole.value == 15343
+        assert aton_loader.last_hole.value == 293119
+        assert aton_loader.musical_length.value == 277776
 
     def test_aton_musical_length_calculation(self, aton_loader: ATONLoader) -> None:
         """Musical length equals last_hole - first_hole."""
-        expected = aton_loader.last_hole - aton_loader.first_hole
-        assert aton_loader.musical_length == expected == 277776
+        expected = aton_loader.last_hole.value - aton_loader.first_hole.value
+        assert aton_loader.musical_length.value == expected == 277776
 
 
 # endregion
@@ -155,8 +156,8 @@ class TestSUPRAAlignmentBundle:
             holes_timeline,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(float(aton_loader.first_hole), "dgt1"),
-            end=(float(aton_loader.last_hole), "dgt1"),
+            start=(float(aton_loader.first_hole.value), "dgt1"),
+            end=(float(aton_loader.last_hole.value), "dgt1"),
         )
 
         assert bundle.n_timelines == 2
@@ -179,8 +180,8 @@ class TestSUPRAAlignmentBundle:
             holes_timeline,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(float(aton_loader.first_hole), "dgt1"),  # 15343.0
-            end=(float(aton_loader.last_hole), "dgt1"),  # 293119.0
+            start=(float(aton_loader.first_hole.value), "dgt1"),  # 15343.0
+            end=(float(aton_loader.last_hole.value), "dgt1"),  # 293119.0
         )
 
         # Coordinate 0 in holes -> first_hole in image - EXACT
@@ -213,8 +214,8 @@ class TestSUPRAAlignmentBundle:
             holes_timeline,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(float(aton_loader.first_hole), "dgt1"),
-            end=(float(aton_loader.last_hole), "dgt1"),
+            start=(float(aton_loader.first_hole.value), "dgt1"),
+            end=(float(aton_loader.last_hole.value), "dgt1"),
         )
 
         # first_hole in image -> 0 in holes - EXACT
@@ -404,8 +405,8 @@ class TestSUPRASummary:
             holes_timeline,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(float(aton_loader.first_hole), "dgt1"),
-            end=(float(aton_loader.last_hole), "dgt1"),
+            start=(float(aton_loader.first_hole.value), "dgt1"),
+            end=(float(aton_loader.last_hole.value), "dgt1"),
         )
 
         summary = bundle.summary()

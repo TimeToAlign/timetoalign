@@ -83,23 +83,25 @@ class TestSUPRAROLLINFO:
         assert loaded_supra_loader.musical_notes == 8718
 
     def test_first_hole_exact(self, loaded_supra_loader: ATONLoader) -> None:
-        """ROLLINFO FIRST_HOLE is exactly 15343."""
-        assert loaded_supra_loader.first_hole == 15343
+        """ROLLINFO FIRST_HOLE is exactly 15343 pixels."""
+        assert loaded_supra_loader.first_hole.value == 15343
 
     def test_last_hole_exact(self, loaded_supra_loader: ATONLoader) -> None:
-        """ROLLINFO LAST_HOLE is exactly 293119."""
-        assert loaded_supra_loader.last_hole == 293119
+        """ROLLINFO LAST_HOLE is exactly 293119 pixels."""
+        assert loaded_supra_loader.last_hole.value == 293119
 
     def test_musical_length_exact(self, loaded_supra_loader: ATONLoader) -> None:
-        """ROLLINFO MUSICAL_LENGTH is exactly 277776."""
-        assert loaded_supra_loader.musical_length == 277776
+        """ROLLINFO MUSICAL_LENGTH is exactly 277776 pixels."""
+        assert loaded_supra_loader.musical_length.value == 277776
 
     def test_musical_length_matches_calculation(
         self, loaded_supra_loader: ATONLoader
     ) -> None:
         """MUSICAL_LENGTH equals LAST_HOLE - FIRST_HOLE."""
-        expected = loaded_supra_loader.last_hole - loaded_supra_loader.first_hole
-        assert loaded_supra_loader.musical_length == expected
+        expected = (
+            loaded_supra_loader.last_hole.value - loaded_supra_loader.first_hole.value
+        )
+        assert loaded_supra_loader.musical_length.value == expected
 
     def test_image_dimensions_exact(self, loaded_supra_loader: ATONLoader) -> None:
         """Image dimensions match expected values."""
@@ -195,7 +197,7 @@ class TestQueryMethods:
     def test_get_holes_in_range(self, loaded_supra_loader: ATONLoader) -> None:
         """Can filter holes by row range."""
         # Get holes in first 1000 pixels of musical region
-        start = loaded_supra_loader.first_hole
+        start = loaded_supra_loader.first_hole.value
         end = start + 1000
         holes = loaded_supra_loader.get_holes_in_range(start, end)
 
