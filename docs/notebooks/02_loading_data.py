@@ -16,7 +16,8 @@
 # %% [markdown]
 # # Loading Data with TimeToAlign!
 #
-# This tutorial introduces the Loader pattern and EventStores - the foundation for bringing music data into TimeToAlign!
+# This tutorial introduces the Loader pattern and EventStores - the foundation
+# for bringing music data into TimeToAlign!
 #
 # **Learning Objectives:**
 # - Use Loaders to ingest music data from various formats
@@ -30,11 +31,16 @@
 # %% [markdown]
 # ## Why Loaders Matter
 #
-# Music data comes in many formats: MusicXML, MIDI, MEI, Humdrum, proprietary TSV exports, and more. Each format has its own structure, terminology, and quirks.
+# Music data comes in many formats: MusicXML, MIDI, MEI, Humdrum, proprietary
+# TSV exports, and more. Each format has its own structure, terminology,
+# and quirks.
 #
-# **The problem:** Without a unified approach, you'd need format-specific code for every data source, making cross-format analysis difficult and error-prone.
+# **The problem:** Without a unified approach, you'd need format-specific code
+# for every data source, making cross-format analysis difficult and error-prone.
 #
-# **The TimeToAlign! solution:** Loaders normalize heterogeneous formats into a consistent `EventStore`, enabling downstream processing without format-specific code.
+# **The TimeToAlign! solution:** Loaders normalize heterogeneous formats into
+# a consistent `EventStore`, enabling downstream processing without
+# format-specific code.
 #
 # ```
 # MusicXML ─┐
@@ -54,8 +60,10 @@ from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.tsv import TSVLoader
 
-# Data directory - adjust if running from a different location
-DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data" / "midi" / "score"
+# Data directory - relative to notebook location
+DATA_DIR = (
+    Path(__file__).resolve().parent.parent.parent / "tests" / "data" / "midi" / "score"
+)
 assert DATA_DIR.is_dir(), f"Data directory not found: {DATA_DIR}"
 
 # Our test piece: Chopin Etude Op.10 No.3
@@ -86,23 +94,25 @@ partitura_loader.load(CHOPIN_XML)
 music21_loader = Music21Loader()
 music21_loader.load(CHOPIN_XML)
 
-# All produce ScoreBundles
+# All produce ScoreStores
 {
-    "TSV": type(tsv_loader.bundle).__name__,
-    "Partitura": type(partitura_loader.bundle).__name__,
-    "Music21": type(music21_loader.bundle).__name__,
+    "TSV": type(tsv_loader.store).__name__,
+    "Partitura": type(partitura_loader.store).__name__,
+    "Music21": type(music21_loader.store).__name__,
 }
 
 # %% [markdown]
 # ## Cross-Loader Validation
 #
-# One of the key benefits of TimeToAlign! is that different loaders produce comparable output. Let's verify that all three loaders found the same number of notes:
+# One of the key benefits of TimeToAlign! is that different loaders produce
+# comparable output. Let's verify that all three loaders found the same
+# number of notes:
 
 # %%
 # Convert to DataFrames
-tsv_df = tsv_loader.bundle.notes.to_dataframe()
-partitura_df = partitura_loader.bundle.notes.to_dataframe()
-music21_df = music21_loader.bundle.notes.to_dataframe()
+tsv_df = tsv_loader.store.notes.to_dataframe()
+partitura_df = partitura_loader.store.notes.to_dataframe()
+music21_df = music21_loader.store.notes.to_dataframe()
 
 # Count only Note events (not rests or other event types)
 counts = {
@@ -119,7 +129,8 @@ pd.Series(counts, name="note_count")
 # %% [markdown]
 # ## The EventStore
 #
-# Each bundle contains one or more **EventStores** - efficient, PyArrow-backed tables that hold musical events.
+# Each ScoreStore contains **EventStores** - efficient, PyArrow-backed tables
+# that hold musical events.
 #
 # Key characteristics:
 # - **High Performance**: Built on Apache Arrow for fast columnar operations
@@ -127,7 +138,7 @@ pd.Series(counts, name="note_count")
 # - **Pandas Interop**: Easy conversion with `.to_dataframe()`
 
 # %%
-notes_store = tsv_loader.bundle.notes
+notes_store = tsv_loader.store.notes
 
 {
     "type": type(notes_store).__name__,
@@ -182,7 +193,9 @@ tsv_df[display_cols].head(10)
 # %% [markdown]
 # ## Pitch Information
 #
-# The `spelled_pitch` column contains rich pitch information as a struct. This preserves the enharmonic spelling (e.g., G# vs Ab) which is lost when using only MIDI pitch numbers.
+# The `spelled_pitch` column contains rich pitch information as a struct.
+# This preserves the enharmonic spelling (e.g., G# vs Ab) which is lost
+# when using only MIDI pitch numbers.
 
 # %%
 # Extract spelled pitch information for the first note
@@ -211,7 +224,9 @@ tsv_df["duration_float"].describe()
 # %% [markdown]
 # ## Navigating by Measure
 #
-# The `mc` (measure count) and `mn` (measure number) columns allow easy navigation through the score. Note that `mn` is stored as a string (to support labels like "1a", "1b"), so we convert to int for proper sorting:
+# The `mc` (measure count) and `mn` (measure number) columns allow easy
+# navigation through the score. Note that `mn` is stored as a string
+# (to support labels like "1a", "1b"), so we convert to int for proper sorting:
 
 # %%
 # Notes per measure, sorted numerically
@@ -231,7 +246,9 @@ measure_5[["name", "duration_float", "voice", "staff"]]
 # %% [markdown]
 # ## Comparing Loader Outputs
 #
-# While all loaders produce the same number of notes, there can be subtle differences in how they interpret the score. Let's compare the first few notes:
+# While all loaders produce the same number of notes, there can be subtle
+# differences in how they interpret the score. Let's compare the first
+# few notes:
 
 # %%
 # Compare ID schemes across loaders
@@ -247,7 +264,8 @@ pd.DataFrame(
 # %% [markdown]
 # ## Unit Metadata
 #
-# TimeToAlign! stores unit information in the PyArrow schema metadata. This ensures coordinates are always interpreted correctly:
+# TimeToAlign! stores unit information in the PyArrow schema metadata.
+# This ensures coordinates are always interpreted correctly:
 
 # %%
 # Extract unit metadata for temporal columns
@@ -279,7 +297,8 @@ tsv_df.groupby(["staff", "voice"]).size().unstack(fill_value=0)
 # 5. **Cross-Validation**: Same piece from different sources yields same note count
 #
 # **Key Takeaway:**
-# > Loaders normalize heterogeneous formats into a consistent EventStore, enabling downstream processing without format-specific code.
+# > Loaders normalize heterogeneous formats into a consistent EventStore,
+# > enabling downstream processing without format-specific code.
 
 # %% [markdown]
 # ## Next Steps

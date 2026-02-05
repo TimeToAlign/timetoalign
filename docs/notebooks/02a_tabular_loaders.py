@@ -16,7 +16,9 @@
 # %% [markdown]
 # # Loading Tabular Data
 #
-# The fastest way to get music data into TimeToAlign! is through **tabular loaders**. If your data is in CSV or TSV format, you're just 3 lines of code away from analysis.
+# The fastest way to get music data into TimeToAlign! is through **tabular
+# loaders**. If your data is in CSV or TSV format, you're just 3 lines of
+# code away from analysis.
 #
 # **What you'll learn:**
 # - Load music annotations from TSV/CSV files
@@ -46,8 +48,9 @@
 # %%
 from pathlib import Path
 
-# Specimen directories
-SPECIMENS = Path(".").resolve().parents[1] / ".." / "dashboard" / "specimens"
+# Specimen directories - relative to the notebook's location
+_notebook_dir = Path(__file__).resolve().parent
+SPECIMENS = _notebook_dir.parent.parent.parent / "dashboard" / "specimens"
 BEETHOVEN = SPECIMENS / "beethoven_woo71"
 THORESEN = SPECIMENS / "thoresen"
 
@@ -60,12 +63,14 @@ THORESEN = SPECIMENS / "thoresen"
 # %% [markdown]
 # ## Loading Notes from TSV
 #
-# The `Ms3Loader` handles TSV files exported from the [ms3](https://github.com/johentsch/ms3) parser, which processes MuseScore files.
+# The `Ms3Loader` handles TSV files exported from the
+# [ms3](https://github.com/johentsch/ms3) parser, which processes MuseScore
+# files.
 #
 # **Three lines of code:**
 
 # %%
-from timetoalign.loader.tabular import Ms3Loader
+from timetoalign.loader.tabular import Ms3Loader  # noqa: E402
 
 loader = Ms3Loader()
 loader.load(BEETHOVEN / "WoO71.notes.tsv")
@@ -105,24 +110,25 @@ timeline
 # %% [markdown]
 # ## Custom Loaders for Non-Standard Formats
 #
-# For files that don't match the ms3 format, create a custom loader by subclassing `TsvLoader` or `CsvLoader`.
+# For files that don't match the ms3 format, create a custom loader
+# by subclassing `TsvLoader` or `CsvLoader`.
 #
 # Let's load the Thoresen annotations file which has a different column structure:
 
 # %%
-import pandas as pd
+import pandas as pd  # noqa: E402
 
 pd.read_csv(THORESEN / "thoresen_test.tsv", sep="\t", nrows=3)
 
 # %% [markdown]
 # ### Strategy 1: Simplest Case (No Extra Columns)
 #
-# The simplest custom loader just maps the core coordinate columns. No `extra_columns` means only the base event fields are loaded:
-
-from timetoalign.core import NumberType, TimeUnit
+# The simplest custom loader just maps the core coordinate columns.
+# No `extra_columns` means only the base event fields are loaded:
 
 # %%
-from timetoalign.loader.tabular import TsvLoader
+from timetoalign.core import NumberType, TimeUnit  # noqa: E402
+from timetoalign.loader.tabular import TsvLoader  # noqa: E402
 
 
 class ThoresenMinimalLoader(TsvLoader):
@@ -209,10 +215,11 @@ typed.events.to_pandas()
 # {"x": 10, "y": 90, "width": 148, "height": 55}
 # ```
 #
-# Use `Field("column", "nested_field")` to access nested fields directly. TimeToAlign! automatically parses JSON when needed:
+# Use `Field("column", "nested_field")` to access nested fields directly.
+# TimeToAlign! automatically parses JSON when needed:
 
 # %%
-from timetoalign.loader import ComputedField, Field
+from timetoalign.loader import ComputedField, Field  # noqa: E402
 
 
 class ThoresenGraphicalLoader(TsvLoader):
@@ -256,7 +263,8 @@ graphical.events.to_pandas()
 # %% [markdown]
 # ### Creating Timelines
 #
-# Use `create_timeline()` to convert loaded events into a Timeline object. The `diagram()` method shows an ASCII visualization:
+# Use `create_timeline()` to convert loaded events into a Timeline object.
+# The `diagram()` method shows an ASCII visualization:
 
 # %%
 # Create Physical Timeline (seconds)
@@ -288,20 +296,22 @@ graphical_tl
 # %% [markdown]
 # ### CoordinateField: Loading Multiple Coordinate Columns
 #
-# Sometimes your data contains coordinates in **multiple systems** (e.g., seconds AND pixels). Use `CoordinateField` to parse any column as a proper coordinate struct with unit metadata, enabling:
+# Sometimes your data contains coordinates in **multiple systems** (e.g.,
+# seconds AND pixels). Use `CoordinateField` to parse any column as a
+# proper coordinate struct with unit metadata, enabling:
 #
 # - Multiple coordinate columns in one EventData
 # - C-Map creation from loaded coordinate pairs
 # - Full precision preservation with Fraction number type
 # - Proper unit tracking per column (not just the primary unit)
 #
-# The Thoresen data has both time coordinates (seconds) and pixel coordinates (in JSON):
-
-from timetoalign.core import NumberType, TimeUnit
+# The Thoresen data has both time coordinates (seconds) and pixel
+# coordinates (in JSON):
 
 # %%
-from timetoalign.loader import CoordinateField, Field
-from timetoalign.loader.tabular import TsvLoader
+from timetoalign.core import NumberType, TimeUnit  # noqa: E402, F811
+from timetoalign.loader import CoordinateField, Field  # noqa: E402, F811
+from timetoalign.loader.tabular import TsvLoader  # noqa: E402, F811
 
 
 class MultiCoordinateLoader(TsvLoader):
@@ -343,14 +353,16 @@ multi.events.table.schema
 # %% [markdown]
 # ### create_cmap(): Building Conversion Maps
 #
-# With dual coordinates loaded, you can create **Conversion Maps** (C-Maps) to convert between coordinate systems. The loader's `create_cmap()` method supports:
+# With dual coordinates loaded, you can create **Conversion Maps** (C-Maps)
+# to convert between coordinate systems. The loader's `create_cmap()` method
+# supports:
 #
 # - **TableMap** (default): Point-to-point mapping with interpolation
 # - **LinearMap**: Fits a linear function `y = ax + b`
 # - **ScalarMap**: Fits a pure scaling `y = ax`
 
 # %%
-from timetoalign.maps import LinearMap, TableMap
+from timetoalign.maps import LinearMap  # noqa: E402
 
 # Create a TableMap from start (seconds) -> x_pixels
 table_cmap = multi.create_cmap("start", "x_pixels")
@@ -369,13 +381,15 @@ linear_cmap = multi.create_cmap("start", "x_pixels", map_type=LinearMap)
 # %% [markdown]
 # ### group_by: Creating Child Timelines from Column Values
 #
-# When your data contains events from **multiple sources** (e.g., multiple images, pages, or tracks), use `group_by` to automatically create child timelines for each unique value.
+# When your data contains events from **multiple sources** (e.g., multiple
+# images, pages, or tracks), use `group_by` to automatically create child
+# timelines for each unique value.
 #
 # The Thoresen data has events from 5 different image files:
 
 # %%
 # Using the earlier 'auto' loader which has image_filename
-from timetoalign.timelines import create_timeline
+from timetoalign.timelines import create_timeline  # noqa: E402
 
 # Create timeline grouped by image filename
 grouped_tl = create_timeline(auto, group_by="image_filename")
@@ -404,7 +418,7 @@ grouped_tl
 # | None | `extra_columns` not set | Only core event fields |
 # | Auto-infer | `extra_columns = True` | Include all columns, infer types |
 # | Explicit dict | `extra_columns = {"col": type}` | Specific columns with types |
-# | With CoordinateField | `extra_columns = [CoordinateField(...)]` | Coordinate columns for C-Maps |
+# | With CoordinateField | `extra_columns = [CoordinateField(...)]` | C-Maps |
 #
 # ### Key API
 #
@@ -447,4 +461,7 @@ grouped_tl
 # timeline = create_timeline(loader, group_by="image_filename")
 # ```
 #
-# > **Key Takeaway:** Tabular loaders provide a declarative way to map CSV/TSV columns to TimeToAlign! events. Use `Field` for nested JSON access, `CoordinateField` for additional coordinate columns with unit tracking, and `group_by` for multi-source timelines.
+# > **Key Takeaway:** Tabular loaders provide a declarative way to map CSV/TSV
+# > columns to TimeToAlign! events. Use `Field` for nested JSON access,
+# > `CoordinateField` for additional coordinate columns with unit tracking,
+# > and `group_by` for multi-source timelines.

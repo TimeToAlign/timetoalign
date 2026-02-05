@@ -16,7 +16,8 @@
 # %% [markdown]
 # # 07: Alignment Basics
 #
-# This tutorial introduces alignment - the core capability that connects timelines and enables coordinate transfer between them.
+# This tutorial introduces alignment - the core capability that connects
+# timelines and enables coordinate transfer between them.
 #
 # **Learning Objectives:**
 # - Understand alignment as establishing commensurability between timelines
@@ -28,23 +29,29 @@
 # - Notebooks 01-06 (Core Concepts, Loaders, C-Maps, Timelines, Timestamps, Graphical Timelines)
 # - Understanding of Timeline objects and Coordinate types
 #
-# **Note (Phase 7.4):** The `PerfectAlignment` class is deprecated. This tutorial uses the new timestamp-based TimelineGroup API with `start`/`end` parameters for partial alignment.
+# **Note (Phase 7.4):** The `PerfectAlignment` class is deprecated. This
+# tutorial uses the new timestamp-based TimelineGroup API with `start`/`end`
+# parameters for partial alignment.
 
 # %% [markdown]
 # ## Part 1: What is Alignment?
 #
 # In previous tutorials, we learned:
-# - **Timestamps** (Notebook 05): Cross-section views through timeline hierarchies - they tell us WHERE events are
+# - **Timestamps** (Notebook 05): Cross-section views through timeline
+#   hierarchies - they tell us WHERE events are
 # - **Graphical Timelines** (Notebook 06): Mapping images to timelines
 #
-# But timestamps are **read-only**. They don't let us convert coordinates from one timeline to another.
+# But timestamps are **read-only**. They don't let us convert coordinates from
+# one timeline to another.
 #
-# **Alignment** establishes **commensurability** between timelines - the ability to convert coordinates from one to another:
+# **Alignment** establishes **commensurability** between timelines - the
+# ability to convert coordinates from one to another:
 # > "If I'm at coordinate X in Timeline A, what's the corresponding coordinate in Timeline B?"
 #
 # ### Use Cases
 # - **Score-Audio Sync**: "At measure 5 in the score, what's the timestamp in the audio?"
-# - **Cross-Version Comparison**: "This pixel in Analysis A corresponds to which pixel in Analysis B?"
+# - **Cross-Version Comparison**: "This pixel in Analysis A corresponds to
+#   which pixel in Analysis B?"
 # - **OMR Linking**: "This note in the scanned image maps to which MIDI event?"
 
 # %% [markdown]
@@ -52,7 +59,9 @@
 #
 # Two timelines are **commensurable** if there exists a way to convert coordinates between them.
 #
-# In TimeToAlign!, commensurability is established by placing timelines in a **TimelineGroup**. Any timeline in the group can be converted to any other via linear interpolation.
+# In TimeToAlign!, commensurability is established by placing timelines in a
+# **TimelineGroup**. Any timeline in the group can be converted to any other
+# via linear interpolation.
 #
 # ```
 # Timeline A  <-->  Timeline B  <-->  Timeline C
@@ -77,22 +86,30 @@
 # %% [markdown]
 # ## Setup
 
+import importlib.util
+
 # %%
 from pathlib import Path
 
 from timetoalign.alignment import AlignmentBundle, TimelineGroup
-
-# For the Thoresen example
-from timetoalign.loader.graphical import GraphicalLoader
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     Timeline,
 )
 
+# Check for optional graphical loader dependency (pymupdf)
+_HAS_PYMUPDF = importlib.util.find_spec("pymupdf") is not None
+if _HAS_PYMUPDF:
+    from timetoalign.loader.graphical import GraphicalLoader
+else:
+    print("Note: pymupdf not installed. Graphical loader examples will use mock data.")
+    print("Install with: pip install pymupdf")
+
 # %% [markdown]
 # ## Part 3: TimelineGroup
 #
-# A `TimelineGroup` is a collection of **commensurable timelines** - timelines that can be converted to each other through linear interpolation.
+# A `TimelineGroup` is a collection of **commensurable timelines** - timelines
+# that can be converted to each other through linear interpolation.
 #
 # ### Creating a Group with Timelines
 
@@ -119,7 +136,8 @@ group = TimelineGroup(
 # %% [markdown]
 # ### Adding Timelines to the Group
 #
-# When you add a timeline to the group, it's aligned to the group's existing extent by default (linear full-extent).
+# When you add a timeline to the group, it's aligned to the group's existing
+# extent by default (linear full-extent).
 
 # %%
 # Create an audio timeline
@@ -141,7 +159,8 @@ group.add_timeline(audio_timeline)
 # %% [markdown]
 # ### Partial Alignment with start/end Parameters
 #
-# Timelines don't have to cover the full extent. Use `start` and `end` parameters to specify the exact mapping:
+# Timelines don't have to cover the full extent. Use `start` and `end`
+# parameters to specify the exact mapping:
 
 # %%
 # Create a MIDI timeline
@@ -173,7 +192,8 @@ group.get_timestamps_df()
 # %% [markdown]
 # ### Coordinate Transfer
 #
-# Now that all three timelines are commensurable (in the same group), we can convert between any pair:
+# Now that all three timelines are commensurable (in the same group), we can
+# convert between any pair:
 
 # %%
 # Transfer from audio seconds to image pixels
@@ -214,45 +234,18 @@ print(f"MIDI: {midi_coord} ticks -> Audio: {audio_from_midi:.2f} seconds")
 # - **DGT2 (2010)**: 5 separate images (4328 pixels total)
 # - Both represent the same **150-second audio excerpt**
 #
-# We want to make coordinates transferable between DGT1 and DGT2. Since both analyses represent the same audio, we can establish commensurability through a shared audio timeline.
+# We want to make coordinates transferable between DGT1 and DGT2. Since both
+# analyses represent the same audio, we can establish commensurability through
+# a shared audio timeline.
 
 # %%
-# Path to test data (adjust as needed)
-data_dir = Path("../../tests/alignment/data/thoresen")
+# Path to test data - relative to notebook location
+_notebook_dir = Path(__file__).resolve().parent
+data_dir = _notebook_dir.parent.parent / "tests" / "alignment" / "data" / "thoresen"
 
-# DGT1: Single image with 5 systems
-dgt1_image = data_dir / "thoresen_2009_sound-objects_p312_page1_1.jpeg"
-
-# DGT1 segment parameters
+# Constants for the Thoresen example
 DGT1_X0, DGT1_X1 = 2, 969
 DGT1_Y_POSITIONS = [18, 205, 396, 588, 785]
-
-# Load DGT1
-loader1 = GraphicalLoader(metadata={"source": "Thoresen 2009"})
-idx1 = loader1.add_image(dgt1_image)
-
-for i, y in enumerate(DGT1_Y_POSITIONS):
-    loader1.add_horizontal_segment(
-        source_index=idx1,
-        x0=DGT1_X0,
-        x1=DGT1_X1,
-        y=y,
-        name=f"system_{i+1}",
-    )
-
-dgt1_bundle = loader1.bundle
-print(f"DGT1: {dgt1_bundle.n_segments} segments, {dgt1_bundle.total_length:.0f} pixels")
-
-# %%
-# DGT2: 5 separate images
-dgt2_images = [
-    data_dir / "thoresen_2010_form-building-patterns_p90-91_page1_1.jpeg",
-    data_dir / "thoresen_2010_form-building-patterns_p90-91_page1_2.jpeg",
-    data_dir / "thoresen_2010_form-building-patterns_p90-91_page1_3.jpeg",
-    data_dir / "thoresen_2010_form-building-patterns_p90-91_page1_4.jpeg",
-    data_dir / "thoresen_2010_form-building-patterns_p90-91_page2_1.jpeg",
-]
-
 DGT2_SEGMENT_BOUNDS = [
     (8, 874, 15),
     (7, 874, 18),
@@ -260,32 +253,72 @@ DGT2_SEGMENT_BOUNDS = [
     (8, 872, 15),
     (9, 873, 20),
 ]
+AUDIO_DURATION = 150.0
 
-loader2 = GraphicalLoader(metadata={"source": "Thoresen 2010"})
+# This example requires pymupdf for image loading
+if _HAS_PYMUPDF:
+    # DGT1: Single image with 5 systems
+    dgt1_image = data_dir / "thoresen_2009_sound-objects_p312_page1_1.jpeg"
 
-for i, (img_path, (x0, x1, y)) in enumerate(zip(dgt2_images, DGT2_SEGMENT_BOUNDS)):
-    idx2 = loader2.add_image(img_path)
-    loader2.add_horizontal_segment(
-        source_index=idx2,
-        x0=x0,
-        x1=x1,
-        y=y,
-        name=f"page_{i+1}",
+    # Load DGT1
+    loader1 = GraphicalLoader(metadata={"source": "Thoresen 2009"})
+    idx1 = loader1.add_image(dgt1_image)
+
+    for i, y in enumerate(DGT1_Y_POSITIONS):
+        loader1.add_horizontal_segment(
+            source_index=idx1,
+            x0=DGT1_X0,
+            x1=DGT1_X1,
+            y=y,
+            name=f"system_{i+1}",
+        )
+
+    dgt1_bundle = loader1.bundle
+    print(
+        f"DGT1: {dgt1_bundle.n_segments} segments, {dgt1_bundle.total_length:.0f} pixels"
     )
 
-dgt2_bundle = loader2.bundle
-print(f"DGT2: {dgt2_bundle.n_segments} segments, {dgt2_bundle.total_length:.0f} pixels")
+    # DGT2: 5 separate images
+    dgt2_images = [
+        data_dir / "thoresen_2010_form-building-patterns_p90-91_page1_1.jpeg",
+        data_dir / "thoresen_2010_form-building-patterns_p90-91_page1_2.jpeg",
+        data_dir / "thoresen_2010_form-building-patterns_p90-91_page1_3.jpeg",
+        data_dir / "thoresen_2010_form-building-patterns_p90-91_page1_4.jpeg",
+        data_dir / "thoresen_2010_form-building-patterns_p90-91_page2_1.jpeg",
+    ]
 
-# %% [markdown]
-# ### Create Timelines
+    loader2 = GraphicalLoader(metadata={"source": "Thoresen 2010"})
 
-# %%
-# Convert bundles to timelines
-dgt1_timeline = dgt1_bundle.to_timeline(uid="dgt1", name="Thoresen 2009")
-dgt2_timeline = dgt2_bundle.to_timeline(uid="dgt2", name="Thoresen 2010")
+    for i, (img_path, (x0, x1, y)) in enumerate(zip(dgt2_images, DGT2_SEGMENT_BOUNDS)):
+        idx2 = loader2.add_image(img_path)
+        loader2.add_horizontal_segment(
+            source_index=idx2,
+            x0=x0,
+            x1=x1,
+            y=y,
+            name=f"page_{i+1}",
+        )
+
+    dgt2_bundle = loader2.bundle
+    print(
+        f"DGT2: {dgt2_bundle.n_segments} segments, {dgt2_bundle.total_length:.0f} pixels"
+    )
+
+    # Convert bundles to timelines
+    dgt1_timeline = dgt1_bundle.to_timeline(uid="dgt1", name="Thoresen 2009")
+    dgt2_timeline = dgt2_bundle.to_timeline(uid="dgt2", name="Thoresen 2010")
+
+else:
+    # Create mock timelines with the same pixel lengths as the real data
+    # DGT1: 5 systems × 967 pixels each = 4835 pixels total
+    # DGT2: 5 pages with varying widths ≈ 4328 pixels total
+    dgt1_timeline = Timeline(length=4835, uid="dgt1", name="Thoresen 2009 (mock)")
+    dgt2_timeline = Timeline(length=4328, uid="dgt2", name="Thoresen 2010 (mock)")
+    print("Using mock timelines (pymupdf not installed)")
+    print(f"DGT1: 5 segments, {dgt1_timeline.length.value:.0f} pixels (mock)")
+    print(f"DGT2: 5 segments, {dgt2_timeline.length.value:.0f} pixels (mock)")
 
 # Create audio timeline (150 seconds)
-AUDIO_DURATION = 150.0
 audio_timeline = ContinuousPhysicalTimeline(
     length=AUDIO_DURATION,
     unit="seconds",
@@ -293,6 +326,10 @@ audio_timeline = ContinuousPhysicalTimeline(
     name="Audio",
 )
 
+# %% [markdown]
+# ### Create Timelines
+
+# %%
 {
     "DGT1": f"{dgt1_timeline.length.value:.0f} pixels",
     "DGT2": f"{dgt2_timeline.length.value:.0f} pixels",
@@ -302,11 +339,13 @@ audio_timeline = ContinuousPhysicalTimeline(
 # %% [markdown]
 # ### Create TimelineGroups
 #
-# We create two groups, each establishing commensurability between a graphical timeline and the audio:
+# We create two groups, each establishing commensurability between a graphical
+# timeline and the audio:
 # - **Group 1**: DGT1 + Audio (full extent linear)
 # - **Group 2**: DGT2 + Audio (full extent linear)
 #
-# Since both groups include the same audio, we can transfer coordinates from DGT1 to DGT2 by going through audio.
+# Since both groups include the same audio, we can transfer coordinates from
+# DGT1 to DGT2 by going through audio.
 
 # %%
 # Group 1: DGT1 and Audio (linear full-extent alignment)
@@ -356,9 +395,11 @@ print(f"\nVerification: {audio_seconds / AUDIO_DURATION * 100:.1f}% through the 
 #
 # ## Part 5: AlignmentBundle
 #
-# For projects with many timelines, `AlignmentBundle` provides a convenience wrapper that manages groups and provides a unified interface.
+# For projects with many timelines, `AlignmentBundle` provides a convenience
+# wrapper that manages groups and provides a unified interface.
 #
-# AlignmentBundle supports both **linear** (full-extent) and **partial** alignment via the `start`/`end` parameters.
+# AlignmentBundle supports both **linear** (full-extent) and **partial**
+# alignment via the `start`/`end` parameters.
 
 # %%
 # Create a bundle
@@ -427,7 +468,8 @@ print(f"Music coord 8000 -> Image pixel {result_end}")
 # - **Cross-group transfer** via shared timelines (automated)
 #
 # ### Next Tutorial
-# See **Application A3: SUPRA Piano Roll** for a complete alignment workflow with IIIF image metadata and ATON hole punch data.
+# See **Application A3: SUPRA Piano Roll** for a complete alignment workflow
+# with IIIF image metadata and ATON hole punch data.
 
 # %% [markdown]
 # ---
@@ -441,7 +483,9 @@ print(f"Music coord 8000 -> Image pixel {result_end}")
 # 3. **start/end parameters** define partial alignment (not all timelines cover the full extent)
 # 4. **convert()** transfers coordinates between any commensurable timelines in the group
 #
-# > "A TimelineGroup stores alignment as a timestamp table where each row is a boundary instant, enabling coordinate transfer between any pair of timelines via linear interpolation."
+# > "A TimelineGroup stores alignment as a timestamp table where each row is
+# > a boundary instant, enabling coordinate transfer between any pair of
+# > timelines via linear interpolation."
 
 # %% [markdown]
 # ---
@@ -473,7 +517,8 @@ print(f"Music coord 8000 -> Image pixel {result_end}")
 # </details>
 #
 # ### Exercise 2: Partial Alignment
-# Create a group where a MIDI file (0-48000 ticks) only covers measures 10-50 of a score (1000 quarters).
+# Create a group where a MIDI file (0-48000 ticks) only covers measures 10-50
+# of a score (1000 quarters).
 #
 # <details>
 # <summary>Solution</summary>

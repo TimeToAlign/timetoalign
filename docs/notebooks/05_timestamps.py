@@ -16,7 +16,8 @@
 # %% [markdown]
 # # Timestamps: Cross-Section Views Through Timelines
 #
-# This tutorial introduces **Timestamps** - cross-section tables that show synchronous coordinates across timeline hierarchies and conversion maps.
+# This tutorial introduces **Timestamps** - cross-section tables that show
+# synchronous coordinates across timeline hierarchies and conversion maps.
 #
 # **Learning Objectives:**
 # - Understand what timestamps represent conceptually
@@ -56,14 +57,12 @@
 # %% [markdown]
 # ## Setup
 
-from pathlib import Path
 
 # %%
 import numpy as np
-import pandas as pd
 
 from timetoalign import TimeUnit
-from timetoalign.maps import ScalarMap, TicksToQuarters
+from timetoalign.maps import TicksToQuarters
 from timetoalign.timelines import Timeline
 
 # %% [markdown]
@@ -118,7 +117,8 @@ timestamps_df
 # | `axis` | Root coordinate (the "cross-section" point) |
 # | `{timeline_id}` | Local coordinate on each timeline |
 #
-# For a single timeline, the `axis` and timeline column are identical (no offset). But with hierarchies, they differ!
+# For a single timeline, the `axis` and timeline column are identical
+# (no offset). But with hierarchies, they differ!
 
 # %% [markdown]
 # ---
@@ -178,10 +178,12 @@ timestamps_df
 #
 # Let's analyze the output:
 #
-# - **axis=0.0**: Parent event. child1 (offset=10) → local = 0-10 = -10 → **NaN** (out of bounds). child2 (offset=60) → **NaN**.
+# - **axis=0.0**: Parent event. child1 (offset=10) → local = 0-10 = -10 →
+#   **NaN** (out of bounds). child2 (offset=60) → **NaN**.
 # - **axis=10.0**: child1 boundary. child1 → local = 10-10 = **0.0**. child2 → **NaN**.
 # - **axis=20.0**: child1 event at local 10. child1 → 20-10 = **10.0**. child2 → **NaN**.
-# - **axis=30.0**: child1 boundary (end). child1 → 30-10 = **20.0** (at length, still valid). child2 → **NaN**.
+# - **axis=30.0**: child1 boundary (end). child1 → 30-10 = **20.0**
+#   (at length, still valid). child2 → **NaN**.
 # - **axis=50.0**: Parent event. child1 → **NaN** (50 > 30). child2 → **NaN** (50 < 60).
 # - **axis=60.0**: child2 boundary. child1 → **NaN**. child2 → 60-60 = **0.0**.
 # - **axis=65.0**: child2 event. child1 → **NaN**. child2 → 65-60 = **5.0**.
@@ -316,7 +318,8 @@ timestamps_df
 #
 # ## Putting It All Together: A Real Example
 #
-# Let's model a hierarchical timeline with measures and notes, then generate timestamps with unit conversion:
+# Let's model a hierarchical timeline with measures and notes, then generate
+# timestamps with unit conversion:
 
 # %%
 # Create a score timeline in quarters (8 measures of 4/4)
@@ -378,7 +381,8 @@ m3_active
 #
 # ## Performance: PyArrow Tables
 #
-# For large datasets, timestamps are computed efficiently using PyArrow. The `get_timestamp_table()` method returns a PyArrow Table directly:
+# For large datasets, timestamps are computed efficiently using PyArrow.
+# The `get_timestamp_table()` method returns a PyArrow Table directly:
 
 # %%
 # Get PyArrow Table (no pandas conversion)
@@ -387,7 +391,7 @@ table = score.get_timestamp_table()
 print(f"Type: {type(table)}")
 print(f"Rows: {table.num_rows}")
 print(f"Columns: {table.column_names}")
-print(f"\nSchema:")
+print("\nSchema:")
 print(table.schema)
 
 # %%
@@ -400,7 +404,9 @@ df.head()
 #
 # ## The Unified TimeStamp Object
 #
-# While `get_timestamps()` returns a tabular DataFrame, sometimes you need to query a **single coordinate** and get all related values. The `TimeStamp` object provides this:
+# While `get_timestamps()` returns a tabular DataFrame, sometimes you need
+# to query a **single coordinate** and get all related values. The `TimeStamp`
+# object provides this:
 #
 # - **Lightweight**: Computes coordinates on-demand (no table materialization)
 # - **O(log n)**: Uses interpolation maps for fast lookup
@@ -466,10 +472,11 @@ interval.zip_intervals()
 # %% [markdown]
 # ### Getting Coordinates with Units
 #
-# Sometimes you need not just the numeric value, but a proper `Coordinate` object that carries its unit. The `TimeStamp` object provides methods for this:
+# Sometimes you need not just the numeric value, but a proper `Coordinate`
+# object that carries its unit. The `TimeStamp` object provides methods
+# for this:
 
 # %%
-from timetoalign.core import Coordinate
 
 # Get a TimeStamp at coordinate 25.0 on parent
 ts = parent.get_timestamp(25.0)
@@ -500,14 +507,15 @@ interval = parent.get_interval_stamp(15.0, 25.0)
 
 # Get the interval as Coordinate objects
 start_coord, end_coord = interval.get_coordinate_interval("child1")
-print(f"child1 interval:")
+print("child1 interval:")
 print(f"  Start: {start_coord} ({start_coord.value} {start_coord.unit})")
 print(f"  End: {end_coord} ({end_coord.value} {end_coord.unit})")
 
 # %% [markdown]
 # ### Unit Metadata in PyArrow Tables
 #
-# When you use `get_timestamp_table()`, each column includes unit metadata that can be accessed via the PyArrow schema:
+# When you use `get_timestamp_table()`, each column includes unit metadata
+# that can be accessed via the PyArrow schema:
 
 # %%
 # Get the PyArrow table
@@ -576,12 +584,15 @@ for field in table.schema:
 # 14. **PyArrow tables** include unit metadata accessible via `field.metadata[b'unit']`
 #
 # **Key Takeaway:**
-# > Timestamps answer the question: "At this root coordinate, where are we in each nested timeline and in each unit?" They are the foundation for alignment and cross-timeline analysis.
+# > Timestamps answer the question: "At this root coordinate, where are we
+# > in each nested timeline and in each unit?" They are the foundation for
+# > alignment and cross-timeline analysis.
 
 # %% [markdown]
 # ## Next Steps
 #
-# - **07_alignment_basics.ipynb**: Learn how `TimelineGroup` uses the same unified TimeStamp API for coordinate transfer between aligned timelines
+# - **07_alignment_basics.ipynb**: Learn how `TimelineGroup` uses the same
+#   unified TimeStamp API for coordinate transfer between aligned timelines
 # - **Application notebooks**: Real-world alignment workflows
 # - **API Reference**: Full documentation of timestamp methods
 
@@ -634,7 +645,9 @@ for field in table.schema:
 #
 # ## Exercise 2: Query Specific Measure
 #
-# **Task:** Using the hierarchy from the "Putting It All Together" example, find all timestamps where measure 5 is active and show the local coordinate in measure 5.
+# **Task:** Using the hierarchy from the "Putting It All Together" example,
+# find all timestamps where measure 5 is active and show the local coordinate
+# in measure 5.
 #
 # <details>
 # <summary>Solution</summary>

@@ -16,7 +16,8 @@
 # %% [markdown]
 # # Beat Grids: Metrical Structure for Timelines
 #
-# This tutorial introduces **BeatGrid** - a specialized timeline that provides metrical structure (measures, beats) for any parent timeline.
+# This tutorial introduces **BeatGrid** - a specialized timeline that provides
+# metrical structure (measures, beats) for any parent timeline.
 #
 # **Learning Objectives:**
 # - Understand that a BeatGrid is a **ContinuousLogicalTimeline** measured in quarters
@@ -50,7 +51,8 @@
 #
 # ### Key Insight: BeatGrid IS a Timeline
 #
-# A BeatGrid is NOT just a utility class or a wrapper around C-Maps. It is a **proper ContinuousLogicalTimeline**:
+# A BeatGrid is NOT just a utility class or a wrapper around C-Maps.
+# It is a **proper ContinuousLogicalTimeline**:
 #
 # ```
 # BeatGrid (ContinuousLogicalTimeline)
@@ -82,7 +84,6 @@ from timetoalign.maps import (
 )
 from timetoalign.timelines import (
     BeatGrid,
-    ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
 )
 
@@ -91,7 +92,8 @@ from timetoalign.timelines import (
 #
 # ## Part 1: Basic BeatGrid Usage
 #
-# Let's start with the simplest case: creating a BeatGrid for a 3-minute audio track at 120 BPM in 4/4 time.
+# Let's start with the simplest case: creating a BeatGrid for a 3-minute audio
+# track at 120 BPM in 4/4 time.
 
 # %%
 # Create a BeatGrid from tempo information
@@ -148,7 +150,8 @@ results
 # %% [markdown]
 # ### Reverse Lookup: From MC/Beat to Quarters
 #
-# You can also go the other direction - find the quarter position for a given measure count (MC) and beat:
+# You can also go the other direction - find the quarter position for a given
+# measure count (MC) and beat:
 
 # %%
 # Find quarter position for specific MC/beat combinations
@@ -165,7 +168,8 @@ positions = [
 # %% [markdown]
 # ### Converting to Seconds via Tempo Map
 #
-# When created with `from_tempo()`, the BeatGrid includes a tempo C-Map that converts quarters to seconds:
+# When created with `from_tempo()`, the BeatGrid includes a tempo C-Map that
+# converts quarters to seconds:
 
 # %%
 # The tempo map converts quarters -> seconds
@@ -192,7 +196,8 @@ grid
 #
 # **Why MetricMap instead of FloorMap?**
 #
-# While `FloorMap` (simple integer division) works for uniform meters, `MetricMap` handles real-world complexity:
+# While `FloorMap` (simple integer division) works for uniform meters,
+# `MetricMap` handles real-world complexity:
 # - Anacrusis (pickup measures with MN=0)
 # - Varying time signatures (4/4 -> 3/4 -> 6/8)
 # - Repeat endings (MN=1a, MN=1b)
@@ -295,7 +300,8 @@ test_values = [0, 3.99, 4.0, 7.5, 36]
 #
 # ## Part 3: Different Time Signatures
 #
-# BeatGrid supports various time signatures through the `beats_per_measure` and `beat_unit` parameters.
+# BeatGrid supports various time signatures through the `beats_per_measure`
+# and `beat_unit` parameters.
 
 # %%
 # 3/4 time: 3 quarter-note beats per measure
@@ -335,9 +341,11 @@ grid_6_8 = BeatGrid(
 #
 # ## Part 4: Cross-Domain Relationships
 #
-# A key principle in TimeToAlign!: timelines with different units relate via **C-Maps**, not parent-child embedding.
+# A key principle in TimeToAlign!: timelines with different units relate via
+# **C-Maps**, not parent-child embedding.
 #
-# A BeatGrid (in quarters) cannot be a direct *child* of a physical timeline (in seconds). Instead, they are related via a **tempo C-Map**.
+# A BeatGrid (in quarters) cannot be a direct *child* of a physical timeline
+# (in seconds). Instead, they are related via a **tempo C-Map**.
 
 # %%
 # Create an audio timeline and a BeatGrid
@@ -363,7 +371,7 @@ second = tempo_map(float(mc_10_beat_1))
     "Query": "MC 10, Beat 1",
     "Quarter position": float(mc_10_beat_1),
     "Second": second,
-    "Verification": f"At 120 BPM: {9 * 4} quarters (9 measures) * 0.5 sec/quarter = {9 * 4 * 0.5} seconds",
+    "Verification": f"At 120 BPM: {9 * 4} q * 0.5 sec/q = {9 * 4 * 0.5} s",
 }
 
 # %%
@@ -437,11 +445,13 @@ measure_events = demo_grid2.get_events(event_type="Measure")
 #
 # ## Part 6: SUPRA Validation
 #
-# Let's validate the BeatGrid implementation against real-world data from the **SUPRA Piano Roll Archive**.
+# Let's validate the BeatGrid implementation against real-world data from the
+# **SUPRA Piano Roll Archive**.
 #
 # ### The Reference Data: Wagner Meistersinger Prelude
 #
-# The SUPRA archive contains piano roll data for Wagner's Meistersinger Prelude with known metrical structure:
+# The SUPRA archive contains piano roll data for Wagner's Meistersinger Prelude
+# with known metrical structure:
 #
 # | Parameter | Value | Source |
 # |-----------|-------|--------|
@@ -526,9 +536,13 @@ round_trip_results
 # %% [markdown]
 # ### Equivalence with Score TSV Measures
 #
-# The DCML score annotation files (TSV format) contain explicit measure boundaries. Let's verify that our BeatGrid produces equivalent measure numbers.
+# The DCML score annotation files (TSV format) contain explicit measure
+# boundaries. Let's verify that our BeatGrid produces equivalent measure
+# numbers.
 #
-# **Key insight**: When loading a score from TSV files that already contain measure information, the BeatGrid's measure numbers should **match exactly** with the source data. This demonstrates that:
+# **Key insight**: When loading a score from TSV files that already contain
+# measure information, the BeatGrid's measure numbers should **match exactly**
+# with the source data. This demonstrates that:
 #
 # 1. A manually created BeatGrid produces correct metrical positions
 # 2. The BeatGrid is equivalent to the measure structure in annotated scores
@@ -602,7 +616,9 @@ n_measures = wagner_measures.materialize_measures()
 #
 # **Key Takeaways:**
 #
-# > "A BeatGrid is a ContinuousLogicalTimeline measured in quarters. It provides metrical structure (measures, beats) via built-in C-Maps, and works for any musical content."
+# > "A BeatGrid is a ContinuousLogicalTimeline measured in quarters. It
+# > provides metrical structure (measures, beats) via built-in C-Maps,
+# > and works for any musical content."
 #
 # **What you learned:**
 #
@@ -656,7 +672,8 @@ n_measures = wagner_measures.materialize_measures()
 #
 # ### Exercise 1: Waltz Time
 #
-# Create a BeatGrid for a 5-minute waltz at 90 BPM in 3/4 time. Query the measure and beat at exactly 2.5 minutes.
+# Create a BeatGrid for a 5-minute waltz at 90 BPM in 3/4 time. Query the
+# measure and beat at exactly 2.5 minutes.
 
 # %%
 # Your solution here:
@@ -678,7 +695,8 @@ n_measures = wagner_measures.materialize_measures()
 # %% [markdown]
 # ### Exercise 3: Custom Measure Numbering
 #
-# Create a BeatGrid where measures start at MC 0 (for a pickup measure). Verify that quarter 0 is MC 0, and quarter 4 is MC 1.
+# Create a BeatGrid where measures start at MC 0 (for a pickup measure).
+# Verify that quarter 0 is MC 0, and quarter 4 is MC 1.
 #
 # Hint: Use the `start_measure` parameter in the BeatGrid constructor.
 

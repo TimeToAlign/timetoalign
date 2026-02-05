@@ -16,7 +16,8 @@
 # %% [markdown]
 # # Conversion Maps: Transforming Coordinates
 #
-# This tutorial introduces **ConversionMaps** (C-Maps) - the bridge between different coordinate systems in TimeToAlign!
+# This tutorial introduces **ConversionMaps** (C-Maps) - the bridge between
+# different coordinate systems in TimeToAlign!
 #
 # **Learning Objectives:**
 # - Understand what C-Maps are and when to use them
@@ -31,7 +32,9 @@
 # %% [markdown]
 # ## Why Conversion Maps Matter
 #
-# In the previous tutorials, we learned that TimeToAlign! organizes data into three domains (Physical, Logical, Graphical), each with its own units. But real-world workflows often require translating coordinates between units:
+# In the previous tutorials, we learned that TimeToAlign! organizes data into
+# three domains (Physical, Logical, Graphical), each with its own units.
+# But real-world workflows often require translating coordinates between units:
 #
 # | Scenario | From | To | Conversion |
 # |----------|------|-----|------------|
@@ -40,7 +43,8 @@
 # | Score playback | quarters | seconds | tempo-dependent |
 # | Timeline offset | seconds | seconds | add/subtract offset |
 #
-# **ConversionMaps** encapsulate these transformations as reusable, composable objects. They are the "bridges" that connect coordinate systems.
+# **ConversionMaps** encapsulate these transformations as reusable, composable
+# objects. They are the "bridges" that connect coordinate systems.
 #
 # ```
 # ticks ──[TicksToQuarters]──> quarters ──[QuartersToSeconds]──> seconds
@@ -53,15 +57,11 @@
 import numpy as np
 import pandas as pd
 
-from timetoalign import TimeUnit
 from timetoalign.maps import (  # Convenience classes
-    ChainMap,
     LinearMap,
     PiecewiseMap,
-    QuartersToTicks,
     SamplesToSeconds,
     ScalarMap,
-    SecondsToSamples,
     ShiftMap,
     TableMap,
     TicksToQuarters,
@@ -72,7 +72,8 @@ from timetoalign.maps import (  # Convenience classes
 #
 # ## What is a ConversionMap?
 #
-# A **ConversionMap** is a function that transforms a coordinate from one unit to another. In TimeToAlign!, C-Maps:
+# A **ConversionMap** is a function that transforms a coordinate from one unit
+# to another. In TimeToAlign!, C-Maps:
 #
 # 1. **Take input** - a coordinate value (scalar or array)
 # 2. **Apply transformation** - mathematical operation
@@ -299,7 +300,6 @@ pd.DataFrame(
 # TableMap supports different interpolation strategies:
 
 # %%
-from timetoalign.maps.table import InterpolationKind
 
 # Same anchor points, different interpolation
 x = [0, 10, 20, 30]
@@ -391,11 +391,12 @@ normal_map = LinearMap(scalar=1.0, offset=10.0)  # Offset to connect at boundary
 fast_map = LinearMap(scalar=0.5, offset=25.0)  # Continue from previous
 
 piecewise = PiecewiseMap(
-    boundaries=[0.0, 10.0, 20.0, 30.0],
+    breaks=[0.0, 10.0, 20.0, 30.0],  # Break points define interval boundaries
     maps=[slow_map, normal_map, fast_map],
 )
 
-x_values = [0, 5, 10, 15, 20, 25, 30]
+# Note: PiecewiseMap uses right-open intervals [start, end), so 30 is not in the last region
+x_values = [0, 5, 10, 15, 20, 25, 29.9]  # 30 is excluded (upper boundary)
 y_values = [piecewise(x) for x in x_values]
 
 pd.DataFrame(
@@ -405,6 +406,9 @@ pd.DataFrame(
         "region": ["slow", "slow", "normal", "normal", "fast", "fast", "fast"],
     }
 )
+
+# Note: The boundary 30.0 is exclusive. Use allow_upper_bound=True
+# internally for special cases like inverse computation.
 
 # %% [markdown]
 # ---
@@ -434,10 +438,12 @@ print(f"Last 5: {seconds[-5:]}")
 #
 # ## Integration with Timelines
 #
-# C-Maps can be attached to Timelines for coordinate conversion. This is covered in detail in the next tutorial (04_building_timelines), but here's a preview:
+# C-Maps can be attached to Timelines for coordinate conversion. This is
+# covered in detail in the next tutorial (04_building_timelines), but here's
+# a preview:
 
 # %%
-from timetoalign.timelines import Timeline
+from timetoalign.timelines import Timeline  # noqa: E402
 
 # Create a timeline in ticks
 tl = Timeline(length=1920, unit="ticks", uid="midi_timeline")
@@ -468,7 +474,9 @@ print(f"{ticks_value} ticks = {quarters_value} quarters")
 # 8. **Convenience classes**: `TicksToQuarters`, `SamplesToSeconds`, etc.
 #
 # **Key Takeaway:**
-# > ConversionMaps are the bridges between coordinate systems, enabling seamless translation across domains and units. They support both scalar and vectorized operations, and can be composed for complex conversions.
+# > ConversionMaps are the bridges between coordinate systems, enabling seamless
+# > translation across domains and units. They support both scalar and
+# > vectorized operations, and can be composed for complex conversions.
 
 # %% [markdown]
 # ## Next Steps
@@ -481,7 +489,8 @@ print(f"{ticks_value} ticks = {quarters_value} quarters")
 #
 # ## Exercise 1: MIDI Conversion Chain
 #
-# **Task:** A MIDI file has PPQ=960 and constant tempo of 90 BPM. Create a chain that converts ticks directly to seconds.
+# **Task:** A MIDI file has PPQ=960 and constant tempo of 90 BPM. Create a
+# chain that converts ticks directly to seconds.
 #
 # **Hints:**
 # 1. At 90 BPM, one quarter note = 60/90 = 0.667 seconds
