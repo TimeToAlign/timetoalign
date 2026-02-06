@@ -682,6 +682,126 @@ class BeatGrid(ContinuousLogicalTimeline):
         """The underlying MetricMap (for advanced access)."""
         return self._meter_map
 
+    def export_to_csv(  # type: ignore[override]
+        self,
+        filepath: str,
+        *,
+        format: str = "default",
+        labels: str = "beats",
+        **kwargs: Any,
+    ) -> int:
+        """Export BeatGrid data to a CSV file.
+
+        Extends the base Timeline.export_to_csv() with a special format for
+        audio annotation tools like Audacity and Sonic Visualiser.
+
+        Args:
+            filepath: Output CSV file path.
+            format: Output format. Options:
+                - "default": Standard timestamp table (inherited behavior).
+                - "sonic_visualiser": Audacity/Sonic Visualiser label track format.
+                  Tab-separated, no header: start_time<TAB>end_time<TAB>label
+            labels: What to export when using "sonic_visualiser" format:
+                - "beats": All beat positions with labels like "M1B1", "M1B2".
+                - "measures": Measure start positions with labels like "M1", "M2".
+                - "both": Both beats and measures.
+            **kwargs: Additional arguments passed to base export_to_csv() when
+                using "default" format.
+
+        Returns:
+            Number of rows written.
+
+        Raises:
+            RuntimeError: If format="sonic_visualiser" and no tempo information
+                is available (use from_tempo() to create the grid).
+            ValueError: If format is not recognized.
+
+        Examples:
+            >>> grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=60)
+
+            >>> # Export for Audacity
+            >>> grid.export_to_csv("beats.txt", format="sonic_visualiser")
+            120
+
+            >>> # Export measures only
+            >>> grid.export_to_csv("measures.txt", format="sonic_visualiser",
+            ...                    labels="measures")
+            30
+
+            >>> # Standard timestamp table
+            >>> grid.export_to_csv("data.csv", format="default")
+            120
+        """
+        import pandas as pd
+
+        if format == "default":
+            return super().export_to_csv(filepath, **kwargs)
+
+        if format != "sonic_visualiser":
+            raise ValueError(
+                f"Unknown format '{format}'. Use 'default' or 'sonic_visualiser'."
+            )
+
+        # sonic_visualiser format: requires tempo for seconds conversion
+        if not hasattr(self, "_tempo_bpm") or self._tempo_bpm is None:
+            raise RuntimeError(
+                "export_to_csv() with format='sonic_visualiser' requires tempo. "
+                "Use BeatGrid.from_tempo() to create the grid."
+            )
+
+        dfs = []
+
+        if labels in ("beats", "both"):
+            times = self.beat_seconds()
+            n_times = len(times)
+            # Calculate number of measures needed (round up to cover all beats)
+            n_measures_needed = (
+                n_times + self._beats_per_measure - 1
+            ) // self._beats_per_measure
+            measures = np.repeat(
+                np.arange(self._start_measure, self._start_measure + n_measures_needed),
+                self._beats_per_measure,
+            )[:n_times]
+            beats = np.tile(
+                np.arange(1, self._beats_per_measure + 1), n_measures_needed
+            )[:n_times]
+            dfs.append(
+                pd.DataFrame(
+                    {
+                        "start": np.round(times, 6),
+                        "end": np.round(times, 6),
+                        "label": [f"M{m}B{b}" for m, b in zip(measures, beats)],
+                    }
+                )
+            )
+
+        if labels in ("measures", "both"):
+            times = self.measure_seconds()
+            dfs.append(
+                pd.DataFrame(
+                    {
+                        "start": np.round(times, 6),
+                        "end": np.round(times, 6),
+                        "label": [
+                            f"M{m}"
+                            for m in range(
+                                self._start_measure,
+                                self._start_measure + len(times),
+                            )
+                        ],
+                    }
+                )
+            )
+
+        if not dfs:
+            raise ValueError(
+                f"Unknown labels '{labels}'. Use 'beats', 'measures', or 'both'."
+            )
+
+        df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
+        df.to_csv(filepath, sep="\t", index=False, header=False)
+        return len(df)
+
     def __repr__(self) -> str:
         return (
             f"BeatGrid(length={self._length.value}, "
