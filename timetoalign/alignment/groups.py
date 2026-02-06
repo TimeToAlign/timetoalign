@@ -28,13 +28,13 @@ from __future__ import annotations
 import logging
 import warnings
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Iterator, Literal
+from typing import TYPE_CHECKING, Any, Iterator, Literal, Sequence
 
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 
-from timetoalign.core import IdGenerator
+from timetoalign.core import CoordinateSpec, IdGenerator
 from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
 from timetoalign.maps.interpolation import InterpolationMap
 
@@ -700,6 +700,83 @@ class TimelineGroup:
         if conversion_maps:
             return self._add_cmap_values_to_timestamp(ts)
         return ts
+
+    def get_timestamps_at(
+        self,
+        coordinates: Sequence[CoordinateSpec],
+        timeline_id: str,
+        *,
+        conversion_maps: ConversionMapsSpec = True,
+        units: bool = True,
+    ) -> pd.DataFrame:
+        """Get timestamps at multiple coordinates - the batch version of get_timestamp_at.
+
+        This is the DEAD-SIMPLE API for batch coordinate transfer: pass a sequence of
+        coordinates and get back a DataFrame with all timeline columns and C-Maps.
+
+        Args:
+            coordinates: Sequence of CoordinateSpec to query.
+            timeline_id: Which timeline the coordinates refer to.
+            conversion_maps: Whether to include C-Map columns from member timelines.
+                - True (default): Include all attached C-Maps
+                - False/None: Only timeline coordinates
+            units: If True (default), append units to column names.
+
+        Returns:
+            DataFrame with one row per coordinate, columns for all timelines and C-Maps.
+
+        Examples:
+            >>> # Get timestamps at multiple score positions
+            >>> coords = [0.0, 100.0, 200.0, 400.0]
+            >>> df = group.get_timestamps_at(coords, "clt1_score")
+            >>> df.columns
+            Index(['clt1_score (quarterbeats)', 'dgt_holes (pixels)', ...])
+        """
+        import pandas as pd
+
+        from timetoalign.core import Coordinate
+
+        def _to_float(c: CoordinateSpec) -> float:
+            """Extract float value from CoordinateSpec."""
+            if isinstance(c, Coordinate):
+                return float(c.value)
+            return float(c)
+
+        # Get individual timestamps
+        timestamps = []
+        for coord in coordinates:
+            coord_float = _to_float(coord)
+            try:
+                ts = self.get_timestamp_at(
+                    coord_float, timeline_id, conversion_maps=conversion_maps
+                )
+                timestamps.append(ts.coordinates)
+            except (KeyError, ValueError):
+                # Coordinate out of range - add row with NaN
+                timestamps.append({timeline_id: coord_float})
+
+        if not timestamps:
+            return pd.DataFrame()
+
+        # Build DataFrame
+        df = pd.DataFrame(timestamps)
+
+        # Add units to column names if requested
+        if units and timestamps:
+            first_ts = self.get_timestamp_at(
+                _to_float(coordinates[0]), timeline_id, conversion_maps=conversion_maps
+            )
+            unit_map = first_ts.units
+
+            new_columns = {}
+            for col in df.columns:
+                if col in unit_map:
+                    new_columns[col] = f"{col} ({unit_map[col]})"
+                else:
+                    new_columns[col] = col
+            df = df.rename(columns=new_columns)
+
+        return df
 
     def _add_cmap_values_to_timestamp(self, ts: GroupTimestamp) -> GroupTimestamp:
         """Add C-Map values to a GroupTimestamp.

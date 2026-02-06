@@ -28,7 +28,7 @@
 #
 # ```python
 # grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=180, start_seconds=0.5)
-# beats = grid.beat_seconds()  # numpy array of all beat times
+# grid.export_to_csv("beats.txt", format="sonic_visualiser")  # Done!
 # ```
 #
 # **Learning Objectives:**
@@ -130,7 +130,6 @@ grid = BeatGrid.from_tempo(
 # ### 1.3 Getting Beat Times
 #
 # The `beat_seconds()` method returns a numpy array of ALL beat times.
-# This is **vectorized** - no loops, instant results.
 
 # %%
 # Get all beat times
@@ -180,87 +179,51 @@ expected_interval = 60.0 / TEMPO_BPM  # 0.375 seconds
 # %% [markdown]
 # ---
 #
-# ## Part 2: Exporting to Audacity
+# ## Part 2: Exporting to Audacity / Sonic Visualiser
 #
-# Audacity can import label tracks from CSV files.
-# The format is simple: `start_time\tend_time\tlabel`
+# Audacity and Sonic Visualiser can import label tracks from tab-separated files.
+# BeatGrid has a built-in `export_to_csv()` method for this:
 #
-# ### 2.1 Export Beats to Audacity CSV
-
+# ```python
+# grid.export_to_csv("beats.txt", format="sonic_visualiser")
+# ```
+#
+# ### 2.1 Export Beats with One Line
 
 # %%
-def beatgrid_to_audacity_csv(grid: BeatGrid, filepath: str, labels: str = "beats"):
-    """Export beatgrid to Audacity-compatible label track CSV.
+# Export all beats to Audacity/Sonic Visualiser format:
+# n_exported = grid.export_to_csv("ao_ceu_beats.txt", format="sonic_visualiser")
 
-    Args:
-        grid: The BeatGrid to export.
-        filepath: Output CSV path.
-        labels: What to export - "beats", "measures", or "both".
-    """
-    dfs = []
+# For demo, let's preview the first 12 rows (3 measures):
+times = grid.beat_seconds()[:12]
+measures = np.repeat(np.arange(1, 4), grid.beats_per_measure)  # M1, M2, M3
+beats = np.tile(np.arange(1, grid.beats_per_measure + 1), 3)
 
-    if labels in ("beats", "both"):
-        times = grid.beat_seconds()
-        measures = np.repeat(np.arange(1, grid.n_measures + 1), grid.beats_per_measure)[
-            : len(times)
-        ]
-        beats = np.tile(np.arange(1, grid.beats_per_measure + 1), grid.n_measures)[
-            : len(times)
-        ]
-        dfs.append(
-            pd.DataFrame(
-                {
-                    "start": times,
-                    "end": times,
-                    "label": [f"M{m}B{b}" for m, b in zip(measures, beats)],
-                }
-            )
-        )
-
-    if labels in ("measures", "both"):
-        times = grid.measure_seconds()
-        dfs.append(
-            pd.DataFrame(
-                {
-                    "start": times,
-                    "end": times,
-                    "label": [f"M{m}" for m in range(1, len(times) + 1)],
-                }
-            )
-        )
-
-    df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
-    df.to_csv(filepath, sep="\t", index=False, header=False)
-    return len(df)
-
-
-# %% [markdown]
-# ### 2.2 Example: Export Beats to Audacity
-
-# %%
-# Build the complete DataFrame in one shot (vectorized - no loops!)
-times = grid.beat_seconds()
-measures = np.repeat(np.arange(1, grid.n_measures + 1), grid.beats_per_measure)[
-    : len(times)
-]
-beats = np.tile(np.arange(1, grid.beats_per_measure + 1), grid.n_measures)[: len(times)]
-
-df = pd.DataFrame(
+pd.DataFrame(
     {
-        "start": np.round(times, 3),
-        "end": np.round(times, 3),
+        "start": np.round(times, 6),
+        "end": np.round(times, 6),
         "label": [f"M{m}B{b}" for m, b in zip(measures, beats)],
     }
 )
 
-# Preview first 12 rows (3 measures)
-df.head(12)
+# %% [markdown]
+# ### 2.2 Export Options
+#
+# The `export_to_csv()` method supports different label options:
+
+# %%
+{
+    "Export all beats": 'grid.export_to_csv("beats.txt", format="sonic_visualiser")',
+    "Export measures only": 'grid.export_to_csv("measures.txt", format="sonic_visualiser", labels="measures")',
+    "Export both": 'grid.export_to_csv("all.txt", format="sonic_visualiser", labels="both")',
+}
 
 # %% [markdown]
 # ### 2.3 Batch Processing All Tracks
 
 # %%
-# Process all three tracks
+# Process all three tracks and export to Sonic Visualiser format
 results = []
 
 for name, info in TRACKS.items():
@@ -271,14 +234,17 @@ for name, info in TRACKS.items():
         start_seconds=info["first_beat"],
     )
 
+    # Export beats to file
+    filename = f"{name.lower().replace(' ', '_')}_beats.txt"
+    n_exported = grid.export_to_csv(filename, format="sonic_visualiser")
+
     results.append(
         {
             "Track": name,
             "Duration (s)": info["duration"],
-            "First beat (s)": info["first_beat"],
             "Measures": grid.n_measures,
-            "Beats": grid.n_beats,
-            "First 4 beats": list(grid.beat_seconds()[:4].round(3)),
+            "Beats exported": n_exported,
+            "File": filename,
         }
     )
 
@@ -511,8 +477,7 @@ approx_grid = BeatGrid.from_tempo(
 # ## Summary
 #
 # > "BeatGrid.from_tempo() generates beat and measure times for audio with
-# > known tempo and first-beat offset. Export to Audacity with a simple
-# > CSV conversion."
+# > known tempo and first-beat offset. Export to Audacity with one line."
 #
 # **Key API:**
 #
@@ -525,6 +490,7 @@ approx_grid = BeatGrid.from_tempo(
 # | `.n_measures` | int | Total measure count |
 # | `.measure_at_seconds(t)` | int | Measure number at time t |
 # | `.beat_at_seconds(t)` | int | Beat-in-measure at time t |
+# | `.export_to_csv()` | int | Export to Audacity/Sonic Visualiser |
 #
 # **Common Patterns:**
 #
@@ -533,11 +499,8 @@ approx_grid = BeatGrid.from_tempo(
 # grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=180, start_seconds=0.5)
 # beats = grid.beat_seconds()
 #
-# # Pattern 2: Export to Audacity
-# for t in grid.beat_seconds():
-#     mc = grid.measure_at_seconds(t)
-#     beat = grid.beat_at_seconds(t)
-#     print(f"{t:.3f}\t{t:.3f}\tM{mc}B{beat}")
+# # Pattern 2: Export to Audacity (one line!)
+# grid.export_to_csv("beats.txt", format="sonic_visualiser")
 #
 # # Pattern 3: Different time signatures
 # grid_3_4 = BeatGrid.from_tempo(tempo_bpm=90, beats_per_measure=3, ...)
@@ -580,15 +543,16 @@ approx_grid = BeatGrid.from_tempo(
 # ...
 
 # %% [markdown]
-# ### Exercise 3: Measure Labels
+# ### Exercise 3: Custom Labels
 #
-# Modify the `beatgrid_to_audacity_csv()` function to add the time signature
-# to each measure label (e.g., "M1 (4/4)").
+# Use `grid.beat_seconds()` and `grid.measure_at_seconds()` to create a
+# custom export with time signature in the labels (e.g., "M1 (4/4)").
 
 # %%
 # Your solution here:
-# def enhanced_export(grid, filepath, time_sig="4/4"):
-#     ...
+# times = grid.measure_seconds()
+# labels = [f"M{i} (4/4)" for i in range(1, len(times) + 1)]
+# ...
 
 # %% [markdown]
 # ---

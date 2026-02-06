@@ -68,9 +68,7 @@
 # %%
 from pathlib import Path
 
-import pandas as pd
-
-from timetoalign import TimeUnit
+from timetoalign import IdCoordinate, TimeUnit
 from timetoalign.alignment import TimelineGroup
 from timetoalign.core import timestamp_table_to_dataframe
 from timetoalign.loader.graphical.aton import ATONLoader
@@ -514,26 +512,26 @@ harmony_ts = group.get_timestamp_at(i_chord_qb, "clt1_score")
 harmony_ts
 
 # %% [markdown]
-# ### H.2: Full Image Coordinates + Physical Units via Parent Timestamp
+# ### H.2: Full Image Coordinates + Physical Units via IdCoordinate
 #
-# The group timestamp gives us `dgt_holes` (relative pixels). To see the absolute
-# image position AND physical units, we get a timestamp from the parent timeline
-# `dgt1` - it includes child coordinates AND all C-Map conversions automatically!
+# The group timestamp gives us `dgt_holes` (relative pixels). To get the absolute
+# image position AND physical units (C-Maps), we use **IdCoordinate** - it carries
+# the child's timeline_id, so the parent automatically applies the offset!
 
 # %%
 if harmony_ts["dgt_holes"] is not None:
-    # Convert relative (child) coordinate to absolute (parent) coordinate
-    absolute_pixels = harmony_ts["dgt_holes"] + aton_loader.first_hole.value
+    # Create IdCoordinate from child timeline - parent auto-offsets!
+    child_coord = IdCoordinate(harmony_ts["dgt_holes"], TimeUnit.pixels, "dgt_holes")
 
-    # Parent timeline timestamp includes child coords AND C-Map conversions
-    image_ts = dgt1.get_timestamp(absolute_pixels)
+    # Parent's get_timestamps() recognizes the child_id and applies offset
+    image_ts = dgt1.get_timestamps(coordinates=[child_coord])
     image_ts
 
 # %% [markdown]
 # ### H.3: Multiple Harmony Labels - Batch Transfer
 #
-# For batch transfers, we get BOTH group timestamps (peer timelines) AND parent
-# timestamps (for C-Map conversions). Let's see the first 3 in full detail.
+# For batch transfers, use `group.get_timestamps_at()` - the DEAD-SIMPLE API:
+# pass coordinates, get a DataFrame with all timelines and units in column names.
 
 # %%
 # Get first 10 harmonies
@@ -541,55 +539,27 @@ first_10_harmonies = (
     score_loader.store.annotations.filter(subtype="Harmony").to_pandas().head(10)
 )
 
-# Show full timestamps for first 3 harmonies
-batch_timestamps = {}
-for _, harm in first_10_harmonies.head(3).iterrows():
-    qb = float(harm["start"])
-    group_ts = group.get_timestamp_at(qb, "clt1_score")
-
-    # Get parent timestamp for C-Map values (inches, cm)
-    parent_ts = None
-    if group_ts["dgt_holes"] is not None:
-        absolute_px = group_ts["dgt_holes"] + aton_loader.first_hole.value
-        parent_ts = dgt1.get_timestamp(absolute_px)
-
-    batch_timestamps[f"{harm['text']} (m. {harm['mc']})"] = {
-        "group_timestamp": group_ts,
-        "parent_timestamp": parent_ts,
-    }
-
-batch_timestamps
+# DEAD-SIMPLE: Get timestamps for all harmony coordinates in ONE CALL
+harmony_coords = first_10_harmonies["start"].tolist()
+group_df = group.get_timestamps_at(harmony_coords, "clt1_score")
+group_df
 
 # %% [markdown]
-# For larger batches, we can extract values into a DataFrame (values come directly
-# from timestamps - no manual formatting needed):
+# To also get the parent's C-Maps (inches, cm), pass IdCoordinates to the parent:
 
 # %%
-transfers = []
-for _, harm in first_10_harmonies.iterrows():
-    qb = float(harm["start"])
-    group_ts = group.get_timestamp_at(qb, "clt1_score")
+# Get dgt_holes coordinates from group timestamps as IdCoordinates
+dgt_holes_col = (
+    "dgt_holes (pixels)" if "dgt_holes (pixels)" in group_df.columns else "dgt_holes"
+)
+child_coords = [
+    IdCoordinate(v, TimeUnit.pixels, "dgt_holes")
+    for v in group_df[dgt_holes_col].dropna()
+]
 
-    # Get parent timestamp for C-Map values
-    parent_ts = None
-    if group_ts["dgt_holes"] is not None:
-        absolute_px = group_ts["dgt_holes"] + aton_loader.first_hole.value
-        parent_ts = dgt1.get_timestamp(absolute_px)
-
-    transfers.append(
-        {
-            "label": harm["text"],
-            "mc": harm["mc"],
-            "quarterbeats": group_ts["clt1_score"],
-            "audio_sec": group_ts["dpt1_audio"],
-            "holes_px": group_ts["dgt_holes"],
-            "image_px": parent_ts["dgt1"] if parent_ts else None,
-            "inches": parent_ts["pixels_to_inches"] if parent_ts else None,
-            "cm": parent_ts["pixels_to_cm"] if parent_ts else None,
-        }
-    )
-
-pd.DataFrame(transfers)
+# Parent timeline auto-applies offset and returns timestamps with C-Maps
+parent_df = dgt1.get_timestamps(coordinates=child_coords)
+parent_df
 
 # %% [markdown]
 # ---

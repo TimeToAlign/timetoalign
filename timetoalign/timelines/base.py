@@ -14,7 +14,7 @@ Design principles:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterator, Literal
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterator, Literal, Sequence
 
 import numpy as np
 import pandas as pd
@@ -22,7 +22,15 @@ import pyarrow as pa
 import pyarrow.compute as pc
 from typing_extensions import Self
 
-from timetoalign.core import Coordinate, CoordinateValue, Domain, NumberType, TimeUnit
+from timetoalign.core import (
+    Coordinate,
+    CoordinateSpec,
+    CoordinateValue,
+    Domain,
+    IdCoordinate,
+    NumberType,
+    TimeUnit,
+)
 from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
 from timetoalign.loader import EventData
 from timetoalign.maps import ConversionMap, InterpolationMap
@@ -2087,9 +2095,70 @@ class Timeline:
         schema = pa.schema(fields)
         return pa.table(columns, schema=schema)
 
+    def _resolve_coordinate_spec(
+        self,
+        coordinates: CoordinateSpec | Sequence[CoordinateSpec],
+    ) -> pa.Array:
+        """Resolve CoordinateSpec to axis coordinates.
+
+        Handles IdCoordinate objects by automatically applying child offsets.
+        This enables the dead-simple pattern:
+
+            child_coords = [IdCoordinate(v, unit, "child_id") for v in values]
+            df = parent.get_timestamps(coordinates=child_coords)
+
+        When an IdCoordinate's timeline_id matches a child of this timeline,
+        the coordinate is automatically converted to parent coordinates by
+        adding the child's offset.
+
+        Args:
+            coordinates: Single CoordinateSpec or sequence of CoordinateSpec.
+                - int/float/Fraction: Used directly as axis coordinate
+                - Coordinate: Value extracted
+                - IdCoordinate: Child offset applied if timeline_id matches a child
+                - Sequence of the above: Each element processed individually
+
+        Returns:
+            PyArrow array of float64 axis coordinates.
+
+        Examples:
+            >>> # IdCoordinate from child timeline - offset auto-applied
+            >>> child_coord = IdCoordinate(1000.0, TimeUnit.pixels, "dgt_holes")
+            >>> axis = parent._resolve_coordinate_spec([child_coord])
+            >>> # axis[0] == 1000.0 + child_offset
+        """
+
+        # Single Coordinate or IdCoordinate
+        if isinstance(coordinates, (Coordinate, IdCoordinate)):
+            coordinates = [coordinates]
+
+        # Process list of coordinates
+        resolved: list[float] = []
+        for coord in coordinates:
+            if isinstance(coord, IdCoordinate):
+                # Check if timeline_id matches a child
+                if coord.timeline_id in self._children:
+                    # Apply offset: parent_coord = child_coord + offset
+                    offset = float(self._child_offsets[coord.timeline_id].value)
+                    resolved.append(float(coord.value) + offset)
+                elif coord.timeline_id == self._id:
+                    # Coordinate is already in parent's coordinate system
+                    resolved.append(float(coord.value))
+                else:
+                    # Unknown timeline_id - use value as-is (may be intentional)
+                    resolved.append(float(coord.value))
+            elif isinstance(coord, Coordinate):
+                # Plain Coordinate - use value directly
+                resolved.append(float(coord.value))
+            else:
+                # Numeric value
+                resolved.append(float(coord))
+
+        return pa.array(resolved, type=pa.float64())
+
     def get_timestamp_table(
         self,
-        coordinates: pa.Array | np.ndarray | list[float] | None = None,
+        coordinates: CoordinateSpec | Sequence[CoordinateSpec] | None = None,
         conversion_maps: ConversionMapsSpec = True,
         recursion_limit: int | None = None,
         include_events: bool = True,
@@ -2101,9 +2170,17 @@ class Timeline:
         synchronous coordinates. This method computes local coordinates for
         each timeline in the hierarchy at each axis coordinate.
 
+        Supports IdCoordinate for automatic child offset resolution:
+
+            >>> # IdCoordinates from child timeline - offsets auto-applied!
+            >>> child_coords = [IdCoordinate(v, unit, "child_id") for v in values]
+            >>> df = parent.get_timestamps(coordinates=child_coords)
+
         Args:
             coordinates: Explicit coordinates to use as the axis. If None,
                 coordinates are extracted from events (and optionally boundaries).
+                Accepts IdCoordinate objects - if timeline_id matches a child,
+                the offset is automatically applied.
             conversion_maps: C-Maps to include as columns. Flexible input:
                 - True: Include all attached conversion maps
                 - str: Map ID or target unit name (e.g., "inches", "seconds")
@@ -2143,15 +2220,9 @@ class Timeline:
             >>> table.schema.field('axis').metadata[b'unit']
             b'seconds'
         """
-        # Resolve coordinates
+        # Resolve coordinates (handles IdCoordinate with auto child offset)
         if coordinates is not None:
-            # Use provided coordinates
-            if isinstance(coordinates, pa.Array):
-                axis = coordinates
-            elif isinstance(coordinates, np.ndarray):
-                axis = pa.array(coordinates, type=pa.float64())
-            else:
-                axis = pa.array(coordinates, type=pa.float64())
+            axis = self._resolve_coordinate_spec(coordinates)
         elif include_events:
             # Extract from events
             event_coords = self._collect_all_coordinates(
@@ -2187,7 +2258,7 @@ class Timeline:
 
     def get_timestamps(
         self,
-        coordinates: pa.Array | np.ndarray | list[float] | None = None,
+        coordinates: CoordinateSpec | Sequence[CoordinateSpec] | None = None,
         conversion_maps: ConversionMapsSpec = True,
         recursion_limit: int | None = None,
         include_events: bool = True,
@@ -2200,8 +2271,16 @@ class Timeline:
         Convenience wrapper around get_timestamp_table() for users who
         prefer working with pandas.
 
+        **IdCoordinate support:** When passing IdCoordinate objects whose
+        `timeline_id` matches a child timeline, the offset is automatically
+        applied. This enables the dead-simple pattern::
+
+            child_coords = [IdCoordinate(v, unit, "dgt_holes") for v in values]
+            df = parent.get_timestamps(coordinates=child_coords)
+
         Args:
-            coordinates: Explicit coordinates to use as the axis.
+            coordinates: CoordinateSpec or sequence of CoordinateSpec. Accepts
+                IdCoordinate - if timeline_id matches a child, offset is auto-applied.
             conversion_maps: C-Maps to include as columns. Flexible input:
                 - True: Include all attached conversion maps
                 - str: Map ID or target unit name (e.g., "inches", "seconds")
@@ -2457,6 +2536,63 @@ class Timeline:
             include_boundaries=include_boundaries,
         )
         return table.to_pandas()
+
+    def export_to_csv(
+        self,
+        filepath: str,
+        coordinates: pa.Array | np.ndarray | list[float] | None = None,
+        conversion_maps: ConversionMapsSpec = True,
+        recursion_limit: int | None = None,
+        include_events: bool = True,
+        include_boundaries: bool = False,
+        *,
+        columns: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
+        units: bool = True,
+        sep: str = ",",
+        header: bool = True,
+        index: bool = False,
+    ) -> int:
+        """Export timeline data to a CSV file.
+
+        This is a convenience method that generates a timestamp DataFrame and
+        writes it to a CSV file. For more control over the output, use
+        to_dataframe() and save manually.
+
+        Args:
+            filepath: Output CSV file path.
+            coordinates: Explicit coordinates to use as the axis.
+            conversion_maps: C-Maps to include as columns. Defaults to True (all).
+            recursion_limit: Maximum depth for child traversal.
+            include_events: If True and coordinates is None, extract from events.
+            include_boundaries: If True, include timeline boundary coordinates.
+            columns: How to name the columns (see to_dataframe).
+            units: If True (default), append units to column names.
+            sep: Field separator. Default "," (comma).
+            header: If True (default), write column headers.
+            index: If True, write row indices. Default False.
+
+        Returns:
+            Number of rows written.
+
+        Examples:
+            >>> timeline.export_to_csv("timestamps.csv")
+            100
+
+            >>> # Tab-separated, no header
+            >>> timeline.export_to_csv("data.tsv", sep="\\t", header=False)
+            100
+        """
+        df = self.to_dataframe(
+            coordinates=coordinates,
+            conversion_maps=conversion_maps,
+            recursion_limit=recursion_limit,
+            include_events=include_events,
+            include_boundaries=include_boundaries,
+            columns=columns,
+            units=units,
+        )
+        df.to_csv(filepath, sep=sep, header=header, index=index)
+        return len(df)
 
     # endregion
 
