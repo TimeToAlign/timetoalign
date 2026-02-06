@@ -514,32 +514,26 @@ harmony_ts = group.get_timestamp_at(i_chord_qb, "clt1_score")
 harmony_ts
 
 # %% [markdown]
-# ### H.2: Convert Back to Full Image Coordinates + Physical Units
+# ### H.2: Full Image Coordinates + Physical Units via Parent Timestamp
 #
-# The timestamp gives us the position in the holes region. To get the absolute
-# image position and physical units, we use the parent timeline's C-Maps.
+# The group timestamp gives us `dgt_holes` (relative pixels). To see the absolute
+# image position AND physical units, we get a timestamp from the parent timeline
+# `dgt1` - it includes child coordinates AND all C-Map conversions automatically!
 
 # %%
 if harmony_ts["dgt_holes"] is not None:
-    holes_pixels = harmony_ts["dgt_holes"]
-    image_pixels = holes_pixels + aton_loader.first_hole.value
+    # Convert relative (child) coordinate to absolute (parent) coordinate
+    absolute_pixels = harmony_ts["dgt_holes"] + aton_loader.first_hole.value
 
-    # Use the parent timeline's convert_to() for C-Map conversions
-    inches = dgt1.convert_to(image_pixels, "inches")
-    cm = dgt1.convert_to(image_pixels, "cm")
-
-    {
-        f"Harmony '{i_chord_label}' in full image": {
-            "Absolute pixels": f"{image_pixels:,.0f}",
-            "Physical (inches)": f"{inches.value:.2f}",
-            "Physical (cm)": f"{cm.value:.2f}",
-        }
-    }
+    # Parent timeline timestamp includes child coords AND C-Map conversions
+    image_ts = dgt1.get_timestamp(absolute_pixels)
+    image_ts
 
 # %% [markdown]
 # ### H.3: Multiple Harmony Labels - Batch Transfer
 #
-# Let's transfer the first 10 harmony labels to show the power of timestamps.
+# For batch transfers, we get BOTH group timestamps (peer timelines) AND parent
+# timestamps (for C-Map conversions). Let's see the first 3 in full detail.
 
 # %%
 # Get first 10 harmonies
@@ -547,17 +541,51 @@ first_10_harmonies = (
     score_loader.store.annotations.filter(subtype="Harmony").to_pandas().head(10)
 )
 
+# Show full timestamps for first 3 harmonies
+batch_timestamps = {}
+for _, harm in first_10_harmonies.head(3).iterrows():
+    qb = float(harm["start"])
+    group_ts = group.get_timestamp_at(qb, "clt1_score")
+
+    # Get parent timestamp for C-Map values (inches, cm)
+    parent_ts = None
+    if group_ts["dgt_holes"] is not None:
+        absolute_px = group_ts["dgt_holes"] + aton_loader.first_hole.value
+        parent_ts = dgt1.get_timestamp(absolute_px)
+
+    batch_timestamps[f"{harm['text']} (m. {harm['mc']})"] = {
+        "group_timestamp": group_ts,
+        "parent_timestamp": parent_ts,
+    }
+
+batch_timestamps
+
+# %% [markdown]
+# For larger batches, we can extract values into a DataFrame (values come directly
+# from timestamps - no manual formatting needed):
+
+# %%
 transfers = []
 for _, harm in first_10_harmonies.iterrows():
     qb = float(harm["start"])
-    ts = group.get_timestamp_at(qb, "clt1_score")
+    group_ts = group.get_timestamp_at(qb, "clt1_score")
+
+    # Get parent timestamp for C-Map values
+    parent_ts = None
+    if group_ts["dgt_holes"] is not None:
+        absolute_px = group_ts["dgt_holes"] + aton_loader.first_hole.value
+        parent_ts = dgt1.get_timestamp(absolute_px)
+
     transfers.append(
         {
             "label": harm["text"],
             "mc": harm["mc"],
-            "quarterbeats": qb,
-            "audio_sec": f"{ts['dpt1_audio']:.2f}" if ts["dpt1_audio"] else "N/A",
-            "image_px": f"{ts['dgt_holes']:,.0f}" if ts["dgt_holes"] else "N/A",
+            "quarterbeats": group_ts["clt1_score"],
+            "audio_sec": group_ts["dpt1_audio"],
+            "holes_px": group_ts["dgt_holes"],
+            "image_px": parent_ts["dgt1"] if parent_ts else None,
+            "inches": parent_ts["pixels_to_inches"] if parent_ts else None,
+            "cm": parent_ts["pixels_to_cm"] if parent_ts else None,
         }
     )
 
@@ -573,111 +601,67 @@ pd.DataFrame(transfers)
 # %% [markdown]
 # ### I.1: Query from Different Timelines
 #
-# We can query the group from ANY member timeline:
+# We can query the group from ANY member timeline. Just display the timestamp!
 
 # %%
-# Query at 100 seconds in the audio
+# Query at 100 seconds in the audio - timestamp shows ALL peer timelines
 audio_100s = group.get_timestamp_at(100.0, "dpt1_audio")
-
-{
-    "Query: 100 seconds in audio": {
-        "dpt1_audio": f"{audio_100s['dpt1_audio']:.2f} sec",
-        "dgt_holes": (
-            f"{audio_100s['dgt_holes']:,.0f} px" if audio_100s["dgt_holes"] else "N/A"
-        ),
-        "dlt1_raw": (
-            f"{audio_100s['dlt1_raw']:,.0f} ticks" if audio_100s["dlt1_raw"] else "N/A"
-        ),
-        "clt1_score": (
-            f"{audio_100s['clt1_score']:.2f} qb" if audio_100s["clt1_score"] else "N/A"
-        ),
-    }
-}
+audio_100s
 
 # %%
 # Query at 50,000 pixels in the holes region
 holes_50k = group.get_timestamp_at(50000.0, "dgt_holes")
-
-{
-    "Query: 50,000 pixels in holes region": {
-        "dgt_holes": f"{holes_50k['dgt_holes']:,.0f} px",
-        "dpt1_audio": (
-            f"{holes_50k['dpt1_audio']:.2f} sec" if holes_50k["dpt1_audio"] else "N/A"
-        ),
-        "dlt1_raw": (
-            f"{holes_50k['dlt1_raw']:,.0f} ticks" if holes_50k["dlt1_raw"] else "N/A"
-        ),
-        "clt1_score": (
-            f"{holes_50k['clt1_score']:.2f} qb" if holes_50k["clt1_score"] else "N/A"
-        ),
-    }
-}
+holes_50k
 
 # %% [markdown]
 # ### I.2: Boundary Points
 #
-# Check the alignment at the start and end of the musical content:
+# Check the alignment at the start and end of the musical content.
+# Display timestamps directly to see all coordinate values:
 
 # %%
 # Start of music (coordinate 0 in dgt_holes)
 start_ts = group.get_timestamp_at(0.0, "dgt_holes")
+{"Start of music": start_ts}
 
+# %%
 # End of music
 end_ts = group.get_timestamp_at(float(aton_loader.musical_length.value), "dgt_holes")
-
-{
-    "Start of music": {
-        "dgt_holes": f"{start_ts['dgt_holes']:,.0f} px",
-        "dpt1_audio": (
-            f"{start_ts['dpt1_audio']:.2f} sec" if start_ts["dpt1_audio"] else "N/A"
-        ),
-        "clt1_score": (
-            f"{start_ts['clt1_score']:.2f} qb" if start_ts["clt1_score"] else "N/A"
-        ),
-    },
-    "End of music": {
-        "dgt_holes": f"{end_ts['dgt_holes']:,.0f} px",
-        "dpt1_audio": (
-            f"{end_ts['dpt1_audio']:.2f} sec" if end_ts["dpt1_audio"] else "N/A"
-        ),
-        "clt1_score": (
-            f"{end_ts['clt1_score']:.2f} qb" if end_ts["clt1_score"] else "N/A"
-        ),
-    },
-}
+{"End of music": end_ts}
 
 # %% [markdown]
 # ### I.3: Round-Trip Verification
 #
-# Verify that coordinate transfer is reversible (within floating-point precision).
+# Verify that coordinate transfer is reversible. We show the full timestamps
+# at each step so you can see all coordinates involved.
 
 # %%
 test_coord = 100000.0  # pixels in holes region
 
-# Transfer to audio and back
+# Step 1: Get timestamp at our test coordinate
 ts1 = group.get_timestamp_at(test_coord, "dgt_holes")
-audio_coord = ts1["dpt1_audio"]
+{"Step 1 - Original timestamp at 100,000 px": ts1}
 
-ts2 = group.get_timestamp_at(audio_coord, "dpt1_audio")
-back_to_holes = ts2["dgt_holes"]
+# %%
+# Step 2: Transfer to audio, then back to holes
+ts2 = group.get_timestamp_at(ts1["dpt1_audio"], "dpt1_audio")
+{"Step 2 - Round-trip via audio": ts2}
 
-# Transfer to score and back
-score_coord = ts1["clt1_score"]
-ts3 = group.get_timestamp_at(score_coord, "clt1_score")
-back_from_score = ts3["dgt_holes"]
+# %%
+# Step 3: Transfer to score, then back to holes
+ts3 = group.get_timestamp_at(ts1["clt1_score"], "clt1_score")
+{"Step 3 - Round-trip via score": ts3}
 
+# %%
+# Verify round-trip precision (timestamps contain the proof!)
 {
-    "Original (dgt_holes)": f"{test_coord:,.0f} px",
-    "Round-trip via audio": {
-        "audio_sec": f"{audio_coord:.4f}",
-        "back_px": f"{back_to_holes:,.4f}",
-        "match": abs(back_to_holes - test_coord) < 0.001,
-    },
-    "Round-trip via score": {
-        "score_qb": f"{score_coord:.4f}",
-        "back_px": f"{back_from_score:,.4f}",
-        "match": abs(back_from_score - test_coord) < 0.001,
-    },
+    "Round-trip verification": {
+        "original_px": test_coord,
+        "via_audio_px": ts2["dgt_holes"],
+        "via_score_px": ts3["dgt_holes"],
+        "audio_match": abs(ts2["dgt_holes"] - test_coord) < 0.001,
+        "score_match": abs(ts3["dgt_holes"] - test_coord) < 0.001,
+    }
 }
 
 # %% [markdown]
