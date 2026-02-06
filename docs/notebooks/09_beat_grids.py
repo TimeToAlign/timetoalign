@@ -47,6 +47,7 @@
 # ## Setup
 
 # %%
+import os
 from fractions import Fraction
 
 import numpy as np
@@ -179,51 +180,49 @@ expected_interval = 60.0 / TEMPO_BPM  # 0.375 seconds
 # %% [markdown]
 # ---
 #
-# ## Part 2: Exporting to Audacity / Sonic Visualiser
+# ## Part 2: Exporting Beat Grids
 #
-# Audacity and Sonic Visualiser can import label tracks from tab-separated files.
-# BeatGrid has a built-in `export_to_csv()` method for this:
+# BeatGrid supports multiple export formats for different annotation tools:
 #
-# ```python
-# grid.export_to_csv("beats.txt", format="sonic_visualiser")
-# ```
+# | Format | Tool | Columns |
+# |--------|------|---------|
+# | `sonic_visualiser` | Sonic Visualiser, Audacity | TIME, LABEL |
+# | `tilia` | Tilia | time, measure, beat, is_first_in_measure |
 #
-# ### 2.1 Export Beats with One Line
+# ### 2.1 Export Formats
 
 # %%
-# Export all beats to Audacity/Sonic Visualiser format:
-# n_exported = grid.export_to_csv("ao_ceu_beats.txt", format="sonic_visualiser")
-
-# For demo, let's preview the first 12 rows (3 measures):
-times = grid.beat_seconds()[:12]
-measures = np.repeat(np.arange(1, 4), grid.beats_per_measure)  # M1, M2, M3
-beats = np.tile(np.arange(1, grid.beats_per_measure + 1), 3)
+# Preview: Sonic Visualiser format (TIME, LABEL)
+times = grid.beat_seconds()[:8]
+measures = np.repeat(np.arange(1, 3), grid.beats_per_measure)
+beats = np.tile(np.arange(1, grid.beats_per_measure + 1), 2)
 
 pd.DataFrame(
     {
-        "start": np.round(times, 6),
-        "end": np.round(times, 6),
-        "label": [f"M{m}B{b}" for m, b in zip(measures, beats)],
+        "TIME": np.round(times, 6),
+        "LABEL": [f"M{m}B{b}" for m, b in zip(measures, beats)],
+    }
+)
+
+# %%
+# Preview: Tilia format (time, measure, beat, is_first_in_measure)
+pd.DataFrame(
+    {
+        "time": np.round(times, 6),
+        "measure": measures,
+        "beat": beats,
+        "is_first_in_measure": beats == 1,
     }
 )
 
 # %% [markdown]
-# ### 2.2 Export Options
-#
-# The `export_to_csv()` method supports different label options:
+# ### 2.2 Batch Export to Multiple Formats
 
 # %%
-{
-    "Export all beats": 'grid.export_to_csv("beats.txt", format="sonic_visualiser")',
-    "Export measures only": 'grid.export_to_csv("measures.txt", format="sonic_visualiser", labels="measures")',
-    "Export both": 'grid.export_to_csv("all.txt", format="sonic_visualiser", labels="both")',
-}
+# Create outputs directory
+os.makedirs("outputs", exist_ok=True)
 
-# %% [markdown]
-# ### 2.3 Batch Processing All Tracks
-
-# %%
-# Process all three tracks and export to Sonic Visualiser format
+# Process all three tracks and export to both formats
 results = []
 
 for name, info in TRACKS.items():
@@ -234,21 +233,24 @@ for name, info in TRACKS.items():
         start_seconds=info["first_beat"],
     )
 
-    # Export beats to file
-    filename = f"{name.lower().replace(' ', '_')}_beats.txt"
-    n_exported = grid.export_to_csv(filename, format="sonic_visualiser")
+    # Export to both formats
+    base_name = name.lower().replace(" ", "_")
+    sv_file = f"outputs/{base_name}_beats.csv"
+    tilia_file = f"outputs/{base_name}_beats_tilia.csv"
+
+    n_sv = grid.export_to_csv(sv_file, format="sonic_visualiser")
+    n_tilia = grid.export_to_csv(tilia_file, format="tilia")
 
     results.append(
         {
             "Track": name,
-            "Duration (s)": info["duration"],
             "Measures": grid.n_measures,
-            "Beats exported": n_exported,
-            "File": filename,
+            "Beats": n_sv,
+            "Sonic Visualiser": sv_file,
+            "Tilia": tilia_file,
         }
     )
 
-# Display as table
 pd.DataFrame(results)
 
 # %% [markdown]
