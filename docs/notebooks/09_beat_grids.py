@@ -49,11 +49,17 @@
 # %%
 import os
 from fractions import Fraction
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from timetoalign import BeatGrid
+from timetoalign import AudioLoader, BeatGrid
+
+# Path to test audio files (relative to notebook directory)
+_notebook_dir = Path(".").resolve()
+AUDIO_DIR = _notebook_dir.parent.parent / "tests" / "data" / "audio" / "hard_techno"
+assert AUDIO_DIR.is_dir(), f"Audio directory not found: {AUDIO_DIR}"
 
 # %% [markdown]
 # ---
@@ -98,11 +104,24 @@ beat_times = grid.beat_seconds()
 TEMPO_BPM = 160.0
 BEATS_PER_MEASURE = 4
 
-TRACKS = {
-    "Ao Ceu": {"duration": 279.336, "first_beat": 0.092},
-    "Bye Bye": {"duration": 274.5, "first_beat": 0.035},
-    "Bass Kick": {"duration": 316.0, "first_beat": 0.061},
+# Load audio files to get accurate durations
+# First-beat offsets are measured by ear or beat detection
+TRACK_FILES = {
+    "Ao Céu": {"file": "Ao Céu.m4a", "first_beat": 0.092},
+    "Bye Bye": {"file": "Bye Bye.m4a", "first_beat": 0.035},
+    "Bass Kick": {"file": "Bass Kick.mp3", "first_beat": 0.061},
 }
+
+# Create loaders and extract durations from actual audio files
+TRACKS = {}
+for name, info in TRACK_FILES.items():
+    loader = AudioLoader.from_file(AUDIO_DIR / info["file"])
+    TRACKS[name] = {
+        "loader": loader,
+        "duration": loader.duration_seconds,
+        "first_beat": info["first_beat"],
+    }
+    print(f"{name}: {loader.duration_seconds:.3f}s ({loader.format})")
 
 # %% [markdown]
 # ### 1.2 Creating the BeatGrid
@@ -110,8 +129,8 @@ TRACKS = {
 # The `BeatGrid.from_tempo()` factory method does all the work:
 
 # %%
-# Create a beatgrid for "Ao Ceu"
-ao_ceu = TRACKS["Ao Ceu"]
+# Create a beatgrid for "Ao Céu"
+ao_ceu = TRACKS["Ao Céu"]
 grid = BeatGrid.from_tempo(
     tempo_bpm=TEMPO_BPM,
     beats_per_measure=BEATS_PER_MEASURE,
@@ -120,8 +139,8 @@ grid = BeatGrid.from_tempo(
 )
 
 {
-    "Track": "Ao Ceu",
-    "Duration": f'{ao_ceu["duration"]} seconds',
+    "Track": "Ao Céu",
+    "Duration": f'{ao_ceu["duration"]:.3f} seconds',
     "First beat at": f'{ao_ceu["first_beat"]} seconds',
     "Total measures": grid.n_measures,
     "Total beats": grid.n_beats,
@@ -263,12 +282,13 @@ pd.DataFrame(results)
 # ### 3.1 Query by Time (Seconds)
 
 # %%
-# Create grid for "Ao Ceu"
+# Create grid for "Ao Céu" using loaded audio duration
+ao_ceu = TRACKS["Ao Céu"]
 grid = BeatGrid.from_tempo(
-    tempo_bpm=160.0,
-    beats_per_measure=4,
-    length_seconds=279.336,
-    start_seconds=0.092,
+    tempo_bpm=TEMPO_BPM,
+    beats_per_measure=BEATS_PER_MEASURE,
+    length_seconds=ao_ceu["duration"],
+    start_seconds=ao_ceu["first_beat"],
 )
 
 # Query specific time positions
