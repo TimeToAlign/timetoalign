@@ -279,6 +279,24 @@ class EventType(FancyStrEnum):
     intv = interval
 
 
+class ColumnNaming(FancyStrEnum):
+    """How to name columns in timestamp DataFrames.
+
+    Controls the column header naming strategy for timestamp tables.
+
+    Members:
+        name: Use the human-readable name property (e.g., "Musical Holes Region").
+            Falls back to ID if name is not set.
+        id: Use the unique identifier (e.g., "dgt_holes").
+    """
+
+    name = auto()
+    """Use human-readable name (with id fallback)."""
+
+    id = auto()
+    """Use unique identifier."""
+
+
 class FlowControlType(FancyStrEnum):
     """Canonical taxonomy of flow control markers in musical scores.
 

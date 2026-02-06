@@ -12,9 +12,21 @@ These types have no dependencies on other TTA modules.
 
 from __future__ import annotations
 
-from .enums import Domain, EventType, FlowControlType, NumberType, TimeUnit
+from .enums import (
+    ColumnNaming,
+    Domain,
+    EventType,
+    FlowControlType,
+    NumberType,
+    TimeUnit,
+)
 from .ids import IdGenerator, ScopedId
-from .timestamp import TimeIntervalStamp, TimeStamp, TimeStampSource
+from .timestamp import (
+    TimeIntervalStamp,
+    TimeStamp,
+    TimeStampSource,
+    timestamp_table_to_dataframe,
+)
 from .types import (
     Coordinate,
     CoordinateSpec,
@@ -26,6 +38,7 @@ from .types import (
 
 __all__ = [
     # Enums
+    "ColumnNaming",
     "Domain",
     "TimeUnit",
     "NumberType",
@@ -42,6 +55,7 @@ __all__ = [
     "TimeStamp",
     "TimeIntervalStamp",
     "TimeStampSource",
+    "timestamp_table_to_dataframe",
     # IDs
     "ScopedId",
     "IdGenerator",
