@@ -62,6 +62,7 @@ from timetoalign.maps import (
     TableMap,
 )
 from timetoalign.timelines import (
+    BeatGrid,
     ContinuousGraphicalTimeline,
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
@@ -114,6 +115,7 @@ __all__ = [
     "DiscretePhysicalTimeline",
     "ContinuousGraphicalTimeline",
     "DiscreteGraphicalTimeline",
+    "BeatGrid",
     # Maps
     "ConversionMap",
     "LinearMap",
