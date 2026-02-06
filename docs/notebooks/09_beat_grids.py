@@ -14,59 +14,34 @@
 # ---
 
 # %% [markdown]
-# # Beat Grids: Metrical Structure for Timelines
+# # Beat Grids: Adding Metrical Structure to Audio
 #
-# This tutorial introduces **BeatGrid** - a specialized timeline that provides
-# metrical structure (measures, beats) for any parent timeline.
+# This tutorial shows how to add beat and measure information to audio tracks
+# when you know the tempo and first-beat offset.
+#
+# **The Common Problem:**
+#
+# > "I have an audio file. I know the tempo and when the first beat occurs.
+# > I want to export the beat times for Audacity."
+#
+# **The TimeToAlign! Solution:**
+#
+# ```python
+# grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=180, start_seconds=0.5)
+# beats = grid.beat_seconds()  # numpy array of all beat times
+# ```
 #
 # **Learning Objectives:**
-# - Understand that a BeatGrid is a **ContinuousLogicalTimeline** measured in quarters
-# - Create BeatGrids from tempo information
-# - Query measure numbers and beat positions via built-in C-Maps
-# - Understand the underlying C-Maps (MetricMap, BeatInMeasureMap, MetricalPositionMap)
-# - Relate BeatGrids to physical timelines via tempo maps
-# - Validate against real-world SUPRA data (Wagner Meistersinger Prelude)
+#
+# 1. Create a BeatGrid from tempo + first-beat offset
+# 2. Get all beat/measure times as numpy arrays
+# 3. Export to Audacity-compatible CSV
+# 4. Query individual time positions for measure/beat
+# 5. (Advanced) Create BeatGrids from score measure data
 #
 # **Prerequisites:**
-# - 03_conversion_maps.ipynb (C-Maps)
-# - 04_building_timelines.ipynb (Timelines, events, hierarchies)
-# - 05_timestamps.ipynb (Cross-section views)
-
-# %% [markdown]
-# ## Why BeatGrid?
-#
-# When working with music data, a common question arises:
-#
-# > "What measure and beat is this event on?"
-#
-# For example:
-# - An audio track at 60 seconds - what's the measure number?
-# - A MIDI tick at position 1920 - what beat is that?
-# - A pixel on a sheet music image - what's the metrical position?
-#
-# **BeatGrid** solves this by providing:
-# 1. A **coordinate system** in quarter notes (Fractions for exact representation)
-# 2. Built-in **C-Maps** that convert quarters to measure numbers and beat positions
-# 3. **Domain-agnostic** design - works with audio, MIDI, scores, and images
-#
-# ### Key Insight: BeatGrid IS a Timeline
-#
-# A BeatGrid is NOT just a utility class or a wrapper around C-Maps.
-# It is a **proper ContinuousLogicalTimeline**:
-#
-# ```
-# BeatGrid (ContinuousLogicalTimeline)
-# ├── Coordinate system: quarters (Fractions)
-# ├── C-Map: quarters -> mc (MetricMap) - integer measure count
-# ├── C-Map: quarters -> beat (BeatInMeasureMap) - Fraction beat position
-# ├── C-Map: quarters -> {mc, beat, mn} (MetricalPositionMap)
-# └── Events: Beat instants, Measure intervals (optional)
-# ```
-#
-# This design means:
-# - It can hold its own events (beats, downbeats, measures)
-# - It integrates with the timestamp system automatically
-# - It works for ANY parent domain (physical, logical, graphical)
+# - 01_core_concepts.ipynb (Timelines, Coordinates)
+# - No prerequisites for Part 1 (the simple case)
 
 # %% [markdown]
 # ## Setup
@@ -75,594 +50,499 @@
 from fractions import Fraction
 
 import numpy as np
+import pandas as pd
 
-from timetoalign import TimeUnit
-from timetoalign.maps import (
-    FloorMap,
-    MetricMap,
-    RotationMap,
-)
-from timetoalign.timelines import (
-    BeatGrid,
-    ContinuousPhysicalTimeline,
-)
+from timetoalign import BeatGrid
 
 # %% [markdown]
 # ---
 #
-# ## Part 1: Basic BeatGrid Usage
+# ## TL;DR: Three Lines to Beatgrid Your Audio
 #
-# Let's start with the simplest case: creating a BeatGrid for a 3-minute audio
-# track at 120 BPM in 4/4 time.
+# If you already know what you're doing, here's the pattern:
 
 # %%
-# Create a BeatGrid from tempo information
-# At 120 BPM with quarter-note beats: 2 quarters per second
-# 180 seconds = 360 quarters = 90 measures
 
+# Create beatgrid: 120 BPM, 4/4, 3-minute track, first beat at 0.5 seconds
+grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=180, start_seconds=0.5)
+
+# Get all beat times in seconds (numpy array)
+beat_times = grid.beat_seconds()
+
+# Quick look at what we have
+{
+    "Total beats": len(beat_times),
+    "Total measures": grid.n_measures,
+    "First 4 beats (seconds)": list(beat_times[:4].round(3)),
+    "First 4 measures (seconds)": list(grid.measure_seconds()[:4].round(3)),
+}
+
+# %% [markdown]
+# ---
+#
+# ## Part 1: Audio Beatgrids - The Simple Case
+#
+# You have audio files. You know the tempo and when the first beat occurs.
+# You want to generate a complete list of beat and measure times.
+#
+# ### 1.1 The Use Case
+#
+# Let's work with three techno tracks that all have:
+# - **Tempo**: 160 BPM (constant throughout)
+# - **Time Signature**: 4/4
+# - **Known first-beat offset** (measured by ear or beat detection)
+
+# %%
+# Our test tracks - tempo is constant 160 BPM
+TEMPO_BPM = 160.0
+BEATS_PER_MEASURE = 4
+
+TRACKS = {
+    "Ao Ceu": {"duration": 279.336, "first_beat": 0.092},
+    "Bye Bye": {"duration": 274.5, "first_beat": 0.035},
+    "Bass Kick": {"duration": 316.0, "first_beat": 0.061},
+}
+
+# %% [markdown]
+# ### 1.2 Creating the BeatGrid
+#
+# The `BeatGrid.from_tempo()` factory method does all the work:
+
+# %%
+# Create a beatgrid for "Ao Ceu"
+ao_ceu = TRACKS["Ao Ceu"]
 grid = BeatGrid.from_tempo(
-    tempo_bpm=120.0,
-    beats_per_measure=4,
-    length_seconds=180.0,  # 3 minutes
+    tempo_bpm=TEMPO_BPM,
+    beats_per_measure=BEATS_PER_MEASURE,
+    length_seconds=ao_ceu["duration"],
+    start_seconds=ao_ceu["first_beat"],  # When the first beat occurs
 )
 
-# grid._length is a Coordinate object, access .value to get the Fraction
 {
-    "Length (quarters)": float(grid._length.value),
-    "Measures": grid.n_measures,
-    "Quarters per measure": float(grid.quarters_per_measure),
-    "Quarters per beat": float(grid.quarters_per_beat),
-    "Tempo (BPM)": grid.tempo_bpm,
+    "Track": "Ao Ceu",
+    "Duration": f'{ao_ceu["duration"]} seconds',
+    "First beat at": f'{ao_ceu["first_beat"]} seconds',
+    "Total measures": grid.n_measures,
+    "Total beats": grid.n_beats,
 }
 
 # %% [markdown]
-# ### Querying Metrical Positions
+# ### 1.3 Getting Beat Times
 #
-# BeatGrid provides convenient methods to query measure and beat at any quarter-note position.
-#
-# **Return types:**
-# - `measure_at()` returns an **int** (the measure count, MC)
-# - `beat_at()` returns a **Fraction** (exact beat position, 1-indexed)
-# - `metrical_position()` returns a **dict** with `mc`, `beat`, and `mn` (measure number label)
+# The `beat_seconds()` method returns a numpy array of ALL beat times.
+# This is **vectorized** - no loops, instant results.
 
 # %%
-# Query metrical position at various quarter-note coordinates
-# measure_at() returns int, beat_at() returns Fraction
-test_quarters = [0, 1, 4, 7.5, 100]
+# Get all beat times
+beats = grid.beat_seconds()
 
-results = []
-for q in test_quarters:
-    mc = grid.measure_at(q)  # int
-    beat = grid.beat_at(q)  # Fraction
-    pos = grid.metrical_position(q)  # {mc: int, beat: Fraction, mn: str}
-    results.append(
-        {
-            "Quarter": q,
-            "MC (measure count)": mc,
-            "Beat (Fraction)": str(beat),  # Show as string to preserve Fraction
-            "Beat (float)": float(beat),
-            "MN (label)": pos["mn"],
-        }
-    )
-
-results
+{
+    "Array shape": beats.shape,
+    "First 8 beats (seconds)": list(beats[:8].round(3)),
+    "Last 4 beats (seconds)": list(beats[-4:].round(3)),
+}
 
 # %% [markdown]
-# ### Reverse Lookup: From MC/Beat to Quarters
+# ### 1.4 Getting Measure (Downbeat) Times
 #
-# You can also go the other direction - find the quarter position for a given
-# measure count (MC) and beat:
+# Use `measure_seconds()` for downbeat times only:
 
 # %%
-# Find quarter position for specific MC/beat combinations
-# quarter_at(mc, beat) returns a Fraction
-positions = [
-    (1, Fraction(1, 1)),  # MC 1, beat 1 (downbeat)
-    (1, Fraction(3, 1)),  # MC 1, beat 3
-    (5, Fraction(1, 1)),  # MC 5, beat 1 (downbeat)
-    (10, Fraction(5, 2)),  # MC 10, beat 2.5 (between beats)
-]
+# Get all measure start times (downbeats)
+measures = grid.measure_seconds()
 
-{f"MC{m}B{float(b)}": float(grid.quarter_at(m, b)) for m, b in positions}
+{
+    "Total measures": len(measures),
+    "First 4 measures (seconds)": list(measures[:4].round(3)),
+    "Last 4 measures (seconds)": list(measures[-4:].round(3)),
+}
 
 # %% [markdown]
-# ### Converting to Seconds via Tempo Map
+# ### 1.5 Verifying the Math
 #
-# When created with `from_tempo()`, the BeatGrid includes a tempo C-Map that
-# converts quarters to seconds:
+# At 160 BPM:
+# - One beat = 60/160 = 0.375 seconds
+# - One measure (4 beats) = 1.5 seconds
+#
+# Let's verify the beat spacing is constant:
 
 # %%
-# The tempo map converts quarters -> seconds
-# At 120 BPM: 2 quarters per second, so 1 quarter = 0.5 seconds
+# Check beat intervals
+intervals = np.diff(beats)
+expected_interval = 60.0 / TEMPO_BPM  # 0.375 seconds
 
-tempo_map = grid._tempo_map  # Internal tempo map
-
-test_quarters = [0, 1, 4, 100, 360]
-{f"{q} quarters": f"{tempo_map(q):.2f} seconds" for q in test_quarters}
-
-# %%
-grid
+{
+    "Expected beat interval": f"{expected_interval} seconds",
+    "Actual intervals (first 8)": list(intervals[:8].round(4)),
+    "All intervals equal?": np.allclose(intervals, expected_interval),
+}
 
 # %% [markdown]
 # ---
 #
-# ## Part 2: Understanding the Underlying C-Maps
+# ## Part 2: Exporting to Audacity
 #
-# BeatGrid uses three specialized C-Map types internally:
+# Audacity can import label tracks from CSV files.
+# The format is simple: `start_time\tend_time\tlabel`
 #
-# 1. **MetricMap**: Converts quarters to measure count (MC) using table-based lookup
-# 2. **BeatInMeasureMap**: Converts quarters to beat position (Fraction, 1-indexed)
-# 3. **MetricalPositionMap**: Combines both into a {mc, beat, mn} dict
-#
-# **Why MetricMap instead of FloorMap?**
-#
-# While `FloorMap` (simple integer division) works for uniform meters,
-# `MetricMap` handles real-world complexity:
-# - Anacrusis (pickup measures with MN=0)
-# - Varying time signatures (4/4 -> 3/4 -> 6/8)
-# - Repeat endings (MN=1a, MN=1b)
-# - Cadenzas with irregular measure lengths
-#
-# The simpler `FloorMap` and `RotationMap` are still useful as standalone building blocks.
+# ### 2.1 Export Beats to Audacity CSV
 
-# %% [markdown]
-# ### FloorMap: Integer Division (Building Block)
-#
-# A `FloorMap` computes integers via floor division. While BeatGrid uses `MetricMap` internally,
-# `FloorMap` is a useful standalone building block:
-#
-# ```
-# output = floor((input - offset) / divisor) + base
-# ```
 
 # %%
-# FloorMap for 4/4 time (4 quarters per measure), 1-indexed
-# Formula: floor((input - offset) / divisor) + base
-measure_map = FloorMap(
-    divisor=4.0,  # quarters per measure
-    base=1,  # 1-indexed measures
-    offset=0.0,  # no input offset
-)
+def beatgrid_to_audacity_csv(grid: BeatGrid, filepath: str, labels: str = "beats"):
+    """Export beatgrid to Audacity-compatible label track CSV.
 
-# Test at various positions
-test_values = [0, 1, 3.99, 4.0, 7.5, 100]
-{f"q={v}": measure_map(v) for v in test_values}
+    Args:
+        grid: The BeatGrid to export.
+        filepath: Output CSV path.
+        labels: What to export - "beats", "measures", or "both".
+    """
+    dfs = []
 
-# %% [markdown]
-# ### RotationMap: Cyclic Patterns (Building Block)
-#
-# A `RotationMap` produces cyclic/periodic output using modular arithmetic:
-#
-# ```
-# output = ((input - offset) % period) * scale + base
-# ```
-#
-# This creates the pattern 1, 2, 3, 4, 1, 2, 3, 4... for beats in 4/4 time.
-#
-# **Important**: RotationMap is NOT invertible (many-to-one).
+    if labels in ("beats", "both"):
+        times = grid.beat_seconds()
+        measures = np.repeat(np.arange(1, grid.n_measures + 1), grid.beats_per_measure)[
+            : len(times)
+        ]
+        beats = np.tile(np.arange(1, grid.beats_per_measure + 1), grid.n_measures)[
+            : len(times)
+        ]
+        dfs.append(
+            pd.DataFrame(
+                {
+                    "start": times,
+                    "end": times,
+                    "label": [f"M{m}B{b}" for m, b in zip(measures, beats)],
+                }
+            )
+        )
 
-# %%
-# RotationMap for 4/4 time (4 quarters per measure)
-# Formula: ((input - offset) % period) * scale + base
-beat_rotation_map = RotationMap(
-    period=4.0,  # quarters per measure
-    scale=1.0,  # 1 quarter = 1 beat (for quarter-note beats)
-    base=1.0,  # 1-indexed beats
-    offset=0.0,  # no input offset
-)
+    if labels in ("measures", "both"):
+        times = grid.measure_seconds()
+        dfs.append(
+            pd.DataFrame(
+                {
+                    "start": times,
+                    "end": times,
+                    "label": [f"M{m}" for m in range(1, len(times) + 1)],
+                }
+            )
+        )
 
-# Test the cyclic pattern
-test_values = [0, 1, 2, 3, 4, 5, 6, 7, 7.5]
-{f"q={v}": beat_rotation_map(v) for v in test_values}
+    df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    df.to_csv(filepath, sep="\t", index=False, header=False)
+    return len(df)
 
-# %%
-# RotationMap is NOT invertible
-# Quarters 0, 4, 8, 12... all map to beat 1
-{
-    "Is invertible?": beat_rotation_map.is_invertible,
-    "Why?": "Many quarters map to the same beat (many-to-one)",
-}
 
 # %% [markdown]
-# ### MetricMap: What BeatGrid Actually Uses
-#
-# While `FloorMap` works for simple uniform meters, `BeatGrid` uses `MetricMap` internally.
-# `MetricMap` is table-based and can handle anacrusis, varying meters, and repeat endings:
-#
-# ```python
-# # MetricMap stores explicit measure boundaries:
-# # (start_quarters, mc, mn, length_quarters)
-# # This enables handling of irregular structures
-# ```
+# ### 2.2 Example: Export Beats to Audacity
 
-# %% jupyter={"is_executing": true}
-# Create a MetricMap with uniform measures (like BeatGrid does internally)
-meter_map = MetricMap.from_uniform(
-    n_measures=10,
-    quarters_per_measure=Fraction(4, 1),  # 4/4 time
-    start_mc=1,  # First measure is MC 1
-    start_mn="1",  # First measure label is "1"
-)
+# %%
+# Build the complete DataFrame in one shot (vectorized - no loops!)
+times = grid.beat_seconds()
+measures = np.repeat(np.arange(1, grid.n_measures + 1), grid.beats_per_measure)[
+    : len(times)
+]
+beats = np.tile(np.arange(1, grid.beats_per_measure + 1), grid.n_measures)[: len(times)]
 
-# Test: quarters -> MC (int)
-test_values = [0, 3.99, 4.0, 7.5, 36]
-{
-    f"q={v}": {
-        "MC": meter_map(v),
-        "MN": meter_map.get_mn(meter_map(v)),
-        "beat": str(meter_map.beat_in_measure(v)),
+df = pd.DataFrame(
+    {
+        "start": np.round(times, 3),
+        "end": np.round(times, 3),
+        "label": [f"M{m}B{b}" for m, b in zip(measures, beats)],
     }
-    for v in test_values
-}
+)
+
+# Preview first 12 rows (3 measures)
+df.head(12)
 
 # %% [markdown]
-# ---
-#
-# ## Part 3: Different Time Signatures
-#
-# BeatGrid supports various time signatures through the `beats_per_measure`
-# and `beat_unit` parameters.
+# ### 2.3 Batch Processing All Tracks
 
 # %%
-# 3/4 time: 3 quarter-note beats per measure
-# 48 quarters / 3 quarters per measure = 16 measures
-grid_3_4 = BeatGrid(
-    length=Fraction(48, 1),  # 48 quarters = 16 measures
-    beats_per_measure=3,
-    beat_unit=Fraction(1, 4),  # quarter note beat
-)
-
-# 6/8 time: 6 eighth-note beats per measure
-# 6 eighth notes = 3 quarter notes per measure
-# 48 quarters / 3 quarters per measure = 16 measures
-grid_6_8 = BeatGrid(
-    length=Fraction(48, 1),
-    beats_per_measure=6,
-    beat_unit=Fraction(1, 8),  # eighth note beat
-)
-
-# beat_at() returns Fraction - convert to str for display
-{
-    "3/4": {
-        "quarters_per_measure": float(grid_3_4.quarters_per_measure),
-        "n_measures": grid_3_4.n_measures,
-        "beat_at_q6": str(grid_3_4.beat_at(6)),  # Should be Fraction(1,1) - new measure
-    },
-    "6/8": {
-        "quarters_per_measure": float(grid_6_8.quarters_per_measure),
-        "n_measures": grid_6_8.n_measures,
-        # 1.5 quarters = 3 eighth notes = beat 4 (1-indexed)
-        "beat_at_q1.5": str(grid_6_8.beat_at(1.5)),
-    },
-}
-
-# %% [markdown]
-# ---
-#
-# ## Part 4: Cross-Domain Relationships
-#
-# A key principle in TimeToAlign!: timelines with different units relate via
-# **C-Maps**, not parent-child embedding.
-#
-# A BeatGrid (in quarters) cannot be a direct *child* of a physical timeline
-# (in seconds). Instead, they are related via a **tempo C-Map**.
-
-# %%
-# Create an audio timeline and a BeatGrid
-audio = ContinuousPhysicalTimeline(length=180.0, unit=TimeUnit.seconds)
-
-# from_tempo() creates a BeatGrid with an attached tempo C-Map
-grid = BeatGrid.from_tempo(
-    tempo_bpm=120.0,
-    beats_per_measure=4,
-    length_seconds=180.0,
-)
-
-# The BeatGrid has a tempo map (LinearMap) that converts quarters -> seconds
-# This is only available when created via from_tempo()
-tempo_map = grid._tempo_map
-
-# Query: "What second corresponds to MC 10, beat 1?"
-# quarter_at(mc, beat) returns Fraction
-mc_10_beat_1 = grid.quarter_at(10, Fraction(1, 1))
-second = tempo_map(float(mc_10_beat_1))
-
-{
-    "Query": "MC 10, Beat 1",
-    "Quarter position": float(mc_10_beat_1),
-    "Second": second,
-    "Verification": f"At 120 BPM: {9 * 4} q * 0.5 sec/q = {9 * 4 * 0.5} s",
-}
-
-# %%
-# Reverse: "What MC/beat is second 60.0?"
-# First convert seconds -> quarters using inverse of tempo map
-
-# At 120 BPM: quarters = seconds * 2
-quarters_at_60s = 60.0 * 2  # 120 quarters
-
-# measure_at returns int, beat_at returns Fraction
-{
-    "Second": 60.0,
-    "Quarters": quarters_at_60s,
-    "MC": grid.measure_at(quarters_at_60s),
-    "Beat (Fraction)": str(grid.beat_at(quarters_at_60s)),
-    "Full position": grid.metrical_position(quarters_at_60s),
-}
-
-# %% [markdown]
-# ---
-#
-# ## Part 5: Materializing Beat and Measure Events
-#
-# BeatGrid can optionally create actual **events** for beats and measures. This is useful for:
-# - Visualization (plotting beat markers)
-# - Alignment (matching beats across timelines)
-# - Analysis (counting beats, measure statistics)
-
-# %%
-# Create a small grid for demonstration
-demo_grid = BeatGrid(
-    length=Fraction(16, 1),  # 16 quarters = 4 measures
-    beats_per_measure=4,
-)
-
-# Materialize all beats (creates Beat events)
-n_beats = demo_grid.materialize_beats()
-
-# Get the beat events (returns EventData which is iterable)
-beat_events = demo_grid.get_events(event_type="Beat")
-
-# Convert to list of dicts for display
-beat_list = list(beat_events)
-
-{
-    "Total beats created": n_beats,
-    "Event count": len(beat_events),
-    "First 4 events": beat_list[:4],
-}
-
-# %%
-# Create another grid for measure events
-demo_grid2 = BeatGrid(
-    length=Fraction(16, 1),  # 16 quarters = 4 measures
-    beats_per_measure=4,
-)
-
-# Materialize measures (creates IntervalEvents with start/end)
-n_measures = demo_grid2.materialize_measures()
-
-# Get the measure events (returns EventData which is iterable)
-measure_events = demo_grid2.get_events(event_type="Measure")
-
-{
-    "Total measures created": n_measures,
-    "Measure events": list(measure_events),
-}
-
-# %% [markdown]
-# ---
-#
-# ## Part 6: SUPRA Validation
-#
-# Let's validate the BeatGrid implementation against real-world data from the
-# **SUPRA Piano Roll Archive**.
-#
-# ### The Reference Data: Wagner Meistersinger Prelude
-#
-# The SUPRA archive contains piano roll data for Wagner's Meistersinger Prelude
-# with known metrical structure:
-#
-# | Parameter | Value | Source |
-# |-----------|-------|--------|
-# | Total Length | 888 quarter notes | DCML score annotation |
-# | Time Signature | 4/4 throughout | Score metadata |
-# | Total Measures | 222 | 888 / 4 = 222 |
-# | First Measure | 1 | Standard numbering |
-
-# %%
-# Create the Wagner Meistersinger BeatGrid
-# Known: 888 quarters, 4/4 time, 222 measures
-
-SUPRA_LENGTH_QUARTERS = 888
-SUPRA_BEATS_PER_MEASURE = 4
-SUPRA_N_MEASURES = 222  # 888 / 4
-
-wagner_grid = BeatGrid(
-    length=Fraction(SUPRA_LENGTH_QUARTERS, 1),
-    beats_per_measure=SUPRA_BEATS_PER_MEASURE,
-)
-
-# wagner_grid._length is a Coordinate, access .value for the Fraction
-{
-    "Expected length": SUPRA_LENGTH_QUARTERS,
-    "Actual length": float(wagner_grid._length.value),
-    "Expected measures": SUPRA_N_MEASURES,
-    "Actual measures": wagner_grid.n_measures,
-    "Validation": "PASS" if wagner_grid.n_measures == SUPRA_N_MEASURES else "FAIL",
-}
-
-# %%
-# Validate measure boundaries
-# MC 1 starts at quarter 0
-# MC 222 starts at quarter 884 (= (222-1) * 4)
-# Last beat of MC 222 is at quarter 887
-
-# expected_beat is a Fraction (beat_at returns Fraction)
-test_positions = [
-    (0, 1, Fraction(1, 1)),  # Quarter 0 = MC 1, Beat 1
-    (4, 2, Fraction(1, 1)),  # Quarter 4 = MC 2, Beat 1
-    (884, 222, Fraction(1, 1)),  # Quarter 884 = MC 222, Beat 1
-    (887, 222, Fraction(4, 1)),  # Quarter 887 = MC 222, Beat 4 (last beat)
-]
-
+# Process all three tracks
 results = []
-for quarter, expected_mc, expected_beat in test_positions:
-    actual_mc = wagner_grid.measure_at(quarter)  # int
-    actual_beat = wagner_grid.beat_at(quarter)  # Fraction
+
+for name, info in TRACKS.items():
+    grid = BeatGrid.from_tempo(
+        tempo_bpm=TEMPO_BPM,
+        beats_per_measure=BEATS_PER_MEASURE,
+        length_seconds=info["duration"],
+        start_seconds=info["first_beat"],
+    )
+
     results.append(
         {
-            "Quarter": quarter,
-            "Expected": f"MC{expected_mc}B{expected_beat}",
-            "Actual": f"MC{actual_mc}B{actual_beat}",
-            "Pass": actual_mc == expected_mc and actual_beat == expected_beat,
+            "Track": name,
+            "Duration (s)": info["duration"],
+            "First beat (s)": info["first_beat"],
+            "Measures": grid.n_measures,
+            "Beats": grid.n_beats,
+            "First 4 beats": list(grid.beat_seconds()[:4].round(3)),
         }
     )
 
-results
-
-# %%
-# Validate round-trip: quarter_at(measure_at(q), beat_at(q)) == q
-# This should hold for all integer quarter positions on beat boundaries
-
-test_quarters = [0, 4, 100, 500, 884]
-
-round_trip_results = []
-for q in test_quarters:
-    mc = wagner_grid.measure_at(q)  # int
-    beat = wagner_grid.beat_at(q)  # Fraction
-    reconstructed = wagner_grid.quarter_at(mc, beat)  # Fraction
-    round_trip_results.append(
-        {
-            "Original quarter": q,
-            "MC/Beat": f"MC{mc}B{beat}",
-            "Reconstructed": float(reconstructed),
-            "Match": float(reconstructed) == q,
-        }
-    )
-
-round_trip_results
+# Display as table
+pd.DataFrame(results)
 
 # %% [markdown]
-# ### Equivalence with Score TSV Measures
+# ---
 #
-# The DCML score annotation files (TSV format) contain explicit measure
-# boundaries. Let's verify that our BeatGrid produces equivalent measure
-# numbers.
+# ## Part 3: Point Queries
 #
-# **Key insight**: When loading a score from TSV files that already contain
-# measure information, the BeatGrid's measure numbers should **match exactly**
-# with the source data. This demonstrates that:
+# Sometimes you need to ask: "What measure/beat is this time position?"
 #
-# 1. A manually created BeatGrid produces correct metrical positions
-# 2. The BeatGrid is equivalent to the measure structure in annotated scores
-# 3. We can use BeatGrid for audio/MIDI where no measure annotations exist
+# ### 3.1 Query by Time (Seconds)
 
 # %%
-# Array operations: compute measure/beat for ALL quarter positions
-all_quarters = np.arange(0, SUPRA_LENGTH_QUARTERS)
+# Create grid for "Ao Ceu"
+grid = BeatGrid.from_tempo(
+    tempo_bpm=160.0,
+    beats_per_measure=4,
+    length_seconds=279.336,
+    start_seconds=0.092,
+)
 
-# Vectorized MC computation using the underlying MetricMap
-# wagner_grid._meter_map is the MetricMap, which supports array input
-all_mcs = wagner_grid._meter_map(all_quarters)
+# Query specific time positions
+test_times = [0.092, 1.0, 60.0, 120.0, 200.0]
 
-# For beat positions, use the BeatInMeasureMap
-# Note: array output is float, not Fraction
-all_beats = wagner_grid._beat_map(all_quarters)
+queries = []
+for t in test_times:
+    queries.append(
+        {
+            "Time (s)": t,
+            "Measure": grid.measure_at_seconds(t),
+            "Beat": grid.beat_at_seconds(t),
+        }
+    )
 
-# Verify expected patterns
-unique_mcs = np.unique(all_mcs)
-unique_beats = np.unique(all_beats)
+pd.DataFrame(queries)
 
-{
-    "Total quarter positions": len(all_quarters),
-    "Unique MCs": len(unique_mcs),
-    "MC range": f"{int(unique_mcs.min())} - {int(unique_mcs.max())}",
-    "Unique beats (float)": sorted([float(b) for b in unique_beats]),
-    "Expected beats (integer positions)": [1.0, 2.0, 3.0, 4.0],
-}
+# %% [markdown]
+# ### 3.2 Query by Quarter-Note Position
+#
+# If you're working with MIDI or score data, you may have coordinates in
+# quarter notes. BeatGrid handles these directly:
 
 # %%
-# Final validation: materialize events and verify counts
-wagner_full = BeatGrid(
-    length=Fraction(SUPRA_LENGTH_QUARTERS, 1),
-    beats_per_measure=SUPRA_BEATS_PER_MEASURE,
-)
+# Query positions in quarters
+test_quarters = [0, 4, 100, 400]
 
-n_beats = wagner_full.materialize_beats()
-n_downbeats = len(
-    [
-        e
-        for e in wagner_full.get_events(event_type="Beat")
-        if e.get("is_downbeat", False)
-    ]
-)
+queries = []
+for q in test_quarters:
+    pos = grid.metrical_position(q)
+    queries.append(
+        {
+            "Quarters": q,
+            "Measure (MC)": pos["mc"],
+            "Beat": str(pos["beat"]),
+            "Label (MN)": pos["mn"],
+        }
+    )
 
-# Create new grid for measures (to avoid event ID conflicts)
-wagner_measures = BeatGrid(
-    length=Fraction(SUPRA_LENGTH_QUARTERS, 1),
-    beats_per_measure=SUPRA_BEATS_PER_MEASURE,
+pd.DataFrame(queries)
+
+# %% [markdown]
+# ---
+#
+# ## Part 4: Different Time Signatures
+#
+# BeatGrid supports any time signature via `beats_per_measure` and `beat_unit`.
+#
+# ### 4.1 Waltz (3/4 Time)
+
+# %%
+# A waltz at 90 BPM, 5 minutes long
+waltz = BeatGrid.from_tempo(
+    tempo_bpm=90.0,
+    beats_per_measure=3,  # 3 beats per measure
+    length_seconds=300.0,
+    start_seconds=0.0,
 )
-n_measures = wagner_measures.materialize_measures()
 
 {
-    "Total beats": n_beats,
-    "Expected beats": SUPRA_LENGTH_QUARTERS,  # One beat per quarter
-    "Downbeats": n_downbeats,
-    "Expected downbeats": SUPRA_N_MEASURES,  # One per measure
-    "Total measures": n_measures,
-    "Expected measures": SUPRA_N_MEASURES,
-    "All validations pass": (
-        n_beats == SUPRA_LENGTH_QUARTERS
-        and n_downbeats == SUPRA_N_MEASURES
-        and n_measures == SUPRA_N_MEASURES
-    ),
+    "Time signature": "3/4",
+    "Tempo": "90 BPM",
+    "Duration": "5 minutes",
+    "Total measures": waltz.n_measures,
+    "Total beats": waltz.n_beats,
+    "Seconds per measure": f"{60/90 * 3:.2f}",
 }
+
+# %% [markdown]
+# ### 4.2 Compound Meter (6/8 Time)
+#
+# For 6/8, you have 6 eighth-note beats per measure.
+# Use `beat_unit=Fraction(1, 8)` to indicate eighth-note beats:
+
+# %%
+# 6/8 time at 120 BPM (where the beat is an eighth note)
+compound = BeatGrid.from_tempo(
+    tempo_bpm=120.0,
+    beats_per_measure=6,
+    beat_unit=Fraction(1, 8),  # Eighth note = 1 beat
+    length_seconds=60.0,
+    start_seconds=0.0,
+)
+
+{
+    "Time signature": "6/8",
+    "Beat unit": "eighth note",
+    "Quarters per measure": float(compound.quarters_per_measure),
+    "Quarters per beat": float(compound.quarters_per_beat),
+    "Total measures": compound.n_measures,
+    "First 6 beats (seconds)": list(compound.beat_seconds()[:6].round(3)),
+}
+
+# %% [markdown]
+# ---
+#
+# ## Part 5: Score-Based Beatgrids (Advanced)
+#
+# When working with classical music that has complex meter changes, repeats,
+# and pickup measures, you need to create BeatGrids from score data rather
+# than simple tempo information.
+#
+# ### 5.1 The Use Case: Beethoven String Quartet
+#
+# Consider Beethoven's String Quartet Op. 18 No. 4, 4th movement:
+# - Has **repeat structures** (needs unfolding for audio alignment)
+# - **Pickup measure** (anacrusis)
+# - **2/2 time signature** throughout
+#
+# We have a recording: `StringQuartetEEP_I_Normal_mono.mp3`
+#
+# The score data is available in TSV format with:
+# - Measure coordinates in quarterbeats
+# - Flow control information (repeats, voltas)
+# - Unfolded versions for performance alignment
+
+# %%
+# This is the score data structure we're working with
+# (From: tests/data/score/beethoven_op18-4iv_multimodal/ABC/)
+
+BEETHOVEN_MEASURES = """
+mc	mn	quarterbeats	duration_qb	timesig	repeats
+1	0	0	1.0	2/2	start
+2	1	1	4.0	2/2
+...
+9	8	29	3.0	2/2	end
+10	8	32	1.0	2/2	start
+...
+"""
+
+# The unfolded version has ~291 measures (with repeats expanded)
+UNFOLDED_TOTAL_QUARTERS = 1116
+UNFOLDED_MEASURES = 291
+
+# %% [markdown]
+# ### 5.2 Creating BeatGrid from Score (API Draft)
+#
+# **Note**: This API is a draft for future implementation. The pattern shows
+# how TimeToAlign! will support creating BeatGrids from rich score metadata.
+
+# %%
+# API DRAFT: Creating BeatGrid from score measures
+#
+# This functionality is planned for Phase 4 (Score Integration).
+# The code below shows the intended API design.
+
+# --- FUTURE API ---
+#
+# from timetoalign.loader import MeasureMapLoader
+#
+# # Load measure map from score TSV
+# loader = MeasureMapLoader.from_file(
+#     "tests/data/score/beethoven_op18-4iv_multimodal/ABC/n04op18-4_04_flow_unfolded.measures.tsv"
+# )
+#
+# # Create BeatGrid with the actual meter structure
+# grid = loader.create_beatgrid(
+#     tempo_bpm=120.0,  # Performance tempo (from audio analysis or metadata)
+#     start_seconds=0.5,  # First beat offset
+# )
+#
+# # The grid now has the exact measure structure from the score
+# # Including partial measures, meter changes, etc.
+# grid.n_measures  # -> 291 (unfolded)
+# grid.n_beats     # -> based on actual time signatures
+#
+# # Export to Audacity with score measure labels
+# beatgrid_to_audacity_csv(grid, "beethoven_op18-4iv_beats.txt")
+# --- END FUTURE API ---
+
+# For now, we can approximate with uniform measures
+approx_grid = BeatGrid.from_tempo(
+    tempo_bpm=120.0,  # Assumed tempo
+    beats_per_measure=4,  # 2/2 = 4 quarter beats per measure
+    length_seconds=540.0,  # ~9 minutes (estimated)
+    start_seconds=0.5,
+    name="Beethoven Op.18/4-iv (approximate)",
+)
+
+{
+    "Track": "StringQuartetEEP_I_Normal_mono.mp3",
+    "Approximate measures": approx_grid.n_measures,
+    "Approximate beats": approx_grid.n_beats,
+    "Note": "Use MeasureMapLoader for exact score structure (Phase 4)",
+}
+
+# %% [markdown]
+# ### 5.3 Why Score-Based BeatGrids Matter
+#
+# For simple steady-tempo music, `BeatGrid.from_tempo()` works perfectly.
+# But classical music often has:
+#
+# | Feature | Simple BeatGrid | Score-Based BeatGrid |
+# |---------|-----------------|----------------------|
+# | Constant tempo | Yes | Yes |
+# | Tempo changes | No | Yes (via tempo track) |
+# | Repeats/Voltas | No | Yes (unfolded) |
+# | Anacrusis | Limited | Full support |
+# | Measure labels | M1, M2... | 0, 1a, 1b, 2... |
+# | Time sig changes | No | Yes |
+#
+# The Score-Based approach gives you **ground truth** measure structure from
+# the score, ensuring your beat markers match what musicians see on the page.
 
 # %% [markdown]
 # ---
 #
 # ## Summary
 #
-# **Key Takeaways:**
+# > "BeatGrid.from_tempo() generates beat and measure times for audio with
+# > known tempo and first-beat offset. Export to Audacity with a simple
+# > CSV conversion."
 #
-# > "A BeatGrid is a ContinuousLogicalTimeline measured in quarters. It
-# > provides metrical structure (measures, beats) via built-in C-Maps,
-# > and works for any musical content."
+# **Key API:**
 #
-# **What you learned:**
+# | Method | Returns | Use Case |
+# |--------|---------|----------|
+# | `BeatGrid.from_tempo()` | BeatGrid | Create from tempo + offset |
+# | `.beat_seconds()` | numpy array | All beat times |
+# | `.measure_seconds()` | numpy array | All measure/downbeat times |
+# | `.n_beats` | int | Total beat count |
+# | `.n_measures` | int | Total measure count |
+# | `.measure_at_seconds(t)` | int | Measure number at time t |
+# | `.beat_at_seconds(t)` | int | Beat-in-measure at time t |
 #
-# 1. **BeatGrid is a timeline**, not just a utility wrapper
-#    - It has its own coordinate system (quarters as Fractions)
-#    - It can hold events (beats, measures via materialization)
+# **Common Patterns:**
 #
-# 2. **Built-in C-Maps** handle metrical conversion:
-#    - `MetricMap`: quarters -> MC (int) - handles real-world complexity
-#    - `BeatInMeasureMap`: quarters -> beat (Fraction, 1-indexed)
-#    - `MetricalPositionMap`: quarters -> {mc, beat, mn} dict
+# ```python
+# # Pattern 1: Simple audio beatgrid
+# grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=180, start_seconds=0.5)
+# beats = grid.beat_seconds()
 #
-# 3. **Return types matter:**
-#    - `measure_at()` returns `int` (measure count)
-#    - `beat_at()` returns `Fraction` (exact beat position)
-#    - `metrical_position()` returns dict with `mc`, `beat`, `mn` keys
+# # Pattern 2: Export to Audacity
+# for t in grid.beat_seconds():
+#     mc = grid.measure_at_seconds(t)
+#     beat = grid.beat_at_seconds(t)
+#     print(f"{t:.3f}\t{t:.3f}\tM{mc}B{beat}")
 #
-# 4. **Cross-domain relationships** use C-Maps:
-#    - A BeatGrid relates to audio via a tempo map (quarters -> seconds)
-#    - Not via parent-child embedding (different units)
-#
-# 5. **SUPRA validation** proves correctness:
-#    - 888 quarters = 222 measures in 4/4 time
-#    - Round-trip: `quarter_at(measure_at(q), beat_at(q)) == q`
-#    - Array operations are vectorized for performance
-#
-# **The Component Hierarchy:**
-#
-# ```
-# Building Block C-Maps:
-# ├── FloorMap       # Integer division (measures, pages)
-# ├── RotationMap    # Periodic patterns (beats, angles)
-# └── CombinationMap # Tuple outputs ((measure, beat), (x, y))
-#
-# BeatGrid Internal C-Maps (handles real-world complexity):
-# ├── MetricMap            # quarters -> MC (int), handles anacrusis/irregular
-# ├── BeatInMeasureMap    # quarters -> beat (Fraction)
-# └── MetricalPositionMap # quarters -> {mc, beat, mn}
-#
-# BeatGrid (ContinuousLogicalTimeline):
-# ├── Unit: quarters (Fraction)
-# ├── C-Maps: MetricMap + BeatInMeasureMap + MetricalPositionMap
-# ├── Events: Beat/Measure (optional via materialize)
-# └── Factory: from_tempo() creates with tempo C-Map
+# # Pattern 3: Different time signatures
+# grid_3_4 = BeatGrid.from_tempo(tempo_bpm=90, beats_per_measure=3, ...)
+# grid_6_8 = BeatGrid.from_tempo(tempo_bpm=120, beats_per_measure=6,
+#                                 beat_unit=Fraction(1, 8), ...)
 # ```
 
 # %% [markdown]
@@ -670,49 +550,51 @@ n_measures = wagner_measures.materialize_measures()
 #
 # ## Exercises
 #
-# ### Exercise 1: Waltz Time
+# ### Exercise 1: Your Own Track
 #
-# Create a BeatGrid for a 5-minute waltz at 90 BPM in 3/4 time. Query the
-# measure and beat at exactly 2.5 minutes.
+# Pick an audio track you know the tempo of. Create a BeatGrid and export
+# the first 32 beats to an Audacity-compatible format.
 
 # %%
 # Your solution here:
-# waltz = BeatGrid.from_tempo(...)
-# ...
-
-# %% [markdown]
-# ### Exercise 2: Understanding RotationMap
-#
-# What does `RotationMap(period=6.0, scale=2.0, base=1.0)` output for inputs 0, 3, 6, 7.5?
-#
-# Hint: The formula is `((input - offset) % period) * scale + base` (offset defaults to 0)
-
-# %%
-# Your solution here:
-# rot = RotationMap(...)
-# ...
-
-# %% [markdown]
-# ### Exercise 3: Custom Measure Numbering
-#
-# Create a BeatGrid where measures start at MC 0 (for a pickup measure).
-# Verify that quarter 0 is MC 0, and quarter 4 is MC 1.
-#
-# Hint: Use the `start_measure` parameter in the BeatGrid constructor.
-
-# %%
-# Your solution here:
-# pickup_grid = BeatGrid(
-#     length=Fraction(20, 1),
-#     beats_per_measure=4,
-#     start_measure=0,  # MC starts at 0
+# my_grid = BeatGrid.from_tempo(
+#     tempo_bpm=...,
+#     length_seconds=...,
+#     start_seconds=...,
 # )
 # ...
+
+# %% [markdown]
+# ### Exercise 2: Tempo Change Workaround
+#
+# For a track that changes tempo at 60 seconds (from 120 to 140 BPM),
+# create two BeatGrids and concatenate their beat arrays.
+#
+# Hint: Use `np.concatenate()` on the beat_seconds() arrays.
+
+# %%
+# Your solution here:
+# grid1 = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=60, start_seconds=0)
+# grid2 = BeatGrid.from_tempo(tempo_bpm=140, length_seconds=120, start_seconds=60)
+# all_beats = np.concatenate([grid1.beat_seconds(), grid2.beat_seconds()])
+# ...
+
+# %% [markdown]
+# ### Exercise 3: Measure Labels
+#
+# Modify the `beatgrid_to_audacity_csv()` function to add the time signature
+# to each measure label (e.g., "M1 (4/4)").
+
+# %%
+# Your solution here:
+# def enhanced_export(grid, filepath, time_sig="4/4"):
+#     ...
 
 # %% [markdown]
 # ---
 #
 # ## Next Steps
 #
-# - **Tutorial 07**: Alignment Basics - Learn how to transfer coordinates between timelines
-# - **Application A3**: SUPRA Piano Roll - Complete alignment workflow with real data
+# - **Tutorial 07**: TimelineGroups - Connect beatgrids to other timelines
+# - **Tutorial 08**: SUPRA Piano Roll - See beatgrids in a complete alignment workflow
+# - **Phase 4**: Score Integration - MeasureMapLoader for complex scores
