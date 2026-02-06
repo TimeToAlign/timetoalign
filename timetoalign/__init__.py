@@ -34,7 +34,6 @@ from timetoalign.core import (
     Coordinate,
     CoordinateSpec,
     CoordinateValue,
-    CoordinateWithTimeline,
     Domain,
     EventType,
     IdCoordinate,
@@ -91,7 +90,6 @@ __all__ = [
     "IdCoordinate",
     "CoordinateValue",
     "CoordinateSpec",
-    "CoordinateWithTimeline",
     "OptionalCoordinate",
     # IDs
     "ScopedId",

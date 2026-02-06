@@ -5,7 +5,7 @@ This module provides the fundamental building blocks:
 - Coordinate and IdCoordinate dataclasses for timeline positions
 - ScopedId and IdGenerator for identity management
 - TimeStamp and TimeIntervalStamp for unified coordinate resolution
-- Type aliases for flexible coordinate specification (CoordinateSpec, CoordinateWithTimeline)
+- Type alias CoordinateSpec for flexible coordinate specification
 
 These types have no dependencies on other TTA modules.
 """
@@ -31,7 +31,6 @@ from .types import (
     Coordinate,
     CoordinateSpec,
     CoordinateValue,
-    CoordinateWithTimeline,
     IdCoordinate,
     OptionalCoordinate,
 )
@@ -49,7 +48,6 @@ __all__ = [
     "IdCoordinate",
     "CoordinateValue",
     "CoordinateSpec",
-    "CoordinateWithTimeline",
     "OptionalCoordinate",
     # Timestamps
     "TimeStamp",
