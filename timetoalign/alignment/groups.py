@@ -39,8 +39,14 @@ from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
 from timetoalign.maps.interpolation import InterpolationMap
 
 if TYPE_CHECKING:
-    from timetoalign.core.enums import TimeUnit
+    from collections.abc import Callable
+
+    from timetoalign.core.enums import ColumnNaming, TimeUnit
     from timetoalign.timelines import Timeline
+
+# Type alias for flexible conversion_maps parameter (same as Timeline)
+# Accepts: True (all), single cmap/str, or iterable of cmaps/strs
+ConversionMapsSpec = bool | None
 
 module_logger = logging.getLogger(__name__)
 
@@ -70,8 +76,10 @@ class GroupTimestamp:
         This provides a consistent API across both Timeline and TimelineGroup.
 
     Attributes:
-        coordinates: Dictionary mapping timeline IDs to coordinates.
+        coordinates: Dictionary mapping timeline/cmap IDs to coordinates.
             None values indicate the timeline is not present at this instant.
+        units: Dictionary mapping timeline/cmap IDs to their unit strings.
+            Used for display purposes.
         row_index: Index of this timestamp in the source table.
             -1 indicates an interpolated timestamp (not from a table row).
 
@@ -88,7 +96,8 @@ class GroupTimestamp:
     """
 
     coordinates: dict[str, float | None]
-    row_index: int
+    units: dict[str, str] = field(default_factory=dict)
+    row_index: int = -1
 
     def get(self, timeline_id: str, default: float | None = None) -> float | None:
         """Get coordinate for a timeline.
@@ -127,6 +136,48 @@ class GroupTimestamp:
         present = self.present_timelines
         interp = " (interpolated)" if self.is_interpolated else ""
         return f"GroupTimestamp({len(present)} timelines{interp})"
+
+    def _repr_html_(self) -> str:
+        """Return HTML representation for Jupyter notebooks.
+
+        Displays the timestamp as an HTML table showing all coordinates with units.
+        """
+        import html
+
+        rows = []
+        for tid, val in self.coordinates.items():
+            unit = self.units.get(tid, "")
+            unit_display = f" ({unit})" if unit else ""
+            if val is not None:
+                rows.append(
+                    f"<tr><td>{html.escape(tid)}{unit_display}</td>"
+                    f"<td style='text-align: right;'>{val:.6g}</td></tr>"
+                )
+            else:
+                rows.append(
+                    f"<tr><td style='color: #999;'>{html.escape(tid)}{unit_display}</td>"
+                    f"<td style='text-align: right; color: #999;'>-</td></tr>"
+                )
+
+        interp_badge = (
+            " <span style='background: #ffeb3b; padding: 0 4px; "
+            "border-radius: 3px; font-size: 0.8em;'>interpolated</span>"
+            if self.is_interpolated
+            else ""
+        )
+
+        return (
+            f"<div style='font-family: monospace;'>"
+            f"<strong>GroupTimestamp</strong> ({len(self.present_timelines)} timelines)"
+            f"{interp_badge}"
+            f"<table style='border-collapse: collapse; margin-top: 4px;'>"
+            f"<thead><tr style='border-bottom: 1px solid #ccc;'>"
+            f"<th style='text-align: left; padding: 2px 8px;'>ID (unit)</th>"
+            f"<th style='text-align: right; padding: 2px 8px;'>Coordinate</th>"
+            f"</tr></thead>"
+            f"<tbody>{''.join(rows)}</tbody>"
+            f"</table></div>"
+        )
 
 
 # endregion
@@ -543,6 +594,7 @@ class TimelineGroup:
         timeline_id: str,
         *,
         relative_to: Literal["group", "original"] = "group",
+        conversion_maps: ConversionMapsSpec = True,
     ) -> GroupTimestamp:
         """Get a GroupTimestamp at a specific coordinate.
 
@@ -558,9 +610,13 @@ class TimelineGroup:
                 "original" - coordinate is relative to timeline's ORIGINAL origin
                             (e.g., "50 seconds in the original timeline")
                             NOTE: Currently not implemented, reserved for future use.
+            conversion_maps: Whether to include C-Map values from member timelines.
+                - True (default): Include all attached C-Maps
+                - False/None: Only timeline coordinates
 
         Returns:
-            GroupTimestamp with interpolated coordinates for all timelines.
+            GroupTimestamp with interpolated coordinates for all timelines,
+            plus C-Map values if conversion_maps=True.
             Timelines not commensurable at this point have None.
 
         Raises:
@@ -573,6 +629,8 @@ class TimelineGroup:
             2437.5
             >>> ts["score:1"]
             33.33...
+            >>> ts["pixels_to_inches"]  # C-Map value (if conversion_maps=True)
+            0.25
         """
         if timeline_id not in self._timelines:
             raise KeyError(f"Timeline '{timeline_id}' not in group")
@@ -607,13 +665,19 @@ class TimelineGroup:
 
         # Exact match at a boundary
         if low_idx == high_idx:
-            return self._row_to_timestamp(low_idx)
+            ts = self._row_to_timestamp(low_idx)
+            if conversion_maps:
+                return self._add_cmap_values_to_timestamp(ts)
+            return ts
 
         # Interpolate all columns
         ratio = (coordinate - col[low_idx]) / (col[high_idx] - col[low_idx])
 
         coords: dict[str, float | None] = {}
-        for col_name in self._timestamp_table.column_names:
+        units: dict[str, str] = {}
+
+        for data_field in self._timestamp_table.schema:
+            col_name = data_field.name
             col_data = self._timestamp_table.column(col_name).to_pylist()
             low_val = col_data[low_idx]
             high_val = col_data[high_idx]
@@ -623,41 +687,227 @@ class TimelineGroup:
             else:
                 coords[col_name] = low_val + ratio * (high_val - low_val)
 
-        return GroupTimestamp(coordinates=coords, row_index=-1)  # -1 = interpolated
+            # Extract unit from field metadata
+            if data_field.metadata:
+                unit_bytes = data_field.metadata.get(b"unit")
+                if unit_bytes:
+                    units[col_name] = unit_bytes.decode("utf-8")
+
+        ts = GroupTimestamp(
+            coordinates=coords, units=units, row_index=-1
+        )  # -1 = interpolated
+
+        if conversion_maps:
+            return self._add_cmap_values_to_timestamp(ts)
+        return ts
+
+    def _add_cmap_values_to_timestamp(self, ts: GroupTimestamp) -> GroupTimestamp:
+        """Add C-Map values to a GroupTimestamp.
+
+        For each timeline coordinate in the timestamp, applies all of that
+        timeline's C-Maps and adds the results to the coordinates dict.
+
+        Args:
+            ts: The GroupTimestamp to augment.
+
+        Returns:
+            New GroupTimestamp with C-Map values and units added.
+        """
+        new_coords = dict(ts.coordinates)
+        new_units = dict(ts.units)
+
+        for timeline_id, timeline in self._timelines.items():
+            coord = ts.get(timeline_id)
+            if coord is None:
+                continue
+
+            # Apply each of the timeline's C-Maps
+            for cmap in timeline._conversion_maps.values():
+                try:
+                    converted = float(cmap(coord))
+                    new_coords[cmap.name] = converted
+                    # Add unit from C-Map's target_unit
+                    if cmap.target_unit is not None:
+                        new_units[cmap.name] = cmap.target_unit.value
+                except Exception:
+                    # Skip C-Maps that fail
+                    continue
+
+        return GroupTimestamp(
+            coordinates=new_coords, units=new_units, row_index=ts.row_index
+        )
 
     def get_timestamp_table(
         self,
         timeline_filter: set[str] | None = None,
+        conversion_maps: ConversionMapsSpec = True,
     ) -> pa.Table:
         """Get the timestamp table (or a filtered subset).
 
         Args:
             timeline_filter: Only include these timeline columns.
+            conversion_maps: Whether to include C-Map columns from member timelines.
+                - True (default): Include all attached C-Maps from all timelines
+                - False/None: No C-Map columns
 
         Returns:
-            pa.Table with one row per timestamp, one column per timeline.
+            pa.Table with one row per timestamp, one column per timeline,
+            plus C-Map columns if conversion_maps=True.
             Returns empty table if group has no timestamps.
         """
         if self._timestamp_table is None:
             return pa.table({})
-        if timeline_filter is None:
-            return self._timestamp_table
-        cols = [c for c in self._timestamp_table.column_names if c in timeline_filter]
-        return self._timestamp_table.select(cols)
+
+        table = self._timestamp_table
+
+        # Filter timeline columns if requested
+        if timeline_filter is not None:
+            cols = [c for c in table.column_names if c in timeline_filter]
+            table = table.select(cols)
+
+        # Add C-Map columns from member timelines
+        if conversion_maps:
+            table = self._add_cmap_columns(table)
+
+        return table
+
+    def _add_cmap_columns(self, table: pa.Table) -> pa.Table:
+        """Add C-Map columns from member timelines to a timestamp table.
+
+        For each timeline in the group that has attached C-Maps, applies
+        those C-Maps to the timeline's column and adds the results as
+        new columns.
+
+        Args:
+            table: The timestamp table to augment.
+
+        Returns:
+            Table with additional C-Map columns.
+        """
+        if table.num_rows == 0:
+            return table
+
+        # Collect all C-Maps from member timelines
+        for timeline_id, timeline in self._timelines.items():
+            if timeline_id not in table.column_names:
+                continue
+
+            # Get coordinate values for this timeline
+            coord_col = table.column(timeline_id)
+            coord_np = coord_col.to_numpy(zero_copy_only=False)
+
+            # Apply each of the timeline's C-Maps
+            for cmap in timeline._conversion_maps.values():
+                # Compute converted values (handle NaN from nulls)
+                try:
+                    converted = cmap.convert_array(coord_np)
+                except Exception:
+                    # Skip C-Maps that fail (e.g., out of bounds)
+                    continue
+
+                # Column name uses C-Map's name property
+                col_name = cmap.name
+
+                # Add field with metadata
+                target_unit = getattr(cmap, "target_unit", None)
+                unit_value = target_unit.value if target_unit else "unknown"
+
+                new_field = pa.field(
+                    col_name,
+                    pa.float64(),
+                    metadata={
+                        b"unit": unit_value.encode("utf-8"),
+                        b"cmap_id": cmap.id.encode("utf-8"),
+                        b"source_timeline": timeline_id.encode("utf-8"),
+                    },
+                )
+                table = table.append_column(new_field, pa.array(converted))
+
+        return table
 
     def get_timestamps_df(
         self,
         timeline_filter: set[str] | None = None,
+        conversion_maps: ConversionMapsSpec = True,
+        *,
+        units: bool = True,
     ) -> pd.DataFrame:
-        """Convenience wrapper returning pandas DataFrame.
+        """Convenience wrapper returning pandas DataFrame with units in column names.
 
         Args:
             timeline_filter: Only include these timeline columns.
+            conversion_maps: Whether to include C-Map columns from member timelines.
+                - True (default): Include all attached C-Maps
+                - False/None: No C-Map columns
+            units: If True (default), append units to column names like "name (unit)".
 
         Returns:
-            pandas DataFrame with timestamp data.
+            pandas DataFrame with timestamp data and units in column names,
+            including C-Map columns if conversion_maps=True.
         """
-        return self.get_timestamp_table(timeline_filter=timeline_filter).to_pandas()
+        from timetoalign.core.timestamp import timestamp_table_to_dataframe
+
+        table = self.get_timestamp_table(
+            timeline_filter=timeline_filter,
+            conversion_maps=conversion_maps,
+        )
+        return timestamp_table_to_dataframe(table=table, units=units)
+
+    def to_dataframe(
+        self,
+        timeline_filter: set[str] | None = None,
+        conversion_maps: ConversionMapsSpec = True,
+        *,
+        columns: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
+        units: bool = True,
+        format: str = "pandas",
+    ) -> pd.DataFrame:
+        """Generate timestamps as a pandas DataFrame with formatted column names.
+
+        This is the recommended high-level method for getting timestamp data.
+        It builds on get_timestamp_table() and applies column formatting.
+
+        Args:
+            timeline_filter: Only include these timeline columns.
+            conversion_maps: Whether to include C-Map columns from member timelines.
+                - True (default): Include all attached C-Maps
+                - False/None: No C-Map columns
+            columns: How to name the columns. Options:
+                - None or ColumnNaming.name (default): Use timeline/cmap name
+                - ColumnNaming.id: Use timeline/cmap id
+                - Callable: Function taking (name, metadata_dict) -> new_name
+                - list[str]: Explicit column names
+            units: If True (default), append units to column names like "name (unit)".
+            format: Output format. Currently only "pandas" is supported.
+
+        Returns:
+            pandas DataFrame with:
+            - Columns named according to the `columns` parameter
+            - Units appended if `units=True`
+            - Integer columns using pandas nullable Int64 dtype
+
+        Examples:
+            >>> df = group.to_dataframe()
+            >>> df.columns
+            Index(['audio (seconds)', 'dgt1 (pixels)', 'pixels_to_beats (beats)'])
+
+            >>> # Without units in column names
+            >>> df = group.to_dataframe(units=False)
+            >>> df.columns
+            Index(['audio', 'dgt1', 'pixels_to_beats'])
+        """
+        from timetoalign.core.timestamp import timestamp_table_to_dataframe
+
+        table = self.get_timestamp_table(
+            timeline_filter=timeline_filter,
+            conversion_maps=conversion_maps,
+        )
+        return timestamp_table_to_dataframe(
+            table=table,
+            columns=columns,
+            units=units,
+            format=format,
+        )
 
     def _row_to_timestamp(self, index: int) -> GroupTimestamp:
         """Convert a table row to a GroupTimestamp view object.
@@ -666,17 +916,27 @@ class TimelineGroup:
             index: Row index in the timestamp table.
 
         Returns:
-            GroupTimestamp with coordinates from that row.
+            GroupTimestamp with coordinates and units from that row.
         """
         if self._timestamp_table is None:
             raise ValueError("No timestamp table")
 
         row = self._timestamp_table.slice(index, 1)
         coords: dict[str, float | None] = {}
-        for col_name in row.column_names:
+        units: dict[str, str] = {}
+
+        for data_field in self._timestamp_table.schema:
+            col_name = data_field.name
             val = row.column(col_name)[0].as_py()
             coords[col_name] = val  # None if null
-        return GroupTimestamp(coordinates=coords, row_index=index)
+
+            # Extract unit from field metadata
+            if data_field.metadata:
+                unit_bytes = data_field.metadata.get(b"unit")
+                if unit_bytes:
+                    units[col_name] = unit_bytes.decode("utf-8")
+
+        return GroupTimestamp(coordinates=coords, units=units, row_index=index)
 
     # endregion
 

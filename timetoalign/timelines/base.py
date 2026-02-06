@@ -14,7 +14,7 @@ Design principles:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, Iterator, Literal
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterator, Literal
 
 import numpy as np
 import pandas as pd
@@ -30,6 +30,8 @@ from timetoalign.maps import ConversionMap, InterpolationMap
 from .regions import Region
 
 if TYPE_CHECKING:
+    from timetoalign.core.enums import ColumnNaming
+
     from .flow import FlowMap
 
 module_logger = logging.getLogger(__name__)
@@ -2060,7 +2062,8 @@ class Timeline:
         # C-Maps work on NumPy arrays; we convert PyArrow <-> NumPy at the boundary
         # See: .agent/skills/tta-guide/references/cmap_pyarrow_integration.md
         if conversion_maps:
-            axis_np = axis.to_numpy()
+            # Allow copy for arrays with nulls (zero_copy_only=False)
+            axis_np = axis.to_numpy(zero_copy_only=False)
             for cmap in conversion_maps:
                 converted = cmap.convert_array(axis_np)
                 # Use map's name property for human-readable column header
@@ -2087,7 +2090,7 @@ class Timeline:
     def get_timestamp_table(
         self,
         coordinates: pa.Array | np.ndarray | list[float] | None = None,
-        conversion_maps: ConversionMapsSpec = None,
+        conversion_maps: ConversionMapsSpec = True,
         recursion_limit: int | None = None,
         include_events: bool = True,
         include_boundaries: bool = False,
@@ -2185,12 +2188,14 @@ class Timeline:
     def get_timestamps(
         self,
         coordinates: pa.Array | np.ndarray | list[float] | None = None,
-        conversion_maps: ConversionMapsSpec = None,
+        conversion_maps: ConversionMapsSpec = True,
         recursion_limit: int | None = None,
         include_events: bool = True,
         include_boundaries: bool = False,
+        *,
+        units: bool = True,
     ) -> pd.DataFrame:
-        """Generate timestamps as a pandas DataFrame.
+        """Generate timestamps as a pandas DataFrame with units in column names.
 
         Convenience wrapper around get_timestamp_table() for users who
         prefer working with pandas.
@@ -2207,24 +2212,24 @@ class Timeline:
             recursion_limit: Maximum depth for child traversal.
             include_events: If True and coordinates is None, extract from events.
             include_boundaries: If True, include timeline boundary coordinates.
+            units: If True (default), append units to column names like "name (unit)".
 
         Returns:
-            pandas DataFrame with the same schema as get_timestamp_table().
+            pandas DataFrame with units in column names (if units=True).
 
         Examples:
             >>> df = timeline.get_timestamps()
-            >>> df.head()
-               axis    tl:1   notes  measures
-            0   0.0     0.0     0.0       0.0
-            1   1.5     1.5     1.5       NaN
-            2   4.0     4.0     4.0       4.0
+            >>> df.columns
+            Index(['axis (pixels)', 'tl:1 (pixels)', 'pixels_to_inches (inches)'])
 
             >>> # Include all attached C-Maps
             >>> df = timeline.get_timestamps(conversion_maps=True)
 
-            >>> # Include specific C-Maps
-            >>> df = timeline.get_timestamps(conversion_maps=["inches", "cm"])
+            >>> # Without units in column names
+            >>> df = timeline.get_timestamps(units=False)
         """
+        from timetoalign.core.timestamp import timestamp_table_to_dataframe
+
         table = self.get_timestamp_table(
             coordinates=coordinates,
             conversion_maps=conversion_maps,
@@ -2232,11 +2237,74 @@ class Timeline:
             include_events=include_events,
             include_boundaries=include_boundaries,
         )
-        return table.to_pandas()
+        return timestamp_table_to_dataframe(table=table, units=units)
+
+    def to_dataframe(
+        self,
+        coordinates: pa.Array | np.ndarray | list[float] | None = None,
+        conversion_maps: ConversionMapsSpec = True,
+        recursion_limit: int | None = None,
+        include_events: bool = True,
+        include_boundaries: bool = False,
+        *,
+        columns: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
+        units: bool = True,
+        format: str = "pandas",
+    ) -> pd.DataFrame:
+        """Generate timestamps as a pandas DataFrame with formatted column names.
+
+        This is the recommended high-level method for getting timestamp data.
+        It builds on get_timestamp_table() and applies column formatting.
+
+        Args:
+            coordinates: Explicit coordinates to use as the axis.
+            conversion_maps: C-Maps to include as columns. Defaults to True (all).
+            recursion_limit: Maximum depth for child traversal.
+            include_events: If True and coordinates is None, extract from events.
+            include_boundaries: If True, include timeline boundary coordinates.
+            columns: How to name the columns. Options:
+                - None or ColumnNaming.name (default): Use timeline/cmap name
+                - ColumnNaming.id: Use timeline/cmap id
+                - Callable: Function taking (name, metadata_dict) -> new_name
+                - list[str]: Explicit column names
+            units: If True (default), append units to column names like "name (unit)".
+            format: Output format. Currently only "pandas" is supported.
+
+        Returns:
+            pandas DataFrame with:
+            - Columns named according to the `columns` parameter
+            - Units appended if `units=True`
+            - Integer columns using pandas nullable Int64 dtype
+
+        Examples:
+            >>> df = timeline.to_dataframe()
+            >>> df.columns
+            Index(['axis (pixels)', 'dgt1 (pixels)', 'pixels_to_inches (inches)'])
+
+            >>> # Without units in column names
+            >>> df = timeline.to_dataframe(units=False)
+            >>> df.columns
+            Index(['axis', 'dgt1', 'pixels_to_inches'])
+        """
+        from timetoalign.core.timestamp import timestamp_table_to_dataframe
+
+        table = self.get_timestamp_table(
+            coordinates=coordinates,
+            conversion_maps=conversion_maps,
+            recursion_limit=recursion_limit,
+            include_events=include_events,
+            include_boundaries=include_boundaries,
+        )
+        return timestamp_table_to_dataframe(
+            table=table,
+            columns=columns,
+            units=units,
+            format=format,
+        )
 
     def get_boundary_table(
         self,
-        conversion_maps: ConversionMapsSpec = None,
+        conversion_maps: ConversionMapsSpec = True,
         recursion_limit: int | None = None,
     ) -> pa.Table:
         """Get timestamps for timeline boundaries only.
@@ -2273,7 +2341,7 @@ class Timeline:
     def get_timestamp_table_filtered(
         self,
         event_filter: dict[str, Any] | pc.Expression,
-        conversion_maps: ConversionMapsSpec = None,
+        conversion_maps: ConversionMapsSpec = True,
         recursion_limit: int | None = None,
         include_boundaries: bool = False,
     ) -> pa.Table:
@@ -2360,7 +2428,7 @@ class Timeline:
     def get_timestamps_filtered(
         self,
         event_filter: dict[str, Any] | pc.Expression,
-        conversion_maps: ConversionMapsSpec = None,
+        conversion_maps: ConversionMapsSpec = True,
         recursion_limit: int | None = None,
         include_boundaries: bool = False,
     ) -> pd.DataFrame:

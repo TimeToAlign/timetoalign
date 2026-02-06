@@ -316,14 +316,20 @@ class TestTimestampAccess:
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
     ) -> None:
-        """Test get_timestamps_df() returns pandas DataFrame."""
+        """Test get_timestamps_df() returns pandas DataFrame with units in column names."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
         df = group.get_timestamps_df()
 
         assert len(df) == 2
-        assert "dgt1" in df.columns
-        assert "audio" in df.columns
+        # Column names now include units like "dgt1 (pixels)"
+        assert "dgt1 (pixels)" in df.columns
+        assert "audio (seconds)" in df.columns
+
+        # Test units=False returns raw column names
+        df_no_units = group.get_timestamps_df(units=False)
+        assert "dgt1" in df_no_units.columns
+        assert "audio" in df_no_units.columns
 
 
 # endregion

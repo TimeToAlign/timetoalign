@@ -30,6 +30,7 @@ from timetoalign.alignment import (
     TimelineGroup,
 )
 from timetoalign.core import (
+    ColumnNaming,
     Coordinate,
     CoordinateSpec,
     CoordinateValue,
@@ -79,6 +80,7 @@ __all__ = [
     # Version
     "__version__",
     # Enums
+    "ColumnNaming",
     "Domain",
     "TimeUnit",
     "NumberType",

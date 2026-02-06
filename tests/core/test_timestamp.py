@@ -526,8 +526,8 @@ class TestTimestampTableMetadata:
             coordinates=[0.0, 480.0, 960.0], conversion_maps=[tempo_map]
         )
 
-        # Find the C-Map column
-        cmap_field = table.schema.field(tempo_map.id)
+        # Find the C-Map column by name (column names use cmap.name, not cmap.id)
+        cmap_field = table.schema.field(tempo_map.name)
         assert cmap_field.metadata is not None
         assert cmap_field.metadata[b"unit"] == b"seconds"  # Target unit
         assert cmap_field.metadata[b"cmap_id"] == tempo_map.id.encode("utf-8")

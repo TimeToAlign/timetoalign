@@ -18,10 +18,20 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Iterator, Literal, Protocol, runtime_checkable
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Iterator,
+    Literal,
+    Protocol,
+    runtime_checkable,
+)
 
 if TYPE_CHECKING:
-    from ..core.enums import TimeUnit
+    import pandas as pd
+    import pyarrow as pa
+
+    from ..core.enums import ColumnNaming, TimeUnit
     from ..core.types import Coordinate
     from ..maps.interpolation import InterpolationMap
 
@@ -303,6 +313,67 @@ class TimeStamp:
     def __str__(self) -> str:
         return f"TimeStamp({self.axis}@{self.source_id})"
 
+    def _repr_html_(self) -> str:
+        """Return HTML representation for Jupyter notebooks.
+
+        Displays the timestamp as an HTML table showing all coordinates
+        with their units, organized by timeline and C-Map.
+        """
+        import html
+
+        rows = []
+
+        # Add axis coordinate
+        axis_unit = self.source._get_unit_for_timeline(self.source_id)
+        axis_unit_str = f" ({axis_unit.value})" if axis_unit else ""
+        rows.append(
+            f"<tr><td><strong>{html.escape(self.source_id)}</strong></td>"
+            f"<td style='text-align: right;'>{self.axis:.6g}{axis_unit_str}</td>"
+            f"<td><em>axis</em></td></tr>"
+        )
+
+        # Add related timeline coordinates
+        for tid in self.source._get_related_timeline_ids():
+            val = self.get(tid)
+            if val is not None:
+                unit = self.source._get_unit_for_timeline(tid)
+                unit_str = f" ({unit.value})" if unit else ""
+                rows.append(
+                    f"<tr><td>{html.escape(tid)}</td>"
+                    f"<td style='text-align: right;'>{val:.6g}{unit_str}</td>"
+                    f"<td></td></tr>"
+                )
+
+        # Add C-Map conversions
+        for unit in self.source._get_available_units():
+            val = self.get_unit(unit)
+            if val is not None:
+                rows.append(
+                    f"<tr><td style='color: #666;'>{html.escape(unit.value)}</td>"
+                    f"<td style='text-align: right;'>{val:.6g}</td>"
+                    f"<td style='color: #666;'><em>cmap</em></td></tr>"
+                )
+
+        interp_badge = (
+            " <span style='background: #ffeb3b; padding: 0 4px; "
+            "border-radius: 3px; font-size: 0.8em;'>interpolated</span>"
+            if self.is_interpolated
+            else ""
+        )
+
+        return (
+            f"<div style='font-family: monospace;'>"
+            f"<strong>TimeStamp</strong>{interp_badge}"
+            f"<table style='border-collapse: collapse; margin-top: 4px;'>"
+            f"<thead><tr style='border-bottom: 1px solid #ccc;'>"
+            f"<th style='text-align: left; padding: 2px 8px;'>ID</th>"
+            f"<th style='text-align: right; padding: 2px 8px;'>Coordinate</th>"
+            f"<th style='text-align: left; padding: 2px 8px;'>Type</th>"
+            f"</tr></thead>"
+            f"<tbody>{''.join(rows)}</tbody>"
+            f"</table></div>"
+        )
+
 
 # endregion
 
@@ -484,6 +555,137 @@ class TimeIntervalStamp:
         return (
             f"TimeIntervalStamp([{self.start.axis}, {self.end.axis}]@{self.source_id})"
         )
+
+
+# endregion
+
+
+# region Timestamp Table Conversion Utilities
+
+
+def timestamp_table_to_dataframe(
+    table: "pa.Table",
+    columns: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
+    units: bool = True,
+    format: str = "pandas",
+) -> "pd.DataFrame":
+    """Convert a PyArrow timestamp table to a pandas DataFrame with proper formatting.
+
+    This utility function processes timestamp tables (from Timeline.get_timestamp_table()
+    or TimelineGroup.get_timestamp_table()) and applies column naming and type conversions.
+
+    Args:
+        table: PyArrow table with field-level metadata including 'unit' and
+            'timeline_id' or 'cmap_id'.
+        columns: How to name the columns. Options:
+            - None or ColumnNaming.name (default): Use timeline/cmap name property,
+              falling back to id if name is not available.
+            - ColumnNaming.id: Use timeline/cmap id.
+            - Callable[[str, dict], str]: Function taking (column_name, metadata_dict)
+              and returning the new column name.
+            - list[str]: Explicit list of column names (must match table length).
+        units: If True (default), append units to column names like "name (unit)".
+        format: Output format. Currently only "pandas" is supported.
+
+    Returns:
+        pandas DataFrame with:
+        - Columns named according to the `columns` parameter
+        - Units appended if `units=True`
+        - Integer columns using pandas nullable Int64 dtype
+        - Float columns as float64
+
+    Examples:
+        >>> table = timeline.get_timestamp_table()
+        >>> df = timestamp_table_to_dataframe(table, units=True)
+        >>> df.columns
+        Index(['axis (pixels)', 'dgt1 (pixels)', 'pixels_to_inches (inches)'])
+
+        >>> # Use IDs instead of names
+        >>> from timetoalign import ColumnNaming
+        >>> df = timestamp_table_to_dataframe(table, columns=ColumnNaming.id)
+
+        >>> # Custom column naming
+        >>> df = timestamp_table_to_dataframe(
+        ...     table,
+        ...     columns=lambda name, meta: meta.get('timeline_id', name)
+        ... )
+    """
+    import pandas as pd
+    import pyarrow as pa
+
+    from .enums import ColumnNaming
+
+    if format != "pandas":
+        raise ValueError(f"Unsupported format: {format!r}. Only 'pandas' is supported.")
+
+    if table.num_rows == 0:
+        return pd.DataFrame()
+
+    # Resolve columns parameter to ColumnNaming enum if needed
+    # Use string lookup to avoid conflict with StrEnum's .name property
+    # use_name_mode = columns is None or (
+    #     isinstance(columns, ColumnNaming) and columns == ColumnNaming("name")
+    # )
+
+    # Build column name mapping
+    new_column_names: list[str] = []
+
+    for i, data_field in enumerate(table.schema):
+        col_name = data_field.name
+        metadata = data_field.metadata or {}
+
+        # Decode metadata bytes to strings for easier access
+        meta_dict = {
+            k.decode("utf-8") if isinstance(k, bytes) else k: (
+                v.decode("utf-8") if isinstance(v, bytes) else v
+            )
+            for k, v in metadata.items()
+        }
+
+        # Determine base name
+        if isinstance(columns, list):
+            if i < len(columns):
+                base_name = columns[i]
+            else:
+                base_name = col_name
+        elif callable(columns) and not isinstance(columns, ColumnNaming):
+            base_name = columns(col_name, meta_dict)
+        elif isinstance(columns, ColumnNaming) and str(columns) == "id":
+            # Use timeline_id or cmap_id from metadata
+            base_name = (
+                meta_dict.get("timeline_id") or meta_dict.get("cmap_id") or col_name
+            )
+        else:  # ColumnNaming.name, None, or default
+            # For now, use column name directly (names are already set by Timeline)
+            # In future, could look up timeline.name property
+            base_name = col_name
+
+        # Append unit if requested
+        if units:
+            unit = meta_dict.get("unit")
+            if unit:
+                final_name = f"{base_name} ({unit})"
+            else:
+                final_name = base_name
+        else:
+            final_name = base_name
+
+        new_column_names.append(str(final_name))
+
+    # Convert to pandas with appropriate dtypes
+    df = table.to_pandas()
+    df.columns = new_column_names
+
+    # Convert integer columns to nullable Int64
+    for i, data_field in enumerate(table.schema):
+        col_name = new_column_names[i]
+        if pa.types.is_integer(data_field.type):
+            # Convert to nullable integer
+            df[col_name] = df[col_name].astype("Int64")
+        elif pa.types.is_int64(data_field.type):
+            df[col_name] = df[col_name].astype("Int64")
+
+    return df
 
 
 # endregion

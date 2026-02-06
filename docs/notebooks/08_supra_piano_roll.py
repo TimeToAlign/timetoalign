@@ -68,10 +68,17 @@
 # %%
 from pathlib import Path
 
+import pandas as pd
+
 from timetoalign import TimeUnit
 from timetoalign.alignment import TimelineGroup
+from timetoalign.core import timestamp_table_to_dataframe
 from timetoalign.loader.graphical.aton import ATONLoader
+from timetoalign.loader.midi import PerformanceMidiLoader
+from timetoalign.loader.physical import AudioLoader
+from timetoalign.loader.score import TSVLoader
 from timetoalign.maps import ScalarMap
+from timetoalign.timelines import ContinuousPhysicalTimeline
 
 _notebook_dir = Path(".").resolve()
 DATA_DIR = _notebook_dir.parent.parent / "tests" / "data" / "supra"
@@ -206,12 +213,12 @@ dgt1
 # that show coordinates in both the parent (full image) and child (holes region)
 # coordinate systems simultaneously.
 #
-# **Note:** Columns now show human-readable names like "pixels_to_inches"
-# instead of "map:ScalarMap_1", and pixel values are correctly displayed as
-# integers.
+# **Note:** The `to_dataframe()` method provides column names with units appended
+# (e.g., "pixels_to_inches (inches)") and proper integer types. This is the
+# recommended way to get timestamp data for display.
 
 # %%
-timestamps_df = dgt1.get_timestamps(conversion_maps=True)
+timestamps_df = dgt1.to_dataframe()
 
 {"Total timestamps": len(timestamps_df), "Columns": list(timestamps_df.columns)}
 
@@ -224,11 +231,10 @@ timestamps_df = dgt1.get_timestamps(conversion_maps=True)
 # - After de-duplication: ~20,676 unique coordinates plus 4 boundary coordinates
 #
 # Each row shows the coordinate in **all** coordinate systems simultaneously:
-# - `axis`: The root (parent) coordinate in pixels
-# - `dgt1`: Same as axis (this IS the root timeline)
-# - `dgt_holes`: **Relative** coordinate in child timeline (first hole = 0, NaN if outside)
-# - C-Map columns: Physical units (inches, cm) computed via attached ScalarMaps
-#   with human-readable names like "pixels_to_inches" and "pixels_to_cm"
+# - `axis (pixels)`: The root (parent) coordinate in pixels
+# - `dgt1 (pixels)`: Same as axis (this IS the root timeline)
+# - `dgt_holes (pixels)`: **Relative** coordinate in child timeline (first hole = 0, NaN if outside)
+# - C-Map columns: Physical units with names like "pixels_to_inches (inches)"
 
 # %%
 timestamps_df.head(10)
@@ -248,10 +254,11 @@ ts = dgt1.get_timestamp(100000.0)
 
 # %% [markdown]
 # Boundary table shows where child timelines start and end (with C-Maps).
-# Note the human-readable column names for C-Maps.
+# Use `timestamp_table_to_dataframe()` for column names with units.
 
 # %%
-boundary_df = dgt1.get_boundary_table(conversion_maps=True).to_pandas()
+boundary_table = dgt1.get_boundary_table(conversion_maps=True)
+boundary_df = timestamp_table_to_dataframe(boundary_table)
 boundary_df
 
 # %% [markdown]
@@ -268,8 +275,6 @@ boundary_df
 # ### E.1: DLT1 - Raw MIDI (one event per hole)
 
 # %%
-from timetoalign.loader.midi import PerformanceMidiLoader
-
 # One-line loading with from_file()
 midi_raw_loader = PerformanceMidiLoader.from_file(MIDI_RAW_PATH)
 
@@ -310,9 +315,6 @@ dlt2_exp
 # we use a mock timeline with the known duration from the README.
 
 # %%
-from timetoalign.loader.physical import AudioLoader
-from timetoalign.timelines import ContinuousPhysicalTimeline
-
 try:
     audio_loader = AudioLoader.from_file(MP3_PATH)
     dpt1_audio = audio_loader.to_timeline(uid="dpt1_audio")
@@ -351,8 +353,6 @@ audio_info
 # - `.chords.tsv` as **control events** (chord symbols)
 
 # %%
-from timetoalign.loader.score import TSVLoader
-
 SCORE_BASE = "WWV096-Meistersinger_01_Vorspiel-Prelude_SchottKleinmichel"
 score_tsv_files = sorted(DCML_DIR.glob(f"{SCORE_BASE}.*.tsv"))
 
@@ -466,12 +466,8 @@ group_timestamps = group.get_timestamps_df()
 group_timestamps
 
 # %% [markdown]
-# Each row shows the **same musical moment** in all coordinate systems:
-# - `dgt_holes`: Pixels from first hole
-# - `dlt1_raw`: MIDI ticks (raw)
-# - `dlt2_exp`: MIDI ticks (expressive)
-# - `dpt1_audio`: Seconds
-# - `clt1_score`: Quarterbeats
+# Each row shows the **same musical moment** in all coordinate systems.
+# Column names include units (e.g., "dgt_holes (pixels)", "dpt1_audio (seconds)").
 
 # %% [markdown]
 # ---
@@ -515,24 +511,7 @@ else:
 # %%
 # Get timestamp at the harmony position in the score timeline
 harmony_ts = group.get_timestamp_at(i_chord_qb, "clt1_score")
-
-{
-    f"Harmony '{i_chord_label}' at measure {i_chord_mc}": {
-        "Score (quarterbeats)": f"{harmony_ts['clt1_score']:.2f}",
-        "MIDI raw (ticks)": (
-            f"{harmony_ts['dlt1_raw']:,.0f}" if harmony_ts["dlt1_raw"] else "N/A"
-        ),
-        "MIDI exp (ticks)": (
-            f"{harmony_ts['dlt2_exp']:,.0f}" if harmony_ts["dlt2_exp"] else "N/A"
-        ),
-        "Audio (seconds)": (
-            f"{harmony_ts['dpt1_audio']:.2f}" if harmony_ts["dpt1_audio"] else "N/A"
-        ),
-        "Image holes (pixels)": (
-            f"{harmony_ts['dgt_holes']:,.0f}" if harmony_ts["dgt_holes"] else "N/A"
-        ),
-    }
-}
+harmony_ts
 
 # %% [markdown]
 # ### H.2: Convert Back to Full Image Coordinates + Physical Units
@@ -545,14 +524,15 @@ if harmony_ts["dgt_holes"] is not None:
     holes_pixels = harmony_ts["dgt_holes"]
     image_pixels = holes_pixels + aton_loader.first_hole.value
 
-    # Use the parent timeline's timestamp with C-Maps
-    parent_ts = dgt1.get_timestamp(image_pixels)
+    # Use the parent timeline's convert_to() for C-Map conversions
+    inches = dgt1.convert_to(image_pixels, "inches")
+    cm = dgt1.convert_to(image_pixels, "cm")
 
     {
         f"Harmony '{i_chord_label}' in full image": {
             "Absolute pixels": f"{image_pixels:,.0f}",
-            "Physical (inches)": f"{parent_ts['pixels_to_inches']:.2f}",
-            "Physical (cm)": f"{parent_ts['pixels_to_cm']:.2f}",
+            "Physical (inches)": f"{inches.value:.2f}",
+            "Physical (cm)": f"{cm.value:.2f}",
         }
     }
 
@@ -580,8 +560,6 @@ for _, harm in first_10_harmonies.iterrows():
             "image_px": f"{ts['dgt_holes']:,.0f}" if ts["dgt_holes"] else "N/A",
         }
     )
-
-import pandas as pd
 
 pd.DataFrame(transfers)
 
