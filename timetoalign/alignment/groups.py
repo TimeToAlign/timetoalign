@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 
-from timetoalign.core import CoordinateSpec, IdGenerator
+from timetoalign.core import CoordinateSpec, IdCoordinate, IdGenerator
 from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
 from timetoalign.maps.interpolation import InterpolationMap
 
@@ -396,8 +396,8 @@ class TimelineGroup:
         self,
         timeline: "Timeline",
         *,
-        start: GroupTimestamp | tuple[float, str] | float | None = None,
-        end: GroupTimestamp | tuple[float, str] | float | None = None,
+        start: IdCoordinate | GroupTimestamp | tuple[float, str] | float | None = None,
+        end: IdCoordinate | GroupTimestamp | tuple[float, str] | float | None = None,
         allow_extension: bool = False,
     ) -> None:
         """Add a timeline (or Child) to the group.
@@ -413,9 +413,10 @@ class TimelineGroup:
             timeline: The timeline or Child to add. If a Child, its 0-origin
                 extent is used. If a Timeline, its full extent (0 to length).
             start: Where this timeline's section STARTS in the group.
+                - IdCoordinate: Coordinate with explicit timeline_id (preferred)
                 - GroupTimestamp: Use this existing timestamp
-                - (coord, timeline_id): Position in an existing timeline
-                - float: Coordinate (only if unambiguous unit)
+                - (coord, timeline_id): Legacy tuple form
+                - float: Coordinate (only if single timeline in group)
                 - None: Use group's current start, or 0 if empty
             end: Where this timeline's section ENDS in the group.
                 - Same options as start
@@ -436,17 +437,18 @@ class TimelineGroup:
             >>> # Add to existing group - maps to existing extent
             >>> group.add_timeline(audio)
 
-            >>> # Add partial section with explicit boundaries
+            >>> # Add partial section with explicit boundaries (using IdCoordinate)
+            >>> from timetoalign import IdCoordinate, TimeUnit
             >>> group.add_timeline(
             ...     score_section,
-            ...     start=(45.0, "audio:1"),
-            ...     end=(135.0, "audio:1"),
+            ...     start=IdCoordinate(45.0, TimeUnit.seconds, "audio:1"),
+            ...     end=IdCoordinate(135.0, TimeUnit.seconds, "audio:1"),
             ... )
 
             >>> # Extend group with new timeline
             >>> group.add_timeline(
             ...     extended_audio,
-            ...     end=(200.0, "extended_audio:1"),
+            ...     end=IdCoordinate(200.0, TimeUnit.seconds, "extended_audio:1"),
             ...     allow_extension=True,
             ... )
         """
@@ -1357,7 +1359,13 @@ class TimelineGroup:
                 "new_timeline_coord": new_coord,
             }
 
-        # (coordinate, timeline_id): find or create
+        # IdCoordinate: use timeline_id attribute directly
+        if isinstance(spec, IdCoordinate):
+            return self._find_or_create_at(
+                float(spec.value), spec.timeline_id, new_timeline, is_start
+            )
+
+        # (coordinate, timeline_id): find or create (legacy tuple form)
         if isinstance(spec, tuple):
             coord, tl_id = spec
             return self._find_or_create_at(float(coord), tl_id, new_timeline, is_start)
@@ -1373,7 +1381,7 @@ class TimelineGroup:
             else:
                 raise ValueError(
                     f"Ambiguous boundary specification: {spec}. "
-                    f"Multiple timelines exist. Use (coordinate, timeline_id) form."
+                    f"Multiple timelines exist. Use IdCoordinate or (coord, timeline_id)."
                 )
 
         raise ValueError(f"Invalid boundary specification: {spec}")

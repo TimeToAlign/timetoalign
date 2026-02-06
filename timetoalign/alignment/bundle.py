@@ -17,7 +17,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from timetoalign.core import IdGenerator
+from timetoalign.core import IdCoordinate, IdGenerator
 
 from .groups import TimelineGroup
 
@@ -118,8 +118,8 @@ class AlignmentBundle:
         uid: str | None = None,
         aligned_to: str | None = None,
         as_group: str | None = None,
-        start: tuple[float, str] | float | None = None,
-        end: tuple[float, str] | float | None = None,
+        start: IdCoordinate | tuple[float, str] | float | None = None,
+        end: IdCoordinate | tuple[float, str] | float | None = None,
     ) -> "AlignmentBundle":
         """Add a timeline, optionally aligned to an existing timeline.
 
@@ -135,12 +135,12 @@ class AlignmentBundle:
                 is created with the target as reference.
             as_group: Name for the group if creating a new one.
             start: Where this timeline's 0-origin starts in the group.
-                - (coord, timeline_id): Position in an existing group timeline
+                - IdCoordinate: Coordinate with explicit timeline_id (preferred)
+                - (coord, timeline_id): Legacy tuple form
                 - float: Coordinate in the aligned_to timeline
                 - None: Use group's current start (default for linear alignment)
             end: Where this timeline's end (length) aligns in the group.
-                - (coord, timeline_id): Position in an existing group timeline
-                - float: Coordinate in the aligned_to timeline
+                - Same options as start
                 - None: Use group's current end (default for linear alignment)
 
         Returns:
@@ -156,15 +156,16 @@ class AlignmentBundle:
                 >>> bundle.add_timeline(audio, uid="dgt1")
                 >>> bundle.add_timeline(midi, uid="dlt1", aligned_to="dgt1")
 
-            Partial alignment (SUPRA piano roll):
+            Partial alignment (SUPRA piano roll) using IdCoordinate:
 
+                >>> from timetoalign import IdCoordinate, TimeUnit
                 >>> bundle.add_timeline(image, uid="dgt1")  # Full image
                 >>> bundle.add_timeline(
                 ...     holes,
                 ...     uid="dgt1_holes",
                 ...     aligned_to="dgt1",
-                ...     start=(15343.0, "dgt1"),  # Musical region starts here
-                ...     end=(293119.0, "dgt1"),   # Musical region ends here
+                ...     start=IdCoordinate(15343.0, TimeUnit.pixels, "dgt1"),
+                ...     end=IdCoordinate(293119.0, TimeUnit.pixels, "dgt1"),
                 ... )
         """
         # Determine the bundle UID to use
@@ -309,20 +310,36 @@ class AlignmentBundle:
 
     def _convert_boundary_spec(
         self,
-        spec: tuple[float, str] | float | None,
+        spec: IdCoordinate | tuple[float, str] | float | None,
         aligned_to: str,
-    ) -> tuple[float, str] | float | None:
+    ) -> IdCoordinate | tuple[float, str] | float | None:
         """Convert a boundary specification from bundle UIDs to timeline IDs.
 
         Args:
             spec: The boundary specification (start or end).
+                - IdCoordinate: Uses timeline_id attribute as bundle UID (preferred)
+                - (coord, bundle_uid): Legacy tuple form
+                - float: Coordinate in the aligned_to timeline
+                - None: Use defaults
             aligned_to: The bundle UID of the aligned_to timeline.
 
         Returns:
             The converted specification for use with TimelineGroup.add_timeline().
+            IdCoordinate is converted to have the actual timeline ID.
         """
         if spec is None:
             return None
+
+        if isinstance(spec, IdCoordinate):
+            # IdCoordinate: convert bundle UID to actual timeline ID
+            bundle_uid = spec.timeline_id
+            if bundle_uid not in self._uid_to_timeline_id:
+                raise KeyError(
+                    f"Timeline '{bundle_uid}' not found in bundle. "
+                    f"Available: {list(self._uid_to_timeline_id.keys())}"
+                )
+            actual_tl_id = self._uid_to_timeline_id[bundle_uid]
+            return spec.with_timeline(actual_tl_id)
 
         if isinstance(spec, (int, float)):
             # Float: assume it refers to the aligned_to timeline

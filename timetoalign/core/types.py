@@ -303,7 +303,7 @@ class Coordinate:
         return IdCoordinate(self.value, self.unit, timeline_id)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class IdCoordinate(Coordinate):
     """A Coordinate that carries the ID of the timeline it belongs to.
 
