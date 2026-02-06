@@ -692,15 +692,17 @@ class BeatGrid(ContinuousLogicalTimeline):
     ) -> int:
         """Export BeatGrid data to a CSV file.
 
-        Extends the base Timeline.export_to_csv() with a special format for
-        audio annotation tools like Audacity and Sonic Visualiser.
+        Extends the base Timeline.export_to_csv() with special formats for
+        audio annotation tools.
 
         Args:
             filepath: Output CSV file path.
             format: Output format. Options:
                 - "default": Standard timestamp table (inherited behavior).
-                - "sonic_visualiser": Audacity/Sonic Visualiser label track format.
-                  Tab-separated, no header: start_time<TAB>end_time<TAB>label
+                - "sonic_visualiser": Sonic Visualiser / Audacity label track.
+                  Two columns (TIME, LABEL) with header row.
+                - "tilia": Tilia beat track format.
+                  Four columns (time, measure, beat, is_first_in_measure).
             labels: What to export when using "sonic_visualiser" format:
                 - "beats": All beat positions with labels like "M1B1", "M1B2".
                 - "measures": Measure start positions with labels like "M1", "M2".
@@ -712,49 +714,55 @@ class BeatGrid(ContinuousLogicalTimeline):
             Number of rows written.
 
         Raises:
-            RuntimeError: If format="sonic_visualiser" and no tempo information
-                is available (use from_tempo() to create the grid).
+            RuntimeError: If format requires tempo but none is available.
             ValueError: If format is not recognized.
 
         Examples:
             >>> grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=60)
 
-            >>> # Export for Audacity
-            >>> grid.export_to_csv("beats.txt", format="sonic_visualiser")
+            >>> # Export for Sonic Visualiser
+            >>> grid.export_to_csv("beats.csv", format="sonic_visualiser")
             120
 
-            >>> # Export measures only
-            >>> grid.export_to_csv("measures.txt", format="sonic_visualiser",
-            ...                    labels="measures")
-            30
+            >>> # Export for Tilia
+            >>> grid.export_to_csv("beats.csv", format="tilia")
+            120
 
             >>> # Standard timestamp table
             >>> grid.export_to_csv("data.csv", format="default")
             120
         """
-        import pandas as pd
-
         if format == "default":
             return super().export_to_csv(filepath, **kwargs)
 
-        if format != "sonic_visualiser":
+        if format not in ("sonic_visualiser", "tilia"):
             raise ValueError(
-                f"Unknown format '{format}'. Use 'default' or 'sonic_visualiser'."
+                f"Unknown format '{format}'. "
+                "Use 'default', 'sonic_visualiser', or 'tilia'."
             )
 
-        # sonic_visualiser format: requires tempo for seconds conversion
+        # Both formats require tempo for seconds conversion
         if not hasattr(self, "_tempo_bpm") or self._tempo_bpm is None:
             raise RuntimeError(
-                "export_to_csv() with format='sonic_visualiser' requires tempo. "
+                f"export_to_csv() with format='{format}' requires tempo. "
                 "Use BeatGrid.from_tempo() to create the grid."
             )
+
+        if format == "tilia":
+            return self._export_tilia(filepath)
+
+        # sonic_visualiser format
+        return self._export_sonic_visualiser(filepath, labels)
+
+    def _export_sonic_visualiser(self, filepath: str, labels: str) -> int:
+        """Export in Sonic Visualiser format (TIME, LABEL columns with header)."""
+        import pandas as pd
 
         dfs = []
 
         if labels in ("beats", "both"):
             times = self.beat_seconds()
             n_times = len(times)
-            # Calculate number of measures needed (round up to cover all beats)
             n_measures_needed = (
                 n_times + self._beats_per_measure - 1
             ) // self._beats_per_measure
@@ -768,9 +776,8 @@ class BeatGrid(ContinuousLogicalTimeline):
             dfs.append(
                 pd.DataFrame(
                     {
-                        "start": np.round(times, 6),
-                        "end": np.round(times, 6),
-                        "label": [f"M{m}B{b}" for m, b in zip(measures, beats)],
+                        "TIME": np.round(times, 6),
+                        "LABEL": [f"M{m}B{b}" for m, b in zip(measures, beats)],
                     }
                 )
             )
@@ -780,9 +787,8 @@ class BeatGrid(ContinuousLogicalTimeline):
             dfs.append(
                 pd.DataFrame(
                     {
-                        "start": np.round(times, 6),
-                        "end": np.round(times, 6),
-                        "label": [
+                        "TIME": np.round(times, 6),
+                        "LABEL": [
                             f"M{m}"
                             for m in range(
                                 self._start_measure,
@@ -799,7 +805,36 @@ class BeatGrid(ContinuousLogicalTimeline):
             )
 
         df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
-        df.to_csv(filepath, sep="\t", index=False, header=False)
+        df = df.sort_values("TIME").reset_index(drop=True)
+        df.to_csv(filepath, index=False)
+        return len(df)
+
+    def _export_tilia(self, filepath: str) -> int:
+        """Export in Tilia format (time, measure, beat, is_first_in_measure)."""
+        import pandas as pd
+
+        times = self.beat_seconds()
+        n_times = len(times)
+        n_measures_needed = (
+            n_times + self._beats_per_measure - 1
+        ) // self._beats_per_measure
+        measures = np.repeat(
+            np.arange(self._start_measure, self._start_measure + n_measures_needed),
+            self._beats_per_measure,
+        )[:n_times]
+        beats = np.tile(np.arange(1, self._beats_per_measure + 1), n_measures_needed)[
+            :n_times
+        ]
+
+        df = pd.DataFrame(
+            {
+                "time": np.round(times, 6),
+                "measure": measures,
+                "beat": beats,
+                "is_first_in_measure": beats == 1,
+            }
+        )
+        df.to_csv(filepath, index=False)
         return len(df)
 
     def __repr__(self) -> str:
