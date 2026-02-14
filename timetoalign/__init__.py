@@ -46,9 +46,12 @@ from timetoalign.core import (
 from timetoalign.loader import (
     AudioInfo,
     AudioLoader,
+    EepNotesLoader,
     EventData,
     EventStore,
     Loader,
+    RepoVizzInfo,
+    RepoVizzLoader,
     SingleStore,
 )
 from timetoalign.maps import (
@@ -102,6 +105,10 @@ __all__ = [
     # Loader - Manifest-based (Type 1)
     "AudioLoader",
     "AudioInfo",
+    "RepoVizzLoader",
+    "RepoVizzInfo",
+    # Loader - Physical event-based
+    "EepNotesLoader",
     # Timelines
     "Timeline",
     "LogicalTimeline",
