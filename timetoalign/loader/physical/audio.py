@@ -217,7 +217,7 @@ class AudioLoader:
             except Exception as e:
                 self._logger.debug(f"mutagen failed for {path}: {e}")
 
-        # Fallback to wave module for WAV files
+        # Fallback to wave module for WAV files (PCM only)
         if path.suffix.lower() in (".wav", ".wave"):
             try:
                 self._audio_info = self._load_with_wave(path)
@@ -229,6 +229,20 @@ class AudioLoader:
                 return self
             except Exception as e:
                 self._logger.debug(f"wave module failed for {path}: {e}")
+
+        # Last resort: manual RIFF header parsing (handles IEEE float and other
+        # non-PCM WAV formats that Python's wave module rejects)
+        if path.suffix.lower() in (".wav", ".wave"):
+            try:
+                self._audio_info = self._load_with_riff_parser(path)
+                self._source_path = path
+                self._logger.debug(
+                    f"Loaded audio metadata from {path} using RIFF parser: "
+                    f"{self._audio_info.n_samples} samples @ {self._audio_info.sample_rate} Hz"
+                )
+                return self
+            except Exception as e:
+                self._logger.debug(f"RIFF parser failed for {path}: {e}")
 
         raise ValueError(
             f"Cannot read audio file '{path}'. "
@@ -332,6 +346,100 @@ class AudioLoader:
                 bits_per_sample=bits_per_sample,
                 source_path=path,
             )
+
+    def _load_with_riff_parser(self, path: Path) -> AudioInfo:
+        """Load metadata by manually parsing the RIFF/WAV header.
+
+        This handles WAV formats that Python's built-in wave module cannot read,
+        including IEEE float (format tag 3) commonly used by audio feature
+        extraction tools (e.g., Essentia, RepoVizz).
+
+        Only reads the header chunks (fmt, fact, data) — no sample data is loaded.
+
+        Args:
+            path: Path to the WAV file.
+
+        Returns:
+            AudioInfo with metadata extracted from the RIFF header.
+
+        Raises:
+            ValueError: If the file is not a valid RIFF/WAV file.
+        """
+        import struct
+
+        format_names = {
+            1: "PCM",
+            3: "IEEE_FLOAT",
+            6: "A_LAW",
+            7: "MU_LAW",
+            0xFFFE: "EXTENSIBLE",
+        }
+
+        with open(path, "rb") as f:
+            # RIFF header
+            riff_id = f.read(4)
+            if riff_id != b"RIFF":
+                raise ValueError(f"Not a RIFF file: {path}")
+            f.read(4)  # file size (unused)
+            wave_id = f.read(4)
+            if wave_id != b"WAVE":
+                raise ValueError(f"Not a WAVE file: {path}")
+
+            # Parse chunks
+            channels = 0
+            sample_rate = 0
+            bits_per_sample = 0
+            format_tag = 0
+            n_samples: int | None = None
+            data_size = 0
+
+            while True:
+                chunk_header = f.read(8)
+                if len(chunk_header) < 8:
+                    break
+                chunk_id = chunk_header[:4]
+                chunk_size = struct.unpack("<I", chunk_header[4:])[0]
+
+                if chunk_id == b"fmt ":
+                    fmt_data = f.read(chunk_size)
+                    format_tag = struct.unpack("<H", fmt_data[:2])[0]
+                    channels = struct.unpack("<H", fmt_data[2:4])[0]
+                    sample_rate = struct.unpack("<I", fmt_data[4:8])[0]
+                    bits_per_sample = struct.unpack("<H", fmt_data[14:16])[0]
+                elif chunk_id == b"fact":
+                    fact_data = f.read(chunk_size)
+                    n_samples = struct.unpack("<I", fact_data[:4])[0]
+                elif chunk_id == b"data":
+                    data_size = chunk_size
+                    break  # data chunk is last relevant chunk
+                else:
+                    # Skip unknown chunks
+                    f.seek(chunk_size, 1)
+
+        if sample_rate == 0:
+            raise ValueError(f"No fmt chunk found in {path}")
+
+        # Compute n_samples from data chunk if fact chunk was absent
+        if n_samples is None:
+            bytes_per_sample = max(bits_per_sample // 8, 1)
+            block_align = bytes_per_sample * max(channels, 1)
+            n_samples = data_size // block_align if block_align > 0 else 0
+
+        duration_seconds = n_samples / sample_rate if sample_rate > 0 else 0.0
+        fmt_name = format_names.get(format_tag, f"UNKNOWN_{format_tag}")
+        subtype = f"{fmt_name}_{bits_per_sample}" if bits_per_sample else fmt_name
+
+        return AudioInfo(
+            n_samples=n_samples,
+            sample_rate=sample_rate,
+            channels=channels,
+            duration_seconds=duration_seconds,
+            format="WAV",
+            subtype=subtype,
+            bits_per_sample=bits_per_sample,
+            source_path=path,
+            extra={"format_tag": format_tag},
+        )
 
     def _subtype_to_bits(self, subtype: str | None) -> int | None:
         """Convert soundfile subtype to bits per sample."""

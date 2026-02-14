@@ -46,7 +46,13 @@ from __future__ import annotations
 
 from .base import AlignmentLoader, EventLoader, Loader, ManifestData, ManifestLoader
 from .bundle import AlignmentStore, EventStore, MatchData, SingleStore
-from .physical import AudioInfo, AudioLoader
+from .physical import (
+    AudioInfo,
+    AudioLoader,
+    EepNotesLoader,
+    RepoVizzInfo,
+    RepoVizzLoader,
+)
 from .schema import (
     TEMPORAL_TYPE_INSTANT,
     TEMPORAL_TYPE_INTERVAL,
@@ -98,9 +104,12 @@ __all__ = [
     "EventLoader",
     "ManifestLoader",
     "AlignmentLoader",
-    # Physical domain loaders (Manifest)
+    # Physical domain loaders
     "AudioLoader",
     "AudioInfo",
+    "RepoVizzLoader",
+    "RepoVizzInfo",
+    "EepNotesLoader",
     # TableSchema - Semantic column specifications (NEW)
     "TableSchema",
     "TimelineDefaults",

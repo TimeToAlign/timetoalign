@@ -21,6 +21,12 @@ from .anchors import AlignmentAnchor, MatchClaim, MatchMetadata
 from .bundle import AlignmentBundle
 from .graph import MatchGraph, MatchStamp
 from .groups import GroupTimestamp, PerfectAlignment, TimelineGroup
+from .matching import (
+    MatchResult,
+    match_notes_by_attributes,
+    prepare_abc_notes_for_matching,
+    prepare_eep_notes_for_matching,
+)
 
 __all__ = [
     # Bundle (Primary Entry Point)
@@ -37,4 +43,9 @@ __all__ = [
     # Graph and Stamps
     "MatchGraph",
     "MatchStamp",
+    # Matching
+    "MatchResult",
+    "match_notes_by_attributes",
+    "prepare_abc_notes_for_matching",
+    "prepare_eep_notes_for_matching",
 ]

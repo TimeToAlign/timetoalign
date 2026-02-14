@@ -1,28 +1,32 @@
 """Physical domain loaders for TimeToAlign!
 
 This package provides loaders for the physical (acoustic/time) domain:
-- AudioLoader: Load audio file metadata and create DiscretePhysicalTimelines.
 
-These are Type-1 (Manifest) loaders: they extract dimensions and metadata
-from audio files without loading the actual sample data. The resulting
-timelines have their length set in samples, with automatic C-maps for
-sample-to-seconds conversion.
+Manifest Loaders (dimensions + metadata only):
+    - AudioLoader: Load audio file metadata (WAV, MP3, FLAC, etc.)
+    - RepoVizzLoader: Load RepoVizz 2-line CSV sensor data (MoCap, descriptors)
+
+Event Loaders (events with coordinates):
+    - EepNotesLoader: Load EEP .notes alignment files (onset/offset/pitch)
 
 Design Philosophy:
-    Unlike event-based loaders (ScoreLoader, MidiLoader) that derive timeline
-    dimensions from event coordinates, AudioLoader follows the manifest pattern
-    (like IIIFManifestLoader): the timeline dimensions are fixed by the file's
-    inherent properties (sample count, sample rate).
+    Manifest loaders extract dimensions and metadata from files without loading
+    the actual sample data. The resulting timelines have their length set in
+    samples, with automatic C-maps for sample-to-seconds conversion.
 
-    Events (e.g., note annotations, beat markers) can be added to these timelines
-    after creation using separate event loaders.
+    Event loaders produce EventData that can populate timelines with events.
 """
 
 from __future__ import annotations
 
 from .audio import AudioInfo, AudioLoader
+from .eep_notes import EepNotesLoader
+from .repovizz import RepoVizzInfo, RepoVizzLoader
 
 __all__ = [
     "AudioLoader",
     "AudioInfo",
+    "RepoVizzLoader",
+    "RepoVizzInfo",
+    "EepNotesLoader",
 ]

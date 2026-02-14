@@ -5,7 +5,8 @@ all alignment workflows as described in the API redesign specification. The
 bundle manages timelines, groups, and coordinate transfer operations.
 
 Phase 1 supports single-group scenarios (perfect alignment).
-Future phases will add cross-group matching and WarpMap transfer.
+Phase 2 adds cross-group matching via MatchClaims and WarpMaps, enabling
+the ``get_timestamp_at()`` method for grouped cross-domain coordinate transfer.
 
 NOTE: As of Phase 7.4, TimelineGroup uses a timestamp-based architecture.
 The bundle now uses the new add_timeline() API internally.
@@ -15,13 +16,15 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from timetoalign.core import IdCoordinate, IdGenerator
 
+from .anchors import MatchClaim
 from .groups import TimelineGroup
 
 if TYPE_CHECKING:
+    from timetoalign.maps import TableMap
     from timetoalign.timelines import Timeline
 
 module_logger = logging.getLogger(__name__)
@@ -92,11 +95,16 @@ class AlignmentBundle:
     groups: dict[str, TimelineGroup] = field(default_factory=dict)
     timeline_to_group: dict[str, str] = field(default_factory=dict)
     meta: dict[str, Any] = field(default_factory=dict)
+    cross_group_claims: list[MatchClaim] = field(default_factory=list)
 
     # Mapping from bundle UID to actual timeline.id (used by groups)
     _uid_to_timeline_id: dict[str, str] = field(default_factory=dict, repr=False)
     # Reverse mapping from timeline.id to bundle UID
     _timeline_id_to_uid: dict[str, str] = field(default_factory=dict, repr=False)
+    # Cached WarpMaps for cross-group transfer: (from_group, to_group) -> TableMap
+    _warp_maps: dict[tuple[str, str], "TableMap"] = field(
+        default_factory=dict, repr=False
+    )
 
     # Internal logger
     _logger: logging.Logger = field(
@@ -465,6 +473,324 @@ class AlignmentBundle:
         group_b = self.timeline_to_group.get(timeline_b)
 
         return group_a is not None and group_a == group_b
+
+    # endregion
+
+    # region Cross-Group Claims
+
+    def add_match_claims(
+        self,
+        claims: list[MatchClaim],
+        *,
+        build_warp_maps: bool = True,
+    ) -> "AlignmentBundle":
+        """Add MatchClaims connecting timelines across different groups.
+
+        MatchClaims encode coordinate correspondences between timelines in
+        different groups (e.g., EEP recording notes matched to ABC score notes).
+        They enable cross-group coordinate transfer via WarpMaps.
+
+        Args:
+            claims: List of MatchClaim objects. Each claim connects two
+                timelines via its start_anchor (and optionally end_anchor).
+            build_warp_maps: If True, automatically build WarpMaps (TableMaps)
+                from the claims for efficient interpolation. Default True.
+
+        Returns:
+            self (for method chaining)
+        """
+        self.cross_group_claims.extend(claims)
+        if build_warp_maps:
+            self._build_warp_maps_from_claims(claims)
+        return self
+
+    def _build_warp_maps_from_claims(self, claims: list[MatchClaim]) -> None:
+        """Build WarpMaps (TableMaps) from MatchClaims for interpolation.
+
+        Groups claims by (source_group, target_group) and builds a TableMap
+        for each direction.
+
+        Args:
+            claims: MatchClaims to build WarpMaps from.
+        """
+        from collections import defaultdict
+
+        from timetoalign.maps import TableMap
+
+        # Group claims by the pair of groups they connect
+        # Key: (timeline_a_id, timeline_b_id) from anchors
+        pair_coords: dict[tuple[str, str], list[tuple[float, float]]] = defaultdict(
+            list
+        )
+
+        for claim in claims:
+            anchor = claim.start_anchor
+            tl_a = anchor.timeline_a_id
+            tl_b = anchor.timeline_b_id
+            pair_coords[(tl_a, tl_b)].append((anchor.coordinate_a, anchor.coordinate_b))
+
+        # Build TableMaps for each pair
+        for (tl_a, tl_b), coords in pair_coords.items():
+            if len(coords) < 2:
+                continue  # Need at least 2 points for interpolation
+
+            # Sort by source coordinate for monotonic interpolation
+            coords.sort(key=lambda c: c[0])
+            x_values = [c[0] for c in coords]
+            y_values = [c[1] for c in coords]
+
+            # Forward map: tl_a -> tl_b
+            try:
+                forward_map = TableMap(
+                    x_values=x_values,
+                    y_values=y_values,
+                    uid=f"warp_{tl_a}_to_{tl_b}",
+                )
+                self._warp_maps[(tl_a, tl_b)] = forward_map
+            except Exception as e:
+                self._logger.warning(f"Failed to build WarpMap {tl_a}->{tl_b}: {e}")
+
+            # Reverse map: tl_b -> tl_a
+            # Sort by target coordinate
+            coords_rev = sorted(coords, key=lambda c: c[1])
+            x_rev = [c[1] for c in coords_rev]
+            y_rev = [c[0] for c in coords_rev]
+            try:
+                reverse_map = TableMap(
+                    x_values=x_rev,
+                    y_values=y_rev,
+                    uid=f"warp_{tl_b}_to_{tl_a}",
+                )
+                self._warp_maps[(tl_b, tl_a)] = reverse_map
+            except Exception as e:
+                self._logger.warning(f"Failed to build WarpMap {tl_b}->{tl_a}: {e}")
+
+        self._logger.debug(
+            f"Built {len(self._warp_maps)} WarpMaps from {len(claims)} claims"
+        )
+
+    def get_warp_map(self, from_timeline: str, to_timeline: str) -> "TableMap | None":
+        """Get the WarpMap for converting coordinates between two timelines.
+
+        Args:
+            from_timeline: Source timeline ID.
+            to_timeline: Target timeline ID.
+
+        Returns:
+            TableMap for interpolation, or None if no map exists.
+        """
+        return self._warp_maps.get((from_timeline, to_timeline))
+
+    # endregion
+
+    # region Grouped Timestamp API
+
+    def get_timestamp_at(
+        self,
+        coordinate: float,
+        timeline_id: str,
+        *,
+        format: Literal["prefix", "nested", "flat"] = "prefix",
+    ) -> dict[str, Any]:
+        """Get a cross-group timestamp at a coordinate on a given timeline.
+
+        This is the primary method for cross-domain coordinate transfer.
+        Given a coordinate on one timeline, it returns the corresponding
+        coordinates on ALL connected timelines across ALL groups.
+
+        The method:
+        1. Finds the group containing the source timeline
+        2. Gets the within-group timestamp (via group.get_timestamp_at())
+        3. For each connected group (via WarpMaps from MatchClaims),
+           transfers the coordinate and gets the within-group timestamp
+        4. Returns all coordinates in the requested format
+
+        Args:
+            coordinate: The coordinate value on the source timeline.
+            timeline_id: ID of the source timeline (bundle UID).
+            format: Output format:
+                - ``"prefix"`` (default): ``{"group/timeline": coord, ...}``
+                - ``"nested"``: ``{"group": {"timeline": coord, ...}, ...}``
+                - ``"flat"``: ``{"timeline": coord, ...}``
+
+        Returns:
+            Dict of coordinates across all connected groups and timelines.
+            Timelines that cannot be reached return None values.
+
+        Raises:
+            KeyError: If timeline_id is not in the bundle.
+
+        Examples:
+            >>> ts = bundle.get_timestamp_at(50.0, "clt1_score", format="prefix")
+            >>> ts
+            {'score/clt1_score': 50.0, 'score/dgt1': 45000.0,
+             'normal/dpt1': 23456789, ...}
+
+            >>> ts = bundle.get_timestamp_at(50.0, "clt1_score", format="nested")
+            >>> ts
+            {'score': {'clt1_score': 50.0, 'dgt1': 45000.0},
+             'normal': {'dpt1': 23456789, ...}, ...}
+        """
+        if timeline_id not in self.timelines:
+            raise KeyError(f"Timeline '{timeline_id}' not in bundle")
+
+        # Get the source group
+        source_group_id = self.timeline_to_group.get(timeline_id)
+        if source_group_id is None:
+            # Standalone timeline — return just its coordinate
+            return self._format_timestamp(
+                {timeline_id: {timeline_id: coordinate}}, format
+            )
+
+        source_group = self.groups[source_group_id]
+        actual_tl_id = self._uid_to_timeline_id[timeline_id]
+
+        # Step 1: Get within-group timestamp for the source group
+        result: dict[str, dict[str, float | None]] = {}
+        source_ts = self._get_group_timestamp(source_group, coordinate, actual_tl_id)
+        result[source_group_id] = source_ts
+
+        # Step 2: Transfer to connected groups via WarpMaps
+        for other_group_id, other_group in self.groups.items():
+            if other_group_id == source_group_id:
+                continue
+
+            # Find a WarpMap that connects source group to this group
+            transferred_coord = self._transfer_to_group(
+                coordinate, actual_tl_id, source_group, other_group
+            )
+            if transferred_coord is not None:
+                target_tl_id, target_coord = transferred_coord
+                other_ts = self._get_group_timestamp(
+                    other_group, target_coord, target_tl_id
+                )
+                result[other_group_id] = other_ts
+
+        return self._format_timestamp(result, format)
+
+    def _get_group_timestamp(
+        self,
+        group: TimelineGroup,
+        coordinate: float,
+        timeline_id: str,
+    ) -> dict[str, float | None]:
+        """Get timestamp within a group, mapped to bundle UIDs.
+
+        Args:
+            group: The TimelineGroup.
+            coordinate: Coordinate in the source timeline.
+            timeline_id: Actual timeline ID (not bundle UID).
+
+        Returns:
+            Dict mapping bundle UIDs to coordinates.
+        """
+        result: dict[str, float | None] = {}
+
+        try:
+            ts = group.get_timestamp_at(coordinate, timeline_id)
+            for tl_id in group.timeline_ids:
+                bundle_uid = self._timeline_id_to_uid.get(tl_id, tl_id)
+                coord = ts.get(tl_id)
+                result[bundle_uid] = coord
+        except Exception as e:
+            self._logger.debug(
+                f"Failed to get group timestamp at {coordinate} on {timeline_id}: {e}"
+            )
+            # Return what we can: source coordinate at least
+            bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
+            result[bundle_uid] = coordinate
+
+        return result
+
+    def _transfer_to_group(
+        self,
+        coordinate: float,
+        source_tl_id: str,
+        source_group: TimelineGroup,
+        target_group: TimelineGroup,
+    ) -> tuple[str, float] | None:
+        """Transfer a coordinate from one group to another via WarpMaps.
+
+        Looks for any WarpMap connecting a timeline in source_group to a
+        timeline in target_group. If found, uses it to interpolate the
+        coordinate.
+
+        Args:
+            coordinate: Source coordinate.
+            source_tl_id: Source timeline ID (actual, not bundle UID).
+            source_group: Source group.
+            target_group: Target group.
+
+        Returns:
+            (target_timeline_id, transferred_coordinate) or None.
+        """
+        # Try direct WarpMap from source_tl_id to any timeline in target group
+        for target_tl_id in target_group.timeline_ids:
+            warp = self._warp_maps.get((source_tl_id, target_tl_id))
+            if warp is not None:
+                try:
+                    transferred = warp(coordinate)
+                    return (target_tl_id, float(transferred))
+                except Exception:
+                    continue
+
+        # Try indirect: first convert within source group, then WarpMap
+        for src_other_tl_id in source_group.timeline_ids:
+            if src_other_tl_id == source_tl_id:
+                continue
+            # Convert coordinate within source group
+            try:
+                intermediate = source_group.convert(
+                    coordinate, source=source_tl_id, target=src_other_tl_id
+                )
+                if intermediate is None:
+                    continue
+            except (KeyError, ValueError):
+                continue
+
+            # Try WarpMap from intermediate to target group
+            for target_tl_id in target_group.timeline_ids:
+                warp = self._warp_maps.get((src_other_tl_id, target_tl_id))
+                if warp is not None:
+                    try:
+                        transferred = warp(float(intermediate))
+                        return (target_tl_id, float(transferred))
+                    except Exception:
+                        continue
+
+        return None
+
+    def _format_timestamp(
+        self,
+        grouped: dict[str, dict[str, float | None]],
+        fmt: Literal["prefix", "nested", "flat"],
+    ) -> dict[str, Any]:
+        """Format a grouped timestamp dict into the requested output format.
+
+        Args:
+            grouped: Dict of group_id -> {bundle_uid -> coordinate}.
+            fmt: Output format.
+
+        Returns:
+            Formatted dict.
+        """
+        if fmt == "nested":
+            return grouped
+
+        if fmt == "prefix":
+            result: dict[str, Any] = {}
+            for group_id, tl_coords in grouped.items():
+                for tl_id, coord in tl_coords.items():
+                    result[f"{group_id}/{tl_id}"] = coord
+            return result
+
+        if fmt == "flat":
+            result = {}
+            for tl_coords in grouped.values():
+                result.update(tl_coords)
+            return result
+
+        raise ValueError(f"Unknown format: {fmt!r}. Use 'prefix', 'nested', or 'flat'")
 
     # endregion
 
