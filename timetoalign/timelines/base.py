@@ -1650,6 +1650,30 @@ class Timeline:
 
         return None
 
+    def _contains_coordinate(self, timeline_id: str, axis: float) -> bool:
+        """Check whether *axis* falls within the span of a child timeline.
+
+        A child embedded at *offset* with *length* spans
+        ``[offset, offset + length)`` on this (parent) timeline.
+
+        This method is part of the TimeStampSource protocol.
+
+        Args:
+            timeline_id: Child timeline ID.
+            axis: Coordinate on the parent (source) timeline.
+
+        Returns:
+            True if *axis* is inside the child's span, or if
+            *timeline_id* is the source itself.
+        """
+        if timeline_id == self._id:
+            return True
+        if timeline_id not in self._child_offsets:
+            return False
+        offset = float(self._child_offsets[timeline_id].value)
+        length = float(self._children[timeline_id].length.value)
+        return offset <= axis < offset + length
+
     def get_timestamp(
         self,
         coord: CoordinateValue | Coordinate,
@@ -2157,6 +2181,12 @@ class Timeline:
             >>> # axis[0] == 1000.0 + child_offset
         """
 
+        # Fast path: PyArrow array or numpy array of plain floats
+        if isinstance(coordinates, pa.Array):
+            return coordinates.cast(pa.float64())
+        if isinstance(coordinates, np.ndarray):
+            return pa.array(coordinates.astype(np.float64))
+
         # Single Coordinate or IdCoordinate
         if isinstance(coordinates, (Coordinate, IdCoordinate)):
             coordinates = [coordinates]
@@ -2180,8 +2210,10 @@ class Timeline:
                 # Plain Coordinate - use value directly
                 resolved.append(float(coord.value))
             else:
-                # Numeric value
-                resolved.append(float(coord))
+                # Numeric value (int, float, Fraction, or pyarrow scalar)
+                resolved.append(
+                    float(coord.as_py() if hasattr(coord, "as_py") else coord)
+                )
 
         return pa.array(resolved, type=pa.float64())
 

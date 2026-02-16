@@ -251,17 +251,20 @@ class EventStore(ABC):
         )
 
     def to_default_timeline(self, uid: str | None = None) -> "Timeline":
-        """Create a canonical timeline with all data as children.
+        """Create a canonical timeline from this store's data.
 
-        Each non-empty data becomes a child timeline at offset 0, preserving
-        its own 0-based coordinate system. This is the recommended way to
-        create timelines from loaded data.
+        When the store contains **multiple** data sources each one becomes
+        a child timeline at offset 0, preserving its own 0-based coordinate
+        system.  When the store contains a **single** data source the events
+        are placed directly on the timeline (no child wrapping) for
+        simplicity.  This is the recommended way to create timelines from
+        loaded data.
 
         Args:
             uid: Unique ID for the parent timeline.
 
         Returns:
-            A parent Timeline with child timelines for each non-empty data.
+            A Timeline with events (single data) or children (multiple data).
 
         Examples:
             >>> timeline = store.to_default_timeline(uid="chopin_score")

@@ -65,37 +65,53 @@ class TestTimeStampWithChildren:
         assert ts.get("child:1") == 10.0
 
     def test_get_child_coordinate_at_boundary(self):
-        """Get child coordinate at exact boundaries."""
+        """Get child coordinate at exact boundaries.
+
+        Child spans [offset, offset + length) on the parent, i.e. [25, 75).
+        The right endpoint is *exclusive* per the TTA interval model.
+        """
         parent = Timeline(length=100, unit=TimeUnit.seconds)
         child = Timeline(length=50, unit=TimeUnit.seconds, uid="child:1")
 
         parent.add_child(child, offset=25)
 
-        # At child start (parent 25)
+        # At child start (parent 25) -- left-inclusive
         ts_start = parent.get_timestamp(25.0)
         assert ts_start["child:1"] == 0.0
 
-        # At child end (parent 75)
+        # At child end (parent 75) -- right-exclusive, so None
         ts_end = parent.get_timestamp(75.0)
-        assert ts_end["child:1"] == 50.0
+        assert ts_end["child:1"] is None
+
+        # Just before child end (parent 74.999...) -- still inside
+        ts_just_before = parent.get_timestamp(74.999)
+        assert ts_just_before["child:1"] is not None
 
     def test_child_out_of_range_returns_none(self):
-        """Coordinates outside child range return None."""
+        """Coordinates outside child range return None.
+
+        Child spans [30, 70) on the parent.  Parent coordinate 10 is
+        outside that span, so ``get()`` returns None rather than
+        extrapolating a meaningless negative local coordinate.
+        """
         parent = Timeline(length=100, unit=TimeUnit.seconds)
         child = Timeline(length=40, unit=TimeUnit.seconds, uid="child:1")
 
         parent.add_child(child, offset=30)
 
-        # Before child (parent 10)
+        # Before child (parent 10) -- outside [30, 70)
         ts_before = parent.get_timestamp(10.0)
-        # The InterpolationMap extrapolates, but child has no meaning there
-        # Actually, InterpolationMap extrapolates linearly
-        # This is a design question - should we clamp or extrapolate?
-        # For now, extrapolation is allowed (matching numpy.interp behavior)
-        assert ts_before["child:1"] == -20.0  # 10 - 30 = -20
+        assert ts_before["child:1"] is None
 
     def test_multiple_children(self):
-        """Timestamps work with multiple children."""
+        """Timestamps work with multiple children.
+
+        child1 spans [10, 40) and child2 spans [60, 90) on the parent.
+        At parent coordinate 40, child1 is *excluded* (right-exclusive)
+        and child2 has not started yet, so both return None.
+        At parent coordinate 35, child1 returns 25.0 and child2 returns
+        None.
+        """
         parent = Timeline(length=100, unit=TimeUnit.seconds)
         child1 = Timeline(length=30, unit=TimeUnit.seconds, uid="child:1")
         child2 = Timeline(length=30, unit=TimeUnit.seconds, uid="child:2")
@@ -103,12 +119,20 @@ class TestTimeStampWithChildren:
         parent.add_child(child1, offset=10)
         parent.add_child(child2, offset=60)
 
-        ts = parent.get_timestamp(40.0)
+        # Parent 40 is at the right-exclusive boundary of child1 [10, 40)
+        ts_boundary = parent.get_timestamp(40.0)
+        assert ts_boundary["child:1"] is None
+        assert ts_boundary["child:2"] is None
 
-        # Parent 40 in child1 (offset 10): 40 - 10 = 30
-        assert ts["child:1"] == 30.0
-        # Parent 40 in child2 (offset 60): 40 - 60 = -20 (extrapolated)
-        assert ts["child:2"] == -20.0
+        # Parent 35 is inside child1 [10, 40): local = 35 - 10 = 25
+        ts_inside = parent.get_timestamp(35.0)
+        assert ts_inside["child:1"] == 25.0
+        assert ts_inside["child:2"] is None
+
+        # Parent 70 is inside child2 [60, 90): local = 70 - 60 = 10
+        ts_child2 = parent.get_timestamp(70.0)
+        assert ts_child2["child:1"] is None
+        assert ts_child2["child:2"] == 10.0
 
     def test_to_dict(self):
         """TimeStamp can be materialized to dict."""

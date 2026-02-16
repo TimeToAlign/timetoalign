@@ -282,8 +282,11 @@ def create_timeline_from_bundle(
             uid=uid,
         )
 
-    # Single data case: put events directly on the timeline (no children)
-    # This applies when flatten=True OR when there's only one data to use
+    # Single data case: put events directly on the timeline (no children).
+    # This applies when flatten=True is explicitly requested OR when there
+    # is only a single data source (the common case for simple loaders and
+    # SingleStore).  to_default_timeline() calls us with flatten=False, but
+    # the single-data optimisation still fires because len(data_to_use)==1.
     if flatten or len(data_to_use) == 1:
         # Merge all events into single timeline
         merged_data = first_data

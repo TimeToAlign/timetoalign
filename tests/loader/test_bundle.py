@@ -165,34 +165,30 @@ class TestSingleStoreToTimeline:
             unit=TimeUnit.ticks,
         )
 
-    def test_to_default_timeline_creates_child(self, sample_data: EventData):
-        """to_default_timeline creates parent with one child."""
+    def test_to_default_timeline_single_data(self, sample_data: EventData):
+        """to_default_timeline with single data: events directly on timeline.
+
+        A SingleStore contains exactly one data source.  The factory
+        optimisation places events directly on the timeline (no child
+        wrapping) for single-data stores, keeping the API simple.
+        """
         store = SingleStore(sample_data, name="notes")
 
         timeline = store.to_default_timeline(uid="test")
 
         assert timeline.id == "test"
-        assert timeline.n_children == 1
-        assert "notes" in timeline
+        # Single data source -> no children, events directly on timeline
+        assert timeline.n_children == 0
+        assert timeline.n_events == 2
 
-    def test_child_has_correct_events(self, sample_data: EventData):
-        """Child timeline contains the data's events."""
+    def test_default_timeline_length(self, sample_data: EventData):
+        """Default timeline length matches max event coordinate."""
         store = SingleStore(sample_data, name="notes")
 
         timeline = store.to_default_timeline()
-        child = timeline.get_child("notes")
 
-        # Exact count validation
-        assert child.n_events == 2
-
-    def test_child_at_offset_zero(self, sample_data: EventData):
-        """Child is embedded at offset 0."""
-        store = SingleStore(sample_data, name="notes")
-
-        timeline = store.to_default_timeline()
-        offset = timeline.get_child_offset("notes")
-
-        assert offset.value == 0
+        # Events span [0, 960], so length == 960
+        assert timeline.length.value == 960
 
     def test_flatten_mode_no_children(self, sample_data: EventData):
         """flatten=True creates timeline without children."""
