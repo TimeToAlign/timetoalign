@@ -92,6 +92,23 @@ class TimeStampSource(Protocol):
         """
         ...
 
+    def _contains_coordinate(self, timeline_id: str, axis: float) -> bool:
+        """Check whether *axis* falls within the span of a related timeline.
+
+        For a child embedded at *offset* with *length*, the span on the
+        parent is ``[offset, offset + length)``.  Returns ``True`` for
+        the source timeline itself and for any related timeline whose
+        span includes *axis*.
+
+        Args:
+            timeline_id: The related timeline to check.
+            axis: The coordinate on the source (parent) timeline.
+
+        Returns:
+            True if *axis* is inside the related timeline's span.
+        """
+        ...
+
 
 # endregion
 
@@ -138,17 +155,25 @@ class TimeStamp:
     def get(self, timeline_id: str, default: float | None = None) -> float | None:
         """Get coordinate on another timeline.
 
-        Uses InterpolationMap for O(log n) lookup.
+        Returns ``default`` (None) when the queried coordinate falls
+        outside the related timeline's span -- for instance, asking a
+        child whose parent-side interval is ``[10, 30)`` for the
+        coordinate at axis 5.
 
         Args:
             timeline_id: The timeline to get coordinate for.
-            default: Value to return if timeline not reachable.
+            default: Value to return if timeline not reachable or out of span.
 
         Returns:
-            Coordinate on the target timeline, or default if not reachable.
+            Coordinate on the target timeline, or *default* if not
+            reachable or the axis is outside the target's span.
         """
         if timeline_id == self.source_id:
             return self.axis
+
+        # Bounds check: is axis inside the related timeline's span?
+        if not self.source._contains_coordinate(timeline_id, self.axis):
+            return default
 
         imap = self.source._get_interpolation_map(timeline_id, source_id=self.source_id)
         if imap is None:

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\frictionless\errors\metadata.py
+# hypothesis_version: 6.151.2
+
+['Catalog Error', 'Check Error', 'Checklist Error', 'Control Error', 'Dataset Error', 'Detector Error', 'Dialect Error', 'Field Error', 'Inquiry Error', 'Inquiry Task Error', 'Metadata Error', 'Package Error', 'Pipeline Error', 'Report Error', 'Report Task Error', 'Schema Error', 'Stats Error', 'Step Error', 'catalog-error', 'check-error', 'checklist-error', 'control-error', 'dataset-error', 'detector-error', 'dialect-error', 'field-error', 'inquiry-error', 'inquiry-task-error', 'metadata-error', 'package-error', 'pipeline-error', 'report-error', 'report-task-error', 'schema-error', 'stats-error', 'step-error']

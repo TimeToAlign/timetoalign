@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\score\bundle.py
+# hypothesis_version: 6.151.2
+
+[0.0, 4.0, 60.0, 480, 'Tempo', 'annotations', 'annotations_count', 'controls', 'controls_count', 'has_rests', 'measures', 'measures_count', 'notes', 'notes_count', 'quarters', 'seconds', 'start', 'subtype', 'tempo_events', 'ticks', 'value']

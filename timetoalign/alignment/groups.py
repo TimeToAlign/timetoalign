@@ -1175,6 +1175,15 @@ class TimelineGroup:
             return self._timelines[timeline_id].unit
         return None
 
+    def _contains_coordinate(self, timeline_id: str, axis: float) -> bool:
+        """All members of a group are always reachable.
+
+        This method is part of the TimeStampSource protocol. Unlike
+        Timeline children (which have bounded spans), group members are
+        bijectively mapped and therefore always valid targets.
+        """
+        return timeline_id in self._timelines or timeline_id == self._axis_id
+
     def get_unified_timestamp(
         self,
         coordinate: float,

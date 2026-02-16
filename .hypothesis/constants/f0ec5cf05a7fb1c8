@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\frictionless\errors\header.py
+# hypothesis_version: 6.151.2
+
+['#header', '#table', 'Blank Header', 'Cell Error', 'Header Error', 'array', 'blank-header', 'header-error', 'integer', 'items', 'labels', 'properties', 'rowNumbers', 'string', 'type']

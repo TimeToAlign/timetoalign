@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\git\objects\submodule\base.py
+# hypothesis_version: 6.151.2
+
+['.git', '.gitmodules', '/', 'Commit', 'DRY-RUN: ', 'Done cloning to %s', 'HEAD', 'Head', 'IndexFile', 'Repo', 'Submodule', 'UpdateProgress', '__weakref__', '_branch_path', '_name', '_parent_commit', '_url', 'b', 'branch', 'checkout', 'config', 'core', 'depth', 'gitdir: %s', 'invalid-temporary', 'master', 'modules', 'multi_options', 'n', 'name', 'path', 'reset', 'separate_git_dir', 'submodule', 'url', 'wb', 'win32', 'worktree']

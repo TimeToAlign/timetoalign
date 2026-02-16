@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\timelines\base.py
+# hypothesis_version: 6.151.2
+
+[b'cmap_id', b'timeline_id', b'unit', 0.0, ',', ', ', 'FlowMap', 'FlowMap | None', 'Segment', 'Timeline', 'add region', 'as_py', 'axis', 'breadth_first', 'children', 'class', 'conversion_maps', 'default', 'depth_first', 'domain', 'duration', 'end', 'event_summary', 'event_type', 'events', 'id', 'instant', 'interval', 'is_locked', 'length', 'locked', 'meta', 'n_children', 'n_events', 'name', 'number_type', 'offset', 'pandas', 'partition', 'root_end', 'root_start', 'set length', 'sorted', 'source_timeline', 'start', 'target_unit', 'temporal_type', 'timeline', 'tl', 'unit', 'unknown', 'utf-8', 'value']

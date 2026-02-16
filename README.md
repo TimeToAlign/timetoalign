@@ -57,9 +57,7 @@ print(ts)
 ```
 TimeStamp @25 seconds
   audio         25 seconds
-  intro         25 seconds
   verse         15 seconds
-  chorus        -5 seconds
   milliseconds  25000
   samples       1200000
 ```

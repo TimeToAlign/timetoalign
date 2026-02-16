@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\frictionless\checks\cell\truncated_value.py
+# hypothesis_version: 6.151.2
+
+[255, 32767, 65535, 2097152, 2147483647, 4294967295, 9223372036854775807, 18446744073709551616, 'truncated-value']
