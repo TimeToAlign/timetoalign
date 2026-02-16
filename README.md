@@ -24,7 +24,7 @@ audio.add_events([
     {"event_type": "Beat", "instant": 0.5},
     {"event_type": "Beat", "instant": 1.0},
     {"event_type": "Note", "start": 0.0, "end": 0.5},
-    {"event_type": "Note", "start": 0.5, "end": 1.8},
+    {"event_type": "Note", "start": 8.0, "end": 12.0},   # spans Intro -> Verse
 ])
 
 # Nest children (sections of the same recording)
@@ -49,7 +49,8 @@ ContinuousPhysicalTimeline[audio] (5 events, 3 children)
 ```
 
 ```python
-# A TimeStamp is a cross-section through the entire hierarchy at a given coordinate
+# A TimeStamp is a cross-section through the entire hierarchy at a given coordinate.
+# Only children whose span covers the coordinate appear:
 ts = audio.get_timestamp(25.0)
 print(ts)
 ```
@@ -60,6 +61,24 @@ TimeStamp @25 seconds
   verse         15 seconds
   milliseconds  25000
   samples       1200000
+```
+
+```python
+# A TimeIntervalStamp gives the cross-section for a [start, end) range.
+# The note at [8, 12) straddles Intro [0, 10) and Verse [10, 30):
+# its start falls in Intro, its end in Verse.
+tis = audio.get_interval_stamp(8.0, 12.0)
+print(tis)
+```
+
+```
+TimeIntervalStamp [8, 12) seconds
+                 start     end
+  audio              8      12 seconds
+  intro              8       - seconds
+  verse              -       2 seconds
+  milliseconds    8000   12000
+  samples       384000  576000
 ```
 
 ## Development

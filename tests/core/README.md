@@ -168,9 +168,9 @@ The ID system ensures:
 
 2. **TimeStampWithChildren** (6 tests)
    - Child coordinate resolution via `ts["child:id"]`
-   - Boundary handling (at child start/end)
-   - Out-of-range extrapolation behavior
-   - Multiple children
+   - Boundary handling: left-inclusive, right-exclusive `[offset, offset+length)`
+   - Out-of-range returns `None` (no extrapolation)
+   - Multiple children with staggered offsets
    - `to_dict()` materialization
    - `present_timelines` property
 
@@ -182,13 +182,16 @@ The ID system ensures:
    - Missing C-Map raises ValueError
    - `to_dict()` with conversion units
 
-4. **TimeIntervalStamp** (7 tests)
+4. **TimeIntervalStamp** (10 tests)
    - Interval creation from start/end coordinates
    - `get_interval()` for child timelines
    - `get_duration()` calculation
    - `zip_intervals()` for all timelines
    - Subscript access for intervals
    - Iteration as (start, end) pair
+   - `__str__` basic format (header + aligned start/end columns)
+   - `__str__` straddling children (`-` for out-of-range endpoint)
+   - `__str__` omits fully out-of-range children
 
 5. **TimeStampValidation** (1 test)
    - Start/end must be from same source
@@ -212,14 +215,24 @@ The unified TimeStamp architecture (Phase 6.5) enables:
 # Timeline unified API
 ts = timeline.get_timestamp(30.0)
 ts.axis                    # 30.0
-ts["child:1"]              # Converted coordinate
+ts["child:1"]              # Converted coordinate (None if out of range)
 ts.to_dict()               # All coordinates as dict
+print(ts)                  # Full cross-section display
 
 # Interval stamps
 interval = timeline.get_interval_stamp(20.0, 60.0)
 interval.duration          # 40.0
-interval["child:1"]        # (start, end) tuple
+interval["child:1"]        # (start, end) tuple (None if both out of range)
+print(interval)            # Two-column (start, end) display with '-' for out-of-range
 ```
+
+**Design Notes:**
+
+- **Child bounds checking**: `TimeStamp.get(child_id)` returns `None` when the queried
+  coordinate falls outside the child's `[offset, offset+length)` span, per the TTA
+  manuscript's left-inclusive, right-exclusive interval convention.
+- **TimeIntervalStamp.__str__**: Shows a `-` when one endpoint is out of range for a
+  child, making it easy to see events that straddle children.
 
 ---
 
