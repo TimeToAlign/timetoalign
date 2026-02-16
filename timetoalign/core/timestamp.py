@@ -635,9 +635,88 @@ class TimeIntervalStamp:
         )
 
     def __str__(self) -> str:
-        return (
-            f"TimeIntervalStamp([{self.start.axis}, {self.end.axis}]@{self.source_id})"
+        """Readable cross-section showing start/end across all reachable timelines.
+
+        Entries where only one endpoint is in range display ``-`` for the
+        missing side, making it easy to see events that straddle children.
+
+        Examples:
+            >>> print(timeline.get_interval_stamp(8.0, 12.0))
+            TimeIntervalStamp [8, 12) seconds
+                          start    end
+              audio           8     12 seconds
+              intro           8      - seconds
+              verse           -      2 seconds
+              milliseconds 8000  12000
+              samples    384000 576000
+        """
+
+        def _fmt(v: float | None) -> str:
+            """Format a coordinate value; ``None`` becomes ``-``."""
+            if v is None:
+                return "-"
+            if v == int(v) and abs(v) < 1e15:
+                return str(int(v))
+            return f"{v:g}"
+
+        axis_unit = self.source._get_unit_for_timeline(self.source_id)
+        unit_str = f" {axis_unit.value}" if axis_unit else ""
+
+        # Header
+        lines: list[str] = [
+            f"TimeIntervalStamp [{self.start.axis:g}, {self.end.axis:g}){unit_str}"
+        ]
+
+        # Collect rows: (label, start_str, end_str, suffix)
+        rows: list[tuple[str, str, str, str]] = []
+
+        # Axis / source timeline
+        rows.append(
+            (
+                self.source_id,
+                _fmt(self.start.axis),
+                _fmt(self.end.axis),
+                unit_str.strip(),
+            )
         )
+
+        # Children / related timelines
+        for tid in self.source._get_related_timeline_ids():
+            s = self.start.get(tid)
+            e = self.end.get(tid)
+            if s is None and e is None:
+                continue
+            t_unit = self.source._get_unit_for_timeline(tid)
+            suffix = t_unit.value if t_unit else ""
+            rows.append((tid, _fmt(s), _fmt(e), suffix))
+
+        # C-Map units
+        for cmap_unit in self.source._get_available_units():
+            s = self.start.get_unit(cmap_unit)
+            e = self.end.get_unit(cmap_unit)
+            if s is None and e is None:
+                continue
+            rows.append((cmap_unit.value, _fmt(s), _fmt(e), ""))
+
+        # Align columns
+        if rows:
+            max_label = max(len(r[0]) for r in rows)
+            max_start = max(len(r[1]) for r in rows)
+            max_end = max(len(r[2]) for r in rows)
+
+            # Column headers
+            lines.append(
+                f"  {'':>{max_label}}  {'start':>{max_start}}  {'end':>{max_end}}"
+            )
+
+            for label, s_str, e_str, suffix in rows:
+                suffix_part = f" {suffix}" if suffix else ""
+                lines.append(
+                    f"  {label:<{max_label}}  {s_str:>{max_start}}  "
+                    f"{e_str:>{max_end}}{suffix_part}"
+                )
+
+        return "\n".join(lines)
 
 
 # endregion

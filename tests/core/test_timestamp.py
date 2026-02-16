@@ -326,6 +326,69 @@ class TestTimeIntervalStamp:
         assert start.axis == 10.0
         assert end.axis == 50.0
 
+    def test_str_basic(self):
+        """__str__ shows header and aligned start/end columns."""
+        parent = Timeline(length=100, unit=TimeUnit.seconds, uid="tl:1")
+        child = Timeline(length=60, unit=TimeUnit.seconds, uid="child:1")
+        parent.add_child(child, offset=20)
+
+        # Both endpoints inside child [20, 80)
+        interval = parent.get_interval_stamp(30.0, 70.0)
+        text = str(interval)
+
+        assert "TimeIntervalStamp [30, 70) seconds" in text
+        assert "start" in text
+        assert "end" in text
+        assert "tl:1" in text
+        assert "child:1" in text
+
+    def test_str_straddling_children(self):
+        """__str__ shows '-' when an endpoint falls outside a child's span.
+
+        child1 spans [0, 40), child2 spans [50, 90) on the parent.
+        An interval [35, 55) has its start in child1 and its end in child2.
+        """
+        parent = Timeline(length=100, unit=TimeUnit.seconds, uid="parent:1")
+        child1 = Timeline(length=40, unit=TimeUnit.seconds, uid="sec:A")
+        child2 = Timeline(length=40, unit=TimeUnit.seconds, uid="sec:B")
+        parent.add_child(child1, offset=0)
+        parent.add_child(child2, offset=50)
+
+        interval = parent.get_interval_stamp(35.0, 55.0)
+        text = str(interval)
+
+        # Parent row: both endpoints present
+        assert "parent:1" in text
+        # sec:A: start=35 is inside [0, 40), end=55 is outside -> dash
+        assert "sec:A" in text
+        # sec:B: start=35 is outside [50, 90), end=55 is inside -> dash
+        assert "sec:B" in text
+
+        # Check the actual values by parsing lines
+        lines = text.strip().split("\n")
+        sec_a_line = [line for line in lines if "sec:A" in line][0]
+        sec_b_line = [line for line in lines if "sec:B" in line][0]
+
+        # sec:A shows start=35, end='-'
+        assert "35" in sec_a_line
+        assert "-" in sec_a_line
+
+        # sec:B shows start='-', end=5
+        assert "5" in sec_b_line
+        assert "-" in sec_b_line
+
+    def test_str_omits_fully_out_of_range_children(self):
+        """Children where both endpoints are out of range are omitted."""
+        parent = Timeline(length=100, unit=TimeUnit.seconds, uid="tl:1")
+        child = Timeline(length=10, unit=TimeUnit.seconds, uid="far_child")
+        parent.add_child(child, offset=80)
+
+        # Interval [5, 15) - far_child is at [80, 90), both endpoints outside
+        interval = parent.get_interval_stamp(5.0, 15.0)
+        text = str(interval)
+
+        assert "far_child" not in text
+
 
 class TestTimeStampValidation:
     """Validation and error handling tests."""
