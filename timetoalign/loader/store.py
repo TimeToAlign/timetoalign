@@ -158,15 +158,18 @@ class EventData:
         """Create EventData from a list of row dictionaries.
 
         Coordinate values (instant, start, end, duration) are automatically
-        converted to the internal struct format.
+        converted to the internal struct format. Convenience defaults are
+        applied so that callers can omit boilerplate fields:
+
+        - **id**: Auto-generated as ``e000001``, ``e000002``, ... if missing.
+        - **temporal_type**: Inferred from the keys present in the dict --
+          ``"interval"`` when *both* ``start`` and ``end`` (or ``duration``)
+          are given, ``"instant"`` otherwise.
 
         Args:
-            rows: List of event dictionaries. Each dict should have at minimum:
-                - id: unique identifier
-                - temporal_type: "instant" or "interval"
-                - event_type: class name (e.g., "Note")
-                - instant: coordinate (for instant events)
-                - start, end: coordinates (for interval events)
+            rows: List of event dictionaries. At minimum each dict needs a
+                coordinate (``instant`` *or* ``start``/``end``) and an
+                ``event_type``. All other fields have sensible defaults.
             unit: The time unit for coordinates.
             number_type: The number type for coordinates.
 
@@ -175,17 +178,33 @@ class EventData:
 
         Examples:
             >>> data = EventData.from_dicts([
-            ...     {"id": "e1", "temporal_type": "instant",
-            ...      "event_type": "Beat", "instant": 0},
-            ... ], unit=TimeUnit.ticks)
+            ...     {"event_type": "Beat", "instant": 0},
+            ...     {"event_type": "Note", "start": 0, "end": 0.5},
+            ... ], unit=TimeUnit.seconds)
         """
         if not rows:
             return cls.empty(unit, number_type)
 
         # Convert coordinate values to struct format
         processed_rows = []
-        for row in rows:
+        for i, row in enumerate(rows):
             processed = dict(row)
+
+            # Auto-generate id if missing
+            if "id" not in processed or processed["id"] is None:
+                processed["id"] = f"e{i:06d}"
+
+            # Infer temporal_type if missing
+            if "temporal_type" not in processed or processed["temporal_type"] is None:
+                has_end = processed.get("end") is not None
+                has_duration = processed.get("duration") is not None
+                has_start = processed.get("start") is not None
+                if (has_start or processed.get("instant") is not None) and (
+                    has_end or has_duration
+                ):
+                    processed["temporal_type"] = "interval"
+                else:
+                    processed["temporal_type"] = "instant"
 
             # Map 'instant' to 'start'
             if "instant" in processed and processed.get("start") is None:

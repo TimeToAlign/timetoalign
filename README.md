@@ -1,11 +1,13 @@
-# TimeToAlign
+# TimeToAlign!
 
 A Python library for representing and aligning musical timelines.
 
 ## Installation
 
 ```bash
-pip install timetoalign
+git clone https://github.com/DCMLab/tta.git
+cd tta/timetoalign
+pip install -e ".[dev]"
 ```
 
 ## Quick Start
@@ -13,21 +15,63 @@ pip install timetoalign
 ```python
 import timetoalign as tta
 
-# Create coordinates
-c1 = tta.Coordinate(120, tta.TimeUnit.TICKS)
-c2 = tta.Coordinate(1.5, tta.TimeUnit.SECONDS)
+# Create a 60-second audio timeline
+audio = tta.ContinuousPhysicalTimeline(length=60.0, uid="audio", name="Piano Recording")
 
-# Work with scoped IDs
-sid = tta.ScopedId.parse("midi:n42")
-print(sid.scope)  # "midi"
-print(sid.local)  # "n42"
+# Add beats and notes -- IDs and temporal_type are inferred automatically
+audio.add_events([
+    {"event_type": "Beat", "instant": 0.0},
+    {"event_type": "Beat", "instant": 0.5},
+    {"event_type": "Beat", "instant": 1.0},
+    {"event_type": "Note", "start": 0.0, "end": 0.5},
+    {"event_type": "Note", "start": 0.5, "end": 1.8},
+])
+
+# Nest children (sections of the same recording)
+intro  = audio.create_child(length=10.0, offset=0.0,  uid="intro",  name="Intro")
+verse  = audio.create_child(length=20.0, offset=10.0, uid="verse",  name="Verse")
+chorus = audio.create_child(length=15.0, offset=30.0, uid="chorus", name="Chorus")
+
+# Attach ConversionMaps (seconds -> milliseconds, seconds -> samples at 48 kHz)
+audio.add_conversion_map(tta.ScalarMap(scalar=1000, source_unit="seconds", target_unit="milliseconds"))
+audio.add_conversion_map(tta.SecondsToSamples(sample_rate=48000))
+
+# The diagram shows the hierarchy at a glance
+print(audio.diagram())
+```
+
+```
+ContinuousPhysicalTimeline[audio] (5 events, 3 children)
+                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 60 seconds
+  ├─ Intro            0 ~~~~~                               10
+  ├─ Verse           10      ~~~~~~~~~~~~                   30
+  └─ Chorus          30                  ~~~~~~~~~          45
+```
+
+```python
+# A TimeStamp is a cross-section through the entire hierarchy at a given coordinate
+ts = audio.get_timestamp(25.0)
+print(ts)
+```
+
+```
+TimeStamp @25 seconds
+  audio         25 seconds
+  intro         25 seconds
+  verse         15 seconds
+  chorus        -5 seconds
+  milliseconds  25000
+  samples       1200000
 ```
 
 ## Development
 
 ```bash
-pip install -e ".[dev]"
+# Run the test suite
 pytest
+
+# Run linting / pre-commit hooks
+tox -e lint
 ```
 
 ## Glossary

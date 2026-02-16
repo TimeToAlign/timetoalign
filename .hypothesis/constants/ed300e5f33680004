@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\ms3\annotations.py
+# hypothesis_version: 6.151.2
+
+[' (', ')', ', ', '.', 'Annotations', 'These mappings do', 'This mapping does', 'a', 'absolute_base', 'absolute_root', 'all', 'b', 'c', 'color', 'color_a', 'color_b', 'color_g', 'color_html', 'color_name', 'color_r', 'd', 'dcml', 'decoded', 'default', 'e', 'f', 'form_labels', 'g', 'globalkey', 'globalkey_is_minor', 'h', 'harmony_layer', 'html', 'ignore', 'label', 'leftParen', 'localkey', 'localkey_is_minor', 'mc', 'mc_onset', 'message_id', 'minDistance', 'mn', 'mn_onset', 'name', 'nashville', 'object', 'offset', 'offset_x', 'offset_y', 'placement', 'regex_match', 'rgb', 'rgba', 'rightParen', 'rootCase', 's', 'staff', 'style', 'voice', 'volta', 'z']

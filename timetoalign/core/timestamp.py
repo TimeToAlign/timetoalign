@@ -20,6 +20,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     Iterator,
     Literal,
@@ -68,8 +69,8 @@ class TimeStampSource(Protocol):
         """
         ...
 
-    def _get_unit_map(self, unit: "TimeUnit") -> "InterpolationMap | None":
-        """Get InterpolationMap for unit-based conversion."""
+    def _get_unit_map(self, unit: "TimeUnit") -> "Any":
+        """Get a map for unit-based conversion (InterpolationMap or ConversionMap)."""
         ...
 
     def _get_related_timeline_ids(self) -> list[str]:
@@ -162,7 +163,9 @@ class TimeStamp:
     def get_unit(self, unit: "TimeUnit") -> float | None:
         """Get coordinate converted to a specific unit.
 
-        Uses C-Map's InterpolationMap if available.
+        Works with any map registered by ``add_conversion_map``:
+        ``InterpolationMap`` (for ``TableMap``), or analytical
+        ``ConversionMap`` subclasses (``ScalarMap``, ``LinearMap``, ...).
 
         Args:
             unit: The target unit for conversion.
@@ -170,10 +173,13 @@ class TimeStamp:
         Returns:
             Converted coordinate, or None if no C-Map available.
         """
-        imap = self.source._get_unit_map(unit)
-        if imap is None:
+        umap = self.source._get_unit_map(unit)
+        if umap is None:
             return None
-        return float(imap.forward(self.axis))
+        # InterpolationMap exposes .forward(); ConversionMap exposes __call__
+        if hasattr(umap, "forward"):
+            return float(umap.forward(self.axis))
+        return float(umap(self.axis))
 
     def get_coordinate(self, timeline_id: str) -> "Coordinate | None":
         """Get a proper Coordinate object for a timeline.
@@ -311,7 +317,59 @@ class TimeStamp:
         return f"TimeStamp(axis={self.axis}, source={self.source_id!r}{interp})"
 
     def __str__(self) -> str:
-        return f"TimeStamp({self.axis}@{self.source_id})"
+        """Readable cross-section showing all reachable coordinates and units.
+
+        Examples:
+            >>> print(timeline.get_timestamp(25.0))
+            TimeStamp @25 seconds
+              audio      25 seconds
+              intro      25 seconds
+              verse      15 seconds
+              chorus     -5 seconds
+              milliseconds   25000
+              samples  1200000
+        """
+
+        lines: list[str] = []
+
+        # Header: axis value with unit
+        axis_unit = self.source._get_unit_for_timeline(self.source_id)
+        unit_str = f" {axis_unit.value}" if axis_unit else ""
+        lines.append(f"TimeStamp @{self.axis:g}{unit_str}")
+
+        def _fmt(v: float, u: str = "") -> str:
+            """Format a coordinate value, using integer repr when exact."""
+            suffix = f" {u}" if u else ""
+            if v == int(v) and abs(v) < 1e15:
+                return f"{int(v)}{suffix}"
+            return f"{v:g}{suffix}"
+
+        # Collect all entries: (label, value_str)
+        entries: list[tuple[str, str]] = []
+
+        # Source timeline
+        entries.append((self.source_id, _fmt(self.axis, unit_str.strip())))
+
+        # Children / related timelines
+        for tid in self.source._get_related_timeline_ids():
+            val = self.get(tid)
+            if val is not None:
+                t_unit = self.source._get_unit_for_timeline(tid)
+                entries.append((tid, _fmt(val, t_unit.value if t_unit else "")))
+
+        # C-Map conversions
+        for unit in self.source._get_available_units():
+            val = self.get_unit(unit)
+            if val is not None:
+                entries.append((unit.value, _fmt(val)))
+
+        # Align columns
+        if entries:
+            max_label = max(len(e[0]) for e in entries)
+            for label, value_str in entries:
+                lines.append(f"  {label:<{max_label}}  {value_str}")
+
+        return "\n".join(lines)
 
     def _repr_html_(self) -> str:
         """Return HTML representation for Jupyter notebooks.

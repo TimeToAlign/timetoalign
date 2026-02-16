@@ -193,8 +193,11 @@ class Timeline:
         # InterpolationMaps for O(log n) coordinate conversion (unified timestamp system)
         # Maps child_id -> InterpolationMap for child<->parent conversion
         self._interpolation_maps: dict[str, InterpolationMap] = {}
-        # Maps TimeUnit -> InterpolationMap for unit-based conversion via C-Maps
-        self._unit_maps: dict[TimeUnit, InterpolationMap] = {}
+        # Maps TimeUnit -> map for unit-based conversion via C-Maps.
+        # Stores InterpolationMap (for TableMaps) or ConversionMap (for
+        # analytical maps like ScalarMap, LinearMap) so that *any* C-Map
+        # with a target_unit is available in the TimeStamp system.
+        self._unit_maps: dict[TimeUnit, InterpolationMap | ConversionMap[Any]] = {}
 
         # Region storage (named TimeIntervals)
         # From TTA manuscript: "A Region is a named part of a timeline that is
@@ -586,18 +589,30 @@ class Timeline:
     ) -> None:
         """Add events to the timeline.
 
+        Only ``event_type`` and a coordinate are strictly required per dict.
+        Missing fields are filled in automatically:
+
+        - **id**: auto-generated (``e000001``, ``e000002``, ...).
+        - **temporal_type**: inferred from keys -- ``"interval"`` when both
+          ``start`` and ``end`` (or ``duration``) are present, ``"instant"``
+          otherwise.
+
         Args:
-            rows: List of event dictionaries with keys:
-                - id: unique identifier
-                - temporal_type: "instant" or "interval"
-                - event_type: class name
-                - instant: coordinate (for instant events)
+            rows: List of event dictionaries. Required keys:
+                - event_type: class name (e.g. ``"Beat"``, ``"Note"``)
+                - instant: coordinate (for instant events), **or**
                 - start, end: coordinates (for interval events)
             allow_expansion: If True, expand timeline if events exceed length.
 
         Raises:
             ValueError: If events exceed length and expansion not allowed.
             RuntimeError: If timeline is locked and expansion not allowed.
+
+        Examples:
+            >>> tl.add_events([
+            ...     {"event_type": "Beat", "instant": 0.0},
+            ...     {"event_type": "Note", "start": 0.0, "end": 0.5},
+            ... ])
         """
         if not rows:
             return
@@ -1323,8 +1338,11 @@ class Timeline:
     def add_conversion_map(self, cmap: ConversionMap[Any]) -> None:
         """Add a ConversionMap to this timeline.
 
-        If the map has a target_unit and is a TableMap, an InterpolationMap
-        is also built for O(log n) unit-based lookup in the unified timestamp system.
+        Any map with a ``target_unit`` is automatically registered in the
+        unified timestamp system so that :meth:`get_timestamp` can resolve
+        coordinates in that unit.  ``TableMap`` instances are wrapped in an
+        ``InterpolationMap`` for O(log n) lookup; analytical maps (e.g.
+        ``ScalarMap``, ``LinearMap``) are stored directly.
 
         Args:
             cmap: The ConversionMap to add.
@@ -1341,9 +1359,14 @@ class Timeline:
             )
         self._conversion_maps[cmap.id] = cmap
 
-        # Build InterpolationMap for unit-based lookup if applicable
-        if cmap.target_unit is not None and isinstance(cmap, TableMap):
-            self._unit_maps[cmap.target_unit] = InterpolationMap.from_table_map(cmap)
+        # Register in the unified timestamp system for unit-based lookup
+        if cmap.target_unit is not None:
+            if isinstance(cmap, TableMap):
+                self._unit_maps[cmap.target_unit] = InterpolationMap.from_table_map(
+                    cmap
+                )
+            else:
+                self._unit_maps[cmap.target_unit] = cmap
 
         self._logger.debug(f"Added conversion map '{cmap.id}'")
 
@@ -1567,8 +1590,14 @@ class Timeline:
         """
         return self._interpolation_maps.get(target_id)
 
-    def _get_unit_map(self, unit: TimeUnit) -> InterpolationMap | None:
-        """Get InterpolationMap for unit-based conversion.
+    def _get_unit_map(
+        self, unit: TimeUnit
+    ) -> InterpolationMap | ConversionMap[Any] | None:
+        """Get a map for unit-based conversion.
+
+        Returns an ``InterpolationMap`` (for ``TableMap``-based conversions)
+        or a ``ConversionMap`` (for analytical maps like ``ScalarMap``) --
+        whichever was registered by :meth:`add_conversion_map`.
 
         This method is part of the TimeStampSource protocol.
 
@@ -1576,7 +1605,7 @@ class Timeline:
             unit: Target unit.
 
         Returns:
-            InterpolationMap for conversion, or None if no C-Map available.
+            A map for conversion, or None if no C-Map available.
         """
         return self._unit_maps.get(unit)
 

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\bs4\element.py
+# hypothesis_version: 6.151.2
+
+[' "%s"', ' PUBLIC "%s"', ' SYSTEM "%s"', '%s|%s', '-->', '/', ':', '<', '<!--', '<!DOCTYPE ', '<![CDATA[', '<?', '=', '>', '>\n', '?>', 'MIT', 'Tag', '\\S+', '\\s+', ']]>', '__', '__iter__', '_decomposed', '_stacklevel', 'attrs', 'can_be_empty_element', 'class', 'class_', 'contents', 'get', 'hidden', 'idna', 'is_xml', 'match', 'mbcs', 'minimal', 'name', 'next_sibling', 'oem', 'palmos', 'parent', 'parser_class', 'previous_sibling', 'punycode', 'raw-unicode-escape', 'raw_unicode_escape', 'search', 'string', 'string-escape', 'string_escape', 'text', 'undefined', 'unicode-escape', 'unicode_escape', 'utf-8', 'utf8', 'xmlcharrefreplace']

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\timelines\beatgrid.py
+# hypothesis_version: 6.151.2
+
+[0.0, 1.0, 60.0, 10000, 'Beat', 'LABEL', 'Measure', 'TIME', '_start_seconds', '_tempo_bpm', 'beat', 'beats', 'both', 'default', 'end', 'event_type', 'id', 'instant', 'interval', 'is_downbeat', 'is_first_in_measure', 'mc', 'measure', 'measures', 'mn', 'name', 'sonic_visualiser', 'start', 'temporal_type', 'tilia', 'time']

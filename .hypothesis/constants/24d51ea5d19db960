@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\git\types.py
+# hypothesis_version: 6.151.2
+
+['Blob', 'Commit', 'Lit_commit_ish', 'Repo', 'TagObject', 'Tree', '_T', 'blob', 'commit', 'global', 'os.PathLike[str]', 'repository', 'system', 'tag', 'tree', 'user']

@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\gitdb\stream.py
+# hypothesis_version: 6.151.2
+
+[250, 256, 512, 1000, 1024, 8192, '1.2.5', '1.2.7', 'DeltaApplyReader', 'FDStream', 'FlexibleSha1Writer', 'NullStream', 'SEEK_SET', 'Sha1Writer', 'ZLIB_RUNTIME_VERSION', 'ZippedStoreShaWriter', '_br', '_bstream', '_buf', '_buflen', '_cbr', '_close', '_cwe', '_cws', '_dstreams', '_fd', '_m', '_mm_target', '_phi', '_pos', '_s', '_size', '_zip', 'buf', 'c_apply_delta', 'close', 'darwin', 'fd', 'sha1', 'status', 'writer', 'zip']

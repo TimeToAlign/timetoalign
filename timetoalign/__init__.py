@@ -60,6 +60,7 @@ from timetoalign.maps import (
     LinearMap,
     PiecewiseMap,
     ScalarMap,
+    SecondsToSamples,
     ShiftMap,
     TableMap,
 )
@@ -125,6 +126,7 @@ __all__ = [
     "ConversionMap",
     "LinearMap",
     "ScalarMap",
+    "SecondsToSamples",
     "ShiftMap",
     "TableMap",
     "ChainMap",

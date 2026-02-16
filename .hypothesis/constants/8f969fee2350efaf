@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\physical\audio.py
+# hypothesis_version: 6.151.2
+
+[b'RIFF', b'WAVE', b'data', b'fact', b'fmt ', 0.0, 65534, '.', '.aac', '.flac', '.m4a', '.mp3', '.ogg', '.opus', '.wav', '.wave', '<H', '<I', 'AAC', 'A_LAW', 'AudioLoader', 'DOUBLE', 'EXTENSIBLE', 'FLAC', 'FLOAT', 'IEEE_FLOAT', 'M4A', 'MP3', 'MU_LAW', 'OGG', 'OPUS', 'PCM', 'PCM_16', 'PCM_24', 'PCM_32', 'PCM_S8', 'PCM_U8', 'SamplesToSeconds', 'WAV', 'bitrate', 'bits_per_sample', 'channels', 'codec', 'duration_seconds', 'format', 'format_tag', 'length', 'rb', 'sample_rate', 'sections', 'seekable', 'source_path', 'subtype']

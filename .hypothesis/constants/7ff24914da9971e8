@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\frictionless\system\system.py
+# hypothesis_version: 6.151.2
+
+['create_adapter', 'create_loader', 'create_parser', 'datatype', 'detect_resource', 'file', 'formats', 'frictionless_', 'methods', 'plugins', 'portals', 'schemes', 'select_check_class', 'select_control_class', 'select_error_class', 'select_field_class', 'select_package_class', 'select_step_class', 'type']

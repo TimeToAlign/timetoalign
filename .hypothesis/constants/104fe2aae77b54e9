@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\tabular\base.py
+# hypothesis_version: 6.151.2
+
+[',', '.', '.csv', '.parquet', '.tsv', '.txt', 'Event', 'columns', 'csv', 'delimiter', 'denominator', 'duration', 'end', 'event_type', 'format', 'id', 'instant', 'interval', 'name', 'numerator', 'parquet', 'row_count', 'start', 'temporal_type', 'tsv', 'utf-8', 'value']

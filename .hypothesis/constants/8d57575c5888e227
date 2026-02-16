@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\frictionless\dialect\dialect.py
+# hypothesis_version: 6.151.2
+
+['array', 'boolean', 'commentChar', 'commentRows', 'controls', 'csv', 'delimiter', 'description', 'dialect', 'doubleQuote', 'escapeChar', 'header', 'headerCase', 'headerJoin', 'headerRows', 'lineTerminator', 'name', 'nullSequence', 'object', 'pattern', 'properties', 'quoteChar', 'skipBlankRows', 'skipInitialSpace', 'string', 'title', 'type', 'v1']

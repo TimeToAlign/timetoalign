@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\gitdb\pack.py
+# hypothesis_version: 6.151.2
+
+[b'\xfftOc', 127, 128, 255, 256, 512, 1024, 1346454347, 2147483647, 2147483648, 4294967295, '%s.idx', '%s.pack', '>L', '>L20s', '>LLL', '>Q', 'I', 'PackEntity', 'PackFile', 'PackIndexFile', '_%s_v%i', '_cursor', '_index', '_objs', '_offset_map', '_pack', '_packfile_checksum', '_packpath', '_size', '_version', 'crc', 'entry', 'idx', 'index', 'little', 'offset', 'pack', 'pack-%s.%s', 'sha']

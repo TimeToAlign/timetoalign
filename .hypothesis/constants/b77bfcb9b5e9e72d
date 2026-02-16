@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\ms3\utils\frictionless_helpers.py
+# hypothesis_version: 6.151.2
+
+['.', '..', '.errors', '.json', '.yaml', '.zip', '/', '=', 'Int64', '[^-a-z0-9._/]', '\\d+(?:\\/\\d+)?', '^([-a-z0-9._/])+$', '^\\d{3,4}|\\.{2}$', '_', 'a', 'array', 'bareNumber', 'boolean', 'composed_end', 'composed_start', 'compression', 'constraints', 'creator', 'csv', 'delimiter', 'description', 'dialect', 'encoding', 'file', 'format', 'frictionless_schemas', 'index', 'innerpath', 'integer', 'json', 'mc', 'mc_playthrough', 'mediatype', 'message_id', 'name', 'number', 'path', 'pattern', 'primaryKey', 'r', 'resources', 'schema', 'scheme', 'string', 'table', 'text/tsv', 'title', 'tsv', 'type', 'utf-8', 'w', 'yaml', 'zip']

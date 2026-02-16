@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\soupsieve\css_types.py
+# hypothesis_version: 6.151.2
+
+[128, 256, 512, 1024, ', ', 'CustomSelectors', 'Namespaces', 'Selector', 'SelectorAttribute', 'SelectorContains', 'SelectorLang', 'SelectorList', 'SelectorNth', 'SelectorNull', 'SelectorTag', '_hash', 'a', 'attribute', 'attributes', 'b', 'classes', 'contains', 'flags', 'ids', 'is_html', 'is_not', 'lang', 'languages', 'last', 'n', 'name', 'nth', 'of_type', 'own', 'pattern', 'prefix', 'rel_type', 'relation', 'selectors', 'tag', 'text', 'xml_type_pattern']

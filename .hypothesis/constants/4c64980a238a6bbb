@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pathos\core.py
+# hypothesis_version: 6.151.2
+
+[2.0, '%5d ', '%s -p %s', '-q', '-q -r', '-r', '.bash_profile', ':', 'PGID', 'PID', 'PPID', '__main__', 'background', 'bg', 'co', 'connect', 'copy', 'cp', 'execute', 'executing {%s}', 'getchild', 'getpid', 'getppid', 'grep %s', 'kill', 'kill -n TERM %s', 'options', "ps ax | grep '%s'", 'ps axj', 'python', 'randomport', 'response = %r', 'serve', 'source %s; ', '~/bin/%s.py']

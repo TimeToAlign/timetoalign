@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pytablewriter\writer\_table_writer.py
+# hypothesis_version: 6.151.2
+
+[0.25, '"', ',', '<stderr>', '<stdin>', '<stdout>', 'AbstractTableWriter', '_preprocess_header', '_preprocess_table_dp', 'colorize_terminal', 'column_styles', 'dataframe', 'default_style', 'dequote', 'enable_ansi_escape', 'headers', 'is_formatting_float', 'is_padding', 'is_write_closing_row', 'is_write_header', 'is_write_opening_row', 'iteration_length', 'max_precision', 'max_workers', 'null output stream', 'style_filter_kwargs', 'table_name', 'type_hints', 'value', 'value_matrix', 'write_callback', 'writer', '{:s}']

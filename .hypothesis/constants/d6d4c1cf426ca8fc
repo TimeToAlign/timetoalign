@@ -1,0 +1,4 @@
+# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\midi\performance.py
+# hypothesis_version: 6.151.2
+
+['channel', 'control', 'control_change', 'duration', 'end', 'event_type', 'format', 'id', 'instant', 'interval', 'length_seconds', 'midi', 'mido', 'note_off', 'note_on', 'num_tracks', 'parser', 'part_id', 'pitch', 'program', 'program_change', 'staff', 'start', 'temporal_type', 'ticks_per_beat', 'track', 'type', 'value', 'velocity', 'voice']
