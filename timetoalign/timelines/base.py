@@ -968,11 +968,108 @@ class Timeline:
         if offset_coord.value < 0:
             raise ValueError(f"Offset cannot be negative: {offset_coord.value}")
 
+    def _convert_child_to_parent_unit(
+        self,
+        child: Timeline,
+        use_conversion_map: ConversionMapsSpec,
+    ) -> Timeline:
+        """Convert a child timeline to this timeline's unit via a C-Map.
+
+        The conversion map is resolved from the parent's attached C-Maps.
+        We find a map whose ``target_unit`` matches the child's unit, invert
+        it, and use it to derive a copy of the child in the parent's unit.
+
+        The derived copy receives the ID ``{child.id}[{parent.unit}]`` and
+        retains all events with converted coordinates.
+
+        Args:
+            child: The child timeline to convert.
+            use_conversion_map: Flexible specification for which C-Map to use.
+                Accepts the same formats as the ``conversion_maps`` parameter
+                in timestamp functions:
+                - ``True``: Auto-select a C-Map whose target unit matches
+                  the child's unit.
+                - ``str``: Look up by C-Map ID or target unit name.
+                - ``TimeUnit``: Find by target unit.
+                - ``ConversionMap``: Use directly (must map parent unit to
+                  child unit so that its inverse converts child to parent).
+
+        Returns:
+            A new Timeline in the parent's unit with converted events.
+
+        Raises:
+            ValueError: If no suitable C-Map can be found or inverted.
+        """
+        # Resolve the conversion map on the parent
+        if use_conversion_map is True:
+            # Auto-select: find a parent C-Map whose target_unit matches child's unit
+            cmap = self.get_conversion_map(child.unit)
+            if cmap is None:
+                raise ValueError(
+                    f"Cannot auto-select conversion map: no C-Map from "
+                    f"'{self._unit}' to '{child.unit}' attached to parent "
+                    f"'{self._id}'. Attach a C-Map first or specify one "
+                    f"explicitly via use_conversion_map."
+                )
+        elif isinstance(use_conversion_map, ConversionMap):
+            cmap = use_conversion_map
+        else:
+            # Use _resolve_conversion_maps for str / TimeUnit / list
+            resolved = self._resolve_conversion_maps(use_conversion_map)
+            # Find the one whose target_unit matches child's unit
+            matching = [m for m in resolved if m.target_unit == child.unit]
+            if not matching:
+                raise ValueError(
+                    f"None of the resolved conversion maps target the child's "
+                    f"unit '{child.unit}'. Resolved maps target: "
+                    f"{[m.target_unit for m in resolved]}"
+                )
+            cmap = matching[0]
+
+        # Invert: we need child_unit -> parent_unit
+        if not cmap.is_invertible:
+            raise ValueError(
+                f"C-Map '{cmap.id}' ({cmap.source_unit} -> {cmap.target_unit}) "
+                f"is not invertible. Cannot convert child from "
+                f"'{child.unit}' to '{self._unit}'."
+            )
+        inverse_cmap = cmap.inverse()
+
+        # Temporarily add the inverse map to the child so derive() can use it
+        child_had_map = child.get_conversion_map(self._unit) is not None
+        if not child_had_map:
+            child.add_conversion_map(inverse_cmap)
+
+        try:
+            derived = child.derive(
+                self._unit,
+                copy_events=True,
+            )
+        finally:
+            # Clean up: remove the temporarily added map if we added it
+            if not child_had_map and inverse_cmap.id in child._conversion_maps:
+                del child._conversion_maps[inverse_cmap.id]
+                # Also clean up _unit_maps
+                if self._unit in child._unit_maps:
+                    del child._unit_maps[self._unit]
+
+        # Assign a clear ID and name linking back to the original
+        derived._id = f"{child.id}[{self._unit}]"
+        derived._name = f"{child.name or child.id} [{self._unit}]"
+
+        self._logger.debug(
+            f"Converted child '{child.id}' ({child.unit}) to "
+            f"'{derived.id}' ({self._unit}) via inverse of '{cmap.id}'"
+        )
+
+        return derived
+
     def add_child(
         self,
         child: Timeline,
         offset: CoordinateValue | Coordinate,
         allow_expansion: bool = False,
+        use_conversion_map: ConversionMapsSpec = None,
     ) -> None:
         """Embed a child timeline at the specified offset.
 
@@ -983,18 +1080,41 @@ class Timeline:
         "A timeline can accommodate not only events but also other timelines,
         called Children, as long as they use the same measuring unit."
 
-        For cross-domain relationships, use TimelineGroup instead.
+        When the child uses a different unit than the parent, set
+        ``use_conversion_map`` to automatically convert the child to the
+        parent's unit via a C-Map. The parent must have a C-Map whose
+        ``target_unit`` matches the child's unit, so that inverting it yields
+        the ``child_unit -> parent_unit`` conversion. The child's events are
+        copied with converted coordinates; the original child is NOT modified.
+
+        The converted child receives the ID ``{child.id}[{parent.unit}]``.
 
         Args:
             child: The timeline to embed.
-            offset: The start coordinate on this timeline.
+            offset: The start coordinate on this timeline, in the **parent's**
+                unit. When ``use_conversion_map`` is set, the offset must
+                already be expressed in the parent's unit (e.g. samples).
             allow_expansion: If True, expand this timeline if needed.
+            use_conversion_map: Conversion map specification for unit
+                conversion. Accepts the same formats as the
+                ``conversion_maps`` parameter in timestamp functions:
+                - ``None`` (default): No conversion; units must match.
+                - ``True``: Auto-select a parent C-Map whose target unit
+                  matches the child's unit.
+                - ``str``: Look up by C-Map ID or target unit name.
+                - ``TimeUnit``: Find by target unit.
+                - ``ConversionMap``: Use directly.
 
         Raises:
             TypeError: If child is not a Timeline.
-            ValueError: If units don't match or would exceed bounds.
+            ValueError: If units don't match (and no conversion map given)
+                or would exceed bounds.
             RuntimeError: If this timeline is locked.
         """
+        # Convert child's unit if a conversion map is specified
+        if use_conversion_map is not None and child.unit != self._unit:
+            child = self._convert_child_to_parent_unit(child, use_conversion_map)
+
         self.validate_child(child, offset)
 
         offset_coord = self._make_coordinate(offset)
