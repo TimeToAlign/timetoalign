@@ -27,11 +27,11 @@
 # %% [markdown]
 # ## 0. Gold Standard Reference Values
 #
-# | ID | Description | Samples | Rate | Group |
-# |----|-------------|---------|------|-------|
-# | DPT1-5 | Normal: audio, tonal, lowlevel, rhythm, MoCap | 11,753,638 / 11,195 / 22,389 / 45,844 / 63,965 | 44,100 / 42 / 84 / 172 / 240 Hz | 1 |
-# | DPT6-10 | Mechanical: same modalities | 12,426,696 / 11,836 / 23,671 / 48,469 / 67,628 | same rates | 2 |
-# | DPT11-15 | Exaggerated: same modalities | 8,197,748 / 7,808 / 15,616 / 31,975 / 44,614 | same rates | 3 |
+# | ID | Description | Samples | Rate | Grp |
+# |----|-------------|---------|------|-----|
+# | DPT1-5 | Normal | 11,753,638 / 11,195 / 22,389 / 45,844 / 63,965 | 44.1k / 42 / 84 / 172 / 240 | 1 |
+# | DPT6-10 | Mechanical | 12,426,696 / 11,836 / 23,671 / 48,469 / 67,628 | same rates | 2 |
+# | DPT11-15 | Exaggerated | 8,197,748 / 7,808 / 15,616 / 31,975 / 44,614 | same rates | 3 |
 #
 # | Recording | Notes | Matched | Unmatched EEP | Unmatched ABC |
 # |-----------|-------|---------|---------------|---------------|
@@ -66,93 +66,92 @@ NORMAL_PREFIX = "StringQuartetEEP_I_Normal"
 MECHANICAL_PREFIX = "StringQuartetEEP_I_Mechanical"
 EXAGGERATED_PREFIX = "StringQuartetEEP_I_Exaggerated"
 
+
+# %% [markdown]
+# Each EEP recording directory contains 5 modalities (audio, 3 feature types,
+# MoCap) plus `.notes` files with annotated note events. The function below
+# builds a `TimelineGroup` from one such directory, adding the note events as
+# a child of the audio timeline via `use_conversion_map=True` (notes are in
+# seconds, audio in samples — the C-map handles the conversion automatically).
+
+
+# %%
+def build_recording_group(recording_dir, prefix, group_id, group_name, dpt_base):
+    """Build a TimelineGroup from one EEP recording directory.
+
+    Creates 5 DPTs (audio, tonal, lowlevel, rhythm, MoCap) and loads the
+    EEP note annotations. The notes timeline is added as a child of the
+    audio DPT via automatic unit conversion (seconds -> samples).
+
+    Args:
+        recording_dir: Path to the recording directory.
+        prefix: Filename prefix (e.g. "StringQuartetEEP_I_Normal").
+        group_id: ID for the TimelineGroup.
+        group_name: Human-readable name for the group.
+        dpt_base: Starting DPT number (e.g. 1 for dpt1-dpt5).
+
+    Returns:
+        TimelineGroup with 5 DPTs, audio DPT containing notes as a child.
+    """
+    n = dpt_base
+    audio = AudioLoader.from_file(recording_dir / f"{prefix}_mono.mp3").to_timeline(
+        uid=f"dpt{n}"
+    )
+    tonal = AudioLoader.from_file(
+        recording_dir / f"{prefix}_mono.wav.tonal.ChordsStrength.wav"
+    ).to_timeline(uid=f"dpt{n + 1}")
+    lowlevel = AudioLoader.from_file(
+        recording_dir / f"{prefix}_mono.wav.lowlevel.Dissonance.wav"
+    ).to_timeline(uid=f"dpt{n + 2}")
+    rhythm = AudioLoader.from_file(
+        recording_dir / f"{prefix}_mono.wav.rhythm.BeatsLoudness.wav"
+    ).to_timeline(uid=f"dpt{n + 3}")
+    mocap = RepoVizzLoader.from_file(recording_dir / "vln1_bb_angle.csv").to_timeline(
+        uid=f"dpt{n + 4}"
+    )
+
+    # Load EEP notes and add as child of the audio timeline
+    notes = EepNotesLoader()
+    notes.load(*sorted(recording_dir.glob("*_align_*.notes")))
+    notes_tl = notes.create_timeline(uid=f"{group_id}_notes")
+    audio.add_child(notes_tl, offset=0, use_conversion_map=True)
+
+    return TimelineGroup(
+        id=group_id,
+        name=group_name,
+        timelines=[audio, tonal, lowlevel, rhythm, mocap],
+    )
+
+
 # %% [markdown]
 # ---
 # # Part I: Three Recording Groups (Groups 1-3)
 #
 # Each EEP recording = 5 DPTs (audio + 3 feature types + MoCap) at different
-# sampling rates, all sharing the same physical duration.
+# sampling rates, all sharing the same physical duration. Note events live
+# as a child of the audio DPT.
 
 # %% [markdown]
 # ## 2. Group 1: Normal Recording (DPT1-DPT5)
-#
-# The `SamplesToSeconds` C-map attached by `to_timeline()` carries the sample
-# rate, so the timeline itself knows its temporal resolution.
 
 # %%
-dpt1 = AudioLoader.from_file(NORMAL_DIR / f"{NORMAL_PREFIX}_mono.mp3").to_timeline(
-    uid="dpt1"
-)
-dpt2 = AudioLoader.from_file(
-    NORMAL_DIR / f"{NORMAL_PREFIX}_mono.wav.tonal.ChordsStrength.wav"
-).to_timeline(uid="dpt2")
-dpt3 = AudioLoader.from_file(
-    NORMAL_DIR / f"{NORMAL_PREFIX}_mono.wav.lowlevel.Dissonance.wav"
-).to_timeline(uid="dpt3")
-dpt4 = AudioLoader.from_file(
-    NORMAL_DIR / f"{NORMAL_PREFIX}_mono.wav.rhythm.BeatsLoudness.wav"
-).to_timeline(uid="dpt4")
-dpt5 = RepoVizzLoader.from_file(NORMAL_DIR / "vln1_bb_angle.csv").to_timeline(
-    uid="dpt5"
-)
-
-{
-    uid: (tl.length, tl.get_conversion_map("seconds").sample_rate)
-    for uid, tl in [
-        ("dpt1", dpt1),
-        ("dpt2", dpt2),
-        ("dpt3", dpt3),
-        ("dpt4", dpt4),
-        ("dpt5", dpt5),
-    ]
-}
-
-# %% [markdown]
-# EEP `.notes` files contain onset/offset/pitch per instrument.
-# Staff is inferred from the filename suffix.
-
-# %%
-notes_normal = EepNotesLoader()
-notes_normal.load(*sorted(NORMAL_DIR.glob("*_align_*.notes")))
-notes_normal.events.to_pandas()["staff"].value_counts().sort_index()
-
-# %% [markdown]
-# All 5 timelines share the same physical duration at different sampling rates.
-# The `TimelineGroup` makes them commensurable.
-
-# %%
-normal_group = TimelineGroup(
-    id="normal", name="Normal Recording", timelines=[dpt1, dpt2, dpt3, dpt4, dpt5]
+normal_group = build_recording_group(
+    NORMAL_DIR, NORMAL_PREFIX, "normal", "Normal Recording", dpt_base=1
 )
 normal_group
+
+# %% [markdown]
+# The audio timeline now carries the note annotations as a child:
+
+# %%
+normal_group.get_timeline("dpt1")
 
 # %% [markdown]
 # ## 3. Group 2: Mechanical Recording (DPT6-DPT10)
 
 # %%
-dpt6 = AudioLoader.from_file(
-    MECHANICAL_DIR / f"{MECHANICAL_PREFIX}_mono.mp3"
-).to_timeline(uid="dpt6")
-dpt7 = AudioLoader.from_file(
-    MECHANICAL_DIR / f"{MECHANICAL_PREFIX}_mono.wav.tonal.ChordsStrength.wav"
-).to_timeline(uid="dpt7")
-dpt8 = AudioLoader.from_file(
-    MECHANICAL_DIR / f"{MECHANICAL_PREFIX}_mono.wav.lowlevel.Dissonance.wav"
-).to_timeline(uid="dpt8")
-dpt9 = AudioLoader.from_file(
-    MECHANICAL_DIR / f"{MECHANICAL_PREFIX}_mono.wav.rhythm.BeatsLoudness.wav"
-).to_timeline(uid="dpt9")
-dpt10 = RepoVizzLoader.from_file(MECHANICAL_DIR / "vln1_bb_angle.csv").to_timeline(
-    uid="dpt10"
-)
-
-notes_mech = EepNotesLoader()
-notes_mech.load(*sorted(MECHANICAL_DIR.glob("*_align_*.notes")))
-
-mechanical_group = TimelineGroup(
-    id="mechanical",
-    name="Mechanical Recording",
-    timelines=[dpt6, dpt7, dpt8, dpt9, dpt10],
+mechanical_group = build_recording_group(
+    MECHANICAL_DIR, MECHANICAL_PREFIX, "mechanical", "Mechanical Recording", dpt_base=6
 )
 mechanical_group
 
@@ -162,36 +161,19 @@ mechanical_group
 # Shorter recording (~186s) — stops after measure 131.
 
 # %%
-dpt11 = AudioLoader.from_file(
-    EXAGGERATED_DIR / f"{EXAGGERATED_PREFIX}_mono.mp3"
-).to_timeline(uid="dpt11")
-dpt12 = AudioLoader.from_file(
-    EXAGGERATED_DIR / f"{EXAGGERATED_PREFIX}_mono.wav.tonal.ChordsStrength.wav"
-).to_timeline(uid="dpt12")
-dpt13 = AudioLoader.from_file(
-    EXAGGERATED_DIR / f"{EXAGGERATED_PREFIX}_mono.wav.lowlevel.Dissonance.wav"
-).to_timeline(uid="dpt13")
-dpt14 = AudioLoader.from_file(
-    EXAGGERATED_DIR / f"{EXAGGERATED_PREFIX}_mono.wav.rhythm.BeatsLoudness.wav"
-).to_timeline(uid="dpt14")
-dpt15 = RepoVizzLoader.from_file(EXAGGERATED_DIR / "vln1_bb_angle.csv").to_timeline(
-    uid="dpt15"
-)
-
-notes_exag = EepNotesLoader()
-notes_exag.load(*sorted(EXAGGERATED_DIR.glob("*_align_*.notes")))
-
-exaggerated_group = TimelineGroup(
-    id="exaggerated",
-    name="Exaggerated Recording",
-    timelines=[dpt11, dpt12, dpt13, dpt14, dpt15],
+exaggerated_group = build_recording_group(
+    EXAGGERATED_DIR,
+    EXAGGERATED_PREFIX,
+    "exaggerated",
+    "Exaggerated Recording",
+    dpt_base=11,
 )
 exaggerated_group
 
 # %% [markdown]
 # ## 5. Part I Summary
 #
-# 3 groups, 15 timelines. Each group's diagram above shows all
-# timelines with their sample counts and units.
+# 3 groups, 15 timelines. Each audio DPT carries note events as a child
+# timeline, making them accessible for matching in Part II.
 #
 # **Next:** Part II builds the Score group and aligns each recording via note matching.
