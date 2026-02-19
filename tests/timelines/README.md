@@ -126,6 +126,19 @@ These tests verify the fundamental Timeline contract from the TTA manuscript:
    - Adding 1,000 children: < 10 seconds
    - Iterating depth-100 hierarchy: < 1 second
 
+7. **Cross-Unit Child Addition via Conversion Map** (11 tests)
+   - `use_conversion_map=True` auto-selects parent's C-Map (e.g., SamplesToSeconds)
+   - Converted child ID is `{original}[{parent_unit}]` (e.g., `notes[samples]`)
+   - Event coordinates correctly converted (seconds → samples via inverse C-Map)
+   - Original child is NOT modified or locked (only the derived copy is locked)
+   - Lookup by string target unit name (`use_conversion_map="seconds"`)
+   - Direct `ConversionMap` object accepted
+   - Without `use_conversion_map`, unit mismatch still raises `ValueError`
+   - `use_conversion_map=True` raises when no matching C-Map attached
+   - Same-unit child passes through unchanged (no `[unit]` suffix)
+   - `allow_expansion=True` works with unit conversion
+   - Converted copy is locked, original is not
+
 **Validity Rationale:**
 
 The TTA model specifies that timelines can contain nested "children" (segments)
@@ -134,6 +147,8 @@ that share the same coordinate type. These tests verify:
 - Children are locked upon embedding (immutability)
 - Children appear as interval events in the parent's EventStore
 - Traversal orders work correctly for hierarchical access
+- Cross-unit nesting works via C-Map inversion (e.g., EEP notes in seconds
+  added as child of audio DPT in samples, using `SamplesToSeconds` inverse)
 
 ---
 

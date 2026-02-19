@@ -436,3 +436,214 @@ class TestNestingPerformance:
 
 
 # endregion
+
+
+# region Use Conversion Map Tests
+
+
+class TestAddChildWithConversionMap:
+    """Test add_child with use_conversion_map parameter.
+
+    When the child uses a different unit than the parent, the
+    ``use_conversion_map`` parameter finds a C-Map on the parent,
+    inverts it, and derives a converted copy of the child in the
+    parent's unit.
+    """
+
+    def test_auto_select_conversion_map(self):
+        """use_conversion_map=True auto-selects parent's C-Map."""
+        from timetoalign.maps.convenience import SamplesToSeconds
+
+        parent = Timeline(length=441000, unit=TimeUnit.samples, uid="audio")
+        parent.add_conversion_map(SamplesToSeconds(sample_rate=44100))
+
+        child = ContinuousPhysicalTimeline(
+            length=10.0, unit=TimeUnit.seconds, uid="notes"
+        )
+        child.add_events(
+            [
+                {"event_type": "Note", "start": 0.0, "end": 0.5},
+                {"event_type": "Note", "start": 1.0, "end": 1.5},
+            ]
+        )
+
+        parent.add_child(child, offset=0, use_conversion_map=True)
+
+        assert parent.n_children == 1
+        converted = parent.get_child("notes[samples]")
+        assert converted.unit == TimeUnit.samples
+        assert converted.length.value == 441000.0
+
+    def test_converted_child_has_correct_id_and_name(self):
+        """Converted child ID is '{original}[{parent_unit}]'."""
+        from timetoalign.maps.convenience import SamplesToSeconds
+
+        parent = Timeline(length=441000, unit=TimeUnit.samples, uid="audio")
+        parent.add_conversion_map(SamplesToSeconds(sample_rate=44100))
+
+        child = ContinuousPhysicalTimeline(
+            length=5.0, unit=TimeUnit.seconds, uid="my_notes"
+        )
+
+        parent.add_child(child, offset=0, use_conversion_map=True)
+
+        converted = parent.get_child("my_notes[samples]")
+        assert converted.id == "my_notes[samples]"
+        assert "samples" in converted.name
+
+    def test_converted_child_events_have_correct_coordinates(self):
+        """Event coordinates are converted from child unit to parent unit."""
+        from timetoalign.maps.convenience import SamplesToSeconds
+
+        parent = Timeline(length=441000, unit=TimeUnit.samples, uid="audio")
+        parent.add_conversion_map(SamplesToSeconds(sample_rate=44100))
+
+        child = ContinuousPhysicalTimeline(
+            length=10.0, unit=TimeUnit.seconds, uid="notes"
+        )
+        child.add_events(
+            [
+                {"event_type": "Note", "start": 1.0, "end": 2.0},
+            ]
+        )
+
+        parent.add_child(child, offset=0, use_conversion_map=True)
+
+        converted = parent.get_child("notes[samples]")
+        events = list(converted._events)
+        assert len(events) == 1
+        event = events[0]
+        # 1.0 seconds * 44100 = 44100 samples
+        start_val = event["start"]
+        if isinstance(start_val, dict):
+            start_val = start_val["value"]
+        assert start_val == pytest.approx(44100.0)
+        # 2.0 seconds * 44100 = 88200 samples
+        end_val = event["end"]
+        if isinstance(end_val, dict):
+            end_val = end_val["value"]
+        assert end_val == pytest.approx(88200.0)
+
+    def test_original_child_is_not_modified(self):
+        """The original child timeline is not locked or mutated."""
+        from timetoalign.maps.convenience import SamplesToSeconds
+
+        parent = Timeline(length=441000, unit=TimeUnit.samples, uid="audio")
+        parent.add_conversion_map(SamplesToSeconds(sample_rate=44100))
+
+        child = ContinuousPhysicalTimeline(
+            length=5.0, unit=TimeUnit.seconds, uid="notes"
+        )
+
+        parent.add_child(child, offset=0, use_conversion_map=True)
+
+        # Original child should not be locked (the converted copy is)
+        assert not child.is_locked
+        assert child.unit == TimeUnit.seconds
+        assert child.length.value == 5.0
+
+    def test_use_conversion_map_by_string_target_unit(self):
+        """use_conversion_map='seconds' finds the map by target unit name."""
+        from timetoalign.maps.convenience import SamplesToSeconds
+
+        parent = Timeline(length=441000, unit=TimeUnit.samples, uid="audio")
+        parent.add_conversion_map(SamplesToSeconds(sample_rate=44100))
+
+        child = ContinuousPhysicalTimeline(
+            length=5.0, unit=TimeUnit.seconds, uid="notes"
+        )
+
+        parent.add_child(child, offset=0, use_conversion_map="seconds")
+
+        assert parent.n_children == 1
+        assert "notes[samples]" in parent
+
+    def test_use_conversion_map_by_cmap_object(self):
+        """use_conversion_map accepts a ConversionMap object directly."""
+        from timetoalign.maps.convenience import SamplesToSeconds
+
+        cmap = SamplesToSeconds(sample_rate=44100)
+        parent = Timeline(length=441000, unit=TimeUnit.samples, uid="audio")
+        # Attach the map (so parent knows about it for timestamp system)
+        parent.add_conversion_map(cmap)
+
+        child = ContinuousPhysicalTimeline(
+            length=5.0, unit=TimeUnit.seconds, uid="notes"
+        )
+
+        parent.add_child(child, offset=0, use_conversion_map=cmap)
+
+        assert parent.n_children == 1
+
+    def test_no_conversion_map_raises_on_unit_mismatch(self):
+        """Without use_conversion_map, mismatched units still raise."""
+        parent = Timeline(length=441000, unit=TimeUnit.samples, uid="audio")
+        child = ContinuousPhysicalTimeline(
+            length=5.0, unit=TimeUnit.seconds, uid="notes"
+        )
+
+        with pytest.raises(ValueError, match="does not match"):
+            parent.add_child(child, offset=0)
+
+    def test_auto_select_raises_when_no_cmap_matches(self):
+        """use_conversion_map=True raises if no C-Map targets child's unit."""
+        parent = Timeline(length=100, unit=TimeUnit.samples, uid="audio")
+        # No conversion map attached!
+        child = ContinuousPhysicalTimeline(
+            length=5.0, unit=TimeUnit.seconds, uid="notes"
+        )
+
+        with pytest.raises(ValueError, match="no C-Map"):
+            parent.add_child(child, offset=0, use_conversion_map=True)
+
+    def test_same_unit_child_ignores_conversion_map(self):
+        """If units already match, use_conversion_map is a no-op."""
+        parent = Timeline(length=20.0, unit=TimeUnit.seconds, uid="parent")
+        child = ContinuousPhysicalTimeline(
+            length=5.0, unit=TimeUnit.seconds, uid="child"
+        )
+
+        # Even with use_conversion_map=True, same-unit child is added as-is
+        parent.add_child(child, offset=0, use_conversion_map=True)
+
+        assert parent.n_children == 1
+        # The child is added with its original ID (no [unit] suffix)
+        assert "child" in parent
+
+    def test_allow_expansion_works_with_conversion(self):
+        """allow_expansion works when combined with use_conversion_map."""
+        from timetoalign.maps.convenience import SamplesToSeconds
+
+        parent = Timeline(length=44100, unit=TimeUnit.samples, uid="audio")
+        parent.add_conversion_map(SamplesToSeconds(sample_rate=44100))
+
+        # Child in seconds is 5s = 220500 samples, exceeds parent length
+        child = ContinuousPhysicalTimeline(
+            length=5.0, unit=TimeUnit.seconds, uid="notes"
+        )
+
+        parent.add_child(child, offset=0, use_conversion_map=True, allow_expansion=True)
+
+        # Parent should have expanded
+        assert parent.length.value == 220500.0
+        assert parent.n_children == 1
+
+    def test_converted_child_is_locked(self):
+        """The converted copy (not the original) is locked after embedding."""
+        from timetoalign.maps.convenience import SamplesToSeconds
+
+        parent = Timeline(length=441000, unit=TimeUnit.samples, uid="audio")
+        parent.add_conversion_map(SamplesToSeconds(sample_rate=44100))
+
+        child = ContinuousPhysicalTimeline(
+            length=5.0, unit=TimeUnit.seconds, uid="notes"
+        )
+
+        parent.add_child(child, offset=0, use_conversion_map=True)
+
+        converted = parent.get_child("notes[samples]")
+        assert converted.is_locked
+        assert not child.is_locked
+
+
+# endregion
