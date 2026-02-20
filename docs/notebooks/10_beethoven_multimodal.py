@@ -45,9 +45,25 @@
 # %%
 from pathlib import Path
 
-from timetoalign import AudioLoader, RepoVizzLoader
+import pandas as pd
+
+from timetoalign import (
+    AudioLoader,
+    DiscreteGraphicalTimeline,
+    NumberType,
+    RepoVizzLoader,
+    TableMap,
+    TimeUnit,
+)
 from timetoalign.alignment import TimelineGroup
+from timetoalign.alignment.matching import (
+    match_notes_by_attributes,
+    prepare_abc_notes_for_matching,
+    prepare_eep_notes_for_matching,
+)
 from timetoalign.loader.physical.eep_notes import EepNotesLoader
+from timetoalign.loader.score import TSVLoader
+from timetoalign.timelines.types import SegmentLine
 
 _notebook_dir = Path(".").resolve()
 DATA_DIR = (
@@ -177,3 +193,270 @@ exaggerated_group
 # timeline, making them accessible for matching in Part II.
 #
 # **Next:** Part II builds the Score group and aligns each recording via note matching.
+
+# %% [markdown]
+# ---
+# # Part II: Score Group + Alignment to Recordings (Group 4)
+#
+# The score group brings together three representations of the same music:
+#
+# - **CLT1**: ABC v2.6 score (notes, measures, harmonies) — `ContinuousLogicalTimeline`
+# - **DGT1**: OMR ground truth (3,190 note heads across 22 pages) — `DiscreteGraphicalTimeline`
+# - **OpenScore**: OpenScore String Quartet edition (4th movement) — `ContinuousLogicalTimeline`
+#
+# All three go into one `TimelineGroup`. Cross-domain coordinate transfer
+# (pixels ↔ quarters ↔ seconds) works automatically via linear interpolation.
+
+# %% [markdown]
+# ## 6. CLT1: ABC v2.6 Score
+
+# %%
+ABC_DIR = DATA_DIR / "ABC"
+abc_loader = TSVLoader.from_file(
+    ABC_DIR / "n04op18-4_04.notes.tsv",
+    ABC_DIR / "n04op18-4_04.measures.tsv",
+    ABC_DIR / "n04op18-4_04.harmonies.tsv",
+)
+abc_loader.store.summary()
+
+# %%
+clt1 = abc_loader.create_timeline(uid="clt1")
+clt1
+
+# %%
+{
+    "CLT1 notes": len(abc_loader.store.notes),
+    "CLT1 measures": len(abc_loader.store.measures),
+    "CLT1 annotations": len(abc_loader.store.annotations),
+    "CLT1 length": clt1.length,
+}
+
+# %% [markdown]
+# ## 7. DGT1: OMR Ground Truth
+#
+# The OMR data contains 3,190 note head bounding boxes across 22 score pages.
+# Each page has 2 systems (except the last which has 1), giving 43 system
+# segments in reading order. Note events use `Left` (start) and `Width`
+# (duration) as pixel coordinates. Each system's `onset_beats` values
+# provide a c-map from pixels to quarters.
+#
+# **Architecture:** `SegmentLine` → 22 page segments → 2 system sub-segments each.
+
+# %%
+OMR_CSV = DATA_DIR / "OMR_groundtruth" / "OMR_xml_by_score" / "omr_note_heads.csv"
+omr_df = pd.read_csv(OMR_CSV)
+
+IMAGE_WIDTH = 2475  # pixels (all pages from the same PDF)
+
+{
+    "Total note heads": len(omr_df),
+    "Pages": omr_df["@pageIndex"].nunique(),
+    "Image width": f"{IMAGE_WIDTH} px",
+}
+
+# %% [markdown]
+# Build the DGT1 bottom-up: system segments → page segments → SegmentLine.
+# Events and c-maps must be added **before** a timeline is locked as a child.
+
+# %%
+dgt1 = SegmentLine(length=0, unit=TimeUnit.pixels, number_type=NumberType.int)
+
+for page_idx in range(22):
+    page_data = omr_df[omr_df["@pageIndex"] == page_idx]
+
+    # Identify systems by vertical position (top system first = reading order)
+    sys_top = page_data.groupby("spacing_run_id")["Nodes.Node.Top"].min()
+    sys_ids_sorted = sys_top.sort_values().index.tolist()
+
+    # Page is a SegmentLine of system sub-segments
+    page = SegmentLine(length=0, unit=TimeUnit.pixels, number_type=NumberType.int)
+
+    for sys_rank, sys_id in enumerate(sys_ids_sorted):
+        sys_data = page_data[page_data["spacing_run_id"] == sys_id]
+
+        # System segment spans the full image width
+        system = DiscreteGraphicalTimeline(
+            length=IMAGE_WIDTH,
+            uid=f"p{page_idx}_s{sys_rank}",
+            name=f"Page {page_idx + 1}, System {sys_rank + 1}",
+        )
+
+        # Add notehead interval events: Left=start, Left+Width=end
+        events = []
+        for _, row in sys_data.iterrows():
+            events.append(
+                {
+                    "event_type": "Notehead",
+                    "start": int(row["Nodes.Node.Left"]),
+                    "end": int(row["Nodes.Node.Left"] + row["Nodes.Node.Width"]),
+                    "pitch": row["pitch"],
+                    "staff_id": int(row["staff_id"]),
+                    "onset_beats": float(row["onset_beats"]),
+                    "midi_pitch": int(row["midi_pitch_code"]),
+                    "top": int(row["Nodes.Node.Top"]),
+                }
+            )
+        system.add_events(events)
+
+        # C-map: Left pixels → onset_beats (quarters)
+        # Deduplicate by Left (chords at the same x share the same onset)
+        pairs = sorted(
+            {(e["start"], e["onset_beats"]) for e in events},
+            key=lambda p: p[0],
+        )
+        if len(pairs) >= 2:
+            system.add_conversion_map(
+                TableMap(
+                    x_values=[p[0] for p in pairs],
+                    y_values=[p[1] for p in pairs],
+                    source_unit="pixels",
+                    target_unit="quarters",
+                    uid=f"p{page_idx}_s{sys_rank}_px_to_qb",
+                )
+            )
+
+        page.append_segment(system)
+
+    dgt1.append_segment(page, name=f"page_{page_idx}")
+
+dgt1
+
+# %%
+{
+    "DGT1 total length": f"{int(dgt1.length.value):,} px",
+    "Page segments": dgt1.n_segments,
+    "System segments": sum(
+        child.n_segments
+        for _, _, child in dgt1.iter_segments()
+        if hasattr(child, "n_segments")
+    ),
+}
+
+# %% [markdown]
+# ## 8. OpenScore (4th Movement Only)
+#
+# The OpenScore edition covers all 4 movements. Only the 4th movement
+# (mc ≥ 584, *Presto* in 2/2) participates in the score group.
+
+# %%
+OPENSCORE_DIR = DATA_DIR / "OpenScoreSQ"
+os_loader = TSVLoader.from_file(
+    OPENSCORE_DIR / "sq8913219.notes.tsv",
+    OPENSCORE_DIR / "sq8913219.measures.tsv",
+)
+
+# Full quartet timeline (all 4 movements)
+os_full = os_loader.create_timeline(uid="openscore_full")
+
+{
+    "Full quartet": os_full.length,
+    "Total notes": len(os_loader.store.notes),
+    "Total measures": len(os_loader.store.measures),
+}
+
+# %% [markdown]
+# Extract movement 4 as a region, then create a child timeline from it.
+# Movement 4 starts at mc 584 (quarterbeat 3125/2 = 1562.5).
+
+# %%
+# Movement 4 boundary in the full score
+os_measures_df = os_loader.store.measures.to_pandas()
+mov4_start_qb = float(os_measures_df[os_measures_df["mc"] == 584]["start"].iloc[0])
+mov4_end_qb = float(os_full.length.value)
+
+os_full.create_regions_from_boundaries(
+    [mov4_start_qb, mov4_end_qb], names=["movement_4"]
+)
+openscore = os_full.create_child_from_region("movement_4", uid="openscore")
+
+openscore
+
+# %%
+{
+    "Movement 4 start": f"{mov4_start_qb} qb (mc 584)",
+    "Movement 4 length": openscore.length,
+}
+
+# %% [markdown]
+# ## 9. Score Group (Group 4)
+#
+# All three score representations in one `TimelineGroup`. Cross-domain
+# coordinate transfer (pixels ↔ quarters) works via linear interpolation.
+
+# %%
+score_group = TimelineGroup(
+    id="score",
+    name="Score (ABC + OMR + OpenScore)",
+    timelines=[clt1, dgt1, openscore],
+)
+score_group
+
+# %% [markdown]
+# ## 10. Aligning Recordings with the Score via Note Matching
+#
+# Each EEP recording's note events (seconds, pitch, staff) are matched
+# against the ABC unfolded score notes (quarterbeats, pitch, staff) using
+# greedy sequential matching. The result: `MatchClaim` objects that
+# connect recording coordinates to score coordinates.
+
+# %%
+# Load unfolded ABC notes (the target for all three recordings)
+abc_unfolded_df = pd.read_csv(ABC_DIR / "n04op18-4_04_unfolded.notes.tsv", sep="\t")
+abc_prepared = prepare_abc_notes_for_matching(abc_unfolded_df)
+
+{
+    "ABC unfolded rows": len(abc_unfolded_df),
+    "ABC note onsets (after dropping tied)": len(abc_prepared),
+}
+
+# %% [markdown]
+# Match each recording against the score. The `source_timeline_id` and
+# `target_timeline_id` are the audio DPT and CLT1 respectively — these
+# appear in the resulting `MatchClaim` anchors.
+
+# %%
+match_results = {}
+for rec_dir, dpt_id in [
+    (NORMAL_DIR, "dpt1"),
+    (MECHANICAL_DIR, "dpt6"),
+    (EXAGGERATED_DIR, "dpt11"),
+]:
+    eep = EepNotesLoader()
+    eep.load(*sorted(rec_dir.glob("*_align_*.notes")))
+    eep_prepared = prepare_eep_notes_for_matching(eep.events.to_pandas())
+    match_results[dpt_id] = match_notes_by_attributes(
+        eep_prepared,
+        abc_prepared,
+        match_columns=["pitch", "staff"],
+        source_coord_column="start",
+        target_coord_column="quarterbeats_playthrough",
+        source_timeline_id=dpt_id,
+        target_timeline_id="clt1",
+    )
+
+normal_match = match_results["dpt1"]
+mechanical_match = match_results["dpt6"]
+exaggerated_match = match_results["dpt11"]
+
+# %%
+{
+    "Normal": normal_match.summary(),
+    "Mechanical": mechanical_match.summary(),
+    "Exaggerated": exaggerated_match.summary(),
+}
+
+# %% [markdown]
+# ## Part II Summary
+#
+# The score group unites 3 score representations across 2 domains (Logical +
+# Graphical). Note matching produced MatchClaims connecting each recording
+# group's audio timeline to CLT1:
+#
+# | Recording | Matched | Unmatched EEP | Unmatched ABC |
+# |-----------|---------|---------------|---------------|
+# | Normal | 3,740 | 16 | 10 |
+# | Mechanical | 3,741 | 15 | 9 |
+# | Exaggerated | 2,650 | 4 | 1,100 |
+#
+# **Next:** Part III adds the Emerson group and demonstrates cross-group
+# coordinate transfer using an `AlignmentBundle`.
