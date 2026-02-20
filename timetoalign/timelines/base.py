@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from timetoalign.core.enums import ColumnNaming
 
     from .flow import FlowMap
+    from .types import SegmentLine
 
 module_logger = logging.getLogger(__name__)
 
@@ -632,34 +633,59 @@ class Timeline:
     def _add_events_unchecked(self, rows: list[dict[str, Any]]) -> None:
         """Add events without validation (internal use).
 
+        Uses the concrete type of ``self._events`` to create new EventData,
+        ensuring schema compatibility when the events store is a subclass
+        (e.g., MeasureData) that was assigned directly via
+        ``EventData.create_timeline()``.
+
         Args:
             rows: Event dictionaries to add.
         """
         if not rows:
             return
 
-        new_data = self._event_data_class.from_dicts(
-            rows, self._unit, self._number_type
-        )
+        data_class = type(self._events)
+        new_data = data_class.from_dicts(rows, self._unit, self._number_type)
         self._events.extend(new_data)
+
+    @staticmethod
+    def _coord_to_float(value: Any) -> float:
+        """Convert a coordinate value to float.
+
+        Handles both raw numeric values and coordinate struct dicts
+        (e.g., ``{"value": 4.5, "numerator": 9, "denominator": 2}``)
+        as produced by MeasureData and other loader stores.
+
+        Args:
+            value: A numeric value or a dict with a ``"value"`` key.
+
+        Returns:
+            The coordinate as a float.
+        """
+        if isinstance(value, dict):
+            return float(value["value"])
+        return float(value)
 
     def _get_event_end_coordinate(self, row: dict[str, Any]) -> float:
         """Extract the end coordinate from an event dict.
 
         Args:
-            row: Event dictionary.
+            row: Event dictionary. Coordinate fields may be raw floats
+                or struct dicts (``{"value": ..., ...}``).
 
         Returns:
             The end coordinate as float.
         """
         if row.get("instant") is not None:
-            return float(row["instant"])
+            return self._coord_to_float(row["instant"])
         if row.get("end") is not None:
-            return float(row["end"])
+            return self._coord_to_float(row["end"])
         if row.get("start") is not None and row.get("duration") is not None:
-            return float(row["start"]) + float(row["duration"])
+            return self._coord_to_float(row["start"]) + self._coord_to_float(
+                row["duration"]
+            )
         if row.get("start") is not None:
-            return float(row["start"])
+            return self._coord_to_float(row["start"])
         return 0.0
 
     def get_events(
@@ -2777,27 +2803,104 @@ class Timeline:
 
     # endregion
 
-    # region Regions
+    # region Regions — Unified verb×noun API (Phase 5.5)
+
+    # -- add (pre-existing) / create (from parameters) --
 
     def add_region(
+        self,
+        region_or_name: Region | str,
+        start: CoordinateValue | Coordinate | None = None,
+        end: CoordinateValue | Coordinate | None = None,
+        *,
+        meta: dict[str, Any] | None = None,
+    ) -> Region:
+        """Add or create a named Region on this timeline.
+
+        Overloaded for backward compatibility:
+        - ``add_region(Region)`` — attach a pre-existing Region object.
+        - ``add_region(name, start, end)`` — delegate to :meth:`create_region`.
+
+        Under the unified verb×noun API, ``add`` means "attach an existing
+        object" while ``create`` means "construct + attach + return".
+
+        Args:
+            region_or_name: A Region object (new) or a string name (legacy).
+            start: Start coordinate (only when region_or_name is a string).
+            end: End coordinate (only when region_or_name is a string).
+            meta: Optional metadata dictionary.
+
+        Returns:
+            The Region object (either the one passed in or the newly created one).
+
+        Raises:
+            ValueError: If region name already exists, end < start, or
+                arguments are inconsistent.
+            RuntimeError: If timeline is locked.
+
+        Examples:
+            >>> # New API — attach a pre-existing Region
+            >>> r = Region("Chorus", Coordinate(10, TimeUnit.seconds),
+            ...            Coordinate(30, TimeUnit.seconds))
+            >>> tl.add_region(r)
+
+            >>> # Legacy API (delegates to create_region)
+            >>> tl.add_region("Verse", 30, 50, meta={"repeat": 2})
+        """
+        if isinstance(region_or_name, Region):
+            return self._add_existing_region(region_or_name)
+        # Legacy path: string name + positional start/end
+        if start is None or end is None:
+            raise ValueError(
+                "add_region(name, start, end) requires both start and end. "
+                "Pass a Region object for the single-argument form."
+            )
+        return self.create_region(region_or_name, start, end, meta=meta)
+
+    def _add_existing_region(self, region: Region) -> Region:
+        """Attach a pre-existing Region object to this timeline.
+
+        Args:
+            region: The Region to attach.
+
+        Returns:
+            The same Region object.
+
+        Raises:
+            ValueError: If a region with the same name already exists or
+                the region's unit does not match the timeline's unit.
+            RuntimeError: If timeline is locked.
+        """
+        self._check_not_locked("add region")
+
+        if region.unit != self._unit:
+            raise ValueError(
+                f"Region unit '{region.unit}' does not match "
+                f"timeline unit '{self._unit}'"
+            )
+
+        if region.name in self._regions:
+            raise ValueError(f"Region '{region.name}' already exists")
+
+        self._regions[region.name] = region
+        self._logger.debug(
+            f"Added region '{region.name}' "
+            f"[{region.start.value}, {region.end.value})"
+        )
+        return region
+
+    def create_region(
         self,
         name: str,
         start: CoordinateValue | Coordinate,
         end: CoordinateValue | Coordinate,
+        *,
         meta: dict[str, Any] | None = None,
     ) -> Region:
-        """Add a named Region to this timeline.
+        """Create a new named Region and attach it to this timeline.
 
-        A Region is a named part of a timeline defined by a TimeInterval.
-        Regions are NOT timelines - they do not hold events or C-Maps.
-        However, they can be used for:
-        - Referring to parts of a timeline by name (e.g., "Chorus", "Verse")
-        - Partitioning: creating a Child corresponding to a Region
-
-        From the TTA manuscript (Section 3.5):
-        "A Region is a named part of a timeline that is defined by a TimeInterval.
-        Regions are useful for referring to parts of a timeline by name...
-        They can be used for partitioning, i.e., creating a Child corresponding to a Region."
+        Under the unified verb×noun API, ``create`` constructs a new object,
+        attaches it, and returns it.
 
         Args:
             name: Unique name for this region.
@@ -2813,10 +2916,10 @@ class Timeline:
             RuntimeError: If timeline is locked.
 
         Examples:
-            >>> timeline.add_region("Chorus", 10.0, 30.0)
-            >>> timeline.add_region("Verse", 30.0, 50.0, meta={"repeat": 2})
+            >>> tl.create_region("Chorus", 10.0, 30.0)
+            >>> tl.create_region("Verse", 30.0, 50.0, meta={"repeat": 2})
         """
-        self._check_not_locked("add region")
+        self._check_not_locked("create region")
 
         if name in self._regions:
             raise ValueError(f"Region '{name}' already exists")
@@ -2824,7 +2927,6 @@ class Timeline:
         start_coord = self._make_coordinate(start)
         end_coord = self._make_coordinate(end)
 
-        # Region class validates end >= start in __post_init__
         region = Region(
             name=name,
             start=start_coord,
@@ -2834,42 +2936,410 @@ class Timeline:
 
         self._regions[name] = region
         self._logger.debug(
-            f"Added region '{name}' [{start_coord.value}, {end_coord.value})"
+            f"Created region '{name}' [{start_coord.value}, {end_coord.value})"
         )
         return region
 
-    def get_region(self, name: str) -> dict[str, Any] | None:
-        """Get a Region by name as a dictionary.
+    # -- create_regions_* bulk factories --
 
-        For backwards compatibility, returns a dictionary representation.
-        Use get_region_object() for the Region instance.
+    def create_regions_from_boundaries(
+        self,
+        boundaries: Sequence[CoordinateValue],
+        *,
+        names: Sequence[str] | None = None,
+        name_format: str = "{prefix}_{n}",
+        prefix: str = "section",
+    ) -> list[Region]:
+        """Create contiguous regions from boundary coordinates.
+
+        Given k+1 sorted boundary coordinates, creates k regions where
+        region_i spans [boundaries[i], boundaries[i+1]).
+
+        Args:
+            boundaries: k+1 monotonically increasing coordinates.
+            names: Explicit names for the k regions. Mutually exclusive
+                with name_format/prefix.
+            name_format: Format string. Placeholders: {prefix}, {i} (0-based),
+                {n} (1-based).
+            prefix: Prefix for auto-generated names.
+
+        Returns:
+            List of k Region objects in boundary order.
+
+        Raises:
+            ValueError: If fewer than 2 boundaries or not monotonically
+                increasing.
+            RuntimeError: If timeline is locked.
+
+        Examples:
+            >>> tl.create_regions_from_boundaries(
+            ...     [0, 30, 60, 90],
+            ...     prefix="movement",
+            ... )
+            [Region('movement_1', 0-30), Region('movement_2', 30-60),
+             Region('movement_3', 60-90)]
+        """
+        self._check_not_locked("create regions from boundaries")
+
+        if len(boundaries) < 2:
+            raise ValueError(
+                f"Need at least 2 boundary coordinates, got {len(boundaries)}"
+            )
+
+        coords = [float(b) for b in boundaries]
+        for i in range(1, len(coords)):
+            if coords[i] <= coords[i - 1]:
+                raise ValueError(
+                    f"Boundaries must be monotonically increasing: "
+                    f"boundaries[{i - 1}]={coords[i - 1]} >= "
+                    f"boundaries[{i}]={coords[i]}"
+                )
+
+        n_regions = len(coords) - 1
+        if names is not None:
+            if len(names) != n_regions:
+                raise ValueError(
+                    f"Expected {n_regions} names for {n_regions} regions, "
+                    f"got {len(names)}"
+                )
+            region_names = list(names)
+        else:
+            region_names = [
+                name_format.format(prefix=prefix, i=i, n=i + 1)
+                for i in range(n_regions)
+            ]
+
+        result: list[Region] = []
+        for i in range(n_regions):
+            region = self.create_region(region_names[i], coords[i], coords[i + 1])
+            result.append(region)
+        return result
+
+    def create_regions_by_grouping(
+        self,
+        column: str,
+        *,
+        name_format: str = "{value}",
+    ) -> list[Region]:
+        """Create regions by grouping *adjacent* events on a column value.
+
+        For each *run* of consecutive events that share the same value in the
+        specified column, creates a region spanning the run's coordinate extent
+        ``[min_start, max_end)``. Only adjacent events with the same value are
+        grouped — non-adjacent occurrences of the same value produce separate
+        regions.
+
+        This "run-length" semantics is essential for musical data where, e.g.,
+        the same time signature may recur after a change (4/4 → 3/4 → 4/4)
+        and each occurrence should be its own region.
+
+        Args:
+            column: Event column name to group by.
+            name_format: Format string. Placeholders: {value}, {i} (0-based),
+                {n} (1-based), {run} (1-based run index for this value).
+
+        Returns:
+            List of Region objects ordered by start coordinate.
+
+        Raises:
+            ValueError: If column does not exist in events.
+            RuntimeError: If timeline is locked.
+
+        Examples:
+            >>> # Time-signature regions (adjacent grouping)
+            >>> tl.create_regions_by_grouping("timesig")
+            [Region('4/4', 0-64), Region('3/4', 64-88), Region('4/4', 88-120)]
+        """
+        self._check_not_locked("create regions by grouping")
+
+        # Collect events sorted by start coordinate
+        events_sorted = self._sorted_event_dicts()
+        if not events_sorted:
+            return []
+
+        # Check column exists
+        first_event = events_sorted[0]
+        if column not in first_event:
+            raise ValueError(
+                f"Column '{column}' not found in events. "
+                f"Available columns: {list(first_event.keys())}"
+            )
+
+        # Build runs of adjacent equal values
+        runs: list[tuple[Any, float, float]] = []  # (value, start, end)
+        value_counts: dict[Any, int] = {}
+
+        current_value = None
+        run_start = 0.0
+        run_end = 0.0
+
+        for event in events_sorted:
+            val = event.get(column)
+            # Normalize struct values
+            if isinstance(val, dict) and "value" in val:
+                val = val["value"]
+
+            ev_start = self._extract_coord_value(event, "start", "instant")
+            ev_end = self._extract_coord_value(event, "end") or ev_start
+
+            if val != current_value:
+                # Close previous run
+                if current_value is not None:
+                    runs.append((current_value, run_start, run_end))
+                # Start new run
+                current_value = val
+                run_start = ev_start if ev_start is not None else 0.0
+                run_end = ev_end if ev_end is not None else run_start
+            else:
+                # Extend current run
+                if ev_end is not None:
+                    run_end = max(run_end, ev_end)
+
+        # Close last run
+        if current_value is not None:
+            runs.append((current_value, run_start, run_end))
+
+        # Pre-compute total occurrences per value to detect ambiguity
+        from collections import Counter
+
+        total_occurrences = Counter(val for val, _, _ in runs)
+
+        # Create regions
+        result: list[Region] = []
+        for i, (value, start, end) in enumerate(runs):
+            value_counts.setdefault(value, 0)
+            value_counts[value] += 1
+            region_name = name_format.format(
+                value=value,
+                i=i,
+                n=i + 1,
+                run=value_counts[value],
+            )
+            # Auto-disambiguate if the default format would produce duplicates
+            if region_name in self._regions and total_occurrences[value] > 1:
+                region_name = f"{region_name}_run{value_counts[value]}"
+            region = self.create_region(region_name, start, end)
+            result.append(region)
+
+        return result
+
+    def create_regions_by_splitting(
+        self,
+        predicate: str | dict[str, Any] | Callable[[dict], bool],
+        *,
+        names: Sequence[str] | None = None,
+        name_format: str = "{prefix}_{n}",
+        prefix: str = "section",
+        include_before_first: bool = True,
+        include_after_last: bool = True,
+    ) -> list[Region]:
+        """Create contiguous regions by splitting at events matching a predicate.
+
+        Finds events matching the predicate, uses their coordinates as split
+        points, creates contiguous regions between consecutive split points.
+
+        The predicate can be:
+        - A string: column name. Events where this column is truthy (non-null,
+          non-empty, non-zero) are split points.
+        - A dict: keyword filters in the same style as ``EventData.filter()``.
+          For example ``{"breaks": "section"}`` selects events whose ``breaks``
+          column equals ``"section"``.
+        - A callable: receives event dict, returns True for split points.
+
+        For each matching event the split coordinate is the event's ``end``
+        (interval events) or ``start``/``instant`` (instant events).
+
+        Args:
+            predicate: Column name, filter dict, or callable identifying
+                split-point events.
+            names: Explicit region names.
+            name_format: Format string. Placeholders: {prefix}, {i}, {n}.
+            prefix: Prefix for auto-generated names.
+            include_before_first: Create a region from timeline origin to
+                first split point.
+            include_after_last: Create a region from last split point to
+                timeline end.
+
+        Returns:
+            List of contiguous Region objects in coordinate order.
+
+        Raises:
+            RuntimeError: If timeline is locked.
+
+        Examples:
+            >>> # Split at section breaks
+            >>> tl.create_regions_by_splitting("breaks", prefix="movement")
+
+            >>> # Split at specific break types
+            >>> tl.create_regions_by_splitting(
+            ...     {"breaks": "section"}, prefix="movement"
+            ... )
+        """
+        self._check_not_locked("create regions by splitting")
+
+        # Resolve predicate to a callable
+        match_fn = self._resolve_predicate(predicate)
+
+        # Find split coordinates
+        split_coords: list[float] = []
+        events_sorted = self._sorted_event_dicts()
+
+        for event in events_sorted:
+            if match_fn(event):
+                # Use end coordinate for intervals, start for instants
+                coord = self._extract_coord_value(event, "end")
+                if coord is None:
+                    coord = self._extract_coord_value(event, "start", "instant")
+                if coord is not None:
+                    split_coords.append(coord)
+
+        # Deduplicate and sort
+        split_coords = sorted(set(split_coords))
+
+        # Build boundary list
+        boundaries: list[float] = []
+        if include_before_first:
+            boundaries.append(float(self.origin.value))
+        boundaries.extend(split_coords)
+        if include_after_last:
+            boundaries.append(float(self.length.value))
+
+        # Deduplicate again (split point might coincide with origin/end)
+        boundaries = sorted(set(boundaries))
+
+        if len(boundaries) < 2:
+            return []
+
+        # Determine names
+        n_regions = len(boundaries) - 1
+        if names is not None:
+            if len(names) != n_regions:
+                raise ValueError(f"Expected {n_regions} names, got {len(names)}")
+            region_names = list(names)
+        else:
+            region_names = [
+                name_format.format(prefix=prefix, i=i, n=i + 1)
+                for i in range(n_regions)
+            ]
+
+        result: list[Region] = []
+        for i in range(n_regions):
+            region = self.create_region(
+                region_names[i], boundaries[i], boundaries[i + 1]
+            )
+            result.append(region)
+        return result
+
+    def _resolve_predicate(
+        self,
+        predicate: str | dict[str, Any] | Callable[[dict], bool],
+    ) -> Callable[[dict], bool]:
+        """Convert a predicate specification to a callable.
+
+        Supports three forms:
+        - str: column name — truthy test on that column's value.
+        - dict: keyword filters (same semantics as ``EventData.filter``).
+        - callable: used directly.
+
+        Args:
+            predicate: The predicate specification.
+
+        Returns:
+            A callable ``(event_dict) -> bool``.
+        """
+        if callable(predicate) and not isinstance(predicate, (str, dict)):
+            return predicate
+
+        if isinstance(predicate, str):
+            col = predicate
+
+            def _match_truthy(event: dict) -> bool:
+                val = event.get(col)
+                if val is None:
+                    return False
+                if isinstance(val, dict) and "value" in val:
+                    val = val["value"]
+                if isinstance(val, str):
+                    return bool(val.strip())
+                return bool(val)
+
+            return _match_truthy
+
+        if isinstance(predicate, dict):
+            filters = predicate
+
+            def _match_dict(event: dict) -> bool:
+                for key, expected in filters.items():
+                    val = event.get(key)
+                    if val is None:
+                        return False
+                    if isinstance(val, dict) and "value" in val:
+                        val = val["value"]
+                    # Support list of acceptable values
+                    if isinstance(expected, (list, tuple, set, frozenset)):
+                        if val not in expected:
+                            return False
+                    else:
+                        if val != expected:
+                            return False
+                return True
+
+            return _match_dict
+
+        raise TypeError(
+            f"predicate must be str, dict, or callable, got {type(predicate)}"
+        )
+
+    def _sorted_event_dicts(self) -> list[dict[str, Any]]:
+        """Return events as dicts sorted by start coordinate."""
+        events_list = list(self.get_events(include_segments=False))
+        events_list.sort(
+            key=lambda e: self._extract_coord_value(e, "start", "instant") or 0.0
+        )
+        return events_list
+
+    # -- read operations --
+
+    def get_region(self, name: str) -> Region:
+        """Get a Region by name.
 
         Args:
             name: The region name.
 
         Returns:
-            Dict with 'name', 'start', 'end', 'meta' keys, or None if not found.
-        """
-        region = self._regions.get(name)
-        if region is None:
-            return None
-        return {
-            "name": region.name,
-            "start": float(region.start.value),
-            "end": float(region.end.value),
-            "meta": region.meta,
-        }
+            The Region object.
 
-    def get_region_object(self, name: str) -> Region | None:
-        """Get a Region object by name.
+        Raises:
+            KeyError: If no region with that name exists.
+        """
+        if name not in self._regions:
+            raise KeyError(f"No region named '{name}'")
+        return self._regions[name]
+
+    def get_regions_at(
+        self,
+        coord: CoordinateValue | Coordinate,
+    ) -> list[Region]:
+        """Return all regions containing the given coordinate.
+
+        A region contains coord if region.start <= coord < region.end
+        (left-inclusive, right-exclusive).
 
         Args:
-            name: Name of the region.
+            coord: The coordinate to query.
 
         Returns:
-            The Region object, or None if not found.
+            List of Region objects containing coord, ordered by start
+            coordinate. Empty list if no regions contain coord.
+
+        Examples:
+            >>> tl.get_regions_at(75.0)
+            [Region('verse_1', 30-90), Region('chorus', 60-120)]
         """
-        return self._regions.get(name)
+        coord_val = float(coord.value if isinstance(coord, Coordinate) else coord)
+        matching = [r for r in self._regions.values() if r.contains(coord_val)]
+        matching.sort(key=lambda r: float(r.start.value))
+        return matching
 
     def has_region(self, name: str) -> bool:
         """Check if a region exists.
@@ -2883,7 +3353,7 @@ class Timeline:
         return name in self._regions
 
     def iter_regions(self) -> Iterator[Region]:
-        """Iterate over all regions (in undefined order).
+        """Iterate over all regions in insertion order.
 
         Yields:
             Region objects.
@@ -2899,153 +3369,517 @@ class Timeline:
         """List all region names.
 
         Returns:
-            List of region names in no particular order.
+            List of region names in insertion order.
         """
         return list(self._regions.keys())
 
-    def partition(
+    # endregion
+
+    # region Children — Unified verb×noun API (Phase 5.5)
+
+    def create_child_from_region(
         self,
         region_name: str,
+        *,
         copy_events: bool = True,
+        uid: str | None = None,
     ) -> "Timeline":
-        """Create a Child timeline from a Region.
+        """Create a child timeline from a named region (partitioning).
 
-        From TTA manuscript (Section 3.5):
-        "Regions can be used to partition a timeline into Children."
-
-        This creates a new timeline covering the region's interval,
-        optionally copying events from that interval. The new timeline
-        is added as a Child at the region's start offset.
+        The child's length = region duration, offset = region start.
+        The child's class matches the parent's concrete class.
+        If copy_events, events in [start, end) are copied with adjusted
+        coordinates.
 
         Args:
-            region_name: Name of the region to partition.
-            copy_events: If True, copy events within the region to the child.
+            region_name: Name of an existing region.
+            copy_events: Copy events within the region to the child.
+            uid: Explicit child ID. Defaults to region name.
 
         Returns:
-            The created Child timeline.
+            The newly created and attached child timeline.
 
         Raises:
-            KeyError: If region does not exist.
+            KeyError: If region_name not found.
             RuntimeError: If timeline is locked.
 
         Examples:
-            >>> tl.add_region("Verse", start=0, end=16)
-            >>> verse_tl = tl.partition("Verse")
-            >>> verse_tl.length
-            Coordinate(16, quarters)
+            >>> tl.create_regions_by_splitting("breaks", prefix="movement")
+            >>> mov4 = tl.create_child_from_region("movement_4")
         """
         region = self._regions.get(region_name)
         if region is None:
             raise KeyError(f"Region '{region_name}' not found on timeline '{self._id}'")
 
-        self._check_not_locked("partition")
+        self._check_not_locked("create child from region")
 
-        # Create child timeline with the region's length
         child = self.__class__(
             length=region.duration,
             unit=self._unit,
             number_type=self._number_type,
+            uid=uid or region_name,
             name=region.name,
         )
 
-        # Copy events if requested
         if copy_events:
-            events_in_region = self.get_events(
-                min_coord=float(region.start.value),
-                max_coord=float(region.end.value),
-            )
+            self._copy_events_to_child(child, region)
 
-            # Adjust coordinates to be relative to the region's start
-            adjusted_events = []
-            for event in events_in_region:
-                adjusted = dict(event)
-                for coord_col in ("instant", "start", "end"):
-                    val = adjusted.get(coord_col)
-                    if val is not None:
-                        # Handle coordinate struct or raw value
-                        if isinstance(val, dict) and "value" in val:
-                            adjusted[coord_col] = val["value"] - region.start.value
-                        else:
-                            adjusted[coord_col] = float(val) - region.start.value
-                adjusted_events.append(adjusted)
-
-            if adjusted_events:
-                child.add_events(adjusted_events)
-
-        # Add as child at the region's start offset
         self.add_child(child, offset=region.start)
-
         return child
 
-    def region_to_child(
+    def create_children_from_regions(
         self,
-        region_name: str,
-        transfer_events: bool = False,
-        child_name: str | None = None,
-    ) -> "Timeline":
-        """Create a Child timeline from a Region.
+        region_names: Sequence[str] | None = None,
+        *,
+        copy_events: bool = True,
+    ) -> list["Timeline"]:
+        """Create children from multiple regions (batch partitioning).
 
-        DEPRECATED: Use partition() instead. This method is kept for
-        backwards compatibility.
+        Each region becomes a child. Regions may overlap — resulting children
+        are independent.
 
         Args:
-            region_name: Name of the region to convert.
-            transfer_events: If True, copy events within the region to the child.
-            child_name: Name for the child timeline (defaults to region name).
+            region_names: Region names. None = all regions in insertion order.
+            copy_events: Copy events to children.
 
         Returns:
-            The newly created Child timeline.
+            List of child timelines in region order.
 
         Raises:
-            KeyError: If region not found.
+            KeyError: If any region_name not found.
+            RuntimeError: If timeline is locked.
+
+        Examples:
+            >>> tl.create_regions_by_grouping("@pageIndex",
+            ...                               name_format="page_{value}")
+            >>> tl.create_children_from_regions()  # All pages as children
         """
-        import warnings
+        if region_names is None:
+            region_names = list(self._regions.keys())
 
-        warnings.warn(
-            "region_to_child() is deprecated, use partition() instead",
-            DeprecationWarning,
-            stacklevel=2,
+        result: list[Timeline] = []
+        for name in region_names:
+            child = self.create_child_from_region(name, copy_events=copy_events)
+            result.append(child)
+        return result
+
+    def get_children_at(
+        self,
+        coord: CoordinateValue | Coordinate,
+    ) -> list["Timeline"]:
+        """Return all children whose extent contains the given coordinate.
+
+        A child contains coord if offset <= coord < offset + child.length.
+
+        Args:
+            coord: The coordinate to query.
+
+        Returns:
+            List of child Timeline objects, ordered by offset.
+            Empty list if no children contain coord.
+        """
+        coord_val = float(coord.value if isinstance(coord, Coordinate) else coord)
+        matching: list[tuple[float, Timeline]] = []
+        for child_id, child in self._children.items():
+            offset = float(self._child_offsets[child_id].value)
+            if offset <= coord_val < offset + float(child.length.value):
+                matching.append((offset, child))
+        matching.sort(key=lambda x: x[0])
+        return [child for _, child in matching]
+
+    def list_children(self) -> list[str]:
+        """List child timeline IDs.
+
+        Returns:
+            List of child IDs in insertion order.
+        """
+        return list(self._children.keys())
+
+    def has_child(self, child_id: str) -> bool:
+        """Check if a child with the given ID exists.
+
+        Args:
+            child_id: The child ID to check.
+
+        Returns:
+            True if such a child exists.
+        """
+        return child_id in self._children
+
+    def _copy_events_to_child(
+        self,
+        child: "Timeline",
+        region: Region,
+    ) -> None:
+        """Copy events within a region to a child, adjusting coordinates.
+
+        Events in [region.start, region.end) are copied with coordinates
+        shifted by -region.start so they are relative to the child's origin.
+
+        Args:
+            child: The target child timeline.
+            region: The region defining the source interval.
+        """
+        events_in_region = self.get_events(
+            min_coord=float(region.start.value),
+            max_coord=float(region.end.value),
         )
 
-        region = self._regions.get(region_name)
-        if region is None:
-            raise KeyError(f"Region '{region_name}' not found")
+        adjusted_events = []
+        for event in events_in_region:
+            adjusted = dict(event)
+            for coord_col in ("instant", "start", "end"):
+                val = adjusted.get(coord_col)
+                if val is not None:
+                    if isinstance(val, dict) and "value" in val:
+                        adjusted[coord_col] = val["value"] - region.start.value
+                    else:
+                        adjusted[coord_col] = float(val) - region.start.value
+            adjusted_events.append(adjusted)
 
-        # Create child of same type
-        child = self.__class__(
-            length=region.duration,
-            unit=self._unit,
-            number_type=self._number_type,
-            name=child_name or region_name,
-        )
+        if adjusted_events:
+            child.add_events(adjusted_events)
 
-        # Add as child
-        self.add_child(child, offset=region.start)
+    # endregion
 
-        # Copy events if requested
-        if transfer_events:
-            events_in_region = self.get_events(
-                min_coord=float(region.start.value),
-                max_coord=float(region.end.value),
+    # region SegmentLine creation — Unified verb×noun API (Phase 5.5)
+
+    def create_segment_line(
+        self,
+        boundaries: Sequence[CoordinateValue],
+        *,
+        copy_events: bool = True,
+    ) -> "SegmentLine":
+        """Create a SegmentLine by segmenting at boundary coordinates.
+
+        Given k+1 sorted coordinates, produces a new SegmentLine with k
+        contiguous segments. Each segment's class matches self's class.
+
+        Does NOT modify self. Returns a new independent SegmentLine.
+
+        Args:
+            boundaries: k+1 monotonically increasing coordinates.
+            copy_events: Copy events into their respective segments.
+
+        Returns:
+            A new SegmentLine with k segments.
+
+        Raises:
+            ValueError: If fewer than 2 boundaries or not monotonically
+                increasing.
+
+        Examples:
+            >>> measures = audio_tl.create_segment_line(
+            ...     [0.0] + measure_times.tolist() + [float(audio_tl.length)]
+            ... )
+        """
+        from .types import SegmentLine
+
+        if len(boundaries) < 2:
+            raise ValueError(
+                f"Need at least 2 boundary coordinates, got {len(boundaries)}"
             )
 
-            # Adjust coordinates to be relative to the region's start
-            adjusted_events = []
-            for event in events_in_region:
-                adjusted = dict(event)
-                for coord_col in ("instant", "start", "end"):
-                    val = adjusted.get(coord_col)
-                    if val is not None:
-                        if isinstance(val, dict) and "value" in val:
-                            adjusted[coord_col] = val["value"] - region.start.value
-                        else:
-                            adjusted[coord_col] = float(val) - region.start.value
-                adjusted_events.append(adjusted)
+        coords = [float(b) for b in boundaries]
+        for i in range(1, len(coords)):
+            if coords[i] <= coords[i - 1]:
+                raise ValueError(
+                    f"Boundaries must be monotonically increasing: "
+                    f"boundaries[{i - 1}]={coords[i - 1]} >= "
+                    f"boundaries[{i}]={coords[i]}"
+                )
 
-            if adjusted_events:
-                child.add_events(adjusted_events)
+        sl = SegmentLine(
+            length=0,
+            unit=self._unit,
+            number_type=self._number_type,
+        )
 
-        return child
+        for i in range(len(coords) - 1):
+            start = coords[i]
+            end = coords[i + 1]
+            length = end - start
+
+            segment = self.__class__(
+                length=length,
+                unit=self._unit,
+                number_type=self._number_type,
+                name=f"segment_{i}",
+            )
+
+            if copy_events:
+                events_in_range = self.get_events(
+                    min_coord=start,
+                    max_coord=end,
+                )
+                adjusted = []
+                for event in events_in_range:
+                    adj = dict(event)
+                    for col in ("instant", "start", "end"):
+                        val = adj.get(col)
+                        if val is not None:
+                            if isinstance(val, dict) and "value" in val:
+                                adj[col] = val["value"] - start
+                            else:
+                                adj[col] = float(val) - start
+                    adjusted.append(adj)
+                if adjusted:
+                    segment.add_events(adjusted)
+
+            sl.append_segment(segment)
+
+        return sl
+
+    def create_segment_line_from_regions(
+        self,
+        region_names: Sequence[str] | None = None,
+        *,
+        copy_events: bool = True,
+    ) -> "SegmentLine":
+        """Create a SegmentLine from contiguous regions.
+
+        Validates that regions are contiguous and non-overlapping
+        (each region's end == next region's start).
+
+        Does NOT modify self.
+
+        Args:
+            region_names: Ordered region names. None = all regions sorted
+                by start coordinate.
+            copy_events: Copy events into segments.
+
+        Returns:
+            A new SegmentLine.
+
+        Raises:
+            ValueError: If regions are not contiguous or empty.
+
+        Examples:
+            >>> tl.create_regions_by_grouping("timesig")
+            >>> seg_line = tl.create_segment_line_from_regions()
+        """
+        if region_names is None:
+            # Sort regions by start coordinate
+            sorted_regions = sorted(
+                self._regions.values(), key=lambda r: float(r.start.value)
+            )
+            region_names = [r.name for r in sorted_regions]
+
+        if not region_names:
+            raise ValueError("No regions to create segment line from")
+
+        regions = [self.get_region(name) for name in region_names]
+
+        # Validate contiguity
+        for i in range(1, len(regions)):
+            prev_end = float(regions[i - 1].end.value)
+            curr_start = float(regions[i].start.value)
+            if abs(prev_end - curr_start) > 1e-10:
+                raise ValueError(
+                    f"Regions are not contiguous: '{regions[i - 1].name}' "
+                    f"ends at {prev_end} but '{regions[i].name}' starts "
+                    f"at {curr_start}"
+                )
+
+        # Build boundaries from regions
+        boundaries = [float(regions[0].start.value)]
+        for r in regions:
+            boundaries.append(float(r.end.value))
+
+        # Create the segment line
+        sl = self.create_segment_line(boundaries, copy_events=copy_events)
+
+        # Rename segments to match region names
+        for i, seg_id in enumerate(sl._segment_order):
+            sl._children[seg_id]._name = regions[i].name
+
+        return sl
+
+    def create_segment_line_by_grouping(
+        self,
+        column: str,
+        *,
+        copy_events: bool = True,
+        name_format: str = "{value}",
+    ) -> "SegmentLine":
+        """Create a SegmentLine by grouping adjacent events on a column value.
+
+        Groups must form contiguous, non-overlapping spans. This is validated
+        and raises if not satisfied.
+
+        Does NOT modify self. Does NOT add intermediate regions to self.
+
+        Args:
+            column: Event column to group by.
+            copy_events: Copy events into segments.
+            name_format: Format string for segment names.
+
+        Returns:
+            A new SegmentLine.
+
+        Raises:
+            ValueError: If groups are not contiguous.
+
+        Examples:
+            >>> systems = page.create_segment_line_by_grouping("spacing_run_id")
+        """
+        # Build runs (same logic as create_regions_by_grouping but temporary)
+        events_sorted = self._sorted_event_dicts()
+        if not events_sorted:
+            raise ValueError("No events to group")
+
+        first_event = events_sorted[0]
+        if column not in first_event:
+            raise ValueError(
+                f"Column '{column}' not found in events. "
+                f"Available columns: {list(first_event.keys())}"
+            )
+
+        runs: list[tuple[Any, float, float]] = []
+        value_counts: dict[Any, int] = {}
+
+        current_value = None
+        run_start = 0.0
+        run_end = 0.0
+
+        for event in events_sorted:
+            val = event.get(column)
+            if isinstance(val, dict) and "value" in val:
+                val = val["value"]
+
+            ev_start = self._extract_coord_value(event, "start", "instant")
+            ev_end = self._extract_coord_value(event, "end") or ev_start
+
+            if val != current_value:
+                if current_value is not None:
+                    runs.append((current_value, run_start, run_end))
+                current_value = val
+                run_start = ev_start if ev_start is not None else 0.0
+                run_end = ev_end if ev_end is not None else run_start
+            else:
+                if ev_end is not None:
+                    run_end = max(run_end, ev_end)
+
+        if current_value is not None:
+            runs.append((current_value, run_start, run_end))
+
+        # Validate contiguity
+        for i in range(1, len(runs)):
+            prev_end = runs[i - 1][2]
+            curr_start = runs[i][1]
+            if abs(prev_end - curr_start) > 1e-10:
+                raise ValueError(
+                    f"Groups are not contiguous: group "
+                    f"'{runs[i - 1][0]}' ends at {prev_end} but group "
+                    f"'{runs[i][0]}' starts at {curr_start}"
+                )
+
+        # Build boundaries
+        if not runs:
+            raise ValueError("No groups found")
+
+        boundaries = [runs[0][1]]
+        for _, _, end in runs:
+            boundaries.append(end)
+
+        sl = self.create_segment_line(boundaries, copy_events=copy_events)
+
+        # Rename segments
+        for i, seg_id in enumerate(sl._segment_order):
+            value_counts.setdefault(runs[i][0], 0)
+            value_counts[runs[i][0]] += 1
+            seg_name = name_format.format(
+                value=runs[i][0],
+                i=i,
+                n=i + 1,
+                run=value_counts[runs[i][0]],
+            )
+            sl._children[seg_id]._name = seg_name
+
+        return sl
+
+    def create_segment_line_by_splitting(
+        self,
+        predicate: str | dict[str, Any] | Callable[[dict], bool],
+        *,
+        copy_events: bool = True,
+        names: Sequence[str] | None = None,
+        name_format: str = "{prefix}_{n}",
+        prefix: str = "section",
+        include_before_first: bool = True,
+        include_after_last: bool = True,
+    ) -> "SegmentLine":
+        """Create a SegmentLine by splitting at events matching a predicate.
+
+        Shortcut for finding split points and creating a SegmentLine directly.
+        Does NOT modify self (no intermediate regions are created).
+
+        The predicate follows the same semantics as
+        :meth:`create_regions_by_splitting`.
+
+        Args:
+            predicate: Column name, filter dict, or callable identifying
+                split-point events.
+            copy_events: Copy events into segments.
+            names: Explicit segment names.
+            name_format: Format string for segment names.
+            prefix: Prefix for auto-generated names.
+            include_before_first: Include segment before first split point.
+            include_after_last: Include segment after last split point.
+
+        Returns:
+            A new SegmentLine.
+
+        Examples:
+            >>> sl = tl.create_segment_line_by_splitting(
+            ...     {"breaks": "section"}, prefix="movement"
+            ... )
+        """
+        match_fn = self._resolve_predicate(predicate)
+
+        split_coords: list[float] = []
+        events_sorted = self._sorted_event_dicts()
+
+        for event in events_sorted:
+            if match_fn(event):
+                coord = self._extract_coord_value(event, "end")
+                if coord is None:
+                    coord = self._extract_coord_value(event, "start", "instant")
+                if coord is not None:
+                    split_coords.append(coord)
+
+        split_coords = sorted(set(split_coords))
+
+        boundaries: list[float] = []
+        if include_before_first:
+            boundaries.append(float(self.origin.value))
+        boundaries.extend(split_coords)
+        if include_after_last:
+            boundaries.append(float(self.length.value))
+
+        boundaries = sorted(set(boundaries))
+
+        if len(boundaries) < 2:
+            raise ValueError("Not enough split points to create segments")
+
+        sl = self.create_segment_line(boundaries, copy_events=copy_events)
+
+        # Rename segments
+        n_segments = sl.n_segments
+        if names is not None:
+            if len(names) != n_segments:
+                raise ValueError(f"Expected {n_segments} names, got {len(names)}")
+            seg_names = list(names)
+        else:
+            seg_names = [
+                name_format.format(prefix=prefix, i=i, n=i + 1)
+                for i in range(n_segments)
+            ]
+
+        for i, seg_id in enumerate(sl._segment_order):
+            sl._children[seg_id]._name = seg_names[i]
+
+        return sl
 
     # endregion
 
@@ -3272,10 +4106,19 @@ class Timeline:
         diagram_text = html.escape(self.diagram())
         return f'<pre style="font-family: monospace; line-height: 1.2;">{diagram_text}</pre>'
 
-    def __contains__(self, item: str | Timeline) -> bool:
-        """Check if a child (by ID or object) is in this timeline."""
+    def __contains__(self, item: str | Region | Timeline) -> bool:
+        """Check if a region name, child ID, or timeline is part of this timeline.
+
+        Checks all noun types uniformly:
+        - ``"name" in tl`` checks regions AND children.
+        - ``some_timeline in tl`` checks if it's a child (by identity).
+        - ``some_region in tl`` checks if a region with that name exists.
+        """
+        if isinstance(item, Region):
+            return item.name in self._regions
         if isinstance(item, Timeline):
             return item.id in self._children
-        return item in self._children
+        # String: check regions first, then children
+        return item in self._regions or item in self._children
 
     # endregion

@@ -704,12 +704,10 @@ class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
             >>> result.timestamp_at_seconds(25.0)
             {'seconds': 25.0, 'quarters': 25.0, 'mc': 7, 'beat': Fraction(2, 1), 'mn': '7'}
         """
-        region = self.get_region(region_name)
-        if region is None:
-            raise KeyError(f"Region '{region_name}' not found on timeline '{self.id}'")
+        region = self.get_region(region_name)  # Raises KeyError if not found
 
-        start = region["start"]
-        end = region["end"]
+        start = float(region.start.value)
+        end = float(region.end.value)
 
         return self.create_metrical_grid(
             first_beat_at=start,
@@ -981,6 +979,42 @@ class SegmentLine(Timeline):
     def n_segments(self) -> int:
         """Number of segments."""
         return len(self._segment_order)
+
+    def list_segments(self) -> list[str]:
+        """List segment IDs in order.
+
+        Returns:
+            List of segment IDs (child IDs) in insertion order.
+        """
+        return list(self._segment_order)
+
+    def has_segment(self, segment_id: str) -> bool:
+        """Check if a segment with the given ID exists.
+
+        Args:
+            segment_id: The segment ID to check.
+
+        Returns:
+            True if a segment with that ID exists.
+        """
+        return segment_id in self._segment_order
+
+    def __contains__(self, item: Any) -> bool:
+        """Check if a region, child, or segment is part of this SegmentLine.
+
+        Extends Timeline.__contains__ to also check segments by ID.
+        For strings, checks regions, children, AND segments.
+
+        Args:
+            item: A string ID, Region, or Timeline object.
+        """
+        if isinstance(item, str):
+            return (
+                item in self._regions
+                or item in self._children
+                or item in self._segment_order
+            )
+        return super().__contains__(item)
 
     def iter_segments(self) -> Iterator[tuple[int, Coordinate, Timeline]]:
         """Iterate over segments in order.

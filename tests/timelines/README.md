@@ -15,10 +15,11 @@ which implements the central Timeline class and its 6 domain-specific subclasses
 
 ## Test Files
 
-### `test_timeline_relationships.py` - Region, SegmentLine, derive(), Hierarchical Queries
+### `test_timeline_relationships.py` - Unified Verb×Noun API, Regions, SegmentLine, derive()
 
-**74 tests** covering TTA architecture harmonization concepts. See detailed
-documentation below in its own section.
+**~170 tests** covering the unified verb×noun Timeline API (Phases A-D) plus TTA
+architecture harmonization concepts, including 13 real-data tests using Wagner
+Walküre Act III measures. See detailed documentation below in its own section.
 
 ---
 
@@ -385,20 +386,36 @@ pytest tests/timelines/ -v -k "performance"
 
 ---
 
-### `test_timeline_relationships.py` - Region, SegmentLine, derive(), partition()
+### `test_timeline_relationships.py` - Unified Verb×Noun API, Regions, SegmentLine, derive()
 
-**Purpose:** Validates the TTA architecture harmonization features that distinguish
-between different timeline relationship concepts.
+**Purpose:** Validates the unified verb×noun Timeline API (Phases A-D) plus TTA
+architecture harmonization features that distinguish between different timeline
+relationship concepts.
 
 **TTA Manuscript Concepts Tested:**
 
 | Concept | Definition | Test Category |
 |---------|------------|---------------|
 | **Region** | A named TimeInterval (NOT a timeline) | `TestRegionDataclass`, `TestTimelineRegionManagement` |
-| **Child** | A timeline nested in a parent (same unit) | Tested in `test_nesting.py` |
+| **Child** | A timeline nested in a parent (same unit) | `TestCreateChildFromRegion`, `TestCreateChildrenFromRegions` |
 | **Segment** | A Child that is contiguous with siblings | `TestSegmentLineBasics` |
-| **SegmentLine** | A parent where ALL children are Segments | `TestSegmentLineFromSegmentation` |
+| **SegmentLine** | A parent where ALL children are Segments | `TestCreateSegmentLine`, `TestCreateSegmentLineFromRegions` |
 | **Derivative** | A new timeline created via C-map (different unit) | `TestTimelineDerive` |
+
+**Unified Verb×Noun API Methods (new):**
+
+| Verb | Region | Child | SegmentLine |
+|------|--------|-------|-------------|
+| `create_` | `create_region()`, `create_regions_from_boundaries()`, `create_regions_by_grouping()`, `create_regions_by_splitting()` | `create_child_from_region()`, `create_children_from_regions()` | `create_segment_line()`, `create_segment_line_from_regions()`, `create_segment_line_by_grouping()`, `create_segment_line_by_splitting()` |
+| `get_` | `get_region()`, `get_regions_at()` | `get_children_at()` | — |
+| `has_` | `has_region()` | `has_child()` | `has_segment()` |
+| `list_` | `list_regions()` | `list_children()` | `list_segments()` |
+| `add_` | `add_region()` (overloaded) | — | — |
+
+**Removed Methods:** `partition()`, `region_to_child()`, `get_region_object()`.
+
+**Changed Methods:** `get_region()` now returns `Region` object (was dict), raises
+`KeyError` if not found (was `None`). `__contains__` now checks regions AND children.
 
 **Test Categories:**
 
@@ -414,74 +431,135 @@ between different timeline relationship concepts.
 
 2. **Timeline Region Management Tests** (9 tests)
    - add_region() returns Region object
-   - get_region() returns dict (backwards compat)
-   - get_region_object() returns Region
+   - get_region() returns Region object (updated from dict)
+   - get_region() raises KeyError if not found (updated from None)
    - has_region(), iter_regions(), list_regions()
    - n_regions property
    - Duplicate name rejection
    - Locked timeline rejection
 
-3. **Partition Tests** (7 tests)
-   - partition() creates child at region's offset
+3. **Phase A — create_region() / add_region() overloaded** (5 tests)
+   - `create_region(name, start, end)` creates and registers a Region
+   - `add_region(Region)` accepts existing Region object
+   - `add_region(name, start, end)` backwards-compatible string overload
+
+4. **Phase A — create_regions_from_boundaries()** (5 tests)
+   - Creates N-1 regions from N boundary coordinates
+   - Names follow configurable format pattern
+   - Validates sorted, non-negative boundaries
+
+5. **Phase A — create_regions_by_grouping()** (6 tests)
+   - Groups adjacent events by column value
+   - Auto-disambiguates recurring group values (e.g., 4/4 → 3/4 → 4/4)
+   - Supports custom `name_format` with `{value}` and `{run}` placeholders
+   - Raises ValueError for missing column
+
+6. **Phase A — create_regions_by_splitting()** (5 tests)
+   - Splits at events matching a predicate (column name or dict filter)
+   - Supports `include_before_first` and `include_after_last`
+   - Deduplicates split points at timeline boundaries
+
+7. **Phase B — create_child_from_region()** (7 tests, replaces old partition())
+   - Creates child at region's offset
    - Copies events within region to child
    - Adjusts event coordinates relative to child origin
    - copy_events=False creates empty child
    - Raises KeyError for nonexistent region
    - Raises RuntimeError on locked timeline
 
-4. **SegmentLine Basics Tests** (8 tests)
-   - Empty creation
-   - append_segment() adds contiguous children
-   - Segment offsets form contiguous sequence
-   - Rejects non-contiguous offsets
-   - First segment must start at 0
-   - get_segment_by_index()
-   - get_segment_at() finds segment by coordinate
+8. **Phase B — create_children_from_regions()** (3 tests)
+   - Creates children for all or specified regions
+   - Returns list of created children
 
-5. **SegmentLine from_segmentation Tests** (5 tests)
-   - Creates correct number of segments
-   - Segments have correct lengths
-   - Copies events to respective segments
-   - Requires at least 2 split coordinates
-   - Fails if source has existing children
+9. **Phase B — get_regions_at() / get_children_at()** (6 tests)
+   - `get_regions_at(coord)` returns all regions containing that coordinate
+   - `get_children_at(coord)` returns all children whose span includes that coordinate
 
-6. **Timeline.derive() Tests** (8 tests)
-   - Creates timeline in target unit
-   - Creates correct Timeline subclass for domain
-   - Attaches inverse C-map for roundtrip
-   - Roundtrip accuracy verification
-   - Raises ValueError without C-map
-   - Uses custom name if provided
-   - copy_events=True copies and converts events
-   - copy_events=False (default) creates empty timeline
+10. **Phase B — list_children() / has_child()** (4 tests)
+    - `list_children()` returns sorted list of child IDs
+    - `has_child(id_or_obj)` checks by string or Timeline object
 
-7. **get_timeline_class() Tests** (7 tests)
-   - Returns correct class for all 6 domain/modality combinations
-   - Raises ValueError for unknown domain
+11. **Phase C — create_segment_line()** (4 tests)
+    - Creates SegmentLine from boundary coordinates
+    - Does NOT modify source timeline
 
-8. **query_events_hierarchical() Tests** (8 tests)
-   - Returns root events when no children
-   - Includes events from children
-   - Root-relative coordinates in root_start field
-   - Nested children (grandchildren) with correct offsets
-   - Filter by event_types
-   - Filter by coord_range (root-relative)
-   - Recursion limit controls depth
-   - include_children=False excludes child events
+12. **Phase C — create_segment_line_from_regions()** (3 tests)
+    - Creates SegmentLine from contiguous regions
+    - Validates contiguity
 
-9. **get_events_at() Tests** (10 tests)
-   - Returns instant events at exact coordinate
-   - Uses tolerance for instant matching
-   - Interval left-inclusive (start included)
-   - Interval right-exclusive (end excluded)
-   - Interval middle coordinates included
-   - Includes events from children
-   - include_children=False excludes child events
-   - Returns dict keyed by timeline ID
-   - Returns empty dict when no match
-   - Accepts Coordinate object input
+13. **Phase C — create_segment_line_by_grouping()** (3 tests)
+    - Shortcut: groups events and creates SegmentLine directly
+    - Does NOT add intermediate regions to source
 
-10. **Integration Tests** (3 tests)
+14. **Phase C — create_segment_line_by_splitting()** (3 tests)
+    - Shortcut: splits and creates SegmentLine directly
+
+15. **Phase C — SegmentLine list_segments() / has_segment()** (5 tests)
+    - `list_segments()` returns ordered segment IDs
+    - `has_segment()` checks by ID or object
+    - `__contains__` override on SegmentLine checks segments
+
+16. **Phase D — __contains__ checks regions AND children** (4 tests)
+    - String `in tl` checks region names AND child IDs
+    - Region object `in tl` checks by name
+    - Timeline object `in tl` checks by identity
+
+17. **SegmentLine Basics Tests** (8 tests)
+    - Empty creation
+    - append_segment() adds contiguous children
+    - Segment offsets form contiguous sequence
+    - Rejects non-contiguous offsets
+    - First segment must start at 0
+    - get_segment_by_index()
+    - get_segment_at() finds segment by coordinate
+
+18. **SegmentLine from_segmentation Tests** (5 tests)
+    - Creates correct number of segments
+    - Segments have correct lengths
+    - Copies events to respective segments
+    - Requires at least 2 split coordinates
+    - Fails if source has existing children
+
+19. **Timeline.derive() Tests** (8 tests)
+    - Creates timeline in target unit
+    - Creates correct Timeline subclass for domain
+    - Attaches inverse C-map for roundtrip
+    - Roundtrip accuracy verification
+    - Raises ValueError without C-map
+    - Uses custom name if provided
+    - copy_events=True copies and converts events
+    - copy_events=False (default) creates empty timeline
+
+20. **get_timeline_class() Tests** (7 tests)
+    - Returns correct class for all 6 domain/modality combinations
+    - Raises ValueError for unknown domain
+
+21. **query_events_hierarchical() Tests** (8 tests)
+    - Returns root events when no children
+    - Includes events from children
+    - Root-relative coordinates in root_start field
+    - Nested children (grandchildren) with correct offsets
+    - Filter by event_types
+    - Filter by coord_range (root-relative)
+    - Recursion limit controls depth
+    - include_children=False excludes child events
+
+22. **get_events_at() Tests** (10 tests)
+    - Returns instant events at exact coordinate
+    - Uses tolerance for instant matching
+    - Interval left-inclusive (start included)
+    - Interval right-exclusive (end excluded)
+    - Interval middle coordinates included
+    - Includes events from children
+    - include_children=False excludes child events
+    - Returns dict keyed by timeline ID
+    - Returns empty dict when no match
+    - Accepts Coordinate object input
+
+23. **Real Data Tests (TSVLoader)** (13 tests)
+    - See "Real Data Validation" section below
+
+24. **Integration Tests** (3 tests)
     - Regions used to create SegmentLine structure
     - Derived timeline can have children added
     - SegmentLine with individual segment C-maps
@@ -501,6 +579,51 @@ These tests ensure:
 4. Inverse C-maps enable accurate roundtrip conversions
 5. query_events_hierarchical() enables cross-hierarchy event queries with root-relative coordinates
 6. get_events_at() enables point-in-time queries following [start, end) interval semantics
+7. The unified verb×noun API provides consistent naming across all noun types
+8. Real data from TSVLoader validates the API against production musicological data
+
+---
+
+### Real Data Validation (`TestUnifiedAPIWithRealData`)
+
+**Purpose:** Validates the unified verb×noun API using real musicological data from
+Wagner's Walküre Act III (measures.tsv loaded via TSVLoader).
+
+**Test Data Provenance:**
+
+| Property | Value | Source |
+|----------|-------|--------|
+| File | `Wagner_WWV086B-3.measures.tsv` | DCML Ms3 corpus (MuseScore annotation) |
+| Location | `tests/data/score/wagner_walkure/01_RawData/score_musescore/` | |
+| Total Measures | 1733 | Exact count from TSV rows |
+| Timeline Length | 6699.5 quarter beats | Computed from last event end coordinate |
+| Unique Time Signatures | 8 (`9/8`, `3/4`, `2/2`, `12/8`, `2/4`, `4/4`, `6/4`, `6/8`) | TSV `timesig` column |
+| Adjacent Timesig Runs | 22 | Adjacent-grouping count |
+| Break Events | 405 (347 line + 58 page, 0 section) | TSV `breaks` column |
+| All Break Coordinates | 405 unique | Verified no duplicate end coordinates |
+
+**Fixture Strategy:**
+
+The `wagner_timeline` fixture uses `MeasureData.create_timeline()` which directly
+assigns the MeasureData as the timeline's event store. This preserves all 32 columns
+(including `timesig`, `breaks`, `keysig`) that the base `EventData.from_dicts()`
+would discard (it only keeps the 7 base schema columns). Each test invocation
+creates a fresh `TSVLoader` instance, ensuring no shared state between tests.
+
+**Gold Standard Counts (all EXACT, no approximations):**
+
+| Test | Assertion | Value | Derivation |
+|------|-----------|-------|------------|
+| `test_event_count` | `n_events` | 1733 | TSV row count |
+| `test_create_regions_by_grouping_timesig` | region count | 22 | Adjacent-run counting on timesig column |
+| `test_create_regions_by_splitting_breaks` | region count | 406 | 405 unique split points + 1 |
+| `test_create_regions_by_splitting_page_breaks_only` | region count | 59 | 58 unique page break coords + 1 |
+| `test_create_regions_by_splitting_section_breaks` | region count | 1 | 0 section breaks → 1 region (whole timeline) |
+| `test_create_segment_line_by_grouping_timesig` | segment count | 22 | Same as timesig runs |
+| `test_create_segment_line_by_splitting_page` | segment count | 59 | Same as page break regions |
+| `test_create_child_from_region_with_real_data` | child length | 968.0 | First 9/8 region span (0.0–968.0) |
+| `test_create_child_from_region_with_real_data` | child events | 216 | Measures in 0.0–968.0 range |
+| `test_create_children_from_regions_all` | children count | 22 | One child per timesig region |
 
 ---
 
