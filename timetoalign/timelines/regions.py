@@ -8,7 +8,7 @@ From TTA manuscript (Section 3.5):
 "A Region is a named part of a timeline that is defined by a TimeInterval.
 Regions are useful for referring to parts of a timeline by name."
 
-Use Region.to_child() or Timeline.partition() to create a Child timeline
+Use ``Timeline.create_child_from_region()`` to create a Child timeline
 from a Region.
 """
 
@@ -32,7 +32,8 @@ class Region:
     timeline by name."
 
     IMPORTANT: Regions are NOT timelines. They cannot hold events or C-maps.
-    Use Timeline.partition(region) to create a Child timeline from a Region.
+    Use ``Timeline.create_child_from_region(name)`` to create a Child
+    timeline from a Region.
 
     Attributes:
         name: The region's name (e.g., "Chorus", "Verse").
@@ -49,8 +50,8 @@ class Region:
         16.0
 
         >>> # Create a Child from the region via timeline
-        >>> tl.add_region("Chorus", start=16, end=32)
-        >>> chorus_child = tl.partition("Chorus")
+        >>> tl.create_region("Chorus", start=16, end=32)
+        >>> chorus_child = tl.create_child_from_region("Chorus")
     """
 
     name: str

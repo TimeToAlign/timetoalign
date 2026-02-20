@@ -495,6 +495,43 @@ class TestMagicMethods:
         assert "my_child" in parent
         assert "nonexistent" not in parent
 
+    def test_contains_region_by_name(self):
+        """__contains__ checks regions by string name."""
+        tl = Timeline(length=100.0)
+        tl.add_region("Chorus", start=30, end=60)
+
+        assert "Chorus" in tl
+        assert "Bridge" not in tl
+
+    def test_contains_region_by_object(self):
+        """__contains__ checks Region objects by name."""
+        from timetoalign.timelines import Region
+
+        tl = Timeline(length=100.0)
+        tl.add_region("Chorus", start=30, end=60)
+
+        region = tl.get_region("Chorus")
+        assert region in tl
+
+        other = Region(
+            name="Other",
+            start=Coordinate(0, TimeUnit.seconds),
+            end=Coordinate(10, TimeUnit.seconds),
+        )
+        assert other not in tl
+
+    def test_contains_checks_regions_and_children(self):
+        """__contains__ with string checks both regions and children."""
+        tl = Timeline(length=100.0)
+        tl.add_region("Chorus", start=30, end=60)
+        child = Timeline(length=5.0, uid="my_child")
+        tl.add_child(child, offset=0)
+
+        # Both region and child names should be found
+        assert "Chorus" in tl
+        assert "my_child" in tl
+        assert "nonexistent" not in tl
+
 
 # endregion
 

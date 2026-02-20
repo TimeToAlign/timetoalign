@@ -1,4 +1,4 @@
-"""Tests for Timeline Relationship Concepts: Region, SegmentLine, derive(), partition().
+"""Tests for Timeline Relationship Concepts: Region, SegmentLine, derive().
 
 This module tests the architecture harmonization features that clarify the TTA
 manuscript's distinction between:
@@ -20,7 +20,7 @@ with each other, we call them Segments and the parent a SegmentLine."
 Validity Rationale:
     These tests verify:
     1. Region is an immutable dataclass (NOT a timeline)
-    2. Regions can be partitioned into Children
+    2. Regions can be used to create Children via create_child_from_region()
     3. SegmentLine enforces contiguity of children
     4. derive() creates timelines in different units via C-maps
     5. Roundtrip conversions work correctly (inverse C-maps)
@@ -193,30 +193,22 @@ class TestTimelineRegionManagement:
         assert tl.has_region("Chorus") is True
         assert tl.has_region("Bridge") is False
 
-    def test_get_region_returns_dict(self):
-        """get_region returns dictionary for backwards compatibility."""
+    def test_get_region_returns_region_object(self):
+        """get_region returns the Region instance directly."""
         tl = Timeline(length=100, unit=TimeUnit.seconds)
         tl.add_region("Test", start=10, end=20)
 
         result = tl.get_region("Test")
-        assert isinstance(result, dict)
-        assert result["name"] == "Test"
-        assert result["start"] == 10.0
-        assert result["end"] == 20.0
+        assert isinstance(result, Region)
+        assert result.name == "Test"
+        assert result.start.value == 10.0
+        assert result.end.value == 20.0
 
-    def test_get_region_object_returns_region(self):
-        """get_region_object returns the Region instance."""
+    def test_get_region_nonexistent_raises_keyerror(self):
+        """get_region raises KeyError for nonexistent region."""
         tl = Timeline(length=100, unit=TimeUnit.seconds)
-        tl.add_region("Test", start=10, end=20)
-
-        region = tl.get_region_object("Test")
-        assert isinstance(region, Region)
-        assert region.name == "Test"
-
-    def test_get_region_nonexistent_returns_none(self):
-        """get_region returns None for nonexistent region."""
-        tl = Timeline(length=100, unit=TimeUnit.seconds)
-        assert tl.get_region("NonExistent") is None
+        with pytest.raises(KeyError, match="No region named"):
+            tl.get_region("NonExistent")
 
     def test_iter_regions(self):
         """iter_regions yields all Region objects."""
@@ -258,35 +250,35 @@ class TestTimelineRegionManagement:
 # endregion
 
 
-# region Partition Tests
+# region create_child_from_region Tests
 
 
-class TestTimelinePartition:
-    """Test Timeline.partition() - creating Children from Regions."""
+class TestCreateChildFromRegion:
+    """Test Timeline.create_child_from_region() - creating Children from Regions."""
 
-    def test_partition_creates_child(self):
-        """partition creates a child timeline at the region's offset."""
+    def test_create_child_from_region_creates_child(self):
+        """create_child_from_region creates a child at the region's offset."""
         tl = Timeline(length=100, unit=TimeUnit.seconds)
         tl.add_region("Chorus", start=30, end=60)
 
-        child = tl.partition("Chorus")
+        child = tl.create_child_from_region("Chorus")
 
         assert tl.n_children == 1
         assert child.length.value == 30.0  # 60 - 30
         assert child.name == "Chorus"
 
-    def test_partition_child_offset(self):
-        """Partitioned child has correct offset in parent."""
+    def test_create_child_from_region_child_offset(self):
+        """Created child has correct offset in parent."""
         tl = Timeline(length=100, unit=TimeUnit.seconds)
         tl.add_region("Verse", start=20, end=40)
 
-        child = tl.partition("Verse")
+        child = tl.create_child_from_region("Verse")
 
         offset = tl.get_child_offset(child.id)
         assert offset.value == 20.0
 
-    def test_partition_copies_events_by_default(self):
-        """partition copies events within the region to the child."""
+    def test_create_child_from_region_copies_events_by_default(self):
+        """create_child_from_region copies events within the region."""
         tl = Timeline(length=100, unit=TimeUnit.seconds)
         tl.add_events(
             [
@@ -318,12 +310,12 @@ class TestTimelinePartition:
         )
         tl.add_region("Middle", start=30, end=60)
 
-        child = tl.partition("Middle")
+        child = tl.create_child_from_region("Middle")
 
         # Child should have 2 events (e2 at 35 -> 5, e3 at 55 -> 25)
         assert child.n_events == 2
 
-    def test_partition_adjusts_event_coordinates(self):
+    def test_create_child_from_region_adjusts_event_coordinates(self):
         """Copied events have coordinates relative to child's origin."""
         tl = Timeline(length=100, unit=TimeUnit.seconds)
         tl.add_events(
@@ -338,13 +330,11 @@ class TestTimelinePartition:
         )
         tl.add_region("Section", start=40, end=60)
 
-        child = tl.partition("Section")
+        child = tl.create_child_from_region("Section")
 
         # Event at 45 in parent should be at 5 in child (45 - 40)
         events = list(child.events)
         assert len(events) == 1
-        # The event coordinate should be offset-adjusted
-        # Events have 'start' coordinate struct, not 'instant' directly
         event = events[0]
         start_coord = event.get("start")
         if isinstance(start_coord, dict) and "value" in start_coord:
@@ -352,15 +342,14 @@ class TestTimelinePartition:
         elif start_coord is not None:
             assert float(start_coord) == pytest.approx(5.0)
         else:
-            # Fallback: check instant field
             event_instant = event.get("instant")
             if isinstance(event_instant, dict) and "value" in event_instant:
                 assert event_instant["value"] == pytest.approx(5.0)
             else:
                 assert float(event_instant) == pytest.approx(5.0)
 
-    def test_partition_copy_events_false(self):
-        """partition with copy_events=False creates empty child."""
+    def test_create_child_from_region_copy_events_false(self):
+        """create_child_from_region with copy_events=False creates empty child."""
         tl = Timeline(length=100, unit=TimeUnit.seconds)
         tl.add_events(
             [
@@ -374,25 +363,25 @@ class TestTimelinePartition:
         )
         tl.add_region("Section", start=30, end=60)
 
-        child = tl.partition("Section", copy_events=False)
+        child = tl.create_child_from_region("Section", copy_events=False)
 
         assert child.n_events == 0
 
-    def test_partition_nonexistent_region_raises(self):
-        """partition raises KeyError for nonexistent region."""
+    def test_create_child_from_region_nonexistent_raises(self):
+        """create_child_from_region raises KeyError for nonexistent region."""
         tl = Timeline(length=100, unit=TimeUnit.seconds)
 
         with pytest.raises(KeyError, match="not found"):
-            tl.partition("NonExistent")
+            tl.create_child_from_region("NonExistent")
 
-    def test_partition_locked_timeline_raises(self):
-        """partition raises RuntimeError on locked timeline."""
+    def test_create_child_from_region_locked_timeline_raises(self):
+        """create_child_from_region raises RuntimeError on locked timeline."""
         tl = Timeline(length=100, unit=TimeUnit.seconds)
         tl.add_region("Test", start=0, end=10)
         tl._locked = True
 
         with pytest.raises(RuntimeError, match="locked"):
-            tl.partition("Test")
+            tl.create_child_from_region("Test")
 
 
 # endregion
@@ -1280,10 +1269,10 @@ class TestTimelineRelationshipsIntegration:
         song.add_region("Chorus2", start=120, end=150)
         song.add_region("Outro", start=150, end=180)
 
-        # Partition creates children
+        # create_child_from_region creates children
         assert song.n_regions == 6
 
-        intro = song.partition("Intro", copy_events=False)
+        intro = song.create_child_from_region("Intro", copy_events=False)
         assert intro.length.value == 30.0
 
     def test_derive_then_add_children(self):
@@ -1344,6 +1333,778 @@ class TestTimelineRelationshipsIntegration:
         # Fast section: 8 * 0.5 = 4 seconds
         # Slow section: 8 * 1.0 = 8 seconds
         # Total physical duration would be 12 seconds
+
+
+# endregion
+
+
+# region Unified verb×noun API Tests
+
+
+class TestCreateRegion:
+    """Test Timeline.create_region() — the new explicit name for region creation."""
+
+    def test_create_region_returns_region(self):
+        """create_region returns a Region object."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        region = tl.create_region("Chorus", 30, 60)
+
+        assert isinstance(region, Region)
+        assert region.name == "Chorus"
+        assert region.start.value == 30.0
+        assert region.end.value == 60.0
+
+    def test_create_region_attaches_to_timeline(self):
+        """create_region adds the region to the timeline."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.create_region("Chorus", 30, 60)
+
+        assert tl.n_regions == 1
+        assert tl.has_region("Chorus")
+
+    def test_create_region_with_meta(self):
+        """create_region passes metadata to the Region."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        region = tl.create_region("Chorus", 30, 60, meta={"repeat": 2})
+
+        assert region.meta == {"repeat": 2}
+
+
+class TestAddRegionOverloaded:
+    """Test overloaded add_region(Region | str, ...)."""
+
+    def test_add_region_with_region_object(self):
+        """add_region(Region) attaches an existing Region object."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        r = Region(
+            "Chorus",
+            Coordinate(30, TimeUnit.seconds),
+            Coordinate(60, TimeUnit.seconds),
+        )
+        result = tl.add_region(r)
+
+        assert result is r
+        assert tl.has_region("Chorus")
+        assert tl.get_region("Chorus") is r
+
+    def test_add_region_with_string_delegates_to_create(self):
+        """add_region(name, start, end) delegates to create_region."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        result = tl.add_region("Verse", start=0, end=30)
+
+        assert isinstance(result, Region)
+        assert result.name == "Verse"
+        assert tl.has_region("Verse")
+
+    def test_add_region_object_validates_unit(self):
+        """add_region(Region) rejects unit mismatch."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        r = Region(
+            "X",
+            Coordinate(0, TimeUnit.quarters),
+            Coordinate(10, TimeUnit.quarters),
+        )
+        with pytest.raises(ValueError, match="unit"):
+            tl.add_region(r)
+
+
+class TestCreateRegionsFromBoundaries:
+    """Test Timeline.create_regions_from_boundaries()."""
+
+    def test_basic_boundaries(self):
+        """Create regions from boundary coordinates."""
+        tl = Timeline(length=90, unit=TimeUnit.seconds)
+        regions = tl.create_regions_from_boundaries([0, 30, 60, 90], prefix="movement")
+
+        assert len(regions) == 3
+        assert regions[0].name == "movement_1"
+        assert regions[0].start.value == 0.0
+        assert regions[0].end.value == 30.0
+        assert regions[1].name == "movement_2"
+        assert regions[2].name == "movement_3"
+
+    def test_custom_names(self):
+        """Explicit names override format string."""
+        tl = Timeline(length=90, unit=TimeUnit.seconds)
+        regions = tl.create_regions_from_boundaries(
+            [0, 30, 60, 90], names=["Intro", "Verse", "Chorus"]
+        )
+
+        assert [r.name for r in regions] == ["Intro", "Verse", "Chorus"]
+
+    def test_wrong_name_count_raises(self):
+        """Providing wrong number of names raises ValueError."""
+        tl = Timeline(length=90, unit=TimeUnit.seconds)
+        with pytest.raises(ValueError, match="Expected 3"):
+            tl.create_regions_from_boundaries([0, 30, 60, 90], names=["A", "B"])
+
+    def test_fewer_than_two_boundaries_raises(self):
+        """Fewer than 2 boundaries raises ValueError."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        with pytest.raises(ValueError, match="at least 2"):
+            tl.create_regions_from_boundaries([50])
+
+    def test_non_monotonic_raises(self):
+        """Non-monotonically-increasing boundaries raises ValueError."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        with pytest.raises(ValueError, match="monotonically"):
+            tl.create_regions_from_boundaries([0, 60, 30, 100])
+
+
+class TestCreateRegionsByGrouping:
+    """Test Timeline.create_regions_by_grouping() with adjacent grouping.
+
+    Note: Base EventData only preserves standard schema fields (id, name,
+    temporal_type, event_type, start, end, duration). Extra columns like
+    'timesig' are dropped. We use 'event_type' for synthetic grouping tests.
+    Real data tests with TSVLoader (MeasureData) preserve all columns.
+    """
+
+    def test_basic_grouping(self):
+        """Adjacent grouping creates runs of same-value events."""
+        tl = Timeline(length=120, unit=TimeUnit.quarters)
+        tl.add_events(
+            [
+                {"event_type": "Fast", "start": 0, "end": 16},
+                {"event_type": "Fast", "start": 16, "end": 32},
+                {"event_type": "Slow", "start": 32, "end": 44},
+                {"event_type": "Slow", "start": 44, "end": 56},
+                {"event_type": "Fast", "start": 56, "end": 72},
+                {"event_type": "Fast", "start": 72, "end": 120},
+            ],
+            allow_expansion=True,
+        )
+
+        regions = tl.create_regions_by_grouping("event_type")
+
+        # 3 runs: Fast, Slow, Fast — NOT 2 groups as standard group-by
+        assert len(regions) == 3
+        assert regions[0].name == "Fast"
+        assert regions[0].start.value == 0.0
+        assert regions[0].end.value == 32.0
+        assert regions[1].name == "Slow"
+        assert regions[1].start.value == 32.0
+        assert regions[1].end.value == 56.0
+        # Recurring value auto-disambiguated with _run2 suffix
+        assert regions[2].name == "Fast_run2"
+
+    def test_custom_name_format(self):
+        """name_format with {run} distinguishes recurrences."""
+        tl = Timeline(length=60, unit=TimeUnit.quarters)
+        tl.add_events(
+            [
+                {"event_type": "Alpha", "start": 0, "end": 20},
+                {"event_type": "Beta", "start": 20, "end": 40},
+                {"event_type": "Alpha", "start": 40, "end": 60},
+            ],
+            allow_expansion=True,
+        )
+
+        regions = tl.create_regions_by_grouping(
+            "event_type", name_format="{value}_run{run}"
+        )
+
+        assert len(regions) == 3
+        assert regions[0].name == "Alpha_run1"
+        assert regions[1].name == "Beta_run1"
+        assert regions[2].name == "Alpha_run2"
+
+    def test_nonexistent_column_raises(self):
+        """Grouping on missing column raises ValueError."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events([{"event_type": "X", "instant": 10}])
+        with pytest.raises(ValueError, match="not found"):
+            tl.create_regions_by_grouping("nonexistent_column")
+
+
+class TestCreateRegionsBySplitting:
+    """Test Timeline.create_regions_by_splitting().
+
+    Note: Splitting predicates operate on event dicts. Since base EventData
+    only preserves standard fields, synthetic tests use 'event_type' or
+    callable predicates. Real data tests with MeasureData use 'breaks'.
+    """
+
+    def test_split_by_event_type(self):
+        """Split at events with a specific event_type."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {"event_type": "Measure", "start": 0, "end": 25},
+                {"event_type": "Break", "start": 25, "end": 50},
+                {"event_type": "Measure", "start": 50, "end": 75},
+                {"event_type": "Break", "start": 75, "end": 100},
+            ],
+            allow_expansion=True,
+        )
+
+        regions = tl.create_regions_by_splitting({"event_type": "Break"}, prefix="part")
+
+        # Split points at end coordinates 50 and 100 of the "Break" events
+        # Regions: [0, 50), [50, 100)
+        assert len(regions) == 2
+        assert regions[0].start.value == 0.0
+        assert regions[0].end.value == 50.0
+        assert regions[1].start.value == 50.0
+        assert regions[1].end.value == 100.0
+
+    def test_split_by_dict_predicate(self):
+        """Split at events matching a dict filter on event_type."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {"event_type": "Line", "start": 0, "end": 20},
+                {"event_type": "Note", "start": 20, "end": 40},
+                {"event_type": "Section", "start": 40, "end": 60},
+                {"event_type": "Line", "start": 60, "end": 80},
+                {"event_type": "Note", "start": 80, "end": 100},
+            ],
+            allow_expansion=True,
+        )
+
+        regions = tl.create_regions_by_splitting(
+            {"event_type": "Section"}, prefix="movement"
+        )
+
+        # Only "Section" event at end=60
+        # Regions: [0, 60), [60, 100)
+        assert len(regions) == 2
+        assert regions[0].name == "movement_1"
+        assert regions[0].end.value == 60.0
+
+    def test_split_by_dict_list_predicate(self):
+        """Dict predicate with list of acceptable values."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {"event_type": "PageBreak", "start": 0, "end": 30},
+                {"event_type": "Line", "start": 30, "end": 60},
+                {"event_type": "SectionBreak", "start": 60, "end": 80},
+                {"event_type": "Note", "start": 80, "end": 100},
+            ],
+            allow_expansion=True,
+        )
+
+        regions = tl.create_regions_by_splitting(
+            {"event_type": ["SectionBreak", "PageBreak"]}, prefix="part"
+        )
+
+        # Split points at end=30 (PageBreak) and end=80 (SectionBreak)
+        # Regions: [0, 30), [30, 80), [80, 100)
+        assert len(regions) == 3
+
+    def test_split_by_callable(self):
+        """Split at events matching a callable predicate."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {"event_type": "M", "start": 0, "end": 30, "name": "m1"},
+                {"event_type": "M", "start": 30, "end": 60, "name": "split_here"},
+                {"event_type": "M", "start": 60, "end": 100, "name": "m3"},
+            ],
+            allow_expansion=True,
+        )
+
+        regions = tl.create_regions_by_splitting(
+            lambda e: e.get("name") == "split_here", prefix="section"
+        )
+
+        # Split point at end=60 of "split_here" event
+        # Regions: [0, 60), [60, 100)
+        assert len(regions) == 2
+
+
+class TestCreateChildrenFromRegions:
+    """Test Timeline.create_children_from_regions()."""
+
+    def test_batch_create_all_regions(self):
+        """create_children_from_regions() with no args uses all regions."""
+        tl = Timeline(length=90, unit=TimeUnit.seconds)
+        tl.create_region("A", 0, 30)
+        tl.create_region("B", 30, 60)
+        tl.create_region("C", 60, 90)
+
+        children = tl.create_children_from_regions()
+
+        assert len(children) == 3
+        assert tl.n_children == 3
+        assert children[0].name == "A"
+        assert children[1].name == "B"
+        assert children[2].name == "C"
+
+    def test_batch_create_subset(self):
+        """create_children_from_regions() with names creates only those."""
+        tl = Timeline(length=90, unit=TimeUnit.seconds)
+        tl.create_region("A", 0, 30)
+        tl.create_region("B", 30, 60)
+        tl.create_region("C", 60, 90)
+
+        children = tl.create_children_from_regions(["A", "C"])
+
+        assert len(children) == 2
+        assert tl.n_children == 2
+        assert children[0].name == "A"
+        assert children[1].name == "C"
+
+
+class TestGetRegionsAt:
+    """Test Timeline.get_regions_at()."""
+
+    def test_regions_at_point(self):
+        """get_regions_at returns regions containing the coordinate."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.create_region("A", 0, 50)
+        tl.create_region("B", 30, 70)
+        tl.create_region("C", 60, 100)
+
+        result = tl.get_regions_at(40)
+        names = [r.name for r in result]
+        assert names == ["A", "B"]
+
+    def test_regions_at_boundary(self):
+        """Left-inclusive, right-exclusive boundary behavior."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.create_region("A", 0, 50)
+        tl.create_region("B", 50, 100)
+
+        # At boundary 50: A excludes (right-exclusive), B includes (left-inclusive)
+        result = tl.get_regions_at(50)
+        assert len(result) == 1
+        assert result[0].name == "B"
+
+
+class TestGetChildrenAt:
+    """Test Timeline.get_children_at()."""
+
+    def test_children_at_coordinate(self):
+        """get_children_at returns children covering the coordinate."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        c1 = Timeline(length=30, unit=TimeUnit.seconds, uid="c1")
+        c2 = Timeline(length=40, unit=TimeUnit.seconds, uid="c2")
+        tl.add_child(c1, offset=10)
+        tl.add_child(c2, offset=20)
+
+        # At 25: c1 covers [10, 40), c2 covers [20, 60) — both contain 25
+        result = tl.get_children_at(25)
+        ids = [c.id for c in result]
+        assert "c1" in ids
+        assert "c2" in ids
+
+    def test_children_at_no_match(self):
+        """get_children_at returns empty list when no children contain coord."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        c1 = Timeline(length=10, unit=TimeUnit.seconds, uid="c1")
+        tl.add_child(c1, offset=20)
+
+        result = tl.get_children_at(5)
+        assert result == []
+
+
+class TestListChildrenAndHasChild:
+    """Test list_children() and has_child()."""
+
+    def test_list_children(self):
+        """list_children returns child IDs in insertion order."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_child(Timeline(length=10, uid="b"), offset=0)
+        tl.add_child(Timeline(length=10, uid="a"), offset=20)
+
+        assert tl.list_children() == ["b", "a"]
+
+    def test_has_child(self):
+        """has_child checks by ID."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.add_child(Timeline(length=10, uid="x"), offset=0)
+
+        assert tl.has_child("x") is True
+        assert tl.has_child("y") is False
+
+
+class TestCreateSegmentLine:
+    """Test Timeline.create_segment_line() instance method."""
+
+    def test_create_segment_line_from_boundaries(self):
+        """create_segment_line creates a new SegmentLine."""
+        tl = ContinuousLogicalTimeline(length=100)
+        sl = tl.create_segment_line([0, 25, 50, 75, 100])
+
+        assert isinstance(sl, SegmentLine)
+        assert sl.n_segments == 4
+        assert sl.length.value == 100
+
+    def test_create_segment_line_preserves_unit(self):
+        """SegmentLine inherits parent's unit."""
+        tl = ContinuousLogicalTimeline(length=100)
+        sl = tl.create_segment_line([0, 50, 100])
+
+        assert sl.unit == tl.unit
+
+    def test_create_segment_line_copies_events(self):
+        """create_segment_line copies events into segments."""
+        tl = ContinuousLogicalTimeline(length=100)
+        tl.add_events(
+            [
+                {"event_type": "Note", "instant": 10},
+                {"event_type": "Note", "instant": 60},
+            ]
+        )
+
+        sl = tl.create_segment_line([0, 50, 100])
+
+        # Each segment should have 1 event
+        _, seg0 = sl.get_segment_by_index(0)
+        _, seg1 = sl.get_segment_by_index(1)
+        assert seg0.n_events == 1
+        assert seg1.n_events == 1
+
+    def test_create_segment_line_does_not_modify_self(self):
+        """create_segment_line does NOT modify the source timeline."""
+        tl = ContinuousLogicalTimeline(length=100)
+        tl.create_segment_line([0, 50, 100])
+
+        assert tl.n_children == 0
+        assert tl.n_regions == 0
+
+
+class TestCreateSegmentLineFromRegions:
+    """Test Timeline.create_segment_line_from_regions()."""
+
+    def test_segment_line_from_contiguous_regions(self):
+        """Creates SegmentLine from contiguous regions."""
+        tl = ContinuousLogicalTimeline(length=90)
+        tl.create_region("A", 0, 30)
+        tl.create_region("B", 30, 60)
+        tl.create_region("C", 60, 90)
+
+        sl = tl.create_segment_line_from_regions()
+
+        assert sl.n_segments == 3
+        assert sl.length.value == 90
+
+    def test_non_contiguous_regions_raise(self):
+        """Non-contiguous regions raise ValueError."""
+        tl = ContinuousLogicalTimeline(length=100)
+        tl.create_region("A", 0, 30)
+        tl.create_region("B", 40, 70)  # Gap between 30 and 40
+
+        with pytest.raises(ValueError, match="not contiguous"):
+            tl.create_segment_line_from_regions()
+
+
+class TestCreateSegmentLineByGrouping:
+    """Test Timeline.create_segment_line_by_grouping()."""
+
+    def test_basic_grouping_segment_line(self):
+        """Creates SegmentLine by adjacent grouping on event_type."""
+        tl = ContinuousLogicalTimeline(length=60)
+        tl.add_events(
+            [
+                {"event_type": "Alpha", "start": 0, "end": 20},
+                {"event_type": "Beta", "start": 20, "end": 40},
+                {"event_type": "Alpha", "start": 40, "end": 60},
+            ],
+            allow_expansion=True,
+        )
+
+        sl = tl.create_segment_line_by_grouping("event_type")
+
+        assert isinstance(sl, SegmentLine)
+        assert sl.n_segments == 3
+        assert sl.length.value == 60
+
+
+class TestCreateSegmentLineBySplitting:
+    """Test Timeline.create_segment_line_by_splitting()."""
+
+    def test_basic_splitting_segment_line(self):
+        """Creates SegmentLine by splitting at event_type matches."""
+        tl = ContinuousLogicalTimeline(length=100)
+        tl.add_events(
+            [
+                {"event_type": "Measure", "start": 0, "end": 30},
+                {"event_type": "SectionBreak", "start": 30, "end": 60},
+                {"event_type": "Measure", "start": 60, "end": 100},
+            ],
+            allow_expansion=True,
+        )
+
+        sl = tl.create_segment_line_by_splitting(
+            {"event_type": "SectionBreak"}, prefix="part"
+        )
+
+        assert isinstance(sl, SegmentLine)
+        assert sl.n_segments == 2
+        assert sl.length.value == 100
+
+
+class TestSegmentLineListAndHas:
+    """Test SegmentLine.list_segments() and has_segment()."""
+
+    def test_list_segments(self):
+        """list_segments returns segment IDs in order."""
+        sl = SegmentLine(length=0, unit=TimeUnit.quarters)
+        s1 = ContinuousLogicalTimeline(length=4, uid="seg_a")
+        s2 = ContinuousLogicalTimeline(length=4, uid="seg_b")
+        sl.append_segment(s1)
+        sl.append_segment(s2)
+
+        result = sl.list_segments()
+        assert result == ["seg_a", "seg_b"]
+
+    def test_has_segment(self):
+        """has_segment checks segment ID."""
+        sl = SegmentLine(length=0, unit=TimeUnit.quarters)
+        sl.append_segment(ContinuousLogicalTimeline(length=4, uid="seg_x"))
+
+        assert sl.has_segment("seg_x") is True
+        assert sl.has_segment("seg_y") is False
+
+    def test_segmentline_contains_segment(self):
+        """__contains__ on SegmentLine checks segments."""
+        sl = SegmentLine(length=0, unit=TimeUnit.quarters)
+        sl.append_segment(ContinuousLogicalTimeline(length=4, uid="seg_1"))
+
+        assert "seg_1" in sl
+
+
+class TestContainsRegionsAndChildren:
+    """Test updated __contains__ behavior on Timeline."""
+
+    def test_contains_region_name(self):
+        """String 'in tl' checks regions."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.create_region("Chorus", 30, 60)
+
+        assert "Chorus" in tl
+
+    def test_contains_child_id(self):
+        """String 'in tl' checks children."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        child = Timeline(length=10, unit=TimeUnit.seconds, uid="child_1")
+        tl.add_child(child, offset=0)
+
+        assert "child_1" in tl
+
+    def test_contains_region_object(self):
+        """Region object 'in tl' checks by name."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        tl.create_region("Chorus", 30, 60)
+        region = tl.get_region("Chorus")
+
+        assert region in tl
+
+    def test_contains_timeline_object(self):
+        """Timeline object 'in tl' checks by identity."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds)
+        child = Timeline(length=10, unit=TimeUnit.seconds)
+        tl.add_child(child, offset=0)
+
+        assert child in tl
+
+
+# endregion
+
+
+# region Real Data Tests (TSVLoader)
+
+
+class TestUnifiedAPIWithRealData:
+    """Test the unified verb×noun API using real score data from TSVLoader.
+
+    Uses the Wagner Walküre Act III measures.tsv which has:
+    - 1733 measures
+    - 8 unique timesig values forming 22 adjacent runs
+    - 405 break events (347 'line', 58 'page')
+    - Timeline length 6699.5 quarter beats
+
+    These tests verify that the new API methods work correctly with the
+    data shapes produced by real musicological sources.
+
+    Validation Strategy:
+        Gold standard counts are derived from the TSV file itself via
+        independent counting (Counter, set operations) and verified
+        against the API output. No approximations or ranges.
+    """
+
+    WAGNER_PATH = (
+        "tests/data/score/wagner_walkure/01_RawData/score_musescore/"
+        "Wagner_WWV086B-3.measures.tsv"
+    )
+
+    @pytest.fixture
+    def wagner_timeline(self):
+        """Load Wagner Walküre measures into a ContinuousLogicalTimeline.
+
+        Uses ``MeasureData.create_timeline()`` which directly assigns the
+        MeasureData as the timeline's event store, preserving all extra
+        columns (timesig, breaks, keysig, etc.) that base EventData would
+        discard.
+
+        Returns:
+            A ContinuousLogicalTimeline with 1733 Measure interval events
+            including timesig, keysig, breaks columns.
+        """
+        from pathlib import Path
+
+        from timetoalign.loader.score import TSVLoader
+
+        path = Path(self.WAGNER_PATH)
+        if not path.exists():
+            pytest.skip(f"Test data not found: {path}")
+
+        loader = TSVLoader()
+        loader.load(path)
+        measures = loader.store.measures
+
+        if len(measures) == 0:
+            pytest.skip("No measure events loaded")
+
+        return measures.create_timeline()
+
+    def test_event_count(self, wagner_timeline):
+        """Timeline has exactly 1733 measure events."""
+        assert wagner_timeline.n_events == 1733
+
+    def test_create_regions_by_grouping_timesig(self, wagner_timeline):
+        """Grouping by timesig produces exactly 22 adjacent runs."""
+        regions = wagner_timeline.create_regions_by_grouping("timesig")
+
+        assert len(regions) == 22
+
+        # Verify first region is 9/8
+        assert regions[0].name == "9/8"
+
+        # All regions should be contiguous
+        for i in range(1, len(regions)):
+            assert abs(regions[i].start.value - regions[i - 1].end.value) < 1e-10, (
+                f"Gap between region {i - 1} ({regions[i - 1].name}) end="
+                f"{regions[i - 1].end.value} and region {i} ({regions[i].name}) "
+                f"start={regions[i].start.value}"
+            )
+
+    def test_create_regions_by_grouping_name_format(self, wagner_timeline):
+        """Grouping with run-indexed names distinguishes recurrences."""
+        regions = wagner_timeline.create_regions_by_grouping(
+            "timesig", name_format="ts_{value}_run{run}"
+        )
+
+        # First 9/8 run gets run=1, second 9/8 run gets run=2
+        r98_names = [r.name for r in regions if "9/8" in r.name]
+        assert "ts_9/8_run1" in r98_names
+        assert "ts_9/8_run2" in r98_names
+
+    def test_create_regions_by_splitting_breaks(self, wagner_timeline):
+        """Splitting by 'breaks' column creates regions at all break events.
+
+        The Wagner Act III TSV has 405 break events (347 line + 58 page),
+        each at a unique end coordinate. With 405 unique split points,
+        splitting produces 406 contiguous regions.
+        """
+        regions = wagner_timeline.create_regions_by_splitting("breaks", prefix="system")
+
+        assert len(regions) == 406
+        assert regions[0].start.value == 0.0
+        assert regions[-1].end.value == wagner_timeline.length.value
+
+    def test_create_regions_by_splitting_page_breaks_only(self, wagner_timeline):
+        """Splitting by {'breaks': 'page'} uses only page breaks.
+
+        The Wagner Act III TSV has 58 page breaks, each at a unique
+        coordinate. Splitting by page breaks produces 59 contiguous regions.
+        """
+        regions = wagner_timeline.create_regions_by_splitting(
+            {"breaks": "page"}, prefix="page"
+        )
+
+        assert len(regions) == 59
+        assert regions[0].name == "page_1"
+
+        # All regions contiguous
+        for i in range(1, len(regions)):
+            assert abs(regions[i].start.value - regions[i - 1].end.value) < 1e-10
+
+    def test_create_regions_by_splitting_section_breaks(self, wagner_timeline):
+        """Splitting by {'breaks': ['section']} finds section breaks.
+
+        The Wagner Act III TSV has 0 section breaks, so splitting produces
+        exactly 1 region spanning the entire timeline.
+        """
+        regions = wagner_timeline.create_regions_by_splitting(
+            {"breaks": ["section"]}, prefix="section"
+        )
+
+        assert len(regions) == 1
+
+    def test_create_segment_line_by_grouping_timesig(self, wagner_timeline):
+        """SegmentLine by timesig grouping creates 22 segments."""
+        sl = wagner_timeline.create_segment_line_by_grouping("timesig")
+
+        assert isinstance(sl, SegmentLine)
+        assert sl.n_segments == 22
+        assert sl.length.value == wagner_timeline.length.value
+
+    def test_create_segment_line_by_splitting_page(self, wagner_timeline):
+        """SegmentLine by page breaks creates correct segments."""
+        sl = wagner_timeline.create_segment_line_by_splitting(
+            {"breaks": "page"}, prefix="page"
+        )
+
+        assert isinstance(sl, SegmentLine)
+        assert sl.n_segments == 59
+        assert sl.length.value == wagner_timeline.length.value
+
+    def test_create_child_from_region_with_real_data(self, wagner_timeline):
+        """create_child_from_region works with real timesig regions.
+
+        The first timesig region is '9/8' spanning 0.0-968.0 quarter beats,
+        containing exactly 216 measures.
+        """
+        regions = wagner_timeline.create_regions_by_grouping("timesig")
+        first_region = regions[0]
+
+        child = wagner_timeline.create_child_from_region(first_region.name)
+
+        assert child.length.value == 968.0
+        assert child.name == "9/8"
+        assert child.n_events == 216
+        assert wagner_timeline.has_child(child.id)
+
+    def test_create_children_from_regions_all(self, wagner_timeline):
+        """create_children_from_regions creates children for all timesig regions."""
+        wagner_timeline.create_regions_by_grouping("timesig")
+        children = wagner_timeline.create_children_from_regions()
+
+        assert len(children) == 22
+        assert wagner_timeline.n_children == 22
+
+    def test_get_regions_at_with_real_data(self, wagner_timeline):
+        """get_regions_at finds the correct timesig region for a coordinate."""
+        regions = wagner_timeline.create_regions_by_grouping("timesig")
+
+        # Query in the middle of the first region
+        mid = (regions[0].start.value + regions[0].end.value) / 2
+        found = wagner_timeline.get_regions_at(mid)
+
+        assert len(found) == 1
+        assert found[0].name == regions[0].name
+
+    def test_segment_line_does_not_modify_source(self, wagner_timeline):
+        """create_segment_line_by_grouping does NOT modify the source."""
+        n_children_before = wagner_timeline.n_children
+        n_regions_before = wagner_timeline.n_regions
+
+        wagner_timeline.create_segment_line_by_grouping("timesig")
+
+        assert wagner_timeline.n_children == n_children_before
+        assert wagner_timeline.n_regions == n_regions_before
+
+    def test_roundtrip_grouping_regions_to_segment_line(self, wagner_timeline):
+        """Regions from grouping can be used to create a SegmentLine."""
+        regions = wagner_timeline.create_regions_by_grouping("timesig")
+        sl = wagner_timeline.create_segment_line_from_regions()
+
+        assert sl.n_segments == len(regions)
+        assert sl.length.value == wagner_timeline.length.value
 
 
 # endregion
