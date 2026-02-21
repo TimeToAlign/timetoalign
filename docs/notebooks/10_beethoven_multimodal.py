@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.3
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: TimeToAlign
 #     language: python
@@ -46,6 +46,7 @@
 from pathlib import Path
 
 import pandas as pd
+from PIL import Image
 
 from timetoalign import (
     AudioLoader,
@@ -217,19 +218,8 @@ abc_loader = TSVLoader.from_file(
     ABC_DIR / "n04op18-4_04.measures.tsv",
     ABC_DIR / "n04op18-4_04.harmonies.tsv",
 )
-abc_loader.store.summary()
-
-# %%
 clt1 = abc_loader.create_timeline(uid="clt1")
 clt1
-
-# %%
-{
-    "CLT1 notes": len(abc_loader.store.notes),
-    "CLT1 measures": len(abc_loader.store.measures),
-    "CLT1 annotations": len(abc_loader.store.annotations),
-    "CLT1 length": clt1.length,
-}
 
 # %% [markdown]
 # ## 7. DGT1: OMR Ground Truth
@@ -244,71 +234,61 @@ clt1
 
 # %%
 OMR_CSV = DATA_DIR / "OMR_groundtruth" / "OMR_xml_by_score" / "omr_note_heads.csv"
+OMR_IMAGES = DATA_DIR / "OMR_groundtruth" / "Images"
 omr_df = pd.read_csv(OMR_CSV)
-
-IMAGE_WIDTH = 2475  # pixels (all pages from the same PDF)
-
-{
-    "Total note heads": len(omr_df),
-    "Pages": omr_df["@pageIndex"].nunique(),
-    "Image width": f"{IMAGE_WIDTH} px",
-}
+IMAGE_WIDTH = Image.open(next(OMR_IMAGES.glob("*.png"))).size[0]
 
 # %% [markdown]
 # Build the DGT1 bottom-up: system segments → page segments → SegmentLine.
 # Events and c-maps must be added **before** a timeline is locked as a child.
 
 # %%
+noteheads = pd.DataFrame(
+    {
+        "start": omr_df["Nodes.Node.Left"].astype(int),
+        "end": (omr_df["Nodes.Node.Left"] + omr_df["Nodes.Node.Width"]).astype(int),
+        "onset_beats": omr_df["onset_beats"].astype(float),
+        "pitch": omr_df["pitch"],
+        "staff_id": omr_df["staff_id"].astype(int),
+        "midi_pitch": omr_df["midi_pitch_code"].astype(int),
+        "top": omr_df["Nodes.Node.Top"].astype(int),
+        "page": omr_df["@pageIndex"],
+        "spacing_run_id": omr_df["spacing_run_id"],
+    }
+)
+
 dgt1 = SegmentLine(length=0, unit=TimeUnit.pixels, number_type=NumberType.int)
 
-for page_idx in range(22):
-    page_data = omr_df[omr_df["@pageIndex"] == page_idx]
+for page_idx, page_data in noteheads.groupby("page", sort=True):
+    # Systems ordered by vertical position (top first = reading order)
+    sys_top = page_data.groupby("spacing_run_id")["top"].min()
+    sys_order = sys_top.sort_values().index
 
-    # Identify systems by vertical position (top system first = reading order)
-    sys_top = page_data.groupby("spacing_run_id")["Nodes.Node.Top"].min()
-    sys_ids_sorted = sys_top.sort_values().index.tolist()
-
-    # Page is a SegmentLine of system sub-segments
     page = SegmentLine(length=0, unit=TimeUnit.pixels, number_type=NumberType.int)
 
-    for sys_rank, sys_id in enumerate(sys_ids_sorted):
+    for sys_rank, sys_id in enumerate(sys_order):
         sys_data = page_data[page_data["spacing_run_id"] == sys_id]
 
-        # System segment spans the full image width
         system = DiscreteGraphicalTimeline(
             length=IMAGE_WIDTH,
             uid=f"p{page_idx}_s{sys_rank}",
             name=f"Page {page_idx + 1}, System {sys_rank + 1}",
         )
 
-        # Add notehead interval events: Left=start, Left+Width=end
-        events = []
-        for _, row in sys_data.iterrows():
-            events.append(
-                {
-                    "event_type": "Notehead",
-                    "start": int(row["Nodes.Node.Left"]),
-                    "end": int(row["Nodes.Node.Left"] + row["Nodes.Node.Width"]),
-                    "pitch": row["pitch"],
-                    "staff_id": int(row["staff_id"]),
-                    "onset_beats": float(row["onset_beats"]),
-                    "midi_pitch": int(row["midi_pitch_code"]),
-                    "top": int(row["Nodes.Node.Top"]),
-                }
-            )
-        system.add_events(events)
+        events = sys_data.drop(columns=["page", "spacing_run_id"])
+        system.add_events(events.assign(event_type="Notehead").to_dict("records"))
 
-        # C-map: Left pixels → onset_beats (quarters)
-        # Deduplicate by Left (chords at the same x share the same onset)
-        pairs = sorted(
-            {(e["start"], e["onset_beats"]) for e in events},
-            key=lambda p: p[0],
+        # C-map: pixels → quarters (deduplicated for chords at the same x)
+        pairs = (
+            events[["start", "onset_beats"]]
+            .drop_duplicates("start")
+            .sort_values("start")
         )
         if len(pairs) >= 2:
             system.add_conversion_map(
                 TableMap(
-                    x_values=[p[0] for p in pairs],
-                    y_values=[p[1] for p in pairs],
+                    x_values=pairs["start"].tolist(),
+                    y_values=pairs["onset_beats"].tolist(),
                     source_unit="pixels",
                     target_unit="quarters",
                     uid=f"p{page_idx}_s{sys_rank}_px_to_qb",
@@ -321,22 +301,11 @@ for page_idx in range(22):
 
 dgt1
 
-# %%
-{
-    "DGT1 total length": f"{int(dgt1.length.value):,} px",
-    "Page segments": dgt1.n_segments,
-    "System segments": sum(
-        child.n_segments
-        for _, _, child in dgt1.iter_segments()
-        if hasattr(child, "n_segments")
-    ),
-}
-
 # %% [markdown]
 # ## 8. OpenScore (4th Movement Only)
 #
-# The OpenScore edition covers all 4 movements. Only the 4th movement
-# (mc ≥ 584, *Presto* in 2/2) participates in the score group.
+# The OpenScore edition covers all 4 movements. We split the full score at
+# section breaks and extract the 4th movement as a child timeline.
 
 # %%
 OPENSCORE_DIR = DATA_DIR / "OpenScoreSQ"
@@ -344,38 +313,20 @@ os_loader = TSVLoader.from_file(
     OPENSCORE_DIR / "sq8913219.notes.tsv",
     OPENSCORE_DIR / "sq8913219.measures.tsv",
 )
-
-# Full quartet timeline (all 4 movements)
 os_full = os_loader.create_timeline(uid="openscore_full")
-
-{
-    "Full quartet": os_full.length,
-    "Total notes": len(os_loader.store.notes),
-    "Total measures": len(os_loader.store.measures),
-}
+os_full
 
 # %% [markdown]
-# Extract movement 4 as a region, then create a child timeline from it.
-# Movement 4 starts at mc 584 (quarterbeat 3125/2 = 1562.5).
+# The `breaks` column marks movement boundaries with compound values
+# (`"page & section"`, `"section & page"`). Splitting creates 4 regions.
 
 # %%
-# Movement 4 boundary in the full score
-os_measures_df = os_loader.store.measures.to_pandas()
-mov4_start_qb = float(os_measures_df[os_measures_df["mc"] == 584]["start"].iloc[0])
-mov4_end_qb = float(os_full.length.value)
-
-os_full.create_regions_from_boundaries(
-    [mov4_start_qb, mov4_end_qb], names=["movement_4"]
+os_full.create_regions_by_splitting(
+    {"breaks": ["page & section", "section & page"]},
+    prefix="movement",
 )
 openscore = os_full.create_child_from_region("movement_4", uid="openscore")
-
 openscore
-
-# %%
-{
-    "Movement 4 start": f"{mov4_start_qb} qb (mc 584)",
-    "Movement 4 length": openscore.length,
-}
 
 # %% [markdown]
 # ## 9. Score Group (Group 4)
@@ -403,11 +354,7 @@ score_group
 # Load unfolded ABC notes (the target for all three recordings)
 abc_unfolded_df = pd.read_csv(ABC_DIR / "n04op18-4_04_unfolded.notes.tsv", sep="\t")
 abc_prepared = prepare_abc_notes_for_matching(abc_unfolded_df)
-
-{
-    "ABC unfolded rows": len(abc_unfolded_df),
-    "ABC note onsets (after dropping tied)": len(abc_prepared),
-}
+len(abc_prepared)  # note onsets after dropping tied notes
 
 # %% [markdown]
 # Match each recording against the score. The `source_timeline_id` and
