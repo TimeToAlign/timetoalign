@@ -78,6 +78,28 @@ class Timeline:
     coordinates. It stores events in an EventData and can contain
     nested child timelines (segments) at specified offsets.
 
+    **Intended usage:** This base class provides the full Timeline API but
+    does not enforce domain or modality constraints. For typical usage,
+    prefer one of the six concrete subclasses or the ``create_timeline()``
+    factory function:
+
+    - ``ContinuousLogicalTimeline`` -- beats, quarters, measures (Fraction)
+    - ``DiscreteLogicalTimeline`` -- ticks (int)
+    - ``ContinuousPhysicalTimeline`` -- seconds, ms, minutes (float)
+    - ``DiscretePhysicalTimeline`` -- samples, frames (int)
+    - ``ContinuousGraphicalTimeline`` -- cm, inches, points (float)
+    - ``DiscreteGraphicalTimeline`` -- pixels (int)
+
+    These subclasses restrict allowed units and number types to prevent
+    accidental cross-domain errors and provide sensible defaults.
+
+    Direct instantiation of ``Timeline`` is appropriate for internal use,
+    generic algorithms that operate across domains, or advanced scenarios
+    where domain constraints are intentionally relaxed.
+
+    If you have a ``Timeline`` instance and need the appropriate typed
+    subclass, use :meth:`to_typed`.
+
     Attributes:
         id: Unique identifier for this timeline.
         unit: The time unit for coordinates (e.g., seconds, quarters, pixels).
@@ -86,21 +108,21 @@ class Timeline:
         origin: The start coordinate (always 0).
         length: The end coordinate.
         is_locked: Whether the timeline can be modified.
+        is_discrete: Whether the timeline uses discrete coordinates.
+        is_continuous: Whether the timeline uses continuous coordinates.
 
     Examples:
-        >>> from timetoalign.core import TimeUnit, NumberType
-        >>> tl = Timeline(length=100, unit=TimeUnit.seconds)
-        >>> tl.add_events([
-        ...     {"id": "e1", "temporal_type": "instant", "event_type": "Beat",
-        ...      "instant": 0.0},
-        ... ])
-        >>> len(tl)
-        1
+        >>> # Preferred: use concrete subclasses
+        >>> from timetoalign.timelines import ContinuousPhysicalTimeline
+        >>> audio = ContinuousPhysicalTimeline(length=180.0)
 
-        >>> child = Timeline(length=10, unit=TimeUnit.seconds)
-        >>> tl.add_child(child, offset=50)
-        >>> tl.n_children
-        1
+        >>> # Or use the factory to auto-select the right subclass
+        >>> from timetoalign.timelines import create_timeline
+        >>> tl = create_timeline(loader)
+
+        >>> # Direct base class (internal/advanced use)
+        >>> from timetoalign.core import TimeUnit
+        >>> tl = Timeline(length=100, unit=TimeUnit.seconds)
     """
 
     # region Class Variables
@@ -395,6 +417,43 @@ class Timeline:
     def domain(self) -> Domain:
         """The temporal domain (derived from unit)."""
         return self._unit.domain
+
+    @property
+    def is_discrete(self) -> bool:
+        """Whether this timeline uses discrete (integer) coordinates.
+
+        Derived from the unit's inherent discreteness. Discrete timelines
+        measure time in countable units (ticks, samples, frames, pixels).
+
+        Returns:
+            True if the timeline's unit is inherently discrete.
+
+        Examples:
+            >>> DiscreteLogicalTimeline(length=1920).is_discrete
+            True
+            >>> ContinuousPhysicalTimeline(length=10.0).is_discrete
+            False
+        """
+        return self._unit.is_discrete
+
+    @property
+    def is_continuous(self) -> bool:
+        """Whether this timeline uses continuous (real-valued) coordinates.
+
+        The logical complement of :attr:`is_discrete`. Continuous timelines
+        measure time in units that allow arbitrary precision (seconds,
+        quarters, centimeters, etc.).
+
+        Returns:
+            True if the timeline's unit is not inherently discrete.
+
+        Examples:
+            >>> ContinuousLogicalTimeline(length=Fraction(4, 1)).is_continuous
+            True
+            >>> DiscreteGraphicalTimeline(length=1920).is_continuous
+            False
+        """
+        return not self._unit.is_discrete
 
     # endregion
 
@@ -1476,6 +1535,89 @@ class Timeline:
             timeline.add_conversion_map(cmap)
 
         return timeline
+
+    def to_typed(self) -> "Timeline":
+        """Return this timeline re-instantiated as the appropriate typed subclass.
+
+        Uses the timeline's unit and number type to determine the correct
+        concrete subclass (e.g., ``ContinuousPhysicalTimeline`` for seconds/float).
+        If the timeline is already an instance of the correct subclass, returns
+        ``self`` unchanged.
+
+        This is useful after deserialization (e.g., ``Timeline.from_dict()``) or
+        when working with generic ``Timeline`` instances that should carry
+        domain-specific type information.
+
+        Note: Only the timeline object itself is re-typed. Events, children,
+        conversion maps, regions, and metadata are preserved. Children are
+        transferred as-is (not recursively re-typed).
+
+        Returns:
+            A Timeline instance of the appropriate typed subclass, or ``self``
+            if it is already the correct type.
+
+        Examples:
+            >>> tl = Timeline(length=10.0, unit=TimeUnit.seconds)
+            >>> typed = tl.to_typed()
+            >>> type(typed).__name__
+            'ContinuousPhysicalTimeline'
+            >>> typed.is_continuous
+            True
+
+            >>> # Already typed -- returns self
+            >>> cpt = ContinuousPhysicalTimeline(length=10.0)
+            >>> cpt.to_typed() is cpt
+            True
+        """
+        from .types import get_timeline_class
+
+        target_class = get_timeline_class(
+            self.domain.value, discrete=self._unit.is_discrete
+        )
+
+        # Already the correct type -- return self
+        if type(self) is target_class:
+            return self
+
+        # Create new instance of the correct class
+        typed = target_class(
+            length=self._length.value,
+            unit=self._unit,
+            number_type=self._number_type,
+            uid=self._id,
+            name=self._name,
+            locked=self._locked,
+            meta=dict(self._meta) if self._meta else None,
+        )
+
+        # Transfer events (use internal method to skip validation overhead)
+        if self._events is not None and len(self._events) > 0:
+            events = []
+            for event in self._events:
+                if event.get("event_type") == SEGMENT_EVENT_TYPE:
+                    continue
+                events.append(dict(event))
+            if events:
+                typed._add_events_unchecked(events)
+
+        # Transfer children
+        for child_id, child in self._children.items():
+            offset = self._child_offsets[child_id]
+            typed.add_child(child, offset=offset)
+
+        # Transfer conversion maps
+        for cmap in self._conversion_maps.values():
+            typed.add_conversion_map(cmap)
+
+        # Transfer regions
+        for region in self._regions.values():
+            typed._regions[region.name] = region
+
+        # Transfer flow maps
+        for flow_id, flow_map in self._flow_maps.items():
+            typed._flow_maps[flow_id] = flow_map
+
+        return typed
 
     # endregion
 
@@ -3590,6 +3732,7 @@ class Timeline:
                 )
 
         sl = SegmentLine(
+            segment_type=self.__class__,
             length=0,
             unit=self._unit,
             number_type=self._number_type,

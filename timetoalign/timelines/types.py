@@ -18,12 +18,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import TYPE_CHECKING, Any, ClassVar, Iterator, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Iterator, Literal, TypeVar
 
 from timetoalign.core import Coordinate, CoordinateValue, NumberType, TimeUnit
 
 from .base import Timeline
 from .mixins import ContinuousMixin, DiscreteMixin
+
+# TypeVar for SegmentLine's generic segment type parameter.
+# Bound to Timeline so that SegmentLine[ContinuousLogicalTimeline] etc. work.
+T = TypeVar("T", bound=Timeline)
 
 if TYPE_CHECKING:
     from timetoalign.alignment.groups import TimelineGroup
@@ -800,8 +804,14 @@ class DiscreteGraphicalTimeline(DiscreteMixin, GraphicalTimeline):
 # region SegmentLine
 
 
-class SegmentLine(Timeline):
+class SegmentLine(Timeline, Generic[T]):
     """A timeline containing only contiguous Segments.
+
+    SegmentLine is parameterized by the segment type ``T`` (a Timeline
+    subclass), enabling both runtime type enforcement and static type
+    checking.  When ``segment_type`` is provided, every appended segment
+    must be an instance of that class (or a subclass).  When omitted,
+    the type is inferred from the first segment added.
 
     Segments are children that:
     - Start exactly where the previous segment ends
@@ -821,15 +831,26 @@ class SegmentLine(Timeline):
 
     Attributes:
         segment_order: Ordered list of segment IDs (insertion order).
+        segment_type: The Timeline subclass that all segments must be
+            instances of (or None if not yet determined).
 
     Examples:
-        >>> # Create measures as segments
-        >>> score = SegmentLine.empty(unit=TimeUnit.quarters)
+        >>> # Typed SegmentLine -- enforces segment class
+        >>> score: SegmentLine[ContinuousLogicalTimeline] = SegmentLine(
+        ...     unit=TimeUnit.quarters,
+        ...     segment_type=ContinuousLogicalTimeline,
+        ... )
         >>> for i in range(4):
         ...     measure = ContinuousLogicalTimeline(length=Fraction(4))
         ...     score.append_segment(measure, name=f"m{i+1}")
-        >>> score.length
-        Coordinate(16, quarters)
+        >>> score.segment_type
+        <class 'ContinuousLogicalTimeline'>
+
+        >>> # Inferred type -- locks on first append
+        >>> sl = SegmentLine.empty(unit=TimeUnit.quarters)
+        >>> sl.append_segment(ContinuousLogicalTimeline(length=Fraction(4)))
+        >>> sl.segment_type
+        <class 'ContinuousLogicalTimeline'>
 
         >>> # Access by index
         >>> offset, segment = score.get_segment_by_index(2)
@@ -842,24 +863,56 @@ class SegmentLine(Timeline):
         2  # Third segment (0-indexed)
     """
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        segment_type: type[Timeline] | None = None,
+        **kwargs: Any,
+    ) -> None:
         """Initialize a SegmentLine.
 
         Args:
+            segment_type: The Timeline subclass that all segments must be
+                instances of.  If ``None`` (default), the type is inferred
+                from the first segment added.  Providing it explicitly
+                enables early validation and clearer static typing.
             **kwargs: Arguments passed to Timeline.__init__.
         """
         super().__init__(**kwargs)
         self._segment_order: list[str] = []
+        self._segment_type: type[Timeline] | None = segment_type
+
+    @property
+    def segment_type(self) -> type[Timeline] | None:
+        """The Timeline subclass that all segments must be instances of.
+
+        Returns ``None`` if no ``segment_type`` was specified at construction
+        and no segments have been added yet (the type will be inferred from
+        the first segment).
+
+        Returns:
+            The segment class, or None if not yet determined.
+
+        Examples:
+            >>> sl = SegmentLine(
+            ...     unit=TimeUnit.quarters,
+            ...     segment_type=ContinuousLogicalTimeline,
+            ... )
+            >>> sl.segment_type
+            <class 'ContinuousLogicalTimeline'>
+        """
+        return self._segment_type
 
     def validate_child(
         self,
         child: Timeline,
         offset: CoordinateValue | Coordinate,
     ) -> None:
-        """Override to enforce contiguity.
+        """Override to enforce contiguity and segment type consistency.
 
         Segments must start exactly where the previous segment ends.
-        The first segment must start at 0.
+        The first segment must start at 0.  All segments must be instances
+        of the same Timeline subclass (either specified at construction or
+        inferred from the first segment added).
 
         Args:
             child: The timeline to validate.
@@ -867,8 +920,19 @@ class SegmentLine(Timeline):
 
         Raises:
             ValueError: If offset doesn't produce contiguous placement.
+            TypeError: If child's class does not match the segment type.
         """
         super().validate_child(child, offset)
+
+        # Enforce segment type consistency
+        if self._segment_type is not None:
+            if not isinstance(child, self._segment_type):
+                raise TypeError(
+                    f"SegmentLine expects segments of type "
+                    f"{self._segment_type.__name__}, got "
+                    f"{type(child).__name__}. All segments in a "
+                    f"SegmentLine must be the same Timeline subclass."
+                )
 
         offset_val = offset.value if isinstance(offset, Coordinate) else offset
 
@@ -890,7 +954,8 @@ class SegmentLine(Timeline):
     ) -> None:
         """Add a segment at the specified offset.
 
-        Overrides Timeline.add_child to also track segment order.
+        Overrides Timeline.add_child to also track segment order and
+        infer/enforce the segment type.
 
         Args:
             child: The segment to add.
@@ -899,9 +964,15 @@ class SegmentLine(Timeline):
 
         Raises:
             ValueError: If placement would not be contiguous.
+            TypeError: If child's class does not match the segment type.
         """
-        # Validate first (will check contiguity)
+        # Validate first (will check contiguity and segment type)
         super().add_child(child, offset, allow_expansion)
+
+        # Infer segment_type from first segment if not explicitly set
+        if self._segment_type is None:
+            self._segment_type = type(child)
+
         # Track segment order
         self._segment_order.append(child.id)
 
@@ -1103,6 +1174,10 @@ class SegmentLine(Timeline):
         Note: The segmented timeline is NOT modified. A new SegmentLine
         is created with copies of the relevant portions.
 
+        The ``segment_type`` of the resulting SegmentLine is set to the
+        concrete class of ``source``, and segments are instantiated as
+        that class. This preserves domain-specific constraints.
+
         Args:
             source: Timeline to segment (not modified).
             split_coords: Coordinates defining segment boundaries.
@@ -1110,7 +1185,7 @@ class SegmentLine(Timeline):
             copy_events: If True, copy events to their respective segments.
 
         Returns:
-            New SegmentLine with segments.
+            New SegmentLine with segments typed to match ``source``.
 
         Raises:
             ValueError: If source already has children (ambiguous nesting).
@@ -1125,6 +1200,8 @@ class SegmentLine(Timeline):
             ... )
             >>> segments.n_segments
             4
+            >>> segments.segment_type
+            <class 'ContinuousLogicalTimeline'>
         """
         if source.n_children > 0:
             raise ValueError(
@@ -1140,20 +1217,24 @@ class SegmentLine(Timeline):
         # Sort and validate coordinates
         coords = sorted(float(c) for c in split_coords)
 
+        # Determine the segment class from the source's concrete type
+        source_class = type(source)
+
         # Create the SegmentLine with length=0 (will expand as segments are added)
         segment_line = cls(
+            segment_type=source_class,
             length=0,
             unit=source.unit,
             number_type=source.number_type,
         )
 
-        # Create segments
+        # Create segments using the source's concrete class
         for i in range(len(coords) - 1):
             start = coords[i]
             end = coords[i + 1]
             length = end - start
 
-            segment = Timeline(
+            segment = source_class(
                 length=length,
                 unit=source.unit,
                 number_type=source.number_type,
