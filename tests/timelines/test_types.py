@@ -356,6 +356,181 @@ class TestInheritance:
 # region Cross-Domain Compatibility Tests
 
 
+class TestDiscreteAndContinuousPredicates:
+    """Test is_discrete and is_continuous convenience properties."""
+
+    def test_continuous_logical_is_continuous(self):
+        """ContinuousLogicalTimeline reports is_continuous=True."""
+        tl = ContinuousLogicalTimeline(length=Fraction(4, 1))
+        assert tl.is_continuous is True
+        assert tl.is_discrete is False
+
+    def test_discrete_logical_is_discrete(self):
+        """DiscreteLogicalTimeline reports is_discrete=True."""
+        tl = DiscreteLogicalTimeline(length=1920)
+        assert tl.is_discrete is True
+        assert tl.is_continuous is False
+
+    def test_continuous_physical_is_continuous(self):
+        """ContinuousPhysicalTimeline reports is_continuous=True."""
+        tl = ContinuousPhysicalTimeline(length=10.0)
+        assert tl.is_continuous is True
+        assert tl.is_discrete is False
+
+    def test_discrete_physical_is_discrete(self):
+        """DiscretePhysicalTimeline reports is_discrete=True."""
+        tl = DiscretePhysicalTimeline(length=44100)
+        assert tl.is_discrete is True
+        assert tl.is_continuous is False
+
+    def test_continuous_graphical_is_continuous(self):
+        """ContinuousGraphicalTimeline reports is_continuous=True."""
+        tl = ContinuousGraphicalTimeline(length=100.0)
+        assert tl.is_continuous is True
+        assert tl.is_discrete is False
+
+    def test_discrete_graphical_is_discrete(self):
+        """DiscreteGraphicalTimeline reports is_discrete=True."""
+        tl = DiscreteGraphicalTimeline(length=1920)
+        assert tl.is_discrete is True
+        assert tl.is_continuous is False
+
+    def test_base_timeline_seconds_is_continuous(self):
+        """Base Timeline with seconds unit is continuous."""
+        tl = Timeline(length=10.0, unit=TimeUnit.seconds)
+        assert tl.is_continuous is True
+        assert tl.is_discrete is False
+
+    def test_base_timeline_ticks_is_discrete(self):
+        """Base Timeline with ticks unit is discrete."""
+        tl = Timeline(length=480, unit=TimeUnit.ticks)
+        assert tl.is_discrete is True
+        assert tl.is_continuous is False
+
+    def test_predicates_are_complementary(self, timeline_type_fixture):
+        """is_discrete and is_continuous are always complementary."""
+        TimelineClass, default_unit, default_number_type, sample_length = (
+            timeline_type_fixture
+        )
+        tl = TimelineClass(length=sample_length)
+        assert tl.is_discrete != tl.is_continuous
+
+
+# endregion
+
+
+# region To Typed Tests
+
+
+class TestToTyped:
+    """Test the to_typed() method for upgrading base Timeline to subtypes."""
+
+    def test_base_timeline_seconds_becomes_continuous_physical(self):
+        """Base Timeline with seconds upgrades to ContinuousPhysicalTimeline."""
+        tl = Timeline(length=10.0, unit=TimeUnit.seconds)
+        typed = tl.to_typed()
+        assert type(typed) is ContinuousPhysicalTimeline
+        assert typed.length.value == 10.0
+        assert typed.unit == TimeUnit.seconds
+
+    def test_base_timeline_ticks_becomes_discrete_logical(self):
+        """Base Timeline with ticks upgrades to DiscreteLogicalTimeline."""
+        tl = Timeline(length=1920, unit=TimeUnit.ticks, number_type=NumberType.int)
+        typed = tl.to_typed()
+        assert type(typed) is DiscreteLogicalTimeline
+        assert typed.length.value == 1920
+
+    def test_base_timeline_pixels_becomes_discrete_graphical(self):
+        """Base Timeline with pixels upgrades to DiscreteGraphicalTimeline."""
+        tl = Timeline(length=1920, unit=TimeUnit.pixels, number_type=NumberType.int)
+        typed = tl.to_typed()
+        assert type(typed) is DiscreteGraphicalTimeline
+
+    def test_base_timeline_quarters_becomes_continuous_logical(self):
+        """Base Timeline with quarters upgrades to ContinuousLogicalTimeline."""
+        tl = Timeline(length=4.0, unit=TimeUnit.quarters)
+        typed = tl.to_typed()
+        assert type(typed) is ContinuousLogicalTimeline
+
+    def test_base_timeline_samples_becomes_discrete_physical(self):
+        """Base Timeline with samples upgrades to DiscretePhysicalTimeline."""
+        tl = Timeline(length=44100, unit=TimeUnit.samples, number_type=NumberType.int)
+        typed = tl.to_typed()
+        assert type(typed) is DiscretePhysicalTimeline
+
+    def test_base_timeline_centimeters_becomes_continuous_graphical(self):
+        """Base Timeline with centimeters upgrades to ContinuousGraphicalTimeline."""
+        tl = Timeline(length=100.0, unit=TimeUnit.centimeters)
+        typed = tl.to_typed()
+        assert type(typed) is ContinuousGraphicalTimeline
+
+    def test_already_typed_returns_self(self):
+        """to_typed on already-typed timeline returns self."""
+        tl = ContinuousPhysicalTimeline(length=10.0)
+        typed = tl.to_typed()
+        assert typed is tl
+
+    def test_to_typed_preserves_id(self):
+        """to_typed preserves the timeline's unique ID."""
+        tl = Timeline(length=10.0, unit=TimeUnit.seconds, uid="my_id")
+        typed = tl.to_typed()
+        assert typed.id == "my_id"
+
+    def test_to_typed_preserves_name(self):
+        """to_typed preserves the timeline's name."""
+        tl = Timeline(length=10.0, unit=TimeUnit.seconds, name="audio_track")
+        typed = tl.to_typed()
+        assert typed.name == "audio_track"
+
+    def test_to_typed_preserves_meta(self):
+        """to_typed preserves metadata."""
+        tl = Timeline(
+            length=10.0,
+            unit=TimeUnit.seconds,
+            meta={"source": "test.wav"},
+        )
+        typed = tl.to_typed()
+        assert typed.meta == {"source": "test.wav"}
+
+    def test_to_typed_preserves_events(self):
+        """to_typed preserves events."""
+        tl = Timeline(length=10.0, unit=TimeUnit.seconds)
+        tl.add_events(
+            [
+                {
+                    "id": "e1",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 1.0,
+                },
+                {
+                    "id": "e2",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 2.0,
+                },
+            ]
+        )
+        typed = tl.to_typed()
+        assert typed.n_events == 2
+
+    def test_to_typed_preserves_regions(self):
+        """to_typed preserves regions."""
+        tl = Timeline(length=100.0, unit=TimeUnit.seconds)
+        tl.add_region("Chorus", start=30.0, end=60.0)
+        typed = tl.to_typed()
+        assert "Chorus" in typed
+        region = typed.get_region("Chorus")
+        assert region.start.value == 30.0
+        assert region.end.value == 60.0
+
+
+# endregion
+
+
+# region Cross-Domain Compatibility Tests
+
+
 class TestCrossDomainCompatibility:
     """Test that cross-domain nesting is prevented."""
 

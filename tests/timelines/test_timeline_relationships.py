@@ -566,6 +566,93 @@ class TestSegmentLineFromSegmentation:
             SegmentLine.from_segmentation(source, [0, 50, 100])
 
 
+class TestSegmentLineParameterized:
+    """Test parameterized SegmentLine (segment_type tracking and enforcement)."""
+
+    def test_explicit_segment_type_at_construction(self):
+        """SegmentLine with explicit segment_type records it."""
+        sl = SegmentLine(
+            segment_type=ContinuousLogicalTimeline,
+            length=0,
+            unit=TimeUnit.quarters,
+        )
+        assert sl.segment_type is ContinuousLogicalTimeline
+
+    def test_segment_type_inferred_from_first_append(self):
+        """segment_type is inferred from the first appended segment."""
+        sl = SegmentLine(length=0, unit=TimeUnit.quarters)
+        assert sl.segment_type is None
+
+        sl.append_segment(ContinuousLogicalTimeline(length=4))
+        assert sl.segment_type is ContinuousLogicalTimeline
+
+    def test_segment_type_enforced_on_add(self):
+        """Adding a segment of wrong type raises TypeError."""
+        sl = SegmentLine(
+            segment_type=ContinuousLogicalTimeline,
+            length=0,
+            unit=TimeUnit.seconds,
+        )
+        wrong_type = ContinuousPhysicalTimeline(length=4.0)
+
+        with pytest.raises(
+            (TypeError, ValueError),
+        ):
+            sl.append_segment(wrong_type)
+
+    def test_segment_type_enforced_after_inference(self):
+        """After inferring type from first segment, subsequent must match."""
+        sl = SegmentLine(length=0, unit=TimeUnit.quarters)
+
+        # First segment sets the type
+        sl.append_segment(ContinuousLogicalTimeline(length=4))
+        assert sl.segment_type is ContinuousLogicalTimeline
+
+        # Base Timeline is NOT ContinuousLogicalTimeline -- should reject
+        with pytest.raises(TypeError, match="expects segments of type"):
+            sl.append_segment(Timeline(length=4, unit=TimeUnit.quarters))
+
+    def test_segment_type_accepts_subclass(self):
+        """segment_type enforcement allows subclasses (isinstance check)."""
+        from timetoalign.timelines import BeatGrid
+
+        # BeatGrid is a subclass of ContinuousLogicalTimeline
+        sl = SegmentLine(
+            segment_type=ContinuousLogicalTimeline,
+            length=0,
+            unit=TimeUnit.quarters,
+        )
+        # BeatGrid is a ContinuousLogicalTimeline subclass, so this should work
+        bg = BeatGrid(length=4)
+        sl.append_segment(bg)
+        assert sl.n_segments == 1
+
+    def test_from_segmentation_sets_segment_type(self):
+        """from_segmentation sets segment_type to source's class."""
+        source = ContinuousLogicalTimeline(length=100)
+        sl = SegmentLine.from_segmentation(source, [0, 50, 100])
+        assert sl.segment_type is ContinuousLogicalTimeline
+
+    def test_from_segmentation_segments_are_correct_type(self):
+        """from_segmentation creates segments of the source's class."""
+        source = ContinuousPhysicalTimeline(length=60.0)
+        sl = SegmentLine.from_segmentation(source, [0.0, 30.0, 60.0])
+        assert sl.segment_type is ContinuousPhysicalTimeline
+        for _, _, seg in sl.iter_segments():
+            assert type(seg) is ContinuousPhysicalTimeline
+
+    def test_create_segment_line_sets_segment_type(self):
+        """create_segment_line on typed timeline sets segment_type."""
+        tl = ContinuousPhysicalTimeline(length=60.0)
+        sl = tl.create_segment_line([0.0, 30.0, 60.0])
+        assert sl.segment_type is ContinuousPhysicalTimeline
+
+    def test_segment_type_none_for_no_segments(self):
+        """Unparameterized SegmentLine with no segments has None segment_type."""
+        sl = SegmentLine(length=0, unit=TimeUnit.quarters)
+        assert sl.segment_type is None
+
+
 # endregion
 
 
