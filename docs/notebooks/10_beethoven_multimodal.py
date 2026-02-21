@@ -64,6 +64,7 @@ from timetoalign.alignment.matching import (
 )
 from timetoalign.loader.physical.eep_notes import EepNotesLoader
 from timetoalign.loader.score import TSVLoader
+from timetoalign.timelines.flow import ScoreFlowController
 from timetoalign.timelines.types import SegmentLine
 
 _notebook_dir = Path(".").resolve()
@@ -304,8 +305,9 @@ dgt1
 # %% [markdown]
 # ## 8. OpenScore (4th Movement Only)
 #
-# The OpenScore edition covers all 4 movements. We split the full score at
-# section breaks and extract the 4th movement as a child timeline.
+# The OpenScore edition covers all 4 movements. We use the flow controller
+# to identify section breaks (movement boundaries) and extract the 4th
+# movement as a child timeline.
 
 # %%
 OPENSCORE_DIR = DATA_DIR / "OpenScoreSQ"
@@ -317,13 +319,15 @@ os_full = os_loader.create_timeline(uid="openscore_full")
 os_full
 
 # %% [markdown]
-# The `breaks` column marks movement boundaries with compound values
-# (`"page & section"`, `"section & page"`). Splitting creates 4 regions.
+# The `ScoreFlowController` derives section boundaries from the score's
+# flow control markup. Splitting at those coordinates creates one region
+# per movement.
 
 # %%
-os_full.create_regions_by_splitting(
-    {"breaks": ["page & section", "section & page"]},
-    prefix="movement",
+flow = ScoreFlowController(os_loader.store.measures)
+boundaries = flow.get_section_boundary_coordinates()
+os_full.create_regions_from_boundaries(
+    [float(b) for b in boundaries], prefix="movement"
 )
 openscore = os_full.create_child_from_region("movement_4", uid="openscore")
 openscore

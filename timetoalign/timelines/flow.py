@@ -1632,9 +1632,12 @@ class ScoreFlowController(FlowControllerBase):
         if "section_break" in table.column_names:
             section_break_col = _get_column_safe("section_break", False)
         elif "breaks" in table.column_names:
-            # Convert breaks="section" to True, everything else to False
+            # The breaks column may contain compound values like
+            # "page & section" or "section & page"; check for substring.
             breaks_col = table.column("breaks").to_pylist()
-            section_break_col = [b == "section" for b in breaks_col]
+            section_break_col = [
+                "section" in str(b) if b else False for b in breaks_col
+            ]
         else:
             section_break_col = [False] * len(mc_col)
 
@@ -2970,6 +2973,45 @@ class ScoreFlowController(FlowControllerBase):
         """
         for sec in self._atomic_sections:
             yield (Fraction(sec.mc_start), Fraction(sec.mc_end))
+
+    def get_section_boundary_coordinates(self) -> list[Fraction]:
+        """Return quarterbeat coordinates where section breaks occur.
+
+        A *section break* (as opposed to repeat/volta/jump boundaries) is a
+        structural marker that separates large-scale sections such as
+        movements.  Each returned coordinate is the ``start`` (quarterbeat)
+        of the first MC **after** the break, i.e. the point where the new
+        section begins.
+
+        The list does **not** include 0 (start of the piece) nor the end.
+
+        Returns:
+            Sorted list of quarterbeat boundary coordinates.
+
+        Raises:
+            RuntimeError: If the measure lookup has not been built
+                (controller created without MeasureData).
+
+        Examples:
+            >>> controller = ScoreFlowController(measures)
+            >>> controller.get_section_boundary_coordinates()
+            [Fraction(305, 1), Fraction(1291, 1), Fraction(3125, 2)]
+        """
+        if not self._measure_lookup:
+            raise RuntimeError(
+                "Section boundary coordinates require a measure lookup. "
+                "Ensure the controller was created with MeasureData."
+            )
+        sorted_mcs = sorted(self._measure_lookup.keys())
+        boundaries: list[Fraction] = []
+        for i, mc in enumerate(sorted_mcs):
+            if self._measure_lookup[mc].get("section_break"):
+                # The break is AT this MC; the new section starts at next MC
+                if i + 1 < len(sorted_mcs):
+                    next_mc = sorted_mcs[i + 1]
+                    qb = self._measure_lookup[next_mc]["quarterbeats"]
+                    boundaries.append(Fraction(qb))
+        return boundaries
 
 
 # Backwards compatibility alias
