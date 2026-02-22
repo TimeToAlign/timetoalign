@@ -866,6 +866,7 @@ class SegmentLine(Timeline, Generic[T]):
     def __init__(
         self,
         segment_type: type[Timeline] | None = None,
+        inner_segment_type: type[Timeline] | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize a SegmentLine.
@@ -875,11 +876,17 @@ class SegmentLine(Timeline, Generic[T]):
                 instances of.  If ``None`` (default), the type is inferred
                 from the first segment added.  Providing it explicitly
                 enables early validation and clearer static typing.
+            inner_segment_type: When ``segment_type`` is ``SegmentLine``,
+                specifies the ``segment_type`` that each child SegmentLine
+                must have.  This enables recursive type enforcement
+                (e.g. ``SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]``).
+                Inferred from the first child's ``segment_type`` if not set.
             **kwargs: Arguments passed to Timeline.__init__.
         """
         super().__init__(**kwargs)
         self._segment_order: list[str] = []
         self._segment_type: type[Timeline] | None = segment_type
+        self._inner_segment_type: type[Timeline] | None = inner_segment_type
 
     @property
     def segment_type(self) -> type[Timeline] | None:
@@ -904,11 +911,12 @@ class SegmentLine(Timeline, Generic[T]):
 
     @property
     def class_name(self) -> str:
-        """The class name including the segment type parameter.
+        """The class name including the segment type parameter (recursive).
 
-        When ``segment_type`` is set, returns ``SegmentLine[<type>]``
-        (e.g. ``SegmentLine[DiscreteGraphicalTimeline]``).  Otherwise
-        returns plain ``SegmentLine``.
+        When ``segment_type`` is set, returns ``SegmentLine[<type>]``.
+        When segments are themselves SegmentLines with a known
+        ``inner_segment_type``, the display is recursive:
+        ``SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]``.
 
         Examples:
             >>> sl = SegmentLine(
@@ -917,10 +925,20 @@ class SegmentLine(Timeline, Generic[T]):
             ... )
             >>> sl.class_name
             'SegmentLine[ContinuousLogicalTimeline]'
+
+            >>> nested = SegmentLine(
+            ...     unit=TimeUnit.pixels,
+            ...     segment_type=SegmentLine,
+            ...     inner_segment_type=DiscreteGraphicalTimeline,
+            ... )
+            >>> nested.class_name
+            'SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]'
         """
-        if self._segment_type is not None:
-            return f"SegmentLine[{self._segment_type.__name__}]"
-        return "SegmentLine"
+        if self._segment_type is None:
+            return "SegmentLine"
+        if self._segment_type is SegmentLine and self._inner_segment_type is not None:
+            return f"SegmentLine[SegmentLine[{self._inner_segment_type.__name__}]]"
+        return f"SegmentLine[{self._segment_type.__name__}]"
 
     def validate_child(
         self,
@@ -934,6 +952,10 @@ class SegmentLine(Timeline, Generic[T]):
         of the same Timeline subclass (either specified at construction or
         inferred from the first segment added).
 
+        When the segment type is ``SegmentLine``, child SegmentLines must
+        also share the same ``segment_type`` (i.e. differently-parameterized
+        SegmentLines are treated as incompatible types).
+
         Args:
             child: The timeline to validate.
             offset: The proposed start coordinate.
@@ -941,6 +963,8 @@ class SegmentLine(Timeline, Generic[T]):
         Raises:
             ValueError: If offset doesn't produce contiguous placement.
             TypeError: If child's class does not match the segment type.
+            TypeError: If child is a SegmentLine with a different
+                ``segment_type`` than the expected inner segment type.
         """
         super().validate_child(child, offset)
 
@@ -953,6 +977,22 @@ class SegmentLine(Timeline, Generic[T]):
                     f"{type(child).__name__}. All segments in a "
                     f"SegmentLine must be the same Timeline subclass."
                 )
+
+            # When segments are SegmentLines, enforce matching inner type
+            if (
+                self._segment_type is SegmentLine
+                and isinstance(child, SegmentLine)
+                and self._inner_segment_type is not None
+            ):
+                child_inner = child.segment_type
+                if child_inner != self._inner_segment_type:
+                    expected = self._inner_segment_type.__name__
+                    got = child_inner.__name__ if child_inner else "None"
+                    raise TypeError(
+                        f"SegmentLine expects SegmentLine[{expected}] "
+                        f"segments, got SegmentLine[{got}]. All child "
+                        f"SegmentLines must have the same segment_type."
+                    )
 
         offset_val = offset.value if isinstance(offset, Coordinate) else offset
 
@@ -992,6 +1032,14 @@ class SegmentLine(Timeline, Generic[T]):
         # Infer segment_type from first segment if not explicitly set
         if self._segment_type is None:
             self._segment_type = type(child)
+
+        # Infer inner_segment_type from first SegmentLine child
+        if (
+            self._inner_segment_type is None
+            and isinstance(child, SegmentLine)
+            and child.segment_type is not None
+        ):
+            self._inner_segment_type = child.segment_type
 
         # Track segment order
         self._segment_order.append(child.id)
