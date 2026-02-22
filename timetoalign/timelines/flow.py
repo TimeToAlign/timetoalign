@@ -3076,6 +3076,7 @@ class ScoreFlowController(FlowControllerBase):
         unicode: bool = True,
         show_graph: bool = True,
         show_legend: bool = True,
+        mode: str = "auto",
     ) -> str:
         """Show folded score map with atomic sections and flow control markers.
 
@@ -3084,6 +3085,8 @@ class ScoreFlowController(FlowControllerBase):
             unicode: Use Unicode characters (True) or ASCII fallback (False).
             show_graph: Whether to show section transition graph.
             show_legend: Whether to show flow control event legend.
+            mode: Rendering mode — ``"auto"``, ``"full"``, ``"sections"``,
+                or ``"table"``. See :func:`flow_control_diagram` for details.
 
         Returns:
             Multi-line string with ASCII diagram.
@@ -3096,6 +3099,7 @@ class ScoreFlowController(FlowControllerBase):
             unicode=unicode,
             show_graph=show_graph,
             show_legend=show_legend,
+            mode=mode,
         )
 
     def __str__(self) -> str:

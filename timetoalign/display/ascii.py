@@ -718,10 +718,25 @@ def flow_control_diagram(
     unicode: bool = True,
     show_graph: bool = True,
     show_legend: bool = True,
+    mode: str = "auto",
 ) -> str:
     """Generate ASCII diagram for a ScoreFlowController.
 
     Shows the folded score map with atomic sections and flow control markers.
+
+    Three rendering modes are available:
+
+    - ``"full"``: One column per MC — detailed but wide. Best for small
+      scores (< ~20 MCs). Shows repeat markers and volta brackets
+      aligned to individual MC positions.
+    - ``"sections"``: One column per AtomicSection — compact overview.
+      Each section shows its ID centered over its MC range. Flow control
+      markers attach to sections. Works well for any size score.
+    - ``"table"``: Vertical table listing each section on its own row
+      with ID, MC range, MC count, flow events, and transitions.
+      Most compact; no spatial layout.
+    - ``"auto"`` (default): Chooses ``"full"`` if all MCs fit within
+      *width*; otherwise ``"sections"``.
 
     Args:
         controller: The ScoreFlowController to render.
@@ -729,13 +744,14 @@ def flow_control_diagram(
         unicode: Use Unicode characters (True) or ASCII fallback (False).
         show_graph: Whether to show section transition graph.
         show_legend: Whether to show flow control event legend.
+        mode: Rendering mode — ``"auto"``, ``"full"``, ``"sections"``,
+            or ``"table"``.
 
     Returns:
         Multi-line string with ASCII diagram.
     """
     fc = FLOW_CHARS if unicode else FLOW_CHARS_ASCII
 
-    lines: list[str] = []
     units = list(controller.iter_units())
     sections = controller.get_sections()  # AtomicSections
 
@@ -744,240 +760,485 @@ def flow_control_diagram(
         1 for u in units if u.flow_control_types or u.start_repeat or u.end_repeat
     )
 
-    # 1. Header
+    n_mcs = len(units)
+
+    # Resolve "auto" mode
+    if mode == "auto":
+        # 4 chars per MC + 3 chars prefix — if it fits in width, use full
+        if n_mcs * 4 + 3 <= width:
+            mode = "full"
+        else:
+            mode = "sections"
+
+    # Header (shared)
+    lines: list[str] = []
     lines.append(
         f"ScoreFlowController "
-        f"({len(units)} MCs, {len(sections)} atomic sections, "
+        f"({n_mcs} MCs, {len(sections)} atomic sections, "
         f"{n_flow_events} flow events)"
     )
 
-    # 2. MC Ruler with AtomicSections
-    n_mcs = len(units)
-    if n_mcs > 0:
-        # Build MC-to-column mapping
-        mc_numbers = [u.mc for u in units]
-        col_width = max(4, (width - 6) // n_mcs)  # "MC  " prefix = ~4 chars
-        total_ruler_width = col_width * n_mcs
+    # Dispatch to rendering mode
+    if mode == "full":
+        _render_full_ruler(lines, units, sections, width, fc, unicode)
+    elif mode == "sections":
+        _render_sections_ruler(lines, units, sections, width, fc, unicode)
+    elif mode == "table":
+        _render_table(lines, units, sections, fc)
+    else:
+        raise ValueError(f"Unknown mode: {mode!r} (expected auto/full/sections/table)")
 
-        # MC ruler row
-        ruler_parts: list[str] = ["MC "]
-        for mc in mc_numbers:
-            ruler_parts.append(f"{mc:>{col_width}}")
-        lines.append("".join(ruler_parts))
-
-        # Build MC -> column position lookup
-        mc_to_col: dict[int, int] = {}
-        for idx, mc in enumerate(mc_numbers):
-            mc_to_col[mc] = 3 + idx * col_width  # 3 = len("MC ")
-
-        # Section spans row
-        section_row = [" "] * (3 + total_ruler_width)
-        for sec in sections:
-            start_idx = (
-                mc_numbers.index(sec.mc_start) if sec.mc_start in mc_numbers else None
-            )
-            # mc_end is right-open, find last MC in section
-            end_mc = sec.mc_end - 1
-            end_idx = mc_numbers.index(end_mc) if end_mc in mc_numbers else None
-
-            if start_idx is not None and end_idx is not None:
-                col_start = 3 + start_idx * col_width
-                col_end = 3 + (end_idx + 1) * col_width - 1
-
-                if start_idx == end_idx:
-                    # Single-MC section: just the ID
-                    mid = col_start + col_width // 2
-                    if mid < len(section_row):
-                        section_row[mid] = sec.id[0]
-                else:
-                    # Multi-MC section: ├──ID──┤
-                    tree = TREE_CHARS if unicode else TREE_CHARS_ASCII
-                    h = tree["horizontal"]
-                    if col_start < len(section_row):
-                        section_row[col_start] = tree["branch"]
-                    if col_end < len(section_row):
-                        # ┤ (U+2524) or | in ASCII
-                        section_row[col_end] = "\u2524" if unicode else "|"
-
-                    # Center the section ID
-                    span = col_end - col_start - 1
-                    if span > 0:
-                        id_str = sec.id
-                        if len(id_str) > span:
-                            id_str = id_str[:span]
-                        pad_left = (span - len(id_str)) // 2
-                        pad_right = span - len(id_str) - pad_left
-                        fill = h * pad_left + id_str + h * pad_right
-                        for ci, ch in enumerate(fill):
-                            pos = col_start + 1 + ci
-                            if pos < len(section_row):
-                                section_row[pos] = ch
-
-        lines.append("".join(section_row).rstrip())
-
-        # Flow control markers row (repeats)
-        fc_row = [" "] * (3 + total_ruler_width)
-        for unit in units:
-            col = mc_to_col.get(unit.mc, 0)
-            if unit.start_repeat:
-                marker = fc["repeat_start"]
-                for ci, ch in enumerate(marker):
-                    if col + ci < len(fc_row):
-                        fc_row[col + ci] = ch
-            if unit.end_repeat:
-                marker = fc["repeat_end"]
-                # Right-align end repeat marker in column
-                start_pos = col + col_width - len(marker)
-                for ci, ch in enumerate(marker):
-                    if start_pos + ci < len(fc_row) and start_pos + ci >= 0:
-                        fc_row[start_pos + ci] = ch
-
-        fc_str = "".join(fc_row).rstrip()
-        if fc_str.strip():
-            lines.append(fc_str)
-
-        # Volta brackets row
-        volta_row = [" "] * (3 + total_ruler_width)
-        has_volta = False
-        volta_units = [
-            (u, mc_to_col.get(u.mc, 0)) for u in units if u.volta is not None
-        ]
-        for vi, (unit, col) in enumerate(volta_units):
-            has_volta = True
-            corner = fc["volta_corner"]
-            top = fc["volta_top"]
-            num_str = str(unit.volta)
-            bracket = corner + num_str
-            # Close previous volta bracket if consecutive
-            if vi > 0:
-                _prev_unit, prev_col = volta_units[vi - 1]
-                end_char = fc["volta_end"]
-                close_pos = col - 1
-                if close_pos > prev_col and close_pos < len(volta_row):
-                    volta_row[close_pos] = end_char
-            # Fill bracket
-            for ci, ch in enumerate(bracket):
-                if col + ci < len(volta_row):
-                    volta_row[col + ci] = ch
-            # Extend with horizontal line
-            for ci in range(len(bracket), col_width - 1):
-                if col + ci < len(volta_row):
-                    volta_row[col + ci] = top
-
-        if has_volta:
-            lines.append("".join(volta_row).rstrip())
-
-        # Jump markers row (D.S., D.C., fine, coda)
-        jump_row = [" "] * (3 + total_ruler_width)
-        has_jumps = False
-        for unit in units:
-            col = mc_to_col.get(unit.mc, 0)
-            marker = ""
-            if unit.fine:
-                marker = "fine"
-            elif unit.jump_from:
-                fct = unit.flow_control_types
-                if "da_capo" in fct:
-                    target = unit.next[0] if unit.next else "?"
-                    marker = f"D.C.{fc['arrow']}{target}"
-                elif "dal_segno" in fct:
-                    target = unit.next[0] if unit.next else "?"
-                    target_sec = "?"
-                    for sec in sections:
-                        if sec.mc_start <= target < sec.mc_end:
-                            target_sec = sec.id
-                            break
-                    marker = f"{fc['segno']}{fc['arrow']}{target_sec}"
-                elif "to_coda" in fct:
-                    target = unit.next[0] if unit.next else "?"
-                    target_sec = "?"
-                    for sec in sections:
-                        if sec.mc_start <= target < sec.mc_end:
-                            target_sec = sec.id
-                            break
-                    marker = f"{fc['coda']}{fc['arrow']}{target_sec}"
-            if marker:
-                has_jumps = True
-                for ci, ch in enumerate(marker):
-                    if col + ci < len(jump_row):
-                        jump_row[col + ci] = ch
-
-        if has_jumps:
-            lines.append("".join(jump_row).rstrip())
-
-    # 3. Flow Control Legend
+    # Legend (shared across modes)
     if show_legend:
-        lines.append("")
-        lines.append("Flow control:")
-        for unit in units:
-            mc_label = f"  MC {unit.mc:>3}"
-            if unit.start_repeat:
-                sec_id = "?"
-                for sec in sections:
-                    if sec.mc_start <= unit.mc < sec.mc_end:
-                        sec_id = sec.id
-                        break
-                lines.append(f"{mc_label}: repeat_start (section {sec_id})")
-            if unit.end_repeat:
-                target = unit.next[0] if unit.next else "?"
-                lines.append(f"{mc_label}: repeat_end {fc['arrow']} MC {target}")
-            if unit.volta is not None:
-                sec_id = "?"
-                for sec in sections:
-                    if sec.mc_start <= unit.mc < sec.mc_end:
-                        sec_id = sec.id
-                        break
-                lines.append(f"{mc_label}: volta {unit.volta} (section {sec_id})")
-            if unit.fine:
-                lines.append(f"{mc_label}: fine")
-            if unit.segno:
-                lines.append(f"{mc_label}: segno marker '{unit.segno}'")
-            if unit.coda:
-                lines.append(f"{mc_label}: coda marker '{unit.coda}'")
-            if unit.jump_from:
-                fct = unit.flow_control_types
-                target = unit.next[0] if unit.next else "?"
-                if "da_capo" in fct:
-                    lines.append(f"{mc_label}: da_capo {fc['arrow']} MC {target}")
-                elif "dal_segno" in fct:
-                    target_sec = "?"
-                    for sec in sections:
-                        if sec.mc_start <= target < sec.mc_end:
-                            target_sec = sec.id
-                            break
-                    lines.append(
-                        f"{mc_label}: dal_segno {fc['arrow']} " f"section {target_sec}"
-                    )
-                elif "to_coda" in fct:
-                    target_sec = "?"
-                    for sec in sections:
-                        if sec.mc_start <= target < sec.mc_end:
-                            target_sec = sec.id
-                            break
-                    lines.append(
-                        f"{mc_label}: to_coda {fc['arrow']} "
-                        f"section {target_sec} (MC {target})"
-                    )
-            if unit.section_break:
-                lines.append(f"{mc_label}: section_break")
+        _render_legend(lines, units, sections, fc)
 
-    # 4. Section Transition Graph
+    # Section transition graph (shared across modes)
     if show_graph and sections:
-        lines.append("")
-        lines.append("Section transitions:")
-        entries: list[str] = []
-        for sec in sections:
-            targets = list(sec.to) if sec.to else []
-            entries.append(f"{sec.id} {fc['arrow']} [{', '.join(targets)}]")
-
-        # Display in grid, ~4 per row
-        per_row = 4
-        for i in range(0, len(entries), per_row):
-            end = i + per_row
-            chunk = entries[i:end]
-            lines.append("  " + "    ".join(chunk))
+        _render_graph(lines, sections, fc)
 
     return "\n".join(lines)
+
+
+def _render_full_ruler(
+    lines: list[str],
+    units: list[Any],
+    sections: list[Any],
+    width: int,
+    fc: dict[str, str],
+    unicode: bool,
+) -> None:
+    """Render per-MC ruler (original detailed mode for small scores)."""
+    n_mcs = len(units)
+    if n_mcs == 0:
+        return
+
+    mc_numbers = [u.mc for u in units]
+    col_width = max(4, (width - 6) // n_mcs)
+    total_ruler_width = col_width * n_mcs
+
+    # MC ruler row
+    ruler_parts: list[str] = ["MC "]
+    for mc in mc_numbers:
+        ruler_parts.append(f"{mc:>{col_width}}")
+    lines.append("".join(ruler_parts))
+
+    # Build MC -> column position lookup
+    mc_to_col: dict[int, int] = {}
+    for idx, mc in enumerate(mc_numbers):
+        mc_to_col[mc] = 3 + idx * col_width
+
+    # Section spans row
+    section_row = [" "] * (3 + total_ruler_width)
+    tree = TREE_CHARS if unicode else TREE_CHARS_ASCII
+    for sec in sections:
+        start_idx = (
+            mc_numbers.index(sec.mc_start) if sec.mc_start in mc_numbers else None
+        )
+        end_mc = sec.mc_end - 1
+        end_idx = mc_numbers.index(end_mc) if end_mc in mc_numbers else None
+
+        if start_idx is not None and end_idx is not None:
+            col_start = 3 + start_idx * col_width
+            col_end = 3 + (end_idx + 1) * col_width - 1
+
+            if start_idx == end_idx:
+                mid = col_start + col_width // 2
+                if mid < len(section_row):
+                    section_row[mid] = sec.id[0]
+            else:
+                h = tree["horizontal"]
+                if col_start < len(section_row):
+                    section_row[col_start] = tree["branch"]
+                if col_end < len(section_row):
+                    section_row[col_end] = "\u2524" if unicode else "|"
+                span = col_end - col_start - 1
+                if span > 0:
+                    id_str = sec.id
+                    if len(id_str) > span:
+                        id_str = id_str[:span]
+                    pad_left = (span - len(id_str)) // 2
+                    pad_right = span - len(id_str) - pad_left
+                    fill = h * pad_left + id_str + h * pad_right
+                    for ci, ch in enumerate(fill):
+                        pos = col_start + 1 + ci
+                        if pos < len(section_row):
+                            section_row[pos] = ch
+
+    lines.append("".join(section_row).rstrip())
+
+    # Flow control markers row (repeats)
+    fc_row = [" "] * (3 + total_ruler_width)
+    for unit in units:
+        col = mc_to_col.get(unit.mc, 0)
+        if unit.start_repeat:
+            marker = fc["repeat_start"]
+            for ci, ch in enumerate(marker):
+                if col + ci < len(fc_row):
+                    fc_row[col + ci] = ch
+        if unit.end_repeat:
+            marker = fc["repeat_end"]
+            start_pos = col + col_width - len(marker)
+            for ci, ch in enumerate(marker):
+                if start_pos + ci < len(fc_row) and start_pos + ci >= 0:
+                    fc_row[start_pos + ci] = ch
+
+    fc_str = "".join(fc_row).rstrip()
+    if fc_str.strip():
+        lines.append(fc_str)
+
+    # Volta brackets row
+    volta_row = [" "] * (3 + total_ruler_width)
+    has_volta = False
+    volta_units = [(u, mc_to_col.get(u.mc, 0)) for u in units if u.volta is not None]
+    for vi, (unit, col) in enumerate(volta_units):
+        has_volta = True
+        corner = fc["volta_corner"]
+        top = fc["volta_top"]
+        num_str = str(unit.volta)
+        bracket = corner + num_str
+        if vi > 0:
+            _prev_unit, prev_col = volta_units[vi - 1]
+            end_char = fc["volta_end"]
+            close_pos = col - 1
+            if close_pos > prev_col and close_pos < len(volta_row):
+                volta_row[close_pos] = end_char
+        for ci, ch in enumerate(bracket):
+            if col + ci < len(volta_row):
+                volta_row[col + ci] = ch
+        for ci in range(len(bracket), col_width - 1):
+            if col + ci < len(volta_row):
+                volta_row[col + ci] = top
+
+    if has_volta:
+        lines.append("".join(volta_row).rstrip())
+
+    # Jump markers row
+    jump_row = [" "] * (3 + total_ruler_width)
+    has_jumps = False
+    for unit in units:
+        col = mc_to_col.get(unit.mc, 0)
+        marker = _get_jump_marker(unit, sections, fc)
+        if marker:
+            has_jumps = True
+            for ci, ch in enumerate(marker):
+                if col + ci < len(jump_row):
+                    jump_row[col + ci] = ch
+
+    if has_jumps:
+        lines.append("".join(jump_row).rstrip())
+
+
+def _render_sections_ruler(
+    lines: list[str],
+    units: list[Any],
+    sections: list[Any],
+    width: int,
+    fc: dict[str, str],
+    unicode: bool,
+) -> None:
+    """Render per-section ruler (compact mode for large scores).
+
+    Each AtomicSection gets one column. The section ID is centered above
+    its MC range label. Flow control markers attach to sections.
+    """
+    if not sections:
+        return
+
+    n_secs = len(sections)
+    tree = TREE_CHARS if unicode else TREE_CHARS_ASCII
+    h = tree["horizontal"]
+
+    # Compute column width — distribute width across sections
+    prefix_w = 4  # "    " indent
+    col_width = max(6, (width - prefix_w) // n_secs)
+
+    # Build section -> column position lookup
+    sec_to_col: dict[str, int] = {}
+    for idx, sec in enumerate(sections):
+        sec_to_col[sec.id] = prefix_w + idx * col_width
+
+    total_w = prefix_w + n_secs * col_width
+
+    # Row 1: Section IDs with span bars
+    id_row = [" "] * total_w
+    for sec in sections:
+        col = sec_to_col[sec.id]
+        mc_count = sec.mc_end - sec.mc_start
+        label = sec.id
+        if mc_count == 1:
+            # Single-MC section: just the ID centered
+            mid = col + col_width // 2
+            for ci, ch in enumerate(label):
+                pos = mid - len(label) // 2 + ci
+                if 0 <= pos < total_w:
+                    id_row[pos] = ch
+        else:
+            # Multi-MC section: ├──ID──┤
+            end_col = col + col_width - 1
+            if col < total_w:
+                id_row[col] = tree["branch"]
+            if end_col < total_w:
+                id_row[end_col] = "\u2524" if unicode else "|"
+            span = end_col - col - 1
+            if span > 0:
+                if len(label) > span:
+                    label = label[:span]
+                pad_left = (span - len(label)) // 2
+                pad_right = span - len(label) - pad_left
+                fill = h * pad_left + label + h * pad_right
+                for ci, ch in enumerate(fill):
+                    pos = col + 1 + ci
+                    if pos < total_w:
+                        id_row[pos] = ch
+
+    lines.append("".join(id_row).rstrip())
+
+    # Row 2: MC range labels below each section
+    range_row = [" "] * total_w
+    for sec in sections:
+        col = sec_to_col[sec.id]
+        label = f"{sec.mc_start}-{sec.mc_end - 1}"
+        if sec.mc_end - sec.mc_start == 1:
+            label = str(sec.mc_start)
+        # Truncate if too wide
+        if len(label) > col_width - 1:
+            label = label[: col_width - 1]
+        # Center the label
+        pad = (col_width - len(label)) // 2
+        for ci, ch in enumerate(label):
+            pos = col + pad + ci
+            if pos < total_w:
+                range_row[pos] = ch
+
+    lines.append("".join(range_row).rstrip())
+
+    # Row 3: Flow control markers (repeats, jumps, volta annotations)
+    fc_row = [" "] * total_w
+    has_fc = False
+
+    # Build mc -> section lookup
+    mc_to_sec: dict[int, str] = {}
+    for sec in sections:
+        for mc in range(sec.mc_start, sec.mc_end):
+            mc_to_sec[mc] = sec.id
+
+    for unit in units:
+        sec_id = mc_to_sec.get(unit.mc)
+        if sec_id is None:
+            continue
+        col = sec_to_col.get(sec_id, 0)
+
+        if unit.start_repeat:
+            marker = fc["repeat_start"]
+            has_fc = True
+            for ci, ch in enumerate(marker):
+                if col + ci < total_w:
+                    fc_row[col + ci] = ch
+
+        if unit.end_repeat:
+            marker = fc["repeat_end"]
+            has_fc = True
+            end_pos = col + col_width - len(marker)
+            for ci, ch in enumerate(marker):
+                if 0 <= end_pos + ci < total_w:
+                    fc_row[end_pos + ci] = ch
+
+    if has_fc:
+        lines.append("".join(fc_row).rstrip())
+
+    # Row 4: Volta + jump markers (combined)
+    marker_row = [" "] * total_w
+    has_markers = False
+
+    for unit in units:
+        sec_id = mc_to_sec.get(unit.mc)
+        if sec_id is None:
+            continue
+        col = sec_to_col.get(sec_id, 0)
+
+        if unit.volta is not None:
+            marker = f"{fc['volta_corner']}{unit.volta}{fc['volta_top']}"
+            has_markers = True
+            for ci, ch in enumerate(marker):
+                if col + ci < total_w:
+                    marker_row[col + ci] = ch
+
+        jump = _get_jump_marker(unit, sections, fc)
+        if jump:
+            has_markers = True
+            for ci, ch in enumerate(jump):
+                if col + ci < total_w:
+                    marker_row[col + ci] = ch
+
+    if has_markers:
+        lines.append("".join(marker_row).rstrip())
+
+
+def _render_table(
+    lines: list[str],
+    units: list[Any],
+    sections: list[Any],
+    fc: dict[str, str],
+) -> None:
+    """Render compact vertical table listing each section."""
+    if not sections:
+        return
+
+    # Build mc -> unit lookup for flow control annotation
+    mc_to_unit: dict[int, Any] = {u.mc: u for u in units}
+
+    # Table header
+    lines.append("")
+    lines.append(f"  {'ID':<4} {'MCs':<12} {'#':>3}  {'Flow control'}")
+    lines.append(f"  {'──':<4} {'───────────':<12} {'──':>3}  {'────────────'}")
+
+    for sec in sections:
+        mc_range = f"[{sec.mc_start}, {sec.mc_end})"
+        mc_count = sec.mc_end - sec.mc_start
+
+        # Collect flow events in this section
+        events: list[str] = []
+        for mc in range(sec.mc_start, sec.mc_end):
+            u = mc_to_unit.get(mc)
+            if u is None:
+                continue
+            if u.start_repeat:
+                events.append(f"{fc['repeat_start']}")
+            if u.end_repeat:
+                target = u.next[0] if u.next else "?"
+                events.append(f"{fc['repeat_end']}{fc['arrow']}{target}")
+            if u.volta is not None:
+                events.append(f"v{u.volta}")
+            if u.fine:
+                events.append("fine")
+            jump = _get_jump_marker(u, sections, fc)
+            if jump:
+                events.append(jump)
+
+        fc_str = ", ".join(events) if events else ""
+        lines.append(f"  {sec.id:<4} {mc_range:<12} {mc_count:>3}  {fc_str}")
+
+    # Transitions
+    lines.append("")
+    for sec in sections:
+        targets = list(sec.to) if sec.to else []
+        if targets:
+            lines.append(f"  {sec.id} {fc['arrow']} [{', '.join(targets)}]")
+
+
+def _get_jump_marker(
+    unit: Any,
+    sections: list[Any],
+    fc: dict[str, str],
+) -> str:
+    """Return a jump marker string for a unit, or empty string."""
+    if unit.fine:
+        return "fine"
+    if not unit.jump_from:
+        return ""
+    fct = unit.flow_control_types
+    if "da_capo" in fct:
+        target = unit.next[0] if unit.next else "?"
+        return f"D.C.{fc['arrow']}{target}"
+    if "dal_segno" in fct:
+        target = unit.next[0] if unit.next else "?"
+        target_sec = "?"
+        for sec in sections:
+            if sec.mc_start <= target < sec.mc_end:
+                target_sec = sec.id
+                break
+        return f"{fc['segno']}{fc['arrow']}{target_sec}"
+    if "to_coda" in fct:
+        target = unit.next[0] if unit.next else "?"
+        target_sec = "?"
+        for sec in sections:
+            if sec.mc_start <= target < sec.mc_end:
+                target_sec = sec.id
+                break
+        return f"{fc['coda']}{fc['arrow']}{target_sec}"
+    return ""
+
+
+def _render_legend(
+    lines: list[str],
+    units: list[Any],
+    sections: list[Any],
+    fc: dict[str, str],
+) -> None:
+    """Render flow control legend."""
+    lines.append("")
+    lines.append("Flow control:")
+    for unit in units:
+        mc_label = f"  MC {unit.mc:>3}"
+        if unit.start_repeat:
+            sec_id = "?"
+            for sec in sections:
+                if sec.mc_start <= unit.mc < sec.mc_end:
+                    sec_id = sec.id
+                    break
+            lines.append(f"{mc_label}: repeat_start (section {sec_id})")
+        if unit.end_repeat:
+            target = unit.next[0] if unit.next else "?"
+            lines.append(f"{mc_label}: repeat_end {fc['arrow']} MC {target}")
+        if unit.volta is not None:
+            sec_id = "?"
+            for sec in sections:
+                if sec.mc_start <= unit.mc < sec.mc_end:
+                    sec_id = sec.id
+                    break
+            lines.append(f"{mc_label}: volta {unit.volta} (section {sec_id})")
+        if unit.fine:
+            lines.append(f"{mc_label}: fine")
+        if unit.segno:
+            lines.append(f"{mc_label}: segno marker '{unit.segno}'")
+        if unit.coda:
+            lines.append(f"{mc_label}: coda marker '{unit.coda}'")
+        if unit.jump_from:
+            fct = unit.flow_control_types
+            target = unit.next[0] if unit.next else "?"
+            if "da_capo" in fct:
+                lines.append(f"{mc_label}: da_capo {fc['arrow']} MC {target}")
+            elif "dal_segno" in fct:
+                target_sec = "?"
+                for sec in sections:
+                    if sec.mc_start <= target < sec.mc_end:
+                        target_sec = sec.id
+                        break
+                lines.append(
+                    f"{mc_label}: dal_segno {fc['arrow']} " f"section {target_sec}"
+                )
+            elif "to_coda" in fct:
+                target_sec = "?"
+                for sec in sections:
+                    if sec.mc_start <= target < sec.mc_end:
+                        target_sec = sec.id
+                        break
+                lines.append(
+                    f"{mc_label}: to_coda {fc['arrow']} "
+                    f"section {target_sec} (MC {target})"
+                )
+        if unit.section_break:
+            lines.append(f"{mc_label}: section_break")
+
+
+def _render_graph(
+    lines: list[str],
+    sections: list[Any],
+    fc: dict[str, str],
+) -> None:
+    """Render section transition graph."""
+    lines.append("")
+    lines.append("Section transitions:")
+    entries: list[str] = []
+    for sec in sections:
+        targets = list(sec.to) if sec.to else []
+        entries.append(f"{sec.id} {fc['arrow']} [{', '.join(targets)}]")
+
+    per_row = 4
+    for i in range(0, len(entries), per_row):
+        end = i + per_row
+        chunk = entries[i:end]
+        lines.append("  " + "    ".join(chunk))
 
 
 # endregion
