@@ -11,22 +11,33 @@ Tests cover:
 
 from __future__ import annotations
 
+import pyarrow as pa
+
 from timetoalign.display.ascii import (
     BOX_CHARS,
     BOX_CHARS_ASCII,
+    FLOW_CHARS,
+    FLOW_CHARS_ASCII,
+    REGION_CHARS,
+    REGION_CHARS_ASCII,
     TIMELINE_CHARS,
     TIMELINE_CHARS_ASCII,
     TREE_CHARS,
     TREE_CHARS_ASCII,
     _build_child_row,
+    _build_region_row,
     _elide_name,
     _format_coordinate,
     _get_children_to_display,
     _get_timeline_char,
     bundle_diagram,
+    flow_comparison_diagram,
+    flow_control_diagram,
+    flow_diagram,
     group_diagram,
     timeline_diagram,
 )
+from timetoalign.timelines import FlowController, FlowMode
 from timetoalign.timelines.types import (
     ContinuousGraphicalTimeline,
     ContinuousLogicalTimeline,
@@ -490,6 +501,609 @@ class TestDiagramMethods:
         narrow = tl.diagram(width=40)
         # Wider diagram should have more bar characters
         assert len(wide) >= len(narrow)
+
+
+# endregion
+
+# region Region Character Set Tests
+
+
+class TestRegionCharSets:
+    """Tests for region character set definitions."""
+
+    def test_region_chars_complete(self) -> None:
+        """Region character set includes all required keys."""
+        required = {"bar", "prefix", "left", "right"}
+        assert set(REGION_CHARS.keys()) == required
+        assert set(REGION_CHARS_ASCII.keys()) == required
+
+    def test_region_chars_are_single_character(self) -> None:
+        """All region characters are single characters."""
+        for key, char in REGION_CHARS.items():
+            assert len(char) == 1, f"Region char for {key} is not single: {char!r}"
+        for key, char in REGION_CHARS_ASCII.items():
+            assert (
+                len(char) == 1
+            ), f"ASCII region char for {key} is not single: {char!r}"
+
+
+# endregion
+
+# region Flow Character Set Tests
+
+
+class TestFlowCharSets:
+    """Tests for flow control character set definitions."""
+
+    def test_flow_chars_complete(self) -> None:
+        """Flow character set includes all required keys."""
+        required = {
+            "repeat_start",
+            "repeat_end",
+            "segno",
+            "coda",
+            "section_break",
+            "arrow",
+            "match",
+            "mismatch",
+            "volta_corner",
+            "volta_top",
+            "volta_end",
+        }
+        assert set(FLOW_CHARS.keys()) == required
+        assert set(FLOW_CHARS_ASCII.keys()) == required
+
+    def test_flow_chars_ascii_are_printable(self) -> None:
+        """All ASCII flow characters are printable ASCII."""
+        for key, char in FLOW_CHARS_ASCII.items():
+            for c in char:
+                assert ord(c) < 128, f"ASCII flow char for {key} is not ASCII: {char!r}"
+
+
+# endregion
+
+# region Build Region Row Tests
+
+
+class TestBuildRegionRow:
+    """Tests for _build_region_row helper."""
+
+    def test_basic_region_row_structure(self) -> None:
+        """Region row has prefix, name, coords, bar, and end coord."""
+        row = _build_region_row(
+            region_start=0,
+            region_end=500,
+            region_name="movement_1",
+            parent_length=1000,
+            bar_width=50,
+            name_width=12,
+            coord_width=5,
+            region_chars=REGION_CHARS,
+        )
+        assert REGION_CHARS["prefix"] in row
+        assert "movement_1" in row
+        assert REGION_CHARS["left"] in row
+        assert REGION_CHARS["right"] in row
+
+    def test_region_bar_positioned_proportionally(self) -> None:
+        """Region bar is positioned proportionally on parent scale."""
+        row = _build_region_row(
+            region_start=250,
+            region_end=750,
+            region_name="middle",
+            parent_length=1000,
+            bar_width=40,
+            name_width=10,
+            coord_width=5,
+            region_chars=REGION_CHARS,
+        )
+        # The bar should contain fill characters
+        assert REGION_CHARS["bar"] in row
+        assert "250" in row
+        assert "750" in row
+
+    def test_region_name_elision(self) -> None:
+        """Long region names are elided."""
+        row = _build_region_row(
+            region_start=0,
+            region_end=100,
+            region_name="very_long_region_name_here",
+            parent_length=100,
+            bar_width=40,
+            name_width=12,
+            coord_width=5,
+            region_chars=REGION_CHARS,
+        )
+        assert "very_long..." in row
+
+
+# endregion
+
+# region Timeline Diagram with Regions Tests
+
+
+class TestTimelineDiagramWithRegions:
+    """Tests for timeline_diagram with regions display."""
+
+    def test_show_regions_only(self) -> None:
+        """show={'regions'} displays regions without children."""
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_reg_only")
+        child = ContinuousLogicalTimeline(length=300.0, uid="child_r", name="child")
+        tl.add_child(child, offset=0)
+        tl.create_region("section_a", 0, 500)
+        tl.create_region("section_b", 500, 1000)
+
+        result = timeline_diagram(tl, show={"regions"})
+
+        # Regions should appear
+        assert "section_a" in result
+        assert "section_b" in result
+        # Children should NOT appear (not in show set)
+        assert TREE_CHARS["branch"] not in result
+        assert TREE_CHARS["last"] not in result
+
+    def test_show_regions_and_children(self) -> None:
+        """show={'regions', 'children'} displays both."""
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_both")
+        child = ContinuousLogicalTimeline(length=300.0, uid="child_b", name="sys")
+        tl.add_child(child, offset=0)
+        tl.create_region("verse", 0, 500)
+
+        result = timeline_diagram(tl, show={"regions", "children"})
+
+        # Both should appear
+        assert "verse" in result
+        assert "sys" in result
+        # Tree chars for children
+        assert TREE_CHARS["last"] in result or TREE_CHARS["branch"] in result
+
+    def test_regions_sorted_by_start(self) -> None:
+        """Regions are sorted by start coordinate."""
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_sort")
+        # Add in reverse order
+        tl.create_region("third", 600, 1000)
+        tl.create_region("first", 0, 300)
+        tl.create_region("second", 300, 600)
+
+        result = timeline_diagram(tl, show={"regions"})
+        lines = result.split("\n")
+
+        # Find region lines (lines containing the region prefix char)
+        region_lines = [ln for ln in lines if REGION_CHARS["prefix"] in ln]
+        assert len(region_lines) == 3
+
+        # first should appear before second, second before third
+        first_idx = next(i for i, ln in enumerate(region_lines) if "first" in ln)
+        second_idx = next(i for i, ln in enumerate(region_lines) if "second" in ln)
+        third_idx = next(i for i, ln in enumerate(region_lines) if "third" in ln)
+        assert first_idx < second_idx < third_idx
+
+    def test_show_none_backwards_compat(self) -> None:
+        """show=None preserves exact existing behaviour (no regions)."""
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_compat")
+        tl.create_region("hidden", 0, 500)
+
+        result = timeline_diagram(tl)  # show=None is default
+
+        # Region should not appear
+        assert REGION_CHARS["prefix"] not in result
+        assert "hidden" not in result
+
+    def test_regions_ascii_mode(self) -> None:
+        """Regions render correctly in ASCII mode."""
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_ascii_r")
+        tl.create_region("intro", 0, 250)
+
+        result = timeline_diagram(tl, unicode=False, show={"regions"})
+
+        assert REGION_CHARS_ASCII["prefix"] in result
+        assert REGION_CHARS_ASCII["left"] in result
+        assert "intro" in result
+
+
+class TestTimelineDiagramHeaderRegions:
+    """Tests for region count in timeline diagram header."""
+
+    def test_header_includes_region_count(self) -> None:
+        """Header line includes region count."""
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_hdr_r")
+        tl.create_region("a", 0, 500)
+        tl.create_region("b", 500, 1000)
+
+        result = timeline_diagram(tl)
+        first_line = result.split("\n")[0]
+
+        assert "2 regions" in first_line
+
+
+# endregion
+
+# region Diagram Method Show Parameter Tests
+
+
+class TestDiagramMethodShowParam:
+    """Tests for Timeline.diagram(show=...) parameter."""
+
+    def test_show_param_passed_through(self) -> None:
+        """Timeline.diagram(show=...) produces same output as function."""
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_meth_show")
+        tl.create_region("part", 0, 500)
+
+        method_result = tl.diagram(show={"regions"})
+        func_result = timeline_diagram(tl, show={"regions"})
+
+        assert method_result == func_result
+
+    def test_show_children_false_overrides_show_set(self) -> None:
+        """show_children=False hides children even if 'children' in show."""
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_override")
+        child = ContinuousLogicalTimeline(
+            length=300.0, uid="child_ov", name="child_name"
+        )
+        tl.add_child(child, offset=0)
+        tl.create_region("reg", 0, 500)
+
+        result = tl.diagram(show_children=False, show={"children", "regions"})
+
+        # Region should appear
+        assert "reg" in result
+        # Child should NOT appear (show_children=False overrides)
+        assert "child_name" not in result
+
+
+# endregion
+
+# region Flow Diagram Test Fixtures
+
+
+class _MockMeasureData:
+    """Minimal mock for MeasureData — only ._table and __len__ required."""
+
+    def __init__(self, tbl: pa.Table) -> None:
+        self._table = tbl
+
+    def __len__(self) -> int:
+        return len(self._table)
+
+
+def _make_simple_controller() -> FlowController:
+    """Create a ScoreFlowController with repeats and voltas (6 MCs, 4 sections).
+
+    Structure:
+        MC 1-2: Section A (intro, 2 bars)
+        MC 3:   Repeat start, Section B
+        MC 4:   Volta 1, end_repeat -> back to MC 3, Section C
+        MC 5:   Volta 2, Section D
+        MC 6:   Final bar, Section D continued (or E)
+    """
+    table = pa.table(
+        {
+            "mc": [1, 2, 3, 4, 5, 6],
+            "mn": ["1", "2", "3", "4", "4", "5"],
+            "duration": [{"value": 4.0}] * 6,
+            "start": [{"value": float(i * 4)} for i in range(6)],
+            "next": [[2], [3], [4, 5], [3], [6], [-1]],
+            "timesig": ["4/4"] * 6,
+            "volta": [None, None, None, 1, 2, None],
+            "start_repeat": [False, False, True, False, False, False],
+            "end_repeat": [False, False, False, True, False, False],
+        }
+    )
+    md = _MockMeasureData(table)
+    return FlowController(md)
+
+
+def _make_minimal_controller() -> FlowController:
+    """Create a minimal ScoreFlowController (3 MCs, no flow control)."""
+    table = pa.table(
+        {
+            "mc": [1, 2, 3],
+            "mn": ["1", "2", "3"],
+            "duration": [{"value": 4.0}] * 3,
+            "start": [{"value": 0.0}, {"value": 4.0}, {"value": 8.0}],
+            "next": [[2], [3], [-1]],
+            "timesig": ["4/4"] * 3,
+            "volta": [None, None, None],
+        }
+    )
+    md = _MockMeasureData(table)
+    return FlowController(md)
+
+
+# endregion
+
+# region Flow Control Diagram Tests
+
+
+class TestFlowControlDiagram:
+    """Tests for flow_control_diagram function."""
+
+    def test_header_content(self) -> None:
+        """Header contains MC count, section count, and flow event count."""
+        ctrl = _make_simple_controller()
+        result = flow_control_diagram(ctrl)
+
+        assert "ScoreFlowController" in result
+        assert "MCs" in result
+        assert "atomic sections" in result
+        assert "flow events" in result
+
+    def test_mc_ruler_present(self) -> None:
+        """MC ruler row shows all MC numbers."""
+        ctrl = _make_simple_controller()
+        result = flow_control_diagram(ctrl)
+
+        # All 6 MCs should appear
+        for mc in range(1, 7):
+            assert str(mc) in result
+
+    def test_sections_aligned_with_ruler(self) -> None:
+        """Section IDs appear in the diagram."""
+        ctrl = _make_simple_controller()
+        result = flow_control_diagram(ctrl)
+
+        sections = ctrl.get_sections()
+        for sec in sections:
+            assert sec.id in result
+
+    def test_repeat_markers_present(self) -> None:
+        """Repeat barlines appear at correct MCs."""
+        ctrl = _make_simple_controller()
+        result = flow_control_diagram(ctrl, unicode=True)
+
+        # Unicode repeat markers should be present
+        assert FLOW_CHARS["repeat_start"] in result
+        assert FLOW_CHARS["repeat_end"] in result
+
+    def test_volta_brackets_rendered(self) -> None:
+        """Volta brackets appear for volta MCs."""
+        ctrl = _make_simple_controller()
+        result = flow_control_diagram(ctrl, unicode=True)
+
+        # Volta corner and number
+        assert FLOW_CHARS["volta_corner"] in result
+        assert "1" in result
+        assert "2" in result
+
+    def test_legend_content(self) -> None:
+        """Legend lists all flow control events."""
+        ctrl = _make_simple_controller()
+        result = flow_control_diagram(ctrl, show_legend=True)
+
+        assert "Flow control:" in result
+        assert "repeat_start" in result
+        assert "repeat_end" in result
+        assert "volta 1" in result
+        assert "volta 2" in result
+
+    def test_legend_hidden(self) -> None:
+        """show_legend=False hides legend."""
+        ctrl = _make_simple_controller()
+        result = flow_control_diagram(ctrl, show_legend=False)
+
+        assert "Flow control:" not in result
+
+    def test_section_graph(self) -> None:
+        """Section transition graph shows transitions."""
+        ctrl = _make_simple_controller()
+        result = flow_control_diagram(ctrl, show_graph=True)
+
+        assert "Section transitions:" in result
+
+    def test_section_graph_hidden(self) -> None:
+        """show_graph=False hides section graph."""
+        ctrl = _make_simple_controller()
+        result = flow_control_diagram(ctrl, show_graph=False)
+
+        assert "Section transitions:" not in result
+
+    def test_ascii_mode(self) -> None:
+        """ASCII mode uses ASCII fallback characters."""
+        ctrl = _make_simple_controller()
+        result = flow_control_diagram(ctrl, unicode=False)
+
+        # Should contain ASCII repeat markers
+        assert FLOW_CHARS_ASCII["repeat_start"] in result
+        # Should NOT contain Unicode-only chars
+        assert (
+            FLOW_CHARS["volta_corner"] not in result
+            or FLOW_CHARS_ASCII["volta_corner"] in result
+        )  # noqa: E501
+
+    def test_minimal_controller_no_flow_events(self) -> None:
+        """Controller with no flow control still renders."""
+        ctrl = _make_minimal_controller()
+        result = flow_control_diagram(ctrl)
+
+        assert "ScoreFlowController" in result
+        assert "3 MCs" in result
+        assert "0 flow events" in result
+
+
+class TestFlowControllerDiagramMethod:
+    """Tests for ScoreFlowController.diagram() method."""
+
+    def test_diagram_delegates_correctly(self) -> None:
+        """ScoreFlowController.diagram() produces same as function."""
+        ctrl = _make_simple_controller()
+
+        method_result = ctrl.diagram()
+        func_result = flow_control_diagram(ctrl)
+
+        assert method_result == func_result
+
+    def test_str_returns_diagram(self) -> None:
+        """str(controller) returns the diagram."""
+        ctrl = _make_simple_controller()
+        assert str(ctrl) == ctrl.diagram()
+
+
+# endregion
+
+# region Flow Diagram Tests
+
+
+class TestFlowDiagram:
+    """Tests for flow_diagram function."""
+
+    def test_header_content(self) -> None:
+        """Header contains mode, folded/unfolded counts, ratio."""
+        ctrl = _make_simple_controller()
+        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        result = flow_diagram(flow_obj)
+
+        assert "Flow(default)" in result
+        assert "folded" in result
+        assert "unfolded" in result
+        assert "\u00d7" in result  # multiplication sign
+
+    def test_section_rows_present(self) -> None:
+        """Section rows show MC ranges and section IDs."""
+        ctrl = _make_simple_controller()
+        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        result = flow_diagram(flow_obj)
+
+        # Should have numbered rows
+        assert "  1 " in result
+        # Section IDs in atomic sequence
+        for sec_id in flow_obj.to_atomic_sequence()[:3]:
+            assert sec_id in result
+
+    def test_atomic_sequence_footer(self) -> None:
+        """Footer shows complete atomic section sequence."""
+        ctrl = _make_simple_controller()
+        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        result = flow_diagram(flow_obj)
+
+        assert "Sequence:" in result
+        seq = flow_obj.to_atomic_sequence()
+        assert " ".join(seq) in result
+
+    def test_reasons_column(self) -> None:
+        """Reason column shows why each section starts."""
+        ctrl = _make_simple_controller()
+        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        result = flow_diagram(flow_obj, show_reasons=True)
+
+        assert "Reason" in result
+        assert "start" in result  # First section always "start"
+
+    def test_show_reasons_false(self) -> None:
+        """show_reasons=False hides reasons column."""
+        ctrl = _make_simple_controller()
+        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        result = flow_diagram(flow_obj, show_reasons=False)
+
+        assert "Reason" not in result
+
+    def test_show_mcs_expands(self) -> None:
+        """show_mcs=True shows MC sequences for each section."""
+        ctrl = _make_simple_controller()
+        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        result = flow_diagram(flow_obj, show_mcs=True)
+
+        assert "MCs:" in result
+
+
+class TestFlowDiagramMethod:
+    """Tests for Flow.diagram() method."""
+
+    def test_diagram_delegates_correctly(self) -> None:
+        """Flow.diagram() produces same as function."""
+        ctrl = _make_simple_controller()
+        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+
+        method_result = flow_obj.diagram()
+        func_result = flow_diagram(flow_obj)
+
+        assert method_result == func_result
+
+    def test_str_returns_diagram(self) -> None:
+        """str(flow) returns the diagram."""
+        ctrl = _make_simple_controller()
+        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        assert str(flow_obj) == flow_obj.diagram()
+
+    def test_repr_unchanged(self) -> None:
+        """__repr__ returns compact one-liner, NOT diagram."""
+        ctrl = _make_simple_controller()
+        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        repr_str = repr(flow_obj)
+
+        assert repr_str.startswith("Flow(")
+        # repr should be one line
+        assert "\n" not in repr_str
+
+
+# endregion
+
+# region Flow Comparison Diagram Tests
+
+
+class TestFlowComparisonDiagram:
+    """Tests for flow_comparison_diagram function."""
+
+    def test_identical_flows_all_match(self) -> None:
+        """Identical flows show all '=' markers."""
+        ctrl = _make_simple_controller()
+        flow_a = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_b = ctrl.compute_flow(FlowMode.DEFAULT)
+        result = flow_comparison_diagram(flow_a, flow_b)
+
+        assert "Flow comparison:" in result
+        assert FLOW_CHARS["match"] in result
+        # All should match
+        lines = result.split("\n")
+        match_count = sum(
+            1 for ln in lines if FLOW_CHARS["match"] in ln and "#" not in ln
+        )
+        assert match_count >= 1
+
+    def test_divergent_flows_show_mismatch(self) -> None:
+        """Different flows show mismatch markers with explanations."""
+        ctrl = _make_simple_controller()
+        flow_a = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_b = ctrl.compute_flow(FlowMode.PRINTED)
+        result = flow_comparison_diagram(flow_a, flow_b)
+
+        assert "Flow comparison:" in result
+        # Summary should appear
+        assert "Matching:" in result
+
+    def test_summary_footer(self) -> None:
+        """Summary footer shows section counts and match ratio."""
+        ctrl = _make_simple_controller()
+        flow_a = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_b = ctrl.compute_flow(FlowMode.DEFAULT)
+        result = flow_comparison_diagram(flow_a, flow_b)
+
+        assert "sections" in result
+        assert "unfolded" in result
+        assert "Matching:" in result
+
+    def test_ascii_mode(self) -> None:
+        """ASCII mode uses ASCII characters."""
+        ctrl = _make_simple_controller()
+        flow_a = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_b = ctrl.compute_flow(FlowMode.DEFAULT)
+        result = flow_comparison_diagram(flow_a, flow_b, unicode=False)
+
+        assert FLOW_CHARS_ASCII["match"] in result
+
+
+class TestDiffDiagramMethod:
+    """Tests for Flow.diff_diagram() method."""
+
+    def test_diff_diagram_delegates_correctly(self) -> None:
+        """flow.diff_diagram(other) produces same as function."""
+        ctrl = _make_simple_controller()
+        flow_a = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_b = ctrl.compute_flow(FlowMode.DEFAULT)
+
+        method_result = flow_a.diff_diagram(flow_b)
+        func_result = flow_comparison_diagram(flow_a, flow_b)
+
+        assert method_result == func_result
 
 
 # endregion

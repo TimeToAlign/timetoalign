@@ -4,6 +4,9 @@ This module provides ASCII/Unicode visualization for TimeToAlign! objects:
 - Timelines with nested children (one child per row)
 - TimelineGroups with boxed layout
 - AlignmentBundles with multiple groups
+- ScoreFlowControllers with flow control markers
+- Flows with playthrough section sequences
+- Flow comparisons (side-by-side diffs)
 
 Design principles:
 - Six distinct characters for the six timeline types
@@ -19,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from timetoalign.alignment import AlignmentBundle, TimelineGroup
     from timetoalign.timelines import Timeline
+    from timetoalign.timelines.flow import Flow, ScoreFlowController
 
 # region Character Sets
 
@@ -85,6 +89,50 @@ BOX_CHARS_ASCII: dict[str, str] = {
     "bottom_right": "+",
     "horizontal": "-",
     "vertical": "|",
+}
+
+# Region display characters
+REGION_CHARS: dict[str, str] = {
+    "bar": "\u2550",  # ═  Region span fill (double line)
+    "prefix": "\u2504",  # ┄  Row prefix (distinguishes from children's ├─)
+    "left": "\u2590",  # ▐  Left boundary marker
+    "right": "\u258c",  # ▌  Right boundary marker
+}
+
+REGION_CHARS_ASCII: dict[str, str] = {
+    "bar": "=",
+    "prefix": "~",
+    "left": "[",
+    "right": "]",
+}
+
+# Flow control display characters (BMP-safe — avoids SMP musical symbols)
+FLOW_CHARS: dict[str, str] = {
+    "repeat_start": "\u2551:",  # ║:
+    "repeat_end": ":\u2551",  # :║
+    "segno": "\u00a7",  # §  U+00A7 SECTION SIGN (widely supported)
+    "coda": "\u2295",  # ⊕  U+2295 CIRCLED PLUS (BMP, well-supported)
+    "section_break": "\u2551",  # ║  U+2551 BOX DRAWINGS DOUBLE VERTICAL
+    "arrow": "\u2192",  # →  U+2192 RIGHTWARDS ARROW
+    "match": "=",
+    "mismatch": "\u2260",  # ≠  U+2260 NOT EQUAL TO
+    "volta_corner": "\u250c",  # ┌  U+250C BOX DRAWINGS LIGHT DOWN AND RIGHT
+    "volta_top": "\u2500",  # ─  U+2500 BOX DRAWINGS LIGHT HORIZONTAL
+    "volta_end": "\u2510",  # ┐  U+2510 BOX DRAWINGS LIGHT DOWN AND LEFT
+}
+
+FLOW_CHARS_ASCII: dict[str, str] = {
+    "repeat_start": "|:",
+    "repeat_end": ":|",
+    "segno": "S",
+    "coda": "@",
+    "section_break": "||",
+    "arrow": "->",
+    "match": "=",
+    "mismatch": "!=",
+    "volta_corner": "+",
+    "volta_top": "-",
+    "volta_end": "+",
 }
 
 # endregion
@@ -238,6 +286,71 @@ def _build_child_row(
     )
 
 
+def _build_region_row(
+    region_start: float,
+    region_end: float,
+    region_name: str,
+    parent_length: float,
+    bar_width: int,
+    name_width: int,
+    coord_width: int,
+    region_chars: dict[str, str],
+) -> str:
+    """Build a single region row with positioned span.
+
+    Similar to _build_child_row() but uses region-specific characters
+    and does not need is_last (no tree structure for regions).
+
+    Args:
+        region_start: Start coordinate of the region.
+        region_end: End coordinate of the region.
+        region_name: Display name for the region.
+        parent_length: Total length of parent timeline.
+        bar_width: Width of the bar area in characters.
+        name_width: Max width for region name.
+        coord_width: Width for coordinate columns.
+        region_chars: Region character set (REGION_CHARS or REGION_CHARS_ASCII).
+
+    Returns:
+        Formatted row string.
+    """
+    display_name = _elide_name(region_name, name_width)
+
+    # Calculate bar position and width
+    if parent_length > 0:
+        start_pos = int((region_start / parent_length) * bar_width)
+        end_pos = int((region_end / parent_length) * bar_width)
+    else:
+        start_pos = 0
+        end_pos = bar_width
+
+    bar_len = max(1, end_pos - start_pos)
+
+    # Build the bar with boundary markers and fill
+    bar_area = [" "] * bar_width
+    for i in range(bar_len):
+        pos = start_pos + i
+        if pos < bar_width:
+            if i == 0:
+                bar_area[pos] = region_chars["left"]
+            elif i == bar_len - 1:
+                bar_area[pos] = region_chars["right"]
+            else:
+                bar_area[pos] = region_chars["bar"]
+
+    # Format coordinates
+    entry_coord = _format_coordinate(region_start)
+    exit_coord = _format_coordinate(region_end)
+
+    return (
+        f"  {region_chars['prefix']} "
+        f"{display_name:<{name_width}} "
+        f"{entry_coord:>{coord_width}} "
+        f"{''.join(bar_area)} "
+        f"{exit_coord}"
+    )
+
+
 # endregion
 
 # region Timeline Diagram
@@ -251,6 +364,7 @@ def timeline_diagram(
     indent: int = 0,
     unicode: bool = True,
     parent_id: str | None = None,
+    show: set[str] | None = None,
 ) -> str:
     """Generate ASCII diagram for a timeline.
 
@@ -262,6 +376,11 @@ def timeline_diagram(
         indent: Left indentation (for nested rendering).
         unicode: Use Unicode characters (True) or ASCII fallback (False).
         parent_id: If set, indicates this is a child of parent_id (for annotation).
+        show: Optional set controlling which elements appear. Supported values:
+            ``"children"`` (child timelines) and ``"regions"`` (named regions).
+            When ``None``, behaviour is exactly as before (children shown if
+            ``show_children=True``, no regions).  The ``show_children`` parameter
+            takes precedence for backwards compatibility.
 
     Returns:
         Multi-line string with ASCII diagram.
@@ -277,6 +396,18 @@ def timeline_diagram(
     # chars = TIMELINE_CHARS if unicode else TIMELINE_CHARS_ASCII
     tree = TREE_CHARS if unicode else TREE_CHARS_ASCII
 
+    # Resolve show set: None means legacy behaviour
+    _show_children = show_children  # backwards compat takes precedence
+    _show_regions = False
+    if show is not None:
+        if "children" not in show:
+            _show_children = False
+        if "regions" in show:
+            _show_regions = True
+    # show_children=False overrides show={"children"}
+    if not show_children:
+        _show_children = False
+
     lines: list[str] = []
     prefix = " " * indent
 
@@ -290,6 +421,8 @@ def timeline_diagram(
         details.append(f"{timeline.n_events} events")
     if timeline.n_children > 0:
         details.append(f"{timeline.n_children} children")
+    if timeline.n_regions > 0:
+        details.append(f"{timeline.n_regions} regions")
     if details:
         header += f" ({', '.join(details)})"
     lines.append(prefix + header)
@@ -325,7 +458,7 @@ def timeline_diagram(
     lines.append(bar_line)
 
     # 5. Render children (one per row)
-    if show_children and timeline.n_children > 0:
+    if _show_children and timeline.n_children > 0:
         # Collect and sort children by offset
         child_info: list[tuple[float, Any]] = []
         for child_id, child in timeline._children.items():
@@ -381,6 +514,31 @@ def timeline_diagram(
                 coord_width=coord_width,
                 is_last=is_last_overall,
                 tree_chars=tree,
+            )
+            lines.append(prefix + row)
+
+    # 6. Render regions (below children)
+    if _show_regions and timeline.n_regions > 0:
+        rgn_chars = REGION_CHARS if unicode else REGION_CHARS_ASCII
+        # Collect and sort regions by start coordinate
+        region_info: list[tuple[float, float, str]] = []
+        for region in timeline.iter_regions():
+            region_info.append(
+                (float(region.start.value), float(region.end.value), region.name)
+            )
+        region_info.sort(key=lambda x: x[0])
+
+        parent_length = length_value
+        for r_start, r_end, r_name in region_info:
+            row = _build_region_row(
+                region_start=r_start,
+                region_end=r_end,
+                region_name=r_name,
+                parent_length=parent_length,
+                bar_width=bar_width,
+                name_width=DEFAULT_NAME_WIDTH,
+                coord_width=coord_width,
+                region_chars=rgn_chars,
             )
             lines.append(prefix + row)
 
@@ -545,6 +703,519 @@ def bundle_diagram(
         lines.append(f"  MatchClaims: {n_matches}")
     else:
         lines.append("  MatchClaims: 0")
+
+    return "\n".join(lines)
+
+
+# endregion
+
+# region Flow Control Diagram
+
+
+def flow_control_diagram(
+    controller: "ScoreFlowController",
+    width: int = DEFAULT_WIDTH,
+    unicode: bool = True,
+    show_graph: bool = True,
+    show_legend: bool = True,
+) -> str:
+    """Generate ASCII diagram for a ScoreFlowController.
+
+    Shows the folded score map with atomic sections and flow control markers.
+
+    Args:
+        controller: The ScoreFlowController to render.
+        width: Total width of the diagram in characters.
+        unicode: Use Unicode characters (True) or ASCII fallback (False).
+        show_graph: Whether to show section transition graph.
+        show_legend: Whether to show flow control event legend.
+
+    Returns:
+        Multi-line string with ASCII diagram.
+    """
+    fc = FLOW_CHARS if unicode else FLOW_CHARS_ASCII
+
+    lines: list[str] = []
+    units = list(controller.iter_units())
+    sections = controller.get_sections()  # AtomicSections
+
+    # Count flow control events
+    n_flow_events = sum(
+        1 for u in units if u.flow_control_types or u.start_repeat or u.end_repeat
+    )
+
+    # 1. Header
+    lines.append(
+        f"ScoreFlowController "
+        f"({len(units)} MCs, {len(sections)} atomic sections, "
+        f"{n_flow_events} flow events)"
+    )
+
+    # 2. MC Ruler with AtomicSections
+    n_mcs = len(units)
+    if n_mcs > 0:
+        # Build MC-to-column mapping
+        mc_numbers = [u.mc for u in units]
+        col_width = max(4, (width - 6) // n_mcs)  # "MC  " prefix = ~4 chars
+        total_ruler_width = col_width * n_mcs
+
+        # MC ruler row
+        ruler_parts: list[str] = ["MC "]
+        for mc in mc_numbers:
+            ruler_parts.append(f"{mc:>{col_width}}")
+        lines.append("".join(ruler_parts))
+
+        # Build MC -> column position lookup
+        mc_to_col: dict[int, int] = {}
+        for idx, mc in enumerate(mc_numbers):
+            mc_to_col[mc] = 3 + idx * col_width  # 3 = len("MC ")
+
+        # Section spans row
+        section_row = [" "] * (3 + total_ruler_width)
+        for sec in sections:
+            start_idx = (
+                mc_numbers.index(sec.mc_start) if sec.mc_start in mc_numbers else None
+            )
+            # mc_end is right-open, find last MC in section
+            end_mc = sec.mc_end - 1
+            end_idx = mc_numbers.index(end_mc) if end_mc in mc_numbers else None
+
+            if start_idx is not None and end_idx is not None:
+                col_start = 3 + start_idx * col_width
+                col_end = 3 + (end_idx + 1) * col_width - 1
+
+                if start_idx == end_idx:
+                    # Single-MC section: just the ID
+                    mid = col_start + col_width // 2
+                    if mid < len(section_row):
+                        section_row[mid] = sec.id[0]
+                else:
+                    # Multi-MC section: ├──ID──┤
+                    tree = TREE_CHARS if unicode else TREE_CHARS_ASCII
+                    h = tree["horizontal"]
+                    if col_start < len(section_row):
+                        section_row[col_start] = tree["branch"]
+                    if col_end < len(section_row):
+                        # ┤ (U+2524) or | in ASCII
+                        section_row[col_end] = "\u2524" if unicode else "|"
+
+                    # Center the section ID
+                    span = col_end - col_start - 1
+                    if span > 0:
+                        id_str = sec.id
+                        if len(id_str) > span:
+                            id_str = id_str[:span]
+                        pad_left = (span - len(id_str)) // 2
+                        pad_right = span - len(id_str) - pad_left
+                        fill = h * pad_left + id_str + h * pad_right
+                        for ci, ch in enumerate(fill):
+                            pos = col_start + 1 + ci
+                            if pos < len(section_row):
+                                section_row[pos] = ch
+
+        lines.append("".join(section_row).rstrip())
+
+        # Flow control markers row (repeats)
+        fc_row = [" "] * (3 + total_ruler_width)
+        for unit in units:
+            col = mc_to_col.get(unit.mc, 0)
+            if unit.start_repeat:
+                marker = fc["repeat_start"]
+                for ci, ch in enumerate(marker):
+                    if col + ci < len(fc_row):
+                        fc_row[col + ci] = ch
+            if unit.end_repeat:
+                marker = fc["repeat_end"]
+                # Right-align end repeat marker in column
+                start_pos = col + col_width - len(marker)
+                for ci, ch in enumerate(marker):
+                    if start_pos + ci < len(fc_row) and start_pos + ci >= 0:
+                        fc_row[start_pos + ci] = ch
+
+        fc_str = "".join(fc_row).rstrip()
+        if fc_str.strip():
+            lines.append(fc_str)
+
+        # Volta brackets row
+        volta_row = [" "] * (3 + total_ruler_width)
+        has_volta = False
+        volta_units = [
+            (u, mc_to_col.get(u.mc, 0)) for u in units if u.volta is not None
+        ]
+        for vi, (unit, col) in enumerate(volta_units):
+            has_volta = True
+            corner = fc["volta_corner"]
+            top = fc["volta_top"]
+            num_str = str(unit.volta)
+            bracket = corner + num_str
+            # Close previous volta bracket if consecutive
+            if vi > 0:
+                _prev_unit, prev_col = volta_units[vi - 1]
+                end_char = fc["volta_end"]
+                close_pos = col - 1
+                if close_pos > prev_col and close_pos < len(volta_row):
+                    volta_row[close_pos] = end_char
+            # Fill bracket
+            for ci, ch in enumerate(bracket):
+                if col + ci < len(volta_row):
+                    volta_row[col + ci] = ch
+            # Extend with horizontal line
+            for ci in range(len(bracket), col_width - 1):
+                if col + ci < len(volta_row):
+                    volta_row[col + ci] = top
+
+        if has_volta:
+            lines.append("".join(volta_row).rstrip())
+
+        # Jump markers row (D.S., D.C., fine, coda)
+        jump_row = [" "] * (3 + total_ruler_width)
+        has_jumps = False
+        for unit in units:
+            col = mc_to_col.get(unit.mc, 0)
+            marker = ""
+            if unit.fine:
+                marker = "fine"
+            elif unit.jump_from:
+                fct = unit.flow_control_types
+                if "da_capo" in fct:
+                    target = unit.next[0] if unit.next else "?"
+                    marker = f"D.C.{fc['arrow']}{target}"
+                elif "dal_segno" in fct:
+                    target = unit.next[0] if unit.next else "?"
+                    target_sec = "?"
+                    for sec in sections:
+                        if sec.mc_start <= target < sec.mc_end:
+                            target_sec = sec.id
+                            break
+                    marker = f"{fc['segno']}{fc['arrow']}{target_sec}"
+                elif "to_coda" in fct:
+                    target = unit.next[0] if unit.next else "?"
+                    target_sec = "?"
+                    for sec in sections:
+                        if sec.mc_start <= target < sec.mc_end:
+                            target_sec = sec.id
+                            break
+                    marker = f"{fc['coda']}{fc['arrow']}{target_sec}"
+            if marker:
+                has_jumps = True
+                for ci, ch in enumerate(marker):
+                    if col + ci < len(jump_row):
+                        jump_row[col + ci] = ch
+
+        if has_jumps:
+            lines.append("".join(jump_row).rstrip())
+
+    # 3. Flow Control Legend
+    if show_legend:
+        lines.append("")
+        lines.append("Flow control:")
+        for unit in units:
+            mc_label = f"  MC {unit.mc:>3}"
+            if unit.start_repeat:
+                sec_id = "?"
+                for sec in sections:
+                    if sec.mc_start <= unit.mc < sec.mc_end:
+                        sec_id = sec.id
+                        break
+                lines.append(f"{mc_label}: repeat_start (section {sec_id})")
+            if unit.end_repeat:
+                target = unit.next[0] if unit.next else "?"
+                lines.append(f"{mc_label}: repeat_end {fc['arrow']} MC {target}")
+            if unit.volta is not None:
+                sec_id = "?"
+                for sec in sections:
+                    if sec.mc_start <= unit.mc < sec.mc_end:
+                        sec_id = sec.id
+                        break
+                lines.append(f"{mc_label}: volta {unit.volta} (section {sec_id})")
+            if unit.fine:
+                lines.append(f"{mc_label}: fine")
+            if unit.segno:
+                lines.append(f"{mc_label}: segno marker '{unit.segno}'")
+            if unit.coda:
+                lines.append(f"{mc_label}: coda marker '{unit.coda}'")
+            if unit.jump_from:
+                fct = unit.flow_control_types
+                target = unit.next[0] if unit.next else "?"
+                if "da_capo" in fct:
+                    lines.append(f"{mc_label}: da_capo {fc['arrow']} MC {target}")
+                elif "dal_segno" in fct:
+                    target_sec = "?"
+                    for sec in sections:
+                        if sec.mc_start <= target < sec.mc_end:
+                            target_sec = sec.id
+                            break
+                    lines.append(
+                        f"{mc_label}: dal_segno {fc['arrow']} " f"section {target_sec}"
+                    )
+                elif "to_coda" in fct:
+                    target_sec = "?"
+                    for sec in sections:
+                        if sec.mc_start <= target < sec.mc_end:
+                            target_sec = sec.id
+                            break
+                    lines.append(
+                        f"{mc_label}: to_coda {fc['arrow']} "
+                        f"section {target_sec} (MC {target})"
+                    )
+            if unit.section_break:
+                lines.append(f"{mc_label}: section_break")
+
+    # 4. Section Transition Graph
+    if show_graph and sections:
+        lines.append("")
+        lines.append("Section transitions:")
+        entries: list[str] = []
+        for sec in sections:
+            targets = list(sec.to) if sec.to else []
+            entries.append(f"{sec.id} {fc['arrow']} [{', '.join(targets)}]")
+
+        # Display in grid, ~4 per row
+        per_row = 4
+        for i in range(0, len(entries), per_row):
+            end = i + per_row
+            chunk = entries[i:end]
+            lines.append("  " + "    ".join(chunk))
+
+    return "\n".join(lines)
+
+
+# endregion
+
+# region Flow Diagram
+
+
+def flow_diagram(
+    flow_obj: "Flow",
+    width: int = DEFAULT_WIDTH,
+    unicode: bool = True,
+    show_mcs: bool = False,
+    show_reasons: bool = True,
+) -> str:
+    """Generate ASCII diagram for a Flow object.
+
+    Shows the playthrough section sequence for a computed flow.
+
+    Args:
+        flow_obj: The Flow to render.
+        width: Total width of the diagram in characters.
+        unicode: Use Unicode characters (True) or ASCII fallback (False).
+        show_mcs: Whether to expand MC sequences per section.
+        show_reasons: Whether to annotate why each section starts.
+
+    Returns:
+        Multi-line string with ASCII diagram.
+    """
+    fc = FLOW_CHARS if unicode else FLOW_CHARS_ASCII
+
+    lines: list[str] = []
+    sections = flow_obj.sections
+    folded = flow_obj.folded_length
+    unfolded = flow_obj.unfolded_length
+    ratio = unfolded / folded if folded > 0 else 0.0
+
+    # 1. Header
+    lines.append(
+        f"Flow({flow_obj.mode.value}): {folded} folded "
+        f"{fc['arrow']} {unfolded} unfolded "
+        f"(\u00d7{ratio:.2f}), {len(sections)} sections"
+    )
+    lines.append("")
+
+    # 2. Table
+    if show_reasons:
+        lines.append(f" {'#':>3}  {'MCs':<12} {'Sections':<12} {'Reason'}")
+        lines.append(
+            f" {'──':>3}  {'───────────':<12} " f"{'────────':<12} {'──────────────'}"
+        )
+    else:
+        lines.append(f" {'#':>3}  {'MCs':<12} {'Sections':<12}")
+        lines.append(f" {'──':>3}  {'───────────':<12} {'────────':<12}")
+
+    # Try to get controller for rich reason annotations
+    ctrl = flow_obj.controller
+
+    for idx, sec in enumerate(sections):
+        step = idx + 1
+        mc_range = f"[{sec.mc_start}, {sec.mc_end})"
+        sec_ids = ";".join(sec.atomic_section_ids)
+
+        # Derive reason
+        reason = ""
+        if show_reasons:
+            if idx == 0:
+                reason = "start"
+            else:
+                prev = sections[idx - 1]
+                if sec.mc_start == prev.mc_end:
+                    reason = fc["arrow"]
+                elif sec.mc_start < prev.mc_end:
+                    # Jumped backward
+                    if ctrl is not None:
+                        try:
+                            all_units = list(ctrl.iter_units())
+                            prev_last_mc = prev.mc_end - 1
+                            prev_unit = next(
+                                (u for u in all_units if u.mc == prev_last_mc),
+                                None,
+                            )
+                            if prev_unit and prev_unit.jump_from:
+                                fct = prev_unit.flow_control_types
+                                if "da_capo" in fct:
+                                    reason = f"D.C. {fc['arrow']} {sec.mc_start}"
+                                elif "dal_segno" in fct:
+                                    reason = f"D.S. {fc['arrow']} {sec.mc_start}"
+                                else:
+                                    reason = f"repeat {fc['arrow']} {sec.mc_start}"
+                            elif prev_unit and prev_unit.end_repeat:
+                                reason = f"repeat {fc['arrow']} {sec.mc_start}"
+                            else:
+                                reason = f"jump \u2190 {sec.mc_start}"
+                        except (ValueError, StopIteration):
+                            reason = f"jump \u2190 {sec.mc_start}"
+                    else:
+                        reason = f"jump \u2190 {sec.mc_start}"
+                else:
+                    # Jumped forward
+                    if ctrl is not None:
+                        try:
+                            all_units = list(ctrl.iter_units())
+                            prev_last_mc = prev.mc_end - 1
+                            prev_unit = next(
+                                (u for u in all_units if u.mc == prev_last_mc),
+                                None,
+                            )
+                            if prev_unit and prev_unit.jump_from:
+                                fct = prev_unit.flow_control_types
+                                if "to_coda" in fct:
+                                    reason = "coda"
+                                else:
+                                    reason = f"skip {fc['arrow']} {sec.mc_start}"
+                            else:
+                                reason = f"skip {fc['arrow']} {sec.mc_start}"
+                        except (ValueError, StopIteration):
+                            reason = f"jump {fc['arrow']} {sec.mc_start}"
+                    else:
+                        reason = f"jump {fc['arrow']} {sec.mc_start}"
+
+        if show_reasons:
+            lines.append(f" {step:>3} {mc_range:<12} {sec_ids:<12} {reason}")
+        else:
+            lines.append(f" {step:>3} {mc_range:<12} {sec_ids:<12}")
+
+        # Optionally expand MC numbers
+        if show_mcs:
+            mc_seq = list(range(sec.mc_start, sec.mc_end))
+            lines.append(f"      MCs: {', '.join(str(m) for m in mc_seq)}")
+
+    # 3. Footer - atomic sequence
+    seq = flow_obj.to_atomic_sequence()
+    lines.append("")
+    lines.append(f"Sequence: {' '.join(seq)}")
+
+    return "\n".join(lines)
+
+
+# endregion
+
+# region Flow Comparison Diagram
+
+
+def flow_comparison_diagram(
+    flow_a: "Flow",
+    flow_b: "Flow",
+    width: int = 80,
+    unicode: bool = True,
+) -> str:
+    """Generate side-by-side comparison of two Flows.
+
+    Args:
+        flow_a: First Flow to compare.
+        flow_b: Second Flow to compare.
+        width: Total width of the diagram in characters.
+        unicode: Use Unicode characters (True) or ASCII fallback (False).
+
+    Returns:
+        Multi-line string with comparison diagram.
+    """
+    fc = FLOW_CHARS if unicode else FLOW_CHARS_ASCII
+
+    lines: list[str] = []
+    name_a = flow_a.mode.value
+    name_b = flow_b.mode.value
+
+    # Header
+    lines.append(f"Flow comparison: {name_a} vs {name_b}")
+    lines.append("")
+
+    # Column layout
+    col_w = max(16, (width - 12) // 2)
+    lines.append(f" {'#':>3}  {name_a:<{col_w}} {name_b:<{col_w}} {'':>5}")
+    lines.append(
+        f" {'──':>3}  "
+        f"{'─' * min(col_w, 15)}{' ' * max(0, col_w - 15)} "
+        f"{'─' * min(col_w, 15)}{' ' * max(0, col_w - 15)} "
+        f"{'─────'}"
+    )
+
+    secs_a = flow_a.sections
+    secs_b = flow_b.sections
+    max_rows = max(len(secs_a), len(secs_b))
+    n_matching = 0
+
+    for i in range(max_rows):
+        step = i + 1
+
+        if i < len(secs_a):
+            sa = secs_a[i]
+            a_str = (
+                f"[{sa.mc_start}, {sa.mc_end})  " f"{';'.join(sa.atomic_section_ids)}"
+            )
+        else:
+            a_str = "---"
+
+        if i < len(secs_b):
+            sb = secs_b[i]
+            b_str = (
+                f"[{sb.mc_start}, {sb.mc_end})  " f"{';'.join(sb.atomic_section_ids)}"
+            )
+        else:
+            b_str = "---"
+
+        # Compare
+        if i < len(secs_a) and i < len(secs_b):
+            sa = secs_a[i]
+            sb = secs_b[i]
+            if (
+                sa.mc_start == sb.mc_start
+                and sa.mc_end == sb.mc_end
+                and sa.atomic_section_ids == sb.atomic_section_ids
+            ):
+                mark = fc["match"]
+                n_matching += 1
+            else:
+                diffs: list[str] = []
+                if sa.mc_start != sb.mc_start:
+                    diffs.append("mc_start")
+                if sa.mc_end != sb.mc_end:
+                    diffs.append("mc_end")
+                if sa.atomic_section_ids != sb.atomic_section_ids:
+                    diffs.append("sections")
+                mark = f"{fc['mismatch']} \u2190 {','.join(diffs)}"
+        else:
+            mark = fc["mismatch"]
+
+        lines.append(f" {step:>3} {a_str:<{col_w}} {b_str:<{col_w}} {mark}")
+
+    # Summary footer
+    lines.append("")
+    lines.append(
+        f" {name_a}: {len(secs_a)} sections, " f"{flow_a.unfolded_length} unfolded"
+    )
+    lines.append(
+        f" {name_b}: {len(secs_b)} sections, " f"{flow_b.unfolded_length} unfolded"
+    )
+    lines.append(f" Matching: {n_matching}/{max_rows} sections identical")
 
     return "\n".join(lines)
 

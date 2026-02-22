@@ -4181,6 +4181,7 @@ class Timeline:
         show_children: bool = True,
         max_children: int = 6,
         unicode: bool = True,
+        show: set[str] | None = None,
     ) -> str:
         """Generate ASCII diagram for this timeline.
 
@@ -4189,6 +4190,9 @@ class Timeline:
             show_children: Whether to show child timelines (one per row).
             max_children: Maximum children to show before truncating.
             unicode: Use Unicode characters (True) or ASCII fallback (False).
+            show: Optional set controlling which elements appear. Supported
+                values: ``"children"`` and ``"regions"``. When ``None``,
+                behaviour is exactly as before.
 
         Returns:
             Multi-line string with ASCII diagram.
@@ -4209,6 +4213,7 @@ class Timeline:
             show_children=show_children,
             max_children=max_children,
             unicode=unicode,
+            show=show,
         )
 
     # endregion

@@ -231,8 +231,8 @@ clt1
 # (duration) as pixel coordinates. Each system's `onset_beats` values
 # provide a c-map from pixels to quarters.
 #
-# **Architecture:** `SegmentLine[SegmentLine]` → 22 page
-# `SegmentLine[DiscreteGraphicalTimeline]` segments → 2 system sub-segments each.
+# **Architecture:** `SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]` →
+# 22 page `SegmentLine[DiscreteGraphicalTimeline]` segments → 2 system sub-segments each.
 
 # %%
 OMR_CSV = DATA_DIR / "OMR_groundtruth" / "OMR_xml_by_score" / "omr_note_heads.csv"
@@ -242,7 +242,8 @@ IMAGE_WIDTH = Image.open(next(OMR_IMAGES.glob("*.png"))).size[0]
 
 # %% [markdown]
 # Build the DGT1 bottom-up: system segments →
-# page `SegmentLine[DiscreteGraphicalTimeline]` → top-level `SegmentLine[SegmentLine]`.
+# page `SegmentLine[DiscreteGraphicalTimeline]` →
+# top-level `SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]`.
 # Events and c-maps must be added **before** a timeline is locked as a child.
 
 # %%
@@ -265,6 +266,7 @@ dgt1 = SegmentLine(
     unit=TimeUnit.pixels,
     number_type=NumberType.int,
     segment_type=SegmentLine,
+    inner_segment_type=DiscreteGraphicalTimeline,
 )
 
 for page_idx, page_data in noteheads.groupby("page", sort=True):
