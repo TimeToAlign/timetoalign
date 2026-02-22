@@ -231,7 +231,8 @@ clt1
 # (duration) as pixel coordinates. Each system's `onset_beats` values
 # provide a c-map from pixels to quarters.
 #
-# **Architecture:** `SegmentLine` → 22 page segments → 2 system sub-segments each.
+# **Architecture:** `SegmentLine[SegmentLine]` → 22 page
+# `SegmentLine[DiscreteGraphicalTimeline]` segments → 2 system sub-segments each.
 
 # %%
 OMR_CSV = DATA_DIR / "OMR_groundtruth" / "OMR_xml_by_score" / "omr_note_heads.csv"
@@ -240,7 +241,8 @@ omr_df = pd.read_csv(OMR_CSV)
 IMAGE_WIDTH = Image.open(next(OMR_IMAGES.glob("*.png"))).size[0]
 
 # %% [markdown]
-# Build the DGT1 bottom-up: system segments → page segments → SegmentLine.
+# Build the DGT1 bottom-up: system segments →
+# page `SegmentLine[DiscreteGraphicalTimeline]` → top-level `SegmentLine[SegmentLine]`.
 # Events and c-maps must be added **before** a timeline is locked as a child.
 
 # %%
@@ -258,14 +260,24 @@ noteheads = pd.DataFrame(
     }
 )
 
-dgt1 = SegmentLine(length=0, unit=TimeUnit.pixels, number_type=NumberType.int)
+dgt1 = SegmentLine(
+    length=0,
+    unit=TimeUnit.pixels,
+    number_type=NumberType.int,
+    segment_type=SegmentLine,
+)
 
 for page_idx, page_data in noteheads.groupby("page", sort=True):
     # Systems ordered by vertical position (top first = reading order)
     sys_top = page_data.groupby("spacing_run_id")["top"].min()
     sys_order = sys_top.sort_values().index
 
-    page = SegmentLine(length=0, unit=TimeUnit.pixels, number_type=NumberType.int)
+    page = SegmentLine(
+        length=0,
+        unit=TimeUnit.pixels,
+        number_type=NumberType.int,
+        segment_type=DiscreteGraphicalTimeline,
+    )
 
     for sys_rank, sys_id in enumerate(sys_order):
         sys_data = page_data[page_data["spacing_run_id"] == sys_id]
@@ -327,7 +339,7 @@ os_full
 flow = ScoreFlowController(os_loader.store.measures)
 boundaries = flow.get_section_boundary_coordinates()
 os_full.create_regions_from_boundaries(
-    [float(b) for b in boundaries], prefix="movement"
+    [0, *[float(b) for b in boundaries], float(os_full.length.value)], prefix="movement"
 )
 openscore = os_full.create_child_from_region("movement_4", uid="openscore")
 openscore

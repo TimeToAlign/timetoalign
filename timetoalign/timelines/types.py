@@ -902,6 +902,26 @@ class SegmentLine(Timeline, Generic[T]):
         """
         return self._segment_type
 
+    @property
+    def class_name(self) -> str:
+        """The class name including the segment type parameter.
+
+        When ``segment_type`` is set, returns ``SegmentLine[<type>]``
+        (e.g. ``SegmentLine[DiscreteGraphicalTimeline]``).  Otherwise
+        returns plain ``SegmentLine``.
+
+        Examples:
+            >>> sl = SegmentLine(
+            ...     unit=TimeUnit.quarters,
+            ...     segment_type=ContinuousLogicalTimeline,
+            ... )
+            >>> sl.class_name
+            'SegmentLine[ContinuousLogicalTimeline]'
+        """
+        if self._segment_type is not None:
+            return f"SegmentLine[{self._segment_type.__name__}]"
+        return "SegmentLine"
+
     def validate_child(
         self,
         child: Timeline,
