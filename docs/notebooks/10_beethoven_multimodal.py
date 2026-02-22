@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.3
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: TimeToAlign
 #     language: python
@@ -355,7 +355,7 @@ openscore
 # The four movement regions and the extracted child timeline:
 
 # %%
-os_full.diagram(show={"regions", "children"})
+print(os_full.diagram(show={"regions", "children"}))
 
 # %% [markdown]
 # ## 9. Score Group (Group 4)
@@ -478,7 +478,7 @@ clt2
 
 # %%
 rec_controller = ScoreFlowController(rec_loader.store.measures)
-rec_controller.diagram()
+print(rec_controller.diagram())
 
 # %% [markdown]
 # Compute the default flow (all repeats taken) and a single-pass flow
@@ -486,11 +486,11 @@ rec_controller.diagram()
 
 # %%
 default_flow = rec_controller.compute_flow(FlowMode.DEFAULT)
-default_flow.diagram()
+print(default_flow.diagram())
 
 # %%
 single_flow = rec_controller.compute_flow(FlowMode.SINGLE_PASS)
-single_flow.diagram()
+print(single_flow.diagram())
 
 # %% [markdown]
 # ### 11.3 Unfolded Timeline via TraversalMap 2
@@ -567,26 +567,12 @@ emerson_group
 # %%
 bundle = AlignmentBundle(name="Beethoven Op.18/4 — Multimodal Alignment")
 
-# Add Score group timelines
-bundle.add_timeline(clt1, uid="clt1", as_group="score")
-bundle.add_timeline(dgt1, uid="dgt1", aligned_to="clt1")
-bundle.add_timeline(openscore, uid="openscore", aligned_to="clt1")
-
-# Add Recording groups — each audio DPT starts a new group,
-# feature timelines align to it
-for grp, grp_id in [
-    (normal_group, "normal"),
-    (mechanical_group, "mechanical"),
-    (exaggerated_group, "exaggerated"),
-]:
-    tls = list(grp)
-    bundle.add_timeline(tls[0], uid=tls[0].id, as_group=grp_id)
-    for tl in tls[1:]:
-        bundle.add_timeline(tl, uid=tl.id, aligned_to=tls[0].id)
-
-# Add Emerson group
-bundle.add_timeline(clt2, uid="clt2", as_group="emerson")
-bundle.add_timeline(dpt16, uid="dpt16", aligned_to="clt2")
+# Add pre-built groups directly
+bundle.add_group(score_group)
+bundle.add_group(normal_group)
+bundle.add_group(mechanical_group)
+bundle.add_group(exaggerated_group)
+bundle.add_group(emerson_group)
 
 bundle
 
@@ -598,7 +584,7 @@ for dpt_id in ["dpt1", "dpt6", "dpt11"]:
     bundle.add_match_claims(match_results[dpt_id].match_claims)
 
 # %%
-bundle.diagram()
+print(bundle.diagram())
 
 # %% [markdown]
 # ### 12.3 Bundle Summary
@@ -654,7 +640,7 @@ ts_harmony
 
 # %%
 # Compare the default and single-pass flows:
-default_flow.diff_diagram(single_flow)
+print(default_flow.diff_diagram(single_flow))
 
 # %%
 # Get the section boundary coordinates from CLT1's flow controller
