@@ -7,10 +7,14 @@ ASCII/Unicode terminal visualization for TimeToAlign! objects.
 
 ### Overview
 
-The test suite validates the pure-ASCII display functionality with **38 tests** covering:
-- Character set definitions and completeness
-- Helper function correctness
+The test suite validates the pure-ASCII display functionality with **80 tests** covering:
+- Character set definitions and completeness (timeline, region, flow)
+- Helper function correctness (coordinate formatting, name elision, region rows)
 - Timeline, group, and bundle diagram rendering
+- Region display in timeline diagrams (`show` parameter)
+- Flow control diagrams for ScoreFlowController
+- Flow playthrough diagrams for Flow objects
+- Flow comparison diagrams (side-by-side diffs)
 - Unicode and ASCII fallback modes
 
 ### Validation Logic
@@ -146,10 +150,10 @@ DiscreteGraphicalTimeline[page] (3 children)
 Users interact with the `.diagram()` method, not the module functions. These tests
 ensure the convenience methods are correctly wired to the underlying implementation.
 
-## Planned Tests: Flow Visualization (Phase 3.7.1)
+## Flow Visualization Tests (Phase 3.7.1) -- IMPLEMENTED
 
-The following test classes will be added when flow visualization is implemented
-(see `.agent/prompts/flow_visualization.md` for full specification):
+All flow visualization tests are now implemented. See `.agent/prompts/flow_visualization.md`
+for the full specification.
 
 ### Step 1: Regions in `timeline_diagram()`
 
@@ -158,31 +162,67 @@ The following test classes will be added when flow visualization is implemented
 | `TestRegionCharSets` | 2 | Unicode and ASCII region char sets are complete |
 | `TestBuildRegionRow` | 3 | Region row structure, proportional positioning, name elision |
 | `TestTimelineDiagramWithRegions` | 5 | `show={"regions"}` shows regions; both regions+children; sorting; backwards compat; ASCII mode |
+| `TestTimelineDiagramHeaderRegions` | 1 | Region count appears in timeline header |
 | `TestDiagramMethodShowParam` | 2 | `Timeline.diagram(show=...)` passes through correctly |
 
-### Step 2: `flow_control_diagram()`
+**What we validate:**
+- `show={"regions"}` renders region rows with `┄` prefix and `═` fill (distinct from child rows)
+- `show={"regions", "children"}` renders both children (with `├─`/`└─`) and regions
+- Regions are sorted by start coordinate regardless of insertion order
+- `show=None` (default) preserves exact pre-existing behaviour (no regions displayed)
+- `show_children=False` takes precedence over `show={"children"}`
+- ASCII mode uses `~`, `[`, `]`, `=` for regions
+
+### Step 2: `flow_control_diagram()` for ScoreFlowController
 
 | Test Class | Tests | What It Validates |
 |---|---|---|
 | `TestFlowCharSets` | 2 | Unicode and ASCII flow char sets complete |
-| `TestFlowControlDiagram` | 6 | Header; MC ruler alignment; repeat markers; volta brackets; legend; section graph; ASCII mode |
+| `TestFlowControlDiagram` | 11 | Header; MC ruler; section spans; repeat markers; volta brackets; legend; graph; show/hide toggle; ASCII mode; minimal controller |
 | `TestFlowControllerDiagramMethod` | 2 | `.diagram()` delegates; `__str__` returns diagram |
 
-### Step 3: `flow_diagram()`
+**What we validate:**
+- Header shows MC count, section count, flow event count
+- MC ruler row lists all MC numbers
+- Section span row shows section IDs with `├──ID──┤` delimiters
+- Repeat barlines (`║:` and `:║`) aligned to correct MC columns
+- Volta brackets (`┌1─`, `┌2─`) with closing `┐` between consecutive voltas
+- Legend enumerates all flow control events per MC
+- Section transition graph shows `ID → [targets]` per section
+- `show_legend=False` and `show_graph=False` hide respective sections
+- Minimal controllers with no flow events render cleanly
+
+### Step 3: `flow_diagram()` for Flow
 
 | Test Class | Tests | What It Validates |
 |---|---|---|
-| `TestFlowDiagram` | 5 | Header; section rows; atomic sequence footer; reasons; detached flow |
+| `TestFlowDiagram` | 6 | Header; section rows with MC ranges; atomic sequence footer; reason annotations; show_reasons=False; show_mcs=True |
 | `TestFlowDiagramMethod` | 3 | `Flow.diagram()` delegates; `__str__` returns diagram; `__repr__` unchanged |
 
-### Step 4: `flow_comparison_diagram()`
+**What we validate:**
+- Header shows mode, folded/unfolded counts, ratio, section count
+- Section table with `#`, `MCs` (right-open intervals), `Sections`, `Reason` columns
+- Reason derivation: `start` for first; `→` for continuation; `repeat →` / `D.S.` / `D.C.` for jumps
+- `show_mcs=True` expands MC sequences per section
+- Footer shows complete atomic section sequence
+- `__repr__` stays compact one-liner; `__str__` returns diagram
+
+### Step 4: `flow_comparison_diagram()` for Flow Diffs
 
 | Test Class | Tests | What It Validates |
 |---|---|---|
-| `TestFlowComparisonDiagram` | 4 | Identical flows; divergent flows; different lengths; ASCII mode |
+| `TestFlowComparisonDiagram` | 4 | Identical flows (all `=`); divergent flows (`≠` with explanation); summary footer; ASCII mode |
 | `TestDiffDiagramMethod` | 1 | `flow.diff_diagram(other)` delegates correctly |
 
-**Test data source:** The `flow_only` specimen (15 MCs, 13 atomic sections) from `tests/timelines/test_flow.py` fixtures — it exercises all flow control types (repeats, voltas, D.S., D.C., coda, fine).
+**What we validate:**
+- Identical flows show `=` match markers on all rows
+- Divergent flows show `≠` with diff explanation (mc_start, mc_end, sections)
+- Summary footer shows section counts, unfolded lengths, match ratio
+- `flow.diff_diagram(other)` produces identical output to `flow_comparison_diagram(flow, other)`
+
+**Test data:** Tests use inline `MockMeasureData` with PyArrow tables (6 MCs with
+repeats and voltas, and 3-MC minimal controller). This follows the established pattern
+from `tests/timelines/test_flow.py`.
 
 ## Running Tests
 

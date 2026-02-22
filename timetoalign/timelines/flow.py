@@ -1122,6 +1122,61 @@ class Flow:
             f"{self.unfolded_length} unfolded, ratio={ratio:.2f}{sec_info})"
         )
 
+    def __str__(self) -> str:
+        return self.diagram()
+
+    def diagram(
+        self,
+        width: int = 70,
+        unicode: bool = True,
+        show_mcs: bool = False,
+        show_reasons: bool = True,
+    ) -> str:
+        """Show playthrough section sequence for this flow.
+
+        Args:
+            width: Total width of the diagram in characters.
+            unicode: Use Unicode characters (True) or ASCII fallback (False).
+            show_mcs: Whether to expand MC sequences per section.
+            show_reasons: Whether to annotate why each section starts.
+
+        Returns:
+            Multi-line string with ASCII diagram.
+        """
+        from timetoalign.display.ascii import flow_diagram
+
+        return flow_diagram(
+            self,
+            width=width,
+            unicode=unicode,
+            show_mcs=show_mcs,
+            show_reasons=show_reasons,
+        )
+
+    def diff_diagram(
+        self,
+        other: "Flow",
+        width: int = 80,
+        unicode: bool = True,
+    ) -> str:
+        """Show side-by-side comparison of this flow with another.
+
+        Args:
+            other: Another Flow to compare with.
+            width: Total width of the diagram in characters.
+            unicode: Use Unicode characters (True) or ASCII fallback (False).
+
+        Returns:
+            Multi-line string with comparison diagram.
+        """
+        from timetoalign.display.ascii import flow_comparison_diagram
+
+        return flow_comparison_diagram(self, other, width=width, unicode=unicode)
+
+    def _repr_html_(self) -> str:
+        """HTML representation for Jupyter notebooks."""
+        return f'<pre style="font-family: monospace">{self.diagram()}</pre>'
+
 
 def load_valid_flows(csv_path: "Path | str") -> dict[FlowMode, "Flow"]:
     """Load all valid flows from a .flow.csv file, grouped by flow_mode.
@@ -3012,6 +3067,45 @@ class ScoreFlowController(FlowControllerBase):
                     qb = self._measure_lookup[next_mc]["quarterbeats"]
                     boundaries.append(Fraction(qb))
         return boundaries
+
+    # region Display
+
+    def diagram(
+        self,
+        width: int = 70,
+        unicode: bool = True,
+        show_graph: bool = True,
+        show_legend: bool = True,
+    ) -> str:
+        """Show folded score map with atomic sections and flow control markers.
+
+        Args:
+            width: Total width of the diagram in characters.
+            unicode: Use Unicode characters (True) or ASCII fallback (False).
+            show_graph: Whether to show section transition graph.
+            show_legend: Whether to show flow control event legend.
+
+        Returns:
+            Multi-line string with ASCII diagram.
+        """
+        from timetoalign.display.ascii import flow_control_diagram
+
+        return flow_control_diagram(
+            self,
+            width=width,
+            unicode=unicode,
+            show_graph=show_graph,
+            show_legend=show_legend,
+        )
+
+    def __str__(self) -> str:
+        return self.diagram()
+
+    def _repr_html_(self) -> str:
+        """HTML representation for Jupyter notebooks."""
+        return f'<pre style="font-family: monospace">{self.diagram()}</pre>'
+
+    # endregion
 
 
 # Backwards compatibility alias
