@@ -355,7 +355,7 @@ openscore
 # The four movement regions and the extracted child timeline:
 
 # %%
-print(os_full.diagram(show={"regions", "children"}))
+os_full.diagram(show={"regions", "children"})
 
 # %% [markdown]
 # ## 9. Score Group (Group 4)
@@ -478,7 +478,7 @@ clt2
 
 # %%
 rec_controller = ScoreFlowController(rec_loader.store.measures)
-print(rec_controller.diagram())
+rec_controller
 
 # %% [markdown]
 # Compute the default flow (all repeats taken) and a single-pass flow
@@ -486,11 +486,11 @@ print(rec_controller.diagram())
 
 # %%
 default_flow = rec_controller.compute_flow(FlowMode.DEFAULT)
-print(default_flow.diagram())
+default_flow
 
 # %%
 single_flow = rec_controller.compute_flow(FlowMode.SINGLE_PASS)
-print(single_flow.diagram())
+single_flow
 
 # %% [markdown]
 # ### 11.3 Unfolded Timeline via TraversalMap 2
@@ -574,23 +574,44 @@ bundle.add_group(mechanical_group)
 bundle.add_group(exaggerated_group)
 bundle.add_group(emerson_group)
 
-bundle
-
 # %% [markdown]
-# Connect the recording groups to the score group via MatchClaims:
+# Connect the recording groups to the score group via MatchClaims.
+# Each call registers the per-note coordinate correspondences from
+# Part II's matching step and builds WarpMaps for interpolation.
 
 # %%
 for dpt_id in ["dpt1", "dpt6", "dpt11"]:
     bundle.add_match_claims(match_results[dpt_id].match_claims)
 
+# %% [markdown]
+# The match claims connect each recording's audio DPT to CLT1.
+# Let's visualise the number of claims per connection:
+
 # %%
-print(bundle.diagram())
+match_summary = pd.DataFrame(
+    [
+        {
+            "recording": name,
+            "source": dpt_id,
+            "target": "clt1",
+            "matched": match_results[dpt_id].n_matched,
+            "unmatched_source": match_results[dpt_id].n_unmatched_source,
+            "unmatched_target": match_results[dpt_id].n_unmatched_target,
+        }
+        for name, dpt_id in [
+            ("Normal", "dpt1"),
+            ("Mechanical", "dpt6"),
+            ("Exaggerated", "dpt11"),
+        ]
+    ]
+).set_index("recording")
+match_summary
 
 # %% [markdown]
-# ### 12.3 Bundle Summary
+# The bundle now has 5 groups connected by 10,131 MatchClaims:
 
 # %%
-bundle.summary()
+bundle
 
 # %% [markdown]
 # ## 13. Cross-Group Coordinate Transfer
@@ -621,8 +642,9 @@ ts_nested
 # recording (seconds) and the OMR pages (pixels).
 
 # %%
-# Pick the first annotation coordinate from CLT1
-first_annotation_coord = clt1.get_events(event_type="annotation")[0]["start"]["value"]
+# Pick the first harmony annotation coordinate from CLT1's annotations child
+annotations_df = clt1.get_child("annotations").get_events().to_pandas()
+first_annotation_coord = float(annotations_df["start"].iloc[0])
 first_annotation_coord
 
 # %%
@@ -632,37 +654,43 @@ ts_harmony = bundle.get_timestamp_at(
 ts_harmony
 
 # %% [markdown]
-# ### 13.3 USE CASE C — Transfer AtomicSections Across Groups
+# ### 13.3 USE CASE C — Transfer Atomic Section Boundaries Across Groups
 #
-# The score's atomic section boundaries define the structural regions
-# (repeat sections, voltas). Transfer each boundary coordinate to all
-# physical timelines.
+# The score's repeat structure defines atomic sections (A through M).
+# We extract each section's start coordinate and transfer it to all
+# physical timelines via the bundle.
 
 # %%
 # Compare the default and single-pass flows:
-print(default_flow.diff_diagram(single_flow))
+default_flow.diff_diagram(single_flow)
 
 # %%
-# Get the section boundary coordinates from CLT1's flow controller
+# Get atomic section start coordinates from CLT1's flow controller
 abc_controller = ScoreFlowController(abc_loader.store.measures)
-section_boundaries = abc_controller.get_section_boundary_coordinates()
-section_boundaries
+section_qbs = []
+section_labels = []
+for sec in abc_controller._atomic_sections:
+    mc = sec.mc_start
+    qb_val = abc_controller._measure_lookup[mc].get("quarterbeats")
+    if qb_val is not None:
+        section_qbs.append(float(qb_val))
+        section_labels.append(sec.id)
 
 # %%
-# Transfer each boundary to all connected timelines
+# Transfer each section start coordinate to all connected timelines
 boundary_timestamps = []
-for qb in section_boundaries:
-    ts = bundle.get_timestamp_at(float(qb), "clt1", format="flat")
+for qb in section_qbs:
+    ts = bundle.get_timestamp_at(qb, "clt1", format="flat")
     boundary_timestamps.append(ts)
 
-boundary_df = pd.DataFrame(boundary_timestamps)
-boundary_df.index.name = "section_boundary"
+boundary_df = pd.DataFrame(boundary_timestamps, index=section_labels)
+boundary_df.index.name = "section"
 boundary_df
 
 # %% [markdown]
 # ## 14. Summary & Key Takeaways
 #
-# > *"Any two events in the bundle can be related — regardless of whether
+# > *"Any two events in the bundle can be related with each other — regardless of whether
 # > they live on the same timeline, in the same group, or even in the
 # > same domain — as long as a path of MatchClaims or ConversionMaps
 # > connects them."*
@@ -683,3 +711,5 @@ boundary_df
 # | `get_timestamp_at()` | Universal coordinate transfer | 13 |
 #
 # **5 groups, 23 timelines, 3 domains, 1 bundle.**
+
+# %%

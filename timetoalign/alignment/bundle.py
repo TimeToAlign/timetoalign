@@ -24,6 +24,7 @@ from .anchors import MatchClaim
 from .groups import TimelineGroup
 
 if TYPE_CHECKING:
+    from timetoalign.display.ascii import Diagram
     from timetoalign.maps import TableMap
     from timetoalign.timelines import Timeline
 
@@ -600,27 +601,51 @@ class AlignmentBundle:
             if len(coords) < 2:
                 continue  # Need at least 2 points for interpolation
 
-            # Sort by source coordinate for monotonic interpolation
+            # Deduplicate: chords produce multiple claims at the same
+            # coordinate.  Average y-values for duplicate x-values to
+            # ensure strict monotonicity required by TableMap.
             coords.sort(key=lambda c: c[0])
-            x_values = [c[0] for c in coords]
-            y_values = [c[1] for c in coords]
+            x_dedup: list[float] = []
+            y_dedup: list[float] = []
+            i = 0
+            while i < len(coords):
+                j = i + 1
+                while j < len(coords) and coords[j][0] == coords[i][0]:
+                    j += 1
+                x_dedup.append(coords[i][0])
+                y_dedup.append(sum(c[1] for c in coords[i:j]) / (j - i))
+                i = j
+
+            if len(x_dedup) < 2:
+                continue
 
             # Forward map: tl_a -> tl_b
             try:
                 forward_map = TableMap(
-                    x_values=x_values,
-                    y_values=y_values,
+                    x_values=x_dedup,
+                    y_values=y_dedup,
                     uid=f"warp_{tl_a}_to_{tl_b}",
                 )
                 self._warp_maps[(tl_a, tl_b)] = forward_map
             except Exception as e:
                 self._logger.warning(f"Failed to build WarpMap {tl_a}->{tl_b}: {e}")
 
-            # Reverse map: tl_b -> tl_a
-            # Sort by target coordinate
+            # Reverse map: tl_b -> tl_a (deduplicate by target coord)
             coords_rev = sorted(coords, key=lambda c: c[1])
-            x_rev = [c[1] for c in coords_rev]
-            y_rev = [c[0] for c in coords_rev]
+            x_rev: list[float] = []
+            y_rev: list[float] = []
+            i = 0
+            while i < len(coords_rev):
+                j = i + 1
+                while j < len(coords_rev) and coords_rev[j][1] == coords_rev[i][1]:
+                    j += 1
+                x_rev.append(coords_rev[i][1])
+                y_rev.append(sum(c[0] for c in coords_rev[i:j]) / (j - i))
+                i = j
+
+            if len(x_rev) < 2:
+                continue
+
             try:
                 reverse_map = TableMap(
                     x_values=x_rev,
@@ -768,6 +793,18 @@ class AlignmentBundle:
 
         return result
 
+    def _get_unit_map(self) -> dict[str, str]:
+        """Build a mapping from bundle UIDs to their coordinate unit strings.
+
+        Returns:
+            Dict mapping bundle UIDs to unit strings (e.g. "samples", "quarters").
+        """
+        unit_map: dict[str, str] = {}
+        for tl_uid, tl in self.timelines.items():
+            if hasattr(tl, "unit") and tl.unit is not None:
+                unit_map[tl_uid] = str(tl.unit)
+        return unit_map
+
     def _transfer_to_group(
         self,
         coordinate: float,
@@ -833,6 +870,9 @@ class AlignmentBundle:
     ) -> dict[str, Any]:
         """Format a grouped timestamp dict into the requested output format.
 
+        Keys include the timeline's coordinate unit in parentheses so the
+        output is self-describing (e.g. ``"score/clt1 (quarters)"``).
+
         Args:
             grouped: Dict of group_id -> {bundle_uid -> coordinate}.
             fmt: Output format.
@@ -840,20 +880,32 @@ class AlignmentBundle:
         Returns:
             Formatted dict.
         """
+        unit_map = self._get_unit_map()
+
+        def _uid_label(tl_id: str) -> str:
+            unit = unit_map.get(tl_id)
+            return f"{tl_id} ({unit})" if unit else tl_id
+
         if fmt == "nested":
-            return grouped
+            return {
+                group_id: {
+                    _uid_label(tl_id): coord for tl_id, coord in tl_coords.items()
+                }
+                for group_id, tl_coords in grouped.items()
+            }
 
         if fmt == "prefix":
             result: dict[str, Any] = {}
             for group_id, tl_coords in grouped.items():
                 for tl_id, coord in tl_coords.items():
-                    result[f"{group_id}/{tl_id}"] = coord
+                    result[f"{group_id}/{_uid_label(tl_id)}"] = coord
             return result
 
         if fmt == "flat":
             result = {}
             for tl_coords in grouped.values():
-                result.update(tl_coords)
+                for tl_id, coord in tl_coords.items():
+                    result[_uid_label(tl_id)] = coord
             return result
 
         raise ValueError(f"Unknown format: {fmt!r}. Use 'prefix', 'nested', or 'flat'")
@@ -917,7 +969,7 @@ class AlignmentBundle:
         Uses the diagram() method to generate a visual representation
         showing all groups and their member timelines.
         """
-        return self.diagram()
+        return str(self.diagram())
 
     # endregion
 
@@ -929,7 +981,7 @@ class AlignmentBundle:
         show_children: bool = True,
         max_children: int = 6,
         unicode: bool = True,
-    ) -> str:
+    ) -> "Diagram":
         """Generate ASCII diagram for this bundle.
 
         Args:
@@ -939,7 +991,7 @@ class AlignmentBundle:
             unicode: Use Unicode characters (True) or ASCII fallback (False).
 
         Returns:
-            Multi-line string with ASCII diagram.
+            Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
 
         Examples:
             >>> print(bundle.diagram())
@@ -970,10 +1022,7 @@ class AlignmentBundle:
         Displays the ASCII diagram in a monospace pre block so it
         renders correctly in notebook output cells.
         """
-        import html
-
-        diagram_text = html.escape(self.diagram())
-        return f'<pre style="font-family: monospace; line-height: 1.2;">{diagram_text}</pre>'
+        return self.diagram()._repr_html_()
 
     # endregion
 

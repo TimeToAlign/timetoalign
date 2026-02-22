@@ -24,6 +24,96 @@ if TYPE_CHECKING:
     from timetoalign.timelines import Timeline
     from timetoalign.timelines.flow import Flow, ScoreFlowController
 
+
+# region Diagram
+
+
+class Diagram:
+    """Rich-display wrapper for ASCII diagram strings.
+
+    Returned by every ``.diagram()`` method so that Jupyter automatically
+    renders the diagram via ``_repr_html_`` while ``str(diagram)`` and
+    ``print(diagram)`` still produce plain text.
+
+    ``Diagram`` is intentionally **not** a ``str`` subclass — subclassing
+    ``str`` would make Jupyter use the string repr (with quotes) instead
+    of calling ``_repr_html_``.
+    """
+
+    __slots__ = ("_text",)
+
+    def __init__(self, text: str) -> None:
+        self._text = text
+
+    # Plain-text output
+    def __str__(self) -> str:
+        return self._text
+
+    def __repr__(self) -> str:
+        return self._text
+
+    # Jupyter rich display
+    def _repr_html_(self) -> str:
+        import html
+
+        escaped = html.escape(self._text)
+        return (
+            f'<pre style="font-family: monospace; line-height: 1.2;">'
+            f"{escaped}</pre>"
+        )
+
+    # Allow concatenation / equality with plain strings
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, str):
+            return self._text == other
+        if isinstance(other, Diagram):
+            return self._text == other._text
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self._text)
+
+    def __contains__(self, item: str) -> bool:
+        return item in self._text
+
+    def __len__(self) -> int:
+        return len(self._text)
+
+    def __add__(self, other: str) -> str:
+        return self._text + other
+
+    def __radd__(self, other: str) -> str:
+        return other + self._text
+
+    # Delegate common str methods so Diagram is drop-in compatible
+    def split(self, *args: Any, **kwargs: Any) -> list[str]:
+        return self._text.split(*args, **kwargs)
+
+    def splitlines(self, *args: Any, **kwargs: Any) -> list[str]:
+        return self._text.splitlines(*args, **kwargs)
+
+    def startswith(self, *args: Any, **kwargs: Any) -> bool:
+        return self._text.startswith(*args, **kwargs)
+
+    def endswith(self, *args: Any, **kwargs: Any) -> bool:
+        return self._text.endswith(*args, **kwargs)
+
+    def strip(self, *args: Any, **kwargs: Any) -> str:
+        return self._text.strip(*args, **kwargs)
+
+    def count(self, *args: Any, **kwargs: Any) -> int:
+        return self._text.count(*args, **kwargs)
+
+    def find(self, *args: Any, **kwargs: Any) -> int:
+        return self._text.find(*args, **kwargs)
+
+    def replace(self, *args: Any, **kwargs: Any) -> str:
+        return self._text.replace(*args, **kwargs)
+
+
+# endregion
+
+
 # region Character Sets
 
 # Timeline type characters (6 types)
@@ -451,7 +541,7 @@ def timeline_diagram(
     unicode: bool = True,
     parent_id: str | None = None,
     show: set[str] | None = None,
-) -> str:
+) -> Diagram:
     """Generate ASCII diagram for a timeline.
 
     Args:
@@ -648,7 +738,7 @@ def timeline_diagram(
             )
             lines.append(prefix + row)
 
-    return "\n".join(lines)
+    return Diagram("\n".join(lines))
 
 
 # endregion
@@ -662,7 +752,7 @@ def group_diagram(
     show_children: bool = True,
     max_children: int = DEFAULT_MAX_CHILDREN,
     unicode: bool = True,
-) -> str:
+) -> Diagram:
     """Generate ASCII diagram for a TimelineGroup.
 
     Args:
@@ -744,7 +834,7 @@ def group_diagram(
     # Footer
     lines.append(f"Timestamps: {group.n_timestamps}")
 
-    return "\n".join(lines)
+    return Diagram("\n".join(lines))
 
 
 # endregion
@@ -758,7 +848,7 @@ def bundle_diagram(
     show_children: bool = True,
     max_children: int = DEFAULT_MAX_CHILDREN,
     unicode: bool = True,
-) -> str:
+) -> Diagram:
     """Generate ASCII diagram for an AlignmentBundle.
 
     Args:
@@ -804,13 +894,15 @@ def bundle_diagram(
         lines.append("")
 
     # Match claims summary
-    n_matches = len(bundle.matches) if hasattr(bundle, "matches") else 0
+    n_matches = (
+        len(bundle.cross_group_claims) if hasattr(bundle, "cross_group_claims") else 0
+    )
     if n_matches > 0:
         lines.append(f"  MatchClaims: {n_matches}")
     else:
         lines.append("  MatchClaims: 0")
 
-    return "\n".join(lines)
+    return Diagram("\n".join(lines))
 
 
 # endregion
@@ -825,7 +917,7 @@ def flow_control_diagram(
     show_graph: bool = True,
     show_legend: bool = True,
     mode: str = "auto",
-) -> str:
+) -> Diagram:
     """Generate ASCII diagram for a ScoreFlowController.
 
     Shows the folded score map with atomic sections and flow control markers.
@@ -902,7 +994,7 @@ def flow_control_diagram(
     if show_graph and sections:
         _render_graph(lines, sections, fc)
 
-    return "\n".join(lines)
+    return Diagram("\n".join(lines))
 
 
 def _render_full_ruler(
@@ -1358,7 +1450,7 @@ def flow_diagram(
     unicode: bool = True,
     show_mcs: bool = False,
     show_reasons: bool = True,
-) -> str:
+) -> Diagram:
     """Generate ASCII diagram for a Flow object.
 
     Shows the playthrough section sequence for a computed flow.
@@ -1480,7 +1572,7 @@ def flow_diagram(
     lines.append("")
     lines.append(f"Sequence: {' '.join(seq)}")
 
-    return "\n".join(lines)
+    return Diagram("\n".join(lines))
 
 
 # endregion
@@ -1493,7 +1585,7 @@ def flow_comparison_diagram(
     flow_b: "Flow",
     width: int = 80,
     unicode: bool = True,
-) -> str:
+) -> Diagram:
     """Generate side-by-side comparison of two Flows.
 
     Args:
@@ -1584,7 +1676,7 @@ def flow_comparison_diagram(
     )
     lines.append(f" Matching: {n_matching}/{max_rows} sections identical")
 
-    return "\n".join(lines)
+    return Diagram("\n".join(lines))
 
 
 # endregion
