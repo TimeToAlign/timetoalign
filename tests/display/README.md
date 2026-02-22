@@ -146,6 +146,44 @@ DiscreteGraphicalTimeline[page] (3 children)
 Users interact with the `.diagram()` method, not the module functions. These tests
 ensure the convenience methods are correctly wired to the underlying implementation.
 
+## Planned Tests: Flow Visualization (Phase 3.7.1)
+
+The following test classes will be added when flow visualization is implemented
+(see `.agent/prompts/flow_visualization.md` for full specification):
+
+### Step 1: Regions in `timeline_diagram()`
+
+| Test Class | Tests | What It Validates |
+|---|---|---|
+| `TestRegionCharSets` | 2 | Unicode and ASCII region char sets are complete |
+| `TestBuildRegionRow` | 3 | Region row structure, proportional positioning, name elision |
+| `TestTimelineDiagramWithRegions` | 5 | `show={"regions"}` shows regions; both regions+children; sorting; backwards compat; ASCII mode |
+| `TestDiagramMethodShowParam` | 2 | `Timeline.diagram(show=...)` passes through correctly |
+
+### Step 2: `flow_control_diagram()`
+
+| Test Class | Tests | What It Validates |
+|---|---|---|
+| `TestFlowCharSets` | 2 | Unicode and ASCII flow char sets complete |
+| `TestFlowControlDiagram` | 6 | Header; MC ruler alignment; repeat markers; volta brackets; legend; section graph; ASCII mode |
+| `TestFlowControllerDiagramMethod` | 2 | `.diagram()` delegates; `__str__` returns diagram |
+
+### Step 3: `flow_diagram()`
+
+| Test Class | Tests | What It Validates |
+|---|---|---|
+| `TestFlowDiagram` | 5 | Header; section rows; atomic sequence footer; reasons; detached flow |
+| `TestFlowDiagramMethod` | 3 | `Flow.diagram()` delegates; `__str__` returns diagram; `__repr__` unchanged |
+
+### Step 4: `flow_comparison_diagram()`
+
+| Test Class | Tests | What It Validates |
+|---|---|---|
+| `TestFlowComparisonDiagram` | 4 | Identical flows; divergent flows; different lengths; ASCII mode |
+| `TestDiffDiagramMethod` | 1 | `flow.diff_diagram(other)` delegates correctly |
+
+**Test data source:** The `flow_only` specimen (15 MCs, 13 atomic sections) from `tests/timelines/test_flow.py` fixtures — it exercises all flow control types (repeats, voltas, D.S., D.C., coda, fine).
+
 ## Running Tests
 
 ```bash
