@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from timetoalign.core.enums import ColumnNaming, TimeUnit
+    from timetoalign.display.ascii import Diagram
     from timetoalign.timelines import Timeline
 
 # Type alias for flexible conversion_maps parameter (same as Timeline)
@@ -1713,7 +1714,7 @@ class TimelineGroup:
         Uses the diagram() method to generate a visual representation
         showing all member timelines in a boxed layout.
         """
-        return self.diagram()
+        return str(self.diagram())
 
     def _repr_html_(self) -> str:
         """Return HTML representation for Jupyter notebooks.
@@ -1721,10 +1722,7 @@ class TimelineGroup:
         Displays the ASCII diagram in a monospace pre block so it
         renders correctly in notebook output cells.
         """
-        import html
-
-        diagram_text = html.escape(self.diagram())
-        return f'<pre style="font-family: monospace; line-height: 1.2;">{diagram_text}</pre>'
+        return self.diagram()._repr_html_()
 
     # endregion
 
@@ -1803,7 +1801,7 @@ class TimelineGroup:
         show_children: bool = True,
         max_children: int = 6,
         unicode: bool = True,
-    ) -> str:
+    ) -> "Diagram":
         """Generate ASCII diagram for this group.
 
         Args:
@@ -1813,7 +1811,7 @@ class TimelineGroup:
             unicode: Use Unicode characters (True) or ASCII fallback (False).
 
         Returns:
-            Multi-line string with ASCII diagram.
+            Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
 
         Examples:
             >>> print(group.diagram())

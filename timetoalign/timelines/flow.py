@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from timetoalign.core import TimeUnit
+    from timetoalign.display.ascii import Diagram
     from timetoalign.loader.score.stores.measures import MeasureData
     from timetoalign.timelines.base import Timeline
 
@@ -1124,7 +1125,7 @@ class Flow:
         )
 
     def __str__(self) -> str:
-        return self.diagram()
+        return str(self.diagram())
 
     def diagram(
         self,
@@ -1132,7 +1133,7 @@ class Flow:
         unicode: bool = True,
         show_mcs: bool = False,
         show_reasons: bool = True,
-    ) -> str:
+    ) -> "Diagram":
         """Show playthrough section sequence for this flow.
 
         Args:
@@ -1142,7 +1143,7 @@ class Flow:
             show_reasons: Whether to annotate why each section starts.
 
         Returns:
-            Multi-line string with ASCII diagram.
+            Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
         """
         from timetoalign.display.ascii import flow_diagram
 
@@ -1159,7 +1160,7 @@ class Flow:
         other: "Flow",
         width: int = 80,
         unicode: bool = True,
-    ) -> str:
+    ) -> "Diagram":
         """Show side-by-side comparison of this flow with another.
 
         Args:
@@ -1168,7 +1169,7 @@ class Flow:
             unicode: Use Unicode characters (True) or ASCII fallback (False).
 
         Returns:
-            Multi-line string with comparison diagram.
+            Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
         """
         from timetoalign.display.ascii import flow_comparison_diagram
 
@@ -1176,10 +1177,7 @@ class Flow:
 
     def _repr_html_(self) -> str:
         """HTML representation for Jupyter notebooks."""
-        import html
-
-        diagram_text = html.escape(self.diagram())
-        return f'<pre style="font-family: monospace; line-height: 1.2;">{diagram_text}</pre>'
+        return self.diagram()._repr_html_()
 
 
 def load_valid_flows(csv_path: "Path | str") -> dict[FlowMode, "Flow"]:
@@ -3081,7 +3079,7 @@ class ScoreFlowController(FlowControllerBase):
         show_graph: bool = True,
         show_legend: bool = True,
         mode: str = "auto",
-    ) -> str:
+    ) -> "Diagram":
         """Show folded score map with atomic sections and flow control markers.
 
         Args:
@@ -3093,7 +3091,7 @@ class ScoreFlowController(FlowControllerBase):
                 or ``"table"``. See :func:`flow_control_diagram` for details.
 
         Returns:
-            Multi-line string with ASCII diagram.
+            Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
         """
         from timetoalign.display.ascii import flow_control_diagram
 
@@ -3107,14 +3105,11 @@ class ScoreFlowController(FlowControllerBase):
         )
 
     def __str__(self) -> str:
-        return self.diagram()
+        return str(self.diagram())
 
     def _repr_html_(self) -> str:
         """HTML representation for Jupyter notebooks."""
-        import html
-
-        diagram_text = html.escape(self.diagram())
-        return f'<pre style="font-family: monospace; line-height: 1.2;">{diagram_text}</pre>'
+        return self.diagram()._repr_html_()
 
     # endregion
 

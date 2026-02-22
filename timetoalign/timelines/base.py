@@ -39,6 +39,7 @@ from .regions import Region
 
 if TYPE_CHECKING:
     from timetoalign.core.enums import ColumnNaming
+    from timetoalign.display.ascii import Diagram
 
     from .flow import FlowMap
     from .types import SegmentLine
@@ -4257,7 +4258,7 @@ class Timeline:
         max_children: int = 6,
         unicode: bool = True,
         show: set[str] | None = None,
-    ) -> str:
+    ) -> "Diagram":
         """Generate ASCII diagram for this timeline.
 
         Args:
@@ -4271,7 +4272,7 @@ class Timeline:
                 exactly as before.
 
         Returns:
-            Multi-line string with ASCII diagram.
+            Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
 
         Examples:
             >>> print(timeline.diagram())
@@ -4317,7 +4318,7 @@ class Timeline:
         Uses the diagram() method to generate a visual representation
         showing the timeline bar and any children.
         """
-        return self.diagram()
+        return str(self.diagram())
 
     def _repr_html_(self) -> str:
         """Return HTML representation for Jupyter notebooks.
@@ -4325,10 +4326,7 @@ class Timeline:
         Displays the ASCII diagram in a monospace pre block so it
         renders correctly in notebook output cells.
         """
-        import html
-
-        diagram_text = html.escape(self.diagram())
-        return f'<pre style="font-family: monospace; line-height: 1.2;">{diagram_text}</pre>'
+        return self.diagram()._repr_html_()
 
     def __contains__(self, item: str | Region | Timeline) -> bool:
         """Check if a region name, child ID, or timeline is part of this timeline.

@@ -25,6 +25,7 @@ from timetoalign.display.ascii import (
     REGION_CHARS_ASCII,
     TIMELINE_CHARS,
     TIMELINE_CHARS_ASCII,
+    Diagram,
     bundle_diagram,
     flow_comparison_diagram,
     flow_control_diagram,
@@ -34,6 +35,7 @@ from timetoalign.display.ascii import (
 )
 
 __all__ = [
+    "Diagram",
     "timeline_diagram",
     "group_diagram",
     "bundle_diagram",
