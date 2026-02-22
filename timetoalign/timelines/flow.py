@@ -46,6 +46,7 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
+    from timetoalign.core import TimeUnit
     from timetoalign.loader.score.stores.measures import MeasureData
     from timetoalign.timelines.base import Timeline
 
@@ -1175,7 +1176,10 @@ class Flow:
 
     def _repr_html_(self) -> str:
         """HTML representation for Jupyter notebooks."""
-        return f'<pre style="font-family: monospace">{self.diagram()}</pre>'
+        import html
+
+        diagram_text = html.escape(self.diagram())
+        return f'<pre style="font-family: monospace; line-height: 1.2;">{diagram_text}</pre>'
 
 
 def load_valid_flows(csv_path: "Path | str") -> dict[FlowMode, "Flow"]:
@@ -3107,7 +3111,10 @@ class ScoreFlowController(FlowControllerBase):
 
     def _repr_html_(self) -> str:
         """HTML representation for Jupyter notebooks."""
-        return f'<pre style="font-family: monospace">{self.diagram()}</pre>'
+        import html
+
+        diagram_text = html.escape(self.diagram())
+        return f'<pre style="font-family: monospace; line-height: 1.2;">{diagram_text}</pre>'
 
     # endregion
 
@@ -3124,6 +3131,8 @@ def create_unfolded_timeline(
     source_timeline: "Timeline",
     flow: Flow,
     flow_controller: FlowControllerBase | None = None,
+    *,
+    target_unit: "TimeUnit | str | None" = None,
 ) -> "Timeline":
     """Create an unfolded timeline from a folded source.
 
@@ -3139,14 +3148,22 @@ def create_unfolded_timeline(
     Design Decision (Phase 3.9): The unfolded timeline uses normal coordinates
     with a reverse FlowMap attached, rather than special "playthrough" units.
 
+    The returned timeline preserves the concrete subclass of *source_timeline*
+    (e.g. ``ContinuousLogicalTimeline``).  If *target_unit* is specified,
+    ``Timeline.resolve_subclass()`` is used to select the appropriate type
+    for that unit instead.
+
     Args:
         source_timeline: The folded source timeline.
         flow: The computed Flow (sequence of sections).
         flow_controller: Optional controller used to compute the flow.
             If provided, can be used for additional metadata.
+        target_unit: Optional unit for the unfolded timeline. When given,
+            ``Timeline.resolve_subclass(target_unit, number_type)`` selects
+            the timeline type; otherwise ``type(source_timeline)`` is used.
 
     Returns:
-        New Timeline with:
+        New Timeline (concrete subclass) with:
         - Events reordered/duplicated per flow
         - Reverse FlowMap attached (id="source")
 
@@ -3155,6 +3172,8 @@ def create_unfolded_timeline(
         >>> flow = controller.compute_flow(FlowMode.DEFAULT)
         >>> unfolded = create_unfolded_timeline(source_tl, flow, controller)
         >>> # The unfolded timeline has events in performance order
+        >>> type(unfolded).__name__  # preserves source type
+        'ContinuousLogicalTimeline'
         >>> unfolded.get_flow_map("source")  # Reverse map to trace back
         FlowMap(default_inverse: 5 sections)
     """
@@ -3166,12 +3185,18 @@ def create_unfolded_timeline(
     # Calculate unfolded length - preserve Fraction type
     unfolded_length = forward_map.total_unfolded_length
 
-    # Create new timeline with unfolded coordinates
-    # Use same unit and number_type as source
+    # Resolve the concrete class for the unfolded timeline
     number_type = source_timeline.number_type
-    unfolded = Timeline(
+    unit = source_timeline.unit if target_unit is None else target_unit
+    if target_unit is not None:
+        timeline_cls = Timeline.resolve_subclass(unit, number_type)
+    else:
+        timeline_cls = type(source_timeline)
+
+    # Create new timeline with unfolded coordinates
+    unfolded = timeline_cls(
         length=unfolded_length,
-        unit=source_timeline.unit,
+        unit=unit,
         number_type=number_type,
         name=f"{source_timeline.name}_unfolded",
     )

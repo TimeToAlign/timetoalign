@@ -283,6 +283,76 @@ class Timeline:
     # region Class Methods - Construction
 
     @classmethod
+    def resolve_subclass(
+        cls,
+        unit: TimeUnit | str,
+        number_type: NumberType | str | None = None,
+    ) -> type[Timeline]:
+        """Return the canonical Timeline subclass for a unit/number_type pair.
+
+        Inspects all subclasses and selects the one whose
+        ``_allowed_units`` includes *unit*.  Among candidates the selection
+        prefers, in order:
+
+        1. A class whose ``_default_number_type`` matches *number_type*
+           (when supplied).
+        2. The class with the **smallest** ``_allowed_units`` set (most
+           specific domain).
+
+        This ensures the six concrete types from ``timetoalign.timelines.types``
+        are returned rather than further-derived specialisations like
+        ``BeatGrid``.
+
+        Falls back to the base ``Timeline`` if no subclass claims the unit.
+
+        Args:
+            unit: The time unit to look up.
+            number_type: Optional number type for disambiguation
+                (e.g. ``NumberType.fraction`` selects ``ContinuousLogicalTimeline``
+                over ``DiscreteLogicalTimeline``).
+
+        Returns:
+            The canonical Timeline subclass that accepts *unit*.
+
+        Examples:
+            >>> Timeline.resolve_subclass(TimeUnit.quarters, NumberType.fraction)
+            <class '...ContinuousLogicalTimeline'>
+            >>> Timeline.resolve_subclass(TimeUnit.pixels)
+            <class '...DiscreteGraphicalTimeline'>
+        """
+        if isinstance(unit, str):
+            unit = TimeUnit(unit)
+        if isinstance(number_type, str):
+            number_type = NumberType(number_type)
+
+        def _all_subclasses(base: type[Timeline]) -> Iterator[type[Timeline]]:
+            """Yield *base* and all its descendants (breadth-first)."""
+            for sub in base.__subclasses__():
+                yield sub
+                yield from _all_subclasses(sub)
+
+        candidates: list[type[Timeline]] = []
+        for sub in _all_subclasses(Timeline):
+            allowed = getattr(sub, "_allowed_units", None)
+            if allowed is not None and unit in allowed:
+                candidates.append(sub)
+
+        if not candidates:
+            return Timeline
+
+        # Sort by allowed-units size (smallest = most specific domain)
+        candidates.sort(key=lambda c: len(getattr(c, "_allowed_units", frozenset())))
+
+        # If number_type is given, prefer a candidate whose default matches
+        if number_type is not None:
+            for cand in candidates:
+                if getattr(cand, "_default_number_type", None) == number_type:
+                    return cand
+
+        # Return the most specific candidate (smallest allowed-units set)
+        return candidates[0]
+
+    @classmethod
     def empty(
         cls,
         unit: TimeUnit | str | None = None,
@@ -541,6 +611,11 @@ class Timeline:
     def n_children(self) -> int:
         """Number of direct child timelines."""
         return len(self._children)
+
+    @property
+    def n_conversion_maps(self) -> int:
+        """Number of attached conversion maps."""
+        return len(self._conversion_maps)
 
     @property
     def events(self) -> EventData:
@@ -4191,8 +4266,9 @@ class Timeline:
             max_children: Maximum children to show before truncating.
             unicode: Use Unicode characters (True) or ASCII fallback (False).
             show: Optional set controlling which elements appear. Supported
-                values: ``"children"`` and ``"regions"``. When ``None``,
-                behaviour is exactly as before.
+                values: ``"children"``, ``"regions"``, and ``"cmaps"``
+                (attached conversion maps). When ``None``, behaviour is
+                exactly as before.
 
         Returns:
             Multi-line string with ASCII diagram.
