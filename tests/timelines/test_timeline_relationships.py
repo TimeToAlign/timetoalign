@@ -30,11 +30,12 @@ from __future__ import annotations
 
 import pytest
 
-from timetoalign.core import Coordinate, TimeUnit
+from timetoalign.core import Coordinate, NumberType, TimeUnit
 from timetoalign.maps import LinearMap
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
+    DiscreteGraphicalTimeline,
     Region,
     SegmentLine,
     Timeline,
@@ -651,6 +652,170 @@ class TestSegmentLineParameterized:
         """Unparameterized SegmentLine with no segments has None segment_type."""
         sl = SegmentLine(length=0, unit=TimeUnit.quarters)
         assert sl.segment_type is None
+
+    # -- Recursive SegmentLine parameterization --
+
+    def test_explicit_inner_segment_type(self):
+        """SegmentLine[SegmentLine[DGT]] can be set explicitly at construction."""
+        sl = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=SegmentLine,
+            inner_segment_type=DiscreteGraphicalTimeline,
+        )
+        assert sl.segment_type is SegmentLine
+        assert sl._inner_segment_type is DiscreteGraphicalTimeline
+
+    def test_inner_segment_type_inferred_from_first_child(self):
+        """inner_segment_type is inferred from the first child SegmentLine."""
+        parent = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=SegmentLine,
+        )
+        page = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=DiscreteGraphicalTimeline,
+        )
+        page.append_segment(DiscreteGraphicalTimeline(length=100))
+        parent.append_segment(page, name="page_0")
+
+        assert parent._inner_segment_type is DiscreteGraphicalTimeline
+
+    def test_inner_segment_type_rejects_mismatched_child(self):
+        """Differently-parameterized SegmentLine children are rejected."""
+        parent = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=SegmentLine,
+            inner_segment_type=DiscreteGraphicalTimeline,
+        )
+        good_page = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=DiscreteGraphicalTimeline,
+        )
+        good_page.append_segment(DiscreteGraphicalTimeline(length=100))
+        parent.append_segment(good_page, name="page_0")
+
+        bad_page = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=ContinuousLogicalTimeline,
+        )
+        with pytest.raises(
+            TypeError, match="SegmentLine\\[DiscreteGraphicalTimeline\\]"
+        ):
+            parent.append_segment(bad_page, name="page_1")
+
+    def test_inner_segment_type_rejects_after_inference(self):
+        """After inferring inner type, mismatched children are rejected."""
+        parent = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=SegmentLine,
+        )
+        good_page = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=DiscreteGraphicalTimeline,
+        )
+        good_page.append_segment(DiscreteGraphicalTimeline(length=100))
+        parent.append_segment(good_page, name="page_0")
+
+        bad_page = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=ContinuousPhysicalTimeline,
+        )
+        with pytest.raises(
+            TypeError, match="SegmentLine\\[DiscreteGraphicalTimeline\\]"
+        ):
+            parent.append_segment(bad_page, name="page_1")
+
+    def test_unparameterized_child_segmentline_rejected_when_inner_type_set(self):
+        """A SegmentLine with segment_type=None is rejected when inner type is set."""
+        parent = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=SegmentLine,
+            inner_segment_type=DiscreteGraphicalTimeline,
+        )
+        unparameterized = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+        )
+        with pytest.raises(
+            TypeError, match="SegmentLine\\[DiscreteGraphicalTimeline\\]"
+        ):
+            parent.append_segment(unparameterized, name="page_0")
+
+    def test_class_name_recursive_display(self):
+        """class_name shows SegmentLine[SegmentLine[DGT]] for nested types."""
+        sl = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=SegmentLine,
+            inner_segment_type=DiscreteGraphicalTimeline,
+        )
+        assert sl.class_name == "SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]"
+
+    def test_class_name_recursive_after_inference(self):
+        """class_name updates to recursive form after inferring inner type."""
+        parent = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=SegmentLine,
+        )
+        assert parent.class_name == "SegmentLine[SegmentLine]"
+
+        page = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=DiscreteGraphicalTimeline,
+        )
+        page.append_segment(DiscreteGraphicalTimeline(length=100))
+        parent.append_segment(page, name="page_0")
+
+        assert (
+            parent.class_name == "SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]"
+        )
+
+    def test_class_name_non_segmentline_type_unchanged(self):
+        """class_name for non-SegmentLine segment_type is unaffected."""
+        sl = SegmentLine(
+            length=0,
+            unit=TimeUnit.quarters,
+            segment_type=ContinuousLogicalTimeline,
+        )
+        assert sl.class_name == "SegmentLine[ContinuousLogicalTimeline]"
+
+    def test_repr_includes_recursive_type(self):
+        """__repr__ includes the full recursive parameterization."""
+        sl = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=SegmentLine,
+            inner_segment_type=DiscreteGraphicalTimeline,
+        )
+        r = repr(sl)
+        assert r.startswith("SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]")
 
 
 # endregion
