@@ -16,6 +16,8 @@ import pyarrow as pa
 from timetoalign.display.ascii import (
     BOX_CHARS,
     BOX_CHARS_ASCII,
+    CMAP_CHARS,
+    CMAP_CHARS_ASCII,
     FLOW_CHARS,
     FLOW_CHARS_ASCII,
     REGION_CHARS,
@@ -749,6 +751,229 @@ class TestDiagramMethodShowParam:
         assert "reg" in result
         # Child should NOT appear (show_children=False overrides)
         assert "child_name" not in result
+
+
+# endregion
+
+# region Conversion Map Diagram Tests
+
+
+class TestTimelineDiagramWithCmaps:
+    """Tests for timeline_diagram with conversion map display."""
+
+    def test_show_cmaps_only(self) -> None:
+        """show={'cmaps'} displays c-maps without children."""
+        from timetoalign.maps import LinearMap
+
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_cmap_only")
+        child = ContinuousLogicalTimeline(length=300.0, uid="child_cm", name="child")
+        tl.add_child(child, offset=0)
+        cmap = LinearMap(
+            scalar=2.0,
+            source_unit="quarters",
+            target_unit="seconds",
+            uid="cmap_tq",
+        )
+        tl.add_conversion_map(cmap)
+
+        result = timeline_diagram(tl, show={"cmaps"})
+
+        # C-map should appear
+        assert CMAP_CHARS["prefix"] in result
+        assert "quarters_..." in result  # name elided to fit DEFAULT_NAME_WIDTH
+        assert "LinearMap" in result
+        # Children should NOT appear (not in show set)
+        assert TREE_CHARS["branch"] not in result
+        assert TREE_CHARS["last"] not in result
+
+    def test_show_cmaps_and_children(self) -> None:
+        """show={'cmaps', 'children'} displays both."""
+        from timetoalign.maps import LinearMap
+
+        tl = ContinuousPhysicalTimeline(length=1000.0, uid="tl_cmap_both")
+        child = ContinuousPhysicalTimeline(length=300.0, uid="child_cm2", name="sys")
+        tl.add_child(child, offset=0)
+        cmap = LinearMap(
+            scalar=44100.0,
+            source_unit="seconds",
+            target_unit="samples",
+            uid="cmap_ss",
+        )
+        tl.add_conversion_map(cmap)
+
+        result = timeline_diagram(tl, show={"cmaps", "children"})
+
+        # Both should appear
+        assert "sys" in result
+        assert "LinearMap" in result
+        assert CMAP_CHARS["prefix"] in result
+        # Tree chars for children
+        assert TREE_CHARS["last"] in result or TREE_CHARS["branch"] in result
+
+    def test_cmap_bar_uses_target_char(self) -> None:
+        """C-map bar uses the timeline char for the target unit's type."""
+        from timetoalign.maps import LinearMap
+
+        # Target is "samples" which is discrete + physical -> middle dot
+        tl = ContinuousPhysicalTimeline(length=10.0, uid="tl_cmap_char")
+        cmap = LinearMap(
+            scalar=44100.0,
+            source_unit="seconds",
+            target_unit="samples",
+            uid="cmap_char",
+        )
+        tl.add_conversion_map(cmap)
+
+        result = timeline_diagram(tl, show={"cmaps"})
+
+        # Discrete physical char is middle dot (⋅)
+        expected_char = TIMELINE_CHARS[("int", "physical")]
+        # The bar should contain a run of this character
+        assert expected_char * 5 in result
+
+    def test_cmap_description_shows_arrow(self) -> None:
+        """C-map row includes 'ClassName(source → target)' description."""
+        from timetoalign.maps import LinearMap
+
+        tl = ContinuousLogicalTimeline(length=100.0, uid="tl_cmap_desc")
+        cmap = LinearMap(
+            scalar=0.5,
+            source_unit="quarters",
+            target_unit="seconds",
+            uid="cmap_desc",
+        )
+        tl.add_conversion_map(cmap)
+
+        result = timeline_diagram(tl, show={"cmaps"})
+
+        assert CMAP_CHARS["arrow"] in result
+        assert "quarters" in result
+        assert "seconds" in result
+
+    def test_show_none_backwards_compat_no_cmaps(self) -> None:
+        """show=None preserves existing behaviour (no cmaps)."""
+        from timetoalign.maps import LinearMap
+
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_cmap_compat")
+        cmap = LinearMap(
+            scalar=1.0,
+            source_unit="quarters",
+            target_unit="seconds",
+            uid="cmap_compat",
+        )
+        tl.add_conversion_map(cmap)
+
+        result = timeline_diagram(tl)  # show=None is default
+
+        # C-map should not appear
+        assert CMAP_CHARS["prefix"] not in result
+
+    def test_cmaps_ascii_mode(self) -> None:
+        """C-maps render correctly in ASCII mode."""
+        from timetoalign.maps import LinearMap
+
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_cmap_ascii")
+        cmap = LinearMap(
+            scalar=2.0,
+            source_unit="quarters",
+            target_unit="seconds",
+            uid="cmap_ascii",
+        )
+        tl.add_conversion_map(cmap)
+
+        result = timeline_diagram(tl, unicode=False, show={"cmaps"})
+
+        assert CMAP_CHARS_ASCII["prefix"] in result
+        assert CMAP_CHARS_ASCII["arrow"] in result
+        assert "LinearMap" in result
+
+    def test_multiple_cmaps(self) -> None:
+        """Multiple c-maps are each rendered as separate rows."""
+        from timetoalign.maps import LinearMap
+
+        tl = ContinuousPhysicalTimeline(length=1000.0, uid="tl_multi_cmap")
+        cmap1 = LinearMap(
+            scalar=1000.0,
+            source_unit="seconds",
+            target_unit="milliseconds",
+            uid="cmap_m1",
+        )
+        cmap2 = LinearMap(
+            scalar=44100.0,
+            source_unit="seconds",
+            target_unit="samples",
+            uid="cmap_m2",
+        )
+        tl.add_conversion_map(cmap1)
+        tl.add_conversion_map(cmap2)
+
+        result = timeline_diagram(tl, show={"cmaps"})
+        lines = result.split("\n")
+
+        # Find c-map lines (lines containing the c-map prefix char)
+        cmap_lines = [ln for ln in lines if CMAP_CHARS["prefix"] in ln]
+        assert len(cmap_lines) == 2
+
+    def test_no_cmaps_no_rows(self) -> None:
+        """No c-map rows appear when timeline has no c-maps."""
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_no_cmap")
+
+        result = timeline_diagram(tl, show={"cmaps"})
+
+        assert CMAP_CHARS["prefix"] not in result
+
+
+class TestTimelineDiagramHeaderCmaps:
+    """Tests for c-map count in timeline diagram header."""
+
+    def test_header_includes_cmap_count(self) -> None:
+        """Header line includes c-map count."""
+        from timetoalign.maps import LinearMap
+
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_hdr_cm")
+        cmap = LinearMap(
+            scalar=1.0,
+            source_unit="quarters",
+            target_unit="seconds",
+            uid="cmap_hdr",
+        )
+        tl.add_conversion_map(cmap)
+
+        result = timeline_diagram(tl)
+        first_line = result.split("\n")[0]
+
+        assert "1 cmaps" in first_line
+
+    def test_header_no_cmaps_when_empty(self) -> None:
+        """Header does not mention cmaps when there are none."""
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_hdr_no_cm")
+
+        result = timeline_diagram(tl)
+        first_line = result.split("\n")[0]
+
+        assert "cmaps" not in first_line
+
+
+class TestDiagramMethodCmapShowParam:
+    """Tests for Timeline.diagram(show={'cmaps'}) parameter."""
+
+    def test_show_cmaps_passed_through(self) -> None:
+        """Timeline.diagram(show={'cmaps'}) produces same output as function."""
+        from timetoalign.maps import LinearMap
+
+        tl = ContinuousLogicalTimeline(length=1000.0, uid="tl_meth_cm")
+        cmap = LinearMap(
+            scalar=2.0,
+            source_unit="quarters",
+            target_unit="seconds",
+            uid="cmap_meth",
+        )
+        tl.add_conversion_map(cmap)
+
+        method_result = tl.diagram(show={"cmaps"})
+        func_result = timeline_diagram(tl, show={"cmaps"})
+
+        assert method_result == func_result
 
 
 # endregion

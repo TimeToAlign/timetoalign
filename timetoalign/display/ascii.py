@@ -106,6 +106,17 @@ REGION_CHARS_ASCII: dict[str, str] = {
     "right": "]",
 }
 
+# Conversion map display characters
+CMAP_CHARS: dict[str, str] = {
+    "prefix": "\u21a6",  # ↦  RIGHTWARDS ARROW FROM BAR (maps-to)
+    "arrow": "\u2192",  # →  RIGHTWARDS ARROW (source → target)
+}
+
+CMAP_CHARS_ASCII: dict[str, str] = {
+    "prefix": ">",
+    "arrow": "->",
+}
+
 # Flow control display characters (BMP-safe — avoids SMP musical symbols)
 FLOW_CHARS: dict[str, str] = {
     "repeat_start": "\u2551:",  # ║:
@@ -351,6 +362,81 @@ def _build_region_row(
     )
 
 
+def _get_cmap_bar_char(
+    cmap: Any,
+    use_unicode: bool = True,
+) -> str:
+    """Determine the bar character for a conversion map's target unit.
+
+    Uses the target unit's domain and discreteness to select the timeline
+    character that would represent a derivative timeline in that unit.
+    Falls back to ``'·'`` (unicode) or ``'.'`` (ASCII) when the target
+    unit is unknown.
+
+    Args:
+        cmap: A ConversionMap instance.
+        use_unicode: Whether to use Unicode characters.
+
+    Returns:
+        Single character for the bar fill.
+    """
+    chars = TIMELINE_CHARS if use_unicode else TIMELINE_CHARS_ASCII
+    target_unit = cmap.target_unit
+    if target_unit is not None:
+        number_key = "int" if target_unit.is_discrete else "float"
+        domain_key = target_unit.domain.name
+        return chars.get((number_key, domain_key), "\u22c5" if use_unicode else ".")
+    return "\u22c5" if use_unicode else "."
+
+
+def _build_cmap_row(
+    cmap: Any,
+    bar_width: int,
+    name_width: int,
+    coord_width: int,
+    use_unicode: bool,
+    cmap_chars: dict[str, str],
+) -> str:
+    """Build a single conversion map row with a full-span bar.
+
+    The bar uses the timeline character corresponding to the target unit's
+    domain and number type, visually suggesting "this timeline could be
+    converted to this type."
+
+    Args:
+        cmap: A ConversionMap instance.
+        bar_width: Width of the bar area in characters.
+        name_width: Max width for the map name.
+        coord_width: Width for coordinate columns.
+        use_unicode: Whether to use Unicode characters.
+        cmap_chars: C-Map character set (CMAP_CHARS or CMAP_CHARS_ASCII).
+
+    Returns:
+        Formatted row string.
+    """
+    bar_char = _get_cmap_bar_char(cmap, use_unicode)
+    bar = bar_char * bar_width
+    display_name = _elide_name(cmap.name, name_width)
+
+    # Build description: "ClassName(source → target)" or "ClassName(id)"
+    arrow = cmap_chars["arrow"]
+    if cmap.source_unit and cmap.target_unit:
+        description = (
+            f"{cmap.__class__.__name__}"
+            f"({cmap.source_unit} {arrow} {cmap.target_unit})"
+        )
+    else:
+        description = f"{cmap.__class__.__name__}({cmap.id})"
+
+    return (
+        f"  {cmap_chars['prefix']} "
+        f"{display_name:<{name_width}} "
+        f"{'':>{coord_width}} "
+        f"{bar} "
+        f"{description}"
+    )
+
+
 # endregion
 
 # region Timeline Diagram
@@ -377,10 +463,11 @@ def timeline_diagram(
         unicode: Use Unicode characters (True) or ASCII fallback (False).
         parent_id: If set, indicates this is a child of parent_id (for annotation).
         show: Optional set controlling which elements appear. Supported values:
-            ``"children"`` (child timelines) and ``"regions"`` (named regions).
+            ``"children"`` (child timelines), ``"regions"`` (named regions),
+            and ``"cmaps"`` (attached conversion maps).
             When ``None``, behaviour is exactly as before (children shown if
-            ``show_children=True``, no regions).  The ``show_children`` parameter
-            takes precedence for backwards compatibility.
+            ``show_children=True``, no regions or cmaps).  The ``show_children``
+            parameter takes precedence for backwards compatibility.
 
     Returns:
         Multi-line string with ASCII diagram.
@@ -399,11 +486,14 @@ def timeline_diagram(
     # Resolve show set: None means legacy behaviour
     _show_children = show_children  # backwards compat takes precedence
     _show_regions = False
+    _show_cmaps = False
     if show is not None:
         if "children" not in show:
             _show_children = False
         if "regions" in show:
             _show_regions = True
+        if "cmaps" in show:
+            _show_cmaps = True
     # show_children=False overrides show={"children"}
     if not show_children:
         _show_children = False
@@ -423,6 +513,8 @@ def timeline_diagram(
         details.append(f"{timeline.n_children} children")
     if timeline.n_regions > 0:
         details.append(f"{timeline.n_regions} regions")
+    if timeline.n_conversion_maps > 0:
+        details.append(f"{timeline.n_conversion_maps} cmaps")
     if details:
         header += f" ({', '.join(details)})"
     lines.append(prefix + header)
@@ -539,6 +631,20 @@ def timeline_diagram(
                 name_width=DEFAULT_NAME_WIDTH,
                 coord_width=coord_width,
                 region_chars=rgn_chars,
+            )
+            lines.append(prefix + row)
+
+    # 7. Render conversion maps (below regions)
+    if _show_cmaps and timeline.n_conversion_maps > 0:
+        cm_chars = CMAP_CHARS if unicode else CMAP_CHARS_ASCII
+        for cmap in timeline._conversion_maps.values():
+            row = _build_cmap_row(
+                cmap=cmap,
+                bar_width=bar_width,
+                name_width=DEFAULT_NAME_WIDTH,
+                coord_width=coord_width,
+                use_unicode=unicode,
+                cmap_chars=cm_chars,
             )
             lines.append(prefix + row)
 

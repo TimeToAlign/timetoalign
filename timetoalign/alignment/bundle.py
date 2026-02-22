@@ -239,6 +239,72 @@ class AlignmentBundle:
 
         return self
 
+    def add_group(
+        self,
+        group: TimelineGroup,
+        *,
+        uid_map: dict[str, str] | None = None,
+    ) -> "AlignmentBundle":
+        """Add a pre-built TimelineGroup with all its timelines at once.
+
+        This is the bulk-registration counterpart of ``add_timeline(..., as_group=...)``.
+        It registers the group and every timeline it already contains into the
+        bundle's bookkeeping (UID mapping, timeline registry, group registry).
+
+        Args:
+            group: A ``TimelineGroup`` that already contains timelines.
+            uid_map: Optional mapping from timeline.id to desired bundle UID.
+                If not provided, each timeline's ``id`` is used as its bundle UID.
+
+        Returns:
+            self (for method chaining)
+
+        Raises:
+            ValueError: If the group ID already exists in the bundle, or
+                if any timeline UID would collide with an existing one.
+
+        Examples:
+            Add a recording group with 5 DPTs:
+
+                >>> grp = TimelineGroup(id="normal", timelines=[dpt1, dpt2, dpt3])
+                >>> bundle.add_group(grp)
+
+            With custom UIDs:
+
+                >>> bundle.add_group(grp, uid_map={"dpt:1": "audio", "dpt:2": "midi"})
+        """
+        if group.id in self.groups:
+            raise ValueError(f"Group '{group.id}' already exists in bundle")
+
+        # Validate UIDs before mutating state
+        uid_map = uid_map or {}
+        planned_uids: list[tuple[str, str]] = []  # (bundle_uid, actual_tl_id)
+        for tl_id in group.timeline_ids:
+            bundle_uid = uid_map.get(tl_id, tl_id)
+            if bundle_uid in self.timelines:
+                raise ValueError(
+                    f"Timeline '{bundle_uid}' already exists in bundle "
+                    f"(from group '{group.id}' timeline '{tl_id}')"
+                )
+            planned_uids.append((bundle_uid, tl_id))
+
+        # Register the group
+        self.groups[group.id] = group
+
+        # Register each timeline
+        for bundle_uid, actual_tl_id in planned_uids:
+            tl = group.get_timeline(actual_tl_id)
+            self.timelines[bundle_uid] = tl
+            self._uid_to_timeline_id[bundle_uid] = actual_tl_id
+            self._timeline_id_to_uid[actual_tl_id] = bundle_uid
+            self.timeline_to_group[bundle_uid] = group.id
+
+        self._logger.debug(
+            f"Added group '{group.id}' with {len(planned_uids)} timelines"
+        )
+
+        return self
+
     def get_timeline(self, uid: str) -> "Timeline":
         """Get a timeline by ID.
 
@@ -897,6 +963,17 @@ class AlignmentBundle:
             max_children=max_children,
             unicode=unicode,
         )
+
+    def _repr_html_(self) -> str:
+        """Return HTML representation for Jupyter notebooks.
+
+        Displays the ASCII diagram in a monospace pre block so it
+        renders correctly in notebook output cells.
+        """
+        import html
+
+        diagram_text = html.escape(self.diagram())
+        return f'<pre style="font-family: monospace; line-height: 1.2;">{diagram_text}</pre>'
 
     # endregion
 
