@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: TimeToAlign
 #     language: python
@@ -50,13 +50,14 @@ from PIL import Image
 
 from timetoalign import (
     AudioLoader,
+    ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
     NumberType,
     RepoVizzLoader,
     TableMap,
     TimeUnit,
 )
-from timetoalign.alignment import TimelineGroup
+from timetoalign.alignment import AlignmentBundle, TimelineGroup
 from timetoalign.alignment.matching import (
     match_notes_by_attributes,
     prepare_abc_notes_for_matching,
@@ -64,7 +65,11 @@ from timetoalign.alignment.matching import (
 )
 from timetoalign.loader.physical.eep_notes import EepNotesLoader
 from timetoalign.loader.score import TSVLoader
-from timetoalign.timelines.flow import ScoreFlowController
+from timetoalign.timelines.flow import (
+    FlowMode,
+    ScoreFlowController,
+    create_unfolded_timeline,
+)
 from timetoalign.timelines.types import SegmentLine
 
 _notebook_dir = Path(".").resolve()
@@ -347,6 +352,12 @@ openscore = os_full.create_child_from_region("movement_4", uid="openscore")
 openscore
 
 # %% [markdown]
+# The four movement regions and the extracted child timeline:
+
+# %%
+os_full.diagram(show={"regions", "children"})
+
+# %% [markdown]
 # ## 9. Score Group (Group 4)
 #
 # All three score representations in one `TimelineGroup`. Cross-domain
@@ -425,3 +436,264 @@ exaggerated_match = match_results["dpt11"]
 #
 # **Next:** Part III adds the Emerson group and demonstrates cross-group
 # coordinate transfer using an `AlignmentBundle`.
+
+# %% [markdown]
+# ---
+# # Part III: Emerson Group + Cross-Group Transfer (Group 5)
+#
+# The Emerson group connects a commercial recording to a second score
+# edition via segment-level alignment. Unlike the EEP groups (per-note
+# alignment), the Emerson recording is aligned at the level of 10
+# structural sections (alpha through kappa), derived from the score's
+# repeat structure.
+#
+# - **CLT2**: ABC v1.0 ("recordings edition") score — `ContinuousLogicalTimeline`
+# - **DPT16**: Emerson String Quartet recording (DG 1997) — `ContinuousPhysicalTimeline`
+
+# %% [markdown]
+# ## 11. Building Group 5: Emerson Recording
+
+# %% [markdown]
+# ### 11.1 CLT2: Recordings Edition Score
+#
+# The recordings edition uses the same measure/repeat structure as CLT1 but
+# was encoded independently (ABC v1.0). We load it via TSVLoader and use its
+# flow controller to compute the traversal map.
+
+# %%
+REC_DIR = DATA_DIR / "recordings"
+rec_loader = TSVLoader.from_file(
+    REC_DIR / "Beethoven_Op018No4-04.notes.tsv",
+    REC_DIR / "Beethoven_Op018No4-04.measures.tsv",
+    REC_DIR / "Beethoven_Op018No4-04.harmonies.tsv",
+)
+clt2 = rec_loader.create_timeline(uid="clt2")
+clt2
+
+# %% [markdown]
+# ### 11.2 Flow Control: Inspect the Score's Repeat Structure
+#
+# The `ScoreFlowController` identifies atomic sections and flow control
+# events (repeats, voltas) from the measure data.
+
+# %%
+rec_controller = ScoreFlowController(rec_loader.store.measures)
+rec_controller.diagram()
+
+# %% [markdown]
+# Compute the default flow (all repeats taken) and a single-pass flow
+# (no repeats, last volta only) for comparison:
+
+# %%
+default_flow = rec_controller.compute_flow(FlowMode.DEFAULT)
+default_flow.diagram()
+
+# %%
+single_flow = rec_controller.compute_flow(FlowMode.SINGLE_PASS)
+single_flow.diagram()
+
+# %% [markdown]
+# ### 11.3 Unfolded Timeline via TraversalMap 2
+#
+# Unfolding CLT2 via the default flow creates a new timeline with events
+# reordered and duplicated according to the repeat structure. The unfolded
+# timeline carries a reverse `FlowMap` for tracing back to the original.
+
+# %%
+clt2_unfolded = create_unfolded_timeline(clt2, default_flow, rec_controller)
+clt2_unfolded
+
+# %% [markdown]
+# ### 11.4 DPT16: Emerson Recording Alignment
+#
+# The `measureMapAudio.csv` provides a 10-segment alignment between the
+# unfolded score (floating measures) and the Emerson recording (seconds).
+# Each segment is labeled with a Greek letter (alpha through kappa).
+
+# %%
+ema_df = pd.read_csv(
+    REC_DIR / "Beethoven_Op018No4-04_EmersonStringQuartet_DG_measureMapAudio.csv",
+    sep="\t",
+    index_col=0,
+)
+ema_df
+
+# %% [markdown]
+# Create DPT16 as a `ContinuousPhysicalTimeline` in seconds, with a
+# `TableMap` linking the unfolded measure boundaries to audio timestamps:
+
+# %%
+dpt16_duration = float(ema_df["seconds_end"].iloc[-1])
+dpt16 = ContinuousPhysicalTimeline(length=dpt16_duration, uid="dpt16")
+
+# TableMap: unfolded floating measures -> seconds (boundary correspondences)
+unfold_coords = ema_df["measure_unfold_start"].tolist() + [
+    ema_df["measure_unfold_end"].iloc[-1]
+]
+seconds_coords = ema_df["seconds_start"].tolist() + [ema_df["seconds_end"].iloc[-1]]
+dpt16.add_conversion_map(
+    TableMap(
+        x_values=seconds_coords,
+        y_values=unfold_coords,
+        source_unit="seconds",
+        target_unit="measures",
+        uid="dpt16_sec_to_fm",
+    )
+)
+dpt16
+
+# %% [markdown]
+# ### 11.5 Emerson Group
+#
+# Both timelines go into one group. The group uses the DPT16 c-map
+# boundaries as alignment anchors (seconds <-> unfolded floating measures).
+
+# %%
+emerson_group = TimelineGroup(
+    id="emerson",
+    name="Emerson Recording (DG 1997)",
+    timelines=[clt2, dpt16],
+)
+emerson_group
+
+# %% [markdown]
+# ## 12. The AlignmentBundle
+#
+# The bundle collects all 5 groups and connects them via MatchClaims.
+# Within each group, coordinate transfer uses linear interpolation.
+# Between groups, WarpMaps (built from MatchClaims) enable cross-domain
+# transfer.
+
+# %%
+bundle = AlignmentBundle(name="Beethoven Op.18/4 — Multimodal Alignment")
+
+# Add Score group timelines
+bundle.add_timeline(clt1, uid="clt1", as_group="score")
+bundle.add_timeline(dgt1, uid="dgt1", aligned_to="clt1")
+bundle.add_timeline(openscore, uid="openscore", aligned_to="clt1")
+
+# Add Recording groups — each audio DPT starts a new group,
+# feature timelines align to it
+for grp, grp_id in [
+    (normal_group, "normal"),
+    (mechanical_group, "mechanical"),
+    (exaggerated_group, "exaggerated"),
+]:
+    tls = list(grp)
+    bundle.add_timeline(tls[0], uid=tls[0].id, as_group=grp_id)
+    for tl in tls[1:]:
+        bundle.add_timeline(tl, uid=tl.id, aligned_to=tls[0].id)
+
+# Add Emerson group
+bundle.add_timeline(clt2, uid="clt2", as_group="emerson")
+bundle.add_timeline(dpt16, uid="dpt16", aligned_to="clt2")
+
+bundle
+
+# %% [markdown]
+# Connect the recording groups to the score group via MatchClaims:
+
+# %%
+for dpt_id in ["dpt1", "dpt6", "dpt11"]:
+    bundle.add_match_claims(match_results[dpt_id].match_claims)
+
+# %%
+bundle.diagram()
+
+# %% [markdown]
+# ### 12.3 Bundle Summary
+
+# %%
+bundle.summary()
+
+# %% [markdown]
+# ## 13. Cross-Group Coordinate Transfer
+#
+# The bundle's `get_timestamp_at()` method is the primary interface for
+# cross-domain coordinate transfer. Given a coordinate on any timeline,
+# it returns corresponding coordinates on all connected timelines.
+
+# %% [markdown]
+# ### 13.1 USE CASE A — Transfer a Note Across All Groups
+#
+# Pick the first Eb5 (the opening note) from CLT1 at quarterbeat 0.
+# Where does this moment land in every other timeline and domain?
+
+# %%
+ts_prefix = bundle.get_timestamp_at(0.0, "clt1", format="prefix")
+ts_prefix
+
+# %%
+# Nested format groups the results by TimelineGroup:
+ts_nested = bundle.get_timestamp_at(0.0, "clt1", format="nested")
+ts_nested
+
+# %% [markdown]
+# ### 13.2 USE CASE B — Transfer a Harmony Label
+#
+# Transfer a harmony annotation coordinate from CLT1 to the Normal
+# recording (seconds) and the OMR pages (pixels).
+
+# %%
+# Pick the first annotation coordinate from CLT1
+first_annotation_coord = clt1.get_events(event_type="annotation")[0]["start"]["value"]
+first_annotation_coord
+
+# %%
+ts_harmony = bundle.get_timestamp_at(
+    float(first_annotation_coord), "clt1", format="nested"
+)
+ts_harmony
+
+# %% [markdown]
+# ### 13.3 USE CASE C — Transfer AtomicSections Across Groups
+#
+# The score's atomic section boundaries define the structural regions
+# (repeat sections, voltas). Transfer each boundary coordinate to all
+# physical timelines.
+
+# %%
+# Compare the default and single-pass flows:
+default_flow.diff_diagram(single_flow)
+
+# %%
+# Get the section boundary coordinates from CLT1's flow controller
+abc_controller = ScoreFlowController(abc_loader.store.measures)
+section_boundaries = abc_controller.get_section_boundary_coordinates()
+section_boundaries
+
+# %%
+# Transfer each boundary to all connected timelines
+boundary_timestamps = []
+for qb in section_boundaries:
+    ts = bundle.get_timestamp_at(float(qb), "clt1", format="flat")
+    boundary_timestamps.append(ts)
+
+boundary_df = pd.DataFrame(boundary_timestamps)
+boundary_df.index.name = "section_boundary"
+boundary_df
+
+# %% [markdown]
+# ## 14. Summary & Key Takeaways
+#
+# > *"Any two events in the bundle can be related — regardless of whether
+# > they live on the same timeline, in the same group, or even in the
+# > same domain — as long as a path of MatchClaims or ConversionMaps
+# > connects them."*
+#
+# ### Patterns Demonstrated
+#
+# | Pattern | Example | Section |
+# |---------|---------|---------|
+# | `build_recording_group()` | Reusable factory for EEP recordings | 2-4 |
+# | `TSVLoader.from_file()` | Load ABC score with notes, measures, annotations | 6 |
+# | `SegmentLine` nesting | OMR pages → systems → noteheads | 7 |
+# | Region extraction | OpenScore 4-movement → movement 4 child | 8 |
+# | `match_notes_by_attributes()` | EEP ↔ ABC note matching | 10 |
+# | `ScoreFlowController.diagram()` | ASCII flow control visualization | 11 |
+# | `create_unfolded_timeline()` | Repeat expansion via `FlowMap` | 11 |
+# | `Flow.diagram()` / `diff_diagram()` | Flow inspection and comparison | 11, 13 |
+# | `AlignmentBundle` | Multi-group cross-domain transfer | 12-13 |
+# | `get_timestamp_at()` | Universal coordinate transfer | 13 |
+#
+# **5 groups, 23 timelines, 3 domains, 1 bundle.**
