@@ -3070,11 +3070,25 @@ class ScoreFlowController(FlowControllerBase):
                     boundaries.append(Fraction(qb))
         return boundaries
 
-    def get_atomic_section_coordinates(self) -> dict[str, Fraction]:
+    def get_atomic_section_coordinates(
+        self, flow: "Flow | None" = None
+    ) -> dict[str, Fraction]:
         """Return a mapping of atomic section IDs to their start coordinates.
 
         Each key is the section's label (e.g. ``"A"``, ``"B"``, …) and the
         value is the quarterbeat coordinate of the section's first measure.
+
+        When *flow* is provided the coordinates are **unfolded** (i.e. the
+        running quarterbeat position in the playthrough order), which is
+        required for cross-group coordinate transfer via an
+        ``AlignmentBundle`` whose WarpMaps are built from unfolded note
+        matches.  Without *flow*, the folded quarterbeats from the measure
+        lookup are returned (the coordinate resets at every repeat start).
+
+        Args:
+            flow: A ``Flow`` computed from this controller (e.g. via
+                ``compute_flow(FlowMode.DEFAULT)``).  If given, unfolded
+                coordinates are returned.
 
         Returns:
             Ordered dict mapping section ID to quarterbeat start coordinate.
@@ -3087,17 +3101,64 @@ class ScoreFlowController(FlowControllerBase):
             >>> controller = ScoreFlowController(measures)
             >>> controller.get_atomic_section_coordinates()
             {'A': Fraction(0, 1), 'B': Fraction(32, 1), ...}
+            >>> flow = controller.compute_flow(FlowMode.DEFAULT)
+            >>> controller.get_atomic_section_coordinates(flow=flow)
+            {'A': Fraction(0, 1), 'B': Fraction(64, 1), ...}
         """
         if not self._measure_lookup:
             raise RuntimeError(
                 "Atomic section coordinates require a measure lookup. "
                 "Ensure the controller was created with MeasureData."
             )
+
+        if flow is not None:
+            return self._unfolded_section_coordinates(flow)
+
         result: dict[str, Fraction] = {}
         for sec in self._atomic_sections:
             qb_val = self._measure_lookup.get(sec.mc_start, {}).get("quarterbeats")
             if qb_val is not None:
                 result[sec.id] = Fraction(qb_val)
+        return result
+
+    def _unfolded_section_coordinates(self, flow: "Flow") -> dict[str, Fraction]:
+        """Compute unfolded quarterbeat positions for each atomic section.
+
+        Walks the flow's playthrough sections, accumulating quarterbeats
+        from the measure lookup.  For compound playthrough sections that
+        span multiple atomic sections, the internal boundaries are resolved
+        by mapping each MC to the atomic section it belongs to.
+
+        Args:
+            flow: A ``Flow`` computed from this controller.
+
+        Returns:
+            Ordered dict mapping section ID to unfolded quarterbeat start.
+        """
+        mc_durations: dict[int, Fraction] = {
+            mc: info["duration_qb"] for mc, info in self._measure_lookup.items()
+        }
+        # Build MC → atomic section ID mapping
+        atomic_by_mc: dict[int, str] = {}
+        for asec in self._atomic_sections:
+            for mc in range(asec.mc_start, asec.mc_end):
+                if mc not in atomic_by_mc:
+                    atomic_by_mc[mc] = asec.id
+
+        running_qb = Fraction(0)
+        result: dict[str, Fraction] = {}
+
+        for ps in flow.sections:
+            prev_atomic = None
+            for mc in ps.to_mc_sequence():
+                atomic_id = atomic_by_mc.get(mc)
+                if atomic_id and atomic_id != prev_atomic:
+                    if atomic_id not in result:
+                        result[atomic_id] = running_qb
+                    prev_atomic = atomic_id
+                dur = mc_durations.get(mc, Fraction(4))
+                running_qb += dur
+
         return result
 
     # region Display
