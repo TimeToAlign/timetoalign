@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: TimeToAlign
 #     language: python
@@ -640,38 +640,39 @@ bundle.get_timestamp_at(79.0, "clt1", format="nested")
 # %% [markdown]
 # ### 13.3 Verification: Listening to the Transferred Timestamps
 #
-# The timestamps above claim that the V7 chord at quarterbeat 79
-# occurs at specific sample in each recording. To verify, we convert
-# those samples to seconds via each audio timeline's `SamplesToSeconds`
-# C-map. Open the MP3 at the indicated time and listen for the chord:
+# The timestamps above give sample counts.  Converting to seconds via
+# each audio timeline's `SamplesToSeconds` C-map yields seek positions
+# you can verify in any audio player:
 
 # %%
 v7_ts = bundle.get_timestamp_at(79.0, "clt1", format="flat")
-
-verification = {}
-for label, dpt_id in [
-    ("Normal", "dpt1"),
-    ("Mechanical", "dpt6"),
-    ("Exaggerated", "dpt11"),
-]:
-    key = [k for k in v7_ts if k.startswith(dpt_id)][0]
-    samples = v7_ts[key]
-    secs_val = float(bundle.timelines[dpt_id].convert_to(samples, "seconds").value)
-    mins, s = divmod(secs_val, 60)
-    verification[label] = f"{int(mins)}:{s:05.2f}  ({secs_val:.3f}s)"
-
-pd.Series(verification, name="V7 at qb 79 — listen here")
+pd.Series(
+    {
+        name: f"{float(bundle.timelines[uid].convert_to(v7_ts[k], 'seconds').value):.3f}s"
+        for name, uid, k in (
+            (n, u, next(k for k in v7_ts if k.startswith(u)))
+            for n, u in [
+                ("Normal", "dpt1"),
+                ("Mechanical", "dpt6"),
+                ("Exaggerated", "dpt11"),
+            ]
+        )
+    },
+    name="V7 at qb 79 — seek to",
+)
 
 # %% [markdown]
 # ### 13.4 USE CASE B — Transfer Atomic Section Boundaries Across Groups
 #
 # The score's repeat structure defines atomic sections (A through M).
-# The `ScoreFlowController` computes each section's quarterbeat start
-# coordinate in one call:
+# The `ScoreFlowController` computes each section's **unfolded**
+# quarterbeat start coordinate — the position in the playthrough
+# order, which is what the bundle's WarpMaps expect:
 
 # %%
 abc_controller = ScoreFlowController(abc_loader.store.measures)
-section_coords = abc_controller.get_atomic_section_coordinates()
+abc_flow = abc_controller.compute_flow(FlowMode.DEFAULT)
+section_coords = abc_controller.get_atomic_section_coordinates(flow=abc_flow)
 section_coords
 
 # %% [markdown]

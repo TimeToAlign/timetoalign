@@ -575,7 +575,9 @@ class AlignmentBundle:
         """Build WarpMaps (TableMaps) from MatchClaims for interpolation.
 
         Groups claims by (source_group, target_group) and builds a TableMap
-        for each direction.
+        for each direction.  Claim coordinates are converted to each
+        timeline's native unit so that WarpMap output can be fed directly
+        to ``TimelineGroup.get_timestamp_at()``.
 
         Args:
             claims: MatchClaims to build WarpMaps from.
@@ -595,6 +597,34 @@ class AlignmentBundle:
             tl_a = anchor.timeline_a_id
             tl_b = anchor.timeline_b_id
             pair_coords[(tl_a, tl_b)].append((anchor.coordinate_a, anchor.coordinate_b))
+
+        # Detect and fix unit mismatches: claim coordinates may be in a
+        # different unit (e.g. seconds) than the timeline's native unit
+        # (e.g. samples).  Convert once per timeline per pair.
+        corrected: dict[tuple[str, str], list[tuple[float, float]]] = {}
+        for (tl_a, tl_b), coords in pair_coords.items():
+            a_vals = [c[0] for c in coords]
+            b_vals = [c[1] for c in coords]
+
+            conv_a = None
+            if tl_a in self.timelines:
+                conv_a = self._needs_unit_conversion(a_vals, self.timelines[tl_a])
+            conv_b = None
+            if tl_b in self.timelines:
+                conv_b = self._needs_unit_conversion(b_vals, self.timelines[tl_b])
+
+            if conv_a is not None or conv_b is not None:
+                import numpy as np
+
+                if conv_a is not None:
+                    a_vals = conv_a(np.array(a_vals)).tolist()
+                if conv_b is not None:
+                    b_vals = conv_b(np.array(b_vals)).tolist()
+                corrected[(tl_a, tl_b)] = list(zip(a_vals, b_vals))
+            else:
+                corrected[(tl_a, tl_b)] = coords
+
+        pair_coords = corrected
 
         # Build TableMaps for each pair
         for (tl_a, tl_b), coords in pair_coords.items():
@@ -659,6 +689,64 @@ class AlignmentBundle:
         self._logger.debug(
             f"Built {len(self._warp_maps)} WarpMaps from {len(claims)} claims"
         )
+
+    @staticmethod
+    def _needs_unit_conversion(
+        coords: list[float], timeline: "Timeline"
+    ) -> "TableMap | None":
+        """Detect whether claim coordinates need converting to native unit.
+
+        Compares the span of *coords* with the timeline's length.  If the
+        coordinates cover less than 1 % of the timeline's range AND an
+        inverse C-map produces values that cover a more plausible
+        fraction, that inverse map is returned.
+
+        Args:
+            coords: Sorted claim coordinate values for one timeline.
+            timeline: The timeline the coordinates should refer to.
+
+        Returns:
+            An inverse C-map to apply, or ``None`` if coordinates are
+            already in the native unit.
+        """
+        if not coords:
+            return None
+        tl_len = float(timeline.length.value)
+        if tl_len == 0:
+            return None
+
+        span = max(coords) - min(coords)
+        coverage = span / tl_len if tl_len else 0
+
+        # If span already covers > 1 % of the timeline, assume native unit
+        if coverage > 0.01:
+            return None
+
+        # Try inverse C-maps: pick the one whose output span is most plausible
+        import numpy as np
+
+        best_map = None
+        best_coverage = coverage
+        arr = np.array(coords)
+        for cmap in timeline._conversion_maps.values():
+            # .inverse is a method returning a new map object
+            try:
+                inv = cmap.inverse()
+            except Exception:
+                continue
+            if inv is None:
+                continue
+            try:
+                converted = inv(arr)
+                conv_span = float(np.ptp(converted))
+                conv_coverage = conv_span / tl_len
+                if conv_coverage > best_coverage:
+                    best_map = inv
+                    best_coverage = conv_coverage
+            except Exception:
+                continue
+
+        return best_map
 
     def get_warp_map(self, from_timeline: str, to_timeline: str) -> "TableMap | None":
         """Get the WarpMap for converting coordinates between two timelines.
