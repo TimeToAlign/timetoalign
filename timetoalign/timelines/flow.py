@@ -3070,6 +3070,36 @@ class ScoreFlowController(FlowControllerBase):
                     boundaries.append(Fraction(qb))
         return boundaries
 
+    def get_atomic_section_coordinates(self) -> dict[str, Fraction]:
+        """Return a mapping of atomic section IDs to their start coordinates.
+
+        Each key is the section's label (e.g. ``"A"``, ``"B"``, …) and the
+        value is the quarterbeat coordinate of the section's first measure.
+
+        Returns:
+            Ordered dict mapping section ID to quarterbeat start coordinate.
+
+        Raises:
+            RuntimeError: If the measure lookup has not been built
+                (controller created without MeasureData).
+
+        Examples:
+            >>> controller = ScoreFlowController(measures)
+            >>> controller.get_atomic_section_coordinates()
+            {'A': Fraction(0, 1), 'B': Fraction(32, 1), ...}
+        """
+        if not self._measure_lookup:
+            raise RuntimeError(
+                "Atomic section coordinates require a measure lookup. "
+                "Ensure the controller was created with MeasureData."
+            )
+        result: dict[str, Fraction] = {}
+        for sec in self._atomic_sections:
+            qb_val = self._measure_lookup.get(sec.mc_start, {}).get("quarterbeats")
+            if qb_val is not None:
+                result[sec.id] = Fraction(qb_val)
+        return result
+
     # region Display
 
     def diagram(

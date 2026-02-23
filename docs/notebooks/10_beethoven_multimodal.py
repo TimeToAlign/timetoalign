@@ -567,28 +567,22 @@ emerson_group
 # %%
 bundle = AlignmentBundle(name="Beethoven Op.18/4 — Multimodal Alignment")
 
-# Add pre-built groups directly
 bundle.add_group(score_group)
 bundle.add_group(normal_group)
 bundle.add_group(mechanical_group)
 bundle.add_group(exaggerated_group)
 bundle.add_group(emerson_group)
 
-# %% [markdown]
-# Connect the recording groups to the score group via MatchClaims.
-# Each call registers the per-note coordinate correspondences from
-# Part II's matching step and builds WarpMaps for interpolation.
-
-# %%
 for dpt_id in ["dpt1", "dpt6", "dpt11"]:
     bundle.add_match_claims(match_results[dpt_id].match_claims)
 
+bundle
+
 # %% [markdown]
-# The match claims connect each recording's audio DPT to CLT1.
-# Let's visualise the number of claims per connection:
+# Match claims per connection:
 
 # %%
-match_summary = pd.DataFrame(
+pd.DataFrame(
     [
         {
             "recording": name,
@@ -605,87 +599,99 @@ match_summary = pd.DataFrame(
         ]
     ]
 ).set_index("recording")
-match_summary
-
-# %% [markdown]
-# The bundle now has 5 groups connected by 10,131 MatchClaims:
-
-# %%
-bundle
 
 # %% [markdown]
 # ## 13. Cross-Group Coordinate Transfer
 #
 # The bundle's `get_timestamp_at()` method is the primary interface for
 # cross-domain coordinate transfer. Given a coordinate on any timeline,
-# it returns corresponding coordinates on all connected timelines.
+# it returns corresponding coordinates on all connected timelines —
+# regardless of domain.
 
 # %% [markdown]
-# ### 13.1 USE CASE A — Transfer a Note Across All Groups
+# ### 13.1 Inspecting CLT1's Harmony Annotations
 #
-# Pick the first Eb5 (the opening note) from CLT1 at quarterbeat 0.
-# Where does this moment land in every other timeline and domain?
+# Before transferring coordinates, let's see what harmonic events live
+# on CLT1. The annotations child carries all harmony labels from the
+# ABC score:
 
 # %%
-ts_prefix = bundle.get_timestamp_at(0.0, "clt1", format="prefix")
-ts_prefix
-
-# %%
-# Nested format groups the results by TimelineGroup:
-ts_nested = bundle.get_timestamp_at(0.0, "clt1", format="nested")
-ts_nested
-
-# %% [markdown]
-# ### 13.2 USE CASE B — Transfer a Harmony Label
-#
-# Transfer a harmony annotation coordinate from CLT1 to the Normal
-# recording (seconds) and the OMR pages (pixels).
-
-# %%
-# Pick the first harmony annotation coordinate from CLT1's annotations child
 annotations_df = clt1.get_child("annotations").get_events().to_pandas()
-first_annotation_coord = float(annotations_df["start"].iloc[0])
-first_annotation_coord
-
-# %%
-ts_harmony = bundle.get_timestamp_at(
-    float(first_annotation_coord), "clt1", format="nested"
-)
-ts_harmony
+annotations_df[["start", "name"]].head(15)
 
 # %% [markdown]
-# ### 13.3 USE CASE C — Transfer Atomic Section Boundaries Across Groups
+# ### 13.2 USE CASE A — Transfer a Harmony Across All Groups
+#
+# The `V7` at quarterbeat 79 (m. 20) is a dominant seventh — one of the
+# most recognizable sonorities. Where does this moment land across all
+# 5 groups, in every domain?
+
+# %%
+bundle.get_timestamp_at(79.0, "clt1", format="prefix")
+
+# %% [markdown]
+# The nested format groups results by `TimelineGroup`, making it easy
+# to see the cross-domain correspondences. Note that sample-based
+# coordinates (DPT1–DPT15) are integers — as they must be:
+
+# %%
+bundle.get_timestamp_at(79.0, "clt1", format="nested")
+
+# %% [markdown]
+# ### 13.3 Verification: Listening to the Transferred Timestamps
+#
+# The timestamps above claim that the V7 chord at quarterbeat 79
+# occurs at specific sample in each recording. To verify, we convert
+# those samples to seconds via each audio timeline's `SamplesToSeconds`
+# C-map. Open the MP3 at the indicated time and listen for the chord:
+
+# %%
+v7_ts = bundle.get_timestamp_at(79.0, "clt1", format="flat")
+
+verification = {}
+for label, dpt_id in [
+    ("Normal", "dpt1"),
+    ("Mechanical", "dpt6"),
+    ("Exaggerated", "dpt11"),
+]:
+    key = [k for k in v7_ts if k.startswith(dpt_id)][0]
+    samples = v7_ts[key]
+    secs_val = float(bundle.timelines[dpt_id].convert_to(samples, "seconds").value)
+    mins, s = divmod(secs_val, 60)
+    verification[label] = f"{int(mins)}:{s:05.2f}  ({secs_val:.3f}s)"
+
+pd.Series(verification, name="V7 at qb 79 — listen here")
+
+# %% [markdown]
+# ### 13.4 USE CASE B — Transfer Atomic Section Boundaries Across Groups
 #
 # The score's repeat structure defines atomic sections (A through M).
-# We extract each section's start coordinate and transfer it to all
-# physical timelines via the bundle.
+# The `ScoreFlowController` computes each section's quarterbeat start
+# coordinate in one call:
 
 # %%
-# Compare the default and single-pass flows:
-default_flow.diff_diagram(single_flow)
-
-# %%
-# Get atomic section start coordinates from CLT1's flow controller
 abc_controller = ScoreFlowController(abc_loader.store.measures)
-section_qbs = []
-section_labels = []
-for sec in abc_controller._atomic_sections:
-    mc = sec.mc_start
-    qb_val = abc_controller._measure_lookup[mc].get("quarterbeats")
-    if qb_val is not None:
-        section_qbs.append(float(qb_val))
-        section_labels.append(sec.id)
+section_coords = abc_controller.get_atomic_section_coordinates()
+section_coords
+
+# %% [markdown]
+# Transfer every section boundary to all connected timelines:
 
 # %%
-# Transfer each section start coordinate to all connected timelines
-boundary_timestamps = []
-for qb in section_qbs:
-    ts = bundle.get_timestamp_at(qb, "clt1", format="flat")
-    boundary_timestamps.append(ts)
-
-boundary_df = pd.DataFrame(boundary_timestamps, index=section_labels)
+boundary_df = pd.DataFrame(
+    [
+        bundle.get_timestamp_at(float(qb), "clt1", format="flat")
+        for qb in section_coords.values()
+    ],
+    index=list(section_coords.keys()),
+)
 boundary_df.index.name = "section"
 boundary_df
+
+# %% [markdown]
+# Each row gives the exact coordinate of a section boundary in every
+# timeline and domain. The sample counts are integers; the seconds and
+# quarterbeats are floats — matching each timeline's native type.
 
 # %% [markdown]
 # ## 14. Summary & Key Takeaways
@@ -706,7 +712,8 @@ boundary_df
 # | `match_notes_by_attributes()` | EEP ↔ ABC note matching | 10 |
 # | `ScoreFlowController.diagram()` | ASCII flow control visualization | 11 |
 # | `create_unfolded_timeline()` | Repeat expansion via `FlowMap` | 11 |
-# | `Flow.diagram()` / `diff_diagram()` | Flow inspection and comparison | 11, 13 |
+# | `Flow.diagram()` | Flow inspection | 11 |
+# | `get_atomic_section_coordinates()` | Section boundaries in one call | 13 |
 # | `AlignmentBundle` | Multi-group cross-domain transfer | 12-13 |
 # | `get_timestamp_at()` | Universal coordinate transfer | 13 |
 #

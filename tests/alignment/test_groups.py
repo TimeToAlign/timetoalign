@@ -366,7 +366,8 @@ class TestGetTimestampAt:
         ts = group.get_timestamp_at(75.0, "audio")
 
         assert ts["audio"] == pytest.approx(75.0)
-        assert ts["dgt1"] == pytest.approx(2437.5)  # Half of 4875
+        # Discrete timelines round to nearest integer: 4875/2 = 2437.5 → 2438
+        assert ts["dgt1"] == 2438
         assert ts.is_interpolated is True
 
     def test_interpolation_arbitrary_point(
@@ -394,7 +395,8 @@ class TestGetTimestampAt:
         # 2437.5 pixels is halfway through 4875 pixels
         ts = group.get_timestamp_at(2437.5, "dgt1")
 
-        assert ts["dgt1"] == pytest.approx(2437.5)
+        # Discrete timelines round to nearest integer: 2437.5 → 2438
+        assert ts["dgt1"] == 2438
         assert ts["audio"] == pytest.approx(75.0)
 
     def test_interpolation_with_partial_timeline(
@@ -464,9 +466,9 @@ class TestConvert:
         """Test basic coordinate conversion."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
-        # 75 seconds -> 2437.5 pixels
+        # 75 seconds -> 2438 pixels (discrete: 2437.5 rounds to 2438)
         result = group.convert(75.0, source="audio", target="dgt1")
-        assert result == pytest.approx(2437.5)
+        assert result == 2438
 
         # 2437.5 pixels -> 75 seconds
         result = group.convert(2437.5, source="dgt1", target="audio")
@@ -720,7 +722,13 @@ class TestGroupIntegration:
         assert ts_late["score"] is None
 
     def test_round_trip_conversion(self) -> None:
-        """Test that conversions are reversible."""
+        """Test that conversions are reversible within quantization error.
+
+        Discrete timelines round interpolated coordinates to integers,
+        introducing a quantization error of at most ±0.5 in the discrete
+        unit.  The round-trip tolerance in seconds is therefore
+        0.5 * (150 / 4875) ≈ 0.0154 seconds.
+        """
         audio = ContinuousPhysicalTimeline(length=150.0, unit="seconds", uid="audio")
         dgt = DiscreteGraphicalTimeline(length=4875, unit="pixels", uid="dgt")
 
@@ -730,9 +738,11 @@ class TestGroupIntegration:
         original = 67.5
         dgt_coord = group.convert(original, source="audio", target="dgt")
         assert dgt_coord is not None
+        assert isinstance(dgt_coord, int)  # discrete → integer
         back = group.convert(dgt_coord, source="dgt", target="audio")
 
-        assert back == pytest.approx(original)
+        # Quantization error: ≤ 0.5 * (150 / 4875) ≈ 0.0154 seconds
+        assert back == pytest.approx(original, abs=0.5 * 150.0 / 4875)
 
 
 # endregion

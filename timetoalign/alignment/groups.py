@@ -35,6 +35,7 @@ import pandas as pd
 import pyarrow as pa
 
 from timetoalign.core import CoordinateSpec, IdCoordinate, IdGenerator
+from timetoalign.core.enums import NumberType
 from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
 from timetoalign.maps.interpolation import InterpolationMap
 
@@ -688,7 +689,12 @@ class TimelineGroup:
             if low_val is None or high_val is None:
                 coords[col_name] = None
             else:
-                coords[col_name] = low_val + ratio * (high_val - low_val)
+                val = low_val + ratio * (high_val - low_val)
+                # Round to integer for discrete timelines (samples, pixels, …)
+                tl = self._timelines.get(col_name)
+                if tl is not None and tl.number_type == NumberType.int:
+                    val = round(val)
+                coords[col_name] = val
 
             # Extract unit from field metadata
             if data_field.metadata:
@@ -1463,7 +1469,12 @@ class TimelineGroup:
                     # to avoid floating-point errors from interpolation round-trip
                     new_row_coords[col_name] = coord
                 else:
-                    new_row_coords[col_name] = low_val + ratio * (high_val - low_val)
+                    val = low_val + ratio * (high_val - low_val)
+                    # Round to integer for discrete timelines (samples, pixels, …)
+                    tl = self._timelines.get(col_name)
+                    if tl is not None and tl.number_type == NumberType.int:
+                        val = round(val)
+                    new_row_coords[col_name] = val
             else:
                 new_row_coords[col_name] = None
 
