@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.0
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -421,10 +421,9 @@ TSV_PATH = DATA_DIR / "ms3" / "chopin_op10_no3.notes.tsv"
 if TSV_PATH.exists():
     loader = TSVLoader()
     loader.load(TSV_PATH)
-    notes_store = loader.bundle.notes
 
-    # Create timeline from store
-    chopin_tl = Timeline.from_event_store(notes_store, uid="chopin_op10_no3")
+    # Create timeline directly from the loader
+    chopin_tl = loader.create_timeline(uid="chopin_op10_no3")
 
     print(f"Timeline: {chopin_tl}")
     print(f"Events: {chopin_tl.n_events}")
@@ -474,7 +473,7 @@ print(f"Events: {restored_tl.n_events}")
 # 3. **Event Types**: Instant (single point) and Interval (start/end)
 # 4. **Hierarchies**: `parent.add_child(child, offset)`
 # 5. **C-Map Integration**: `timeline.add_conversion_map(cmap)` and `timeline.convert_to()`
-# 6. **From EventStore**: `Timeline.from_event_store(store)`
+# 6. **From EventData**: `Timeline.from_event_data(data)` or `loader.create_timeline()`
 # 7. **Serialization**: `timeline.to_dict()` and `Timeline.from_dict()`
 #
 # **Key Takeaway:**

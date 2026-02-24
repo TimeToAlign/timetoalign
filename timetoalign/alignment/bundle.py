@@ -1088,7 +1088,7 @@ class AlignmentBundle:
               TimelineGroup[dgt1_group] (2 timelines, 2 timestamps)
               ┌──────────────────────────────────────────────────────┐
               │ DiscreteGraphicalTimeline[dgt1:1] (11 events)        │
-              │ 0 ::::::::::::::::::::::::::::::::::: 4835 pixels    │
+              │ 0 ∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶ 4835 pixels    │
               └──────────────────────────────────────────────────────┘
               Timestamps: 2
 
