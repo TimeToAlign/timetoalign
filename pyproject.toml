@@ -60,11 +60,15 @@ tutorial = [                                  # Everything needed for the tutori
     "jupytext>=1.16",
     "jupyter>=1.0",
 ]
+docs = [                                      # Documentation site building
+    "timetoalign[tutorial]",
+    "quartodoc>=0.7",
+]
 all = [                                       # All runtime features
     "timetoalign[tutorial,delta,rdf]",
 ]
 dev = [                                       # All + development / CI tooling
-    "timetoalign[all]",
+    "timetoalign[all,docs]",
     "pre-commit>=2.20",
     "pytest>=7.0",
     "pytest-cov>=4.0",
