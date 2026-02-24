@@ -1,0 +1,55 @@
+# SingleStore { #timetoalign.SingleStore }
+
+```python
+SingleStore(data, name='events')
+```
+
+Store wrapper for a single EventData.
+
+Provides EventStore interface compatibility for loaders that naturally
+produce a single EventData rather than multiple categorized data.
+
+This is used as the default store type for loaders that don't have
+specialized store implementations (e.g., simple audio loaders).
+
+NOTE: This class was renamed from SingleStoreBundle to SingleStore in
+the 2026-01 API refactoring.
+
+Attributes:
+    data: The wrapped EventData.
+    name: The data name.
+
+Examples:
+    >>> data = EventData.from_dicts([...], unit=TimeUnit.seconds)
+    >>> store = SingleStore(data, name="beats")
+    >>> timeline = store.create_timeline()
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [data](#timetoalign.SingleStore.data) | The wrapped EventData. |
+| [name](#timetoalign.SingleStore.name) | The data name. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [items](#timetoalign.SingleStore.items) | Yield (name, data) pair. |
+| [keys](#timetoalign.SingleStore.keys) | Return tuple with single data name. |
+
+### items { #timetoalign.SingleStore.items }
+
+```python
+SingleStore.items()
+```
+
+Yield (name, data) pair.
+
+### keys { #timetoalign.SingleStore.keys }
+
+```python
+SingleStore.keys()
+```
+
+Return tuple with single data name.

@@ -1,0 +1,80 @@
+# API Reference {.doc .doc-index}
+
+## Core Types
+
+Fundamental types for coordinates, units, and domains.
+
+| | |
+| --- | --- |
+| [Coordinate](Coordinate.qmd#timetoalign.Coordinate) | A position on a timeline, defined by a value and unit. |
+| [CoordinateSpec](CoordinateSpec.qmd#timetoalign.CoordinateSpec) |  |
+| [CoordinateValue](CoordinateValue.qmd#timetoalign.CoordinateValue) |  |
+| [IdCoordinate](IdCoordinate.qmd#timetoalign.IdCoordinate) | A Coordinate that carries the ID of the timeline it belongs to. |
+| [Domain](Domain.qmd#timetoalign.Domain) | The temporal domain of a timeline. |
+| [TimeUnit](TimeUnit.qmd#timetoalign.TimeUnit) | Units of measurement for coordinates. |
+| [NumberType](NumberType.qmd#timetoalign.NumberType) | The numeric type used for coordinate values. |
+| [EventType](EventType.qmd#timetoalign.EventType) | Whether an event is an instant or interval. |
+| [ScopedId](ScopedId.qmd#timetoalign.ScopedId) | An identifier with a scope prefix and local part. |
+| [IdGenerator](IdGenerator.qmd#timetoalign.IdGenerator) | Generates unique IDs within a given scope. |
+
+## Timelines
+
+Timeline classes for all six domain/modality combinations.
+
+| | |
+| --- | --- |
+| [Timeline](Timeline.qmd#timetoalign.Timeline) | A positive coordinate axis with events and nested child timelines. |
+| [ContinuousLogicalTimeline](ContinuousLogicalTimeline.qmd#timetoalign.ContinuousLogicalTimeline) | A logical timeline with continuous coordinates. |
+| [DiscreteLogicalTimeline](DiscreteLogicalTimeline.qmd#timetoalign.DiscreteLogicalTimeline) | A logical timeline with discrete (integer) coordinates. |
+| [ContinuousPhysicalTimeline](ContinuousPhysicalTimeline.qmd#timetoalign.ContinuousPhysicalTimeline) | A physical timeline with continuous coordinates. |
+| [DiscretePhysicalTimeline](DiscretePhysicalTimeline.qmd#timetoalign.DiscretePhysicalTimeline) | A physical timeline with discrete (integer) coordinates. |
+| [ContinuousGraphicalTimeline](ContinuousGraphicalTimeline.qmd#timetoalign.ContinuousGraphicalTimeline) | A graphical timeline with continuous coordinates. |
+| [DiscreteGraphicalTimeline](DiscreteGraphicalTimeline.qmd#timetoalign.DiscreteGraphicalTimeline) | A graphical timeline with discrete (integer) coordinates. |
+| [LogicalTimeline](LogicalTimeline.qmd#timetoalign.LogicalTimeline) | A timeline representing logical/musical time. |
+| [PhysicalTimeline](PhysicalTimeline.qmd#timetoalign.PhysicalTimeline) | A timeline representing physical/acoustic time. |
+| [GraphicalTimeline](GraphicalTimeline.qmd#timetoalign.GraphicalTimeline) | A timeline representing graphical/spatial coordinates. |
+| [BeatGrid](BeatGrid.qmd#timetoalign.BeatGrid) | A metrical grid as a ContinuousLogicalTimeline in quarters. |
+
+## Conversion Maps
+
+Functions for transforming coordinates between units.
+
+| | |
+| --- | --- |
+| [ConversionMap](ConversionMap.qmd#timetoalign.ConversionMap) | Abstract base class for coordinate conversion maps. |
+| [ScalarMap](ScalarMap.qmd#timetoalign.ScalarMap) | Pure scaling transformation: y = scalar * x. |
+| [LinearMap](LinearMap.qmd#timetoalign.LinearMap) | Affine transformation: y = scalar * x + offset. |
+| [ShiftMap](ShiftMap.qmd#timetoalign.ShiftMap) | Pure offset transformation: y = x + offset. |
+| [TableMap](TableMap.qmd#timetoalign.TableMap) | Lookup table with interpolation between anchor points. |
+| [ChainMap](ChainMap.qmd#timetoalign.ChainMap) | Composition of multiple maps: f(g(h(x))). |
+| [PiecewiseMap](PiecewiseMap.qmd#timetoalign.PiecewiseMap) | Map defined by different maps on different intervals. |
+| [SecondsToSamples](SecondsToSamples.qmd#timetoalign.SecondsToSamples) | Convert seconds to audio samples by multiplying by sample rate. |
+
+## Alignment
+
+Classes for connecting and aligning timelines.
+
+| | |
+| --- | --- |
+| [TimelineGroup](TimelineGroup.qmd#timetoalign.TimelineGroup) | Container for commensurable timelines. |
+| [PerfectAlignment](PerfectAlignment.qmd#timetoalign.PerfectAlignment) | DEPRECATED: TimelineGroup no longer uses per-timeline alignment objects. |
+| [AlignmentBundle](AlignmentBundle.qmd#timetoalign.AlignmentBundle) | The primary entry point for all alignment workflows. |
+| [AlignmentAnchor](AlignmentAnchor.qmd#timetoalign.AlignmentAnchor) | A claim that two coordinates from different timelines are equivalent. |
+| [MatchClaim](MatchClaim.qmd#timetoalign.MatchClaim) | A claim that two events are matched. |
+| [MatchMetadata](MatchMetadata.qmd#timetoalign.MatchMetadata) | Provenance information for a match claim. |
+
+## Loaders
+
+Data ingestion from various file formats.
+
+| | |
+| --- | --- |
+| [Loader](Loader.qmd#timetoalign.Loader) | Abstract base class for loading music representations. |
+| [EventData](EventData.qmd#timetoalign.EventData) | PyArrow-based storage for timeline events. |
+| [EventStore](EventStore.qmd#timetoalign.EventStore) | Abstract base class for collections of EventData. |
+| [SingleStore](SingleStore.qmd#timetoalign.SingleStore) | Store wrapper for a single EventData. |
+| [AudioLoader](AudioLoader.qmd#timetoalign.AudioLoader) | Load audio file metadata for creating physical timelines. |
+| [AudioInfo](AudioInfo.qmd#timetoalign.AudioInfo) | Metadata for an audio file. |
+| [RepoVizzLoader](RepoVizzLoader.qmd#timetoalign.RepoVizzLoader) | Load RepoVizz 2-line CSV sensor data metadata for creating physical timelines. |
+| [RepoVizzInfo](RepoVizzInfo.qmd#timetoalign.RepoVizzInfo) | Parsed metadata from a RepoVizz CSV file. |
+| [EepNotesLoader](EepNotesLoader.qmd#timetoalign.EepNotesLoader) | Loader for EEP ``.notes`` alignment files. |

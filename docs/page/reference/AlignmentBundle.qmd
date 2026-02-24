@@ -1,0 +1,422 @@
+# AlignmentBundle { #timetoalign.AlignmentBundle }
+
+```python
+AlignmentBundle(
+    id='',
+    name=None,
+    timelines=dict(),
+    groups=dict(),
+    timeline_to_group=dict(),
+    meta=dict(),
+    cross_group_claims=list(),
+    _uid_to_timeline_id=dict(),
+    _timeline_id_to_uid=dict(),
+    _warp_maps=dict(),
+)
+```
+
+The primary entry point for all alignment workflows.
+
+An AlignmentBundle manages timelines and their alignment relationships.
+It supports "perfect alignment" (linear interpolation within groups)
+for Phase 1, with cross-group matching planned for future phases.
+
+The bundle provides:
+- Timeline registration and lookup
+- Group management (collections of perfectly aligned timelines)
+- Coordinate transfer between any two timelines in the same group
+
+IMPORTANT: The resulting bundle structure is order-independent. Adding
+timelines in any order produces the same alignment relationships and
+coordinate transfer results.
+
+Attributes:
+    id: Unique identifier for this bundle.
+    name: Optional human-readable name.
+    timelines: Dictionary mapping bundle UIDs to Timeline objects.
+    groups: Dictionary mapping group IDs to TimelineGroup objects.
+    timeline_to_group: Mapping from bundle UID to its containing group ID.
+
+Note:
+    The bundle maintains a UID mapping layer. Users interact with bundle UIDs
+    (e.g., "tl1", "tl2"), while groups internally use the actual timeline.id.
+    The bundle translates between these two namespaces transparently.
+
+Examples:
+    Basic usage with explicit timelines:
+
+        >>> bundle = AlignmentBundle()
+        >>> bundle.add_timeline(score_timeline, uid="score")
+        >>> bundle.add_timeline(audio_timeline, uid="audio", aligned_to="score")
+        >>> bundle.transfer(100.0, "score", "audio")
+        45.5
+
+    SUPRA Piano Roll example:
+
+        >>> bundle = AlignmentBundle(name="SUPRA WM990")
+        >>> bundle.add_timeline(image_timeline, uid="dgt1")
+        >>> bundle.add_timeline(midi_raw, uid="dlt1", aligned_to="dgt1")
+        >>> bundle.add_timeline(midi_exp, uid="dlt2", aligned_to="dgt1")
+        >>> bundle.transfer(50000, "dgt1", "dlt1")  # pixels -> ticks
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [default_group](#timetoalign.AlignmentBundle.default_group) | Get the single group (Phase 1) or primary group. |
+| [group_ids](#timetoalign.AlignmentBundle.group_ids) | List of all group IDs in the bundle. |
+| [n_groups](#timetoalign.AlignmentBundle.n_groups) | Number of groups in this bundle. |
+| [n_timelines](#timetoalign.AlignmentBundle.n_timelines) | Number of timelines in this bundle. |
+| [timeline_ids](#timetoalign.AlignmentBundle.timeline_ids) | List of all timeline IDs in the bundle. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [add_group](#timetoalign.AlignmentBundle.add_group) | Add a pre-built TimelineGroup with all its timelines at once. |
+| [add_match_claims](#timetoalign.AlignmentBundle.add_match_claims) | Add MatchClaims connecting timelines across different groups. |
+| [add_timeline](#timetoalign.AlignmentBundle.add_timeline) | Add a timeline, optionally aligned to an existing timeline. |
+| [are_commensurable](#timetoalign.AlignmentBundle.are_commensurable) | Check if two timelines can be connected via transfer. |
+| [diagram](#timetoalign.AlignmentBundle.diagram) | Generate ASCII diagram for this bundle. |
+| [get_group](#timetoalign.AlignmentBundle.get_group) | Get a group by ID. |
+| [get_group_for_timeline](#timetoalign.AlignmentBundle.get_group_for_timeline) | Get the group containing a timeline. |
+| [get_timeline](#timetoalign.AlignmentBundle.get_timeline) | Get a timeline by ID. |
+| [get_timestamp_at](#timetoalign.AlignmentBundle.get_timestamp_at) | Get a cross-group timestamp at a coordinate on a given timeline. |
+| [get_warp_map](#timetoalign.AlignmentBundle.get_warp_map) | Get the WarpMap for converting coordinates between two timelines. |
+| [summary](#timetoalign.AlignmentBundle.summary) | Get a summary of the bundle contents. |
+| [transfer](#timetoalign.AlignmentBundle.transfer) | Transfer a coordinate from one timeline to another. |
+| [transfer_interval](#timetoalign.AlignmentBundle.transfer_interval) | Transfer an interval from one timeline to another. |
+
+### add_group { #timetoalign.AlignmentBundle.add_group }
+
+```python
+AlignmentBundle.add_group(group, *, uid_map=None)
+```
+
+Add a pre-built TimelineGroup with all its timelines at once.
+
+This is the bulk-registration counterpart of ``add_timeline(..., as_group=...)``.
+It registers the group and every timeline it already contains into the
+bundle's bookkeeping (UID mapping, timeline registry, group registry).
+
+Args:
+    group: A ``TimelineGroup`` that already contains timelines.
+    uid_map: Optional mapping from timeline.id to desired bundle UID.
+        If not provided, each timeline's ``id`` is used as its bundle UID.
+
+Returns:
+    self (for method chaining)
+
+Raises:
+    ValueError: If the group ID already exists in the bundle, or
+        if any timeline UID would collide with an existing one.
+
+Examples:
+    Add a recording group with 5 DPTs:
+
+        >>> grp = TimelineGroup(id="normal", timelines=[dpt1, dpt2, dpt3])
+        >>> bundle.add_group(grp)
+
+    With custom UIDs:
+
+        >>> bundle.add_group(grp, uid_map={"dpt:1": "audio", "dpt:2": "midi"})
+
+### add_match_claims { #timetoalign.AlignmentBundle.add_match_claims }
+
+```python
+AlignmentBundle.add_match_claims(claims, *, build_warp_maps=True)
+```
+
+Add MatchClaims connecting timelines across different groups.
+
+MatchClaims encode coordinate correspondences between timelines in
+different groups (e.g., EEP recording notes matched to ABC score notes).
+They enable cross-group coordinate transfer via WarpMaps.
+
+Args:
+    claims: List of MatchClaim objects. Each claim connects two
+        timelines via its start_anchor (and optionally end_anchor).
+    build_warp_maps: If True, automatically build WarpMaps (TableMaps)
+        from the claims for efficient interpolation. Default True.
+
+Returns:
+    self (for method chaining)
+
+### add_timeline { #timetoalign.AlignmentBundle.add_timeline }
+
+```python
+AlignmentBundle.add_timeline(
+    timeline,
+    *,
+    uid=None,
+    aligned_to=None,
+    as_group=None,
+    start=None,
+    end=None,
+)
+```
+
+Add a timeline, optionally aligned to an existing timeline.
+
+This is the primary method for adding timelines to the bundle.
+Timelines can be standalone or aligned to existing timelines.
+
+Args:
+    timeline: The Timeline to add.
+    uid: Optional explicit ID. If None, uses timeline.id.
+    aligned_to: ID of existing timeline to align with.
+        If provided, both timelines become part of the same group.
+        If the target timeline is not yet in a group, a new group
+        is created with the target as reference.
+    as_group: Name for the group if creating a new one.
+    start: Where this timeline's 0-origin starts in the group.
+        - IdCoordinate: Coordinate with explicit timeline_id (preferred)
+        - (coord, timeline_id): Legacy tuple form
+        - float: Coordinate in the aligned_to timeline
+        - None: Use group's current start (default for linear alignment)
+    end: Where this timeline's end (length) aligns in the group.
+        - Same options as start
+        - None: Use group's current end (default for linear alignment)
+
+Returns:
+    self (for method chaining)
+
+Raises:
+    ValueError: If uid already exists in bundle.
+    KeyError: If aligned_to references a non-existent timeline.
+
+Examples:
+    Linear (full-extent) alignment:
+
+        >>> bundle.add_timeline(audio, uid="dgt1")
+        >>> bundle.add_timeline(midi, uid="dlt1", aligned_to="dgt1")
+
+    Partial alignment (SUPRA piano roll) using IdCoordinate:
+
+        >>> from timetoalign import IdCoordinate, TimeUnit
+        >>> bundle.add_timeline(image, uid="dgt1")  # Full image
+        >>> bundle.add_timeline(
+        ...     holes,
+        ...     uid="dgt1_holes",
+        ...     aligned_to="dgt1",
+        ...     start=IdCoordinate(15343.0, TimeUnit.pixels, "dgt1"),
+        ...     end=IdCoordinate(293119.0, TimeUnit.pixels, "dgt1"),
+        ... )
+
+### are_commensurable { #timetoalign.AlignmentBundle.are_commensurable }
+
+```python
+AlignmentBundle.are_commensurable(timeline_a, timeline_b)
+```
+
+Check if two timelines can be connected via transfer.
+
+In Phase 1, this means they are in the same group.
+Future phases will also check for match paths.
+
+Args:
+    timeline_a: First timeline ID.
+    timeline_b: Second timeline ID.
+
+Returns:
+    True if coordinates can be transferred between them.
+
+### diagram { #timetoalign.AlignmentBundle.diagram }
+
+```python
+AlignmentBundle.diagram(
+    width=80,
+    show_children=True,
+    max_children=6,
+    unicode=True,
+)
+```
+
+Generate ASCII diagram for this bundle.
+
+Args:
+    width: Total width of the diagram in characters.
+    show_children: Whether to expand child timelines.
+    max_children: Maximum children per timeline.
+    unicode: Use Unicode characters (True) or ASCII fallback (False).
+
+Returns:
+    Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
+
+Examples:
+    >>> print(bundle.diagram())
+    AlignmentBundle[thoresen_alignment]
+
+      TimelineGroup[dgt1_group] (2 timelines, 2 timestamps)
+      ┌──────────────────────────────────────────────────────┐
+      │ DiscreteGraphicalTimeline[dgt1:1] (11 events)        │
+      │ 0 ::::::::::::::::::::::::::::::::::: 4835 pixels    │
+      └──────────────────────────────────────────────────────┘
+      Timestamps: 2
+
+      MatchClaims: 5
+
+### get_group { #timetoalign.AlignmentBundle.get_group }
+
+```python
+AlignmentBundle.get_group(uid)
+```
+
+Get a group by ID.
+
+Args:
+    uid: The group's unique identifier.
+
+Returns:
+    The TimelineGroup object.
+
+Raises:
+    KeyError: If no group with that ID exists.
+
+### get_group_for_timeline { #timetoalign.AlignmentBundle.get_group_for_timeline }
+
+```python
+AlignmentBundle.get_group_for_timeline(timeline_id)
+```
+
+Get the group containing a timeline.
+
+Args:
+    timeline_id: The timeline's unique identifier.
+
+Returns:
+    The TimelineGroup containing the timeline, or None if standalone.
+
+### get_timeline { #timetoalign.AlignmentBundle.get_timeline }
+
+```python
+AlignmentBundle.get_timeline(uid)
+```
+
+Get a timeline by ID.
+
+Args:
+    uid: The timeline's unique identifier.
+
+Returns:
+    The Timeline object.
+
+Raises:
+    KeyError: If no timeline with that ID exists.
+
+### get_timestamp_at { #timetoalign.AlignmentBundle.get_timestamp_at }
+
+```python
+AlignmentBundle.get_timestamp_at(coordinate, timeline_id, *, format='prefix')
+```
+
+Get a cross-group timestamp at a coordinate on a given timeline.
+
+This is the primary method for cross-domain coordinate transfer.
+Given a coordinate on one timeline, it returns the corresponding
+coordinates on ALL connected timelines across ALL groups.
+
+The method:
+1. Finds the group containing the source timeline
+2. Gets the within-group timestamp (via group.get_timestamp_at())
+3. For each connected group (via WarpMaps from MatchClaims),
+   transfers the coordinate and gets the within-group timestamp
+4. Returns all coordinates in the requested format
+
+Args:
+    coordinate: The coordinate value on the source timeline.
+    timeline_id: ID of the source timeline (bundle UID).
+    format: Output format:
+        - ``"prefix"`` (default): ``{"group/timeline": coord, ...}``
+        - ``"nested"``: ``{"group": {"timeline": coord, ...}, ...}``
+        - ``"flat"``: ``{"timeline": coord, ...}``
+
+Returns:
+    Dict of coordinates across all connected groups and timelines.
+    Timelines that cannot be reached return None values.
+
+Raises:
+    KeyError: If timeline_id is not in the bundle.
+
+Examples:
+    >>> ts = bundle.get_timestamp_at(50.0, "clt1_score", format="prefix")
+    >>> ts
+    {'score/clt1_score': 50.0, 'score/dgt1': 45000.0,
+     'normal/dpt1': 23456789, ...}
+
+    >>> ts = bundle.get_timestamp_at(50.0, "clt1_score", format="nested")
+    >>> ts
+    {'score': {'clt1_score': 50.0, 'dgt1': 45000.0},
+     'normal': {'dpt1': 23456789, ...}, ...}
+
+### get_warp_map { #timetoalign.AlignmentBundle.get_warp_map }
+
+```python
+AlignmentBundle.get_warp_map(from_timeline, to_timeline)
+```
+
+Get the WarpMap for converting coordinates between two timelines.
+
+Args:
+    from_timeline: Source timeline ID.
+    to_timeline: Target timeline ID.
+
+Returns:
+    TableMap for interpolation, or None if no map exists.
+
+### summary { #timetoalign.AlignmentBundle.summary }
+
+```python
+AlignmentBundle.summary()
+```
+
+Get a summary of the bundle contents.
+
+Returns a deterministic representation suitable for comparison.
+Keys and timeline lists are sorted for order-independence.
+
+Returns:
+    Dictionary with bundle information.
+
+### transfer { #timetoalign.AlignmentBundle.transfer }
+
+```python
+AlignmentBundle.transfer(coord, from_timeline, to_timeline)
+```
+
+Transfer a coordinate from one timeline to another.
+
+Automatically determines the conversion path:
+1. If both timelines are in the same group: direct conversion
+2. If in different groups with matches: uses WarpMap (Phase 2+)
+3. If no path exists: returns None
+
+This is the primary user-facing method for coordinate conversion.
+
+Args:
+    coord: The coordinate value to transfer.
+    from_timeline: ID of the source timeline.
+    to_timeline: ID of the target timeline.
+
+Returns:
+    The transferred coordinate, or None if no path exists.
+
+Raises:
+    KeyError: If either timeline is not in the bundle.
+
+### transfer_interval { #timetoalign.AlignmentBundle.transfer_interval }
+
+```python
+AlignmentBundle.transfer_interval(start, end, from_timeline, to_timeline)
+```
+
+Transfer an interval from one timeline to another.
+
+Args:
+    start: Start coordinate in source timeline.
+    end: End coordinate in source timeline.
+    from_timeline: ID of the source timeline.
+    to_timeline: ID of the target timeline.
+
+Returns:
+    Tuple of (start, end) in target timeline, or None if no path.

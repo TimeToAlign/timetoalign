@@ -1,0 +1,23 @@
+# ContinuousLogicalTimeline { #timetoalign.ContinuousLogicalTimeline }
+
+```python
+ContinuousLogicalTimeline(
+    length=0,
+    unit=None,
+    number_type=None,
+    id_prefix='tl',
+    uid=None,
+    name=None,
+    locked=False,
+    meta=None,
+)
+```
+
+A logical timeline with continuous coordinates.
+
+Used for score representations where fractional beat positions
+are meaningful (e.g., a note at beat 2.5 or quarter beat 3/4).
+
+Default unit: quarters (quarter notes).
+Default number type: Fraction (for exact rhythmic representation).
+Allowed units: beats, quarters, measures, number (NOT ticks).

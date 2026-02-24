@@ -1,0 +1,23 @@
+# DiscreteGraphicalTimeline { #timetoalign.DiscreteGraphicalTimeline }
+
+```python
+DiscreteGraphicalTimeline(
+    length=0,
+    unit=None,
+    number_type=None,
+    id_prefix='tl',
+    uid=None,
+    name=None,
+    locked=False,
+    meta=None,
+)
+```
+
+A graphical timeline with discrete (integer) coordinates.
+
+Used for pixel-based visualization where positions are
+quantized to screen coordinates.
+
+Default unit: pixels.
+Default number type: int.
+Allowed units: pixels only.
