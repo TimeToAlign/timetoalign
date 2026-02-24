@@ -4,7 +4,7 @@ project:
   pre-render: python sync_notebooks.py --verbose
 
 execute:
-  freeze: auto
+  enabled: false
 
 website:
   title: "TimeToAlign!"
