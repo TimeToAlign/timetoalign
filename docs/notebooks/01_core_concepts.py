@@ -341,12 +341,14 @@ score_tl = ContinuousLogicalTimeline(length=Fraction(16, 1))  # 16 quarter notes
 midi_tl = DiscreteLogicalTimeline(length=1920)  # 1920 ticks
 audio_tl = ContinuousPhysicalTimeline(length=10.0)  # 10 seconds
 image_tl = DiscreteGraphicalTimeline(length=1920)  # 1920 pixels
+empty_tl = ContinuousGraphicalTimeline()  # empty
 
 {
     "score": score_tl.length,
     "midi": midi_tl.length,
     "audio": audio_tl.length,
     "image": image_tl.length,
+    "empty": empty_tl.length,
 }
 
 # %%
