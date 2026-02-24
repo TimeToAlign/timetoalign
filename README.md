@@ -5,8 +5,8 @@ A Python library for representing and aligning musical timelines.
 ## Installation
 
 ```bash
-git clone https://github.com/DCMLab/tta.git
-cd tta/timetoalign
+git clone git@github.com:TimeToAlign/timetoalign.git
+cd timetoalign
 pip install -e ".[dev]"
 ```
 
