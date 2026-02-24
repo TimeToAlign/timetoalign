@@ -1,11 +1,14 @@
 {
-  "01_core_concepts.py": "a0f72dd07793769f6100ebb8c58c859c96d7ae94e172245284275a031aa20006",
-  "03_conversion_maps.py": "79c018ad1f71a206c12995415a9ab745749a0482458ef0bf5146d39cb87ff61f",
-  "06_graphical_timelines.py": "74d5fea5c12bff051e5dc2073319225a74e0ba31ad55d3c6be83453db734d975",
-  "08_supra_piano_roll.py": "7075e577c3f768b9b1229ed9bfaa4a1abe47fb7abca92924a7fd4d42630d2ec1",
-  "09_beat_grids.py": "dd5097579f77f75bab54af61386990ff47e723dd7c0231cb405a71e4ec224c64",
-  "00_motivation.py": "1e1ec9b3c1a7e7ace92cb213cd6ee6af7a14336a04e6e65a5f215b6e39e0d3f6",
-  "02_loading_data.py": "d55e500a52e37c38e532bc611e4cf773a6d35d601470af88db1b11feef805692",
-  "02a_tabular_loaders.py": "788f926876e9a7a9daefaf594e344f61ce1bebf6fdfb9ccd6141f6243157fee3",
-  "07_alignment_basics.py": "ab23cc0e69056e8e1baa281d836ea5a3ce3b8761dc8627cf2591d0b8909b79c0"
+  "00_motivation.py": "4d605ac73146bc01e6b3b1bca101ba08c8935ed5a54553dd15104c356d6a919d",
+  "01_core_concepts.py": "53f45c7d723482a3bc60be271ec28c187e8034f6036765405be1823a01454260",
+  "02_loading_data.py": "cb126e456e40c3803cd39856056d56adf9144e5a0a748f0158df4d91fce5d921",
+  "02a_tabular_loaders.py": "85561e2ba623e1477c7f2a79ec555aeafa2a19eac076f2b2b7ad287b391c7995",
+  "03_conversion_maps.py": "d334eea61263deb36cd148b1629c1961aeb842de84199392145e740c0e860f81",
+  "04_building_timelines.py": "3e63dca6b5849a645dfb9a02d8301dd587d51b98ab775f358546cad585ce13c1",
+  "05_timestamps.py": "d21d8409f2ce8e30b118fd44a05ff6e8712f9ab4235138f731f8d5cc92a99ff2",
+  "06_graphical_timelines.py": "e69ce17f4a82cb5c2070e7d94acdd3d4b7b9749c531e6c0d0e298932f05f2409",
+  "07_alignment_basics.py": "7181ab00bfce60deb2aee3db4da0848286f7b7bf71fc2ea23d7a47c387b5c1aa",
+  "08_supra_piano_roll.py": "0b1935613e32ba50b901cf598a1b37870098880134350ad89a418e17a7b01ef9",
+  "09_beat_grids.py": "d9a749a13922857c341db39585f77b557d07d03039872fecd3bb92a038f39a56",
+  "10_beethoven_multimodal.py": "8dd1e45068168b9bae514ce0af553b8b65c78a9a37f47cee861c592bf43a690a"
 }
