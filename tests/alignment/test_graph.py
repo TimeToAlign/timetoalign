@@ -17,6 +17,7 @@ from timetoalign.alignment import (
 from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
 from timetoalign.alignment.groups import _reset_group_ids
+from timetoalign.core.enums import Domain, TimeUnit
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
@@ -673,6 +674,433 @@ class TestMatchGraphThoresenIntegration:
         # Segment 1 ends at 967 in DGT1, 866 in DGT2
         assert end_stamp.get_coordinate("dgt1") == 967.0
         assert end_stamp.get_coordinate("dgt2") == 866.0
+
+
+# endregion
+
+
+# region Phase 6.4: MatchGraph Overhaul Tests
+
+
+class TestMatchGraphNonSynchronousClaims:
+    """Phase 6.4: Non-synchronous claims stored as metadata, no edges."""
+
+    def test_non_synchronous_claims_no_edges(self) -> None:
+        """Non-synchronous claims do not create graph edges."""
+        claims = [
+            MatchClaim.instant("tl_a", 100.0, "tl_b", 50.0, is_synchronous=True),
+            MatchClaim.nomatch(
+                event={"start": 200.0},
+                source_tl_id="tl_a",
+                target_tl_id="tl_b",
+            ),
+        ]
+        graph = MatchGraph(claims)
+
+        # Only the synchronous claim creates edges
+        assert graph.n_claims == 2
+        assert graph.n_nodes == 2  # Only from the synchronous claim
+        assert graph.n_edges == 1
+
+    def test_non_synchronous_claims_accessible_via_claims(self) -> None:
+        """Non-synchronous claims are accessible via claims property."""
+        sync_claim = MatchClaim.instant("tl_a", 100.0, "tl_b", 50.0)
+        nomatch_claim = MatchClaim.nomatch(
+            event={"start": 200.0},
+            source_tl_id="tl_a",
+            target_tl_id="tl_c",
+        )
+        graph = MatchGraph([sync_claim, nomatch_claim])
+
+        assert len(graph.claims) == 2
+        assert len(graph.synchronous_claims) == 1
+        assert len(graph.non_synchronous_claims) == 1
+        assert graph.non_synchronous_claims[0] is nomatch_claim
+
+    def test_only_non_synchronous_claims_empty_graph(self) -> None:
+        """Graph with only non-synchronous claims has no nodes or edges."""
+        claims = [
+            MatchClaim.nomatch(
+                event={"start": 100.0},
+                source_tl_id="tl_a",
+                target_tl_id="tl_b",
+            ),
+            MatchClaim.nomatch(
+                event={"start": 200.0},
+                source_tl_id="tl_c",
+                target_tl_id="tl_d",
+            ),
+        ]
+        graph = MatchGraph(claims)
+
+        assert graph.n_claims == 2
+        assert graph.n_nodes == 0
+        assert graph.n_edges == 0
+        assert len(graph.timeline_ids) == 0
+
+
+class TestMatchGraphGetStamps:
+    """Phase 6.4: get_stamps() method tests."""
+
+    def test_get_stamps_returns_list(self, simple_instant_claim: MatchClaim) -> None:
+        """get_stamps() returns a list of MatchStamps."""
+        graph = MatchGraph([simple_instant_claim])
+        stamps = graph.get_stamps()
+
+        assert isinstance(stamps, list)
+        assert len(stamps) == 1
+        assert stamps[0].get_coordinate("tl_a") == 100.0
+        assert stamps[0].get_coordinate("tl_b") == 50.0
+
+    def test_get_stamps_one_per_component(self) -> None:
+        """get_stamps() returns one MatchStamp per connected component."""
+        claims = [
+            MatchClaim.instant("tl_a", 100.0, "tl_b", 50.0),
+            MatchClaim.instant("tl_c", 200.0, "tl_d", 75.0),  # Disconnected
+        ]
+        graph = MatchGraph(claims)
+        stamps = graph.get_stamps()
+
+        assert len(stamps) == 2
+        assert all(s.n_timelines == 2 for s in stamps)
+
+    def test_get_stamps_connected_chain(
+        self, three_timeline_claims: list[MatchClaim]
+    ) -> None:
+        """get_stamps() merges connected chain into single stamp."""
+        graph = MatchGraph(three_timeline_claims)
+        stamps = graph.get_stamps()
+
+        assert len(stamps) == 1
+        assert stamps[0].n_timelines == 3
+
+    def test_get_stamps_empty_graph(self) -> None:
+        """get_stamps() on empty graph returns empty list."""
+        graph = MatchGraph()
+        stamps = graph.get_stamps()
+        assert stamps == []
+
+    def test_get_all_stamps_is_alias(self, simple_instant_claim: MatchClaim) -> None:
+        """get_all_stamps() is an alias for get_stamps()."""
+        graph = MatchGraph([simple_instant_claim])
+        stamps = graph.get_stamps()
+        all_stamps = graph.get_all_stamps()
+
+        assert len(stamps) == len(all_stamps)
+        # Same coordinates
+        for s, a in zip(stamps, all_stamps):
+            assert s.coordinates == a.coordinates
+
+
+class TestMatchGraphExtendToGroupsImplicitClaims:
+    """Phase 6.4: extend_to_groups() creates implicit MatchClaim objects."""
+
+    def test_extension_creates_implicit_claims(
+        self,
+        dgt1_group: TimelineGroup,
+    ) -> None:
+        """extend_to_groups() adds implicit MatchClaims (case d)."""
+        claim = MatchClaim.instant("dgt1", 500.0, "external", 25.0)
+        graph = MatchGraph([claim])
+
+        groups = {"group1": dgt1_group}
+        timeline_to_group = {"dgt1": "group1", "audio": "group1"}
+
+        extended = graph.extend_to_groups(groups, timeline_to_group)
+
+        # Original had 1 claim, extended should have 1 original + implicit
+        assert extended.n_claims > 1
+
+        # Check that implicit claims exist
+        implicit = [c for c in extended.claims if not c.is_explicit]
+        assert len(implicit) >= 1
+
+        # Implicit claims should be synchronous
+        for ic in implicit:
+            assert ic.is_synchronous is True
+            assert ic.is_explicit is False
+            assert ic.start_anchor is not None
+
+    def test_implicit_claims_have_source_claim_id(
+        self,
+        dgt1_group: TimelineGroup,
+    ) -> None:
+        """Implicit claims have source_claim_id for traceability."""
+        claim = MatchClaim.instant("dgt1", 500.0, "external", 25.0)
+        graph = MatchGraph([claim])
+
+        groups = {"group1": dgt1_group}
+        timeline_to_group = {"dgt1": "group1", "audio": "group1"}
+
+        extended = graph.extend_to_groups(groups, timeline_to_group)
+
+        implicit = [c for c in extended.claims if not c.is_explicit]
+        assert len(implicit) >= 1
+
+        for ic in implicit:
+            assert ic.source_claim_id == claim.id
+
+    def test_two_groups_five_implicit_claims(self) -> None:
+        """Two groups {TL1, TL4, TL5} and {TL2, TL6}: all implicit claims added.
+
+        Scenario:
+        - Group A: tl1 (1000px), tl4 (500px), tl5 (200px)
+        - Group B: tl2 (800px), tl6 (400px)
+        - Explicit claim: tl1@500 <-> tl2@400
+        - Extension should add:
+          - tl4 via group A (from tl1@500 -> tl4@250)
+          - tl5 via group A (from tl1@500 -> tl5@100)
+          - tl6 via group B (from tl2@400 -> tl6@200)
+        """
+        # Build group A: tl1, tl4, tl5
+        tl1 = DiscreteGraphicalTimeline(length=1000, unit="pixels", uid="tl1")
+        tl4 = DiscreteGraphicalTimeline(length=500, unit="pixels", uid="tl4")
+        tl5 = DiscreteGraphicalTimeline(length=200, unit="pixels", uid="tl5")
+
+        group_a = TimelineGroup(id="group_a")
+        group_a.add_timeline(tl1)
+        group_a.add_timeline(tl4)
+        group_a.add_timeline(tl5)
+
+        # Build group B: tl2, tl6
+        tl2 = DiscreteGraphicalTimeline(length=800, unit="pixels", uid="tl2")
+        tl6 = DiscreteGraphicalTimeline(length=400, unit="pixels", uid="tl6")
+
+        group_b = TimelineGroup(id="group_b")
+        group_b.add_timeline(tl2)
+        group_b.add_timeline(tl6)
+
+        # Explicit claim: tl1@500 <-> tl2@400
+        claim = MatchClaim.instant("tl1", 500.0, "tl2", 400.0)
+        graph = MatchGraph([claim])
+
+        groups = {"group_a": group_a, "group_b": group_b}
+        timeline_to_group = {
+            "tl1": "group_a",
+            "tl4": "group_a",
+            "tl5": "group_a",
+            "tl2": "group_b",
+            "tl6": "group_b",
+        }
+
+        extended = graph.extend_to_groups(groups, timeline_to_group)
+
+        # All 5 timelines should be present
+        assert extended.timeline_ids == {"tl1", "tl2", "tl4", "tl5", "tl6"}
+
+        # Check stamps: all 5 timelines should be in one connected component
+        stamps = extended.get_stamps()
+        assert len(stamps) == 1
+        stamp = stamps[0]
+        assert stamp.n_timelines == 5
+
+        # Verify coordinates via linear interpolation
+        # tl1: 1000px, tl4: 500px, tl5: 200px (all linear from 0)
+        # tl1@500 -> tl4: 500 * (500/1000) = 250
+        assert stamp.get_coordinate("tl4") == pytest.approx(250.0)
+        # tl1@500 -> tl5: 500 * (200/1000) = 100
+        assert stamp.get_coordinate("tl5") == pytest.approx(100.0)
+        # tl2@400 -> tl6: 400 * (400/800) = 200
+        assert stamp.get_coordinate("tl6") == pytest.approx(200.0)
+
+        # Count implicit claims
+        implicit = [c for c in extended.claims if not c.is_explicit]
+        # At least 3: tl1->tl4, tl1->tl5, tl2->tl6
+        # Could be more depending on group B extension from tl6 back to tl2
+        assert len(implicit) >= 3
+
+
+class TestMatchGraphExtendToGroupsFilters:
+    """Phase 6.4: extend_to_groups() filter parameters."""
+
+    @pytest.fixture
+    def multi_group_setup(
+        self,
+    ) -> tuple[
+        MatchClaim,
+        dict[str, TimelineGroup],
+        dict[str, str],
+        dict[str, DiscreteGraphicalTimeline | ContinuousPhysicalTimeline],
+    ]:
+        """Set up a multi-group scenario for filter tests.
+
+        Group A: dgt1 (1000 pixels), audio (100 seconds)
+        External claim: dgt1@500 <-> external@25
+        """
+        dgt1 = DiscreteGraphicalTimeline(length=1000, unit="pixels", uid="dgt1")
+        audio = ContinuousPhysicalTimeline(length=100.0, unit="seconds", uid="audio")
+
+        group_a = TimelineGroup(id="group_a")
+        group_a.add_timeline(dgt1)
+        group_a.add_timeline(audio)
+
+        claim = MatchClaim.instant("dgt1", 500.0, "external", 25.0)
+
+        groups = {"group_a": group_a}
+        timeline_to_group = {"dgt1": "group_a", "audio": "group_a"}
+        timelines = {"dgt1": dgt1, "audio": audio}
+
+        return claim, groups, timeline_to_group, timelines
+
+    def test_include_timelines_filter(
+        self,
+        multi_group_setup: tuple,
+    ) -> None:
+        """include_timelines restricts which timelines get implicit claims."""
+        claim, groups, timeline_to_group, timelines = multi_group_setup
+        graph = MatchGraph([claim])
+
+        # Only extend to dgt1 (should NOT add audio)
+        extended = graph.extend_to_groups(
+            groups,
+            timeline_to_group,
+            include_timelines={"dgt1", "external"},
+        )
+
+        # Audio should NOT be in the graph
+        assert "audio" not in extended.timeline_ids
+        assert extended.n_nodes == 2
+        assert extended.n_edges == 1
+
+    def test_exclude_timelines_filter(
+        self,
+        multi_group_setup: tuple,
+    ) -> None:
+        """exclude_timelines prevents specific timelines from extension."""
+        claim, groups, timeline_to_group, timelines = multi_group_setup
+        graph = MatchGraph([claim])
+
+        # Exclude audio
+        extended = graph.extend_to_groups(
+            groups,
+            timeline_to_group,
+            exclude_timelines={"audio"},
+        )
+
+        assert "audio" not in extended.timeline_ids
+
+    def test_include_domains_filter(
+        self,
+        multi_group_setup: tuple,
+    ) -> None:
+        """include_domains restricts extension by timeline domain."""
+        claim, groups, timeline_to_group, timelines = multi_group_setup
+        graph = MatchGraph([claim])
+
+        # Only extend to graphical domain (should NOT add audio)
+        extended = graph.extend_to_groups(
+            groups,
+            timeline_to_group,
+            include_domains={Domain.graphical},
+            timelines=timelines,
+        )
+
+        # Audio (physical) should NOT be extended into the graph
+        assert "audio" not in extended.timeline_ids
+
+    def test_include_units_filter(
+        self,
+        multi_group_setup: tuple,
+    ) -> None:
+        """include_units restricts extension by timeline unit."""
+        claim, groups, timeline_to_group, timelines = multi_group_setup
+        graph = MatchGraph([claim])
+
+        # Only extend to pixels (should NOT add audio/seconds)
+        extended = graph.extend_to_groups(
+            groups,
+            timeline_to_group,
+            include_units={TimeUnit.pixels},
+            timelines=timelines,
+        )
+
+        # Audio (seconds) should NOT be extended
+        assert "audio" not in extended.timeline_ids
+
+
+class TestMatchGraphFilterPhase64:
+    """Phase 6.4: filter() method with domain/unit filters."""
+
+    def test_filter_by_include_domains(self) -> None:
+        """filter() with include_domains removes timelines of wrong domain."""
+        dgt1 = DiscreteGraphicalTimeline(length=1000, unit="pixels", uid="dgt1")
+        audio = ContinuousPhysicalTimeline(length=100.0, unit="seconds", uid="audio")
+
+        claim = MatchClaim.instant("dgt1", 500.0, "audio", 50.0)
+        graph = MatchGraph([claim])
+
+        # Filter to only graphical
+        filtered = graph.filter(
+            include_domains={Domain.graphical},
+            timelines={"dgt1": dgt1, "audio": audio},
+        )
+
+        # Audio should be removed
+        assert "audio" not in filtered.timeline_ids
+        # Graph should have no edges (only dgt1 remains, isolated)
+        assert filtered.n_edges == 0
+
+    def test_filter_by_include_units(self) -> None:
+        """filter() with include_units removes timelines of wrong unit."""
+        dgt1 = DiscreteGraphicalTimeline(length=1000, unit="pixels", uid="dgt1")
+        audio = ContinuousPhysicalTimeline(length=100.0, unit="seconds", uid="audio")
+
+        claim = MatchClaim.instant("dgt1", 500.0, "audio", 50.0)
+        graph = MatchGraph([claim])
+
+        filtered = graph.filter(
+            include_units={TimeUnit.seconds},
+            timelines={"dgt1": dgt1, "audio": audio},
+        )
+
+        # dgt1 (pixels) should be removed, audio should remain but isolated
+        assert "dgt1" not in filtered.timeline_ids
+        # No edges remain (isolated nodes removed)
+        assert filtered.n_edges == 0
+
+    def test_filter_keeps_non_synchronous_claims(self) -> None:
+        """filter() preserves non-sync claims connecting remaining timelines."""
+        sync_claim = MatchClaim.instant("tl_a", 100.0, "tl_b", 50.0)
+        nomatch_claim = MatchClaim.nomatch(
+            event={"start": 200.0},
+            source_tl_id="tl_a",
+            target_tl_id="tl_b",
+        )
+        unrelated_nomatch = MatchClaim.nomatch(
+            event={"start": 300.0},
+            source_tl_id="tl_a",
+            target_tl_id="tl_c",
+        )
+        graph = MatchGraph([sync_claim, nomatch_claim, unrelated_nomatch])
+
+        filtered = graph.filter(include_timelines={"tl_a", "tl_b"})
+
+        # The sync claim and the nomatch between tl_a and tl_b should remain
+        # The nomatch involving tl_c should be dropped
+        assert len(filtered.claims) == 2
+        claim_tl_sets = [{c.timeline_a_id, c.timeline_b_id} for c in filtered.claims]
+        assert {"tl_a", "tl_b"} in claim_tl_sets
+        assert {"tl_a", "tl_c"} not in claim_tl_sets
+
+
+class TestMatchStampGetGroupCoordinates:
+    """Phase 6.4: MatchStamp.get_group_coordinates() fix."""
+
+    def test_get_group_coordinates(
+        self,
+        dgt1_group: TimelineGroup,
+    ) -> None:
+        """get_group_coordinates uses timeline_ids, not timelines dict."""
+        stamp = MatchStamp(
+            coordinates={"dgt1": 500.0, "audio": 50.0, "external": 25.0},
+            anchor_edges=[("dgt1", "external")],
+            inferred_edges=[("dgt1", "audio")],
+        )
+
+        group_coords = stamp.get_group_coordinates(dgt1_group)
+
+        assert group_coords == {"dgt1": 500.0, "audio": 50.0}
+        assert "external" not in group_coords
 
 
 # endregion

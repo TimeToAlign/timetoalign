@@ -10,9 +10,16 @@ The hierarchy is:
 
 MatchGraph uses networkx to:
 1. Build a graph where nodes are (timeline_id, coordinate) tuples
-2. Edges are AlignmentAnchors with explicit/synchronous attributes
-3. Extend edges via Group membership (inferred edges)
+2. Edges represent synchronous AlignmentAnchors (explicit or inferred)
+3. Extend edges via Group membership (implicit claims)
 4. Extract MatchStamps from connected components
+
+Phase 6.4 Design:
+    Only synchronous claims produce graph edges. Non-synchronous claims
+    (conceptual matches, NOMATCH) are stored as metadata but do not create
+    edges. ``extend_to_groups()`` creates implicit ``MatchClaim`` objects
+    (case d) and adds their anchors as edges. Each Hendrix M-box
+    (M1–M15) is a MatchGraph — the system is NOT a global graph.
 """
 
 from __future__ import annotations
@@ -24,10 +31,11 @@ from typing import TYPE_CHECKING, Any
 import networkx as nx
 
 from timetoalign.alignment.anchors import AlignmentAnchor, MatchClaim
-from timetoalign.core.enums import TimeUnit
+from timetoalign.core.enums import Domain, TimeUnit
 
 if TYPE_CHECKING:
     from timetoalign.alignment.groups import TimelineGroup
+    from timetoalign.timelines import Timeline
 
 module_logger = logging.getLogger(__name__)
 
@@ -116,10 +124,11 @@ class MatchStamp:
         Returns:
             Dict of timeline_id -> coordinate for timelines in the group.
         """
+        group_tl_ids = set(group.timeline_ids)
         return {
             tl_id: coord
             for tl_id, coord in self.coordinates.items()
-            if tl_id in group.timelines
+            if tl_id in group_tl_ids
         }
 
     def filter_by_timelines(
@@ -191,30 +200,31 @@ class MatchStamp:
 class MatchGraph:
     """A graph of MatchClaims connecting events across timelines/groups.
 
-    The MatchGraph is the core data structure for alignment. It builds a
-    networkx graph where:
+    The MatchGraph builds a networkx graph where:
     - Nodes: (timeline_id, coordinate) tuples
-    - Edges: AlignmentAnchors with attributes (explicit, synchronous)
+    - Edges: synchronous AlignmentAnchors (explicit or implicit)
 
-    A MatchGraph produces 1-2 MatchStamps:
-    - 1 MatchStamp for instant matches
-    - 2 MatchStamps for interval matches (start and end)
+    Only synchronous claims produce graph edges. Non-synchronous claims
+    (conceptual matches, NOMATCH) are stored in ``_claims`` but do not
+    create nodes or edges.
 
-    The graph differentiates between:
-    - Explicit anchors: Directly claimed by user/algorithm
-    - Inferred edges: Extended via C-Maps or Group membership
+    Each Hendrix M-box (M1–M15) is a separate MatchGraph. The system
+    is NOT a global graph; MatchGraphs are created on demand.
 
     Attributes:
-        claims: List of MatchClaims that built this graph.
+        claims: List of all MatchClaims in this graph (synchronous and non-synchronous).
 
     Examples:
         >>> # Build graph from claims
         >>> graph = MatchGraph(claims=[claim1, claim2])
 
         >>> # Extend via group membership
-        >>> extended = graph.extend_to_groups(bundle)
+        >>> extended = graph.extend_to_groups(groups, timeline_to_group)
 
         >>> # Get synchronized timestamps
+        >>> stamps = graph.get_stamps()
+
+        >>> # Legacy API (deprecated)
         >>> start_stamp, end_stamp = graph.get_match_stamps()
     """
 
@@ -230,8 +240,18 @@ class MatchGraph:
 
     @property
     def claims(self) -> list[MatchClaim]:
-        """List of MatchClaims in this graph."""
+        """List of all MatchClaims in this graph (synchronous and non-synchronous)."""
         return self._claims
+
+    @property
+    def synchronous_claims(self) -> list[MatchClaim]:
+        """List of only synchronous MatchClaims (those with anchors/edges)."""
+        return [c for c in self._claims if c.is_synchronous]
+
+    @property
+    def non_synchronous_claims(self) -> list[MatchClaim]:
+        """List of non-synchronous MatchClaims (NOMATCH, conceptual)."""
+        return [c for c in self._claims if not c.is_synchronous]
 
     @property
     def n_claims(self) -> int:
@@ -361,16 +381,34 @@ class MatchGraph:
         groups: dict[str, "TimelineGroup"],
         timeline_to_group: dict[str, str],
         include_inferred: bool = True,
+        *,
+        timelines: dict[str, "Timeline"] | None = None,
+        include_timelines: set[str] | None = None,
+        exclude_timelines: set[str] | None = None,
+        include_domains: set[Domain] | None = None,
+        include_units: set[TimeUnit] | None = None,
     ) -> "MatchGraph":
-        """Extend anchors to full group timestamps.
+        """Extend anchors to full group timestamps via implicit claims.
 
         For each coordinate in the graph, if it belongs to a Group,
-        add inferred edges to all other timelines in that Group.
+        computes the equivalent coordinate for every other member of that
+        Group and adds an implicit ``MatchClaim`` (case d) plus the
+        corresponding edge. Filters control which timelines receive
+        implicit claims.
 
         Args:
             groups: Dict of group_id -> TimelineGroup.
             timeline_to_group: Dict of timeline_id -> group_id.
             include_inferred: Whether to add inferred edges.
+            timelines: Optional dict of timeline_id -> Timeline for
+                resolving domain/unit filters. Required if
+                ``include_domains`` or ``include_units`` are set.
+            include_timelines: Only extend to these timeline IDs.
+            exclude_timelines: Do not extend to these timeline IDs.
+            include_domains: Only extend to timelines in these domains.
+                Requires ``timelines`` parameter.
+            include_units: Only extend to timelines with these units.
+                Requires ``timelines`` parameter.
 
         Returns:
             New MatchGraph with extended edges (or self if not extending).
@@ -380,6 +418,7 @@ class MatchGraph:
 
         # Create a copy of the graph
         extended = nx.Graph(self._graph)
+        implicit_claims: list[MatchClaim] = []
 
         for node in list(self._graph.nodes()):
             timeline_id, coord = node
@@ -393,9 +432,23 @@ class MatchGraph:
             if not group:
                 continue
 
+            # Find the source claim for traceability
+            source_claim = self._find_source_claim_for_node(node)
+
             # Add inferred edges to all other timelines in group
             for other_tl_id in group.timeline_ids:
                 if other_tl_id == timeline_id:
+                    continue
+
+                # Apply filters
+                if not self._passes_filters(
+                    other_tl_id,
+                    timelines=timelines,
+                    include_timelines=include_timelines,
+                    exclude_timelines=exclude_timelines,
+                    include_domains=include_domains,
+                    include_units=include_units,
+                ):
                     continue
 
                 # Convert coordinate to other timeline
@@ -410,18 +463,103 @@ class MatchGraph:
 
                 other_node: GraphNode = (other_tl_id, other_coord)
 
-                # Add inferred edge if not already connected
+                # Add implicit edge if not already connected
                 if not extended.has_edge(node, other_node):
+                    # Create an implicit MatchClaim (case d)
+                    implicit_claim = MatchClaim.implicit(
+                        tl_a_id=timeline_id,
+                        coord_a=coord,
+                        tl_b_id=other_tl_id,
+                        coord_b=other_coord,
+                        source_claim=source_claim,
+                    )
+                    implicit_claims.append(implicit_claim)
+
                     extended.add_edge(
                         node,
                         other_node,
                         explicit=False,
-                        synchronous=True,  # Within-group is always synchronous
+                        synchronous=True,
                         inferred_via="group",
                         group_id=group_id,
+                        claim_id=implicit_claim.id,
                     )
 
-        return MatchGraph._from_graph(extended, self._claims)
+        all_claims = list(self._claims) + implicit_claims
+        return MatchGraph._from_graph(extended, all_claims)
+
+    def _find_source_claim_for_node(self, node: GraphNode) -> MatchClaim | None:
+        """Find the first explicit synchronous claim that contains this node.
+
+        Args:
+            node: The (timeline_id, coordinate) node.
+
+        Returns:
+            The source MatchClaim, or None if not found.
+        """
+        timeline_id, coord = node
+        for claim in self._claims:
+            if not claim.is_synchronous or not claim.is_explicit:
+                continue
+            if claim.start_anchor is None:
+                continue
+            # Check if this claim's anchors touch this node
+            for anchor in claim.anchors:
+                if anchor.timeline_a_id == timeline_id and anchor.coordinate_a == coord:
+                    return claim
+                if anchor.timeline_b_id == timeline_id and anchor.coordinate_b == coord:
+                    return claim
+        return None
+
+    @staticmethod
+    def _passes_filters(
+        timeline_id: str,
+        *,
+        timelines: dict[str, "Timeline"] | None = None,
+        include_timelines: set[str] | None = None,
+        exclude_timelines: set[str] | None = None,
+        include_domains: set[Domain] | None = None,
+        include_units: set[TimeUnit] | None = None,
+    ) -> bool:
+        """Check whether a timeline passes the given filters.
+
+        Args:
+            timeline_id: The timeline ID to check.
+            timelines: Dict of timeline_id -> Timeline for metadata.
+            include_timelines: Only these timeline IDs pass.
+            exclude_timelines: These timeline IDs are rejected.
+            include_domains: Only timelines in these domains pass.
+            include_units: Only timelines with these units pass.
+
+        Returns:
+            True if the timeline passes all filters.
+        """
+        if include_timelines is not None and timeline_id not in include_timelines:
+            return False
+        if exclude_timelines is not None and timeline_id in exclude_timelines:
+            return False
+
+        if include_domains is not None or include_units is not None:
+            if timelines is None:
+                # Cannot resolve domain/unit without timeline objects
+                return True
+            tl = timelines.get(timeline_id)
+            if tl is None:
+                return True  # Unknown timeline passes by default
+
+            if include_domains is not None:
+                tl_unit = getattr(tl, "unit", None)
+                if tl_unit is not None:
+                    tl_domain = getattr(tl_unit, "domain", None)
+                    if tl_domain is not None and tl_domain not in include_domains:
+                        return False
+
+            if include_units is not None:
+                tl_unit = getattr(tl, "unit", None)
+                if tl_unit is not None and tl_unit not in include_units:
+                    return False
+
+        return True
 
     @classmethod
     def _from_graph(
@@ -435,7 +573,7 @@ class MatchGraph:
 
         Args:
             graph: The networkx graph.
-            claims: Original claims (for reference).
+            claims: All claims (original + implicit).
 
         Returns:
             New MatchGraph wrapping the graph.
@@ -446,8 +584,42 @@ class MatchGraph:
         instance._logger = module_logger.getChild("MatchGraph")
         return instance
 
+    def get_stamps(
+        self,
+        *,
+        expand_groups: bool = False,
+        expand_cmaps: bool = False,
+    ) -> list["MatchStamp"]:
+        """Get all MatchStamps from the graph.
+
+        Returns one MatchStamp per connected component, each containing
+        all coordinates reachable from that component.
+
+        Args:
+            expand_groups: If True, for each coordinate in a stamp that
+                belongs to a Group, add within-group coordinates for all
+                other members. (Requires ``extend_to_groups()`` to have
+                been called first, or group information to be present in
+                the graph.)
+            expand_cmaps: If True, add C-map conversion results to the
+                stamp. (Reserved for future use.)
+
+        Returns:
+            List of MatchStamps, one per connected component.
+        """
+        stamps = []
+        for component in nx.connected_components(self._graph):
+            node = next(iter(component))
+            stamp = self._build_stamp_from_node(node)
+            stamps.append(stamp)
+        return stamps
+
     def get_match_stamps(self) -> tuple["MatchStamp", "MatchStamp | None"]:
         """Extract MatchStamps from the graph.
+
+        .. deprecated::
+            Use ``get_stamps()`` for all MatchStamps by connected component.
+            This method is retained for backward compatibility.
 
         Returns:
             (start_stamp, end_stamp) - end_stamp is None for instant matches.
@@ -455,7 +627,7 @@ class MatchGraph:
         Note:
             For a graph built from multiple interval claims, this returns
             stamps for the first synchronous claim's coordinates. Use
-            get_all_stamps() for all unique timestamps.
+            get_stamps() for all unique timestamps.
         """
         if not self._claims:
             return MatchStamp(), None
@@ -491,18 +663,14 @@ class MatchGraph:
     def get_all_stamps(self) -> list["MatchStamp"]:
         """Get all unique MatchStamps from the graph.
 
-        For each connected component in the graph, creates a MatchStamp.
+        .. deprecated::
+            Use ``get_stamps()`` instead. This is an alias retained for
+            backward compatibility.
 
         Returns:
             List of MatchStamps, one per connected component.
         """
-        stamps = []
-        for component in nx.connected_components(self._graph):
-            # Use any node in the component to build stamp
-            node = next(iter(component))
-            stamp = self._build_stamp_from_node(node)
-            stamps.append(stamp)
-        return stamps
+        return self.get_stamps()
 
     def _build_stamp_from_node(self, start_node: GraphNode) -> "MatchStamp":
         """Build a MatchStamp from a starting node.
@@ -565,22 +733,26 @@ class MatchGraph:
         self,
         synchronous_only: bool = False,
         explicit_only: bool = False,
-        include_units: set[TimeUnit] | None = None,
-        exclude_units: set[TimeUnit] | None = None,
         include_timelines: set[str] | None = None,
         exclude_timelines: set[str] | None = None,
+        include_domains: set[Domain] | None = None,
+        include_units: set[TimeUnit] | None = None,
+        *,
+        timelines: dict[str, "Timeline"] | None = None,
     ) -> "MatchGraph":
         """Create filtered view of the graph.
 
         Args:
             synchronous_only: Include only synchronous edges.
             explicit_only: Include only explicit edges (no inferred).
-            include_units: Only include timelines with these units.
-                (Requires timeline lookup - not implemented yet)
-            exclude_units: Exclude timelines with these units.
-                (Requires timeline lookup - not implemented yet)
             include_timelines: Only include these timeline IDs.
             exclude_timelines: Exclude these timeline IDs.
+            include_domains: Only include timelines in these domains.
+                Requires ``timelines`` parameter.
+            include_units: Only include timelines with these units.
+                Requires ``timelines`` parameter.
+            timelines: Dict of timeline_id -> Timeline for resolving
+                domain/unit filters.
 
         Returns:
             New MatchGraph with filtered edges/nodes.
@@ -588,19 +760,20 @@ class MatchGraph:
         # Start with a copy
         filtered = nx.Graph(self._graph)
 
-        # Filter by timeline IDs
-        if include_timelines is not None or exclude_timelines is not None:
-            nodes_to_remove = []
-            for node in filtered.nodes():
-                timeline_id = node[0]
-                if (
-                    include_timelines is not None
-                    and timeline_id not in include_timelines
-                ):
-                    nodes_to_remove.append(node)
-                elif exclude_timelines is not None and timeline_id in exclude_timelines:
-                    nodes_to_remove.append(node)
-            filtered.remove_nodes_from(nodes_to_remove)
+        # Filter by timeline IDs and domain/unit
+        nodes_to_remove = []
+        for node in filtered.nodes():
+            timeline_id = node[0]
+            if not self._passes_filters(
+                timeline_id,
+                timelines=timelines,
+                include_timelines=include_timelines,
+                exclude_timelines=exclude_timelines,
+                include_domains=include_domains,
+                include_units=include_units,
+            ):
+                nodes_to_remove.append(node)
+        filtered.remove_nodes_from(nodes_to_remove)
 
         # Filter edges by attributes
         if synchronous_only or explicit_only:
@@ -622,7 +795,18 @@ class MatchGraph:
             if "claim_id" in data:
                 remaining_claim_ids.add(data["claim_id"])
 
-        filtered_claims = [c for c in self._claims if c.id in remaining_claim_ids]
+        # Keep non-synchronous claims that connect remaining timelines
+        remaining_tl_ids = {node[0] for node in filtered.nodes()}
+        filtered_claims = []
+        for c in self._claims:
+            if c.id in remaining_claim_ids:
+                filtered_claims.append(c)
+            elif (
+                not c.is_synchronous
+                and c.timeline_a_id in remaining_tl_ids
+                and c.timeline_b_id in remaining_tl_ids
+            ):
+                filtered_claims.append(c)
 
         return MatchGraph._from_graph(filtered, filtered_claims)
 
