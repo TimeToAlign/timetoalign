@@ -1,0 +1,11 @@
+{
+  "01_core_concepts.py": "a0f72dd07793769f6100ebb8c58c859c96d7ae94e172245284275a031aa20006",
+  "03_conversion_maps.py": "79c018ad1f71a206c12995415a9ab745749a0482458ef0bf5146d39cb87ff61f",
+  "06_graphical_timelines.py": "74d5fea5c12bff051e5dc2073319225a74e0ba31ad55d3c6be83453db734d975",
+  "08_supra_piano_roll.py": "7075e577c3f768b9b1229ed9bfaa4a1abe47fb7abca92924a7fd4d42630d2ec1",
+  "09_beat_grids.py": "dd5097579f77f75bab54af61386990ff47e723dd7c0231cb405a71e4ec224c64",
+  "00_motivation.py": "1e1ec9b3c1a7e7ace92cb213cd6ee6af7a14336a04e6e65a5f215b6e39e0d3f6",
+  "02_loading_data.py": "d55e500a52e37c38e532bc611e4cf773a6d35d601470af88db1b11feef805692",
+  "02a_tabular_loaders.py": "788f926876e9a7a9daefaf594e344f61ce1bebf6fdfb9ccd6141f6243157fee3",
+  "07_alignment_basics.py": "ab23cc0e69056e8e1baa281d836ea5a3ce3b8761dc8627cf2591d0b8909b79c0"
+}
