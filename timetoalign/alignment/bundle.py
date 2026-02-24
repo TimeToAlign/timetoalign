@@ -593,6 +593,8 @@ class AlignmentBundle:
         )
 
         for claim in claims:
+            if not claim.is_synchronous or claim.start_anchor is None:
+                continue
             anchor = claim.start_anchor
             tl_a = anchor.timeline_a_id
             tl_b = anchor.timeline_b_id

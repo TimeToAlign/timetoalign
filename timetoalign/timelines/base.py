@@ -214,9 +214,6 @@ class Timeline:
         # Conversion maps
         self._conversion_maps: dict[str, ConversionMap[Any]] = {}
 
-        # InterpolationMaps for O(log n) coordinate conversion (unified timestamp system)
-        # Maps child_id -> InterpolationMap for child<->parent conversion
-        self._interpolation_maps: dict[str, InterpolationMap] = {}
         # Maps TimeUnit -> map for unit-based conversion via C-Maps.
         # Stores InterpolationMap (for TableMaps) or ConversionMap (for
         # analytical maps like ScalarMap, LinearMap) so that *any* C-Map
@@ -1235,7 +1232,7 @@ class Timeline:
         """Embed a child timeline at the specified offset.
 
         The child timeline will be locked after being added.
-        An InterpolationMap is built for O(log n) coordinate conversion.
+        Parent-child coordinate conversion uses exact offset arithmetic.
 
         From the TTA manuscript (Section 3.4 - Nested Timelines):
         "A timeline can accommodate not only events but also other timelines,
@@ -1287,13 +1284,6 @@ class Timeline:
         # Store child reference
         self._children[child.id] = child
         self._child_offsets[child.id] = offset_coord
-
-        # Build InterpolationMap for bidirectional coordinate conversion
-        self._interpolation_maps[child.id] = InterpolationMap.from_child_relationship(
-            parent=self,
-            child=child,
-            offset=float(offset_coord.value),
-        )
 
         # Lock the child
         child._locked = True
@@ -1936,23 +1926,74 @@ class Timeline:
 
     # endregion
 
-    # region Unified Timestamp API (InterpolationMap-based)
+    # region Unified Timestamp API (offset arithmetic + InterpolationMap-based)
+
+    def _get_child_coordinate(self, child_id: str, parent_coord: float) -> float | None:
+        """Convert a parent coordinate to a child coordinate via exact offset arithmetic.
+
+        ``child_coord = parent_coord - offset``
+
+        Returns None if *parent_coord* falls outside the child's
+        ``[offset, offset + length)`` span.
+
+        Args:
+            child_id: The child timeline ID.
+            parent_coord: Coordinate on this (parent) timeline.
+
+        Returns:
+            Coordinate on the child timeline, or None if out of bounds.
+        """
+        offset = self._child_offsets.get(child_id)
+        if offset is None:
+            return None
+        child = self._children[child_id]
+        child_coord = parent_coord - float(offset.value)
+        child_length = float(child.length.value)
+        if child_coord < 0 or (child_length > 0 and child_coord >= child_length):
+            return None
+        return child_coord
+
+    def _get_parent_coordinate_from_child(
+        self, child_id: str, child_coord: float
+    ) -> float:
+        """Convert a child coordinate to a parent coordinate via exact offset arithmetic.
+
+        ``parent_coord = child_coord + offset``
+
+        Args:
+            child_id: The child timeline ID.
+            child_coord: Coordinate on the child timeline.
+
+        Returns:
+            Coordinate on this (parent) timeline.
+
+        Raises:
+            KeyError: If *child_id* is not a child of this timeline.
+        """
+        offset = self._child_offsets[child_id]
+        return child_coord + float(offset.value)
 
     def _get_interpolation_map(
         self, target_id: str, source_id: str | None = None
     ) -> InterpolationMap | None:
         """Get InterpolationMap for coordinate conversion to target.
 
-        This method is part of the TimeStampSource protocol.
+        This method is part of the `TimeStampSource` protocol.
+
+        For parent-child relationships, returns None: child coordinates are
+        resolved via exact offset arithmetic in ``_get_child_coordinate()``
+        instead. InterpolationMaps are only used for unit-based conversions
+        (via ``_get_unit_map``) and by `TimelineGroup` for inter-member
+        conversions.
 
         Args:
             target_id: Target timeline ID.
             source_id: Source timeline ID (ignored for Timeline, always self).
 
         Returns:
-            InterpolationMap for conversion, or None if not available.
+            None. Child conversion uses offset arithmetic.
         """
-        return self._interpolation_maps.get(target_id)
+        return None
 
     def _get_unit_map(
         self, unit: TimeUnit
@@ -4277,9 +4318,9 @@ class Timeline:
         Examples:
             >>> print(timeline.diagram())
             DiscreteGraphicalTimeline[dgt1:1] (11 events, 5 children)
-            0 :::::::::::::::::::::::::::::::::::::::::::::: 4835 pixels
-              ├─ system_1     0   :::::::                        967
-              ├─ system_2   967          ::::::::               1934
+            0 ∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶ 4835 pixels
+              ├─ system_1     0   ∶∶∶∶∶∶∶                        967
+              ├─ system_2   967          ∶∶∶∶∶∶∶∶               1934
               └─ ...
         """
         from timetoalign.display.ascii import timeline_diagram
