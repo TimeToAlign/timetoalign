@@ -117,6 +117,34 @@ def _inject_yaml_cell(nb: dict, title: str, description: str, **extra: str) -> d
     return nb
 
 
+def _sanitise_markdown_cells(nb: dict) -> dict:
+    """Replace ``---`` horizontal rules at the start of markdown cells.
+
+    Quarto's YAML parser treats a bare ``---`` at the beginning of any
+    markdown cell as a YAML document separator and attempts to parse the
+    following lines as YAML.  This causes ``YAMLException`` errors when
+    the cell actually contains a standard Markdown horizontal rule
+    followed by prose or headings.
+
+    The fix replaces a leading ``---`` with ``***``, which renders
+    identically as an ``<hr>`` in HTML/Markdown but is not mistaken for
+    a YAML delimiter.
+    """
+    for cell in nb.get("cells", []):
+        if cell.get("cell_type") != "markdown":
+            continue
+        source = cell.get("source", [])
+        if not source:
+            continue
+        # source is a list of strings (one per line, usually with \n).
+        # Check whether the first non-empty content is a bare "---".
+        first = source[0]
+        if first.rstrip("\n") == "---":
+            source[0] = first.replace("---", "***", 1)
+            logger.debug("Replaced leading '---' with '***' in markdown cell")
+    return nb
+
+
 def _strip_jupytext_metadata(nb: dict) -> dict:
     """Remove jupytext-specific keys from notebook metadata.
 
@@ -180,6 +208,7 @@ def sync_one(
             nb = json.load(f)
 
         nb = _strip_jupytext_metadata(nb)
+        nb = _sanitise_markdown_cells(nb)
         nb = _inject_yaml_cell(nb, title, description)
         nb["metadata"] = _quarto_metadata(title, description)
 

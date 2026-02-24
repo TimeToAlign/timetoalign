@@ -1,6 +1,10 @@
 project:
   type: website
   output-dir: _site
+  pre-render: python sync_notebooks.py --verbose
+
+execute:
+  freeze: auto
 
 website:
   title: "TimeToAlign!"
@@ -8,29 +12,148 @@ website:
     left:
       - href: index.qmd
         text: Home
+      - href: tutorials.qmd
+        text: Tutorials
+      - href: howto.qmd
+        text: How-To Guides
       - href: concepts.qmd
-        text: Conceptual Model
-      - href: glossary.qmd
-        text: Glossary
+        text: Explanation
+      - href: reference.qmd
+        text: API Reference
   sidebar:
-    - title: "Conceptual Model"
+    - title: "Tutorials"
+      contents:
+        - tutorials.qmd
+        - section: "Foundations"
+          contents:
+            - tutorials/00_motivation.ipynb
+            - tutorials/01_core_concepts.ipynb
+            - tutorials/02_loading_data.ipynb
+            - tutorials/02a_tabular_loaders.ipynb
+            - tutorials/03_conversion_maps.ipynb
+        - section: "Structure"
+          contents:
+            - tutorials/04_building_timelines.ipynb
+            - tutorials/05_timestamps.ipynb
+        - section: "Domains"
+          contents:
+            - tutorials/06_graphical_timelines.ipynb
+            - tutorials/07_alignment_basics.ipynb
+        - section: "Applications"
+          contents:
+            - tutorials/08_supra_piano_roll.ipynb
+            - tutorials/09_beat_grids.ipynb
+            - tutorials/10_beethoven_multimodal.ipynb
+
+    - title: "How-To Guides"
+      contents:
+        - howto.qmd
+
+    - title: "Explanation"
       contents:
         - concepts.qmd
         - section: "Quick Reference"
           contents:
             - glossary.qmd
 
+    - title: "API Reference"
+      contents:
+        - reference.qmd
+        - auto: reference
+
+metadata-files:
+  - reference/_sidebar.yml
+
 format:
   html:
     theme: cosmo
-    css: styles.css
+    css:
+      - styles.css
+      - reference/_styles-quartodoc.css
     toc: true
     toc-depth: 4
 
 filters:
   - glossary
+  - interlinks
 
 glossary:
   path: glossary.yml
   popup: hover
   show: true
+
+interlinks:
+  sources: {}
+
+quartodoc:
+  package: timetoalign
+  dir: reference
+  sidebar: reference/_sidebar.yml
+  css: reference/_styles-quartodoc.css
+  title: API Reference
+  style: pkgdown
+  render_interlinks: true
+  sections:
+    - title: Core Types
+      desc: Fundamental types for coordinates, units, and domains.
+      contents:
+        - Coordinate
+        - CoordinateSpec
+        - CoordinateValue
+        - IdCoordinate
+        - Domain
+        - TimeUnit
+        - NumberType
+        - EventType
+        - ScopedId
+        - IdGenerator
+
+    - title: Timelines
+      desc: Timeline classes for all six domain/modality combinations.
+      contents:
+        - Timeline
+        - ContinuousLogicalTimeline
+        - DiscreteLogicalTimeline
+        - ContinuousPhysicalTimeline
+        - DiscretePhysicalTimeline
+        - ContinuousGraphicalTimeline
+        - DiscreteGraphicalTimeline
+        - LogicalTimeline
+        - PhysicalTimeline
+        - GraphicalTimeline
+        - BeatGrid
+
+    - title: Conversion Maps
+      desc: Functions for transforming coordinates between units.
+      contents:
+        - ConversionMap
+        - ScalarMap
+        - LinearMap
+        - ShiftMap
+        - TableMap
+        - ChainMap
+        - PiecewiseMap
+        - SecondsToSamples
+
+    - title: Alignment
+      desc: Classes for connecting and aligning timelines.
+      contents:
+        - TimelineGroup
+        - PerfectAlignment
+        - AlignmentBundle
+        - AlignmentAnchor
+        - MatchClaim
+        - MatchMetadata
+
+    - title: Loaders
+      desc: Data ingestion from various file formats.
+      contents:
+        - Loader
+        - EventData
+        - EventStore
+        - SingleStore
+        - AudioLoader
+        - AudioInfo
+        - RepoVizzLoader
+        - RepoVizzInfo
+        - EepNotesLoader
