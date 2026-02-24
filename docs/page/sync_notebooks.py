@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import logging
 import shutil
@@ -52,6 +53,45 @@ logger = logging.getLogger(__name__)
 DEFAULT_MANIFEST = "notebooks.csv"
 NOTEBOOKS_DIR = Path(__file__).resolve().parent.parent / "notebooks"
 PAGE_DIR = Path(__file__).resolve().parent
+SYNC_STATE_FILE = PAGE_DIR / ".sync_state.json"
+
+
+# ---------------------------------------------------------------------------
+# Change detection helpers
+# ---------------------------------------------------------------------------
+
+
+def _file_hash(path: Path) -> str:
+    """Return the SHA-256 hex digest of a file's contents."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _load_sync_state(state_file: Path = SYNC_STATE_FILE) -> dict[str, str]:
+    """Load the persisted hash state from the JSON file.
+
+    Returns an empty dict if the file does not exist or is corrupt.
+    """
+    if not state_file.exists():
+        return {}
+    try:
+        with open(state_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return data
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Could not read sync state (%s); will re-sync all.", exc)
+    return {}
+
+
+def _save_sync_state(state: dict[str, str], state_file: Path = SYNC_STATE_FILE) -> None:
+    """Persist the hash state to the JSON file."""
+    with open(state_file, "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2, ensure_ascii=False)
+        f.write("\n")
 
 
 def _quarto_metadata(title: str, description: str, **extra: str) -> dict:
@@ -177,16 +217,21 @@ def sync_one(
     ipynb_name = py_path.with_suffix(".ipynb").name
     ipynb_path = notebooks_dir / ipynb_name
 
-    # 1. jupytext --sync
-    logger.info("jupytext --sync %s", py_path)
+    # 1. jupytext --sync --execute (produces .ipynb with cell outputs)
+    logger.info("jupytext --sync --execute %s", py_path)
     if not dry_run:
         result = subprocess.run(
-            [sys.executable, "-m", "jupytext", "--sync", str(py_path)],
+            [sys.executable, "-m", "jupytext", "--sync", "--execute", str(py_path)],
             capture_output=True,
             text=True,
         )
         if result.returncode != 0:
-            logger.error("jupytext sync failed for %s: %s", py_path, result.stderr)
+            logger.error(
+                "jupytext sync/execute failed for %s:\nstdout: %s\nstderr: %s",
+                py_path,
+                result.stdout,
+                result.stderr,
+            )
             return None
 
     # 2. Copy .ipynb into section subdirectory
@@ -222,19 +267,63 @@ def sync_all(
     manifest: Path,
     *,
     dry_run: bool = False,
+    force: bool = False,
     notebooks_dir: Path = NOTEBOOKS_DIR,
     page_dir: Path = PAGE_DIR,
     section_filter: str | None = None,
 ) -> list[Path]:
-    """Sync all notebooks listed in the CSV manifest."""
+    """Sync all notebooks listed in the CSV manifest.
+
+    Only notebooks whose source ``.py`` file has changed since the last
+    successful sync are re-processed.  Change detection is based on
+    SHA-256 hashes stored in ``.sync_state.json``.
+
+    Args:
+        manifest: Path to the CSV manifest.
+        dry_run: If True, preview actions without writing files.
+        force: If True, ignore cached hashes and re-sync everything.
+        notebooks_dir: Directory containing the source ``.py`` files.
+        page_dir: Root of the Quarto site project.
+        section_filter: If set, only sync notebooks in this section.
+
+    Returns:
+        List of paths to synced ``.ipynb`` files.
+    """
+    state = _load_sync_state()
     results = []
+    skipped = 0
+
     with open(manifest, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             if section_filter and row["section"] != section_filter:
                 continue
+
+            source = row["source"]
+            py_path = notebooks_dir / source
+
+            # --- Change detection ---
+            if not force and py_path.exists():
+                current_hash = _file_hash(py_path)
+                cached_hash = state.get(source)
+                if cached_hash == current_hash:
+                    # Also check that the target .ipynb exists; if it was
+                    # deleted we must re-sync even if the source is unchanged.
+                    target_path = page_dir / row["section"] / f"{row['slug']}.ipynb"
+                    if target_path.exists():
+                        logger.info("Up to date, skipping: %s", source)
+                        skipped += 1
+                        continue
+                    else:
+                        logger.info(
+                            "Target missing, re-syncing despite unchanged source: %s",
+                            source,
+                        )
+            else:
+                current_hash = _file_hash(py_path) if py_path.exists() else None
+
             path = sync_one(
-                source=row["source"],
+                source=source,
                 slug=row["slug"],
                 section=row["section"],
                 title=row["title"],
@@ -245,6 +334,16 @@ def sync_all(
             )
             if path:
                 results.append(path)
+                # Update state with the new hash (only when not dry-running).
+                if not dry_run and current_hash is not None:
+                    state[source] = current_hash
+
+    # Persist the updated state.
+    if not dry_run:
+        _save_sync_state(state)
+
+    if skipped:
+        logger.info("Skipped %d unchanged notebook(s).", skipped)
     return results
 
 
@@ -261,6 +360,12 @@ def main() -> None:
         "--section",
         default=None,
         help="Only sync notebooks in this section (e.g. 'tutorials')",
+    )
+    parser.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Ignore cached hashes and re-sync all notebooks",
     )
     parser.add_argument(
         "--dry-run",
@@ -291,6 +396,7 @@ def main() -> None:
     results = sync_all(
         manifest,
         dry_run=args.dry_run,
+        force=args.force,
         section_filter=args.section,
     )
     logger.info("Synced %d notebook(s).", len(results))
