@@ -7,7 +7,74 @@ A Python library for representing and aligning musical timelines.
 ```bash
 git clone git@github.com:TimeToAlign/timetoalign.git
 cd timetoalign
-pip install -e ".[dev]"
+pip install -e .                # Core only — lightweight
+```
+
+The core install pulls in only PyArrow, pandas, NetworkX, and
+typing\_extensions.  This gives you the full timeline / map / alignment
+framework but no file-format-specific loaders.  If you need loaders,
+plotting, or Jupyter support, install one of the [optional extras](#optional-dependencies)
+described below.  To run the **tutorial notebooks** (see below), for example:
+
+```bash
+pip install -e ".[tutorial]"    # Loaders + plotting + Jupyter
+```
+
+### Optional Dependencies
+
+TimeToAlign! organises its optional dependencies into *atomic* extras
+(one concern each) and *composite* extras (convenience bundles that
+include several atomic ones).  You can mix and match freely:
+`pip install timetoalign[midi,plot]` is perfectly valid.
+
+#### Atomic extras
+
+Each atomic extra adds support for a single loader backend or feature.
+
+| Extra | Packages | Purpose |
+|---|---|---|
+| `midi` | `mido` | MIDI file loading (`PerformanceMidiLoader`) |
+| `partitura` | `partitura` | Score parsing via partitura (`PartituraLoader`, `ScoreMidiLoader`) |
+| `music21` | `music21` | Score parsing via music21 (`Music21Loader`) |
+| `ms3` | `ms3` | DCML TSV score parsing (`TSVLoader`) |
+| `audio` | `soundfile`, `mutagen` | Audio file loading + MP3/M4A metadata |
+| `graphical` | `pymupdf`, `pillow` | PDF/image loading & drawing |
+| `plot` | `matplotlib` | Visualisation (WP1 plotting) |
+| `delta` | `deltalake` | Delta Lake columnar storage (future) |
+| `rdf` | `rdflib` | RDF / linked-data export (future) |
+
+#### Composite extras
+
+Composite extras are convenience bundles that pull in several atomic
+extras at once.  Each level includes everything below it.
+
+| Extra | Includes | Purpose |
+|---|---|---|
+| `scores` | `partitura`, `music21`, `ms3` | All score-loader backends |
+| `loaders` | `midi`, `scores`, `audio`, `graphical` | Every loader dependency |
+| `tutorial` | `loaders`, `plot`, plus `jupytext`, `jupyter` | Everything needed for the tutorial notebooks |
+| `all` | `tutorial`, `delta`, `rdf` | All runtime features |
+| `dev` | `all`, plus `pre-commit`, `pytest`, `pytest-cov`, `pytest-benchmark`, `hypothesis`, `ruff` | All features + development / CI tooling |
+
+The inclusion chain is:
+
+```
+dev  ⊃  all  ⊃  tutorial  ⊃  loaders  ⊃  { midi, scores, audio, graphical }
+                                        +  plot, jupytext, jupyter
+                            +  delta, rdf
+```
+
+#### Examples
+
+```bash
+pip install timetoalign                  # Core only
+pip install timetoalign[midi]            # Core + MIDI loading
+pip install timetoalign[partitura]       # Core + partitura score parsing
+pip install timetoalign[scores]          # Core + all score-loader backends
+pip install timetoalign[loaders]         # Core + every loader
+pip install timetoalign[tutorial]        # Loaders + plotting + Jupyter
+pip install timetoalign[all]             # All runtime features
+pip install -e ".[dev]"                  # Editable install + everything + dev tooling
 ```
 
 ## Quick Start
@@ -85,15 +152,9 @@ TimeIntervalStamp [8, 12) seconds
 
 The `docs/notebooks/` directory contains Jupytext percent-script notebooks
 covering the library from first principles to full alignment workflows.
-To run them, install the `tutorial` extra (which pulls in Jupytext, Jupyter,
-and every optional loader dependency the tutorials use):
-
-```bash
-cd tta/timetoalign
-pip install -e ".[tutorial]"
-```
-
-Then generate the paired `.ipynb` files and launch Jupyter:
+Make sure you have installed the `tutorial` extra (see
+[Installation](#installation)), then generate the paired `.ipynb` files
+and launch Jupyter:
 
 ```bash
 jupytext --sync docs/notebooks/*.py
