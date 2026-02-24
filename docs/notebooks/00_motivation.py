@@ -186,7 +186,7 @@
 #            ┌─────────────────────────────────────────────┐
 #            │              TEMPORAL DOMAINS               │
 #            ├─────────────┬─────────────┬─────────────────┤
-#            │  PHYSICAL   │   LOGICAL   │   GRAPHICAL    │
+#            │  PHYSICAL   │   LOGICAL   │    GRAPHICAL    │
 #            ├─────────────┼─────────────┼─────────────────┤
 #            │ Seconds     │ Beats       │ Pixels          │
 #            │ Samples     │ Quarters    │ Centimeters     │
