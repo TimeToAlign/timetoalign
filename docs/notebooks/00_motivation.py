@@ -208,13 +208,14 @@
 # produce consistent results.
 
 # %%
+import os
 from pathlib import Path
 
 from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.tsv import TSVLoader
 
 # Locate test data - relative to notebook location
-_notebook_dir = Path(__file__).resolve().parent
+_notebook_dir = Path(os.getcwd()).resolve()
 DATA_DIR = _notebook_dir.parent.parent / "tests" / "data" / "midi" / "score"
 
 # Same piece, two different formats

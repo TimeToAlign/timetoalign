@@ -18,12 +18,13 @@
 # Note: This notebook is a work-in-progress for testing loader patterns
 
 import importlib.util
+import os
 from pathlib import Path
 
 from timetoalign import AudioLoader, ContinuousLogicalTimeline, DiscreteLogicalTimeline
 
 # Data directory - relative to notebook location
-_notebook_dir = Path(__file__).resolve().parent
+_notebook_dir = Path(os.getcwd()).resolve()
 DATA_DIR = _notebook_dir.parent.parent / "tests" / "data"
 assert DATA_DIR.is_dir(), f"Data dir not found: {DATA_DIR}"
 

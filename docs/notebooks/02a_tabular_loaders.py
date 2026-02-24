@@ -46,10 +46,11 @@
 # ## Setup
 
 # %%
+import os
 from pathlib import Path
 
 # Specimen directories - relative to the notebook's location
-_notebook_dir = Path(__file__).resolve().parent
+_notebook_dir = Path(os.getcwd()).resolve()
 SPECIMENS = _notebook_dir.parent.parent.parent / "dashboard" / "specimens"
 BEETHOVEN = SPECIMENS / "beethoven_woo71"
 THORESEN = SPECIMENS / "thoresen"

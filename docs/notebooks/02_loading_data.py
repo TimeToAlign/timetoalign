@@ -52,6 +52,7 @@
 # ## Setup
 
 # %%
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -62,7 +63,7 @@ from timetoalign.loader.score.tsv import TSVLoader
 
 # Data directory - relative to notebook location
 DATA_DIR = (
-    Path(__file__).resolve().parent.parent.parent / "tests" / "data" / "midi" / "score"
+    Path(os.getcwd()).resolve().parent.parent / "tests" / "data" / "midi" / "score"
 )
 assert DATA_DIR.is_dir(), f"Data directory not found: {DATA_DIR}"
 

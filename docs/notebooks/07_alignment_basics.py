@@ -241,7 +241,9 @@ print(f"MIDI: {midi_coord} ticks -> Audio: {audio_from_midi:.2f} seconds")
 
 # %%
 # Path to test data - relative to notebook location
-_notebook_dir = Path(__file__).resolve().parent
+import os  # noqa: E402
+
+_notebook_dir = Path(os.getcwd()).resolve()
 data_dir = _notebook_dir.parent.parent / "tests" / "alignment" / "data" / "thoresen"
 
 # Constants for the Thoresen example
