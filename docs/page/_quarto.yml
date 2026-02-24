@@ -1,0 +1,36 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "TimeToAlign!"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: concepts.qmd
+        text: Conceptual Model
+      - href: glossary.qmd
+        text: Glossary
+  sidebar:
+    - title: "Conceptual Model"
+      contents:
+        - concepts.qmd
+        - section: "Quick Reference"
+          contents:
+            - glossary.qmd
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    toc-depth: 4
+
+filters:
+  - glossary
+
+glossary:
+  path: glossary.yml
+  popup: hover
+  show: true

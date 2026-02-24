@@ -1,0 +1,185 @@
+# TimeToAlign! Glossary of Terms
+# Alphabetical listing of model terminology
+
+AlignmentAnchor: |
+  A set of TimeStamps corresponding to matched events, representing their temporal
+  equivalence across timelines. From a Match of TimeIntervalEvents, we derive a
+  StartAnchor and EndAnchor.
+
+AlignmentBundle: |
+  A navigable structure grouping multiple aligned TimelineGroups, enabling
+  coordinate transfer and annotation propagation across all constituent timelines.
+
+Break: |
+  A control event that voids contiguity at its Instant. TimeIntervals cannot span
+  a Break, and Breaks cannot be inserted into existing TimeIntervals.
+
+ChainMap: |
+  A MultiMap that applies multiple ConversionMaps in sequence, creating a conversion
+  path from source to target unit.
+
+Child: |
+  A timeline nested within a parent timeline, sharing the same measuring unit.
+  Children are locked upon insertion to prevent side effects from modifications.
+
+CombinationMap: |
+  A MultiMap yielding outputs from multiple ConversionMaps simultaneously
+  (e.g., (x, y) coordinate pairs).
+
+Commensurable: |
+  Two timelines are commensurable when connected by a Match path or ConversionMap
+  chain, enabling coordinate translation between them.
+
+ConcatenationMap: |
+  A MultiMap combining bounded ConversionMaps such that each coordinate region is
+  handled by a specific map.
+
+Contiguity: |
+  A TimeInterval is contiguous if it monotonically spans all coordinates between
+  its start and end. An Instant is contiguous with a TimeInterval if it is
+  synchronous with its EndInstant.
+
+ControlEvent: |
+  An event affecting flow control: either a Break (voiding contiguity) or a Jump
+  (creating new contiguity).
+
+ConversionMap: |
+  A function mapping any coordinate to at most one value (another coordinate,
+  specifier, or constant). Also called C-map.
+
+Coordinate: |
+  A position on a timeline, expressed as the distance from the origin in the
+  timeline's measuring unit. Combines a numeric value with a TimeUnit.
+
+Discrete: |
+  A timeline is discrete when coordinates exist only at discrete points
+  (e.g., pixels, samples, ticks). Contrast with Continuous timelines where
+  coordinates can take any real value (e.g., seconds, quarters).
+
+Domain: |
+  One of three temporal categories: Graphical (visual/spatial), Logical
+  (symbolic/musical), or Physical (audio/sound). Each domain has both
+  discrete and continuous timeline variants.
+
+EndAnchor: "AlignmentAnchor derived from matched events' EndInstants."
+
+EndInstant: |
+  An Instant marking the end of a TimeInterval. Implies the presence of a
+  corresponding StartInstant with coordinate <= EndInstant's coordinate.
+
+Event: |
+  Anything associated with a timeline via Instants. An InstantEvent has zero
+  duration; a TimeIntervalEvent has duration defined by start and end coordinates.
+
+Instant: |
+  Associates a coordinate (a "time-point") with a signification such as
+  "start of event e". Instants sharing a coordinate are synchronous.
+
+InstantEvent: |
+  An event defined by a single Instant, having zero duration. Contrast with
+  TimeIntervalEvent which has a duration.
+
+InverseMap: "The reverse transformation of a bijective ConversionMap."
+
+Jump: |
+  A control event with JumpFrom and JumpTo Instants. When active, makes events
+  at JumpTo contiguous with those ending at JumpFrom (e.g., repeats, dal segno).
+
+JumpFrom: "The originating Instant of a Jump control event."
+
+JumpTo: "The destination Instant of a Jump control event."
+
+Length: |
+  The distance between a timeline's origin and its last Instant. A locked
+  timeline cannot extend its length.
+
+Locked: |
+  A timeline state preventing the addition of Instants after the last time-point.
+  Child timelines are automatically locked when embedded in a parent.
+
+Match: |
+  A claim---issued by a human or algorithmic agent---that events from disparate
+  timelines are synchronous or equivalent, with associated metadata describing
+  the agent, decision criteria, and certainty level.
+
+MatchLine: |
+  A linked list of Match objects preserving their order, enabling selection and
+  alignment of temporal correspondences for downstream operations.
+
+MatchPath: |
+  A graph traversal connecting matched events across multiple timelines
+  (e.g., A -> B -> C), enabling indirect alignment between timelines.
+
+MultiMap: |
+  An umbrella term for composed ConversionMaps: ChainMap (sequential),
+  CombinationMap (parallel outputs), and ConcatenationMap (regional).
+
+Origin: "The zero coordinate of a timeline, from which all positions are measured."
+
+Parent: |
+  A timeline that contains one or more Child timelines. The parent and all
+  its children must share the same measuring unit.
+
+Region: |
+  A named part of a timeline defined by a TimeInterval (e.g., "Chorus", "Verse").
+  Regions are not timelines and cannot hold events or maps directly.
+
+Root: |
+  The top-level timeline in a hierarchy of nested timelines. Only the root
+  timeline can be extended; all descendants are locked.
+
+RotationMap: |
+  A periodic ConversionMap that wraps coordinates cyclically. Used for
+  modelling repeating patterns such as an ostinato whose local structure
+  recurs while the parent timeline advances.
+
+Segment: |
+  A Child timeline that is contiguous with its siblings. Segments enable
+  concatenation of local coordinate systems.
+
+SegmentLine: |
+  A parent timeline containing only contiguous Segments. Enables cumulative
+  coordinate conversion across all segments.
+
+StartAnchor: "AlignmentAnchor derived from matched events' StartInstants."
+
+StartInstant: |
+  An Instant marking the start of a TimeInterval. Implies the presence of a
+  corresponding EndInstant with coordinate >= StartInstant's coordinate.
+
+Synchrony: |
+  Strict synchrony: Instants sharing identical coordinates. Pragmatic synchrony:
+  Instants binned together based on a threshold (e.g., for quantisation).
+
+TimelineGroup: |
+  A collection of timelines and their connecting ConversionMaps and Matches,
+  representing a coherent set of representations of the same musical content.
+
+TimeInterval: |
+  Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive
+  [s, e). The EndInstant's coordinate must be >= the StartInstant's.
+
+TimeIntervalEvent: |
+  An event with duration, defined by a TimeInterval (start and end coordinates).
+  Contrast with InstantEvent which has zero duration.
+
+TimeIntervalStamp: |
+  Combination of a start TimeStamp and an end TimeStamp, representing a
+  cross-section of an interval through the timeline hierarchy.
+
+Timeline: |
+  A positive coordinate axis minimally defined by its origin (zero) and
+  measuring unit. Accommodates events and potentially Child timelines.
+
+TimeStamp: |
+  A cross-section through a timeline hierarchy, comprising the root coordinate,
+  synchronous Child coordinates, and all ConversionMap results. Important for
+  determining how a Match propagates to synchronous events.
+
+TraversalMap: |
+  A sequence of TimeIntervals representing a specific traversal path through
+  a timeline (handling Jumps and repeats). Also called T-map.
+
+WarpMap: |
+  A derived timeline where coordinates are re-adjusted based on AlignmentAnchors
+  to align with another timeline.
