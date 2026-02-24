@@ -374,15 +374,65 @@ The `Timeline._get_interpolation_map()` method (part of the `TimeStampSource` pr
 
 ---
 
+## MatchGraph Phase 6.4 Tests (`test_graph.py`)
+
+### What We're Validating
+
+Phase 6.4 overhauled the MatchGraph to enforce the design principle that only synchronous claims produce graph edges, while non-synchronous claims are stored as metadata. The `extend_to_groups()` method now creates proper `MatchClaim.implicit()` objects with `source_claim_id` traceability, and filtering supports domain/unit/timeline constraints.
+
+### New Test Classes (Phase 6.4)
+
+| Class | Tests | Purpose |
+|-------|-------|---------|
+| `TestMatchGraphNonSynchronousClaims` | 4 | Non-synchronous claims stored as metadata, no edges created |
+| `TestMatchGraphGetStamps` | 4 | `get_stamps()` returns one stamp per connected component |
+| `TestMatchGraphExtendToGroupsImplicitClaims` | 5 | Implicit claims created with correct coordinates and traceability |
+| `TestMatchGraphExtendToGroupsFilters` | 4 | `include_timelines`, `exclude_timelines`, `include_domains`, `include_units` |
+| `TestMatchGraphFilterPhase64` | 3 | `filter()` preserves non-synchronous claims for remaining timelines |
+| `TestMatchStampGetGroupCoordinates` | 2 | Fixed `get_group_coordinates()` using `timeline_ids` (was broken) |
+
+### Key Evidence
+
+| Test | Validates |
+|------|-----------|
+| `test_non_synchronous_claims_stored_as_metadata` | Non-synchronous claims don't create edges; graph has 0 edges |
+| `test_synchronous_and_non_synchronous_separation` | `synchronous_claims` and `non_synchronous_claims` properties partition correctly |
+| `test_get_stamps_returns_one_per_component` | Connected components yield separate stamps |
+| `test_get_stamps_matches_legacy_for_single_claim` | Backward compatibility with `get_match_stamps()` |
+| `test_implicit_claims_have_source_id` | Implicit claims trace back to originating explicit claim |
+| `test_two_groups_full_connectivity` | Core test: 1 explicit claim between TL1∈{TL1,TL4,TL5} and TL2∈{TL2,TL6} produces 5 connected timelines with correct interpolated coordinates |
+| `test_include_timelines_filter` | Only specified timelines appear in extension |
+| `test_include_domains_filter` | Only timelines from specified domains appear |
+| `test_filter_preserves_relevant_non_synchronous` | `filter()` keeps non-synchronous claims whose timelines survive filtering |
+| `test_get_group_coordinates_basic` | Returns coordinates for all group members via `TimelineGroup.convert()` |
+
+### The Two-Groups Connectivity Test
+
+```python
+def test_two_groups_full_connectivity(self):
+    # Group A = {TL1, TL4, TL5}, Group B = {TL2, TL6}
+    # One explicit claim: TL1@100 <-> TL2@200
+    # After extend_to_groups():
+    #   - TL4, TL5 get coordinates via Group A interpolation from TL1@100
+    #   - TL6 gets coordinate via Group B interpolation from TL2@200
+    #   - All 5 timelines connected in one component
+    stamps = graph.get_stamps()
+    assert len(stamps) == 1
+    assert len(stamps[0].coordinates) == 5  # All timelines present
+```
+
+This is the core Phase 6.4 test: it verifies that group extension creates implicit claims with coordinates derived from `TimelineGroup.convert()`, producing a fully connected component from a single explicit claim.
+
+---
+
 ## What's NOT Tested (Yet)
 
-The following are planned for Phases 6.4–6.7:
+The following are planned for Phases 6.5–6.7:
 
-1. **MatchGraph group extension** — implicit claims from `extend_to_groups()` (Phase 6.4)
-2. **MatchLine** — ordered sequence of MatchStamps for WarpMap generation (Phase 6.5)
-3. **WarpMap creation** — piecewise linear interpolation from MatchLine (Phase 6.6)
-4. **Event H transfer** — the manuscript's canonical validation: transfer an event from DGT2 to DGT1 (Phase 6.7)
-5. **Cross-group transfer** — AlignmentBundle.transfer() via MatchLine→WarpMap pipeline (Phase 6.7)
+1. **MatchLine** — ordered sequence of MatchStamps for WarpMap generation (Phase 6.5)
+2. **WarpMap creation** — piecewise linear interpolation from MatchLine (Phase 6.6)
+3. **Event H transfer** — the manuscript's canonical validation: transfer an event from DGT2 to DGT1 (Phase 6.7)
+4. **Cross-group transfer** — AlignmentBundle.transfer() via MatchLine→WarpMap pipeline (Phase 6.7)
 
 ---
 
@@ -449,7 +499,7 @@ cd timetoalign
 python -m pytest tests/alignment/ -v
 ```
 
-**Phase 6.3 Status**: 870 tests pass (alignment + timelines), 2 skipped. The 2 skips are pre-existing WarpMap/MatchLine stubs in `test_thoresen_poc.py` awaiting Phases 6.5–6.6.
+**Phase 6.4 Status**: 54 tests in `test_graph.py` (19 new). Full alignment suite: 267 passed, 56 skipped. The skips are pre-existing stubs in `test_thoresen_poc.py` and score-parsing tests awaiting data/Phases 6.5–6.6.
 
 ### Test Files
 
@@ -458,7 +508,7 @@ python -m pytest tests/alignment/ -v
 | `test_groups.py` | 58 | TimelineGroup, GroupTimestamp, and unified TimeStamp API |
 | `test_bundle.py` | 30 | AlignmentBundle with linear and partial alignment |
 | `test_anchors.py` | ~55 | AlignmentAnchor (Phase 6.2), MatchClaim (Phase 6.3), MatchMetadata |
-| `test_graph.py` | 35 | MatchGraph operations (updated for Phase 6.2/6.3) |
+| `test_graph.py` | 54 | MatchGraph operations (Phase 6.4: +19 tests for implicit claims, filtering, stamps) |
 | `test_supra_integration.py` | 13 | SUPRA piano roll workflow (partial alignment) |
 | `test_thoresen_poc.py` | 35 | Thoresen graphical analysis workflow |
 | `../timelines/test_offset_arithmetic.py` | 11 | **NEW (Phase 6.1)**: Parent–child offset arithmetic |
