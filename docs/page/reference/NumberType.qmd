@@ -1,0 +1,35 @@
+# NumberType { #timetoalign.NumberType }
+
+```python
+NumberType()
+```
+
+The numeric type used for coordinate values.
+
+Members can be instantiated both via NumberType("name") and NumberType(value).
+
+Example:
+    NumberType(int) is NumberType("int")
+    # True
+    NumberType(int).value(1.4)
+    # 1
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [python_type](#timetoalign.NumberType.python_type) | Return the corresponding Python type. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_number](#timetoalign.NumberType.from_number) | Create NumberType from a number instance. |
+
+### from_number { #timetoalign.NumberType.from_number }
+
+```python
+NumberType.from_number(number)
+```
+
+Create NumberType from a number instance.

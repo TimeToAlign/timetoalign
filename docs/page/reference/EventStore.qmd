@@ -1,0 +1,193 @@
+# EventStore { #timetoalign.EventStore }
+
+```python
+EventStore()
+```
+
+Abstract base class for collections of EventData.
+
+Provides a uniform interface for both single-data and multi-data
+stores, enabling consistent timeline creation across loader types.
+
+All stores must implement the collection protocol (iteration, keys,
+items, getitem) to allow uniform access to their constituent data.
+
+NOTE: This class was renamed from EventBundle to EventStore in the 2026-01 API
+refactoring. EventStore holds one or more EventData tables.
+
+Subclasses:
+    - ScoreStore: notes, measures, controls, annotations
+    - MidiStore: notes, controls
+    - SingleStore: generic wrapper for any single EventData
+
+Examples:
+    >>> # Iterate over stores
+    >>> for name, store in bundle.items():
+    ...     print(f"{name}: {len(store)} events")
+
+    >>> # Create default timeline with children
+    >>> timeline = bundle.to_default_timeline(uid="my_score")
+
+    >>> # Create filtered timeline
+    >>> timeline = bundle.to_timeline(
+    ...     store_filters={"notes": {"event_type": "Note"}},
+    ...     exclude_stores=["annotations"],
+    ... )
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [create_timeline](#timetoalign.EventStore.create_timeline) | Create a Timeline from this store. |
+| [get_cmaps](#timetoalign.EventStore.get_cmaps) | Get ConversionMaps derivable from store metadata. |
+| [items](#timetoalign.EventStore.items) | Iterate over (name, data) pairs in canonical order. |
+| [keys](#timetoalign.EventStore.keys) | Return data names in canonical order. |
+| [to_default_timeline](#timetoalign.EventStore.to_default_timeline) | Create a canonical timeline from this store's data. |
+| [to_timeline](#timetoalign.EventStore.to_timeline) | Deprecated alias for create_timeline(). |
+| [values](#timetoalign.EventStore.values) | Iterate over data. |
+
+### create_timeline { #timetoalign.EventStore.create_timeline }
+
+```python
+EventStore.create_timeline(
+    uid=None,
+    store_filters=None,
+    include_stores=None,
+    exclude_stores=None,
+    flatten=False,
+)
+```
+
+Create a Timeline from this store.
+
+By default, each data becomes a child timeline embedded at offset 0,
+maintaining its own 0-based coordinate system. The parent timeline's
+length equals the maximum length across all children.
+
+Args:
+    uid: Unique ID for the parent timeline. Auto-generated if None.
+    store_filters: Per-data filter kwargs to apply before timeline
+        creation. Example: {"notes": {"event_type": "Note"}} excludes
+        rests from the notes data.
+    include_stores: Only include these data (default: all non-empty).
+    exclude_stores: Exclude these data from the timeline.
+    flatten: If True, merge all events into a single parent timeline
+        without children. If False (default), each data becomes a
+        child timeline at offset 0.
+
+Returns:
+    A Timeline with the requested structure.
+
+Raises:
+    ValueError: If no data remain after filtering, or all data
+        are empty.
+
+Examples:
+    >>> # Default: each data as a child
+    >>> timeline = store.create_timeline(uid="my_score")
+    >>> notes = timeline.get_child("notes")
+
+    >>> # Filtered: only Note events, exclude annotations
+    >>> timeline = store.create_timeline(
+    ...     store_filters={"notes": {"event_type": "Note"}},
+    ...     exclude_stores=["annotations"],
+    ... )
+
+### get_cmaps { #timetoalign.EventStore.get_cmaps }
+
+```python
+EventStore.get_cmaps()
+```
+
+Get ConversionMaps derivable from store metadata.
+
+Returns a dictionary mapping target unit names to ConversionMaps
+that can convert from this bundle's native unit. Subclasses should
+override to provide maps based on available metadata (PPQ, tempo
+events, sample rate, etc.).
+
+Returns:
+    Dict mapping target unit name (e.g., "quarters", "seconds") to
+    ConversionMap instances. Empty dict if no C-Maps can be derived.
+
+Examples:
+    >>> bundle = midi_loader.load("performance.mid")
+    >>> cmaps = bundle.get_cmaps()
+    >>> if "quarters" in cmaps:
+    ...     quarters = cmaps["quarters"](960)  # Convert 960 ticks
+
+### items { #timetoalign.EventStore.items }
+
+```python
+EventStore.items()
+```
+
+Iterate over (name, data) pairs in canonical order.
+
+Yields:
+    Tuples of (data_name, EventData).
+
+### keys { #timetoalign.EventStore.keys }
+
+```python
+EventStore.keys()
+```
+
+Return data names in canonical order.
+
+Returns:
+    Tuple of data names.
+
+### to_default_timeline { #timetoalign.EventStore.to_default_timeline }
+
+```python
+EventStore.to_default_timeline(uid=None)
+```
+
+Create a canonical timeline from this store's data.
+
+When the store contains **multiple** data sources each one becomes
+a child timeline at offset 0, preserving its own 0-based coordinate
+system.  When the store contains a **single** data source the events
+are placed directly on the timeline (no child wrapping) for
+simplicity.  This is the recommended way to create timelines from
+loaded data.
+
+Args:
+    uid: Unique ID for the parent timeline.
+
+Returns:
+    A Timeline with events (single data) or children (multiple data).
+
+Examples:
+    >>> timeline = store.to_default_timeline(uid="chopin_score")
+    >>> for offset, child in timeline.iter_children():
+    ...     print(f"{child.id}: {child.n_events} events at offset {offset}")
+
+### to_timeline { #timetoalign.EventStore.to_timeline }
+
+```python
+EventStore.to_timeline(
+    uid=None,
+    store_filters=None,
+    include_stores=None,
+    exclude_stores=None,
+    flatten=False,
+)
+```
+
+Deprecated alias for create_timeline().
+
+.. deprecated:: 0.2.0
+    Use :meth:`create_timeline` instead.
+
+### values { #timetoalign.EventStore.values }
+
+```python
+EventStore.values()
+```
+
+Iterate over data.
+
+Yields:
+    EventData in canonical order.

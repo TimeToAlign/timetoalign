@@ -1,0 +1,22 @@
+# PhysicalTimeline { #timetoalign.PhysicalTimeline }
+
+```python
+PhysicalTimeline(
+    length=0,
+    unit=None,
+    number_type=None,
+    id_prefix='tl',
+    uid=None,
+    name=None,
+    locked=False,
+    meta=None,
+)
+```
+
+A timeline representing physical/acoustic time.
+
+Physical timelines measure real-world time in units like
+seconds, milliseconds, or audio samples. They are used for
+performance and audio representations.
+
+Allowed units: seconds, milliseconds, minutes, samples, frames.

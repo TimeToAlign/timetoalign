@@ -1,0 +1,11 @@
+# EventType { #timetoalign.EventType }
+
+```python
+EventType()
+```
+
+Whether an event is an instant or interval.
+
+From the TTA manuscript:
+- instant: Zero duration, associated with a single coordinate
+- interval: Has duration, defined by start and end coordinates

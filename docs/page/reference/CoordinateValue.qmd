@@ -1,0 +1,3 @@
+# CoordinateValue { #timetoalign.CoordinateValue }
+
+`CoordinateValue`

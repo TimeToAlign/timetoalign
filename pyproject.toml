@@ -63,6 +63,7 @@ tutorial = [                                  # Everything needed for the tutori
 docs = [                                      # Documentation site building
     "timetoalign[tutorial]",
     "quartodoc>=0.7",
+    "griffe>=1.3,<2",                         # quartodoc 0.11 incompatible with griffe 2.0
 ]
 all = [                                       # All runtime features
     "timetoalign[tutorial,delta,rdf]",

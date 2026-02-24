@@ -1,0 +1,20 @@
+# RepoVizzInfo { #timetoalign.RepoVizzInfo }
+
+```python
+RepoVizzInfo(n_samples, frame_rate, metadata, source_path=None)
+```
+
+Parsed metadata from a RepoVizz CSV file.
+
+Attributes:
+    n_samples: Number of data values on line 2.
+    frame_rate: Sampling rate in Hz (from ``framerate`` in the header).
+    duration_seconds: Computed as ``n_samples / frame_rate``.
+    metadata: Full key=value dict from the header line.
+    source_path: Path to the source file.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [duration_seconds](#timetoalign.RepoVizzInfo.duration_seconds) | Duration in seconds. |
