@@ -21,41 +21,56 @@ classifiers = [
     "Typing :: Typed",
 ]
 
-# Core dependencies
+# Core dependencies — kept minimal so that `pip install timetoalign` is lightweight.
+# Only the data backbone (PyArrow, pandas), graph library (NetworkX), and
+# typing backports are required.  All file-format-specific loaders pull in
+# their dependencies through the optional extras below.
 dependencies = [
     "pyarrow>=14.0",
     "pandas>=2.0",
-    "mido>=1.3",
-    "partitura>=1.5",
     "networkx>=3.0",
+    "typing_extensions>=4.0",
 ]
 
 [project.optional-dependencies]
-# Additional optional features (added in later phases)
-audio = ["soundfile>=0.12"]  # For AudioLoader (broad format support)
-audiofull = ["soundfile>=0.12", "mutagen>=1.47"]  # AudioLoader + MP3/M4A metadata
-delta = ["deltalake>=0.15.0"]
-graphical = ["pymupdf>=1.24", "pillow>=10.0"]
-ms3 = ["ms3>=2.6.0"]
-music21 = ["music21>=9.0"]
-plot = ["matplotlib>=3.5"]
-rdf = ["rdflib>=7.0"]
-dev = [
+# ---------------------------------------------------------------------------
+# Atomic extras — one concern each
+# ---------------------------------------------------------------------------
+midi = ["mido>=1.3"]                          # MIDI file loading (PerformanceMidiLoader)
+partitura = ["partitura>=1.5"]                # Score parsing via partitura (PartituraLoader, ScoreMidiLoader)
+music21 = ["music21>=9.0"]                    # Score parsing via music21 (Music21Loader)
+ms3 = ["ms3>=2.6.0"]                          # DCML TSV score parsing (TSVLoader)
+audio = ["soundfile>=0.12", "mutagen>=1.47"]  # Audio file loading + MP3/M4A metadata
+graphical = ["pymupdf>=1.24", "pillow>=10.0"] # PDF/image loading & drawing
+plot = ["matplotlib>=3.5"]                    # Visualisation (WP1 plotting)
+delta = ["deltalake>=0.15.0"]                 # Delta Lake columnar storage (future)
+rdf = ["rdflib>=7.0"]                         # RDF / linked-data export (future)
+
+# ---------------------------------------------------------------------------
+# Composite extras — convenience bundles
+# ---------------------------------------------------------------------------
+scores = [                                    # All score-loader backends
+    "timetoalign[partitura,music21,ms3]",
+]
+loaders = [                                   # Every loader dependency
+    "timetoalign[midi,scores,audio,graphical]",
+]
+tutorial = [                                  # Everything needed for the tutorial notebooks
+    "timetoalign[loaders,plot]",
+    "jupytext>=1.16",
+    "jupyter>=1.0",
+]
+all = [                                       # All runtime features
+    "timetoalign[tutorial,delta,rdf]",
+]
+dev = [                                       # All + development / CI tooling
+    "timetoalign[all]",
     "pre-commit>=2.20",
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "pytest-benchmark>=4.0",
     "hypothesis>=6.100",
     "ruff>=0.1",
-    "soundfile>=0.12",  # For testing AudioLoader
-]
-tutorial = [
-    "jupytext>=1.16",
-    "jupyter>=1.0",
-    "timetoalign[audiofull,graphical,plot]",
-]
-all = [
-    "timetoalign[audio,delta,graphical,ms3,music21,plot,rdf,tutorial]"
 ]
 
 [project.urls]
