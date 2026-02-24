@@ -49,7 +49,7 @@
 from pathlib import Path
 
 # Data directories - relative to the notebook's location
-_notebook_dir = Path(__file__).resolve().parent
+_notebook_dir = Path(".").resolve()
 _test_root = _notebook_dir.parent.parent / "tests"
 BEETHOVEN = _test_root / "data" / "score" / "beethoven_woo71"
 THORESEN = _test_root / "alignment" / "data" / "thoresen"
