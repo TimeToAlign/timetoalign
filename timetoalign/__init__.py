@@ -101,6 +101,7 @@ from timetoalign.alignment import (
     AlignmentAnchor,
     AlignmentBundle,
     MatchClaim,
+    MatchLine,
     MatchMetadata,
     PerfectAlignment,
     TimelineGroup,
@@ -213,5 +214,6 @@ __all__ = [
     "TimelineGroup",
     "AlignmentAnchor",
     "MatchClaim",
+    "MatchLine",
     "MatchMetadata",
 ]

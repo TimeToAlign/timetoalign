@@ -425,12 +425,61 @@ This is the core Phase 6.4 test: it verifies that group extension creates implic
 
 ---
 
+## MatchLine Phase 6.5 Tests (`test_matchline.py`)
+
+### What We're Validating
+
+Phase 6.5 introduced `MatchLine`, an ordered sequence of `MatchStamp` objects for a given source timeline. It is the bridge between `MatchGraph` (Phase 6.4) and `WarpMap` (Phase 6.6). A MatchLine collects stamps, sorts them by source coordinate, and exposes `get_coordinate_pairs()` for WarpMap construction.
+
+### Test Classes
+
+| Class | Tests | Purpose |
+|-------|-------|---------|
+| `TestMatchLineBasic` | 6 | Construction, sorting, empty/single stamp, filtering of stamps missing source |
+| `TestTargetTimelineIds` | 4 | `target_timeline_ids()` returns only timelines with >= 2 stamps |
+| `TestGetCoordinatePairs` | 6 | Extraction of `(source_coord, target_coord)` pairs, partial stamps, error on self-target |
+| `TestFromClaims` | 5 | `from_claims()` with ordering, interval claims, group extension, non-synchronous exclusion |
+| `TestFromGraphs` | 6 | `from_graphs()` merging, deduplication, Hendrix M6-M9 pattern |
+| `TestMatchLineSerialization` | 4 | `to_dict()`/`from_dict()` round-trip, `__repr__` |
+| `TestMatchLineIntegration` | 2 | Thoresen segment claims end-to-end, group extension coordinate pairs |
+
+### Key Evidence
+
+| Test | Validates |
+|------|-----------|
+| `test_stamps_sorted_by_source_coordinate` | Stamps are auto-sorted by source coordinate even if provided out of order |
+| `test_stamps_without_source_are_dropped` | Stamps missing the source timeline are silently dropped (with log warning) |
+| `test_target_timeline_ids_two_or_more` | `target_timeline_ids()` excludes timelines appearing in < 2 stamps (minimum for interpolation) |
+| `test_same_as_source_raises` | `get_coordinate_pairs()` raises ValueError when target == source |
+| `test_from_claims_with_group_extension` | `from_claims()` with group parameters adds group member coordinates (audio mapped linearly) |
+| `test_from_claims_non_synchronous_excluded` | Non-synchronous claims (NOMATCH) do not produce stamps |
+| `test_from_graphs_hendrix_pattern` | Four contiguous M-box graphs merged into 5 unique source coordinates (boundary deduplication) |
+| `test_from_graphs_keeps_richer_stamp` | Deduplication keeps the stamp with more timelines |
+| `test_thoresen_matchline` | Thoresen segment claims produce correct boundary pairs: (0,0) to (4835,4328) |
+
+### The Hendrix Pattern Test
+
+```python
+def test_from_graphs_hendrix_pattern(self):
+    # 4 contiguous M-boxes, each with 2 boundary claims
+    # Boundaries: 0, 100, 200, 300, 400
+    # Adjacent M-boxes share boundary coordinates -> deduplicated
+    graphs = [MatchGraph([...]) for i in range(4)]
+    line = MatchLine.from_graphs(graphs, source_timeline_id="score")
+    assert line.n_stamps == 5  # 5 unique coordinates
+    assert line.source_coordinates == [0.0, 100.0, 200.0, 300.0, 400.0]
+```
+
+This validates the Hendrix M6-M9 use case from the conceptual model: multiple MatchGraphs representing contiguous subsections can be merged into a single ordered MatchLine for WarpMap generation.
+
+---
+
 ## What's NOT Tested (Yet)
 
-The following are planned for Phases 6.5–6.7:
+The following are planned for Phases 6.6–6.7:
 
-1. **MatchLine** — ordered sequence of MatchStamps for WarpMap generation (Phase 6.5)
-2. **WarpMap creation** — piecewise linear interpolation from MatchLine (Phase 6.6)
+1. **WarpMap creation** — piecewise linear interpolation from MatchLine (Phase 6.6)
+2. **WarpMap.materialise()** — produce warped Timeline copy with events, children, regions (Phase 6.6)
 3. **Event H transfer** — the manuscript's canonical validation: transfer an event from DGT2 to DGT1 (Phase 6.7)
 4. **Cross-group transfer** — AlignmentBundle.transfer() via MatchLine→WarpMap pipeline (Phase 6.7)
 
@@ -499,7 +548,7 @@ cd timetoalign
 python -m pytest tests/alignment/ -v
 ```
 
-**Phase 6.4 Status**: 54 tests in `test_graph.py` (19 new). Full alignment suite: 267 passed, 56 skipped. The skips are pre-existing stubs in `test_thoresen_poc.py` and score-parsing tests awaiting data/Phases 6.5–6.6.
+**Phase 6.5 Status**: 33 tests in `test_matchline.py` (all new). Full alignment suite: 300 passed, 56 skipped. The skips are pre-existing stubs in `test_thoresen_poc.py` and graphical loader tests requiring PyMuPDF.
 
 ### Test Files
 
@@ -509,6 +558,7 @@ python -m pytest tests/alignment/ -v
 | `test_bundle.py` | 30 | AlignmentBundle with linear and partial alignment |
 | `test_anchors.py` | ~55 | AlignmentAnchor (Phase 6.2), MatchClaim (Phase 6.3), MatchMetadata |
 | `test_graph.py` | 54 | MatchGraph operations (Phase 6.4: +19 tests for implicit claims, filtering, stamps) |
+| `test_matchline.py` | 33 | **NEW (Phase 6.5)**: MatchLine construction, from_claims, from_graphs, coordinate pairs, serialization |
 | `test_supra_integration.py` | 13 | SUPRA piano roll workflow (partial alignment) |
 | `test_thoresen_poc.py` | 35 | Thoresen graphical analysis workflow |
 | `../timelines/test_offset_arithmetic.py` | 11 | **NEW (Phase 6.1)**: Parent–child offset arithmetic |

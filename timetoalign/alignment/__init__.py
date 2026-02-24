@@ -13,6 +13,7 @@ Public API:
 - MatchMetadata: Provenance information for matches
 - MatchGraph: Graph of MatchClaims (networkx integration)
 - MatchStamp: Cross-group timestamp at a single coordinate
+- MatchLine: Ordered sequence of MatchStamps for WarpMap generation
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from .matching import (
     prepare_abc_notes_for_matching,
     prepare_eep_notes_for_matching,
 )
+from .matchline import MatchLine
 
 __all__ = [
     # Bundle (Primary Entry Point)
@@ -40,9 +42,10 @@ __all__ = [
     "AlignmentAnchor",
     "MatchClaim",
     "MatchMetadata",
-    # Graph and Stamps
+    # Graph, Stamps, and Lines
     "MatchGraph",
     "MatchStamp",
+    "MatchLine",
     # Matching
     "MatchResult",
     "match_notes_by_attributes",
