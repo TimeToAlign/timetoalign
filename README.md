@@ -7,7 +7,58 @@ A Python library for representing and aligning musical timelines.
 ```bash
 git clone git@github.com:TimeToAlign/timetoalign.git
 cd timetoalign
-pip install -e ".[dev]"
+pip install -e .           # Core only — lightweight
+```
+
+### Optional Dependencies
+
+The core install pulls in only PyArrow, pandas, NetworkX, and
+typing\_extensions.  This gives you the full timeline / map / alignment
+framework but **no file-format-specific loaders**.  Loader backends and
+other features are available through optional extras.
+
+#### Atomic extras — one concern each
+
+| Extra | Packages | Purpose |
+|---|---|---|
+| `midi` | `mido` | MIDI file loading (`PerformanceMidiLoader`) |
+| `partitura` | `partitura` | Score parsing via partitura (`PartituraLoader`, `ScoreMidiLoader`) |
+| `music21` | `music21` | Score parsing via music21 (`Music21Loader`) |
+| `ms3` | `ms3` | DCML TSV score parsing (`TSVLoader`) |
+| `audio` | `soundfile`, `mutagen` | Audio file loading + MP3/M4A metadata |
+| `graphical` | `pymupdf`, `pillow` | PDF/image loading & drawing |
+| `plot` | `matplotlib` | Visualisation (WP1 plotting) |
+| `delta` | `deltalake` | Delta Lake columnar storage (future) |
+| `rdf` | `rdflib` | RDF / linked-data export (future) |
+
+#### Composite extras — convenience bundles
+
+| Extra | Includes | Purpose |
+|---|---|---|
+| `scores` | `partitura`, `music21`, `ms3` | All score-loader backends |
+| `loaders` | `midi`, `scores`, `audio`, `graphical` | Every loader dependency |
+| `tutorial` | `loaders`, `plot`, `jupytext`, `jupyter` | Everything needed for the tutorial notebooks |
+| `all` | `tutorial`, `delta`, `rdf` | All runtime features |
+| `dev` | `all`, `pre-commit`, `pytest`, `pytest-cov`, `pytest-benchmark`, `hypothesis`, `ruff` | All + development / CI tooling |
+
+The inclusion chain is:
+
+```
+dev  ⊃  all  ⊃  tutorial  ⊃  loaders  ⊃  { midi, scores, audio, graphical }
+                                        +  plot, jupytext, jupyter
+                            +  delta, rdf
+```
+
+#### Examples
+
+```bash
+pip install timetoalign                  # Core only
+pip install timetoalign[midi]            # Core + MIDI loading
+pip install timetoalign[scores]          # Core + all score-loader backends
+pip install timetoalign[loaders]         # Core + every loader
+pip install timetoalign[tutorial]        # Loaders + plotting + Jupyter
+pip install timetoalign[all]             # All runtime features
+pip install -e ".[dev]"                  # Editable install + everything + dev tooling
 ```
 
 ## Quick Start
