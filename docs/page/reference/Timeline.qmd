@@ -878,9 +878,9 @@ Returns:
 Examples:
     >>> print(timeline.diagram())
     DiscreteGraphicalTimeline[dgt1:1] (11 events, 5 children)
-    0 :::::::::::::::::::::::::::::::::::::::::::::: 4835 pixels
-      ├─ system_1     0   :::::::                        967
-      ├─ system_2   967          ::::::::               1934
+    0 ∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶ 4835 pixels
+      ├─ system_1     0   ∶∶∶∶∶∶∶                        967
+      ├─ system_2   967          ∶∶∶∶∶∶∶∶               1934
       └─ ...
 
 ### empty { #timetoalign.Timeline.empty }
