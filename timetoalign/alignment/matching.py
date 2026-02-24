@@ -234,6 +234,8 @@ def match_notes_by_attributes(
                 coordinate_b=row["target_coord"],
             )
             claim = MatchClaim(
+                timeline_a_id=source_timeline_id,
+                timeline_b_id=target_timeline_id,
                 start_anchor=anchor,
                 metadata=metadata,
             )

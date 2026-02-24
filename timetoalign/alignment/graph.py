@@ -256,6 +256,10 @@ class MatchGraph:
     def _build_graph(self) -> nx.Graph:
         """Build the anchor graph from claims.
 
+        Only synchronous claims (those with anchors) produce graph edges.
+        Non-synchronous claims are stored in ``_claims`` but do not create
+        nodes or edges.
+
         Nodes: (timeline_id, coordinate) tuples
         Edges: Anchors with attributes (explicit, synchronous, claim_id)
 
@@ -265,6 +269,9 @@ class MatchGraph:
         G = nx.Graph()
 
         for claim in self._claims:
+            if not claim.is_synchronous or claim.start_anchor is None:
+                continue
+
             # Add start anchor edge
             self._add_anchor_edge(G, claim.start_anchor, claim)
 
@@ -293,10 +300,9 @@ class MatchGraph:
         G.add_edge(
             node_a,
             node_b,
-            explicit=anchor.is_explicit,
-            synchronous=anchor.is_synchronous,
+            explicit=claim.is_explicit,
+            synchronous=claim.is_synchronous,
             claim_id=claim.id,
-            anchor_id=anchor.id,
         )
 
     def get_nodes_for_timeline(self, timeline_id: str) -> list[GraphNode]:
@@ -448,14 +454,21 @@ class MatchGraph:
 
         Note:
             For a graph built from multiple interval claims, this returns
-            stamps for the first claim's coordinates. Use get_all_stamps()
-            for all unique timestamps.
+            stamps for the first synchronous claim's coordinates. Use
+            get_all_stamps() for all unique timestamps.
         """
         if not self._claims:
             return MatchStamp(), None
 
-        # Get stamps for the first claim
-        claim = self._claims[0]
+        # Find the first synchronous claim with anchors
+        claim = None
+        for c in self._claims:
+            if c.is_synchronous and c.start_anchor is not None:
+                claim = c
+                break
+
+        if claim is None:
+            return MatchStamp(), None
 
         # Build start stamp
         start_node: GraphNode = (
