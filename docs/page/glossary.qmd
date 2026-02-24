@@ -1,0 +1,284 @@
+---
+title: "Glossary"
+subtitle: "Alphabetical reference of TimeToAlign! model terminology"
+---
+
+This page collects all terms introduced in the [Conceptual Model](concepts.qmd).
+Hover over any {{< glossary glossary >}}-highlighted term elsewhere on this site
+to see its definition.
+
+For the full context in which each term is introduced, follow the cross-references
+to the relevant section of the conceptual model.
+
+
+## A
+
+**AlignmentAnchor**
+:   A set of {{< glossary TimeStamp >}}s corresponding to matched events,
+    representing their temporal equivalence across timelines. From a
+    {{< glossary Match >}} of {{< glossary TimeIntervalEvent >}}s, one
+    derives a **StartAnchor** and an **EndAnchor**.
+    See [Alignment](concepts.qmd#alignment).
+
+## B
+
+**Break**
+:   A {{< glossary ControlEvent >}} that voids {{< glossary Contiguity >}}
+    at its {{< glossary Instant >}}. TimeIntervals cannot span a Break,
+    and Breaks cannot be inserted into existing TimeIntervals.
+    See [Flow control](concepts.qmd#flow-control).
+
+## C
+
+**ChainMap**
+:   A {{< glossary MultiMap >}} that applies multiple
+    {{< glossary ConversionMap >}}s in sequence, creating a conversion
+    path from a source unit to a target unit.
+    See [Conversion maps](concepts.qmd#conversion-maps).
+
+**Child**
+:   A {{< glossary Timeline >}} nested within a parent timeline, sharing
+    the same measuring unit. Children are locked upon insertion to prevent
+    side effects from modifications.
+    See [Nested timelines](concepts.qmd#nested-timelines).
+
+**CombinationMap**
+:   A {{< glossary MultiMap >}} yielding outputs from multiple
+    {{< glossary ConversionMap >}}s simultaneously (e.g., *(x, y)*
+    coordinate pairs).
+    See [Conversion maps](concepts.qmd#conversion-maps).
+
+**Commensurable**
+:   Two timelines are commensurable when connected by a
+    {{< glossary Match >}} path or {{< glossary ConversionMap >}} chain,
+    enabling coordinate translation between them.
+    See [Alignment](concepts.qmd#alignment).
+
+**ConcatenationMap**
+:   A {{< glossary MultiMap >}} combining bounded
+    {{< glossary ConversionMap >}}s such that each coordinate region is
+    handled by a specific map.
+    See [Conversion maps](concepts.qmd#conversion-maps).
+
+**Contiguity**
+:   A {{< glossary TimeInterval >}} is contiguous if it monotonically
+    spans all coordinates between its start and end. An
+    {{< glossary Instant >}} is contiguous with a TimeInterval if it is
+    synchronous with its {{< glossary EndInstant >}}.
+    See [Flow control](concepts.qmd#flow-control).
+
+**ControlEvent**
+:   An event affecting flow control: either a {{< glossary Break >}}
+    (voiding contiguity) or a {{< glossary Jump >}} (creating new
+    contiguity).
+    See [Flow control](concepts.qmd#flow-control).
+
+**ConversionMap**
+:   A function mapping any coordinate to at most one value (another
+    coordinate, a specifier, or a constant). Also called **C-map**. If
+    bijective, an {{< glossary InverseMap >}} can be derived.
+    See [Conversion maps](concepts.qmd#conversion-maps).
+
+**Coordinate**
+:   A position on a {{< glossary Timeline >}}, expressed as the distance
+    from the origin in the timeline's measuring unit. Combines a numeric
+    value with a TimeUnit.
+    See [Foundations](concepts.qmd#foundations).
+
+## D
+
+**Discrete**
+:   A timeline is discrete when coordinates exist only at discrete points
+    (e.g., pixels, samples, ticks). Contrast with Continuous timelines
+    where coordinates can take any real value (e.g., seconds, quarters).
+    See [Foundations](concepts.qmd#foundations).
+
+**Domain**
+:   One of three temporal categories: **Graphical** (visual/spatial),
+    **Logical** (symbolic/musical), or **Physical** (audio/sound). Each
+    domain has both discrete and continuous timeline variants.
+    See [Foundations](concepts.qmd#foundations).
+
+## E
+
+**EndInstant**
+:   An {{< glossary Instant >}} marking the end of a
+    {{< glossary TimeInterval >}}. Its coordinate must be greater than or
+    equal to the corresponding {{< glossary StartInstant >}}'s coordinate.
+    See [Foundations](concepts.qmd#foundations).
+
+**Event**
+:   Anything associated with a {{< glossary Timeline >}} via
+    {{< glossary Instant >}}s. An {{< glossary InstantEvent >}} has zero
+    duration; a {{< glossary TimeIntervalEvent >}} has duration defined by
+    start and end coordinates.
+    See [Foundations](concepts.qmd#foundations).
+
+## I
+
+**Instant**
+:   Associates a {{< glossary Coordinate >}} (a "time-point") with a
+    signification such as "start of event *e*". Instants sharing a
+    coordinate are synchronous.
+    See [Foundations](concepts.qmd#foundations).
+
+**InstantEvent**
+:   An {{< glossary Event >}} defined by a single {{< glossary Instant >}},
+    having zero duration.
+    See [Foundations](concepts.qmd#foundations).
+
+**InverseMap**
+:   The reverse transformation of a bijective
+    {{< glossary ConversionMap >}}.
+    See [Conversion maps](concepts.qmd#conversion-maps).
+
+## J
+
+**Jump**
+:   A {{< glossary ControlEvent >}} with **JumpFrom** and **JumpTo**
+    {{< glossary Instant >}}s. When active, makes events at JumpTo
+    contiguous with those ending at JumpFrom (e.g., repeats, *dal segno*).
+    See [Flow control](concepts.qmd#flow-control).
+
+## L
+
+**Length**
+:   The distance between a {{< glossary Timeline >}}'s origin and its last
+    {{< glossary Instant >}}.
+    See [Foundations](concepts.qmd#foundations).
+
+**Locked**
+:   A timeline state preventing the addition of {{< glossary Instant >}}s
+    after the last time-point. {{< glossary Child >}} timelines are
+    automatically locked when embedded in a parent.
+    See [Nested timelines](concepts.qmd#nested-timelines).
+
+## M
+
+**Match**
+:   A claim---issued by a human or algorithmic agent---that events from
+    disparate timelines are synchronous or equivalent, with associated
+    metadata describing the agent, decision criteria, and certainty level.
+    See [Alignment](concepts.qmd#alignment).
+
+**MatchLine**
+:   A linked list of {{< glossary Match >}} objects preserving their
+    order, enabling selection and alignment of temporal correspondences
+    for downstream operations.
+    See [Alignment](concepts.qmd#alignment).
+
+**MatchPath**
+:   A graph traversal connecting matched events across multiple timelines
+    (e.g., A -> B -> C), enabling indirect alignment.
+    See [Alignment](concepts.qmd#alignment).
+
+**MultiMap**
+:   An umbrella term for composed {{< glossary ConversionMap >}}s:
+    {{< glossary ChainMap >}} (sequential),
+    {{< glossary CombinationMap >}} (parallel outputs), and
+    {{< glossary ConcatenationMap >}} (regional).
+    See [Conversion maps](concepts.qmd#conversion-maps).
+
+## O
+
+**Origin**
+:   The zero coordinate of a {{< glossary Timeline >}}, from which all
+    positions are measured.
+    See [Foundations](concepts.qmd#foundations).
+
+## P
+
+**Parent**
+:   A {{< glossary Timeline >}} that contains one or more
+    {{< glossary Child >}} timelines. The parent and all its children must
+    share the same measuring unit.
+    See [Nested timelines](concepts.qmd#nested-timelines).
+
+## R
+
+**Region**
+:   A named part of a {{< glossary Timeline >}} defined by a
+    {{< glossary TimeInterval >}} (e.g., "Chorus", "Verse"). Regions are
+    not timelines and cannot hold events or maps directly.
+    See [Regions](concepts.qmd#regions).
+
+**Root**
+:   The top-level {{< glossary Timeline >}} in a hierarchy of nested
+    timelines. Only the root timeline can be extended; all descendants are
+    locked.
+    See [Nested timelines](concepts.qmd#nested-timelines).
+
+**RotationMap**
+:   A periodic {{< glossary ConversionMap >}} that wraps coordinates
+    cyclically (e.g., an ostinato part that repeats while the main
+    timeline advances).
+    See [Conversion maps](concepts.qmd#conversion-maps).
+
+## S
+
+**Segment**
+:   A {{< glossary Child >}} timeline that is contiguous with its
+    siblings. Segments enable concatenation of local coordinate systems.
+    See [Nested timelines](concepts.qmd#nested-timelines).
+
+**SegmentLine**
+:   A parent {{< glossary Timeline >}} containing only contiguous
+    {{< glossary Segment >}}s. Enables cumulative coordinate conversion
+    across all segments.
+    See [Nested timelines](concepts.qmd#nested-timelines).
+
+**StartInstant**
+:   An {{< glossary Instant >}} marking the start of a
+    {{< glossary TimeInterval >}}.
+    See [Foundations](concepts.qmd#foundations).
+
+**Synchrony**
+:   *Strict synchrony*: {{< glossary Instant >}}s sharing identical
+    coordinates. *Pragmatic synchrony*: Instants binned together based on
+    a threshold (e.g., for quantisation).
+    See [Foundations](concepts.qmd#foundations).
+
+## T
+
+**TimeInterval**
+:   Defined by a {{< glossary StartInstant >}} and
+    {{< glossary EndInstant >}}; left-inclusive and right-exclusive
+    [*s*, *e*). The EndInstant's coordinate must be >= the StartInstant's.
+    See [Foundations](concepts.qmd#foundations).
+
+**TimeIntervalEvent**
+:   An {{< glossary Event >}} with duration, defined by a
+    {{< glossary TimeInterval >}}. Contrast with
+    {{< glossary InstantEvent >}}.
+    See [Foundations](concepts.qmd#foundations).
+
+**TimeIntervalStamp**
+:   Combination of a start {{< glossary TimeStamp >}} and an end
+    TimeStamp, representing a cross-section of an interval through the
+    timeline hierarchy.
+    See [Nested timelines](concepts.qmd#nested-timelines).
+
+**Timeline**
+:   A positive coordinate axis minimally defined by its origin (zero) and
+    measuring unit. Accommodates events and potentially
+    {{< glossary Child >}} timelines.
+    See [Foundations](concepts.qmd#foundations).
+
+**TimeStamp**
+:   A cross-section through a timeline hierarchy, comprising the root
+    coordinate, synchronous {{< glossary Child >}} coordinates, and all
+    {{< glossary ConversionMap >}} results.
+    See [Nested timelines](concepts.qmd#nested-timelines).
+
+**TraversalMap**
+:   A sequence of {{< glossary TimeInterval >}}s representing a specific
+    traversal path through a timeline (handling {{< glossary Jump >}}s and
+    repeats). Also called **T-map**.
+    See [Derivative timelines](concepts.qmd#derivative-timelines).
+
+## W
+
+**WarpMap**
+:   A derived timeline where coordinates are re-adjusted based on
+    {{< glossary AlignmentAnchor >}}s to align with another timeline.
+    See [Derivative timelines](concepts.qmd#derivative-timelines).

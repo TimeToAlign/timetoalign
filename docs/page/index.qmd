@@ -1,0 +1,102 @@
+---
+title: "TimeToAlign!"
+subtitle: "A Cross-Domain Timeline Model for Music Information Retrieval and Digital Musicology"
+---
+
+## What is TimeToAlign!?
+
+Music research relies on heterogeneous time-related data: scores, recordings,
+annotations, images, sensor data, and video. These artefacts differ in repertoire,
+completeness, format, granularity, and quality control. Combining them requires
+**alignment**---matching corresponding events across representations---which is
+expensive, error-prone, and rarely reusable.
+
+TimeToAlign! addresses this by providing:
+
+1. A **generalised cross-domain model** for musical timelines and their
+   alignments, grounded in three temporal domains (physical, logical, graphical)
+   in both continuous and discrete variants.
+2. A **working Python library** (`timetoalign`) implementing this model with
+   typed timelines, loaders for common formats, conversion maps, and
+   alignment primitives.
+
+The model represents coordinate systems as nodes in a graph, connected by
+{{< glossary ConversionMap >}}s within a timeline and {{< glossary Match >}}
+objects across timelines. This structure enables coordinate transfer,
+annotation propagation, and alignment queries across arbitrarily many
+representations of the same musical content.
+
+
+## Documentation Structure
+
+This documentation follows the
+[Diataxis](https://diataxis.fr/) framework.
+At present, it focuses on the **Explanation** quadrant---the
+conceptual model that underpins the library.
+
+[**Conceptual Model**](concepts.qmd)
+:   The full specification of TimeToAlign!'s cross-domain timeline model:
+    temporal domains, coordinates, events, flow control, conversion maps,
+    nested timelines, alignment, and matching. This is the authoritative
+    reference for the model's formal definitions and visual conventions.
+
+[**Glossary**](glossary.qmd)
+:   An alphabetical reference of all model terms, from AlignmentAnchor to
+    WarpMap.
+
+**Tutorials** *(coming soon)*
+:   Step-by-step notebooks demonstrating the `timetoalign` library on
+    real-world data, from loading a MIDI file to aligning 23 timelines
+    across a multimodal Beethoven dataset.
+
+**How-to Guides** *(planned)*
+:   Task-oriented recipes for common workflows: loading data, building
+    timeline hierarchies, transferring annotations, and exchanging
+    alignment data.
+
+**API Reference** *(planned)*
+:   Auto-generated documentation for the `timetoalign` Python package.
+
+
+## The Three Temporal Domains
+
+At the heart of the model lies a simple observation: musical data can be
+categorised into three temporal domains, each representing a different
+modality through which music is experienced.
+
+| Domain | Modality | Continuous | Discrete |
+|--------|----------|------------|----------|
+| **Physical** | Hearing | seconds | samples |
+| **Logical** | Conceptualising | quarter notes, beats | ticks, divisions |
+| **Graphical** | Seeing | metres, points | pixels |
+
+: The six timeline types arising from three domains and two number types. {#tbl-domains}
+
+A score, for instance, is *both* graphical and logical---it is itself an
+alignment between pixel coordinates and musical time. A performance is
+physical (audio samples or seconds) but encodes the logical structure of
+the score. Bridging these domains in a principled, reusable manner is what
+TimeToAlign! is for.
+
+For the full specification, see the [Conceptual Model](concepts.qmd).
+
+
+## Getting Started
+
+The `timetoalign` library is under active development. To install the
+current development version:
+
+```bash
+pip install -e path/to/timetoalign
+```
+
+The library requires Python 3.12 or later.
+
+
+## Project Links
+
+- **Source Code**: [GitHub](https://github.com/TimeToAlign)
+- **Specimen Collection**: Real-world datasets used in the tutorials and
+  the accompanying TISMIR manuscript.
+- **TISMIR Manuscript**: The model and its five demonstration scenarios are
+  described in a manuscript currently under review.
