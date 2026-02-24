@@ -81,6 +81,25 @@ TimeIntervalStamp [8, 12) seconds
   samples       384000  576000
 ```
 
+## Tutorial Notebooks
+
+The `docs/notebooks/` directory contains Jupytext percent-script notebooks
+covering the library from first principles to full alignment workflows.
+To run them, install the `tutorial` extra (which pulls in Jupytext, Jupyter,
+and every optional loader dependency the tutorials use):
+
+```bash
+cd tta/timetoalign
+pip install -e ".[tutorial]"
+```
+
+Then generate the paired `.ipynb` files and launch Jupyter:
+
+```bash
+jupytext --sync docs/notebooks/*.py
+jupyter notebook docs/notebooks/
+```
+
 ## Development
 
 ```bash

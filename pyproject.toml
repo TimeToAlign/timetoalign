@@ -49,8 +49,13 @@ dev = [
     "ruff>=0.1",
     "soundfile>=0.12",  # For testing AudioLoader
 ]
+tutorial = [
+    "jupytext>=1.16",
+    "jupyter>=1.0",
+    "timetoalign[audiofull,graphical,plot]",
+]
 all = [
-    "timetoalign[audio,delta,graphical,ms3,music21,plot,rdf]"
+    "timetoalign[audio,delta,graphical,ms3,music21,plot,rdf,tutorial]"
 ]
 
 [project.urls]
