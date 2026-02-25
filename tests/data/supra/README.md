@@ -181,8 +181,8 @@ assert loader.rollinfo["MUSICAL_HOLES"] >= 30000
    - Summary output is deterministic
 
 4. **MIDI Loaders**
-   - Raw MIDI: exactly 8718 notes
-   - Expressive MIDI: exactly 8718 notes
+   - Raw MIDI: exactly 30,092 notes (matches MUSICAL_HOLES from ATON)
+   - Expressive MIDI: exactly 6,380 notes (merged adjacent holes)
    - Tick ranges align with ATON pixel ranges
 
 5. **Score Loader (TSV)**

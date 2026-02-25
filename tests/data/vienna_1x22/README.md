@@ -182,11 +182,11 @@ Testing this specimen exercises the following TTA concepts and components:
 3. **Performance timeline construction**: tick coordinates; `ticks_to_seconds` ScalarMap derived from `midiClockRate`/`midiClockUnits`.
 4. **MatchClaim generation**: One `MatchClaim.from_events()` per `snote-note` line (using raw score coordinates); one `MatchClaim.nomatch()` per `snote-deletion` line.
 5. **MatchMetadata provenance**: `agent="vienna_match_v1.0.0"`, `decision_criteria="automatic"`.
-6. **External timeline binding (Pattern 1)**: Loading all 22 files while supplying a single pre-loaded score timeline via `source_timeline=`; events looked up by ID, added if absent, coordinate-verified if present.
-7. **Loader-managed shared score (Pattern 2)**: `MatchfileLoader` automatically caches the score TL across multiple `create_alignment_bundle()` calls when `source_timeline` is not supplied.
+6. **External timeline binding (Pattern 1)**: `loader.load(*files)` then `loader.create_alignment_bundle(score_timeline=pre_loaded_tl)`; events looked up by ID, added if absent, coordinate-verified if present.
+7. **Loader-managed shared score (Pattern 2)**: `loader.load(*files)` then `loader.create_alignment_bundle()` (no file arguments); the loader automatically builds and caches the shared score TL during `load()`.
 8. **AlignmentBundle construction**: Adding 22 performance timelines with cross-group MatchClaims.
 
-### Test Classes (planned in `tests/loader/test_matchfile_loader.py`)
+### Test Classes (PLANNED — `tests/loader/test_matchfile_loader.py` does not yet exist)
 
 #### `TestMatchfileFormat`
 Unit tests for the raw parser, independent of TTA objects.
@@ -217,18 +217,18 @@ Tests `MatchfileLoader.load("Chopin_op10_no3_p01.match")`.
 | `test_match_metadata` | Provenance on every claim | `agent="vienna_match_v1.0.0"` |
 | `test_match_claim_raw_coordinates` | First claim uses raw (negative) score coord | `start_anchor.coordinate_a == -0.5` |
 
-#### `TestMatchfileLoaderCreateBundle` (`create_alignment_bundle()`)
-Tests the convenience method that assembles the three artefacts.
+#### `TestMatchfileLoaderCreateBundle` (`load()` then `create_alignment_bundle()`)
+Tests the standard two-phase pattern: `loader.load(file)` then `loader.create_alignment_bundle()`.
 
 | Test | Assertion |
 |---|---|
-| `test_bundle_returns_tuple` | Returns `(score_tl, perf_tl, claims)` or `AlignmentBundleResult` |
+| `test_bundle_returns_result` | Returns `AlignmentBundleResult` |
 | `test_bundle_score_id` | Score TL `id` matches caller-supplied uid |
 | `test_bundle_perf_id` | Performance TL `id` is derived from filename |
 | `test_bundle_claim_connect_both` | Every claim `.connects_both(score_id, perf_id)` |
 
 #### `TestMatchfileLoaderExternalScore` (Pattern 1 — user-supplied score TL)
-Tests `create_alignment_bundle(..., source_timeline=pre_loaded_score_tl)`.
+Tests `loader.load(*files)` then `create_alignment_bundle(score_timeline=pre_loaded_score_tl)`.
 
 | Test | Assertion |
 |---|---|
@@ -239,7 +239,7 @@ Tests `create_alignment_bundle(..., source_timeline=pre_loaded_score_tl)`.
 | `test_coord_mismatch_raises` | If same ID has different coordinate, `ValueError` is raised |
 
 #### `TestMatchfileLoaderSharedScore` (Pattern 2 — loader-managed)
-Tests repeated `create_alignment_bundle()` calls without `source_timeline=`.
+Tests `loader.load(*all_22_files)` then `create_alignment_bundle()` without `source_timeline=`.
 
 | Test | Assertion |
 |---|---|
@@ -277,7 +277,8 @@ Profiling baseline for `MatchfileLoader` on this dataset (to be updated after im
 | Build 22-performance AlignmentBundle | < 2 s | Including shared score TL |
 
 ```bash
-python tests/loader/profile_matchfile.py
+# PLANNED — profiling script not yet implemented
+# python tests/loader/profile_matchfile.py
 ```
 
 ---
@@ -311,12 +312,12 @@ python tests/loader/profile_matchfile.py
 ## Running Tests
 
 ```bash
-# All vienna_1x22-related tests
-pytest tests/loader/test_matchfile_loader.py -v
+# All vienna_1x22-related tests (PLANNED — test file not yet implemented)
+# pytest tests/loader/test_matchfile_loader.py -v
 
 # Cross-validation with score loader tests
 pytest tests/loader/score/test_cross_validation.py -v -k "chopin"
 
-# Run with profile output
-pytest tests/loader/test_matchfile_loader.py -v -s --tb=short
+# Run with profile output (PLANNED — profiling script not yet implemented)
+# pytest tests/loader/test_matchfile_loader.py -v -s --tb=short
 ```

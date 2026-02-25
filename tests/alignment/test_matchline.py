@@ -60,39 +60,7 @@ def three_stamp_line() -> MatchLine:
     return MatchLine(source_timeline_id="score", stamps=stamps)
 
 
-@pytest.fixture
-def thoresen_segment_claims() -> list[MatchClaim]:
-    """5 segment claims from Thoresen PoC (interval matches)."""
-    dgt1_lengths = [967, 967, 967, 967, 967]
-    dgt2_lengths = [866, 867, 867, 864, 864]
-
-    claims = []
-    offset_dgt1 = 0
-    offset_dgt2 = 0
-
-    for i in range(5):
-        claim = MatchClaim(
-            timeline_a_id="dgt1",
-            timeline_b_id="dgt2",
-            start_anchor=AlignmentAnchor(
-                timeline_a_id="dgt1",
-                coordinate_a=float(offset_dgt1),
-                timeline_b_id="dgt2",
-                coordinate_b=float(offset_dgt2),
-            ),
-            end_anchor=AlignmentAnchor(
-                timeline_a_id="dgt1",
-                coordinate_a=float(offset_dgt1 + dgt1_lengths[i]),
-                timeline_b_id="dgt2",
-                coordinate_b=float(offset_dgt2 + dgt2_lengths[i]),
-            ),
-        )
-        claims.append(claim)
-        offset_dgt1 += dgt1_lengths[i]
-        offset_dgt2 += dgt2_lengths[i]
-
-    return claims
-
+# thoresen_segment_claims fixture is provided by conftest.py
 
 # endregion
 

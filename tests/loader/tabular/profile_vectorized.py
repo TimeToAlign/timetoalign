@@ -149,7 +149,7 @@ def get_specimens() -> list[tuple[Path, type[TabularLoader], dict[str, Any]]]:
     Returns:
         List of (file_path, loader_class, loader_kwargs) tuples.
     """
-    base = Path(__file__).parent.parent.parent.parent.parent / "dashboard" / "specimens"
+    base = Path(__file__).parent.parent.parent / "data" / "score"
 
     specimens = []
 

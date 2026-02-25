@@ -725,39 +725,7 @@ class TestMatchGraphSerialization:
 class TestMatchGraphThoresenIntegration:
     """Integration tests using Thoresen PoC data."""
 
-    @pytest.fixture
-    def thoresen_segment_claims(self) -> list[MatchClaim]:
-        """5 segment claims from Thoresen PoC."""
-        # Exact values from test_thoresen_poc.py
-        dgt1_lengths = [967, 967, 967, 967, 967]
-        dgt2_lengths = [866, 867, 867, 864, 864]
-
-        claims = []
-        offset_dgt1 = 0
-        offset_dgt2 = 0
-
-        for i in range(5):
-            claim = MatchClaim(
-                timeline_a_id="dgt1",
-                timeline_b_id="dgt2",
-                start_anchor=AlignmentAnchor(
-                    timeline_a_id="dgt1",
-                    coordinate_a=float(offset_dgt1),
-                    timeline_b_id="dgt2",
-                    coordinate_b=float(offset_dgt2),
-                ),
-                end_anchor=AlignmentAnchor(
-                    timeline_a_id="dgt1",
-                    coordinate_a=float(offset_dgt1 + dgt1_lengths[i]),
-                    timeline_b_id="dgt2",
-                    coordinate_b=float(offset_dgt2 + dgt2_lengths[i]),
-                ),
-            )
-            claims.append(claim)
-            offset_dgt1 += dgt1_lengths[i]
-            offset_dgt2 += dgt2_lengths[i]
-
-        return claims
+    # thoresen_segment_claims fixture is provided by conftest.py
 
     def test_thoresen_graph_structure(
         self, thoresen_segment_claims: list[MatchClaim]

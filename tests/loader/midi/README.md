@@ -68,7 +68,7 @@ To verify correctness, we run **Harmonization Tests** (`test_harmonization.py`) 
 
 ### Validation Logic
 We assert that:
-1.  **Note Counts Match**: The number of identified note events must be identical (within <0.5% tolerance for edge cases).
+1.  **Note Counts Match**: The number of identified note events must be identical (exact match required; both loaders produce exactly 30,092 notes).
 2.  **Durations Match**: The total duration of the track must match.
 3.  **Pitch Content Matches**: The frequency distribution of pitches must be identical.
 
@@ -97,5 +97,5 @@ On `supra_raw.mid`, we observed a difference of exactly 4 events:
 | `test_performance.py` | 3 | PerformanceMidiLoader (mido parsing) |
 | `test_score.py` | 2 | ScoreMidiLoader (partitura parsing) |
 | `test_harmonization.py` | 2 | Cross-loader validation |
-| `test_store.py` | 4 | MidiEventData schema |
-| `test_bundle.py` | 22 | MidiStore/MidiBundle operations |
+| `test_store.py` | 3 | MidiEventData schema |
+| `test_bundle.py` | 23 | MidiStore/MidiBundle operations |

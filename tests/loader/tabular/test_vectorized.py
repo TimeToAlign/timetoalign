@@ -8,7 +8,6 @@ This module validates the complete vectorized loading pipeline:
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -25,16 +24,15 @@ from timetoalign.loader.tabular import CsvLoader, TabularLoader, TsvLoader
 class TestVectorizedCsvLoader:
     """Integration tests for vectorized CSV loading."""
 
-    def test_vectorized_csv_all_instants(self) -> None:
+    def test_vectorized_csv_all_instants(self, tmp_path: Path) -> None:
         """Load CSV with all instant events."""
         content = """start,event_type,name
 0.0,Beat,one
 1.0,Beat,two
 2.0,Beat,three
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write(content)
-            path = Path(f.name)
+        path = tmp_path / "all_instants.csv"
+        path.write_text(content)
 
         loader = CsvLoader()
         loader.load(path)
@@ -44,16 +42,15 @@ class TestVectorizedCsvLoader:
         types = loader.count_events_by_temporal_type()
         assert types.get("instant", 0) == 3
 
-    def test_vectorized_csv_mixed_temporal_types(self) -> None:
+    def test_vectorized_csv_mixed_temporal_types(self, tmp_path: Path) -> None:
         """Load CSV with mixed instant and interval events."""
         content = """id,start,end,event_type
 e1,0.0,1.0,Note
 e2,1.0,,Beat
 e3,2.0,3.5,Note
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write(content)
-            path = Path(f.name)
+        path = tmp_path / "mixed_types.csv"
+        path.write_text(content)
 
         loader = CsvLoader()
         loader.load(path)
@@ -63,7 +60,7 @@ e3,2.0,3.5,Note
         assert types.get("interval", 0) == 2  # Notes
         assert types.get("instant", 0) == 1  # Beat
 
-    def test_vectorized_csv_large_file(self) -> None:
+    def test_vectorized_csv_large_file(self, tmp_path: Path) -> None:
         """Load large CSV file (10k events) efficiently."""
         # Create 10k row CSV
         n = 10_000
@@ -76,9 +73,8 @@ e3,2.0,3.5,Note
             }
         )
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            df.to_csv(f.name, index=False)
-            path = Path(f.name)
+        path = tmp_path / "large.csv"
+        df.to_csv(str(path), index=False)
 
         loader = CsvLoader()
         loader.load(path)
@@ -94,15 +90,14 @@ e3,2.0,3.5,Note
 class TestVectorizedTsvLoader:
     """Integration tests for vectorized TSV loading."""
 
-    def test_vectorized_tsv_basic(self) -> None:
+    def test_vectorized_tsv_basic(self, tmp_path: Path) -> None:
         """Load basic TSV file."""
         content = "id\tstart\tend\tevent_type\n"
         content += "n1\t0.0\t1.0\tNote\n"
         content += "n2\t1.0\t2.0\tNote\n"
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False) as f:
-            f.write(content)
-            path = Path(f.name)
+        path = tmp_path / "basic.tsv"
+        path.write_text(content)
 
         loader = TsvLoader()
         loader.load(path)
@@ -115,7 +110,7 @@ class TestVectorizedTsvLoader:
 class TestCoordinateTypeParsing:
     """Test coordinate type dispatch (int/float/fraction)."""
 
-    def test_int_coordinates(self) -> None:
+    def test_int_coordinates(self, tmp_path: Path) -> None:
         """Load file with integer coordinates."""
 
         class TickLoader(TabularLoader):
@@ -130,9 +125,8 @@ class TestCoordinateTypeParsing:
 100,200,Note
 200,300,Note
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write(content)
-            path = Path(f.name)
+        path = tmp_path / "int_coords.csv"
+        path.write_text(content)
 
         loader = TickLoader()
         loader.load(path)
@@ -147,16 +141,15 @@ class TestCoordinateTypeParsing:
         assert coord_range[0] == 0.0
         assert coord_range[1] == 300.0
 
-    def test_float_coordinates(self) -> None:
+    def test_float_coordinates(self, tmp_path: Path) -> None:
         """Load file with float coordinates."""
         content = """start,end
 0.0,1.5
 1.5,3.25
 3.25,4.75
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write(content)
-            path = Path(f.name)
+        path = tmp_path / "float_coords.csv"
+        path.write_text(content)
 
         loader = CsvLoader()
         loader.load(path)
@@ -237,7 +230,7 @@ class TestEventDataFromArrays:
 class TestMultipleSourcesAggregation:
     """Test loading multiple sources into single EventData."""
 
-    def test_load_multiple_files(self) -> None:
+    def test_load_multiple_files(self, tmp_path: Path) -> None:
         """Load multiple CSV files into single loader."""
         content1 = """start,event_type
 0.0,Beat
@@ -247,16 +240,14 @@ class TestMultipleSourcesAggregation:
 2.0,Beat
 3.0,Beat
 """
-        paths = []
-        for content in [content1, content2]:
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".csv", delete=False
-            ) as f:
-                f.write(content)
-                paths.append(Path(f.name))
+        path1 = tmp_path / "source1.csv"
+        path1.write_text(content1)
+
+        path2 = tmp_path / "source2.csv"
+        path2.write_text(content2)
 
         loader = CsvLoader()
-        loader.load(*paths)
+        loader.load(path1, path2)
 
         assert len(loader) == 4
         assert len(loader.sources) == 2
@@ -274,7 +265,7 @@ class TestZeroIteration:
     These tests use instrumentation to detect iteration.
     """
 
-    def test_no_dataframe_iteration(self) -> None:
+    def test_no_dataframe_iteration(self, tmp_path: Path) -> None:
         """Verify DataFrame.__iter__ is never called during loading.
 
         Strategy:
@@ -287,9 +278,8 @@ class TestZeroIteration:
 1.0,2.0,Note
 2.0,3.0,Note
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write(content)
-            path = Path(f.name)
+        path = tmp_path / "no_iter.csv"
+        path.write_text(content)
 
         # We can't easily monkey-patch pandas here, but we can verify
         # the implementation doesn't use iterrows() by checking the code
