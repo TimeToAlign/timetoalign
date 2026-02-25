@@ -1,0 +1,22 @@
+# LogicalTimeline { #timetoalign.LogicalTimeline }
+
+```python
+LogicalTimeline(
+    length=0,
+    unit=None,
+    number_type=None,
+    id_prefix='tl',
+    uid=None,
+    name=None,
+    locked=False,
+    meta=None,
+)
+```
+
+A timeline representing logical/musical time.
+
+Logical timelines measure symbolic musical time such as beats,
+quarter notes, measures, or MIDI ticks. They are used for
+score-based representations of music.
+
+Allowed units: beats, quarters, measures, ticks, number.

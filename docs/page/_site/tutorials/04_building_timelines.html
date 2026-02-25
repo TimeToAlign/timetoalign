@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.31">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Events, Segments, Children, and SegmentLines">
+
+<title>Building Timelines: Events and Hierarchies – TimeToAlign!</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-dfb324f25d9b1687192fa8be62ac8f9c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../reference/_styles-quartodoc.css">
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">TimeToAlign!</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html">
+<span class="menu-text">Home</span></a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link active" href="../tutorials.html" aria-current="page">
+<span class="menu-text">Tutorials</span></a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../howto.html">
+<span class="menu-text">How-To Guides</span></a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../concepts.html">
+<span class="menu-text">Explanation</span></a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../reference.html">
+<span class="menu-text">API Reference</span></a>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../tutorials/04_building_timelines.html">Structure</a></li><li class="breadcrumb-item"><a href="../tutorials/04_building_timelines.html">Building Timelines: Events and Hierarchies</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container">
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Tutorials</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Foundations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a>
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials/00_motivation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Why TimeToAlign! Matters</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials/01_core_concepts.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Core Concepts: Domains, Units, and Coordinates</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials/02_loading_data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Loading Data with TimeToAlign!</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials/02a_tabular_loaders.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Loading Tabular Data</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials/03_conversion_maps.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Conversion Maps: Transforming Coordinates</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Structure</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a>
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials/04_building_timelines.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Building Timelines: Events and Hierarchies</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials/05_timestamps.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Timestamps: Cross-Section Views</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Domains</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a>
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials/06_graphical_timelines.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Graphical Timelines</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials/07_alignment_basics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Alignment Basics</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Applications</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a>
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials/08_supra_piano_roll.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SUPRA Piano Roll: A Complete Alignment Workflow</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials/09_beat_grids.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Beat Grids: Metrical Structure for Audio</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../tutorials/10_beethoven_multimodal.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Multimodal Alignment: Beethoven Op. 18/4 IV</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+
+  <ul>
+  <li><a href="#building-timelines-events-and-hierarchies" id="toc-building-timelines-events-and-hierarchies" class="nav-link active" data-scroll-target="#building-timelines-events-and-hierarchies">Building Timelines: Events and Hierarchies</a>
+  <ul>
+  <li><a href="#why-timelines-matter" id="toc-why-timelines-matter" class="nav-link" data-scroll-target="#why-timelines-matter">Why Timelines Matter</a></li>
+  <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup">Setup</a></li>
+  <li><a href="#creating-timelines" id="toc-creating-timelines" class="nav-link" data-scroll-target="#creating-timelines">Creating Timelines</a>
+  <ul class="collapse">
+  <li><a href="#timeline-properties" id="toc-timeline-properties" class="nav-link" data-scroll-target="#timeline-properties">Timeline Properties</a></li>
+  </ul></li>
+  <li><a href="#adding-events" id="toc-adding-events" class="nav-link" data-scroll-target="#adding-events">Adding Events</a>
+  <ul class="collapse">
+  <li><a href="#event-validation" id="toc-event-validation" class="nav-link" data-scroll-target="#event-validation">Event Validation</a></li>
+  <li><a href="#filtering-events" id="toc-filtering-events" class="nav-link" data-scroll-target="#filtering-events">Filtering Events</a></li>
+  </ul></li>
+  <li><a href="#child-timelines-hierarchies" id="toc-child-timelines-hierarchies" class="nav-link" data-scroll-target="#child-timelines-hierarchies">Child Timelines (Hierarchies)</a>
+  <ul class="collapse">
+  <li><a href="#nested-hierarchies" id="toc-nested-hierarchies" class="nav-link" data-scroll-target="#nested-hierarchies">Nested Hierarchies</a></li>
+  </ul></li>
+  <li><a href="#attaching-conversionmaps" id="toc-attaching-conversionmaps" class="nav-link" data-scroll-target="#attaching-conversionmaps">Attaching ConversionMaps</a></li>
+  <li><a href="#creating-timelines-from-eventstores" id="toc-creating-timelines-from-eventstores" class="nav-link" data-scroll-target="#creating-timelines-from-eventstores">Creating Timelines from EventStores</a></li>
+  <li><a href="#serialization" id="toc-serialization" class="nav-link" data-scroll-target="#serialization">Serialization</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  <li><a href="#next-steps" id="toc-next-steps" class="nav-link" data-scroll-target="#next-steps">Next Steps</a></li>
+  <li><a href="#exercise-1-model-a-simple-song-structure" id="toc-exercise-1-model-a-simple-song-structure" class="nav-link" data-scroll-target="#exercise-1-model-a-simple-song-structure">Exercise 1: Model a Simple Song Structure</a></li>
+  <li><a href="#exercise-2-midi-timeline-with-tempo-conversion" id="toc-exercise-2-midi-timeline-with-tempo-conversion" class="nav-link" data-scroll-target="#exercise-2-midi-timeline-with-tempo-conversion">Exercise 2: MIDI Timeline with Tempo Conversion</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../tutorials/04_building_timelines.html">Structure</a></li><li class="breadcrumb-item"><a href="../tutorials/04_building_timelines.html">Building Timelines: Events and Hierarchies</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">Building Timelines: Events and Hierarchies</h1>
+</div>
+
+<div>
+  <div class="description">
+    Events, Segments, Children, and SegmentLines
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+
+
+
+  </div>
+
+
+
+</header>
+
+
+<section id="building-timelines-events-and-hierarchies" class="level1">
+<h1>Building Timelines: Events and Hierarchies</h1>
+<p>This tutorial shows how to create <strong>Timeline</strong> objects, populate them with events, and build hierarchical structures with child timelines.</p>
+<p><strong>Learning Objectives:</strong> - Create Timeline objects of various types - Add events (instants and intervals) to timelines - Build hierarchical structures with parent/child relationships - Attach ConversionMaps for unit conversion</p>
+<p><strong>Prerequisites:</strong> - 01_core_concepts.ipynb (Domains, Units, Coordinates) - 02_loading_data.ipynb (Loaders, EventStores) - 03_conversion_maps.ipynb (C-Maps)</p>
+<section id="why-timelines-matter" class="level2">
+<h2 class="anchored" data-anchor-id="why-timelines-matter">Why Timelines Matter</h2>
+<p>In previous tutorials, we worked with: - <strong>EventStores</strong>: Raw event data in tables - <strong>Coordinates</strong>: Individual time points - <strong>C-Maps</strong>: Functions to convert between units</p>
+<p><strong>Timelines</strong> bring these together into a coherent structure:</p>
+<pre><code>                    Timeline
+                 ┌─────────────┐
+                 │  EventStore │  &lt;- events stored here
+                 │  C-Maps     │  &lt;- conversion maps attached
+                 │  Children   │  &lt;- nested timelines
+                 └─────────────┘</code></pre>
+<p>Timelines enable: 1. <strong>Organized event storage</strong> with coordinate validation 2. <strong>Hierarchical nesting</strong> (measures containing notes, systems containing bars) 3. <strong>Coordinate conversion</strong> via attached C-Maps 4. <strong>Timestamp generation</strong> showing events across the hierarchy</p>
+</section>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<div id="8bec96e1" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:56.400578Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:56.400578Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:58.842821Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:58.842821Z&quot;}}" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fractions <span class="im">import</span> Fraction</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pprint <span class="im">import</span> pprint</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> timetoalign <span class="im">import</span> TimeUnit</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> timetoalign.maps <span class="im">import</span> TicksToQuarters</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> timetoalign.timelines <span class="im">import</span> Timeline</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<hr>
+</section>
+<section id="creating-timelines" class="level2">
+<h2 class="anchored" data-anchor-id="creating-timelines">Creating Timelines</h2>
+<p>A Timeline is created with: - <strong>length</strong>: The end coordinate (start is always 0) - <strong>unit</strong>: The time unit for coordinates - <strong>uid</strong> (optional): A unique identifier</p>
+<div id="8de70604" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:58.842821Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:58.842821Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:58.979408Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:58.979408Z&quot;}}" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a simple timeline: 10 seconds long</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>audio_tl <span class="op">=</span> Timeline(length<span class="op">=</span><span class="fl">10.0</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"audio"</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Timeline: </span><span class="sc">{</span>audio_tl<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  ID:     </span><span class="sc">{</span>audio_tl<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Unit:   </span><span class="sc">{</span>audio_tl<span class="sc">.</span>unit<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Domain: </span><span class="sc">{</span>audio_tl<span class="sc">.</span>domain<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Length: </span><span class="sc">{</span>audio_tl<span class="sc">.</span>length<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Events: </span><span class="sc">{</span>audio_tl<span class="sc">.</span>n_events<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Timeline: Timeline[audio]
+                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 10 seconds
+  ID:     audio
+  Unit:   seconds
+  Domain: physical
+  Length: 10.0 seconds
+  Events: 0</code></pre>
+</div>
+</div>
+<div id="c7c67ba3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:58.979408Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:58.979408Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:58.997661Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:58.997661Z&quot;}}" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># A logical timeline in quarters (for score data)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>score_tl <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">16</span>, unit<span class="op">=</span>TimeUnit.quarters, uid<span class="op">=</span><span class="st">"score"</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Supports fractional values</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>score_tl_frac <span class="op">=</span> Timeline(</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    length<span class="op">=</span>Fraction(<span class="dv">33</span>, <span class="dv">2</span>), unit<span class="op">=</span>TimeUnit.quarters, uid<span class="op">=</span><span class="st">"score_frac"</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>{<span class="st">"integer length"</span>: score_tl.length, <span class="st">"fraction length"</span>: score_tl_frac.length}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="3">
+<pre><code>{'integer length': Coordinate(16, quarters),
+ 'fraction length': Coordinate(Fraction(33, 2), quarters)}</code></pre>
+</div>
+</div>
+<div id="e24e633b" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:58.997661Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:58.997661Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.009130Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.009130Z&quot;}}" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># A discrete timeline in ticks (MIDI resolution)</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>midi_tl <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">1920</span>, unit<span class="op">=</span>TimeUnit.ticks, uid<span class="op">=</span><span class="st">"midi"</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>{<span class="st">"unit"</span>: midi_tl.unit, <span class="st">"domain"</span>: midi_tl.domain, <span class="st">"length"</span>: midi_tl.length}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<pre><code>{'unit': "ticks", 'domain': "logical", 'length': Coordinate(1920, ticks)}</code></pre>
+</div>
+</div>
+<section id="timeline-properties" class="level3">
+<h3 class="anchored" data-anchor-id="timeline-properties">Timeline Properties</h3>
+<div id="0f0bd6c7" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.012356Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.012356Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.022553Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.022553Z&quot;}}" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get a comprehensive summary</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>pprint(audio_tl.summary())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>{'class': 'Timeline',
+ 'domain': 'physical',
+ 'event_summary': {'coordinate_range': None,
+                   'count': 0,
+                   'event_types': {},
+                   'number_type': 'float',
+                   'temporal_types': {},
+                   'unit': 'seconds'},
+ 'id': 'audio',
+ 'is_locked': False,
+ 'length': 10.0,
+ 'n_children': 0,
+ 'n_events': 0,
+ 'number_type': 'float',
+ 'unit': 'seconds'}</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="adding-events" class="level2">
+<h2 class="anchored" data-anchor-id="adding-events">Adding Events</h2>
+<p>Events are added as dictionaries with standardized fields:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>id</code></td>
+<td>Yes</td>
+<td>Unique identifier</td>
+</tr>
+<tr class="even">
+<td><code>temporal_type</code></td>
+<td>Yes</td>
+<td>“instant” or “interval”</td>
+</tr>
+<tr class="odd">
+<td><code>event_type</code></td>
+<td>Yes</td>
+<td>Type name (e.g., “Note”, “Beat”)</td>
+</tr>
+<tr class="even">
+<td><code>instant</code></td>
+<td>For instant</td>
+<td>Coordinate for instant events</td>
+</tr>
+<tr class="odd">
+<td><code>start</code>, <code>end</code></td>
+<td>For interval</td>
+<td>Coordinates for interval events</td>
+</tr>
+</tbody>
+</table>
+<div id="d092ac30" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.024304Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.024304Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.038368Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.038368Z&quot;}}" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Add beat markers (instant events)</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>beats <span class="op">=</span> [</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"id"</span>: <span class="st">"beat1"</span>, <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>, <span class="st">"event_type"</span>: <span class="st">"Beat"</span>, <span class="st">"instant"</span>: <span class="fl">0.0</span>},</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"id"</span>: <span class="st">"beat2"</span>, <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>, <span class="st">"event_type"</span>: <span class="st">"Beat"</span>, <span class="st">"instant"</span>: <span class="fl">0.5</span>},</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"id"</span>: <span class="st">"beat3"</span>, <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>, <span class="st">"event_type"</span>: <span class="st">"Beat"</span>, <span class="st">"instant"</span>: <span class="fl">1.0</span>},</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"id"</span>: <span class="st">"beat4"</span>, <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>, <span class="st">"event_type"</span>: <span class="st">"Beat"</span>, <span class="st">"instant"</span>: <span class="fl">1.5</span>},</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"id"</span>: <span class="st">"beat5"</span>, <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>, <span class="st">"event_type"</span>: <span class="st">"Beat"</span>, <span class="st">"instant"</span>: <span class="fl">2.0</span>},</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>audio_tl.add_events(beats)</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Events after adding beats: </span><span class="sc">{</span>audio_tl<span class="sc">.</span>n_events<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Events after adding beats: 5</code></pre>
+</div>
+</div>
+<div id="4184d1a9" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.038368Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.038368Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.046079Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.046079Z&quot;}}" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Add notes (interval events)</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>notes <span class="op">=</span> [</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">"id"</span>: <span class="st">"n1"</span>,</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">"temporal_type"</span>: <span class="st">"interval"</span>,</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">"event_type"</span>: <span class="st">"Note"</span>,</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"start"</span>: <span class="fl">0.0</span>,</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">"end"</span>: <span class="fl">0.4</span>,</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">"id"</span>: <span class="st">"n2"</span>,</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">"temporal_type"</span>: <span class="st">"interval"</span>,</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>        <span class="st">"event_type"</span>: <span class="st">"Note"</span>,</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>        <span class="st">"start"</span>: <span class="fl">0.5</span>,</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>        <span class="st">"end"</span>: <span class="fl">0.9</span>,</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>        <span class="st">"id"</span>: <span class="st">"n3"</span>,</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">"temporal_type"</span>: <span class="st">"interval"</span>,</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">"event_type"</span>: <span class="st">"Note"</span>,</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>        <span class="st">"start"</span>: <span class="fl">1.0</span>,</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>        <span class="st">"end"</span>: <span class="fl">1.9</span>,</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>audio_tl.add_events(notes)</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Events after adding notes: </span><span class="sc">{</span>audio_tl<span class="sc">.</span>n_events<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Events after adding notes: 8</code></pre>
+</div>
+</div>
+<div id="ff3d5121" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.050055Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.050055Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.071124Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.071124Z&quot;}}" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># View events as DataFrame</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> audio_tl.events.to_dataframe()</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>df[[<span class="st">"id"</span>, <span class="st">"temporal_type"</span>, <span class="st">"event_type"</span>]].head(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="8">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">id</th>
+<th data-quarto-table-cell-role="th">temporal_type</th>
+<th data-quarto-table-cell-role="th">event_type</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>beat1</td>
+<td>instant</td>
+<td>Beat</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>beat2</td>
+<td>instant</td>
+<td>Beat</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>beat3</td>
+<td>instant</td>
+<td>Beat</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>beat4</td>
+<td>instant</td>
+<td>Beat</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>beat5</td>
+<td>instant</td>
+<td>Beat</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>n1</td>
+<td>interval</td>
+<td>Note</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>n2</td>
+<td>interval</td>
+<td>Note</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>n3</td>
+<td>interval</td>
+<td>Note</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<section id="event-validation" class="level3">
+<h3 class="anchored" data-anchor-id="event-validation">Event Validation</h3>
+<p>Timelines validate that events fit within their bounds:</p>
+<div id="049ed050" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.071124Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.071124Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.077880Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.077880Z&quot;}}" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Try to add an event beyond the timeline length</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>out_of_bounds <span class="op">=</span> [</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"id"</span>: <span class="st">"oob"</span>, <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>, <span class="st">"event_type"</span>: <span class="st">"Beat"</span>, <span class="st">"instant"</span>: <span class="fl">15.0</span>},</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="cf">try</span>:</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    audio_tl.add_events(out_of_bounds)</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">ValueError</span> <span class="im">as</span> e:</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"ValueError: </span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="f9ed6ac7" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.078950Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.078950Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.086242Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.086242Z&quot;}}" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Allow expansion if needed</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Length before: </span><span class="sc">{</span>audio_tl<span class="sc">.</span>length<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>audio_tl.add_events(out_of_bounds, allow_expansion<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Length after:  </span><span class="sc">{</span>audio_tl<span class="sc">.</span>length<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Events: </span><span class="sc">{</span>audio_tl<span class="sc">.</span>n_events<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Length before: 15.0 seconds
+Length after:  15.0 seconds
+Events: 10</code></pre>
+</div>
+</div>
+</section>
+<section id="filtering-events" class="level3">
+<h3 class="anchored" data-anchor-id="filtering-events">Filtering Events</h3>
+<div id="164c7ff9" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.086242Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.086242Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.095061Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.095061Z&quot;}}" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get only Beat events</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>beat_store <span class="op">=</span> audio_tl.get_events(event_type<span class="op">=</span><span class="st">"Beat"</span>)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Beat events: </span><span class="sc">{</span><span class="bu">len</span>(beat_store)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Get only interval events</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>interval_store <span class="op">=</span> audio_tl.get_events(temporal_type<span class="op">=</span><span class="st">"interval"</span>)</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Interval events: </span><span class="sc">{</span><span class="bu">len</span>(interval_store)<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Beat events: 7
+Interval events: 3</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="child-timelines-hierarchies" class="level2">
+<h2 class="anchored" data-anchor-id="child-timelines-hierarchies">Child Timelines (Hierarchies)</h2>
+<p>Timelines can contain other timelines as <strong>children</strong>. This models hierarchical structures like: - A score containing measures - A measure containing beats - A graphical layout with multiple systems</p>
+<p><strong>Key concepts:</strong> - Children share the same unit as their parent - Children are placed at an <strong>offset</strong> on the parent - Children are <strong>locked</strong> after being added (cannot expand)</p>
+<div id="2e4e234d" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.098383Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.098383Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.114356Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.114356Z&quot;}}" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a parent timeline: 100 seconds</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>parent <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">100</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"parent"</span>)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create child timelines</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>child1 <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">20</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"verse1"</span>)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>child1.add_events(</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>            <span class="st">"id"</span>: <span class="st">"v1_start"</span>,</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>            <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>,</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>            <span class="st">"event_type"</span>: <span class="st">"Marker"</span>,</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>            <span class="st">"instant"</span>: <span class="fl">0.0</span>,</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>            <span class="st">"id"</span>: <span class="st">"v1_mid"</span>,</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>            <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>,</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>            <span class="st">"event_type"</span>: <span class="st">"Marker"</span>,</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>            <span class="st">"instant"</span>: <span class="fl">10.0</span>,</span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>child2 <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">15</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"chorus"</span>)</span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>child2.add_events(</span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a>            <span class="st">"id"</span>: <span class="st">"ch_start"</span>,</span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a>            <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>,</span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a>            <span class="st">"event_type"</span>: <span class="st">"Marker"</span>,</span>
+<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a>            <span class="st">"instant"</span>: <span class="fl">0.0</span>,</span>
+<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb21-32"><a href="#cb21-32" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>            <span class="st">"id"</span>: <span class="st">"ch_peak"</span>,</span>
+<span id="cb21-34"><a href="#cb21-34" aria-hidden="true" tabindex="-1"></a>            <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>,</span>
+<span id="cb21-35"><a href="#cb21-35" aria-hidden="true" tabindex="-1"></a>            <span class="st">"event_type"</span>: <span class="st">"Marker"</span>,</span>
+<span id="cb21-36"><a href="#cb21-36" aria-hidden="true" tabindex="-1"></a>            <span class="st">"instant"</span>: <span class="fl">7.5</span>,</span>
+<span id="cb21-37"><a href="#cb21-37" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb21-38"><a href="#cb21-38" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb21-39"><a href="#cb21-39" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb21-40"><a href="#cb21-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-41"><a href="#cb21-41" aria-hidden="true" tabindex="-1"></a><span class="co"># Add children at specific offsets</span></span>
+<span id="cb21-42"><a href="#cb21-42" aria-hidden="true" tabindex="-1"></a>parent.add_child(child1, offset<span class="op">=</span><span class="dv">10</span>)  <span class="co"># verse1: [10, 30] on parent</span></span>
+<span id="cb21-43"><a href="#cb21-43" aria-hidden="true" tabindex="-1"></a>parent.add_child(child2, offset<span class="op">=</span><span class="dv">50</span>)  <span class="co"># chorus: [50, 65] on parent</span></span>
+<span id="cb21-44"><a href="#cb21-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-45"><a href="#cb21-45" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Parent has </span><span class="sc">{</span>parent<span class="sc">.</span>n_children<span class="sc">}</span><span class="ss"> children"</span>)</span>
+<span id="cb21-46"><a href="#cb21-46" aria-hidden="true" tabindex="-1"></a>pprint(parent.summary())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Parent has 2 children
+{'class': 'Timeline',
+ 'domain': 'physical',
+ 'event_summary': {'coordinate_range': (10.0, 65.0),
+                   'count': 2,
+                   'event_types': {'Segment': 2},
+                   'number_type': 'float',
+                   'temporal_types': {'interval': 2},
+                   'unit': 'seconds'},
+ 'id': 'parent',
+ 'is_locked': False,
+ 'length': 100,
+ 'n_children': 2,
+ 'n_events': 0,
+ 'number_type': 'float',
+ 'unit': 'seconds'}</code></pre>
+</div>
+</div>
+<div id="367ef8c6" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.117724Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.117724Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.122529Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.122529Z&quot;}}" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Access children</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>retrieved_child <span class="op">=</span> parent.get_child(<span class="st">"verse1"</span>)</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>offset <span class="op">=</span> parent.get_child_offset(<span class="st">"verse1"</span>)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Child: </span><span class="sc">{</span>retrieved_child<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Offset: </span><span class="sc">{</span>offset<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Child is now locked</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Child locked: </span><span class="sc">{</span>retrieved_child<span class="sc">.</span>is_locked<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Child: Timeline[verse1] (2 events)
+                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 20 seconds
+Offset: 10 seconds
+Child locked: True</code></pre>
+</div>
+</div>
+<div id="4a64ef0d" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.122529Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.122529Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.128224Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.128224Z&quot;}}" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Iterate over children (sorted by offset)</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> offset, child <span class="kw">in</span> parent.iter_children():</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>child<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">: offset=</span><span class="sc">{</span>offset<span class="sc">.</span>value<span class="sc">}</span><span class="ss">, length=</span><span class="sc">{</span>child<span class="sc">.</span>length<span class="sc">.</span>value<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  verse1: offset=10, length=20
+  chorus: offset=50, length=15</code></pre>
+</div>
+</div>
+<section id="nested-hierarchies" class="level3">
+<h3 class="anchored" data-anchor-id="nested-hierarchies">Nested Hierarchies</h3>
+<p>Children can have their own children, creating deep hierarchies:</p>
+<div id="4bd48f76" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.131262Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.128224Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.142585Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.142585Z&quot;}}" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a 3-level hierarchy: piece -&gt; movement -&gt; section</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>piece <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">600</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"symphony"</span>)</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>movement1 <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">300</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"mov1"</span>)</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>section1a <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">60</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"exposition"</span>)</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>section1b <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">90</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"development"</span>)</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>section1c <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">60</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"recapitulation"</span>)</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Add events to sections</span></span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>section1a.add_events(</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>            <span class="st">"id"</span>: <span class="st">"theme1"</span>,</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>            <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>,</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>            <span class="st">"event_type"</span>: <span class="st">"Theme"</span>,</span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>            <span class="st">"instant"</span>: <span class="fl">10.0</span>,</span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>section1b.add_events(</span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>            <span class="st">"id"</span>: <span class="st">"climax"</span>,</span>
+<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a>            <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>,</span>
+<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a>            <span class="st">"event_type"</span>: <span class="st">"Climax"</span>,</span>
+<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a>            <span class="st">"instant"</span>: <span class="fl">45.0</span>,</span>
+<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-31"><a href="#cb27-31" aria-hidden="true" tabindex="-1"></a><span class="co"># Build hierarchy: sections -&gt; movement -&gt; piece</span></span>
+<span id="cb27-32"><a href="#cb27-32" aria-hidden="true" tabindex="-1"></a>movement1.add_child(section1a, offset<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a>movement1.add_child(section1b, offset<span class="op">=</span><span class="dv">60</span>)</span>
+<span id="cb27-34"><a href="#cb27-34" aria-hidden="true" tabindex="-1"></a>movement1.add_child(section1c, offset<span class="op">=</span><span class="dv">150</span>)</span>
+<span id="cb27-35"><a href="#cb27-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-36"><a href="#cb27-36" aria-hidden="true" tabindex="-1"></a>piece.add_child(movement1, offset<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb27-37"><a href="#cb27-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-38"><a href="#cb27-38" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Piece: </span><span class="sc">{</span>piece<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb27-39"><a href="#cb27-39" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Movement1: </span><span class="sc">{</span>movement1<span class="sc">.</span>n_children<span class="sc">}</span><span class="ss"> sections"</span>)</span>
+<span id="cb27-40"><a href="#cb27-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-41"><a href="#cb27-41" aria-hidden="true" tabindex="-1"></a><span class="co"># Iterate with recursion</span></span>
+<span id="cb27-42"><a href="#cb27-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Full hierarchy (depth-first):"</span>)</span>
+<span id="cb27-43"><a href="#cb27-43" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> offset, child <span class="kw">in</span> piece.iter_children(order<span class="op">=</span><span class="st">"depth_first"</span>):</span>
+<span id="cb27-44"><a href="#cb27-44" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>child<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">: parent-offset=</span><span class="sc">{</span>offset<span class="sc">.</span>value<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Piece: Timeline[symphony] (1 children)
+                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 600 seconds
+  └─ mov1             0 ~~~~~~~~~~~~~~~~~                  300
+  Movement1: 3 sections
+
+Full hierarchy (depth-first):
+  mov1: parent-offset=0
+  exposition: parent-offset=0
+  development: parent-offset=60
+  recapitulation: parent-offset=150</code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="attaching-conversionmaps" class="level2">
+<h2 class="anchored" data-anchor-id="attaching-conversionmaps">Attaching ConversionMaps</h2>
+<p>C-Maps can be attached to timelines for coordinate conversion:</p>
+<div id="df52150a" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.142585Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.142585Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.152646Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.152646Z&quot;}}" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a timeline in MIDI ticks</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>midi_tl <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">1920</span>, unit<span class="op">=</span>TimeUnit.ticks, uid<span class="op">=</span><span class="st">"midi_track"</span>)</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Add some note events</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>midi_tl.add_events(</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>            <span class="st">"id"</span>: <span class="st">"n1"</span>,</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>            <span class="st">"temporal_type"</span>: <span class="st">"interval"</span>,</span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>            <span class="st">"event_type"</span>: <span class="st">"Note"</span>,</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>            <span class="st">"start"</span>: <span class="dv">0</span>,</span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>            <span class="st">"end"</span>: <span class="dv">480</span>,</span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>            <span class="st">"id"</span>: <span class="st">"n2"</span>,</span>
+<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a>            <span class="st">"temporal_type"</span>: <span class="st">"interval"</span>,</span>
+<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>            <span class="st">"event_type"</span>: <span class="st">"Note"</span>,</span>
+<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a>            <span class="st">"start"</span>: <span class="dv">480</span>,</span>
+<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a>            <span class="st">"end"</span>: <span class="dv">960</span>,</span>
+<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a>            <span class="st">"id"</span>: <span class="st">"n3"</span>,</span>
+<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a>            <span class="st">"temporal_type"</span>: <span class="st">"interval"</span>,</span>
+<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a>            <span class="st">"event_type"</span>: <span class="st">"Note"</span>,</span>
+<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a>            <span class="st">"start"</span>: <span class="dv">960</span>,</span>
+<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a>            <span class="st">"end"</span>: <span class="dv">1440</span>,</span>
+<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb29-28"><a href="#cb29-28" aria-hidden="true" tabindex="-1"></a>        {</span>
+<span id="cb29-29"><a href="#cb29-29" aria-hidden="true" tabindex="-1"></a>            <span class="st">"id"</span>: <span class="st">"n4"</span>,</span>
+<span id="cb29-30"><a href="#cb29-30" aria-hidden="true" tabindex="-1"></a>            <span class="st">"temporal_type"</span>: <span class="st">"interval"</span>,</span>
+<span id="cb29-31"><a href="#cb29-31" aria-hidden="true" tabindex="-1"></a>            <span class="st">"event_type"</span>: <span class="st">"Note"</span>,</span>
+<span id="cb29-32"><a href="#cb29-32" aria-hidden="true" tabindex="-1"></a>            <span class="st">"start"</span>: <span class="dv">1440</span>,</span>
+<span id="cb29-33"><a href="#cb29-33" aria-hidden="true" tabindex="-1"></a>            <span class="st">"end"</span>: <span class="dv">1920</span>,</span>
+<span id="cb29-34"><a href="#cb29-34" aria-hidden="true" tabindex="-1"></a>        },</span>
+<span id="cb29-35"><a href="#cb29-35" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb29-36"><a href="#cb29-36" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb29-37"><a href="#cb29-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-38"><a href="#cb29-38" aria-hidden="true" tabindex="-1"></a><span class="co"># Attach a tick-to-quarters map (PPQ=480)</span></span>
+<span id="cb29-39"><a href="#cb29-39" aria-hidden="true" tabindex="-1"></a>t2q <span class="op">=</span> TicksToQuarters(ppq<span class="op">=</span><span class="dv">480</span>)</span>
+<span id="cb29-40"><a href="#cb29-40" aria-hidden="true" tabindex="-1"></a>midi_tl.add_conversion_map(t2q)</span>
+<span id="cb29-41"><a href="#cb29-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-42"><a href="#cb29-42" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"C-Maps attached: </span><span class="sc">{</span><span class="bu">list</span>(midi_tl._conversion_maps.keys())<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>C-Maps attached: ['map:TicksToQuarters_1']</code></pre>
+</div>
+</div>
+<div id="52828430" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.152646Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.152646Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:31:59.162307Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:31:59.162307Z&quot;}}" data-execution_count="17">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert coordinates using the timeline</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>tick_values <span class="op">=</span> [<span class="dv">0</span>, <span class="dv">480</span>, <span class="dv">960</span>, <span class="dv">1440</span>, <span class="dv">1920</span>]</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>quarter_values <span class="op">=</span> [midi_tl.convert_to(t, <span class="st">"quarters"</span>) <span class="cf">for</span> t <span class="kw">in</span> tick_values]</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"ticks"</span>: tick_values,</span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">"quarters"</span>: quarter_values,</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="17">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">ticks</th>
+<th data-quarto-table-cell-role="th">quarters</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>0</td>
+<td>0.0 quarters</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>480</td>
+<td>1.0 quarters</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>960</td>
+<td>2.0 quarters</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>1440</td>
+<td>3.0 quarters</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>1920</td>
+<td>4.0 quarters</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<hr>
+</section>
+<section id="creating-timelines-from-eventstores" class="level2">
+<h2 class="anchored" data-anchor-id="creating-timelines-from-eventstores">Creating Timelines from EventStores</h2>
+<p>Timelines can be created directly from EventStores loaded via Loaders:</p>
+<div id="9951d37a" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:31:59.164318Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:31:59.164318Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:32:04.961042Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:32:04.961042Z&quot;}}" data-execution_count="18">
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> timetoalign.loader.score.tsv <span class="im">import</span> TSVLoader  <span class="co"># noqa: E402</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Load some real score data</span></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>DATA_DIR <span class="op">=</span> Path(<span class="st">"."</span>).resolve().parents[<span class="dv">1</span>] <span class="op">/</span> <span class="st">"tests"</span> <span class="op">/</span> <span class="st">"data"</span> <span class="op">/</span> <span class="st">"midi"</span> <span class="op">/</span> <span class="st">"score"</span></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>TSV_PATH <span class="op">=</span> DATA_DIR <span class="op">/</span> <span class="st">"ms3"</span> <span class="op">/</span> <span class="st">"chopin_op10_no3.notes.tsv"</span></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> TSV_PATH.exists():</span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>    loader <span class="op">=</span> TSVLoader()</span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>    loader.load(TSV_PATH)</span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Create timeline directly from the loader</span></span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>    chopin_tl <span class="op">=</span> loader.create_timeline(uid<span class="op">=</span><span class="st">"chopin_op10_no3"</span>)</span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Timeline: </span><span class="sc">{</span>chopin_tl<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Events: </span><span class="sc">{</span>chopin_tl<span class="sc">.</span>n_events<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb32-16"><a href="#cb32-16" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Length: </span><span class="sc">{</span>chopin_tl<span class="sc">.</span>length<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb32-17"><a href="#cb32-17" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb32-18"><a href="#cb32-18" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Test data not found at </span><span class="sc">{</span>TSV_PATH<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Timeline: ContinuousLogicalTimeline[chopin_op10_no3] (498 events)
+                      0 ________________________________ 40.5 quarters
+Events: 498
+Length: 40.5 quarters</code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="serialization" class="level2">
+<h2 class="anchored" data-anchor-id="serialization">Serialization</h2>
+<p>Timelines can be serialized to dictionaries (for JSON/YAML export):</p>
+<div id="e1c91343" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:32:04.964349Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:32:04.964349Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:32:04.972012Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:32:04.972012Z&quot;}}" data-execution_count="19">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a simple timeline with events</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>tl <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">10</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"test"</span>)</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>tl.add_events(</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>        {<span class="st">"id"</span>: <span class="st">"e1"</span>, <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>, <span class="st">"event_type"</span>: <span class="st">"Beat"</span>, <span class="st">"instant"</span>: <span class="fl">0.0</span>},</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>        {<span class="st">"id"</span>: <span class="st">"e2"</span>, <span class="st">"temporal_type"</span>: <span class="st">"instant"</span>, <span class="st">"event_type"</span>: <span class="st">"Beat"</span>, <span class="st">"instant"</span>: <span class="fl">5.0</span>},</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Serialize</span></span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> tl.to_dict()</span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Serialized (keys):"</span>)</span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span><span class="bu">list</span>(data.keys())<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  events: </span><span class="sc">{</span><span class="bu">len</span>(data[<span class="st">'events'</span>])<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Serialized (keys):
+  ['id', 'name', 'class', 'unit', 'number_type', 'length', 'locked', 'meta', 'events', 'children', 'conversion_maps']
+  events: 2</code></pre>
+</div>
+</div>
+<div id="1cd1dc69" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:32:04.972012Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:32:04.972012Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:32:04.982682Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:32:04.982682Z&quot;}}" data-execution_count="20">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Deserialize</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>restored_tl <span class="op">=</span> Timeline.from_dict(data)</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Restored: </span><span class="sc">{</span>restored_tl<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Events: </span><span class="sc">{</span>restored_tl<span class="sc">.</span>n_events<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Restored: Timeline[test] (2 events)
+                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 10 seconds
+Events: 2</code></pre>
+</div>
+</div>
+<hr>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<p>In this tutorial, we learned:</p>
+<ol type="1">
+<li><strong>Creating Timelines</strong>: <code>Timeline(length, unit, uid)</code></li>
+<li><strong>Adding Events</strong>: <code>timeline.add_events([{...}])</code></li>
+<li><strong>Event Types</strong>: Instant (single point) and Interval (start/end)</li>
+<li><strong>Hierarchies</strong>: <code>parent.add_child(child, offset)</code></li>
+<li><strong>C-Map Integration</strong>: <code>timeline.add_conversion_map(cmap)</code> and <code>timeline.convert_to()</code></li>
+<li><strong>From EventData</strong>: <code>Timeline.from_event_data(data)</code> or <code>loader.create_timeline()</code></li>
+<li><strong>Serialization</strong>: <code>timeline.to_dict()</code> and <code>Timeline.from_dict()</code></li>
+</ol>
+<p><strong>Key Takeaway:</strong> &gt; Timelines organize events and their relationships across time. They support &gt; hierarchical nesting (children) and coordinate conversion via attached &gt; C-Maps.</p>
+</section>
+<section id="next-steps" class="level2">
+<h2 class="anchored" data-anchor-id="next-steps">Next Steps</h2>
+<ul>
+<li><strong>05_timestamps.ipynb</strong>: Generate cross-section timestamps showing events across timeline hierarchies</li>
+</ul>
+<hr>
+</section>
+<section id="exercise-1-model-a-simple-song-structure" class="level2">
+<h2 class="anchored" data-anchor-id="exercise-1-model-a-simple-song-structure">Exercise 1: Model a Simple Song Structure</h2>
+<p><strong>Task:</strong> Create a timeline hierarchy for a song with: - Total length: 180 seconds - Intro: 0-15 seconds - Verse 1: 15-45 seconds - Chorus: 45-75 seconds - Verse 2: 75-105 seconds - Chorus: 105-135 seconds - Outro: 135-180 seconds</p>
+<p><strong>Hints:</strong> 1. Create a parent timeline of 180 seconds 2. Create child timelines for each section 3. Add children at appropriate offsets</p>
+<details>
+<summary>
+Solution
+</summary>
+<div class="sourceCode" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>song <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">180</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"song"</span>)</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Create sections</span></span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>intro <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">15</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"intro"</span>)</span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>verse1 <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">30</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"verse1"</span>)</span>
+<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a>chorus1 <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">30</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"chorus1"</span>)</span>
+<span id="cb38-7"><a href="#cb38-7" aria-hidden="true" tabindex="-1"></a>verse2 <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">30</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"verse2"</span>)</span>
+<span id="cb38-8"><a href="#cb38-8" aria-hidden="true" tabindex="-1"></a>chorus2 <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">30</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"chorus2"</span>)</span>
+<span id="cb38-9"><a href="#cb38-9" aria-hidden="true" tabindex="-1"></a>outro <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">45</span>, unit<span class="op">=</span>TimeUnit.seconds, uid<span class="op">=</span><span class="st">"outro"</span>)</span>
+<span id="cb38-10"><a href="#cb38-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-11"><a href="#cb38-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Add sections as children</span></span>
+<span id="cb38-12"><a href="#cb38-12" aria-hidden="true" tabindex="-1"></a>song.add_child(intro, offset<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb38-13"><a href="#cb38-13" aria-hidden="true" tabindex="-1"></a>song.add_child(verse1, offset<span class="op">=</span><span class="dv">15</span>)</span>
+<span id="cb38-14"><a href="#cb38-14" aria-hidden="true" tabindex="-1"></a>song.add_child(chorus1, offset<span class="op">=</span><span class="dv">45</span>)</span>
+<span id="cb38-15"><a href="#cb38-15" aria-hidden="true" tabindex="-1"></a>song.add_child(verse2, offset<span class="op">=</span><span class="dv">75</span>)</span>
+<span id="cb38-16"><a href="#cb38-16" aria-hidden="true" tabindex="-1"></a>song.add_child(chorus2, offset<span class="op">=</span><span class="dv">105</span>)</span>
+<span id="cb38-17"><a href="#cb38-17" aria-hidden="true" tabindex="-1"></a>song.add_child(outro, offset<span class="op">=</span><span class="dv">135</span>)</span>
+<span id="cb38-18"><a href="#cb38-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-19"><a href="#cb38-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Verify</span></span>
+<span id="cb38-20"><a href="#cb38-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Song: </span><span class="sc">{</span>song<span class="sc">.</span>n_children<span class="sc">}</span><span class="ss"> sections"</span>)</span>
+<span id="cb38-21"><a href="#cb38-21" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> offset, child <span class="kw">in</span> song.iter_children():</span>
+<span id="cb38-22"><a href="#cb38-22" aria-hidden="true" tabindex="-1"></a>    end <span class="op">=</span> offset.value <span class="op">+</span> child.length.value</span>
+<span id="cb38-23"><a href="#cb38-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>child<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">: [</span><span class="sc">{</span>offset<span class="sc">.</span>value<span class="sc">}</span><span class="ss">, </span><span class="sc">{</span>end<span class="sc">}</span><span class="ss">]"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div id="65e66872" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:32:04.982682Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:32:04.982682Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:32:04.989870Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:32:04.989870Z&quot;}}" data-execution_count="21">
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Your solution here</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<hr>
+</section>
+<section id="exercise-2-midi-timeline-with-tempo-conversion" class="level2">
+<h2 class="anchored" data-anchor-id="exercise-2-midi-timeline-with-tempo-conversion">Exercise 2: MIDI Timeline with Tempo Conversion</h2>
+<p><strong>Task:</strong> Create a MIDI timeline with: - Length: 3840 ticks (8 quarter notes at PPQ=480) - 8 quarter note events starting at ticks 0, 480, 960, etc. - A TicksToQuarters C-Map for conversion</p>
+<p>Then convert the start times to quarters.</p>
+<details>
+<summary>
+Solution
+</summary>
+<div class="sourceCode" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create timeline</span></span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>ppq <span class="op">=</span> <span class="dv">480</span></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>midi <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">3840</span>, unit<span class="op">=</span>TimeUnit.ticks, uid<span class="op">=</span><span class="st">"midi"</span>)</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Add quarter note events</span></span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a>events <span class="op">=</span> [</span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"id"</span>: <span class="ss">f"q</span><span class="sc">{</span>i<span class="op">+</span><span class="dv">1</span><span class="sc">}</span><span class="ss">"</span>, <span class="st">"temporal_type"</span>: <span class="st">"interval"</span>, <span class="st">"event_type"</span>: <span class="st">"Note"</span>,</span>
+<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a>     <span class="st">"start"</span>: i <span class="op">*</span> ppq, <span class="st">"end"</span>: (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> ppq}</span>
+<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">8</span>)</span>
+<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a>midi.add_events(events)</span>
+<span id="cb40-12"><a href="#cb40-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Attach C-Map</span></span>
+<span id="cb40-14"><a href="#cb40-14" aria-hidden="true" tabindex="-1"></a>midi.add_conversion_map(TicksToQuarters(ppq<span class="op">=</span>ppq))</span>
+<span id="cb40-15"><a href="#cb40-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-16"><a href="#cb40-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert to quarters</span></span>
+<span id="cb40-17"><a href="#cb40-17" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> midi.events.to_dataframe()</span>
+<span id="cb40-18"><a href="#cb40-18" aria-hidden="true" tabindex="-1"></a>starts <span class="op">=</span> df[<span class="st">"start"</span>].<span class="bu">apply</span>(<span class="kw">lambda</span> x: x[<span class="st">"value"</span>])</span>
+<span id="cb40-19"><a href="#cb40-19" aria-hidden="true" tabindex="-1"></a>quarters <span class="op">=</span> [midi.convert_to(t, <span class="st">"quarters"</span>) <span class="cf">for</span> t <span class="kw">in</span> starts]</span>
+<span id="cb40-20"><a href="#cb40-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-21"><a href="#cb40-21" aria-hidden="true" tabindex="-1"></a>pd.DataFrame({</span>
+<span id="cb40-22"><a href="#cb40-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"note"</span>: df[<span class="st">"id"</span>],</span>
+<span id="cb40-23"><a href="#cb40-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">"start_ticks"</span>: starts,</span>
+<span id="cb40-24"><a href="#cb40-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">"start_quarters"</span>: quarters,</span>
+<span id="cb40-25"><a href="#cb40-25" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div id="bcd377ea" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-24T22:32:04.989870Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-24T22:32:04.989870Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-24T22:32:04.995303Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-24T22:32:04.995303Z&quot;}}" data-execution_count="22">
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Your solution here</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button,
+          { trigger: "manual",
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config);
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined;
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              }
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            }
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

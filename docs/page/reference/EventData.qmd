@@ -1,0 +1,489 @@
+# EventData { #timetoalign.EventData }
+
+```python
+EventData(table, unit, number_type=NumberType.float)
+```
+
+PyArrow-based storage for timeline events.
+
+EventData wraps a PyArrow table containing events. Events are rows in the
+table, not Python wrapper objects. The primary API is bulk operations:
+
+- from_dicts(): Create from list of row dictionaries
+- from_arrays(): Create from column-oriented arrays
+- from_dataframe(): Create from pandas DataFrame
+
+The schema is fixed at class definition time but can be extended by
+subclasses to add domain-specific columns (e.g., pitch, velocity for notes).
+
+NOTE: This class was renamed from EventStore to EventData in the 2026-01 API
+refactoring. EventStore now refers to the container class (formerly EventBundle)
+that holds one or more EventData tables.
+
+Attributes:
+    table: The underlying PyArrow table.
+    unit: The time unit for all coordinates.
+    number_type: The number type used for coordinates.
+
+Examples:
+    >>> data = EventData.from_dicts([
+    ...     {"id": "e1", "temporal_type": "instant", "event_type": "Beat",
+    ...      "instant": 0.0},
+    ...     {"id": "e2", "temporal_type": "interval", "event_type": "Note",
+    ...      "start": 0.0, "end": 1.0},
+    ... ], unit=TimeUnit.seconds)
+    >>> len(data)
+    2
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [count](#timetoalign.EventData.count) | The number of events in the store. |
+| [number_type](#timetoalign.EventData.number_type) | The number type for coordinate interpretation. |
+| [table](#timetoalign.EventData.table) | The underlying PyArrow table. |
+| [unit](#timetoalign.EventData.unit) | The time unit for coordinates. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [column_names](#timetoalign.EventData.column_names) | Get the list of column names for this EventData class. |
+| [concat](#timetoalign.EventData.concat) | Concatenate with other EventData, returning a new EventData. |
+| [coordinate_range](#timetoalign.EventData.coordinate_range) | Get the min and max coordinates across all events. |
+| [count_by](#timetoalign.EventData.count_by) | Count events grouped by a column's values. |
+| [create_timeline](#timetoalign.EventData.create_timeline) | Create a Timeline from this EventData. |
+| [empty](#timetoalign.EventData.empty) | Create an empty EventData. |
+| [event_types](#timetoalign.EventData.event_types) | Get the list of unique event types. |
+| [extend](#timetoalign.EventData.extend) | Extend this data with events from another EventData (in-place). |
+| [filter](#timetoalign.EventData.filter) | Filter events by criteria, returning a new EventData. |
+| [from_arrays](#timetoalign.EventData.from_arrays) | Create EventData from column-oriented arrays (VECTORIZED). |
+| [from_arrays_legacy](#timetoalign.EventData.from_arrays_legacy) | Legacy from_arrays using row-based coordinate_to_struct. |
+| [from_dataframe](#timetoalign.EventData.from_dataframe) | Create EventData from a pandas DataFrame. |
+| [from_dicts](#timetoalign.EventData.from_dicts) | Create EventData from a list of row dictionaries. |
+| [from_parquet](#timetoalign.EventData.from_parquet) | Load EventData from a Parquet file. |
+| [schema](#timetoalign.EventData.schema) | Get the PyArrow schema for this EventData class. |
+| [select](#timetoalign.EventData.select) | Select specific columns from the table. |
+| [summary](#timetoalign.EventData.summary) | Get a comprehensive summary of the store. |
+| [to_dataframe](#timetoalign.EventData.to_dataframe) | Convert to a DataFrame in the specified format. |
+| [to_pandas](#timetoalign.EventData.to_pandas) | Convert to a pandas DataFrame. |
+| [to_parquet](#timetoalign.EventData.to_parquet) | Save the EventData to a Parquet file. |
+| [to_timeline](#timetoalign.EventData.to_timeline) | Deprecated alias for create_timeline(). |
+| [where](#timetoalign.EventData.where) | Filter with a custom PyArrow compute expression. |
+
+### column_names { #timetoalign.EventData.column_names }
+
+```python
+EventData.column_names()
+```
+
+Get the list of column names for this EventData class.
+
+Returns:
+    List of all column names (base + extra).
+
+### concat { #timetoalign.EventData.concat }
+
+```python
+EventData.concat(*others)
+```
+
+Concatenate with other EventData, returning a new EventData.
+
+Args:
+    *others: Other EventData to concatenate.
+
+Returns:
+    A new EventData containing all events.
+
+Raises:
+    ValueError: If any units don't match.
+
+### coordinate_range { #timetoalign.EventData.coordinate_range }
+
+```python
+EventData.coordinate_range()
+```
+
+Get the min and max coordinates across all events.
+
+Returns:
+    Tuple of (min, max) coordinates, or None if store is empty.
+
+### count_by { #timetoalign.EventData.count_by }
+
+```python
+EventData.count_by(column)
+```
+
+Count events grouped by a column's values.
+
+Args:
+    column: The column to group by.
+
+Returns:
+    Dict mapping column values to counts.
+
+### create_timeline { #timetoalign.EventData.create_timeline }
+
+```python
+EventData.create_timeline(uid=None, filters=None)
+```
+
+Create a Timeline from this EventData.
+
+This is a convenience method that creates a timeline with the data's
+events directly. The timeline class and number_type are inferred from
+the data's unit (e.g., ticks -> DiscreteLogicalTimeline with int).
+
+Args:
+    uid: Unique ID for the timeline. Auto-generated if None.
+    filters: Filter kwargs to apply before timeline creation.
+        Example: {"event_type": "Note"} to exclude rests.
+
+Returns:
+    A Timeline containing the (filtered) events.
+
+Examples:
+    >>> timeline = data.create_timeline(uid="notes")
+    >>> filtered = data.create_timeline(filters={"event_type": "Note"})
+
+### empty { #timetoalign.EventData.empty }
+
+```python
+EventData.empty(unit, number_type=NumberType.float)
+```
+
+Create an empty EventData.
+
+Args:
+    unit: The time unit for coordinates.
+    number_type: The number type for coordinates.
+
+Returns:
+    An empty EventData with the appropriate schema.
+
+### event_types { #timetoalign.EventData.event_types }
+
+```python
+EventData.event_types()
+```
+
+Get the list of unique event types.
+
+Returns:
+    List of event type names.
+
+### extend { #timetoalign.EventData.extend }
+
+```python
+EventData.extend(other)
+```
+
+Extend this data with events from another EventData (in-place).
+
+Args:
+    other: Another EventData with compatible schema.
+
+Raises:
+    ValueError: If units don't match.
+
+### filter { #timetoalign.EventData.filter }
+
+```python
+EventData.filter(
+    temporal_type=None,
+    event_type=None,
+    min_coord=None,
+    max_coord=None,
+    **kwargs,
+)
+```
+
+Filter events by criteria, returning a new EventData.
+
+All criteria are AND-ed together.
+
+Args:
+    temporal_type: Filter by "instant" or "interval".
+    event_type: Filter by event type name.
+    min_coord: Minimum coordinate (inclusive).
+    max_coord: Maximum coordinate (exclusive).
+    **kwargs: Exact match filters for other columns (e.g. event_category="note").
+
+Returns:
+    A new EventData with filtered events.
+
+### from_arrays { #timetoalign.EventData.from_arrays }
+
+```python
+EventData.from_arrays(
+    columns,
+    unit,
+    number_type=NumberType.float,
+    *,
+    validate=True,
+    extra_fields=None,
+)
+```
+
+Create EventData from column-oriented arrays (VECTORIZED).
+
+This is the PRIMARY construction method for loaders. All operations
+are vectorized - NO row iteration occurs.
+
+Args:
+    columns: Dict mapping column names to arrays. Supports:
+        - np.ndarray: NumPy arrays
+        - pa.Array: PyArrow arrays (including StructArray for coords)
+        - list: Python lists (converted to numpy)
+
+        For coordinate columns (start, end, duration):
+        - If pa.StructArray: used directly
+        - If numeric/string array: parsed via CoordinateParser
+
+    unit: The time unit for coordinates.
+    number_type: The number type for coordinates.
+    validate: Whether to validate arrays before table construction.
+    extra_fields: Optional list of PyArrow fields for extra columns.
+        These fields include metadata (e.g., unit for CoordinateFields).
+        If not provided, fields are inferred from the data arrays.
+
+Returns:
+    A new EventData containing the events.
+
+Raises:
+    ValueError: If validation fails (missing columns, length mismatch, etc.)
+
+Examples:
+    >>> # Vectorized construction from arrays
+    >>> data = EventData.from_arrays({
+    ...     "id": np.array(["e1", "e2"]),
+    ...     "temporal_type": np.array(["instant", "instant"]),
+    ...     "event_type": np.array(["Beat", "Beat"]),
+    ...     "start": CoordinateParser.parse([0, 480], NumberType.int, unit),
+    ... }, unit=TimeUnit.ticks)
+
+    >>> # Direct from loader output (StructArrays already parsed)
+    >>> data = EventData.from_arrays(loader_columns, unit=TimeUnit.quarters)
+
+### from_arrays_legacy { #timetoalign.EventData.from_arrays_legacy }
+
+```python
+EventData.from_arrays_legacy(columns, unit, number_type=NumberType.float)
+```
+
+Legacy from_arrays using row-based coordinate_to_struct.
+
+DEPRECATED: Use from_arrays() instead for vectorized operations.
+
+Args:
+    columns: Dict mapping column names to lists of values.
+    unit: The time unit for coordinates.
+    number_type: The number type for coordinates.
+
+Returns:
+    A new EventData containing the events.
+
+### from_dataframe { #timetoalign.EventData.from_dataframe }
+
+```python
+EventData.from_dataframe(df, unit, number_type=NumberType.float)
+```
+
+Create EventData from a pandas DataFrame.
+
+Args:
+    df: DataFrame with event data. Column names should match the schema.
+    unit: The time unit for coordinates.
+    number_type: The number type for coordinates.
+
+Returns:
+    A new EventData containing the events.
+
+### from_dicts { #timetoalign.EventData.from_dicts }
+
+```python
+EventData.from_dicts(rows, unit, number_type=NumberType.float)
+```
+
+Create EventData from a list of row dictionaries.
+
+Coordinate values (instant, start, end, duration) are automatically
+converted to the internal struct format. Convenience defaults are
+applied so that callers can omit boilerplate fields:
+
+- **id**: Auto-generated as ``e000001``, ``e000002``, ... if missing.
+- **temporal_type**: Inferred from the keys present in the dict --
+  ``"interval"`` when *both* ``start`` and ``end`` (or ``duration``)
+  are given, ``"instant"`` otherwise.
+
+Args:
+    rows: List of event dictionaries. At minimum each dict needs a
+        coordinate (``instant`` *or* ``start``/``end``) and an
+        ``event_type``. All other fields have sensible defaults.
+    unit: The time unit for coordinates.
+    number_type: The number type for coordinates.
+
+Returns:
+    A new EventData containing the events.
+
+Examples:
+    >>> data = EventData.from_dicts([
+    ...     {"event_type": "Beat", "instant": 0},
+    ...     {"event_type": "Note", "start": 0, "end": 0.5},
+    ... ], unit=TimeUnit.seconds)
+
+### from_parquet { #timetoalign.EventData.from_parquet }
+
+```python
+EventData.from_parquet(path)
+```
+
+Load EventData from a Parquet file.
+
+Args:
+    path: Path to the Parquet file.
+
+Returns:
+    An EventData loaded from the file.
+
+Raises:
+    ValueError: If the file lacks required TimeToAlign! metadata.
+
+### schema { #timetoalign.EventData.schema }
+
+```python
+EventData.schema(unit)
+```
+
+Get the PyArrow schema for this EventData class.
+
+Args:
+    unit: The time unit for coordinate columns.
+
+Returns:
+    The complete schema including base and extra fields.
+
+### select { #timetoalign.EventData.select }
+
+```python
+EventData.select(columns)
+```
+
+Select specific columns from the table.
+
+Args:
+    columns: List of column names to select.
+
+Returns:
+    A PyArrow table with only the selected columns.
+
+### summary { #timetoalign.EventData.summary }
+
+```python
+EventData.summary()
+```
+
+Get a comprehensive summary of the store.
+
+Returns:
+    Dict with count, temporal type counts, event type counts,
+    coordinate range, unit, and number type.
+
+### to_dataframe { #timetoalign.EventData.to_dataframe }
+
+```python
+EventData.to_dataframe(format='pandas', *, raw=False, coordinates=False)
+```
+
+Convert to a DataFrame in the specified format.
+
+Higher-level method that dispatches to format-specific implementations.
+Currently supports pandas; polars support can be added later.
+
+Args:
+    format: DataFrame format ("pandas"). Default "pandas".
+    raw: If True, return raw conversion with struct dicts for coordinates.
+    coordinates: If True, wrap values in Coordinate objects with unit info.
+
+Returns:
+    A DataFrame in the requested format.
+
+Raises:
+    ValueError: If format is not supported.
+
+Examples:
+    >>> df = events.to_dataframe()  # pandas DataFrame
+    >>> df = events.to_dataframe("pandas", raw=True)
+
+### to_pandas { #timetoalign.EventData.to_pandas }
+
+```python
+EventData.to_pandas(raw=False, coordinates=False)
+```
+
+Convert to a pandas DataFrame.
+
+By default, coordinate columns (start, end, duration) are converted from
+the internal struct representation to the appropriate Python number type:
+- Fraction if numerator/denominator are present
+- float otherwise
+
+Args:
+    raw: If True, return the raw PyArrow-to-pandas conversion with struct
+        dicts for coordinate columns. Default False shows cleaned numbers.
+    coordinates: If True, wrap coordinate values in Coordinate objects that
+        include unit information. Only effective when raw=False.
+
+Returns:
+    A pandas DataFrame with the event data.
+
+Examples:
+    >>> # Default: clean number format
+    >>> df = events.to_pandas()
+    >>> df.iloc[0]['start']  # Fraction(1, 4) or 0.25
+
+    >>> # Raw struct dicts (for debugging)
+    >>> df = events.to_pandas(raw=True)
+    >>> df.iloc[0]['start']  # {'value': 0.25, 'numerator': 1, 'denominator': 4}
+
+    >>> # Coordinate objects with unit
+    >>> df = events.to_pandas(coordinates=True)
+    >>> df.iloc[0]['start']  # Coordinate(value=Fraction(1, 4), unit=quarters)
+
+### to_parquet { #timetoalign.EventData.to_parquet }
+
+```python
+EventData.to_parquet(path)
+```
+
+Save the EventData to a Parquet file.
+
+Args:
+    path: Path to write the Parquet file.
+
+### to_timeline { #timetoalign.EventData.to_timeline }
+
+```python
+EventData.to_timeline(uid=None, filters=None)
+```
+
+Deprecated alias for create_timeline().
+
+.. deprecated:: 0.2.0
+    Use :meth:`create_timeline` instead.
+
+### where { #timetoalign.EventData.where }
+
+```python
+EventData.where(expression)
+```
+
+Filter with a custom PyArrow compute expression.
+
+Args:
+    expression: A PyArrow compute expression.
+
+Returns:
+    A new EventData with filtered events.

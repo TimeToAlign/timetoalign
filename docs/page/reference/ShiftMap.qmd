@@ -1,0 +1,59 @@
+# ShiftMap { #timetoalign.ShiftMap }
+
+```python
+ShiftMap(offset=0.0, source_unit=None, target_unit=None, uid=None, name=None)
+```
+
+Pure offset transformation: y = x + offset.
+
+A simplified version of LinearMap with scalar=1.
+
+Examples:
+    >>> # Add an offset to timestamps
+    >>> shift = ShiftMap(offset=10.0)
+    >>> shift(5.0)
+    15.0
+
+    >>> # Can be used to align timelines with different origins
+    >>> align = ShiftMap(offset=-100)  # Subtract 100 from all coordinates
+    >>> align(150)
+    50
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [is_identity](#timetoalign.ShiftMap.is_identity) | Whether this map is the identity transformation. |
+| [offset](#timetoalign.ShiftMap.offset) | The additive offset. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_dict](#timetoalign.ShiftMap.from_dict) | Deserialize from dictionary. |
+| [inverse](#timetoalign.ShiftMap.inverse) | Return the inverse map: y = x - b. |
+| [to_dict](#timetoalign.ShiftMap.to_dict) | Serialize to dictionary. |
+
+### from_dict { #timetoalign.ShiftMap.from_dict }
+
+```python
+ShiftMap.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+### inverse { #timetoalign.ShiftMap.inverse }
+
+```python
+ShiftMap.inverse()
+```
+
+Return the inverse map: y = x - b.
+
+### to_dict { #timetoalign.ShiftMap.to_dict }
+
+```python
+ShiftMap.to_dict()
+```
+
+Serialize to dictionary.

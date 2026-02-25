@@ -14,10 +14,20 @@ to the relevant section of the conceptual model.
 ## A
 
 **AlignmentAnchor**
-:   A set of {{< glossary TimeStamp >}}s corresponding to matched events,
-    representing their temporal equivalence across timelines. From a
-    {{< glossary Match >}} of {{< glossary TimeIntervalEvent >}}s, one
-    derives a **StartAnchor** and an **EndAnchor**.
+:   A pure coordinate pair associating one coordinate on timeline A with one
+    on timeline B. A neutral record with no claim semantics---provenance is
+    carried by the enclosing {{< glossary MatchClaim >}}. Only synchronous
+    MatchClaims produce AlignmentAnchors. From a {{< glossary MatchClaim >}}
+    of {{< glossary TimeIntervalEvent >}}s, one derives a **StartAnchor** and
+    an **EndAnchor**.
+    See [Alignment](concepts.qmd#alignment).
+
+**AlignmentBundle**
+:   The top-level container for alignment workflows, holding timelines,
+    {{< glossary TimelineGroup >}}s, and cross-group
+    {{< glossary MatchClaim >}}s. Provides coordinate transfer within groups
+    (via interpolation) and across groups (via {{< glossary MatchLine >}} and
+    {{< glossary WarpMap >}}).
     See [Alignment](concepts.qmd#alignment).
 
 ## B
@@ -156,20 +166,45 @@ to the relevant section of the conceptual model.
 ## M
 
 **Match**
-:   A claim---issued by a human or algorithmic agent---that events from
-    disparate timelines are synchronous or equivalent, with associated
-    metadata describing the agent, decision criteria, and certainty level.
+:   See {{< glossary MatchClaim >}}. The manuscript shorthand "Match" refers
+    to the MatchClaim concept.
+
+**MatchClaim**
+:   A claim---issued by a human or algorithmic agent---about one or two timed
+    things (events, regions, children) on two specific timelines. Always knows
+    which pair of timelines it connects. Contains 0--2
+    {{< glossary AlignmentAnchor >}}s (only if synchronous), synchrony and
+    explicitness flags, and optional metadata (agent, decision criteria,
+    certainty). Four cases: (a) event-to-event, (b) projection,
+    (c) {{< glossary NOMATCH >}}, (d) implicit (from group extension).
+    See [Alignment](concepts.qmd#alignment).
+
+**MatchGraph**
+:   An on-demand analytical structure built from {{< glossary MatchClaim >}}s
+    using a networkx graph. Nodes are `(timeline_id, coordinate)` tuples;
+    edges derive from {{< glossary AlignmentAnchor >}}s of synchronous claims.
+    Connected components yield {{< glossary MatchStamp >}}s. Can be extended
+    with implicit claims based on {{< glossary TimelineGroup >}} membership.
+    Each Match box M1--M15 in the Hendrix figure is a MatchGraph.
     See [Alignment](concepts.qmd#alignment).
 
 **MatchLine**
-:   A linked list of {{< glossary Match >}} objects preserving their
-    order, enabling selection and alignment of temporal correspondences
-    for downstream operations.
+:   An ordered sequence of {{< glossary MatchStamp >}}s for a given source
+    timeline, sorted by coordinate on that source timeline. Created by
+    selecting and resolving {{< glossary MatchClaim >}}s (all or a filtered
+    subset). Used as input for {{< glossary WarpMap >}} generation.
     See [Alignment](concepts.qmd#alignment).
 
 **MatchPath**
-:   A graph traversal connecting matched events across multiple timelines
+:   A path traversal connecting matched events across multiple timelines
     (e.g., A -> B -> C), enabling indirect alignment.
+    See [Alignment](concepts.qmd#alignment).
+
+**MatchStamp**
+:   A synchronised instant across multiple timelines, extracted from a
+    {{< glossary MatchGraph >}}'s connected components. Contains one
+    coordinate per participating timeline. Can be expanded with
+    group-member coordinates and C-map conversions.
     See [Alignment](concepts.qmd#alignment).
 
 **MultiMap**
@@ -178,6 +213,15 @@ to the relevant section of the conceptual model.
     {{< glossary CombinationMap >}} (parallel outputs), and
     {{< glossary ConcatenationMap >}} (regional).
     See [Conversion maps](concepts.qmd#conversion-maps).
+
+## N
+
+**NOMATCH**
+:   A sentinel value in a {{< glossary MatchClaim >}} explicitly encoding the
+    absence of a corresponding event on the other timeline. The MatchClaim
+    records both timeline IDs but has no {{< glossary AlignmentAnchor >}}s;
+    `is_synchronous` is always `False`.
+    See [Alignment](concepts.qmd#alignment).
 
 ## O
 
@@ -264,10 +308,17 @@ to the relevant section of the conceptual model.
     {{< glossary Child >}} timelines.
     See [Foundations](concepts.qmd#foundations).
 
+**TimelineGroup**
+:   A container for commensurable timelines, connected via a shared timestamp
+    table and pairwise interpolation maps. Enables coordinate transfer between
+    timelines of potentially different units via linear interpolation.
+    See [Alignment](concepts.qmd#alignment).
+
 **TimeStamp**
-:   A cross-section through a timeline hierarchy, comprising the root
-    coordinate, synchronous {{< glossary Child >}} coordinates, and all
-    {{< glossary ConversionMap >}} results.
+:   A cross-section through a timeline hierarchy at a given coordinate.
+    Computes equivalent coordinates on {{< glossary Child >}} timelines (via
+    offset arithmetic) and on attached {{< glossary ConversionMap >}} target
+    units.
     See [Nested timelines](concepts.qmd#nested-timelines).
 
 **TraversalMap**
@@ -279,6 +330,8 @@ to the relevant section of the conceptual model.
 ## W
 
 **WarpMap**
-:   A derived timeline where coordinates are re-adjusted based on
-    {{< glossary AlignmentAnchor >}}s to align with another timeline.
-    See [Derivative timelines](concepts.qmd#derivative-timelines).
+:   A standalone class that produces a materialised copy of a source timeline
+    (including its children, events, and regions), warped to the coordinate
+    system of a target timeline. Generated from a {{< glossary MatchLine >}}
+    by extracting coordinate pairs and building an interpolation table.
+    See [Alignment](concepts.qmd#coordinate-transfer).

@@ -4,9 +4,12 @@ This module provides InterpolationMap, a lightweight dataclass for O(log n)
 bidirectional coordinate conversion using numpy.interp.
 
 InterpolationMap is the internal engine used by:
-- Timeline parent-child relationships
 - TimelineGroup coordinate conversion
 - TableMap forward/inverse conversions
+- WarpMap alignment warping
+
+Parent-child coordinate conversion in Timeline uses exact offset arithmetic
+instead (Phase 6.1).
 
 It is NOT a ConversionMap subclass - it's a lower-level building block
 optimized for performance. ConversionMap has richer functionality (units,
@@ -30,7 +33,6 @@ from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from ..core.enums import TimeUnit
-    from ..timelines.base import Timeline
     from .table import TableMap
 
 module_logger = logging.getLogger(__name__)
@@ -235,47 +237,6 @@ class InterpolationMap:
     # endregion
 
     # region Factory Methods
-
-    @classmethod
-    def from_child_relationship(
-        cls,
-        parent: "Timeline",
-        child: "Timeline",
-        offset: float,
-    ) -> "InterpolationMap":
-        """Create from parent-child relationship.
-
-        The map converts child coordinates to parent coordinates:
-        parent_coord = child_coord + offset
-
-        We store anchor points at child boundaries for consistency with
-        more complex mappings.
-
-        Args:
-            parent: Parent timeline.
-            child: Child timeline (embedded in parent).
-            offset: Child's offset in parent coordinates.
-
-        Returns:
-            InterpolationMap for child -> parent conversion.
-        """
-        child_length = float(child.length.value)
-
-        # Handle zero-length children (single-instant timelines)
-        # Use a minimal positive length to ensure monotonicity for interpolation
-        effective_length = child_length if child_length > 0 else 1e-10
-
-        child_coords = np.array([0.0, effective_length], dtype=np.float64)
-        parent_coords = child_coords + offset
-
-        return cls(
-            source_coords=child_coords,
-            target_coords=parent_coords,
-            source_id=child.id,
-            target_id=parent.id,
-            source_unit=child.unit,
-            target_unit=parent.unit,
-        )
 
     @classmethod
     def from_table_map(cls, tmap: "TableMap") -> "InterpolationMap":

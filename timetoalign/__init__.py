@@ -101,9 +101,11 @@ from timetoalign.alignment import (
     AlignmentAnchor,
     AlignmentBundle,
     MatchClaim,
+    MatchLine,
     MatchMetadata,
     PerfectAlignment,
     TimelineGroup,
+    WarpMap,
 )
 from timetoalign.core import (
     ColumnNaming,
@@ -213,5 +215,7 @@ __all__ = [
     "TimelineGroup",
     "AlignmentAnchor",
     "MatchClaim",
+    "MatchLine",
     "MatchMetadata",
+    "WarpMap",
 ]

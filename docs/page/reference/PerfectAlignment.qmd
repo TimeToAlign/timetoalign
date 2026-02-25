@@ -1,0 +1,71 @@
+# PerfectAlignment { #timetoalign.PerfectAlignment }
+
+```python
+PerfectAlignment(source_start=0.0, source_end=None, ref_start=0.0, ref_end=None)
+```
+
+DEPRECATED: TimelineGroup no longer uses per-timeline alignment objects.
+
+This class is maintained for backward compatibility only.
+Use TimelineGroup.add_timeline() with start/end parameters instead.
+
+Attributes:
+    source_start: Start coordinate in the source timeline (default: 0).
+    source_end: End coordinate in the source timeline.
+    ref_start: Start coordinate in reference timeline (default: 0).
+    ref_end: End coordinate in reference timeline.
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_reference](#timetoalign.PerfectAlignment.from_reference) | Convert reference coordinate to source coordinate. |
+| [resolve](#timetoalign.PerfectAlignment.resolve) | Resolve None values to actual coordinates. |
+| [to_reference](#timetoalign.PerfectAlignment.to_reference) | Convert source coordinate to reference coordinate. |
+
+### from_reference { #timetoalign.PerfectAlignment.from_reference }
+
+```python
+PerfectAlignment.from_reference(coord, source_length, ref_length)
+```
+
+Convert reference coordinate to source coordinate.
+
+Args:
+    coord: Coordinate in the reference timeline.
+    source_length: Length of the source timeline.
+    ref_length: Length of the reference timeline.
+
+Returns:
+    Corresponding coordinate in the source timeline.
+
+### resolve { #timetoalign.PerfectAlignment.resolve }
+
+```python
+PerfectAlignment.resolve(source_length, ref_length)
+```
+
+Resolve None values to actual coordinates.
+
+Args:
+    source_length: Length of the source timeline.
+    ref_length: Length of the reference timeline.
+
+Returns:
+    Tuple of (source_start, source_end, ref_start, ref_end).
+
+### to_reference { #timetoalign.PerfectAlignment.to_reference }
+
+```python
+PerfectAlignment.to_reference(coord, source_length, ref_length)
+```
+
+Convert source coordinate to reference coordinate.
+
+Args:
+    coord: Coordinate in the source timeline.
+    source_length: Length of the source timeline.
+    ref_length: Length of the reference timeline.
+
+Returns:
+    Corresponding coordinate in the reference timeline.

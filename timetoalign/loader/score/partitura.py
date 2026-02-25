@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import bisect
 import warnings
 from fractions import Fraction
 from pathlib import Path
@@ -23,6 +24,30 @@ from .stores import (
     ControlEventData,
     MeasureData,
     NoteEventData,
+)
+
+# Constant pitch maps (moved out of per-note loop)
+_GPC_MAP = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6}
+_BASE_FIFTHS = {"F": -1, "C": 0, "G": 1, "D": 2, "A": 3, "E": 4, "B": 5}
+
+# Flow control marker types (constant tuple, defined once)
+_FLOW_MARKER_TYPES = (
+    pts.Ending,
+    pts.DaCapo,
+    pts.DalSegno,
+    pts.Fine,
+    pts.Segno,
+    pts.Coda,
+    pts.ToCoda,
+)
+
+# Control event types to capture
+_CONTROL_EVENT_TYPES = (
+    pts.TimeSignature,
+    pts.KeySignature,
+    pts.Tempo,
+    pts.Direction,
+    pts.Slur,
 )
 
 
@@ -63,41 +88,100 @@ class PartituraLoader(ScoreLoader):
         for part_idx, part in enumerate(parts):
             part_id = getattr(part, "id", f"P{part_idx+1}")
 
-            # Build measure map for MC lookup
-            measures = sorted(part.iter_all(pts.Measure), key=lambda m: m.start.t)
-            measure_starts = [m.start.t for m in measures]
-
-            def get_mc(t: int) -> int:
-                import bisect
-
-                idx = bisect.bisect_right(measure_starts, t) - 1
-                return idx + 1 if idx >= 0 else 1
-
             # Get quarter beat mapping
             beat_map = part.beat_map  # divs -> quarter beats
 
-            # Get divs_per_quarter for mc_onset calculation
-            # divs_pq = (
-            #     getattr(part, "_quarter_durations", [480])[0]
-            #     if hasattr(part, "_quarter_durations")
-            #     else 480
-            # )
+            # Cache beat_map calls: many notes share divisions or measure starts
+            beat_map_cache: dict[int, float] = {}
+
+            def cached_beat_map(div_val: int) -> float:
+                """Return cached float result of beat_map(div_val)."""
+                result = beat_map_cache.get(div_val)
+                if result is None:
+                    result = float(beat_map(div_val))
+                    beat_map_cache[div_val] = result
+                return result
+
+            # Cache Fraction conversions: avoid repeated
+            # Fraction(float).limit_denominator(10000)
+            frac_cache: dict[int, Fraction] = {}
+
+            def cached_beat_frac(div_val: int) -> Fraction:
+                """Return cached Fraction for beat_map(div_val)."""
+                result = frac_cache.get(div_val)
+                if result is None:
+                    result = Fraction(cached_beat_map(div_val)).limit_denominator(10000)
+                    frac_cache[div_val] = result
+                return result
+
+            # ===== Single pass: collect all objects by type =====
+            measures_list: list[pts.Measure] = []
+            notes_and_rests: list[pts.Note | pts.Rest | pts.GraceNote] = []
+            flow_markers: list = []
+            control_objects: list = []
+            annotation_objects: list = []
+
+            for obj in part.iter_all(include_subclasses=True):
+                if isinstance(obj, pts.Measure):
+                    measures_list.append(obj)
+                elif isinstance(obj, (pts.Note, pts.Rest, pts.GraceNote)):
+                    notes_and_rests.append(obj)
+                elif isinstance(obj, _FLOW_MARKER_TYPES):
+                    flow_markers.append(obj)
+                elif isinstance(obj, pts.Words):
+                    annotation_objects.append(obj)
+                elif isinstance(obj, _CONTROL_EVENT_TYPES):
+                    control_objects.append(obj)
+
+            # Build measure map for MC lookup
+            measures = sorted(measures_list, key=lambda m: m.start.t)
+            measure_starts = [m.start.t for m in measures]
+
+            def get_mc(t: int) -> int:
+                idx = bisect.bisect_right(measure_starts, t) - 1
+                return idx + 1 if idx >= 0 else 1
+
+            # Build measure_number_map cache: MC -> measure number string
+            has_mn_map = hasattr(part, "measure_number_map")
+            mn_cache: dict[int, str] = {}
+            if has_mn_map:
+                for i, m in enumerate(measures):
+                    mc = i + 1
+                    mn_cache[mc] = str(part.measure_number_map(m.start.t))
+
+            def get_mn(mc: int, start_t: int) -> str:
+                """Get measure number string, using cache when possible."""
+                cached = mn_cache.get(mc)
+                if cached is not None:
+                    return cached
+                if has_mn_map:
+                    result = str(part.measure_number_map(start_t))
+                    mn_cache[mc] = result
+                    return result
+                return str(mc)
+
+            # Pre-cache beat_map values for all measure starts
+            # (these are reused heavily during note processing)
+            measure_start_qb: dict[int, float] = {}
+            for m_start in measure_starts:
+                measure_start_qb[m_start] = cached_beat_map(m_start)
+                # Also warm up the Fraction cache for measure starts
+                cached_beat_frac(m_start)
 
             # ===== Extract Flow Control from part.repeats =====
-            # Build sets of MCs that have repeat start/end markers
+            # repeat_blocks: list of (start_mc, after_mc) tuples.
+            # after_mc is the first MC *after* the repeat (partitura's rep.end.t
+            # maps to the downbeat of the continuation, not the last bar inside).
             repeat_start_mcs: set[int] = set()
-            repeat_end_mcs: set[int] = set()
+            repeat_end_mcs: set[int] = set()  # last MC inside each repeat
+            repeat_blocks: list[tuple[int, int]] = []  # (start_mc, after_mc)
 
             if hasattr(part, "repeats") and part.repeats:
                 for rep in part.repeats:
-                    # Get MC for repeat start
                     start_mc = get_mc(rep.start.t)
                     repeat_start_mcs.add(start_mc)
 
-                    # Add RepeatStart control event
-                    qb_start = Fraction(float(beat_map(rep.start.t))).limit_denominator(
-                        10000
-                    )
+                    qb_start = cached_beat_frac(rep.start.t)
                     control_rows.append(
                         {
                             "id": f"repeat_start_{start_mc}",
@@ -109,11 +193,7 @@ class PartituraLoader(ScoreLoader):
                             "duration_qb": None,
                             "duration_qb_float": 0.0,
                             "mc": start_mc,
-                            "mn": (
-                                str(part.measure_number_map(rep.start.t))
-                                if hasattr(part, "measure_number_map")
-                                else str(start_mc)
-                            ),
+                            "mn": get_mn(start_mc, rep.start.t),
                             "mc_onset": None,
                             "mn_onset": None,
                             "subtype": "RepeatStart",
@@ -125,17 +205,37 @@ class PartituraLoader(ScoreLoader):
                         }
                     )
 
-                    # Get MC for repeat end and add RepeatEnd control event
                     if rep.end:
-                        end_mc = get_mc(rep.end.t)
-                        repeat_end_mcs.add(end_mc)
+                        # Determine whether rep.end.t falls on a measure *start*
+                        # (meaning there is a continuation measure after the repeat)
+                        # or on a measure *end* (the piece ends with this repeat).
+                        #
+                        # bisect_left gives the insertion index for rep.end.t; if
+                        # measure_starts[idx] == rep.end.t the time is exactly on
+                        # a measure downbeat → the repeat ends before that measure.
+                        # Otherwise rep.end.t is a bar-end and the last bar is idx (0-indexed).
+                        end_idx = bisect.bisect_left(measure_starts, rep.end.t)
+                        if (
+                            end_idx < len(measure_starts)
+                            and measure_starts[end_idx] == rep.end.t
+                        ):
+                            # rep.end.t is the downbeat of the continuation measure.
+                            after_mc = end_idx + 1  # 1-indexed MC of the continuation
+                            last_mc_in_repeat = after_mc - 1
+                        else:
+                            # rep.end.t is the end of the last bar (piece ends here).
+                            last_mc_in_repeat = (
+                                end_idx  # 1-indexed: end_idx == last 0-index + 1 → MC
+                            )
+                            after_mc = last_mc_in_repeat + 1  # virtual "after" MC
 
-                        qb_end = Fraction(float(beat_map(rep.end.t))).limit_denominator(
-                            10000
-                        )
+                        repeat_end_mcs.add(last_mc_in_repeat)
+                        repeat_blocks.append((start_mc, after_mc))
+
+                        qb_end = cached_beat_frac(rep.end.t)
                         control_rows.append(
                             {
-                                "id": f"repeat_end_{end_mc}",
+                                "id": f"repeat_end_{last_mc_in_repeat}",
                                 "name": "RepeatEnd",
                                 "temporal_type": "instant",
                                 "event_type": "RepeatEnd",
@@ -143,12 +243,8 @@ class PartituraLoader(ScoreLoader):
                                 "quarterbeats_float": float(qb_end),
                                 "duration_qb": None,
                                 "duration_qb_float": 0.0,
-                                "mc": end_mc,
-                                "mn": (
-                                    str(part.measure_number_map(rep.end.t))
-                                    if hasattr(part, "measure_number_map")
-                                    else str(end_mc)
-                                ),
+                                "mc": last_mc_in_repeat,
+                                "mn": get_mn(last_mc_in_repeat, rep.end.t),
                                 "mc_onset": None,
                                 "mn_onset": None,
                                 "subtype": "RepeatEnd",
@@ -161,70 +257,132 @@ class PartituraLoader(ScoreLoader):
                         )
 
             # ===== Extract Endings (Volta) and other flow control markers =====
-            ending_mcs: dict[int, int] = {}  # MC -> ending number
+            # ending_mcs: MC -> volta number (first MC of each ending).
+            # ending_after_mcs: MC -> first MC after each ending (from Ending.end.t).
+            # ds_dc_mcs: MCs containing DalSegno/DaCapo/Fine/Segno/Coda markers.
+            #   These indicate complex jump structures that require separate handling;
+            #   repeat blocks containing them are skipped by the simple next[] logic.
+            ending_mcs: dict[int, int] = {}  # start MC -> volta number
+            ending_after_mcs: dict[int, int] = {}  # start MC -> first MC after ending
+            ds_dc_mcs: set[int] = set()  # MCs with DalSegno/DaCapo/Fine/Segno/Coda
 
-            # Flow control marker types to extract
-            flow_marker_types = (
-                pts.Ending,
-                pts.DaCapo,
-                pts.DalSegno,
-                pts.Fine,
-                pts.Segno,
-                pts.Coda,
-                pts.ToCoda,
-            )
+            for obj in flow_markers:
+                marker_mc = get_mc(obj.start.t)
+                qb = cached_beat_frac(obj.start.t)
 
-            for obj in part.iter_all():
-                if isinstance(obj, flow_marker_types):
-                    marker_mc = get_mc(obj.start.t)
-                    qb = Fraction(float(beat_map(obj.start.t))).limit_denominator(10000)
+                if isinstance(obj, pts.Ending):
+                    ending_num = getattr(obj, "number", 1)
+                    try:
+                        num = int(ending_num)
+                    except (TypeError, ValueError):
+                        num = 1
+                    ending_mcs[marker_mc] = num
+                    if obj.end:
+                        ending_after_mcs[marker_mc] = get_mc(obj.end.t)
+                elif isinstance(
+                    obj,
+                    (
+                        pts.DaCapo,
+                        pts.DalSegno,
+                        pts.Fine,
+                        pts.Segno,
+                        pts.Coda,
+                        pts.ToCoda,
+                    ),
+                ):
+                    ds_dc_mcs.add(marker_mc)
 
-                    if isinstance(obj, pts.Ending):
-                        # Ensure volta number is an int (partitura may return string)
-                        ending_num = getattr(obj, "number", 1)
-                        try:
-                            ending_mcs[marker_mc] = int(ending_num)
-                        except (TypeError, ValueError):
-                            ending_mcs[marker_mc] = 1
+                control_rows.append(
+                    {
+                        "id": f"{type(obj).__name__.lower()}_{marker_mc}",
+                        "name": type(obj).__name__,
+                        "temporal_type": "instant",
+                        "event_type": type(obj).__name__,
+                        "quarterbeats": fraction_to_struct(qb),
+                        "quarterbeats_float": float(qb),
+                        "duration_qb": None,
+                        "duration_qb_float": 0.0,
+                        "mc": marker_mc,
+                        "mn": get_mn(marker_mc, obj.start.t),
+                        "mc_onset": None,
+                        "mn_onset": None,
+                        "subtype": type(obj).__name__,
+                        "value": (
+                            float(ending_mcs.get(marker_mc, 1))
+                            if isinstance(obj, pts.Ending)
+                            else None
+                        ),
+                        "text": type(obj).__name__,
+                        "voice": None,
+                        "staff": None,
+                        "part_id": part_id,
+                    }
+                )
 
-                    # Add to control_rows
-                    control_rows.append(
-                        {
-                            "id": f"{type(obj).__name__.lower()}_{marker_mc}",
-                            "name": type(obj).__name__,
-                            "temporal_type": "instant",
-                            "event_type": type(obj).__name__,
-                            "quarterbeats": fraction_to_struct(qb),
-                            "quarterbeats_float": float(qb),
-                            "duration_qb": None,
-                            "duration_qb_float": 0.0,
-                            "mc": marker_mc,
-                            "mn": (
-                                str(part.measure_number_map(obj.start.t))
-                                if hasattr(part, "measure_number_map")
-                                else str(marker_mc)
-                            ),
-                            "mc_onset": None,
-                            "mn_onset": None,
-                            "subtype": type(obj).__name__,
-                            "value": (
-                                float(ending_mcs.get(marker_mc, 1))
-                                if isinstance(obj, pts.Ending)
-                                else None
-                            ),
-                            "text": type(obj).__name__,
-                            "voice": None,
-                            "staff": None,
-                            "part_id": part_id,
-                        }
-                    )
+            # ===== Derive next[] for each measure from repeat/volta structure =====
+            # next_mc_map: MC -> list of possible successor MCs (in visitation order).
+            # An absent entry means "next sequential MC" (or -1 for the last bar).
+            #
+            # next[] is only derived when the piece contains ONLY simple repeat/volta
+            # structure (no DalSegno/DaCapo/Fine/Segno/Coda markers anywhere).
+            # When complex jump markers are present, the full D.S./D.C./Coda logic
+            # is not yet implemented; leaving next[] absent causes FlowController to
+            # default to a sequential (printed) traversal, which matches the known
+            # Partitura approximation for such pieces.
+            next_mc_map: dict[int, list[int]] = {}
+            num_measures = len(measures)
+
+            # Only compute next[] when no complex jump markers exist in the piece.
+            _active_blocks = [] if ds_dc_mcs else repeat_blocks
+
+            for rep_start_mc, rep_after_mc in _active_blocks:
+                # Collect volta-1 start MCs inside this repeat block.
+                volta1_starts = sorted(
+                    mc
+                    for mc, v in ending_mcs.items()
+                    if v == 1 and rep_start_mc <= mc < rep_after_mc
+                )
+                volta2_starts = sorted(
+                    mc
+                    for mc, v in ending_mcs.items()
+                    if v == 2 and rep_start_mc <= mc < rep_after_mc
+                )
+
+                if not volta1_starts:
+                    # Simple repeat (no voltas): the last bar inside the repeat
+                    # gets next = [rep_start_mc, rep_after_mc].
+                    last_in_rep = rep_after_mc - 1
+                    if last_in_rep >= 1 and last_in_rep <= num_measures:
+                        next_mc_map[last_in_rep] = [rep_start_mc, rep_after_mc]
+                else:
+                    # Volta repeat: identify the fork bar and the volta-1 end bar.
+                    first_v1_mc = volta1_starts[0]
+                    first_v2_mc = volta2_starts[0] if volta2_starts else rep_after_mc
+                    fork_mc = first_v1_mc - 1
+
+                    # Fork bar: choose volta 1 (first visit) or volta 2 (second visit).
+                    if fork_mc >= 1:
+                        next_mc_map[fork_mc] = [first_v1_mc, first_v2_mc]
+
+                    # The last MC of volta 1 jumps unconditionally back to repeat start.
+                    last_v1_mc = rep_after_mc - 1
+                    if last_v1_mc >= 1 and last_v1_mc <= num_measures:
+                        next_mc_map[last_v1_mc] = [rep_start_mc]
 
             # Process Measures
             for i, m in enumerate(measures):
-                qb_start = Fraction(float(beat_map(m.start.t))).limit_denominator(10000)
-                qb_end = Fraction(float(beat_map(m.end.t))).limit_denominator(10000)
+                qb_start = cached_beat_frac(m.start.t)
+                qb_end = cached_beat_frac(m.end.t)
                 dur = qb_end - qb_start
                 mc = i + 1
+
+                # Resolve next: use pre-computed map, or default sequential.
+                if mc in next_mc_map:
+                    mc_next: list[int] | None = next_mc_map[mc]
+                else:
+                    mc_next = (
+                        None  # default: next sequential MC (handled by FlowController)
+                    )
 
                 measure_rows.append(
                     {
@@ -243,210 +401,165 @@ class PartituraLoader(ScoreLoader):
                         "start_repeat": mc in repeat_start_mcs,
                         "end_repeat": mc in repeat_end_mcs,
                         "volta": ending_mcs.get(mc),
+                        "next": mc_next,
                         "part_id": part_id,
                     }
                 )
 
-            # Process Notes/Rests
-            for obj in part.iter_all(include_subclasses=True):
-                if isinstance(obj, (pts.Note, pts.Rest, pts.GraceNote)):
-                    is_rest = isinstance(obj, pts.Rest)
-                    if is_rest:
-                        has_rests = True
+            # Process Notes/Rests (from pre-collected list)
+            for obj in notes_and_rests:
+                is_rest = isinstance(obj, pts.Rest)
+                if is_rest:
+                    has_rests = True
 
-                    # Temporal
-                    start_div = obj.start.t
-                    dur_div = obj.duration if hasattr(obj, "duration") else 0
+                # Temporal
+                start_div = obj.start.t
+                dur_div = obj.duration if hasattr(obj, "duration") else 0
 
-                    qb_start = Fraction(float(beat_map(start_div))).limit_denominator(
-                        10000
+                qb_start = cached_beat_frac(start_div)
+                qb_end = cached_beat_frac(start_div + dur_div)
+                dur_qb = qb_end - qb_start
+
+                # MC context
+                mc = get_mc(start_div)
+                mn = get_mn(mc, start_div)
+
+                # mc_onset: offset from measure start
+                if mc > 0 and mc <= len(measure_starts):
+                    m_start_div = measure_starts[mc - 1]
+                    # Use cached float values to compute onset, then convert
+                    onset_float = cached_beat_map(start_div) - cached_beat_map(
+                        m_start_div
                     )
-                    qb_end = Fraction(
-                        float(beat_map(start_div + dur_div))
-                    ).limit_denominator(10000)
-                    dur_qb = qb_end - qb_start
+                    mc_onset = Fraction(onset_float).limit_denominator(10000)
+                else:
+                    mc_onset = Fraction(0)
 
-                    # MC context
-                    mc = get_mc(start_div)
-                    mn = (
-                        str(part.measure_number_map(start_div))
-                        if hasattr(part, "measure_number_map")
-                        else str(mc)
-                    )
+                # Pitch
+                midi_pitch = None
+                spelled_pitch = None
+                octave = None
+                tpc = None
 
-                    # mc_onset: offset from measure start
-                    if mc > 0 and mc <= len(measure_starts):
-                        m_start_div = measure_starts[mc - 1]
-                        mc_onset = Fraction(
-                            float(beat_map(start_div)) - float(beat_map(m_start_div))
-                        ).limit_denominator(10000)
-                    else:
-                        mc_onset = Fraction(0)
+                if not is_rest and hasattr(obj, "midi_pitch"):
+                    ep = obj.midi_pitch
+                    midi_pitch = {"ep": int(ep), "epc": int(ep) % 12}
 
-                    # Pitch
-                    midi_pitch = None
-                    spelled_pitch = None
-                    octave = None
-                    tpc = None
+                    if hasattr(obj, "step"):
+                        step = obj.step
+                        alter = int(getattr(obj, "alter", 0) or 0)
+                        octave = int(getattr(obj, "octave", 4) or 4)
 
-                    if not is_rest and hasattr(obj, "midi_pitch"):
-                        ep = obj.midi_pitch
-                        midi_pitch = {"ep": int(ep), "epc": int(ep) % 12}
+                        gpc_int = _GPC_MAP.get(step, 0)
 
-                        if hasattr(obj, "step"):
-                            step = obj.step
-                            alter = int(getattr(obj, "alter", 0) or 0)
-                            octave = int(getattr(obj, "octave", 4) or 4)
+                        acc_str = ""
+                        if alter > 0:
+                            acc_str = "\u266f" * alter
+                        elif alter < 0:
+                            acc_str = "\u266d" * abs(alter)
 
-                            gpc_map = {
-                                "C": 0,
-                                "D": 1,
-                                "E": 2,
-                                "F": 3,
-                                "G": 4,
-                                "A": 5,
-                                "B": 6,
-                            }
-                            gpc_int = gpc_map.get(step, 0)
+                        spc_int = _BASE_FIFTHS.get(step, 0) + (7 * alter)
+                        tpc = spc_int
 
-                            acc_str = ""
-                            if alter > 0:
-                                acc_str = "♯" * alter
-                            elif alter < 0:
-                                acc_str = "♭" * abs(alter)
-
-                            base_fifths = {
-                                "F": -1,
-                                "C": 0,
-                                "G": 1,
-                                "D": 2,
-                                "A": 3,
-                                "E": 4,
-                                "B": 5,
-                            }
-                            spc_int = base_fifths.get(step, 0) + (7 * alter)
-                            tpc = spc_int
-
-                            spelled_pitch = {
-                                "gpc_int": gpc_int,
-                                "gpc_str": step,
-                                "acc": alter,
-                                "spc_int": spc_int,
-                                "spc_str": f"{step}{acc_str}",
-                                "sp": f"{step}{acc_str}{octave}",
-                                "cents": 0.0,
-                            }
-
-                    note_rows.append(
-                        {
-                            "id": getattr(obj, "id", None) or f"note_{float(qb_start)}",
-                            "name": "",
-                            "temporal_type": "interval" if dur_qb > 0 else "instant",
-                            "event_type": "Rest" if is_rest else "Note",
-                            "quarterbeats": fraction_to_struct(qb_start),
-                            "quarterbeats_float": float(qb_start),
-                            "duration_qb": fraction_to_struct(dur_qb),
-                            "duration_qb_float": float(dur_qb),
-                            "mc": mc,
-                            "mn": mn,
-                            "mc_onset": fraction_to_struct(mc_onset),
-                            "mn_onset": fraction_to_struct(
-                                mc_onset
-                            ),  # Same as mc_onset for Partitura
-                            "timesig": None,
-                            "duration": None,
-                            "nominal_duration": None,
-                            "scalar": None,
-                            "midi_pitch": midi_pitch,
-                            "spelled_pitch": spelled_pitch,
-                            "tpc": tpc,
-                            "octave": octave,
-                            "velocity": 64,
-                            "tied": 0,
-                            "gracenote": (
-                                "grace" if isinstance(obj, pts.GraceNote) else None
-                            ),
-                            "chord_id": None,
-                            "voice": getattr(obj, "voice", None),
-                            "staff": getattr(obj, "staff", None),
-                            "part_id": part_id,
+                        spelled_pitch = {
+                            "gpc_int": gpc_int,
+                            "gpc_str": step,
+                            "acc": alter,
+                            "spc_int": spc_int,
+                            "spc_str": f"{step}{acc_str}",
+                            "sp": f"{step}{acc_str}{octave}",
+                            "cents": 0.0,
                         }
-                    )
 
-                elif isinstance(
-                    obj,
-                    (
-                        pts.TimeSignature,
-                        pts.KeySignature,
-                        pts.Tempo,
-                        pts.Direction,
-                        pts.Slur,
-                    ),
-                ):
-                    if isinstance(obj, pts.Words):
-                        # Text annotation
-                        qb = Fraction(float(beat_map(obj.start.t))).limit_denominator(
-                            10000
-                        )
-                        annotation_rows.append(
-                            {
-                                "id": getattr(obj, "id", None),
-                                "name": getattr(obj, "text", str(obj)),
-                                "temporal_type": "instant",
-                                "event_type": "Text",
-                                "quarterbeats": fraction_to_struct(qb),
-                                "quarterbeats_float": float(qb),
-                                "duration_qb": None,
-                                "duration_qb_float": 0.0,
-                                "mc": get_mc(obj.start.t),
-                                "mn": (
-                                    str(part.measure_number_map(obj.start.t))
-                                    if hasattr(part, "measure_number_map")
-                                    else None
-                                ),
-                                "mc_onset": None,
-                                "mn_onset": None,
-                                "subtype": "Text",
-                                "text": getattr(obj, "text", str(obj)),
-                                "staff": getattr(obj, "staff", None),
-                                "part_id": part_id,
-                            }
-                        )
-                    else:
-                        # Control event
-                        qb = Fraction(float(beat_map(obj.start.t))).limit_denominator(
-                            10000
-                        )
-                        control_rows.append(
-                            {
-                                "id": getattr(obj, "id", None) or f"ctrl_{float(qb)}",
-                                "name": obj.__class__.__name__,
-                                "temporal_type": (
-                                    "interval"
-                                    if getattr(obj, "end", None)
-                                    else "instant"
-                                ),
-                                "event_type": obj.__class__.__name__,
-                                "quarterbeats": fraction_to_struct(qb),
-                                "quarterbeats_float": float(qb),
-                                "duration_qb": None,
-                                "duration_qb_float": 0.0,
-                                "mc": get_mc(obj.start.t),
-                                "mn": (
-                                    str(part.measure_number_map(obj.start.t))
-                                    if hasattr(part, "measure_number_map")
-                                    else None
-                                ),
-                                "mc_onset": None,
-                                "mn_onset": None,
-                                "subtype": obj.__class__.__name__,
-                                "value": None,
-                                "text": str(obj),
-                                "voice": getattr(obj, "voice", None),
-                                "staff": getattr(obj, "staff", None),
-                                "part_id": part_id,
-                            }
-                        )
+                note_rows.append(
+                    {
+                        "id": getattr(obj, "id", None) or f"note_{float(qb_start)}",
+                        "name": "",
+                        "temporal_type": "interval" if dur_qb > 0 else "instant",
+                        "event_type": "Rest" if is_rest else "Note",
+                        "quarterbeats": fraction_to_struct(qb_start),
+                        "quarterbeats_float": float(qb_start),
+                        "duration_qb": fraction_to_struct(dur_qb),
+                        "duration_qb_float": float(dur_qb),
+                        "mc": mc,
+                        "mn": mn,
+                        "mc_onset": fraction_to_struct(mc_onset),
+                        "mn_onset": fraction_to_struct(
+                            mc_onset
+                        ),  # Same as mc_onset for Partitura
+                        "timesig": None,
+                        "duration": None,
+                        "nominal_duration": None,
+                        "scalar": None,
+                        "midi_pitch": midi_pitch,
+                        "spelled_pitch": spelled_pitch,
+                        "tpc": tpc,
+                        "octave": octave,
+                        "velocity": 64,
+                        "tied": 0,
+                        "gracenote": (
+                            "grace" if isinstance(obj, pts.GraceNote) else None
+                        ),
+                        "chord_id": None,
+                        "voice": getattr(obj, "voice", None),
+                        "staff": getattr(obj, "staff", None),
+                        "part_id": part_id,
+                    }
+                )
+
+            # Process control events (from pre-collected list)
+            for obj in control_objects:
+                qb = cached_beat_frac(obj.start.t)
+                obj_mc = get_mc(obj.start.t)
+                control_rows.append(
+                    {
+                        "id": getattr(obj, "id", None) or f"ctrl_{float(qb)}",
+                        "name": obj.__class__.__name__,
+                        "temporal_type": (
+                            "interval" if getattr(obj, "end", None) else "instant"
+                        ),
+                        "event_type": obj.__class__.__name__,
+                        "quarterbeats": fraction_to_struct(qb),
+                        "quarterbeats_float": float(qb),
+                        "duration_qb": None,
+                        "duration_qb_float": 0.0,
+                        "mc": obj_mc,
+                        "mn": get_mn(obj_mc, obj.start.t),
+                        "mc_onset": None,
+                        "mn_onset": None,
+                        "subtype": obj.__class__.__name__,
+                        "value": None,
+                        "text": str(obj),
+                        "voice": getattr(obj, "voice", None),
+                        "staff": getattr(obj, "staff", None),
+                        "part_id": part_id,
+                    }
+                )
+
+            # Process annotation events (from pre-collected list)
+            for obj in annotation_objects:
+                qb = cached_beat_frac(obj.start.t)
+                obj_mc = get_mc(obj.start.t)
+                annotation_rows.append(
+                    {
+                        "id": getattr(obj, "id", None),
+                        "name": getattr(obj, "text", str(obj)),
+                        "temporal_type": "instant",
+                        "event_type": "Text",
+                        "quarterbeats": fraction_to_struct(qb),
+                        "quarterbeats_float": float(qb),
+                        "duration_qb": None,
+                        "duration_qb_float": 0.0,
+                        "mc": obj_mc,
+                        "mn": get_mn(obj_mc, obj.start.t),
+                        "mc_onset": None,
+                        "mn_onset": None,
+                        "subtype": "Text",
+                        "text": getattr(obj, "text", str(obj)),
+                        "staff": getattr(obj, "staff", None),
+                        "part_id": part_id,
+                    }
+                )
 
         # Normalize negative start times
         if note_rows:

@@ -1,0 +1,64 @@
+# ChainMap { #timetoalign.ChainMap }
+
+```python
+ChainMap(maps, *, uid=None)
+```
+
+Composition of multiple maps: f(g(h(x))).
+
+The maps are applied in sequence from first to last.
+The output unit of one map must match the input unit of the next
+(if specified).
+
+Attributes:
+    maps: The sequence of maps to apply.
+
+Examples:
+    >>> # Ticks -> Seconds -> Milliseconds
+    >>> ticks_to_secs = ScalarMap(scalar=1/480, source_unit="ticks", target_unit="seconds")
+    >>> secs_to_ms = ScalarMap(scalar=1000, source_unit="seconds", target_unit="milliseconds")
+    >>> chain = ChainMap([ticks_to_secs, secs_to_ms])
+    >>> chain(480)
+    1000.0
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [is_invertible](#timetoalign.ChainMap.is_invertible) | Whether the chain is invertible (all sub-maps must be invertible). |
+| [maps](#timetoalign.ChainMap.maps) | The sequence of maps. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_dict](#timetoalign.ChainMap.from_dict) | Deserialize from dictionary. |
+| [inverse](#timetoalign.ChainMap.inverse) | Return the inverse chain. |
+| [to_dict](#timetoalign.ChainMap.to_dict) | Serialize to dictionary. |
+
+### from_dict { #timetoalign.ChainMap.from_dict }
+
+```python
+ChainMap.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+### inverse { #timetoalign.ChainMap.inverse }
+
+```python
+ChainMap.inverse()
+```
+
+Return the inverse chain.
+
+This reverses the order of maps and inverts each one.
+(f(g(x)))^-1 = g^-1(f^-1(x))
+
+### to_dict { #timetoalign.ChainMap.to_dict }
+
+```python
+ChainMap.to_dict()
+```
+
+Serialize to dictionary.

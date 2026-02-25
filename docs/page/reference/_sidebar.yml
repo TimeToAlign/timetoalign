@@ -1,0 +1,60 @@
+website:
+  sidebar:
+  - contents:
+    - reference/index.qmd
+    - contents:
+      - reference/Coordinate.qmd
+      - reference/CoordinateSpec.qmd
+      - reference/CoordinateValue.qmd
+      - reference/IdCoordinate.qmd
+      - reference/Domain.qmd
+      - reference/TimeUnit.qmd
+      - reference/NumberType.qmd
+      - reference/EventType.qmd
+      - reference/ScopedId.qmd
+      - reference/IdGenerator.qmd
+      section: Core Types
+    - contents:
+      - reference/Timeline.qmd
+      - reference/ContinuousLogicalTimeline.qmd
+      - reference/DiscreteLogicalTimeline.qmd
+      - reference/ContinuousPhysicalTimeline.qmd
+      - reference/DiscretePhysicalTimeline.qmd
+      - reference/ContinuousGraphicalTimeline.qmd
+      - reference/DiscreteGraphicalTimeline.qmd
+      - reference/LogicalTimeline.qmd
+      - reference/PhysicalTimeline.qmd
+      - reference/GraphicalTimeline.qmd
+      - reference/BeatGrid.qmd
+      section: Timelines
+    - contents:
+      - reference/ConversionMap.qmd
+      - reference/ScalarMap.qmd
+      - reference/LinearMap.qmd
+      - reference/ShiftMap.qmd
+      - reference/TableMap.qmd
+      - reference/ChainMap.qmd
+      - reference/PiecewiseMap.qmd
+      - reference/SecondsToSamples.qmd
+      section: Conversion Maps
+    - contents:
+      - reference/TimelineGroup.qmd
+      - reference/PerfectAlignment.qmd
+      - reference/AlignmentBundle.qmd
+      - reference/AlignmentAnchor.qmd
+      - reference/MatchClaim.qmd
+      - reference/MatchMetadata.qmd
+      section: Alignment
+    - contents:
+      - reference/Loader.qmd
+      - reference/EventData.qmd
+      - reference/EventStore.qmd
+      - reference/SingleStore.qmd
+      - reference/AudioLoader.qmd
+      - reference/AudioInfo.qmd
+      - reference/RepoVizzLoader.qmd
+      - reference/RepoVizzInfo.qmd
+      - reference/EepNotesLoader.qmd
+      section: Loaders
+    id: reference
+  - id: dummy-sidebar

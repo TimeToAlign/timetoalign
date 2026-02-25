@@ -1,0 +1,3 @@
+# CoordinateSpec { #timetoalign.CoordinateSpec }
+
+`CoordinateSpec`

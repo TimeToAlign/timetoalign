@@ -1,0 +1,37 @@
+---
+title: "Tutorials"
+subtitle: "Learn TimeToAlign! step by step"
+listing:
+  id: tutorial-listing
+  contents: tutorials/*.ipynb
+  type: table
+  fields: [title, description]
+  sort: "filename"
+  sort-ui: false
+  filter-ui: false
+---
+
+These tutorials take you from zero to a working multimodal alignment,
+introducing one concept at a time.  Each notebook uses real-world data
+from the project's specimen collection and can be run locally after
+installing the library with `pip install timetoalign[tutorial]`.
+
+**Prerequisites:** Python 3.12+, basic familiarity with Jupyter notebooks.
+
+## Tutorial Notebooks
+
+::: {#tutorial-listing}
+:::
+
+
+## Learning Path
+
+The tutorials are designed to be followed in order:
+
+1. **Foundations** (00--03): What TimeToAlign! is, core concepts,
+   loading data, and converting coordinates.
+2. **Structure** (04--05): Building timeline hierarchies and querying
+   them with timestamps.
+3. **Domains** (06--07): Graphical timelines and alignment basics.
+4. **Applications** (08--10): Complete workflows on real datasets ---
+   a piano roll, beat grids, and a full multimodal Beethoven alignment.

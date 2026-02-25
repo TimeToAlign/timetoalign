@@ -1,0 +1,23 @@
+# DiscreteLogicalTimeline { #timetoalign.DiscreteLogicalTimeline }
+
+```python
+DiscreteLogicalTimeline(
+    length=0,
+    unit=None,
+    number_type=None,
+    id_prefix='tl',
+    uid=None,
+    name=None,
+    locked=False,
+    meta=None,
+)
+```
+
+A logical timeline with discrete (integer) coordinates.
+
+Used for MIDI-based representations where time is measured in
+quantized ticks. Essential for MIDI file parsing and generation.
+
+Default unit: ticks.
+Default number type: int.
+Allowed units: ticks only.
