@@ -297,16 +297,25 @@ pd.DataFrame(
 # %% [markdown]
 # ### Interpolation Methods
 #
-# TableMap supports different interpolation strategies:
+# TableMap supports four interpolation strategies for values between anchor
+# points:
+#
+# | Kind | Behaviour |
+# |------|-----------|
+# | `linear` | Straight line between neighbouring anchors (default) |
+# | `previous` | Hold the *left* anchor's value (step-left) |
+# | `next` | Jump to the *right* anchor's value (step-right) |
+# | `nearest` | Use whichever anchor is closer |
 
 # %%
 
-# Same anchor points, different interpolation
+# Same anchor points, four interpolation strategies
 x = [0, 10, 20, 30]
-y = [0, 5, 5, 10]  # Step function pattern
+y = [0, 3, 7, 10]  # distinct values so differences are easy to spot
 
 linear = TableMap(x_values=x, y_values=y, kind="linear")
-previous = TableMap(x_values=x, y_values=y, kind="previous")  # Step function
+previous = TableMap(x_values=x, y_values=y, kind="previous")
+next_ = TableMap(x_values=x, y_values=y, kind="next")
 nearest = TableMap(x_values=x, y_values=y, kind="nearest")
 
 test_x = [5, 15, 25]
@@ -315,6 +324,7 @@ pd.DataFrame(
         "x": test_x,
         "linear": [linear(v) for v in test_x],
         "previous": [previous(v) for v in test_x],
+        "next": [next_(v) for v in test_x],
         "nearest": [nearest(v) for v in test_x],
     }
 )
