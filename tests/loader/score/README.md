@@ -124,12 +124,29 @@ All score loaders return a `ScoreStore` containing category-specific data:
 
 | File | Purpose | Concern |
 |------|---------|---------|
+| `conftest.py` | Shared fixtures: FlowEntry, parse_flow_csv, SpecimenConfig, SPECIMENS, path constants | Test infrastructure |
+| `test_score_parsing_matrix.py` | Full test matrix: all loader/format/specimen combinations | Primary validation |
 | `test_loaders.py` | Basic unit tests for each loader | Loader functionality |
 | `test_cross_validation.py` | Cross-validates loaders on Chopin (notes, pitch) | Data consistency |
 | `test_measuremap_loader.py` | MeasureMapLoader-specific tests | MeasureMap parsing |
 | `test_flow_control_parity.py` | Flow control extraction (repeat markers, voltas) | Flow control parsing |
-| `test_flow_csv_validation.py` | Validates against .flow.csv ground truth | Flow validation |
-| `test_flow_parity.py` | MC sequence parity tests | Flow computation |
+| `test_flow_csv_validation.py` | CSV structure, right-open convention, partitura segments, round-trip | CSV validation |
+
+### Shared Infrastructure (`conftest.py`)
+
+All score loader tests share configuration from `tests/loader/score/conftest.py`:
+
+| Export | Purpose |
+|--------|---------|
+| `FlowEntry` + `parse_flow_csv()` | Canonical CSV parser with header validation |
+| `SpecimenConfig` + `SPECIMENS` | Test specimen configuration (7 specimens) |
+| `TESTS_DATA_DIR`, `TARGET_FLOWS_DIR`, `SCORE_DATA_DIR` | Path constants (all under `tests/data/`) |
+| `get_specimen_path()` | Resolve file paths by type (tsv, musicxml, mei, mm_json) |
+| `musicxml_too_large()` + `MAX_MUSICXML_SIZE_BYTES` | Large file skip guard (500KB threshold) |
+| `find_source_file()` + `get_loader_for_source_file()` | Source file resolution and loader selection |
+| `get_flow_modes()` | Extract unique flow modes from a CSV |
+
+All test data paths resolve to `tests/data/` — no references to `dashboard/specimens/`.
 
 ## Flow Validation Strategy
 
@@ -261,7 +278,7 @@ pytest tests/loader/score/test_flow_csv_validation.py -v
 pytest tests/loader/score/ --cov=timetoalign.loader.score
 
 # Run diagnostic output
-pytest tests/loader/score/test_flow_parity.py::TestDiagnosticOutput -v -s
+pytest tests/loader/score/test_score_parsing_matrix.py -v
 ```
 
 ## Music21 MEI Loader: Sparse Skeleton Expansion
@@ -377,7 +394,7 @@ Tests automatically skip MusicXML/MEI files larger than **500KB** to avoid timeo
 
 **To adjust the threshold:**
 ```python
-# In test_flow_control_parity.py or test_score_parsing_matrix.py
+# In tests/loader/score/conftest.py (single source of truth)
 MAX_MUSICXML_SIZE_BYTES = 1_000_000  # Increase to 1MB
 ```
 
@@ -404,6 +421,10 @@ Per the **ZERO TOLERANCE VALIDATION POLICY** (AGENTS.md):
 3. **MISMATCHES MUST BE INVESTIGATED**: "Close enough" is never acceptable
 4. **GOLD STANDARD IS AUTHORITATIVE**: TSV from ms3 defines correct values
 5. **LOADER PARITY IS REQUIRED**: Same input must produce equivalent outputs
+6. **WARNING SUPPRESSION**: Test classes using Music21 or Partitura loaders use
+   `@pytest.mark.filterwarnings("ignore::DeprecationWarning")` to suppress
+   third-party deprecation warnings (from `lark`, `partitura` internals).
+   All other warning categories remain active.
 
 ## Test Data
 

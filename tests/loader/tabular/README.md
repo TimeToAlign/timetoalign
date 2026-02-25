@@ -22,7 +22,7 @@ This directory contains comprehensive tests for the `timetoalign.loader.tabular`
 
 ### Source/Provenance
 
-Tests use specimens from `dashboard/specimens/` which are **gold standard** files from established music datasets:
+Tests use specimens from `tests/data/score/` which are **gold standard** files from established music datasets:
 
 | Specimen | Source | Format | Events | Description |
 |----------|--------|--------|--------|-------------|
@@ -54,6 +54,9 @@ Some tests use **dynamically generated temporary files** for isolation:
 | `csv_file` | CSV | id, start, end, event_type, name | Basic CSV with mixed instant/interval events |
 | `tsv_file` | TSV | id, start, end, event_type, name | Same structure, tab-delimited |
 | `minimal_csv` | CSV | start | Minimal file with only required column |
+
+All generated test files use pytest's `tmp_path` fixture for automatic cleanup.
+No manual `os.unlink()` or `tempfile.NamedTemporaryFile(delete=False)` patterns remain.
 
 ---
 
@@ -121,6 +124,8 @@ assert len(loader.events) > 0      # "At least some events"
 cd timetoalign
 python -m tests.loader.tabular.profile_vectorized
 ```
+
+**Note:** The profiler loads specimens from `tests/data/score/` (same as the test suite).
 
 See `PROFILING_REPORT.md` for full details.
 
