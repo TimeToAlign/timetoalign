@@ -168,7 +168,7 @@ class TestMatchfileLoaderSingle:
     def test_score_cmap_shift(self, p01_loader: MatchfileLoader):
         """raw_to_normalised ShiftMap is attached to score timeline."""
         score_tl = p01_loader.create_timeline("score")
-        shift_map = score_tl._conversion_maps.get("raw_to_normalised")
+        shift_map = score_tl.get_conversion_map("raw_to_normalised")
         assert shift_map is not None
         assert isinstance(shift_map, ShiftMap)
         assert shift_map.offset == 0.5
@@ -176,7 +176,7 @@ class TestMatchfileLoaderSingle:
     def test_score_cmap_divs(self, p01_loader: MatchfileLoader):
         """quarters_to_divs ScalarMap is attached, maps 1.0 -> 480."""
         score_tl = p01_loader.create_timeline("score")
-        divs_map = score_tl._conversion_maps.get("quarters_to_divs")
+        divs_map = score_tl.get_conversion_map("quarters_to_divs")
         assert divs_map is not None
         assert isinstance(divs_map, ScalarMap)
         assert divs_map(1.0) == MIDI_CLOCK_UNITS
@@ -297,7 +297,7 @@ class TestMatchfileLoaderNormalization:
         loader = MatchfileLoader(normalize_anacrusis=False)
         loader.load(P01_MATCH)
         score_tl = loader.create_timeline("score")
-        shift_map = score_tl._conversion_maps.get("raw_to_normalised")
+        shift_map = score_tl.get_conversion_map("raw_to_normalised")
         assert shift_map is None
 
     def test_normalisation_still_shifts_coordinates(self):
@@ -561,6 +561,250 @@ class TestMatchfileLoaderExternalScore:
         bundle = loader.create_alignment_bundle(score_timeline=external_score)
         for claim in bundle.cross_group_claims:
             assert claim.timeline_a_id == "score:Chopin_op10_no3"
+
+    def test_compatible_external_score_accepted(self, p01_loader: MatchfileLoader):
+        """External score with matching events passes verification."""
+        # Build an external timeline with matching coordinates
+        internal_score = p01_loader.create_timeline("score")
+        external_score = ContinuousLogicalTimeline(
+            length=200.0,
+            unit=TimeUnit.quarters,
+            uid="score:Chopin_op10_no3",
+        )
+        # Copy a few events from internal to external
+        events = internal_score.events
+        sample_events = []
+        for i, event in enumerate(events):
+            if i >= 5:
+                break
+            sample_events.append(
+                {
+                    "id": event["id"],
+                    "start": float(event["start"]["value"]),
+                    "end": float(event["end"]["value"]),
+                }
+            )
+        external_score.add_events(sample_events)
+
+        # Should not raise
+        bundle = p01_loader.create_alignment_bundle(score_timeline=external_score)
+        assert bundle.timelines["score"] is external_score
+
+    def test_incompatible_external_score_raises(self, p01_loader: MatchfileLoader):
+        """External score with mismatched coordinates raises ValueError."""
+        external_score = ContinuousLogicalTimeline(
+            length=200.0,
+            unit=TimeUnit.quarters,
+            uid="score:Chopin_op10_no3",
+        )
+        # Add an event with a known snote ID but wrong coordinate
+        # Get a real snote ID from the loader's internal cache
+        real_id = next(iter(p01_loader._score_events))
+        real_start, real_end = p01_loader._score_events[real_id]
+        external_score.add_events(
+            [
+                {
+                    "id": real_id,
+                    "start": real_start + 99.0,  # deliberately wrong
+                    "end": real_end + 99.0,
+                }
+            ]
+        )
+
+        with pytest.raises(ValueError, match="incompatible event"):
+            p01_loader.create_alignment_bundle(score_timeline=external_score)
+
+    def test_verify_false_skips_check(self, p01_loader: MatchfileLoader):
+        """verify=False allows incompatible external score without error."""
+        external_score = ContinuousLogicalTimeline(
+            length=200.0,
+            unit=TimeUnit.quarters,
+            uid="score:Chopin_op10_no3",
+        )
+        real_id = next(iter(p01_loader._score_events))
+        real_start, real_end = p01_loader._score_events[real_id]
+        external_score.add_events(
+            [
+                {
+                    "id": real_id,
+                    "start": real_start + 99.0,
+                    "end": real_end + 99.0,
+                }
+            ]
+        )
+
+        # Should NOT raise with verify=False
+        bundle = p01_loader.create_alignment_bundle(
+            score_timeline=external_score, verify=False
+        )
+        assert bundle.timelines["score"] is external_score
+
+    def test_empty_external_score_accepted(self, p01_loader: MatchfileLoader):
+        """External score with no events passes verification (absence tolerated)."""
+        external_score = ContinuousLogicalTimeline(
+            length=100.0,
+            unit=TimeUnit.quarters,
+            uid="score:Chopin_op10_no3",
+        )
+        # No events added — all lookups return None — tolerated
+        bundle = p01_loader.create_alignment_bundle(score_timeline=external_score)
+        assert bundle.timelines["score"] is external_score
+
+
+# endregion
+
+
+# region TestTimelineGetEvent
+
+
+class TestTimelineGetEvent:
+    """Tests for Timeline.get_event() — single event lookup by ID."""
+
+    def test_get_existing_event(self, p01_loader: MatchfileLoader):
+        """get_event returns a dict for a known event ID."""
+        score_tl = p01_loader.create_timeline("score")
+        event = score_tl.get_event("n1")
+        assert event is not None
+        assert event["id"] == "n1"
+
+    def test_get_nonexistent_event(self, p01_loader: MatchfileLoader):
+        """get_event returns None for an unknown event ID."""
+        score_tl = p01_loader.create_timeline("score")
+        event = score_tl.get_event("nonexistent_note_xyz")
+        assert event is None
+
+    def test_event_has_coordinates(self, p01_loader: MatchfileLoader):
+        """Returned event dict has start and end coordinates."""
+        score_tl = p01_loader.create_timeline("score")
+        event = score_tl.get_event("n1")
+        assert event is not None
+        assert "start" in event
+        assert "end" in event
+
+    def test_event_start_matches_cache(self, p01_loader: MatchfileLoader):
+        """get_event coordinate matches the internal _score_events cache."""
+        score_tl = p01_loader.create_timeline("score")
+        for snote_id, (cached_start, _cached_end) in list(
+            p01_loader._score_events.items()
+        )[:10]:
+            event = score_tl.get_event(snote_id)
+            assert event is not None
+            start_val = (
+                float(event["start"]["value"])
+                if isinstance(event["start"], dict)
+                else float(event["start"])
+            )
+            assert abs(start_val - cached_start) < 1e-10
+
+    def test_performance_timeline_get_event(self, p01_loader: MatchfileLoader):
+        """get_event works on performance timelines too."""
+        perf_tl = p01_loader.create_timeline("perf:1")
+        # Performance notes have IDs like "n0", "n1", etc.
+        # Get first event from the timeline
+        events = perf_tl.events
+        first_event = next(iter(events))
+        first_id = first_event["id"]
+        result = perf_tl.get_event(first_id)
+        assert result is not None
+        assert result["id"] == first_id
+
+
+# endregion
+
+
+# region TestTimelineGetConversionMapByName
+
+
+class TestTimelineGetConversionMapByName:
+    """Tests for Timeline.get_conversion_map() with name-based lookup."""
+
+    def test_lookup_by_unit_still_works(self, p01_loader: MatchfileLoader):
+        """Unit-based lookup (original API) still works."""
+        perf_tl = p01_loader.create_timeline("perf:1")
+        secs_map = perf_tl.get_conversion_map(TimeUnit.seconds)
+        assert secs_map is not None
+        assert isinstance(secs_map, ScalarMap)
+
+    def test_lookup_by_unit_string(self, p01_loader: MatchfileLoader):
+        """String unit lookup (e.g. 'seconds') still works."""
+        perf_tl = p01_loader.create_timeline("perf:1")
+        secs_map = perf_tl.get_conversion_map("seconds")
+        assert secs_map is not None
+
+    def test_lookup_by_name_shift_map(self, p01_loader: MatchfileLoader):
+        """Name-based lookup finds the raw_to_normalised ShiftMap."""
+        score_tl = p01_loader.create_timeline("score")
+        shift_map = score_tl.get_conversion_map("raw_to_normalised")
+        assert shift_map is not None
+        assert isinstance(shift_map, ShiftMap)
+        assert shift_map.offset == 0.5
+
+    def test_lookup_by_name_scalar_map(self, p01_loader: MatchfileLoader):
+        """Name-based lookup finds the quarters_to_divs ScalarMap."""
+        score_tl = p01_loader.create_timeline("score")
+        divs_map = score_tl.get_conversion_map("quarters_to_divs")
+        assert divs_map is not None
+        assert isinstance(divs_map, ScalarMap)
+
+    def test_lookup_by_unknown_name_returns_none(self, p01_loader: MatchfileLoader):
+        """Name-based lookup for a non-existent map returns None."""
+        score_tl = p01_loader.create_timeline("score")
+        result = score_tl.get_conversion_map("nonexistent_map")
+        assert result is None
+
+    def test_lookup_by_unknown_unit_returns_none(self, p01_loader: MatchfileLoader):
+        """Unit-based lookup for a unit with no map returns None."""
+        score_tl = p01_loader.create_timeline("score")
+        result = score_tl.get_conversion_map(TimeUnit.milliseconds)
+        assert result is None
+
+
+# endregion
+
+
+# region TestMatchfileLoaderCheckOrAddScoreEvent
+
+
+class TestMatchfileLoaderCheckOrAddScoreEvent:
+    """Tests for the _check_or_add_score_event() compatibility check."""
+
+    def test_compatible_event_returns_true(self, p01_loader: MatchfileLoader):
+        """Known event with matching coordinates is compatible."""
+        real_id = next(iter(p01_loader._score_events))
+        onset, end = p01_loader._score_events[real_id]
+        assert p01_loader._check_or_add_score_event(real_id, onset, end, "test.match")
+
+    def test_incompatible_event_returns_false(self, p01_loader: MatchfileLoader):
+        """Known event with different onset is incompatible."""
+        real_id = next(iter(p01_loader._score_events))
+        onset, end = p01_loader._score_events[real_id]
+        assert not p01_loader._check_or_add_score_event(
+            real_id, onset + 99.0, end + 99.0, "test.match"
+        )
+
+    def test_new_event_added(self, p01_loader: MatchfileLoader):
+        """Unknown event ID is added to the cache and timeline."""
+        new_id = "n_brand_new_test_event"
+        assert new_id not in p01_loader._score_events
+        result = p01_loader._check_or_add_score_event(new_id, 42.0, 43.0, "test.match")
+        assert result is True
+        assert new_id in p01_loader._score_events
+        assert p01_loader._score_events[new_id] == (42.0, 43.0)
+
+    def test_new_event_appears_on_timeline(self, p01_loader: MatchfileLoader):
+        """Newly added event is retrievable via Timeline.get_event()."""
+        new_id = "n_timeline_lookup_test"
+        p01_loader._check_or_add_score_event(new_id, 10.0, 11.0, "test.match")
+        score_tl = p01_loader.create_timeline("score")
+        event = score_tl.get_event(new_id)
+        assert event is not None
+        assert event["id"] == new_id
+
+    def test_to_tta_coord_static(self):
+        """_to_tta_coord is a pure offset addition."""
+        assert MatchfileLoader._to_tta_coord(3.5, 0.5) == 4.0
+        assert MatchfileLoader._to_tta_coord(-0.5, 0.5) == 0.0
+        assert MatchfileLoader._to_tta_coord(0.0, 0.0) == 0.0
 
 
 # endregion

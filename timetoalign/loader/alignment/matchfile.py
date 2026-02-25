@@ -208,6 +208,71 @@ class MatchfileLoader:
 
         return self
 
+    @staticmethod
+    def _to_tta_coord(raw: float, offset: float) -> float:
+        """Convert a raw partitura coordinate to a TTA coordinate.
+
+        TTA coordinates are normalised so that the minimum score onset
+        is 0.0. The *offset* is the negation of the minimum raw onset
+        from the first loaded file.
+
+        Args:
+            raw: Raw partitura onset value (may be negative for anacrusis).
+            offset: Anacrusis offset (``-min(raw_onsets)``; always >= 0).
+
+        Returns:
+            Normalised coordinate (always >= 0).
+        """
+        return raw + offset
+
+    def _check_or_add_score_event(
+        self,
+        snote_id: str,
+        onset_tta: float,
+        end_tta: float,
+        source_file: str,
+    ) -> bool:
+        """Verify or register a score event on the shared timeline.
+
+        Algorithm:
+            1. Look up the event by ``snote_id`` in the local cache.
+            2a. Found AND start coordinate matches -> compatible.
+            2b. Found AND start coordinate does NOT match -> incompatible.
+            2c. Not found -> add the event to the timeline and cache.
+
+        Args:
+            snote_id: Score note identifier (e.g. ``"n1"``).
+            onset_tta: Normalised start coordinate.
+            end_tta: Normalised end coordinate.
+            source_file: Filename for diagnostic messages.
+
+        Returns:
+            ``True`` if compatible (event matched or was added);
+            ``False`` if incompatible (coordinate mismatch).
+        """
+        if snote_id in self._score_events:
+            stored_start, _stored_end = self._score_events[snote_id]
+            if abs(stored_start - onset_tta) > 1e-10:
+                self._logger.warning(
+                    "File '%s': snote '%s' has onset %s but timeline "
+                    "stores %s — file rejected.",
+                    source_file,
+                    snote_id,
+                    onset_tta,
+                    stored_start,
+                )
+                return False
+            return True
+
+        # New event — add to timeline and cache
+        self._score_events[snote_id] = (onset_tta, end_tta)
+        if self._score_timeline is not None:
+            self._score_timeline.add_events(
+                [{"id": snote_id, "start": onset_tta, "end": end_tta}],
+                allow_expansion=True,
+            )
+        return True
+
     def _load_source(self, path: Path) -> None:
         """Parse a single .match file and accumulate internal state.
 
@@ -285,8 +350,8 @@ class MatchfileLoader:
             for sid, row in score_by_id.items():
                 onset_raw = float(row["onset_beat"])
                 dur = float(row["duration_beat"])
-                onset_tta = onset_raw + offset
-                end_tta = onset_raw + dur + offset
+                onset_tta = self._to_tta_coord(onset_raw, offset)
+                end_tta = self._to_tta_coord(onset_raw + dur, offset)
                 score_event_dicts.append(
                     {
                         "id": sid,
@@ -325,42 +390,22 @@ class MatchfileLoader:
             )
 
         else:
-            # Subsequent file: verify compatibility
-            incompatible = False
+            # Subsequent file: verify compatibility via _check_or_add_score_event
             for sid, row in score_by_id.items():
                 onset_raw = float(row["onset_beat"])
                 dur = float(row["duration_beat"])
-                onset_tta = onset_raw + offset
-                end_tta = onset_raw + dur + offset
+                onset_tta = self._to_tta_coord(onset_raw, offset)
+                end_tta = self._to_tta_coord(onset_raw + dur, offset)
 
-                if sid in self._score_events:
-                    stored_start, stored_end = self._score_events[sid]
-                    if abs(stored_start - onset_tta) > 1e-10:
-                        self._logger.warning(
-                            "File '%s': snote '%s' has onset %s but timeline "
-                            "stores %s — file rejected.",
-                            path.name,
-                            sid,
-                            onset_tta,
-                            stored_start,
-                        )
-                        incompatible = True
-                        break
-                else:
-                    # New event not yet on timeline — add it
-                    self._score_events[sid] = (onset_tta, end_tta)
-                    self._score_timeline.add_events(
-                        [{"id": sid, "start": onset_tta, "end": end_tta}],
-                        allow_expansion=True,
+                if not self._check_or_add_score_event(
+                    sid, onset_tta, end_tta, path.name
+                ):
+                    self._rejected_files.append(path)
+                    self._logger.warning(
+                        "File '%s' rejected due to incompatible " "score coordinates.",
+                        path.name,
                     )
-
-            if incompatible:
-                self._rejected_files.append(path)
-                self._logger.warning(
-                    "File '%s' rejected due to incompatible score coordinates.",
-                    path.name,
-                )
-                return
+                    return
 
         # Phase 2: Build performance timeline
         perf_event_dicts = []
@@ -511,9 +556,55 @@ class MatchfileLoader:
 
     # region Domain Object Creation
 
+    def _verify_external_score(
+        self,
+        external: "Timeline",
+    ) -> list[str]:
+        """Check that internally built score events are compatible with an external timeline.
+
+        Iterates over every score event ID in the local cache and looks
+        it up on *external* via `Timeline.get_event`. An event is
+        **incompatible** if:
+
+        - It exists on the external timeline but its start coordinate
+          differs by more than 1e-10 from the internally stored value.
+
+        Events that are present in the internal cache but absent from
+        the external timeline are **not** treated as incompatible — the
+        external timeline may simply not contain that event (e.g. grace
+        notes omitted by a different parser).
+
+        Args:
+            external: A score timeline produced by another loader (e.g.
+                ``PartituraLoader``).
+
+        Returns:
+            A list of human-readable mismatch descriptions. Empty if
+            the timelines are fully compatible.
+        """
+        mismatches: list[str] = []
+        for snote_id, (internal_start, _internal_end) in self._score_events.items():
+            ext_event = external.get_event(snote_id)
+            if ext_event is None:
+                # Event not present on external timeline — tolerated
+                continue
+            ext_start = ext_event.get("start")
+            if ext_start is not None:
+                if isinstance(ext_start, dict):
+                    ext_val = float(ext_start["value"])
+                else:
+                    ext_val = float(ext_start)
+                if abs(ext_val - internal_start) > 1e-10:
+                    mismatches.append(
+                        f"snote '{snote_id}': internal={internal_start}, "
+                        f"external={ext_val}"
+                    )
+        return mismatches
+
     def create_alignment_bundle(
         self,
         score_timeline: "Timeline | None" = None,
+        verify: bool = True,
     ) -> "AlignmentBundle":
         """Assemble an AlignmentBundle from the loaded data.
 
@@ -526,6 +617,12 @@ class MatchfileLoader:
         This method takes NO file arguments. Files must be loaded first
         via ``load()``.
 
+        When an external *score_timeline* is supplied and *verify* is
+        ``True`` (the default), the loader cross-checks every internally
+        built score event against the external timeline using
+        `Timeline.get_event`. A ``ValueError`` is raised if any event
+        coordinates are incompatible.
+
         Args:
             score_timeline: Optional pre-existing score timeline. When
                 supplied, the bundle uses this timeline instead of the
@@ -533,6 +630,12 @@ class MatchfileLoader:
                 rebound — they still reference the internally built
                 score timeline's uid. For correct cross-referencing,
                 the external timeline should have the same uid.
+            verify: If ``True`` (default) and *score_timeline* is not
+                ``None``, verify that internally built events are
+                compatible with the external timeline. Set to ``False``
+                to skip verification (e.g. when the external timeline
+                is known to be authoritative and you accept any
+                coordinate differences).
 
         Returns:
             ``AlignmentBundle`` with score group + standalone performances
@@ -540,6 +643,8 @@ class MatchfileLoader:
 
         Raises:
             RuntimeError: If ``load()`` has not been called yet.
+            ValueError: If *verify* is ``True`` and the external
+                timeline has incompatible event coordinates.
 
         Examples:
             >>> loader = MatchfileLoader()
@@ -558,6 +663,19 @@ class MatchfileLoader:
         actual_score = (
             score_timeline if score_timeline is not None else self._score_timeline
         )
+
+        # Verify external timeline compatibility
+        if score_timeline is not None and verify:
+            mismatches = self._verify_external_score(score_timeline)
+            if mismatches:
+                detail = "; ".join(mismatches[:5])
+                suffix = (
+                    f" (and {len(mismatches) - 5} more)" if len(mismatches) > 5 else ""
+                )
+                raise ValueError(
+                    f"External score timeline has {len(mismatches)} "
+                    f"incompatible event(s): {detail}{suffix}"
+                )
 
         bundle = AlignmentBundle()
         bundle.add_timeline(actual_score, uid="score", as_group="score")
