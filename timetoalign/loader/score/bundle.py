@@ -41,6 +41,27 @@ class ScoreStore(EventStore):
     annotations: AnnotationEventData
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def anacrusis_offset(self) -> float:
+        """Quarter-beat shift applied by the loader to normalise anacrusis.
+
+        Equal to ``-min(raw_partitura_onset)`` (or the music21 equivalent)
+        across all notes in the source file.  Zero when the score has no
+        anacrusis (i.e. the first note starts at or after beat 0).
+
+        This value is stored in :attr:`metadata` under the key
+        ``"anacrusis_offset"`` by both ``PartituraLoader`` and
+        ``Music21Loader``.  ``MatchfileLoader`` reads it to convert raw
+        partitura coordinates from ``.match`` files to the TTA coordinate
+        space before comparing them against stored event coordinates.
+
+        The shift is the offset of the ``ShiftMap`` that ``MatchfileLoader``
+        should attach to any score timeline it builds: the forward direction
+        is ``raw → TTA`` (add offset); the ``InverseMap`` converts back
+        (subtract offset).
+        """
+        return float(self.metadata.get("anacrusis_offset", 0.0))
+
     @classmethod
     def empty(cls) -> ScoreStore:
         """Create an empty ScoreStore with empty data."""
