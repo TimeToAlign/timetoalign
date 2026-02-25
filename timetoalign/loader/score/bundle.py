@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import logging
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from timetoalign.loader.bundle import EventStore
@@ -15,6 +18,8 @@ from timetoalign.loader.store import EventData
 
 if TYPE_CHECKING:
     from timetoalign.maps import ConversionMap
+
+module_logger = logging.getLogger(__name__)
 
 # Store names in canonical order
 STORE_NAMES: tuple[str, ...] = ("notes", "measures", "controls", "annotations")
@@ -88,6 +93,95 @@ class ScoreStore(EventStore):
         # Loader handles source metadata separately.
         # We can merge non-source metadata if needed.
         self.metadata.update(other.metadata)
+
+    # region Serialization
+
+    def to_parquet(self, directory: Path | str) -> None:
+        """Save all facets to a directory of Parquet files.
+
+        Creates one ``<facet>.parquet`` file for each non-empty facet
+        (notes, measures, controls, annotations) and a ``metadata.json``
+        containing store-level metadata such as ``anacrusis_offset``.
+
+        Args:
+            directory: Directory to write into.  Created if it does not
+                exist.
+
+        Examples:
+            >>> store.to_parquet("/tmp/my_score")
+            >>> # creates notes.parquet, measures.parquet, …, metadata.json
+        """
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+
+        for name, data in self.items():
+            if len(data) > 0:
+                data.to_parquet(directory / f"{name}.parquet")
+
+        # Persist store-level metadata (e.g. anacrusis_offset)
+        meta_path = directory / "metadata.json"
+        # Serialise only JSON-safe values from self.metadata.
+        serialisable = {}
+        for k, v in self.metadata.items():
+            try:
+                json.dumps(v)
+                serialisable[k] = v
+            except (TypeError, ValueError):
+                module_logger.debug("Skipping non-serialisable metadata key %r", k)
+        meta_path.write_text(json.dumps(serialisable, indent=2))
+
+    @classmethod
+    def from_parquet(cls, directory: Path | str) -> ScoreStore:
+        """Load a ScoreStore from a directory of Parquet files.
+
+        Expects the layout produced by :meth:`to_parquet`: one
+        ``<facet>.parquet`` per facet and an optional ``metadata.json``.
+
+        Args:
+            directory: Directory containing the Parquet files.
+
+        Returns:
+            A reconstructed ScoreStore.
+
+        Raises:
+            FileNotFoundError: If *directory* does not exist.
+        """
+        directory = Path(directory)
+        if not directory.is_dir():
+            raise FileNotFoundError(
+                f"Expected a directory for ScoreStore deserialization: {directory}"
+            )
+
+        facet_classes: dict[str, type[EventData]] = {
+            "notes": NoteEventData,
+            "measures": MeasureData,
+            "controls": ControlEventData,
+            "annotations": AnnotationEventData,
+        }
+
+        facets: dict[str, EventData] = {}
+        for name, klass in facet_classes.items():
+            parquet_path = directory / f"{name}.parquet"
+            if parquet_path.exists():
+                facets[name] = klass.from_parquet(parquet_path)
+            else:
+                facets[name] = klass.empty()
+
+        # Load metadata
+        meta_path = directory / "metadata.json"
+        metadata: dict[str, Any] = {}
+        if meta_path.exists():
+            metadata = json.loads(meta_path.read_text())
+
+        return cls(
+            notes=facets["notes"],
+            measures=facets["measures"],
+            controls=facets["controls"],
+            annotations=facets["annotations"],
+            metadata=metadata,
+        )
+
+    # endregion
 
     def summary(self) -> dict[str, Any]:
         """Get summary of all stores."""

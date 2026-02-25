@@ -372,3 +372,149 @@ class TestAnacrusisOffset:
         # mapping issue; use 'duration_qb_float'/'quarterbeats_float' proxy.
         # The reliable check is via metadata offset > 0 already verified above.
         assert offset > 0.0  # Chopin has an anacrusis
+
+
+# region Parquet Serialization Tests
+
+
+class TestScoreStoreParquet:
+    """Round-trip tests for ScoreStore parquet serialisation."""
+
+    def test_to_parquet_creates_directory(self, chopin_tsv_notes, tmp_path):
+        """to_parquet creates the output directory and writes facet files."""
+        loader = TSVLoader()
+        loader.load(chopin_tsv_notes)
+        store = loader.store
+
+        out_dir = tmp_path / "score_out"
+        store.to_parquet(out_dir)
+
+        assert out_dir.is_dir()
+        assert (out_dir / "notes.parquet").exists()
+        assert (out_dir / "metadata.json").exists()
+
+    def test_round_trip_note_count(self, chopin_tsv_notes, tmp_path):
+        """Notes survive a round-trip through parquet."""
+        loader = TSVLoader()
+        loader.load(chopin_tsv_notes)
+        original = loader.store
+
+        out_dir = tmp_path / "score_rt"
+        original.to_parquet(out_dir)
+        restored = ScoreStore.from_parquet(out_dir)
+
+        assert len(restored.notes) == len(original.notes)
+
+    def test_round_trip_measure_count(self, chopin_tsv_notes, tmp_path):
+        """Measures survive a round-trip through parquet."""
+        loader = TSVLoader()
+        loader.load(chopin_tsv_notes)
+        original = loader.store
+
+        out_dir = tmp_path / "score_rt"
+        original.to_parquet(out_dir)
+        restored = ScoreStore.from_parquet(out_dir)
+
+        assert len(restored.measures) == len(original.measures)
+
+    def test_round_trip_metadata(self, chopin_tsv_notes, tmp_path):
+        """Store-level metadata survives a round-trip."""
+        loader = TSVLoader()
+        loader.load(chopin_tsv_notes)
+        original = loader.store
+
+        out_dir = tmp_path / "score_rt"
+        original.to_parquet(out_dir)
+        restored = ScoreStore.from_parquet(out_dir)
+
+        assert restored.metadata.get("parser") == original.metadata.get("parser")
+
+    def test_round_trip_unit_preserved(self, chopin_tsv_notes, tmp_path):
+        """Unit metadata is preserved through the round-trip."""
+        loader = TSVLoader()
+        loader.load(chopin_tsv_notes)
+        original = loader.store
+
+        out_dir = tmp_path / "score_rt"
+        original.to_parquet(out_dir)
+        restored = ScoreStore.from_parquet(out_dir)
+
+        assert restored.notes.unit == original.notes.unit
+
+    def test_empty_facets_not_written(self, chopin_tsv_notes, tmp_path):
+        """Empty facets are omitted from the directory."""
+        loader = TSVLoader()
+        loader.load(chopin_tsv_notes)
+        store = loader.store
+
+        # TSVLoader loading only notes should have no controls/annotations
+        out_dir = tmp_path / "sparse_out"
+        store.to_parquet(out_dir)
+
+        # Controls/annotations are empty, so their files should not exist
+        if len(store.controls) == 0:
+            assert not (out_dir / "controls.parquet").exists()
+        if len(store.annotations) == 0:
+            assert not (out_dir / "annotations.parquet").exists()
+
+    def test_from_parquet_missing_dir_raises(self, tmp_path):
+        """from_parquet raises FileNotFoundError for a missing directory."""
+        with pytest.raises(FileNotFoundError):
+            ScoreStore.from_parquet(tmp_path / "nonexistent")
+
+    def test_from_parquet_missing_facets_returns_empty(self, tmp_path):
+        """from_parquet returns empty facets when files are absent."""
+        import json
+
+        out_dir = tmp_path / "partial"
+        out_dir.mkdir()
+        (out_dir / "metadata.json").write_text(json.dumps({}))
+
+        store = ScoreStore.from_parquet(out_dir)
+        assert len(store.notes) == 0
+        assert len(store.measures) == 0
+
+
+class TestScoreLoaderParquet:
+    """Tests for ScoreLoader.to_parquet / from_parquet overrides."""
+
+    def test_loader_to_parquet_non_empty(self, chopin_tsv_notes, tmp_path):
+        """ScoreLoader.to_parquet writes non-empty files (the original bug)."""
+        loader = TSVLoader()
+        loader.load(chopin_tsv_notes)
+
+        out_dir = tmp_path / "loader_out"
+        loader.to_parquet(out_dir)
+
+        assert (out_dir / "notes.parquet").exists()
+        # The file must be non-trivial (the bug was that it was empty)
+        assert (out_dir / "notes.parquet").stat().st_size > 100
+
+    def test_loader_round_trip(self, chopin_tsv_notes, tmp_path):
+        """ScoreLoader.from_parquet restores a usable loader."""
+        loader = TSVLoader()
+        loader.load(chopin_tsv_notes)
+        original_count = len(loader.store.notes)
+
+        out_dir = tmp_path / "loader_rt"
+        loader.to_parquet(out_dir)
+        restored = TSVLoader.from_parquet(out_dir)
+
+        assert isinstance(restored, TSVLoader)
+        assert len(restored.store.notes) == original_count
+        assert len(restored.events) == original_count
+
+    def test_loader_round_trip_events_property(self, chopin_tsv_notes, tmp_path):
+        """Restored loader's .events property returns notes (not empty)."""
+        loader = TSVLoader()
+        loader.load(chopin_tsv_notes)
+
+        out_dir = tmp_path / "events_rt"
+        loader.to_parquet(out_dir)
+        restored = TSVLoader.from_parquet(out_dir)
+
+        # This is the critical assertion: .events must NOT be empty
+        assert len(restored.events) == 498  # Chopin Op.10 No.3 gold standard
+
+
+# endregion
