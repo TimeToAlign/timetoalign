@@ -45,6 +45,37 @@ MIDI_CLOCK_UNITS = 480  # ticks per quarter
 MIDI_CLOCK_RATE = 500000  # microseconds per quarter (120 BPM)
 TOTAL_MATCH_FILES = 22  # number of performances
 
+# Per-performer deletion counts (from README.md gold standard table).
+# Keyed by performer stem (e.g. "p01") → exact deletion count.
+DELETION_COUNTS: dict[str, int] = {
+    "p01": 3,
+    "p02": 6,
+    "p03": 2,
+    "p04": 4,
+    "p05": 4,
+    "p06": 3,
+    "p07": 3,
+    "p08": 20,
+    "p09": 18,
+    "p10": 7,
+    "p11": 4,
+    "p12": 1,
+    "p13": 2,
+    "p14": 4,
+    "p15": 5,
+    "p16": 6,
+    "p17": 3,
+    "p18": 4,
+    "p19": 2,
+    "p20": 7,
+    "p21": 3,
+    "p22": 2,
+}
+
+# Derived totals
+TOTAL_DELETIONS = sum(DELETION_COUNTS.values())  # 113
+TOTAL_MATCHED = TOTAL_MATCH_FILES * SNOTE_COUNT - TOTAL_DELETIONS  # 9875
+
 # endregion
 
 
@@ -805,6 +836,246 @@ class TestMatchfileLoaderCheckOrAddScoreEvent:
         assert MatchfileLoader._to_tta_coord(3.5, 0.5) == 4.0
         assert MatchfileLoader._to_tta_coord(-0.5, 0.5) == 0.0
         assert MatchfileLoader._to_tta_coord(0.0, 0.0) == 0.0
+
+
+# endregion
+
+
+# region TestPerPerformerDeletionCounts
+
+
+class TestPerPerformerDeletionCounts:
+    """Validate exact per-performer deletion and match counts.
+
+    Gold standard values from README.md. ZERO TOLERANCE: exact counts only.
+    """
+
+    def test_all_files_have_known_deletion_counts(self):
+        """Every match file has a documented deletion count."""
+        for f in ALL_MATCH_FILES:
+            performer = f.stem.split("_")[-1]
+            assert (
+                performer in DELETION_COUNTS
+            ), f"No gold standard deletion count for {performer}"
+
+    @pytest.mark.parametrize(
+        "performer,expected_deletions",
+        list(DELETION_COUNTS.items()),
+    )
+    def test_per_performer_deletion_count(
+        self, performer: str, expected_deletions: int
+    ):
+        """Each performer's deletion count matches the gold standard."""
+        match_file = VIENNA_DATA_DIR / f"Chopin_op10_no3_{performer}.match"
+        loader = MatchfileLoader()
+        loader.load(match_file)
+
+        nomatch_claims = [c for c in loader._claims if not c.is_synchronous]
+        assert len(nomatch_claims) == expected_deletions, (
+            f"Performer {performer}: expected {expected_deletions} deletions, "
+            f"got {len(nomatch_claims)}"
+        )
+
+    @pytest.mark.parametrize(
+        "performer,expected_deletions",
+        list(DELETION_COUNTS.items()),
+    )
+    def test_per_performer_matched_count(self, performer: str, expected_deletions: int):
+        """Each performer's matched count = SNOTE_COUNT - deletions."""
+        match_file = VIENNA_DATA_DIR / f"Chopin_op10_no3_{performer}.match"
+        loader = MatchfileLoader()
+        loader.load(match_file)
+
+        sync_claims = [c for c in loader._claims if c.is_synchronous]
+        expected_matched = SNOTE_COUNT - expected_deletions
+        assert len(sync_claims) == expected_matched, (
+            f"Performer {performer}: expected {expected_matched} matched, "
+            f"got {len(sync_claims)}"
+        )
+
+    def test_total_deletions_across_all_performers(self, all_loader: MatchfileLoader):
+        """Total NOMATCH claims across all 22 files = 113."""
+        nomatch_claims = [c for c in all_loader._claims if not c.is_synchronous]
+        assert len(nomatch_claims) == TOTAL_DELETIONS
+
+    def test_total_matched_across_all_performers(self, all_loader: MatchfileLoader):
+        """Total synchronous claims across all 22 files = 9875."""
+        sync_claims = [c for c in all_loader._claims if c.is_synchronous]
+        assert len(sync_claims) == TOTAL_MATCHED
+
+    def test_p08_highest_deletion_count(self, all_loader: MatchfileLoader):
+        """p08 has the most deletions (20) — outlier validation."""
+        # Find claims referencing p08's performance timeline
+        p08_claims = [
+            c
+            for c in all_loader._claims
+            if c.timeline_b_id == "perf:Chopin_op10_no3_p08"
+        ]
+        nomatch_p08 = [c for c in p08_claims if not c.is_synchronous]
+        assert len(nomatch_p08) == 20
+
+    def test_p12_lowest_deletion_count(self, all_loader: MatchfileLoader):
+        """p12 has the fewest deletions (1) — outlier validation."""
+        p12_claims = [
+            c
+            for c in all_loader._claims
+            if c.timeline_b_id == "perf:Chopin_op10_no3_p12"
+        ]
+        nomatch_p12 = [c for c in p12_claims if not c.is_synchronous]
+        assert len(nomatch_p12) == 1
+
+
+# endregion
+
+
+# region TestMatchfileLoaderPerfPNNShorthand
+
+
+class TestMatchfileLoaderPerfPNNShorthand:
+    """Tests for the perf:pNN shorthand in create_timeline()."""
+
+    def test_perf_p01_shorthand(self, p01_loader: MatchfileLoader):
+        """'perf:p01' resolves to the first performance timeline."""
+        tl = p01_loader.create_timeline("perf:p01")
+        assert tl.id == "perf:Chopin_op10_no3_p01"
+
+    def test_perf_p_shorthands_all_22(self, all_loader: MatchfileLoader):
+        """'perf:p01' through 'perf:p22' all resolve for the 22-file set."""
+        for i in range(1, TOTAL_MATCH_FILES + 1):
+            tl = all_loader.create_timeline(f"perf:p{i:02d}")
+            assert tl is not None
+            assert isinstance(tl, DiscreteLogicalTimeline)
+
+    def test_perf_p_shorthand_matches_numeric(self, all_loader: MatchfileLoader):
+        """'perf:pNN' and 'perf:N' resolve to the same timeline."""
+        for i in range(1, TOTAL_MATCH_FILES + 1):
+            tl_numeric = all_loader.create_timeline(f"perf:{i}")
+            tl_pnn = all_loader.create_timeline(f"perf:p{i:02d}")
+            assert tl_numeric is tl_pnn
+
+    def test_perf_p_invalid_raises(self, p01_loader: MatchfileLoader):
+        """'perf:pXX' with non-numeric suffix raises KeyError."""
+        with pytest.raises(KeyError):
+            p01_loader.create_timeline("perf:pabc")
+
+    def test_perf_p_out_of_range_raises(self, p01_loader: MatchfileLoader):
+        """'perf:p99' with out-of-range index raises KeyError."""
+        with pytest.raises(KeyError):
+            p01_loader.create_timeline("perf:p99")
+
+
+# endregion
+
+
+# region TestMatchfileLoaderRejection
+
+
+class TestMatchfileLoaderRejection:
+    """Tests for file rejection during multi-file loading.
+
+    Exercises the code path in _load_source() where a subsequent file
+    has score events with mismatched coordinates.
+    """
+
+    def test_rejection_preserves_prior_state(self, p01_loader: MatchfileLoader):
+        """After injecting a bad score event and loading a 2nd file,
+        the loader rejects the 2nd file and preserves the p01 state."""
+        # Tamper with the internal cache: give a known snote_id a wrong onset
+        real_id = next(iter(p01_loader._score_events))
+        original = p01_loader._score_events[real_id]
+        p01_loader._score_events[real_id] = (original[0] + 99.0, original[1] + 99.0)
+
+        # Load a second file (p02) — it will see the tampered coordinate
+        # and reject the file
+        p02_match = VIENNA_DATA_DIR / "Chopin_op10_no3_p02.match"
+        p01_loader.load(p02_match)
+
+        # p02 should be rejected
+        assert len(p01_loader.rejected_files) == 1
+        assert p01_loader.rejected_files[0] == p02_match
+
+        # Performance count unchanged (only p01)
+        assert len(p01_loader) == 1
+
+        # Claims unchanged (only p01's claims)
+        assert len(p01_loader._claims) == SNOTE_COUNT
+
+    def test_rejection_does_not_add_performance_timeline(
+        self, p01_loader: MatchfileLoader
+    ):
+        """Rejected file does not contribute a performance timeline."""
+        real_id = next(iter(p01_loader._score_events))
+        original = p01_loader._score_events[real_id]
+        p01_loader._score_events[real_id] = (original[0] + 99.0, original[1] + 99.0)
+
+        p02_match = VIENNA_DATA_DIR / "Chopin_op10_no3_p02.match"
+        p01_loader.load(p02_match)
+
+        timelines = p01_loader.create_timelines()
+        assert len(timelines) == 2  # score + p01 only
+
+    def test_rejected_file_tracked_in_sources(self, p01_loader: MatchfileLoader):
+        """Rejected files appear in sources list (all files attempted)."""
+        real_id = next(iter(p01_loader._score_events))
+        original = p01_loader._score_events[real_id]
+        p01_loader._score_events[real_id] = (original[0] + 99.0, original[1] + 99.0)
+
+        p02_match = VIENNA_DATA_DIR / "Chopin_op10_no3_p02.match"
+        p01_loader.load(p02_match)
+
+        assert len(p01_loader.sources) == 2  # p01 + p02 both tracked
+        assert p02_match in p01_loader.sources
+
+    def test_rejection_allows_subsequent_compatible_files(
+        self, p01_loader: MatchfileLoader
+    ):
+        """After a rejected file, a compatible file still loads normally."""
+        real_id = next(iter(p01_loader._score_events))
+        original = p01_loader._score_events[real_id]
+        p01_loader._score_events[real_id] = (original[0] + 99.0, original[1] + 99.0)
+
+        p02_match = VIENNA_DATA_DIR / "Chopin_op10_no3_p02.match"
+        p01_loader.load(p02_match)
+
+        assert len(p01_loader.rejected_files) == 1
+
+        # Restore the original cache entry so p03 will be compatible
+        p01_loader._score_events[real_id] = original
+
+        p03_match = VIENNA_DATA_DIR / "Chopin_op10_no3_p03.match"
+        p01_loader.load(p03_match)
+
+        # p03 should be accepted
+        assert len(p01_loader.rejected_files) == 1  # still only p02
+        assert len(p01_loader) == 2  # p01 + p03
+
+
+# endregion
+
+
+# region TestPerPerformerPerfNoteCount
+
+
+class TestPerPerformerPerfNoteCount:
+    """Validate that each performer's performance timeline has the correct
+    number of notes (= matched count = SNOTE_COUNT - deletions)."""
+
+    @pytest.mark.parametrize(
+        "performer,expected_deletions",
+        list(DELETION_COUNTS.items()),
+    )
+    def test_perf_note_count(self, performer: str, expected_deletions: int):
+        """Performance timeline note count = SNOTE_COUNT - deletions."""
+        match_file = VIENNA_DATA_DIR / f"Chopin_op10_no3_{performer}.match"
+        loader = MatchfileLoader()
+        loader.load(match_file)
+
+        perf_tl = loader.create_timeline("perf:1")
+        expected = SNOTE_COUNT - expected_deletions
+        assert len(perf_tl) == expected, (
+            f"Performer {performer}: expected {expected} perf notes, "
+            f"got {len(perf_tl)}"
+        )
 
 
 # endregion
