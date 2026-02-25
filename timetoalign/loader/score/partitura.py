@@ -56,6 +56,20 @@ class PartituraLoader(ScoreLoader):
 
     Supports MusicXML (fully typed) and MIDI (quantized).
     Returns ScoreStore with category-specific data.
+
+    All TTA timelines start at coordinate 0.  When partitura reports negative
+    quarter-beat onsets (anacrusis notes that precede the first full measure),
+    this loader shifts every event coordinate so that the earliest onset maps
+    to 0.0.  The magnitude of that shift is available as
+    :attr:`anacrusis_offset` and is also stored in
+    ``ScoreStore.metadata["anacrusis_offset"]`` so that downstream consumers
+    (e.g. ``MatchfileLoader``) can apply the same correction when comparing
+    raw partitura coordinates against this loader's stored values.
+
+    The shift is equivalent to the offset of a ``ShiftMap`` whose forward
+    direction is ``raw_partitura_coord → TTA_coord`` (i.e. adding the offset).
+    Its ``InverseMap`` (subtracting the offset) converts TTA coordinates back
+    to raw partitura space when needed.
     """
 
     def __init__(
@@ -65,6 +79,21 @@ class PartituraLoader(ScoreLoader):
     ) -> None:
         super().__init__()
         self._force_note_ids = force_note_ids
+        self._anacrusis_offset: float = 0.0
+
+    @property
+    def anacrusis_offset(self) -> float:
+        """Quarter-beat shift applied to normalise anacrusis coordinates.
+
+        Equal to ``-min(raw_partitura_onset)`` across all notes in the most
+        recently loaded source.  Zero when the score has no anacrusis (i.e.
+        the first note starts at or after beat 0).
+
+        Use this value to convert a raw partitura coordinate ``c`` to the TTA
+        coordinate stored on the resulting timeline: ``tta_coord = c + offset``.
+        Conversely, ``raw_coord = tta_coord - offset``.
+        """
+        return self._anacrusis_offset
 
     def _load_source(self, source: Path) -> ScoreStore:
         """Load score and return ScoreStore."""
@@ -561,12 +590,26 @@ class PartituraLoader(ScoreLoader):
                     }
                 )
 
-        # Normalize negative start times
-        if note_rows:
-            min_qb = min(r["quarterbeats_float"] for r in note_rows)
-            if min_qb < 0:
-                offset = Fraction(-min_qb).limit_denominator(10000)
-                for r in note_rows:
+        # ── Anacrusis normalisation ───────────────────────────────────────────
+        # TTA timelines always start at coordinate 0.  When partitura reports
+        # negative quarter-beat onsets (anacrusis notes), we shift all event
+        # coordinates so the earliest onset becomes 0.0.
+        #
+        # The shift is applied uniformly to notes, measures, controls, and
+        # annotations.  Its value is exposed via self.anacrusis_offset and
+        # stored in the ScoreStore metadata so that any loader that needs to
+        # compare raw partitura values against stored TTA coordinates can apply
+        # the same correction.
+        all_onsets = [r["quarterbeats_float"] for r in note_rows]
+        min_qb = min(all_onsets) if all_onsets else 0.0
+        offset: Fraction = (
+            Fraction(-min_qb).limit_denominator(10000) if min_qb < 0 else Fraction(0)
+        )
+        self._anacrusis_offset = float(offset)
+
+        if offset:
+            for rows in (note_rows, measure_rows, control_rows, annotation_rows):
+                for r in rows:
                     old_qb = Fraction(
                         r["quarterbeats"]["num"], r["quarterbeats"]["den"]
                     )
@@ -622,5 +665,6 @@ class PartituraLoader(ScoreLoader):
                 "parser": "partitura",
                 "source": str(source),
                 "has_rests": has_rests,
+                "anacrusis_offset": float(offset),
             },
         )
