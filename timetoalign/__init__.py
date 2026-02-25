@@ -105,6 +105,7 @@ from timetoalign.alignment import (
     MatchMetadata,
     PerfectAlignment,
     TimelineGroup,
+    WarpMap,
 )
 from timetoalign.core import (
     ColumnNaming,
@@ -216,4 +217,5 @@ __all__ = [
     "MatchClaim",
     "MatchLine",
     "MatchMetadata",
+    "WarpMap",
 ]

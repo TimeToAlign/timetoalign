@@ -476,12 +476,47 @@ This validates the Hendrix M6-M9 use case from the conceptual model: multiple Ma
 
 ## What's NOT Tested (Yet)
 
-The following are planned for Phases 6.6–6.7:
+The following are planned for Phase 6.7:
 
-1. **WarpMap creation** — piecewise linear interpolation from MatchLine (Phase 6.6)
-2. **WarpMap.materialise()** — produce warped Timeline copy with events, children, regions (Phase 6.6)
-3. **Event H transfer** — the manuscript's canonical validation: transfer an event from DGT2 to DGT1 (Phase 6.7)
-4. **Cross-group transfer** — AlignmentBundle.transfer() via MatchLine→WarpMap pipeline (Phase 6.7)
+1. **Event H transfer** — the manuscript's canonical validation: transfer an event from DGT2 to DGT1 (Phase 6.7)
+2. **Cross-group transfer** — AlignmentBundle.transfer() via MatchLine→WarpMap pipeline (Phase 6.7)
+
+---
+
+## WarpMap Phase 6.6 Tests (`test_warpmap.py`)
+
+### What We're Validating
+
+Phase 6.6 introduced `WarpMap`, a standalone class that materialises warped timeline copies from alignment data. It wraps an `InterpolationMap` internally for O(log n) coordinate conversion and bridges the gap between `MatchLine` (Phase 6.5) and `AlignmentBundle` (Phase 6.7).
+
+### Test Classes
+
+| Class | Tests | Purpose |
+|-------|-------|---------|
+| `TestWarpMapConstruction` | 5 | Basic init, `from_match_line()`, `from_coordinate_pairs()`, rejection of <2 points |
+| `TestForwardInverse` | 5 | Linear mapping, identity, extrapolation, inverse round-trip |
+| `TestMaterialise` | 7 | Event warping (instant/interval), child warping, region warping, event count, empty timeline |
+| `TestMaterialiseTypeConversion` | 3 | CLT→CPT type conversion, unit propagation, region unit conversion |
+| `TestSerialization` | 4 | `to_dict()`/`from_dict()` round-trip, repr |
+| `TestMultiTarget` | 1 | Different WarpMaps from same MatchLine for different targets |
+| `TestIntegrationWithClaims` | 1 | End-to-end: MatchClaim → AlignmentAnchor → MatchLine → WarpMap |
+| `TestEdgeCases` | 10 | Non-linear warping, single-point rejection, degenerate intervals, large datasets, overlapping regions |
+
+### Key Evidence
+
+| Test | Validates |
+|------|-----------|
+| `test_forward_inverse_roundtrip` | `inverse(forward(x)) ≈ x` for all x in domain |
+| `test_materialise_warps_instant_events` | Instant event coordinates warped correctly (reads `start` struct dict, not `instant`) |
+| `test_materialise_warps_interval_events` | Start/end/duration all warped; duration uses `forward(start+dur) - forward(start)` for non-linear correctness |
+| `test_materialise_warps_children` | Child offsets converted, child count preserved |
+| `test_materialise_warps_regions` | Region boundaries converted, region names preserved |
+| `test_type_conversion_clt_to_cpt` | Source CLT (quarters) → target CPT (seconds): correct type and unit |
+| `test_full_pipeline` | MatchClaim → AlignmentAnchor → MatchLine → WarpMap → forward/inverse |
+
+### EventData Struct Dict Discovery
+
+A key implementation discovery documented in the tests: EventData converts `{"instant": 0.0}` to `{"start": {"value": 0.0, "numerator": None, "denominator": None}}` internally. The `instant` key is NOT preserved — it becomes `start`. The `temporal_type` field distinguishes instant vs interval events. WarpMap's `_warp_events()` handles both the struct dict format and plain floats.
 
 ---
 
@@ -548,7 +583,7 @@ cd timetoalign
 python -m pytest tests/alignment/ -v
 ```
 
-**Phase 6.5 Status**: 33 tests in `test_matchline.py` (all new). Full alignment suite: 300 passed, 56 skipped. The skips are pre-existing stubs in `test_thoresen_poc.py` and graphical loader tests requiring PyMuPDF.
+**Phase 6.6 Status**: 36 tests in `test_warpmap.py` (all new). Full alignment suite: 336 passed, 56 skipped. The skips are pre-existing stubs in `test_thoresen_poc.py` and graphical loader tests requiring PyMuPDF.
 
 ### Test Files
 
@@ -558,10 +593,11 @@ python -m pytest tests/alignment/ -v
 | `test_bundle.py` | 30 | AlignmentBundle with linear and partial alignment |
 | `test_anchors.py` | ~55 | AlignmentAnchor (Phase 6.2), MatchClaim (Phase 6.3), MatchMetadata |
 | `test_graph.py` | 54 | MatchGraph operations (Phase 6.4: +19 tests for implicit claims, filtering, stamps) |
-| `test_matchline.py` | 33 | **NEW (Phase 6.5)**: MatchLine construction, from_claims, from_graphs, coordinate pairs, serialization |
+| `test_matchline.py` | 33 | MatchLine construction, from_claims, from_graphs, coordinate pairs, serialization (Phase 6.5) |
+| `test_warpmap.py` | 36 | **NEW (Phase 6.6)**: WarpMap construction, forward/inverse, materialise (events, children, regions, type conversion), serialization, end-to-end pipeline |
 | `test_supra_integration.py` | 13 | SUPRA piano roll workflow (partial alignment) |
 | `test_thoresen_poc.py` | 35 | Thoresen graphical analysis workflow |
-| `../timelines/test_offset_arithmetic.py` | 11 | **NEW (Phase 6.1)**: Parent–child offset arithmetic |
+| `../timelines/test_offset_arithmetic.py` | 11 | Parent–child offset arithmetic (Phase 6.1) |
 
 ### Deprecated Tests
 
