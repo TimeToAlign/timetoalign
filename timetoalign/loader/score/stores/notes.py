@@ -141,7 +141,10 @@ class NoteEventData(EventData):
         if not rows:
             return cls.empty(unit, number_type, has_rests)
 
-        from timetoalign.loader.schema import make_table_metadata
+        from timetoalign.loader.schema import (
+            coordinate_to_struct,
+            make_table_metadata,
+        )
 
         schema = cls.schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
@@ -169,6 +172,57 @@ class NoteEventData(EventData):
                 "instant",
             ]:
                 processed.pop(k, None)
+
+            # Convert temporal columns to coordinate struct format.
+            # Loaders may pass fraction-format dicts ({num, den}) or raw
+            # Fraction/float values; normalise everything to the coordinate
+            # struct that the base schema expects ({value, numerator,
+            # denominator}).
+            for col in ["start", "duration"]:
+                val = processed.get(col)
+                if val is not None:
+                    if isinstance(val, dict):
+                        if "num" in val and "value" not in val:
+                            # fraction_to_struct format -> coordinate format
+                            from fractions import Fraction
+
+                            frac = Fraction(val["num"], val["den"])
+                            processed[col] = coordinate_to_struct(frac)
+                        # else: already coordinate struct format, leave as-is
+                    else:
+                        processed[col] = coordinate_to_struct(val)
+
+            # Compute 'end' from start + duration when not explicitly set.
+            if processed.get("end") is None:
+                s = processed.get("start")
+                d = processed.get("duration")
+                if (
+                    s is not None
+                    and d is not None
+                    and isinstance(s, dict)
+                    and isinstance(d, dict)
+                    and s.get("value") is not None
+                    and d.get("value") is not None
+                ):
+                    end_val = s["value"] + d["value"]
+                    end_num = None
+                    end_den = None
+                    if (
+                        s.get("numerator") is not None
+                        and d.get("numerator") is not None
+                    ):
+                        from fractions import Fraction
+
+                        s_frac = Fraction(s["numerator"], s["denominator"])
+                        d_frac = Fraction(d["numerator"], d["denominator"])
+                        e_frac = s_frac + d_frac
+                        end_num = e_frac.numerator
+                        end_den = e_frac.denominator
+                    processed["end"] = {
+                        "value": end_val,
+                        "numerator": end_num,
+                        "denominator": end_den,
+                    }
 
             # Base columns need defaults
             for col in ["start", "end", "duration"]:
