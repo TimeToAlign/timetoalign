@@ -276,13 +276,17 @@ Tests `create_alignment_bundle()`.
 | `test_bundle_cross_group_claims` | Claims transferred to bundle |
 | `test_no_load_raises` | Before `load()` raises `RuntimeError` |
 
-#### `TestMatchfileLoaderExternalScore` (2 tests)
-Tests Pattern B: user-supplied external score timeline.
+#### `TestMatchfileLoaderExternalScore` (6 tests)
+Tests Pattern B: user-supplied external score timeline and compatibility verification.
 
 | Test | Assertion |
 |---|---|
 | `test_external_score_used_in_bundle` | Bundle uses provided score TL |
 | `test_claims_still_reference_internal_uid` | Claims use the loader's internal score uid |
+| `test_compatible_external_score_accepted` | External TL with matching events passes verification |
+| `test_incompatible_external_score_raises` | Mismatched coordinates raise `ValueError` |
+| `test_verify_false_skips_check` | `verify=False` suppresses compatibility check |
+| `test_empty_external_score_accepted` | Absent events tolerated (empty external TL passes) |
 
 #### `TestMatchfileLoaderMulti` (17 tests)
 Full 22-performance scenario.
@@ -302,6 +306,40 @@ Full 22-performance scenario.
 | `test_create_timelines_gives_23` | `create_timelines()` returns 23 | 23 |
 | `test_perf_numeric_lookup_all` | `create_timeline("perf:N")` works for N=1..22 | — |
 | `test_incremental_load` | Load 5, then load 5 more = 10 total | 10 |
+
+#### `TestTimelineGetEvent` (5 tests)
+Tests `Timeline.get_event(event_id)` — single event lookup by ID (Phase B).
+
+| Test | Assertion |
+|---|---|
+| `test_get_existing_event` | Returns dict with matching ID |
+| `test_get_nonexistent_event` | Returns `None` for unknown ID |
+| `test_event_has_coordinates` | Returned dict has `start` and `end` fields |
+| `test_event_start_matches_cache` | Coordinate matches internal `_score_events` cache |
+| `test_performance_timeline_get_event` | Works on performance timelines too |
+
+#### `TestTimelineGetConversionMapByName` (6 tests)
+Tests name-based `get_conversion_map()` fallback lookup (Phase B).
+
+| Test | Assertion |
+|---|---|
+| `test_lookup_by_unit_still_works` | `get_conversion_map(TimeUnit.seconds)` unchanged |
+| `test_lookup_by_unit_string` | `get_conversion_map("seconds")` unchanged |
+| `test_lookup_by_name_shift_map` | `"raw_to_normalised"` finds ShiftMap |
+| `test_lookup_by_name_scalar_map` | `"quarters_to_divs"` finds ScalarMap |
+| `test_lookup_by_unknown_name_returns_none` | Unknown name returns `None` |
+| `test_lookup_by_unknown_unit_returns_none` | Unknown unit returns `None` |
+
+#### `TestMatchfileLoaderCheckOrAddScoreEvent` (5 tests)
+Tests `_check_or_add_score_event()` and `_to_tta_coord()` (Phase B).
+
+| Test | Assertion |
+|---|---|
+| `test_compatible_event_returns_true` | Known event with matching coords returns `True` |
+| `test_incompatible_event_returns_false` | Known event with wrong onset returns `False` |
+| `test_new_event_added` | Unknown event ID added to cache |
+| `test_new_event_appears_on_timeline` | Added event retrievable via `get_event()` |
+| `test_to_tta_coord_static` | `_to_tta_coord(raw, offset)` is pure addition |
 
 ### Validation Against Gold Standard
 
@@ -371,7 +409,7 @@ Profiling baseline for `MatchfileLoader` on this dataset:
 ## Running Tests
 
 ```bash
-# All vienna_1x22-related tests (65 tests, all passing)
+# All vienna_1x22-related tests (85 tests, all passing — Phase A + B)
 pytest tests/loader/test_matchfile_loader.py -v
 
 # Run in serial mode (for debugging)

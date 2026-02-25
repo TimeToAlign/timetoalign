@@ -820,6 +820,39 @@ class Timeline:
             return self._coord_to_float(row["start"])
         return 0.0
 
+    def get_event(self, event_id: str) -> dict[str, Any] | None:
+        """Look up a single event by its ``id`` field.
+
+        Searches the timeline's event store for an event whose ``id``
+        column matches *event_id*. Returns the first matching row as a
+        dictionary, or ``None`` if no event with that ID exists.
+
+        This is a convenience wrapper around a PyArrow filter on the
+        ``id`` column and is intended for point lookups (e.g. verifying
+        that a score note exists on a shared timeline). For bulk queries,
+        use `get_events` or `get_events_at` instead.
+
+        Args:
+            event_id: The event identifier to search for.
+
+        Returns:
+            A dictionary representing the event row, or ``None`` if not
+            found.
+
+        Examples:
+            >>> event = timeline.get_event("n1")
+            >>> event["id"]
+            'n1'
+            >>> timeline.get_event("nonexistent") is None
+            True
+        """
+        table = self._events.table
+        mask = pc.equal(table.column("id"), event_id)
+        filtered = table.filter(mask)
+        if filtered.num_rows == 0:
+            return None
+        return filtered.to_pylist()[0]
+
     def get_events(
         self,
         temporal_type: Literal["instant", "interval"] | None = None,
@@ -1727,17 +1760,51 @@ class Timeline:
     def get_conversion_map(
         self, target_unit: TimeUnit | str
     ) -> ConversionMap[Any] | None:
-        """Get a map converting to the target unit.
+        """Get a conversion map by target unit **or** by name/id.
+
+        When *target_unit* is a valid `TimeUnit` value (or an alias such as
+        ``"seconds"``), the method returns the first attached map whose
+        ``target_unit`` matches.
+
+        When *target_unit* is a string that does **not** correspond to any
+        ``TimeUnit`` member, the method falls back to a name-based lookup:
+        it searches first by ``cmap.id``, then by ``cmap.name``.  This is
+        useful for maps where source and target units are identical (e.g. a
+        ``ShiftMap`` named ``"raw_to_normalised"`` that maps quarters to
+        quarters).
 
         Args:
-            target_unit: The desired output unit.
+            target_unit: A ``TimeUnit`` member, a unit alias string, or a
+                conversion-map name/id string.
 
         Returns:
-            A matching ConversionMap, or None if not found.
+            A matching ``ConversionMap``, or ``None`` if not found.
+
+        Examples:
+            >>> timeline.get_conversion_map(TimeUnit.seconds)
+            ScalarMap(...)
+            >>> timeline.get_conversion_map("raw_to_normalised")
+            ShiftMap(offset=0.5, ...)
         """
-        target = TimeUnit(target_unit)
+        # Attempt unit-based lookup first
+        try:
+            target = TimeUnit(target_unit)
+        except ValueError:
+            pass
+        else:
+            for cmap in self._conversion_maps.values():
+                if cmap.target_unit == target:
+                    return cmap
+            return None
+
+        # Fallback: name/id-based lookup (target_unit is a plain string)
+        name = str(target_unit)
+        # Direct id lookup (O(1) — _conversion_maps is keyed by cmap.id)
+        if name in self._conversion_maps:
+            return self._conversion_maps[name]
+        # Fallback to name attribute scan
         for cmap in self._conversion_maps.values():
-            if cmap.target_unit == target:
+            if cmap.name == name:
                 return cmap
         return None
 
