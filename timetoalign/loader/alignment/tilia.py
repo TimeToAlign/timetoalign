@@ -1,0 +1,618 @@
+"""TiliaJsonLoader: Loader for TiLiA JSON annotation exports.
+
+This module implements the ``TiliaJsonLoader`` class, which parses TiLiA
+``.tla`` / ``.json`` exports and produces:
+
+- One ``ContinuousPhysicalTimeline`` per annotated timeline (timelines in
+  the JSON's ``"timelines"`` array), with events derived from each
+  timeline's ``"components"`` array.
+- A ``TimelineGroup`` containing all timelines, with timestamps at 0 and
+  at the media length.
+- Optionally an ``AlignmentBundle`` wrapping the group (no cross-group
+  claims).
+
+TiLiA encodes analytical annotations on audio recordings. Each timeline
+in a TiLiA export carries a ``"kind"`` field (``HIERARCHY_TIMELINE``,
+``MARKER_TIMELINE``, ``BEAT_TIMELINE``, ``PDF_TIMELINE``, etc.) and a
+``"components"`` array whose elements have kind-dependent schemas.
+
+The loader follows the standard two-phase pattern:
+
+1. ``loader.load(*sources)`` -- parse TiLiA JSON files.
+2. ``loader.create_group()`` -- returns a ``TimelineGroup``.
+3. ``loader.create_timeline(id)`` -- returns a single timeline.
+4. ``loader.create_alignment_bundle()`` -- convenience wrapper.
+
+See Also:
+    timetoalign.loader.format.json.JsonLoader
+    timetoalign.alignment.groups.TimelineGroup
+    timetoalign.alignment.bundle.AlignmentBundle
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING, Any
+
+import pyarrow as pa
+
+from timetoalign.core import TimeUnit
+from timetoalign.loader.format.json import JsonLoader, _normalise_array
+from timetoalign.timelines.types import ContinuousPhysicalTimeline
+
+if TYPE_CHECKING:
+    from timetoalign.alignment.bundle import AlignmentBundle
+    from timetoalign.alignment.groups import TimelineGroup
+    from timetoalign.timelines.base import Timeline
+
+module_logger = logging.getLogger(__name__)
+
+
+# region Component-to-event mapping
+
+
+def _hierarchy_to_events(
+    components: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Convert HIERARCHY components to interval events.
+
+    Hierarchy components have ``start``, ``end``, ``label``, ``level``
+    and other fields.  We map them to interval events with ``start`` and
+    ``end`` coordinates plus metadata.
+
+    Args:
+        components: List of HIERARCHY component dicts.
+
+    Returns:
+        List of event dicts suitable for ``Timeline.add_events()``.
+    """
+    events: list[dict[str, Any]] = []
+    for i, comp in enumerate(components):
+        events.append(
+            {
+                "id": f"h{i:04d}",
+                "start": float(comp["start"]),
+                "end": float(comp["end"]),
+                "event_type": "Hierarchy",
+                "label": comp.get("label", ""),
+                "level": comp.get("level", 0),
+            }
+        )
+    return events
+
+
+def _marker_to_events(
+    components: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Convert MARKER components to instant events.
+
+    Marker components have ``time``, ``label``, and optional
+    ``measure``/``beat`` fields.
+
+    Args:
+        components: List of MARKER component dicts.
+
+    Returns:
+        List of event dicts suitable for ``Timeline.add_events()``.
+    """
+    events: list[dict[str, Any]] = []
+    for i, comp in enumerate(components):
+        events.append(
+            {
+                "id": f"m{i:04d}",
+                "instant": float(comp["time"]),
+                "event_type": "Marker",
+                "label": comp.get("label", ""),
+            }
+        )
+    return events
+
+
+def _beat_to_events(
+    components: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Convert BEAT components to instant events.
+
+    Beat components have ``time``, ``measure``, and ``beat`` fields.
+
+    Args:
+        components: List of BEAT component dicts.
+
+    Returns:
+        List of event dicts suitable for ``Timeline.add_events()``.
+    """
+    events: list[dict[str, Any]] = []
+    for i, comp in enumerate(components):
+        events.append(
+            {
+                "id": f"b{i:04d}",
+                "instant": float(comp["time"]),
+                "event_type": "Beat",
+                "measure": comp.get("measure"),
+                "beat": comp.get("beat"),
+            }
+        )
+    return events
+
+
+def _pdf_marker_to_events(
+    components: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Convert PDF_MARKER components to instant events.
+
+    PDF marker components have ``time``, ``page_number``, and optional
+    ``measure``/``beat`` fields.
+
+    Args:
+        components: List of PDF_MARKER component dicts.
+
+    Returns:
+        List of event dicts suitable for ``Timeline.add_events()``.
+    """
+    events: list[dict[str, Any]] = []
+    for i, comp in enumerate(components):
+        events.append(
+            {
+                "id": f"p{i:04d}",
+                "instant": float(comp["time"]),
+                "event_type": "PdfMarker",
+                "page_number": comp.get("page_number"),
+            }
+        )
+    return events
+
+
+def _generic_to_events(
+    components: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Fallback converter for unknown component kinds.
+
+    Attempts to detect instant vs interval events by looking for
+    ``time`` (instant), or ``start``/``end`` (interval) keys.
+
+    Args:
+        components: List of component dicts.
+
+    Returns:
+        List of event dicts suitable for ``Timeline.add_events()``.
+    """
+    events: list[dict[str, Any]] = []
+    for i, comp in enumerate(components):
+        if "start" in comp and "end" in comp:
+            events.append(
+                {
+                    "id": f"g{i:04d}",
+                    "start": float(comp["start"]),
+                    "end": float(comp["end"]),
+                    "event_type": comp.get("kind", "Unknown"),
+                }
+            )
+        elif "time" in comp:
+            events.append(
+                {
+                    "id": f"g{i:04d}",
+                    "instant": float(comp["time"]),
+                    "event_type": comp.get("kind", "Unknown"),
+                }
+            )
+        else:
+            module_logger.warning(
+                "Component %d has no 'time', 'start', or 'end' key; skipping.",
+                i,
+            )
+    return events
+
+
+# Dispatcher mapping timeline kinds to converter functions
+_EVENT_CONVERTERS: dict[str, Any] = {
+    "HIERARCHY_TIMELINE": _hierarchy_to_events,
+    "MARKER_TIMELINE": _marker_to_events,
+    "BEAT_TIMELINE": _beat_to_events,
+    "PDF_TIMELINE": _pdf_marker_to_events,
+}
+
+
+# endregion
+
+
+# region TiliaJsonLoader
+
+
+class TiliaJsonLoader(JsonLoader):
+    """Loader for TiLiA JSON annotation exports.
+
+    Parses a TiLiA ``.tla`` or ``.json`` file and produces one
+    `ContinuousPhysicalTimeline` (seconds) per annotated timeline in
+    the file.  The primary output is a `timetoalign.alignment.groups.TimelineGroup`
+    containing all timelines, accessible via ``create_group()``.
+
+    Internally, the ``"timelines"`` array is parsed so that each element
+    (which has its own ``"kind"`` and ``"components"``) becomes a
+    separate ``pa.Table`` keyed by a generated identifier
+    (``"{kind}_{index}"``).  The underlying ``JsonLoader`` machinery is
+    used for normalising each timeline's components into a flat table.
+
+    **Two-phase usage:**
+
+    1. ``loader.load("Bruckner5_Scherzo.json")``
+    2. ``group = loader.create_group()``
+    3. ``tl = loader.create_timeline("BEAT_TIMELINE_3")``
+    4. ``bundle = loader.create_alignment_bundle()``
+
+    Args:
+        media_unit: The ``TimeUnit`` for all timelines.  Default
+            ``TimeUnit.seconds`` (TiLiA annotations are time-based).
+
+    Examples:
+        >>> loader = TiliaJsonLoader()
+        >>> loader.load("Bruckner5_Scherzo.json")
+        >>> group = loader.create_group()
+        >>> group.n_timelines
+        7
+        >>> loader.create_timeline("BEAT_TIMELINE_3").n_events
+        1146
+
+    See Also:
+        timetoalign.loader.format.json.JsonLoader
+        timetoalign.alignment.groups.TimelineGroup
+    """
+
+    def __init__(
+        self,
+        *,
+        media_unit: TimeUnit = TimeUnit.seconds,
+    ) -> None:
+        # TiliaJsonLoader does not use JsonLoader's principal_keys /
+        # auto-detect mode.  Instead it overrides _process_json to
+        # handle the "timelines" array specially.
+        super().__init__(principal_keys=None, sep=".", resolve_lookups=False)
+        self._media_unit = media_unit
+        self._timeline_specs: list[dict[str, Any]] = []
+        self._timelines_cache: dict[str, ContinuousPhysicalTimeline] = {}
+        self._media_length: float = 0.0
+        self._logger = module_logger.getChild("TiliaJsonLoader")
+
+    # region Properties
+
+    @property
+    def media_length(self) -> float:
+        """Media length in seconds (from ``media_metadata.media length``)."""
+        return self._media_length
+
+    @property
+    def timeline_ids(self) -> list[str]:
+        """Identifiers for all parsed timelines.
+
+        Each id follows the pattern ``"{kind}_{index}"`` where *index*
+        is the 0-based position in the original ``"timelines"`` array.
+        """
+        return [spec["id"] for spec in self._timeline_specs]
+
+    @property
+    def timeline_specs(self) -> list[dict[str, Any]]:
+        """Metadata dicts for each parsed timeline.
+
+        Each dict contains ``id``, ``kind``, ``name``, ``n_components``,
+        and ``ordinal``.
+        """
+        return list(self._timeline_specs)
+
+    # endregion
+
+    # region Loading override
+
+    def _process_json(self, data: dict[str, Any]) -> None:
+        """Override: parse TiLiA-specific structure.
+
+        Instead of auto-detecting top-level arrays, this method
+        specifically handles the ``"timelines"`` array where each
+        element is a timeline object with its own ``"components"``.
+
+        Args:
+            data: The root JSON object.
+
+        Raises:
+            TypeError: If *data* is not a dict.
+            KeyError: If ``"timelines"`` key is missing.
+        """
+        if not isinstance(data, dict):
+            raise TypeError(f"Expected a JSON object (dict), got {type(data).__name__}")
+
+        if "timelines" not in data:
+            raise KeyError(
+                "TiLiA JSON must contain a 'timelines' key. "
+                f"Found keys: {list(data.keys())}"
+            )
+
+        # Extract media metadata
+        media_meta = data.get("media_metadata", {})
+        if isinstance(media_meta, dict):
+            ml = media_meta.get("media length")
+            if ml is not None:
+                self._media_length = float(ml)
+            self._metadata.update(
+                {k: v for k, v in media_meta.items() if not isinstance(v, (dict, list))}
+            )
+
+        media_path = data.get("media_path")
+        if media_path is not None:
+            self._metadata["media_path"] = media_path
+
+        # Process each timeline in the array
+        timelines_array = data["timelines"]
+        if not isinstance(timelines_array, list):
+            raise TypeError(
+                f"'timelines' must be a list, got {type(timelines_array).__name__}"
+            )
+
+        self._timeline_specs = []
+        self._timelines_cache = {}
+
+        for idx, tl_obj in enumerate(timelines_array):
+            if not isinstance(tl_obj, dict):
+                self._logger.warning("timelines[%d] is not a dict; skipping.", idx)
+                continue
+
+            kind = tl_obj.get("kind", "UNKNOWN")
+            name = tl_obj.get("name", "")
+            ordinal = tl_obj.get("ordinal", idx)
+            components = tl_obj.get("components", [])
+
+            tl_id = f"{kind}_{idx}"
+
+            # Normalise components into a pa.Table
+            if components and isinstance(components, list):
+                if isinstance(components[0], dict):
+                    table = _normalise_array(components, sep=self._sep)
+                else:
+                    table = pa.table({"value": components})
+            else:
+                table = pa.table({})
+
+            self._tables[tl_id] = table
+
+            self._timeline_specs.append(
+                {
+                    "id": tl_id,
+                    "kind": kind,
+                    "name": name,
+                    "n_components": len(components),
+                    "ordinal": ordinal,
+                    "index": idx,
+                    "raw": tl_obj,
+                }
+            )
+
+            self._logger.debug(
+                "Timeline %d: %s (%s) with %d components",
+                idx,
+                tl_id,
+                name,
+                len(components),
+            )
+
+    # endregion
+
+    # region Domain Object Creation
+
+    def create_timeline(self, id: str) -> "Timeline":
+        """Create a single ``ContinuousPhysicalTimeline`` by id.
+
+        The *id* is the timeline identifier from ``timeline_ids``
+        (e.g. ``"BEAT_TIMELINE_3"``).  Alternatively, pass an integer
+        index (as string or int) to select by position.
+
+        Args:
+            id: Timeline identifier or integer index.
+
+        Returns:
+            A ``ContinuousPhysicalTimeline`` with events from the
+            timeline's components.
+
+        Raises:
+            KeyError: If no timeline with *id* exists.
+            RuntimeError: If ``load()`` has not been called.
+        """
+        if not self._timeline_specs:
+            raise RuntimeError("No data loaded. Call load() before create_timeline().")
+
+        # Allow integer indexing
+        spec = self._find_spec(id)
+        tl_id = spec["id"]
+
+        if tl_id in self._timelines_cache:
+            return self._timelines_cache[tl_id]
+
+        tl = self._build_timeline(spec)
+        self._timelines_cache[tl_id] = tl
+        return tl
+
+    def create_timelines(self, ids: list[str] | None = None) -> list["Timeline"]:
+        """Create multiple timelines.
+
+        Args:
+            ids: List of timeline identifiers to create.  If ``None``
+                (the default), all timelines are created.
+
+        Returns:
+            List of ``ContinuousPhysicalTimeline`` objects.
+        """
+        if not self._timeline_specs:
+            raise RuntimeError("No data loaded. Call load() before create_timelines().")
+
+        if ids is None:
+            ids = self.timeline_ids
+
+        return [self.create_timeline(tid) for tid in ids]
+
+    def create_group(self, ids: list[str] | None = None) -> "TimelineGroup":
+        """Create a ``TimelineGroup`` containing all (or selected) timelines.
+
+        This is the primary output method for TiliaJsonLoader.  The
+        group is built with all member timelines mapped to the same
+        physical time axis (seconds).
+
+        Args:
+            ids: Timeline identifiers to include.  ``None`` (default)
+                means all.
+
+        Returns:
+            A ``TimelineGroup`` with one member per timeline.
+
+        Raises:
+            RuntimeError: If ``load()`` has not been called.
+        """
+        from timetoalign.alignment.groups import TimelineGroup
+
+        if not self._timeline_specs:
+            raise RuntimeError("No data loaded. Call load() before create_group().")
+
+        timelines = self.create_timelines(ids)
+
+        # Use the source filename (if available) as the group name
+        group_name = None
+        if self._sources:
+            group_name = self._sources[-1].stem
+
+        group = TimelineGroup(
+            id=f"tilia:{group_name or 'group'}",
+            name=group_name,
+            timelines=timelines,
+        )
+
+        return group
+
+    def create_alignment_bundle(self) -> "AlignmentBundle":
+        """Create an ``AlignmentBundle`` wrapping all timelines in one group.
+
+        This is a convenience method.  The bundle contains a single
+        ``TimelineGroup`` with no cross-group ``MatchClaim`` objects.
+
+        Returns:
+            An ``AlignmentBundle`` with one group and no claims.
+
+        Raises:
+            RuntimeError: If ``load()`` has not been called.
+        """
+        from timetoalign.alignment.bundle import AlignmentBundle
+
+        if not self._timeline_specs:
+            raise RuntimeError(
+                "No data loaded. Call load() before " "create_alignment_bundle()."
+            )
+
+        group = self.create_group()
+        bundle = AlignmentBundle(name=group.name)
+        bundle.add_group(group)
+
+        return bundle
+
+    # endregion
+
+    # region Internal Helpers
+
+    def _find_spec(self, id: str | int) -> dict[str, Any]:
+        """Look up a timeline spec by id or index.
+
+        Args:
+            id: Timeline identifier string or integer index.
+
+        Returns:
+            The spec dict.
+
+        Raises:
+            KeyError: If not found.
+        """
+        # Try integer index
+        if isinstance(id, int):
+            if 0 <= id < len(self._timeline_specs):
+                return self._timeline_specs[id]
+            raise KeyError(
+                f"Timeline index {id} out of range "
+                f"(0-{len(self._timeline_specs) - 1})"
+            )
+
+        # Try string index (e.g. "3")
+        try:
+            idx = int(id)
+            if 0 <= idx < len(self._timeline_specs):
+                return self._timeline_specs[idx]
+        except ValueError:
+            pass
+
+        # Try by id
+        for spec in self._timeline_specs:
+            if spec["id"] == id:
+                return spec
+
+        # Try by name
+        for spec in self._timeline_specs:
+            if spec["name"] == id:
+                return spec
+
+        raise KeyError(
+            f"No timeline with id or name '{id}'. "
+            f"Available: {[s['id'] for s in self._timeline_specs]}"
+        )
+
+    def _build_timeline(self, spec: dict[str, Any]) -> ContinuousPhysicalTimeline:
+        """Build a ``ContinuousPhysicalTimeline`` from a timeline spec.
+
+        Args:
+            spec: The timeline spec dict from ``_timeline_specs``.
+
+        Returns:
+            A ``ContinuousPhysicalTimeline`` with events.
+        """
+        tl_id = spec["id"]
+        kind = spec["kind"]
+        name = spec["name"]
+        raw = spec["raw"]
+        components = raw.get("components", [])
+
+        # Determine timeline length
+        # Use media_length if available, otherwise compute from components
+        length = self._media_length if self._media_length > 0 else 0.0
+
+        if not length and components:
+            # Compute from component coordinates
+            max_coord = 0.0
+            for comp in components:
+                if "end" in comp:
+                    max_coord = max(max_coord, float(comp["end"]))
+                elif "time" in comp:
+                    max_coord = max(max_coord, float(comp["time"]))
+            length = max_coord
+
+        tl = ContinuousPhysicalTimeline(
+            length=length,
+            unit=self._media_unit,
+            uid=tl_id,
+            name=name,
+        )
+
+        # Convert components to events using the appropriate converter
+        converter = _EVENT_CONVERTERS.get(kind, _generic_to_events)
+        events = converter(components)
+
+        if events:
+            tl.add_events(events)
+
+        return tl
+
+    # endregion
+
+    # region Magic Methods
+
+    def __repr__(self) -> str:
+        if not self._timeline_specs:
+            return "TiliaJsonLoader(not loaded)"
+        entries = ", ".join(
+            f"{s['id']}={s['n_components']} components" for s in self._timeline_specs
+        )
+        return f"TiliaJsonLoader({entries})"
+
+    # endregion
+
+
+# endregion
