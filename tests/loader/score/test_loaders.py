@@ -214,7 +214,7 @@ def _raw_min_onset_partitura(xml_path: Path) -> float:
         parts = score.parts if hasattr(score, "parts") else [score]
         min_onset = float("inf")
         for part in parts:
-            bm = part.beat_map
+            bm = part.quarter_map
             for obj in part.iter_all(include_subclasses=True):
                 if hasattr(obj, "midi_pitch"):
                     onset = float(bm(obj.start.t))
