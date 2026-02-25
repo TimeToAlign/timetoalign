@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\ndimage\_ni_support.py
-# hypothesis_version: 6.151.2
-
-['D', 'F', 'axes must be unique', 'c', 'constant', 'd', 'f', 'grid-constant', 'grid-mirror', 'grid-wrap', 'mirror', 'nearest', 'reflect', 'wrap']

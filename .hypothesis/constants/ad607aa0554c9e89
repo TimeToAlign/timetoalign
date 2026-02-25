@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pandas\core\groupby\generic.py
-# hypothesis_version: 6.151.2
-
-['Categorical', 'DataFrame', 'ScalarResult', 'Series', 'all', 'as_index', 'bool', 'corr', 'corrwith', 'count', 'cov', 'engine', 'engine_kwargs', 'fillna', 'first', 'float', 'hist', 'idxmax', 'idxmin', 'int64', 'last', 'left', 'name', 'numeric_only', 'pearson', 'proportion', 'series', 'series_examples', 'skew', 'take', 'template', 'transform', 'unique']

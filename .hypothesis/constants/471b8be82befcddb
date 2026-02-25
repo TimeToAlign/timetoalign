@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\regex\character_classes.py
-# hypothesis_version: 6.151.2
-
-['%s(%s)', '(', ')', '*', '+', '-', '.', '1.0', '?', 'CharacterClass', 'Is', 'LMNS', 'Nd', '[', '[%s%s]', '[%s]', '[^%s]', '\\', '\\(', '\\)', '\\*', '\\+', '\\-', '\\.', '\\?', '\\C', '\\D', '\\I', '\\P', '\\S', '\\W', '\\[', '\\\\', '\\\\([pP]){([\\w-]+)}', '\\]', '\\^', '\\c', '\\d', '\\i', '\\n', '\\p', '\\r', '\\s', '\\t', '\\w', '\\{', '\\|', '\\}', ']', '^', 'negative', 'positive', 'xsd_version', '{', '|', '}']

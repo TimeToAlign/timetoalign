@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\musicanalysis\performance_codec.py
-# hypothesis_version: 6.151.2
-
-[1e-06, 0.25, 0.5, 127.0, 10000.0, 127, 200, 'U256', 'articulation_feature', 'articulation_log', 'average', 'beat_period', 'beat_period_log', 'beat_period_mean', 'beat_period_ratio', 'beat_period_std', 'decode_performance', 'derivative', 'diff_u_onset', 'duration', 'duration_beat', 'duration_sec', 'encode_performance', 'extrapolate', 'f4', 'feature', 'i4', 'id', 'label', 'linear', 'match', 'mergesort', 'midi_id', 'onset', 'onset_beat', 'onset_div', 'onset_sec', 'p_duration', 'p_onset', 'param_names', 'performance', 'performance_id', 'pitch', 'rescale', 'scale', 'score', 'score_id', 'slur_feature', 'timing', 'to_matched_score', 'u_onset', 'unique_onset_idxs', 'velocity', 'voice', 'zero']

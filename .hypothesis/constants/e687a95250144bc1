@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\base.py
-# hypothesis_version: 6.151.2
-
-['EventBundle', 'event_type', 'events', 'loaded_at', 'loader_class', 'number_type', 'path', 'source_count', 'sources', 'temporal_type', 'unit']

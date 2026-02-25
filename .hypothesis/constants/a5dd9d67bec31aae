@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\packaging\utils.py
-# hypothesis_version: 6.151.2
-
-['(\\d+)(.*)', '-', '.tar.gz', '.whl', '.zip', 'NormalizedName', '[-_.]+', '^[\\w\\d._]*$', '__']

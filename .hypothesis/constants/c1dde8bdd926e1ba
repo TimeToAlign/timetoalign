@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\interpolate\fitpack2.py
-# hypothesis_version: 6.151.2
-
-['BivariateSpline', 'LSQBivariateSpline', 'LSQUnivariateSpline', 'RectBivariateSpline', 'UnivariateSpline', '_fitpack2', 'array', 'concatenate', 'dfitpack', 'dfitpack_int', 'diff', 'fitpack2', 'interpolate', 'ones', 'ravel', 'zeros']

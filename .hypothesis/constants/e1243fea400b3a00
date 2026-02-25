@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\multiprocess\pool.py
-# hypothesis_version: 6.151.2
-
-['\n"""\n%s"""', '<%s: %s>', 'CLOSE', 'INIT', 'In unknown state', 'Pool', 'Pool not running', 'PoolWorker', 'Process', 'RUN', 'TERMINATE', 'ThreadPool', '__len__', '_change_notifier', '_reader', '_writer', 'added worker', 'closing pool', 'doing set_length()', 'finalizing pool', 'joining pool', 'joining pool workers', 'joining task handler', 'sentinel', 'task handler exiting', 'terminate', 'terminating pool', 'terminating workers', '{0!r} not ready']

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\graphical\source.py
-# hypothesis_version: 6.151.2
-
-[100, 150, 255, '.', 'ImageSource', 'PIL.Image.Image', 'PNG', 'RGB', 'RGBA', 'TimeAxisPath', 'bytes', 'file', 'memory', 'page_rect', 'pdf_embedded', 'pdf_page', 'png', 'pymupdf', 'pymupdf.Document', 'pymupdf.Pixmap', 'source_name']

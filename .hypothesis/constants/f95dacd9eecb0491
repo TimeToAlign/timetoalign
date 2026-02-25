@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\exportkern.py
-# hypothesis_version: 6.151.2
-
-['!!!', '#', '##', '%1.26s', '(', ')', '**kern', '*-', '-', '--', '.', '0', '00', '000', '1', '128', '128th', '16', '16th', '2', '256', '256th', '32', '32nd', '4', '64', '64th', '8', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'J', 'K', 'L', '[', ']', 'a', 'acciaccatura', 'actual_notes', 'b', 'begin', 'breve', 'c', 'd', 'dots', 'e', 'eighth', 'end', 'f', 'g', 'half', 'long', 'maxima', 'n', 'normal_notes', 'p', 'q', 'quarter', 'r', 'save_kern', 'staff', 'type', 'utf-8', 'voice', 'whole']

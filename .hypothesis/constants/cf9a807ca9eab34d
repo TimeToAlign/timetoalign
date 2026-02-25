@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\optimize\nonlin.py
-# hypothesis_version: 6.151.2
-
-['Anderson', 'BroydenFirst', 'BroydenSecond', 'DiagBroyden', 'ExcitingMixing', 'GenericBroyden', 'InverseJacobian', 'Jacobian', 'KrylovJacobian', 'LinAlgError', 'LinearMixing', 'LowRankMatrix', 'NoConvergence', 'TerminationCondition', '_nonlin', 'anderson', 'asarray', 'asjacobian', 'broyden1', 'broyden2', 'diagbroyden', 'dot', 'excitingmixing', 'get_blas_funcs', 'inspect', 'inv', 'linearmixing', 'maxnorm', 'newton_krylov', 'nonlin', 'nonlin_solve', 'norm', 'optimize', 'qr', 'scalar_search_armijo', 'scalar_search_wolfe1', 'scipy', 'solve', 'svd', 'sys', 'vdot']

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\matlab\mio4.py
-# hypothesis_version: 6.151.2
-
-['MatFile4Reader', 'MatFile4Writer', 'MatFileReader', 'SYS_LITTLE_ENDIAN', 'VarHeader4', 'VarReader4', 'VarWriter4', '_mio4', 'arr_dtype_number', 'arr_to_2d', 'arr_to_chars', 'chars_to_strings', 'convert_dtypes', 'docfiller', 'io.matlab', 'matdims', 'mclass_info', 'mdtypes_template', 'miDOUBLE', 'miINT16', 'miINT32', 'miSINGLE', 'miUINT16', 'miUINT8', 'mio4', 'mxCHAR_CLASS', 'mxFULL_CLASS', 'mxSPARSE_CLASS', 'np_to_mtypes', 'order_codes', 'read_dtype', 'squeeze_element']

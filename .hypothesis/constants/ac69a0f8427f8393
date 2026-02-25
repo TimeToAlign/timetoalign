@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pytablewriter\writer\text\_latex.py
-# hypothesis_version: 6.151.2
-
-[' & ', ' = \\left( ', ' \\\\', ' \\\\ \\hline', ' | ', '\\begin{array}{', '\\begin{equation}', '\\end{array}', '\\end{array} \\right)', '\\end{equation}', '\\hline', '\\infty', '\\left( ', '\\verb', '^\\\\?[a-zA-Z]+$', 'c', 'indent_string', 'l', 'latex_matrix', 'latex_table', 'r', '{:s}', '}', '} \\hline']

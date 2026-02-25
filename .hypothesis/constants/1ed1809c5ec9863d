@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\store.py
-# hypothesis_version: 6.151.2
-
-['EventData', 'Timeline', 'coordinate_range', 'count', 'duration', 'end', 'event_type', 'event_types', 'id', 'instant', 'interval', 'name', 'number_type', 'records', 'start', 'temporal_type', 'temporal_types', 'unit', 'value']

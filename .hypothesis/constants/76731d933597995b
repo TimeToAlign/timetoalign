@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\matlab\_mio4.py
-# hypothesis_version: 6.151.2
-
-[b'\x00', 100, 1000, 5000, '\x00', '<', '=', '>', 'Cray', 'F', 'MatFile4Reader', 'MatFile4Writer', 'None', 'S1', 'SYS_LITTLE_ENDIAN', 'U', 'U1', 'VAX D-float', 'VAX G-float', 'VarHeader4', 'VarReader4', 'VarWriter4', 'arr_to_2d', 'c', 'c128', 'c16', 'c24', 'c32', 'c8', 'char', 'complex', 'double', 'f4', 'f8', 'float', 'header', 'i2', 'i4', 'imagf', 'intc', 'latin-1', 'latin1', 'little', 'mclass_info', 'mdtypes_template', 'miDOUBLE', 'miINT16', 'miINT32', 'miSINGLE', 'miUINT16', 'miUINT8', 'mopt', 'mrows', 'mxCHAR_CLASS', 'mxFULL_CLASS', 'mxSPARSE_CLASS', 'namlen', 'ncols', 'np_to_mtypes', 'order_codes', 'row', 'sparse', 'u1', 'u2', 'unknown']

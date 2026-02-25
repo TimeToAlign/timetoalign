@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\simpleeval.py
-# hypothesis_version: 6.151.2
-
-[10000, 100000, 4000000, 'False', 'NameConstant', 'None', 'Num', 'Str', 'True', '_', '__contains__', '__getitem__', '__len__', 'ag_frame', 'cr_frame', 'exec', 'float', 'format', 'format_map', 'func_', 'func_name', 'gi_frame', 'help', 'ignore', 'int', 'mro', 'rand', 'randint', 'str', 'tb_frame', '{:', '}']

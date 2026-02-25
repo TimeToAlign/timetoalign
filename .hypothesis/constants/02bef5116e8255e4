@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/loader/schema.py
-# hypothesis_version: 6.151.2
-
-[b'timetoalign', b'unit', 10000, '0.1.0', 'den', 'denominator', 'duration', 'end', 'event_type', 'fraction', 'id', 'instant', 'interval', 'loader_class', 'name', 'num', 'number_type', 'numerator', 'sources', 'start', 'temporal_type', 'timetoalign_version', 'unit', 'value']

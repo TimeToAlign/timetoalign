@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\optimize\_root_scalar.py
-# hypothesis_version: 6.151.2
-
-['2-point', 'Unknown solver %s', '_x', 'bisect', 'brenth', 'brentq', 'halley', 'maxiter', 'newton', 'ridder', 'root_scalar', 'rtol', 'secant', 'tol', 'toms748', 'xtol']

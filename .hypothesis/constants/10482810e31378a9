@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\music21\common\enums.py
-# hypothesis_version: 6.151.2
-
-['__main__', 'all', 'completeOnly', 'defaultDelay', 'fast', 'getElementAfter', 'getElementAtOrAfter', 'getElementAtOrBefore', 'getElementBefore', 'highestOffset', 'highestTime', 'lowestOffset', 'noDelay', 'none', 'normal', 'related_only', 'slow']

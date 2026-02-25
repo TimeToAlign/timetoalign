@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\algorithms\triads.py
-# hypothesis_version: 6.151.2
-
-['003', '012', '021C', '021D', '021U', '030C', '030T', '102', '111D', '111U', '120C', '120D', '120U', '201', '210', '300', 'all_triads', 'is_triad', 'triad_type', 'triadic_census', 'triads_by_type', 'undirected']

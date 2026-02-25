@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\sparse\base.py
-# hypothesis_version: 6.151.2
-
-['MAXPRINT', 'SparseFormatWarning', 'SparseWarning', '_base', 'asmatrix', 'base', 'check_reshape_kwargs', 'check_shape', 'get_sum_dtype', 'isdense', 'isscalarlike', 'issparse', 'isspmatrix', 'sparse', 'spmatrix', 'validateaxis']

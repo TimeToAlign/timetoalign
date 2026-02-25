@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\optimize\_root.py
-# hypothesis_version: 6.151.2
-
-[0.0, 1.49012e-08, 100, 'Unknown solver %s', 'anderson', 'armijo', 'broyden1', 'broyden2', 'df-sane', 'diagbroyden', 'excitingmixing', 'fatol', 'ftol', 'fvec', 'hybr', 'krylov', 'linearmixing', 'lm', 'root', 'xatol', 'xtol']

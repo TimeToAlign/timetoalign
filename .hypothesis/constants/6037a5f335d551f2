@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\matlab\byteordercodes.py
-# hypothesis_version: 6.151.2
-
-['_byteordercodes', 'aliases', 'byteordercodes', 'io.matlab', 'native_code', 'swapped_code', 'sys_is_le', 'to_numpy_code']

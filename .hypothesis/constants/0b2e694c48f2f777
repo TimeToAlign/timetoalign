@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\_lib\array_api_compat\array_api_compat\common\_aliases.py
-# hypothesis_version: 6.151.2
-
-[0.0, 'UniqueAllResult', 'UniqueCountsResult', 'UniqueInverseResult', '_CopyMode', 'arange', 'argsort', 'astype', 'bool', 'broadcast_tensors', 'ceil', 'complex floating', 'cupy', 'empty', 'empty_like', 'equal_nan', 'eye', 'floor', 'full', 'full_like', 'integral', 'isdtype', 'kind', 'linspace', 'matmul', 'matrix_transpose', 'numeric', 'numpy', 'ones', 'ones_like', 'permute_dims', 'prod', 'real floating', 'reshape', 'signed integer', 'sort', 'stable', 'std', 'sum', 'tensordot', 'trunc', 'unique_all', 'unique_counts', 'unique_inverse', 'unique_values', 'unsigned integer', 'var', 'vecdot', 'zeros', 'zeros_like']

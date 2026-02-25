@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\sparse\_compressed.py
-# hypothesis_version: 6.151.2
-
-['CF', '_diagonal', '_eldiv_', '_elmul_', '_ge_', '_gt_', '_has_sorted_indices', '_le_', '_lt_', '_matmat', '_matmat_maxnnz', '_matvec', '_matvecs', '_maximum_', '_minimum_', '_minus_', '_ne_', '_plus_', 'axis out of bounds', 'blocksize', 'cf', 'clip', 'column', 'i', 'inconsistent shapes', 'mergesort', 'row']

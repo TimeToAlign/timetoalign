@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\score\store.py
-# hypothesis_version: 6.151.2
-
-[0.0, 'Chord', 'Direction', 'Dynamic', 'KeySignature', 'Measure', 'Metronome', 'Note', 'OctaveShift', 'Pedal', 'Rest', 'Tempo', 'TextBox', 'TextExpression', 'TimeSignature', 'Wedge', 'acc', 'annotation', 'categories', 'cents', 'control', 'ep', 'epc', 'event_category', 'event_type', 'gpc_int', 'gpc_str', 'has_rests', 'id', 'mc', 'measure', 'midi_pitch', 'mn', 'name', 'note', 'octave', 'part_id', 'sp', 'spc_int', 'spc_str', 'spelled_pitch', 'staff', 'velocity', 'voice']

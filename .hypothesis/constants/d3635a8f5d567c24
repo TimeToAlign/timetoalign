@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\resources\xml_loader.py
-# hypothesis_version: 6.151.2
-
-['%s(root=%r)', '/', '<%s object at %#x>', 'PyPy', 'XMLResourceLoader', '__dict__', '_iterparse', '_lazy', '_lazy_lock', '_nsmaps', '_parent_map', '_thin_lazy', '_xmlns', '_xpath_root', 'comment', 'end', 'end-ns', 'nsmap', 'pi', 'read', 'root', 'start', 'start-ns', 'tag', 'xpath']

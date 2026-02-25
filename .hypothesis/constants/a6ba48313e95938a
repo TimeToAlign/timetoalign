@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\generators\small.py
-# hypothesis_version: 6.151.2
-
-['Bull Graph', 'Chvatal Graph', 'Desargues Graph', 'Diamond Graph', 'Dodecahedral Graph', 'Frucht Graph', 'Heawood Graph', 'House Graph', 'LCF_graph', 'Moebius-Kantor Graph', 'Pappus Graph', 'Petersen Graph', 'Sedgewick Maze', 'Truncated Cube Graph', "Tutte's Graph", 'bull_graph', 'chvatal_graph', 'create_using', 'cubical_graph', 'desargues_graph', 'diamond_graph', 'dodecahedral_graph', 'frucht_graph', 'heawood_graph', 'house_graph', 'house_x_graph', 'icosahedral_graph', 'moebius_kantor_graph', 'octahedral_graph', 'pappus_graph', 'pentagon', 'pentagram', 'petersen_graph', 'sedgewick_maze_graph', 'tetrahedral_graph', 'truncated_cube_graph', 'tutte_graph']

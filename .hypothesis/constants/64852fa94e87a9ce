@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\algorithms\link_prediction.py
-# hypothesis_version: 6.151.2
-
-[0.001, 0.8, 'adamic_adar_index', 'community', 'directed', 'inf', 'jaccard_coefficient', 'multigraph', 'within_inter_cluster']

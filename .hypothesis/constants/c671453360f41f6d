@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\sequence_types.py
-# hypothesis_version: 6.151.2
-
-[' as ', '(', ')', ') as', ') as ', ')as', '*', '+', '+*', ',', ', ', ', ...', '1.0', '1.1', '3.0', '3.1', '?', '?*', '?+', '?+*', 'XPST0003', 'XPST0051', '\\1', 'array(', 'array(*)', 'attribute', 'attribute(', 'attribute()', 'attribute(*)', 'comment(', 'comment()', 'document', 'document(', 'document-node(', 'document-node()', 'element', 'element(', 'element()', 'element(*)', 'empty-sequence()', 'function(', 'function()', 'function(*)', 'function({}) as {}', 'item()', 'map(', 'map(*)', 'namespace(', 'node()', 'none', 'numeric', 'text(', 'text()', 'unknown type %r', 'xs:', 'xs:anySimpleType', 'xs:anyType', 'xs:anyURI', 'xs:dateTimeStamp', 'xs:error', 'xs:numeric', 'xs:untyped', 'xsd_version', '{']

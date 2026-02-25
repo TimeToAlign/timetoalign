@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\alignment\groups.py
-# hypothesis_version: 6.151.2
-
-[0.0, 1e-10, ' (interpolated)', 'No timestamp table', 'Timeline', 'Timeline | None', 'TimelineGroup', 'coordinates', 'existing_timestamp', 'group', 'id', 'insert_after_idx', 'is_locked', 'meta', 'mode', 'n_timelines', 'n_timestamps', 'name', 'new_timeline_coord', 'new_timestamp', 'original', 'row_index', 'timeline_ids']

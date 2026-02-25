@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\importdcml.py
-# hypothesis_version: 6.151.2
-
-['#', '/', 'F', 'G', 'Metadata', 'P0', 'alter', 'b', 'cadence', 'chord', 'duration', 'duration_div', 'duration_qb', 'eighth', 'end', 'globalkey', 'grace', 'gracenote', 'id', 'localkey', 'mc', 'midi', 'mn', 'n-{}', 'name', 'octave', 'onset_div', 'phraseend', 'pitch', 'quarterbeats', 'repeats', 'staff', 'start', 'starting', 'step', 'tied', 'timesig', 'type', 'voice', '{', '}']

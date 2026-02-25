@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/loader/score/music21.py
-# hypothesis_version: 6.151.2
-
-[0.0, 1e-05, 10000, 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'Measure', 'Note', 'Rest', 'TextExpression', 'acc', 'cents', 'chord_id', 'content', 'duration', 'duration_qb', 'duration_qb_float', 'ep', 'epc', 'event_type', 'format', 'gpc_int', 'gpc_str', 'gracenote', 'has_rests', 'id', 'instant', 'interval', 'mc', 'mc_onset', 'midi_pitch', 'mn', 'mn_onset', 'music21', 'name', 'nominal_duration', 'octave', 'parser', 'part_id', 'pitch', 'quarterbeats', 'quarterbeats_float', 'scalar', 'score', 'source', 'sp', 'spc_int', 'spc_str', 'spelled_pitch', 'staff', 'subtype', 'temporal_type', 'text', 'tied', 'timesig', 'tpc', 'value', 'velocity', 'voice', '♭', '♯']

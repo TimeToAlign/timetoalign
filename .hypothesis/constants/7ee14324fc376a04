@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\xpath_tokens\axes.py
-# hypothesis_version: 6.151.2
-
-['%s::%s', '(name)', '*', '::', 'Q{', 'XPathAxis', 'attribute', 'axis', 'comment', 'document-node', 'element', 'namespace-node', 'node', 'schema-attribute', 'schema-element', 'text', '{']

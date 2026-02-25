@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\music21\figuredBass\realizer.py
-# hypothesis_version: 6.151.2
-
-[0.0, 1.0, 1000, '#6#42', '#6, #4, 2', '#6, 4, #2', '#64#2', '+#bn', ',', ', ', '4/4', '6\n4', '6, 4', '64', 'B5', 'C', 'ChordSymbol', 'Note', 'RomanNumeral', 'Zero solutions', '__main__', 'addElement', 'generateBassLine', 'getNumSolutions', 'inKey', 'inTime', 'keyboardStyleOutput', 'major', 'overlaidParts', 'paddingLeft', 'realize', 'realizedSegmentList']

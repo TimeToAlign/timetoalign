@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pandas\core\dtypes\inference.py
-# hypothesis_version: 6.151.2
-
-['__contains__', '__getitem__', '__iter__', '__len__', '_fields', 'dtype', 'keys', 'read', 'write']

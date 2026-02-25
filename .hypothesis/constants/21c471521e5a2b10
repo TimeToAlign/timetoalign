@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\importparangonada.py
-# hypothesis_version: 6.151.2
-
-[',', 'U256', 'align.csv', 'channel', 'deletion', 'duration_beat', 'duration_div', 'duration_quarter', 'duration_sec', 'f4', 'feature.csv', 'filename', 'i4', 'id', 'insertion', 'label', 'load_parangonada_csv', 'match', 'n', 'onset_beat', 'onset_div', 'onset_quarter', 'onset_sec', 'part.csv', 'performance_id', 'pitch', 'ppart.csv', 'r', 'score_id', 'track', 'velocity', 'voice', 'zalign.csv']

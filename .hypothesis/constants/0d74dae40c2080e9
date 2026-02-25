@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\mido\messages\specs.py
-# hypothesis_version: 6.151.2
-
-[-8192, 128, 144, 160, 176, 192, 208, 224, 240, 241, 242, 243, 246, 247, 248, 250, 251, 252, 254, 255, 256, 8191, 16383, 'active_sensing', 'aftertouch', 'attribute_names', 'channel', 'clock', 'continue', 'control', 'control_change', 'data', 'frame_type', 'frame_value', 'inf', 'length', 'note', 'note_off', 'note_on', 'pitch', 'pitchwheel', 'polytouch', 'pos', 'program', 'program_change', 'quarter_frame', 'reset', 'song', 'song_select', 'songpos', 'start', 'status_byte', 'stop', 'sysex', 'time', 'tune_request', 'type', 'value', 'value_names', 'velocity']

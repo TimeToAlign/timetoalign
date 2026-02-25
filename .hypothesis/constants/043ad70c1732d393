@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\frictionless\errors\row.py
-# hypothesis_version: 6.151.2
-
-['#row', '#table', 'Blank Row', 'Duplicate Row', 'ForeignKey Error', 'PrimaryKey Error', 'Row Constraint', 'Row Error', 'array', 'blank-row', 'cells', 'duplicate-row', 'fieldCells', 'fieldNames', 'foreign-key', 'integer', 'items', 'primary-key', 'properties', 'referenceFieldNames', 'referenceName', 'row-constraint', 'row-error', 'rowNumber', 'string', 'type']

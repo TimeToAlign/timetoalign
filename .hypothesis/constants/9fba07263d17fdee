@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\arff\_arffread.py
-# hypothesis_version: 6.151.2
-
-[1.0, '"', '%H', '%M', '%S', '%Y', '%d', '%m', '%y', "'", "'(..+)'\\s+(..+$)", '(\\S+)\\s+(..+$)', ',', ',\t', ', range is %s', ',{', "3, 'a'", '?', 'ArffError', 'D', 'Dataset: %s\n', 'HH', 'M', 'MM', 'MetaData', 'NaT', 'ParseArffError', 'Y', 'Z', '\\s*$', '^%', '^@[Dd][Aa][Tt][Aa]', '^@[Ee][Nn][Dd]\\s*', '^\\s*@', '^\\s*@\\S*', '^\\s+$', '__main__', 'date', 'datetime64[%s]', 'dd', 'delim', 'h', 'has_bug', 'int', 'integer', 'loadarff', 'm', 'mm', 'nominal', 'numeric', 'quote', 'read', 'real', 'relational', 's', 'space', 'ss', 'string', 'unicode-escape', 'unknown attribute %s', 'yy', 'yyyy', 'z', '{', '{(.+)}', '}']

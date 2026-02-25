@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\netcdf.py
-# hypothesis_version: 6.151.2
-
-['ABSENT', 'FILLMAP', 'FILL_BYTE', 'FILL_CHAR', 'FILL_DOUBLE', 'FILL_FLOAT', 'FILL_INT', 'FILL_SHORT', 'IS_PYPY', 'LITTLE_ENDIAN', 'NC_ATTRIBUTE', 'NC_BYTE', 'NC_CHAR', 'NC_DIMENSION', 'NC_DOUBLE', 'NC_FLOAT', 'NC_INT', 'NC_SHORT', 'NC_VARIABLE', 'NetCDFFile', 'NetCDFVariable', 'REVERSE', 'TYPEMAP', 'ZERO', '_netcdf', 'array', 'io', 'netcdf', 'netcdf_file', 'netcdf_variable']

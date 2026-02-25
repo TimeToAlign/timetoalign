@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pytablewriter\style\__init__.py
-# hypothesis_version: 6.151.2
-
-['Align', 'Cell', 'DecorationLine', 'FontSize', 'FontStyle', 'FontWeight', 'Format', 'GFMarkdownStyler', 'HtmlStyler', 'LatexStyler', 'MarkdownStyler', 'NullStyler', 'Style', 'StyleFilterFunc', 'StylerInterface', 'TextStyler', 'Theme', 'ThousandSeparator', 'VerticalAlign', 'fetch_theme', 'get_align_char', 'list_themes']

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\sparse\_sputils.py
-# hypothesis_version: 6.151.2
-
-[', ', 'C', 'SparseArray', 'axis out of range', 'copy', 'get_sum_dtype', 'getdata', 'getdtype', 'isdense', 'isintlike', 'ismatrix', 'isscalarlike', 'issequence', 'isshape', 'native', 'newshape', 'order', 'sparse', 'u', 'upcast']

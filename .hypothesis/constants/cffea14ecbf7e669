@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\alignment\__init__.py
-# hypothesis_version: 6.151.2
-
-['AlignmentAnchor', 'AlignmentBundle', 'GroupTimestamp', 'MatchClaim', 'MatchGraph', 'MatchMetadata', 'MatchStamp', 'PerfectAlignment', 'TimelineGroup']

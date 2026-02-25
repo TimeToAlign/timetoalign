@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pandas\core\arrays\masked.py
-# hypothesis_version: 6.151.2
-
-[1000, 'Float32', 'Int64', 'M', 'NaT', 'aggregate', 'all', 'any', 'axis', 'b', 'bool', 'count', 'dtype', 'elementwise', 'f', 'float32', 'float64', 'floordiv', 'i', 'ignore', 'int32', 'int64', 'int8', 'iu', 'kurt', 'left', 'm', 'max', 'mean', 'median', 'min', 'mod', 'ohlc', 'out', 'pow', 'prod', 'reduce', 'rfloordiv', 'right', 'rmod', 'rpow', 'rtruediv', 'skew', 'std', 'sum', 'truediv', 'u', 'uint32', 'uint64', 'var']

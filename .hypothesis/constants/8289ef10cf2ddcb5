@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\validators\identities.py
-# hypothesis_version: 6.151.2
-
-['%s%r', '%s(path=%r)', '*', '.', '1.0', 'FieldValueSelector', 'IdentityCounter', 'KeyrefCounter', 'XsdElement', 'XsdIdentity', 'XsdKey', 'XsdKeyref', 'counter', 'decoders', 'elem', 'elements', 'enabled', 'field', 'fields', 'identity', 'mixed', 'name', 'nan', 'ref', 'refer', 'selector', 'simple', 'skip', 'skip_wildcard', 'token', 'value_constraints', 'xpath', 'xpath_proxy', 'xsd_element']

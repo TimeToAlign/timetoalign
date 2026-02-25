@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\music21\stream\streamStatus.py
-# hypothesis_version: 6.151.2
-
-['C4', 'D4', 'E4', 'GeneralNote', 'NotRest', '__main__', '_accidentals', '_beams', '_concertPitch', '_dirty', '_enharmonics', '_measures', '_ornaments', '_rests', '_ties', '_tuplets', 'client', 'eighth', 'quarter', 'start', 'stop']

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\frictionless\errors\cell.py
-# hypothesis_version: 6.151.2
-
-['#cell', '#row', '#table', 'Ascii Value', 'Cell Error', 'Constraint Error', 'Extra Cell', 'Forbidden Value', 'Missing Cell', 'Sequential Value', 'Truncated Value', 'Type Error', 'Unique Error', 'ascii-value', 'cell', 'cell-error', 'constraint-error', 'extra-cell', 'fieldName', 'fieldNumber', 'forbidden-value', 'integer', 'missing-cell', 'properties', 'sequential-value', 'string', 'truncated-value', 'type', 'type-error', 'unique-error']

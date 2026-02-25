@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\mido\messages\encode.py
-# hypothesis_version: 6.151.2
-
-[127, 128, 144, 176, 224, 240, 241, 242, 247, 'channel', 'control', 'control_change', 'data', 'frame_type', 'frame_value', 'note', 'note_off', 'note_on', 'pitch', 'pitchwheel', 'pos', 'quarter_frame', 'songpos', 'status_byte', 'sysex', 'type', 'value', 'value_names', 'velocity']

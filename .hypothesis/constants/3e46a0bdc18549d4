@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\frictionless\fields\number.py
-# hypothesis_version: 6.151.2
-
-['((^[^-\\d]*)|(\\D*$))', ',', '.', 'bareNumber', 'bare_number', 'boolean', 'decimalChar', 'decimal_char', 'enum', 'floatNumber', 'g', 'groupChar', 'group_char', 'maximum', 'minimum', 'number', 'properties', 'required', 'string', 'type']

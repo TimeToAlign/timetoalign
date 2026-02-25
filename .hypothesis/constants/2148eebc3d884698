@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\__init__.py
-# hypothesis_version: 6.151.2
-
-[120, '.bww', '.cap', '.capx', '.gp', '.gp3', '.gp4', '.gp5', '.gpx', '.gtp', '.kar', '.kern', '.krn', '.match', '.md', '.mei', '.mgu', '.mid', '.midi', '.ms', '.mscore', '.mscx', '.mscz', '.musescore', '.musicxml', '.mxl', '.ove', '.ptb', '.scw', '.sgu', '.xml', 'ensure_list', 'filename', 'keep', 'match', 'midi', 'wb']

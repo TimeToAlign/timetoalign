@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\optimize\linesearch.py
-# hypothesis_version: 6.151.2
-
-['LineSearchWarning', '_linesearch', 'line_search', 'line_search_BFGS', 'line_search_armijo', 'line_search_wolfe1', 'line_search_wolfe2', 'linesearch', 'minpack2', 'optimize', 'scalar_search_armijo', 'scalar_search_wolfe1', 'scalar_search_wolfe2', 'warn']

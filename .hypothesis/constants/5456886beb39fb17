@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pandas\core\methods\to_dict.py
-# hypothesis_version: 6.151.2
-
-['column_names', 'columns', 'data', 'dict', 'index', 'index_names', 'list', 'records', 'series', 'split', 'tight']

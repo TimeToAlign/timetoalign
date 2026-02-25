@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\classes\digraph.py
-# hypothesis_version: 6.151.2
-
-['DiGraph', '_adj', '_pred', '_succ', 'adj', 'backend', 'degree', 'digraph__new__', 'edges', 'in_degree', 'in_edges', 'out_degree', 'out_edges', 'pred', 'succ']

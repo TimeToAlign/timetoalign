@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\tabular\csv.py
-# hypothesis_version: 6.151.2
-
-[',', '0', '1', 'Event', 'Note', 'Region', 'chord_id', 'duration', 'end', 'event_type', 'id', 'label', 'mc', 'midi', 'mn', 'name', 'octave', 'quarterbeats', 'staff', 'start', 'tpc', 'voice']

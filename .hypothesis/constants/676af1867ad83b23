@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\matchlines_v0.py
-# hypothesis_version: 6.151.2
-
-['-no_played_note\\.', 'AdjOffset', 'Anchor', 'Attribute', 'Id', 'Measure', 'Modifier', 'NoteName', 'Octave', 'Offset', 'Onset', 'TimeInBeats', 'Value', 'Velocity', 'adj_offset', 'approximateTempo', 'audioFileName', 'audioFilePath', 'audioFirstNote', 'audioLastNote', 'beatSubDivision', 'beatSubdivision', 'composer', 'field_interpreters', 'field_names', 'hammer_bounce', 'hammer_bounce-', 'info', 'insertion', 'keySignature', 'matchFileVersion', 'mergedFrom', 'meta', 'midiClockRate', 'midiClockUnits', 'midiFileName', 'midiFilePath', 'midiFilename', 'out_pattern', 'partSequence', 'pattern', 'performer', 'piece', 'scoreFileName', 'scoreFilePath', 'snote', 'soft', 'subtitle', 'sustain', 'tempoIndication', 'timeSignature', 'trailing_played', 'trill']

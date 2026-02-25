@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\constants\codata.py
-# hypothesis_version: 6.151.2
-
-['ConstantWarning', '_codata', 'c', 'codata', 'constants', 'epsilon0', 'exact_values', 'find', 'k', 'key', 'mu0', 'physical_constants', 'precision', 'txt2002', 'txt2006', 'txt2010', 'txt2014', 'txt2018', 'unit', 'v', 'val', 'value']
