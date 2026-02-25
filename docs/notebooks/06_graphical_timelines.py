@@ -165,7 +165,6 @@ loader2 = GraphicalLoader(metadata={"source": "Multi-page Analysis"})
 #
 # For non-horizontal timelines, use custom TimeAxisPath classes.
 #
-# import math  # noqa: E402
 
 # %%
 from timetoalign.loader.graphical import (  # noqa: E402
