@@ -45,7 +45,7 @@ structures and table metadata.
 from __future__ import annotations
 
 from .base import AlignmentLoader, EventLoader, Loader, ManifestData, ManifestLoader
-from .bundle import AlignmentStore, EventStore, MatchData, SingleStore
+from .bundle import AlignmentStore, DictStore, EventStore, MatchData, SingleStore
 from .physical import (
     AudioInfo,
     AudioLoader,
@@ -96,6 +96,7 @@ __all__ = [
     "EventData",
     "EventStore",
     "SingleStore",
+    "DictStore",
     "AlignmentStore",
     "MatchData",
     "ManifestData",
@@ -104,6 +105,8 @@ __all__ = [
     "EventLoader",
     "ManifestLoader",
     "AlignmentLoader",
+    # Alignment loaders
+    "MatchfileLoader",
     # Physical domain loaders
     "AudioLoader",
     "AudioInfo",
@@ -145,3 +148,17 @@ __all__ = [
     "TEMPORAL_TYPE_INSTANT",
     "TEMPORAL_TYPE_INTERVAL",
 ]
+
+
+def __getattr__(name: str):
+    """Lazy imports to avoid circular dependency at module load time.
+
+    MatchfileLoader imports from timetoalign.timelines, which in turn
+    imports from timetoalign.loader.  Deferring the import here breaks
+    the cycle.
+    """
+    if name == "MatchfileLoader":
+        from .alignment import MatchfileLoader
+
+        return MatchfileLoader
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

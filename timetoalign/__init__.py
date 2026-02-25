@@ -124,6 +124,7 @@ from timetoalign.core import (
 from timetoalign.loader import (
     AudioInfo,
     AudioLoader,
+    DictStore,
     EepNotesLoader,
     EventData,
     EventStore,
@@ -180,6 +181,7 @@ __all__ = [
     "EventData",
     "EventStore",
     "SingleStore",
+    "DictStore",
     "Loader",
     # Loader - Manifest-based (Type 1)
     "AudioLoader",
@@ -188,6 +190,8 @@ __all__ = [
     "RepoVizzInfo",
     # Loader - Physical event-based
     "EepNotesLoader",
+    # Loader - Alignment
+    "MatchfileLoader",
     # Timelines
     "Timeline",
     "LogicalTimeline",
@@ -219,3 +223,12 @@ __all__ = [
     "MatchMetadata",
     "WarpMap",
 ]
+
+
+def __getattr__(name: str):
+    """Lazy imports for classes that would cause circular imports."""
+    if name == "MatchfileLoader":
+        from timetoalign.loader.alignment import MatchfileLoader
+
+        return MatchfileLoader
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
