@@ -370,7 +370,7 @@ class TestAudioLoaderIntegration:
         half_sample = 22050
         result = timeline.convert_to(half_sample, TimeUnit.seconds)
 
-        assert result == pytest.approx(0.5, rel=1e-6)
+        assert result.value == pytest.approx(0.5, rel=1e-6)
 
     def test_timeline_used_with_metrical_grid(self, stereo_wav_file: Path):
         """Test that audio timeline works with ContinuousPhysicalTimeline workflow."""
@@ -396,7 +396,7 @@ class TestAudioLoaderIntegration:
         duration_from_discrete = discrete_tl.convert_to(
             discrete_tl.length.value, TimeUnit.seconds
         )
-        assert duration_from_discrete == pytest.approx(2.0, rel=1e-6)
+        assert duration_from_discrete.value == pytest.approx(2.0, rel=1e-6)
 
 
 # endregion

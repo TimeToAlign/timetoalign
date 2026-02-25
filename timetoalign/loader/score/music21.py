@@ -58,9 +58,12 @@ class Music21Loader(ScoreLoader):
         is_mei = source.suffix.lower() == ".mei"
         mei_measure_info: dict[int, dict[str, Any]] = (
             {}
-        )  # mc -> {volta, end_repeat, start_repeat}
+        )  # mc -> {volta, end_repeat, start_repeat, has_fine, has_segno, …}
+        mei_has_any_nav_markers: bool = False
         if is_mei:
-            mei_measure_info = self._parse_mei_measure_info(source)
+            mei_measure_info, mei_has_any_nav_markers = self._parse_mei_measure_info(
+                source
+            )
 
         for part_idx, part in enumerate(parts):
             # Ensure part_id is always a string (MEI may return int IDs)
@@ -153,29 +156,51 @@ class Music21Loader(ScoreLoader):
                 has_dc = False  # DaCapo or DaCapoAlFine/AlCoda
                 has_dc_al_fine = False
 
-                for obj in m:
-                    if isinstance(obj, m21.repeat.Fine):
-                        has_fine = True
-                    elif isinstance(obj, m21.repeat.Segno):
+                if is_mei:
+                    # music21's MEI parser does not translate <repeatMark> elements
+                    # into m21.repeat.* objects, so we use the pre-parsed XML data.
+                    # Per-measure flags are set from mei_measure_info when available.
+                    # The file-level mei_has_any_nav_markers flag covers markers that
+                    # appear in unnumbered (skeleton) measures which have no MC entry.
+                    if mc in mei_measure_info:
+                        mei_nav = mei_measure_info[mc]
+                        has_fine = mei_nav.get("has_fine", False)
+                        has_segno = mei_nav.get("has_segno", False)
+                        has_coda = mei_nav.get("has_coda", False)
+                        has_ds = mei_nav.get("has_ds", False)
+                        has_ds_al_coda = mei_nav.get("has_ds_al_coda", False)
+                        has_dc = mei_nav.get("has_dc", False)
+                        has_dc_al_fine = mei_nav.get("has_dc_al_fine", False)
+                    elif mei_has_any_nav_markers and mc == 1:
+                        # If the file has navigation markers but none mapped to this
+                        # MC, propagate the file-level flag to MC 1 so that
+                        # _compute_next_fields detects has_navigation_markers=True
+                        # and returns all-None next values (single-pass traversal).
                         has_segno = True
-                    elif isinstance(obj, m21.repeat.Coda):
-                        has_coda = True
-                    elif isinstance(obj, m21.repeat.DalSegnoAlCoda):
-                        has_ds = True
-                        has_ds_al_coda = True
-                    elif isinstance(
-                        obj,
-                        (m21.repeat.DalSegno, m21.repeat.DalSegnoAlFine),
-                    ):
-                        has_ds = True
-                    elif isinstance(obj, m21.repeat.DaCapoAlFine):
-                        has_dc = True
-                        has_dc_al_fine = True
-                    elif isinstance(
-                        obj,
-                        (m21.repeat.DaCapo, m21.repeat.DaCapoAlCoda),
-                    ):
-                        has_dc = True
+                else:
+                    for obj in m:
+                        if isinstance(obj, m21.repeat.Fine):
+                            has_fine = True
+                        elif isinstance(obj, m21.repeat.Segno):
+                            has_segno = True
+                        elif isinstance(obj, m21.repeat.Coda):
+                            has_coda = True
+                        elif isinstance(obj, m21.repeat.DalSegnoAlCoda):
+                            has_ds = True
+                            has_ds_al_coda = True
+                        elif isinstance(
+                            obj,
+                            (m21.repeat.DalSegno, m21.repeat.DalSegnoAlFine),
+                        ):
+                            has_ds = True
+                        elif isinstance(obj, m21.repeat.DaCapoAlFine):
+                            has_dc = True
+                            has_dc_al_fine = True
+                        elif isinstance(
+                            obj,
+                            (m21.repeat.DaCapo, m21.repeat.DaCapoAlCoda),
+                        ):
+                            has_dc = True
 
                 measure_info.append(
                     {
@@ -479,36 +504,81 @@ class Music21Loader(ScoreLoader):
         }
 
     @staticmethod
-    def _parse_mei_measure_info(source: Path) -> dict[int, dict[str, Any]]:
+    def _parse_mei_measure_info(
+        source: Path,
+    ) -> tuple[dict[int, dict[str, Any]], bool]:
         """Parse an MEI file directly to extract measure flow-control metadata.
 
         music21's MEI parser does not translate ``<ending>`` elements into
-        ``RepeatBracket`` spanners, so volta information is lost. This method
-        parses the raw XML to recover:
+        ``RepeatBracket`` spanners, and does not convert ``<repeatMark>``
+        elements into ``m21.repeat.*`` objects. This method parses the raw XML
+        to recover:
 
         - ``volta``: ending number (1, 2, …) for measures inside ``<ending>``
           elements.
         - ``start_repeat``: True when the measure has ``left="rptstart"``.
         - ``end_repeat``: True when the measure has ``right="rptend"``.
+        - ``has_fine``, ``has_segno``, ``has_coda``, ``has_ds``,
+          ``has_ds_al_coda``, ``has_dc``, ``has_dc_al_fine``: True when the
+          measure contains a ``<repeatMark>`` child with the corresponding
+          ``func`` attribute value.
+
+        The second return value is a file-level boolean that is ``True`` when
+        any ``<repeatMark>`` navigation marker (segno, fine, daCapo, dalSegno,
+        coda) is found anywhere in the file, including in unnumbered measures
+        that are not present in the returned dict.  This is used to ensure
+        ``_compute_next_fields`` activates its single-pass guard even when
+        navigation markers fall in skeleton measures without an ``@n``
+        attribute.
 
         Args:
             source: Path to the ``.mei`` file.
 
         Returns:
-            Mapping from measure number (MEI ``@n``) to a dict containing
-            ``volta``, ``start_repeat``, and ``end_repeat`` keys.
+            A 2-tuple of:
+            - Mapping from measure number (MEI ``@n``) to a dict containing
+              ``volta``, ``start_repeat``, ``end_repeat``, and navigation
+              marker flags.
+            - ``True`` if any navigation marker was found anywhere in the file.
         """
         try:
             tree = ET.parse(str(source))
         except ET.ParseError:
             module_logger.warning("Failed to parse MEI XML for %s", source)
-            return {}
+            return {}, False
 
         root = tree.getroot()
         result: dict[int, dict[str, Any]] = {}
+        has_any_nav_markers = False
+
+        # Map MEI <repeatMark func="..."> values to internal flag names.
+        _FUNC_TO_FLAGS: dict[str, list[str]] = {
+            "fine": ["has_fine"],
+            "segno": ["has_segno"],
+            "coda": ["has_coda"],
+            "dalSegno": ["has_ds"],
+            "dalSegnoAlCoda": ["has_ds", "has_ds_al_coda"],
+            "dalSegnoAlFine": ["has_ds"],
+            "daCapo": ["has_dc"],
+            "daCapoAlFine": ["has_dc", "has_dc_al_fine"],
+            "daCapoAlCoda": ["has_dc"],
+        }
+
+        def _nav_flags_for_measure(element: ET.Element) -> dict[str, bool]:
+            """Return navigation-marker flags for a single <measure> element."""
+            flags: dict[str, bool] = {}
+            for child in element:
+                child_tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+                if child_tag == "repeatMark":
+                    func = child.get("func", "")
+                    for flag_name in _FUNC_TO_FLAGS.get(func, []):
+                        flags[flag_name] = True
+            return flags
 
         # Walk every <measure> element, tracking whether it is inside an <ending>
         def _walk(element: ET.Element, current_volta: int | None) -> None:
+            nonlocal has_any_nav_markers
+
             tag = element.tag.split("}")[-1] if "}" in element.tag else element.tag
 
             # Entering an <ending> element: parse its label as volta number
@@ -521,6 +591,10 @@ class Music21Loader(ScoreLoader):
                     current_volta = None
 
             if tag == "measure":
+                nav_flags = _nav_flags_for_measure(element)
+                if nav_flags:
+                    has_any_nav_markers = True
+
                 n_str = element.get("n")
                 if n_str is not None:
                     try:
@@ -530,17 +604,26 @@ class Music21Loader(ScoreLoader):
                     if n is not None:
                         left = element.get("left", "")
                         right = element.get("right", "")
-                        result[n] = {
+                        entry: dict[str, Any] = {
                             "volta": current_volta,
                             "start_repeat": left == "rptstart",
                             "end_repeat": right == "rptend",
+                            "has_fine": False,
+                            "has_segno": False,
+                            "has_coda": False,
+                            "has_ds": False,
+                            "has_ds_al_coda": False,
+                            "has_dc": False,
+                            "has_dc_al_fine": False,
                         }
+                        entry.update(nav_flags)
+                        result[n] = entry
 
             for child in element:
                 _walk(child, current_volta)
 
         _walk(root, None)
-        return result
+        return result, has_any_nav_markers
 
     @staticmethod
     def _expand_mei_skeleton(
