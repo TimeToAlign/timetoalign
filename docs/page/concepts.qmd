@@ -356,7 +356,7 @@ Three composition strategies produce **MultiMaps**:
 **ChainMap**
 :   Applies C-maps in sequence: the output of one becomes the input of the
     next (e.g., ticks -> beats -> seconds). A ChainMap defines a **conversion
-    path** and is a key building block for the alignment graph.
+    path** and is a key building block for coordinate transfer.
 
 **ConcatenationMap**
 :   Combines bounded C-maps so that each coordinate region maps to one of
@@ -573,16 +573,17 @@ Two levels of matching are distinguished:
 ::: {.definition-header}
 Definition: AlignmentAnchor
 :::
-The set of {{< glossary TimeStamp >}}s that corresponds to a set of matched
-{{< glossary InstantEvent >}}s is called an **AlignmentAnchor**. From a Match
-that associates {{< glossary TimeIntervalEvent >}}s we derive two anchors:
-a **StartAnchor** and an **EndAnchor**.
+An **AlignmentAnchor** is a pure coordinate pair associating one coordinate
+on timeline A with one coordinate on timeline B. It is a neutral record
+with no claim semantics---provenance and interpretation are carried by the
+enclosing {{< glossary MatchClaim >}}. Only synchronous MatchClaims produce
+AlignmentAnchors.
 :::
 
-Any AlignmentAnchor represents a coordinate at which a timeline (and its
-Children) is synchronous with one or several other timelines. Based on the
-units present in the aligned TimeStamps, a combinatorial number of
-{{< glossary WarpMap >}}s can be constructed.
+From a {{< glossary MatchClaim >}} that associates
+{{< glossary TimeIntervalEvent >}}s, two anchors are derived: a
+**StartAnchor** and an **EndAnchor**. Based on the units present in the
+aligned timelines, {{< glossary WarpMap >}}s can be constructed.
 
 ::: {.visualisation}
 ::: {.vis-header}
@@ -593,34 +594,70 @@ using the same or a similar visual style as the Matches they derive from.
 :::
 
 
+### MatchClaim
+
+A **MatchClaim** always knows which pair of timelines it connects
+(`timeline_a_id` and `timeline_b_id` are top-level fields). It contains 0--2
+AlignmentAnchors (only if synchronous), synchrony and explicitness flags, and
+optional {{< glossary MatchClaim metadata >}} (agent, decision criteria,
+certainty). Four cases are distinguished:
+
+1. **Event-to-event** (case a): two timed things on different timelines
+   correspond---the core alignment operation.
+2. **Projection** (case b): an event is projected onto a timeline with no
+   matching event---useful for transferring annotations.
+3. **NOMATCH** (case c): an event has no equivalent on the other
+   timeline---a positive assertion of absence.
+4. **Implicit** (case d): generated automatically by
+   {{< glossary MatchGraph >}} group extension---e.g., when a match between
+   two timelines implies coordinates on sibling timelines within the same
+   {{< glossary TimelineGroup >}}.
+
+
+### MatchGraph and MatchStamp
+
+A **MatchGraph** is an on-demand analytical structure built from
+MatchClaims. Nodes are `(timeline_id, coordinate)` tuples; edges derive
+from the {{< glossary AlignmentAnchor >}}s of synchronous claims. Each
+connected component yields a **MatchStamp**---a synchronised instant across
+multiple timelines. A MatchGraph can be extended with implicit claims based
+on {{< glossary TimelineGroup >}} membership. In the Hendrix example, each
+Match box M1--M15 is a MatchGraph, not a single MatchClaim.
+
+
 ### The MatchLine
 
-The **MatchLine** is a linked list preserving the order of selected Match
-events yet allowing for easy insertion. The temporal relations between match
-events can be viewed flexibly by selecting subsets of associated alignment
-anchors and turning them into {{< glossary ConversionMap >}}s or
-{{< glossary WarpMap >}}s as required.
+The **MatchLine** is an ordered sequence of {{< glossary MatchStamp >}}s for
+a given source timeline, sorted by coordinate on that source timeline.
+Created by selecting and resolving MatchClaims (all or a filtered subset),
+it serves as input for {{< glossary WarpMap >}} generation. In the Hendrix
+example, the inferred chord-event alignment is based on a MatchLine
+selecting MatchGraphs M6--M9.
 
 
-### The alignment graph
+### Coordinate transfer {#coordinate-transfer}
 
-The overall result is a graph-like representation:
+The model implements three tiers of coordinate transfer:
 
-- **Nodes** are coordinate systems (timelines and their C-map outputs).
-- **Within a timeline**, nodes are connected by ConversionMaps and
-  TraversalMaps.
-- **Across timelines**, nodes are connected by Match objects.
+1. **Offset arithmetic** for parent--child relationships: a child's
+   coordinate is the parent's coordinate minus the child's offset.
+   Exact and lossless.
+2. **Interpolation** within {{< glossary TimelineGroup >}}s: timelines
+   of potentially different units (e.g., seconds and samples) are
+   connected via pairwise linear interpolation.
+3. **WarpMap** for cross-group alignment: derived from a
+   {{< glossary MatchLine >}}, a WarpMap materialises a complete copy
+   of a source timeline warped to a target timeline's coordinates.
 
-Two timelines are **commensurable** if they are connected by a Match path
-or a C-map chain. Commensurability is the precondition for coordinate
-transfer: if timeline A is commensurable with timeline C via timeline B,
-then a coordinate on A can be translated to C by traversing the graph
-A -> B -> C.
+Two timelines are **commensurable** if they are connected by a C-map chain
+(within a timeline), TimelineGroup membership (within a group), or a
+MatchClaim chain (across groups). Commensurability is the precondition for
+coordinate transfer.
 
-This graph structure is what enables TimeToAlign! to propagate annotations,
-transfer coordinates, and answer queries across arbitrarily many
-representations of the same musical content---the central promise of the
-model.
+This layered architecture is what enables TimeToAlign! to propagate
+annotations, transfer coordinates, and answer queries across arbitrarily
+many representations of the same musical content---the central promise of
+the model.
 
 
 ## Five Demonstration Scenarios
