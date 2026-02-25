@@ -474,12 +474,54 @@ This validates the Hendrix M6-M9 use case from the conceptual model: multiple Ma
 
 ---
 
-## What's NOT Tested (Yet)
+## AlignmentBundle Phase 6.7 Tests (`test_bundle.py`)
 
-The following are planned for Phase 6.7:
+### What We're Validating
 
-1. **Event H transfer** — the manuscript's canonical validation: transfer an event from DGT2 to DGT1 (Phase 6.7)
-2. **Cross-group transfer** — AlignmentBundle.transfer() via MatchLine→WarpMap pipeline (Phase 6.7)
+Phase 6.7 replaced the ad-hoc `TableMap`-based WarpMap dictionary in `AlignmentBundle` with the new `MatchLine` → `WarpMap` pipeline. The bundle now lazily builds `WarpMap` objects on first cross-group `transfer()` call and caches them, invalidating the cache when `add_match_claims()` is called.
+
+### New Test Classes (Phase 6.7)
+
+| Class | Tests | Purpose |
+|-------|-------|---------|
+| `TestCrossGroupTransfer` | 6 | `transfer()` across groups via WarpMap (direct, boundary, interpolation, reverse, non-existent path) |
+| `TestIndirectTransfer` | 2 | Within-group convert then cross-group warp (indirect path) |
+| `TestGroupExtension` | 2 | Claims connect score→audio; transfer propagates to midi via group membership |
+| `TestGetTimestampAtCrossGroup` | 3 | `get_timestamp_at()` propagation across groups (flat, nested, prefix formats) |
+| `TestCommensurabilityWithClaims` | 3 | `are_commensurable()` returns True when claims connect groups (direct + via membership) |
+| `TestCacheInvalidation` | 2 | WarpMap cache cleared on `add_match_claims()` |
+| `TestEdgeCases` | 6 | No claims, non-synchronous claims, single claim insufficient for WarpMap |
+| `TestAddMatchClaimsAPI` | 3 | Chaining, accumulation, no-arg validation |
+| `TestAddGroupWithCrossGroupTransfer` | 4 | `add_group()` + cross-group claims + transfer end-to-end |
+
+### Key Evidence
+
+| Test | Validates |
+|------|-----------|
+| `test_cross_group_transfer_direct` | Score@0.0 → Audio@0.0 via WarpMap (exact boundary) |
+| `test_cross_group_transfer_interpolation` | Interior coordinates interpolated correctly |
+| `test_cross_group_transfer_reverse` | Bidirectional: Audio→Score as well as Score→Audio |
+| `test_indirect_transfer_through_group` | MIDI→Audio via group convert, then Audio→Score via WarpMap |
+| `test_group_extension_transfer` | Claims between Score and Audio propagate to MIDI via recording group membership |
+| `test_get_timestamp_at_cross_group_flat` | `get_timestamp_at()` returns coordinates for timelines in both groups |
+| `test_commensurable_via_claims` | `are_commensurable()` detects cross-group connectivity through claims |
+| `test_cache_invalidated_on_add_claims` | New claims clear cached WarpMaps; subsequent transfer uses updated data |
+| `test_no_cross_group_claims_returns_none` | `transfer()` returns None when no claims connect the groups |
+| `test_non_synchronous_claims_no_transfer` | Non-synchronous claims (NOMATCH) don't produce WarpMaps |
+
+### Design: Lazy WarpMap Cache
+
+```python
+# Bundle maintains:
+_warp_map_cache: dict[tuple[str, str], WarpMap]  # (source_group, target_group) -> WarpMap
+_cache_claims_hash: int  # Invalidation key
+
+# On transfer():
+warp = self._get_or_build_warp_map(source_group_id, target_group_id)
+result = warp.forward(source_coord)
+```
+
+The cache is keyed by `(source_group_id, target_group_id)` and invalidated whenever `add_match_claims()` is called. This avoids redundant `MatchLine.from_claims()` + `WarpMap.from_match_line()` computation for repeated queries.
 
 ---
 
@@ -583,18 +625,18 @@ cd timetoalign
 python -m pytest tests/alignment/ -v
 ```
 
-**Phase 6.6 Status**: 36 tests in `test_warpmap.py` (all new). Full alignment suite: 336 passed, 56 skipped. The skips are pre-existing stubs in `test_thoresen_poc.py` and graphical loader tests requiring PyMuPDF.
+**Phase 6.7 Status**: 31 new tests in `test_bundle.py` (61 total). Full alignment suite: 367 passed, 56 skipped. The skips are pre-existing stubs in `test_thoresen_poc.py` and graphical loader tests requiring PyMuPDF.
 
 ### Test Files
 
 | File | Tests | Description |
 |------|-------|-------------|
 | `test_groups.py` | 58 | TimelineGroup, GroupTimestamp, and unified TimeStamp API |
-| `test_bundle.py` | 30 | AlignmentBundle with linear and partial alignment |
+| `test_bundle.py` | 61 | AlignmentBundle: 30 original (linear/partial alignment) + 31 new (Phase 6.7: cross-group transfer, timestamps, commensurability, caching, edge cases) |
 | `test_anchors.py` | ~55 | AlignmentAnchor (Phase 6.2), MatchClaim (Phase 6.3), MatchMetadata |
 | `test_graph.py` | 54 | MatchGraph operations (Phase 6.4: +19 tests for implicit claims, filtering, stamps) |
 | `test_matchline.py` | 33 | MatchLine construction, from_claims, from_graphs, coordinate pairs, serialization (Phase 6.5) |
-| `test_warpmap.py` | 36 | **NEW (Phase 6.6)**: WarpMap construction, forward/inverse, materialise (events, children, regions, type conversion), serialization, end-to-end pipeline |
+| `test_warpmap.py` | 36 | WarpMap construction, forward/inverse, materialise (events, children, regions, type conversion), serialization, end-to-end pipeline (Phase 6.6) |
 | `test_supra_integration.py` | 13 | SUPRA piano roll workflow (partial alignment) |
 | `test_thoresen_poc.py` | 35 | Thoresen graphical analysis workflow |
 | `../timelines/test_offset_arithmetic.py` | 11 | Parent–child offset arithmetic (Phase 6.1) |
