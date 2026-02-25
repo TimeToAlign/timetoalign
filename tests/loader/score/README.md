@@ -264,6 +264,105 @@ pytest tests/loader/score/ --cov=timetoalign.loader.score
 pytest tests/loader/score/test_flow_parity.py::TestDiagnosticOutput -v -s
 ```
 
+## Music21 MEI Loader: Sparse Skeleton Expansion
+
+### Background
+
+MuseScore 4's MEI export produces a **sparse skeleton representation** for scores that contain multi-measure rests. Rather than writing every measure explicitly, MuseScore collapses runs of empty measures into a compact form: it writes only the structurally significant boundary measures (first/last of each repeat section, volta measures, etc.) and marks them with `metcon="false"` to indicate that their content is omitted. Intermediate measures are implied by **gaps in the `@n` attribute**.
+
+For example, a section of measures 1–9 where measures 3–8 are empty will appear in the MEI as:
+
+```xml
+<measure n="2" metcon="false"> ... </measure>
+<measure n="9" right="rptend" metcon="false"> ... </measure>
+```
+
+The six omitted measures (3–8) are implied but physically absent from the file.
+
+### Problem 1: Sparse Skeleton — Incorrect MC Count
+
+**Specimen:** `op18_no4_mov4_flow` (226 folded measures)
+
+**File:** `tests/data/score/beethoven_op18-4iv_multimodal/op18_no4_mov4_flow/op18_no4_mov4_flow.mei`
+
+The MEI file is only 13 KB, while the equivalent MusicXML is 55 KB. The MEI contains only **27 `<measure>` XML elements** with non-sequential `@n` values (1, 2, 9, 10, 11, 18, 19, 20, 27, 28, 29, 44, 45, 46, 77, 78, 79, 84, 85, 86, 93, 94, 95, 102, 103, 104, 226), implying 205 intermediate measures are omitted.
+
+music21 parses this file and obtains only **21 `Measure` objects** (not even 27 — some share the same offset and are collapsed internally). The `Music21Loader` was assigning sequential `i + 1` as the MC value, yielding only 21 unique MCs instead of 226.
+
+**Gaps in the sparse skeleton:**
+
+| Between measures | Gap (omitted MCs) |
+|-----------------|-------------------|
+| n=2 → n=9       | 3–8 (6 measures)  |
+| n=11 → n=18     | 12–17 (6 measures) |
+| n=20 → n=27     | 21–26 (6 measures) |
+| n=29 → n=46     | 30–45 (16 measures) |
+| n=46 → n=77     | 47–76 (30 measures) |
+| n=79 → n=84     | 80–83 (4 measures) |
+| n=86 → n=95     | 87–94 (8 measures) |
+| n=95 → n=104    | 96–103 (8 measures) |
+| n=104 → n=226   | 105–225 (121 measures) |
+
+**Fix:** `Music21Loader._expand_mei_skeleton()` detects sparse MEI files by checking for two conditions:
+1. All measure numbers are **unique** (no duplicates from repeated sections in a full-score MEI).
+2. The **maximum measure number exceeds the list length**, indicating gaps.
+
+When both conditions hold, it fills the gaps with synthetic proxy measures — lightweight objects that expose the same attributes as a `music21.stream.Measure` (number, offset, duration, barlines) but contain no notes or flow-control markers. This expands the 21-measure list to 226.
+
+The guard conditions prevent false positives: full-score MEI files (like those for `c05n05_musete` or `polyrhythm_only`) have duplicate `@n` values (the same measure number appears in each repeated pass), which immediately disqualifies expansion.
+
+### Problem 2: Missing Volta Information — Incorrect Flow
+
+**Specimen:** `op18_no4_mov4_flow`
+
+The six volta measures (44, 45, 93, 94, 102, 103) are wrapped in `<ending>` elements in the MEI:
+
+```xml
+<ending label="1" type="mscore-ending-1">
+  <measure n="44" right="rptend" metcon="false"> ... </measure>
+</ending>
+<ending label="2" type="mscore-ending-2" lendsym="none">
+  <measure n="45" metcon="false"> ... </measure>
+</ending>
+```
+
+**music21's MEI parser does not translate `<ending>` elements into `RepeatBracket` spanners.** Consequences:
+1. The six volta measures are **dropped entirely** from the parsed measure list (not present in music21's `part.getElementsByClass(Measure)`).
+2. No `RepeatBracket` spanners are created, so `volta_by_offset` remains empty.
+3. The `_compute_next_fields` algorithm sees no volta markers and generates a single-pass flow with 5 sections (260 unfolded measures) instead of the correct 11 sections (291 unfolded measures).
+
+Without volta information, the FlowController cannot construct the branching at measure 43 (volta 1 → MC 44, volta 2 → MC 45), measure 92 (volta 1 → MC 93, volta 2 → MC 94), or measure 101 (volta 1 → MC 102, volta 2 → MC 103).
+
+**Fix:** `Music21Loader._parse_mei_measure_info()` parses the raw MEI XML directly using `xml.etree.ElementTree`. It walks every `<measure>` element, tracking whether it is inside an `<ending>` element, and returns a mapping from measure number to `{volta, start_repeat, end_repeat}`. This correctly recovers:
+- `volta=1` for measures 44, 93, 102
+- `volta=2` for measures 45, 94, 103
+- `end_repeat=True` for measures 44, 93, 102
+- `start_repeat=True` for measures 10, 19, 28, 78, 85, 95
+
+When loading `.mei` files, `_load_source` uses this pre-parsed data instead of music21's barline/RepeatBracket APIs.
+
+### Why MuseScore Generates Sparse MEI
+
+The `.mscz` source file for `op18_no4_mov4_flow` contains only 23 internal `<Measure>` elements — MuseScore itself stores multi-measure rests in a compressed form in its native format. When exporting to MEI, this compression is preserved. When exporting to MusicXML, all 226 measures are expanded explicitly. This explains the size difference (13 KB MEI vs 55 KB MusicXML).
+
+The MEI skeleton format is **not a bug** — it is valid MEI encoding. The fix is in the loader, not the test data.
+
+### Affected Tests
+
+| Test | Specimen | Pre-fix | Post-fix |
+|------|----------|---------|---------|
+| `TestMusic21LoaderMEI::test_music21_mei_folded_count[op18_no4_mov4_flow]` | op18_no4_mov4_flow | FAIL (21 ≠ 226) | PASS |
+| `TestMusic21LoaderMEI::test_music21_mei_matches_musicxml[op18_no4_mov4_flow]` | op18_no4_mov4_flow | FAIL (5 sections ≠ 11) | PASS |
+
+### Files Modified
+
+- `timetoalign/loader/score/music21.py`:
+  - Added `_parse_mei_measure_info(source)` — raw XML parser for MEI flow-control metadata
+  - Added `_expand_mei_skeleton(measure_list)` — sparse skeleton expansion with duplicate-guard
+  - Modified `_load_source()` — uses MEI-specific data instead of music21 API when `source.suffix == ".mei"`
+
+---
+
 ### Large File Timeout Handling
 
 Tests automatically skip MusicXML/MEI files larger than **500KB** to avoid timeouts:
