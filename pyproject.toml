@@ -29,7 +29,7 @@ dependencies = [
     "pyarrow>=14.0",
     "pandas>=2.0",
     "networkx>=3.0",
-    "typing_extensions>=4.0",
+    "typing_extensions>=4.0"
 ]
 
 [project.optional-dependencies]
@@ -37,7 +37,10 @@ dependencies = [
 # Atomic extras — one concern each
 # ---------------------------------------------------------------------------
 midi = ["mido>=1.3"]                          # MIDI file loading (PerformanceMidiLoader)
-partitura = ["partitura>=1.5"]                # Score parsing via partitura (PartituraLoader, ScoreMidiLoader)
+partitura = [
+    "partitura>=1.5",
+    "setuptools<82" # due to partitura's using pkg_resources
+]                                             # Score parsing via partitura (PartituraLoader, ScoreMidiLoader)
 music21 = ["music21>=9.0"]                    # Score parsing via music21 (Music21Loader)
 ms3 = ["ms3>=2.6.0"]                          # DCML TSV score parsing (TSVLoader)
 audio = ["soundfile>=0.12", "mutagen>=1.47"]  # Audio file loading + MP3/M4A metadata
