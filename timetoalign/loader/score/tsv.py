@@ -7,6 +7,8 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
+from typing_extensions import Self
+
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import coordinate_to_struct, fraction_to_struct
 
@@ -33,6 +35,22 @@ class TSVLoader(ScoreLoader):
     Wraps ms3.load_tsv to load standard tabular data.
     Returns a ScoreStore with category-specific data.
 
+    Unlike single-file loaders (PartituraLoader, Music21Loader), TSV corpora
+    store each facet (notes, measures, chords, harmonies) in a separate file.
+    By default the loader loads exactly the files it is given. Pass
+    ``auto_discover=True`` to have it locate companion facet files
+    automatically.
+
+    Auto-discovery uses two strategies:
+
+    1. **Flat siblings** (ms3 convention): for ``name.notes.tsv``, look for
+       ``name.measures.tsv``, ``name.chords.tsv``, ``name.harmonies.tsv``
+       in the same directory.
+    2. **Facet directories** (DCML corpus convention): if the file sits in a
+       directory whose name matches a facet (e.g., ``notes/``), look for
+       sibling directories named after the other facets and find a file
+       with the same stem there.
+
     TSV columns (notes.tsv gold standard):
     - mc, mn: Measure count/number
     - quarterbeats: Continuous logical time (Fraction string)
@@ -45,14 +63,32 @@ class TSVLoader(ScoreLoader):
     - tied, gracenote, chord_id: Note attributes
     """
 
+    # Known DCML/ms3 facet names (used for discovery).
+    _FACETS: tuple[str, ...] = ("notes", "measures", "chords", "harmonies")
+
+    def __init__(self, *args, auto_discover: bool = False, **kwargs) -> None:
+        """Initialize the TSVLoader.
+
+        Args:
+            *args: Passed to ``ScoreLoader.__init__``.
+            auto_discover: If True, automatically locate companion facet
+                files (measures, chords, harmonies, etc.) for every source
+                file passed to `load`. Defaults to False.
+            **kwargs: Passed to ``ScoreLoader.__init__``.
+        """
+        super().__init__(*args, **kwargs)
+        self._auto_discover = auto_discover
+
     @classmethod
-    def from_file(cls, *paths: Path | str) -> "TSVLoader":
+    def from_file(cls, *paths: Path | str, auto_discover: bool = False) -> "TSVLoader":
         """Create a loader and load TSV files in one step.
 
         Convenience constructor for loading one or more TSV files.
 
         Args:
             *paths: Paths to TSV files (notes, measures, harmonies, chords).
+            auto_discover: If True, automatically locate companion facet
+                files for each source.
 
         Returns:
             A new TSVLoader instance with the files already loaded.
@@ -60,10 +96,137 @@ class TSVLoader(ScoreLoader):
         Examples:
             >>> loader = TSVLoader.from_file("score.notes.tsv", "score.measures.tsv")
             >>> loader.store.summary()
+
+            >>> # Auto-discover all facet files from a single notes file:
+            >>> loader = TSVLoader.from_file("score.notes.tsv", auto_discover=True)
         """
-        loader = cls()
+        loader = cls(auto_discover=auto_discover)
         loader.load(*paths)
         return loader
+
+    # region Auto-discovery
+
+    @staticmethod
+    def _parse_facet(path: Path) -> str | None:
+        """Extract the facet name from a TSV filename.
+
+        Recognises two naming conventions:
+        - ms3 flat: ``name.notes.tsv`` -> ``"notes"``
+        - plain:    ``notes.tsv``      -> ``"notes"``
+
+        Args:
+            path: Path to a TSV file.
+
+        Returns:
+            The facet name if recognised, else None.
+        """
+        parts = path.name.lower().rsplit(".", maxsplit=2)
+        # "name.notes.tsv" -> ["name", "notes", "tsv"]
+        if len(parts) == 3 and parts[2] == "tsv" and parts[1] in TSVLoader._FACETS:
+            return parts[1]
+        # "notes.tsv" -> ["notes", "tsv"]
+        if len(parts) == 2 and parts[1] == "tsv" and parts[0] in TSVLoader._FACETS:
+            return parts[0]
+        return None
+
+    @staticmethod
+    def _discover_companions(source: Path) -> list[Path]:
+        """Locate companion facet files for *source*.
+
+        Uses two strategies in order:
+
+        1. **Flat siblings** — for ``name.<facet>.tsv``, glob
+           ``name.*.<other_facet>.tsv`` in the same directory.
+        2. **Facet directories** — if the parent directory name equals the
+           current facet (e.g. ``notes/``), look for sibling directories
+           named after the remaining facets and find a file whose stem
+           matches.
+
+        Files with an ``_unfolded`` suffix are matched only to other
+        ``_unfolded`` files and vice-versa, to avoid mixing folded and
+        unfolded variants.
+
+        Args:
+            source: Resolved path to a TSV file.
+
+        Returns:
+            Companion paths (may be empty). Never includes *source* itself.
+        """
+        source = source.resolve()
+        facet = TSVLoader._parse_facet(source)
+        if facet is None:
+            return []
+
+        companions: list[Path] = []
+        other_facets = [f for f in TSVLoader._FACETS if f != facet]
+        name_lower = source.name.lower()
+
+        # Strategy 1: flat siblings (name.facet.tsv convention)
+        # Extract the piece stem: everything before ".<facet>.tsv"
+        dot_facet = f".{facet}."
+        idx = name_lower.find(dot_facet)
+        if idx >= 0:
+            piece_stem = source.name[:idx]  # preserve original case
+            for other in other_facets:
+                candidate = source.parent / f"{piece_stem}.{other}.tsv"
+                if candidate.resolve() != source and candidate.is_file():
+                    companions.append(candidate.resolve())
+            if companions:
+                return companions
+
+        # Strategy 2: facet directories
+        parent_name = source.parent.name.lower()
+        if parent_name == facet:
+            grandparent = source.parent.parent
+            # Derive the expected filename in sibling facet directories.
+            # Replace the facet directory name in the stem if present,
+            # otherwise keep the original name.
+            file_stem = source.name
+            for other in other_facets:
+                sibling_dir = grandparent / other
+                if sibling_dir.is_dir():
+                    candidate = sibling_dir / file_stem
+                    if candidate.is_file():
+                        companions.append(candidate.resolve())
+
+        return companions
+
+    def load(self, *sources: Path | str) -> Self:
+        """Load one or more TSV source files.
+
+        When ``auto_discover`` is enabled, each source file is expanded to
+        include its companion facet files (measures, chords, harmonies,
+        etc.) before loading. Files that have already been loaded (or that
+        appear more than once in the expanded set) are silently skipped.
+
+        Args:
+            *sources: Paths to TSV files.
+
+        Returns:
+            Self, for method chaining.
+        """
+        if not self._auto_discover:
+            return super().load(*sources)
+
+        # Expand sources with discovered companions, preserving order and
+        # deduplicating by resolved path.
+        seen: set[Path] = {p.resolve() for p in self._sources}
+        expanded: list[Path] = []
+        for source in sources:
+            path = Path(source).resolve()
+            if path in seen:
+                continue
+            seen.add(path)
+            expanded.append(path)
+            for companion in self._discover_companions(path):
+                if companion not in seen:
+                    seen.add(companion)
+                    expanded.append(companion)
+                    logger.debug("Auto-discovered companion: %s", companion)
+
+        return super().load(*expanded)
+
+    # endregion
 
     def _load_source(self, source: Path) -> ScoreStore:
         """Load TSV file(s) and return ScoreStore.
