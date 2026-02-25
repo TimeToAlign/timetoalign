@@ -409,7 +409,7 @@ Per the **ZERO TOLERANCE VALIDATION POLICY** (AGENTS.md):
 
 Located in `tests/data/`:
 
-- `midi/score/`: Chopin Op. 10 No. 3 (MusicXML + TSV)
+- `vienna_1x22/`: Chopin Op. 10 No. 3 (MusicXML + TSV + ms3 ground truth)
 - `score/`: All specimens (see `.agent/skills/co-create-groundtruth/references/specimens.md`)
 - `target_flows/`: Ground truth `.flow.csv` files
 

@@ -215,10 +215,10 @@ from timetoalign.loader.score.tsv import TSVLoader
 
 # Locate test data - relative to notebook location
 _notebook_dir = Path(".").resolve()
-DATA_DIR = _notebook_dir.parent.parent / "tests" / "data" / "midi" / "score"
+DATA_DIR = _notebook_dir.parent.parent / "tests" / "data" / "vienna_1x22"
 
 # Same piece, two different formats
-MUSICXML_PATH = DATA_DIR / "chopin_op10_no3.musicxml"
+MUSICXML_PATH = DATA_DIR / "Chopin_op10_no3.musicxml"
 TSV_PATH = DATA_DIR / "ms3" / "chopin_op10_no3.notes.tsv"
 
 # %%

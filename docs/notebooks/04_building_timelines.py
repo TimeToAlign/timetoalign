@@ -415,7 +415,7 @@ pd.DataFrame(
 from timetoalign.loader.score.tsv import TSVLoader  # noqa: E402
 
 # Load some real score data
-DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data" / "midi" / "score"
+DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data" / "vienna_1x22"
 TSV_PATH = DATA_DIR / "ms3" / "chopin_op10_no3.notes.tsv"
 
 if TSV_PATH.exists():

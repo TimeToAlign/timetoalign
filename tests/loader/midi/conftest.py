@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 DATA_DIR = Path(__file__).parents[2] / "data" / "midi"
+VIENNA_DIR = Path(__file__).parents[2] / "data" / "vienna_1x22"
 
 
 @pytest.fixture
@@ -26,9 +27,9 @@ def supra_raw_path(performance_midi_dir: Path) -> Path:
 
 
 @pytest.fixture
-def chopin_perf_path(performance_midi_dir: Path) -> Path:
-    """Path to chopin_p01.mid."""
-    return performance_midi_dir / "chopin_p01.mid"
+def chopin_perf_path() -> Path:
+    """Path to Chopin_op10_no3_p01.mid."""
+    return VIENNA_DIR / "Chopin_op10_no3_p01.mid"
 
 
 @pytest.fixture
