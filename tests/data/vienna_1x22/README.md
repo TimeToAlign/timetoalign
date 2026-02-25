@@ -186,67 +186,122 @@ Testing this specimen exercises the following TTA concepts and components:
 7. **Loader-managed shared score (Pattern 2)**: `loader.load(*files)` then `loader.create_alignment_bundle()` (no file arguments); the loader automatically builds and caches the shared score TL during `load()`.
 8. **AlignmentBundle construction**: Adding 22 performance timelines with cross-group MatchClaims.
 
-### Test Classes (PLANNED — `tests/loader/test_matchfile_loader.py` does not yet exist)
+### Test Classes (✅ IMPLEMENTED — `tests/loader/test_matchfile_loader.py`)
 
-#### `TestMatchfileFormat`
+**65 tests across 8 classes, ALL PASSING** (both serial `-n 0` and parallel `-n auto`).
+
+#### `TestMatchfileFormat` (5 tests)
 Unit tests for the raw parser, independent of TTA objects.
 
 | Test | Assertion | Exact Value |
 |---|---|---|
 | `test_header_parsing` | Header fields parsed correctly | version=1.0.0, midiClockUnits=480 |
-| `test_snote_count` | All 454 snote records parsed | 454 |
-| `test_deletion_count_p01` | Deletions in p01 | 3 |
-| `test_pedal_lines_excluded` | Pedal lines not in note output | 0 sustain/soft in notes |
-| `test_grace_note_detection` | Grace notes identified | duration=0 and `grace` tag in voice list |
+| `test_header_version` | Version string from header | "1.0.0" |
+| `test_load_returns_self` | `load()` returns `Self` for chaining | — |
+| `test_file_not_found_raises` | Missing file raises `FileNotFoundError` | — |
+| `test_wrong_extension_raises` | Non-`.match` extension raises `ValueError` | — |
 
-#### `TestMatchfileLoaderSingle` (single-file load)
+#### `TestMatchfileLoaderSingle` (22 tests)
 Tests `MatchfileLoader.load("Chopin_op10_no3_p01.match")`.
 
 | Test | Assertion | Exact Value |
 |---|---|---|
-| `test_score_timeline_quarters` | Score TL uses `TimeUnit.quarters` by default | — |
-| `test_score_timeline_note_count` | Notes on score TL | 454 (matched subset) |
-| `test_score_cmap_normalisation` | `raw_to_normalised` ShiftMap attached; offset computed from file | `ShiftMap.offset == -min(raw_onsets)` |
-| `test_score_cmap_normalisation_value` | Normalised onset of first note = 0.0 | `score_tl.cmap(-0.5) == 0.0` |
-| `test_score_cmap_divs` | `quarters_to_divs` ScalarMap attached; forward direction quarters → divs | `cmap(1.0) == 480` |
-| `test_perf_timeline_ticks` | Performance TL uses `TimeUnit.ticks` | — |
-| `test_perf_timeline_note_count` | Notes on performance TL | 451 (454 snotes − 3 deletions) |
-| `test_perf_cmap_seconds` | `ticks_to_seconds` ScalarMap attached; value from `midiClockRate`/`midiClockUnits` | `cmap(480) ≈ 0.5` at 120 BPM |
-| `test_match_claims_count` | Total MatchClaims = snote count | 454 |
+| `test_score_timeline_type` | Score TL is `ContinuousLogicalTimeline` | — |
+| `test_score_timeline_unit` | Score TL uses `TimeUnit.quarters` | — |
+| `test_score_timeline_uid` | Score TL uid starts with `score:` | — |
+| `test_score_timeline_note_count` | Notes on score TL | 454 |
+| `test_score_timeline_nonnegative_coordinates` | All coordinates >= 0 | — |
+| `test_anacrusis_offset` | Offset computed from file | 0.5 (computed, not hardcoded) |
+| `test_score_cmap_shift` | `raw_to_normalised` ShiftMap attached | `ShiftMap.offset == 0.5` |
+| `test_score_cmap_divs` | `quarters_to_divs` ScalarMap attached | `cmap(1.0) == 480` |
+| `test_perf_timeline_type` | Performance TL is `DiscreteLogicalTimeline` | — |
+| `test_perf_timeline_unit` | Performance TL uses `TimeUnit.ticks` | — |
+| `test_perf_timeline_uid` | Performance TL uid starts with `perf:` | — |
+| `test_perf_timeline_note_count` | Notes on performance TL | 451 |
+| `test_perf_cmap_seconds` | `ticks_to_seconds` ScalarMap attached | Factor from header |
+| `test_total_claims_count` | Total MatchClaims | 454 |
+| `test_synchronous_claims_count` | Synchronous (matched) claims | 451 |
 | `test_nomatch_claims_count` | Non-synchronous (deletion) claims | 3 |
-| `test_match_metadata` | Provenance on every claim | `agent="vienna_match_v1.0.0"` |
-| `test_match_claim_raw_coordinates` | First claim uses raw (negative) score coord | `start_anchor.coordinate_a == -0.5` |
+| `test_synchronous_claims_have_anchors` | All sync claims have start_anchor | — |
+| `test_nomatch_claims_have_no_anchors` | All nomatch claims have no anchors | — |
+| `test_match_metadata_agent` | Agent provenance | `"vienna_match_v1.0.0"` |
+| `test_match_metadata_criteria` | Decision criteria | `"automatic"` |
+| `test_match_metadata_certainty` | Certainty level | `1.0` |
+| `test_claims_reference_correct_timelines` | Claims reference score and perf TL uids | — |
+| `test_sources_tracked` | Source file recorded | — |
+| `test_no_rejected_files` | No files rejected | 0 |
+| `test_loader_len` | `len(loader)` returns file count | 1 |
+| `test_loader_repr` | `repr(loader)` is informative | — |
 
-#### `TestMatchfileLoaderCreateBundle` (`load()` then `create_alignment_bundle()`)
-Tests the standard two-phase pattern: `loader.load(file)` then `loader.create_alignment_bundle()`.
-
-| Test | Assertion |
-|---|---|
-| `test_bundle_returns_result` | Returns `AlignmentBundleResult` |
-| `test_bundle_score_id` | Score TL `id` matches caller-supplied uid |
-| `test_bundle_perf_id` | Performance TL `id` is derived from filename |
-| `test_bundle_claim_connect_both` | Every claim `.connects_both(score_id, perf_id)` |
-
-#### `TestMatchfileLoaderExternalScore` (Pattern 1 — user-supplied score TL)
-Tests `loader.load(*files)` then `create_alignment_bundle(score_timeline=pre_loaded_score_tl)`.
+#### `TestMatchfileLoaderNormalization` (3 tests)
+Tests anacrusis normalisation behaviour.
 
 | Test | Assertion |
 |---|---|
-| `test_bind_external_score_timeline` | `result.source_timeline` is the same object that was passed in |
-| `test_claims_use_external_tl_uid` | All claims use the external TL's uid as `timeline_a_id` |
-| `test_event_id_lookup_succeeds` | Each snote ID found on the external TL; coordinate verified |
-| `test_event_added_if_absent` | An event present in `.match` but absent from external TL is added |
-| `test_coord_mismatch_raises` | If same ID has different coordinate, `ValueError` is raised |
+| `test_no_normalisation_flag` | `normalise=False` suppresses ShiftMap; raw negative coords preserved |
+| `test_anacrusis_offset_computed_from_file` | Offset derived from min(raw onsets), not hardcoded |
+| `test_normalisation_still_shifts_coordinates` | With normalisation, all coords >= 0 |
 
-#### `TestMatchfileLoaderSharedScore` (Pattern 2 — loader-managed)
-Tests `loader.load(*all_22_files)` then `create_alignment_bundle()` without `source_timeline=`.
+#### `TestMatchfileLoaderCreateTimeline` (6 tests)
+Tests `create_timeline(id)` by role and uid.
 
 | Test | Assertion |
 |---|---|
-| `test_22_performances_same_score_tl` | All 22 `result.source_timeline` are the same object |
-| `test_22_performances_distinct_perf_tls` | 22 distinct `result.target_timeline.uid` values |
-| `test_22_performances_same_score_id` | All claims share same `timeline_a_id` |
-| `test_claim_count_all_22` | Total claims = 454 × 22 = 9,988 |
+| `test_score_role` | `create_timeline("score")` returns score TL |
+| `test_perf_numeric_role` | `create_timeline("perf:1")` returns first perf TL |
+| `test_perf_uid_lookup` | `create_timeline(uid)` returns matching TL |
+| `test_score_uid_lookup` | `create_timeline(score_uid)` returns score TL |
+| `test_invalid_role_raises` | `create_timeline("nonexistent")` raises `KeyError` |
+| `test_no_load_raises` | `create_timeline()` before `load()` raises `RuntimeError` |
+
+#### `TestMatchfileLoaderCreateTimelines` (4 tests)
+Tests `create_timelines()` list output.
+
+| Test | Assertion |
+|---|---|
+| `test_single_file_gives_two` | Single load → 2 timelines (score + perf) |
+| `test_score_is_first` | Score is the first element |
+| `test_returns_list` | Return type is `list` |
+| `test_empty_before_load` | Before `load()`, returns empty list |
+
+#### `TestMatchfileLoaderCreateBundle` (6 tests)
+Tests `create_alignment_bundle()`.
+
+| Test | Assertion |
+|---|---|
+| `test_returns_alignment_bundle` | Returns `AlignmentBundle` (not a wrapper) |
+| `test_bundle_timeline_count` | 2 timelines (1 score + 1 perf) |
+| `test_bundle_score_timeline` | Score TL is the same object |
+| `test_bundle_score_in_group` | Score is in its own group |
+| `test_bundle_cross_group_claims` | Claims transferred to bundle |
+| `test_no_load_raises` | Before `load()` raises `RuntimeError` |
+
+#### `TestMatchfileLoaderExternalScore` (2 tests)
+Tests Pattern B: user-supplied external score timeline.
+
+| Test | Assertion |
+|---|---|
+| `test_external_score_used_in_bundle` | Bundle uses provided score TL |
+| `test_claims_still_reference_internal_uid` | Claims use the loader's internal score uid |
+
+#### `TestMatchfileLoaderMulti` (17 tests)
+Full 22-performance scenario.
+
+| Test | Assertion | Exact Value |
+|---|---|---|
+| `test_22_performances_loaded` | 22 performances loaded | 22 |
+| `test_22_sources_tracked` | 22 source files tracked | 22 |
+| `test_no_rejected_files` | No files rejected | 0 |
+| `test_score_note_count_unchanged` | Score note count after 22 loads | 454 |
+| `test_shared_score_timeline` | All performances share same score TL | 1 unique ID |
+| `test_distinct_performance_uids` | 22 distinct performance UIDs | 22 |
+| `test_total_claims_count` | Total claims across all 22 files | 9,988 |
+| `test_all_claims_reference_same_score` | All claims share same `timeline_a_id` | — |
+| `test_bundle_timeline_count` | Bundle has 23 timelines | 23 |
+| `test_bundle_cross_group_claims_count` | Bundle cross-group claims | 9,988 |
+| `test_create_timelines_gives_23` | `create_timelines()` returns 23 | 23 |
+| `test_perf_numeric_lookup_all` | `create_timeline("perf:N")` works for N=1..22 | — |
+| `test_incremental_load` | Load 5, then load 5 more = 10 total | 10 |
 
 ### Validation Against Gold Standard
 
@@ -267,17 +322,21 @@ The `ms3/` TSV files serve as the score ground truth.
 
 ## Performance Benchmark
 
-Profiling baseline for `MatchfileLoader` on this dataset (to be updated after implementation):
+Profiling baseline for `MatchfileLoader` on this dataset:
 
-| Operation | Target Time | Notes |
-|---|---|---|
-| Parse single `.match` file | < 50 ms | Pure Python regex + parsing |
-| Load all 22 `.match` files | < 1 s | Vectorized path |
-| Build MatchClaims (single file) | < 10 ms | Dataclass construction |
-| Build 22-performance AlignmentBundle | < 2 s | Including shared score TL |
+| Operation | Target Time | Observed (Feb 2026) | Notes |
+|---|---|---|---|
+| Parse single `.match` file | < 50 ms | ~2.5 s (with partitura) | partitura overhead dominates; pure parsing is fast |
+| Load all 22 `.match` files | < 1 s | ~60 s (65 tests total) | Includes all test overhead; actual load likely <30s |
+| Build MatchClaims (single file) | < 10 ms | TBD | Dataclass construction |
+| Build 22-performance AlignmentBundle | < 2 s | TBD | Including shared score TL |
+
+> **Note:** The initial targets assumed a lightweight parser. `partitura.load_match()`
+> performs score construction internally, adding significant overhead. A dedicated
+> profiling script (Phase C) will separate parsing time from domain object construction.
 
 ```bash
-# PLANNED — profiling script not yet implemented
+# PLANNED — profiling script not yet implemented (Phase C)
 # python tests/loader/profile_matchfile.py
 ```
 
@@ -312,12 +371,15 @@ Profiling baseline for `MatchfileLoader` on this dataset (to be updated after im
 ## Running Tests
 
 ```bash
-# All vienna_1x22-related tests (PLANNED — test file not yet implemented)
-# pytest tests/loader/test_matchfile_loader.py -v
+# All vienna_1x22-related tests (65 tests, all passing)
+pytest tests/loader/test_matchfile_loader.py -v
+
+# Run in serial mode (for debugging)
+pytest tests/loader/test_matchfile_loader.py -v -n 0
 
 # Cross-validation with score loader tests
 pytest tests/loader/score/test_cross_validation.py -v -k "chopin"
 
 # Run with profile output (PLANNED — profiling script not yet implemented)
-# pytest tests/loader/test_matchfile_loader.py -v -s --tb=short
+# python tests/loader/profile_matchfile.py
 ```
