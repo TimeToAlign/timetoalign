@@ -172,25 +172,25 @@ pd.Series({k: v.name for k, v in aliases.items()}, name="resolves_to")
 # ### Why Fractions Matter for Musical Time
 #
 # Floating-point numbers accumulate small errors when summed repeatedly.
-# Consider a septuplet (7 notes spanning 4 beats) - each note is exactly
-# 4/7 beats:
+# Consider subdividing a beat into 10 equal parts (e.g., a fine rhythmic
+# grid): each slice is exactly 1/10 of a beat.
 
 # %%
-# Float vs Fraction precision - summing reveals accumulated error
-septuplet_float = 4 / 7  # 7 notes spanning 4 beats
-septuplet_fraction = Fraction(4, 7)
+# Float vs Fraction precision — summing reveals accumulated error
+slice_float = 0.1  # 1/10 of a beat as a float
+slice_fraction = Fraction(1, 10)
 
-# Sum 7 septuplets: should equal exactly 4 beats
-float_sum = sum(septuplet_float for _ in range(7))
-fraction_sum = sum(septuplet_fraction for _ in range(7))
+# Sum 10 slices: should equal exactly 1 beat
+float_sum = sum(slice_float for _ in range(10))
+fraction_sum = sum(slice_fraction for _ in range(10))
 
 {
-    "septuplet_float": septuplet_float,
-    "septuplet_fraction": septuplet_fraction,
-    "7x_float": float_sum,
-    "7x_float == 4": float_sum == 4,  # False due to floating-point error!
-    "7x_fraction": fraction_sum,
-    "7x_fraction == 4": fraction_sum == 4,  # True - exact!
+    "slice_float": slice_float,
+    "slice_fraction": slice_fraction,
+    "10x_float": float_sum,
+    "10x_float == 1": float_sum == 1,  # False due to floating-point error!
+    "10x_fraction": fraction_sum,
+    "10x_fraction == 1": fraction_sum == 1,  # True — exact!
 }
 
 # %% [markdown]
