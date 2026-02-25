@@ -24,18 +24,13 @@ The cross-validation is trustworthy because:
    - midi_pitch.ep: Very high trust (direct from MIDI or pitch)
    - mc: Medium trust (derived from measure structure)
 
-## Expected Mismatches & Root Causes
-
-| Field | Potential Mismatch | Root Cause |
-|-------|-------------------|------------|
-| mc_onset | Float precision | Beat map interpolation vs exact fraction |
-| duration_qb | Grace notes | Libraries handle grace note duration differently |
-| mc | Anacrusis handling | First measure numbering varies by parser |
-| spelled_pitch | Enharmonic | G♯ vs A♭ in ambiguous contexts |
+NOTE: Tests for quarterbeats, duration_qb, and mc cross-validation were removed
+because the unified schema now uses 'start' and 'duration' struct columns instead
+of the original per-field columns. Only note count and MIDI pitch (exact match)
+cross-validation remain.
 """
 
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 import pytest
@@ -84,24 +79,6 @@ def extract_notes_df(store: ScoreStore, loader_name: str) -> pd.DataFrame:
     return df
 
 
-class MismatchExplanation:
-    """Catalog of known mismatches and their explanations."""
-
-    KNOWN_ISSUES = {
-        "mc_onset": "Float/fraction precision difference in beat map interpolation",
-        "duration_qb": "Grace note duration handling differs between parsers",
-        "mc": "Anacrusis (pickup measure) numbering varies by parser convention",
-        "spelled_pitch": "Enharmonic spelling differences (e.g., G♯ vs A♭)",
-        "mn": "Measure number string formatting may differ",
-    }
-
-    @classmethod
-    def explain(cls, field: str, gold_val: Any, target_val: Any) -> str:
-        """Generate explanation for a mismatch."""
-        base = cls.KNOWN_ISSUES.get(field, "Unknown cause")
-        return f"{field}: {base}. Gold={gold_val}, Target={target_val}"
-
-
 @pytest.fixture
 def gold_df():
     """Load TSV gold standard."""
@@ -123,23 +100,6 @@ def music21_df():
     return extract_notes_df(loader.store, "Music21")
 
 
-class TestCrossValidationRationale:
-    """Meta-tests that document why the validation is trustworthy."""
-
-    def test_all_loaders_use_independent_libraries(self):
-        """Verify loaders use different underlying libraries."""
-        # This is a documentation test - the assertion is self-evident
-        # TSV uses ms3, Partitura uses partitura, Music21 uses music21
-        assert TSVLoader.__module__ != PartituraLoader.__module__ or True
-        assert PartituraLoader.__module__ != Music21Loader.__module__ or True
-
-    def test_tsv_derived_from_musescore(self):
-        """TSV files are derived from MuseScore's internal representation."""
-        # The .mscx file exists alongside TSV files
-        mscx_file = MS3_DIR / "chopin_op10_no3.mscx"
-        assert mscx_file.exists(), "MuseScore source file confirms TSV provenance"
-
-
 class TestNoteCountConsistency:
     """Verify all loaders return consistent note counts."""
 
@@ -152,95 +112,6 @@ class TestNoteCountConsistency:
         assert (
             len(music21_df) == 498
         ), f"Music21 has {len(music21_df)} notes, expected 498"
-
-
-@pytest.mark.skip(
-    reason="Schema mismatch: loaders use 'start' column, not 'quarterbeats'"
-)
-class TestQuarterbeatsMatch:
-    """Quarterbeats (temporal position) must match across loaders.
-
-    Rationale: Quarterbeats is the primary time coordinate. All loaders compute
-    this from their respective timing systems (divs, ticks, or direct fractions).
-    Matching quarterbeats indicates correct temporal alignment.
-
-    NOTE: Currently skipped because loaders use unified 'start' column schema
-    instead of separate 'quarterbeats' column. Test needs refactoring.
-    """
-
-    TOLERANCE = 0.01  # Quarter beat tolerance
-
-    def test_partitura_quarterbeats(self, gold_df, partitura_df):
-        """Partitura quarterbeats match TSV gold within tolerance."""
-        diff = abs(gold_df["quarterbeats_float"] - partitura_df["quarterbeats_float"])
-        mismatches = diff > self.TOLERANCE
-
-        if mismatches.any():
-            first_idx = mismatches.idxmax()
-            explanation = MismatchExplanation.explain(
-                "quarterbeats",
-                gold_df["quarterbeats_float"].iloc[first_idx],
-                partitura_df["quarterbeats_float"].iloc[first_idx],
-            )
-            pytest.fail(f"Quarterbeats mismatch at index {first_idx}: {explanation}")
-
-    def test_music21_quarterbeats(self, gold_df, music21_df):
-        """Music21 quarterbeats match TSV gold within tolerance."""
-        diff = abs(gold_df["quarterbeats_float"] - music21_df["quarterbeats_float"])
-        mismatches = diff > self.TOLERANCE
-
-        if mismatches.any():
-            first_idx = mismatches.idxmax()
-            explanation = MismatchExplanation.explain(
-                "quarterbeats",
-                gold_df["quarterbeats_float"].iloc[first_idx],
-                music21_df["quarterbeats_float"].iloc[first_idx],
-            )
-            pytest.fail(f"Quarterbeats mismatch at index {first_idx}: {explanation}")
-
-
-@pytest.mark.skip(
-    reason="Schema mismatch: loaders use 'duration' struct, not 'duration_qb'"
-)
-class TestDurationMatch:
-    """Duration must match across loaders.
-
-    Rationale: Duration is essential for correct interval event representation.
-    Matching durations indicates notes have consistent start/end boundaries.
-
-    NOTE: Currently skipped because loaders use unified 'duration' struct column
-    instead of separate 'duration_qb' column. Test needs refactoring.
-    """
-
-    TOLERANCE = 0.01
-
-    def test_partitura_duration(self, gold_df, partitura_df):
-        """Partitura duration matches TSV gold within tolerance."""
-        diff = abs(gold_df["duration_qb_float"] - partitura_df["duration_qb_float"])
-        mismatches = diff > self.TOLERANCE
-
-        if mismatches.any():
-            first_idx = mismatches.idxmax()
-            explanation = MismatchExplanation.explain(
-                "duration_qb",
-                gold_df["duration_qb_float"].iloc[first_idx],
-                partitura_df["duration_qb_float"].iloc[first_idx],
-            )
-            pytest.fail(f"Duration mismatch at index {first_idx}: {explanation}")
-
-    def test_music21_duration(self, gold_df, music21_df):
-        """Music21 duration matches TSV gold within tolerance."""
-        diff = abs(gold_df["duration_qb_float"] - music21_df["duration_qb_float"])
-        mismatches = diff > self.TOLERANCE
-
-        if mismatches.any():
-            first_idx = mismatches.idxmax()
-            explanation = MismatchExplanation.explain(
-                "duration_qb",
-                gold_df["duration_qb_float"].iloc[first_idx],
-                music21_df["duration_qb_float"].iloc[first_idx],
-            )
-            pytest.fail(f"Duration mismatch at index {first_idx}: {explanation}")
 
 
 class TestMidiPitchExact:
@@ -274,42 +145,3 @@ class TestMidiPitchExact:
                 f"Gold={gold_df['ep'].iloc[first_idx]}, "
                 f"Music21={music21_df['ep'].iloc[first_idx]}"
             )
-
-
-@pytest.mark.skip(reason="Schema mismatch: 'mc' column format differs between loaders")
-class TestMeasureContext:
-    """Measure context (MC) should match across loaders.
-
-    Rationale: Measure count provides structural context. Differences may occur
-    for anacrusis handling (pickup measures) where conventions vary.
-
-    NOTE: Currently skipped due to column format differences. Test needs refactoring.
-    """
-
-    def test_partitura_mc(self, gold_df, partitura_df):
-        """Partitura MC matches TSV gold."""
-        mismatches = gold_df["mc"] != partitura_df["mc"]
-        mismatch_count = mismatches.sum()
-
-        if mismatch_count > 0:
-            # Allow some tolerance for anacrusis handling
-            first_idx = mismatches.idxmax()
-            explanation = MismatchExplanation.explain(
-                "mc", gold_df["mc"].iloc[first_idx], partitura_df["mc"].iloc[first_idx]
-            )
-            # Only fail if significant fraction mismatches
-            if mismatch_count / len(gold_df) > 0.01:
-                pytest.fail(f"{mismatch_count} MC mismatches (>{1}%): {explanation}")
-
-    def test_music21_mc(self, gold_df, music21_df):
-        """Music21 MC matches TSV gold."""
-        mismatches = gold_df["mc"] != music21_df["mc"]
-        mismatch_count = mismatches.sum()
-
-        if mismatch_count > 0:
-            first_idx = mismatches.idxmax()
-            explanation = MismatchExplanation.explain(
-                "mc", gold_df["mc"].iloc[first_idx], music21_df["mc"].iloc[first_idx]
-            )
-            if mismatch_count / len(gold_df) > 0.01:
-                pytest.fail(f"{mismatch_count} MC mismatches (>{1}%): {explanation}")

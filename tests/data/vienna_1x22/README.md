@@ -157,13 +157,17 @@ present but behave consistently. Each file contains:
 
 ### Coordinate Domains
 
-| Domain | Unit | Stored As |
-|---|---|---|
-| Score (primary) | Quarter beats (float) | `score_onset_qb`, `score_offset_qb` |
-| Score (alternative) | Divisions (480 per quarter) | derivable via C-Map |
-| Score position | Measure:beat string | `measure_beat` field |
-| Performance | MIDI ticks (480 PPQ) | `perf_onset_ticks`, `perf_offset_ticks` |
-| Performance (seconds) | Seconds | derivable via `midiClockRate` C-Map |
+| Domain | Unit | Stored As | Notes |
+|---|---|---|---|
+| Score (internal) | Quarter beats (raw) | `start`, `end` on score TL | May include negative values for anacrusis notes |
+| Score (normalised view) | Quarter beats (shifted) | via `raw_to_normalised` ShiftMap | Offset = −min(raw onsets); computed dynamically |
+| Score (divisions view) | MIDI divisions (480/qn) | via `quarters_to_divs` ScalarMap | Forward: quarters×480; inverse: ÷480 |
+| Score position | Measure:beat string | `measure_beat` field | Not a coordinate; metadata only |
+| Performance (internal) | MIDI ticks | `start`, `end` on perf TL | Always non-negative |
+| Performance (seconds view) | Seconds | via `ticks_to_seconds` ScalarMap | Factor = midiClockRate/(midiClockUnits×10⁶) |
+
+The C-Maps attached to each timeline convert *from* that timeline's primary unit *to*
+the named alternative unit. To go in the reverse direction, call `.inverse()` on the map.
 
 ---
 
@@ -174,12 +178,13 @@ present but behave consistently. Each file contains:
 Testing this specimen exercises the following TTA concepts and components:
 
 1. **Match file parsing** (`MatchfileLoader`): Prolog grammar, header extraction, deletion handling, pedal line filtering, grace note detection.
-2. **Score timeline construction** in two coordinate modes: quarters (primary) and divisions (via C-Map).
-3. **Performance timeline construction** in ticks; seconds available via C-Map.
-4. **MatchClaim generation**: One `MatchClaim.from_events()` per `snote-note` line; one `MatchClaim.nomatch()` per `snote-deletion` line.
+2. **Score timeline construction**: raw quarter-beat coordinates; `raw_to_normalised` ShiftMap (offset computed dynamically, never hardcoded); `quarters_to_divs` ScalarMap.
+3. **Performance timeline construction**: tick coordinates; `ticks_to_seconds` ScalarMap derived from `midiClockRate`/`midiClockUnits`.
+4. **MatchClaim generation**: One `MatchClaim.from_events()` per `snote-note` line (using raw score coordinates); one `MatchClaim.nomatch()` per `snote-deletion` line.
 5. **MatchMetadata provenance**: `agent="vienna_match_v1.0.0"`, `decision_criteria="automatic"`.
-6. **Multi-performance alignment**: Loading all 22 files while reusing a single pre-loaded score timeline (the "external timeline" pattern).
-7. **AlignmentBundle construction**: Adding 22 performance timelines with cross-group MatchClaims.
+6. **External timeline binding (Pattern 1)**: Loading all 22 files while supplying a single pre-loaded score timeline via `source_timeline=`; events looked up by ID, added if absent, coordinate-verified if present.
+7. **Loader-managed shared score (Pattern 2)**: `MatchfileLoader` automatically caches the score TL across multiple `create_alignment_bundle()` calls when `source_timeline` is not supplied.
+8. **AlignmentBundle construction**: Adding 22 performance timelines with cross-group MatchClaims.
 
 ### Test Classes (planned in `tests/loader/test_matchfile_loader.py`)
 
@@ -201,14 +206,16 @@ Tests `MatchfileLoader.load("Chopin_op10_no3_p01.match")`.
 |---|---|---|
 | `test_score_timeline_quarters` | Score TL uses `TimeUnit.quarters` by default | — |
 | `test_score_timeline_note_count` | Notes on score TL | 454 (matched subset) |
-| `test_score_cmap_divs` | `divs_to_quarters` C-Map attached | `cmap(480) == 1.0` |
+| `test_score_cmap_normalisation` | `raw_to_normalised` ShiftMap attached; offset computed from file | `ShiftMap.offset == -min(raw_onsets)` |
+| `test_score_cmap_normalisation_value` | Normalised onset of first note = 0.0 | `score_tl.cmap(-0.5) == 0.0` |
+| `test_score_cmap_divs` | `quarters_to_divs` ScalarMap attached; forward direction quarters → divs | `cmap(1.0) == 480` |
 | `test_perf_timeline_ticks` | Performance TL uses `TimeUnit.ticks` | — |
-| `test_perf_timeline_note_count` | Notes on performance TL | 454 - deletions |
-| `test_perf_cmap_seconds` | `ticks_to_seconds` C-Map attached | derivable from `midiClockRate` |
-| `test_match_claims_count` | MatchClaims = snotes | 454 (451 sync + 3 nomatch) |
+| `test_perf_timeline_note_count` | Notes on performance TL | 451 (454 snotes − 3 deletions) |
+| `test_perf_cmap_seconds` | `ticks_to_seconds` ScalarMap attached; value from `midiClockRate`/`midiClockUnits` | `cmap(480) ≈ 0.5` at 120 BPM |
+| `test_match_claims_count` | Total MatchClaims = snote count | 454 |
 | `test_nomatch_claims_count` | Non-synchronous (deletion) claims | 3 |
 | `test_match_metadata` | Provenance on every claim | `agent="vienna_match_v1.0.0"` |
-| `test_match_claim_coordinates` | First claim coords consistent | score_onset matches snote; perf onset matches note |
+| `test_match_claim_raw_coordinates` | First claim uses raw (negative) score coord | `start_anchor.coordinate_a == -0.5` |
 
 #### `TestMatchfileLoaderCreateBundle` (`create_alignment_bundle()`)
 Tests the convenience method that assembles the three artefacts.
@@ -220,16 +227,26 @@ Tests the convenience method that assembles the three artefacts.
 | `test_bundle_perf_id` | Performance TL `id` is derived from filename |
 | `test_bundle_claim_connect_both` | Every claim `.connects_both(score_id, perf_id)` |
 
-#### `TestMatchfileLoaderExternalScore` (shared score timeline)
-Tests the multi-performance scenario where a pre-loaded score timeline is reused.
+#### `TestMatchfileLoaderExternalScore` (Pattern 1 — user-supplied score TL)
+Tests `create_alignment_bundle(..., source_timeline=pre_loaded_score_tl)`.
 
 | Test | Assertion |
 |---|---|
-| `test_bind_external_score_timeline` | Claims use pre-loaded score TL's `id` |
-| `test_event_id_round_trip` | `start_anchor.coordinate_a` resolves to score event with matching `id` |
-| `test_22_performances_distinct_perf_tls` | 22 distinct performance TL IDs |
-| `test_22_performances_same_score_id` | All 454×22 claims share same `timeline_a_id` |
-| `test_claim_count_all_22` | Total claims = Σ snotes across all 22 files | 454 × 22 = 9,988 |
+| `test_bind_external_score_timeline` | `result.source_timeline` is the same object that was passed in |
+| `test_claims_use_external_tl_uid` | All claims use the external TL's uid as `timeline_a_id` |
+| `test_event_id_lookup_succeeds` | Each snote ID found on the external TL; coordinate verified |
+| `test_event_added_if_absent` | An event present in `.match` but absent from external TL is added |
+| `test_coord_mismatch_raises` | If same ID has different coordinate, `ValueError` is raised |
+
+#### `TestMatchfileLoaderSharedScore` (Pattern 2 — loader-managed)
+Tests repeated `create_alignment_bundle()` calls without `source_timeline=`.
+
+| Test | Assertion |
+|---|---|
+| `test_22_performances_same_score_tl` | All 22 `result.source_timeline` are the same object |
+| `test_22_performances_distinct_perf_tls` | 22 distinct `result.target_timeline.uid` values |
+| `test_22_performances_same_score_id` | All claims share same `timeline_a_id` |
+| `test_claim_count_all_22` | Total claims = 454 × 22 = 9,988 |
 
 ### Validation Against Gold Standard
 
@@ -273,9 +290,12 @@ python tests/loader/profile_matchfile.py
    be investigated and documented with exact counts once the loader is implemented.
 
 2. **Negative score onsets:** Score onset `−0.5` for the anacrusis note (n1, measure 0,
-   beat 1). The `PartituraLoader` normalizes these to `0.0` by adding an offset.
-   The `MatchfileLoader` must apply the same normalization to ensure coordinates
-   are consistent when binding to an externally loaded score timeline.
+   beat 1). The `MatchfileLoader` stores raw coordinates as-is (preserving the negative
+   value) and attaches a `ShiftMap` named `"raw_to_normalised"` to the score timeline.
+   The offset is computed dynamically from the file (`−min(raw_onsets)`), never
+   hardcoded. `PartituraLoader` also shifts these coordinates; a follow-up task (Phase B
+   step 8b in `matchfile_loader_plan.md`) adds the same ShiftMap to its output timeline
+   so that downstream code can inspect the offset and align coordinate spaces.
 
 3. **Deletion semantics:** The Vienna format uses `snote(...)-deletion` (not the
    reverse — it is the *score* note that has no *performance* counterpart, i.e. the

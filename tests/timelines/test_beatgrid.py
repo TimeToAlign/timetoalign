@@ -796,20 +796,8 @@ class TestBeatGridSUPRAValidation:
         - First beat: 1.3 seconds
         - Assume audio duration such that 888 quarters fit in known duration
         """
-        # FIRST_BEAT_SECONDS = 1.3
-        # RESONANCE_TAIL_SECONDS = 2.0
-
-        # Hypothetical audio length (we'd get this from the actual audio file)
-        # For testing, let's work backwards from a reasonable tempo
-        # At ~60 BPM (quarter = 1 second), 888 quarters = 888 seconds
-        # At ~90 BPM, 888 quarters = 592 seconds
-        # Let's assume ~592 seconds of musical content
-
         # This test verifies the mechanism works with known input/output
         ASSUMED_MUSICAL_DURATION = 592.0  # seconds for musical content
-        # ASSUMED_TOTAL_DURATION = (
-        #     FIRST_BEAT_SECONDS + ASSUMED_MUSICAL_DURATION + RESONANCE_TAIL_SECONDS
-        # )
 
         # Calculate tempo
         # quarters_per_second = 888 / 592 = 1.5

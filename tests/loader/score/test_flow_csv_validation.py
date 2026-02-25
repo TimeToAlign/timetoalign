@@ -252,59 +252,6 @@ def get_loader_for_source_file(source_filename: str):
     return None
 
 
-def get_loader_for_flow_mode(flow_mode: str):
-    """Get the appropriate loader class for a flow mode.
-
-    DEPRECATED: Use get_loader_for_source_file() instead, which determines
-    the loader based on file extension rather than flow_mode.
-
-    Flow modes map to loaders as follows:
-    - atomic, partitura_minimal, partitura_maximal: PartituraLoader
-    - default, ms3, single: TSVLoader (gold standard)
-    - music21: Music21Loader
-    - mm_json: MeasureMapLoader
-
-    Note: Flow modes correspond to FlowMode enum values. The loader type
-    (MusicXML vs MEI) is determined by the source_file, not the flow_mode.
-
-    Args:
-        flow_mode: The flow mode from the flow.csv (must be a valid FlowMode value)
-
-    Returns:
-        Loader class or None if not available
-    """
-    if flow_mode in ("default", "ms3", "single"):
-        try:
-            from timetoalign.loader.score import TSVLoader
-
-            return TSVLoader
-        except ImportError:
-            return None
-
-    if flow_mode == "mm_json":
-        from timetoalign.loader.score import MeasureMapLoader
-
-        return MeasureMapLoader
-
-    if flow_mode in ("atomic", "partitura_minimal", "partitura_maximal"):
-        try:
-            from timetoalign.loader.score import PartituraLoader
-
-            return PartituraLoader
-        except ImportError:
-            return None
-
-    if flow_mode == "music21":
-        try:
-            from timetoalign.loader.score import Music21Loader
-
-            return Music21Loader
-        except ImportError:
-            return None
-
-    return None
-
-
 # ============================================================================
 # Fixtures
 # ============================================================================

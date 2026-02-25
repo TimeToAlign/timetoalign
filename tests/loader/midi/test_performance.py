@@ -45,8 +45,6 @@ class TestPerformanceMidiLoader:
         # Should have notes and control changes (pedal)
         types = loader.count_events_by_type()
         assert MidiEventType.NOTE in types
-        # Allow possibility of no CC if file is clean, but chopin usually has pedal
-        # assert MidiEventType.CONTROL_CHANGE in types
 
     def test_note_pairing(self, tmp_path: Path) -> None:
         """Loader correctly pairs note_on and note_off."""
