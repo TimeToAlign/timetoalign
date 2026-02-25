@@ -19,6 +19,7 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.alignment import (
+    AlignmentAnchor,
     MatchClaim,
     MatchMetadata,
     TimelineGroup,
@@ -187,13 +188,21 @@ def segment_claims() -> list[MatchClaim]:
     offset_dgt2 = 0
 
     for i in range(5):
-        claim = MatchClaim.interval(
+        claim = MatchClaim(
             timeline_a_id="dgt1",
-            start_a=float(offset_dgt1),
-            end_a=float(offset_dgt1 + DGT1_SEGMENT_LENGTHS[i]),
             timeline_b_id="dgt2",
-            start_b=float(offset_dgt2),
-            end_b=float(offset_dgt2 + DGT2_SEGMENT_LENGTHS[i]),
+            start_anchor=AlignmentAnchor(
+                timeline_a_id="dgt1",
+                coordinate_a=float(offset_dgt1),
+                timeline_b_id="dgt2",
+                coordinate_b=float(offset_dgt2),
+            ),
+            end_anchor=AlignmentAnchor(
+                timeline_a_id="dgt1",
+                coordinate_a=float(offset_dgt1 + DGT1_SEGMENT_LENGTHS[i]),
+                timeline_b_id="dgt2",
+                coordinate_b=float(offset_dgt2 + DGT2_SEGMENT_LENGTHS[i]),
+            ),
             metadata=MatchMetadata(
                 agent="thoresen_analysis",
                 decision_criteria="segment_correspondence",

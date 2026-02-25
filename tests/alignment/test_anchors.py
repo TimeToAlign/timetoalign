@@ -536,12 +536,16 @@ class TestMatchClaim:
         assert claim.metadata.agent == "test_user"
 
     def test_instant_factory(self) -> None:
-        """Test instant() legacy factory method."""
-        claim = MatchClaim.instant(
+        """Test instant match via direct construction."""
+        claim = MatchClaim(
             timeline_a_id="score",
-            coordinate_a=0.0,
             timeline_b_id="recording",
-            coordinate_b=0.0,
+            start_anchor=AlignmentAnchor(
+                timeline_a_id="score",
+                coordinate_a=0.0,
+                timeline_b_id="recording",
+                coordinate_b=0.0,
+            ),
         )
 
         assert claim.is_interval is False
@@ -550,14 +554,22 @@ class TestMatchClaim:
         assert claim.start_anchor.coordinate_a == 0.0
 
     def test_interval_factory(self) -> None:
-        """Test interval() legacy factory method."""
-        claim = MatchClaim.interval(
+        """Test interval match via direct construction."""
+        claim = MatchClaim(
             timeline_a_id="dgt1",
-            start_a=0.0,
-            end_a=975.0,
             timeline_b_id="dgt2",
-            start_b=0.0,
-            end_b=866.0,
+            start_anchor=AlignmentAnchor(
+                timeline_a_id="dgt1",
+                coordinate_a=0.0,
+                timeline_b_id="dgt2",
+                coordinate_b=0.0,
+            ),
+            end_anchor=AlignmentAnchor(
+                timeline_a_id="dgt1",
+                coordinate_a=975.0,
+                timeline_b_id="dgt2",
+                coordinate_b=866.0,
+            ),
         )
 
         assert claim.is_interval is True
@@ -647,11 +659,15 @@ class TestMatchClaim:
 
     def test_implicit_with_source_claim(self) -> None:
         """Test implicit() tracks the source claim."""
-        source = MatchClaim.instant(
+        source = MatchClaim(
             timeline_a_id="tl1",
-            coordinate_a=100.0,
             timeline_b_id="tl2",
-            coordinate_b=200.0,
+            start_anchor=AlignmentAnchor(
+                timeline_a_id="tl1",
+                coordinate_a=100.0,
+                timeline_b_id="tl2",
+                coordinate_b=200.0,
+            ),
         )
         implicit = MatchClaim.implicit(
             tl_a_id="tl1",
@@ -682,13 +698,21 @@ class TestMatchClaim:
 
     def test_to_dict_interval(self) -> None:
         """Test serialization of interval match."""
-        claim = MatchClaim.interval(
+        claim = MatchClaim(
             timeline_a_id="tl1",
-            start_a=0.0,
-            end_a=100.0,
             timeline_b_id="tl2",
-            start_b=0.0,
-            end_b=100.0,
+            start_anchor=AlignmentAnchor(
+                timeline_a_id="tl1",
+                coordinate_a=0.0,
+                timeline_b_id="tl2",
+                coordinate_b=0.0,
+            ),
+            end_anchor=AlignmentAnchor(
+                timeline_a_id="tl1",
+                coordinate_a=100.0,
+                timeline_b_id="tl2",
+                coordinate_b=100.0,
+            ),
         )
         d = claim.to_dict()
 
@@ -711,13 +735,21 @@ class TestMatchClaim:
 
     def test_from_dict_roundtrip_interval(self) -> None:
         """Test serialization round-trip for interval match."""
-        claim = MatchClaim.interval(
+        claim = MatchClaim(
             timeline_a_id="tl1",
-            start_a=0.0,
-            end_a=100.0,
             timeline_b_id="tl2",
-            start_b=0.0,
-            end_b=200.0,
+            start_anchor=AlignmentAnchor(
+                timeline_a_id="tl1",
+                coordinate_a=0.0,
+                timeline_b_id="tl2",
+                coordinate_b=0.0,
+            ),
+            end_anchor=AlignmentAnchor(
+                timeline_a_id="tl1",
+                coordinate_a=100.0,
+                timeline_b_id="tl2",
+                coordinate_b=200.0,
+            ),
             metadata=MatchMetadata(agent="test", decision_criteria="test"),
         )
         d = claim.to_dict()
@@ -768,13 +800,21 @@ class TestMatchClaim:
 
     def test_repr_interval(self) -> None:
         """Test string representation of interval match."""
-        claim = MatchClaim.interval(
+        claim = MatchClaim(
             timeline_a_id="dgt1",
-            start_a=0.0,
-            end_a=975.0,
             timeline_b_id="dgt2",
-            start_b=0.0,
-            end_b=866.0,
+            start_anchor=AlignmentAnchor(
+                timeline_a_id="dgt1",
+                coordinate_a=0.0,
+                timeline_b_id="dgt2",
+                coordinate_b=0.0,
+            ),
+            end_anchor=AlignmentAnchor(
+                timeline_a_id="dgt1",
+                coordinate_a=975.0,
+                timeline_b_id="dgt2",
+                coordinate_b=866.0,
+            ),
         )
         r = repr(claim)
 
@@ -820,13 +860,21 @@ class TestClaimIntegration:
         offset_dgt2 = 0
 
         for i in range(5):
-            claim = MatchClaim.interval(
+            claim = MatchClaim(
                 timeline_a_id="dgt1",
-                start_a=float(offset_dgt1),
-                end_a=float(offset_dgt1 + segment_lengths_dgt1[i]),
                 timeline_b_id="dgt2",
-                start_b=float(offset_dgt2),
-                end_b=float(offset_dgt2 + segment_lengths_dgt2[i]),
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id="dgt1",
+                    coordinate_a=float(offset_dgt1),
+                    timeline_b_id="dgt2",
+                    coordinate_b=float(offset_dgt2),
+                ),
+                end_anchor=AlignmentAnchor(
+                    timeline_a_id="dgt1",
+                    coordinate_a=float(offset_dgt1 + segment_lengths_dgt1[i]),
+                    timeline_b_id="dgt2",
+                    coordinate_b=float(offset_dgt2 + segment_lengths_dgt2[i]),
+                ),
                 metadata=MatchMetadata(
                     agent="analyst",
                     decision_criteria="segment_correspondence",

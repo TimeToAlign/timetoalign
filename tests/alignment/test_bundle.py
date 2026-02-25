@@ -21,7 +21,12 @@ from __future__ import annotations
 
 import pytest
 
-from timetoalign.alignment import AlignmentBundle, MatchClaim, TimelineGroup
+from timetoalign.alignment import (
+    AlignmentAnchor,
+    AlignmentBundle,
+    MatchClaim,
+    TimelineGroup,
+)
 from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.bundle import _reset_bundle_ids
 from timetoalign.alignment.groups import _reset_group_ids
@@ -559,11 +564,15 @@ def _make_linear_claims(
         coord_a = float(i * 50)  # 0, 50, 100, 150, 200
         coord_b = float(i * 25)  # 0, 25, 50, 75, 100
         claims.append(
-            MatchClaim.instant(
+            MatchClaim(
                 timeline_a_id=tl_a_id,
-                coordinate_a=coord_a,
                 timeline_b_id=tl_b_id,
-                coordinate_b=coord_b,
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id=tl_a_id,
+                    coordinate_a=coord_a,
+                    timeline_b_id=tl_b_id,
+                    coordinate_b=coord_b,
+                ),
             )
         )
     return claims
@@ -693,11 +702,15 @@ class TestCrossGroupTransfer:
         bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
 
         claims = [
-            MatchClaim.instant(
+            MatchClaim(
                 timeline_a_id=score_tl.id,
-                coordinate_a=100.0,
                 timeline_b_id=audio_tl.id,
-                coordinate_b=50.0,
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id=score_tl.id,
+                    coordinate_a=100.0,
+                    timeline_b_id=audio_tl.id,
+                    coordinate_b=50.0,
+                ),
             )
         ]
         bundle.add_match_claims(claims)
@@ -897,11 +910,15 @@ class TestCacheInvalidation:
 
         # Add more claims -> invalidates cache
         more_claims = [
-            MatchClaim.instant(
+            MatchClaim(
                 timeline_a_id=score_tl.id,
-                coordinate_a=175.0,
                 timeline_b_id=audio_tl.id,
-                coordinate_b=87.5,
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id=score_tl.id,
+                    coordinate_a=175.0,
+                    timeline_b_id=audio_tl.id,
+                    coordinate_b=87.5,
+                ),
             )
         ]
         bundle.add_match_claims(more_claims)
@@ -921,11 +938,15 @@ class TestCacheInvalidation:
 
         # Add an additional claim that is consistent with the linear mapping
         more_claims = [
-            MatchClaim.instant(
+            MatchClaim(
                 timeline_a_id=score_tl.id,
-                coordinate_a=150.0,
                 timeline_b_id=audio_tl.id,
-                coordinate_b=75.0,
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id=score_tl.id,
+                    coordinate_a=150.0,
+                    timeline_b_id=audio_tl.id,
+                    coordinate_b=75.0,
+                ),
             )
         ]
         bundle.add_match_claims(more_claims)
@@ -969,11 +990,15 @@ class TestAddMatchClaims:
         assert len(bundle.cross_group_claims) == 3
 
         claims2 = [
-            MatchClaim.instant(
+            MatchClaim(
                 timeline_a_id=score_tl.id,
-                coordinate_a=150.0,
                 timeline_b_id=audio_tl.id,
-                coordinate_b=75.0,
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id=score_tl.id,
+                    coordinate_a=150.0,
+                    timeline_b_id=audio_tl.id,
+                    coordinate_b=75.0,
+                ),
             )
         ]
         bundle.add_match_claims(claims2)
