@@ -107,6 +107,7 @@ __all__ = [
     "AlignmentLoader",
     # Alignment loaders
     "MatchfileLoader",
+    "TiliaJsonLoader",
     # Physical domain loaders
     "AudioLoader",
     "AudioInfo",
@@ -161,4 +162,8 @@ def __getattr__(name: str):
         from .alignment import MatchfileLoader
 
         return MatchfileLoader
+    if name == "TiliaJsonLoader":
+        from .alignment import TiliaJsonLoader
+
+        return TiliaJsonLoader
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
