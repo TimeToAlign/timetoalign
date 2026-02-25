@@ -278,7 +278,8 @@ temporal_cols = ["start", "end", "duration"]
 # %% [markdown]
 # ## Voice and Staff Information
 #
-# For piano music, notes are distributed across staves and voices:
+# In scores with multiple staves or multiple voices per staff, notes are
+# distributed accordingly:
 
 # %%
 # Notes by staff and voice
