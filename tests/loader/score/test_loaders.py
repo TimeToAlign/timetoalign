@@ -10,6 +10,7 @@ from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.tsv import TSVLoader
 
 DATA_DIR = Path(__file__).parents[2] / "data" / "vienna_1x22"
+MIDI_SCORE_DIR = Path(__file__).parents[2] / "data" / "midi" / "score"
 MS3_DIR = DATA_DIR / "ms3"
 
 
@@ -116,6 +117,18 @@ class TestPartituraLoader:
         assert qb is not None
         assert "numerator" in qb and "denominator" in qb
         assert "value" in qb
+
+    def test_midi_loads_without_type_error(self):
+        """Regression: MIDI files must load without TypeError (#18).
+
+        Loading beethoven_op18.mid previously raised
+        ``TypeError: Cannot add coordinates with different units: ticks vs seconds``
+        due to the use of ``beat_map`` instead of ``quarter_map``.
+        """
+        midi_path = MIDI_SCORE_DIR / "beethoven_op18.mid"
+        loader = PartituraLoader()
+        loader.load(midi_path)
+        assert len(loader.store.notes) == 4186
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
