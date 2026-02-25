@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from timetoalign.core import TimeUnit
 from timetoalign.maps import (
@@ -110,7 +109,8 @@ class TestQuartersToTicks:
         ticks = 720
         quarters = t2q(ticks)
         back = q2t(quarters)
-        assert back == pytest.approx(ticks)
+        # 720 ticks / 480 ppq = 1.5 quarters; 1.5 * 480 = 720.0 exactly
+        assert back == ticks
 
 
 # endregion
@@ -185,7 +185,8 @@ class TestSecondsToSamples:
         samples = 22050
         seconds = s2s(samples)
         back = s2samp(seconds)
-        assert back == pytest.approx(samples)
+        # 22050 samples / 44100 Hz = 0.5 seconds; 0.5 * 44100 = 22050.0 exactly
+        assert back == samples
 
 
 # endregion

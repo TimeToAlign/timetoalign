@@ -18,7 +18,7 @@ class TestPerformanceMidiLoader:
         loader = PerformanceMidiLoader()
         loader.load(supra_raw_path)
 
-        assert len(loader) > 0
+        assert len(loader) == 30096  # supra_raw.mid has 30096 total events
         assert loader.ticks_per_beat is not None
 
         # Check metadata
@@ -29,8 +29,8 @@ class TestPerformanceMidiLoader:
         # Check events
         types = loader.count_events_by_type()
         assert MidiEventType.NOTE in types
-        # Piano roll usually has no CCs, check if any notes loaded
-        assert types[MidiEventType.NOTE] > 0
+        # Piano roll: 30092 notes + 4 control changes = 30096 total
+        assert types[MidiEventType.NOTE] == 30092
 
     def test_load_chopin_performance(self, chopin_perf_path: Path) -> None:
         """Can load expressive performance MIDI."""

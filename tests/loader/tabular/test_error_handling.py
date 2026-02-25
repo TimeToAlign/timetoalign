@@ -100,9 +100,8 @@ class TestFileNotFoundErrors:
         """Validate error when path is a directory, not a file."""
         loader = CsvLoader()
 
-        # tmp_path is a directory - should raise some error
-        # (could be OSError, PermissionError, ValueError, etc. depending on OS)
-        with pytest.raises(Exception):
+        # tmp_path is a directory - pandas open() raises IsADirectoryError
+        with pytest.raises(IsADirectoryError):
             loader.load(tmp_path)
 
 
@@ -255,7 +254,7 @@ class TestNullValueHandling:
 
         types = loader.count_events_by_temporal_type()
         # One event should be instant (null duration)
-        assert types.get("instant", 0) >= 1
+        assert types.get("instant", 0) == 1
 
 
 # endregion

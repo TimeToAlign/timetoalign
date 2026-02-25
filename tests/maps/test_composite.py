@@ -189,7 +189,8 @@ class TestChainMapConvertArray:
         array_result = chain.convert_array(values)
         scalar_results = np.array([chain(v) for v in values])
 
-        np.testing.assert_array_almost_equal(array_result, scalar_results)
+        # Array and scalar paths perform identical IEEE 754 operations
+        np.testing.assert_array_equal(array_result, scalar_results)
 
 
 class TestPiecewiseMapConvertArray:
@@ -218,7 +219,8 @@ class TestPiecewiseMapConvertArray:
 
         result = pm.convert_array(values)
 
-        np.testing.assert_array_almost_equal(result, [0.0, 5.0, 20.0, 30.0, 39.8])
+        # All operands are exactly representable; scalar multiplication is exact
+        np.testing.assert_array_equal(result, [0.0, 5.0, 20.0, 30.0, 39.8])
 
     def test_convert_array_matches_scalar(self):
         """convert_array() results match element-wise scalar conversion."""
@@ -231,4 +233,5 @@ class TestPiecewiseMapConvertArray:
         array_result = pm.convert_array(values)
         scalar_results = np.array([pm(v) for v in values])
 
-        np.testing.assert_array_almost_equal(array_result, scalar_results)
+        # Array and scalar paths perform identical IEEE 754 operations
+        np.testing.assert_array_equal(array_result, scalar_results)

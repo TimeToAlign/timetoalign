@@ -24,8 +24,6 @@ from timetoalign.alignment import (
     MatchMetadata,
     TimelineGroup,
 )
-from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
-from timetoalign.alignment.groups import _reset_group_ids
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
@@ -98,14 +96,6 @@ AUDIO_DURATION_SECONDS = 150.0
 
 
 # region Fixtures
-
-
-@pytest.fixture(autouse=True)
-def reset_ids() -> None:
-    """Reset ID generators before each test."""
-    _reset_group_ids()
-    _reset_anchor_ids()
-    _reset_claim_ids()
 
 
 @pytest.fixture

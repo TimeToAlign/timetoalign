@@ -192,4 +192,5 @@ class TestCombinationMap:
         expected_beats = np.array([1.0, 1.0, 1.0, 1.0, 4.0])
 
         np.testing.assert_array_equal(result["measure"], expected_measures)
-        np.testing.assert_array_almost_equal(result["beat"], expected_beats)
+        # Beat values are exact modular arithmetic results (quarters % 4 + 1)
+        np.testing.assert_array_equal(result["beat"], expected_beats)

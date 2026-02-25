@@ -191,7 +191,7 @@ class TestQueryMethods:
         """Can filter holes by tracker bar position."""
         # Tracker hole 12 is used in first hole
         holes_12 = loaded_supra_loader.get_holes_by_tracker(12)
-        assert len(holes_12) > 0
+        assert len(holes_12) == 7  # Tracker hole 12 has exactly 7 holes
         assert all(h.tracker_hole == 12 for h in holes_12)
 
     def test_get_holes_in_range(self, loaded_supra_loader: ATONLoader) -> None:
@@ -201,15 +201,15 @@ class TestQueryMethods:
         end = start + 1000
         holes = loaded_supra_loader.get_holes_in_range(start, end)
 
-        assert len(holes) > 0
+        assert len(holes) == 82  # First 1000px of musical region contains 82 holes
         assert all(start <= h.origin_row <= end for h in holes)
 
     def test_get_note_holes(self, loaded_supra_loader: ATONLoader) -> None:
         """Can get holes that represent note attacks."""
         note_holes = loaded_supra_loader.get_note_holes()
 
-        # Should have note attacks
-        assert len(note_holes) > 0
+        # MUSICAL_NOTES = 8718: holes that represent note attacks
+        assert len(note_holes) == 8718
         assert all(h.note_attack is not None for h in note_holes)
 
 
@@ -299,11 +299,13 @@ class TestSpecificHoleValues:
         assert first.origin_col == 445
         assert first.width_row == 41
         assert first.width_col == 22
-        assert abs(first.centroid_row - 15363.4) < 0.1
-        assert abs(first.centroid_col - 455.816) < 0.01
+        # Centroid, perimeter, circularity are parsed via float() from ATON text.
+        # These decimal values are exactly representable in float64.
+        assert first.centroid_row == 15363.4
+        assert first.centroid_col == 455.816
         assert first.area == 816
-        assert abs(first.perimeter - 114.473) < 0.01
-        assert abs(first.circularity - 0.78) < 0.01
+        assert first.perimeter == 114.473
+        assert first.circularity == 0.78
         assert first.tracker_hole == 12
 
 

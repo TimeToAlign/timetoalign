@@ -179,8 +179,9 @@ class TestLoaderStats:
         dummy_loader.load(temp_source_file)
         counts = dummy_loader.count_events_by_type()
 
-        assert "Beat" in counts
-        assert "Note" in counts
+        # DummyLoader creates 1 Beat + 1 Note per file
+        assert counts["Beat"] == 1
+        assert counts["Note"] == 1
         os.unlink(temp_source_file)
 
     def test_count_events_by_temporal_type(

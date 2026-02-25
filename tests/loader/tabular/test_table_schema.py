@@ -342,8 +342,8 @@ class TestTimelineCreation:
         )
         result = schema.create_timelines(multiunit_df)
 
-        # Should have created C-Maps
-        assert len(result["cmaps"]) >= 1
+        # bidirectional=True creates forward (sec->quarters) and reverse (quarters->sec)
+        assert len(result["cmaps"]) == 2
 
         # Check that C-Map was attached to timeline
         timeline = list(result["timelines"].values())[0]
