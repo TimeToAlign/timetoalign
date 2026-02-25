@@ -8,7 +8,7 @@ from pathlib import Path
 
 from typing_extensions import Self
 
-from timetoalign.core import TimeUnit
+from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.base import Loader
 
 from .bundle import ScoreStore
@@ -16,12 +16,18 @@ from .store import ScoreEventData
 
 
 class ScoreLoader(Loader):
-    """Base loader for symbolic music scores (MusicXML, MIDI-Score, TSV)."""
+    """Base loader for symbolic music scores (MusicXML, MIDI-Score, TSV).
 
-    _default_unit = TimeUnit.ticks
+    All score loaders normalise coordinates to quarter-note positions using
+    ``Fraction`` precision.  The reported metadata reflects this:
+    ``unit='quarters'``, ``number_type='fraction'``.
+    """
+
+    _default_unit = TimeUnit.quarters
     _event_data_class = ScoreEventData
 
     def __init__(self, *args, **kwargs):
+        kwargs.setdefault("number_type", NumberType.fraction)
         super().__init__(*args, **kwargs)
         self._store = ScoreStore.empty()
 
