@@ -169,8 +169,12 @@ class PartituraLoader(ScoreLoader):
                 cached_beat_frac(m_start)
 
             # ===== Extract Flow Control from part.repeats =====
+            # repeat_blocks: list of (start_mc, after_mc) tuples.
+            # after_mc is the first MC *after* the repeat (partitura's rep.end.t
+            # maps to the downbeat of the continuation, not the last bar inside).
             repeat_start_mcs: set[int] = set()
-            repeat_end_mcs: set[int] = set()
+            repeat_end_mcs: set[int] = set()  # last MC inside each repeat
+            repeat_blocks: list[tuple[int, int]] = []  # (start_mc, after_mc)
 
             if hasattr(part, "repeats") and part.repeats:
                 for rep in part.repeats:
@@ -202,13 +206,36 @@ class PartituraLoader(ScoreLoader):
                     )
 
                     if rep.end:
-                        end_mc = get_mc(rep.end.t)
-                        repeat_end_mcs.add(end_mc)
+                        # Determine whether rep.end.t falls on a measure *start*
+                        # (meaning there is a continuation measure after the repeat)
+                        # or on a measure *end* (the piece ends with this repeat).
+                        #
+                        # bisect_left gives the insertion index for rep.end.t; if
+                        # measure_starts[idx] == rep.end.t the time is exactly on
+                        # a measure downbeat → the repeat ends before that measure.
+                        # Otherwise rep.end.t is a bar-end and the last bar is idx (0-indexed).
+                        end_idx = bisect.bisect_left(measure_starts, rep.end.t)
+                        if (
+                            end_idx < len(measure_starts)
+                            and measure_starts[end_idx] == rep.end.t
+                        ):
+                            # rep.end.t is the downbeat of the continuation measure.
+                            after_mc = end_idx + 1  # 1-indexed MC of the continuation
+                            last_mc_in_repeat = after_mc - 1
+                        else:
+                            # rep.end.t is the end of the last bar (piece ends here).
+                            last_mc_in_repeat = (
+                                end_idx  # 1-indexed: end_idx == last 0-index + 1 → MC
+                            )
+                            after_mc = last_mc_in_repeat + 1  # virtual "after" MC
+
+                        repeat_end_mcs.add(last_mc_in_repeat)
+                        repeat_blocks.append((start_mc, after_mc))
 
                         qb_end = cached_beat_frac(rep.end.t)
                         control_rows.append(
                             {
-                                "id": f"repeat_end_{end_mc}",
+                                "id": f"repeat_end_{last_mc_in_repeat}",
                                 "name": "RepeatEnd",
                                 "temporal_type": "instant",
                                 "event_type": "RepeatEnd",
@@ -216,8 +243,8 @@ class PartituraLoader(ScoreLoader):
                                 "quarterbeats_float": float(qb_end),
                                 "duration_qb": None,
                                 "duration_qb_float": 0.0,
-                                "mc": end_mc,
-                                "mn": get_mn(end_mc, rep.end.t),
+                                "mc": last_mc_in_repeat,
+                                "mn": get_mn(last_mc_in_repeat, rep.end.t),
                                 "mc_onset": None,
                                 "mn_onset": None,
                                 "subtype": "RepeatEnd",
@@ -230,7 +257,14 @@ class PartituraLoader(ScoreLoader):
                         )
 
             # ===== Extract Endings (Volta) and other flow control markers =====
-            ending_mcs: dict[int, int] = {}  # MC -> ending number
+            # ending_mcs: MC -> volta number (first MC of each ending).
+            # ending_after_mcs: MC -> first MC after each ending (from Ending.end.t).
+            # ds_dc_mcs: MCs containing DalSegno/DaCapo/Fine/Segno/Coda markers.
+            #   These indicate complex jump structures that require separate handling;
+            #   repeat blocks containing them are skipped by the simple next[] logic.
+            ending_mcs: dict[int, int] = {}  # start MC -> volta number
+            ending_after_mcs: dict[int, int] = {}  # start MC -> first MC after ending
+            ds_dc_mcs: set[int] = set()  # MCs with DalSegno/DaCapo/Fine/Segno/Coda
 
             for obj in flow_markers:
                 marker_mc = get_mc(obj.start.t)
@@ -239,9 +273,24 @@ class PartituraLoader(ScoreLoader):
                 if isinstance(obj, pts.Ending):
                     ending_num = getattr(obj, "number", 1)
                     try:
-                        ending_mcs[marker_mc] = int(ending_num)
+                        num = int(ending_num)
                     except (TypeError, ValueError):
-                        ending_mcs[marker_mc] = 1
+                        num = 1
+                    ending_mcs[marker_mc] = num
+                    if obj.end:
+                        ending_after_mcs[marker_mc] = get_mc(obj.end.t)
+                elif isinstance(
+                    obj,
+                    (
+                        pts.DaCapo,
+                        pts.DalSegno,
+                        pts.Fine,
+                        pts.Segno,
+                        pts.Coda,
+                        pts.ToCoda,
+                    ),
+                ):
+                    ds_dc_mcs.add(marker_mc)
 
                 control_rows.append(
                     {
@@ -270,12 +319,70 @@ class PartituraLoader(ScoreLoader):
                     }
                 )
 
+            # ===== Derive next[] for each measure from repeat/volta structure =====
+            # next_mc_map: MC -> list of possible successor MCs (in visitation order).
+            # An absent entry means "next sequential MC" (or -1 for the last bar).
+            #
+            # next[] is only derived when the piece contains ONLY simple repeat/volta
+            # structure (no DalSegno/DaCapo/Fine/Segno/Coda markers anywhere).
+            # When complex jump markers are present, the full D.S./D.C./Coda logic
+            # is not yet implemented; leaving next[] absent causes FlowController to
+            # default to a sequential (printed) traversal, which matches the known
+            # Partitura approximation for such pieces.
+            next_mc_map: dict[int, list[int]] = {}
+            num_measures = len(measures)
+
+            # Only compute next[] when no complex jump markers exist in the piece.
+            _active_blocks = [] if ds_dc_mcs else repeat_blocks
+
+            for rep_start_mc, rep_after_mc in _active_blocks:
+                # Collect volta-1 start MCs inside this repeat block.
+                volta1_starts = sorted(
+                    mc
+                    for mc, v in ending_mcs.items()
+                    if v == 1 and rep_start_mc <= mc < rep_after_mc
+                )
+                volta2_starts = sorted(
+                    mc
+                    for mc, v in ending_mcs.items()
+                    if v == 2 and rep_start_mc <= mc < rep_after_mc
+                )
+
+                if not volta1_starts:
+                    # Simple repeat (no voltas): the last bar inside the repeat
+                    # gets next = [rep_start_mc, rep_after_mc].
+                    last_in_rep = rep_after_mc - 1
+                    if last_in_rep >= 1 and last_in_rep <= num_measures:
+                        next_mc_map[last_in_rep] = [rep_start_mc, rep_after_mc]
+                else:
+                    # Volta repeat: identify the fork bar and the volta-1 end bar.
+                    first_v1_mc = volta1_starts[0]
+                    first_v2_mc = volta2_starts[0] if volta2_starts else rep_after_mc
+                    fork_mc = first_v1_mc - 1
+
+                    # Fork bar: choose volta 1 (first visit) or volta 2 (second visit).
+                    if fork_mc >= 1:
+                        next_mc_map[fork_mc] = [first_v1_mc, first_v2_mc]
+
+                    # The last MC of volta 1 jumps unconditionally back to repeat start.
+                    last_v1_mc = rep_after_mc - 1
+                    if last_v1_mc >= 1 and last_v1_mc <= num_measures:
+                        next_mc_map[last_v1_mc] = [rep_start_mc]
+
             # Process Measures
             for i, m in enumerate(measures):
                 qb_start = cached_beat_frac(m.start.t)
                 qb_end = cached_beat_frac(m.end.t)
                 dur = qb_end - qb_start
                 mc = i + 1
+
+                # Resolve next: use pre-computed map, or default sequential.
+                if mc in next_mc_map:
+                    mc_next: list[int] | None = next_mc_map[mc]
+                else:
+                    mc_next = (
+                        None  # default: next sequential MC (handled by FlowController)
+                    )
 
                 measure_rows.append(
                     {
@@ -294,6 +401,7 @@ class PartituraLoader(ScoreLoader):
                         "start_repeat": mc in repeat_start_mcs,
                         "end_repeat": mc in repeat_end_mcs,
                         "volta": ending_mcs.get(mc),
+                        "next": mc_next,
                         "part_id": part_id,
                     }
                 )
