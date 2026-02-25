@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -66,31 +65,26 @@ class TestLoaderLoading:
         assert len(dummy_loader.sources) == 1
         assert temp_source_file in dummy_loader.sources
         assert len(dummy_loader) == 2  # DummyLoader creates 2 events per file
-        os.unlink(temp_source_file)
 
-    def test_load_multiple_sources(self, dummy_loader: DummyLoader) -> None:
+    def test_load_multiple_sources(
+        self, dummy_loader: DummyLoader, tmp_path: Path
+    ) -> None:
         """load() can load multiple sources at once."""
-        from tempfile import NamedTemporaryFile
-
         files = []
         for i in range(3):
-            f = NamedTemporaryFile(suffix=f"_{i}.dummy", delete=False)
-            f.write(b"dummy")
-            f.close()
-            files.append(Path(f.name))
+            p = tmp_path / f"source_{i}.dummy"
+            p.write_bytes(b"dummy")
+            files.append(p)
 
-        try:
-            dummy_loader.load(*files)
+        dummy_loader.load(*files)
 
-            assert len(dummy_loader.sources) == 3
-            assert len(dummy_loader) == 6  # 2 events per file
-        finally:
-            for f in files:
-                os.unlink(f)
+        assert len(dummy_loader.sources) == 3
+        assert len(dummy_loader) == 6  # 2 events per file
 
-    def test_load_source_no_events(self, dummy_loader: DummyLoader) -> None:
+    def test_load_source_no_events(
+        self, dummy_loader: DummyLoader, tmp_path: Path
+    ) -> None:
         """load() handles sources returning no events."""
-        from tempfile import NamedTemporaryFile
 
         # Subclass that returns empty events
         class EmptySourceLoader(DummyLoader):
@@ -99,13 +93,13 @@ class TestLoaderLoading:
             ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
                 return {"format": "empty"}, []
 
-        with NamedTemporaryFile(suffix=".empty") as f:
-            path = Path(f.name)
-            loader = EmptySourceLoader()
-            loader.load(path)
+        path = tmp_path / "empty.empty"
+        path.write_bytes(b"")
+        loader = EmptySourceLoader()
+        loader.load(path)
 
-            assert len(loader.sources) == 1
-            assert len(loader) == 0
+        assert len(loader.sources) == 1
+        assert len(loader) == 0
 
     def test_load_returns_self(
         self, dummy_loader: DummyLoader, temp_source_file: Path
@@ -113,7 +107,6 @@ class TestLoaderLoading:
         """load() returns self for chaining."""
         result = dummy_loader.load(temp_source_file)
         assert result is dummy_loader
-        os.unlink(temp_source_file)
 
     def test_load_missing_file_raises(self, dummy_loader: DummyLoader) -> None:
         """load() raises FileNotFoundError for missing file."""
@@ -121,26 +114,19 @@ class TestLoaderLoading:
             dummy_loader.load(Path("/nonexistent/file.dummy"))
 
     def test_load_incremental(
-        self, dummy_loader: DummyLoader, temp_source_file: Path
+        self, dummy_loader: DummyLoader, temp_source_file: Path, tmp_path: Path
     ) -> None:
         """Multiple load() calls accumulate events."""
         dummy_loader.load(temp_source_file)
         assert len(dummy_loader) == 2
 
         # Create another file
-        from tempfile import NamedTemporaryFile
+        file2 = tmp_path / "second.dummy"
+        file2.write_bytes(b"dummy2")
 
-        with NamedTemporaryFile(suffix=".dummy", delete=False) as f:
-            f.write(b"dummy2")
-            file2 = Path(f.name)
-
-        try:
-            dummy_loader.load(file2)
-            assert len(dummy_loader) == 4
-            assert len(dummy_loader.sources) == 2
-        finally:
-            os.unlink(temp_source_file)
-            os.unlink(file2)
+        dummy_loader.load(file2)
+        assert len(dummy_loader) == 4
+        assert len(dummy_loader.sources) == 2
 
 
 class TestLoaderClear:
@@ -154,7 +140,6 @@ class TestLoaderClear:
         dummy_loader.clear()
         assert len(dummy_loader) == 0
         assert len(dummy_loader.sources) == 0
-        os.unlink(temp_source_file)
 
 
 class TestLoaderStats:
@@ -170,7 +155,6 @@ class TestLoaderStats:
         assert summary["count"] == 2
         assert "temporal_types" in summary
         assert "sources" in summary
-        os.unlink(temp_source_file)
 
     def test_count_events_by_type(
         self, dummy_loader: DummyLoader, temp_source_file: Path
@@ -182,7 +166,6 @@ class TestLoaderStats:
         # DummyLoader creates 1 Beat + 1 Note per file
         assert counts["Beat"] == 1
         assert counts["Note"] == 1
-        os.unlink(temp_source_file)
 
     def test_count_events_by_temporal_type(
         self, dummy_loader: DummyLoader, temp_source_file: Path
@@ -193,7 +176,6 @@ class TestLoaderStats:
 
         assert counts.get("instant", 0) == 1
         assert counts.get("interval", 0) == 1
-        os.unlink(temp_source_file)
 
 
 class TestLoaderRepr:
@@ -215,7 +197,6 @@ class TestLoaderRepr:
 
         assert "sources=1" in r
         assert "events=2" in r
-        os.unlink(temp_source_file)
 
 
 class TestLoaderSerialization:
@@ -232,8 +213,6 @@ class TestLoaderSerialization:
         dummy_loader.to_parquet(temp_parquet_path)
 
         assert temp_parquet_path.exists()
-        os.unlink(temp_source_file)
-        os.unlink(temp_parquet_path)
 
     def test_from_parquet(
         self,
@@ -249,8 +228,6 @@ class TestLoaderSerialization:
 
         assert len(loaded) == 2
         assert loaded.unit == TimeUnit.ticks
-        os.unlink(temp_source_file)
-        os.unlink(temp_parquet_path)
 
 
 class TestLoaderMetadata:
@@ -270,4 +247,3 @@ class TestLoaderMetadata:
         assert "path" in source_meta
         assert "loaded_at" in source_meta
         assert "format" in source_meta
-        os.unlink(temp_source_file)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -14,42 +13,42 @@ from timetoalign.loader.tabular import CsvLoader, TabularLoader, TsvLoader
 
 
 @pytest.fixture
-def csv_file() -> Path:
+def csv_file(tmp_path: Path) -> Path:
     """Create a temporary CSV file for testing."""
     content = """id,start,end,event_type,name
 e1,0.0,1.0,Note,first
 e2,1.0,2.5,Note,second
 e3,2.5,,Beat,downbeat
 """
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-        f.write(content)
-        return Path(f.name)
+    path = tmp_path / "test.csv"
+    path.write_text(content)
+    return path
 
 
 @pytest.fixture
-def tsv_file() -> Path:
+def tsv_file(tmp_path: Path) -> Path:
     """Create a temporary TSV file for testing."""
     content = """id\tstart\tend\tevent_type\tname
 e1\t0.0\t1.0\tNote\tfirst
 e2\t1.0\t2.5\tNote\tsecond
 e3\t2.5\t\tBeat\tdownbeat
 """
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False) as f:
-        f.write(content)
-        return Path(f.name)
+    path = tmp_path / "test.tsv"
+    path.write_text(content)
+    return path
 
 
 @pytest.fixture
-def minimal_csv() -> Path:
+def minimal_csv(tmp_path: Path) -> Path:
     """Create a minimal CSV with only start column."""
     content = """start
 0.0
 1.0
 2.0
 """
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-        f.write(content)
-        return Path(f.name)
+    path = tmp_path / "minimal.csv"
+    path.write_text(content)
+    return path
 
 
 # endregion
@@ -107,14 +106,13 @@ class TestCsvLoader:
         types = loader.count_events_by_temporal_type()
         assert types.get("instant", 0) == 3
 
-    def test_missing_start_column_raises(self):
+    def test_missing_start_column_raises(self, tmp_path: Path):
         """Test that missing start column raises ValueError."""
         content = """id,end,name
 e1,1.0,test
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write(content)
-            path = Path(f.name)
+        path = tmp_path / "no_start.csv"
+        path.write_text(content)
 
         loader = CsvLoader()
         with pytest.raises(ValueError, match="Required column.*start.*not found"):
@@ -161,7 +159,7 @@ class TestTsvLoader:
 class TestCustomTabularLoader:
     """Tests for custom TabularLoader subclasses."""
 
-    def test_custom_column_mapping(self):
+    def test_custom_column_mapping(self, tmp_path: Path):
         """Test custom column mapping via subclass."""
 
         class CustomLoader(TabularLoader):
@@ -175,9 +173,8 @@ class TestCustomTabularLoader:
 n1,0.0,1.0,60
 n2,1.0,2.0,62
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write(content)
-            path = Path(f.name)
+        path = tmp_path / "custom.csv"
+        path.write_text(content)
 
         loader = CustomLoader()
         loader.load(path)
@@ -188,7 +185,7 @@ n2,1.0,2.0,62
         assert events[0]["id"] == "n1"
         assert events[1]["id"] == "n2"
 
-    def test_custom_coordinate_unit(self):
+    def test_custom_coordinate_unit(self, tmp_path: Path):
         """Test custom coordinate unit."""
 
         class TickLoader(TabularLoader):
@@ -201,9 +198,8 @@ n2,1.0,2.0,62
 480
 960
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-            f.write(content)
-            path = Path(f.name)
+        path = tmp_path / "ticks.csv"
+        path.write_text(content)
 
         loader = TickLoader()
         loader.load(path)

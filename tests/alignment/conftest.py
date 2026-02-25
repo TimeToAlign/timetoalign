@@ -14,9 +14,14 @@ from pathlib import Path
 
 import pytest
 
+from timetoalign.alignment import AlignmentAnchor, MatchClaim, MatchMetadata
 from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.bundle import _reset_bundle_ids
 from timetoalign.alignment.groups import _reset_group_ids
+from timetoalign.timelines import (
+    ContinuousPhysicalTimeline,
+    DiscreteGraphicalTimeline,
+)
 
 # region Test Data Paths
 
@@ -146,6 +151,85 @@ def reset_ids() -> None:
     _reset_anchor_ids()
     _reset_claim_ids()
     _reset_bundle_ids()
+
+
+# endregion
+
+
+# region Thoresen Timeline Fixtures
+
+
+@pytest.fixture
+def dgt1_timeline() -> DiscreteGraphicalTimeline:
+    """DGT1 (2009) timeline: 4835 pixels total (5 x 967)."""
+    return DiscreteGraphicalTimeline(
+        length=DGT1_TOTAL_WIDTH,
+        unit="pixels",
+        uid="dgt1",
+        name="Thoresen 2009",
+    )
+
+
+@pytest.fixture
+def dgt2_timeline() -> DiscreteGraphicalTimeline:
+    """DGT2 (2010) timeline: 4328 pixels total."""
+    return DiscreteGraphicalTimeline(
+        length=DGT2_TOTAL_WIDTH,
+        unit="pixels",
+        uid="dgt2",
+        name="Thoresen 2010",
+    )
+
+
+@pytest.fixture
+def audio_timeline() -> ContinuousPhysicalTimeline:
+    """Audio timeline: 150 seconds (shared reference for Thoresen PoC)."""
+    return ContinuousPhysicalTimeline(
+        length=AUDIO_DURATION_SECONDS,
+        unit="seconds",
+        uid="audio",
+        name="Audio",
+    )
+
+
+@pytest.fixture
+def thoresen_segment_claims() -> list[MatchClaim]:
+    """5 segment correspondence claims between DGT1 and DGT2.
+
+    Each claim maps a DGT1 segment (967 px each) to the corresponding
+    DGT2 segment ([866, 867, 867, 864, 864] px).
+    """
+    claims = []
+    offset_dgt1 = 0
+    offset_dgt2 = 0
+
+    for i in range(5):
+        claim = MatchClaim(
+            timeline_a_id="dgt1",
+            timeline_b_id="dgt2",
+            start_anchor=AlignmentAnchor(
+                timeline_a_id="dgt1",
+                coordinate_a=float(offset_dgt1),
+                timeline_b_id="dgt2",
+                coordinate_b=float(offset_dgt2),
+            ),
+            end_anchor=AlignmentAnchor(
+                timeline_a_id="dgt1",
+                coordinate_a=float(offset_dgt1 + DGT1_SEGMENT_LENGTH),
+                timeline_b_id="dgt2",
+                coordinate_b=float(offset_dgt2 + DGT2_SEGMENT_LENGTHS[i]),
+            ),
+            metadata=MatchMetadata(
+                agent="thoresen_analysis",
+                decision_criteria="segment_correspondence",
+                notes=f"Segment {i+1} of 5",
+            ),
+        )
+        claims.append(claim)
+        offset_dgt1 += DGT1_SEGMENT_LENGTH
+        offset_dgt2 += DGT2_SEGMENT_LENGTHS[i]
+
+    return claims
 
 
 # endregion

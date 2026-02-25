@@ -18,47 +18,26 @@ from __future__ import annotations
 
 import pytest
 
-from timetoalign.alignment import (
-    AlignmentAnchor,
-    MatchClaim,
-    MatchMetadata,
-    TimelineGroup,
-)
+from timetoalign.alignment import MatchClaim, TimelineGroup
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
 )
 
-# region Actual Data from Applications.ipynb
+# Import shared Thoresen constants from conftest (canonical source)
+from .conftest import (
+    AUDIO_DURATION_SECONDS,
+    DGT1_SEGMENT_LENGTH,
+    DGT1_TOTAL_WIDTH,
+    DGT2_SEGMENT_BOUNDS,
+    DGT2_SEGMENT_LENGTHS,
+    DGT2_TOTAL_WIDTH,
+)
 
-
-# === DGT1 (Thoresen 2009) ===
-# Single image with 5 horizontal systems (staves)
-# x-boundaries: x0=2, x1=969 for all systems
-# y-positions of each system: [18, 205, 396, 588, 785]
-DGT1_X0, DGT1_X1 = 2, 969
-DGT1_SEGMENT_LENGTH = DGT1_X1 - DGT1_X0  # 967 pixels per segment
+# Derived constant used throughout the tests
 DGT1_SEGMENT_LENGTHS = [DGT1_SEGMENT_LENGTH] * 5  # [967, 967, 967, 967, 967]
-DGT1_TOTAL_WIDTH = sum(DGT1_SEGMENT_LENGTHS)  # 4835 pixels
-DGT1_Y_POSITIONS = [18, 205, 396, 588, 785]  # y-coordinate of each system
 
-
-# === DGT2 (Thoresen 2010) ===
-# 5 separate JPEG images with slightly different dimensions
-# Data from: thoresen2010_dims in Applications.ipynb
-DGT2_SEGMENT_DATA = [
-    # (filename, (x0, x1), y)
-    ("thoresen_2010_form-building-patterns_p90-91_page1_1.jpeg", (8, 874), 15),
-    ("thoresen_2010_form-building-patterns_p90-91_page1_2.jpeg", (7, 874), 18),
-    ("thoresen_2010_form-building-patterns_p90-91_page1_3.jpeg", (7, 874), 19),
-    ("thoresen_2010_form-building-patterns_p90-91_page1_4.jpeg", (8, 872), 15),
-    ("thoresen_2010_form-building-patterns_p90-91_page2_1.jpeg", (9, 873), 20),
-]
-DGT2_SEGMENT_LENGTHS = [
-    x1 - x0 for _, (x0, x1), _ in DGT2_SEGMENT_DATA
-]  # [866, 867, 867, 864, 864]
-DGT2_TOTAL_WIDTH = sum(DGT2_SEGMENT_LENGTHS)  # 4328 pixels
-
+# region Event H Data (specific to this PoC test)
 
 # === Event H (rect_h2) from ground truth TSV ===
 # From events_df row 4: annot_cue_005, rect_h2
@@ -71,9 +50,7 @@ DGT2_TOTAL_WIDTH = sum(DGT2_SEGMENT_LENGTHS)  # 4328 pixels
 EVENT_H_SEGMENT_INDEX = 1  # Second segment (page1_2.jpeg)
 EVENT_H_IMAGE_X = 385  # x in image coordinates
 EVENT_H_IMAGE_WIDTH = 139  # width in image coordinates
-EVENT_H_X0_IN_IMAGE = DGT2_SEGMENT_DATA[EVENT_H_SEGMENT_INDEX][1][
-    0
-]  # x0=7 for this segment
+EVENT_H_X0_IN_IMAGE = DGT2_SEGMENT_BOUNDS[EVENT_H_SEGMENT_INDEX][0]  # x0=7
 EVENT_H_START_IN_SEGMENT = EVENT_H_IMAGE_X - EVENT_H_X0_IN_IMAGE  # 385 - 7 = 378
 EVENT_H_END_IN_SEGMENT = (
     EVENT_H_START_IN_SEGMENT + EVENT_H_IMAGE_WIDTH
@@ -87,48 +64,12 @@ EVENT_H_GROUND_TRUTH_END_SEC = (
 )  # 48.0
 
 
-# === Audio Duration ===
-# Both analyses represent the same 150-second excerpt
-AUDIO_DURATION_SECONDS = 150.0
-
-
 # endregion
 
 
 # region Fixtures
-
-
-@pytest.fixture
-def dgt1_timeline() -> DiscreteGraphicalTimeline:
-    """Create DGT1 (2009) timeline."""
-    return DiscreteGraphicalTimeline(
-        length=DGT1_TOTAL_WIDTH,
-        unit="pixels",
-        uid="dgt1",
-        name="Thoresen 2009",
-    )
-
-
-@pytest.fixture
-def dgt2_timeline() -> DiscreteGraphicalTimeline:
-    """Create DGT2 (2010) timeline."""
-    return DiscreteGraphicalTimeline(
-        length=DGT2_TOTAL_WIDTH,
-        unit="pixels",
-        uid="dgt2",
-        name="Thoresen 2010",
-    )
-
-
-@pytest.fixture
-def audio_timeline() -> ContinuousPhysicalTimeline:
-    """Create audio timeline (shared reference)."""
-    return ContinuousPhysicalTimeline(
-        length=AUDIO_DURATION_SECONDS,
-        unit="seconds",
-        uid="audio",
-        name="Audio",
-    )
+# Timeline fixtures (dgt1_timeline, dgt2_timeline, audio_timeline) and
+# thoresen_thoresen_segment_claims are provided by conftest.py.
 
 
 @pytest.fixture
@@ -150,43 +91,6 @@ def dgt1_group(
 def dgt2_group(dgt2_timeline: DiscreteGraphicalTimeline) -> TimelineGroup:
     """Create TimelineGroup for DGT2."""
     return TimelineGroup(id="dgt2_group", name="DGT2_Group", timelines=[dgt2_timeline])
-
-
-@pytest.fixture
-def segment_claims() -> list[MatchClaim]:
-    """Create the 5 segment correspondence claims between DGT1 and DGT2."""
-    claims = []
-    offset_dgt1 = 0
-    offset_dgt2 = 0
-
-    for i in range(5):
-        claim = MatchClaim(
-            timeline_a_id="dgt1",
-            timeline_b_id="dgt2",
-            start_anchor=AlignmentAnchor(
-                timeline_a_id="dgt1",
-                coordinate_a=float(offset_dgt1),
-                timeline_b_id="dgt2",
-                coordinate_b=float(offset_dgt2),
-            ),
-            end_anchor=AlignmentAnchor(
-                timeline_a_id="dgt1",
-                coordinate_a=float(offset_dgt1 + DGT1_SEGMENT_LENGTHS[i]),
-                timeline_b_id="dgt2",
-                coordinate_b=float(offset_dgt2 + DGT2_SEGMENT_LENGTHS[i]),
-            ),
-            metadata=MatchMetadata(
-                agent="thoresen_analysis",
-                decision_criteria="segment_correspondence",
-                notes=f"Segment {i+1} of 5",
-            ),
-        )
-        claims.append(claim)
-
-        offset_dgt1 += DGT1_SEGMENT_LENGTHS[i]
-        offset_dgt2 += DGT2_SEGMENT_LENGTHS[i]
-
-    return claims
 
 
 # endregion
@@ -290,23 +194,27 @@ class TestThoresenGroupSetup:
 class TestThoresenSegmentClaims:
     """Test segment correspondence claims."""
 
-    def test_five_interval_claims(self, segment_claims: list[MatchClaim]) -> None:
+    def test_five_interval_claims(
+        self, thoresen_segment_claims: list[MatchClaim]
+    ) -> None:
         """All 5 claims are interval (not instant) matches."""
-        assert len(segment_claims) == 5
-        assert all(c.is_interval for c in segment_claims)
+        assert len(thoresen_segment_claims) == 5
+        assert all(c.is_interval for c in thoresen_segment_claims)
 
     def test_claims_connect_correct_timelines(
-        self, segment_claims: list[MatchClaim]
+        self, thoresen_segment_claims: list[MatchClaim]
     ) -> None:
         """All claims connect DGT1 and DGT2."""
-        for claim in segment_claims:
+        for claim in thoresen_segment_claims:
             assert claim.connects_both("dgt1", "dgt2")
 
-    def test_claims_are_contiguous(self, segment_claims: list[MatchClaim]) -> None:
+    def test_claims_are_contiguous(
+        self, thoresen_segment_claims: list[MatchClaim]
+    ) -> None:
         """Segments form contiguous coverage (no gaps)."""
         # Check DGT1 side
         prev_end = 0.0
-        for claim in segment_claims:
+        for claim in thoresen_segment_claims:
             start, end = claim.get_coordinates_for("dgt1")
             assert start == pytest.approx(
                 prev_end
@@ -316,7 +224,7 @@ class TestThoresenSegmentClaims:
 
         # Check DGT2 side
         prev_end = 0.0
-        for claim in segment_claims:
+        for claim in thoresen_segment_claims:
             start, end = claim.get_coordinates_for("dgt2")
             assert start == pytest.approx(
                 prev_end
@@ -324,9 +232,9 @@ class TestThoresenSegmentClaims:
             prev_end = end
         assert prev_end == pytest.approx(DGT2_TOTAL_WIDTH)
 
-    def test_claim_metadata(self, segment_claims: list[MatchClaim]) -> None:
+    def test_claim_metadata(self, thoresen_segment_claims: list[MatchClaim]) -> None:
         """Claims have proper provenance metadata."""
-        for claim in segment_claims:
+        for claim in thoresen_segment_claims:
             assert claim.metadata is not None
             assert claim.metadata.agent == "thoresen_analysis"
             assert claim.metadata.decision_criteria == "segment_correspondence"
@@ -453,7 +361,7 @@ class TestThoresenGraphicalBundles:
 
         # x should be x0 + local offset
         expected_x = (
-            DGT2_SEGMENT_DATA[EVENT_H_SEGMENT_INDEX][1][0] + EVENT_H_START_IN_SEGMENT
+            DGT2_SEGMENT_BOUNDS[EVENT_H_SEGMENT_INDEX][0] + EVENT_H_START_IN_SEGMENT
         )
         assert x == pytest.approx(expected_x)
 

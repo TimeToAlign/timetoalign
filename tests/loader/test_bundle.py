@@ -1,7 +1,8 @@
-"""Tests for EventStore ABC and SingleStore.
+"""Tests for EventBundle (EventStore ABC and SingleStore).
 
-This module tests the EventStore protocol and the SingleStore wrapper
-that provides store interface for single-store loaders.
+This module tests the EventStore protocol, the SingleStore wrapper
+that provides store interface for single-store loaders, and
+bundle-level operations for combining multiple stores.
 """
 
 from __future__ import annotations

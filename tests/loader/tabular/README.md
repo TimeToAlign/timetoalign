@@ -77,7 +77,7 @@ Some tests use **dynamically generated temporary files** for isolation:
 4. **TEMPORAL TYPE INFERENCE**:
    - Events with valid `duration_qb` -> "interval"
    - Events with null `duration_qb` or null `quarterbeats` -> "instant"
-   - Validated: 4,745 intervals + 8 instants = 4,753 total (EXACT)
+   - Validated: all 4,753 events are intervals (EXACT, per `test_correctness.py` line 259)
 
 5. **ZERO ITERATION GUARANTEE**: Validated via monkey-patching:
    ```python

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -399,7 +398,6 @@ class TestEventDataSerialization:
         """to_parquet() writes Parquet file."""
         store_with_mixed.to_parquet(temp_parquet_path)
         assert temp_parquet_path.exists()
-        os.unlink(temp_parquet_path)
 
     def test_from_parquet(
         self, store_with_mixed: EventData, temp_parquet_path: Path
@@ -410,7 +408,6 @@ class TestEventDataSerialization:
 
         assert len(loaded) == len(store_with_mixed)
         assert loaded.unit == store_with_mixed.unit
-        os.unlink(temp_parquet_path)
 
     def test_from_parquet_no_metadata_raises(self, temp_parquet_path: Path) -> None:
         """from_parquet() raises if no TimeToAlign metadata."""
@@ -422,7 +419,6 @@ class TestEventDataSerialization:
 
         with pytest.raises(ValueError, match="lacks TimeToAlign"):
             EventData.from_parquet(temp_parquet_path)
-        os.unlink(temp_parquet_path)
 
     def test_to_dataframe(self, store_with_mixed: EventData) -> None:
         """to_dataframe() returns pandas DataFrame."""

@@ -27,15 +27,15 @@ Per ZERO TOLERANCE VALIDATION POLICY (from AGENTS.md):
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import pytest
 
-# Specimen data paths - path goes up from tests/loader/score/ to project root
-SPECIMENS_DIR = Path(__file__).parents[4] / "dashboard" / "specimens"
-BEETHOVEN_WOO71_DIR = SPECIMENS_DIR / "beethoven_woo71"
-FLOW_CONTROL_DIR = SPECIMENS_DIR / "flow_control" / "flow_only"
+from .conftest import MAX_MUSICXML_SIZE_BYTES, SCORE_DATA_DIR, musicxml_too_large
+
+# Specimen data paths - all under tests/data/score/
+BEETHOVEN_WOO71_DIR = SCORE_DATA_DIR / "beethoven_woo71"
+FLOW_CONTROL_DIR = SCORE_DATA_DIR / "flow_control" / "flow_only"
 
 # Source files - Beethoven WoO71 (no MusicXML available)
 BEETHOVEN_MSCX = BEETHOVEN_WOO71_DIR / "WoO71.mscx"
@@ -93,12 +93,6 @@ FLOW_CONTROL_GOLD = {
 }
 
 
-# Maximum file size for MusicXML files to avoid test timeouts.
-# PartituraLoader can take 90+ seconds on large (2MB+) MusicXML files.
-# Files larger than this threshold will be skipped with a warning.
-MAX_MUSICXML_SIZE_BYTES = 500_000  # 500KB
-
-
 def specimens_available() -> bool:
     """Check if specimen files are available."""
     return BEETHOVEN_MEASURES_TSV.exists()
@@ -107,17 +101,6 @@ def specimens_available() -> bool:
 def flow_control_specimen_available() -> bool:
     """Check if flow_control specimen is available (has MusicXML)."""
     return FLOW_CONTROL_MUSICXML.exists()
-
-
-def musicxml_too_large(path: Path) -> bool:
-    """Check if MusicXML file is too large for reasonable test time.
-
-    PartituraLoader processing time scales poorly with file size.
-    A 2MB MusicXML can take 90+ seconds to process, causing test timeouts.
-    """
-    if not path.exists():
-        return False
-    return path.stat().st_size > MAX_MUSICXML_SIZE_BYTES
 
 
 def count_flow_control(measures_table: Any) -> dict[str, int | bool]:
@@ -328,13 +311,11 @@ def music21_measures():
 
 @pytest.mark.skipif(not specimens_available(), reason="Specimen files not found")
 class TestGoldStandardVerification:
-    """Verify the gold standard counts from TSV match our expectations."""
+    """Verify the gold standard flow control counts from TSV.
 
-    def test_tsv_total_measures(self, tsv_measures):
-        """TSV has exactly 397 measures (folded)."""
-        actual = len(tsv_measures)
-        expected = GOLD_STANDARD["total_measures"]
-        assert actual == expected, f"TSV measures: got {actual}, expected {expected}"
+    Note: Folded measure count (397) is verified by test_score_parsing_matrix.py
+    TestTSVLoaderValidation. This class tests flow control field extraction only.
+    """
 
     def test_tsv_repeat_starts(self, tsv_measures):
         """TSV has exactly 11 repeat starts."""
@@ -364,11 +345,6 @@ class TestGoldStandardVerification:
         expected = GOLD_STANDARD["double_barlines"]
         assert actual == expected, f"Double barlines: got {actual}, expected {expected}"
 
-    def test_tsv_has_flow_control(self, tsv_measures):
-        """TSV has flow control (sanity check)."""
-        counts = count_flow_control(tsv_measures)
-        assert counts["has_flow_control"], "TSV should have flow control"
-
 
 # ============================================================================
 # MeasureMapLoader Parity Tests
@@ -377,15 +353,11 @@ class TestGoldStandardVerification:
 
 @pytest.mark.skipif(not specimens_available(), reason="Specimen files not found")
 class TestMeasureMapLoaderParity:
-    """Validate MeasureMapLoader extracts flow control matching TSV."""
+    """Validate MeasureMapLoader extracts flow control matching TSV.
 
-    def test_measuremap_total_measures(self, measuremap_measures):
-        """MeasureMap has same measure count as TSV."""
-        actual = len(measuremap_measures)
-        expected = GOLD_STANDARD["total_measures"]
-        assert (
-            actual == expected
-        ), f"MeasureMap measures: got {actual}, expected {expected}"
+    Note: Folded measure count parity is verified by test_score_parsing_matrix.py
+    TestCrossLoaderParity. This class tests flow control field extraction only.
+    """
 
     def test_measuremap_repeat_starts(self, measuremap_measures):
         """MeasureMap repeat starts match TSV."""
@@ -406,11 +378,6 @@ class TestMeasureMapLoaderParity:
             f"MeasureMap repeat ends: got {actual}, expected {expected}. "
             "MeasureMap uses end_repeat boolean field."
         )
-
-    def test_measuremap_has_flow_control(self, measuremap_measures):
-        """MeasureMap detects flow control."""
-        counts = count_flow_control(measuremap_measures)
-        assert counts["has_flow_control"], "MeasureMap should detect flow control"
 
 
 # ============================================================================
@@ -544,14 +511,6 @@ class TestCrossLoaderConsistency:
             f"Repeat end mismatch: TSV={tsv_counts['repeat_ends']}, "
             f"MeasureMap={mm_counts['repeat_ends']}"
         )
-
-    def test_tsv_vs_measuremap_flow_control(self, tsv_measures, measuremap_measures):
-        """TSV and MeasureMap should both detect flow control."""
-        tsv_counts = count_flow_control(tsv_measures)
-        mm_counts = count_flow_control(measuremap_measures)
-
-        assert tsv_counts["has_flow_control"], "TSV should detect flow control"
-        assert mm_counts["has_flow_control"], "MeasureMap should detect flow control"
 
 
 # ============================================================================

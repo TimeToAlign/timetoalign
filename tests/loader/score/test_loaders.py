@@ -1,6 +1,5 @@
 """Tests for symbolic score loaders (ScoreStore architecture)."""
 
-import warnings
 from pathlib import Path
 
 import pytest
@@ -73,6 +72,7 @@ class TestTSVLoader:
         assert sp.get("gpc_str") == "B"
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 class TestPartituraLoader:
     """Tests for PartituraLoader."""
 
@@ -118,6 +118,7 @@ class TestPartituraLoader:
         assert "value" in qb
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 class TestMusic21Loader:
     """Tests for Music21Loader."""
 
@@ -167,57 +168,13 @@ class TestMusic21Loader:
         assert "value" in qb
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 class TestCrossValidation:
-    """Cross-validation tests comparing all loaders."""
+    """Cross-validation tests comparing all loaders.
 
-    def test_note_counts_match(self, chopin_xml, chopin_tsv_notes):
-        """All loaders return same Note count (excluding rests)."""
-        l1 = TSVLoader()
-        l1.load(chopin_tsv_notes)
-        tsv_store = l1.store
-
-        l2 = PartituraLoader()
-        l2.load(chopin_xml)
-        pt_store = l2.store
-
-        l3 = Music21Loader()
-        l3.load(chopin_xml)
-        m21_store = l3.store
-
-        tsv_df = tsv_store.notes.to_dataframe()
-        pt_df = pt_store.notes.to_dataframe()
-        m21_df = m21_store.notes.to_dataframe()
-
-        tsv_notes = len(tsv_df[tsv_df["event_type"] == "Note"])
-        pt_notes = len(pt_df[pt_df["event_type"] == "Note"])
-        m21_notes = len(m21_df[m21_df["event_type"] == "Note"])
-
-        assert tsv_notes == 498
-        assert pt_notes == 498
-        assert m21_notes == 498
-
-    def test_first_note_pitch_match(self, chopin_xml, chopin_tsv_notes):
-        """First note has same pitch across all loaders."""
-        l1 = TSVLoader()
-        l1.load(chopin_tsv_notes)
-        tsv = l1.store
-
-        l2 = PartituraLoader()
-        l2.load(chopin_xml)
-        pt = l2.store
-
-        l3 = Music21Loader()
-        l3.load(chopin_xml)
-        m21 = l3.store
-
-        tsv_first = list(tsv.notes)[0]
-        pt_first = list(pt.notes)[0]
-        m21_first = list(m21.notes)[0]
-
-        # All should be B3 (MIDI 59)
-        assert tsv_first["midi_pitch"]["ep"] == 59
-        assert pt_first["midi_pitch"]["ep"] == 59
-        assert m21_first["midi_pitch"]["ep"] == 59
+    Note: note_count and pitch cross-validation are handled by the dedicated
+    test_cross_validation.py module (TestNoteCountConsistency, TestMidiPitchExact).
+    """
 
     def test_mc_onset_populated(self, chopin_xml, chopin_tsv_notes):
         """mc_onset is populated for all loaders."""
@@ -247,8 +204,10 @@ class TestCrossValidation:
 
 def _raw_min_onset_partitura(xml_path: Path) -> float:
     """Return the minimum raw quarter-beat onset from partitura directly."""
+    import warnings
+
     with warnings.catch_warnings():
-        warnings.filterwarnings("ignore")
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
         import partitura as pt
 
         score = pt.load_score(str(xml_path), force_note_ids=True)
@@ -272,6 +231,7 @@ def _first_note_quarterbeats_float_partitura(store: ScoreStore) -> float | None:
     return first.get("duration_float")
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 class TestAnacrusisOffset:
     """anacrusis_offset property and coordinate normalisation.
 

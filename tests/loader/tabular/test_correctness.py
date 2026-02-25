@@ -29,8 +29,8 @@ from timetoalign.loader.tabular import Ms3Loader
 
 @pytest.fixture
 def specimens_base() -> Path:
-    """Get base path for specimens."""
-    return Path(__file__).parent.parent.parent.parent.parent / "dashboard" / "specimens"
+    """Get base path for specimens (under tests/data/score/)."""
+    return Path(__file__).parent.parent.parent / "data" / "score"
 
 
 @pytest.fixture
