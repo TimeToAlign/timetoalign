@@ -78,7 +78,7 @@ CHOPIN_XML.name, CHOPIN_TSV.name
 #
 # 1. **Create** a loader instance
 # 2. **Load** a file using `.load(path)`
-# 3. **Access** the bundle containing EventStores
+# 3. **Access** the store containing EventStores
 #
 # Let's see this in action with three different loaders, all loading the same Chopin piece:
 
@@ -326,7 +326,7 @@ tsv_df.groupby(["staff", "voice"]).size().unstack(fill_value=0)
 # loader = PartituraLoader()
 # loader.load(DATA_DIR / "beethoven_op18.mid")
 #
-# df = loader.bundle.notes.to_dataframe()
+# df = loader.store.notes.to_dataframe()
 # {"total_notes": len(df), "notes_per_part": df.groupby("part_id").size().to_dict()}
 # ```
 #
