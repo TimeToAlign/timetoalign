@@ -198,8 +198,6 @@ dgt_holes = dgt1.create_child(
     uid="dgt_holes",
     name="Musical Holes Region",
 )
-
-# ASCII diagram display - no print() needed, no redundant dict
 dgt1
 
 # %% [markdown]
