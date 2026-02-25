@@ -848,24 +848,35 @@ def group_diagram(
 # region Bundle Diagram
 
 
+DEFAULT_MAX_STANDALONE: int = 6
+
+
 def bundle_diagram(
     bundle: "AlignmentBundle",
     width: int = 80,
     show_children: bool = True,
     max_children: int = DEFAULT_MAX_CHILDREN,
+    max_standalone: int = DEFAULT_MAX_STANDALONE,
     unicode: bool = True,
 ) -> Diagram:
     """Generate ASCII diagram for an AlignmentBundle.
+
+    Renders grouped timelines inside their group boxes, then any
+    standalone timelines (not in a group) as a proportionally-scaled
+    list.  When timelines share the same unit, the longest fills the
+    full bar width and shorter ones are drawn proportionally.
 
     Args:
         bundle: The AlignmentBundle to render.
         width: Total width of the diagram in characters.
         show_children: Whether to expand child timelines.
         max_children: Maximum children per timeline.
+        max_standalone: Maximum standalone timelines to display before
+            truncating with an ellipsis.
         unicode: Use Unicode characters (True) or ASCII fallback (False).
 
     Returns:
-        Multi-line string with ASCII diagram.
+        Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
 
     Examples:
         >>> print(bundle_diagram(my_bundle))
@@ -897,6 +908,89 @@ def bundle_diagram(
         )
         for line in group_str.split("\n"):
             lines.append("  " + line)
+        lines.append("")
+
+    # Collect standalone timelines (not in any group)
+    standalone_ids = [
+        uid for uid in bundle.timelines if bundle.timeline_to_group.get(uid) is None
+    ]
+
+    if standalone_ids:
+        standalone_tls = [bundle.timelines[uid] for uid in standalone_ids]
+
+        lines.append(f"  Standalone timelines ({len(standalone_tls)}):")
+
+        # Build the list to render (with truncation)
+        if len(standalone_tls) <= max_standalone:
+            to_render = list(enumerate(standalone_tls))
+            omitted = 0
+        else:
+            first_count = (max_standalone + 1) // 2
+            last_count = max_standalone - first_count
+            first = list(enumerate(standalone_tls[:first_count]))
+            last = [
+                (
+                    len(standalone_tls) - last_count + i,
+                    standalone_tls[-(last_count - i)],
+                )
+                for i in range(last_count)
+            ]
+            omitted = len(standalone_tls) - first_count - last_count
+            to_render = first  # render first, then ellipsis, then last
+
+        # Find the maximum length across all standalone timelines
+        # (for proportional bar widths)
+        max_length = max(float(tl.length.value) for tl in standalone_tls)
+        if max_length <= 0:
+            max_length = 1.0
+
+        # Determine layout dimensions
+        name_width = DEFAULT_NAME_WIDTH
+        # Longest coordinate label
+        max_end_label = _format_coordinate(max_length)
+        coord_width = max(len(max_end_label), 5)
+        unit_label = str(standalone_tls[0].unit)
+        right_label_len = coord_width + 1 + len(unit_label)
+        # Full bar width for the longest timeline
+        full_bar_width = (
+            width - 4 - name_width - 1 - coord_width - 1 - right_label_len - 1
+        )
+        full_bar_width = max(full_bar_width, 10)
+
+        def _render_standalone_row(tl: "Timeline") -> str:
+            length = float(tl.length.value)
+            end_label = _format_coordinate(length)
+            tl_unit = str(tl.unit)
+            line_char = _get_timeline_char(tl, unicode)
+
+            # Proportional bar width
+            if max_length > 0:
+                proportion = length / max_length
+            else:
+                proportion = 1.0
+            bar_w = max(int(full_bar_width * proportion), 1)
+            bar = line_char * bar_w
+
+            elided = _elide_name(tl.name or tl.id, name_width)
+
+            n_ev = tl.n_events
+            ev_str = f" ({n_ev} ev)" if n_ev > 0 else ""
+
+            return (
+                f"    {elided:<{name_width}} "
+                f"{'0':>{coord_width}} "
+                f"{bar} "
+                f"{end_label} {tl_unit}{ev_str}"
+            )
+
+        for _idx, tl in to_render:
+            lines.append(_render_standalone_row(tl))
+
+        if omitted > 0:
+            lines.append(f"    ... ({omitted} more)")
+            for _idx, tl in last:
+                lines.append(_render_standalone_row(tl))
+
         lines.append("")
 
     # Match claims summary
