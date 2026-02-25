@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
+from timetoalign.alignment.bundle import _reset_bundle_ids
 from timetoalign.alignment.groups import _reset_group_ids
 
 # region Test Data Paths
@@ -139,10 +140,12 @@ def reset_ids() -> None:
     """Reset ID generators before each test.
 
     This ensures test isolation - each test starts with fresh IDs.
+    Resets all four generators: group, anchor, claim, and bundle.
     """
     _reset_group_ids()
     _reset_anchor_ids()
     _reset_claim_ids()
+    _reset_bundle_ids()
 
 
 # endregion

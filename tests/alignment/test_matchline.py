@@ -21,9 +21,7 @@ from timetoalign.alignment import (
     MatchClaim,
     TimelineGroup,
 )
-from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
-from timetoalign.alignment.groups import _reset_group_ids
 from timetoalign.alignment.matchline import MatchLine
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
@@ -31,14 +29,6 @@ from timetoalign.timelines import (
 )
 
 # region Fixtures
-
-
-@pytest.fixture(autouse=True)
-def reset_ids() -> None:
-    """Reset ID generators before each test."""
-    _reset_group_ids()
-    _reset_anchor_ids()
-    _reset_claim_ids()
 
 
 @pytest.fixture
@@ -360,10 +350,8 @@ class TestFromClaims:
         line = MatchLine.from_claims(thoresen_segment_claims, source_timeline_id="dgt1")
 
         # 5 intervals produce 6 unique boundary coordinates on dgt1
-        # but some are shared between adjacent segments (connected
-        # components merge at shared boundary nodes), so we expect
-        # 6 stamps (one per unique connected component).
-        assert line.n_stamps >= 2
+        # (0, 78, 268, 561, 801, 967), yielding exactly 6 stamps.
+        assert line.n_stamps == 6
         assert "dgt2" in line.target_timeline_ids()
 
         # Verify ordering

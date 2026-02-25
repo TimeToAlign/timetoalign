@@ -5,19 +5,12 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.alignment import GroupTimestamp, TimelineGroup
-from timetoalign.alignment.groups import _reset_group_ids
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
 )
 
 # region Fixtures
-
-
-@pytest.fixture(autouse=True)
-def reset_ids() -> None:
-    """Reset ID generators before each test."""
-    _reset_group_ids()
 
 
 @pytest.fixture

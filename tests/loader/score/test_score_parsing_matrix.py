@@ -605,8 +605,17 @@ class TestMusic21LoaderMEI:
         loader = Music21Loader()
         try:
             loader.load(mei_path)
-        except Exception as e:
+        except (SyntaxError, KeyError) as e:
+            # Music21 MEI parser raises:
+            # - music21.exceptions21.Music21Exception subclasses (MeiElementError, etc.)
+            #   which inherit from Exception directly — caught separately below
+            # - xml.etree.ElementTree.ParseError (subclass of SyntaxError)
+            # - KeyError for missing elements
             pytest.skip(f"Music21 failed to load MEI: {e}")
+        except Exception as e:
+            if "music21" in type(e).__module__:
+                pytest.skip(f"Music21 failed to load MEI: {e}")
+            raise
 
         mc_values = loader.store.measures._table.column("mc").to_pylist()
         actual = len(set(mc_values))
@@ -655,8 +664,14 @@ class TestMusic21LoaderMEI:
 
         try:
             mei_loader.load(mei_path)
-        except Exception as e:
+        except (SyntaxError, KeyError) as e:
+            # xml.etree.ElementTree.ParseError (subclass of SyntaxError),
+            # KeyError for missing elements
             pytest.skip(f"Music21 failed to load MEI: {e}")
+        except Exception as e:
+            if "music21" in type(e).__module__:
+                pytest.skip(f"Music21 failed to load MEI: {e}")
+            raise
 
         xml_loader.load(xml_path)
 
@@ -817,7 +832,10 @@ class TestPartituraLoaderMEI:
         loader = PartituraLoader()
         try:
             loader.load(mei_path)
-        except Exception as e:
+        except (SyntaxError, KeyError) as e:
+            # Partitura MEI parser raises:
+            # - lxml.etree.XMLSyntaxError (subclass of SyntaxError) for malformed XML
+            # - KeyError for missing elements in the score structure
             pytest.skip(f"Partitura failed to load MEI: {e}")
 
         mc_values = loader.store.measures._table.column("mc").to_pylist()

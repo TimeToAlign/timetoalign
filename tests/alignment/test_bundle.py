@@ -27,21 +27,9 @@ from timetoalign.alignment import (
     MatchClaim,
     TimelineGroup,
 )
-from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
-from timetoalign.alignment.bundle import _reset_bundle_ids
-from timetoalign.alignment.groups import _reset_group_ids
 from timetoalign.timelines import Timeline
 
 # region Fixtures
-
-
-@pytest.fixture(autouse=True)
-def reset_ids() -> None:
-    """Reset ID generators before each test for deterministic IDs."""
-    _reset_bundle_ids()
-    _reset_anchor_ids()
-    _reset_claim_ids()
-    _reset_group_ids()
 
 
 @pytest.fixture

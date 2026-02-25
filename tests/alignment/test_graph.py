@@ -15,9 +15,7 @@ from timetoalign.alignment import (
     MatchMetadata,
     TimelineGroup,
 )
-from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
-from timetoalign.alignment.groups import _reset_group_ids
 from timetoalign.core.enums import Domain, TimeUnit
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
@@ -25,14 +23,6 @@ from timetoalign.timelines import (
 )
 
 # region Fixtures
-
-
-@pytest.fixture(autouse=True)
-def reset_ids() -> None:
-    """Reset ID generators before each test."""
-    _reset_group_ids()
-    _reset_anchor_ids()
-    _reset_claim_ids()
 
 
 @pytest.fixture
@@ -504,7 +494,7 @@ class TestMatchGraphGroupExtension:
         # Should have 1 explicit edge (dgt1-external)
         # and 1 inferred edge (dgt1-audio or audio-external)
         assert stamp.n_explicit_edges == 1
-        assert stamp.n_inferred_edges >= 1
+        assert stamp.n_inferred_edges == 1
 
     def test_extend_with_include_inferred_false(
         self,
@@ -998,12 +988,12 @@ class TestMatchGraphExtendToGroupsImplicitClaims:
 
         extended = graph.extend_to_groups(groups, timeline_to_group)
 
-        # Original had 1 claim, extended should have 1 original + implicit
-        assert extended.n_claims > 1
+        # Original had 1 claim, extended should have 1 original + 1 implicit
+        assert extended.n_claims == 2
 
         # Check that implicit claims exist
         implicit = [c for c in extended.claims if not c.is_explicit]
-        assert len(implicit) >= 1
+        assert len(implicit) == 1
 
         # Implicit claims should be synchronous
         for ic in implicit:
@@ -1034,7 +1024,7 @@ class TestMatchGraphExtendToGroupsImplicitClaims:
         extended = graph.extend_to_groups(groups, timeline_to_group)
 
         implicit = [c for c in extended.claims if not c.is_explicit]
-        assert len(implicit) >= 1
+        assert len(implicit) == 1
 
         for ic in implicit:
             assert ic.source_claim_id == claim.id
@@ -1113,9 +1103,8 @@ class TestMatchGraphExtendToGroupsImplicitClaims:
 
         # Count implicit claims
         implicit = [c for c in extended.claims if not c.is_explicit]
-        # At least 3: tl1->tl4, tl1->tl5, tl2->tl6
-        # Could be more depending on group B extension from tl6 back to tl2
-        assert len(implicit) >= 3
+        # Exactly 3: tl1->tl4, tl1->tl5, tl2->tl6
+        assert len(implicit) == 3
 
 
 class TestMatchGraphExtendToGroupsFilters:

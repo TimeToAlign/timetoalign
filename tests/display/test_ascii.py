@@ -503,8 +503,9 @@ class TestDiagramMethods:
         # Test width parameter affects output
         wide = tl.diagram(width=100)
         narrow = tl.diagram(width=40)
-        # Wider diagram should have more bar characters
-        assert len(wide) >= len(narrow)
+        # Wider diagram should produce longer output
+        assert len(wide) == 139
+        assert len(narrow) == 94
 
 
 # endregion

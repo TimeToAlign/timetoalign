@@ -195,8 +195,8 @@ class TestMidiLoaderIntegration:
         tl = Timeline.from_event_data(loader.events)
 
         assert tl.unit == TimeUnit.ticks
-        assert tl.n_events > 0
-        assert tl.length.value > 0
+        assert tl.n_events == 3874  # Chopin_op10_no3_p01.mid
+        assert tl.length.value == 83034.0
 
     def test_timeline_from_score_midi(self, score_midi_path: Path):
         """Load score MIDI into Timeline (using loader's unit/number_type)."""
@@ -207,7 +207,7 @@ class TestMidiLoaderIntegration:
         tl = Timeline.from_event_data(loader.events)
 
         assert tl.unit == TimeUnit.ticks
-        assert tl.n_events > 0
+        assert tl.n_events == 16  # beethoven_mtd.mid
 
     def test_nested_midi_timelines(
         self, performance_midi_path: Path, score_midi_path: Path

@@ -35,6 +35,26 @@ from timetoalign.timelines.flow import (
     load_valid_flows,
 )
 
+# region Test Helpers
+
+
+class _MockMeasureData:
+    """Lightweight mock for MeasureData, wrapping a PyArrow table.
+
+    Used in tests that construct FlowController from synthetic measure data
+    without going through a full loader pipeline.
+    """
+
+    def __init__(self, tbl):
+        self._table = tbl
+
+    def __len__(self):
+        return len(self._table)
+
+
+# endregion
+
+
 # region Fixtures
 
 
@@ -681,14 +701,7 @@ class TestBuildGroups:
             }
         )
 
-        class MockMeasureData:
-            def __init__(self, tbl):
-                self._table = tbl
-
-            def __len__(self):
-                return len(self._table)
-
-        md = MockMeasureData(table)
+        md = _MockMeasureData(table)
         controller = FlowController(md)
 
         sections = controller.get_sections()
@@ -728,14 +741,7 @@ class TestBuildGroups:
             }
         )
 
-        class MockMeasureData:
-            def __init__(self, tbl):
-                self._table = tbl
-
-            def __len__(self):
-                return len(self._table)
-
-        md = MockMeasureData(table)
+        md = _MockMeasureData(table)
         controller = FlowController(md)
 
         sections = controller.get_sections()
@@ -775,14 +781,7 @@ class TestBuildGroups:
             }
         )
 
-        class MockMeasureData:
-            def __init__(self, tbl):
-                self._table = tbl
-
-            def __len__(self):
-                return len(self._table)
-
-        md = MockMeasureData(table)
+        md = _MockMeasureData(table)
         controller = FlowController(md)
 
         # Each volta should be in its own section due to breaks
@@ -796,8 +795,8 @@ class TestBuildGroups:
                     if isinstance(g, VoltaGroup):
                         volta_groups.append(g)
 
-        # Should have at least one VoltaGroup
-        assert len(volta_groups) >= 1
+        # WoO71 has exactly 2 VoltaGroups
+        assert len(volta_groups) == 2
 
     def test_split_measure_same_mn_detected(self) -> None:
         """SplitMeasures are detected when IncompleteMeasures share same mn."""
@@ -823,14 +822,7 @@ class TestBuildGroups:
             }
         )
 
-        class MockMeasureData:
-            def __init__(self, tbl):
-                self._table = tbl
-
-            def __len__(self):
-                return len(self._table)
-
-        md = MockMeasureData(table)
+        md = _MockMeasureData(table)
         controller = FlowController(md)
 
         sections = controller.get_sections()
@@ -1248,7 +1240,7 @@ class TestFlowCSVLoading:
 
         flows = load_valid_flows(csv_path)
 
-        assert len(flows) >= 2  # At least default and atomic
+        assert len(flows) == 3  # ATOMIC, DEFAULT, SINGLE_PASS
         assert FlowMode.ATOMIC in flows
         assert len(flows[FlowMode.ATOMIC].sections) == 4
 
@@ -1308,7 +1300,7 @@ class TestFlowController:
         sections = controller.get_sections()  # mode=None -> atomic sections
 
         # Rachmaninoff has no flow control, should be 1 segment
-        assert len(sections) >= 1
+        assert len(sections) == 1
         assert sections[0].id == "A"
         assert sections[0].mc_start == 1
 
@@ -1324,7 +1316,7 @@ class TestFlowController:
         sections = controller.get_sections(FlowMode.DEFAULT)
 
         # Should return PlaythroughSection objects
-        assert len(sections) >= 1
+        assert len(sections) == 1
         assert hasattr(sections[0], "atomic_section_ids")
 
     def test_from_atomic_sections(self) -> None:
@@ -1351,7 +1343,7 @@ class TestFlowController:
 
         # Flow should have sections and correct unfolded length
         assert flow.unfolded_length == 374
-        assert len(flow.sections) >= 1
+        assert len(flow.sections) == 1
         # Controller ref should be attached
         assert flow.controller is not None
 
@@ -1480,11 +1472,8 @@ class TestExample3CouperinMusete:
         flow = controller.compute_flow(FlowMode.DEFAULT)
 
         assert flow.folded_length == 58
-        # The unfolded count should be around 138 (from gold standard)
-        # This test will validate the exact algorithm
-        assert (
-            flow.unfolded_length > 58
-        ), f"Expected unfolded > 58, got {flow.unfolded_length}"
+        # The unfolded count is 138 (from gold standard)
+        assert flow.unfolded_length == 138
 
     def test_flow_matches_unfolded_gold_standard(
         self, musete_measures_tsv: Path, musete_unfolded_tsv: Path

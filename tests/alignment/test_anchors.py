@@ -7,16 +7,8 @@ from datetime import datetime
 import pytest
 
 from timetoalign.alignment import AlignmentAnchor, MatchClaim, MatchMetadata
-from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
 
 # region Fixtures
-
-
-@pytest.fixture(autouse=True)
-def reset_ids() -> None:
-    """Reset ID generators before each test."""
-    _reset_anchor_ids()
-    _reset_claim_ids()
 
 
 @pytest.fixture
