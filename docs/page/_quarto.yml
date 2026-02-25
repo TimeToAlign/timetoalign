@@ -28,26 +28,30 @@ website:
           contents:
             - tutorials/00_motivation.ipynb
             - tutorials/01_core_concepts.ipynb
-            - tutorials/02_loading_data.ipynb
-            - tutorials/02a_tabular_loaders.ipynb
             - tutorials/03_conversion_maps.ipynb
         - section: "Structure"
           contents:
             - tutorials/04_building_timelines.ipynb
             - tutorials/05_timestamps.ipynb
-        - section: "Domains"
+        - section: "Alignment"
           contents:
-            - tutorials/06_graphical_timelines.ipynb
             - tutorials/07_alignment_basics.ipynb
-        - section: "Applications"
-          contents:
-            - tutorials/08_supra_piano_roll.ipynb
-            - tutorials/09_beat_grids.ipynb
-            - tutorials/10_beethoven_multimodal.ipynb
 
     - title: "How-To Guides"
       contents:
         - howto.qmd
+        - section: "Topic 1: Timelines, Events & Maps"
+          contents:
+            - howto/02_loading_data.ipynb
+            - howto/02a_tabular_loaders.ipynb
+            - howto/06_graphical_timelines.ipynb
+            - howto/09_beat_grids.ipynb
+        - section: "Topic 2: TimelineGroups"
+          contents:
+            - howto/08_supra_piano_roll.ipynb
+        - section: "Topic 3: AlignmentBundles"
+          contents:
+            - howto/10_beethoven_multimodal.ipynb
 
     - title: "Explanation"
       contents:
