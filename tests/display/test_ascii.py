@@ -170,10 +170,10 @@ class TestGetTimelineChar:
     """Tests for _get_timeline_char helper."""
 
     def test_discrete_graphical(self) -> None:
-        """Discrete graphical timeline gets ':'."""
+        """Discrete graphical timeline gets '∶' (U+2236 RATIO, avoids Quarto fenced-div parsing)."""
         tl = DiscreteGraphicalTimeline(length=100, uid="test_dg")
-        assert _get_timeline_char(tl, use_unicode=True) == ":"
-        assert _get_timeline_char(tl, use_unicode=False) == ":"
+        assert _get_timeline_char(tl, use_unicode=True) == "\u2236"
+        assert _get_timeline_char(tl, use_unicode=False) == "\u2236"
 
     def test_continuous_graphical(self) -> None:
         """Continuous graphical timeline gets '='."""
@@ -359,7 +359,9 @@ class TestTimelineDiagram:
         result = timeline_diagram(tl, unicode=False)
 
         # Should use ASCII-safe characters only
-        assert ":" in result  # ASCII colon is same
+        assert (
+            "\u2236" in result
+        )  # U+2236 RATIO used for DiscreteGraphical (avoids Quarto parsing)
         # No Unicode box-drawing characters
         assert "\u250c" not in result  # ┌
 
