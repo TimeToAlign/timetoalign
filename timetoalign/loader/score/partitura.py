@@ -117,8 +117,10 @@ class PartituraLoader(ScoreLoader):
         for part_idx, part in enumerate(parts):
             part_id = getattr(part, "id", f"P{part_idx+1}")
 
-            # Get quarter beat mapping
-            beat_map = part.beat_map  # divs -> quarter beats
+            # Get quarter beat mapping — use quarter_map, NOT beat_map.
+            # beat_map is time-signature-relative in partitura; quarter_map
+            # always returns quarter-note positions regardless of time sig.
+            beat_map = part.quarter_map  # divs -> quarter beats
 
             # Cache beat_map calls: many notes share divisions or measure starts
             beat_map_cache: dict[int, float] = {}
