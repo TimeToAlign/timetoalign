@@ -1043,6 +1043,7 @@ class AlignmentBundle:
         width: int = 80,
         show_children: bool = True,
         max_children: int = 6,
+        max_standalone: int = 6,
         unicode: bool = True,
     ) -> "Diagram":
         """Generate ASCII diagram for this bundle.
@@ -1051,6 +1052,8 @@ class AlignmentBundle:
             width: Total width of the diagram in characters.
             show_children: Whether to expand child timelines.
             max_children: Maximum children per timeline.
+            max_standalone: Maximum standalone timelines to display
+                before truncating with an ellipsis.
             unicode: Use Unicode characters (True) or ASCII fallback (False).
 
         Returns:
@@ -1076,6 +1079,7 @@ class AlignmentBundle:
             width=width,
             show_children=show_children,
             max_children=max_children,
+            max_standalone=max_standalone,
             unicode=unicode,
         )
 
