@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\algorithms\connectivity\disjoint_paths.py
-# hypothesis_version: 6.151.2
-
-['G', 'auxiliary', 'auxiliary?', 'capacity', 'cutoff', 'edge_disjoint_paths', 'flow', 'flow_func', 'flow_value', 'id', 'inf', 'mapping', 'node_disjoint_paths', 'residual', 'two_phase', 'value_only']

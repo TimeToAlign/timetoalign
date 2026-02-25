@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/loader/midi/__init__.py
-# hypothesis_version: 6.151.2
-
-['CC_PURPOSE', 'MidiBundle', 'MidiEventStore', 'MidiEventType', 'MidiLoader', 'ScoreMidiLoader']

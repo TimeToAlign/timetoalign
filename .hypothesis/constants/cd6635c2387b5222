@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\performance.py
-# hypothesis_version: 6.151.2
-
-[127, 480, 500000, 'Performance', 'PerformedPart', 'U256', 'channel', 'duration_sec', 'duration_tick', 'f4', 'i4', 'id', 'midi_pitch', 'note_off', 'note_off_tick', 'note_on', 'note_on_tick', 'number', 'n{0}', 'onset_sec', 'onset_tick', 'pitch', 'sound_off', 'time', 'track', 'value', 'velocity']

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\algorithms\approximation\steinertree.py
-# hypothesis_version: 6.151.2
-
-['directed', 'distance', 'kou', 'mehlhorn', 'metric_closure', 'path', 'steiner_tree', 'weight', 'weight_d1']

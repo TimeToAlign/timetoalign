@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\lark\lexer.py
-# hypothesis_version: 6.151.2
-
-[b'\n', '$', '%s(%r, %r)', '(?%s)', '(?%s:%s)', '(?P<%s>%s)', '(?s', '.', '<END-OF-FILE>', 'Token(%r, %r)', '[^', '\\n', '\\s', '__', '_width', 'char_pos', 'column', 'end_column', 'end_line', 'end_pos', 'flags', 'last_token', 'latin-1', 'latin1', 'line', 'line_ctr', 'line_start_pos', 'name', 'newline_char', 'pattern', 'priority', 're', 'start_pos', 'str', 'text', 'type', 'value', '|']

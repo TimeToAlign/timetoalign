@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\musicanalysis\performance_features.py
-# hypothesis_version: 6.151.2
-
-[0.0, 100, 200, '* {}', ', ', '?', 'U256', '_feature', 'all', 'articulation', 'articulation_log', 'average', 'beat_period', 'delta', 'duration', 'f', 'f4', 'ff', 'fff', 'id', 'kor', 'legato', 'make_feature', 'mf', 'mp', 'offset', 'offset_value', 'onset', 'onset_value', 'p', 'p_duration', 'p_offset', 'p_onset', 'pitch', 'pitch_cor', 'pp', 'ppp', 'repeated', 'staccato', 'time', 'timing', 'to_next_release', 'to_prev_release', 'value', 'vel_cor', 'velocity', 'voice', 'voice_std', '{}.{}']

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\schema.py
-# hypothesis_version: 6.151.2
-
-[b'timetoalign', b'unit', 10000, '*', '+', ', ', '-', '.', '/', '0.1.0', 'bool', 'boolean', 'converter=...', 'den', 'denominator', 'duration', 'end', 'event_type', 'float', 'float32', 'float64', 'fraction', 'id', 'infer', 'infer_remaining=True', 'instant', 'int', 'int32', 'int64', 'interval', 'is_struct=True', 'loader_class', 'name', 'num', 'number_type', 'numerator', 'sources', 'start', 'str', 'string', 'struct', 'temporal_type', 'timetoalign_version', 'to_numpy', 'unit', 'value']

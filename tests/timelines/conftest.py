@@ -33,6 +33,7 @@ TEST_DATA_DIR = Path(__file__).parent.parent / "data"
 MIDI_DATA_DIR = TEST_DATA_DIR / "midi"
 MIDI_PERFORMANCE_DIR = MIDI_DATA_DIR / "performance"
 MIDI_SCORE_DIR = MIDI_DATA_DIR / "score"
+VIENNA_DIR = TEST_DATA_DIR / "vienna_1x22"
 
 # endregion
 
@@ -312,7 +313,7 @@ def timeline_type_fixture(request):
 @pytest.fixture
 def midi_performance_path() -> Path:
     """Path to a sample MIDI performance file."""
-    path = MIDI_PERFORMANCE_DIR / "chopin_p01.mid"
+    path = VIENNA_DIR / "Chopin_op10_no3_p01.mid"
     if not path.exists():
         pytest.skip(f"Test data file not found: {path}")
     return path
@@ -330,7 +331,7 @@ def midi_score_path() -> Path:
 @pytest.fixture
 def musicxml_score_path() -> Path:
     """Path to a sample MusicXML score file."""
-    path = MIDI_SCORE_DIR / "chopin_op10_no3.musicxml"
+    path = VIENNA_DIR / "Chopin_op10_no3.musicxml"
     if not path.exists():
         pytest.skip(f"Test data file not found: {path}")
     return path

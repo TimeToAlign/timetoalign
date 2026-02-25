@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pydantic\_internal\_std_types_schema.py
-# hypothesis_version: 6.151.2
-
-[', ', 'Input must be bytes', 'bytes_type', 'format', 'max_length', 'min_length', 'path', 'path_type', 'serialization', 'strict']

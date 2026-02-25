@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pandas\io\sql.py
-# hypothesis_version: 6.151.2
-
-['\x00', '\n - ', '\n)', ' (', ' (\n', '"', '""', ')', ',', ',\n  ', ', ', '.', ';\n', '?', 'CREATE INDEX ', 'CREATE TABLE ', 'D', 'DATE', 'INTEGER', 'M', 'ON ', 'REAL', 'TEXT', 'TIME', 'TIMESTAMP', '_', '__iter__', '_pk', 'append', 'auto', 'boolean', 'coerce', 'complex', 'd', 'date', 'datetime', 'datetime64', 'empty', 'errors', 'fail', 'float32', 'floating', 'h', 'i8', 'ignore', 'index', 'int16', 'int32', 'int64', 'int8', 'integer', 'io.sql.engine', 'ix_', 'm', 'm8[ns]', 'ms', 'multi', 'ns', 'numpy', 'pandas', 'pyarrow', 'replace', 's', 'sqlalchemy', 'strict', 'string', 'time', 'timedelta64', 'timestamp', 'tz', 'uint16', 'uint64', 'uint8', 'us', 'utf-8']

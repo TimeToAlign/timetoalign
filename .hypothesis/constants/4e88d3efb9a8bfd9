@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pyarrow\types.py
-# hypothesis_version: 6.151.2
-
-['any integer', 'boolean', 'date', 'date32 (days)', 'decimal', 'decimal128', 'decimal256', 'decimal32', 'decimal64', 'dictionary-encoded', 'duration', 'fixed size binary', 'fixed size list', 'int16', 'int32', 'int64', 'int8', 'interval', 'is_large_string', 'is_string', 'large list', 'large list view', 'list', 'list view', 'map', 'nested type', 'null', 'primitive type', 'run-end encoded', 'signed integer', 'struct', 'time', 'time32', 'time64', 'timestamp', 'uint16', 'uint32', 'uint64', 'uint8', 'union', 'unsigned integer']

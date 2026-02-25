@@ -1,0 +1,43 @@
+# TimeUnit { #timetoalign.TimeUnit }
+
+```python
+TimeUnit()
+```
+
+Units of measurement for coordinates.
+
+Organized by domain. Each unit belongs to a specific domain.
+Aliases are provided for common abbreviations.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [b](#timetoalign.TimeUnit.b) | beats |
+| [beats](#timetoalign.TimeUnit.beats) | beats |
+| [centimeters](#timetoalign.TimeUnit.centimeters) | centimeters |
+| [cm](#timetoalign.TimeUnit.cm) | centimeters |
+| [divs](#timetoalign.TimeUnit.divs) | ticks (MIDI's time unit) |
+| [domain](#timetoalign.TimeUnit.domain) | Return the domain this unit belongs to. |
+| [frames](#timetoalign.TimeUnit.frames) | frames |
+| [inches](#timetoalign.TimeUnit.inches) | inches |
+| [is_discrete](#timetoalign.TimeUnit.is_discrete) | Whether this unit is inherently discrete (integer-valued). |
+| [m](#timetoalign.TimeUnit.m) | measures |
+| [measures](#timetoalign.TimeUnit.measures) | measures |
+| [meters](#timetoalign.TimeUnit.meters) | meters |
+| [millimeters](#timetoalign.TimeUnit.millimeters) | millimeters |
+| [milliseconds](#timetoalign.TimeUnit.milliseconds) | milliseconds |
+| [minutes](#timetoalign.TimeUnit.minutes) | minutes |
+| [mm](#timetoalign.TimeUnit.mm) | millimeters |
+| [ms](#timetoalign.TimeUnit.ms) | milliseconds |
+| [pixels](#timetoalign.TimeUnit.pixels) | pixels |
+| [points](#timetoalign.TimeUnit.points) | points |
+| [pt](#timetoalign.TimeUnit.pt) | points |
+| [pulses](#timetoalign.TimeUnit.pulses) | ticks (MIDI's time unit) |
+| [px](#timetoalign.TimeUnit.px) | pixels |
+| [q](#timetoalign.TimeUnit.q) | quarter notes |
+| [quarters](#timetoalign.TimeUnit.quarters) | quarter notes |
+| [s](#timetoalign.TimeUnit.s) | seconds |
+| [samples](#timetoalign.TimeUnit.samples) | samples |
+| [seconds](#timetoalign.TimeUnit.seconds) | seconds |
+| [ticks](#timetoalign.TimeUnit.ticks) | ticks (MIDI's time unit) |

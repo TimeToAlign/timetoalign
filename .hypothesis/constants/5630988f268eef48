@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\algorithms\approximation\density.py
-# hypothesis_version: 6.151.2
-
-[0.0, 0.5, 0.9, 1.0, 2.0, 4.0, 'densest_subgraph', 'directed', 'fista', 'greedy++', 'multigraph']

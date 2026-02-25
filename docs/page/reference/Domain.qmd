@@ -1,0 +1,20 @@
+# Domain { #timetoalign.Domain }
+
+```python
+Domain()
+```
+
+The temporal domain of a timeline.
+
+Based on the TTA manuscript's three-domain model:
+- logical: Logical time domain (conceptualizing, reading)
+- physical: Physical time domain (hearing, seeing dynamic)
+- graphical: Graphical time domain (seeing static, spatial)
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [graphical](#timetoalign.Domain.graphical) | Graphical time domain for visual/spatial data (pixels, coordinates). |
+| [logical](#timetoalign.Domain.logical) | Logical time domain for symbolic/musical data (beats, measures, ticks). |
+| [physical](#timetoalign.Domain.physical) | Physical time domain for audio/time data (seconds, samples). |

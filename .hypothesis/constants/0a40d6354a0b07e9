@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\timelines\__init__.py
-# hypothesis_version: 6.151.2
-
-['GraphicalTimeline', 'LogicalTimeline', 'PhysicalTimeline', 'Timeline', 'create_timeline']

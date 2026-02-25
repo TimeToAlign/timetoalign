@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\musicanalysis\note_array_to_score.py
-# hypothesis_version: 6.151.2
-
-[256, '<U256', 'Find and tie notes', 'Inferring measures', '_P', 'add measures', 'add notes', 'alter', 'appoggiatura', 'create_part', 'done create_part', 'duration_beat', 'duration_div', 'id', 'key_fifths', 'key_mode', 'ks_fifths', 'ks_mode', 'octave', 'onset_beat', 'onset_div', 'pitch', 'pitch spelling', 'quarter', 'step', 'ts_beat_type', 'ts_beats', 'voice', 'voice estimation', '{}n{:4d}']

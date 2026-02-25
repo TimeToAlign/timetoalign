@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\linalg\_decomp_svd.py
-# hypothesis_version: 6.151.2
-
-[-1.0, 0.0, 0.5, 1.0, 'SVD did not converge', '_lwork', 'diagsvd', 'expected matrix', 'gesdd', 'gesvd', 'null_space', 'orth', 'preferred', 'subspace_angles', 'svd', 'svdvals']

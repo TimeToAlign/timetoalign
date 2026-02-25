@@ -1,0 +1,93 @@
+# ScopedId { #timetoalign.ScopedId }
+
+```python
+ScopedId(scope, local)
+```
+
+An identifier with a scope prefix and local part.
+
+Format: "{scope}:{local}" or just "{local}" if scope is empty.
+
+The scope typically represents the source (e.g., "midi", "score")
+while the local part is the original ID from that source.
+
+Attributes:
+    scope: The namespace/source prefix (e.g., "midi", "score:track1")
+    local: The local identifier within that scope
+
+Examples:
+    >>> ScopedId("midi", "n42")
+    ScopedId(scope='midi', local='n42')
+
+    >>> str(ScopedId("midi", "n42"))
+    'midi:n42'
+
+    >>> ScopedId.parse("midi:n42")
+    ScopedId(scope='midi', local='n42')
+
+    >>> ScopedId.parse("bare_id")
+    ScopedId(scope='', local='bare_id')
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [is_scoped](#timetoalign.ScopedId.is_scoped) | Whether this ID has a non-empty scope. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [nested](#timetoalign.ScopedId.nested) | Create a nested scope by appending to the current scope. |
+| [parse](#timetoalign.ScopedId.parse) | Parse a scoped ID string. |
+| [with_local](#timetoalign.ScopedId.with_local) | Return a new ScopedId with a different local part. |
+| [with_scope](#timetoalign.ScopedId.with_scope) | Return a new ScopedId with a different scope. |
+
+### nested { #timetoalign.ScopedId.nested }
+
+```python
+ScopedId.nested(child_scope)
+```
+
+Create a nested scope by appending to the current scope.
+
+Example:
+    >>> ScopedId("midi", "note").nested("track1")
+    ScopedId(scope='midi.track1', local='note')
+
+### parse { #timetoalign.ScopedId.parse }
+
+```python
+ScopedId.parse(id_str)
+```
+
+Parse a scoped ID string.
+
+Args:
+    id_str: A string like "scope:local" or just "local"
+
+Returns:
+    A ScopedId instance
+
+Examples:
+    >>> ScopedId.parse("midi:n42")
+    ScopedId(scope='midi', local='n42')
+
+    >>> ScopedId.parse("bare_id")
+    ScopedId(scope='', local='bare_id')
+
+### with_local { #timetoalign.ScopedId.with_local }
+
+```python
+ScopedId.with_local(new_local)
+```
+
+Return a new ScopedId with a different local part.
+
+### with_scope { #timetoalign.ScopedId.with_scope }
+
+```python
+ScopedId.with_scope(new_scope)
+```
+
+Return a new ScopedId with a different scope.

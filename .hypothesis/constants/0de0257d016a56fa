@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/loader/score/partitura.py
-# hypothesis_version: 6.151.2
-
-[0.0, 10000, 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'Measure', 'Note', 'Rest', 'Text', 'acc', 'alter', 'cents', 'chord_id', 'den', 'duration', 'duration_qb', 'duration_qb_float', 'end', 'ep', 'epc', 'event_type', 'format', 'gpc_int', 'gpc_str', 'grace', 'gracenote', 'has_rests', 'id', 'ignore', 'instant', 'interval', 'mc', 'mc_onset', 'measure_number_map', 'midi_pitch', 'mn', 'mn_onset', 'name', 'nominal_duration', 'num', 'octave', 'parser', 'part_id', 'partitura', 'partitura.*', 'quarterbeats', 'quarterbeats_float', 'scalar', 'score', 'source', 'sp', 'spc_int', 'spc_str', 'spelled_pitch', 'staff', 'step', 'subtype', 'temporal_type', 'text', 'tied', 'timesig', 'tpc', 'value', 'velocity', 'voice', '♭', '♯']

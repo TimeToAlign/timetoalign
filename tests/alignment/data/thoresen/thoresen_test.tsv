@@ -1,0 +1,12 @@
+event_id	alignment_group_id	start_time_sec	duration_sec	event_type	graphical_element_id	image_filename	rect_coords_json	text_content	text_anchor_xy_json	layer_order	description
+annot_cue_001	NaN	0.0	5.0	rectangle	rect_a	thoresen_2010_form-building-patterns_p90-91_page1_1.jpeg	{"x": 10, "y": 90, "width": 148, "height": 55}	NaN	NaN	NaN	NaN
+annot_cue_002	NaN	1.5	4.0	rectangle	rect_b	thoresen_2010_form-building-patterns_p90-91_page1_1.jpeg	{"x": 40, "y": 37, "width": 127, "height": 21}	NaN	NaN	NaN	NaN
+annot_cue_003	NaN	3.5	2.0	rectangle	rect_c	thoresen_2010_form-building-patterns_p90-91_page1_1.jpeg	{"x": 111, "y": 60, "width": 57, "height": 23}	NaN	NaN	NaN	NaN
+annot_cue_004	NaN	34.6	5.2	rectangle	rect_a2	thoresen_2010_form-building-patterns_p90-91_page1_2.jpeg	{"x": 145, "y": 90, "width": 160, "height": 58}	NaN	NaN	NaN	NaN
+annot_cue_005	NaN	43.5	4.5	rectangle	rect_h2	thoresen_2010_form-building-patterns_p90-91_page1_2.jpeg	{"x": 385, "y": 46, "width": 139, "height": 20}	NaN	NaN	NaN	NaN
+annot_cue_006	NaN	71.0	4.75	rectangle	rect_d3	thoresen_2010_form-building-patterns_p90-91_page1_3.jpeg	{"x": 310, "y": 93, "width": 154, "height": 18}	NaN	NaN	NaN	NaN
+annot_cue_007	NaN	76.0	7.5	rectangle	rect_b3	thoresen_2010_form-building-patterns_p90-91_page1_3.jpeg	{"x": 456, "y": 69, "width": 229, "height": 18}	NaN	NaN	NaN	NaN
+annot_cue_008	NaN	90.5	4.0	rectangle	rect_i4	thoresen_2010_form-building-patterns_p90-91_page1_4.jpeg	{"x": 14, "y": 115, "width": 127, "height": 31}	NaN	NaN	NaN	NaN
+annot_cue_009	NaN	113.4	3.0	rectangle	rect_a4	thoresen_2010_form-building-patterns_p90-91_page1_4.jpeg	{"x": 663, "y": 82, "width": 97, "height": 23}	NaN	NaN	NaN	NaN
+annot_cue_010	NaN	121.0	7.5	rectangle	rect_i5	thoresen_2010_form-building-patterns_p90-91_page2_1.jpeg	{"x": 19, "y": 119, "width": 251, "height": 29}	NaN	NaN	NaN	NaN
+annot_cue_011	NaN	141.0	1.5	rectangle	rect_f5	thoresen_2010_form-building-patterns_p90-91_page2_1.jpeg	{"x": 595, "y": 45, "width": 64, "height": 21}	NaN	NaN	NaN	NaN

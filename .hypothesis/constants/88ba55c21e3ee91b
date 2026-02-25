@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\validators\builtins.py
-# hypothesis_version: 6.151.2
-
-['-1', '-128', '-2147483648', '-32768', '-9223372036854775808', '0', '1', '1.0', '1.1', '127', '18446744073709551615', '2147483647', '255', '32767', '4294967295', '65535', '9223372036854775807', '[\\i-[:]][\\c-[:]]*', '\\c+', '\\i\\c*', 'admitted_facets', 'base_type', 'collapse', 'datatype', 'facets', 'from_python', 'name', 'preserve', 'python_type', 'replace', 'required', 'to_python']

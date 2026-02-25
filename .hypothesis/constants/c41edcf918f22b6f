@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\soupsieve\css_match.py
-# hypothesis_version: 6.151.2
-
-[100, 400, '%m-%d-%Y', '*', '+', '-', ':', ': ', ':+', ':>', ':~', '>', 'AL', 'L', 'R', '[^ \t\r\n\x0c]', '[^ \t\r\n\x0c]+', '_hash', 'auto', 'bdi', 'button', 'checked', 'class', 'content', 'content-language', 'custom', 'date', 'datetime-local', 'day', 'dir', 'email', 'flags', 'form', 'head', 'hour', 'html', 'http-equiv', 'id', 'iframe', 'input', 'lang', 'ltr', 'max', 'meta', 'min', 'minutes', 'month', 'name', 'namespace', 'namespaces', 'number', 'pattern', 'radio', 'range', 'rtl', 'script', 'search', 'selectors', 'str | None', 'style', 'submit', 'tel', 'text', 'textarea', 'time', 'type', 'url', 'utf8', 'value', 'week', 'year', '~']

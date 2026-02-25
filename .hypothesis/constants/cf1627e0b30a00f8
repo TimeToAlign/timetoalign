@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pathos\maps.py
-# hypothesis_version: 6.151.2
-
-['amap', 'asmap', 'clear', 'close', 'imap', 'imap_unordered', 'ismap', 'join', 'map_async', 'smap', 'starmap', 'starmap_async', 'uimap']

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\signal\signaltools.py
-# hypothesis_version: 6.151.2
-
-['_signaltools', 'axis_reverse', 'axis_slice', 'cKDTree', 'cheby1', 'choose_conv_method', 'cmplx_sort', 'const_ext', 'convolve', 'convolve2d', 'correlate', 'correlate2d', 'correlation_lags', 'decimate', 'deconvolve', 'detrend', 'dlti', 'even_ext', 'fftconvolve', 'filtfilt', 'firwin', 'get_window', 'hilbert', 'hilbert2', 'invres', 'invresz', 'lambertw', 'lfilter', 'lfilter_zi', 'lfiltic', 'linalg', 'medfilt', 'medfilt2d', 'oaconvolve', 'odd_ext', 'order_filter', 'resample', 'resample_poly', 'residue', 'residuez', 'signal', 'signaltools', 'sosfilt', 'sosfilt_zi', 'sosfiltfilt', 'sp_fft', 'timeit', 'unique_roots', 'upfirdn', 'vectorstrength', 'wiener']

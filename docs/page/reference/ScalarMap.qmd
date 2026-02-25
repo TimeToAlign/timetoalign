@@ -1,0 +1,58 @@
+# ScalarMap { #timetoalign.ScalarMap }
+
+```python
+ScalarMap(scalar=1.0, source_unit=None, target_unit=None, uid=None, name=None)
+```
+
+Pure scaling transformation: y = scalar * x.
+
+A simplified version of LinearMap with no offset.
+
+Examples:
+    >>> # Seconds to milliseconds
+    >>> s_to_ms = ScalarMap(scalar=1000, source_unit="seconds", target_unit="milliseconds")
+    >>> s_to_ms(1.5)
+    1500.0
+
+    >>> # Samples to seconds at 44100 Hz
+    >>> samples_to_sec = ScalarMap(scalar=1/44100, source_unit="samples", target_unit="seconds")
+    >>> samples_to_sec(44100)
+    1.0
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [scalar](#timetoalign.ScalarMap.scalar) | The multiplicative factor. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_dict](#timetoalign.ScalarMap.from_dict) | Deserialize from dictionary. |
+| [inverse](#timetoalign.ScalarMap.inverse) | Return the inverse map: y = x / a. |
+| [to_dict](#timetoalign.ScalarMap.to_dict) | Serialize to dictionary. |
+
+### from_dict { #timetoalign.ScalarMap.from_dict }
+
+```python
+ScalarMap.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+### inverse { #timetoalign.ScalarMap.inverse }
+
+```python
+ScalarMap.inverse()
+```
+
+Return the inverse map: y = x / a.
+
+### to_dict { #timetoalign.ScalarMap.to_dict }
+
+```python
+ScalarMap.to_dict()
+```
+
+Serialize to dictionary.

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\__init__.py
-# hypothesis_version: 6.151.2
-
-['5.1.1', 'AbstractSchemaProxy', 'AttributeNode', 'CommentNode', 'Davide Brunato', 'DocumentNode', 'ElementNode', 'ElementPathError', 'ElementPathKeyError', 'ElementPathNameError', 'ElementPathTypeError', 'LazyElementNode', 'MIT', 'MissingContextError', 'NamespaceNode', 'Production/Stable', 'RegexError', 'SchemaElementNode', 'Selector', 'TextNode', 'XPath1Parser', 'XPath2Parser', 'XPathContext', 'XPathFunction', 'XPathNode', 'XPathSchemaContext', 'XPathToken', 'brunato@sissa.it', 'build_lxml_node_tree', 'build_node_tree', 'datatypes', 'etree', 'get_node_tree', 'install_unicode_data', 'iter_select', 'protocols', 'select', 'translate_pattern', 'unicode_version']

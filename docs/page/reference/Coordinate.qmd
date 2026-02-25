@@ -1,0 +1,144 @@
+# Coordinate { #timetoalign.Coordinate }
+
+```python
+Coordinate(value, unit)
+```
+
+A position on a timeline, defined by a value and unit.
+
+Coordinates are immutable and support arithmetic operations
+when units match. They preserve the native numeric type
+(int, float, or Fraction) for precision.
+
+Attributes:
+    value: The numeric position (int, float, or Fraction)
+    unit: The time unit (e.g., seconds, quarters, pixels)
+
+Examples:
+    >>> c1 = Coordinate(120, TimeUnit.ticks)
+    >>> c2 = Coordinate(240, TimeUnit.ticks)
+    >>> c2 - c1
+    Coordinate(120, ticks)
+
+    >>> Coordinate(1.5, TimeUnit.seconds)
+    Coordinate(1.5, seconds)
+
+    >>> Coordinate(Fraction(3, 4), TimeUnit.quarters)
+    Coordinate(Fraction(3, 4), quarters)
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [domain](#timetoalign.Coordinate.domain) | Return the domain this coordinate belongs to (via its unit). |
+| [number_type](#timetoalign.Coordinate.number_type) | Infer the NumberType from the value. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [is_negative](#timetoalign.Coordinate.is_negative) | Check if this coordinate is negative (before origin). |
+| [is_positive](#timetoalign.Coordinate.is_positive) | Check if this coordinate is positive (after origin). |
+| [is_zero](#timetoalign.Coordinate.is_zero) | Check if this coordinate represents the origin. |
+| [to_float](#timetoalign.Coordinate.to_float) | Convert value to float. |
+| [to_fraction](#timetoalign.Coordinate.to_fraction) | Convert value to Fraction. |
+| [to_int](#timetoalign.Coordinate.to_int) | Convert value to int. |
+| [with_timeline](#timetoalign.Coordinate.with_timeline) | Return an IdCoordinate with the same value and unit, plus a timeline ID. |
+| [with_unit](#timetoalign.Coordinate.with_unit) | Return a new Coordinate with a different unit but same value. |
+| [with_value](#timetoalign.Coordinate.with_value) | Return a new Coordinate with a different value but same unit. |
+
+### is_negative { #timetoalign.Coordinate.is_negative }
+
+```python
+Coordinate.is_negative()
+```
+
+Check if this coordinate is negative (before origin).
+
+### is_positive { #timetoalign.Coordinate.is_positive }
+
+```python
+Coordinate.is_positive()
+```
+
+Check if this coordinate is positive (after origin).
+
+### is_zero { #timetoalign.Coordinate.is_zero }
+
+```python
+Coordinate.is_zero()
+```
+
+Check if this coordinate represents the origin.
+
+### to_float { #timetoalign.Coordinate.to_float }
+
+```python
+Coordinate.to_float()
+```
+
+Convert value to float.
+
+### to_fraction { #timetoalign.Coordinate.to_fraction }
+
+```python
+Coordinate.to_fraction()
+```
+
+Convert value to Fraction.
+
+Lossless for int/Fraction; approximates for float.
+
+### to_int { #timetoalign.Coordinate.to_int }
+
+```python
+Coordinate.to_int(rounding='truncate')
+```
+
+Convert value to int.
+
+Args:
+    rounding: Rounding mode. Options:
+        - "truncate": Truncate towards zero (default, same as int())
+        - "round": Round to nearest integer (half away from zero)
+        - "floor": Round towards negative infinity
+        - "ceil": Round towards positive infinity
+
+Returns:
+    The integer value.
+
+Raises:
+    ValueError: If rounding mode is unknown.
+
+### with_timeline { #timetoalign.Coordinate.with_timeline }
+
+```python
+Coordinate.with_timeline(timeline_id)
+```
+
+Return an IdCoordinate with the same value and unit, plus a timeline ID.
+
+Args:
+    timeline_id: The ID of the timeline this coordinate belongs to.
+
+Returns:
+    An IdCoordinate that carries the timeline reference.
+
+### with_unit { #timetoalign.Coordinate.with_unit }
+
+```python
+Coordinate.with_unit(new_unit)
+```
+
+Return a new Coordinate with a different unit but same value.
+
+Warning: This does NOT convert the value - use a ConversionMap for that.
+This is for reinterpretation only (e.g., aliasing units).
+
+### with_value { #timetoalign.Coordinate.with_value }
+
+```python
+Coordinate.with_value(new_value)
+```
+
+Return a new Coordinate with a different value but same unit.

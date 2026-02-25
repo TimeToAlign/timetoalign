@@ -1,0 +1,65 @@
+---
+title: "How-To Guides"
+subtitle: "Task-oriented recipes for common workflows"
+---
+
+How-to guides are practical, goal-oriented recipes.  Unlike tutorials
+(which teach concepts in a fixed order), each how-to guide solves a
+specific problem and can be read independently.
+
+::: {.callout-note}
+## Coming soon
+The how-to guides listed below are planned but not yet written.
+Contributions are welcome --- see the project repository for details.
+:::
+
+## Data Loading
+
+- **Load a MIDI file and create a timeline** --- Use `PerformanceMidiLoader`
+  or `ScoreMidiLoader` to ingest MIDI data into a DiscreteLogicalTimeline.
+- **Load audio metadata** --- Use `AudioLoader` to create a
+  DiscretePhysicalTimeline with sample rate and duration information.
+- **Load annotations from a TSV/CSV** --- Use `TSVLoader` with
+  `CoordinateField` to ingest tabular annotations with typed coordinates.
+- **Load a score from MusicXML or MuseScore** --- Use `PartituraLoader`
+  or `Music21Loader` for symbolic score data.
+
+## Timeline Construction
+
+- **Build a timeline from scratch** --- Use `create_timeline()` and
+  `add_events()` to manually construct a timeline with events.
+- **Create a SegmentLine from split coordinates** --- Partition a
+  timeline into contiguous segments.
+- **Add flow control (repeats and jumps)** --- Model repeat signs,
+  *dal segno*, and alternative endings using Breaks and Jumps.
+- **Create a BeatGrid from beat times** --- Use `BeatGrid` to add
+  metrical structure (measures, beats) to an audio timeline.
+
+## Coordinate Conversion
+
+- **Convert between units** --- Use ScalarMap, LinearMap, or TableMap
+  to transform coordinates (e.g., samples to seconds, pixels to
+  quarter notes).
+- **Chain multiple conversions** --- Use ChainMap to compose conversion
+  paths (e.g., ticks to beats to seconds).
+- **Map image coordinates to time** --- Use TimeAxisPath and
+  CombinationMap to model non-linear time axes in scanned scores.
+
+## Alignment
+
+- **Align two timelines** --- Use `TimelineGroup` and
+  `PerfectAlignment` to establish commensurability between timelines.
+- **Transfer annotations between timelines** --- Query timestamps
+  across aligned timelines to propagate labels or events.
+- **Create a multimodal alignment bundle** --- Use `AlignmentBundle`
+  to manage multiple groups spanning physical, logical, and graphical
+  timelines.
+
+## Export and Interoperability
+
+- **Export timestamps to a DataFrame** --- Use `get_timestamps_df()`
+  to produce a pandas DataFrame of cross-section data.
+- **Serialise an alignment to Parquet** --- *(Planned)* Save and reload
+  alignment data using the columnar Parquet exchange format.
+- **Export beat grids to Sonic Visualiser format** --- Write CSV files
+  compatible with Sonic Visualiser's annotation layers.

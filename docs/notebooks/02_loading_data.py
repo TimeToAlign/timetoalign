@@ -60,14 +60,13 @@ from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.tsv import TSVLoader
 
+_notebook_dir = Path(".").resolve()
 # Data directory - relative to notebook location
-DATA_DIR = (
-    Path(__file__).resolve().parent.parent.parent / "tests" / "data" / "midi" / "score"
-)
+DATA_DIR = _notebook_dir.parent.parent / "tests" / "data" / "vienna_1x22"
 assert DATA_DIR.is_dir(), f"Data directory not found: {DATA_DIR}"
 
 # Our test piece: Chopin Etude Op.10 No.3
-CHOPIN_XML = DATA_DIR / "chopin_op10_no3.musicxml"
+CHOPIN_XML = DATA_DIR / "Chopin_op10_no3.musicxml"
 CHOPIN_TSV = DATA_DIR / "ms3" / "chopin_op10_no3.notes.tsv"
 
 CHOPIN_XML.name, CHOPIN_TSV.name

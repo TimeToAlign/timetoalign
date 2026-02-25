@@ -1,0 +1,23 @@
+# ContinuousGraphicalTimeline { #timetoalign.ContinuousGraphicalTimeline }
+
+```python
+ContinuousGraphicalTimeline(
+    length=0,
+    unit=None,
+    number_type=None,
+    id_prefix='tl',
+    uid=None,
+    name=None,
+    locked=False,
+    meta=None,
+)
+```
+
+A graphical timeline with continuous coordinates.
+
+Used for visualization where real-valued positions are needed
+(e.g., a note head at x=12.75 centimeters).
+
+Default unit: centimeters.
+Default number type: float.
+Allowed units: meters, centimeters, millimeters, inches, points.

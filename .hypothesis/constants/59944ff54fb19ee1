@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\validators\validation.py
-# hypothesis_version: 6.151.2
-
-['DT', 'IdentityCounter', 'ST', 'ValidationContext', 'XsdIdentity', 'XsdPatternFacets', 'XsdValidator', 'attribute', 'attribute ', 'binary_types', 'check_identities', 'converter', 'datetime_types', 'decimal_type', 'depth_filler', 'elem', 'element_hook', 'errors', 'etree_element_class', 'extra_validator', 'fill_missing', 'filler', 'id_list', 'id_map', 'identities', 'indent', 'inherited', 'keep_datatypes', 'keep_empty', 'keep_unknown', 'lax', 'level', 'max_depth', 'namespaces', 'none', 'patterns', 'preserve_mixed', 'process_skipped', 'source', 'strict', 'tag', 'unordered', 'untyped_data', 'use_defaults', 'use_location_hints', 'validation_hook', 'validation_only', 'value_hook', 'xmlschema', 'xmlschema/validators']

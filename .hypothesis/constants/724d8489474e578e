@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\loader\graphical\aton.py
-# hypothesis_version: 6.151.2
-
-[0.0, '.', ':', '@', '@@', '@@ ', '@@BEGIN: HOLE', '@@BEGIN: HOLES', '@@BEGIN: ROLLINFO', '@@END: HOLE', '@@END: HOLES', '@@END: ROLLINFO', 'AREA', 'ATON Data', 'ATONLoader', 'CENTROID_COL', 'CENTROID_ROW', 'CIRCULARITY', 'Coordinate', 'FIRST_HOLE', 'HPIXCOR', 'Hole', 'ID', 'IMAGE_LENGTH', 'IMAGE_WIDTH', 'LAST_HOLE', 'LENGTH_DPI', 'MAJOR_AXIS', 'MIDI_KEY', 'MUSICAL_HOLES', 'MUSICAL_LENGTH', 'MUSICAL_NOTES', 'NOTE_ATTACK', 'OFF_TIME', 'ORIGIN_COL', 'ORIGIN_ROW', 'PERIMETER', 'TRACKER_HOLE', 'Timeline', 'WIDTH_COL', 'WIDTH_ROW', 'deg', 'event_type', 'height', 'id', 'instant', 'name', 'ppi', 'ppm', 'px', 'sec', 'temporal_type', 'utf-8', 'width']

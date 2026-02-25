@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\alignment\bundle.py
-# hypothesis_version: 6.151.2
-
-['AlignmentBundle', 'TableMap', 'TableMap | None', 'Timeline', 'bundle', 'flat', 'group', 'groups', 'id', 'length', 'meta', 'n_groups', 'n_timelines', 'name', 'nested', 'prefix', 'reference', 'timeline_ids', 'timelines', 'unit', 'value']

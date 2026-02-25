@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\signal\ltisys.py
-# hypothesis_version: 6.151.2
-
-['Bunch', 'LinearTimeInvariant', 'StateSpace', 'StateSpaceContinuous', 'StateSpaceDiscrete', 'TransferFunction', 'ZerosPolesGain', '_ltisys', 'abcd_normalize', 'atleast_1d', 'bode', 'cont2discrete', 'dbode', 'dfreqresp', 'dimpulse', 'dlsim', 'dlti', 'dstep', 'freqresp', 'freqs', 'freqs_zpk', 'freqz', 'freqz_zpk', 'impulse', 'impulse2', 'integrate', 'interpolate', 'linalg', 'linspace', 'lsim', 'lsim2', 'lti', 'ltisys', 'nan_to_num', 'normalize', 'place_poles', 's_qr', 'signal', 'squeeze', 'ss2tf', 'ss2zpk', 'step', 'step2', 'tf2ss', 'tf2zpk', 'transpose', 'zeros_like', 'zpk2ss', 'zpk2tf']

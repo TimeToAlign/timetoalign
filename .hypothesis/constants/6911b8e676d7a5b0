@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\xpath1\_xpath1_functions.py
-# hypothesis_version: 6.151.2
-
-['(', '(name)', '(string)', ')', '*', '+', '-', '1', '1.0', '?', 'FOCA0002', 'FORG0006', 'ROUND_HALF_DOWN', 'ROUND_HALF_UP', 'XPTY0004', 'XPath1Parser', 'boolean', 'ceiling', 'comment', 'concat', 'contains', 'count', 'element()*', 'false', 'floor', 'id', 'item()*', 'item()?', 'kind test', 'lang', 'last', 'local-name', 'name', 'namespace-uri', 'node', 'node()?', 'normalize-space', 'not', 'number', 'position', 'round', 'starts-with', 'string', 'string-length', 'substring', 'substring-after', 'substring-before', 'sum', 'text', 'translate', 'true', 'xs:anyAtomicType*', 'xs:anyAtomicType?', 'xs:anyURI', 'xs:boolean', 'xs:double', 'xs:integer', 'xs:numeric?', 'xs:string', 'xs:string*', 'xs:string?', '{', '}']

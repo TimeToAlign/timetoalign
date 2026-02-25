@@ -1,0 +1,146 @@
+# AlignmentAnchor { #timetoalign.AlignmentAnchor }
+
+```python
+AlignmentAnchor(
+    timeline_a_id,
+    coordinate_a,
+    timeline_b_id,
+    coordinate_b,
+    is_explicit=True,
+    is_synchronous=True,
+    id='',
+)
+```
+
+A claim that two coordinates from different timelines are equivalent.
+
+This is the atomic unit of alignment. An anchor always connects exactly
+two timelines (and therefore potentially two groups).
+
+Anchors can be:
+- Explicit: Directly claimed by user/algorithm
+- Inferred: Extended via C-Map or Group membership
+- Synchronous: Temporally equivalent (same musical moment)
+- Conceptual: Related but not temporally equivalent (e.g., same structural role)
+
+Attributes:
+    timeline_a_id: First timeline's unique identifier.
+    coordinate_a: Coordinate in first timeline.
+    timeline_b_id: Second timeline's unique identifier.
+    coordinate_b: Coordinate in second timeline.
+    is_explicit: True if user/algorithm explicitly created this anchor.
+        False if inferred via C-Map or Group extension.
+    is_synchronous: True if coordinates are temporally synchronous.
+        False if only conceptually related (structural correspondence).
+    id: Unique identifier for this anchor.
+
+Examples:
+    >>> # Explicit synchronous anchor (same moment in time)
+    >>> anchor = AlignmentAnchor(
+    ...     timeline_a_id="score:1",
+    ...     coordinate_a=100.0,
+    ...     timeline_b_id="recording:1",
+    ...     coordinate_b=45.5,
+    ...     is_explicit=True,
+    ...     is_synchronous=True,
+    ... )
+
+    >>> # Conceptual anchor (same structural position, different time)
+    >>> anchor = AlignmentAnchor(
+    ...     timeline_a_id="analysis_2009",
+    ...     coordinate_a=866.0,
+    ...     timeline_b_id="analysis_2010",
+    ...     coordinate_b=975.0,
+    ...     is_synchronous=False,  # Different performances
+    ... )
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [coordinates](#timetoalign.AlignmentAnchor.coordinates) | Return tuple of coordinates. |
+| [timelines](#timetoalign.AlignmentAnchor.timelines) | Return tuple of timeline IDs. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [connects](#timetoalign.AlignmentAnchor.connects) | Check if this anchor connects to a specific timeline. |
+| [connects_both](#timetoalign.AlignmentAnchor.connects_both) | Check if this anchor connects two specific timelines. |
+| [from_dict](#timetoalign.AlignmentAnchor.from_dict) | Deserialize from dictionary. |
+| [get_coordinate_for](#timetoalign.AlignmentAnchor.get_coordinate_for) | Get the coordinate for a specific timeline. |
+| [to_dict](#timetoalign.AlignmentAnchor.to_dict) | Serialize to dictionary for storage. |
+| [with_explicit](#timetoalign.AlignmentAnchor.with_explicit) | Return a copy with different explicit flag. |
+
+### connects { #timetoalign.AlignmentAnchor.connects }
+
+```python
+AlignmentAnchor.connects(timeline_id)
+```
+
+Check if this anchor connects to a specific timeline.
+
+Args:
+    timeline_id: The timeline to check.
+
+Returns:
+    True if the anchor involves this timeline.
+
+### connects_both { #timetoalign.AlignmentAnchor.connects_both }
+
+```python
+AlignmentAnchor.connects_both(timeline_a_id, timeline_b_id)
+```
+
+Check if this anchor connects two specific timelines.
+
+Args:
+    timeline_a_id: First timeline.
+    timeline_b_id: Second timeline.
+
+Returns:
+    True if the anchor connects exactly these two timelines.
+
+### from_dict { #timetoalign.AlignmentAnchor.from_dict }
+
+```python
+AlignmentAnchor.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+### get_coordinate_for { #timetoalign.AlignmentAnchor.get_coordinate_for }
+
+```python
+AlignmentAnchor.get_coordinate_for(timeline_id)
+```
+
+Get the coordinate for a specific timeline.
+
+Args:
+    timeline_id: The timeline to get coordinate for.
+
+Returns:
+    The coordinate, or None if timeline not in this anchor.
+
+### to_dict { #timetoalign.AlignmentAnchor.to_dict }
+
+```python
+AlignmentAnchor.to_dict()
+```
+
+Serialize to dictionary for storage.
+
+### with_explicit { #timetoalign.AlignmentAnchor.with_explicit }
+
+```python
+AlignmentAnchor.with_explicit(is_explicit)
+```
+
+Return a copy with different explicit flag.
+
+Args:
+    is_explicit: New explicit flag value.
+
+Returns:
+    New AlignmentAnchor with updated flag.

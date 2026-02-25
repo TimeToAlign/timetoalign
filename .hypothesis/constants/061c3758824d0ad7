@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pydantic\_internal\_mock_val_ser.py
-# hypothesis_version: 6.151.2
-
-['T', 'ValSer', '_attempt_rebuild', '_built_memo', '_code', '_error_message', '_val_or_ser', 'all referenced types', 'serializer', 'validator']

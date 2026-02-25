@@ -1,0 +1,22 @@
+# GraphicalTimeline { #timetoalign.GraphicalTimeline }
+
+```python
+GraphicalTimeline(
+    length=0,
+    unit=None,
+    number_type=None,
+    id_prefix='tl',
+    uid=None,
+    name=None,
+    locked=False,
+    meta=None,
+)
+```
+
+A timeline representing graphical/spatial coordinates.
+
+Graphical timelines measure visual positions for score
+visualization and plotting. They can be in pixels or
+physical measurements.
+
+Allowed units: pixels, meters, centimeters, millimeters, inches, points.

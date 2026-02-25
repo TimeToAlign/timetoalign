@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\linalg\decomp.py
-# hypothesis_version: 6.151.2
-
-['LinAlgError', '_decomp', 'argsort', 'array', 'cdf2rdf', 'decomp', 'eig', 'eig_banded', 'eigh', 'eigh_tridiagonal', 'eigvals', 'eigvals_banded', 'eigvalsh', 'eigvalsh_tridiagonal', 'einsum', 'eye', 'flatnonzero', 'get_lapack_funcs', 'hessenberg', 'inexact', 'inf', 'iscomplex', 'iscomplexobj', 'isfinite', 'linalg', 'nonzero', 'norm']

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\music21\common\stringTools.py
-# hypothesis_version: 6.151.2
-
-['\n+', '(', '(.)([A-Z][a-z]+)', '([a-z0-9])([A-Z])', ')', '-', '.', '0123456789', '0123456789.', 'NFKD', 'PMFC', 'ParenthesesMatch', 'UTF-8', '[^\\w-]', '\\', '\\1', '\\2', '\\s+', '_', '__main__', 'ascii', 'camelCaseToHyphen', 'formatStr', 'getMd5', 'getNumFromStr', 'hyphenToCamelCase', 'ignore', 'normalizeFilename', 'parenthesesMatch', 'removePunctuation', 'spaceCamelCase', 'ss', 'stripAccents', 'utf-8', 'whitespaceEqual', 'ß']

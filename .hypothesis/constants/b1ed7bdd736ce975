@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\signal\_fir_filter_design.py
-# hypothesis_version: 6.151.2
-
-[0.0, 1e-10, 1e-07, 0.01, 0.07886, 0.1102, 0.4, 0.5, 0.5842, 1.0, 2.0, 2.285, 4.0, 7.95, 8.7, '1.14', 'always', 'bandpass', 'bandstop', 'differentiator', 'firls', 'firwin', 'firwin2', 'gelsy', 'hamming', 'highpass', 'hilbert', 'homomorphic', 'kaiser', 'kaiser_atten', 'kaiser_beta', 'kaiserord', 'lowpass', 'minimum_phase', 'pos', 'remez']

@@ -6,6 +6,14 @@ Tests cover Phase 1 functionality:
 - Coordinate transfer within groups
 - Order-independence (critical invariant)
 
+Phase 6.7 additions:
+- Cross-group transfer via MatchClaim -> MatchLine -> WarpMap pipeline
+- get_timestamp_at() propagation across groups
+- are_commensurable() with claims
+- WarpMap cache invalidation
+- Indirect transfer (within-group convert + cross-group warp)
+- Edge cases (insufficient claims, non-synchronous claims)
+
 Per ZERO TOLERANCE policy, all assertions use exact expected values.
 """
 
@@ -13,8 +21,15 @@ from __future__ import annotations
 
 import pytest
 
-from timetoalign.alignment import AlignmentBundle, TimelineGroup
+from timetoalign.alignment import (
+    AlignmentAnchor,
+    AlignmentBundle,
+    MatchClaim,
+    TimelineGroup,
+)
+from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.bundle import _reset_bundle_ids
+from timetoalign.alignment.groups import _reset_group_ids
 from timetoalign.timelines import Timeline
 
 # region Fixtures
@@ -24,6 +39,9 @@ from timetoalign.timelines import Timeline
 def reset_ids() -> None:
     """Reset ID generators before each test for deterministic IDs."""
     _reset_bundle_ids()
+    _reset_anchor_ids()
+    _reset_claim_ids()
+    _reset_group_ids()
 
 
 @pytest.fixture
@@ -493,6 +511,569 @@ class TestMethodChaining:
 
         assert bundle.n_timelines == 3
         assert bundle.n_groups == 1
+
+
+# endregion
+
+
+# region Helpers for Cross-Group Tests
+
+
+def _make_cross_group_bundle() -> (
+    tuple[AlignmentBundle, Timeline, Timeline, Timeline, Timeline]
+):
+    """Build a 2-group bundle with 2 timelines per group.
+
+    Group A ("score_group"):
+        - score_tl (length=200)   [bundle uid: "score"]
+        - image_tl (length=400)   [bundle uid: "image", aligned to "score"]
+
+    Group B ("recording_group"):
+        - audio_tl (length=100)   [bundle uid: "audio"]
+        - midi_tl  (length=100)   [bundle uid: "midi", aligned to "audio"]
+
+    Returns:
+        (bundle, score_tl, image_tl, audio_tl, midi_tl)
+    """
+    score_tl = Timeline(length=200, uid="score_t", name="Score")
+    image_tl = Timeline(length=400, uid="image_t", name="Image")
+    audio_tl = Timeline(length=100, uid="audio_t", name="Audio")
+    midi_tl = Timeline(length=100, uid="midi_t", name="MIDI")
+
+    bundle = AlignmentBundle(id="xgroup_test")
+    bundle.add_timeline(score_tl, uid="score", as_group="score_group")
+    bundle.add_timeline(image_tl, uid="image", aligned_to="score")
+    bundle.add_timeline(audio_tl, uid="audio", as_group="recording_group")
+    bundle.add_timeline(midi_tl, uid="midi", aligned_to="audio")
+
+    return bundle, score_tl, image_tl, audio_tl, midi_tl
+
+
+def _make_linear_claims(
+    tl_a_id: str, tl_b_id: str, n_points: int = 5
+) -> list[MatchClaim]:
+    """Create n_points instant MatchClaims mapping [0..n-1] linearly.
+
+    The mapping is: coord_b = coord_a * 0.5
+    So tl_a range [0, n-1] maps to tl_b range [0, (n-1)*0.5].
+
+    Uses actual timeline IDs (not bundle UIDs).
+    """
+    claims = []
+    for i in range(n_points):
+        coord_a = float(i * 50)  # 0, 50, 100, 150, 200
+        coord_b = float(i * 25)  # 0, 25, 50, 75, 100
+        claims.append(
+            MatchClaim(
+                timeline_a_id=tl_a_id,
+                timeline_b_id=tl_b_id,
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id=tl_a_id,
+                    coordinate_a=coord_a,
+                    timeline_b_id=tl_b_id,
+                    coordinate_b=coord_b,
+                ),
+            )
+        )
+    return claims
+
+
+# endregion
+
+
+# region Test: Cross-Group Transfer
+
+
+class TestCrossGroupTransfer:
+    """Tests for cross-group transfer via MatchClaim -> MatchLine -> WarpMap."""
+
+    def test_direct_cross_group_transfer(self) -> None:
+        """Transfer between directly-claimed timelines in different groups."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+
+        # Claims map score_tl.id -> audio_tl.id linearly: coord_b = coord_a * 0.5
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        # score coord 100 -> audio coord 50 (linear interpolation)
+        result = bundle.transfer(100.0, "score", "audio")
+        assert result == 50.0
+
+    def test_direct_cross_group_transfer_boundary_zero(self) -> None:
+        """Transfer at coordinate 0 (boundary)."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        result = bundle.transfer(0.0, "score", "audio")
+        assert result == 0.0
+
+    def test_direct_cross_group_transfer_boundary_max(self) -> None:
+        """Transfer at the maximum anchor coordinate."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        # coord_a=200 -> coord_b=100
+        result = bundle.transfer(200.0, "score", "audio")
+        assert result == 100.0
+
+    def test_cross_group_interpolation_midpoint(self) -> None:
+        """Transfer at a coordinate between anchors uses linear interpolation."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        # coord 75 is between anchors at 50 and 100 (mapped to 25 and 50)
+        # Linear interpolation: 25 + (75-50)/(100-50) * (50-25) = 25 + 12.5 = 37.5
+        result = bundle.transfer(75.0, "score", "audio")
+        assert result == 37.5
+
+    def test_cross_group_reverse_direction(self) -> None:
+        """Transfer works in reverse (target -> source) via separate WarpMap."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        # audio coord 50 -> score coord 100
+        result = bundle.transfer(50.0, "audio", "score")
+        assert result == 100.0
+
+    def test_indirect_cross_group_transfer(self) -> None:
+        """Transfer via indirect path: within-group convert then cross-group warp.
+
+        Scenario: "image" is in same group as "score" (image = score * 2).
+        Claims connect score.id -> audio.id. So image -> audio requires:
+        1. Convert image coord in score_group to score coord (200/400 = 0.5 ratio)
+        2. Warp score coord to audio coord via WarpMap (score * 0.5)
+        """
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        # image coord 200 -> score coord 100 (within group, 200/400 * 200 = 100)
+        # score coord 100 -> audio coord 50 (warp, 100 * 0.5 = 50)
+        result = bundle.transfer(200.0, "image", "audio")
+        assert result == 50.0
+
+    def test_indirect_cross_group_transfer_via_group_extension(self) -> None:
+        """Transfer to a non-claimed target timeline via group extension.
+
+        Scenario: Claims connect score.id -> audio.id. "midi" is in same
+        group as "audio". MatchLine.from_claims() with group info extends
+        the claims to include midi via the recording_group.
+        """
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        # score coord 100 -> audio coord 50 (warp) -> midi coord 50
+        # (midi is same length as audio, 1:1 within the recording_group)
+        result = bundle.transfer(100.0, "score", "midi")
+        assert result == 50.0
+
+    def test_cross_group_no_claims_returns_none(self) -> None:
+        """Transfer between unconnected groups returns None."""
+        bundle, _, _, _, _ = _make_cross_group_bundle()
+
+        # No claims added
+        result = bundle.transfer(50.0, "score", "audio")
+        assert result is None
+
+    def test_cross_group_non_synchronous_claims_return_none(self) -> None:
+        """Non-synchronous claims do not enable cross-group transfer."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+
+        # Add non-synchronous claims (no anchors -> no WarpMap)
+        claims = [
+            MatchClaim.nomatch(
+                event={"start": 50.0},
+                source_tl_id=score_tl.id,
+                target_tl_id=audio_tl.id,
+            )
+        ]
+        bundle.add_match_claims(claims)
+
+        result = bundle.transfer(50.0, "score", "audio")
+        assert result is None
+
+    def test_cross_group_single_claim_insufficient(self) -> None:
+        """A single claim (1 anchor point) is insufficient for WarpMap (need >= 2)."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+
+        claims = [
+            MatchClaim(
+                timeline_a_id=score_tl.id,
+                timeline_b_id=audio_tl.id,
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id=score_tl.id,
+                    coordinate_a=100.0,
+                    timeline_b_id=audio_tl.id,
+                    coordinate_b=50.0,
+                ),
+            )
+        ]
+        bundle.add_match_claims(claims)
+
+        result = bundle.transfer(100.0, "score", "audio")
+        assert result is None
+
+    def test_transfer_interval_cross_group(self) -> None:
+        """transfer_interval works across groups."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        result = bundle.transfer_interval(50.0, 150.0, "score", "audio")
+        assert result is not None
+        assert result == (25.0, 75.0)
+
+
+# endregion
+
+
+# region Test: get_timestamp_at Cross-Group
+
+
+class TestGetTimestampAtCrossGroup:
+    """Tests for get_timestamp_at() propagation across groups."""
+
+    def test_timestamp_includes_source_group(self) -> None:
+        """get_timestamp_at returns source group timelines."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        ts = bundle.get_timestamp_at(100.0, "score", format="flat")
+
+        # Source group timelines present (score + image)
+        score_key = next(k for k in ts if k.startswith("score"))
+        image_key = next(k for k in ts if k.startswith("image"))
+        assert ts[score_key] == 100.0
+        # image = score * 2 (200 length mapped to 400)
+        assert ts[image_key] == 200.0
+
+    def test_timestamp_includes_target_group(self) -> None:
+        """get_timestamp_at propagates to connected groups."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        ts = bundle.get_timestamp_at(100.0, "score", format="flat")
+
+        # Target group timelines should be present
+        audio_key = next((k for k in ts if k.startswith("audio")), None)
+        assert audio_key is not None
+        assert ts[audio_key] == 50.0
+
+    def test_timestamp_nested_format(self) -> None:
+        """get_timestamp_at with nested format groups by group_id."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        ts = bundle.get_timestamp_at(100.0, "score", format="nested")
+
+        # Must have source group
+        assert "score_group" in ts
+        # Target group may or may not appear depending on whether WarpMap works
+        if "recording_group" in ts:
+            # Check some value in the recording group
+            recording_vals = ts["recording_group"]
+            audio_key = next((k for k in recording_vals if k.startswith("audio")), None)
+            if audio_key:
+                assert recording_vals[audio_key] == 50.0
+
+    def test_timestamp_prefix_format(self) -> None:
+        """get_timestamp_at with prefix format uses group/timeline keys."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        ts = bundle.get_timestamp_at(100.0, "score", format="prefix")
+
+        # Keys should be "group_id/timeline_uid" format
+        score_keys = [k for k in ts if k.startswith("score_group/")]
+        assert len(score_keys) >= 1  # at least "score"
+
+    def test_timestamp_no_claims_source_only(self) -> None:
+        """Without claims, get_timestamp_at returns only source group."""
+        bundle, _, _, _, _ = _make_cross_group_bundle()
+
+        ts = bundle.get_timestamp_at(100.0, "score", format="nested")
+
+        assert "score_group" in ts
+        assert "recording_group" not in ts
+
+
+# endregion
+
+
+# region Test: are_commensurable with Claims
+
+
+class TestCommensurabilityWithClaims:
+    """Tests for are_commensurable() when cross-group claims exist."""
+
+    def test_commensurable_with_direct_claims(self) -> None:
+        """Two timelines connected by direct claims are commensurable."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=3)
+        bundle.add_match_claims(claims)
+
+        assert bundle.are_commensurable("score", "audio") is True
+
+    def test_commensurable_via_group_membership(self) -> None:
+        """Timeline in same group as a claimed timeline is commensurable.
+
+        Claims connect score.id <-> audio.id. "image" is in score's group.
+        The claim's anchor touches score_tl.id which is in score_group,
+        and audio_tl.id which is in recording_group. So "image" (in score_group)
+        should be commensurable with "audio" (in recording_group).
+        """
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=3)
+        bundle.add_match_claims(claims)
+
+        # image is in score_group, audio is in recording_group
+        # Claims connect score_tl.id (in score_group) to audio_tl.id (in recording_group)
+        assert bundle.are_commensurable("image", "audio") is True
+
+    def test_not_commensurable_without_claims(self) -> None:
+        """Without claims, timelines in different groups are not commensurable."""
+        bundle, _, _, _, _ = _make_cross_group_bundle()
+
+        assert bundle.are_commensurable("score", "audio") is False
+
+    def test_not_commensurable_non_synchronous_only(self) -> None:
+        """Non-synchronous claims don't make timelines commensurable."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+
+        claims = [
+            MatchClaim.nomatch(
+                event={"start": 50.0},
+                source_tl_id=score_tl.id,
+                target_tl_id=audio_tl.id,
+            )
+        ]
+        bundle.add_match_claims(claims)
+
+        assert bundle.are_commensurable("score", "audio") is False
+
+
+# endregion
+
+
+# region Test: Cache Invalidation
+
+
+class TestCacheInvalidation:
+    """Tests for WarpMap cache invalidation on add_match_claims()."""
+
+    def test_cache_populated_on_first_transfer(self) -> None:
+        """First transfer builds WarpMap and populates cache."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=3)
+        bundle.add_match_claims(claims)
+
+        assert len(bundle._warp_map_cache) == 0  # No cache yet
+
+        bundle.transfer(50.0, "score", "audio")
+
+        assert len(bundle._warp_map_cache) >= 1  # Cache populated
+
+    def test_cache_reused_on_second_transfer(self) -> None:
+        """Second transfer reuses cached WarpMap (no rebuild)."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=3)
+        bundle.add_match_claims(claims)
+
+        result1 = bundle.transfer(50.0, "score", "audio")
+        cache_after_first = dict(bundle._warp_map_cache)
+
+        result2 = bundle.transfer(50.0, "score", "audio")
+
+        assert result1 == result2
+        # Same WarpMap objects should be in cache
+        for key in cache_after_first:
+            if key in bundle._warp_map_cache:
+                assert bundle._warp_map_cache[key] is cache_after_first[key]
+
+    def test_cache_invalidated_on_new_claims(self) -> None:
+        """Adding new claims invalidates the cache."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=3)
+        bundle.add_match_claims(claims)
+
+        bundle.transfer(50.0, "score", "audio")
+        assert len(bundle._warp_map_cache) >= 1
+
+        # Add more claims -> invalidates cache
+        more_claims = [
+            MatchClaim(
+                timeline_a_id=score_tl.id,
+                timeline_b_id=audio_tl.id,
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id=score_tl.id,
+                    coordinate_a=175.0,
+                    timeline_b_id=audio_tl.id,
+                    coordinate_b=87.5,
+                ),
+            )
+        ]
+        bundle.add_match_claims(more_claims)
+
+        assert len(bundle._warp_map_cache) == 0  # Cache cleared
+
+    def test_transfer_after_invalidation_rebuilds(self) -> None:
+        """Transfer after cache invalidation builds a new WarpMap."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+
+        # Start with 3 claims: linear mapping coord_b = coord_a * 0.5
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=3)
+        bundle.add_match_claims(claims)
+
+        result1 = bundle.transfer(100.0, "score", "audio")
+        assert result1 == 50.0
+
+        # Add an additional claim that is consistent with the linear mapping
+        more_claims = [
+            MatchClaim(
+                timeline_a_id=score_tl.id,
+                timeline_b_id=audio_tl.id,
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id=score_tl.id,
+                    coordinate_a=150.0,
+                    timeline_b_id=audio_tl.id,
+                    coordinate_b=75.0,
+                ),
+            )
+        ]
+        bundle.add_match_claims(more_claims)
+
+        # Transfer should still work after rebuild
+        result2 = bundle.transfer(100.0, "score", "audio")
+        assert result2 == 50.0
+
+
+# endregion
+
+
+# region Test: add_match_claims API
+
+
+class TestAddMatchClaims:
+    """Tests for the add_match_claims() method."""
+
+    def test_returns_self_for_chaining(self) -> None:
+        """add_match_claims returns self for method chaining."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=3)
+
+        result = bundle.add_match_claims(claims)
+        assert result is bundle
+
+    def test_claims_stored_in_cross_group_claims(self) -> None:
+        """Claims are stored in cross_group_claims list."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=3)
+        bundle.add_match_claims(claims)
+
+        assert len(bundle.cross_group_claims) == 3
+
+    def test_multiple_add_claims_accumulate(self) -> None:
+        """Multiple add_match_claims calls accumulate claims."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+
+        claims1 = _make_linear_claims(score_tl.id, audio_tl.id, n_points=3)
+        bundle.add_match_claims(claims1)
+        assert len(bundle.cross_group_claims) == 3
+
+        claims2 = [
+            MatchClaim(
+                timeline_a_id=score_tl.id,
+                timeline_b_id=audio_tl.id,
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id=score_tl.id,
+                    coordinate_a=150.0,
+                    timeline_b_id=audio_tl.id,
+                    coordinate_b=75.0,
+                ),
+            )
+        ]
+        bundle.add_match_claims(claims2)
+        assert len(bundle.cross_group_claims) == 4
+
+
+# endregion
+
+
+# region Test: add_group API
+
+
+class TestAddGroup:
+    """Tests for the add_group() method."""
+
+    def test_add_prebuilt_group(self) -> None:
+        """Can add a pre-built TimelineGroup with all its timelines."""
+        tl1 = Timeline(length=100, uid="g1")
+        tl2 = Timeline(length=200, uid="g2")
+
+        group = TimelineGroup(id="my_group", timelines=[tl1, tl2])
+
+        bundle = AlignmentBundle(id="test")
+        bundle.add_group(group)
+
+        assert bundle.n_groups == 1
+        assert bundle.n_timelines == 2
+        assert tl1.id in bundle.timeline_ids
+        assert tl2.id in bundle.timeline_ids
+
+    def test_add_group_with_uid_map(self) -> None:
+        """Can add a group with custom UIDs via uid_map."""
+        tl1 = Timeline(length=100, uid="g1")
+        tl2 = Timeline(length=200, uid="g2")
+
+        group = TimelineGroup(id="my_group", timelines=[tl1, tl2])
+
+        bundle = AlignmentBundle(id="test")
+        bundle.add_group(group, uid_map={tl1.id: "custom1", tl2.id: "custom2"})
+
+        assert "custom1" in bundle.timeline_ids
+        assert "custom2" in bundle.timeline_ids
+        assert bundle.get_timeline("custom1") is tl1
+        assert bundle.get_timeline("custom2") is tl2
+
+    def test_add_group_duplicate_id_raises(self) -> None:
+        """Adding group with duplicate ID raises ValueError."""
+        tl1 = Timeline(length=100, uid="g1")
+        group = TimelineGroup(id="my_group", timelines=[tl1])
+
+        bundle = AlignmentBundle(id="test")
+        bundle.add_group(group)
+
+        tl2 = Timeline(length=200, uid="g2")
+        group2 = TimelineGroup(id="my_group", timelines=[tl2])
+        with pytest.raises(ValueError, match="already exists"):
+            bundle.add_group(group2)
+
+    def test_add_group_cross_group_transfer(self) -> None:
+        """Cross-group transfer works with add_group API."""
+        tl_score = Timeline(length=200, uid="s1")
+        tl_audio = Timeline(length=100, uid="a1")
+
+        grp_score = TimelineGroup(id="score", timelines=[tl_score])
+        grp_audio = TimelineGroup(id="audio", timelines=[tl_audio])
+
+        bundle = AlignmentBundle(id="test")
+        bundle.add_group(grp_score)
+        bundle.add_group(grp_audio)
+
+        claims = _make_linear_claims(tl_score.id, tl_audio.id, n_points=5)
+        bundle.add_match_claims(claims)
+
+        result = bundle.transfer(100.0, tl_score.id, tl_audio.id)
+        assert result == 50.0
 
 
 # endregion

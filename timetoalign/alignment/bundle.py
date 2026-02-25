@@ -4,9 +4,10 @@ This module implements the `AlignmentBundle` class, a single entry point for
 all alignment workflows as described in the API redesign specification. The
 bundle manages timelines, groups, and coordinate transfer operations.
 
-Phase 1 supports single-group scenarios (perfect alignment).
-Phase 2 adds cross-group matching via MatchClaims and WarpMaps, enabling
-the ``get_timestamp_at()`` method for grouped cross-domain coordinate transfer.
+Within a group, coordinate transfer uses linear interpolation
+(``TimelineGroup.convert()``).  Across groups, transfer is mediated by
+the Phase 6.5-6.6 pipeline: ``MatchClaim`` → ``MatchLine`` → ``WarpMap``.
+WarpMaps are built lazily and cached for repeated queries.
 
 NOTE: As of Phase 7.4, TimelineGroup uses a timestamp-based architecture.
 The bundle now uses the new add_timeline() API internally.
@@ -22,10 +23,11 @@ from timetoalign.core import IdCoordinate, IdGenerator
 
 from .anchors import MatchClaim
 from .groups import TimelineGroup
+from .matchline import MatchLine
+from .warpmap import WarpMap
 
 if TYPE_CHECKING:
     from timetoalign.display.ascii import Diagram
-    from timetoalign.maps import TableMap
     from timetoalign.timelines import Timeline
 
 module_logger = logging.getLogger(__name__)
@@ -48,13 +50,16 @@ class AlignmentBundle:
     """The primary entry point for all alignment workflows.
 
     An AlignmentBundle manages timelines and their alignment relationships.
-    It supports "perfect alignment" (linear interpolation within groups)
-    for Phase 1, with cross-group matching planned for future phases.
+    Within a group, coordinate transfer uses linear interpolation
+    (``TimelineGroup.convert()``).  Across groups, transfer is mediated
+    by the ``MatchClaim`` → ``MatchLine`` → ``WarpMap`` pipeline.
 
     The bundle provides:
+
     - Timeline registration and lookup
     - Group management (collections of perfectly aligned timelines)
-    - Coordinate transfer between any two timelines in the same group
+    - Coordinate transfer between any two timelines (same-group or
+      cross-group via ``MatchClaim``/``WarpMap``)
 
     IMPORTANT: The resulting bundle structure is order-independent. Adding
     timelines in any order produces the same alignment relationships and
@@ -66,6 +71,7 @@ class AlignmentBundle:
         timelines: Dictionary mapping bundle UIDs to Timeline objects.
         groups: Dictionary mapping group IDs to TimelineGroup objects.
         timeline_to_group: Mapping from bundle UID to its containing group ID.
+        cross_group_claims: MatchClaims connecting timelines across groups.
 
     Note:
         The bundle maintains a UID mapping layer. Users interact with bundle UIDs
@@ -81,13 +87,11 @@ class AlignmentBundle:
             >>> bundle.transfer(100.0, "score", "audio")
             45.5
 
-        SUPRA Piano Roll example:
+        Cross-group transfer via MatchClaims:
 
-            >>> bundle = AlignmentBundle(name="SUPRA WM990")
-            >>> bundle.add_timeline(image_timeline, uid="dgt1")
-            >>> bundle.add_timeline(midi_raw, uid="dlt1", aligned_to="dgt1")
-            >>> bundle.add_timeline(midi_exp, uid="dlt2", aligned_to="dgt1")
-            >>> bundle.transfer(50000, "dgt1", "dlt1")  # pixels -> ticks
+            >>> bundle.add_match_claims(match_results.match_claims)
+            >>> bundle.transfer(79.0, "clt1", "dpt1")  # score -> audio
+            1234567.0
     """
 
     id: str = field(default="")
@@ -102,10 +106,12 @@ class AlignmentBundle:
     _uid_to_timeline_id: dict[str, str] = field(default_factory=dict, repr=False)
     # Reverse mapping from timeline.id to bundle UID
     _timeline_id_to_uid: dict[str, str] = field(default_factory=dict, repr=False)
-    # Cached WarpMaps for cross-group transfer: (from_group, to_group) -> TableMap
-    _warp_maps: dict[tuple[str, str], "TableMap"] = field(
+    # Cached WarpMaps: (source_tl_id, target_tl_id) -> WarpMap
+    _warp_map_cache: dict[tuple[str, str], WarpMap] = field(
         default_factory=dict, repr=False
     )
+    # Hash of cross_group_claims list at time of last cache build
+    _cache_claims_hash: int = field(default=0, repr=False)
 
     # Internal logger
     _logger: logging.Logger = field(
@@ -448,16 +454,20 @@ class AlignmentBundle:
         """Transfer a coordinate from one timeline to another.
 
         Automatically determines the conversion path:
-        1. If both timelines are in the same group: direct conversion
-        2. If in different groups with matches: uses WarpMap (Phase 2+)
-        3. If no path exists: returns None
+
+        1. If both timelines are in the same group: direct conversion via
+           ``TimelineGroup.convert()``.
+        2. If in different groups with MatchClaims: builds a ``MatchLine``
+           and ``WarpMap`` (cached) and uses ``WarpMap.forward()`` to
+           interpolate the coordinate.
+        3. If no path exists: returns ``None``.
 
         This is the primary user-facing method for coordinate conversion.
 
         Args:
             coord: The coordinate value to transfer.
-            from_timeline: ID of the source timeline.
-            to_timeline: ID of the target timeline.
+            from_timeline: Bundle UID of the source timeline.
+            to_timeline: Bundle UID of the target timeline.
 
         Returns:
             The transferred coordinate, or None if no path exists.
@@ -486,11 +496,47 @@ class AlignmentBundle:
             actual_to_id = self._uid_to_timeline_id[to_timeline]
             return group.convert(coord, actual_from_id, actual_to_id)
 
-        # Phase 1: No cross-group transfer yet
-        # TODO: Phase 2 will add WarpMap-based cross-group transfer
-        self._logger.warning(
-            f"Cannot transfer between '{from_timeline}' and '{to_timeline}': "
-            f"not in the same group (cross-group transfer not yet implemented)"
+        # Cross-group transfer via MatchLine/WarpMap pipeline
+        actual_from_id = self._uid_to_timeline_id[from_timeline]
+        actual_to_id = self._uid_to_timeline_id[to_timeline]
+
+        warp = self._get_or_build_warp_map(actual_from_id, actual_to_id)
+        if warp is not None:
+            try:
+                return float(warp.forward(coord))
+            except Exception as e:
+                self._logger.warning(
+                    "WarpMap forward failed for %s -> %s at %s: %s",
+                    from_timeline,
+                    to_timeline,
+                    coord,
+                    e,
+                )
+                return None
+
+        # Try indirect: convert within source group first, then warp
+        if from_group_id is not None:
+            source_group = self.groups[from_group_id]
+            for src_other_tl_id in source_group.timeline_ids:
+                if src_other_tl_id == actual_from_id:
+                    continue
+                warp = self._get_or_build_warp_map(src_other_tl_id, actual_to_id)
+                if warp is None:
+                    continue
+                try:
+                    intermediate = source_group.convert(
+                        coord, source=actual_from_id, target=src_other_tl_id
+                    )
+                    if intermediate is None:
+                        continue
+                    return float(warp.forward(float(intermediate)))
+                except Exception:
+                    continue
+
+        self._logger.debug(
+            "No transfer path between '%s' and '%s'",
+            from_timeline,
+            to_timeline,
         )
         return None
 
@@ -523,12 +569,12 @@ class AlignmentBundle:
     def are_commensurable(self, timeline_a: str, timeline_b: str) -> bool:
         """Check if two timelines can be connected via transfer.
 
-        In Phase 1, this means they are in the same group.
-        Future phases will also check for match paths.
+        Two timelines are commensurable if they share the same group
+        or if a cross-group path exists via MatchClaims.
 
         Args:
-            timeline_a: First timeline ID.
-            timeline_b: Second timeline ID.
+            timeline_a: First timeline ID (bundle UID).
+            timeline_b: Second timeline ID (bundle UID).
 
         Returns:
             True if coordinates can be transferred between them.
@@ -539,7 +585,42 @@ class AlignmentBundle:
         group_a = self.timeline_to_group.get(timeline_a)
         group_b = self.timeline_to_group.get(timeline_b)
 
-        return group_a is not None and group_a == group_b
+        # Same group: commensurable
+        if group_a is not None and group_a == group_b:
+            return True
+
+        # Check for cross-group path via claims
+        if not self.cross_group_claims:
+            return False
+
+        actual_a = self._uid_to_timeline_id.get(timeline_a, timeline_a)
+        actual_b = self._uid_to_timeline_id.get(timeline_b, timeline_b)
+
+        # Check if any synchronous claim connects groups containing a and b
+        group_a_tl_ids = (
+            set(self.groups[group_a].timeline_ids) if group_a else {actual_a}
+        )
+        group_b_tl_ids = (
+            set(self.groups[group_b].timeline_ids) if group_b else {actual_b}
+        )
+
+        for claim in self.cross_group_claims:
+            if not claim.is_synchronous or claim.start_anchor is None:
+                continue
+            anchor = claim.start_anchor
+            # Does this claim connect the two groups?
+            a_side = (
+                anchor.timeline_a_id in group_a_tl_ids
+                or anchor.timeline_b_id in group_a_tl_ids
+            )
+            b_side = (
+                anchor.timeline_a_id in group_b_tl_ids
+                or anchor.timeline_b_id in group_b_tl_ids
+            )
+            if a_side and b_side:
+                return True
+
+        return False
 
     # endregion
 
@@ -548,217 +629,110 @@ class AlignmentBundle:
     def add_match_claims(
         self,
         claims: list[MatchClaim],
-        *,
-        build_warp_maps: bool = True,
     ) -> "AlignmentBundle":
         """Add MatchClaims connecting timelines across different groups.
 
         MatchClaims encode coordinate correspondences between timelines in
-        different groups (e.g., EEP recording notes matched to ABC score notes).
-        They enable cross-group coordinate transfer via WarpMaps.
+        different groups (e.g., EEP recording notes matched to ABC score
+        notes).  They enable cross-group coordinate transfer via
+        ``MatchLine`` → ``WarpMap``.
+
+        WarpMaps are built lazily on first ``transfer()`` or
+        ``get_timestamp_at()`` call, so adding claims is cheap.
 
         Args:
-            claims: List of MatchClaim objects. Each claim connects two
-                timelines via its start_anchor (and optionally end_anchor).
-            build_warp_maps: If True, automatically build WarpMaps (TableMaps)
-                from the claims for efficient interpolation. Default True.
+            claims: List of MatchClaim objects.  Each synchronous claim
+                connects two timelines via its ``start_anchor``.
 
         Returns:
             self (for method chaining)
         """
         self.cross_group_claims.extend(claims)
-        if build_warp_maps:
-            self._build_warp_maps_from_claims(claims)
+        self._invalidate_warp_cache()
         return self
 
-    def _build_warp_maps_from_claims(self, claims: list[MatchClaim]) -> None:
-        """Build WarpMaps (TableMaps) from MatchClaims for interpolation.
+    def _invalidate_warp_cache(self) -> None:
+        """Clear the WarpMap cache, forcing rebuild on next access."""
+        self._warp_map_cache.clear()
+        self._cache_claims_hash = 0
 
-        Groups claims by (source_group, target_group) and builds a TableMap
-        for each direction.  Claim coordinates are converted to each
-        timeline's native unit so that WarpMap output can be fed directly
-        to ``TimelineGroup.get_timestamp_at()``.
+    def _get_or_build_warp_map(
+        self, source_tl_id: str, target_tl_id: str
+    ) -> WarpMap | None:
+        """Get or lazily build a WarpMap for the given timeline pair.
+
+        Builds a ``MatchLine`` from ``cross_group_claims`` with group
+        extension and constructs a ``WarpMap`` via
+        ``WarpMap.from_match_line()``.  The result is cached; the cache
+        is invalidated when ``add_match_claims()`` is called.
 
         Args:
-            claims: MatchClaims to build WarpMaps from.
+            source_tl_id: Actual timeline ID (not bundle UID) of the source.
+            target_tl_id: Actual timeline ID (not bundle UID) of the target.
+
+        Returns:
+            WarpMap for the pair, or None if insufficient data.
         """
-        from collections import defaultdict
+        if not self.cross_group_claims:
+            return None
 
-        from timetoalign.maps import TableMap
+        # Check cache validity
+        claims_hash = id(self.cross_group_claims) + len(self.cross_group_claims)
+        if claims_hash != self._cache_claims_hash:
+            self._warp_map_cache.clear()
+            self._cache_claims_hash = claims_hash
 
-        # Group claims by the pair of groups they connect
-        # Key: (timeline_a_id, timeline_b_id) from anchors
-        pair_coords: dict[tuple[str, str], list[tuple[float, float]]] = defaultdict(
-            list
-        )
+        cache_key = (source_tl_id, target_tl_id)
+        if cache_key in self._warp_map_cache:
+            return self._warp_map_cache[cache_key]
 
-        for claim in claims:
-            anchor = claim.start_anchor
-            tl_a = anchor.timeline_a_id
-            tl_b = anchor.timeline_b_id
-            pair_coords[(tl_a, tl_b)].append((anchor.coordinate_a, anchor.coordinate_b))
+        # Build MatchLine from claims with group extension
+        try:
+            match_line = MatchLine.from_claims(
+                claims=self.cross_group_claims,
+                source_timeline_id=source_tl_id,
+                groups=self.groups,
+                timeline_to_group={
+                    self._uid_to_timeline_id[uid]: gid
+                    for uid, gid in self.timeline_to_group.items()
+                },
+                timelines={
+                    self._uid_to_timeline_id[uid]: tl
+                    for uid, tl in self.timelines.items()
+                },
+            )
+        except Exception as e:
+            self._logger.debug(
+                "Failed to build MatchLine for source '%s': %s",
+                source_tl_id,
+                e,
+            )
+            return None
 
-        # Detect and fix unit mismatches: claim coordinates may be in a
-        # different unit (e.g. seconds) than the timeline's native unit
-        # (e.g. samples).  Convert once per timeline per pair.
-        corrected: dict[tuple[str, str], list[tuple[float, float]]] = {}
-        for (tl_a, tl_b), coords in pair_coords.items():
-            a_vals = [c[0] for c in coords]
-            b_vals = [c[1] for c in coords]
+        # Check if target timeline is reachable
+        if target_tl_id not in match_line.target_timeline_ids():
+            return None
 
-            conv_a = None
-            if tl_a in self.timelines:
-                conv_a = self._needs_unit_conversion(a_vals, self.timelines[tl_a])
-            conv_b = None
-            if tl_b in self.timelines:
-                conv_b = self._needs_unit_conversion(b_vals, self.timelines[tl_b])
+        # Build WarpMap
+        try:
+            warp = WarpMap.from_match_line(match_line, target_tl_id)
+        except ValueError as e:
+            self._logger.debug(
+                "Failed to build WarpMap %s -> %s: %s",
+                source_tl_id,
+                target_tl_id,
+                e,
+            )
+            return None
 
-            if conv_a is not None or conv_b is not None:
-                import numpy as np
-
-                if conv_a is not None:
-                    a_vals = conv_a(np.array(a_vals)).tolist()
-                if conv_b is not None:
-                    b_vals = conv_b(np.array(b_vals)).tolist()
-                corrected[(tl_a, tl_b)] = list(zip(a_vals, b_vals))
-            else:
-                corrected[(tl_a, tl_b)] = coords
-
-        pair_coords = corrected
-
-        # Build TableMaps for each pair
-        for (tl_a, tl_b), coords in pair_coords.items():
-            if len(coords) < 2:
-                continue  # Need at least 2 points for interpolation
-
-            # Deduplicate: chords produce multiple claims at the same
-            # coordinate.  Average y-values for duplicate x-values to
-            # ensure strict monotonicity required by TableMap.
-            coords.sort(key=lambda c: c[0])
-            x_dedup: list[float] = []
-            y_dedup: list[float] = []
-            i = 0
-            while i < len(coords):
-                j = i + 1
-                while j < len(coords) and coords[j][0] == coords[i][0]:
-                    j += 1
-                x_dedup.append(coords[i][0])
-                y_dedup.append(sum(c[1] for c in coords[i:j]) / (j - i))
-                i = j
-
-            if len(x_dedup) < 2:
-                continue
-
-            # Forward map: tl_a -> tl_b
-            try:
-                forward_map = TableMap(
-                    x_values=x_dedup,
-                    y_values=y_dedup,
-                    uid=f"warp_{tl_a}_to_{tl_b}",
-                )
-                self._warp_maps[(tl_a, tl_b)] = forward_map
-            except Exception as e:
-                self._logger.warning(f"Failed to build WarpMap {tl_a}->{tl_b}: {e}")
-
-            # Reverse map: tl_b -> tl_a (deduplicate by target coord)
-            coords_rev = sorted(coords, key=lambda c: c[1])
-            x_rev: list[float] = []
-            y_rev: list[float] = []
-            i = 0
-            while i < len(coords_rev):
-                j = i + 1
-                while j < len(coords_rev) and coords_rev[j][1] == coords_rev[i][1]:
-                    j += 1
-                x_rev.append(coords_rev[i][1])
-                y_rev.append(sum(c[0] for c in coords_rev[i:j]) / (j - i))
-                i = j
-
-            if len(x_rev) < 2:
-                continue
-
-            try:
-                reverse_map = TableMap(
-                    x_values=x_rev,
-                    y_values=y_rev,
-                    uid=f"warp_{tl_b}_to_{tl_a}",
-                )
-                self._warp_maps[(tl_b, tl_a)] = reverse_map
-            except Exception as e:
-                self._logger.warning(f"Failed to build WarpMap {tl_b}->{tl_a}: {e}")
-
+        self._warp_map_cache[cache_key] = warp
         self._logger.debug(
-            f"Built {len(self._warp_maps)} WarpMaps from {len(claims)} claims"
+            "Built WarpMap %s -> %s (%d anchors)",
+            source_tl_id,
+            target_tl_id,
+            warp.n_anchors,
         )
-
-    @staticmethod
-    def _needs_unit_conversion(
-        coords: list[float], timeline: "Timeline"
-    ) -> "TableMap | None":
-        """Detect whether claim coordinates need converting to native unit.
-
-        Compares the span of *coords* with the timeline's length.  If the
-        coordinates cover less than 1 % of the timeline's range AND an
-        inverse C-map produces values that cover a more plausible
-        fraction, that inverse map is returned.
-
-        Args:
-            coords: Sorted claim coordinate values for one timeline.
-            timeline: The timeline the coordinates should refer to.
-
-        Returns:
-            An inverse C-map to apply, or ``None`` if coordinates are
-            already in the native unit.
-        """
-        if not coords:
-            return None
-        tl_len = float(timeline.length.value)
-        if tl_len == 0:
-            return None
-
-        span = max(coords) - min(coords)
-        coverage = span / tl_len if tl_len else 0
-
-        # If span already covers > 1 % of the timeline, assume native unit
-        if coverage > 0.01:
-            return None
-
-        # Try inverse C-maps: pick the one whose output span is most plausible
-        import numpy as np
-
-        best_map = None
-        best_coverage = coverage
-        arr = np.array(coords)
-        for cmap in timeline._conversion_maps.values():
-            # .inverse is a method returning a new map object
-            try:
-                inv = cmap.inverse()
-            except Exception:
-                continue
-            if inv is None:
-                continue
-            try:
-                converted = inv(arr)
-                conv_span = float(np.ptp(converted))
-                conv_coverage = conv_span / tl_len
-                if conv_coverage > best_coverage:
-                    best_map = inv
-                    best_coverage = conv_coverage
-            except Exception:
-                continue
-
-        return best_map
-
-    def get_warp_map(self, from_timeline: str, to_timeline: str) -> "TableMap | None":
-        """Get the WarpMap for converting coordinates between two timelines.
-
-        Args:
-            from_timeline: Source timeline ID.
-            to_timeline: Target timeline ID.
-
-        Returns:
-            TableMap for interpolation, or None if no map exists.
-        """
-        return self._warp_maps.get((from_timeline, to_timeline))
+        return warp
 
     # endregion
 
@@ -778,11 +752,13 @@ class AlignmentBundle:
         coordinates on ALL connected timelines across ALL groups.
 
         The method:
-        1. Finds the group containing the source timeline
-        2. Gets the within-group timestamp (via group.get_timestamp_at())
-        3. For each connected group (via WarpMaps from MatchClaims),
-           transfers the coordinate and gets the within-group timestamp
-        4. Returns all coordinates in the requested format
+
+        1. Finds the group containing the source timeline.
+        2. Gets the within-group timestamp (via ``group.get_timestamp_at()``).
+        3. For each connected group (via ``MatchLine``/``WarpMap`` from
+           MatchClaims), transfers the coordinate and gets the
+           within-group timestamp.
+        4. Returns all coordinates in the requested format.
 
         Args:
             coordinate: The coordinate value on the source timeline.
@@ -829,17 +805,16 @@ class AlignmentBundle:
         source_ts = self._get_group_timestamp(source_group, coordinate, actual_tl_id)
         result[source_group_id] = source_ts
 
-        # Step 2: Transfer to connected groups via WarpMaps
+        # Step 2: Transfer to connected groups via WarpMap pipeline
         for other_group_id, other_group in self.groups.items():
             if other_group_id == source_group_id:
                 continue
 
-            # Find a WarpMap that connects source group to this group
-            transferred_coord = self._transfer_to_group(
+            transferred = self._transfer_to_group(
                 coordinate, actual_tl_id, source_group, other_group
             )
-            if transferred_coord is not None:
-                target_tl_id, target_coord = transferred_coord
+            if transferred is not None:
+                target_tl_id, target_coord = transferred
                 other_ts = self._get_group_timestamp(
                     other_group, target_coord, target_tl_id
                 )
@@ -900,11 +875,11 @@ class AlignmentBundle:
         source_group: TimelineGroup,
         target_group: TimelineGroup,
     ) -> tuple[str, float] | None:
-        """Transfer a coordinate from one group to another via WarpMaps.
+        """Transfer a coordinate from one group to another via WarpMap.
 
-        Looks for any WarpMap connecting a timeline in source_group to a
-        timeline in target_group. If found, uses it to interpolate the
-        coordinate.
+        Searches for a WarpMap connecting any timeline in the source
+        group to any timeline in the target group.  Tries direct maps
+        first, then indirect (convert within source group, then warp).
 
         Args:
             coordinate: Source coordinate.
@@ -913,23 +888,23 @@ class AlignmentBundle:
             target_group: Target group.
 
         Returns:
-            (target_timeline_id, transferred_coordinate) or None.
+            ``(target_timeline_id, transferred_coordinate)`` or ``None``.
         """
-        # Try direct WarpMap from source_tl_id to any timeline in target group
+        # Try direct: source_tl_id -> any timeline in target group
         for target_tl_id in target_group.timeline_ids:
-            warp = self._warp_maps.get((source_tl_id, target_tl_id))
+            warp = self._get_or_build_warp_map(source_tl_id, target_tl_id)
             if warp is not None:
                 try:
-                    transferred = warp(coordinate)
-                    return (target_tl_id, float(transferred))
+                    transferred = float(warp.forward(coordinate))
+                    return (target_tl_id, transferred)
                 except Exception:
                     continue
 
-        # Try indirect: first convert within source group, then WarpMap
+        # Try indirect: convert within source group, then warp
         for src_other_tl_id in source_group.timeline_ids:
             if src_other_tl_id == source_tl_id:
                 continue
-            # Convert coordinate within source group
+            # Convert within source group
             try:
                 intermediate = source_group.convert(
                     coordinate, source=source_tl_id, target=src_other_tl_id
@@ -941,11 +916,11 @@ class AlignmentBundle:
 
             # Try WarpMap from intermediate to target group
             for target_tl_id in target_group.timeline_ids:
-                warp = self._warp_maps.get((src_other_tl_id, target_tl_id))
+                warp = self._get_or_build_warp_map(src_other_tl_id, target_tl_id)
                 if warp is not None:
                     try:
-                        transferred = warp(float(intermediate))
-                        return (target_tl_id, float(transferred))
+                        transferred = float(warp.forward(float(intermediate)))
+                        return (target_tl_id, transferred)
                     except Exception:
                         continue
 
@@ -1088,7 +1063,7 @@ class AlignmentBundle:
               TimelineGroup[dgt1_group] (2 timelines, 2 timestamps)
               ┌──────────────────────────────────────────────────────┐
               │ DiscreteGraphicalTimeline[dgt1:1] (11 events)        │
-              │ 0 ::::::::::::::::::::::::::::::::::: 4835 pixels    │
+              │ 0 ∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶ 4835 pixels    │
               └──────────────────────────────────────────────────────┘
               Timestamps: 2
 

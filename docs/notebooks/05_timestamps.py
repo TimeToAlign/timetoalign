@@ -364,7 +364,7 @@ timestamps_df.head(15)
 
 # %%
 # Count how many valid (non-NaN) local coordinates per measure
-measure_cols = [f"m{i}" for i in range(1, 9)]
+measure_cols = [f"m{i} (quarters)" for i in range(1, 9)]
 valid_counts = timestamps_df[measure_cols].notna().sum()
 
 print("Events within each measure:")
@@ -372,7 +372,7 @@ valid_counts
 
 # %%
 # Find all timestamps where measure 3 is active
-m3_active = timestamps_df[timestamps_df["m3"].notna()]
+m3_active = timestamps_df[timestamps_df["m3 (quarters)"].notna()]
 print(f"Timestamps within measure 3: {len(m3_active)}")
 m3_active
 
@@ -657,7 +657,7 @@ for field in table.schema:
 # df = score.get_timestamps()
 #
 # # Filter to where m5 is not NaN
-# m5_active = df[df["m5"].notna()][["axis", "m5"]]
+# m5_active = df[df["m5 (quarters)"].notna()][["axis (quarters)", "m5 (quarters)"]]
 # m5_active
 # ```
 #

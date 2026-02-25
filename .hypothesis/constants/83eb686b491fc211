@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\validators\attributes.py
-# hypothesis_version: 6.151.2
-
-['%s(%r)', '%s()', '%s(name=%r)', '1', '1.0', 'XsdAttributeGroup', '_attribute_group', 'attr', 'base_attributes', 'default', 'derivation', 'extension', 'fixed', 'form', 'global', 'inheritable', 'key', 'local', 'name', 'nil', 'optional', 'prohibited', 'qualified', 'ref', 'required', 'restriction', 'schemaLocation', 'skip', 'targetNamespace', 'true', 'type', 'use', 'xmlns', '{']

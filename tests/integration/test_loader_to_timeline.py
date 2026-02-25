@@ -23,13 +23,14 @@ import pytest
 from timetoalign.timelines import create_timeline
 
 # Test data paths
-DATA_DIR = Path(__file__).parents[1] / "data" / "midi"
-SCORE_DIR = DATA_DIR / "score"
-PERF_DIR = DATA_DIR / "performance"
+DATA_DIR = Path(__file__).parents[1] / "data" / "vienna_1x22"
+SCORE_DIR = DATA_DIR
+MS3_DIR = DATA_DIR / "ms3"
+PERF_DIR = DATA_DIR
 
 # Gold standard counts from MS3 TSV files
-# Source: tests/data/midi/score/ms3/chopin_op10_no3.notes.tsv (499 lines - 1 header = 498)
-# Source: tests/data/midi/score/ms3/chopin_op10_no3.measures.tsv (23 lines - 1 header = 22)
+# Source: tests/data/vienna_1x22/ms3/chopin_op10_no3.notes.tsv (499 lines - 1 header = 498)
+# Source: tests/data/vienna_1x22/ms3/chopin_op10_no3.measures.tsv (23 lines - 1 header = 22)
 CHOPIN_GOLD_NOTES = 498
 CHOPIN_GOLD_MEASURES = 22
 
@@ -44,7 +45,7 @@ class TestScoreLoaderToTimeline:
     @pytest.fixture
     def chopin_musicxml(self) -> Path:
         """Path to Chopin Op.10 No.3 MusicXML file."""
-        path = SCORE_DIR / "chopin_op10_no3.musicxml"
+        path = SCORE_DIR / "Chopin_op10_no3.musicxml"
         if not path.exists():
             pytest.skip(f"Test data not found: {path}")
         return path
@@ -155,7 +156,7 @@ class TestScoreLoaderWithFilters:
     @pytest.fixture
     def chopin_musicxml(self) -> Path:
         """Path to Chopin Op.10 No.3 MusicXML file."""
-        path = SCORE_DIR / "chopin_op10_no3.musicxml"
+        path = SCORE_DIR / "Chopin_op10_no3.musicxml"
         if not path.exists():
             pytest.skip(f"Test data not found: {path}")
         return path
@@ -290,7 +291,7 @@ class TestCrossLoaderConsistency:
     @pytest.fixture
     def chopin_musicxml(self) -> Path:
         """Path to Chopin Op.10 No.3 MusicXML file."""
-        path = SCORE_DIR / "chopin_op10_no3.musicxml"
+        path = SCORE_DIR / "Chopin_op10_no3.musicxml"
         if not path.exists():
             pytest.skip(f"Test data not found: {path}")
         return path
@@ -383,7 +384,7 @@ class TestCreateTimelineFunction:
     @pytest.fixture
     def chopin_musicxml(self) -> Path:
         """Path to Chopin Op.10 No.3 MusicXML file."""
-        path = SCORE_DIR / "chopin_op10_no3.musicxml"
+        path = SCORE_DIR / "Chopin_op10_no3.musicxml"
         if not path.exists():
             pytest.skip(f"Test data not found: {path}")
         return path

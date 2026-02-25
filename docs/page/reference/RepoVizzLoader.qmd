@@ -1,0 +1,79 @@
+# RepoVizzLoader { #timetoalign.RepoVizzLoader }
+
+```python
+RepoVizzLoader()
+```
+
+Load RepoVizz 2-line CSV sensor data metadata for creating physical timelines.
+
+RepoVizzLoader extracts the sampling rate and sample count from the
+two-line CSV format used by the EEP dataset for motion capture descriptors
+and other sensor signals. No actual sample data is loaded.
+
+The loader creates :class:`DiscretePhysicalTimeline` instances with the
+``samples`` unit and an attached ``SamplesToSeconds`` conversion map.
+
+Examples:
+    >>> loader = RepoVizzLoader.from_file("cello_bb_angle.csv")
+    >>> loader.n_samples
+    63965
+    >>> loader.frame_rate
+    240
+
+    >>> timeline = loader.to_timeline(uid="mocap_angle")
+    >>> timeline.length
+    Coordinate(63965, samples)
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [duration_seconds](#timetoalign.RepoVizzLoader.duration_seconds) | Duration in seconds. |
+| [frame_rate](#timetoalign.RepoVizzLoader.frame_rate) | Sampling rate in Hz. |
+| [info](#timetoalign.RepoVizzLoader.info) | Return parsed RepoVizz metadata. |
+| [n_samples](#timetoalign.RepoVizzLoader.n_samples) | Number of data samples. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_file](#timetoalign.RepoVizzLoader.from_file) | Load a RepoVizz CSV file and return the loader. |
+| [to_timeline](#timetoalign.RepoVizzLoader.to_timeline) | Create a DiscretePhysicalTimeline from the loaded sensor data. |
+
+### from_file { #timetoalign.RepoVizzLoader.from_file }
+
+```python
+RepoVizzLoader.from_file(path)
+```
+
+Load a RepoVizz CSV file and return the loader.
+
+Args:
+    path: Path to the RepoVizz CSV file.
+
+Returns:
+    A RepoVizzLoader with the file already loaded.
+
+### to_timeline { #timetoalign.RepoVizzLoader.to_timeline }
+
+```python
+RepoVizzLoader.to_timeline(uid=None, name=None, attach_cmap=True)
+```
+
+Create a DiscretePhysicalTimeline from the loaded sensor data.
+
+The timeline is created with:
+- unit=TimeUnit.samples
+- length=n_samples
+- Optionally, a SamplesToSeconds C-map for coordinate conversion
+
+Args:
+    uid: Unique identifier for the timeline. If None, uses filename stem.
+    name: Human-readable name. If None, uses filename.
+    attach_cmap: If True, attach a SamplesToSeconds conversion map.
+
+Returns:
+    A DiscretePhysicalTimeline representing the sensor data.
+
+Raises:
+    RuntimeError: If no file has been loaded.

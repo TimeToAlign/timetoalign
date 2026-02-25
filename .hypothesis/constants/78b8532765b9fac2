@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\stats\mstats_extras.py
-# hypothesis_version: 6.151.2
-
-['MaskedArray', '_mstats_extras', 'beta', 'binom', 'compare_medians_ms', 'hdmedian', 'hdquantiles', 'hdquantiles_sd', 'idealfourths', 'ma', 'median_cihs', 'mjci', 'mquantiles_cimj', 'mstats', 'mstats_extras', 'norm', 'rsh', 'stats', 't', 'trimmed_mean_ci']

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\matchfile_utils.py
-# hypothesis_version: 6.151.2
-
-[0.9, 128, 1024, "'(?P<value>.+)'", '+', ',', '-', '/', 'Maj', 'Version', '\\d+', '_', 'add_components', 'attributes', 'denominator', 'fingering\\d+', 'integer', 'm', 'maj', 'major', 'min', 'minor', 'n', 'none', 'numerator', 'patch', 'tuple_div', 'v0.1.0', 'v0.3.0', 'v1.0.0', 'v\\d+', 'value', '{0}/{1}', '{0}/{1}/{2}']

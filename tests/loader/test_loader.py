@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader import EventStore
+from timetoalign.loader import EventData
 
 from .conftest import DummyLoader
 
@@ -39,8 +39,8 @@ class TestLoaderProperties:
     """Tests for Loader properties."""
 
     def test_events_property(self, dummy_loader: DummyLoader) -> None:
-        """events property returns EventStore."""
-        assert isinstance(dummy_loader.events, EventStore)
+        """events property returns EventData."""
+        assert isinstance(dummy_loader.events, EventData)
 
     def test_sources_property_empty(self, dummy_loader: DummyLoader) -> None:
         """sources property returns empty list initially."""

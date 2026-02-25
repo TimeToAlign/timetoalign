@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\mido\midifiles\midifiles.py
-# hypothesis_version: 6.151.2
-
-[b'MThd', b'MTrk', 0.0, 1000000.0, 127, 128, 240, 247, 255, 480, 500000, 1000000, ',\n', '.', '>4sL', '>L', '>hhh', 'Header:', 'Message:', 'latin1', 'length', 'rb', 'set_tempo', 'sysex', 'wb']

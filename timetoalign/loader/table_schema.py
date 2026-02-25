@@ -59,7 +59,11 @@ from timetoalign.core import NumberType, TimeUnit
 from timetoalign.timelines.base import Timeline
 
 if TYPE_CHECKING:
-    from timetoalign.alignment import MatchClaim, MatchMetadata
+    from timetoalign.alignment import (  # noqa: F401
+        AlignmentAnchor,
+        MatchClaim,
+        MatchMetadata,
+    )
 
 module_logger = logging.getLogger(__name__)
 
@@ -1127,6 +1131,12 @@ class TableSchema:
         if not self.matches:
             return []
 
+        from timetoalign.alignment import (  # noqa: F811
+            AlignmentAnchor,
+            MatchClaim,
+            MatchMetadata,
+        )
+
         matches = []
         start_col = self.coordinates.start or self.coordinates.instant
 
@@ -1180,14 +1190,28 @@ class TableSchema:
 
                 # For now, create instant matches (coordinate-based)
                 # Full event-based matches would require looking up target events
-                claim = MatchClaim.instant(
-                    timeline_a_id=source_timeline_id,
-                    coordinate_a=float(source_coord),
-                    timeline_b_id=target_id,
-                    coordinate_b=float(source_coord),  # Placeholder
-                    metadata=metadata,
-                    is_synchronous=match_spec.is_synchronous,
-                )
+                if match_spec.is_synchronous:
+                    claim = MatchClaim(
+                        timeline_a_id=source_timeline_id,
+                        timeline_b_id=target_id,
+                        start_anchor=AlignmentAnchor(
+                            timeline_a_id=source_timeline_id,
+                            coordinate_a=float(source_coord),
+                            timeline_b_id=target_id,
+                            coordinate_b=float(source_coord),  # Placeholder
+                        ),
+                        metadata=metadata,
+                        is_synchronous=True,
+                    )
+                else:
+                    claim = MatchClaim(
+                        timeline_a_id=source_timeline_id,
+                        timeline_b_id=target_id,
+                        start_anchor=None,
+                        end_anchor=None,
+                        is_synchronous=False,
+                        metadata=metadata,
+                    )
                 matches.append(claim)
 
         return matches

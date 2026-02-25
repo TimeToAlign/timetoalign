@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\git\repo\fun.py
-# hypothesis_version: 6.151.2
-
-['%s', ':', ': ', ':/', '@', 'Commit', 'GIT_OBJECT_DIRECTORY', 'GitCmdObjectDB', 'HEAD', 'Invalid token: %r', 'Reference', 'Repo', 'Tag', 'TagObject', '^', '^~:@', 'ab', 'blob', 'commit', 'commondir', 'deref_tag', 'gitdir', 'gitdir: ', 'gitfile', 'is_git_dir', 'name_to_object', 'objects', 'refs', 'refs/%s', 'refs/heads/%s', 'refs/remotes/%s', 'refs/remotes/%s/HEAD', 'refs/tags/%s', 'rev_parse', 'short_to_long', 'tag', 'to_commit', 'touch', 'tree', '{', '}', '~']

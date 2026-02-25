@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\git\tta\timetoalign\timetoalign\maps\base.py
-# hypothesis_version: 6.151.2
-
-['ChainMap', 'LinearMap', 'PiecewiseMap', 'QuartersToTicks', 'SamplesToSeconds', 'ScalarMap', 'SecondsToSamples', 'ShiftMap', 'T', 'TableMap', 'TicksToQuarters', 'id', 'map', 'source_unit', 'target_unit', 'type']

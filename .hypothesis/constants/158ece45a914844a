@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\xpath1\xpath1_parser.py
-# hypothesis_version: 6.151.2
-
-[100, '"', '""', '%s:%s', "'", "''", '(', '(decimal)', '(end)', '(float)', '(integer)', '(invalid)', '(name)', '(start)', '(string)', '(unknown)', ')', '*', '+', ',', '.', '..', '1.0', ':', '::', '?', '@', 'Q{', 'XPDY0050', 'XPST0003', 'XPST0017', 'XPST0081', 'XPath1Parser', ']', '_%s%s%s', '_%s%sProxy', 'axis', 'bases', 'class_name', 'comment', 'constructor function', 'element', 'empty-sequence', 'fn:', 'fn:%s', 'function', 'function test', 'item()', 'item()*', 'kind test', 'label', 'lbp', 'lookup_name', 'namespace', 'nargs', 'node', 'node()*', 'proxy', 'rbp', 'sequence type', 'sequence_types', 'strict=False', 'symbol_table', 'text', 'xml', 'xs', 'xs:%s', '{', '}']

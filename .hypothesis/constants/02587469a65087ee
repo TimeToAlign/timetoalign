@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\music21\stream\makeNotation.py
-# hypothesis_version: 6.151.2
-
-[0.0, 0.5, 3.0, 24.0, '3/4', '4/4', '6/1', 'C', 'C2', 'C4', 'D', 'D-2', 'D2', 'D4', 'E-2', 'E4', 'GeneralNote', 'Measure', 'Stream', 'Voice', '__main__', 'd f', 'double', 'down', 'expressions', 'final', 'half', 'm2', 'mEnd', 'mStart', 'mainScore', 'makeBeams', 'makeMeasures', 'makeRests', 'makeTies', 'makeTupletBrackets', 'measure', 'music21.note.NotRest', 'noStem', 'part0', 'quarter', 'realize', 'realizeOrnaments', 'regular', 'score1', 'score2', 'start', 'startStop', 'stop', 'tinyNotation: 4/4', 'unspecified', 'up']

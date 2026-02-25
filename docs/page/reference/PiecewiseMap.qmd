@@ -1,0 +1,63 @@
+# PiecewiseMap { #timetoalign.PiecewiseMap }
+
+```python
+PiecewiseMap(breaks, maps, source_unit=None, target_unit=None, uid=None)
+```
+
+Map defined by different maps on different intervals.
+
+Also known as ConcatenationMap.
+Defined by a set of break points and the maps to use between them.
+
+Intervals are [start, end).
+
+Attributes:
+    breaks: Sorted list of break points. N breaks define N+1 regions (or N regions).
+            Here we strictly define regions between breaks.
+            If we have breaks [0, 10, 20], we have regions [0, 10) and [10, 20).
+            Anything outside is handled by 'extrapolate' or explicit outer maps.
+    maps: Maps for each interval. len(maps) must be len(breaks) - 1.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [breaks](#timetoalign.PiecewiseMap.breaks) | The interval boundaries. |
+| [maps](#timetoalign.PiecewiseMap.maps) | The maps for each interval. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_dict](#timetoalign.PiecewiseMap.from_dict) | Deserialize from dictionary. |
+| [inverse](#timetoalign.PiecewiseMap.inverse) | Return the inverse map. |
+| [to_dict](#timetoalign.PiecewiseMap.to_dict) | Serialize to dictionary. |
+
+### from_dict { #timetoalign.PiecewiseMap.from_dict }
+
+```python
+PiecewiseMap.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+### inverse { #timetoalign.PiecewiseMap.inverse }
+
+```python
+PiecewiseMap.inverse()
+```
+
+Return the inverse map.
+
+Requires all sub-maps to be invertible and the resulting target intervals to be contiguous.
+This is non-trivial if the target intervals don't line up.
+For now, we implement the naive inversion:
+Convert breaks using forward maps to get new breaks, invert maps.
+
+### to_dict { #timetoalign.PiecewiseMap.to_dict }
+
+```python
+PiecewiseMap.to_dict()
+```
+
+Serialize to dictionary.

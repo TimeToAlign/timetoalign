@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\_lib\_testutils.py
-# hypothesis_version: 6.151.2
-
-[1.0, 1000.0, 1024.0, 1000000.0, 1000000000.0, 1000000000000.0, '-', '--cov=', '--pyargs', '--showlocals', '--tb=short', '-m', '-n', '/proc/meminfo', ':', 'G', 'Gb', 'Gib', 'HOST_GNU_TYPE', 'IS_MUSL', 'Invalid size string', 'M', 'Mb', 'Mib', 'PytestTester', 'SCIPY_AVAILABLE_MEM', 'T', 'Tb', 'Tib', '^\\s*(\\d+)\\s*({})\\s*$', '_TestPythranFunc', 'b', 'cached', 'check_free_memory', 'fast', 'full', 'k', 'kb', 'kib', 'linux', 'memavailable', 'memfree', 'musl', 'musllinux', 'not slow', 'v', 'xdist', '|']

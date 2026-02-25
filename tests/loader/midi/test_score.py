@@ -29,10 +29,6 @@ class TestScoreMidiLoader:
         # Check events have score info
         df = loader.events.to_dataframe()
         assert not df["pitch"].isnull().all()
-        # Voice/Staff may be present
-        if "voice" in df.columns:
-            # Not all notes might have voice, but some should if mode=0
-            pass
 
     def test_load_empty_raises(self, tmp_path: Path) -> None:
         """Loading invalid/empty file raises error."""

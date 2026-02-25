@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\validators\groups.py
-# hypothesis_version: 6.151.2
-
-['##any', '0', '1', '1.0', ':', 'OccursCalculator', 'XsdComplexType', 'XsdGroup', '_group', 'all', 'choice', 'content', 'elements', 'interleave', 'lax', 'maxOccurs', 'max_occurs', 'minOccurs', 'min_occurs', 'missing group %r', 'model', 'name', 'namespace', 'none', 'oid', 'processContents', 'ref', 'sequence', 'skip', 'substitution', 'unbounded', 'unexpected tag %r', '{']

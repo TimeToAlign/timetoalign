@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\xpath_tokens\functions.py
-# hypothesis_version: 6.151.2
-
-['%s has no arguments', '(', '(end)', ')', '*', '+*', ',', '<%s object at %#x>', '?', 'XPDY0050', 'XPST0003', 'XPST0017', 'XPTY0004', 'XPathFunction', '_partial_evaluate', '_partial_select', 'constructor function', 'evaluate', 'fn:%s', 'function', 'math:%s', 'partial function', 'select', 'too many arguments', 'xs:%s']

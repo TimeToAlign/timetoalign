@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\bs4\__init__.py
-# hypothesis_version: 6.151.2
-
-[b' ', b'<', b'http:', b'https:', 256, ' encoding="%s"', ',', '.htm', '.html', '.pyc', '.pyo', '.txt', '.xhtml', '.xml', '/\\', '4.12.3', '<', 'BeautifulSoup', 'HTML', 'MIT', 'XML', '[document]', '__file__', '__main__', '_most_recent_element', 'builder', 'contents', 'convertEntities', 'fast', 'features', 'fromEncoding', 'from_encoding', 'html', 'http:', 'https:', 'isHTML', 'markup', 'markupMassage', 'minimal', 'parseOnlyThese', 'parse_only', 'read', 'replace', 'selfClosingTags', 'smartQuotesTo', 'utf-8', 'utf8', 'xml']

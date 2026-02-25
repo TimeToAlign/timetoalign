@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\musicanalysis\__init__.py
-# hypothesis_version: 6.151.2
-
-['compute_note_array', 'decode_performance', 'encode_performance', 'estimate_key', 'estimate_spelling', 'estimate_time', 'estimate_voices', 'full_note_array', 'make_note_features', 'make_rest_features', 'note_array_to_score']

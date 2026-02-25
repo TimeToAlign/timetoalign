@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\matlab\_miobase.py
-# hypothesis_version: 6.151.2
-
-[b'I', 124, 'F', 'MatFileReader', 'MatReadError', 'MatReadWarning', 'MatVarReader', 'MatWriteError', 'append_arg', 'arr_dtype_number', 'arr_to_chars', 'column', 'convert_dtypes', 'do_compression', 'doc_dict', 'docfiller', 'file_arg', 'get_matfile_version', 'load_args', 'long_fields', 'matdims', 'matstream_arg', 'oned_as', 'read_dtype', 'row', 'struct_arg', 'unicode_strings']

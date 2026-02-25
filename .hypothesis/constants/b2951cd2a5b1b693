@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\optimize\lbfgsb.py
-# hypothesis_version: 6.151.2
-
-['LbfgsInvHessProduct', 'LinearOperator', 'MemoizeJac', 'OptimizeResult', '_lbfgsb_py', 'array', 'asarray', 'float64', 'fmin_l_bfgs_b', 'lbfgsb', 'old_bound_to_new', 'optimize', 'zeros']

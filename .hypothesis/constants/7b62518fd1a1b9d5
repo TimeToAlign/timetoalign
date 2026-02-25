@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pandas\tseries\frequencies.py
-# hypothesis_version: 6.151.2
-
-[1000, 1000000, 'A', 'A-', 'AS', 'B', 'BA', 'BAS', 'BH', 'BM', 'BMS', 'BQ', 'BQS', 'BY', 'BYS', 'C', 'D', 'Day', 'EOM', 'H', 'L', 'M', 'MS', 'N', 'Q', 'Q-', 'QS', 'S', 'T', 'U', 'W', 'W-', 'WEEKDAY', 'Y', 'YS', 'be', 'bs', 'ce', 'cs', 'dtype', 'get_period_alias', 'i8', 'infer_freq', 'is_subperiod', 'is_superperiod', 'm', 'mM', 'to_offset', 'tz']

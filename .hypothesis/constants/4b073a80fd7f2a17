@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\elementpath\etree.py
-# hypothesis_version: 6.151.2
-
-['.', '...', '/', '<?xml ', 'Comment', 'SafeExpatParser', 'attrib', 'defuse_xml', 'etree_deep_equal', 'etree_iter_paths', 'etree_iter_strings', 'etree_tostring', 'getparent', 'getroot', 'is_etree_document', 'is_etree_element', 'iter', 'lxml.etree', 'lxml.html', 'ns\\d+$', 'nsmap', 'parse', 'tag', 'text', 'unicode', 'utf-8', 'xml', 'xpath', 'xslt', '{']

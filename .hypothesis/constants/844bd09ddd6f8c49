@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\optimize\minpack.py
-# hypothesis_version: 6.151.2
-
-['LEASTSQ_FAILURE', 'LEASTSQ_SUCCESS', 'LinAlgError', 'OptimizeResult', 'OptimizeWarning', '_minpack_py', 'asarray', 'atleast_1d', 'check_gradient', 'cholesky', 'curve_fit', 'dot', 'dtype', 'error', 'eye', 'finfo', 'fixed_point', 'fsolve', 'greater', 'inexact', 'inf', 'inv', 'issubdtype', 'least_squares', 'leastsq', 'minpack', 'optimize', 'prepare_bounds', 'prod', 'shape', 'solve_triangular', 'svd', 'take', 'transpose', 'triu', 'zeros']

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\io\matlab\mio5_utils.py
-# hypothesis_version: 6.151.2
-
-['VarHeader5', 'VarReader5', '_mio5_utils', 'byteswap_u4', 'chars_to_strings', 'csc_matrix', 'io.matlab', 'mio5_utils', 'mio5p', 'pycopy', 'squeeze_element', 'swapped_code']

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\convert.py
-# hypothesis_version: 6.151.2
-
-['adj', 'format', 'from_dict_of_dicts', 'from_dict_of_lists', 'from_edgelist', 'is_strict', 'to_dict_of_dicts', 'to_dict_of_lists', 'to_edgelist', 'to_networkx_graph']

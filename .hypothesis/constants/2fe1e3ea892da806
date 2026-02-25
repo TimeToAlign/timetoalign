@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\validators\elements.py
-# hypothesis_version: 6.151.2
-
-['#all', '%r is abstract', '%s(%s=%r, occurs=%r)', '%s(type=%r, test=%r)', '.', '..', '/', '0', '1', '1.0', '1.1', 'XsdAlternative', 'XsdAttributeGroup', 'XsdElement', 'XsdGroup', '_', '_dummy_element', 'abstract', 'attributes', 'block', 'choice', 'content', 'default', 'extension', 'false', 'false()', 'final', 'fixed', 'form', 'full', 'global', 'identities', 'local', 'maxOccurs', 'max_occurs', 'minOccurs', 'min_occurs', 'name', 'nillable', 'none', 'path', 'qualified', 'ref', 'restriction', 'selected_by', 'skip', 'substitution', 'substitutionGroup', 'targetNamespace', 'test', 'token', 'true', 'type', 'unknown element %r', 'unknown type {!r}', 'xsd_element', 'xsi_types', '{', '{}Binding', '}']

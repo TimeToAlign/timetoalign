@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\mido\messages\messages.py
-# hypothesis_version: 6.151.2
-
-['#', ', ', '\\s', 'control_change', 'data', 'length', 'message is immutable', 'sysex', 'time', 'type', 'value_names', '{}({})']

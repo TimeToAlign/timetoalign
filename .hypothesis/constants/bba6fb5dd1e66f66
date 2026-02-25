@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\packaging\_parser.py
-# hypothesis_version: 6.151.2
-
-["'in' after 'not'", '.', 'AT', 'BOOLOP', 'COMMA', 'END', 'IDENTIFIER', 'IN', 'LEFT_BRACKET', 'LEFT_PARENTHESIS', 'MarkerAtom', 'MarkerList', 'NOT', 'OP', 'QUOTED_STRING', 'RIGHT_BRACKET', 'RIGHT_PARENTHESIS', 'SEMICOLON', 'SPECIFIER', 'URL', 'URL after @', 'URL and whitespace', 'VARIABLE', 'VERSION_PREFIX_TRAIL', 'WS', '_', 'extras', 'in', 'marker expression', 'not in', 'version specifier', 'whitespace after URL']

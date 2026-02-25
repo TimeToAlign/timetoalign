@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\signal\bsplines.py
-# hypothesis_version: 6.151.2
-
-['_bsplines', 'add', 'arange', 'arctan2', 'array', 'bspline', 'bsplines', 'comb', 'cspline1d', 'cspline1d_eval', 'cspline2d', 'cubic', 'exp', 'float_factorial', 'floor', 'gauss_spline', 'greater', 'greater_equal', 'less', 'less_equal', 'logical_and', 'piecewise', 'qspline1d', 'qspline1d_eval', 'quadratic', 'sepfir2d', 'signal', 'spline_filter', 'tan', 'zeros_like']

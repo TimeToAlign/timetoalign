@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\validators\complex_types.py
-# hypothesis_version: 6.151.2
-
-['%s(id=%r)', '%s(name=%r)', '0', '1', '1.0', '1.1', 'XsdComplexType', 'abstract', 'all', 'attributes', 'base', 'block', 'content', 'decoder', 'element-only', 'empty', 'empty-sequence()', 'extension', 'extra_validator', 'false', 'final', 'item()', 'max_depth', 'missing base type %r', 'mixed', 'name', 'nameless_%s', 'namespaces', 'none', 'obj', 'restriction', 'schemaLocation', 'sequence', 'simple', 'skip', 'true', 'unbounded', 'unexpected tag %r', 'unqualified', 'use_defaults', 'utf-8', 'validation_hook', 'xs:untypedAtomic', '}']

@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\music21\search\base.py
-# hypothesis_version: 6.151.2
-
-[4.0, 127, 256, 'SearchException', 'SearchMatch', 'StreamIterator', 'StreamSearcher', 'Wildcard', 'WildcardDuration', 'Z', '__main__', 'c', 'continue', 'e', 'elStart', 'els', 'index', 'iterator', 'measures', 'name', 'noteNameSearch', 'number', 'rhythm', 'rhythmString', 'rhythmicSearch', 's', 'start', 'stop', 'streamSearchBase', 'translateNoteToByte']

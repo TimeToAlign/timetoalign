@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\xmlschema\validators\exceptions.py
-# hypothesis_version: 6.151.2
-
-[200, ' Tag %r expected.', ' Tag %s expected.', ' Tag (%s) expected.', ' | ', '%s(reason=%r)', '%s:\n', '.:', 'Origin URL: %s\n', 'Path: %s\n', 'Reason: %s\n', 'Schema URL: %s\n', 'XsdAnyElement', 'XsdGroup', 'XsdValidator', 'ascii', 'elem', 'from ', 'indent', 'max_lines', 'namespaces', 'process_contents', 'root', 'source', 'sourceline', 'strict', 'tostring', 'url', 'utf-8', 'xmlcharrefreplace']

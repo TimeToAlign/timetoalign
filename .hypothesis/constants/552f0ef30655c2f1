@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\signal\fir_filter_design.py
-# hypothesis_version: 6.151.2
-
-['LinAlgError', 'LinAlgWarning', '_fir_filter_design', 'ceil', 'fft', 'fir_filter_design', 'firls', 'firwin', 'firwin2', 'hankel', 'ifft', 'irfft', 'kaiser_atten', 'kaiser_beta', 'kaiserord', 'log', 'lstsq', 'minimum_phase', 'remez', 'signal', 'sinc', 'solve', 'toeplitz']

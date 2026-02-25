@@ -1,0 +1,150 @@
+# AudioLoader { #timetoalign.AudioLoader }
+
+```python
+AudioLoader()
+```
+
+Load audio file metadata for creating physical timelines.
+
+AudioLoader extracts metadata from audio files without loading the actual
+sample data. This is efficient for creating DiscretePhysicalTimelines
+that represent audio files in the TimeToAlign! framework.
+
+The loader automatically:
+- Detects the best available backend (soundfile > mutagen > wave)
+- Extracts sample count, sample rate, channels, and format info
+- Provides methods to create timelines with appropriate C-maps
+
+Supported formats depend on installed backends:
+- soundfile: WAV, FLAC, OGG, AIFF, and many more (via libsndfile)
+- mutagen: MP3, M4A, FLAC, OGG (metadata only, may not have exact sample count)
+- wave (builtin): WAV only
+
+Examples:
+    >>> loader = AudioLoader()
+    >>> loader.load("recording.wav")
+    >>> loader.n_samples
+    7938048
+    >>> loader.sample_rate
+    44100
+    >>> loader.duration_seconds
+    180.0
+
+    >>> # Create a timeline
+    >>> timeline = loader.to_timeline(uid="my_audio")
+    >>> timeline.unit
+    <TimeUnit.samples: 'samples'>
+    >>> timeline.length
+    Coordinate(7938048, samples)
+
+    >>> # The timeline has a SamplesToSeconds C-map attached
+    >>> timeline.convert(44100, target_unit="seconds")
+    1.0
+
+Attributes:
+    audio_info: Parsed audio metadata (after loading).
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [audio_info](#timetoalign.AudioLoader.audio_info) | Return parsed audio metadata. |
+| [channels](#timetoalign.AudioLoader.channels) | Number of audio channels. |
+| [duration_seconds](#timetoalign.AudioLoader.duration_seconds) | Duration in seconds. |
+| [format](#timetoalign.AudioLoader.format) | Audio format (e.g., 'WAV', 'FLAC', 'MP3'). |
+| [n_samples](#timetoalign.AudioLoader.n_samples) | Total number of samples (frames) in the audio file. |
+| [sample_rate](#timetoalign.AudioLoader.sample_rate) | Sample rate in Hz. |
+| [source_path](#timetoalign.AudioLoader.source_path) | Path to the loaded audio file. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [create_samples_to_seconds_map](#timetoalign.AudioLoader.create_samples_to_seconds_map) | Create a SamplesToSeconds conversion map for this audio. |
+| [from_file](#timetoalign.AudioLoader.from_file) | Load an audio file and return the loader (convenience constructor). |
+| [load](#timetoalign.AudioLoader.load) | Load audio file metadata. |
+| [to_timeline](#timetoalign.AudioLoader.to_timeline) | Create a DiscretePhysicalTimeline from the loaded audio. |
+
+### create_samples_to_seconds_map { #timetoalign.AudioLoader.create_samples_to_seconds_map }
+
+```python
+AudioLoader.create_samples_to_seconds_map()
+```
+
+Create a SamplesToSeconds conversion map for this audio.
+
+Returns:
+    A SamplesToSeconds C-map configured with this audio's sample rate.
+
+Raises:
+    RuntimeError: If no audio file has been loaded.
+
+### from_file { #timetoalign.AudioLoader.from_file }
+
+```python
+AudioLoader.from_file(path)
+```
+
+Load an audio file and return the loader (convenience constructor).
+
+Args:
+    path: Path to the audio file.
+
+Returns:
+    An AudioLoader with the file already loaded.
+
+Examples:
+    >>> loader = AudioLoader.from_file("song.wav")
+    >>> print(loader.duration_seconds)
+
+### load { #timetoalign.AudioLoader.load }
+
+```python
+AudioLoader.load(path)
+```
+
+Load audio file metadata.
+
+Args:
+    path: Path to the audio file.
+
+Returns:
+    Self, for method chaining.
+
+Raises:
+    FileNotFoundError: If the file doesn't exist.
+    ValueError: If the file format is not supported or cannot be read.
+
+### to_timeline { #timetoalign.AudioLoader.to_timeline }
+
+```python
+AudioLoader.to_timeline(uid=None, name=None, attach_cmap=True)
+```
+
+Create a DiscretePhysicalTimeline from the loaded audio.
+
+The timeline is created with:
+- unit=TimeUnit.samples
+- length=n_samples
+- Optionally, a SamplesToSeconds C-map for coordinate conversion
+
+Args:
+    uid: Unique identifier for the timeline. If None, uses filename.
+    name: Human-readable name. If None, uses filename.
+    attach_cmap: If True, attach a SamplesToSeconds conversion map.
+
+Returns:
+    A DiscretePhysicalTimeline representing the audio file.
+
+Raises:
+    RuntimeError: If no audio file has been loaded.
+
+Examples:
+    >>> loader = AudioLoader().load("song.wav")
+    >>> timeline = loader.to_timeline()
+    >>> timeline.unit
+    <TimeUnit.samples: 'samples'>
+
+    >>> # Convert sample coordinates to seconds
+    >>> timeline.convert(44100, target_unit="seconds")
+    1.0

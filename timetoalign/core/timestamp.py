@@ -160,6 +160,10 @@ class TimeStamp:
         child whose parent-side interval is ``[10, 30)`` for the
         coordinate at axis 5.
 
+        For `Timeline` sources, child coordinates are resolved via exact
+        offset arithmetic (no interpolation). For `TimelineGroup` sources,
+        coordinates are resolved via `InterpolationMap`.
+
         Args:
             timeline_id: The timeline to get coordinate for.
             default: Value to return if timeline not reachable or out of span.
@@ -175,6 +179,17 @@ class TimeStamp:
         if not self.source._contains_coordinate(timeline_id, self.axis):
             return default
 
+        # Strategy 1: exact offset arithmetic (Timeline with children)
+        _get_child = getattr(self.source, "_get_child_coordinate", None)
+        if _get_child is not None:
+            result = _get_child(timeline_id, self.axis)
+            if result is not None:
+                return result
+            # If child coordinate returned None but _contains_coordinate
+            # said True, fall through to interpolation (should not happen
+            # for Timeline, but is safe).
+
+        # Strategy 2: InterpolationMap (TimelineGroup or fallback)
         imap = self.source._get_interpolation_map(timeline_id, source_id=self.source_id)
         if imap is None:
             return default

@@ -1,0 +1,39 @@
+# AudioInfo { #timetoalign.AudioInfo }
+
+```python
+AudioInfo(
+    n_samples,
+    sample_rate,
+    channels,
+    duration_seconds,
+    format,
+    subtype=None,
+    bits_per_sample=None,
+    source_path=None,
+    extra=dict(),
+)
+```
+
+Metadata for an audio file.
+
+This dataclass holds all relevant information about an audio file
+that is needed to create a DiscretePhysicalTimeline.
+
+Attributes:
+    n_samples: Total number of samples in the file (frames).
+    sample_rate: Sample rate in Hz (e.g., 44100, 48000).
+    channels: Number of audio channels (1=mono, 2=stereo).
+    duration_seconds: Duration in seconds (computed from n_samples/sample_rate).
+    format: Audio format/codec (e.g., "WAV", "FLAC", "MP3").
+    subtype: Audio subtype/encoding (e.g., "PCM_16", "PCM_24", "VORBIS").
+    bits_per_sample: Bit depth (e.g., 16, 24, 32). May be None for lossy formats.
+    source_path: Path to the source file.
+    extra: Additional format-specific metadata.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [is_mono](#timetoalign.AudioInfo.is_mono) | Whether the audio is mono (single channel). |
+| [is_stereo](#timetoalign.AudioInfo.is_stereo) | Whether the audio is stereo (two channels). |
+| [length_in_samples](#timetoalign.AudioInfo.length_in_samples) | Alias for n_samples, matching timeline terminology. |

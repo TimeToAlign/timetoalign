@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\lark\lark.py
-# hypothesis_version: 6.151.2
-
-[b'\n', '*', '<deserialized>', '<string>', 'Rule', 'TerminalDef', 'Unknown options: %s', 'ambiguity', 'auto', 'cache', 'contextual', 'cyk', 'data', 'debug', 'dynamic', 'dynamic_complete', 'earley', 'edit_terminals', 'explicit', 'force', 'forest', 'g_regex_flags', 'import_paths', 'invert', 'keep_all_tokens', 'lalr', 'lexer', 'lexer_callbacks', 'lexer_conf', 'maybe_placeholders', 'memo', 'normal', 'options', 'parser', 'postlex', 'priority', 'propagate_positions', 'rb', 'regex', 'resolve', 'rules', 'source_path', 'standard', 'start', 'transformer', 'tree_class', 'use_bytes', 'utf8', 'wb']

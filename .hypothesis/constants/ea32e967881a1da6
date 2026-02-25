@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\partitura\io\importmidi.py
-# hypothesis_version: 6.151.2
-
-[120, 128, 'P{}', 'Track {}', '__main__', 'add notes', 'appoggiatura', 'ch={}', 'channel', 'control_change', 'create_part', 'done create_part', 'duration_div', 'ensure_list', 'filename', 'find tuplets', 'id', 'key estimation', 'key_signature', 'load_score_midi', 'midi_pitch', 'midi_to_notearray', 'note_off', 'note_off_tick', 'note_on', 'note_on_tick', 'n{}', 'onset_div', 'pitch', 'pitch spelling', 'program_change', 'q', 'quarter', 'set_tempo', 'tie notes', 'time', 'time_signature', 'time_tick', 'track', 'voice estimation', '{}', '{} ch={}']

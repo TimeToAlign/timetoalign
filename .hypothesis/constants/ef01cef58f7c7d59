@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\_lib\_docscrape.py
-# hypothesis_version: 6.151.2
-
-['   :{}: {}', ' : ', '(', '(?P<allfuncs>', '(?P<trailing>[,\\.])?', ')', ')*)', '*', ',', ', ', '-', '.', '..', '.. index::', '.. index:: %s', '.. {}:: {}\n    \n\n', ':', ':(?P<role>\\w+):', '::', '=', 'Attributes', 'Examples', 'Extended Summary', 'Methods', 'Notes', 'Other Parameters', 'Parameter', 'Parameters', 'Raises', 'Receives', 'References', 'Returns', 'See Also', 'Signature', 'Summary', 'Unknown section %s', 'Warnings', 'Warns', 'Yields', '\\*', '\\s*', '^\\s*', '_', '__call__', '__name__', '_obj', '`%s`_', 'allfuncs', 'default', 'desc', 'docstring', 'exclude-members', 'func', 'function', 'index', 'members', 'meth', 'method', 'name', 'name2', 'namenext', 'role', 'rolenext', 'show_class_members', 'sphinx', 'trailing', 'type', '|']

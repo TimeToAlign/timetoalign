@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\mido\__init__.py
-# hypothesis_version: 6.151.2
-
-['KeySignatureError', 'MAX_PITCHWHEEL', 'MAX_SONGPOS', 'MIN_PITCHWHEEL', 'MIN_SONGPOS', 'Message', 'MetaMessage', 'MidiFile', 'MidiTrack', 'Parser', 'UnknownMetaMessage', '_', 'backend', 'bpm2tempo', 'format_as_string', 'get', 'merge_tracks', 'open', 'parse', 'parse_all', 'parse_string', 'parse_string_stream', 'ports', 'read_syx_file', 'second2tick', 'sockets', 'tempo2bpm', 'tick2second', 'version_info', 'write_syx_file']

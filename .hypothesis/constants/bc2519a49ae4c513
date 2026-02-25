@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\networkx\algorithms\connectivity\cuts.py
-# hypothesis_version: 6.151.2
-
-['G', 'auxiliary', 'auxiliary?', 'capacity', 'flow_func', 'id', 'inf', 'mapping', 'minimum_edge_cut', 'minimum_node_cut', 'minimum_st_edge_cut', 'minimum_st_node_cut', 'residual']

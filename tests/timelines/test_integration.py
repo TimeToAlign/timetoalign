@@ -49,6 +49,7 @@ except ImportError:
 TEST_DATA_DIR = Path(__file__).parent.parent / "data"
 MIDI_PERFORMANCE_DIR = TEST_DATA_DIR / "midi" / "performance"
 MIDI_SCORE_DIR = TEST_DATA_DIR / "midi" / "score"
+VIENNA_DIR = TEST_DATA_DIR / "vienna_1x22"
 
 # endregion
 
@@ -172,7 +173,7 @@ class TestMidiLoaderIntegration:
     @pytest.fixture
     def performance_midi_path(self) -> Path:
         """Path to a MIDI performance file."""
-        path = MIDI_PERFORMANCE_DIR / "chopin_p01.mid"
+        path = VIENNA_DIR / "Chopin_op10_no3_p01.mid"
         if not path.exists():
             pytest.skip(f"Test data not found: {path}")
         return path

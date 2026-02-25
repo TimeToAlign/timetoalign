@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\signal\_ltisys.py
-# hypothesis_version: 6.151.2
-
-[0.0, 0.001, 1.0, 10.0, 20.0, 100.0, 180.0, 100, 101, 10000, 'A must be square', 'KNV0', 'StateSpace', 'TransferFunction', 'Unknown system type', 'YT', 'ZerosPolesGain', 'bode', 'dbode', 'dfreqresp', 'dimpulse', 'dlsim', 'dlti', 'dstep', 'dt', 'freqresp', 'full', 'ignore', 'impulse', 'impulse2', 'in YT_real', 'linear', 'lsim', 'lsim2', 'lti', 'place_poles', 'step', 'step2', 'zoh', '{}(\n{},\n{},\ndt: {}\n)']

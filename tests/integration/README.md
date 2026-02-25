@@ -18,8 +18,8 @@ loading MusicXML/MIDI files through EventStores to Timeline creation.
 
 | Metric | Exact Count | Source File |
 |--------|-------------|-------------|
-| Notes | **498** | `tests/data/midi/score/ms3/chopin_op10_no3.notes.tsv` (499 lines - 1 header) |
-| Measures | **22** | `tests/data/midi/score/ms3/chopin_op10_no3.measures.tsv` (23 lines - 1 header) |
+| Notes | **498** | `tests/data/vienna_1x22/ms3/chopin_op10_no3.notes.tsv` (499 lines - 1 header) |
+| Measures | **22** | `tests/data/vienna_1x22/ms3/chopin_op10_no3.measures.tsv` (23 lines - 1 header) |
 
 These counts are derived from human-verified MuseScore annotations and serve as
 the authoritative reference for all loader implementations.
@@ -85,7 +85,7 @@ loader they use. Any difference in core data indicates a bug.
 
 | File | Type | Source | Purpose |
 |------|------|--------|---------|
-| `chopin_op10_no3.musicxml` | MusicXML | Vienna 4x22 | Primary validation |
+| `vienna_1x22/Chopin_op10_no3.musicxml` | MusicXML | Vienna 4x22 | Primary validation |
 | `beethoven_op18.mid` | Score MIDI | OMR Groundtruth | MIDI loader testing |
 | `supra_raw.mid` | Performance MIDI | Supra Rolls | Performance MIDI testing |
 

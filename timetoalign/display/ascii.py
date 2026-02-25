@@ -122,7 +122,10 @@ class Diagram:
 # Domain: graphical, physical, logical
 TIMELINE_CHARS: dict[tuple[str, str], str] = {
     ("float", "graphical"): "=",
-    ("int", "graphical"): ":",
+    (
+        "int",
+        "graphical",
+    ): "\u2236",  # U+2236 RATIO (visually identical to colon, avoids Quarto fenced-div parsing)
     ("float", "physical"): "~",
     ("int", "physical"): "\u22c5",  # U+22C5 middle dot
     ("float", "logical"): "_",
@@ -136,7 +139,10 @@ TIMELINE_CHARS: dict[tuple[str, str], str] = {
 # ASCII fallback for environments without Unicode
 TIMELINE_CHARS_ASCII: dict[tuple[str, str], str] = {
     ("float", "graphical"): "=",
-    ("int", "graphical"): ":",
+    (
+        "int",
+        "graphical",
+    ): "\u2236",  # U+2236 RATIO (same as Unicode; avoids Quarto fenced-div parsing)
     ("float", "physical"): "~",
     ("int", "physical"): ".",  # fallback for middle dot
     ("float", "logical"): "_",
@@ -565,9 +571,9 @@ def timeline_diagram(
     Examples:
         >>> print(timeline_diagram(my_timeline))
         DiscreteGraphicalTimeline[dgt1:1] (11 events, 5 children)
-        0 :::::::::::::::::::::::::::::::::::::::::::::: 4835 pixels
-          ├─ system_1     0   :::::::                        967
-          ├─ system_2   967          ::::::::               1934
+        0 ∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶ 4835 pixels
+          ├─ system_1     0   ∶∶∶∶∶∶∶                        967
+          ├─ system_2   967          ∶∶∶∶∶∶∶∶               1934
           └─ ...
     """
     # chars = TIMELINE_CHARS if unicode else TIMELINE_CHARS_ASCII
@@ -770,8 +776,8 @@ def group_diagram(
         TimelineGroup[my_group] (2 timelines, 2 timestamps)
         ┌────────────────────────────────────────────────────────────┐
         │ DiscreteGraphicalTimeline[dgt1:1] (11 events, 5 children)  │
-        │ 0 ::::::::::::::::::::::::::::::::::::::::: 4835 pixels    │
-        │   ├─ system_1     0   :::::::                    967       │
+        │ 0 ∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶ 4835 pixels    │
+        │   ├─ system_1     0   ∶∶∶∶∶∶∶                    967       │
         │   └─ ...                                                   │
         │                                                            │
         │ ContinuousPhysicalTimeline[audio:1] (0 events)             │
@@ -868,7 +874,7 @@ def bundle_diagram(
           TimelineGroup[dgt1_group] (2 timelines, 2 timestamps)
           ┌──────────────────────────────────────────────────────┐
           │ DiscreteGraphicalTimeline[dgt1:1] (11 events)        │
-          │ 0 ::::::::::::::::::::::::::::::::::: 4835 pixels    │
+          │ 0 ∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶ 4835 pixels    │
           └──────────────────────────────────────────────────────┘
           Timestamps: 2
 

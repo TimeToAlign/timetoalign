@@ -1,4 +1,0 @@
-# file: C:\Users\hentschel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\scipy\optimize\_zeros_py.py
-# hypothesis_version: 6.151.2
-
-[0.0, 2e-12, 1.48e-08, 0.0001, 0.33, 0.5, 1.0, 2.0, 100, 1000, 'Derivative was zero.', 'Invalid x value: %s ', 'No error', 'RootResults', '_order_keys', 'a is not finite %s', 'all', 'b is not finite %s', 'bisect', 'brenth', 'brentq', 'converged', 'convergence error', 'df', 'error', 'f', 'f1', 'f2', 'f_last', 'fl', 'fmin', 'fr', 'fun', 'halley', 'k too small (%s < 1)', 'newton', 'nfev', 'nit', 'result', 'ridder', 'root', 'secant', 'sign error', 'some', 'status', 'success', 'toms748', 'value error', 'x', 'x1', 'x2', 'x_last', 'xl', 'xmin', 'xr', 'zero_der']

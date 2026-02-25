@@ -1,0 +1,212 @@
+# MatchClaim { #timetoalign.MatchClaim }
+
+```python
+MatchClaim(
+    start_anchor,
+    end_anchor=None,
+    is_explicit=True,
+    is_synchronous=True,
+    metadata=None,
+    id='',
+)
+```
+
+A claim that two events are matched.
+
+A MatchClaim represents a match between two events, consisting of:
+- 1 AlignmentAnchor for instant events (single time point)
+- 2 AlignmentAnchors for interval events (start and end)
+
+The MatchClaim is the fundamental unit for building MatchGraphs and
+ultimately creating alignment relationships between timelines.
+
+Attributes:
+    start_anchor: AlignmentAnchor for event starts.
+    end_anchor: AlignmentAnchor for event ends (None for instant matches).
+    is_explicit: True if directly claimed, False if inferred.
+    is_synchronous: True if temporally synchronous matches.
+    metadata: Provenance information (agent, criteria, certainty).
+    id: Unique identifier for this claim.
+
+Examples:
+    >>> # Instant match (single anchor)
+    >>> claim = MatchClaim(
+    ...     start_anchor=AlignmentAnchor(
+    ...         timeline_a_id="score:1",
+    ...         coordinate_a=0.0,
+    ...         timeline_b_id="recording:1",
+    ...         coordinate_b=0.0,
+    ...     ),
+    ...     metadata=MatchMetadata(
+    ...         agent="manual",
+    ...         decision_criteria="beat_alignment",
+    ...     ),
+    ... )
+    >>> claim.is_interval
+    False
+
+    >>> # Interval match (two anchors: start and end)
+    >>> claim = MatchClaim(
+    ...     start_anchor=AlignmentAnchor(
+    ...         timeline_a_id="dgt1",
+    ...         coordinate_a=0.0,
+    ...         timeline_b_id="dgt2",
+    ...         coordinate_b=0.0,
+    ...     ),
+    ...     end_anchor=AlignmentAnchor(
+    ...         timeline_a_id="dgt1",
+    ...         coordinate_a=975.0,
+    ...         timeline_b_id="dgt2",
+    ...         coordinate_b=866.0,
+    ...     ),
+    ...     metadata=MatchMetadata(
+    ...         agent="analyst",
+    ...         decision_criteria="segment_correspondence",
+    ...     ),
+    ... )
+    >>> claim.is_interval
+    True
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [anchors](#timetoalign.MatchClaim.anchors) | Get all anchors in this claim (1 or 2). |
+| [is_interval](#timetoalign.MatchClaim.is_interval) | Whether this is an interval match (has end anchor). |
+| [timeline_a_id](#timetoalign.MatchClaim.timeline_a_id) | ID of the first timeline in this match. |
+| [timeline_b_id](#timetoalign.MatchClaim.timeline_b_id) | ID of the second timeline in this match. |
+| [timelines](#timetoalign.MatchClaim.timelines) | Return tuple of timeline IDs. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [connects](#timetoalign.MatchClaim.connects) | Check if this claim connects to a specific timeline. |
+| [connects_both](#timetoalign.MatchClaim.connects_both) | Check if this claim connects two specific timelines. |
+| [from_dict](#timetoalign.MatchClaim.from_dict) | Deserialize from dictionary. |
+| [get_coordinates_for](#timetoalign.MatchClaim.get_coordinates_for) | Get start and end coordinates for a specific timeline. |
+| [instant](#timetoalign.MatchClaim.instant) | Create an instant match (single anchor). |
+| [interval](#timetoalign.MatchClaim.interval) | Create an interval match (two anchors). |
+| [to_dict](#timetoalign.MatchClaim.to_dict) | Serialize to dictionary for storage. |
+
+### connects { #timetoalign.MatchClaim.connects }
+
+```python
+MatchClaim.connects(timeline_id)
+```
+
+Check if this claim connects to a specific timeline.
+
+Args:
+    timeline_id: The timeline to check.
+
+Returns:
+    True if the claim involves this timeline.
+
+### connects_both { #timetoalign.MatchClaim.connects_both }
+
+```python
+MatchClaim.connects_both(timeline_a_id, timeline_b_id)
+```
+
+Check if this claim connects two specific timelines.
+
+Args:
+    timeline_a_id: First timeline.
+    timeline_b_id: Second timeline.
+
+Returns:
+    True if the claim connects exactly these two timelines.
+
+### from_dict { #timetoalign.MatchClaim.from_dict }
+
+```python
+MatchClaim.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+### get_coordinates_for { #timetoalign.MatchClaim.get_coordinates_for }
+
+```python
+MatchClaim.get_coordinates_for(timeline_id)
+```
+
+Get start and end coordinates for a specific timeline.
+
+Args:
+    timeline_id: The timeline to get coordinates for.
+
+Returns:
+    Tuple of (start_coord, end_coord). end_coord is None for instants.
+
+Raises:
+    ValueError: If timeline is not in this claim.
+
+### instant { #timetoalign.MatchClaim.instant }
+
+```python
+MatchClaim.instant(
+    timeline_a_id,
+    coordinate_a,
+    timeline_b_id,
+    coordinate_b,
+    metadata=None,
+    is_synchronous=True,
+)
+```
+
+Create an instant match (single anchor).
+
+Convenience constructor for instant (non-interval) matches.
+
+Args:
+    timeline_a_id: First timeline's ID.
+    coordinate_a: Coordinate in first timeline.
+    timeline_b_id: Second timeline's ID.
+    coordinate_b: Coordinate in second timeline.
+    metadata: Optional provenance information.
+    is_synchronous: Whether match is temporally synchronous.
+
+Returns:
+    A new MatchClaim with a single anchor.
+
+### interval { #timetoalign.MatchClaim.interval }
+
+```python
+MatchClaim.interval(
+    timeline_a_id,
+    start_a,
+    end_a,
+    timeline_b_id,
+    start_b,
+    end_b,
+    metadata=None,
+    is_synchronous=True,
+)
+```
+
+Create an interval match (two anchors).
+
+Convenience constructor for interval matches.
+
+Args:
+    timeline_a_id: First timeline's ID.
+    start_a: Start coordinate in first timeline.
+    end_a: End coordinate in first timeline.
+    timeline_b_id: Second timeline's ID.
+    start_b: Start coordinate in second timeline.
+    end_b: End coordinate in second timeline.
+    metadata: Optional provenance information.
+    is_synchronous: Whether match is temporally synchronous.
+
+Returns:
+    A new MatchClaim with start and end anchors.
+
+### to_dict { #timetoalign.MatchClaim.to_dict }
+
+```python
+MatchClaim.to_dict()
+```
+
+Serialize to dictionary for storage.
