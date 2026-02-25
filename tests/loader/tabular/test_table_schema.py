@@ -74,20 +74,6 @@ def partitioned_df() -> pd.DataFrame:
 
 
 @pytest.fixture
-def hierarchical_df() -> pd.DataFrame:
-    """DataFrame with measure/beat hierarchy."""
-    return pd.DataFrame(
-        {
-            "id": ["n1", "n2", "n3", "n4", "n5", "n6"],
-            "onset": [0.0, 0.5, 1.0, 1.5, 2.0, 2.5],
-            "measure": [1, 1, 1, 1, 2, 2],
-            "beat": [1, 2, 3, 4, 1, 2],
-            "pitch": [60, 62, 64, 65, 67, 69],
-        }
-    )
-
-
-@pytest.fixture
 def region_df() -> pd.DataFrame:
     """DataFrame with region column."""
     return pd.DataFrame(
@@ -96,19 +82,6 @@ def region_df() -> pd.DataFrame:
             "onset": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
             "offset": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
             "section": ["Intro", "Intro", "Verse", "Verse", "Chorus", "Chorus"],
-        }
-    )
-
-
-@pytest.fixture
-def match_df() -> pd.DataFrame:
-    """DataFrame with match column referencing external events."""
-    return pd.DataFrame(
-        {
-            "id": ["p1", "p2", "p3"],
-            "onset_sec": [0.0, 1.0, 2.0],
-            "offset_sec": [0.8, 1.8, 2.8],
-            "matched_score_id": ["s1", "s2", "s3"],  # References to score events
         }
     )
 

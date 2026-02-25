@@ -94,24 +94,6 @@ EVENT_H_GROUND_TRUTH_END_SEC = (
 AUDIO_DURATION_SECONDS = 150.0
 
 
-# === Derived: Expected H' in DGT1 ===
-# Proportional transfer from DGT2 segment 2 to DGT1 segment 2
-# Ratio in DGT2: 378/867 and 517/867
-# Apply to DGT1 segment 2 (length 967)
-_dgt2_seg_len = DGT2_SEGMENT_LENGTHS[EVENT_H_SEGMENT_INDEX]  # 867
-_dgt1_seg_len = DGT1_SEGMENT_LENGTHS[EVENT_H_SEGMENT_INDEX]  # 967
-_dgt1_seg_offset = sum(DGT1_SEGMENT_LENGTHS[:EVENT_H_SEGMENT_INDEX])  # 967 (segment 1)
-
-EXPECTED_H_PRIME_START = (
-    _dgt1_seg_offset + (EVENT_H_START_IN_SEGMENT / _dgt2_seg_len) * _dgt1_seg_len
-)
-EXPECTED_H_PRIME_END = (
-    _dgt1_seg_offset + (EVENT_H_END_IN_SEGMENT / _dgt2_seg_len) * _dgt1_seg_len
-)
-# H' start: 967 + (378/867)*967 = 967 + 421.6 = 1388.6
-# H' end:   967 + (517/867)*967 = 967 + 576.6 = 1543.6
-
-
 # endregion
 
 
@@ -358,52 +340,6 @@ class TestThoresenSegmentClaims:
             assert claim.metadata is not None
             assert claim.metadata.agent == "thoresen_analysis"
             assert claim.metadata.decision_criteria == "segment_correspondence"
-
-
-# endregion
-
-
-# region Event H Transfer Tests (Require Week 2-3 Implementation)
-
-
-class TestEventHTransfer:
-    """Test transferring Event H from DGT2 to DGT1.
-
-    These tests are SKIPPED until MatchGraph/MatchLine/WarpMap are implemented.
-    """
-
-    @pytest.mark.skip(reason="Requires MatchLine/WarpMap (Week 2-3)")
-    def test_event_h_transfer_proportional(
-        self,
-        segment_claims: list[MatchClaim],
-    ) -> None:
-        """Event H transfers with correct proportional position.
-
-        Event H is at position [378, 517] within segment 2 of DGT2.
-        Segment 2 of DGT2 has length 867 pixels.
-        Segment 2 of DGT1 has length 975 pixels.
-
-        Proportional transfer:
-        - H start: 378/867 = 0.436 through segment
-        - H' start: 0.436 * 975 = 425.1 pixels into DGT1 segment 2
-        - DGT1 segment 2 starts at pixel 975
-        - H' start absolute: 975 + 425.1 = 1400.1 pixels
-        """
-        # This will use:
-        # bundle.build_match_line("dgt2", "dgt1")
-        # warp = match_line.create_warp_map("dgt2", "dgt1")
-        # h_prime_start = warp(event_h_global_start)
-        pass
-
-    @pytest.mark.skip(reason="Requires MatchLine/WarpMap (Week 2-3)")
-    def test_event_h_in_correct_segment(
-        self,
-        segment_claims: list[MatchClaim],
-    ) -> None:
-        """Transferred event H' lands in segment 2 of DGT1."""
-        # H is in segment 2 of DGT2, so H' should be in segment 2 of DGT1
-        # Segment 2 of DGT1: [975, 1950)
-        pass
 
 
 # endregion

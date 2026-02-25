@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import struct
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 
@@ -19,10 +18,6 @@ from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.physical import AudioInfo, AudioLoader
 from timetoalign.maps import SamplesToSeconds
 from timetoalign.timelines import DiscretePhysicalTimeline
-
-if TYPE_CHECKING:
-    pass
-
 
 # region Test Fixtures
 
