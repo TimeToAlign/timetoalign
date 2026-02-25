@@ -60,6 +60,12 @@ Coordinate: |
   A position on a timeline, expressed as the distance from the origin in the
   timeline's measuring unit. Combines a numeric value with a TimeUnit.
 
+DictStore: |
+  A generic EventStore subclass holding a dict[str, EventData] with arbitrary
+  keys. Used internally by AlignmentLoaders to store one EventData table per
+  timeline-to-be (e.g., "score", "perf:p01", "perf:p02"). Maintains the
+  uniform EventStore interface (iteration, keys, items, getitem).
+
 Discrete: |
   A timeline is discrete when coordinates exist only at discrete points
   (e.g., pixels, samples, ticks). Contrast with Continuous timelines where
@@ -105,6 +111,14 @@ Length: |
 Locked: |
   A timeline state preventing the addition of Instants after the last time-point.
   Child timelines are automatically locked when embedded in a parent.
+
+MatchfileLoader: |
+  Loader for Vienna Match (.match) alignment files. Uses the standard two-phase
+  load() → create_*() pattern. A single instance processes all .match files that
+  share the same score, building a shared score timeline on the first file and
+  verifying subsequent files against it. Returns an AlignmentBundle directly via
+  create_alignment_bundle(). Score goes into its own group; performances are
+  standalone timelines; MatchClaims connect score to performances.
 
 MatchClaim: |
   A claim — issued by a human or algorithmic agent — about one or two timed things
@@ -153,6 +167,12 @@ Parent: |
 Region: |
   A named part of a timeline defined by a TimeInterval (e.g., "Chorus", "Verse").
   Regions are not timelines and cannot hold events or maps directly.
+
+raw_to_normalised: |
+  The conventional name for the ShiftMap attached to a score timeline to expose
+  normalised (non-negative) coordinates. Its offset equals −min(raw_onsets).
+  Added by MatchfileLoader and PartituraLoader so downstream code can detect
+  and apply the same shift when comparing coordinates across loaders.
 
 Root: |
   The top-level timeline in a hierarchy of nested timelines. Only the root

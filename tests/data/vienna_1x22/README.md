@@ -151,9 +151,44 @@ present but behave consistently. Each file contains:
 > **Exact per-file snote counts** (all 22 files have 454 snote records — identical score
 > coverage). Any future test asserting this count MUST use `454`, not an approximation.
 
-> **Deletion counts vary by performer.** The `3` deletions in `p01` is specific to that
-> performer. Tests validating deletion counts MUST obtain expected values empirically per
-> file and document them here.
+### Per-Performer Deletion Counts (Gold Standard)
+
+Deletion counts vary by performer. These counts were empirically verified by
+parsing the raw `.match` files (Feb 2026). Tests MUST use exact values.
+
+| Performer | Deletions | Matched | Total snotes |
+|---|---|---|---|
+| p01 | 3 | 451 | 454 |
+| p02 | 6 | 448 | 454 |
+| p03 | 2 | 452 | 454 |
+| p04 | 4 | 450 | 454 |
+| p05 | 4 | 450 | 454 |
+| p06 | 3 | 451 | 454 |
+| p07 | 3 | 451 | 454 |
+| p08 | 20 | 434 | 454 |
+| p09 | 18 | 436 | 454 |
+| p10 | 7 | 447 | 454 |
+| p11 | 4 | 450 | 454 |
+| p12 | 1 | 453 | 454 |
+| p13 | 2 | 452 | 454 |
+| p14 | 4 | 450 | 454 |
+| p15 | 5 | 449 | 454 |
+| p16 | 6 | 448 | 454 |
+| p17 | 3 | 451 | 454 |
+| p18 | 4 | 450 | 454 |
+| p19 | 2 | 452 | 454 |
+| p20 | 7 | 447 | 454 |
+| p21 | 3 | 451 | 454 |
+| p22 | 2 | 452 | 454 |
+| **Total** | **113** | **9,875** | **9,988** |
+
+Key observations:
+- p08 and p09 are outliers with 20 and 18 deletions respectively.
+- p12 has the fewest deletions (1 — the most faithful performance).
+- Average deletions per performer: 5.1.
+- Total claims across all 22 files: 9,988 (22 × 454).
+- Total synchronous (matched) claims: 9,875.
+- Total non-synchronous (NOMATCH) claims: 113.
 
 ### Coordinate Domains
 
@@ -188,7 +223,7 @@ Testing this specimen exercises the following TTA concepts and components:
 
 ### Test Classes (✅ IMPLEMENTED — `tests/loader/test_matchfile_loader.py`)
 
-**65 tests across 8 classes, ALL PASSING** (both serial `-n 0` and parallel `-n auto`).
+**165 tests across 15 classes, ALL PASSING** (both serial `-n 0` and parallel `-n auto`).
 
 #### `TestMatchfileFormat` (5 tests)
 Unit tests for the raw parser, independent of TTA objects.
@@ -341,6 +376,47 @@ Tests `_check_or_add_score_event()` and `_to_tta_coord()` (Phase B).
 | `test_new_event_appears_on_timeline` | Added event retrievable via `get_event()` |
 | `test_to_tta_coord_static` | `_to_tta_coord(raw, offset)` is pure addition |
 
+#### `TestPerPerformerDeletionCounts` (52 tests)
+Parametrised validation of per-performer deletion and match counts (Phase C).
+
+| Test | Assertion |
+|---|---|
+| `test_all_files_have_known_deletion_counts` | Every file has a gold standard count |
+| `test_per_performer_deletion_count[p01-p22]` | 22 parametrised: exact NOMATCH count |
+| `test_per_performer_matched_count[p01-p22]` | 22 parametrised: exact synchronous count |
+| `test_total_deletions_across_all_performers` | 113 total deletions |
+| `test_total_matched_across_all_performers` | 9,875 total matched |
+| `test_p08_highest_deletion_count` | p08 outlier: 20 deletions |
+| `test_p12_lowest_deletion_count` | p12 outlier: 1 deletion |
+
+#### `TestMatchfileLoaderPerfPNNShorthand` (5 tests)
+Tests the `perf:pNN` shorthand lookup in `create_timeline()` (Phase C).
+
+| Test | Assertion |
+|---|---|
+| `test_perf_p01_shorthand` | `"perf:p01"` resolves to first perf TL |
+| `test_perf_p_shorthands_all_22` | `"perf:p01"` through `"perf:p22"` all resolve |
+| `test_perf_p_shorthand_matches_numeric` | `"perf:pNN"` same as `"perf:N"` |
+| `test_perf_p_invalid_raises` | `"perf:pabc"` raises `KeyError` |
+| `test_perf_p_out_of_range_raises` | `"perf:p99"` raises `KeyError` |
+
+#### `TestMatchfileLoaderRejection` (4 tests)
+Tests file rejection during multi-file loading (Phase C).
+
+| Test | Assertion |
+|---|---|
+| `test_rejection_preserves_prior_state` | Rejected file does not affect prior data |
+| `test_rejection_does_not_add_performance_timeline` | No perf TL added for rejected file |
+| `test_rejected_file_tracked_in_sources` | Rejected file appears in `.sources` |
+| `test_rejection_allows_subsequent_compatible_files` | Compatible file loads after rejection |
+
+#### `TestPerPerformerPerfNoteCount` (22 tests)
+Parametrised validation of performance timeline note counts (Phase C).
+
+| Test | Assertion |
+|---|---|
+| `test_perf_note_count[p01-p22]` | 22 parametrised: `len(perf_tl) == SNOTE_COUNT - deletions` |
+
 ### Validation Against Gold Standard
 
 The `ms3/` TSV files serve as the score ground truth.
@@ -360,22 +436,35 @@ The `ms3/` TSV files serve as the score ground truth.
 
 ## Performance Benchmark
 
-Profiling baseline for `MatchfileLoader` on this dataset:
+Profiling results from `tests/loader/profile_matchfile.py` (Feb 2026):
 
-| Operation | Target Time | Observed (Feb 2026) | Notes |
-|---|---|---|---|
-| Parse single `.match` file | < 50 ms | ~2.5 s (with partitura) | partitura overhead dominates; pure parsing is fast |
-| Load all 22 `.match` files | < 1 s | ~60 s (65 tests total) | Includes all test overhead; actual load likely <30s |
-| Build MatchClaims (single file) | < 10 ms | TBD | Dataclass construction |
-| Build 22-performance AlignmentBundle | < 2 s | TBD | Including shared score TL |
+| Operation | Observed | Notes |
+|---|---|---|
+| Load single `.match` file (p01) | 0.314s ± 0.040s | partitura overhead dominates |
+| Load all 22 `.match` files | 6.517s ± 0.377s | ~0.296s per file |
+| Bundle assembly (single file) | 0.4ms | Negligible |
+| Bundle assembly (22 files) | 2.6ms | O(n) in timelines + claims |
+| Claims/sec (single file) | ~1,450 | |
+| Claims/sec (22 files) | ~1,530 | |
 
-> **Note:** The initial targets assumed a lightweight parser. `partitura.load_match()`
-> performs score construction internally, adding significant overhead. A dedicated
-> profiling script (Phase C) will separate parsing time from domain object construction.
+Per-file load times (serial, individual loading):
+
+| Metric | Value |
+|---|---|
+| Mean | 0.271s |
+| Stdev | 0.041s |
+| Min | 0.211s (p08) |
+| Max | 0.349s (p05) |
+| Total (serial) | 5.951s |
+
+> **Bottleneck analysis:** The dominant cost is `partitura.load_match()` which performs
+> full score construction from the Prolog-style `.match` format. The TTA overhead
+> (timeline construction, MatchClaim creation, coordinate normalisation) is negligible.
+> Bundle assembly is O(n) in the number of timelines + claims and takes < 3ms.
 
 ```bash
-# PLANNED — profiling script not yet implemented (Phase C)
-# python tests/loader/profile_matchfile.py
+# Run profiling script
+python tests/loader/profile_matchfile.py
 ```
 
 ---
@@ -383,9 +472,10 @@ Profiling baseline for `MatchfileLoader` on this dataset:
 ## Known Issues and Discrepancies
 
 1. **Score note subset:** The `.match` files align 454 of the 510 score notes
-   (498 regular + 12 grace notes). The remaining notes are presumably not present
-   in the match format's coverage (possibly cross-validation artifacts). This must
-   be investigated and documented with exact counts once the loader is implemented.
+   (498 regular + 12 grace notes). The 56-note gap (510 − 454) includes the 12
+   grace notes and 44 additional notes not covered by the match format. The
+   `MatchfileLoader` correctly loads all 454 snote records per file, verified
+   across all 22 performances.
 
 2. **Negative score onsets:** Score onset `−0.5` for the anacrusis note (n1, measure 0,
    beat 1). The `MatchfileLoader` stores raw coordinates as-is (preserving the negative
@@ -409,7 +499,7 @@ Profiling baseline for `MatchfileLoader` on this dataset:
 ## Running Tests
 
 ```bash
-# All vienna_1x22-related tests (85 tests, all passing — Phase A + B)
+# All vienna_1x22-related tests (165 tests, all passing — Phase A + B + C)
 pytest tests/loader/test_matchfile_loader.py -v
 
 # Run in serial mode (for debugging)
@@ -418,6 +508,6 @@ pytest tests/loader/test_matchfile_loader.py -v -n 0
 # Cross-validation with score loader tests
 pytest tests/loader/score/test_cross_validation.py -v -k "chopin"
 
-# Run with profile output (PLANNED — profiling script not yet implemented)
-# python tests/loader/profile_matchfile.py
+# Run profiling script
+python tests/loader/profile_matchfile.py
 ```
