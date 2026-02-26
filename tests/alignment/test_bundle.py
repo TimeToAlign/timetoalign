@@ -1,12 +1,10 @@
 """Tests for AlignmentBundle.
 
-Tests cover Phase 1 functionality:
+Tests cover core functionality:
 - Timeline registration and lookup
 - Group management
 - Coordinate transfer within groups
 - Order-independence (critical invariant)
-
-Phase 6.7 additions:
 - Cross-group transfer via MatchClaim -> MatchLine -> WarpMap pipeline
 - get_timestamp_at() propagation across groups
 - are_commensurable() with claims
@@ -292,7 +290,7 @@ class TestCoordinateTransfer:
     def test_transfer_not_in_same_group_returns_none(
         self, simple_timeline: Timeline, second_timeline: Timeline
     ) -> None:
-        """Transfer between different groups returns None (Phase 1)."""
+        """Transfer between different groups returns None."""
         bundle = AlignmentBundle()
         bundle.add_timeline(simple_timeline, uid="tl1", as_group="grp1")
         bundle.add_timeline(second_timeline, uid="tl2", as_group="grp2")
@@ -322,9 +320,9 @@ class TestCoordinateTransfer:
 class TestCustomAlignment:
     """Tests for custom alignment specifications.
 
-    NOTE: As of Phase 7.4, PerfectAlignment is deprecated. Partial alignment
-    is now specified via start/end parameters on TimelineGroup.add_timeline().
-    The AlignmentBundle currently only supports linear (full-extent) alignment.
+    NOTE: PerfectAlignment is deprecated. Partial alignment is now specified
+    via start/end parameters on TimelineGroup.add_timeline(). The
+    AlignmentBundle currently only supports linear (full-extent) alignment.
     """
 
     def test_partial_alignment_via_group(
@@ -465,7 +463,7 @@ class TestCommensurability:
     def test_different_groups_not_commensurable(
         self, simple_timeline: Timeline, second_timeline: Timeline
     ) -> None:
-        """Timelines in different groups are not commensurable (Phase 1)."""
+        """Timelines in different groups are not commensurable."""
         bundle = AlignmentBundle()
         bundle.add_timeline(simple_timeline, uid="tl1", as_group="grp1")
         bundle.add_timeline(second_timeline, uid="tl2", as_group="grp2")

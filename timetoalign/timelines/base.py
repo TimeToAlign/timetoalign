@@ -227,7 +227,7 @@ class Timeline:
         self._regions: dict[str, Region] = {}
 
         # FlowMap storage (coordinate transformations for flow control)
-        # From Phase 3.9: Timelines store FlowMaps (not FlowControllers).
+        # Timelines store FlowMaps (not FlowControllers).
         # FlowMaps enable unfold/fold coordinate conversion for timelines
         # that have flow control (repeats, jumps, etc.).
         self._flow_maps: dict[str, "FlowMap"] = {}
@@ -1770,8 +1770,8 @@ class Timeline:
         ``TimeUnit`` member, the method falls back to a name-based lookup:
         it searches first by ``cmap.id``, then by ``cmap.name``.  This is
         useful for maps where source and target units are identical (e.g. a
-        ``ShiftMap`` named ``"raw_to_normalised"`` that maps quarters to
-        quarters).
+        ``ShiftMap`` named ``"raw_quarters"`` that maps normalised quarters
+        back to raw partitura quarters).
 
         Args:
             target_unit: A ``TimeUnit`` member, a unit alias string, or a
@@ -1783,8 +1783,8 @@ class Timeline:
         Examples:
             >>> timeline.get_conversion_map(TimeUnit.seconds)
             ScalarMap(...)
-            >>> timeline.get_conversion_map("raw_to_normalised")
-            ShiftMap(offset=0.5, ...)
+            >>> timeline.get_conversion_map("raw_quarters")
+            ShiftMap(offset=-0.5, ...)
         """
         # Attempt unit-based lookup first
         try:
@@ -3129,7 +3129,7 @@ class Timeline:
 
     # endregion
 
-    # region Regions — Unified verb×noun API (Phase 5.5)
+    # region Regions — Unified verb x noun API
 
     # -- add (pre-existing) / create (from parameters) --
 
@@ -3701,7 +3701,7 @@ class Timeline:
 
     # endregion
 
-    # region Children — Unified verb×noun API (Phase 5.5)
+    # region Children — Unified verb x noun API
 
     def create_child_from_region(
         self,
@@ -3868,7 +3868,7 @@ class Timeline:
 
     # endregion
 
-    # region SegmentLine creation — Unified verb×noun API (Phase 5.5)
+    # region SegmentLine creation — Unified verb x noun API
 
     def create_segment_line(
         self,
@@ -4210,7 +4210,7 @@ class Timeline:
 
     # endregion
 
-    # region FlowMaps (Phase 3.9)
+    # region FlowMaps
 
     def attach_flow_map(self, flow_map: "FlowMap", id: str | None = None) -> None:
         """Attach a FlowMap to this timeline.
@@ -4219,8 +4219,8 @@ class Timeline:
         control (repeats, jumps, D.S., D.C., etc.). They are created by
         FlowController and attached to the timeline for later use.
 
-        Design Decision (Phase 3.9): Timelines store FlowMaps, NOT
-        FlowControllers. FlowControllers are factories that produce FlowMaps.
+        Design Decision: Timelines store FlowMaps, NOT FlowControllers.
+        FlowControllers are factories that produce FlowMaps.
 
         Args:
             flow_map: The FlowMap to attach.
@@ -4328,9 +4328,9 @@ class Timeline:
             match: The Match to add.
 
         Raises:
-            NotImplementedError: Alignment will be implemented in Phase 6.
+            NotImplementedError: Alignment is managed via AlignmentBundle.
         """
-        raise NotImplementedError("Alignment will be implemented in Phase 6")
+        raise NotImplementedError("Alignment is managed via AlignmentBundle")
 
     def add_break(self, at: Coordinate) -> None:
         """Add a Break (contiguity void) at the specified coordinate.

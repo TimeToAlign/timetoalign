@@ -1,6 +1,6 @@
 """Tests for MatchLine class.
 
-Phase 6.5: MatchLine — ordered sequence of MatchStamps for WarpMap generation.
+MatchLine: ordered sequence of MatchStamps for WarpMap generation.
 
 Tests cover:
 - Construction from stamps (direct)

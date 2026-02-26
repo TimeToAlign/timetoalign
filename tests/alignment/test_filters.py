@@ -1,6 +1,6 @@
 """Tests for the Unified Filter API (ClaimFilter).
 
-Phase 7.2 — tests for ``timetoalign.alignment.filters.ClaimFilter``.
+Tests for ``timetoalign.alignment.filters.ClaimFilter``.
 
 Covers:
 - Exact single-ID matching

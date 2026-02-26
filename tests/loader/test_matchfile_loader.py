@@ -197,12 +197,12 @@ class TestMatchfileLoaderSingle:
         assert p01_loader.anacrusis_offset == 0.5
 
     def test_score_cmap_shift(self, p01_loader: MatchfileLoader):
-        """raw_to_normalised ShiftMap is attached to score timeline."""
+        """raw_quarters ShiftMap converts normalised coords to raw partitura."""
         score_tl = p01_loader.create_timeline("score")
-        shift_map = score_tl.get_conversion_map("raw_to_normalised")
+        shift_map = score_tl.get_conversion_map("raw_quarters")
         assert shift_map is not None
         assert isinstance(shift_map, ShiftMap)
-        assert shift_map.offset == 0.5
+        assert shift_map.offset == -0.5
 
     def test_score_cmap_divs(self, p01_loader: MatchfileLoader):
         """quarters_to_divs ScalarMap is attached, maps 1.0 -> 480."""
@@ -328,7 +328,7 @@ class TestMatchfileLoaderNormalization:
         loader = MatchfileLoader(normalize_anacrusis=False)
         loader.load(P01_MATCH)
         score_tl = loader.create_timeline("score")
-        shift_map = score_tl.get_conversion_map("raw_to_normalised")
+        shift_map = score_tl.get_conversion_map("raw_quarters")
         assert shift_map is None
 
     def test_normalisation_still_shifts_coordinates(self):
@@ -763,12 +763,12 @@ class TestTimelineGetConversionMapByName:
         assert secs_map is not None
 
     def test_lookup_by_name_shift_map(self, p01_loader: MatchfileLoader):
-        """Name-based lookup finds the raw_to_normalised ShiftMap."""
+        """Name-based lookup finds the raw_quarters ShiftMap."""
         score_tl = p01_loader.create_timeline("score")
-        shift_map = score_tl.get_conversion_map("raw_to_normalised")
+        shift_map = score_tl.get_conversion_map("raw_quarters")
         assert shift_map is not None
         assert isinstance(shift_map, ShiftMap)
-        assert shift_map.offset == 0.5
+        assert shift_map.offset == -0.5
 
     def test_lookup_by_name_scalar_map(self, p01_loader: MatchfileLoader):
         """Name-based lookup finds the quarters_to_divs ScalarMap."""

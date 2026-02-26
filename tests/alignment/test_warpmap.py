@@ -1,6 +1,6 @@
-"""Tests for WarpMap — Phase 6.6.
+"""Tests for WarpMap.
 
-Phase 6.6: WarpMap produces warped timeline copies from alignment data.
+WarpMap produces warped timeline copies from alignment data.
 
 Test categories:
     1. Construction (from_match_line, from_coordinate_pairs)
@@ -396,7 +396,7 @@ class TestForwardInverse:
 
 
 class TestMaterialise:
-    """Test materialise() — the core of Phase 6.6."""
+    """Tests for materialise() — producing warped timeline copies."""
 
     def test_materialise_warps_length(
         self,
@@ -808,7 +808,7 @@ class TestThoresenIntegration:
     """Integration tests for the Thoresen graphical timeline scenario.
 
     This tests the proportional transfer of events between two graphical
-    timelines (DGT1, DGT2) that are described in the Phase 6.6 spec.
+    timelines (DGT1, DGT2) that are described in the WarpMap specification.
     """
 
     def test_proportional_warp_between_dgt_timelines(self) -> None:

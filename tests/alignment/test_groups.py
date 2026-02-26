@@ -1,4 +1,4 @@
-"""Tests for TimelineGroup and GroupTimestamp classes (Phase 7.4 refactor)."""
+"""Tests for TimelineGroup and GroupTimestamp classes."""
 
 from __future__ import annotations
 
@@ -797,7 +797,7 @@ class TestBackwardCompatibility:
 
 
 class TestTimelineGroupUnifiedTimestamp:
-    """Tests for unified TimeStamp API (Phase 6.5 migration)."""
+    """Tests for unified TimeStamp API."""
 
     def test_get_unified_timestamp_basic(
         self,

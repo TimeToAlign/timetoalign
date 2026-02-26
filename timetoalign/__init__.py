@@ -122,6 +122,7 @@ from timetoalign.core import (
     NumberType,
     OptionalCoordinate,
     ScopedId,
+    TimelineIdGenerator,
     TimeUnit,
 )
 from timetoalign.loader import (
@@ -180,6 +181,7 @@ __all__ = [
     # IDs
     "ScopedId",
     "IdGenerator",
+    "TimelineIdGenerator",
     # Loader - Event-based (Type 2)
     "EventData",
     "EventStore",
