@@ -197,6 +197,8 @@ __all__ = [
     "EepNotesLoader",
     # Loader - Alignment
     "MatchfileLoader",
+    "TiliaJsonLoader",
+    "TiliaDictStore",
     # Timelines
     "Timeline",
     "LogicalTimeline",
@@ -239,4 +241,12 @@ def __getattr__(name: str):
         from timetoalign.loader.alignment import MatchfileLoader
 
         return MatchfileLoader
+    if name == "TiliaJsonLoader":
+        from timetoalign.loader.alignment import TiliaJsonLoader
+
+        return TiliaJsonLoader
+    if name == "TiliaDictStore":
+        from timetoalign.loader.alignment import TiliaDictStore
+
+        return TiliaDictStore
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
