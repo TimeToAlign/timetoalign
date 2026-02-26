@@ -14,14 +14,17 @@ dot-separated column names; nested arrays become list-typed columns.
 When no principal keys are specified, the loader auto-detects all top-level
 keys whose values are arrays of objects.
 
-A ``DictStore`` is used as the internal storage, keyed by principal key name.
+A `timetoalign.loader.bundle.DictStore` is used as the internal storage,
+keyed by principal key name.  Each normalised ``pa.Table`` is wrapped in an
+`timetoalign.loader.store.EventData` for uniform access through the
+``EventStore`` interface.
 
 Usage::
 
     loader = JsonLoader()
     loader.load("data.json")
 
-    # Auto-detected tables
+    # Access via store
     for name in loader.store.keys():
         table = loader.get_table(name)
 
@@ -36,6 +39,7 @@ The loader follows the standard two-phase pattern:
 
 See Also:
     timetoalign.loader.bundle.DictStore
+    timetoalign.loader.base.Loader
 """
 
 from __future__ import annotations
@@ -47,6 +51,11 @@ from typing import Any
 
 import pyarrow as pa
 from typing_extensions import Self
+
+from timetoalign.core import NumberType, TimeUnit
+from timetoalign.loader.base import Loader
+from timetoalign.loader.bundle import DictStore
+from timetoalign.loader.store import EventData
 
 module_logger = logging.getLogger(__name__)
 
@@ -291,7 +300,7 @@ def _resolve_lookups(
 # region JsonLoader
 
 
-class JsonLoader:
+class JsonLoader(Loader):
     """Configurable JSON normaliser producing flat ``pa.Table`` objects.
 
     ``JsonLoader`` parses one or more JSON files and normalises their
@@ -345,7 +354,13 @@ class JsonLoader:
             loader = JsonLoader(principal_keys=["hotCuePoints"])
             loader.load("dj_studio_data.json")
             # Collects hotCuePoints from audio[*].cueData.hotCuePoints
+
+    See Also:
+        timetoalign.loader.bundle.DictStore
+        timetoalign.loader.base.Loader
     """
+
+    _default_unit = TimeUnit.seconds
 
     def __init__(
         self,
@@ -354,26 +369,37 @@ class JsonLoader:
         sep: str = ".",
         resolve_lookups: bool = True,
     ) -> None:
+        super().__init__(unit=TimeUnit.seconds, number_type=NumberType.float)
         self._principal_keys = principal_keys
         self._sep = sep
         self._resolve_lookups = resolve_lookups
-        self._sources: list[Path] = []
-        self._tables: dict[str, pa.Table] = {}
-        self._metadata: dict[str, Any] = {}
+        self._store: DictStore = DictStore()
+        self._file_metadata: dict[str, Any] = {}
         self._raw_data: dict[str, Any] | None = None
         self._logger = module_logger.getChild(self.__class__.__name__)
 
     # region Properties
 
     @property
-    def sources(self) -> list[Path]:
-        """List of loaded source file paths."""
-        return list(self._sources)
+    def store(self) -> DictStore:
+        """The ``DictStore`` containing all normalised tables.
+
+        Each principal key maps to an ``EventData`` wrapping the
+        normalised ``pa.Table``.
+
+        Returns:
+            A ``DictStore`` with one entry per principal key.
+        """
+        return self._store
 
     @property
     def tables(self) -> dict[str, pa.Table]:
-        """Dict mapping key names to normalised ``pa.Table`` objects."""
-        return dict(self._tables)
+        """Dict mapping key names to normalised ``pa.Table`` objects.
+
+        Convenience accessor that unwraps the raw PyArrow tables from
+        the ``EventData`` wrappers in the store.
+        """
+        return {name: ed._table for name, ed in self._store.items()}
 
     @property
     def raw_data(self) -> dict[str, Any] | None:
@@ -383,11 +409,26 @@ class JsonLoader:
     @property
     def file_metadata(self) -> dict[str, Any]:
         """Scalar top-level metadata from the JSON file."""
-        return dict(self._metadata)
+        return dict(self._file_metadata)
 
     # endregion
 
     # region Loading
+
+    def _load_source(self, source: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        """Not used directly; ``load()`` is overridden.
+
+        ``JsonLoader`` overrides ``load()`` to handle its own JSON
+        parsing and multi-table normalisation.  This stub satisfies the
+        abstract method requirement from ``Loader``.
+
+        Raises:
+            NotImplementedError: Always.
+        """
+        raise NotImplementedError(
+            "JsonLoader overrides load() directly. "
+            "Use load() instead of _load_source()."
+        )
 
     def load(self, *sources: Path | str) -> Self:
         """Load one or more JSON files.
@@ -409,7 +450,7 @@ class JsonLoader:
             self._sources.append(path)
             self._raw_data = data
             self._process_json(data)
-            self._logger.debug(f"Loaded {path.name}: {list(self._tables.keys())}")
+            self._logger.debug("Loaded %s: %s", path.name, list(self._store.keys()))
 
         return self
 
@@ -431,8 +472,8 @@ class JsonLoader:
     def clear(self) -> None:
         """Clear all loaded data."""
         self._sources.clear()
-        self._tables.clear()
-        self._metadata.clear()
+        self._store = DictStore()
+        self._file_metadata.clear()
         self._raw_data = None
 
     # endregion
@@ -452,19 +493,30 @@ class JsonLoader:
             KeyError: If *key* was not normalised.
         """
         try:
-            return self._tables[key]
+            return self._store[key]._table
         except KeyError:
             raise KeyError(
-                f"No table for key {key!r}. Available: {list(self._tables.keys())}"
+                f"No table for key {key!r}. Available: {list(self._store.keys())}"
             ) from None
 
     def keys(self) -> list[str]:
         """Return the list of available table key names."""
-        return list(self._tables.keys())
+        return list(self._store.keys())
 
     # endregion
 
     # region Internal
+
+    def _wrap_table(self, table: pa.Table) -> EventData:
+        """Wrap a raw ``pa.Table`` in an ``EventData`` for store compatibility.
+
+        Args:
+            table: The normalised PyArrow table.
+
+        Returns:
+            An ``EventData`` wrapping the table.
+        """
+        return EventData(table, self._unit, self._number_type)
 
     def _process_json(self, data: dict[str, Any]) -> None:
         """Process a parsed JSON dict into normalised tables.
@@ -487,7 +539,7 @@ class JsonLoader:
             else:
                 scalar_meta[key] = value
 
-        self._metadata.update(
+        self._file_metadata.update(
             {k: v for k, v in scalar_meta.items() if not isinstance(v, dict)}
         )
 
@@ -520,13 +572,15 @@ class JsonLoader:
                     table = table.replace_schema_metadata(existing)
 
                 # Accumulate or replace
-                if key in self._tables:
-                    self._tables[key] = pa.concat_tables(
-                        [self._tables[key], table],
+                if key in self._store:
+                    existing_table = self._store[key]._table
+                    merged = pa.concat_tables(
+                        [existing_table, table],
                         promote_options="default",
                     )
+                    self._store.add(key, self._wrap_table(merged))
                 else:
-                    self._tables[key] = table
+                    self._store.add(key, self._wrap_table(table))
 
     def _determine_principal_keys(
         self,
@@ -667,10 +721,12 @@ class JsonLoader:
 
     def __len__(self) -> int:
         """Return the number of normalised tables."""
-        return len(self._tables)
+        return len(self._store)
 
     def __repr__(self) -> str:
-        entries = ", ".join(f"{k}={t.num_rows} rows" for k, t in self._tables.items())
+        entries = ", ".join(
+            f"{k}={ed._table.num_rows} rows" for k, ed in self._store.items()
+        )
         return f"JsonLoader({entries})"
 
     # endregion
