@@ -762,6 +762,78 @@ Following AGENTS.md Section 3.6 (ZERO TOLERANCE), all tests use **exact value co
 
 ---
 
+### `test_unfolding.py` - Unfolding via Slicing (Phase 3.10)
+
+**Purpose:** Validates the slice-based unfolding pipeline that replaces the buggy MC-space
+FlowMap approach with structural slicing in QB-space.
+
+**See also:** `README_unfolding.md` for detailed testing strategy and gold standard data inventory.
+
+**78 tests** across 4 test classes:
+
+| Class | Tests | Purpose |
+|-------|-------|---------|
+| `TestGetSlice` | 16 | Unit tests for `Timeline.get_slice()` primitive |
+| `TestComputeQBSections` | 8 | QB boundary computation from Flow + FlowController |
+| `TestSegmentLineAssembly` | 5 | Integration: slice + concatenate into SegmentLine |
+| `TestUnfoldingGoldStandard` | 49 | End-to-end validation against 7 ms3 gold standard specimens |
+
+**Test Categories:**
+
+1. **get_slice() Unit Tests** (16 tests)
+   - Basic slicing with coordinate shifting
+   - Left-inclusive, right-exclusive boundary semantics
+   - Interval event truncation (`truncate_events=True/False`)
+   - Child timeline recursive slicing
+   - Number type preservation (Fraction stays Fraction)
+   - Concrete class preservation (CLT returns CLT)
+   - Discrete and physical timeline support
+   - Error cases (invalid range, out of bounds)
+
+2. **compute_qb_sections() Unit Tests** (8 tests)
+   - Sequential score (Rachmaninoff): single pass, total QB = 2997/2
+   - D.S. al Fine (Musete): repeated sections, total QB = 384
+   - Rondeau form, volta brackets, split bars, D.S./D.C.
+   - QB boundaries match folded TSV `quarterbeats` column exactly
+   - All sections have strictly positive duration
+
+3. **SegmentLine Assembly Integration Tests** (5 tests)
+   - Contiguity enforcement (each segment starts where previous ended)
+   - Total length = sum of slice lengths
+   - Events preserved in assembled segments
+   - Segment type matches source class
+   - Repeated section assembly (same range played twice)
+
+4. **Gold Standard End-to-End Tests** (49 tests, parametrized × 7 specimens)
+   - EXACT row count match
+   - EXACT MC sequence (may repeat for flow control)
+   - EXACT mc_playthrough monotonic sequence
+   - EXACT mn_playthrough values with suffixes (a, b, c, ...)
+   - EXACT quarterbeats as Fraction (not float)
+   - EXACT total unfolded length
+   - EXACT compute_qb_sections total per specimen
+
+**Gold Standard Exact Values:**
+
+| Specimen | Folded | Unfolded | Total QB |
+|----------|--------|----------|----------|
+| rachmaninoff | 374 | 374 | 2997/2 |
+| polyrhythm_only | 14 | 14 | 45 |
+| musete | 58 | 138 | 384 |
+| rondeau | 60 | 138 | 195 |
+| op18_no4_mov4 | 226 | 291 | 1116 |
+| woo71 | 397 | 505 | 1078 |
+| flow_only | 15 | 30 | 75 |
+
+**Test Status: 78 passed** (Feb 2026 - Phase 3.10 Steps 1-2)
+
+**Key Discovery:** EventData stores instant events under `start` (struct dict with
+`value`, `numerator`, `denominator`), not `instant`. The `instant` key is only an
+input convenience for `add_events()`. All coordinate reading code must use
+`event["start"]["value"]`.
+
+---
+
 ### Critical Coordinate Handling Requirements (Feb 2026)
 
 **The `create_unfolded_timeline()` function was fixed for a critical type preservation bug.**
