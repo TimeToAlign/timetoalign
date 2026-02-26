@@ -131,6 +131,16 @@ to the relevant section of the conceptual model.
     start and end coordinates.
     See [Foundations](concepts.qmd#foundations).
 
+## G
+
+**GroupTimestamp**
+:   A cross-section through a {{< glossary TimelineGroup >}} at a given
+    coordinate. Contains one coordinate per timeline in the group plus
+    (optionally) C-map conversion values. A {{< glossary MatchStamp >}} is
+    the union of GroupTimestamps from each participating group. Produced by
+    `TimelineGroup.get_timestamp_at()`.
+    See [Alignment](concepts.qmd#alignment).
+
 ## I
 
 **Instant**
@@ -220,9 +230,12 @@ to the relevant section of the conceptual model.
 
 **MatchStamp**
 :   A synchronised instant across multiple timelines, extracted from a
-    {{< glossary MatchGraph >}}'s connected components. Contains one
-    coordinate per participating timeline. Can be expanded with
-    group-member coordinates and C-map conversions.
+    {{< glossary MatchGraph >}}'s connected components. Formally, a
+    MatchStamp is the union of {{< glossary GroupTimestamp >}}s from each
+    participating {{< glossary TimelineGroup >}}. Contains one coordinate
+    per participating timeline and, with `conversion_maps=True` (the
+    default), C-map conversion values. Can be expanded with group-member
+    coordinates.
     See [Alignment](concepts.qmd#alignment).
 
 **MultiMap**
