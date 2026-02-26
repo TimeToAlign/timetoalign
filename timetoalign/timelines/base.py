@@ -14,6 +14,7 @@ Design principles:
 from __future__ import annotations
 
 import logging
+from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterator, Literal, Sequence
 
 import numpy as np
@@ -3865,6 +3866,266 @@ class Timeline:
 
         if adjusted_events:
             child.add_events(adjusted_events)
+
+    # endregion
+
+    # region Slicing
+
+    def get_slice(
+        self,
+        start: CoordinateValue,
+        end: CoordinateValue,
+        *,
+        truncate_events: bool = True,
+        include_children: bool = True,
+        copy_cmaps: bool = True,
+    ) -> "Timeline":
+        """Extract a portion of this timeline as a new, independent timeline.
+
+        Returns a new timeline containing all events within [start, end).
+        The returned timeline has its coordinate origin at 0, with all
+        coordinates shifted by -start.
+
+        From the TTA manuscript: slicing creates a new timeline that is a
+        structural copy of the specified interval of the source.
+
+        Args:
+            start: Start coordinate (inclusive).
+            end: End coordinate (exclusive).
+            truncate_events: If True (default), interval events straddling
+                the slice boundaries are clipped to [start, end). If False,
+                events must be fully contained to be included.
+            include_children: If True (default), child timelines whose span
+                overlaps [start, end) are recursively sliced and included.
+            copy_cmaps: If True (default), ConversionMaps are bounded-copied
+                for the slice range.
+
+        Returns:
+            New Timeline (same concrete subclass) with length = end - start,
+            coordinates shifted to [0, end-start).
+
+        Raises:
+            ValueError: If start >= end or either is outside timeline bounds.
+
+        Examples:
+            >>> source = ContinuousLogicalTimeline(length=100)
+            >>> source.add_events([
+            ...     {"event_type": "Note", "start": 10, "end": 30},
+            ...     {"event_type": "Beat", "instant": 25},
+            ... ])
+            >>> sliced = source.get_slice(20, 40)
+            >>> sliced.length.value  # 40 - 20 = 20
+            Fraction(20, 1)
+        """
+        # Coerce to the timeline's native number type for consistent arithmetic
+        nt = self._number_type
+        if nt == NumberType.fraction:
+            s = Fraction(start)
+            e = Fraction(end)
+        elif nt == NumberType.int:
+            s = int(start)
+            e = int(end)
+        else:
+            s = float(start)
+            e = float(end)
+
+        # Validate
+        if s >= e:
+            raise ValueError(f"start ({s}) must be less than end ({e})")
+        if s < 0:
+            raise ValueError(
+                f"start ({s}) is outside timeline bounds [0, {self._length.value})"
+            )
+        if e > self._length.value:
+            raise ValueError(
+                f"end ({e}) is outside timeline bounds [0, {self._length.value}]"
+            )
+
+        slice_length = e - s
+
+        # Create new timeline of same concrete class
+        sliced = self.__class__(
+            length=slice_length,
+            unit=self._unit,
+            number_type=self._number_type,
+        )
+
+        # Copy events with coordinate shifting
+        self._copy_events_to_slice(sliced, s, e, truncate_events)
+
+        # Recursively slice children
+        if include_children:
+            self._copy_children_to_slice(sliced, s, e)
+
+        # Copy conversion maps (bounded to slice range)
+        if copy_cmaps:
+            self._copy_cmaps_to_slice(sliced, s, e)
+
+        return sliced
+
+    def _copy_events_to_slice(
+        self,
+        target: "Timeline",
+        start: Any,
+        end: Any,
+        truncate_events: bool,
+    ) -> None:
+        """Copy events from [start, end) to target with coordinate shifting.
+
+        All coordinates are shifted by -start. Interval events straddling
+        boundaries are either truncated or excluded depending on
+        truncate_events.
+
+        Note: In the EventData PyArrow schema, all events store their
+        coordinate in 'start' (a struct with 'value', 'numerator',
+        'denominator' keys). Instant events have 'start' but no 'end'.
+        The 'instant' key is only used as input convenience during
+        ``add_events()`` and is converted to 'start' internally.
+
+        Args:
+            target: The target timeline to receive events.
+            start: Start coordinate (inclusive) in source coords.
+            end: End coordinate (exclusive) in source coords.
+            truncate_events: If True, clip straddling intervals. If False,
+                only include fully-contained intervals.
+        """
+        # Get all events (excluding segments, which are managed via children)
+        all_events = self.get_events()
+
+        # Convert start/end to float for comparison with PyArrow struct values
+        start_f = float(start)
+        end_f = float(end)
+
+        adjusted_events = []
+        for event in all_events:
+            ev = dict(event)
+            temporal = ev.get("temporal_type")
+
+            if temporal == "instant":
+                # In EventData, instant events have start={value:...} and end=None
+                start_dict = ev.get("start")
+                if start_dict is None:
+                    continue
+                coord = (
+                    start_dict["value"] if isinstance(start_dict, dict) else start_dict
+                )
+                # Left-inclusive, right-exclusive: start <= coord < end
+                if coord >= start_f and coord < end_f:
+                    shifted = coord - start_f
+                    ev["start"] = shifted
+                    adjusted_events.append(ev)
+
+            elif temporal == "interval":
+                ev_start_dict = ev.get("start")
+                ev_end_dict = ev.get("end")
+                if ev_start_dict is None or ev_end_dict is None:
+                    continue
+                ev_start = (
+                    ev_start_dict["value"]
+                    if isinstance(ev_start_dict, dict)
+                    else ev_start_dict
+                )
+                ev_end = (
+                    ev_end_dict["value"]
+                    if isinstance(ev_end_dict, dict)
+                    else ev_end_dict
+                )
+
+                if truncate_events:
+                    # Clip to [start, end)
+                    clipped_start = max(ev_start, start_f)
+                    clipped_end = min(ev_end, end_f)
+
+                    if clipped_start >= clipped_end:
+                        continue  # Fully outside
+
+                    shifted_start = clipped_start - start_f
+                    shifted_end = clipped_end - start_f
+                    ev["start"] = shifted_start
+                    ev["end"] = shifted_end
+                    ev["duration"] = shifted_end - shifted_start
+                    adjusted_events.append(ev)
+                else:
+                    # Only include fully contained intervals
+                    if ev_start >= start_f and ev_end <= end_f:
+                        ev["start"] = ev_start - start_f
+                        ev["end"] = ev_end - start_f
+                        ev["duration"] = (ev_end - start_f) - (ev_start - start_f)
+                        adjusted_events.append(ev)
+
+        if adjusted_events:
+            target._add_events_unchecked(adjusted_events)
+
+    def _copy_children_to_slice(
+        self,
+        target: "Timeline",
+        start: Any,
+        end: Any,
+    ) -> None:
+        """Recursively slice child timelines that overlap [start, end).
+
+        For each child at offset o with length l, if [o, o+l) overlaps
+        [start, end), recursively slice the child at the overlapping range.
+        The child's offset in the target is max(0, o - start).
+
+        Args:
+            target: The target timeline to receive sliced children.
+            start: Start coordinate in source (parent) coords.
+            end: End coordinate in source (parent) coords.
+        """
+        for child_id, child in self._children.items():
+            child_offset = self._child_offsets[child_id].value
+            child_end = child_offset + child.length.value
+
+            # Check overlap with [start, end)
+            overlap_start = max(child_offset, start)
+            overlap_end = min(child_end, end)
+
+            if overlap_start >= overlap_end:
+                continue  # No overlap
+
+            # Convert to child-local coordinates
+            child_local_start = overlap_start - child_offset
+            child_local_end = overlap_end - child_offset
+
+            # Recursively slice the child
+            sliced_child = child.get_slice(
+                child_local_start,
+                child_local_end,
+                truncate_events=True,
+                include_children=True,
+                copy_cmaps=True,
+            )
+
+            # Offset in the target timeline
+            target_offset = overlap_start - start
+            target.add_child(sliced_child, offset=target_offset, allow_expansion=True)
+
+    def _copy_cmaps_to_slice(
+        self,
+        target: "Timeline",
+        start: Any,
+        end: Any,
+    ) -> None:
+        """Copy conversion maps to a sliced timeline.
+
+        Currently copies all conversion maps without range bounding.
+        Future enhancement: implement bounded C-Map copying for the
+        slice coordinate range.
+
+        Args:
+            target: The target timeline to receive C-Maps.
+            start: Start coordinate in source coords (for future bounded copy).
+            end: End coordinate in source coords (for future bounded copy).
+        """
+        for cmap_id, cmap in self._conversion_maps.items():
+            try:
+                target.add_conversion_map(cmap)
+            except (ValueError, TypeError):
+                # Skip incompatible maps (e.g., unit mismatch after slicing)
+                self._logger.debug(
+                    f"Skipping C-Map '{cmap_id}' during slice: incompatible"
+                )
 
     # endregion
 
