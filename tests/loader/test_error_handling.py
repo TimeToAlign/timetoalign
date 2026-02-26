@@ -45,12 +45,10 @@ class TestMidiLoaderErrorHandling:
         if not invalid_file.exists():
             pytest.skip(f"Test fixture not found: {invalid_file}")
 
-        with pytest.raises(Exception) as exc_info:
+        # PerformanceMidiLoader wraps all mido errors as ValueError
+        # (see loader/midi/performance.py lines 106-110)
+        with pytest.raises(ValueError):
             perf_loader.load(invalid_file)
-
-        # Should be some kind of parsing error
-        # (Exact exception depends on mido implementation)
-        assert exc_info.value is not None
 
     def test_truncated_midi_raises(self, perf_loader):
         """Truncated MIDI file raises error.
@@ -61,10 +59,9 @@ class TestMidiLoaderErrorHandling:
         if not truncated_file.exists():
             pytest.skip(f"Test fixture not found: {truncated_file}")
 
-        with pytest.raises(Exception) as exc_info:
+        # PerformanceMidiLoader wraps all mido errors as ValueError
+        with pytest.raises(ValueError):
             perf_loader.load(truncated_file)
-
-        assert exc_info.value is not None
 
     def test_empty_midi_raises(self, perf_loader):
         """Empty file raises error.
@@ -75,10 +72,9 @@ class TestMidiLoaderErrorHandling:
         if not empty_file.exists():
             pytest.skip(f"Test fixture not found: {empty_file}")
 
-        with pytest.raises(Exception) as exc_info:
+        # PerformanceMidiLoader wraps all mido errors as ValueError
+        with pytest.raises(ValueError):
             perf_loader.load(empty_file)
-
-        assert exc_info.value is not None
 
     def test_nonexistent_file_raises(self, perf_loader):
         """Loading nonexistent file raises error (wrapped in ValueError)."""
@@ -122,11 +118,11 @@ class TestScoreLoaderErrorHandling:
         if not malformed_file.exists():
             pytest.skip(f"Test fixture not found: {malformed_file}")
 
-        with pytest.raises(Exception) as exc_info:
-            partitura_loader.load(malformed_file)
+        # Partitura delegates to lxml, which raises XMLSyntaxError
+        from lxml.etree import XMLSyntaxError
 
-        # Should be XML parsing error or similar
-        assert exc_info.value is not None
+        with pytest.raises(XMLSyntaxError):
+            partitura_loader.load(malformed_file)
 
     def test_malformed_xml_raises_music21(self, music21_loader):
         """Malformed XML raises parsing error with Music21."""
@@ -134,10 +130,11 @@ class TestScoreLoaderErrorHandling:
         if not malformed_file.exists():
             pytest.skip(f"Test fixture not found: {malformed_file}")
 
-        with pytest.raises(Exception) as exc_info:
-            music21_loader.load(malformed_file)
+        # Music21 delegates to xml.etree, which raises ParseError
+        from xml.etree.ElementTree import ParseError
 
-        assert exc_info.value is not None
+        with pytest.raises(ParseError):
+            music21_loader.load(malformed_file)
 
     def test_nonexistent_xml_raises(self, partitura_loader):
         """Loading nonexistent XML raises FileNotFoundError."""

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from fractions import Fraction
 from typing import Any, Sequence
 
 import pandas as pd
@@ -31,6 +32,35 @@ from timetoalign.alignment.anchors import AlignmentAnchor, MatchClaim, MatchMeta
 
 module_logger = logging.getLogger(__name__)
 
+
+# region Utilities
+
+
+def _convert_coordinate_to_float(value: Any) -> float:
+    """Convert a coordinate value to float, handling fraction strings.
+
+    Args:
+        value: A numeric value, fraction string (e.g. "707/2"), or numeric string.
+
+    Returns:
+        The value converted to float.
+
+    Raises:
+        ValueError: If the value cannot be converted to float.
+    """
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        # Try to parse as a fraction first (e.g., "707/2")
+        try:
+            return float(Fraction(value))
+        except ValueError:
+            # Fall back to regular float conversion
+            return float(value)
+    raise ValueError(f"Cannot convert {type(value).__name__} to float: {value}")
+
+
+# endregion
 
 # region MatchResult
 
@@ -182,8 +212,12 @@ def match_notes_by_attributes(
 
                 # Build matched record with source + target coords
                 match_record = {
-                    "source_coord": float(source_dict[source_coord_column]),
-                    "target_coord": float(matched_target[target_coord_column]),
+                    "source_coord": _convert_coordinate_to_float(
+                        source_dict[source_coord_column]
+                    ),
+                    "target_coord": _convert_coordinate_to_float(
+                        matched_target[target_coord_column]
+                    ),
                 }
                 # Include match columns for reference
                 for col in match_columns:

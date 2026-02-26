@@ -10,7 +10,7 @@ TTA manuscript's multi-level alignment hierarchy:
 The hierarchy is:
     AlignmentAnchor -> MatchClaim -> MatchGraph -> MatchStamp -> MatchLine
 
-Phase 6 Design:
+Design:
     AlignmentAnchor is a pure coordinate pair with no claim semantics.
     Only synchronous MatchClaims produce AlignmentAnchors.
     MatchClaim always knows its two timelines via top-level fields.
@@ -421,6 +421,82 @@ class MatchClaim:
             return [self.start_anchor, self.end_anchor]
         return [self.start_anchor]
 
+    def get_matchstamp(
+        self,
+        *,
+        bundle: Any | None = None,
+        from_graph: bool = True,
+        conversion_maps: bool = True,
+    ) -> Any | None:
+        """Return a MatchStamp for this claim's start anchor.
+
+        With ``from_graph=True`` (the default), the method builds or retrieves
+        the full MatchGraph for this claim's coordinate from the bundle's
+        cache and returns the FULL MatchStamp combining timestamps from ALL
+        groups connected at this coordinate.
+
+        With ``from_graph=False``, constructs a **reduced** MatchStamp from
+        only the two timelines in this claim (no graph construction needed).
+
+        Args:
+            bundle: The ``AlignmentBundle`` containing this claim. Required
+                for ``from_graph=True``. Provides group info and the
+                MatchGraph cache.
+            from_graph: If True (default), build/retrieve the full
+                MatchGraph and return the FULL MatchStamp across ALL
+                connected groups. If False, return a reduced 2-timeline
+                MatchStamp.
+            conversion_maps: Include C-map conversions (reserved for
+                future use).
+
+        Returns:
+            MatchStamp with coordinates, or None if this claim is
+            non-synchronous (NOMATCH).
+
+        Raises:
+            ValueError: If ``from_graph=True`` but ``bundle`` is None.
+
+        Examples:
+            Full stamp (default -- from graph, all groups)::
+
+                >>> stamp = claim.get_matchstamp(bundle=bundle)
+                >>> stamp.n_timelines
+                23  # score + 22 performers at this coordinate
+
+            Reduced stamp (two timelines only)::
+
+                >>> stamp = claim.get_matchstamp(bundle=bundle, from_graph=False)
+                >>> stamp.n_timelines
+                2   # just the two timelines in this claim
+        """
+        if not self.is_synchronous or self.start_anchor is None:
+            return None
+
+        if from_graph:
+            if bundle is None:
+                raise ValueError(
+                    "bundle is required for from_graph=True. Pass the "
+                    "AlignmentBundle containing this claim."
+                )
+            # Delegate to the bundle's cached MatchGraph mechanism
+            return bundle.get_matchstamp_at(
+                self.start_anchor.coordinate_a,
+                self.timeline_a_id,
+            )
+        else:
+            # Reduced stamp: just the two coordinates from this claim
+            from timetoalign.alignment.graph import MatchStamp
+
+            coords = {
+                self.timeline_a_id: self.start_anchor.coordinate_a,
+                self.timeline_b_id: self.start_anchor.coordinate_b,
+            }
+            return MatchStamp(
+                coordinates=coords,
+                anchor_edges=[(self.timeline_a_id, self.timeline_b_id)],
+                inferred_edges=[],
+            )
+
     # region Factory Methods
 
     @classmethod
@@ -692,6 +768,167 @@ class MatchClaim:
                 f"{self.timeline_a_id}@{self.start_anchor.coordinate_a:.1f} <-> "
                 f"{self.timeline_b_id}@{self.start_anchor.coordinate_b:.1f}{flag_str})"
             )
+
+    def __str__(self) -> str:
+        """Readable multi-line display showing claim details.
+
+        Shows claim type, timelines with coordinates, and metadata.
+
+        Examples:
+            >>> print(claim)
+            MatchClaim (synchronous, interval)
+              Timeline A:  score:clt1  [0.0 -- 0.5]
+              Timeline B:  perf:dlt1   [0 -- 261]
+              Metadata:    agent=partitura, certainty=1.0
+        """
+
+        def _fmt(v: float) -> str:
+            if v == int(v) and abs(v) < 1e15:
+                return str(int(v))
+            return f"{v:g}"
+
+        # Header
+        if not self.is_synchronous:
+            header = "MatchClaim (NOMATCH)"
+        elif self.is_interval:
+            header = "MatchClaim (synchronous, interval)"
+        else:
+            header = "MatchClaim (synchronous, instant)"
+
+        if not self.is_explicit:
+            header += " [inferred]"
+
+        lines = [header]
+
+        # Timeline A
+        if self.is_synchronous and self.start_anchor is not None:
+            if self.is_interval and self.end_anchor is not None:
+                lines.append(
+                    f"  Timeline A:  {self.timeline_a_id}  "
+                    f"[{_fmt(self.start_anchor.coordinate_a)} -- "
+                    f"{_fmt(self.end_anchor.coordinate_a)}]"
+                )
+                lines.append(
+                    f"  Timeline B:  {self.timeline_b_id}  "
+                    f"[{_fmt(self.start_anchor.coordinate_b)} -- "
+                    f"{_fmt(self.end_anchor.coordinate_b)}]"
+                )
+            else:
+                lines.append(
+                    f"  Timeline A:  {self.timeline_a_id}  "
+                    f"@{_fmt(self.start_anchor.coordinate_a)}"
+                )
+                lines.append(
+                    f"  Timeline B:  {self.timeline_b_id}  "
+                    f"@{_fmt(self.start_anchor.coordinate_b)}"
+                )
+        else:
+            lines.append(f"  Timeline A:  {self.timeline_a_id}")
+            lines.append(f"  Timeline B:  {self.timeline_b_id}")
+
+        # Metadata
+        if self.metadata is not None:
+            meta_parts = [f"agent={self.metadata.agent}"]
+            if self.metadata.certainty < 1.0:
+                meta_parts.append(f"certainty={self.metadata.certainty}")
+            if self.metadata.decision_criteria:
+                meta_parts.append(f"criteria={self.metadata.decision_criteria}")
+            lines.append(f"  Metadata:    {', '.join(meta_parts)}")
+
+        if self.source_claim_id is not None:
+            lines.append(f"  Source:      {self.source_claim_id}")
+
+        return "\n".join(lines)
+
+    def _repr_html_(self) -> str:
+        """Return HTML representation for Jupyter notebooks.
+
+        Displays the MatchClaim as a compact HTML block with claim details.
+        """
+        import html as html_mod
+
+        def _fmt(v: float) -> str:
+            if v == int(v) and abs(v) < 1e15:
+                return str(int(v))
+            return f"{v:g}"
+
+        # Header badge
+        if not self.is_synchronous:
+            badge_bg = "#ffcdd2"
+            badge_text = "NOMATCH"
+        elif self.is_interval:
+            badge_bg = "#e3f2fd"
+            badge_text = "synchronous, interval"
+        else:
+            badge_bg = "#e8f5e9"
+            badge_text = "synchronous, instant"
+
+        if not self.is_explicit:
+            badge_text += " [inferred]"
+
+        badge = (
+            f"<span style='background: {badge_bg}; padding: 0 4px; "
+            f"border-radius: 3px; font-size: 0.8em;'>{badge_text}</span>"
+        )
+
+        rows = []
+
+        # Timeline rows
+        if self.is_synchronous and self.start_anchor is not None:
+            if self.is_interval and self.end_anchor is not None:
+                coord_a = (
+                    f"[{_fmt(self.start_anchor.coordinate_a)} &ndash; "
+                    f"{_fmt(self.end_anchor.coordinate_a)}]"
+                )
+                coord_b = (
+                    f"[{_fmt(self.start_anchor.coordinate_b)} &ndash; "
+                    f"{_fmt(self.end_anchor.coordinate_b)}]"
+                )
+            else:
+                coord_a = f"@{_fmt(self.start_anchor.coordinate_a)}"
+                coord_b = f"@{_fmt(self.start_anchor.coordinate_b)}"
+
+            rows.append(
+                f"<tr><td>Timeline A</td>"
+                f"<td><strong>{html_mod.escape(self.timeline_a_id)}</strong></td>"
+                f"<td>{coord_a}</td></tr>"
+            )
+            rows.append(
+                f"<tr><td>Timeline B</td>"
+                f"<td><strong>{html_mod.escape(self.timeline_b_id)}</strong></td>"
+                f"<td>{coord_b}</td></tr>"
+            )
+        else:
+            rows.append(
+                f"<tr><td>Timeline A</td>"
+                f"<td>{html_mod.escape(self.timeline_a_id)}</td>"
+                f"<td></td></tr>"
+            )
+            rows.append(
+                f"<tr><td>Timeline B</td>"
+                f"<td>{html_mod.escape(self.timeline_b_id)}</td>"
+                f"<td></td></tr>"
+            )
+
+        # Metadata row
+        if self.metadata is not None:
+            meta_parts = [
+                html_mod.escape(f"agent={self.metadata.agent}"),
+            ]
+            if self.metadata.certainty < 1.0:
+                meta_parts.append(f"certainty={self.metadata.certainty}")
+            rows.append(
+                f"<tr style='color: #666;'><td>Metadata</td>"
+                f"<td colspan='2'>{', '.join(meta_parts)}</td></tr>"
+            )
+
+        return (
+            f"<div style='font-family: monospace;'>"
+            f"<strong>MatchClaim</strong> {badge}"
+            f"<table style='border-collapse: collapse; margin-top: 4px;'>"
+            f"<tbody>{''.join(rows)}</tbody>"
+            f"</table></div>"
+        )
 
 
 # endregion

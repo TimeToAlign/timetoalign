@@ -22,7 +22,7 @@ This directory contains comprehensive tests for the `timetoalign.loader.tabular`
 
 ### Source/Provenance
 
-Tests use specimens from `dashboard/specimens/` which are **gold standard** files from established music datasets:
+Tests use specimens from `tests/data/score/` which are **gold standard** files from established music datasets:
 
 | Specimen | Source | Format | Events | Description |
 |----------|--------|--------|--------|-------------|
@@ -55,6 +55,9 @@ Some tests use **dynamically generated temporary files** for isolation:
 | `tsv_file` | TSV | id, start, end, event_type, name | Same structure, tab-delimited |
 | `minimal_csv` | CSV | start | Minimal file with only required column |
 
+All generated test files use pytest's `tmp_path` fixture for automatic cleanup.
+No manual `os.unlink()` or `tempfile.NamedTemporaryFile(delete=False)` patterns remain.
+
 ---
 
 ## Validation Logic
@@ -77,7 +80,7 @@ Some tests use **dynamically generated temporary files** for isolation:
 4. **TEMPORAL TYPE INFERENCE**:
    - Events with valid `duration_qb` -> "interval"
    - Events with null `duration_qb` or null `quarterbeats` -> "instant"
-   - Validated: 4,745 intervals + 8 instants = 4,753 total (EXACT)
+   - Validated: all 4,753 events are intervals (EXACT, per `test_correctness.py` line 259)
 
 5. **ZERO ITERATION GUARANTEE**: Validated via monkey-patching:
    ```python
@@ -121,6 +124,8 @@ assert len(loader.events) > 0      # "At least some events"
 cd timetoalign
 python -m tests.loader.tabular.profile_vectorized
 ```
+
+**Note:** The profiler loads specimens from `tests/data/score/` (same as the test suite).
 
 See `PROFILING_REPORT.md` for full details.
 

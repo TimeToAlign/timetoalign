@@ -551,7 +551,7 @@ class Loader(ABC):
         Args:
             path: Path to write the Parquet file.
         """
-        self._events.to_parquet(path)
+        self.events.to_parquet(path)
 
     @classmethod
     def from_parquet(cls, path: Path | str) -> Self:

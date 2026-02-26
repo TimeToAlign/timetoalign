@@ -4,7 +4,7 @@ This module provides the core alignment infrastructure for cross-timeline
 synchronization as described in the TTA manuscript.
 
 Public API:
-- AlignmentBundle: Primary entry point for alignment workflows (Phase 1+)
+- AlignmentBundle: Primary entry point for alignment workflows
 - TimelineGroup: Container for commensurable timelines (timestamp-based)
 - GroupTimestamp: A synchronized instant across all timelines in a group
 - PerfectAlignment: DEPRECATED - Use TimelineGroup.add_timeline() instead
@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from .anchors import AlignmentAnchor, MatchClaim, MatchMetadata
 from .bundle import AlignmentBundle
+from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
 from .groups import GroupTimestamp, PerfectAlignment, TimelineGroup
 from .matching import (
@@ -44,6 +45,8 @@ __all__ = [
     "AlignmentAnchor",
     "MatchClaim",
     "MatchMetadata",
+    # Filters
+    "ClaimFilter",
     # Graph, Stamps, and Lines
     "MatchGraph",
     "MatchStamp",

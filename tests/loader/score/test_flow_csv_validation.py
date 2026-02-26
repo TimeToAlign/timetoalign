@@ -1,32 +1,18 @@
 """Flow CSV Ground Truth Validation Tests.
 
-This module validates score loaders against .flow.csv ground truth files.
-Each flow.csv entry specifies:
-- flow_mode: FlowMode enum value (atomic, default, single, ms3, music21,
-  partitura_minimal, partitura_maximal)
-- source_file: the file that was parsed to generate this flow
-- software_version: expected software version
-- mc_start, mc_end: expected MC range (RIGHT-OPEN: mc_end excluded)
-- atomic_segments: partitura segment IDs covered
+This module validates .flow.csv structural properties and specific loader
+behaviours that are NOT covered by the main score parsing matrix
+(test_score_parsing_matrix.py).
 
-IMPORTANT: flow_mode values correspond to FlowMode enum members, NOT loader/format
-combinations. The loader type (Music21 vs Partitura) and format (MusicXML vs MEI)
-are determined by the source_file column, NOT the flow_mode.
+Unique tests in this module:
+- RIGHT-OPEN mc_end contiguity checks across all specimens
+- Exact atomic segment boundary validation
+- Partitura live segment boundary verification against CSV
+- Flow CSV round-trip serialization (Flow.from_csv → to_csv_rows → from_records)
 
-Valid FlowMode values (from timetoalign.timelines.flow.FlowMode):
-- atomic: Atomic sections from FlowController
-- default: Full unfolding (gold standard from ms3)
-- single: Single playthrough (last volta only)
-- ms3: From ms3's *_unfolded.measures.tsv (when different from default)
-- music21: music21's expandRepeats() (only if diverges from default)
-- partitura_minimal: partitura's atomic segments (only if diverges from atomic)
-- partitura_maximal: partitura's full unfolding (only if diverges from default)
-
-This module includes:
-1. Tests validating CSV file structure and format
-2. Tests using Flow.from_csv() to load ground truth
-3. Tests using Flow.is_equivalent() for comparison
-4. Tests validating loader output against ANY valid flow_mode (1-5 per specimen)
+Tests that overlap with test_score_parsing_matrix.py have been removed.
+See that file for: CSV existence/mode checks, folded/unfolded counts,
+loader measure counts, and TSV→FlowController flow reproduction.
 
 Per ZERO TOLERANCE VALIDATION POLICY (from AGENTS.md):
 - EXACT counts required (no tolerances)
@@ -36,265 +22,22 @@ Per ZERO TOLERANCE VALIDATION POLICY (from AGENTS.md):
 
 from __future__ import annotations
 
-import csv
-from pathlib import Path
-from typing import NamedTuple
-
 import pytest
 
-# Test data directories
-TESTS_DATA_DIR = Path(__file__).parents[2] / "data"
-TARGET_FLOWS_DIR = TESTS_DATA_DIR / "target_flows"
-SCORE_DATA_DIR = TESTS_DATA_DIR / "score"
-
-
-class FlowEntry(NamedTuple):
-    """A single entry from a .flow.csv file."""
-
-    flow_mode: str
-    source_file: str
-    software_version: str
-    mc_start: int | str  # int or "ERROR"
-    mc_end: int | str  # int or error code
-    atomic_segments: str
-
-
-def parse_flow_csv(csv_path: Path) -> list[FlowEntry]:
-    """Parse a .flow.csv file into FlowEntry objects.
-
-    Args:
-        csv_path: Path to the .flow.csv file
-
-    Returns:
-        List of FlowEntry objects (skips comment lines and ERROR entries)
-
-    Note:
-        The parser requires the first 6 columns in order:
-        flow_mode, source_file, software_version, mc_start, mc_end, atomic_segments
-
-        Optional extra columns (e.g., "comment") are allowed and ignored.
-    """
-    entries = []
-    required_columns = [
-        "flow_mode",
-        "source_file",
-        "software_version",
-        "mc_start",
-        "mc_end",
-        "atomic_segments",
-    ]
-    with open(csv_path, newline="") as f:
-        reader = csv.reader(f)
-        header = next(reader)  # Skip header
-
-        # Validate that required columns are present in correct order
-        if len(header) < 6:
-            raise ValueError(
-                f"Expected at least 6 columns, got {len(header)}: {header}"
-            )
-        assert (
-            header[:6] == required_columns
-        ), f"First 6 columns must be {required_columns}, got {header[:6]}"
-
-        for row in reader:
-            # Skip empty rows and comment lines
-            if not row or row[0].startswith("#"):
-                continue
-
-            # Ensure row has at least 6 columns
-            if len(row) < 6:
-                continue
-
-            # Unpack required columns (ignore any extra columns like "comment")
-            flow_mode, source_file, software_version, mc_start, mc_end, segments = row[
-                :6
-            ]
-
-            # Skip ERROR entries
-            if mc_start == "ERROR":
-                continue
-
-            entries.append(
-                FlowEntry(
-                    flow_mode=flow_mode,
-                    source_file=source_file,
-                    software_version=software_version,
-                    mc_start=int(mc_start),
-                    mc_end=int(mc_end),
-                    atomic_segments=segments,
-                )
-            )
-
-    return entries
-
-
-def find_source_file(source_filename: str, specimen_name: str) -> Path | None:
-    """Find the source file in the score data directory.
-
-    Args:
-        source_filename: The filename from the flow.csv
-        specimen_name: The specimen name (derived from flow.csv filename)
-
-    Returns:
-        Path to the source file, or None if not found
-    """
-    # Map specimen names to directories
-    specimen_dirs = {
-        "c05n05_musete": SCORE_DATA_DIR / "couperin_concerts",
-        "c11n08_Rondeau": SCORE_DATA_DIR / "couperin_concerts",
-        "out_of_the_flow_experience-polyrhythm_only": SCORE_DATA_DIR / "flow_control",
-        "out_of_the_flow_experience-flow_only": SCORE_DATA_DIR
-        / "flow_control"
-        / "flow_only",
-        "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff": SCORE_DATA_DIR
-        / "rachmaninoff",
-        "op18_no4_mov4_flow": SCORE_DATA_DIR
-        / "beethoven_op18-4iv_multimodal"
-        / "op18_no4_mov4_flow",
-        "WoO71": SCORE_DATA_DIR / "beethoven_woo71",
-    }
-
-    # Also check subdirectories for unfolded TSV files
-    specimen_subdirs = {
-        "c05n05_musete": SCORE_DATA_DIR / "couperin_concerts",
-        "c11n08_Rondeau": SCORE_DATA_DIR / "couperin_concerts",
-        "out_of_the_flow_experience-polyrhythm_only": SCORE_DATA_DIR
-        / "flow_control"
-        / "polyrythm_only",
-        "out_of_the_flow_experience-flow_only": SCORE_DATA_DIR
-        / "flow_control"
-        / "flow_only",
-        "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff": SCORE_DATA_DIR
-        / "rachmaninoff",
-        "op18_no4_mov4_flow": SCORE_DATA_DIR
-        / "beethoven_op18-4iv_multimodal"
-        / "op18_no4_mov4_flow",
-        "WoO71": SCORE_DATA_DIR / "beethoven_woo71",
-    }
-
-    # Try main directory first
-    if specimen_name in specimen_dirs:
-        candidate = specimen_dirs[specimen_name] / source_filename
-        if candidate.exists():
-            return candidate
-
-    # Try subdirectory
-    if specimen_name in specimen_subdirs:
-        candidate = specimen_subdirs[specimen_name] / source_filename
-        if candidate.exists():
-            return candidate
-
-    # Try recursive search as fallback
-    for path in SCORE_DATA_DIR.rglob(source_filename):
-        return path
-
-    return None
-
-
-def get_loader_for_source_file(source_filename: str):
-    """Get the appropriate loader class based on source file extension.
-
-    Loader is determined by file extension, NOT by flow_mode:
-    - .tsv: TSVLoader
-    - .mm.json, .json: MeasureMapLoader
-    - .musicxml, .xml: PartituraLoader (or Music21Loader as fallback)
-    - .mei: PartituraLoader (or Music21Loader as fallback)
-
-    Args:
-        source_filename: The source filename from the flow.csv
-
-    Returns:
-        Loader class or None if not available
-    """
-    ext = source_filename.lower()
-
-    if ext.endswith(".tsv"):
-        try:
-            from timetoalign.loader.score import TSVLoader
-
-            return TSVLoader
-        except ImportError:
-            return None
-
-    if ext.endswith(".mm.json") or ext.endswith(".json"):
-        from timetoalign.loader.score import MeasureMapLoader
-
-        return MeasureMapLoader
-
-    if ext.endswith(".musicxml") or ext.endswith(".xml"):
-        try:
-            from timetoalign.loader.score import PartituraLoader
-
-            return PartituraLoader
-        except ImportError:
-            pass
-        try:
-            from timetoalign.loader.score import Music21Loader
-
-            return Music21Loader
-        except ImportError:
-            return None
-
-    if ext.endswith(".mei"):
-        try:
-            from timetoalign.loader.score import PartituraLoader
-
-            return PartituraLoader
-        except ImportError:
-            pass
-        try:
-            from timetoalign.loader.score import Music21Loader
-
-            return Music21Loader
-        except ImportError:
-            return None
-
-    return None
-
+from .conftest import (
+    TARGET_FLOWS_DIR,
+    FlowEntry,
+    find_source_file,
+    parse_flow_csv,
+)
 
 # ============================================================================
-# Fixtures
+# Test: Validate RIGHT-OPEN mc_end convention
 # ============================================================================
 
 
-@pytest.fixture
-def flow_csv_files() -> list[Path]:
-    """Get all .flow.csv files in the target_flows directory."""
-    return sorted(TARGET_FLOWS_DIR.glob("*.flow.csv"))
-
-
-# ============================================================================
-# Test: Validate flow.csv files exist and are parseable
-# ============================================================================
-
-
-class TestFlowCSVStructure:
-    """Validate .flow.csv file structure and format."""
-
-    def test_flow_csv_files_exist(self, flow_csv_files):
-        """At least one .flow.csv file exists."""
-        assert len(flow_csv_files) > 0, f"No .flow.csv files in {TARGET_FLOWS_DIR}"
-
-    @pytest.mark.parametrize(
-        "csv_name",
-        [
-            "c05n05_musete.flow.csv",
-            "c11n08_Rondeau.flow.csv",
-            "out_of_the_flow_experience-polyrhythm_only.flow.csv",
-            "out_of_the_flow_experience-flow_only.flow.csv",
-            "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.flow.csv",
-            "op18_no4_mov4_flow.flow.csv",
-            "WoO71.flow.csv",
-        ],
-    )
-    def test_flow_csv_parseable(self, csv_name):
-        """Each flow.csv can be parsed without errors."""
-        csv_path = TARGET_FLOWS_DIR / csv_name
-        if not csv_path.exists():
-            pytest.skip(f"Flow CSV not found: {csv_path}")
-
-        entries = parse_flow_csv(csv_path)
-        assert len(entries) > 0, f"No valid entries in {csv_name}"
+class TestFlowCSVRightOpenConvention:
+    """Validate that .flow.csv mc_end values follow RIGHT-OPEN convention."""
 
     @pytest.mark.parametrize(
         "csv_name",
@@ -390,81 +133,6 @@ class TestAtomicSegmentValidation:
 
 
 # ============================================================================
-# Test: Validate loader measure counts
-# ============================================================================
-
-
-class TestLoaderMeasureCounts:
-    """Validate that loaders produce expected measure counts."""
-
-    @pytest.mark.parametrize(
-        "csv_name,flow_mode,expected_total_measures",
-        [
-            ("c05n05_musete.flow.csv", "atomic", 58),
-            ("c05n05_musete.flow.csv", "music21", 58),
-            (
-                "out_of_the_flow_experience-polyrhythm_only.flow.csv",
-                "atomic",
-                14,
-            ),
-            (
-                "out_of_the_flow_experience-polyrhythm_only.flow.csv",
-                "music21",
-                14,
-            ),
-            (
-                "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.flow.csv",
-                "atomic",
-                374,
-            ),
-        ],
-    )
-    def test_loader_measure_count(self, csv_name, flow_mode, expected_total_measures):
-        """Verify loader produces expected total measure count."""
-        csv_path = TARGET_FLOWS_DIR / csv_name
-        if not csv_path.exists():
-            pytest.skip(f"Flow CSV not found: {csv_path}")
-
-        entries = parse_flow_csv(csv_path)
-        mode_entries = [e for e in entries if e.flow_mode == flow_mode]
-
-        if not mode_entries:
-            pytest.skip(f"No {flow_mode} entries in {csv_name}")
-
-        # Get loader based on source file extension (NOT flow_mode)
-        source_file = mode_entries[0].source_file
-        loader_class = get_loader_for_source_file(source_file)
-        if loader_class is None:
-            pytest.skip(f"No loader available for source file: {source_file}")
-
-        # Find source file
-        specimen_name = csv_name.replace(".flow.csv", "")
-        source_path = find_source_file(mode_entries[0].source_file, specimen_name)
-        if source_path is None:
-            pytest.skip(f"Source file not found: {mode_entries[0].source_file}")
-
-        # Load and check measure count
-        import warnings
-
-        warnings.filterwarnings("ignore")
-
-        loader = loader_class()
-        loader.load(source_path)
-
-        # Count unique MCs (not total rows, which includes all parts)
-        measures_table = loader.store.measures.table
-        mc_values = measures_table.column("mc").to_pylist()
-        actual_count = len(set(mc_values))
-
-        assert actual_count == expected_total_measures, (
-            f"Measure count mismatch for {csv_name} with {flow_mode}:\n"
-            f"  Expected: {expected_total_measures} unique MCs\n"
-            f"  Actual: {actual_count} unique MCs (from {len(measures_table)} total rows)\n"
-            f"  Source: {source_path}"
-        )
-
-
-# ============================================================================
 # Test: Validate segment MC ranges against actual partitura output
 # ============================================================================
 
@@ -477,6 +145,7 @@ class TestLoaderMeasureCounts:
         "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.flow.csv",
     ],
 )
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 class TestPartituraSegmentValidation:
     """Validate partitura_minimal segments against live partitura output.
 
@@ -525,10 +194,6 @@ class TestPartituraSegmentValidation:
             pytest.skip(f"Source file is not MusicXML: {source_path}")
 
         # Load with partitura
-        import warnings
-
-        warnings.filterwarnings("ignore")
-
         score = pt.load_musicxml(source_path)
         part = score[0]
 
@@ -577,114 +242,8 @@ class TestPartituraSegmentValidation:
 # ============================================================================
 
 
-class TestFlowEquivalence:
-    """Test loader outputs against valid flows using Flow.is_equivalent()."""
-
-    @pytest.mark.parametrize(
-        "specimen_name",
-        [
-            "out_of_the_flow_experience-polyrhythm_only",
-            "out_of_the_flow_experience-flow_only",
-            "c05n05_musete",
-            "c11n08_Rondeau",
-            "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff",
-            "op18_no4_mov4_flow",
-            "WoO71",
-        ],
-    )
-    def test_loader_produces_valid_flow(self, specimen_name: str) -> None:
-        """Loader output matches one of the valid unfoldings in .flow.csv.
-
-        This test validates that a loader's computed flow is equivalent to
-        at least one of the valid unfoldings defined in the ground truth CSV.
-        """
-        from timetoalign.loader.score import TSVLoader
-        from timetoalign.timelines import FlowController
-        from timetoalign.timelines.flow import FlowMode, load_valid_flows
-
-        # Find the .flow.csv file
-        csv_path = TARGET_FLOWS_DIR / f"{specimen_name}.flow.csv"
-        if not csv_path.exists():
-            pytest.skip(f"Flow CSV not found: {csv_path}")
-
-        # Load valid flows from ground truth
-        valid_flows = load_valid_flows(csv_path)
-        if not valid_flows:
-            pytest.skip(f"No valid flows in {csv_path}")
-
-        # Find the source TSV file
-        # Map specimen names to TSV paths
-        tsv_paths = {
-            "out_of_the_flow_experience-polyrhythm_only": (
-                SCORE_DATA_DIR
-                / "flow_control"
-                / "polyrythm_only"
-                / "out_of_the_flow_experience-polyrhythm_only.measures.tsv"
-            ),
-            "out_of_the_flow_experience-flow_only": (
-                SCORE_DATA_DIR
-                / "flow_control"
-                / "flow_only"
-                / "out_of_the_flow_experience-flow_only.measures.tsv"
-            ),
-            "c05n05_musete": (
-                SCORE_DATA_DIR / "couperin_concerts" / "c05n05_musete.measures.tsv"
-            ),
-            "c11n08_Rondeau": (
-                SCORE_DATA_DIR / "couperin_concerts" / "c11n08_Rondeau.measures.tsv"
-            ),
-            "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff": (
-                SCORE_DATA_DIR
-                / "rachmaninoff_concerto2"
-                / "score"
-                / "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.measures.tsv"
-            ),
-            "op18_no4_mov4_flow": (
-                SCORE_DATA_DIR
-                / "beethoven_op18-4iv_multimodal"
-                / "op18_no4_mov4_flow"
-                / "op18_no4_mov4_flow.measures.tsv"
-            ),
-            "WoO71": (SCORE_DATA_DIR / "beethoven_woo71" / "WoO71.measures.tsv"),
-        }
-
-        tsv_path = tsv_paths.get(specimen_name)
-        if tsv_path is None or not tsv_path.exists():
-            pytest.skip(f"TSV not found for {specimen_name}")
-
-        # Load and compute flow
-        loader = TSVLoader()
-        loader.load(tsv_path)
-
-        controller = FlowController(loader.store.measures)
-        computed_flow = controller.compute_flow(FlowMode.DEFAULT)
-
-        # Test passes if output matches ANY valid unfolding
-        matches = [
-            (mode, flow)
-            for mode, flow in valid_flows.items()
-            if computed_flow.is_equivalent(flow)
-        ]
-
-        if len(matches) == 0:
-            # Build diagnostic message
-            computed_segs = [(s.mc_start, s.mc_end) for s in computed_flow.sections[:5]]
-            valid_summaries = {
-                mode.value: [(s.mc_start, s.mc_end) for s in flow.sections[:5]]
-                for mode, flow in valid_flows.items()
-            }
-
-            pytest.fail(
-                f"Loader output doesn't match any valid unfolding.\n"
-                f"Computed segments (first 5): {computed_segs}\n"
-                f"Computed MC sequence (first 20): {computed_flow.to_mc_sequence()[:20]}\n"
-                f"Valid modes: {list(valid_flows.keys())}\n"
-                f"Valid segments (first 5 each): {valid_summaries}"
-            )
-
-        # Report which mode matched
-        matched_mode = matches[0][0]
-        assert True, f"Matched flow_mode: {matched_mode.value}"
+class TestFlowSerialization:
+    """Test Flow CSV serialization round-trip."""
 
     def test_flow_from_csv_round_trip(self) -> None:
         """Flow can be loaded from CSV and exported back."""

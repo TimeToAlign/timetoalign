@@ -488,8 +488,8 @@ class TestTimelineChildrenStructure:
         """Parent timeline length is max of children lengths."""
         timeline = multi_store.to_default_timeline()
 
-        # Measures end at 400, so parent length should be at least 400
-        assert timeline.length.value >= 400
+        # Measures end at 400, so parent length should be exactly 400
+        assert timeline.length.value == 400
 
     def test_children_locked_after_addition(self, multi_store: DictStore):
         """Children are locked after being added to parent."""

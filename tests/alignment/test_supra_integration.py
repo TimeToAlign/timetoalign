@@ -7,9 +7,9 @@ Tests the full SUPRA piano roll alignment workflow using:
 
 Per ZERO TOLERANCE policy, all assertions use exact expected values.
 
-NOTE: As of Phase 7.4, these tests use the new TimelineGroup timestamp-based
-architecture. The old PerfectAlignment class is deprecated. Partial alignment
-is achieved via the start/end parameters in AlignmentBundle.add_timeline().
+NOTE: These tests use the TimelineGroup timestamp-based architecture.
+The old PerfectAlignment class is deprecated. Partial alignment is
+achieved via the start/end parameters in AlignmentBundle.add_timeline().
 """
 
 from __future__ import annotations
@@ -134,7 +134,7 @@ class TestSUPRATimelineCreation:
 class TestSUPRAAlignmentBundle:
     """Tests for SUPRA workflow using AlignmentBundle with partial alignment.
 
-    Uses the new Phase 7.4 API where partial alignment is specified via
+    Uses the timestamp-based API where partial alignment is specified via
     start/end parameters in add_timeline(), rather than PerfectAlignment objects.
     """
 
@@ -241,7 +241,7 @@ class TestSUPRAOrderIndependence:
     The bundle must produce identical transfer results regardless
     of the order in which timelines are added.
 
-    Uses the new Phase 7.4 API with start/end parameters for partial alignment.
+    Uses the timestamp-based API with start/end parameters for partial alignment.
     """
 
     def test_order_1_image_first(
@@ -389,7 +389,7 @@ class TestSUPRAOrderIndependence:
 class TestSUPRASummary:
     """Tests for bundle summary with SUPRA data.
 
-    Uses the new Phase 7.4 API with start/end parameters for partial alignment.
+    Uses the timestamp-based API with start/end parameters for partial alignment.
     """
 
     def test_summary_structure(

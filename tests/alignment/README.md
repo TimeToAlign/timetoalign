@@ -19,6 +19,41 @@ Each test validates a **specific claim** from the manuscript specification. Test
 
 ---
 
+## Shared Test Fixtures (`conftest.py`)
+
+All Thoresen test data constants and shared fixtures are centralised in `tests/alignment/conftest.py`. Individual test files import from conftest rather than defining their own copies.
+
+### Centralised Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `DGT1_SEGMENT_LENGTH` | 967 | Pixels per DGT1 segment (x1 - x0 = 969 - 2) |
+| `DGT1_TOTAL_WIDTH` | 4835 | Total DGT1 width (5 × 967) |
+| `DGT2_SEGMENT_LENGTHS` | [866, 867, 867, 864, 864] | Per-segment widths for DGT2 |
+| `DGT2_TOTAL_WIDTH` | 4328 | Total DGT2 width |
+| `AUDIO_DURATION_SECONDS` | 150.0 | Shared audio reference duration |
+| `THORESEN_TEST_EVENTS` | 11 events | All events from `thoresen_test.tsv` |
+
+### Centralised Fixtures
+
+| Fixture | Type | Description |
+|---------|------|-------------|
+| `dgt1_timeline` | `DiscreteGraphicalTimeline` | DGT1 (2009): 4835 px, uid="dgt1" |
+| `dgt2_timeline` | `DiscreteGraphicalTimeline` | DGT2 (2010): 4328 px, uid="dgt2" |
+| `audio_timeline` | `ContinuousPhysicalTimeline` | 150 seconds, uid="audio" |
+| `thoresen_segment_claims` | `list[MatchClaim]` | 5 interval claims mapping DGT1↔DGT2 segments |
+| `dgt1_bundle` / `dgt2_bundle` | `GraphicalBundle` | Full graphical bundles (requires PyMuPDF) |
+
+### ID Reset (`autouse=True`)
+
+The `reset_ids` fixture in `conftest.py` has `autouse=True` and resets **all** ID generators (anchor, claim, group, bundle) before every test. This ensures test isolation without individual test files needing their own reset fixtures.
+
+### Migration Note
+
+Previously, `dgt1_timeline`, `dgt2_timeline`, `audio_timeline`, `thoresen_segment_claims`, and the DGT1/DGT2 coordinate constants were duplicated across `test_thoresen_poc.py`, `test_graph.py`, and `test_matchline.py`. These have been consolidated into `conftest.py` so that all test files share a single source of truth.
+
+---
+
 ## TimelineGroup Architecture (Phase 7.4)
 
 ### Timestamp Table Design
@@ -328,20 +363,21 @@ def test_thoresen_poc_setup(self):
     """
 ```
 
-This test validates that the Group infrastructure can model the Thoresen proof-of-concept from the manuscript. It creates two independent groups (DGT1+audio, DGT2+audio) and verifies coordinate conversions match expected values.
+This test validates that the Group infrastructure can model the Thoresen proof-of-concept from the manuscript. It creates two independent groups (DGT1+audio, DGT2+audio) and verifies coordinate conversions match expected values. The `dgt1_timeline`, `dgt2_timeline`, and `audio_timeline` fixtures are provided by `conftest.py`.
 
-**Why exact values**: The pixel counts (4875, 4328) and segment lengths come from the manuscript. The test verifies that our implementation produces the same results the manuscript describes.
+**Why exact values**: The pixel counts (4875, 4328) and segment lengths come from the manuscript (constants centralised in `conftest.py`). The test verifies that our implementation produces the same results the manuscript describes.
 
 ### Thoresen Segment Claims (`test_anchors.py::TestClaimIntegration`)
 
 ```python
 def test_thoresen_segment_claims(self):
     """Creates 5 interval MatchClaims for segment correspondence."""
-    segment_lengths_dgt1 = [975, 975, 975, 975, 975]
-    segment_lengths_dgt2 = [866, 867, 867, 864, 864]
+    # Constants from conftest.py:
+    # DGT1_SEGMENT_LENGTH = 967 (5 equal segments)
+    # DGT2_SEGMENT_LENGTHS = [866, 867, 867, 864, 864]
 ```
 
-This test validates that MatchClaims can represent the segment-to-segment correspondence needed for the Thoresen PoC. It verifies:
+This test validates that MatchClaims can represent the segment-to-segment correspondence needed for the Thoresen PoC. The `thoresen_segment_claims` fixture (defined in `conftest.py`) builds the claims from the centralised DGT1/DGT2 constants. It verifies:
 - All 5 claims are intervals (not instants)
 - All claims connect the same timeline pair
 - Cumulative offsets are correct (first segment starts at 0, last ends at total length)
@@ -625,21 +661,72 @@ cd timetoalign
 python -m pytest tests/alignment/ -v
 ```
 
-**Phase 6.8 Status**: Deprecated `MatchClaim.instant()`/`.interval()` removed; all callers migrated. Full alignment suite: 367 passed, 56 skipped. The skips are pre-existing stubs in `test_thoresen_poc.py` and graphical loader tests requiring PyMuPDF.
+**Status**: Unified Stamp & Query API fully implemented. Full alignment suite: **561 passed** (alignment + core/ids). The skips are pre-existing stubs in `test_thoresen_poc.py` and graphical loader tests requiring PyMuPDF.
 
 ### Test Files
 
 | File | Tests | Description |
 |------|-------|-------------|
+| `conftest.py` | — | Shared fixtures and constants: Thoresen timeline fixtures (`dgt1_timeline`, `dgt2_timeline`, `audio_timeline`, `thoresen_segment_claims`), DGT1/DGT2 coordinate constants, `autouse` ID reset fixture, graphical bundle fixtures |
 | `test_groups.py` | 58 | TimelineGroup, GroupTimestamp, and unified TimeStamp API |
 | `test_bundle.py` | 61 | AlignmentBundle: 30 original (linear/partial alignment) + 31 new (Phase 6.7: cross-group transfer, timestamps, commensurability, caching, edge cases) |
 | `test_anchors.py` | ~55 | AlignmentAnchor (Phase 6.2), MatchClaim (Phase 6.3), MatchMetadata |
-| `test_graph.py` | 54 | MatchGraph operations (Phase 6.4: +19 tests for implicit claims, filtering, stamps) |
-| `test_matchline.py` | 33 | MatchLine construction, from_claims, from_graphs, coordinate pairs, serialization (Phase 6.5) |
+| `test_graph.py` | 54 | MatchGraph operations (Phase 6.4: +19 tests for implicit claims, filtering, stamps); imports Thoresen fixtures from conftest |
+| `test_matchline.py` | 33 | MatchLine construction, from_claims, from_graphs, coordinate pairs, serialization (Phase 6.5); imports Thoresen fixtures from conftest |
 | `test_warpmap.py` | 36 | WarpMap construction, forward/inverse, materialise (events, children, regions, type conversion), serialization, end-to-end pipeline (Phase 6.6) |
+| `test_filters.py` | 27 | `ClaimFilter` dataclass: exact ID, set-of-IDs, regex, between, synchronous/nomatch, combined filters, timeline-level filtering |
+| `test_stamp_query_api.py` | 52 | Unified Stamp & Query API: `get_match_claims()`, `get_matchstamp_at()`, `MatchGraph.get_matchstamp()`/`split_components()`, `MatchClaim.get_matchstamp()`, MatchGraph cache, display methods (`__str__`/`_repr_html_`), `transfer()` docstring fix, top-level exports |
 | `test_supra_integration.py` | 13 | SUPRA piano roll workflow (partial alignment) |
-| `test_thoresen_poc.py` | 35 | Thoresen graphical analysis workflow |
+| `test_thoresen_poc.py` | 35 | Thoresen graphical analysis workflow; imports Thoresen fixtures from conftest |
 | `../timelines/test_offset_arithmetic.py` | 11 | Parent–child offset arithmetic (Phase 6.1) |
+
+---
+
+## Unified Stamp & Query API Tests
+
+### ClaimFilter Tests (`test_filters.py`)
+
+Tests for the `ClaimFilter` dataclass — the Unified Filter API (AGENTS.md Section 1.9). Covers all filter parameters individually and in combination:
+
+| Class | Tests | Purpose |
+|-------|-------|---------|
+| `TestClaimFilterCreation` | 5 | Empty filter, mutual exclusion, `from_kwargs`, repr |
+| `TestClaimFilterExactId` | 4 | `timeline_id` filter on A-side, B-side, mismatch, timeline-level |
+| `TestClaimFilterIdSet` | 3 | `timeline_ids` set filter |
+| `TestClaimFilterRegex` | 4 | `id_pattern` regex: prefix, suffix, range, timeline-level |
+| `TestClaimFilterBetween` | 3 | `between` pair filter: exact, reversed, mismatch |
+| `TestClaimFilterSynchronous` | 4 | `synchronous_only` and `nomatch_only` |
+| `TestClaimFilterCombined` | 4 | AND logic across multiple filters |
+
+### Stamp & Query API Tests (`test_stamp_query_api.py`)
+
+Tests for the Unified Stamp & Query API, using a star-topology bundle (1 score + 3 performers, 5 coordinates each, plus 1 NOMATCH claim).
+
+| Class | Tests | Purpose |
+|-------|-------|---------|
+| `TestGetMatchClaims` | 8 | `AlignmentBundle.get_match_claims()`: no filters, by timeline ID, by regex, synchronous_only, nomatch_only, between, combined |
+| `TestMatchGraphGetMatchstamp` | 4 | `MatchGraph.get_matchstamp()`: single component, multi-component raises, empty graph, only-NOMATCH |
+| `TestMatchGraphSplitComponents` | 4 | `split_components()`: single, two components, empty graph, `n_components` property |
+| `TestMatchGraphStarTopology` | 2 | Star topology (1 score + N performers): single coordinate = one component, determinism |
+| `TestMatchClaimGetMatchstamp` | 4 | `MatchClaim.get_matchstamp()`: reduced stamp, NOMATCH returns None, no-bundle raises, from-graph with bundle |
+| `TestMatchGraphCache` | 5 | MatchGraph cache: hit, cross-key lookup, invalidation, no-claims raises, different coordinates |
+| `TestGetMatchstampAt` | 6 | `AlignmentBundle.get_matchstamp_at()`: basic, non-zero coordinate, not-in-bundle, no claims, regex filter, timeline_ids filter |
+| `TestMatchStampDisplay` | 7 | `MatchStamp.__str__`/`_repr_html_`: header, entries, empty, integer formatting, valid HTML, bold anchors, greyed inferred |
+| `TestMatchClaimDisplay` | 8 | `MatchClaim.__str__`/`_repr_html_`: instant, interval, NOMATCH, metadata, inferred, valid HTML, NOMATCH badge |
+| `TestTransferDocstring` | 1 | `transfer()` docstring no longer says "primary user-facing" |
+| `TestTopLevelExports` | 4 | `MatchGraph`, `MatchStamp`, `ClaimFilter` importable from top-level |
+
+### TimelineIdGenerator Tests (`../core/test_ids.py`)
+
+Tests for the `TimelineIdGenerator` class that generates systematic timeline IDs based on type (AGENTS.md Section 1.10). 12 tests covering:
+
+| Area | Tests | Purpose |
+|------|-------|---------|
+| Basic generation | 3 | Counter increments, prefix mapping for all 6 timeline types |
+| Role-based IDs | 2 | `next_id_with_role()` produces `role:prefix{N}` format |
+| Metadata | 2 | Metadata association and retrieval |
+| Reset/isolation | 3 | Counter reset, independent instances |
+| Edge cases | 2 | Unknown types, large counter values |
 
 ### Deprecated Tests
 

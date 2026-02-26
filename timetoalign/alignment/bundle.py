@@ -6,11 +6,11 @@ bundle manages timelines, groups, and coordinate transfer operations.
 
 Within a group, coordinate transfer uses linear interpolation
 (``TimelineGroup.convert()``).  Across groups, transfer is mediated by
-the Phase 6.5-6.6 pipeline: ``MatchClaim`` → ``MatchLine`` → ``WarpMap``.
+the ``MatchClaim`` -> ``MatchLine`` -> ``WarpMap`` pipeline.
 WarpMaps are built lazily and cached for repeated queries.
 
-NOTE: As of Phase 7.4, TimelineGroup uses a timestamp-based architecture.
-The bundle now uses the new add_timeline() API internally.
+TimelineGroup uses a timestamp-based architecture. The bundle uses
+the add_timeline() API internally.
 """
 
 from __future__ import annotations
@@ -22,12 +22,16 @@ from typing import TYPE_CHECKING, Any, Literal
 from timetoalign.core import IdCoordinate, IdGenerator
 
 from .anchors import MatchClaim
+from .filters import ClaimFilter
+from .graph import MatchGraph, MatchStamp
 from .groups import TimelineGroup
 from .matchline import MatchLine
 from .warpmap import WarpMap
 
 if TYPE_CHECKING:
+    from timetoalign.core.enums import Domain, TimeUnit
     from timetoalign.display.ascii import Diagram
+    from timetoalign.maps.base import ConversionMap
     from timetoalign.timelines import Timeline
 
 module_logger = logging.getLogger(__name__)
@@ -106,8 +110,19 @@ class AlignmentBundle:
     _uid_to_timeline_id: dict[str, str] = field(default_factory=dict, repr=False)
     # Reverse mapping from timeline.id to bundle UID
     _timeline_id_to_uid: dict[str, str] = field(default_factory=dict, repr=False)
-    # Cached WarpMaps: (source_tl_id, target_tl_id) -> WarpMap
-    _warp_map_cache: dict[tuple[str, str], WarpMap] = field(
+    # Cached WarpMaps: (source_tl_id, target_tl_id) -> WarpMap | None
+    # None values are cached as negative results to avoid repeated expensive
+    # MatchLine construction for unreachable timeline pairs.
+    _warp_map_cache: dict[tuple[str, str], WarpMap | None] = field(
+        default_factory=dict, repr=False
+    )
+    # Cached MatchLines: source_tl_id -> MatchLine (avoids rebuilding the
+    # expensive MatchGraph + group extension for every target lookup)
+    _matchline_cache: dict[str, MatchLine | None] = field(
+        default_factory=dict, repr=False
+    )
+    # Cached MatchGraphs: (timeline_id, coordinate) -> MatchGraph
+    _matchgraph_cache: dict[tuple[str, float], MatchGraph] = field(
         default_factory=dict, repr=False
     )
     # Hash of cross_group_claims list at time of last cache build
@@ -370,7 +385,7 @@ class AlignmentBundle:
 
     @property
     def default_group(self) -> TimelineGroup | None:
-        """Get the single group (Phase 1) or primary group.
+        """Get the single group or primary group.
 
         Returns:
             The first/only group if one exists, None otherwise.
@@ -462,7 +477,9 @@ class AlignmentBundle:
            interpolate the coordinate.
         3. If no path exists: returns ``None``.
 
-        This is the primary user-facing method for coordinate conversion.
+        Low-level coordinate transfer utility. For user-facing coordinate
+        queries, use ``get_matchstamp_at()`` which returns a full cross-section
+        as a MatchStamp.
 
         Args:
             coord: The coordinate value to transfer.
@@ -514,7 +531,7 @@ class AlignmentBundle:
                 )
                 return None
 
-        # Try indirect: convert within source group first, then warp
+        # Try indirect via SOURCE group: convert within source, then warp
         if from_group_id is not None:
             source_group = self.groups[from_group_id]
             for src_other_tl_id in source_group.timeline_ids:
@@ -530,6 +547,30 @@ class AlignmentBundle:
                     if intermediate is None:
                         continue
                     return float(warp.forward(float(intermediate)))
+                except Exception:
+                    continue
+
+        # Try indirect via TARGET group: warp to reachable group member,
+        # then convert within the target group.
+        if to_group_id is not None:
+            target_group = self.groups[to_group_id]
+            for tgt_other_tl_id in target_group.timeline_ids:
+                if tgt_other_tl_id == actual_to_id:
+                    continue
+                warp = self._get_or_build_warp_map(actual_from_id, tgt_other_tl_id)
+                if warp is None:
+                    continue
+                try:
+                    warped = float(warp.forward(coord))
+                    conv = self._get_claim_to_native_converter(tgt_other_tl_id)
+                    if conv is not None:
+                        warped = float(conv(warped))
+                    result = target_group.convert(
+                        warped, source=tgt_other_tl_id, target=actual_to_id
+                    )
+                    if result is None:
+                        continue
+                    return float(result)
                 except Exception:
                     continue
 
@@ -651,10 +692,270 @@ class AlignmentBundle:
         self._invalidate_warp_cache()
         return self
 
+    def get_match_claims(
+        self,
+        *,
+        timeline_id: str | None = None,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
+        between: tuple[str, str] | None = None,
+        synchronous_only: bool = False,
+        nomatch_only: bool = False,
+        include_domains: set["Domain"] | None = None,
+        include_units: set["TimeUnit"] | None = None,
+    ) -> list[MatchClaim]:
+        """Query MatchClaims connecting timelines across groups.
+
+        This is the primary interface for accessing alignment information.
+        All parameters are optional; when none are provided, returns all
+        claims.
+
+        Filters are combined with AND logic: a claim must satisfy every
+        non-None criterion. Uses the Unified Filter API (AGENTS.md Section
+        1.9).
+
+        Args:
+            timeline_id: Return claims involving this timeline.
+            timeline_ids: Return claims involving any of these timelines.
+            id_pattern: Regex pattern matched against timeline IDs via
+                ``re.search()``. Example: ``r"^perf:"`` matches all
+                performance timelines.
+            between: Return claims connecting exactly these two timelines
+                (order-independent).
+            synchronous_only: Exclude non-synchronous (NOMATCH) claims.
+            nomatch_only: Return only non-synchronous (NOMATCH) claims.
+            include_domains: Only timelines in these domains.
+            include_units: Only timelines with these units.
+
+        Returns:
+            Filtered list of MatchClaims.
+
+        Examples:
+            Get all synchronous claims for a performer::
+
+                >>> claims = bundle.get_match_claims(
+                ...     id_pattern=r"dlt1$", synchronous_only=True
+                ... )
+
+            Get NOMATCH claims for a specific pair::
+
+                >>> nomatches = bundle.get_match_claims(
+                ...     between=("score:clt1", "perf:dlt5"),
+                ...     nomatch_only=True,
+                ... )
+        """
+        filt = ClaimFilter(
+            timeline_id=timeline_id,
+            timeline_ids=timeline_ids,
+            id_pattern=id_pattern,
+            between=between,
+            synchronous_only=synchronous_only,
+            nomatch_only=nomatch_only,
+            include_domains=include_domains,
+            include_units=include_units,
+        )
+        return [
+            c
+            for c in self.cross_group_claims
+            if filt.matches_claim(c, timelines=self.timelines)
+        ]
+
+    def _get_or_build_matchgraph(
+        self,
+        timeline_id: str,
+        coordinate: float,
+    ) -> MatchGraph:
+        """Get or build the MatchGraph containing (timeline_id, coordinate).
+
+        Checks the cache first. On cache miss, finds all synchronous
+        cross-group claims whose anchors touch this coordinate on this
+        timeline (or any timeline connected at this coordinate via
+        transitive closure), builds a MatchGraph from them, and caches
+        it keyed by ALL (timeline_id, coordinate) nodes in the resulting
+        graph.
+
+        Args:
+            timeline_id: A timeline in the bundle.
+            coordinate: The coordinate to look up.
+
+        Returns:
+            The MatchGraph for this coordinate's connected component.
+
+        Raises:
+            ValueError: If no synchronous claims touch this node.
+        """
+        key = (timeline_id, coordinate)
+        if key in self._matchgraph_cache:
+            return self._matchgraph_cache[key]
+
+        # Find ALL claims that touch this coordinate on this timeline
+        relevant_claims: list[MatchClaim] = []
+        for c in self.cross_group_claims:
+            if not c.is_synchronous or c.start_anchor is None:
+                continue
+            anchor = c.start_anchor
+            if (
+                anchor.timeline_a_id == timeline_id
+                and anchor.coordinate_a == coordinate
+            ) or (
+                anchor.timeline_b_id == timeline_id
+                and anchor.coordinate_b == coordinate
+            ):
+                relevant_claims.append(c)
+
+        if not relevant_claims:
+            raise ValueError(
+                f"No synchronous claims touch ({timeline_id!r}, {coordinate}) "
+                f"in this bundle."
+            )
+
+        # Build graph — transitive closure connects all timelines at
+        # this coordinate
+        mg = MatchGraph(claims=relevant_claims)
+
+        # Cache keyed by ALL nodes in the graph
+        for node in mg._graph.nodes():
+            node_tl, node_coord = node
+            self._matchgraph_cache[(node_tl, node_coord)] = mg
+
+        return mg
+
+    def get_matchstamp_at(
+        self,
+        coordinate: float,
+        timeline_id: str,
+        *,
+        conversion_maps: bool = True,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
+        include_domains: set["Domain"] | None = None,
+        include_units: set["TimeUnit"] | None = None,
+    ) -> MatchStamp:
+        """Get a cross-group MatchStamp at a coordinate on a timeline.
+
+        This is the primary interface for cross-domain coordinate transfer.
+        Given a coordinate on one timeline, returns coordinates on ALL
+        connected timelines across ALL groups.
+
+        The method:
+        1. Builds (or retrieves from cache) the MatchGraph for this
+           coordinate's connected component.
+        2. Returns the graph's MatchStamp.
+
+        Args:
+            coordinate: The coordinate value.
+            timeline_id: Bundle UID of the source timeline.
+            conversion_maps: Include C-map conversions. Reserved for
+                future use (currently ignored).
+            timeline_ids: Only include these timelines in the result.
+            id_pattern: Regex filter for timeline IDs in the result.
+            include_domains: Only these domains in the result.
+            include_units: Only these units in the result.
+
+        Returns:
+            MatchStamp spanning all connected timelines.
+
+        Raises:
+            KeyError: If timeline_id is not in the bundle.
+            ValueError: If no synchronous claims touch this coordinate.
+
+        Examples:
+            >>> ms = bundle.get_matchstamp_at(10.0, "score:clt1")
+            >>> ms.n_timelines
+            23  # score + 22 performers
+        """
+        if timeline_id not in self.timelines:
+            raise KeyError(f"Timeline '{timeline_id}' not in bundle")
+
+        mg = self._get_or_build_matchgraph(timeline_id, coordinate)
+        stamp = mg.get_matchstamp()
+
+        # Apply post-hoc filtering if requested
+        has_filter = (
+            timeline_ids is not None
+            or id_pattern is not None
+            or include_domains is not None
+            or include_units is not None
+        )
+        if has_filter:
+            filt = ClaimFilter(
+                timeline_ids=timeline_ids,
+                id_pattern=id_pattern,
+                include_domains=include_domains,
+                include_units=include_units,
+            )
+            filtered_coords = {
+                tl_id: coord
+                for tl_id, coord in stamp.coordinates.items()
+                if filt.matches_timeline(tl_id, timelines=self.timelines)
+            }
+            remaining = set(filtered_coords.keys())
+            stamp = MatchStamp(
+                coordinates=filtered_coords,
+                anchor_edges=[
+                    (a, b)
+                    for a, b in stamp.anchor_edges
+                    if a in remaining and b in remaining
+                ],
+                inferred_edges=[
+                    (a, b)
+                    for a, b in stamp.inferred_edges
+                    if a in remaining and b in remaining
+                ],
+            )
+
+        return stamp
+
     def _invalidate_warp_cache(self) -> None:
-        """Clear the WarpMap cache, forcing rebuild on next access."""
+        """Clear the WarpMap, MatchLine, and MatchGraph caches, forcing rebuild on next access."""
         self._warp_map_cache.clear()
+        self._matchline_cache.clear()
+        self._matchgraph_cache.clear()
         self._cache_claims_hash = 0
+        if hasattr(self, "_claim_converter_cache"):
+            self._claim_converter_cache.clear()
+
+    def _get_or_build_match_line(self, source_tl_id: str) -> MatchLine | None:
+        """Get or lazily build a MatchLine for the given source timeline.
+
+        The MatchLine is cached per ``source_tl_id`` and shared across
+        all target lookups from the same source. This avoids rebuilding
+        the expensive ``MatchGraph`` for every ``(source, target)`` pair.
+
+        Group extension is deliberately NOT applied here. When groups
+        contain timelines at different sampling rates (e.g. 44.1 kHz
+        audio alongside 42 Hz features), within-group interpolation maps
+        many distinct coordinates to the same low-resolution value,
+        creating spurious edges that collapse ALL graph components into
+        one.  WarpMap construction needs clean per-claim pairs, not the
+        merged supergraph.  Group extension is only appropriate for
+        MatchStamp display (``get_matchstamp_at``).
+
+        Args:
+            source_tl_id: Actual timeline ID (not bundle UID) of the source.
+
+        Returns:
+            MatchLine for the source, or None if construction fails.
+        """
+        if source_tl_id in self._matchline_cache:
+            return self._matchline_cache[source_tl_id]
+
+        try:
+            match_line = MatchLine.from_claims(
+                claims=self.cross_group_claims,
+                source_timeline_id=source_tl_id,
+            )
+        except Exception as e:
+            self._logger.debug(
+                "Failed to build MatchLine for source '%s': %s",
+                source_tl_id,
+                e,
+            )
+            self._matchline_cache[source_tl_id] = None
+            return None
+
+        self._matchline_cache[source_tl_id] = match_line
+        return match_line
 
     def _get_or_build_warp_map(
         self, source_tl_id: str, target_tl_id: str
@@ -663,8 +964,9 @@ class AlignmentBundle:
 
         Builds a ``MatchLine`` from ``cross_group_claims`` with group
         extension and constructs a ``WarpMap`` via
-        ``WarpMap.from_match_line()``.  The result is cached; the cache
-        is invalidated when ``add_match_claims()`` is called.
+        ``WarpMap.from_match_line()``.  Both negative results (unreachable
+        pairs) and positive results are cached; the cache is invalidated
+        when ``add_match_claims()`` is called.
 
         Args:
             source_tl_id: Actual timeline ID (not bundle UID) of the source.
@@ -680,37 +982,22 @@ class AlignmentBundle:
         claims_hash = id(self.cross_group_claims) + len(self.cross_group_claims)
         if claims_hash != self._cache_claims_hash:
             self._warp_map_cache.clear()
+            self._matchline_cache.clear()
             self._cache_claims_hash = claims_hash
 
         cache_key = (source_tl_id, target_tl_id)
         if cache_key in self._warp_map_cache:
             return self._warp_map_cache[cache_key]
 
-        # Build MatchLine from claims with group extension
-        try:
-            match_line = MatchLine.from_claims(
-                claims=self.cross_group_claims,
-                source_timeline_id=source_tl_id,
-                groups=self.groups,
-                timeline_to_group={
-                    self._uid_to_timeline_id[uid]: gid
-                    for uid, gid in self.timeline_to_group.items()
-                },
-                timelines={
-                    self._uid_to_timeline_id[uid]: tl
-                    for uid, tl in self.timelines.items()
-                },
-            )
-        except Exception as e:
-            self._logger.debug(
-                "Failed to build MatchLine for source '%s': %s",
-                source_tl_id,
-                e,
-            )
+        # Build or retrieve cached MatchLine for this source
+        match_line = self._get_or_build_match_line(source_tl_id)
+        if match_line is None:
+            self._warp_map_cache[cache_key] = None
             return None
 
         # Check if target timeline is reachable
         if target_tl_id not in match_line.target_timeline_ids():
+            self._warp_map_cache[cache_key] = None
             return None
 
         # Build WarpMap
@@ -723,6 +1010,7 @@ class AlignmentBundle:
                 target_tl_id,
                 e,
             )
+            self._warp_map_cache[cache_key] = None
             return None
 
         self._warp_map_cache[cache_key] = warp
@@ -832,7 +1120,9 @@ class AlignmentBundle:
 
         Args:
             group: The TimelineGroup.
-            coordinate: Coordinate in the source timeline.
+            coordinate: Coordinate in the source timeline's native unit,
+                or in a unit convertible via C-Map (see
+                ``_resolve_claim_coordinate``).
             timeline_id: Actual timeline ID (not bundle UID).
 
         Returns:
@@ -868,6 +1158,82 @@ class AlignmentBundle:
                 unit_map[tl_uid] = str(tl.unit)
         return unit_map
 
+    def _get_claim_to_native_converter(
+        self, timeline_id: str
+    ) -> "ConversionMap | None":
+        """Get a converter from claim-space coordinates to native units.
+
+        MatchClaim anchors sometimes carry coordinates in a derived unit
+        (e.g. EEP note onsets in seconds on an audio DPT whose native
+        unit is samples).  This method detects the mismatch by comparing
+        the claim coordinate range against the timeline's native range
+        and each C-Map's target range.
+
+        The result is the *inverse* of the matching C-Map, i.e. a
+        function ``derived_unit → native_unit`` (e.g. seconds → samples).
+
+        Results are cached per timeline in ``_claim_converter_cache``.
+
+        Args:
+            timeline_id: Actual timeline ID.
+
+        Returns:
+            A callable (inverse C-Map) converting claim coordinates to
+            the timeline's native unit, or None if no conversion needed.
+        """
+        if not hasattr(self, "_claim_converter_cache"):
+            self._claim_converter_cache: dict[str, Any] = {}
+
+        _SENTINEL = object()
+        cached = self._claim_converter_cache.get(timeline_id, _SENTINEL)
+        if cached is not _SENTINEL:
+            return cached
+
+        bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
+        tl = self.timelines.get(bundle_uid)
+        if tl is None or not tl._conversion_maps:
+            self._claim_converter_cache[timeline_id] = None
+            return None
+
+        # Find the max claim coordinate for this timeline
+        max_claim_coord = 0.0
+        for claim in self.cross_group_claims:
+            anchor = claim.start_anchor
+            if anchor is None:
+                continue
+            c = anchor.get_coordinate_for(timeline_id)
+            if c is not None and c > max_claim_coord:
+                max_claim_coord = c
+                if max_claim_coord > 1000:
+                    break
+
+        if max_claim_coord == 0:
+            self._claim_converter_cache[timeline_id] = None
+            return None
+
+        tl_length = float(tl.length.value)
+
+        # If max claim coord is within 1% of the timeline's length,
+        # claims are in the native unit — no conversion needed.
+        if max_claim_coord > tl_length * 0.01:
+            self._claim_converter_cache[timeline_id] = None
+            return None
+
+        # Claims are much smaller than the native range — find which
+        # C-Map's target range covers the claim range.
+        for cmap in tl._conversion_maps.values():
+            try:
+                converted_length = float(cmap(tl_length))
+                if max_claim_coord <= converted_length * 1.1:
+                    inv = cmap.inverse()
+                    self._claim_converter_cache[timeline_id] = inv
+                    return inv
+            except Exception:
+                continue
+
+        self._claim_converter_cache[timeline_id] = None
+        return None
+
     def _transfer_to_group(
         self,
         coordinate: float,
@@ -880,6 +1246,11 @@ class AlignmentBundle:
         Searches for a WarpMap connecting any timeline in the source
         group to any timeline in the target group.  Tries direct maps
         first, then indirect (convert within source group, then warp).
+
+        The WarpMap may return a coordinate in the claim's unit rather
+        than the target timeline's native unit (e.g. seconds instead of
+        samples).  ``_get_claim_to_native_converter`` detects this and
+        provides an inverse C-Map to correct the output.
 
         Args:
             coordinate: Source coordinate.
@@ -896,6 +1267,9 @@ class AlignmentBundle:
             if warp is not None:
                 try:
                     transferred = float(warp.forward(coordinate))
+                    conv = self._get_claim_to_native_converter(target_tl_id)
+                    if conv is not None:
+                        transferred = float(conv(transferred))
                     return (target_tl_id, transferred)
                 except Exception:
                     continue
@@ -920,6 +1294,9 @@ class AlignmentBundle:
                 if warp is not None:
                     try:
                         transferred = float(warp.forward(float(intermediate)))
+                        conv = self._get_claim_to_native_converter(target_tl_id)
+                        if conv is not None:
+                            transferred = float(conv(transferred))
                         return (target_tl_id, transferred)
                     except Exception:
                         continue
@@ -1043,6 +1420,7 @@ class AlignmentBundle:
         width: int = 80,
         show_children: bool = True,
         max_children: int = 6,
+        max_standalone: int = 6,
         unicode: bool = True,
     ) -> "Diagram":
         """Generate ASCII diagram for this bundle.
@@ -1051,6 +1429,8 @@ class AlignmentBundle:
             width: Total width of the diagram in characters.
             show_children: Whether to expand child timelines.
             max_children: Maximum children per timeline.
+            max_standalone: Maximum standalone timelines to display
+                before truncating with an ellipsis.
             unicode: Use Unicode characters (True) or ASCII fallback (False).
 
         Returns:
@@ -1076,6 +1456,7 @@ class AlignmentBundle:
             width=width,
             show_children=show_children,
             max_children=max_children,
+            max_standalone=max_standalone,
             unicode=unicode,
         )
 

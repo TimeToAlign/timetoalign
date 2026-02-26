@@ -1,4 +1,4 @@
-"""Tests for Phase 6.1: Parent-child offset arithmetic.
+"""Tests for parent-child offset arithmetic.
 
 Verifies that parent-child coordinate conversion uses exact offset
 arithmetic (addition/subtraction) rather than InterpolationMap interpolation.
@@ -222,7 +222,7 @@ class TestTimeStampOffsetArithmetic:
     ) -> None:
         """Verify that Timeline._get_interpolation_map returns None for children.
 
-        Phase 6.1: Children use offset arithmetic, not InterpolationMap.
+        Children use offset arithmetic, not InterpolationMap.
         """
         parent.add_child(child, offset=10.0)
 
@@ -233,7 +233,7 @@ class TestTimeStampOffsetArithmetic:
         self,
         parent: ContinuousPhysicalTimeline,
     ) -> None:
-        """Verify that Timeline has no _interpolation_maps attribute (Phase 6.1)."""
+        """Verify that Timeline has no _interpolation_maps attribute."""
         assert not hasattr(parent, "_interpolation_maps")
 
 

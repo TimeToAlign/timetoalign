@@ -102,9 +102,9 @@ class TestCoordinateParserFloat:
         assert isinstance(result, pa.StructArray)
         assert len(result) == 100000
 
-        # Spot checks
-        assert result.field("value")[0].as_py() == pytest.approx(0.0)
-        assert result.field("value")[99999].as_py() == pytest.approx(100.0)
+        # np.linspace(0, 100, 100000) produces exactly 0.0 and 100.0 at boundaries
+        assert result.field("value")[0].as_py() == 0.0
+        assert result.field("value")[99999].as_py() == 100.0
 
         # All numerators should be null
         assert result.field("numerator").null_count == 100000
@@ -159,7 +159,8 @@ class TestCoordinateParserFraction:
 
         assert result.field("numerator")[9999].as_py() == 9999
         assert result.field("denominator")[9999].as_py() == 4
-        assert result.field("value")[9999].as_py() == pytest.approx(9999 / 4)
+        # 9999/4 = 2499.75, exactly representable in float64
+        assert result.field("value")[9999].as_py() == 9999 / 4
 
     def test_parse_fraction_objects(self):
         """Parse Fraction objects."""

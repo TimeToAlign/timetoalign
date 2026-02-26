@@ -26,6 +26,7 @@ Key concepts (from MeasureMap paper):
 from __future__ import annotations
 
 import logging
+from fractions import Fraction
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import pyarrow as pa
@@ -289,15 +290,53 @@ class MeasureData(EventData):
             processed.pop("name", None)  # Already mapped to mn
 
             # ===== Convert temporal columns to struct format =====
-            # The schema expects struct types for start, end, duration
+            # The schema expects coordinate structs ({value, numerator,
+            # denominator}).  Loaders may pass fraction-format dicts
+            # ({num, den}) via fraction_to_struct(), raw Fraction/float
+            # values, or coordinate-format dicts (already correct).
             for coord_col in ["start", "end", "duration"]:
                 if coord_col in processed and processed[coord_col] is not None:
                     val = processed[coord_col]
-                    # If already a struct dict, leave it; otherwise convert
-                    if not isinstance(val, dict):
+                    if isinstance(val, dict):
+                        if "num" in val and "value" not in val:
+                            # fraction_to_struct format -> coordinate format
+                            frac = Fraction(val["num"], val["den"])
+                            processed[coord_col] = coordinate_to_struct(frac)
+                        # else: already coordinate struct format
+                    else:
                         processed[coord_col] = coordinate_to_struct(val)
                 else:
                     processed[coord_col] = None
+
+            # Compute 'end' from start + duration when not explicitly set.
+            if processed.get("end") is None:
+                s = processed.get("start")
+                d = processed.get("duration")
+                if (
+                    s is not None
+                    and d is not None
+                    and isinstance(s, dict)
+                    and isinstance(d, dict)
+                    and s.get("value") is not None
+                    and d.get("value") is not None
+                ):
+                    end_val = s["value"] + d["value"]
+                    end_num = None
+                    end_den = None
+                    if (
+                        s.get("numerator") is not None
+                        and d.get("numerator") is not None
+                    ):
+                        s_frac = Fraction(s["numerator"], s["denominator"])
+                        d_frac = Fraction(d["numerator"], d["denominator"])
+                        e_frac = s_frac + d_frac
+                        end_num = e_frac.numerator
+                        end_den = e_frac.denominator
+                    processed["end"] = {
+                        "value": end_val,
+                        "numerator": end_num,
+                        "denominator": end_den,
+                    }
 
             processed_rows.append(processed)
 

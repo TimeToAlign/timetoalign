@@ -366,6 +366,98 @@ class SingleStore(EventStore):
 # endregion
 
 
+# region DictStore
+
+
+class DictStore(EventStore):
+    """Generic EventStore with arbitrary named EventData tables.
+
+    Used by AlignmentLoaders that produce a variable number of timelines
+    (e.g., MatchfileLoader: 1 score + N performances; Ieee1599Loader:
+    logic + audio_1 + audio_2 + graphical_1).
+
+    Maintains the uniform EventStore interface (iteration, keys, items,
+    getitem) while supporting any number of named data sources.
+
+    Args:
+        data: Dictionary mapping names to EventData tables.
+
+    Examples:
+        >>> store = DictStore({
+        ...     "score": score_event_data,
+        ...     "perf:p01": perf_01_event_data,
+        ...     "perf:p02": perf_02_event_data,
+        ... })
+        >>> for name, events in store.items():
+        ...     print(f"{name}: {len(events)} events")
+    """
+
+    def __init__(self, data: dict[str, "EventData"] | None = None) -> None:
+        """Initialize DictStore.
+
+        Args:
+            data: Dictionary mapping names to EventData tables.
+                If None, starts with an empty dictionary.
+        """
+        self._data: dict[str, "EventData"] = data or {}
+
+    def add(self, name: str, events: "EventData") -> None:
+        """Add or replace a named EventData table.
+
+        Args:
+            name: The name for this data (e.g., ``"score"``, ``"perf:p01"``).
+            events: The EventData to store.
+        """
+        self._data[name] = events
+
+    # region EventStore Protocol
+
+    def __iter__(self) -> Iterator["EventData"]:
+        """Iterate over EventData in insertion order."""
+        yield from self._data.values()
+
+    def items(self) -> Iterator[tuple[str, "EventData"]]:
+        """Iterate over (name, EventData) pairs in insertion order."""
+        yield from self._data.items()
+
+    def keys(self) -> tuple[str, ...]:
+        """Return data names in insertion order."""
+        return tuple(self._data.keys())
+
+    def __getitem__(self, name: str) -> "EventData":
+        """Get EventData by name.
+
+        Args:
+            name: The data name.
+
+        Returns:
+            The EventData for that name.
+
+        Raises:
+            KeyError: If name is not found.
+        """
+        try:
+            return self._data[name]
+        except KeyError:
+            raise KeyError(f"Unknown data: {name!r}. Valid: {self.keys()}") from None
+
+    def __len__(self) -> int:
+        """Return number of named EventData tables."""
+        return len(self._data)
+
+    # endregion
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        entries = ", ".join(
+            f"{name}={len(ed)} events" for name, ed in self._data.items()
+        )
+        return f"DictStore({entries})"
+
+
+# endregion
+
+
 # region AlignmentStore
 
 

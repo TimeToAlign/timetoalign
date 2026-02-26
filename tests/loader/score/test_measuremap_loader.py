@@ -19,16 +19,14 @@ from pathlib import Path
 
 import pytest
 
-# Specimen data paths
-# NOTE: Path goes up from tests/loader/score/ to project root (tta/), then into dashboard/specimens/
-# tests/loader/score/ -> tests/loader/ -> tests/ -> timetoalign/ -> tta/ (4 parents)
-SPECIMENS_DIR = Path(__file__).parents[4] / "dashboard" / "specimens"
-BEETHOVEN_WOO71_DIR = SPECIMENS_DIR / "beethoven_woo71"
+# Specimen data paths - all under tests/data/score/
+TESTS_DATA_DIR = Path(__file__).parents[2] / "data" / "score"
+BEETHOVEN_WOO71_DIR = TESTS_DATA_DIR / "beethoven_woo71"
 BEETHOVEN_MM_JSON = BEETHOVEN_WOO71_DIR / "WoO71.measures.mm.json"
 BEETHOVEN_MEASURES_TSV = BEETHOVEN_WOO71_DIR / "WoO71.measures.tsv"
 BEETHOVEN_UNFOLDED_TSV = BEETHOVEN_WOO71_DIR / "WoO71_unfolded.measures.tsv"
 
-FLOW_CONTROL_DIR = SPECIMENS_DIR / "flow_control" / "flow_only"
+FLOW_CONTROL_DIR = TESTS_DATA_DIR / "flow_control" / "flow_only"
 FLOW_MM_JSON = (
     FLOW_CONTROL_DIR / "out_of_the_flow_experience-flow_only.measures.mm.json"
 )
@@ -82,13 +80,13 @@ class TestMeasureMapLoaderBasic:
     def test_load_beethoven_mm_json(self, measuremap_loader):
         """Load Beethoven WoO71 MeasureMap JSON."""
         measuremap_loader.load(BEETHOVEN_MM_JSON)
-        assert len(measuremap_loader.store.measures) > 0
+        assert len(measuremap_loader.store.measures) == BEETHOVEN_FOLDED_MEASURES
 
     @pytest.mark.skipif(not specimens_available(), reason="Specimen files not found")
     def test_beethoven_folded_count_exact(self, measuremap_loader):
-        """Beethoven WoO71 MeasureMap has exactly 240 measures.
+        """Beethoven WoO71 MeasureMap has exactly 397 measures.
 
-        Gold standard: WoO71.measures.mm.json contains MC 1-240.
+        Gold standard: WoO71.measures.mm.json contains MC 1-397.
         This count is verified against the source file.
         """
         measuremap_loader.load(BEETHOVEN_MM_JSON)
@@ -253,9 +251,15 @@ class TestMeasureMapCrossValidation:
         tsv_count = len(tsv_loader.store.measures)
 
         # Note: TSV may have different count due to format differences
-        # The mm.json has 240, but let's verify
-        assert mm_count > 0, "MeasureMapLoader returned 0 measures"
-        assert tsv_count > 0, "TSVLoader returned 0 measures"
+        # Both should match the gold standard: 397 folded measures
+        assert mm_count == BEETHOVEN_FOLDED_MEASURES, (
+            f"MeasureMapLoader returned {mm_count} measures, "
+            f"expected {BEETHOVEN_FOLDED_MEASURES}"
+        )
+        assert tsv_count == BEETHOVEN_FOLDED_MEASURES, (
+            f"TSVLoader returned {tsv_count} measures, "
+            f"expected {BEETHOVEN_FOLDED_MEASURES}"
+        )
 
     def test_mc_sequence_match(self, measuremap_loader, tsv_loader):
         """MC values match between loaders."""
@@ -379,6 +383,6 @@ class TestFlowControlSpecimen:
         measuremap_loader.load(FLOW_MM_JSON)
         measures = measuremap_loader.store.measures
 
-        assert len(measures) > 0
+        assert len(measures) == 15  # flow_only specimen has exactly 15 measures
         summary = measures.get_flow_control_summary()
         assert summary["has_repeats"], "Flow control specimen should have repeats"

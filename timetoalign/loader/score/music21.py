@@ -34,7 +34,30 @@ class Music21Loader(ScoreLoader):
     - Measures (structure)
     - Controls (dynamics, tempo, etc.)
     - Annotations (text)
+
+    All TTA timelines start at coordinate 0.  When music21 reports negative
+    quarter-beat offsets (anacrusis notes preceding the first full measure),
+    this loader shifts every event coordinate so the earliest onset maps to
+    0.0.  The magnitude of that shift is exposed via :attr:`anacrusis_offset`
+    and stored in ``ScoreStore.metadata["anacrusis_offset"]``.
+
+    See ``PartituraLoader`` for the full rationale; both loaders apply the
+    same convention so that score timelines built from either source are
+    directly comparable and compatible with ``MatchfileLoader``.
     """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._anacrusis_offset: float = 0.0
+
+    @property
+    def anacrusis_offset(self) -> float:
+        """Quarter-beat shift applied to normalise anacrusis coordinates.
+
+        Equal to ``-min(raw_onset)`` across all notes in the most recently
+        loaded source.  Zero when the score has no anacrusis.
+        """
+        return self._anacrusis_offset
 
     def _load_source(self, source: Path) -> ScoreStore:
         """Load score and return ScoreStore."""
@@ -373,6 +396,30 @@ class Music21Loader(ScoreLoader):
                         }
                     )
 
+        # ── Anacrusis normalisation ───────────────────────────────────────────
+        # TTA timelines always start at coordinate 0.  When music21 reports
+        # negative quarter-beat offsets (anacrusis notes), we shift all event
+        # coordinates so the earliest onset becomes 0.0.  The shift is applied
+        # uniformly to notes, measures, controls, and annotations and its value
+        # is exposed via self.anacrusis_offset and stored in the ScoreStore
+        # metadata so downstream consumers can apply the same correction.
+        all_onsets = [r["quarterbeats_float"] for r in note_rows]
+        min_qb = min(all_onsets) if all_onsets else 0.0
+        m21_offset: Fraction = (
+            Fraction(-min_qb).limit_denominator(10000) if min_qb < 0 else Fraction(0)
+        )
+        self._anacrusis_offset = float(m21_offset)
+
+        if m21_offset:
+            for rows in (note_rows, measure_rows, control_rows, annotation_rows):
+                for r in rows:
+                    old_qb = Fraction(
+                        r["quarterbeats"]["num"], r["quarterbeats"]["den"]
+                    )
+                    new_qb = old_qb + m21_offset
+                    r["quarterbeats"] = fraction_to_struct(new_qb)
+                    r["quarterbeats_float"] = float(new_qb)
+
         # Build data
         notes_data = NoteEventData.from_dicts(
             note_rows,
@@ -421,6 +468,7 @@ class Music21Loader(ScoreLoader):
                 "parser": "music21",
                 "source": str(source),
                 "has_rests": has_rests,
+                "anacrusis_offset": float(m21_offset),
             },
         )
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from fractions import Fraction
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import Any
 
 import pytest
@@ -124,10 +123,9 @@ def store_with_mixed(sample_mixed_events: list[dict[str, Any]]) -> EventData:
 
 
 @pytest.fixture
-def temp_parquet_path() -> Path:
+def temp_parquet_path(tmp_path: Path) -> Path:
     """Temporary path for Parquet file testing."""
-    with NamedTemporaryFile(suffix=".parquet", delete=False) as f:
-        return Path(f.name)
+    return tmp_path / "test.parquet"
 
 
 class DummyLoader(Loader):
@@ -170,8 +168,8 @@ def dummy_loader() -> DummyLoader:
 
 
 @pytest.fixture
-def temp_source_file() -> Path:
+def temp_source_file(tmp_path: Path) -> Path:
     """A temporary source file for loader testing."""
-    with NamedTemporaryFile(suffix=".dummy", delete=False) as f:
-        f.write(b"dummy content")
-        return Path(f.name)
+    path = tmp_path / "source.dummy"
+    path.write_bytes(b"dummy content")
+    return path

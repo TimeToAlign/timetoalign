@@ -7,16 +7,8 @@ from datetime import datetime
 import pytest
 
 from timetoalign.alignment import AlignmentAnchor, MatchClaim, MatchMetadata
-from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
 
 # region Fixtures
-
-
-@pytest.fixture(autouse=True)
-def reset_ids() -> None:
-    """Reset ID generators before each test."""
-    _reset_anchor_ids()
-    _reset_claim_ids()
 
 
 @pytest.fixture
@@ -125,7 +117,7 @@ class TestMatchMetadata:
 
 
 class TestAlignmentAnchor:
-    """Tests for AlignmentAnchor dataclass (Phase 6.2: pure coordinate pair)."""
+    """Tests for AlignmentAnchor dataclass (pure coordinate pair)."""
 
     def test_basic_creation(self) -> None:
         """Test creating an anchor with required fields."""
@@ -142,7 +134,7 @@ class TestAlignmentAnchor:
         assert anchor.coordinate_b == 20.0
 
     def test_no_id_field(self) -> None:
-        """Test that AlignmentAnchor has no id field (Phase 6.2)."""
+        """Test that AlignmentAnchor has no id field."""
         anchor = AlignmentAnchor(
             timeline_a_id="tl1",
             coordinate_a=0.0,
@@ -152,7 +144,7 @@ class TestAlignmentAnchor:
         assert not hasattr(anchor, "id")
 
     def test_no_claim_fields(self) -> None:
-        """Test that AlignmentAnchor has no is_explicit or is_synchronous (Phase 6.2)."""
+        """Test that AlignmentAnchor has no is_explicit or is_synchronous."""
         anchor = AlignmentAnchor(
             timeline_a_id="tl1",
             coordinate_a=0.0,
@@ -247,7 +239,7 @@ class TestAlignmentAnchor:
 
 
 class TestMatchClaim:
-    """Tests for MatchClaim dataclass (Phase 6.3: top-level timeline IDs)."""
+    """Tests for MatchClaim dataclass (top-level timeline IDs)."""
 
     def test_instant_creation(self, basic_anchor: AlignmentAnchor) -> None:
         """Test creating instant match (single anchor)."""
@@ -331,7 +323,7 @@ class TestMatchClaim:
             )
 
     def test_synchronous_requires_anchor(self) -> None:
-        """Test that synchronous claims require a start_anchor (Phase 6.3)."""
+        """Test that synchronous claims require a start_anchor."""
         with pytest.raises(ValueError, match="require a start_anchor"):
             MatchClaim(
                 timeline_a_id="tl1",
@@ -341,7 +333,7 @@ class TestMatchClaim:
             )
 
     def test_non_synchronous_rejects_anchor(self) -> None:
-        """Test that non-synchronous claims must not have anchors (Phase 6.3)."""
+        """Test that non-synchronous claims must not have anchors."""
         anchor = AlignmentAnchor(
             timeline_a_id="tl1",
             coordinate_a=0.0,
@@ -580,7 +572,7 @@ class TestMatchClaim:
         assert end == 975.0
 
     def test_from_events_factory(self) -> None:
-        """Test from_events() factory method (Phase 6.3 case a)."""
+        """Test from_events() factory method (case a: event-based)."""
         claim = MatchClaim.from_events(
             event_a={"start": 100.0},
             tl_a_id="score",
@@ -596,7 +588,7 @@ class TestMatchClaim:
         assert claim.start_anchor.coordinate_b == 45.5
 
     def test_from_events_with_interval(self) -> None:
-        """Test from_events() with end coordinate (Phase 6.3 case a interval)."""
+        """Test from_events() with end coordinate (case a: interval)."""
         claim = MatchClaim.from_events(
             event_a={"start": 0.0, "end": 100.0},
             tl_a_id="tl1",
@@ -611,7 +603,7 @@ class TestMatchClaim:
         assert claim.end_anchor.coordinate_b == 200.0
 
     def test_from_projection_factory(self) -> None:
-        """Test from_projection() factory method (Phase 6.3 case b)."""
+        """Test from_projection() factory method (case b: projection)."""
         claim = MatchClaim.from_projection(
             event={"start": 100.0},
             source_tl_id="score",
@@ -627,7 +619,7 @@ class TestMatchClaim:
         assert claim.start_anchor.coordinate_b == 45.5
 
     def test_nomatch_factory(self) -> None:
-        """Test nomatch() factory method (Phase 6.3 case c)."""
+        """Test nomatch() factory method (case c: no match)."""
         claim = MatchClaim.nomatch(
             event={"start": 100.0},
             source_tl_id="score",
@@ -642,7 +634,7 @@ class TestMatchClaim:
         assert claim.anchors == []
 
     def test_implicit_factory(self) -> None:
-        """Test implicit() factory method (Phase 6.3 case d)."""
+        """Test implicit() factory method (case d: inferred)."""
         claim = MatchClaim.implicit(
             tl_a_id="tl1",
             coord_a=100.0,

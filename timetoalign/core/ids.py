@@ -2,13 +2,22 @@
 
 This module provides scoped IDs that preserve source provenance
 and generators for creating unique IDs within a scope.
+
+Includes:
+- ScopedId: An identifier with scope:local format.
+- IdGenerator: General-purpose unique ID generation within a scope.
+- TimelineIdGenerator: Generates systematic timeline IDs based on type
+  (e.g., ``clt1``, ``dlt2``, ``score:clt1``, ``perf:dlt3``).
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    pass
 
 
 @dataclass(frozen=True, slots=True)
@@ -213,3 +222,149 @@ class IdGenerator:
     def has_seen(self, id_str: str) -> bool:
         """Check if an ID has been generated/wrapped by this generator."""
         return id_str in self._seen
+
+
+# Mapping from timeline class name to type-based prefix.
+# See AGENTS.md section 1.10 for the canonical scheme.
+_TIMELINE_TYPE_PREFIXES: dict[str, str] = {
+    "ContinuousLogicalTimeline": "clt",
+    "DiscreteLogicalTimeline": "dlt",
+    "ContinuousPhysicalTimeline": "cpt",
+    "DiscretePhysicalTimeline": "dpt",
+    "ContinuousGraphicalTimeline": "cgt",
+    "DiscreteGraphicalTimeline": "dgt",
+}
+
+
+@dataclass
+class TimelineIdGenerator:
+    """Generates systematic timeline IDs based on type.
+
+    Timeline IDs follow the pattern ``{prefix}{N}`` where prefix
+    encodes the timeline type (domain + continuity) and N is a
+    1-indexed counter scoped to this generator instance.
+
+    When a role is specified, the ID becomes ``{role}:{prefix}{N}``
+    (e.g., ``score:clt1``, ``perf:dlt3``).
+
+    The counter N is scoped per prefix per generator. Each generator
+    instance maintains its own counter state, so different loaders
+    do not interfere with each other.
+
+    Attributes:
+        _counters: Per-prefix counter state.
+        _id_to_meta: Maps generated IDs to metadata dicts for lookup.
+
+    Examples:
+        >>> gen = TimelineIdGenerator()
+        >>> gen.next_id("ContinuousLogicalTimeline")
+        'clt1'
+        >>> gen.next_id("ContinuousLogicalTimeline")
+        'clt2'
+        >>> gen.next_id("DiscreteLogicalTimeline")
+        'dlt1'
+        >>> gen.next_id_with_role("DiscreteLogicalTimeline", "perf")
+        'perf:dlt2'
+    """
+
+    _counters: dict[str, int] = field(default_factory=dict)
+    _id_to_meta: dict[str, dict[str, object]] = field(default_factory=dict)
+
+    def _get_prefix(self, timeline_type: type | str) -> str:
+        """Resolve the prefix for a timeline type.
+
+        Args:
+            timeline_type: A timeline class or its name as a string.
+
+        Returns:
+            The type-based prefix (e.g., 'clt', 'dlt').
+
+        Raises:
+            ValueError: If the timeline type is not recognised.
+        """
+        if isinstance(timeline_type, str):
+            type_name = timeline_type
+        else:
+            type_name = timeline_type.__name__
+
+        prefix = _TIMELINE_TYPE_PREFIXES.get(type_name)
+        if prefix is None:
+            # Fallback: try to resolve from base Timeline
+            if type_name == "Timeline":
+                return "tl"
+            raise ValueError(
+                f"Unknown timeline type '{type_name}'. "
+                f"Expected one of: {', '.join(_TIMELINE_TYPE_PREFIXES.keys())}"
+            )
+        return prefix
+
+    def next_id(
+        self,
+        timeline_type: type | str,
+        *,
+        meta: dict[str, object] | None = None,
+    ) -> str:
+        """Generate the next ID for a given timeline type.
+
+        Args:
+            timeline_type: A timeline class or class name string.
+            meta: Optional metadata to associate with this ID.
+
+        Returns:
+            An ID like ``clt1``, ``dlt2``, etc.
+        """
+        prefix = self._get_prefix(timeline_type)
+        counter = self._counters.get(prefix, 0) + 1
+        self._counters[prefix] = counter
+        tid = f"{prefix}{counter}"
+        if meta:
+            self._id_to_meta[tid] = dict(meta)
+        return tid
+
+    def next_id_with_role(
+        self,
+        timeline_type: type | str,
+        role: str,
+        *,
+        meta: dict[str, object] | None = None,
+    ) -> str:
+        """Generate the next ID with a role prefix.
+
+        The role is prepended as ``{role}:{prefix}{N}``.
+
+        Args:
+            timeline_type: A timeline class or class name string.
+            role: The role prefix (e.g., 'score', 'perf').
+            meta: Optional metadata to associate with this ID.
+
+        Returns:
+            An ID like ``score:clt1``, ``perf:dlt3``.
+        """
+        prefix = self._get_prefix(timeline_type)
+        counter = self._counters.get(prefix, 0) + 1
+        self._counters[prefix] = counter
+        tid = f"{role}:{prefix}{counter}"
+        if meta:
+            self._id_to_meta[tid] = dict(meta)
+        return tid
+
+    def get_meta(self, timeline_id: str) -> dict[str, object] | None:
+        """Retrieve metadata associated with a generated ID.
+
+        Args:
+            timeline_id: A previously generated timeline ID.
+
+        Returns:
+            The metadata dict, or None if no metadata was stored.
+        """
+        return self._id_to_meta.get(timeline_id)
+
+    def reset(self) -> None:
+        """Reset all counters and metadata."""
+        self._counters.clear()
+        self._id_to_meta.clear()
+
+    @property
+    def count(self) -> int:
+        """Total number of IDs generated."""
+        return sum(self._counters.values())

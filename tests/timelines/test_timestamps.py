@@ -1,6 +1,6 @@
 """Tests for Timeline timestamp generation functionality.
 
-Tests for Phase 6 implementation: cross-section timestamp tables that show
+Tests for cross-section timestamp tables that show
 synchronous coordinates across timeline hierarchies.
 """
 

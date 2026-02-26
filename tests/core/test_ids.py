@@ -2,7 +2,7 @@
 
 import pytest
 
-from timetoalign.core.ids import IdGenerator, ScopedId
+from timetoalign.core.ids import IdGenerator, ScopedId, TimelineIdGenerator
 
 
 class TestScopedIdCreation:
@@ -310,3 +310,170 @@ class TestIdGeneratorEmptyScope:
         gen = IdGenerator("")
         result = gen.create(type_hint="note")
         assert result == "note_1"
+
+
+# region TimelineIdGenerator
+
+
+class TestTimelineIdGeneratorBasic:
+    """Tests for TimelineIdGenerator creation and basic operation."""
+
+    def test_creation(self) -> None:
+        """Can create a TimelineIdGenerator."""
+        gen = TimelineIdGenerator()
+        assert gen.count == 0
+
+    def test_next_id_clt(self) -> None:
+        """Generates correct prefix for ContinuousLogicalTimeline."""
+        gen = TimelineIdGenerator()
+        assert gen.next_id("ContinuousLogicalTimeline") == "clt1"
+
+    def test_next_id_dlt(self) -> None:
+        """Generates correct prefix for DiscreteLogicalTimeline."""
+        gen = TimelineIdGenerator()
+        assert gen.next_id("DiscreteLogicalTimeline") == "dlt1"
+
+    def test_next_id_cpt(self) -> None:
+        """Generates correct prefix for ContinuousPhysicalTimeline."""
+        gen = TimelineIdGenerator()
+        assert gen.next_id("ContinuousPhysicalTimeline") == "cpt1"
+
+    def test_next_id_dpt(self) -> None:
+        """Generates correct prefix for DiscretePhysicalTimeline."""
+        gen = TimelineIdGenerator()
+        assert gen.next_id("DiscretePhysicalTimeline") == "dpt1"
+
+    def test_next_id_cgt(self) -> None:
+        """Generates correct prefix for ContinuousGraphicalTimeline."""
+        gen = TimelineIdGenerator()
+        assert gen.next_id("ContinuousGraphicalTimeline") == "cgt1"
+
+    def test_next_id_dgt(self) -> None:
+        """Generates correct prefix for DiscreteGraphicalTimeline."""
+        gen = TimelineIdGenerator()
+        assert gen.next_id("DiscreteGraphicalTimeline") == "dgt1"
+
+    def test_next_id_base_timeline(self) -> None:
+        """Base Timeline class uses 'tl' prefix."""
+        gen = TimelineIdGenerator()
+        assert gen.next_id("Timeline") == "tl1"
+
+    def test_unknown_type_raises(self) -> None:
+        """Unknown timeline type raises ValueError."""
+        gen = TimelineIdGenerator()
+        with pytest.raises(ValueError, match="Unknown timeline type"):
+            gen.next_id("FancyTimeline")
+
+
+class TestTimelineIdGeneratorCounters:
+    """Tests for counter increment and scoping."""
+
+    def test_counter_increments_per_prefix(self) -> None:
+        """Counter increments per prefix, not globally."""
+        gen = TimelineIdGenerator()
+        assert gen.next_id("ContinuousLogicalTimeline") == "clt1"
+        assert gen.next_id("ContinuousLogicalTimeline") == "clt2"
+        assert gen.next_id("DiscreteLogicalTimeline") == "dlt1"
+        assert gen.next_id("ContinuousLogicalTimeline") == "clt3"
+        assert gen.next_id("DiscreteLogicalTimeline") == "dlt2"
+
+    def test_count_tracks_total(self) -> None:
+        """count property returns sum of all counters."""
+        gen = TimelineIdGenerator()
+        gen.next_id("ContinuousLogicalTimeline")
+        gen.next_id("DiscreteLogicalTimeline")
+        gen.next_id("ContinuousLogicalTimeline")
+        assert gen.count == 3
+
+    def test_reset_clears_state(self) -> None:
+        """reset() clears counters and metadata."""
+        gen = TimelineIdGenerator()
+        gen.next_id("ContinuousLogicalTimeline")
+        gen.next_id("DiscreteLogicalTimeline")
+        gen.reset()
+        assert gen.count == 0
+        assert gen.next_id("ContinuousLogicalTimeline") == "clt1"
+        assert gen.next_id("DiscreteLogicalTimeline") == "dlt1"
+
+
+class TestTimelineIdGeneratorRoles:
+    """Tests for role-based ID generation."""
+
+    def test_next_id_with_role(self) -> None:
+        """Role prefix is prepended."""
+        gen = TimelineIdGenerator()
+        assert (
+            gen.next_id_with_role("ContinuousLogicalTimeline", "score") == "score:clt1"
+        )
+
+    def test_role_and_plain_share_counter(self) -> None:
+        """Role and plain IDs share the same prefix counter."""
+        gen = TimelineIdGenerator()
+        assert gen.next_id("DiscreteLogicalTimeline") == "dlt1"
+        assert gen.next_id_with_role("DiscreteLogicalTimeline", "perf") == "perf:dlt2"
+        assert gen.next_id_with_role("DiscreteLogicalTimeline", "perf") == "perf:dlt3"
+
+    def test_vienna_pattern(self) -> None:
+        """Simulates the Vienna 1x22 pattern: 1 score + 22 performers."""
+        gen = TimelineIdGenerator()
+        score_id = gen.next_id_with_role("ContinuousLogicalTimeline", "score")
+        assert score_id == "score:clt1"
+
+        perf_ids = []
+        for _ in range(22):
+            perf_ids.append(gen.next_id_with_role("DiscreteLogicalTimeline", "perf"))
+        assert perf_ids[0] == "perf:dlt1"
+        assert perf_ids[21] == "perf:dlt22"
+        assert gen.count == 23
+
+
+class TestTimelineIdGeneratorMetadata:
+    """Tests for metadata association."""
+
+    def test_meta_stored_and_retrieved(self) -> None:
+        """Metadata is stored and can be retrieved by ID."""
+        gen = TimelineIdGenerator()
+        tid = gen.next_id_with_role(
+            "DiscreteLogicalTimeline",
+            "perf",
+            meta={"performer": "p01", "filename": "Chopin_op10_no3_p01.match"},
+        )
+        assert tid == "perf:dlt1"
+        meta = gen.get_meta(tid)
+        assert meta is not None
+        assert meta["performer"] == "p01"
+        assert meta["filename"] == "Chopin_op10_no3_p01.match"
+
+    def test_no_meta_returns_none(self) -> None:
+        """get_meta returns None for IDs without metadata."""
+        gen = TimelineIdGenerator()
+        tid = gen.next_id("ContinuousLogicalTimeline")
+        assert gen.get_meta(tid) is None
+
+    def test_meta_cleared_on_reset(self) -> None:
+        """reset() clears metadata."""
+        gen = TimelineIdGenerator()
+        tid = gen.next_id("ContinuousLogicalTimeline", meta={"x": 1})
+        gen.reset()
+        assert gen.get_meta(tid) is None
+
+    def test_accepts_class_objects(self) -> None:
+        """Can pass actual class objects, not just strings."""
+        from timetoalign.timelines import (
+            ContinuousLogicalTimeline,
+            DiscreteLogicalTimeline,
+        )
+
+        gen = TimelineIdGenerator()
+        assert gen.next_id(ContinuousLogicalTimeline) == "clt1"
+        assert gen.next_id(DiscreteLogicalTimeline) == "dlt1"
+
+    def test_accepts_class_objects_with_role(self) -> None:
+        """Can pass actual class objects to next_id_with_role."""
+        from timetoalign.timelines import ContinuousLogicalTimeline
+
+        gen = TimelineIdGenerator()
+        assert gen.next_id_with_role(ContinuousLogicalTimeline, "score") == "score:clt1"
+
+
+# endregion

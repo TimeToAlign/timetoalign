@@ -1,7 +1,7 @@
 """MatchLine: ordered sequence of MatchStamps for WarpMap generation.
 
 This module implements the MatchLine class, which provides the bridge
-between MatchGraph (Phase 6.4) and WarpMap (Phase 6.6).
+between MatchGraph and WarpMap.
 
 A MatchLine is an ordered sequence of MatchStamps for a given source
 timeline, sorted by coordinate on that timeline. It is the input for
@@ -10,7 +10,7 @@ WarpMap generation.
 The hierarchy is:
     AlignmentAnchor -> MatchClaim -> MatchGraph -> MatchStamp -> MatchLine
 
-Phase 6.5 Design:
+Design:
     MatchLine collects MatchStamps from one or more MatchGraphs, orders
     them by coordinate on a designated source timeline, and provides
     ``get_coordinate_pairs()`` for WarpMap construction.  The Hendrix

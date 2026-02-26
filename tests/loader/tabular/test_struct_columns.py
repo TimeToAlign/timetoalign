@@ -303,9 +303,10 @@ class TestTabularLoaderStructIntegration:
         table = events.table
         start_col = table.column("start")
         starts = pc.struct_field(start_col, "value").to_pylist()
-        assert starts[0] == pytest.approx(0.0)
-        assert starts[1] == pytest.approx(1.5)
-        assert starts[2] == pytest.approx(3.5)
+        # Values are parsed from JSON integers; exactly representable as float64
+        assert starts[0] == 0.0
+        assert starts[1] == 1.5
+        assert starts[2] == 3.5
 
     def test_graphical_loader_with_struct_field(self, sample_tsv_with_json: Path):
         """Test loader using struct field for start coordinate."""
@@ -337,17 +338,18 @@ class TestTabularLoaderStructIntegration:
         starts = pc.struct_field(table.column("start"), "value").to_pylist()
         ends = pc.struct_field(table.column("end"), "value").to_pylist()
 
+        # Integer pixel coords from JSON; exactly representable as float64
         # First row: x=10, width=148 -> start=10, end=158
-        assert starts[0] == pytest.approx(10.0)
-        assert ends[0] == pytest.approx(158.0)
+        assert starts[0] == 10.0
+        assert ends[0] == 158.0
 
         # Second row: x=158, width=200 -> start=158, end=358
-        assert starts[1] == pytest.approx(158.0)
-        assert ends[1] == pytest.approx(358.0)
+        assert starts[1] == 158.0
+        assert ends[1] == 358.0
 
         # Third row: x=358, width=100 -> start=358, end=458
-        assert starts[2] == pytest.approx(358.0)
-        assert ends[2] == pytest.approx(458.0)
+        assert starts[2] == 358.0
+        assert ends[2] == 458.0
 
     def test_tuple_syntax_for_field(self, sample_tsv_with_json: Path):
         """Test that tuple syntax works as shorthand for Field."""
@@ -372,8 +374,8 @@ class TestTabularLoaderStructIntegration:
 
         table = events.table
         starts = pc.struct_field(table.column("start"), "value").to_pylist()
-        assert starts[0] == pytest.approx(10.0)
-        assert starts[1] == pytest.approx(158.0)
+        assert starts[0] == 10.0
+        assert starts[1] == 158.0
 
     def test_struct_column_included_in_output(self, sample_tsv_with_json: Path):
         """Test that struct columns are included in output table."""
