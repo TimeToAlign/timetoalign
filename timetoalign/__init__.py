@@ -100,9 +100,12 @@ from __future__ import annotations
 from timetoalign.alignment import (
     AlignmentAnchor,
     AlignmentBundle,
+    ClaimFilter,
     MatchClaim,
+    MatchGraph,
     MatchLine,
     MatchMetadata,
+    MatchStamp,
     PerfectAlignment,
     TimelineGroup,
     WarpMap,
@@ -218,9 +221,12 @@ __all__ = [
     "PerfectAlignment",
     "TimelineGroup",
     "AlignmentAnchor",
+    "ClaimFilter",
     "MatchClaim",
+    "MatchGraph",
     "MatchLine",
     "MatchMetadata",
+    "MatchStamp",
     "WarpMap",
 ]
 

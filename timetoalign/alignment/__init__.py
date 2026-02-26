@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from .anchors import AlignmentAnchor, MatchClaim, MatchMetadata
 from .bundle import AlignmentBundle
+from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
 from .groups import GroupTimestamp, PerfectAlignment, TimelineGroup
 from .matching import (
@@ -44,6 +45,8 @@ __all__ = [
     "AlignmentAnchor",
     "MatchClaim",
     "MatchMetadata",
+    # Filters
+    "ClaimFilter",
     # Graph, Stamps, and Lines
     "MatchGraph",
     "MatchStamp",

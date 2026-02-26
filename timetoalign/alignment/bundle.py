@@ -22,11 +22,14 @@ from typing import TYPE_CHECKING, Any, Literal
 from timetoalign.core import IdCoordinate, IdGenerator
 
 from .anchors import MatchClaim
+from .filters import ClaimFilter
+from .graph import MatchGraph, MatchStamp
 from .groups import TimelineGroup
 from .matchline import MatchLine
 from .warpmap import WarpMap
 
 if TYPE_CHECKING:
+    from timetoalign.core.enums import Domain, TimeUnit
     from timetoalign.display.ascii import Diagram
     from timetoalign.timelines import Timeline
 
@@ -108,6 +111,10 @@ class AlignmentBundle:
     _timeline_id_to_uid: dict[str, str] = field(default_factory=dict, repr=False)
     # Cached WarpMaps: (source_tl_id, target_tl_id) -> WarpMap
     _warp_map_cache: dict[tuple[str, str], WarpMap] = field(
+        default_factory=dict, repr=False
+    )
+    # Cached MatchGraphs: (timeline_id, coordinate) -> MatchGraph
+    _matchgraph_cache: dict[tuple[str, float], MatchGraph] = field(
         default_factory=dict, repr=False
     )
     # Hash of cross_group_claims list at time of last cache build
@@ -462,7 +469,9 @@ class AlignmentBundle:
            interpolate the coordinate.
         3. If no path exists: returns ``None``.
 
-        This is the primary user-facing method for coordinate conversion.
+        Low-level coordinate transfer utility. For user-facing coordinate
+        queries, use ``get_matchstamp_at()`` which returns a full cross-section
+        as a MatchStamp.
 
         Args:
             coord: The coordinate value to transfer.
@@ -651,9 +660,224 @@ class AlignmentBundle:
         self._invalidate_warp_cache()
         return self
 
+    def get_match_claims(
+        self,
+        *,
+        timeline_id: str | None = None,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
+        between: tuple[str, str] | None = None,
+        synchronous_only: bool = False,
+        nomatch_only: bool = False,
+        include_domains: set["Domain"] | None = None,
+        include_units: set["TimeUnit"] | None = None,
+    ) -> list[MatchClaim]:
+        """Query MatchClaims connecting timelines across groups.
+
+        This is the primary interface for accessing alignment information.
+        All parameters are optional; when none are provided, returns all
+        claims.
+
+        Filters are combined with AND logic: a claim must satisfy every
+        non-None criterion. Uses the Unified Filter API (AGENTS.md Section
+        1.9).
+
+        Args:
+            timeline_id: Return claims involving this timeline.
+            timeline_ids: Return claims involving any of these timelines.
+            id_pattern: Regex pattern matched against timeline IDs via
+                ``re.search()``. Example: ``r"^perf:"`` matches all
+                performance timelines.
+            between: Return claims connecting exactly these two timelines
+                (order-independent).
+            synchronous_only: Exclude non-synchronous (NOMATCH) claims.
+            nomatch_only: Return only non-synchronous (NOMATCH) claims.
+            include_domains: Only timelines in these domains.
+            include_units: Only timelines with these units.
+
+        Returns:
+            Filtered list of MatchClaims.
+
+        Examples:
+            Get all synchronous claims for a performer::
+
+                >>> claims = bundle.get_match_claims(
+                ...     id_pattern=r"dlt1$", synchronous_only=True
+                ... )
+
+            Get NOMATCH claims for a specific pair::
+
+                >>> nomatches = bundle.get_match_claims(
+                ...     between=("score:clt1", "perf:dlt5"),
+                ...     nomatch_only=True,
+                ... )
+        """
+        filt = ClaimFilter(
+            timeline_id=timeline_id,
+            timeline_ids=timeline_ids,
+            id_pattern=id_pattern,
+            between=between,
+            synchronous_only=synchronous_only,
+            nomatch_only=nomatch_only,
+            include_domains=include_domains,
+            include_units=include_units,
+        )
+        return [
+            c
+            for c in self.cross_group_claims
+            if filt.matches_claim(c, timelines=self.timelines)
+        ]
+
+    def _get_or_build_matchgraph(
+        self,
+        timeline_id: str,
+        coordinate: float,
+    ) -> MatchGraph:
+        """Get or build the MatchGraph containing (timeline_id, coordinate).
+
+        Checks the cache first. On cache miss, finds all synchronous
+        cross-group claims whose anchors touch this coordinate on this
+        timeline (or any timeline connected at this coordinate via
+        transitive closure), builds a MatchGraph from them, and caches
+        it keyed by ALL (timeline_id, coordinate) nodes in the resulting
+        graph.
+
+        Args:
+            timeline_id: A timeline in the bundle.
+            coordinate: The coordinate to look up.
+
+        Returns:
+            The MatchGraph for this coordinate's connected component.
+
+        Raises:
+            ValueError: If no synchronous claims touch this node.
+        """
+        key = (timeline_id, coordinate)
+        if key in self._matchgraph_cache:
+            return self._matchgraph_cache[key]
+
+        # Find ALL claims that touch this coordinate on this timeline
+        relevant_claims: list[MatchClaim] = []
+        for c in self.cross_group_claims:
+            if not c.is_synchronous or c.start_anchor is None:
+                continue
+            anchor = c.start_anchor
+            if (
+                anchor.timeline_a_id == timeline_id
+                and anchor.coordinate_a == coordinate
+            ) or (
+                anchor.timeline_b_id == timeline_id
+                and anchor.coordinate_b == coordinate
+            ):
+                relevant_claims.append(c)
+
+        if not relevant_claims:
+            raise ValueError(
+                f"No synchronous claims touch ({timeline_id!r}, {coordinate}) "
+                f"in this bundle."
+            )
+
+        # Build graph — transitive closure connects all timelines at
+        # this coordinate
+        mg = MatchGraph(claims=relevant_claims)
+
+        # Cache keyed by ALL nodes in the graph
+        for node in mg._graph.nodes():
+            node_tl, node_coord = node
+            self._matchgraph_cache[(node_tl, node_coord)] = mg
+
+        return mg
+
+    def get_matchstamp_at(
+        self,
+        coordinate: float,
+        timeline_id: str,
+        *,
+        conversion_maps: bool = True,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
+        include_domains: set["Domain"] | None = None,
+        include_units: set["TimeUnit"] | None = None,
+    ) -> MatchStamp:
+        """Get a cross-group MatchStamp at a coordinate on a timeline.
+
+        This is the primary interface for cross-domain coordinate transfer.
+        Given a coordinate on one timeline, returns coordinates on ALL
+        connected timelines across ALL groups.
+
+        The method:
+        1. Builds (or retrieves from cache) the MatchGraph for this
+           coordinate's connected component.
+        2. Returns the graph's MatchStamp.
+
+        Args:
+            coordinate: The coordinate value.
+            timeline_id: Bundle UID of the source timeline.
+            conversion_maps: Include C-map conversions. Reserved for
+                future use (currently ignored).
+            timeline_ids: Only include these timelines in the result.
+            id_pattern: Regex filter for timeline IDs in the result.
+            include_domains: Only these domains in the result.
+            include_units: Only these units in the result.
+
+        Returns:
+            MatchStamp spanning all connected timelines.
+
+        Raises:
+            KeyError: If timeline_id is not in the bundle.
+            ValueError: If no synchronous claims touch this coordinate.
+
+        Examples:
+            >>> ms = bundle.get_matchstamp_at(10.0, "score:clt1")
+            >>> ms.n_timelines
+            23  # score + 22 performers
+        """
+        if timeline_id not in self.timelines:
+            raise KeyError(f"Timeline '{timeline_id}' not in bundle")
+
+        mg = self._get_or_build_matchgraph(timeline_id, coordinate)
+        stamp = mg.get_matchstamp()
+
+        # Apply post-hoc filtering if requested
+        has_filter = (
+            timeline_ids is not None
+            or id_pattern is not None
+            or include_domains is not None
+            or include_units is not None
+        )
+        if has_filter:
+            filt = ClaimFilter(
+                timeline_ids=timeline_ids,
+                id_pattern=id_pattern,
+                include_domains=include_domains,
+                include_units=include_units,
+            )
+            filtered_coords = {
+                tl_id: coord
+                for tl_id, coord in stamp.coordinates.items()
+                if filt.matches_timeline(tl_id, timelines=self.timelines)
+            }
+            remaining = set(filtered_coords.keys())
+            stamp = MatchStamp(
+                coordinates=filtered_coords,
+                anchor_edges=[
+                    (a, b)
+                    for a, b in stamp.anchor_edges
+                    if a in remaining and b in remaining
+                ],
+                inferred_edges=[
+                    (a, b)
+                    for a, b in stamp.inferred_edges
+                    if a in remaining and b in remaining
+                ],
+            )
+
+        return stamp
+
     def _invalidate_warp_cache(self) -> None:
-        """Clear the WarpMap cache, forcing rebuild on next access."""
+        """Clear the WarpMap and MatchGraph caches, forcing rebuild on next access."""
         self._warp_map_cache.clear()
+        self._matchgraph_cache.clear()
         self._cache_claims_hash = 0
 
     def _get_or_build_warp_map(
