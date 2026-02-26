@@ -18,13 +18,13 @@ class TestScoreMidiLoader:
         loader = ScoreMidiLoader(part_voice_assign_mode=0)
         loader.load(beethoven_score_path)
 
-        assert len(loader) > 0
+        assert len(loader) == 3751  # beethoven_op18.mid has 3751 events
         assert loader.ticks_per_beat is not None
 
         # Check metadata
         meta = loader.metadata["sources"][0]
         assert meta["parser"] == "partitura"
-        assert meta["parts"] > 0
+        assert meta["parts"] == 4  # String quartet: 4 parts
 
         # Check events have score info
         df = loader.events.to_dataframe()
@@ -37,12 +37,10 @@ class TestScoreMidiLoader:
         empty_file.touch()
 
         loader = ScoreMidiLoader()
-        # partitura might raise or return empty. Check behavior.
-        # usually load_score_midi raises exception on empty file
-        try:
+        # ScoreMidiLoader uses partitura which raises EOFError on empty file
+        # (no exception wrapping in score.py, raw partitura error escapes)
+        with pytest.raises(EOFError):
             loader.load(empty_file)
-        except Exception:
-            pass  # Expected behavior varies, but shouldn't crash ungracefully
 
 
 if __name__ == "__main__":

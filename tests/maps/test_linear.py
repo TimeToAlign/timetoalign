@@ -203,7 +203,9 @@ class TestConvertArrayPublicAPI:
         array_result = m.convert_array(values)
         scalar_results = np.array([m(v) for v in values])
 
-        np.testing.assert_array_almost_equal(array_result, scalar_results)
+        # Exact same linear arithmetic (f(x) = 1.5x - 3.0), no floating-point
+        # divergence between array and scalar paths
+        np.testing.assert_array_equal(array_result, scalar_results)
 
 
 # endregion

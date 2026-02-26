@@ -14,12 +14,12 @@ MatchGraph uses networkx to:
 3. Extend edges via Group membership (implicit claims)
 4. Extract MatchStamps from connected components
 
-Phase 6.4 Design:
+Design:
     Only synchronous claims produce graph edges. Non-synchronous claims
     (conceptual matches, NOMATCH) are stored as metadata but do not create
     edges. ``extend_to_groups()`` creates implicit ``MatchClaim`` objects
     (case d) and adds their anchors as edges. Each Hendrix M-box
-    (M1–M15) is a MatchGraph — the system is NOT a global graph.
+    (M1-M15) is a MatchGraph -- the system is NOT a global graph.
 """
 
 from __future__ import annotations
@@ -189,6 +189,125 @@ class MatchStamp:
     def __repr__(self) -> str:
         tl_list = ", ".join(f"{k}={v:.2f}" for k, v in self.coordinates.items())
         return f"MatchStamp({tl_list})"
+
+    def __str__(self) -> str:
+        """Readable cross-section showing all coordinates.
+
+        Examples:
+            >>> print(stamp)
+            MatchStamp (3 timelines, 2 edges)
+              ID              Coordinate   Type
+              score:clt1      0            anchor
+              perf:dlt1       0            anchor
+              perf:dlt2       128          inferred
+        """
+        n_edges = self.n_explicit_edges + self.n_inferred_edges
+        lines: list[str] = [
+            f"MatchStamp ({self.n_timelines} timelines, {n_edges} edges)"
+        ]
+
+        if not self.coordinates:
+            return lines[0]
+
+        def _fmt(v: float) -> str:
+            """Format a coordinate value, using integer repr when exact."""
+            if v == int(v) and abs(v) < 1e15:
+                return str(int(v))
+            return f"{v:g}"
+
+        # Classify each timeline by edge type
+        anchor_tls = set()
+        for a, b in self.anchor_edges:
+            anchor_tls.add(a)
+            anchor_tls.add(b)
+        inferred_tls = set()
+        for a, b in self.inferred_edges:
+            inferred_tls.add(a)
+            inferred_tls.add(b)
+
+        entries: list[tuple[str, str, str]] = []
+        for tl_id, coord in self.coordinates.items():
+            if tl_id in anchor_tls:
+                tag = "anchor"
+            elif tl_id in inferred_tls:
+                tag = "inferred"
+            else:
+                tag = ""
+            entries.append((tl_id, _fmt(coord), tag))
+
+        if entries:
+            max_id = max(len(e[0]) for e in entries)
+            max_coord = max(len(e[1]) for e in entries)
+            for tl_id, coord_str, tag in entries:
+                line = f"  {tl_id:<{max_id}}  {coord_str:>{max_coord}}"
+                if tag:
+                    line += f"  {tag}"
+                lines.append(line)
+
+        return "\n".join(lines)
+
+    def _repr_html_(self) -> str:
+        """Return HTML representation for Jupyter notebooks.
+
+        Displays the MatchStamp as an HTML table showing all coordinates
+        with their edge types, mirroring the TimeStamp HTML display.
+        """
+        import html as html_mod
+
+        n_edges = self.n_explicit_edges + self.n_inferred_edges
+
+        # Classify timelines
+        anchor_tls = set()
+        for a, b in self.anchor_edges:
+            anchor_tls.add(a)
+            anchor_tls.add(b)
+        inferred_tls = set()
+        for a, b in self.inferred_edges:
+            inferred_tls.add(a)
+            inferred_tls.add(b)
+
+        rows = []
+        for tl_id, coord in self.coordinates.items():
+            esc_id = html_mod.escape(tl_id)
+            if tl_id in anchor_tls:
+                tag = "<em>anchor</em>"
+                rows.append(
+                    f"<tr><td><strong>{esc_id}</strong></td>"
+                    f"<td style='text-align: right;'>{coord:.6g}</td>"
+                    f"<td>{tag}</td></tr>"
+                )
+            elif tl_id in inferred_tls:
+                tag = "<em style='color: #666;'>inferred</em>"
+                rows.append(
+                    f"<tr><td style='color: #666;'>{esc_id}</td>"
+                    f"<td style='text-align: right;'>{coord:.6g}</td>"
+                    f"<td>{tag}</td></tr>"
+                )
+            else:
+                rows.append(
+                    f"<tr><td>{esc_id}</td>"
+                    f"<td style='text-align: right;'>{coord:.6g}</td>"
+                    f"<td></td></tr>"
+                )
+
+        badge = (
+            f" <span style='background: #e3f2fd; padding: 0 4px; "
+            f"border-radius: 3px; font-size: 0.8em;'>"
+            f"{self.n_timelines} timelines, {n_edges} edges</span>"
+        )
+
+        return (
+            f"<div style='font-family: monospace;'>"
+            f"<strong>MatchStamp</strong>{badge}"
+            f"<table style='border-collapse: collapse; margin-top: 4px;'>"
+            f"<thead><tr style='border-bottom: 1px solid #ccc;'>"
+            f"<th style='text-align: left; padding: 2px 8px;'>ID</th>"
+            f"<th style='text-align: right; padding: 2px 8px;'>Coordinate</th>"
+            f"<th style='text-align: left; padding: 2px 8px;'>Type</th>"
+            f"</tr></thead>"
+            f"<tbody>{''.join(rows)}</tbody>"
+            f"</table></div>"
+        )
 
 
 # endregion
@@ -613,6 +732,89 @@ class MatchGraph:
             stamp = self._build_stamp_from_node(node)
             stamps.append(stamp)
         return stamps
+
+    def get_matchstamp(self) -> "MatchStamp":
+        """Get the single MatchStamp for this graph.
+
+        One MatchGraph = one MatchStamp. The MatchStamp is the union of
+        all coordinates reachable through the graph's edges.
+
+        If the graph contains multiple disconnected components, this
+        method raises ``ValueError`` -- each component should be its own
+        MatchGraph. Use ``split_components()`` to separate them first, or
+        use the legacy ``get_stamps()`` method.
+
+        Returns:
+            Single MatchStamp spanning all timelines in the graph.
+
+        Raises:
+            ValueError: If the graph has multiple disconnected components.
+            ValueError: If the graph has no synchronous claims (no nodes).
+
+        See Also:
+            `split_components`: Split a multi-component graph into separate
+                MatchGraph objects.
+            `get_stamps`: Legacy method returning one stamp per component.
+        """
+        components = list(nx.connected_components(self._graph))
+        if not components:
+            raise ValueError(
+                "MatchGraph has no synchronous claims and therefore no nodes. "
+                "Cannot produce a MatchStamp from an empty graph."
+            )
+        if len(components) > 1:
+            raise ValueError(
+                f"MatchGraph has {len(components)} disconnected components. "
+                f"One graph = one MatchStamp. Use split_components() first, "
+                f"or use get_stamps() for the legacy multi-component API."
+            )
+        node = next(iter(components[0]))
+        return self._build_stamp_from_node(node)
+
+    def split_components(self) -> list["MatchGraph"]:
+        """Split this graph into one MatchGraph per connected component.
+
+        Each returned MatchGraph represents a single connected component
+        and can be queried with ``get_matchstamp()``.
+
+        Returns:
+            List of MatchGraph objects, one per connected component.
+            Empty list if the graph has no synchronous claims.
+        """
+        components = list(nx.connected_components(self._graph))
+        if not components:
+            return []
+
+        result = []
+        for component in components:
+            subgraph = self._graph.subgraph(component).copy()
+
+            # Find claims whose anchors are entirely within this component
+            component_claims = []
+            component_tl_ids = {node[0] for node in component}
+            for c in self._claims:
+                if c.is_synchronous:
+                    if (
+                        c.timeline_a_id in component_tl_ids
+                        and c.timeline_b_id in component_tl_ids
+                    ):
+                        component_claims.append(c)
+                else:
+                    # Non-synchronous claims: include if both timelines
+                    # are in this component
+                    if (
+                        c.timeline_a_id in component_tl_ids
+                        and c.timeline_b_id in component_tl_ids
+                    ):
+                        component_claims.append(c)
+
+            result.append(MatchGraph._from_graph(subgraph, component_claims))
+        return result
+
+    @property
+    def n_components(self) -> int:
+        """Number of connected components in the graph."""
+        return nx.number_connected_components(self._graph)
 
     def get_match_stamps(self) -> tuple["MatchStamp", "MatchStamp | None"]:
         """Extract MatchStamps from the graph.

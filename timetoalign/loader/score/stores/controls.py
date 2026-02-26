@@ -77,6 +77,10 @@ class ControlEventData(EventData):
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
 
+        from fractions import Fraction
+
+        from timetoalign.loader.schema import coordinate_to_struct
+
         processed_rows = []
         for row in rows:
             processed = dict(row)
@@ -91,6 +95,17 @@ class ControlEventData(EventData):
 
             # Remove unused
             processed.pop("quarterbeats_float", None)
+
+            # Convert temporal columns to coordinate struct format.
+            for col in ["start", "duration"]:
+                val = processed.get(col)
+                if val is not None:
+                    if isinstance(val, dict):
+                        if "num" in val and "value" not in val:
+                            frac = Fraction(val["num"], val["den"])
+                            processed[col] = coordinate_to_struct(frac)
+                    else:
+                        processed[col] = coordinate_to_struct(val)
 
             # Base columns need defaults
             for col in ["start", "end", "duration"]:

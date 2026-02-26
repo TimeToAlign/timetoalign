@@ -1,8 +1,9 @@
 # Ignore all Jupyter Notebooks
 *.ipynb
 
-# But track the Quarto tutorial notebooks (synced + executed, with outputs)
+# But track the Quarto notebooks (synced + executed, with outputs)
 !docs/page/tutorials/*.ipynb
+!docs/page/howto/*.ipynb
 
 # Ignore Jupyter checkpoint folders
 .ipynb_checkpoints/

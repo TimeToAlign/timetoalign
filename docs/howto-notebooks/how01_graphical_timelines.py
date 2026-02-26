@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.0
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # 06: Graphical Timelines
+# # How to Work with Graphical Timelines
 #
 # This notebook demonstrates how to load and work with graphical timelines
 # using the `GraphicalLoader`.
@@ -165,7 +165,6 @@ loader2 = GraphicalLoader(metadata={"source": "Multi-page Analysis"})
 #
 # For non-horizontal timelines, use custom TimeAxisPath classes.
 #
-# import math  # noqa: E402
 
 # %%
 from timetoalign.loader.graphical import (  # noqa: E402

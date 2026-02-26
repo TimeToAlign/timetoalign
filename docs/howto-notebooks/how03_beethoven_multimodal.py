@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.0
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # 10: Multimodal Alignment — From 5 Groups to Cross-Domain Coordinate Transfer
+# # How to Align Multimodal Data (Beethoven)
 #
 # **Figure 3 acid test** for TimeToAlign! — 16+ timelines across all 3 domains
 # (Physical, Logical, Graphical) in 5 `TimelineGroups` within one `AlignmentBundle`.

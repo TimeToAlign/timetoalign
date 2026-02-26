@@ -3219,6 +3219,7 @@ def create_unfolded_timeline(
     flow_controller: FlowControllerBase | None = None,
     *,
     target_unit: "TimeUnit | str | None" = None,
+    include_children: bool = True,
 ) -> "Timeline":
     """Create an unfolded timeline from a folded source.
 
@@ -3230,6 +3231,8 @@ def create_unfolded_timeline(
     - Normal coordinates (0, 1, 2, ... or continuous) - NOT special playthrough units
     - A reverse FlowMap attached to trace back to the folded source
     - Events copied from source, duplicated for repeated sections
+    - Children recursively unfolded and attached at offset 0 (when
+      *include_children* is True)
 
     Design Decision (Phase 3.9): The unfolded timeline uses normal coordinates
     with a reverse FlowMap attached, rather than special "playthrough" units.
@@ -3247,11 +3250,18 @@ def create_unfolded_timeline(
         target_unit: Optional unit for the unfolded timeline. When given,
             ``Timeline.resolve_subclass(target_unit, number_type)`` selects
             the timeline type; otherwise ``type(source_timeline)`` is used.
+        include_children: If True (default), recursively unfold all child
+            timelines and attach them to the unfolded parent at the same
+            relative offset.  Children whose offset is 0 in the folded
+            source share the parent's coordinate space, so the same FlowMap
+            applies directly.  Children at non-zero offsets have their
+            coordinates shifted accordingly before unfolding.
 
     Returns:
         New Timeline (concrete subclass) with:
         - Events reordered/duplicated per flow
         - Reverse FlowMap attached (id="source")
+        - Children recursively unfolded (when *include_children* is True)
 
     Examples:
         >>> controller = ScoreFlowController(measure_data)
@@ -3262,6 +3272,9 @@ def create_unfolded_timeline(
         'ContinuousLogicalTimeline'
         >>> unfolded.get_flow_map("source")  # Reverse map to trace back
         FlowMap(default_inverse: 5 sections)
+        >>> # Children are recursively unfolded
+        >>> unfolded.n_children == source_tl.n_children
+        True
     """
     from timetoalign.timelines.base import Timeline
 
@@ -3287,28 +3300,70 @@ def create_unfolded_timeline(
         name=f"{source_timeline.name}_unfolded",
     )
 
-    # Copy and transform events from source
-    # For each event in source, find all its unfolded positions
-    source_events = source_timeline.get_events(include_segments=False)
+    # Copy and transform events from source (parent-level events only)
+    _unfold_events_onto(source_timeline, unfolded, forward_map, number_type)
+
+    # Recursively unfold children
+    if include_children:
+        for child_id, child in source_timeline._children.items():
+            child_offset = float(source_timeline._child_offsets[child_id].value)
+            # Recursively unfold the child using the same flow
+            unfolded_child = create_unfolded_timeline(
+                child,
+                flow,
+                flow_controller,
+                target_unit=target_unit,
+                include_children=True,
+            )
+            # Attach at the same offset (0 for score children)
+            unfolded.add_child(
+                unfolded_child,
+                offset=child_offset,
+                allow_expansion=True,
+            )
+
+    # Attach reverse FlowMap for traceability (unfolded -> folded)
+    reverse_map = forward_map.inverse()
+    unfolded.attach_flow_map(reverse_map, id="source")
+
+    # Also attach the forward map with a descriptive id
+    unfolded.attach_flow_map(forward_map, id=f"forward_{flow.id}")
+
+    return unfolded
+
+
+def _unfold_events_onto(
+    source: "Timeline",
+    target: "Timeline",
+    forward_map: FlowMap,
+    number_type: NumberType,
+) -> None:
+    """Unfold events from *source* and add them to *target*.
+
+    Events are duplicated and repositioned according to the FlowMap.
+    Only events stored directly on *source* are processed (not children).
+
+    Args:
+        source: Folded source timeline.
+        target: Unfolded target timeline to receive events.
+        forward_map: FlowMap mapping folded → unfolded coordinates.
+        number_type: Number type for coordinate parsing.
+    """
+    source_events = source.get_events(include_segments=False)
 
     transformed_events: list[dict[str, Any]] = []
     event_counter = 0
 
     for event in source_events:
-        # Get the event's coordinate
         if event.get("temporal_type") == "instant":
-            # Extract coordinate using 'start' key (EventData stores instant as start)
             coord = _extract_coord_value(event, "start", number_type)
             if coord is not None:
-                # Find all unfolded positions (returns list[Fraction])
                 unfolded_coords = forward_map.unfold(coord)
                 for unfolded_coord in unfolded_coords:
                     new_event = dict(event)
                     new_event["id"] = f"{event.get('id', 'e')}_{event_counter}"
-                    # Store Fraction directly - add_events handles conversion
                     new_event["instant"] = unfolded_coord
-                    new_event["_source_coord"] = coord  # Preserve original
-                    # Remove start/end/duration from instant events
+                    new_event["_source_coord"] = coord
                     new_event.pop("start", None)
                     new_event.pop("end", None)
                     new_event.pop("duration", None)
@@ -3320,17 +3375,12 @@ def create_unfolded_timeline(
             end_coord = _extract_coord_value(event, "end", number_type)
 
             if start_coord is not None and end_coord is not None:
-                # For intervals, find sections that contain this interval
-                # An interval may be split across sections or duplicated
                 unfolded_starts = forward_map.unfold(start_coord)
                 unfolded_ends = forward_map.unfold(end_coord)
 
-                # Match starts and ends (they should pair up)
-                # For simple cases, zip them
                 for unf_start, unf_end in zip(unfolded_starts, unfolded_ends):
                     new_event = dict(event)
                     new_event["id"] = f"{event.get('id', 'e')}_{event_counter}"
-                    # Store Fractions directly - add_events handles conversion
                     new_event["start"] = unf_start
                     new_event["end"] = unf_end
                     new_event["duration"] = unf_end - unf_start
@@ -3339,18 +3389,8 @@ def create_unfolded_timeline(
                     transformed_events.append(new_event)
                     event_counter += 1
 
-    # Add transformed events to unfolded timeline
     if transformed_events:
-        unfolded.add_events(transformed_events, allow_expansion=True)
-
-    # Attach reverse FlowMap for traceability (unfolded -> folded)
-    reverse_map = forward_map.inverse()
-    unfolded.attach_flow_map(reverse_map, id="source")
-
-    # Also attach the forward map with a descriptive id
-    unfolded.attach_flow_map(forward_map, id=f"forward_{flow.id}")
-
-    return unfolded
+        target.add_events(transformed_events, allow_expansion=True)
 
 
 def _extract_coord_value(

@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.0
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # Loading Data with TimeToAlign!
+# # How to Load Data
 #
 # This tutorial introduces the Loader pattern and EventStores - the foundation
 # for bringing music data into TimeToAlign!
@@ -78,7 +78,7 @@ CHOPIN_XML.name, CHOPIN_TSV.name
 #
 # 1. **Create** a loader instance
 # 2. **Load** a file using `.load(path)`
-# 3. **Access** the bundle containing EventStores
+# 3. **Access** the store containing EventStores
 #
 # Let's see this in action with three different loaders, all loading the same Chopin piece:
 
@@ -278,7 +278,8 @@ temporal_cols = ["start", "end", "duration"]
 # %% [markdown]
 # ## Voice and Staff Information
 #
-# For piano music, notes are distributed across staves and voices:
+# In scores with multiple staves or multiple voices per staff, notes are
+# distributed accordingly:
 
 # %%
 # Notes by staff and voice
@@ -325,7 +326,7 @@ tsv_df.groupby(["staff", "voice"]).size().unstack(fill_value=0)
 # loader = PartituraLoader()
 # loader.load(DATA_DIR / "beethoven_op18.mid")
 #
-# df = loader.bundle.notes.to_dataframe()
+# df = loader.store.notes.to_dataframe()
 # {"total_notes": len(df), "notes_per_part": df.groupby("part_id").size().to_dict()}
 # ```
 #

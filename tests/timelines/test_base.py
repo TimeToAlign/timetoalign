@@ -239,8 +239,8 @@ class TestEventManagement:
         """Filter events by coordinate range."""
         # Events in range [1.0, 2.5)
         events = timeline_with_events.get_events(min_coord=1.0, max_coord=2.5)
-        # Should include beat_2 (1.0), note_2 (1.0-1.25), beat_3 (2.0)
-        assert len(events) >= 2
+        # Should include beat_2 (1.0), beat_3 (2.0), note_2 (1.0-1.25), note_3 (2.0-3.0)
+        assert len(events) == 4
 
 
 # endregion
@@ -545,7 +545,7 @@ class TestFutureApiStubs:
     def test_add_match_not_implemented(self):
         """add_match raises NotImplementedError."""
         tl = Timeline()
-        with pytest.raises(NotImplementedError, match="Phase 6"):
+        with pytest.raises(NotImplementedError, match="AlignmentBundle"):
             tl.add_match(None)
 
     def test_add_break_not_implemented(self):

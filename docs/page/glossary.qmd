@@ -97,6 +97,13 @@ to the relevant section of the conceptual model.
 
 ## D
 
+**DictStore**
+:   A generic `EventStore` subclass holding a `dict[str, EventData]` with
+    arbitrary keys. Used internally by AlignmentLoaders to store one
+    `EventData` table per timeline-to-be (e.g., `"score"`, `"perf:p01"`).
+    Maintains the uniform `EventStore` interface.
+    See the [API reference](reference/timetoalign.DictStore.qmd).
+
 **Discrete**
 :   A timeline is discrete when coordinates exist only at discrete points
     (e.g., pixels, samples, ticks). Contrast with Continuous timelines
@@ -169,6 +176,17 @@ to the relevant section of the conceptual model.
 :   See {{< glossary MatchClaim >}}. The manuscript shorthand "Match" refers
     to the MatchClaim concept.
 
+**MatchfileLoader**
+:   Loader for Vienna Match (`.match`) alignment files. Uses the standard
+    two-phase `load()` → `create_*()` pattern. A single instance processes
+    all `.match` files that share the same score, building a shared score
+    timeline on the first file and verifying subsequent files against it.
+    Returns an {{< glossary AlignmentBundle >}} directly via
+    `create_alignment_bundle()`. Score goes into its own group; performances
+    are standalone timelines; {{< glossary MatchClaim >}}s connect score to
+    performances.
+    See the [API reference](reference/timetoalign.MatchfileLoader.qmd).
+
 **MatchClaim**
 :   A claim---issued by a human or algorithmic agent---about one or two timed
     things (events, regions, children) on two specific timelines. Always knows
@@ -239,6 +257,14 @@ to the relevant section of the conceptual model.
     See [Nested timelines](concepts.qmd#nested-timelines).
 
 ## R
+
+**raw_to_normalised**
+:   The conventional name for the {{< glossary ConversionMap >}} (specifically
+    a `ShiftMap`) attached to a score timeline to expose normalised
+    (non-negative) coordinates. Its offset equals `−min(raw_onsets)`. Added
+    by {{< glossary MatchfileLoader >}} and `PartituraLoader` so downstream
+    code can detect and apply the same shift when comparing coordinates across
+    loaders.
 
 **Region**
 :   A named part of a {{< glossary Timeline >}} defined by a

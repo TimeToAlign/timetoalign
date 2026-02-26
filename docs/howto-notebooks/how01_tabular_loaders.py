@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.0
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # Loading Tabular Data
+# # How to Load Tabular Data
 #
 # The fastest way to get music data into TimeToAlign! is through **tabular
 # loaders**. If your data is in CSV or TSV format, you're just 3 lines of

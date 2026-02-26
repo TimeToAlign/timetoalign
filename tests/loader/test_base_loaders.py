@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 from timetoalign.core import TimeUnit
@@ -55,7 +54,7 @@ class TestManifestData:
 class TestManifestLoader:
     """Tests for ManifestLoader ABC."""
 
-    def test_concrete_implementation(self):
+    def test_concrete_implementation(self, tmp_path):
         """Test a concrete ManifestLoader implementation."""
 
         class TestManifestLoader(ManifestLoader):
@@ -66,10 +65,8 @@ class TestManifestLoader:
                     source_type="text",
                 )
 
-        # Create a temp file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("test")
-            path = Path(f.name)
+        path = tmp_path / "test.txt"
+        path.write_text("test")
 
         loader = TestManifestLoader()
         loader.load(path)
@@ -78,7 +75,7 @@ class TestManifestLoader:
         assert loader.manifest is not None
         assert loader.manifest.dimensions["lines"] == 100
 
-    def test_multiple_sources(self):
+    def test_multiple_sources(self, tmp_path):
         """Test loading multiple sources."""
 
         class CountingLoader(ManifestLoader):
@@ -93,14 +90,11 @@ class TestManifestLoader:
                     source_type="test",
                 )
 
-        # Create temp files
         paths = []
         for i in range(3):
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False
-            ) as f:
-                f.write(f"test {i}")
-                paths.append(Path(f.name))
+            p = tmp_path / f"test_{i}.txt"
+            p.write_text(f"test {i}")
+            paths.append(p)
 
         loader = CountingLoader()
         loader.load(*paths)
@@ -110,16 +104,15 @@ class TestManifestLoader:
         assert loader.manifests[0].dimensions["index"] == 1
         assert loader.manifests[2].dimensions["index"] == 3
 
-    def test_clear(self):
+    def test_clear(self, tmp_path):
         """Test clearing loaded data."""
 
         class SimpleLoader(ManifestLoader):
             def _load_source(self, source: Path) -> ManifestData:
                 return ManifestData(source_type="test")
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            f.write("test")
-            path = Path(f.name)
+        path = tmp_path / "test.txt"
+        path.write_text("test")
 
         loader = SimpleLoader()
         loader.load(path)
@@ -356,7 +349,7 @@ class TestAlignmentStore:
 class TestAlignmentLoader:
     """Tests for AlignmentLoader ABC."""
 
-    def test_concrete_implementation(self):
+    def test_concrete_implementation(self, tmp_path):
         """Test a concrete AlignmentLoader implementation."""
 
         class TestAlignmentLoader(AlignmentLoader):
@@ -378,9 +371,8 @@ class TestAlignmentLoader:
                     matches=MatchData.empty(),
                 )
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False) as f:
-            f.write("<alignment/>")
-            path = Path(f.name)
+        path = tmp_path / "test.xml"
+        path.write_text("<alignment/>")
 
         loader = TestAlignmentLoader()
         loader.load(path)
@@ -389,16 +381,15 @@ class TestAlignmentLoader:
         assert loader.store is not None
         assert loader.store.event_count == 1
 
-    def test_clear(self):
+    def test_clear(self, tmp_path):
         """Test clearing loaded data."""
 
         class SimpleAlignmentLoader(AlignmentLoader):
             def _load_source(self, source: Path) -> AlignmentStore:
                 return AlignmentStore.empty()
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False) as f:
-            f.write("<alignment/>")
-            path = Path(f.name)
+        path = tmp_path / "test.xml"
+        path.write_text("<alignment/>")
 
         loader = SimpleAlignmentLoader()
         loader.load(path)

@@ -100,9 +100,12 @@ from __future__ import annotations
 from timetoalign.alignment import (
     AlignmentAnchor,
     AlignmentBundle,
+    ClaimFilter,
     MatchClaim,
+    MatchGraph,
     MatchLine,
     MatchMetadata,
+    MatchStamp,
     PerfectAlignment,
     TimelineGroup,
     WarpMap,
@@ -119,11 +122,13 @@ from timetoalign.core import (
     NumberType,
     OptionalCoordinate,
     ScopedId,
+    TimelineIdGenerator,
     TimeUnit,
 )
 from timetoalign.loader import (
     AudioInfo,
     AudioLoader,
+    DictStore,
     EepNotesLoader,
     EventData,
     EventStore,
@@ -176,10 +181,12 @@ __all__ = [
     # IDs
     "ScopedId",
     "IdGenerator",
+    "TimelineIdGenerator",
     # Loader - Event-based (Type 2)
     "EventData",
     "EventStore",
     "SingleStore",
+    "DictStore",
     "Loader",
     # Loader - Manifest-based (Type 1)
     "AudioLoader",
@@ -188,6 +195,8 @@ __all__ = [
     "RepoVizzInfo",
     # Loader - Physical event-based
     "EepNotesLoader",
+    # Loader - Alignment
+    "MatchfileLoader",
     # Timelines
     "Timeline",
     "LogicalTimeline",
@@ -214,8 +223,20 @@ __all__ = [
     "PerfectAlignment",
     "TimelineGroup",
     "AlignmentAnchor",
+    "ClaimFilter",
     "MatchClaim",
+    "MatchGraph",
     "MatchLine",
     "MatchMetadata",
+    "MatchStamp",
     "WarpMap",
 ]
+
+
+def __getattr__(name: str):
+    """Lazy imports for classes that would cause circular imports."""
+    if name == "MatchfileLoader":
+        from timetoalign.loader.alignment import MatchfileLoader
+
+        return MatchfileLoader
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -9,7 +9,7 @@ InterpolationMap is the internal engine used by:
 - WarpMap alignment warping
 
 Parent-child coordinate conversion in Timeline uses exact offset arithmetic
-instead (Phase 6.1).
+instead.
 
 It is NOT a ConversionMap subclass - it's a lower-level building block
 optimized for performance. ConversionMap has richer functionality (units,

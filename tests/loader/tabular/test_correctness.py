@@ -29,8 +29,8 @@ from timetoalign.loader.tabular import Ms3Loader
 
 @pytest.fixture
 def specimens_base() -> Path:
-    """Get base path for specimens."""
-    return Path(__file__).parent.parent.parent.parent.parent / "dashboard" / "specimens"
+    """Get base path for specimens (under tests/data/score/)."""
+    return Path(__file__).parent.parent.parent / "data" / "score"
 
 
 @pytest.fixture
@@ -176,11 +176,11 @@ class TestZeroToleranceCoordinates:
             coord_range[0] == 0.0
         ), f"Min coordinate should be 0, got {coord_range[0]}"
 
-        # End should be around 875-877 (depends on last note + duration)
-        # We check it's in a reasonable range (since end = start + duration)
+        # ZERO TOLERANCE: End coordinate is last onset + duration = 877.75
+        # (gold standard: WoO71.notes.tsv, last event onset + duration)
         assert (
-            875.0 <= coord_range[1] <= 880.0
-        ), f"Max coordinate should be around 875-880, got {coord_range[1]}"
+            coord_range[1] == 877.75
+        ), f"Max coordinate should be 877.75, got {coord_range[1]}"
 
     def test_fraction_roundtrip_preservation(self, beethoven_notes: Path) -> None:
         """Validate fractions are preserved exactly (no floating point loss).
@@ -212,7 +212,11 @@ class TestZeroToleranceCoordinates:
                 frac = Fraction(num, den)
                 reconstructed = float(frac)
 
-                # ZERO TOLERANCE: Must be exactly equal (within float precision)
+                # IEEE 754: float(Fraction(num, den)) may differ from the stored
+                # value at the least-significant bit because the original float
+                # was rounded during serialisation and Fraction→float performs
+                # an independent division.  1e-15 ≈ 4.5 × machine epsilon for
+                # float64 (2.22e-16), covering at most one ULP of rounding.
                 if abs(reconstructed - value) > 1e-15:
                     errors.append(
                         f"idx={idx}: {num}/{den}={reconstructed} != value={value}"

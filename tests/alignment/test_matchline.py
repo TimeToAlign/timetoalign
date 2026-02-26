@@ -1,6 +1,6 @@
 """Tests for MatchLine class.
 
-Phase 6.5: MatchLine — ordered sequence of MatchStamps for WarpMap generation.
+MatchLine: ordered sequence of MatchStamps for WarpMap generation.
 
 Tests cover:
 - Construction from stamps (direct)
@@ -21,9 +21,7 @@ from timetoalign.alignment import (
     MatchClaim,
     TimelineGroup,
 )
-from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
-from timetoalign.alignment.groups import _reset_group_ids
 from timetoalign.alignment.matchline import MatchLine
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
@@ -31,14 +29,6 @@ from timetoalign.timelines import (
 )
 
 # region Fixtures
-
-
-@pytest.fixture(autouse=True)
-def reset_ids() -> None:
-    """Reset ID generators before each test."""
-    _reset_group_ids()
-    _reset_anchor_ids()
-    _reset_claim_ids()
 
 
 @pytest.fixture
@@ -70,39 +60,7 @@ def three_stamp_line() -> MatchLine:
     return MatchLine(source_timeline_id="score", stamps=stamps)
 
 
-@pytest.fixture
-def thoresen_segment_claims() -> list[MatchClaim]:
-    """5 segment claims from Thoresen PoC (interval matches)."""
-    dgt1_lengths = [967, 967, 967, 967, 967]
-    dgt2_lengths = [866, 867, 867, 864, 864]
-
-    claims = []
-    offset_dgt1 = 0
-    offset_dgt2 = 0
-
-    for i in range(5):
-        claim = MatchClaim(
-            timeline_a_id="dgt1",
-            timeline_b_id="dgt2",
-            start_anchor=AlignmentAnchor(
-                timeline_a_id="dgt1",
-                coordinate_a=float(offset_dgt1),
-                timeline_b_id="dgt2",
-                coordinate_b=float(offset_dgt2),
-            ),
-            end_anchor=AlignmentAnchor(
-                timeline_a_id="dgt1",
-                coordinate_a=float(offset_dgt1 + dgt1_lengths[i]),
-                timeline_b_id="dgt2",
-                coordinate_b=float(offset_dgt2 + dgt2_lengths[i]),
-            ),
-        )
-        claims.append(claim)
-        offset_dgt1 += dgt1_lengths[i]
-        offset_dgt2 += dgt2_lengths[i]
-
-    return claims
-
+# thoresen_segment_claims fixture is provided by conftest.py
 
 # endregion
 
@@ -360,10 +318,8 @@ class TestFromClaims:
         line = MatchLine.from_claims(thoresen_segment_claims, source_timeline_id="dgt1")
 
         # 5 intervals produce 6 unique boundary coordinates on dgt1
-        # but some are shared between adjacent segments (connected
-        # components merge at shared boundary nodes), so we expect
-        # 6 stamps (one per unique connected component).
-        assert line.n_stamps >= 2
+        # (0, 78, 268, 561, 801, 967), yielding exactly 6 stamps.
+        assert line.n_stamps == 6
         assert "dgt2" in line.target_timeline_ids()
 
         # Verify ordering

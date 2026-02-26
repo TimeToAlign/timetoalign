@@ -264,12 +264,10 @@ class TestPeriodicMapIntegration:
             expected_measure = int(q // 4) + 1
             assert measure == expected_measure, f"At quarter {q}"
 
-            # Verify: beat should be within 1-4.999...
-            assert 1.0 <= beat < 5.0, f"At quarter {q}, beat={beat}"
-
-            # Verify: beat resets at measure boundary
+            # Verify: beat should equal (q % 4) + 1 exactly
+            # (modular arithmetic on exact floating-point values produces exact results)
             beat_in_measure = (q % 4.0) + 1.0
-            assert abs(beat - beat_in_measure) < 0.001, f"At quarter {q}"
+            assert beat == beat_in_measure, f"At quarter {q}, beat={beat}"
 
     def test_supra_compatibility(self):
         """Test that maps work correctly for SUPRA data dimensions.

@@ -14,8 +14,9 @@ row in the CSV manifest (``notebooks.csv``):
 
 The CSV manifest has the following columns:
 
-    section   - target subdirectory under docs/page/ (e.g. "tutorials")
-    source    - filename of the .py source in docs/notebooks/
+    section   - target subdirectory under docs/page/ (e.g. "tutorials", "howto");
+                also determines the source directory (tuto-notebooks/ or howto-notebooks/)
+    source    - filename of the .py source in the section's notebooks directory
     slug      - stem used for the output .ipynb (without extension)
     title     - page title injected into the notebook YAML
     description - short description (used in listing pages)
@@ -51,7 +52,11 @@ logger = logging.getLogger(__name__)
 # When called as a Quarto pre-render script the working directory is the
 # project root (docs/page/).  All paths are resolved relative to that.
 DEFAULT_MANIFEST = "notebooks.csv"
-NOTEBOOKS_DIR = Path(__file__).resolve().parent.parent / "notebooks"
+_DOCS_DIR = Path(__file__).resolve().parent.parent
+NOTEBOOKS_DIRS: dict[str, Path] = {
+    "tutorials": _DOCS_DIR / "tuto-notebooks",
+    "howto": _DOCS_DIR / "howto-notebooks",
+}
 PAGE_DIR = Path(__file__).resolve().parent
 SYNC_STATE_FILE = PAGE_DIR / ".sync_state.json"
 
@@ -205,7 +210,7 @@ def sync_one(
     description: str,
     *,
     dry_run: bool = False,
-    notebooks_dir: Path = NOTEBOOKS_DIR,
+    notebooks_dir: Path,
     page_dir: Path = PAGE_DIR,
 ) -> Path | None:
     """Sync a single notebook from source .py to page .ipynb."""
@@ -263,12 +268,25 @@ def sync_one(
     return target_path
 
 
+def _resolve_notebooks_dir(section: str) -> Path:
+    """Return the source notebooks directory for the given section.
+
+    Raises:
+        ValueError: If the section has no configured source directory.
+    """
+    try:
+        return NOTEBOOKS_DIRS[section]
+    except KeyError:
+        raise ValueError(
+            f"Unknown section {section!r}; known sections: {sorted(NOTEBOOKS_DIRS)}"
+        )
+
+
 def sync_all(
     manifest: Path,
     *,
     dry_run: bool = False,
     force: bool = False,
-    notebooks_dir: Path = NOTEBOOKS_DIR,
     page_dir: Path = PAGE_DIR,
     section_filter: str | None = None,
 ) -> list[Path]:
@@ -278,11 +296,16 @@ def sync_all(
     successful sync are re-processed.  Change detection is based on
     SHA-256 hashes stored in ``.sync_state.json``.
 
+    The source directory for each notebook is derived from the ``section``
+    column in the CSV manifest:
+
+    - ``tutorials`` → ``docs/tuto-notebooks/``
+    - ``howto`` → ``docs/howto-notebooks/``
+
     Args:
         manifest: Path to the CSV manifest.
         dry_run: If True, preview actions without writing files.
         force: If True, ignore cached hashes and re-sync everything.
-        notebooks_dir: Directory containing the source ``.py`` files.
         page_dir: Root of the Quarto site project.
         section_filter: If set, only sync notebooks in this section.
 
@@ -296,9 +319,11 @@ def sync_all(
     with open(manifest, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            if section_filter and row["section"] != section_filter:
+            section = row["section"]
+            if section_filter and section != section_filter:
                 continue
 
+            notebooks_dir = _resolve_notebooks_dir(section)
             source = row["source"]
             py_path = notebooks_dir / source
 
@@ -309,7 +334,7 @@ def sync_all(
                 if cached_hash == current_hash:
                     # Also check that the target .ipynb exists; if it was
                     # deleted we must re-sync even if the source is unchanged.
-                    target_path = page_dir / row["section"] / f"{row['slug']}.ipynb"
+                    target_path = page_dir / section / f"{row['slug']}.ipynb"
                     if target_path.exists():
                         logger.info("Up to date, skipping: %s", source)
                         skipped += 1
@@ -325,7 +350,7 @@ def sync_all(
             path = sync_one(
                 source=source,
                 slug=row["slug"],
-                section=row["section"],
+                section=section,
                 title=row["title"],
                 description=row["description"],
                 dry_run=dry_run,

@@ -1,13 +1,18 @@
 section,source,slug,title,description
-tutorials,00_motivation.py,00_motivation,Why TimeToAlign! Matters,The problem of fragmented music data and how TimeToAlign! solves it
-tutorials,01_core_concepts.py,01_core_concepts,"Core Concepts: Domains, Units, and Coordinates",The three temporal domains and the six timeline types
-tutorials,02_loading_data.py,02_loading_data,Loading Data with TimeToAlign!,Format-agnostic data ingestion with Loaders and EventStores
-tutorials,02a_tabular_loaders.py,02a_tabular_loaders,Loading Tabular Data,"CoordinateField, ComputedField, and custom loader configuration"
-tutorials,03_conversion_maps.py,03_conversion_maps,"Conversion Maps: Transforming Coordinates",Unit transformations and coordinate conversion
-tutorials,04_building_timelines.py,04_building_timelines,"Building Timelines: Events and Hierarchies","Events, Segments, Children, and SegmentLines"
-tutorials,05_timestamps.py,05_timestamps,"Timestamps: Cross-Section Views",Querying timeline hierarchies with TimeStamp and TimeIntervalStamp
-tutorials,06_graphical_timelines.py,06_graphical_timelines,Graphical Timelines,"TimeAxisPath, image-based timelines, and pixel-to-time conversion"
-tutorials,07_alignment_basics.py,07_alignment_basics,Alignment Basics,"TimelineGroup, PerfectAlignment, and coordinate transfer"
-tutorials,08_supra_piano_roll.py,08_supra_piano_roll,SUPRA Piano Roll: A Complete Alignment Workflow,"End-to-end alignment: IIIF images, ATON, MIDI, Audio, and Score"
-tutorials,09_beat_grids.py,09_beat_grids,Beat Grids: Metrical Structure for Audio,"BeatGrid, FloorMap, RotationMap, and measure/beat queries"
-tutorials,10_beethoven_multimodal.py,10_beethoven_multimodal,Multimodal Alignment: Beethoven Op. 18/4 IV,"AlignmentBundle, FlowMap, OMR, 16+ timelines across 3 domains"
+tutorials,tut00_motivation.py,tut00_motivation,Why TimeToAlign! Matters,The problem of fragmented music data and how TimeToAlign! solves it
+tutorials,tut01a_timelines_events_maps.py,tut01a_timelines_events_maps,"Timelines, Events, and Maps","Loading, EventStore, Coordinate, ConversionMap"
+tutorials,tut01b_children_regions_timestamps.py,tut01b_children_regions_timestamps,"Children, Regions, and Timestamps","Hierarchy, cross-section queries"
+tutorials,tut02_timeline_groups.py,tut02_timeline_groups,Timeline Groups and Commensurability,"TimelineGroup, coordinate transfer, partial alignment"
+tutorials,tut03_alignment_bundles.py,tut03_alignment_bundles,Alignment Bundles,"MatchfileLoader, AlignmentBundle, cross-group transfer"
+tutorials,tut04_flow_and_grids.py,tut04_flow_and_grids,Flow Control and Grids,"BeatGrid, repeats, metrical structure"
+howto,how01_coordinate_math.py,how01_coordinate_math,How to Do Coordinate Math,"Domains, TimeUnits, NumberType, Coordinate arithmetic"
+howto,how01_advanced_cmaps.py,how01_advanced_cmaps,How to Use Advanced Conversion Maps,"ChainMap, PiecewiseMap, TableMap, vectorised operations"
+howto,how01_advanced_timestamps.py,how01_advanced_timestamps,How to Query Timestamps,"TimeStamp, TimeIntervalStamp, boundary tables, PyArrow"
+howto,how01_manual_timeline_construction.py,how01_manual_timeline_construction,How to Construct Timelines Manually,"Events via dict, parent/child hierarchies, serialisation"
+howto,how01_loading_data.py,how01_loading_data,How to Load Data,Format-agnostic data ingestion with Loaders and EventStores
+howto,how01_tabular_loaders.py,how01_tabular_loaders,How to Load Tabular Data,"CoordinateField, ComputedField, and custom loader configuration"
+howto,how01_graphical_timelines.py,how01_graphical_timelines,How to Work with Graphical Timelines,"TimeAxisPath, image-based timelines, and pixel-to-time conversion"
+howto,how01_beat_grids.py,how01_beat_grids,How to Build Beat Grids,"BeatGrid, FloorMap, RotationMap, and measure/beat queries"
+howto,how02_supra_piano_roll.py,how02_supra_piano_roll,How to Align a Piano Roll (SUPRA),"End-to-end alignment: IIIF images, ATON, MIDI, Audio, and Score"
+howto,how03_beethoven_multimodal.py,how03_beethoven_multimodal,How to Align Multimodal Data (Beethoven),"AlignmentBundle, FlowMap, OMR, 16+ timelines across 3 domains"
+howto,how03_loading_vienna_corpus.py,how03_loading_vienna_corpus,How to Load the Vienna 4x22 Corpus,"MatchfileLoader, 22 performances, AlignmentBundle"

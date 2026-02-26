@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.0
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # 08: SUPRA Piano Roll - A Complete Alignment Workflow
+# # How to Align a Piano Roll (SUPRA)
 #
 # This tutorial applies everything we've learned to a real-world case study:
 # aligning a **scanned piano roll image** with **MIDI files**, **audio**, and
@@ -198,8 +198,6 @@ dgt_holes = dgt1.create_child(
     uid="dgt_holes",
     name="Musical Holes Region",
 )
-
-# ASCII diagram display - no print() needed, no redundant dict
 dgt1
 
 # %% [markdown]
@@ -686,5 +684,5 @@ ts3 = group.get_timestamp_at(ts1["clt1_score"], "clt1_score")
 # %% [markdown]
 # ## Next Steps
 #
-# - **09_beat_grids.ipynb**: Work with BeatGrid, FloorMap, and RotationMap
+# - **how01_beat_grids.ipynb**: Work with BeatGrid, FloorMap, and RotationMap
 # - **Advanced**: Implement WarpMap for non-linear alignment (expressive timing)

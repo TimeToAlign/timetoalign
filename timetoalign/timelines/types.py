@@ -1164,6 +1164,55 @@ class SegmentLine(Timeline, Generic[T]):
         for i, seg_id in enumerate(self._segment_order):
             yield (i, self._child_offsets[seg_id], self._children[seg_id])
 
+    def get_slice_from_segments(
+        self,
+        start_id: str,
+        end_id: str,
+        **kwargs: Any,
+    ) -> "Timeline":
+        """Extract a slice spanning from the start of one segment to the end of another.
+
+        Convenience wrapper around :meth:`~Timeline.get_slice`.  Uses the
+        offset of *start_id* and the end coordinate of *end_id* to
+        determine the slice bounds.
+
+        Args:
+            start_id: ID of the first segment (inclusive).
+            end_id: ID of the last segment (inclusive — its full extent
+                is included).
+            **kwargs: Forwarded to :meth:`~Timeline.get_slice`.
+
+        Returns:
+            A new Timeline for the combined segment range.
+
+        Raises:
+            KeyError: If either segment ID is not found.
+            ValueError: If *start_id* comes after *end_id* in segment
+                order.
+        """
+        if start_id not in self._segment_order:
+            raise KeyError(
+                f"Segment '{start_id}' not found on SegmentLine '{self._id}'"
+            )
+        if end_id not in self._segment_order:
+            raise KeyError(f"Segment '{end_id}' not found on SegmentLine '{self._id}'")
+
+        start_idx = self._segment_order.index(start_id)
+        end_idx = self._segment_order.index(end_id)
+
+        if start_idx > end_idx:
+            raise ValueError(
+                f"start_id '{start_id}' (index {start_idx}) comes after "
+                f"end_id '{end_id}' (index {end_idx})"
+            )
+
+        slice_start = float(self._child_offsets[start_id].value)
+        end_seg = self._children[end_id]
+        end_offset = float(self._child_offsets[end_id].value)
+        slice_end = end_offset + float(end_seg.length.value)
+
+        return self.get_slice(slice_start, slice_end, **kwargs)
+
     def concatenate_cmaps(
         self,
         target_unit: TimeUnit,

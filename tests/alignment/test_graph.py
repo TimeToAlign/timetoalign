@@ -15,9 +15,7 @@ from timetoalign.alignment import (
     MatchMetadata,
     TimelineGroup,
 )
-from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
-from timetoalign.alignment.groups import _reset_group_ids
 from timetoalign.core.enums import Domain, TimeUnit
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
@@ -25,14 +23,6 @@ from timetoalign.timelines import (
 )
 
 # region Fixtures
-
-
-@pytest.fixture(autouse=True)
-def reset_ids() -> None:
-    """Reset ID generators before each test."""
-    _reset_group_ids()
-    _reset_anchor_ids()
-    _reset_claim_ids()
 
 
 @pytest.fixture
@@ -504,7 +494,7 @@ class TestMatchGraphGroupExtension:
         # Should have 1 explicit edge (dgt1-external)
         # and 1 inferred edge (dgt1-audio or audio-external)
         assert stamp.n_explicit_edges == 1
-        assert stamp.n_inferred_edges >= 1
+        assert stamp.n_inferred_edges == 1
 
     def test_extend_with_include_inferred_false(
         self,
@@ -735,39 +725,7 @@ class TestMatchGraphSerialization:
 class TestMatchGraphThoresenIntegration:
     """Integration tests using Thoresen PoC data."""
 
-    @pytest.fixture
-    def thoresen_segment_claims(self) -> list[MatchClaim]:
-        """5 segment claims from Thoresen PoC."""
-        # Exact values from test_thoresen_poc.py
-        dgt1_lengths = [967, 967, 967, 967, 967]
-        dgt2_lengths = [866, 867, 867, 864, 864]
-
-        claims = []
-        offset_dgt1 = 0
-        offset_dgt2 = 0
-
-        for i in range(5):
-            claim = MatchClaim(
-                timeline_a_id="dgt1",
-                timeline_b_id="dgt2",
-                start_anchor=AlignmentAnchor(
-                    timeline_a_id="dgt1",
-                    coordinate_a=float(offset_dgt1),
-                    timeline_b_id="dgt2",
-                    coordinate_b=float(offset_dgt2),
-                ),
-                end_anchor=AlignmentAnchor(
-                    timeline_a_id="dgt1",
-                    coordinate_a=float(offset_dgt1 + dgt1_lengths[i]),
-                    timeline_b_id="dgt2",
-                    coordinate_b=float(offset_dgt2 + dgt2_lengths[i]),
-                ),
-            )
-            claims.append(claim)
-            offset_dgt1 += dgt1_lengths[i]
-            offset_dgt2 += dgt2_lengths[i]
-
-        return claims
+    # thoresen_segment_claims fixture is provided by conftest.py
 
     def test_thoresen_graph_structure(
         self, thoresen_segment_claims: list[MatchClaim]
@@ -823,11 +781,11 @@ class TestMatchGraphThoresenIntegration:
 # endregion
 
 
-# region Phase 6.4: MatchGraph Overhaul Tests
+# region MatchGraph Overhaul Tests
 
 
 class TestMatchGraphNonSynchronousClaims:
-    """Phase 6.4: Non-synchronous claims stored as metadata, no edges."""
+    """Non-synchronous claims stored as metadata, no edges."""
 
     def test_non_synchronous_claims_no_edges(self) -> None:
         """Non-synchronous claims do not create graph edges."""
@@ -903,7 +861,7 @@ class TestMatchGraphNonSynchronousClaims:
 
 
 class TestMatchGraphGetStamps:
-    """Phase 6.4: get_stamps() method tests."""
+    """Tests for get_stamps() method."""
 
     def test_get_stamps_returns_list(self, simple_instant_claim: MatchClaim) -> None:
         """get_stamps() returns a list of MatchStamps."""
@@ -974,7 +932,7 @@ class TestMatchGraphGetStamps:
 
 
 class TestMatchGraphExtendToGroupsImplicitClaims:
-    """Phase 6.4: extend_to_groups() creates implicit MatchClaim objects."""
+    """Tests for extend_to_groups() creating implicit MatchClaim objects."""
 
     def test_extension_creates_implicit_claims(
         self,
@@ -998,12 +956,12 @@ class TestMatchGraphExtendToGroupsImplicitClaims:
 
         extended = graph.extend_to_groups(groups, timeline_to_group)
 
-        # Original had 1 claim, extended should have 1 original + implicit
-        assert extended.n_claims > 1
+        # Original had 1 claim, extended should have 1 original + 1 implicit
+        assert extended.n_claims == 2
 
         # Check that implicit claims exist
         implicit = [c for c in extended.claims if not c.is_explicit]
-        assert len(implicit) >= 1
+        assert len(implicit) == 1
 
         # Implicit claims should be synchronous
         for ic in implicit:
@@ -1034,7 +992,7 @@ class TestMatchGraphExtendToGroupsImplicitClaims:
         extended = graph.extend_to_groups(groups, timeline_to_group)
 
         implicit = [c for c in extended.claims if not c.is_explicit]
-        assert len(implicit) >= 1
+        assert len(implicit) == 1
 
         for ic in implicit:
             assert ic.source_claim_id == claim.id
@@ -1113,13 +1071,12 @@ class TestMatchGraphExtendToGroupsImplicitClaims:
 
         # Count implicit claims
         implicit = [c for c in extended.claims if not c.is_explicit]
-        # At least 3: tl1->tl4, tl1->tl5, tl2->tl6
-        # Could be more depending on group B extension from tl6 back to tl2
-        assert len(implicit) >= 3
+        # Exactly 3: tl1->tl4, tl1->tl5, tl2->tl6
+        assert len(implicit) == 3
 
 
 class TestMatchGraphExtendToGroupsFilters:
-    """Phase 6.4: extend_to_groups() filter parameters."""
+    """Tests for extend_to_groups() filter parameters."""
 
     @pytest.fixture
     def multi_group_setup(
@@ -1236,7 +1193,7 @@ class TestMatchGraphExtendToGroupsFilters:
 
 
 class TestMatchGraphFilterPhase64:
-    """Phase 6.4: filter() method with domain/unit filters."""
+    """Tests for filter() method with domain/unit filters."""
 
     def test_filter_by_include_domains(self) -> None:
         """filter() with include_domains removes timelines of wrong domain."""
@@ -1328,7 +1285,7 @@ class TestMatchGraphFilterPhase64:
 
 
 class TestMatchStampGetGroupCoordinates:
-    """Phase 6.4: MatchStamp.get_group_coordinates() fix."""
+    """Tests for MatchStamp.get_group_coordinates() fix."""
 
     def test_get_group_coordinates(
         self,
