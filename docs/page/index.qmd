@@ -36,12 +36,12 @@ This documentation follows the
 :   Step-by-step notebooks that teach the `timetoalign` library from
     first principles, using real-world data.
 
-    - [Why TimeToAlign! Matters](tutorials/00_motivation.ipynb)
-    - [Timelines, Events, and Maps](tutorials/01a_timelines_events_maps.ipynb)
-    - [Children, Regions, and Timestamps](tutorials/01b_children_regions_timestamps.ipynb)
-    - [Timeline Groups and Commensurability](tutorials/02_timeline_groups.ipynb)
-    - [Alignment Bundles](tutorials/03_alignment_bundles.ipynb)
-    - [Flow Control and Grids](tutorials/04_flow_and_grids.ipynb)
+    - [Why TimeToAlign! Matters](tutorials/tut00_motivation.ipynb)
+    - [Timelines, Events, and Maps](tutorials/tut01a_timelines_events_maps.ipynb)
+    - [Children, Regions, and Timestamps](tutorials/tut01b_children_regions_timestamps.ipynb)
+    - [Timeline Groups and Commensurability](tutorials/tut02_timeline_groups.ipynb)
+    - [Alignment Bundles](tutorials/tut03_alignment_bundles.ipynb)
+    - [Flow Control and Grids](tutorials/tut04_flow_and_grids.ipynb)
 
 [**How-To Guides**](howto.qmd)
 :   Task-oriented recipes grouped by topic.

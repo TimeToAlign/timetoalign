@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # 01b: Children, Regions, and Timestamps
+# # Children, Regions, and Timestamps
 #
 # Timelines nest inside one another. A **timestamp** is a cross-section
 # that shows where you are in every active child at a given root coordinate.
@@ -75,4 +75,4 @@ timestamps_df.head(10)
 # `NaN` means the coordinate falls outside that child's extent.
 
 # %% [markdown]
-# **Next:** [02 Timeline Groups](02_timeline_groups.ipynb)
+# **Next:** [Timeline Groups](tut02_timeline_groups.ipynb)

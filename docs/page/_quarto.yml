@@ -26,16 +26,16 @@ website:
         - tutorials.qmd
         - section: "Foundations"
           contents:
-            - tutorials/00_motivation.ipynb
-            - tutorials/01a_timelines_events_maps.ipynb
-            - tutorials/01b_children_regions_timestamps.ipynb
+            - tutorials/tut00_motivation.ipynb
+            - tutorials/tut01a_timelines_events_maps.ipynb
+            - tutorials/tut01b_children_regions_timestamps.ipynb
         - section: "Alignment"
           contents:
-            - tutorials/02_timeline_groups.ipynb
-            - tutorials/03_alignment_bundles.ipynb
+            - tutorials/tut02_timeline_groups.ipynb
+            - tutorials/tut03_alignment_bundles.ipynb
         - section: "Advanced"
           contents:
-            - tutorials/04_flow_and_grids.ipynb
+            - tutorials/tut04_flow_and_grids.ipynb
 
     - title: "How-To Guides"
       contents:

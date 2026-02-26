@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # 04: Flow Control and Grids
+# # Flow Control and Grids
 #
 # Musical timelines are not always linear --- repeat signs, *Da Capo*,
 # and multiple endings introduce jumps. This tutorial shows `BeatGrid`
