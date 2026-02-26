@@ -511,9 +511,11 @@ from timetoalign.loader.tabular.csv import LabLoader
 # the full waveform.  Produces a `DiscretePhysicalTimeline`.
 #
 # **Note:** `AudioLoader` is a standalone class, not a subclass of `Loader`.
-# This is an architectural inconsistency that needs harmonisation.
+# As of H2, it exposes the universal API surface (`create_timeline()`,
+# `create_timelines()`, `from_file()`, `_repr_html_()`).  Formal subclassing
+# of `ManifestLoader` is deferred (H2.2b).
 
-
+# %%
 audio_file = DATA_DIR / "supra" / "midi" / "fd660zf8362.mp3"
 audio_file.name
 
@@ -638,7 +640,7 @@ if repovizz_files:
 #
 # **Note:** `GraphicalLoader` is a standalone factory, not a subclass of
 # `Loader`.  It uses `.build()` instead of `.create_timeline()`.
-# This is an architectural inconsistency.
+# As of H2, it is API-conformant but retains the builder pattern (H2.2b).
 
 # %%
 from timetoalign.loader.graphical.loader import GraphicalLoader
@@ -739,7 +741,7 @@ from timetoalign.loader.graphical.aton import ATONLoader
 # Configurable JSON loader that flattens nested structures into PyArrow tables.
 # Base class for format-specific loaders like `TiliaJsonLoader`.
 
-
+# %%
 # Use the TiLiA JSON as a generic JSON example
 json_file = SCORE_DIR / "bruckner5_scherzo" / "harnoncourt" / "Bruckner5_Scherzo.json"
 json_file.name if json_file.exists() else "NOT FOUND"
@@ -847,7 +849,8 @@ tilia_bundle.get_match_claims()
 # Parses Vienna 4x22 corpus `.match` files via `partitura`.
 # Builds a shared score timeline, per-performance timelines, and `MatchClaim`s.
 #
-# **Note:** Standalone class, not a subclass of `Loader` or `AlignmentLoader`.
+# **Note:** Standalone class, not a subclass of `AlignmentLoader`.
+# As of H2, it exposes the universal API surface.  Formal subclassing deferred (H2.2b).
 
 # %%
 from timetoalign.loader.alignment.matchfile import MatchfileLoader
@@ -922,13 +925,13 @@ match_claims[0].get_matchstamp() if match_claims else "No claims"
 #
 # | # | Issue | Affected Loaders | Severity |
 # |---|-------|------------------|----------|
-# | 1 | **No common base class** | AudioLoader, GraphicalLoader, IIIFManifestLoader, ATONLoader, MatchfileLoader | HIGH |
-# | 2 | ~~`to_timeline()` vs `create_timeline()`~~ | ~~AudioLoader, RepoVizzLoader~~ | RESOLVED |
-# | 3 | **No `.store` property** | AudioLoader, GraphicalLoader, IIIFManifestLoader, ATONLoader, MatchfileLoader | HIGH |
-# | 4 | **No `__getitem__` on Loader** | All Loader subclasses | HIGH |
-# | 5 | **No `create_timelines()` on base** | All except TiliaJsonLoader, MatchfileLoader | HIGH |
-# | 6 | **No `create_group()` on base** | All except TiliaJsonLoader | HIGH |
-# | 7 | **No `create_bundle()` on base** | All loaders | HIGH |
+# | 1 | ~~**No common base class**~~ | ~~AudioLoader, GraphicalLoader, IIIFManifestLoader, ATONLoader, MatchfileLoader~~ | ~~HIGH~~ RESOLVED (H2) |
+# | 2 | ~~`to_timeline()` vs `create_timeline()`~~ | ~~AudioLoader, RepoVizzLoader~~ | RESOLVED (H2) |
+# | 3 | ~~**No `.store` property**~~ | ~~AudioLoader, GraphicalLoader, IIIFManifestLoader, ATONLoader, MatchfileLoader~~ | ~~HIGH~~ RESOLVED (H2) |
+# | 4 | ~~**No `__getitem__` on Loader**~~ | ~~All Loader subclasses~~ | ~~HIGH~~ RESOLVED (H2) |
+# | 5 | ~~**No `create_timelines()` on base**~~ | ~~All except TiliaJsonLoader, MatchfileLoader~~ | ~~HIGH~~ RESOLVED (H2) |
+# | 6 | ~~**No `create_group()` on base**~~ | ~~All except TiliaJsonLoader~~ | ~~HIGH~~ RESOLVED (H2) |
+# | 7 | ~~**No `create_bundle()` on base**~~ | ~~All loaders~~ | ~~HIGH~~ RESOLVED (H2) |
 # | 8 | **`get_timestamp()` vs `get_timestamp_at()`** | Timeline vs TimelineGroup naming | MEDIUM |
 # | 9 | **No `get_timestamp_of(event_id)` on Timeline** | All timelines | HIGH |
 # | 10 | **No `get_timestamps_of(events)` on Timeline** | All timelines | HIGH |
@@ -946,7 +949,7 @@ match_claims[0].get_matchstamp() if match_claims else "No claims"
 # | 22 | **"filtered" and "unified_timestamps" methods** | Timeline, TimelineGroup | HIGH |
 # | 23 | **No `summary()` on base EventStore** | EventStore base class | MEDIUM |
 # | 24 | **No partial/regex ID matching in `create_timeline()`** | All loaders | HIGH |
-# | 25 | **No `_repr_html_` on Loader** | Most loaders (except those with diagrams) | MEDIUM |
+# | 25 | ~~**No `_repr_html_` on Loader**~~ | ~~Most loaders (except those with diagrams)~~ | ~~MEDIUM~~ RESOLVED (H2) |
 # | 26 | **LabLoader has no test data** | LabLoader | LOW |
 # | 27 | **ATONLoader has no test data** | ATONLoader | LOW |
 # | 28 | **Stores not in `store` module** | ScoreStore in bundle.py, MidiStore in bundle.py | MEDIUM |
