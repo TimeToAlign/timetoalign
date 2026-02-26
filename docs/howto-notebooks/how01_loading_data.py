@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # Loading Data with TimeToAlign!
+# # How to Load Data
 #
 # This tutorial introduces the Loader pattern and EventStores - the foundation
 # for bringing music data into TimeToAlign!

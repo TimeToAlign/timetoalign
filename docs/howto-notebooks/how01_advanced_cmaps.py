@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # How-To: Advanced Conversion Maps
+# # How to Use Advanced Conversion Maps
 #
 # Complex `ConversionMap` chaining, piecewise maps, and vectorised
 # operations for transforming coordinates.

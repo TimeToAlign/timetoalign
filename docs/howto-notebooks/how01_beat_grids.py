@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # Beat Grids: Adding Metrical Structure to Audio
+# # How to Build Beat Grids
 #
 # This tutorial shows how to add beat and measure information to audio tracks
 # when you know the tempo and first-beat offset.
@@ -40,7 +40,7 @@
 # 5. (Advanced) Create BeatGrids from score measure data
 #
 # **Prerequisites:**
-# - 01_core_concepts.ipynb (Timelines, Coordinates)
+# - how01_coordinate_math.ipynb (Timelines, Coordinates)
 # - No prerequisites for Part 1 (the simple case)
 
 # %% [markdown]

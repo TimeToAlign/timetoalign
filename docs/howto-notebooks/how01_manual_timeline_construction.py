@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # How-To: Manual Timeline Construction
+# # How to Construct Timelines Manually
 #
 # Building timelines by hand, adding events via dictionaries, creating
 # parent/child hierarchies, and serialisation.

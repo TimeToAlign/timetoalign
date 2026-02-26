@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # Loading Tabular Data
+# # How to Load Tabular Data
 #
 # The fastest way to get music data into TimeToAlign! is through **tabular
 # loaders**. If your data is in CSV or TSV format, you're just 3 lines of

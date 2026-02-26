@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # Loading a Specimen from the 4x22 Vienna Corpus
+# # How to Load the Vienna 4x22 Corpus
 #
 # This guide demonstrates how to load score-to-performance alignment data
 # from the **Vienna 4x22 Corpus** using the `MatchfileLoader`.
@@ -161,7 +161,7 @@ perf_01.get_timestamp(10000.0)
 
 # %%
 bundle = loader.create_alignment_bundle()
-bundle.diagram()
+bundle
 
 # %% [markdown]
 # The diagram shows the score group (with its conversion maps reflected
