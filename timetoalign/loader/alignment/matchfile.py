@@ -91,10 +91,10 @@ class MatchfileLoader:
 
     **Coordinate system and normalisation:**
     Score coordinates are stored as **normalised TTA coordinates** (shifted
-    so the minimum onset is 0.0). A ``ShiftMap`` named
-    ``"raw_to_normalised"`` is attached to the score timeline to expose
-    the raw partitura values. The shift amount is computed from the file
-    itself and never hardcoded.
+    so the minimum onset is 0.0). A ``ShiftMap`` named ``"raw_quarters"``
+    is attached to the score timeline to convert normalised coordinates
+    back to raw partitura values. The shift amount is computed from the
+    file itself and never hardcoded.
 
     **External score timeline:**
     Pass a score timeline previously built by ``PartituraLoader`` via the
@@ -329,7 +329,7 @@ class MatchfileLoader:
 
         offset = self._anacrusis_offset
 
-        # Phase 1: Verify or add score events to the shared timeline
+        # Step 1: Verify or add score events to the shared timeline
         if is_first_file:
             # Compute timeline length from max offset + duration
             raw_onsets = [float(score_by_id[sid]["onset_beat"]) for sid in score_by_id]
@@ -363,14 +363,16 @@ class MatchfileLoader:
 
             self._score_timeline.add_events(score_event_dicts)
 
-            # Attach ShiftMap for raw_to_normalised
+            # Attach ShiftMap to convert normalised TTA coordinates back
+            # to raw partitura coordinates (for display in timestamps).
+            # Since normalised = raw + offset, raw = normalised - offset.
             if self._normalize_anacrusis and offset != 0.0:
                 shift_map = ShiftMap(
-                    offset=offset,
+                    offset=-offset,
                     source_unit=self._score_unit,
                     target_unit=self._score_unit,
-                    uid="raw_to_normalised",
-                    name="raw_to_normalised",
+                    uid="raw_quarters",
+                    name="raw_quarters",
                 )
                 self._score_timeline.add_conversion_map(shift_map)
 
@@ -407,7 +409,7 @@ class MatchfileLoader:
                     )
                     return
 
-        # Phase 2: Build performance timeline
+        # Step 2: Build performance timeline
         perf_event_dicts = []
         for note in perf_notes:
             perf_event_dicts.append(
@@ -449,7 +451,7 @@ class MatchfileLoader:
             f"{len(perf_event_dicts)} events"
         )
 
-        # Phase 3: Build MatchClaims
+        # Step 3: Build MatchClaims
         score_tl_id = self._score_timeline.id
         perf_tl_id = perf_tl.id
 

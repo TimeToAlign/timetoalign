@@ -1,6 +1,6 @@
 """TimelineGroup: Container for commensurable timelines.
 
-This module implements the timestamp-based group architecture from Phase 7.4:
+This module implements the timestamp-based group architecture:
 - Groups store timestamps in a PyArrow table (one row per boundary, one column per timeline)
 - GroupTimestamp is a lightweight view object, created on retrieval
 - Unified add_timeline() logic whether group is empty or has timelines
@@ -15,7 +15,7 @@ IMPORTANT CONCEPTUAL DISTINCTION:
   Does NOT imply the alignment is musically/temporally correct.
 - Correct Alignment: A special case where mapping corresponds to reality.
 
-UNIFIED TIMESTAMP ARCHITECTURE (Phase 6.5):
+UNIFIED TIMESTAMP ARCHITECTURE:
 TimelineGroup now implements the TimeStampSource protocol and uses the same
 TimeStamp/TimeIntervalStamp classes as Timeline. This enables:
 - Consistent API across Timeline and TimelineGroup

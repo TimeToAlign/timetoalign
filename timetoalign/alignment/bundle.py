@@ -6,11 +6,11 @@ bundle manages timelines, groups, and coordinate transfer operations.
 
 Within a group, coordinate transfer uses linear interpolation
 (``TimelineGroup.convert()``).  Across groups, transfer is mediated by
-the Phase 6.5-6.6 pipeline: ``MatchClaim`` → ``MatchLine`` → ``WarpMap``.
+the ``MatchClaim`` -> ``MatchLine`` -> ``WarpMap`` pipeline.
 WarpMaps are built lazily and cached for repeated queries.
 
-NOTE: As of Phase 7.4, TimelineGroup uses a timestamp-based architecture.
-The bundle now uses the new add_timeline() API internally.
+TimelineGroup uses a timestamp-based architecture. The bundle uses
+the add_timeline() API internally.
 """
 
 from __future__ import annotations
@@ -109,8 +109,15 @@ class AlignmentBundle:
     _uid_to_timeline_id: dict[str, str] = field(default_factory=dict, repr=False)
     # Reverse mapping from timeline.id to bundle UID
     _timeline_id_to_uid: dict[str, str] = field(default_factory=dict, repr=False)
-    # Cached WarpMaps: (source_tl_id, target_tl_id) -> WarpMap
-    _warp_map_cache: dict[tuple[str, str], WarpMap] = field(
+    # Cached WarpMaps: (source_tl_id, target_tl_id) -> WarpMap | None
+    # None values are cached as negative results to avoid repeated expensive
+    # MatchLine construction for unreachable timeline pairs.
+    _warp_map_cache: dict[tuple[str, str], WarpMap | None] = field(
+        default_factory=dict, repr=False
+    )
+    # Cached MatchLines: source_tl_id -> MatchLine (avoids rebuilding the
+    # expensive MatchGraph + group extension for every target lookup)
+    _matchline_cache: dict[str, MatchLine | None] = field(
         default_factory=dict, repr=False
     )
     # Cached MatchGraphs: (timeline_id, coordinate) -> MatchGraph
@@ -377,7 +384,7 @@ class AlignmentBundle:
 
     @property
     def default_group(self) -> TimelineGroup | None:
-        """Get the single group (Phase 1) or primary group.
+        """Get the single group or primary group.
 
         Returns:
             The first/only group if one exists, None otherwise.
@@ -875,42 +882,29 @@ class AlignmentBundle:
         return stamp
 
     def _invalidate_warp_cache(self) -> None:
-        """Clear the WarpMap and MatchGraph caches, forcing rebuild on next access."""
+        """Clear the WarpMap, MatchLine, and MatchGraph caches, forcing rebuild on next access."""
         self._warp_map_cache.clear()
+        self._matchline_cache.clear()
         self._matchgraph_cache.clear()
         self._cache_claims_hash = 0
 
-    def _get_or_build_warp_map(
-        self, source_tl_id: str, target_tl_id: str
-    ) -> WarpMap | None:
-        """Get or lazily build a WarpMap for the given timeline pair.
+    def _get_or_build_match_line(self, source_tl_id: str) -> MatchLine | None:
+        """Get or lazily build a MatchLine for the given source timeline.
 
-        Builds a ``MatchLine`` from ``cross_group_claims`` with group
-        extension and constructs a ``WarpMap`` via
-        ``WarpMap.from_match_line()``.  The result is cached; the cache
-        is invalidated when ``add_match_claims()`` is called.
+        The MatchLine is cached per ``source_tl_id`` and shared across
+        all target lookups from the same source. This avoids rebuilding
+        the expensive ``MatchGraph`` + group extension for every
+        ``(source, target)`` pair.
 
         Args:
             source_tl_id: Actual timeline ID (not bundle UID) of the source.
-            target_tl_id: Actual timeline ID (not bundle UID) of the target.
 
         Returns:
-            WarpMap for the pair, or None if insufficient data.
+            MatchLine for the source, or None if construction fails.
         """
-        if not self.cross_group_claims:
-            return None
+        if source_tl_id in self._matchline_cache:
+            return self._matchline_cache[source_tl_id]
 
-        # Check cache validity
-        claims_hash = id(self.cross_group_claims) + len(self.cross_group_claims)
-        if claims_hash != self._cache_claims_hash:
-            self._warp_map_cache.clear()
-            self._cache_claims_hash = claims_hash
-
-        cache_key = (source_tl_id, target_tl_id)
-        if cache_key in self._warp_map_cache:
-            return self._warp_map_cache[cache_key]
-
-        # Build MatchLine from claims with group extension
         try:
             match_line = MatchLine.from_claims(
                 claims=self.cross_group_claims,
@@ -931,10 +925,53 @@ class AlignmentBundle:
                 source_tl_id,
                 e,
             )
+            self._matchline_cache[source_tl_id] = None
+            return None
+
+        self._matchline_cache[source_tl_id] = match_line
+        return match_line
+
+    def _get_or_build_warp_map(
+        self, source_tl_id: str, target_tl_id: str
+    ) -> WarpMap | None:
+        """Get or lazily build a WarpMap for the given timeline pair.
+
+        Builds a ``MatchLine`` from ``cross_group_claims`` with group
+        extension and constructs a ``WarpMap`` via
+        ``WarpMap.from_match_line()``.  Both negative results (unreachable
+        pairs) and positive results are cached; the cache is invalidated
+        when ``add_match_claims()`` is called.
+
+        Args:
+            source_tl_id: Actual timeline ID (not bundle UID) of the source.
+            target_tl_id: Actual timeline ID (not bundle UID) of the target.
+
+        Returns:
+            WarpMap for the pair, or None if insufficient data.
+        """
+        if not self.cross_group_claims:
+            return None
+
+        # Check cache validity
+        claims_hash = id(self.cross_group_claims) + len(self.cross_group_claims)
+        if claims_hash != self._cache_claims_hash:
+            self._warp_map_cache.clear()
+            self._matchline_cache.clear()
+            self._cache_claims_hash = claims_hash
+
+        cache_key = (source_tl_id, target_tl_id)
+        if cache_key in self._warp_map_cache:
+            return self._warp_map_cache[cache_key]
+
+        # Build or retrieve cached MatchLine for this source
+        match_line = self._get_or_build_match_line(source_tl_id)
+        if match_line is None:
+            self._warp_map_cache[cache_key] = None
             return None
 
         # Check if target timeline is reachable
         if target_tl_id not in match_line.target_timeline_ids():
+            self._warp_map_cache[cache_key] = None
             return None
 
         # Build WarpMap
@@ -947,6 +984,7 @@ class AlignmentBundle:
                 target_tl_id,
                 e,
             )
+            self._warp_map_cache[cache_key] = None
             return None
 
         self._warp_map_cache[cache_key] = warp

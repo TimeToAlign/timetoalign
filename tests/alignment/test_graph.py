@@ -781,11 +781,11 @@ class TestMatchGraphThoresenIntegration:
 # endregion
 
 
-# region Phase 6.4: MatchGraph Overhaul Tests
+# region MatchGraph Overhaul Tests
 
 
 class TestMatchGraphNonSynchronousClaims:
-    """Phase 6.4: Non-synchronous claims stored as metadata, no edges."""
+    """Non-synchronous claims stored as metadata, no edges."""
 
     def test_non_synchronous_claims_no_edges(self) -> None:
         """Non-synchronous claims do not create graph edges."""
@@ -861,7 +861,7 @@ class TestMatchGraphNonSynchronousClaims:
 
 
 class TestMatchGraphGetStamps:
-    """Phase 6.4: get_stamps() method tests."""
+    """Tests for get_stamps() method."""
 
     def test_get_stamps_returns_list(self, simple_instant_claim: MatchClaim) -> None:
         """get_stamps() returns a list of MatchStamps."""
@@ -932,7 +932,7 @@ class TestMatchGraphGetStamps:
 
 
 class TestMatchGraphExtendToGroupsImplicitClaims:
-    """Phase 6.4: extend_to_groups() creates implicit MatchClaim objects."""
+    """Tests for extend_to_groups() creating implicit MatchClaim objects."""
 
     def test_extension_creates_implicit_claims(
         self,
@@ -1076,7 +1076,7 @@ class TestMatchGraphExtendToGroupsImplicitClaims:
 
 
 class TestMatchGraphExtendToGroupsFilters:
-    """Phase 6.4: extend_to_groups() filter parameters."""
+    """Tests for extend_to_groups() filter parameters."""
 
     @pytest.fixture
     def multi_group_setup(
@@ -1193,7 +1193,7 @@ class TestMatchGraphExtendToGroupsFilters:
 
 
 class TestMatchGraphFilterPhase64:
-    """Phase 6.4: filter() method with domain/unit filters."""
+    """Tests for filter() method with domain/unit filters."""
 
     def test_filter_by_include_domains(self) -> None:
         """filter() with include_domains removes timelines of wrong domain."""
@@ -1285,7 +1285,7 @@ class TestMatchGraphFilterPhase64:
 
 
 class TestMatchStampGetGroupCoordinates:
-    """Phase 6.4: MatchStamp.get_group_coordinates() fix."""
+    """Tests for MatchStamp.get_group_coordinates() fix."""
 
     def test_get_group_coordinates(
         self,

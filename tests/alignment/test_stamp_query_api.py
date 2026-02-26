@@ -1,15 +1,15 @@
-"""Tests for Phase 7: Unified Stamp & Query API.
+"""Tests for the Unified Stamp & Query API.
 
 Covers:
-- Step 7.3: AlignmentBundle.get_match_claims()
-- Step 7.4: MatchClaim.get_matchstamp()
-- Step 7.4a: AlignmentBundle MatchGraph cache
-- Step 7.5: AlignmentBundle.get_matchstamp_at()
-- Step 7.6: MatchGraph.get_matchstamp() + split_components()
-- Step 7.7a: MatchStamp __str__ and _repr_html_
-- Step 7.7b: MatchClaim __str__ and _repr_html_
-- Step 7.9: transfer() docstring fix
-- Step 7.11: Top-level exports
+- AlignmentBundle.get_match_claims() with unified filter API
+- MatchClaim.get_matchstamp() (reduced and graph-expanded)
+- AlignmentBundle MatchGraph cache
+- AlignmentBundle.get_matchstamp_at() cross-group coordinate resolution
+- MatchGraph.get_matchstamp() + split_components()
+- MatchStamp __str__ and _repr_html_ display methods
+- MatchClaim __str__ and _repr_html_ display methods
+- transfer() docstring correctness
+- Top-level exports (MatchGraph, MatchStamp, ClaimFilter)
 """
 
 from __future__ import annotations
@@ -93,7 +93,7 @@ def _make_star_bundle():
 # endregion
 
 
-# region Step 7.3: AlignmentBundle.get_match_claims()
+# region AlignmentBundle.get_match_claims()
 
 
 class TestGetMatchClaims:
@@ -170,7 +170,7 @@ class TestGetMatchClaims:
 # endregion
 
 
-# region Step 7.6: MatchGraph.get_matchstamp() + split_components()
+# region MatchGraph.get_matchstamp() + split_components()
 
 
 class TestMatchGraphGetMatchstamp:
@@ -399,7 +399,7 @@ class TestMatchGraphStarTopology:
 # endregion
 
 
-# region Step 7.4: MatchClaim.get_matchstamp()
+# region MatchClaim.get_matchstamp()
 
 
 class TestMatchClaimGetMatchstamp:
@@ -462,7 +462,7 @@ class TestMatchClaimGetMatchstamp:
 # endregion
 
 
-# region Step 7.4a: AlignmentBundle MatchGraph cache
+# region AlignmentBundle MatchGraph cache
 
 
 class TestMatchGraphCache:
@@ -522,7 +522,7 @@ class TestMatchGraphCache:
 # endregion
 
 
-# region Step 7.5: AlignmentBundle.get_matchstamp_at()
+# region AlignmentBundle.get_matchstamp_at()
 
 
 class TestGetMatchstampAt:
@@ -590,7 +590,7 @@ class TestGetMatchstampAt:
 # endregion
 
 
-# region Step 7.7a: MatchStamp display
+# region MatchStamp display
 
 
 class TestMatchStampDisplay:
@@ -671,7 +671,7 @@ class TestMatchStampDisplay:
 # endregion
 
 
-# region Step 7.7b: MatchClaim display
+# region MatchClaim display
 
 
 class TestMatchClaimDisplay:
@@ -804,7 +804,7 @@ class TestMatchClaimDisplay:
 # endregion
 
 
-# region Step 7.9: transfer() docstring fix
+# region transfer() docstring correctness
 
 
 class TestTransferDocstring:
@@ -820,7 +820,7 @@ class TestTransferDocstring:
 # endregion
 
 
-# region Step 7.11: Top-level exports
+# region Top-level exports
 
 
 class TestTopLevelExports:

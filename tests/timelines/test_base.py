@@ -545,7 +545,7 @@ class TestFutureApiStubs:
     def test_add_match_not_implemented(self):
         """add_match raises NotImplementedError."""
         tl = Timeline()
-        with pytest.raises(NotImplementedError, match="Phase 6"):
+        with pytest.raises(NotImplementedError, match="AlignmentBundle"):
             tl.add_match(None)
 
     def test_add_break_not_implemented(self):

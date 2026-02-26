@@ -661,7 +661,7 @@ cd timetoalign
 python -m pytest tests/alignment/ -v
 ```
 
-**Phase 6.8 Status**: Deprecated `MatchClaim.instant()`/`.interval()` removed; all callers migrated. Full alignment suite: 367 passed, 56 skipped. The skips are pre-existing stubs in `test_thoresen_poc.py` and graphical loader tests requiring PyMuPDF.
+**Status**: Unified Stamp & Query API fully implemented. Full alignment suite: **561 passed** (alignment + core/ids). The skips are pre-existing stubs in `test_thoresen_poc.py` and graphical loader tests requiring PyMuPDF.
 
 ### Test Files
 
@@ -674,9 +674,59 @@ python -m pytest tests/alignment/ -v
 | `test_graph.py` | 54 | MatchGraph operations (Phase 6.4: +19 tests for implicit claims, filtering, stamps); imports Thoresen fixtures from conftest |
 | `test_matchline.py` | 33 | MatchLine construction, from_claims, from_graphs, coordinate pairs, serialization (Phase 6.5); imports Thoresen fixtures from conftest |
 | `test_warpmap.py` | 36 | WarpMap construction, forward/inverse, materialise (events, children, regions, type conversion), serialization, end-to-end pipeline (Phase 6.6) |
+| `test_filters.py` | 27 | `ClaimFilter` dataclass: exact ID, set-of-IDs, regex, between, synchronous/nomatch, combined filters, timeline-level filtering |
+| `test_stamp_query_api.py` | 52 | Unified Stamp & Query API: `get_match_claims()`, `get_matchstamp_at()`, `MatchGraph.get_matchstamp()`/`split_components()`, `MatchClaim.get_matchstamp()`, MatchGraph cache, display methods (`__str__`/`_repr_html_`), `transfer()` docstring fix, top-level exports |
 | `test_supra_integration.py` | 13 | SUPRA piano roll workflow (partial alignment) |
 | `test_thoresen_poc.py` | 35 | Thoresen graphical analysis workflow; imports Thoresen fixtures from conftest |
 | `../timelines/test_offset_arithmetic.py` | 11 | Parent–child offset arithmetic (Phase 6.1) |
+
+---
+
+## Unified Stamp & Query API Tests
+
+### ClaimFilter Tests (`test_filters.py`)
+
+Tests for the `ClaimFilter` dataclass — the Unified Filter API (AGENTS.md Section 1.9). Covers all filter parameters individually and in combination:
+
+| Class | Tests | Purpose |
+|-------|-------|---------|
+| `TestClaimFilterCreation` | 5 | Empty filter, mutual exclusion, `from_kwargs`, repr |
+| `TestClaimFilterExactId` | 4 | `timeline_id` filter on A-side, B-side, mismatch, timeline-level |
+| `TestClaimFilterIdSet` | 3 | `timeline_ids` set filter |
+| `TestClaimFilterRegex` | 4 | `id_pattern` regex: prefix, suffix, range, timeline-level |
+| `TestClaimFilterBetween` | 3 | `between` pair filter: exact, reversed, mismatch |
+| `TestClaimFilterSynchronous` | 4 | `synchronous_only` and `nomatch_only` |
+| `TestClaimFilterCombined` | 4 | AND logic across multiple filters |
+
+### Stamp & Query API Tests (`test_stamp_query_api.py`)
+
+Tests for the Unified Stamp & Query API, using a star-topology bundle (1 score + 3 performers, 5 coordinates each, plus 1 NOMATCH claim).
+
+| Class | Tests | Purpose |
+|-------|-------|---------|
+| `TestGetMatchClaims` | 8 | `AlignmentBundle.get_match_claims()`: no filters, by timeline ID, by regex, synchronous_only, nomatch_only, between, combined |
+| `TestMatchGraphGetMatchstamp` | 4 | `MatchGraph.get_matchstamp()`: single component, multi-component raises, empty graph, only-NOMATCH |
+| `TestMatchGraphSplitComponents` | 4 | `split_components()`: single, two components, empty graph, `n_components` property |
+| `TestMatchGraphStarTopology` | 2 | Star topology (1 score + N performers): single coordinate = one component, determinism |
+| `TestMatchClaimGetMatchstamp` | 4 | `MatchClaim.get_matchstamp()`: reduced stamp, NOMATCH returns None, no-bundle raises, from-graph with bundle |
+| `TestMatchGraphCache` | 5 | MatchGraph cache: hit, cross-key lookup, invalidation, no-claims raises, different coordinates |
+| `TestGetMatchstampAt` | 6 | `AlignmentBundle.get_matchstamp_at()`: basic, non-zero coordinate, not-in-bundle, no claims, regex filter, timeline_ids filter |
+| `TestMatchStampDisplay` | 7 | `MatchStamp.__str__`/`_repr_html_`: header, entries, empty, integer formatting, valid HTML, bold anchors, greyed inferred |
+| `TestMatchClaimDisplay` | 8 | `MatchClaim.__str__`/`_repr_html_`: instant, interval, NOMATCH, metadata, inferred, valid HTML, NOMATCH badge |
+| `TestTransferDocstring` | 1 | `transfer()` docstring no longer says "primary user-facing" |
+| `TestTopLevelExports` | 4 | `MatchGraph`, `MatchStamp`, `ClaimFilter` importable from top-level |
+
+### TimelineIdGenerator Tests (`../core/test_ids.py`)
+
+Tests for the `TimelineIdGenerator` class that generates systematic timeline IDs based on type (AGENTS.md Section 1.10). 12 tests covering:
+
+| Area | Tests | Purpose |
+|------|-------|---------|
+| Basic generation | 3 | Counter increments, prefix mapping for all 6 timeline types |
+| Role-based IDs | 2 | `next_id_with_role()` produces `role:prefix{N}` format |
+| Metadata | 2 | Metadata association and retrieval |
+| Reset/isolation | 3 | Counter reset, independent instances |
+| Edge cases | 2 | Unknown types, large counter values |
 
 ### Deprecated Tests
 

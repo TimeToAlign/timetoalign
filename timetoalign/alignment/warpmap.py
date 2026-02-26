@@ -6,7 +6,7 @@ system. It is the final step in the alignment pipeline:
 
     AlignmentAnchor -> MatchClaim -> MatchGraph -> MatchStamp -> MatchLine -> **WarpMap**
 
-A WarpMap wraps an `InterpolationMap` (Phase 6.1) and provides:
+A WarpMap wraps an `InterpolationMap` and provides:
 
 - ``forward(coord)``: source coord -> target coord
 - ``inverse(coord)``: target coord -> source coord

@@ -4,7 +4,7 @@ This module provides the core alignment infrastructure for cross-timeline
 synchronization as described in the TTA manuscript.
 
 Public API:
-- AlignmentBundle: Primary entry point for alignment workflows (Phase 1+)
+- AlignmentBundle: Primary entry point for alignment workflows
 - TimelineGroup: Container for commensurable timelines (timestamp-based)
 - GroupTimestamp: A synchronized instant across all timelines in a group
 - PerfectAlignment: DEPRECATED - Use TimelineGroup.add_timeline() instead

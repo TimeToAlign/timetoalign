@@ -10,7 +10,7 @@ TTA manuscript's multi-level alignment hierarchy:
 The hierarchy is:
     AlignmentAnchor -> MatchClaim -> MatchGraph -> MatchStamp -> MatchLine
 
-Phase 6 Design:
+Design:
     AlignmentAnchor is a pure coordinate pair with no claim semantics.
     Only synchronous MatchClaims produce AlignmentAnchors.
     MatchClaim always knows its two timelines via top-level fields.

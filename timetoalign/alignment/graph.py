@@ -14,12 +14,12 @@ MatchGraph uses networkx to:
 3. Extend edges via Group membership (implicit claims)
 4. Extract MatchStamps from connected components
 
-Phase 6.4 Design:
+Design:
     Only synchronous claims produce graph edges. Non-synchronous claims
     (conceptual matches, NOMATCH) are stored as metadata but do not create
     edges. ``extend_to_groups()`` creates implicit ``MatchClaim`` objects
     (case d) and adds their anchors as edges. Each Hendrix M-box
-    (M1–M15) is a MatchGraph — the system is NOT a global graph.
+    (M1-M15) is a MatchGraph -- the system is NOT a global graph.
 """
 
 from __future__ import annotations
