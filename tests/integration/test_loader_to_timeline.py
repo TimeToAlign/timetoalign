@@ -50,7 +50,7 @@ class TestScoreLoaderToTimeline:
             pytest.skip(f"Test data not found: {path}")
         return path
 
-    def test_partitura_to_default_timeline_structure(self, chopin_musicxml: Path):
+    def test_partitura_create_timeline_structure(self, chopin_musicxml: Path):
         """PartituraLoader creates timeline with correct structure.
 
         Validates:
@@ -63,7 +63,7 @@ class TestScoreLoaderToTimeline:
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.store.to_default_timeline(uid="chopin")
+        timeline = loader.store.create_timeline(uid="chopin")
 
         # Verify parent structure
         assert timeline.id == "chopin"
@@ -87,7 +87,7 @@ class TestScoreLoaderToTimeline:
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.store.to_default_timeline()
+        timeline = loader.store.create_timeline()
         notes_tl = timeline.get_child("notes")
 
         # EXACT count - no tolerance
@@ -106,7 +106,7 @@ class TestScoreLoaderToTimeline:
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.store.to_default_timeline()
+        timeline = loader.store.create_timeline()
         measures_tl = timeline.get_child("measures")
 
         # EXACT count - no tolerance
@@ -128,7 +128,7 @@ class TestScoreLoaderToTimeline:
         loader = Music21Loader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.store.to_default_timeline()
+        timeline = loader.store.create_timeline()
         notes_tl = timeline.get_child("notes")
 
         # EXACT count - no tolerance
@@ -144,7 +144,7 @@ class TestScoreLoaderToTimeline:
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.store.to_default_timeline()
+        timeline = loader.store.create_timeline()
 
         for _, child in timeline.iter_children():
             assert child.is_locked, f"Child {child.id} should be locked"
@@ -172,7 +172,7 @@ class TestScoreLoaderWithFilters:
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.store.to_timeline(
+        timeline = loader.store.create_timeline(
             uid="notes_only",
             include_stores=["notes"],
         )
@@ -188,7 +188,7 @@ class TestScoreLoaderWithFilters:
         loader = PartituraLoader()
         loader.load(chopin_musicxml)
 
-        timeline = loader.store.to_timeline(
+        timeline = loader.store.create_timeline(
             exclude_stores=["controls", "annotations"],
         )
 
@@ -242,7 +242,7 @@ class TestMidiLoaderToTimeline:
         loader = ScoreMidiLoader()
         loader.load(beethoven_midi)
 
-        timeline = loader.store.to_default_timeline(uid="beethoven")
+        timeline = loader.store.create_timeline(uid="beethoven")
 
         assert timeline.id == "beethoven"
         # Events are on the timeline (either directly or as children)
@@ -260,7 +260,7 @@ class TestMidiLoaderToTimeline:
         loader = PerformanceMidiLoader()
         loader.load(supra_midi)
 
-        timeline = loader.store.to_default_timeline(uid="supra")
+        timeline = loader.store.create_timeline(uid="supra")
 
         assert timeline.id == "supra"
         # Should have at least notes
@@ -273,7 +273,7 @@ class TestMidiLoaderToTimeline:
         loader = PerformanceMidiLoader()
         loader.load(supra_midi)
 
-        timeline = loader.store.to_default_timeline()
+        timeline = loader.store.create_timeline()
         notes_tl = timeline.get_child("notes")
 
         # Supra raw has notes - verify non-zero
@@ -306,12 +306,12 @@ class TestCrossLoaderConsistency:
 
         pt_loader = PartituraLoader()
         pt_loader.load(chopin_musicxml)
-        pt_timeline = pt_loader.store.to_default_timeline()
+        pt_timeline = pt_loader.store.create_timeline()
         pt_notes = pt_timeline.get_child("notes").n_events
 
         m21_loader = Music21Loader()
         m21_loader.load(chopin_musicxml)
-        m21_timeline = m21_loader.store.to_default_timeline()
+        m21_timeline = m21_loader.store.create_timeline()
         m21_notes = m21_timeline.get_child("notes").n_events
 
         # Both must equal gold standard
@@ -341,11 +341,11 @@ class TestCrossLoaderConsistency:
 
         pt_loader = PartituraLoader()
         pt_loader.load(chopin_musicxml)
-        pt_timeline = pt_loader.store.to_default_timeline()
+        pt_timeline = pt_loader.store.create_timeline()
 
         m21_loader = Music21Loader()
         m21_loader.load(chopin_musicxml)
-        m21_timeline = m21_loader.store.to_default_timeline()
+        m21_timeline = m21_loader.store.create_timeline()
 
         # Core children must be present in both
         core_children = {"notes", "measures", "controls"}

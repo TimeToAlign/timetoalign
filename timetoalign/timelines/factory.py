@@ -4,7 +4,7 @@ This module provides the `create_timeline` function and its helpers,
 enabling timeline creation from EventStores, EventData, and Loaders.
 
 Design principles:
-- Multiple entry points (EventData.to_timeline, EventStore.to_timeline, create_timeline)
+- Multiple entry points (EventData.create_timeline, EventStore.create_timeline, create_timeline)
 - Children maintain their own 0-based coordinate systems
 - Parent length equals max of all child lengths
 """
@@ -211,7 +211,7 @@ def create_timeline_from_bundle(
 ) -> "Timeline":
     """Create a Timeline from an EventStore.
 
-    This is the core implementation called by EventStore.to_timeline().
+    This is the core implementation called by EventStore.create_timeline().
 
     Behavior depends on the number of data sources:
     - **Single data source**: Events are placed directly on the timeline
@@ -285,7 +285,7 @@ def create_timeline_from_bundle(
     # Single data case: put events directly on the timeline (no children).
     # This applies when flatten=True is explicitly requested OR when there
     # is only a single data source (the common case for simple loaders and
-    # SingleStore).  to_default_timeline() calls us with flatten=False, but
+    # SingleStore).  create_timeline() defaults to flatten=False, but
     # the single-data optimisation still fires because len(data_to_use)==1.
     if flatten or len(data_to_use) == 1:
         # Merge all events into single timeline

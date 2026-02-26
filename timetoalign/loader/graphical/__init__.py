@@ -26,7 +26,7 @@ Examples:
     >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=100, name="system_1")
     >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=200, name="system_2")
     >>> store = loader.bundle
-    >>> timeline = store.to_timeline(uid="score", name="Score")
+    >>> timeline = store.create_timeline(uid="score", name="Score")
 
     >>> # Coordinate conversion
     >>> source_idx, (x, y) = store.timeline_to_image(250.0)

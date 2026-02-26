@@ -2,8 +2,8 @@
 
 This module tests the timeline creation API including:
 - create_timeline() universal factory
-- EventStore.to_timeline() and to_default_timeline()
-- EventData.to_timeline()
+- EventStore.create_timeline()
+- EventData.create_timeline()
 
 Behavior tested:
 - **Single data source**: Events are placed directly on the timeline (no children).
@@ -363,8 +363,8 @@ class TestCreateTimelineErrors:
             create_timeline("invalid")  # type: ignore[arg-type]
 
 
-class TestEventDataToTimeline:
-    """Tests for EventData.to_timeline() method."""
+class TestEventDataCreateTimeline:
+    """Tests for EventData.create_timeline() method."""
 
     @pytest.fixture
     def sample_data(self) -> EventData:
@@ -397,16 +397,16 @@ class TestEventDataToTimeline:
         )
 
     def test_creates_timeline_directly(self, sample_data: EventData):
-        """to_timeline creates timeline with data's events."""
-        timeline = sample_data.to_timeline(uid="direct")
+        """create_timeline creates timeline with data's events."""
+        timeline = sample_data.create_timeline(uid="direct")
 
         assert timeline.id == "direct"
         # Exact count: 3 events (2 notes + 1 rest)
         assert timeline.n_events == 3
 
     def test_with_filters(self, sample_data: EventData):
-        """to_timeline with filters excludes filtered events."""
-        timeline = sample_data.to_timeline(
+        """create_timeline with filters excludes filtered events."""
+        timeline = sample_data.create_timeline(
             uid="filtered",
             filters={"event_type": "Note"},
         )
@@ -415,8 +415,8 @@ class TestEventDataToTimeline:
         assert timeline.n_events == 2
 
     def test_infers_correct_timeline_class(self, sample_data: EventData):
-        """to_timeline creates appropriate timeline subclass."""
-        timeline = sample_data.to_timeline()
+        """create_timeline creates appropriate timeline subclass."""
+        timeline = sample_data.create_timeline()
 
         # ticks -> DiscreteLogicalTimeline
         assert isinstance(timeline, DiscreteLogicalTimeline)
@@ -435,7 +435,7 @@ class TestEventDataToTimeline:
             unit=TimeUnit.seconds,
         )
 
-        timeline = data.to_timeline()
+        timeline = data.create_timeline()
 
         assert isinstance(timeline, ContinuousPhysicalTimeline)
 
@@ -486,21 +486,21 @@ class TestTimelineChildrenStructure:
 
     def test_parent_length_equals_max_child(self, multi_store: DictStore):
         """Parent timeline length is max of children lengths."""
-        timeline = multi_store.to_default_timeline()
+        timeline = multi_store.create_timeline()
 
         # Measures end at 400, so parent length should be exactly 400
         assert timeline.length.value == 400
 
     def test_children_locked_after_addition(self, multi_store: DictStore):
         """Children are locked after being added to parent."""
-        timeline = multi_store.to_default_timeline()
+        timeline = multi_store.create_timeline()
 
         child = timeline.get_child("notes")
         assert child.is_locked
 
     def test_children_maintain_own_coordinates(self, multi_store: DictStore):
         """Children maintain their own 0-based coordinate system."""
-        timeline = multi_store.to_default_timeline()
+        timeline = multi_store.create_timeline()
 
         child = timeline.get_child("notes")
 
@@ -527,7 +527,7 @@ class TestTimelineChildrenStructure:
             unit=TimeUnit.ticks,
         )
         store = SingleStore(data, name="notes")
-        timeline = store.to_default_timeline()
+        timeline = store.create_timeline()
 
         # SingleStore: no children, events directly on timeline
         assert timeline.n_children == 0
