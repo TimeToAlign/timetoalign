@@ -127,7 +127,8 @@ Examples:
 | [get_child](#timetoalign.Timeline.get_child) | Retrieve a child timeline by ID. |
 | [get_child_offset](#timetoalign.Timeline.get_child_offset) | Get the offset of a child timeline. |
 | [get_children_at](#timetoalign.Timeline.get_children_at) | Return all children whose extent contains the given coordinate. |
-| [get_conversion_map](#timetoalign.Timeline.get_conversion_map) | Get a map converting to the target unit. |
+| [get_conversion_map](#timetoalign.Timeline.get_conversion_map) | Get a conversion map by target unit **or** by name/id. |
+| [get_event](#timetoalign.Timeline.get_event) | Look up a single event by its ``id`` field. |
 | [get_events](#timetoalign.Timeline.get_events) | Filter and retrieve events. |
 | [get_events_at](#timetoalign.Timeline.get_events_at) | Get all events active at a specific coordinate. |
 | [get_flow_map](#timetoalign.Timeline.get_flow_map) | Get an attached FlowMap by id. |
@@ -185,7 +186,7 @@ Timeline.add_child(
 Embed a child timeline at the specified offset.
 
 The child timeline will be locked after being added.
-An InterpolationMap is built for O(log n) coordinate conversion.
+Parent-child coordinate conversion uses exact offset arithmetic.
 
 From the TTA manuscript (Section 3.4 - Nested Timelines):
 "A timeline can accommodate not only events but also other timelines,
@@ -302,7 +303,7 @@ Args:
     match: The Match to add.
 
 Raises:
-    NotImplementedError: Alignment will be implemented in Phase 6.
+    NotImplementedError: Alignment is managed via AlignmentBundle.
 
 ### add_region { #timetoalign.Timeline.add_region }
 
@@ -354,8 +355,8 @@ FlowMaps enable coordinate transformation for timelines with flow
 control (repeats, jumps, D.S., D.C., etc.). They are created by
 FlowController and attached to the timeline for later use.
 
-Design Decision (Phase 3.9): Timelines store FlowMaps, NOT
-FlowControllers. FlowControllers are factories that produce FlowMaps.
+Design Decision: Timelines store FlowMaps, NOT FlowControllers.
+FlowControllers are factories that produce FlowMaps.
 
 Args:
     flow_map: The FlowMap to attach.
@@ -1106,13 +1107,62 @@ Returns:
 Timeline.get_conversion_map(target_unit)
 ```
 
-Get a map converting to the target unit.
+Get a conversion map by target unit **or** by name/id.
+
+When *target_unit* is a valid `TimeUnit` value (or an alias such as
+``"seconds"``), the method returns the first attached map whose
+``target_unit`` matches.
+
+When *target_unit* is a string that does **not** correspond to any
+``TimeUnit`` member, the method falls back to a name-based lookup:
+it searches first by ``cmap.id``, then by ``cmap.name``.  This is
+useful for maps where source and target units are identical (e.g. a
+``ShiftMap`` named ``"raw_to_normalised"`` that maps quarters to
+quarters).
 
 Args:
-    target_unit: The desired output unit.
+    target_unit: A ``TimeUnit`` member, a unit alias string, or a
+        conversion-map name/id string.
 
 Returns:
-    A matching ConversionMap, or None if not found.
+    A matching ``ConversionMap``, or ``None`` if not found.
+
+Examples:
+    >>> timeline.get_conversion_map(TimeUnit.seconds)
+    ScalarMap(...)
+    >>> timeline.get_conversion_map("raw_to_normalised")
+    ShiftMap(offset=0.5, ...)
+
+### get_event { #timetoalign.Timeline.get_event }
+
+```python
+Timeline.get_event(event_id)
+```
+
+Look up a single event by its ``id`` field.
+
+Searches the timeline's event store for an event whose ``id``
+column matches *event_id*. Returns the first matching row as a
+dictionary, or ``None`` if no event with that ID exists.
+
+This is a convenience wrapper around a PyArrow filter on the
+``id`` column and is intended for point lookups (e.g. verifying
+that a score note exists on a shared timeline). For bulk queries,
+use `get_events` or `get_events_at` instead.
+
+Args:
+    event_id: The event identifier to search for.
+
+Returns:
+    A dictionary representing the event row, or ``None`` if not
+    found.
+
+Examples:
+    >>> event = timeline.get_event("n1")
+    >>> event["id"]
+    'n1'
+    >>> timeline.get_event("nonexistent") is None
+    True
 
 ### get_events { #timetoalign.Timeline.get_events }
 
