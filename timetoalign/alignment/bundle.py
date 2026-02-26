@@ -31,6 +31,7 @@ from .warpmap import WarpMap
 if TYPE_CHECKING:
     from timetoalign.core.enums import Domain, TimeUnit
     from timetoalign.display.ascii import Diagram
+    from timetoalign.maps.base import ConversionMap
     from timetoalign.timelines import Timeline
 
 module_logger = logging.getLogger(__name__)
@@ -530,7 +531,7 @@ class AlignmentBundle:
                 )
                 return None
 
-        # Try indirect: convert within source group first, then warp
+        # Try indirect via SOURCE group: convert within source, then warp
         if from_group_id is not None:
             source_group = self.groups[from_group_id]
             for src_other_tl_id in source_group.timeline_ids:
@@ -546,6 +547,30 @@ class AlignmentBundle:
                     if intermediate is None:
                         continue
                     return float(warp.forward(float(intermediate)))
+                except Exception:
+                    continue
+
+        # Try indirect via TARGET group: warp to reachable group member,
+        # then convert within the target group.
+        if to_group_id is not None:
+            target_group = self.groups[to_group_id]
+            for tgt_other_tl_id in target_group.timeline_ids:
+                if tgt_other_tl_id == actual_to_id:
+                    continue
+                warp = self._get_or_build_warp_map(actual_from_id, tgt_other_tl_id)
+                if warp is None:
+                    continue
+                try:
+                    warped = float(warp.forward(coord))
+                    conv = self._get_claim_to_native_converter(tgt_other_tl_id)
+                    if conv is not None:
+                        warped = float(conv(warped))
+                    result = target_group.convert(
+                        warped, source=tgt_other_tl_id, target=actual_to_id
+                    )
+                    if result is None:
+                        continue
+                    return float(result)
                 except Exception:
                     continue
 
@@ -887,14 +912,24 @@ class AlignmentBundle:
         self._matchline_cache.clear()
         self._matchgraph_cache.clear()
         self._cache_claims_hash = 0
+        if hasattr(self, "_claim_converter_cache"):
+            self._claim_converter_cache.clear()
 
     def _get_or_build_match_line(self, source_tl_id: str) -> MatchLine | None:
         """Get or lazily build a MatchLine for the given source timeline.
 
         The MatchLine is cached per ``source_tl_id`` and shared across
         all target lookups from the same source. This avoids rebuilding
-        the expensive ``MatchGraph`` + group extension for every
-        ``(source, target)`` pair.
+        the expensive ``MatchGraph`` for every ``(source, target)`` pair.
+
+        Group extension is deliberately NOT applied here. When groups
+        contain timelines at different sampling rates (e.g. 44.1 kHz
+        audio alongside 42 Hz features), within-group interpolation maps
+        many distinct coordinates to the same low-resolution value,
+        creating spurious edges that collapse ALL graph components into
+        one.  WarpMap construction needs clean per-claim pairs, not the
+        merged supergraph.  Group extension is only appropriate for
+        MatchStamp display (``get_matchstamp_at``).
 
         Args:
             source_tl_id: Actual timeline ID (not bundle UID) of the source.
@@ -909,15 +944,6 @@ class AlignmentBundle:
             match_line = MatchLine.from_claims(
                 claims=self.cross_group_claims,
                 source_timeline_id=source_tl_id,
-                groups=self.groups,
-                timeline_to_group={
-                    self._uid_to_timeline_id[uid]: gid
-                    for uid, gid in self.timeline_to_group.items()
-                },
-                timelines={
-                    self._uid_to_timeline_id[uid]: tl
-                    for uid, tl in self.timelines.items()
-                },
             )
         except Exception as e:
             self._logger.debug(
@@ -1094,7 +1120,9 @@ class AlignmentBundle:
 
         Args:
             group: The TimelineGroup.
-            coordinate: Coordinate in the source timeline.
+            coordinate: Coordinate in the source timeline's native unit,
+                or in a unit convertible via C-Map (see
+                ``_resolve_claim_coordinate``).
             timeline_id: Actual timeline ID (not bundle UID).
 
         Returns:
@@ -1130,6 +1158,82 @@ class AlignmentBundle:
                 unit_map[tl_uid] = str(tl.unit)
         return unit_map
 
+    def _get_claim_to_native_converter(
+        self, timeline_id: str
+    ) -> "ConversionMap | None":
+        """Get a converter from claim-space coordinates to native units.
+
+        MatchClaim anchors sometimes carry coordinates in a derived unit
+        (e.g. EEP note onsets in seconds on an audio DPT whose native
+        unit is samples).  This method detects the mismatch by comparing
+        the claim coordinate range against the timeline's native range
+        and each C-Map's target range.
+
+        The result is the *inverse* of the matching C-Map, i.e. a
+        function ``derived_unit → native_unit`` (e.g. seconds → samples).
+
+        Results are cached per timeline in ``_claim_converter_cache``.
+
+        Args:
+            timeline_id: Actual timeline ID.
+
+        Returns:
+            A callable (inverse C-Map) converting claim coordinates to
+            the timeline's native unit, or None if no conversion needed.
+        """
+        if not hasattr(self, "_claim_converter_cache"):
+            self._claim_converter_cache: dict[str, Any] = {}
+
+        _SENTINEL = object()
+        cached = self._claim_converter_cache.get(timeline_id, _SENTINEL)
+        if cached is not _SENTINEL:
+            return cached
+
+        bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
+        tl = self.timelines.get(bundle_uid)
+        if tl is None or not tl._conversion_maps:
+            self._claim_converter_cache[timeline_id] = None
+            return None
+
+        # Find the max claim coordinate for this timeline
+        max_claim_coord = 0.0
+        for claim in self.cross_group_claims:
+            anchor = claim.start_anchor
+            if anchor is None:
+                continue
+            c = anchor.get_coordinate_for(timeline_id)
+            if c is not None and c > max_claim_coord:
+                max_claim_coord = c
+                if max_claim_coord > 1000:
+                    break
+
+        if max_claim_coord == 0:
+            self._claim_converter_cache[timeline_id] = None
+            return None
+
+        tl_length = float(tl.length.value)
+
+        # If max claim coord is within 1% of the timeline's length,
+        # claims are in the native unit — no conversion needed.
+        if max_claim_coord > tl_length * 0.01:
+            self._claim_converter_cache[timeline_id] = None
+            return None
+
+        # Claims are much smaller than the native range — find which
+        # C-Map's target range covers the claim range.
+        for cmap in tl._conversion_maps.values():
+            try:
+                converted_length = float(cmap(tl_length))
+                if max_claim_coord <= converted_length * 1.1:
+                    inv = cmap.inverse()
+                    self._claim_converter_cache[timeline_id] = inv
+                    return inv
+            except Exception:
+                continue
+
+        self._claim_converter_cache[timeline_id] = None
+        return None
+
     def _transfer_to_group(
         self,
         coordinate: float,
@@ -1142,6 +1246,11 @@ class AlignmentBundle:
         Searches for a WarpMap connecting any timeline in the source
         group to any timeline in the target group.  Tries direct maps
         first, then indirect (convert within source group, then warp).
+
+        The WarpMap may return a coordinate in the claim's unit rather
+        than the target timeline's native unit (e.g. seconds instead of
+        samples).  ``_get_claim_to_native_converter`` detects this and
+        provides an inverse C-Map to correct the output.
 
         Args:
             coordinate: Source coordinate.
@@ -1158,6 +1267,9 @@ class AlignmentBundle:
             if warp is not None:
                 try:
                     transferred = float(warp.forward(coordinate))
+                    conv = self._get_claim_to_native_converter(target_tl_id)
+                    if conv is not None:
+                        transferred = float(conv(transferred))
                     return (target_tl_id, transferred)
                 except Exception:
                     continue
@@ -1182,6 +1294,9 @@ class AlignmentBundle:
                 if warp is not None:
                     try:
                         transferred = float(warp.forward(float(intermediate)))
+                        conv = self._get_claim_to_native_converter(target_tl_id)
+                        if conv is not None:
+                            transferred = float(conv(transferred))
                         return (target_tl_id, transferred)
                     except Exception:
                         continue
