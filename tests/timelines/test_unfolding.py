@@ -5,6 +5,7 @@ This test suite validates the slice-based unfolding pipeline:
 2. compute_qb_sections() helper (unit tests with real data)
 3. SegmentLine assembly from slices (integration tests)
 4. End-to-end unfolding against ms3 gold standard (7 specimens, ZERO TOLERANCE)
+5. Group unfolding: unfold an entire TimelineGroup via one FlowMap
 
 See README_unfolding.md for full testing strategy documentation.
 
@@ -30,12 +31,15 @@ from timetoalign.loader.score import TSVLoader
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
+    DiscreteGraphicalTimeline,
     DiscreteLogicalTimeline,
 )
 from timetoalign.timelines.flow import (
     FlowController,
     FlowMode,
+    ScoreFlowController,
     compute_qb_sections,
+    create_unfolded_timeline,
 )
 from timetoalign.timelines.types import SegmentLine
 
@@ -944,6 +948,411 @@ class TestUnfoldingGoldStandard:
             f"Specimen {specimen}: QB sections total={computed_total}, "
             f"expected {expected_total}"
         )
+
+
+# endregion
+
+
+# region TestGroupUnfolding — Unfold an entire TimelineGroup via one FlowMap
+
+
+# Beethoven Op.18 No.4 iv multimodal data paths (relative to SCORE_DATA_DIR)
+BEETHOVEN_DIR_REL = "beethoven_op18-4iv_multimodal"
+BEETHOVEN_ABC_DIR_REL = f"{BEETHOVEN_DIR_REL}/ABC"
+BEETHOVEN_OMR_CSV_REL = (
+    f"{BEETHOVEN_DIR_REL}/OMR_groundtruth/OMR_xml_by_score/omr_note_heads.csv"
+)
+BEETHOVEN_OMR_IMAGES_REL = f"{BEETHOVEN_DIR_REL}/OMR_groundtruth/Images"
+BEETHOVEN_OPENSCORE_DIR_REL = f"{BEETHOVEN_DIR_REL}/OpenScoreSQ"
+
+# Gold standard: 11 sections, total 1116 QB (from GOLD_STANDARD above).
+# The ABC v2.6 edition uses quarterbeats_all_endings, giving a folded
+# length of 878.5 QB that includes all volta endings.
+BEETHOVEN_FOLDED_QB = Fraction(1757, 2)  # 878.5
+BEETHOVEN_UNFOLDED_QB = Fraction(1116)
+BEETHOVEN_N_SECTIONS = 11
+
+
+def _build_dgt1(data_dir: Path) -> SegmentLine:
+    """Build the DGT1 OMR SegmentLine[SegmentLine[DiscreteGraphicalTimeline]].
+
+    Reproduces the Beethoven multimodal notebook's DGT1 construction
+    (Section 7).
+    """
+    from PIL import Image
+
+    from timetoalign import TableMap
+
+    omr_csv = data_dir / BEETHOVEN_OMR_CSV_REL
+    omr_images = data_dir / BEETHOVEN_OMR_IMAGES_REL
+    omr_df = pd.read_csv(omr_csv)
+    image_width = Image.open(next(omr_images.glob("*.png"))).size[0]
+
+    noteheads = pd.DataFrame(
+        {
+            "start": omr_df["Nodes.Node.Left"].astype(int),
+            "end": (omr_df["Nodes.Node.Left"] + omr_df["Nodes.Node.Width"]).astype(int),
+            "onset_beats": omr_df["onset_beats"].astype(float),
+            "pitch": omr_df["pitch"],
+            "staff_id": omr_df["staff_id"].astype(int),
+            "midi_pitch": omr_df["midi_pitch_code"].astype(int),
+            "top": omr_df["Nodes.Node.Top"].astype(int),
+            "page": omr_df["@pageIndex"],
+            "spacing_run_id": omr_df["spacing_run_id"],
+        }
+    )
+
+    dgt1 = SegmentLine(
+        length=0,
+        unit=TimeUnit.pixels,
+        number_type=NumberType.int,
+        segment_type=SegmentLine,
+        inner_segment_type=DiscreteGraphicalTimeline,
+    )
+
+    for page_idx, page_data in noteheads.groupby("page", sort=True):
+        sys_top = page_data.groupby("spacing_run_id")["top"].min()
+        sys_order = sys_top.sort_values().index
+
+        page = SegmentLine(
+            length=0,
+            unit=TimeUnit.pixels,
+            number_type=NumberType.int,
+            segment_type=DiscreteGraphicalTimeline,
+        )
+
+        for sys_rank, sys_id in enumerate(sys_order):
+            sys_data = page_data[page_data["spacing_run_id"] == sys_id]
+
+            system = DiscreteGraphicalTimeline(
+                length=image_width,
+                uid=f"p{page_idx}_s{sys_rank}",
+                name=f"Page {page_idx + 1}, System {sys_rank + 1}",
+            )
+            events = sys_data.drop(columns=["page", "spacing_run_id"])
+            system.add_events(events.assign(event_type="Notehead").to_dict("records"))
+
+            pairs = (
+                events[["start", "onset_beats"]]
+                .drop_duplicates("start")
+                .sort_values("start")
+            )
+            if len(pairs) >= 2:
+                system.add_conversion_map(
+                    TableMap(
+                        x_values=pairs["start"].tolist(),
+                        y_values=pairs["onset_beats"].tolist(),
+                        source_unit="pixels",
+                        target_unit="quarters",
+                        uid=f"p{page_idx}_s{sys_rank}_px_to_qb",
+                    )
+                )
+
+            page.append_segment(system)
+
+        dgt1.append_segment(page, name=f"page_{page_idx}")
+
+    return dgt1
+
+
+def _build_openscore(data_dir: Path) -> ContinuousLogicalTimeline:
+    """Build the OpenScore 4th movement ContinuousLogicalTimeline.
+
+    Reproduces the Beethoven multimodal notebook's OpenScore construction
+    (Section 8): load full score, split at section boundaries, extract
+    movement 4 as a child timeline.
+    """
+    openscore_dir = data_dir / BEETHOVEN_OPENSCORE_DIR_REL
+    os_loader = TSVLoader.from_file(
+        openscore_dir / "sq8913219.notes.tsv",
+        openscore_dir / "sq8913219.measures.tsv",
+    )
+    os_full = os_loader.create_timeline(uid="openscore_full")
+
+    os_flow = ScoreFlowController(os_loader.store.measures)
+    boundaries = os_flow.get_section_boundary_coordinates()
+    os_full.create_regions_from_boundaries(
+        [0, *[float(b) for b in boundaries], float(os_full.length.value)],
+        prefix="movement",
+    )
+    return os_full.create_child_from_region("movement_4", uid="openscore")
+
+
+@pytest.fixture(scope="module")
+def beethoven_score_group() -> dict[str, Any]:
+    """Build the Beethoven score group with all 3 timelines + flow data.
+
+    Returns a dict with keys:
+        - "group": the TimelineGroup
+        - "clt1": CLT1 timeline
+        - "dgt1": DGT1 timeline (SegmentLine)
+        - "openscore": OpenScore timeline
+        - "controller": ScoreFlowController
+        - "flow": Flow (DEFAULT mode)
+        - "qb_sections": list of (Fraction, Fraction) pairs
+        - "dgt1_id": auto-generated ID of DGT1
+    """
+    data_dir = SCORE_DATA_DIR
+    abc_dir = data_dir / BEETHOVEN_ABC_DIR_REL
+
+    # Skip if test data is missing
+    if not abc_dir.exists():
+        pytest.skip(f"Beethoven test data not found: {abc_dir}")
+
+    # CLT1
+    abc_loader = TSVLoader.from_file(
+        abc_dir / "n04op18-4_04.notes.tsv",
+        abc_dir / "n04op18-4_04.measures.tsv",
+        abc_dir / "n04op18-4_04.harmonies.tsv",
+    )
+    clt1 = abc_loader.create_timeline(uid="clt1")
+
+    # DGT1
+    dgt1 = _build_dgt1(data_dir)
+
+    # OpenScore
+    openscore = _build_openscore(data_dir)
+
+    # Score group
+    from timetoalign.alignment import TimelineGroup
+
+    score_group = TimelineGroup(
+        id="score",
+        name="Score (ABC + OMR + OpenScore)",
+        timelines=[clt1, dgt1, openscore],
+    )
+
+    # Flow from ABC measures
+    controller = ScoreFlowController(abc_loader.store.measures)
+    flow = controller.compute_flow(FlowMode.DEFAULT)
+    qb_sections = compute_qb_sections(flow, controller)
+
+    return {
+        "group": score_group,
+        "clt1": clt1,
+        "dgt1": dgt1,
+        "openscore": openscore,
+        "controller": controller,
+        "flow": flow,
+        "qb_sections": qb_sections,
+        "dgt1_id": dgt1.id,
+    }
+
+
+def _unfold_group(
+    score_group_data: dict[str, Any],
+) -> dict[str, SegmentLine]:
+    """Unfold all timelines in the score group via one FlowMap.
+
+    For each PlaythroughSection, retrieves the start/end GroupTimestamp
+    from the score group (in CLT1's coordinate space) and uses the
+    interpolated coordinates for each timeline to ``get_slice()`` and
+    ``append_segment()``.
+
+    Returns:
+        Dict mapping timeline ID -> unfolded SegmentLine.
+    """
+    group = score_group_data["group"]
+    qb_sections = score_group_data["qb_sections"]
+    clt1 = score_group_data["clt1"]
+    dgt1 = score_group_data["dgt1"]
+    openscore = score_group_data["openscore"]
+    dgt1_id = score_group_data["dgt1_id"]
+
+    # Timeline metadata: (source_timeline, target_type_for_segment_line)
+    timelines = {
+        "clt1": clt1,
+        dgt1_id: dgt1,
+        "openscore": openscore,
+    }
+
+    # Create empty SegmentLines for each timeline
+    unfolded: dict[str, SegmentLine] = {}
+    for tl_id, tl in timelines.items():
+        unfolded[tl_id] = SegmentLine(
+            segment_type=type(tl),
+            length=0,
+            unit=tl.unit,
+            number_type=tl.number_type,
+        )
+
+    # Iterate PlaythroughSection-wise
+    for i, (qb_start, qb_end) in enumerate(qb_sections):
+        start_ts = group.get_timestamp_at(float(qb_start), "clt1")
+        end_ts = group.get_timestamp_at(float(qb_end), "clt1")
+
+        for tl_id, tl in timelines.items():
+            coord_start = start_ts[tl_id]
+            coord_end = end_ts[tl_id]
+            assert (
+                coord_start is not None
+            ), f"Section {i}: {tl_id} start coordinate is None"
+            assert coord_end is not None, f"Section {i}: {tl_id} end coordinate is None"
+
+            seg = tl.get_slice(coord_start, coord_end, truncate_events=True)
+            unfolded[tl_id].append_segment(seg, name=f"section_{i}")
+
+    return unfolded
+
+
+class TestGroupUnfolding:
+    """Unfold an entire TimelineGroup via one FlowMap.
+
+    Demonstrates that a single FlowMap (derived from CLT1's score flow)
+    can unfold ALL timelines in a group — regardless of their domain —
+    by resolving section boundaries through GroupTimestamps and slicing
+    each timeline at the corresponding coordinates.
+
+    The test uses the Beethoven Op.18 No.4 iv multimodal score group
+    containing:
+    - CLT1: ContinuousLogicalTimeline (ABC v2.6, 878.5 quarters)
+    - DGT1: SegmentLine[SegmentLine[DiscreteGraphicalTimeline]] (OMR, 106425 pixels)
+    - OpenScore: ContinuousLogicalTimeline (4th movement, 878.5 quarters)
+
+    The FlowMap has 11 PlaythroughSections producing 1116 unfolded QB.
+    """
+
+    def test_prerequisite_folded_lengths(self, beethoven_score_group: dict[str, Any]):
+        """Verify source timelines have the expected folded lengths."""
+        clt1 = beethoven_score_group["clt1"]
+        openscore = beethoven_score_group["openscore"]
+
+        # Both CLT1 and OpenScore should be 878.5 QB (all endings)
+        assert clt1.length.value == float(
+            BEETHOVEN_FOLDED_QB
+        ), f"CLT1 length {clt1.length.value} != {BEETHOVEN_FOLDED_QB}"
+        assert openscore.length.value == float(
+            BEETHOVEN_FOLDED_QB
+        ), f"OpenScore length {openscore.length.value} != {BEETHOVEN_FOLDED_QB}"
+
+    def test_prerequisite_qb_sections(self, beethoven_score_group: dict[str, Any]):
+        """Verify QB sections count and total."""
+        qb_sections = beethoven_score_group["qb_sections"]
+
+        assert len(qb_sections) == BEETHOVEN_N_SECTIONS
+        total = sum(e - s for s, e in qb_sections)
+        assert total == BEETHOVEN_UNFOLDED_QB
+
+    def test_all_timelines_produce_correct_segment_count(
+        self, beethoven_score_group: dict[str, Any]
+    ):
+        """Each unfolded timeline has exactly N_SECTIONS segments."""
+        unfolded = _unfold_group(beethoven_score_group)
+
+        for tl_id, sl in unfolded.items():
+            assert sl.n_segments == BEETHOVEN_N_SECTIONS, (
+                f"{tl_id}: n_segments={sl.n_segments}, "
+                f"expected {BEETHOVEN_N_SECTIONS}"
+            )
+
+    def test_clt1_unfolded_length(self, beethoven_score_group: dict[str, Any]):
+        """CLT1 unfolded length matches gold standard (1116 QB)."""
+        unfolded = _unfold_group(beethoven_score_group)
+        clt1_sl = unfolded["clt1"]
+
+        assert clt1_sl.length.value == float(BEETHOVEN_UNFOLDED_QB), (
+            f"CLT1 unfolded length {clt1_sl.length.value} != "
+            f"{BEETHOVEN_UNFOLDED_QB}"
+        )
+
+    def test_openscore_unfolded_length(self, beethoven_score_group: dict[str, Any]):
+        """OpenScore unfolded length matches CLT1 (same musical content)."""
+        unfolded = _unfold_group(beethoven_score_group)
+        os_sl = unfolded["openscore"]
+
+        assert os_sl.length.value == float(BEETHOVEN_UNFOLDED_QB), (
+            f"OpenScore unfolded length {os_sl.length.value} != "
+            f"{BEETHOVEN_UNFOLDED_QB}"
+        )
+
+    def test_dgt1_unfolded_longer_than_original(
+        self, beethoven_score_group: dict[str, Any]
+    ):
+        """DGT1 unfolded length exceeds original (repeated sections add pixels)."""
+        unfolded = _unfold_group(beethoven_score_group)
+        dgt1 = beethoven_score_group["dgt1"]
+        dgt1_id = beethoven_score_group["dgt1_id"]
+        dgt1_sl = unfolded[dgt1_id]
+
+        assert dgt1_sl.length.value > dgt1.length.value, (
+            f"DGT1 unfolded {dgt1_sl.length.value} should exceed "
+            f"original {dgt1.length.value}"
+        )
+
+    def test_segments_are_contiguous(self, beethoven_score_group: dict[str, Any]):
+        """Every unfolded SegmentLine has contiguous segments."""
+        unfolded = _unfold_group(beethoven_score_group)
+
+        for tl_id, sl in unfolded.items():
+            offsets = []
+            for seg_id in sl._segment_order:
+                offset = sl._child_offsets[seg_id].value
+                child = sl._children[seg_id]
+                offsets.append((offset, offset + child.length.value))
+
+            for i in range(1, len(offsets)):
+                assert offsets[i][0] == offsets[i - 1][1], (
+                    f"{tl_id}: segment {i} start {offsets[i][0]} != "
+                    f"segment {i - 1} end {offsets[i - 1][1]}"
+                )
+
+    def test_segment_types_preserved(self, beethoven_score_group: dict[str, Any]):
+        """Segment types match the source timeline types."""
+        unfolded = _unfold_group(beethoven_score_group)
+        dgt1_id = beethoven_score_group["dgt1_id"]
+
+        # CLT1 segments should be ContinuousLogicalTimeline
+        assert unfolded["clt1"].segment_type is ContinuousLogicalTimeline
+
+        # OpenScore segments should be ContinuousLogicalTimeline
+        assert unfolded["openscore"].segment_type is ContinuousLogicalTimeline
+
+        # DGT1 segments should be SegmentLine
+        # (each segment is a slice of the nested SegmentLine[SegmentLine[DGT]])
+        assert unfolded[dgt1_id].segment_type is SegmentLine
+
+    def test_clt1_segment_lengths_match_qb_sections(
+        self, beethoven_score_group: dict[str, Any]
+    ):
+        """CLT1 segment lengths match the QB section durations exactly."""
+        unfolded = _unfold_group(beethoven_score_group)
+        qb_sections = beethoven_score_group["qb_sections"]
+        clt1_sl = unfolded["clt1"]
+
+        for i, seg_id in enumerate(clt1_sl._segment_order):
+            child = clt1_sl._children[seg_id]
+            expected_dur = float(qb_sections[i][1] - qb_sections[i][0])
+            assert child.length.value == expected_dur, (
+                f"CLT1 segment {i}: length {child.length.value} != "
+                f"expected {expected_dur}"
+            )
+
+    def test_create_unfolded_timeline_matches_group_unfolding(
+        self, beethoven_score_group: dict[str, Any]
+    ):
+        """create_unfolded_timeline on CLT1 produces same length as group method.
+
+        Verifies consistency between the single-timeline unfolding function
+        and the group-based approach.
+        """
+        clt1 = beethoven_score_group["clt1"]
+        flow = beethoven_score_group["flow"]
+        controller = beethoven_score_group["controller"]
+
+        # Single-timeline unfolding
+        clt1_single = create_unfolded_timeline(
+            clt1, flow, controller, as_segment_line=True
+        )
+
+        # Group-based unfolding
+        unfolded = _unfold_group(beethoven_score_group)
+        clt1_group = unfolded["clt1"]
+
+        assert clt1_single.length.value == clt1_group.length.value, (
+            f"Single-timeline {clt1_single.length.value} != "
+            f"group {clt1_group.length.value}"
+        )
+        assert clt1_single.n_segments == clt1_group.n_segments
 
 
 # endregion

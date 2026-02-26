@@ -1,7 +1,8 @@
 # Unfolding via Slicing — Test Strategy & Validation
 
-**Phase:** 3.10
+**Phase:** 3.10 (extended)
 **Test file:** `test_unfolding.py`
+**Total tests:** 88 (78 original + 10 group unfolding)
 **Implementation prompt:** `.agent/prompts/unfolding_via_slicing.md`
 
 ---
@@ -9,8 +10,8 @@
 ## 1. Problem Under Test
 
 The `create_unfolded_timeline()` function produces unfolded timelines from a
-folded score timeline and a Flow object. The current implementation (flow.py)
-operates in MC-number space rather than quarterbeat space, producing wrong
+folded score timeline and a Flow object. The original implementation (flow.py)
+operated in MC-number space rather than quarterbeat space, producing wrong
 coordinates for any score with non-uniform measure durations.
 
 Phase 3.10 replaces per-event FlowMap coordinate remapping with **structural
@@ -18,31 +19,38 @@ slicing**: compute QB boundaries from Flow + MeasureData, extract slices of
 the source timeline at those boundaries, and concatenate the slices into a
 new SegmentLine.
 
-Three new primitives are introduced:
+The extension (group unfolding) demonstrates that one FlowMap can unfold an
+entire TimelineGroup — regardless of member domains — by resolving section
+boundaries through GroupTimestamps and slicing each timeline at the
+corresponding interpolated coordinates.
+
+Key primitives:
 1. `Timeline.get_slice(start, end)` — extract a portion of a timeline
-2. `compute_qb_sections(flow, controller)` — convert Flow sections to QB ranges
-3. Rewritten `create_unfolded_timeline()` — slice + concatenate approach
+2. `SegmentLine.get_slice(start, end)` — override for nested SegmentLines
+3. `compute_qb_sections(flow, controller)` — convert Flow sections to QB ranges
+4. Rewritten `create_unfolded_timeline()` — slice + concatenate approach
 
 ---
 
 ## 2. Testing & Validation Strategy
 
-### 2.1 Three-Layer Testing Pyramid
+### 2.1 Four-Layer Testing Pyramid
 
 ```
-            ┌─────────────────────────┐
-            │  Gold Standard Tests    │  ← 7 specimens, EXACT match
-            │  (TestUnfoldingGold     │     against ms3 TSV files
-            │   Standard)             │
-            ├─────────────────────────┤
-            │  Integration Tests      │  ← SegmentLine assembly from
-            │  (TestSegmentLine       │     slices, contiguity, length
-            │   Assembly)             │
-            ├─────────────────────────┤
-            │  Unit Tests             │  ← get_slice() primitive
-            │  (TestGetSlice +        │     compute_qb_sections() helper
-            │   TestComputeQBSections)│
-            └─────────────────────────┘
+        ┌─────────────────────────────────┐
+        │  Group Unfolding Tests          │  ← 3 timelines × 1 FlowMap,
+        │  (TestGroupUnfolding)           │     cross-domain (Logical+Graphical)
+        ├─────────────────────────────────┤
+        │  Gold Standard Tests            │  ← 7 specimens, EXACT match
+        │  (TestUnfoldingGoldStandard)    │     against ms3 TSV files
+        ├─────────────────────────────────┤
+        │  Integration Tests              │  ← SegmentLine assembly from
+        │  (TestSegmentLineAssembly)      │     slices, contiguity, length
+        ├─────────────────────────────────┤
+        │  Unit Tests                     │  ← get_slice() primitive
+        │  (TestGetSlice +                │     compute_qb_sections() helper
+        │   TestComputeQBSections)        │
+        └─────────────────────────────────┘
 ```
 
 ### 2.2 Unit Tests: `TestGetSlice`
@@ -256,3 +264,84 @@ uses a D.S.-like mechanism. The gold standard confirms 138 unfolded rows.
 ### 6.5 D.S./D.C. with Voltas (flow_only)
 The flow_only specimen combines D.S., D.C., and volta brackets. This is
 the most complex flow control test case. 30 unfolded rows from 15 folded.
+
+---
+
+## 7. Group Unfolding Tests: `TestGroupUnfolding`
+
+### 7.1 What
+
+Validates that a single FlowMap (derived from one score timeline's flow)
+can unfold ALL timelines in a TimelineGroup, regardless of their domain.
+Uses the Beethoven Op.18 No.4 iv multimodal score group:
+
+| Timeline | Type | Domain | Length |
+|----------|------|--------|--------|
+| CLT1 | ContinuousLogicalTimeline | Logical | 878.5 quarters |
+| DGT1 | SegmentLine[SegmentLine[DGT]] | Graphical | 106,425 pixels |
+| OpenScore | ContinuousLogicalTimeline | Logical | 878.5 quarters |
+
+The FlowMap has 11 PlaythroughSections, producing 1116 unfolded QB total.
+
+### 7.2 Strategy
+
+1. Build the score group with 3 timelines (CLT1, DGT1, OpenScore)
+2. Compute QB sections from the ABC v2.6 FlowController
+3. For each PlaythroughSection, retrieve start/end GroupTimestamp
+4. Use interpolated coordinates for each timeline to `get_slice()`
+5. `append_segment()` to build unfolded SegmentLines
+
+### 7.3 Test Inventory (10 tests)
+
+| Test | Validates |
+|------|-----------|
+| `test_prerequisite_folded_lengths` | Source timelines have expected folded lengths (878.5 QB) |
+| `test_prerequisite_qb_sections` | QB sections count (11) and total (1116 QB) |
+| `test_all_timelines_produce_correct_segment_count` | Each unfolded timeline has 11 segments |
+| `test_clt1_unfolded_length` | CLT1 unfolded = 1116 QB |
+| `test_openscore_unfolded_length` | OpenScore unfolded = 1116 QB |
+| `test_dgt1_unfolded_longer_than_original` | DGT1 unfolded > 106,425 px |
+| `test_segments_are_contiguous` | All SegmentLines have contiguous segments |
+| `test_segment_types_preserved` | CLT1→CLT, OpenScore→CLT, DGT1→SegmentLine |
+| `test_clt1_segment_lengths_match_qb_sections` | Individual segment lengths match section durations |
+| `test_create_unfolded_timeline_matches_group_unfolding` | Consistency: single-TL vs group unfolding |
+
+### 7.4 Helpers and Fixtures
+
+| Name | Type | Purpose |
+|------|------|---------|
+| `beethoven_score_group` | `@pytest.fixture(scope="session")` | Builds the full score group with flow data |
+| `_build_dgt1()` | Function | Constructs nested SegmentLine[SegmentLine[DGT]] from OMR CSV |
+| `_build_openscore()` | Function | Loads OpenScore via TSVLoader, extracts movement 4 |
+| `_unfold_group()` | Function | Unfolds all group members via QB sections |
+
+---
+
+## 8. Bug Fixes Applied During Group Unfolding Work
+
+### 8.1 `quarterbeats` vs `quarterbeats_all_endings` (TSVLoader)
+
+**Root cause:** `TSVLoader._load_notes()` (and other `_load_*` methods)
+always used the `quarterbeats` column. This column assigns NaN to measures
+inside volta first-endings. The `quarterbeats_all_endings` column assigns
+positions to all measures.
+
+**Impact:** For Beethoven Op.18 No.4 iv: timeline length was 868q (wrong)
+instead of 878.5q (correct). The 10.5q difference = sum of durations of
+3 volta-first-ending measures (MCs 44, 93, 102).
+
+**Fix:** Added `TSVLoader._resolve_quarterbeats()` (~line 281 in tsv.py)
+that prefers `quarterbeats_all_endings` when present. Updated all 4 loader
+methods (`_load_notes`, `_load_measures`, `_load_annotations`, `_load_controls`).
+
+### 8.2 `SegmentLine.get_slice()` for Nested SegmentLines
+
+**Root cause:** `Timeline.get_slice()` creates the target with
+`self.__class__(length=slice_length, ...)`. But `SegmentLine.validate_child`
+checks `offset == self.length` for contiguity, so adding the second child
+fails because `self.length` is the pre-set slice length, not the cumulative
+child length.
+
+**Fix:** Added `SegmentLine.get_slice()` override (~line 1215 in types.py)
+that creates with `length=0`, preserves `segment_type`/`inner_segment_type`,
+and sets final length after all children are added.

@@ -1213,6 +1213,90 @@ class SegmentLine(Timeline, Generic[T]):
 
         return self.get_slice(slice_start, slice_end, **kwargs)
 
+    def get_slice(
+        self,
+        start: CoordinateValue,
+        end: CoordinateValue,
+        *,
+        truncate_events: bool = True,
+        include_children: bool = True,
+        copy_cmaps: bool = True,
+    ) -> "Timeline":
+        """Extract a portion of this SegmentLine as a new SegmentLine.
+
+        Overrides `Timeline.get_slice` to handle two SegmentLine-specific
+        requirements:
+
+        1. **Type preservation**: The ``segment_type`` and
+           ``inner_segment_type`` must be carried over from the source,
+           because the base implementation constructs the target via
+           ``self.__class__(length=…)`` which does not pass them.
+        2. **Contiguity during child copy**: The base ``get_slice``
+           creates the target with the final ``length`` up front, but
+           `SegmentLine.validate_child` expects the next segment to
+           start at ``self.length`` (which equals the cumulative child
+           lengths, not the pre-set slice length).  By creating the
+           target with ``length=0`` and ``allow_expansion=True`` we let
+           children expand the SegmentLine naturally.
+
+        All other behaviour (event extraction, coordinate shifting,
+        recursive child slicing, C-map copying) is delegated to the
+        base class helpers.
+        """
+        # Coerce to native number type
+        nt = self._number_type
+        if nt == NumberType.fraction:
+            s = Fraction(start)
+            e = Fraction(end)
+        elif nt == NumberType.int:
+            s = int(start)
+            e = int(end)
+        else:
+            s = float(start)
+            e = float(end)
+
+        # Validate
+        if s >= e:
+            raise ValueError(f"start ({s}) must be less than end ({e})")
+        if s < 0:
+            raise ValueError(
+                f"start ({s}) is outside timeline bounds " f"[0, {self._length.value})"
+            )
+        if e > self._length.value:
+            raise ValueError(
+                f"end ({e}) is outside timeline bounds " f"[0, {self._length.value}]"
+            )
+
+        # Create target SegmentLine with length=0 so that children
+        # can be added contiguously via allow_expansion (append pattern).
+        sliced = SegmentLine(
+            segment_type=self._segment_type,
+            inner_segment_type=self._inner_segment_type,
+            length=0,
+            unit=self._unit,
+            number_type=self._number_type,
+        )
+
+        # Copy events (SegmentLines usually have none, but handle it)
+        self._copy_events_to_slice(sliced, s, e, truncate_events)
+
+        # Recursively slice children (segments)
+        if include_children:
+            self._copy_children_to_slice(sliced, s, e)
+
+        # Copy conversion maps
+        if copy_cmaps:
+            self._copy_cmaps_to_slice(sliced, s, e)
+
+        # If no children were added (slice falls between segments) the
+        # length is still 0.  Set it to the expected slice length so
+        # the caller gets a correctly-sized timeline.
+        expected_length = e - s
+        if sliced._length.value < expected_length:
+            sliced._length = Coordinate(expected_length, self._unit)
+
+        return sliced
+
     def concatenate_cmaps(
         self,
         target_unit: TimeUnit,
