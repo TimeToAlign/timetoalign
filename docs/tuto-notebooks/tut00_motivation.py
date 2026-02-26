@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -48,7 +48,8 @@ from timetoalign.loader.score.tsv import TSVLoader
 DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data" / "vienna_1x22"
 
 # %%
-pt_loader = PartituraLoader.from_file(DATA_DIR / "Chopin_op10_no3.musicxml")
+pt_loader = PartituraLoader()
+pt_loader.load(DATA_DIR / "Chopin_op10_no3.musicxml")
 tsv_loader = TSVLoader.from_file(DATA_DIR / "ms3" / "chopin_op10_no3.notes.tsv")
 
 {

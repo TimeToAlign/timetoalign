@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -32,9 +32,9 @@ DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data"
 # ## Load a Score and a Performance
 
 # %%
-score_tl = PartituraLoader.from_file(
-    DATA_DIR / "midi" / "score" / "rachmaninoff_piano.mid"
-).create_timeline(uid="score")
+_pt = PartituraLoader()
+_pt.load(DATA_DIR / "midi" / "score" / "rachmaninoff_piano.mid")
+score_tl = _pt.create_timeline(uid="score")
 
 perf_tl = PerformanceMidiLoader.from_file(
     DATA_DIR / "midi" / "performance" / "rachmaninoff_perf.mid"
@@ -77,16 +77,16 @@ ts_back = group.get_timestamp_at(50.0, "performance")
 # %% [markdown]
 # ## Partial Alignment
 #
-# If the performance only covers measures 10--20 (say, beats 40--80 in
-# the score), specify `start` and `end` boundaries.
+# If the performance only covers part of the score (say, quarter-beat
+# positions 8 to 20), specify `start` and `end` boundaries.
 
 # %%
 partial = TimelineGroup(id="partial")
 partial.add_timeline(score_tl)
 partial.add_timeline(
     perf_tl,
-    start=(40.0, "score"),
-    end=(80.0, "score"),
+    start=(8.0, "score"),
+    end=(20.0, "score"),
 )
 partial
 

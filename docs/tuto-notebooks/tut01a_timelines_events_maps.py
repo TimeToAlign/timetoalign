@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -29,30 +29,27 @@ from timetoalign.maps import TicksToQuarters
 # ## Load Events from a Score
 
 # %%
-DATA_DIR = (
-    Path(".").resolve().parents[1]
-    / "tests"
-    / "data"
-    / "score"
-    / "bruckner5_scherzo"
-    / "hauptstimme"
-)
+DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data" / "vienna_1x22"
 
-loader = PartituraLoader.from_file(DATA_DIR / "Bruckner_WAB.105_3a_Scherzo.mxl")
+loader = PartituraLoader()
+loader.load(DATA_DIR / "Chopin_op10_no3.musicxml")
 loader.store
 
 # %% [markdown]
 # ## Create a Timeline
 
 # %%
-tl = loader.create_timeline(uid="bruckner_scherzo")
+tl = loader.create_timeline(uid="chopin_etude")
 tl
 
 # %% [markdown]
 # ## Access Events
+#
+# The loader creates child timelines for each event category (notes,
+# measures, controls). Access them via `get_child()`.
 
 # %%
-tl.get_events(event_type="Note").to_dataframe().head()
+tl.get_child("notes").get_events(event_type="Note").to_dataframe().head()
 
 # %% [markdown]
 # ## Coordinates
