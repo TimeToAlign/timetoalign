@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # How-To: Advanced Timestamps and Queries
+# # How to Query Timestamps
 #
 # Boundary tables, filtered timestamps, the `TimeStamp` /
 # `TimeIntervalStamp` objects, and the underlying PyArrow tables.

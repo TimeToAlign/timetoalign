@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # How-To: Coordinate Math & Precision
+# # How to Do Coordinate Math
 #
 # Domains, TimeUnits, NumberTypes, and type-safe Coordinate arithmetic.
 

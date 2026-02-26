@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # 08: SUPRA Piano Roll - A Complete Alignment Workflow
+# # How to Align a Piano Roll (SUPRA)
 #
 # This tutorial applies everything we've learned to a real-world case study:
 # aligning a **scanned piano roll image** with **MIDI files**, **audio**, and
@@ -684,5 +684,5 @@ ts3 = group.get_timestamp_at(ts1["clt1_score"], "clt1_score")
 # %% [markdown]
 # ## Next Steps
 #
-# - **09_beat_grids.ipynb**: Work with BeatGrid, FloorMap, and RotationMap
+# - **how01_beat_grids.ipynb**: Work with BeatGrid, FloorMap, and RotationMap
 # - **Advanced**: Implement WarpMap for non-linear alignment (expressive timing)

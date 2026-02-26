@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # 06: Graphical Timelines
+# # How to Work with Graphical Timelines
 #
 # This notebook demonstrates how to load and work with graphical timelines
 # using the `GraphicalLoader`.

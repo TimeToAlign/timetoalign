@@ -31,8 +31,37 @@ representations of the same musical content.
 
 This documentation follows the
 [Diataxis](https://diataxis.fr/) framework.
-At present, it focuses on the **Explanation** quadrant---the
-conceptual model that underpins the library.
+
+[**Tutorials**](tutorials.qmd)
+:   Step-by-step notebooks that teach the `timetoalign` library from
+    first principles, using real-world data.
+
+    - [Why TimeToAlign! Matters](tutorials/00_motivation.ipynb)
+    - [Timelines, Events, and Maps](tutorials/01a_timelines_events_maps.ipynb)
+    - [Children, Regions, and Timestamps](tutorials/01b_children_regions_timestamps.ipynb)
+    - [Timeline Groups and Commensurability](tutorials/02_timeline_groups.ipynb)
+    - [Alignment Bundles](tutorials/03_alignment_bundles.ipynb)
+    - [Flow Control and Grids](tutorials/04_flow_and_grids.ipynb)
+
+[**How-To Guides**](howto.qmd)
+:   Task-oriented recipes grouped by topic.
+
+    *Timelines, Events & Maps* ---
+    [How to Do Coordinate Math](howto/how01_coordinate_math.ipynb) ·
+    [How to Use Advanced Conversion Maps](howto/how01_advanced_cmaps.ipynb) ·
+    [How to Query Timestamps](howto/how01_advanced_timestamps.ipynb) ·
+    [How to Construct Timelines Manually](howto/how01_manual_timeline_construction.ipynb) ·
+    [How to Load Data](howto/how01_loading_data.ipynb) ·
+    [How to Load Tabular Data](howto/how01_tabular_loaders.ipynb) ·
+    [How to Work with Graphical Timelines](howto/how01_graphical_timelines.ipynb) ·
+    [How to Build Beat Grids](howto/how01_beat_grids.ipynb)
+
+    *TimelineGroups* ---
+    [How to Align a Piano Roll (SUPRA)](howto/how02_supra_piano_roll.ipynb)
+
+    *AlignmentBundles* ---
+    [How to Align Multimodal Data (Beethoven)](howto/how03_beethoven_multimodal.ipynb) ·
+    [How to Load the Vienna 4x22 Corpus](howto/how03_loading_vienna_corpus.ipynb)
 
 [**Conceptual Model**](concepts.qmd)
 :   The full specification of TimeToAlign!'s cross-domain timeline model:
@@ -44,17 +73,7 @@ conceptual model that underpins the library.
 :   An alphabetical reference of all model terms, from AlignmentAnchor to
     WarpMap.
 
-**Tutorials** *(coming soon)*
-:   Step-by-step notebooks demonstrating the `timetoalign` library on
-    real-world data, from loading a MIDI file to aligning 23 timelines
-    across a multimodal Beethoven dataset.
-
-**How-to Guides** *(planned)*
-:   Task-oriented recipes for common workflows: loading data, building
-    timeline hierarchies, transferring annotations, and exchanging
-    alignment data.
-
-**API Reference** *(planned)*
+[**API Reference**](reference.qmd)
 :   Auto-generated documentation for the `timetoalign` Python package.
 
 

@@ -42,21 +42,21 @@ website:
         - howto.qmd
         - section: "Topic 1: Timelines, Events & Maps"
           contents:
-            - howto/01_coordinate_math.ipynb
-            - howto/01_advanced_cmaps.ipynb
-            - howto/01_advanced_timestamps.ipynb
-            - howto/01_manual_timeline_construction.ipynb
-            - howto/02_loading_data.ipynb
-            - howto/02a_tabular_loaders.ipynb
-            - howto/06_graphical_timelines.ipynb
-            - howto/09_beat_grids.ipynb
+            - howto/how01_coordinate_math.ipynb
+            - howto/how01_advanced_cmaps.ipynb
+            - howto/how01_advanced_timestamps.ipynb
+            - howto/how01_manual_timeline_construction.ipynb
+            - howto/how01_loading_data.ipynb
+            - howto/how01_tabular_loaders.ipynb
+            - howto/how01_graphical_timelines.ipynb
+            - howto/how01_beat_grids.ipynb
         - section: "Topic 2: TimelineGroups"
           contents:
-            - howto/08_supra_piano_roll.ipynb
+            - howto/how02_supra_piano_roll.ipynb
         - section: "Topic 3: AlignmentBundles"
           contents:
-            - howto/10_beethoven_multimodal.ipynb
-            - howto/11_loading_vienna_corpus.ipynb
+            - howto/how03_beethoven_multimodal.ipynb
+            - howto/how03_loading_vienna_corpus.ipynb
 
     - title: "Explanation"
       contents:
