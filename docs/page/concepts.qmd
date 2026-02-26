@@ -16,7 +16,7 @@ The model is organised in six layers, each building on the previous:
 3. [**Conversion maps**](#conversion-maps): Coordinate transformations
 4. [**Nested timelines**](#nested-timelines): Children, segments, timestamps
 5. [**Regions and derivative timelines**](#regions): Named parts, traversals, warps
-6. [**Alignment**](#alignment): Matches, anchors, the MatchLine
+6. [**Alignment**](#alignment): MatchClaims, AlignmentAnchors, MatchGraph, MatchLine, WarpMap, AlignmentBundle
 
 
 ## Foundations {#foundations}
@@ -519,9 +519,8 @@ Three kinds of derived timelines play a central role in alignment:
 **WarpMap**
 :   A derived timeline where coordinates have been re-adjusted to align with
     those of another timeline on the basis of
-    {{< glossary AlignmentAnchor >}}s. A WarpMap is the mechanism by which
-    non-linear temporal correspondences (e.g., between a rubato performance
-    and a metronomic score) are captured.
+    {{< glossary AlignmentAnchor >}}s. See [Alignment](#alignment) for the
+    full definition of WarpMap and the pipeline that produces it.
 
 
 ## Alignment {#alignment}
@@ -599,7 +598,7 @@ using the same or a similar visual style as the Matches they derive from.
 A **MatchClaim** always knows which pair of timelines it connects
 (`timeline_a_id` and `timeline_b_id` are top-level fields). It contains 0--2
 AlignmentAnchors (only if synchronous), synchrony and explicitness flags, and
-optional {{< glossary MatchClaim metadata >}} (agent, decision criteria,
+optional metadata (agent, decision criteria,
 certainty). Four cases are distinguished:
 
 1. **Event-to-event** (case a): two timed things on different timelines
@@ -624,6 +623,25 @@ multiple timelines. A MatchGraph can be extended with implicit claims based
 on {{< glossary TimelineGroup >}} membership. In the Hendrix example, each
 Match box M1--M15 is a MatchGraph, not a single MatchClaim.
 
+::: {.definition}
+::: {.definition-header}
+Definition: MatchStamp
+:::
+A **MatchStamp** is the union of the {{< glossary GroupTimestamp >}}s
+from each participating {{< glossary TimelineGroup >}}. It contains one
+coordinate per participating timeline and, with `conversion_maps=True`
+(the default), the results of all {{< glossary ConversionMap >}}s
+associated with those timelines.
+:::
+
+A MatchStamp from a single {{< glossary MatchClaim >}} contains the two
+GroupTimestamps for the claim's {{< glossary AlignmentAnchor >}}. A
+MatchStamp from a MatchGraph contains *all* GroupTimestamps that the
+graph connects through its connected components. Like a
+{{< glossary TimeStamp >}}, it can be expanded with within-group
+coordinates (delegating to {{< glossary TimelineGroup >}}) and C-map
+conversions.
+
 
 ### The MatchLine
 
@@ -633,6 +651,70 @@ Created by selecting and resolving MatchClaims (all or a filtered subset),
 it serves as input for {{< glossary WarpMap >}} generation. In the Hendrix
 example, the inferred chord-event alignment is based on a MatchLine
 selecting MatchGraphs M6--M9.
+
+
+### WarpMap
+
+::: {.definition}
+::: {.definition-header}
+Definition: WarpMap
+:::
+A **WarpMap** is a standalone object that produces a materialised copy
+of a source timeline---including all its events, children, regions, and
+{{< glossary ConversionMap >}}s---warped to the coordinate system of a
+target timeline. It is generated from a {{< glossary MatchLine >}} by
+extracting `(source_coord, target_coord)` pairs and building an
+interpolation table.
+:::
+
+If the source and target timelines have different units, the warped copy
+is in the target's unit and of the appropriate timeline type (e.g., a
+ContinuousLogicalTimeline warped to a ContinuousPhysicalTimeline). A
+WarpMap requires at least two matching coordinate pairs for
+interpolation. It is the mechanism by which non-linear temporal
+correspondences---such as those between a rubato performance and a
+metronomic score---are captured.
+
+
+### AlignmentBundle {#alignment-bundle}
+
+::: {.definition}
+::: {.definition-header}
+Definition: AlignmentBundle
+:::
+The **AlignmentBundle** is the top-level container for alignment
+workflows. It holds a set of timelines, a set of
+{{< glossary TimelineGroup >}}s, and a set of cross-group
+{{< glossary MatchClaim >}}s.
+:::
+
+The AlignmentBundle provides coordinate transfer at two levels:
+
+- **Within a group**: delegates to `TimelineGroup.get_timestamp_at()`,
+  which uses pairwise interpolation.
+- **Across groups**: constructs a {{< glossary MatchLine >}} from the
+  cross-group claims, generates {{< glossary WarpMap >}}s on demand, and
+  uses those WarpMaps for coordinate transfer.
+
+The canonical user-facing query is `bundle.get_matchstamp_at(coord, tl_id)`,
+which returns a {{< glossary MatchStamp >}} spanning all groups connected
+to the queried timeline.
+
+The full alignment object hierarchy, from atomic to composite, is:
+
+```
+AlignmentAnchor      (pure coordinate pair, no semantics)
+    ↓
+MatchClaim           (semantic claim about two timelines)
+    ↓
+MatchGraph           (on-demand graph from multiple claims)
+    ↓
+MatchStamp           (synchronised instant across N timelines)
+    ↓
+MatchLine            (ordered sequence of MatchStamps)
+    ↓
+WarpMap              (materialised timeline copy)
+```
 
 
 ### Coordinate transfer {#coordinate-transfer}
@@ -671,8 +753,8 @@ specimen collection and (where applicable) a tutorial notebook.
 | 1 | **Thoresen**: Transferring graphical annotations between two versions of a spectromorphological analysis | Timeline, Coordinate, DGT, Segment, SegmentLine, C-map, InverseMap, TimeIntervalStamp | `specimens/thoresen/` |
 | 2 | **SUPRA**: Aligning a historical piano roll with a digital score | DLT, CLT, Child, discrete-continuous conversion, TimelineGroup, commensurability | `specimens/supra_rolls/` |
 | 3 | **Chorissimo**: Flow control in a school song with repeats | Region, Break, Jump, RotationMap, graphical-logical duality | `specimens/audiolabs_omr/Chorissimo_Blue081/` |
-| 4 | **Beethoven**: Multimodal alignment across 23 timelines | TraversalMap, DPT, AlignmentAnchor, WarpMap, AlignmentBundle | `specimens/beethoven_op18-4_iv/` |
-| 5 | **Hendrix**: Studying the genesis of a rock song across three versions | Match, NOMATCH, conceptual vs. temporal matching, MatchLine, certainty metadata | `specimens/hendrix/` |
+| 4 | **Beethoven**: Multimodal alignment across 23 timelines | TraversalMap, DPT, MatchClaim, AlignmentAnchor, WarpMap, AlignmentBundle | `specimens/beethoven_op18-4_iv/` |
+| 5 | **Hendrix**: Studying the genesis of a rock song across three versions | MatchClaim (conceptual/temporal), MatchGraph, NOMATCH, MatchLine, certainty metadata | `specimens/hendrix/` |
 
 : The five demonstration scenarios from the TISMIR manuscript. {#tbl-scenarios}
 

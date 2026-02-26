@@ -24,14 +24,31 @@ installing the library with `pip install timetoalign[tutorial]`.
 :::
 
 
-## Learning Path
+## Topics at a Glance
 
-The tutorials are designed to be followed in order:
+The tutorials are designed to be followed in order, grouped into the
+same four topics used throughout the documentation:
 
-1. **Foundations** (00--03): What TimeToAlign! is, core concepts,
-   loading data, and converting coordinates.
-2. **Structure** (04--05): Building timeline hierarchies and querying
-   them with timestamps.
-3. **Domains** (06--07): Graphical timelines and alignment basics.
-4. **Applications** (08--10): Complete workflows on real datasets ---
-   a piano roll, beat grids, and a full multimodal Beethoven alignment.
+### Timelines, Events & Maps
+
+- [Why TimeToAlign! Matters](tutorials/tut00_motivation.ipynb) ---
+  The problem of fragmented music data and how TimeToAlign! solves it.
+- [Timelines, Events, and Maps](tutorials/tut01a_timelines_events_maps.ipynb) ---
+  Loading, EventStore, Coordinate, and ConversionMap.
+- [Children, Regions, and Timestamps](tutorials/tut01b_children_regions_timestamps.ipynb) ---
+  Hierarchy and cross-section queries.
+
+### TimelineGroups
+
+- [Timeline Groups and Commensurability](tutorials/tut02_timeline_groups.ipynb) ---
+  TimelineGroup, coordinate transfer, and partial alignment.
+
+### AlignmentBundles
+
+- [Alignment Bundles](tutorials/tut03_alignment_bundles.ipynb) ---
+  MatchfileLoader, AlignmentBundle, and cross-group transfer.
+
+### In-depth Topics
+
+- [Flow Control and Grids](tutorials/tut04_flow_and_grids.ipynb) ---
+  BeatGrid, repeats, and metrical structure.
