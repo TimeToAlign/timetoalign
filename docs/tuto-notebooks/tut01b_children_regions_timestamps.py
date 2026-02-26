@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.17.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -28,17 +28,11 @@ from timetoalign.loader.score.partitura import PartituraLoader
 # ## Load a Structured Score
 
 # %%
-DATA_DIR = (
-    Path(".").resolve().parents[1]
-    / "tests"
-    / "data"
-    / "score"
-    / "bruckner5_scherzo"
-    / "hauptstimme"
-)
+DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data" / "vienna_1x22"
 
-loader = PartituraLoader.from_file(DATA_DIR / "Bruckner_WAB.105_3a_Scherzo.mxl")
-tl = loader.create_timeline(uid="bruckner_scherzo")
+loader = PartituraLoader()
+loader.load(DATA_DIR / "Chopin_op10_no3.musicxml")
+tl = loader.create_timeline(uid="chopin_etude")
 tl
 
 # %% [markdown]
@@ -52,13 +46,13 @@ measures = loader.store.measures.to_dataframe()
 m2 = measures.iloc[1]
 {
     "measure": 2,
-    "start": m2.start,
-    "end": m2.end,
+    "start": float(m2.start),
+    "end": float(m2.end),
 }
 
 # %%
-tl.get_events(
-    event_type="Note", min_coord=m2.start, max_coord=m2.end
+tl.get_child("notes").get_events(
+    event_type="Note", min_coord=float(m2.start), max_coord=float(m2.end)
 ).to_dataframe().head()
 
 # %% [markdown]
