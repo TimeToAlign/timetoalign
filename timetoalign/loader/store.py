@@ -880,25 +880,6 @@ class EventData:
         timeline._events = source
         return timeline
 
-    def to_timeline(
-        self,
-        uid: str | None = None,
-        filters: dict[str, Any] | None = None,
-    ) -> "Timeline":
-        """Deprecated alias for create_timeline().
-
-        .. deprecated:: 0.2.0
-            Use :meth:`create_timeline` instead.
-        """
-        import warnings
-
-        warnings.warn(
-            "to_timeline() is deprecated, use create_timeline() instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.create_timeline(uid=uid, filters=filters)
-
     # endregion
 
     # region Serialization

@@ -162,7 +162,7 @@ class GraphicalStore:
 
     # --- Timeline Creation ---
 
-    def to_timeline(
+    def create_timeline(
         self,
         uid: str | None = None,
         name: str | None = None,

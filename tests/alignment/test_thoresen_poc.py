@@ -367,8 +367,8 @@ class TestThoresenGraphicalBundles:
 
     def test_bundles_create_correct_timelines(self, dgt1_bundle, dgt2_bundle) -> None:
         """Bundles create timelines matching the fixtures."""
-        dgt1_tl = dgt1_bundle.to_timeline(uid="dgt1", name="Thoresen 2009")
-        dgt2_tl = dgt2_bundle.to_timeline(uid="dgt2", name="Thoresen 2010")
+        dgt1_tl = dgt1_bundle.create_timeline(uid="dgt1", name="Thoresen 2009")
+        dgt2_tl = dgt2_bundle.create_timeline(uid="dgt2", name="Thoresen 2010")
 
         # timeline.length is a Coordinate object, compare the value
         assert dgt1_tl.length.value == DGT1_TOTAL_WIDTH

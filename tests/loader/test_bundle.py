@@ -166,8 +166,8 @@ class TestSingleStoreToTimeline:
             unit=TimeUnit.ticks,
         )
 
-    def test_to_default_timeline_single_data(self, sample_data: EventData):
-        """to_default_timeline with single data: events directly on timeline.
+    def test_create_timeline_single_data(self, sample_data: EventData):
+        """create_timeline with single data: events directly on timeline.
 
         A SingleStore contains exactly one data source.  The factory
         optimisation places events directly on the timeline (no child
@@ -175,7 +175,7 @@ class TestSingleStoreToTimeline:
         """
         store = SingleStore(sample_data, name="notes")
 
-        timeline = store.to_default_timeline(uid="test")
+        timeline = store.create_timeline(uid="test")
 
         assert timeline.id == "test"
         # Single data source -> no children, events directly on timeline
@@ -186,7 +186,7 @@ class TestSingleStoreToTimeline:
         """Default timeline length matches max event coordinate."""
         store = SingleStore(sample_data, name="notes")
 
-        timeline = store.to_default_timeline()
+        timeline = store.create_timeline()
 
         # Events span [0, 960], so length == 960
         assert timeline.length.value == 960
@@ -195,7 +195,7 @@ class TestSingleStoreToTimeline:
         """flatten=True creates timeline without children."""
         store = SingleStore(sample_data, name="notes")
 
-        timeline = store.to_timeline(flatten=True)
+        timeline = store.create_timeline(flatten=True)
 
         assert timeline.n_children == 0
         assert timeline.n_events == 2

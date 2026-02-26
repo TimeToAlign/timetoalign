@@ -59,10 +59,10 @@ class EventStore(ABC):
         ...     print(f"{name}: {len(store)} events")
 
         >>> # Create default timeline with children
-        >>> timeline = bundle.to_default_timeline(uid="my_score")
+        >>> timeline = bundle.create_timeline(uid="my_score")
 
         >>> # Create filtered timeline
-        >>> timeline = bundle.to_timeline(
+        >>> timeline = bundle.create_timeline(
         ...     store_filters={"notes": {"event_type": "Note"}},
         ...     exclude_stores=["annotations"],
         ... )
@@ -221,57 +221,6 @@ class EventStore(ABC):
             exclude_stores=exclude_stores,
             flatten=flatten,
         )
-
-    def to_timeline(
-        self,
-        uid: str | None = None,
-        store_filters: dict[str, dict[str, Any]] | None = None,
-        include_stores: list[str] | None = None,
-        exclude_stores: list[str] | None = None,
-        flatten: bool = False,
-    ) -> "Timeline":
-        """Deprecated alias for create_timeline().
-
-        .. deprecated:: 0.2.0
-            Use :meth:`create_timeline` instead.
-        """
-        import warnings
-
-        warnings.warn(
-            "to_timeline() is deprecated, use create_timeline() instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.create_timeline(
-            uid=uid,
-            store_filters=store_filters,
-            include_stores=include_stores,
-            exclude_stores=exclude_stores,
-            flatten=flatten,
-        )
-
-    def to_default_timeline(self, uid: str | None = None) -> "Timeline":
-        """Create a canonical timeline from this store's data.
-
-        When the store contains **multiple** data sources each one becomes
-        a child timeline at offset 0, preserving its own 0-based coordinate
-        system.  When the store contains a **single** data source the events
-        are placed directly on the timeline (no child wrapping) for
-        simplicity.  This is the recommended way to create timelines from
-        loaded data.
-
-        Args:
-            uid: Unique ID for the parent timeline.
-
-        Returns:
-            A Timeline with events (single data) or children (multiple data).
-
-        Examples:
-            >>> timeline = store.to_default_timeline(uid="chopin_score")
-            >>> for offset, child in timeline.iter_children():
-            ...     print(f"{child.id}: {child.n_events} events at offset {offset}")
-        """
-        return self.create_timeline(uid=uid, flatten=False)
 
     # endregion
 

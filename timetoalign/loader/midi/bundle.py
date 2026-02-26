@@ -60,7 +60,7 @@ class MidiStore(EventStore):
         >>> print(f"Controls: {len(store.controls)}")
 
         >>> # Create timeline
-        >>> timeline = store.to_default_timeline(uid="midi_score")
+        >>> timeline = store.create_timeline(uid="midi_score")
     """
 
     notes: MidiEventData

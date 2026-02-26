@@ -335,9 +335,9 @@ class TestMidiStoreToTimeline:
         )
         return MidiStore.from_data(data)
 
-    def test_to_default_timeline_creates_children(self, sample_store: MidiStore):
-        """to_default_timeline creates parent with children."""
-        timeline = sample_store.to_default_timeline(uid="test")
+    def test_create_timeline_creates_children(self, sample_store: MidiStore):
+        """create_timeline creates parent with children."""
+        timeline = sample_store.create_timeline(uid="test")
 
         assert timeline.id == "test"
         # 2 children: notes and controls
@@ -345,14 +345,14 @@ class TestMidiStoreToTimeline:
 
     def test_children_at_offset_zero(self, sample_store: MidiStore):
         """Children are embedded at offset 0."""
-        timeline = sample_store.to_default_timeline()
+        timeline = sample_store.create_timeline()
 
         assert timeline.get_child_offset("notes").value == 0
         assert timeline.get_child_offset("controls").value == 0
 
     def test_notes_child_has_correct_count(self, sample_store: MidiStore):
         """Notes child has exact event count."""
-        timeline = sample_store.to_default_timeline()
+        timeline = sample_store.create_timeline()
 
         notes_tl = timeline.get_child("notes")
         # Exact count: 2 notes
@@ -360,7 +360,7 @@ class TestMidiStoreToTimeline:
 
     def test_controls_child_has_correct_count(self, sample_store: MidiStore):
         """Controls child has exact event count."""
-        timeline = sample_store.to_default_timeline()
+        timeline = sample_store.create_timeline()
 
         controls_tl = timeline.get_child("controls")
         # Exact count: 1 control change
