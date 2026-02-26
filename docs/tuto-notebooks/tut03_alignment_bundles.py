@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # 03: Alignment Bundles
+# # Alignment Bundles
 #
 # An `AlignmentBundle` manages multiple timelines and the groups that
 # connect them. We load the Vienna 1x22 corpus (one score, 22
@@ -72,4 +72,4 @@ ts = bundle.get_timestamp_at(100.0, "score")
 ts
 
 # %% [markdown]
-# **Next:** [04 Flow & Grids](04_flow_and_grids.ipynb)
+# **Next:** [Flow Control and Grids](tut04_flow_and_grids.ipynb)

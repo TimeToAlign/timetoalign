@@ -432,7 +432,7 @@ UNFOLDED_MEASURES = 291
 # %%
 # API DRAFT: Creating BeatGrid from score measures
 #
-# This functionality is planned for Phase 4 (Score Integration).
+# This functionality is planned for the Score Integration milestone.
 # The code below shows the intended API design.
 
 # --- FUTURE API ---
@@ -472,7 +472,7 @@ approx_grid = BeatGrid.from_tempo(
     "Track": "StringQuartetEEP_I_Normal_mono.mp3",
     "Approximate measures": approx_grid.n_measures,
     "Approximate beats": approx_grid.n_beats,
-    "Note": "Use MeasureMapLoader for exact score structure (Phase 4)",
+    "Note": "Use MeasureMapLoader for exact score structure",
 }
 
 # %% [markdown]
@@ -583,4 +583,4 @@ approx_grid = BeatGrid.from_tempo(
 #
 # - **Tutorial 07**: TimelineGroups - Connect beatgrids to other timelines
 # - **Tutorial 08**: SUPRA Piano Roll - See beatgrids in a complete alignment workflow
-# - **Phase 4**: Score Integration - MeasureMapLoader for complex scores
+# - **Score Integration**: MeasureMapLoader for complex scores

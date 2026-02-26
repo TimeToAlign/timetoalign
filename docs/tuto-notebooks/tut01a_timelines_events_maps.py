@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # 01a: Timelines, Events, and Maps
+# # Timelines, Events, and Maps
 #
 # Load real musical data, explore it as an `EventStore`, create a
 # `Timeline`, and attach a `ConversionMap` to translate between units.
@@ -80,4 +80,4 @@ ticks_coord = tl.convert_to(coord, target_unit="ticks")
 }
 
 # %% [markdown]
-# **Next:** [01b Children, Regions & Timestamps](01b_children_regions_timestamps.ipynb)
+# **Next:** [Children, Regions & Timestamps](tut01b_children_regions_timestamps.ipynb)

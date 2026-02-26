@@ -1,10 +1,10 @@
 section,source,slug,title,description
-tutorials,00_motivation.py,00_motivation,Why TimeToAlign! Matters,The problem of fragmented music data and how TimeToAlign! solves it
-tutorials,01a_timelines_events_maps.py,01a_timelines_events_maps,"Timelines, Events, and Maps","Loading, EventStore, Coordinate, ConversionMap"
-tutorials,01b_children_regions_timestamps.py,01b_children_regions_timestamps,"Children, Regions, and Timestamps","Hierarchy, cross-section queries"
-tutorials,02_timeline_groups.py,02_timeline_groups,Timeline Groups and Commensurability,"TimelineGroup, coordinate transfer, partial alignment"
-tutorials,03_alignment_bundles.py,03_alignment_bundles,Alignment Bundles,"MatchfileLoader, AlignmentBundle, cross-group transfer"
-tutorials,04_flow_and_grids.py,04_flow_and_grids,Flow Control and Grids,"BeatGrid, repeats, metrical structure"
+tutorials,tut00_motivation.py,tut00_motivation,Why TimeToAlign! Matters,The problem of fragmented music data and how TimeToAlign! solves it
+tutorials,tut01a_timelines_events_maps.py,tut01a_timelines_events_maps,"Timelines, Events, and Maps","Loading, EventStore, Coordinate, ConversionMap"
+tutorials,tut01b_children_regions_timestamps.py,tut01b_children_regions_timestamps,"Children, Regions, and Timestamps","Hierarchy, cross-section queries"
+tutorials,tut02_timeline_groups.py,tut02_timeline_groups,Timeline Groups and Commensurability,"TimelineGroup, coordinate transfer, partial alignment"
+tutorials,tut03_alignment_bundles.py,tut03_alignment_bundles,Alignment Bundles,"MatchfileLoader, AlignmentBundle, cross-group transfer"
+tutorials,tut04_flow_and_grids.py,tut04_flow_and_grids,Flow Control and Grids,"BeatGrid, repeats, metrical structure"
 howto,how01_coordinate_math.py,how01_coordinate_math,How to Do Coordinate Math,"Domains, TimeUnits, NumberType, Coordinate arithmetic"
 howto,how01_advanced_cmaps.py,how01_advanced_cmaps,How to Use Advanced Conversion Maps,"ChainMap, PiecewiseMap, TableMap, vectorised operations"
 howto,how01_advanced_timestamps.py,how01_advanced_timestamps,How to Query Timestamps,"TimeStamp, TimeIntervalStamp, boundary tables, PyArrow"

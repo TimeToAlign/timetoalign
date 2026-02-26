@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # 02: Timeline Groups and Commensurability
+# # Timeline Groups and Commensurability
 #
 # Two timelines become **commensurable** --- meaning coordinates can be
 # transferred between them --- once they share a `TimelineGroup`.
@@ -91,4 +91,4 @@ partial.add_timeline(
 partial
 
 # %% [markdown]
-# **Next:** [03 Alignment Bundles](03_alignment_bundles.ipynb)
+# **Next:** [Alignment Bundles](tut03_alignment_bundles.ipynb)
