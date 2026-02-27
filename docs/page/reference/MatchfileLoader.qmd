@@ -1,0 +1,218 @@
+# MatchfileLoader { #timetoalign.loader.alignment.matchfile.MatchfileLoader }
+
+```python
+loader.alignment.matchfile.MatchfileLoader(
+    score_unit=TimeUnit.quarters,
+    normalize_anacrusis=True,
+)
+```
+
+Load Vienna Match (.match) alignment files via partitura.
+
+A single ``MatchfileLoader`` instance is intended to process **all**
+``.match`` files that share the same score (e.g. 22 performances of one
+piece). It builds a shared score timeline on the first compatible file
+and verifies subsequent files against it. Incompatible files (snote ID
+present with different coordinates) are rejected with a warning.
+
+**Usage follows the standard loader two-phase pattern:**
+
+1. ``loader.load(*match_files)`` — parses all files, builds internal state.
+2. ``loader.create_alignment_bundle()`` — assembles the result.
+3. ``loader.create_timeline(id)`` — retrieves individual timelines.
+
+Produces:
+
+- A ``ContinuousLogicalTimeline`` for the score side (quarter-beat
+  coordinates; MIDI divisions available via the attached
+  ``quarters_to_divs`` `ScalarMap` C-Map).
+- One ``DiscreteLogicalTimeline`` per performance (MIDI tick coordinates;
+  seconds available via the attached ``ticks_to_seconds`` `ScalarMap`).
+- One `MatchClaim` per alignment record per file:
+  - Matched notes produce ``MatchClaim.from_events()`` (synchronous
+    interval claim).
+  - Deletion records produce ``MatchClaim.nomatch()`` (non-synchronous,
+    NOMATCH).
+
+All MatchClaims carry ``MatchMetadata(agent="vienna_match_v1.0.0",
+decision_criteria="automatic", certainty=1.0)``.
+
+**Coordinate system and normalisation:**
+Score coordinates are stored as **normalised TTA coordinates** (shifted
+so the minimum onset is 0.0). A ``ShiftMap`` named ``"raw_quarters"``
+is attached to the score timeline to convert normalised coordinates
+back to raw partitura values. The shift amount is computed from the
+file itself and never hardcoded.
+
+**External score timeline:**
+Pass a score timeline previously built by ``PartituraLoader`` via the
+``score_timeline=`` parameter of ``create_alignment_bundle()``. The
+loader verifies compatibility (matching snote IDs and coordinates) and
+references the supplied timeline in all MatchClaims. MatchClaims are
+never rebound after creation.
+
+See Also:
+    timetoalign.MatchClaim
+    timetoalign.AlignmentBundle
+
+Args:
+    score_unit: Primary unit for the score timeline.
+        Default ``TimeUnit.quarters``.
+    normalize_anacrusis: If True (default), attach a ``ShiftMap`` that
+        maps raw coordinates to normalised (non-negative) coordinates.
+        Has no effect on the stored event coordinates, which are always
+        the normalised (non-negative) values.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [anacrusis_offset](#timetoalign.loader.alignment.matchfile.MatchfileLoader.anacrusis_offset) | The anacrusis offset applied to raw score coordinates. |
+| [rejected_files](#timetoalign.loader.alignment.matchfile.MatchfileLoader.rejected_files) | Files rejected due to incompatible score coordinates. |
+| [sources](#timetoalign.loader.alignment.matchfile.MatchfileLoader.sources) | All files passed to ``load()`` (including rejected ones). |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [create_alignment_bundle](#timetoalign.loader.alignment.matchfile.MatchfileLoader.create_alignment_bundle) | Assemble an AlignmentBundle from the loaded data. |
+| [create_timeline](#timetoalign.loader.alignment.matchfile.MatchfileLoader.create_timeline) | Return a single timeline by uid, role string, or partial/regex match. |
+| [create_timelines](#timetoalign.loader.alignment.matchfile.MatchfileLoader.create_timelines) | Return all timelines produced from loaded data. |
+| [load](#timetoalign.loader.alignment.matchfile.MatchfileLoader.load) | Load one or more .match files. |
+
+### create_alignment_bundle { #timetoalign.loader.alignment.matchfile.MatchfileLoader.create_alignment_bundle }
+
+```python
+loader.alignment.matchfile.MatchfileLoader.create_alignment_bundle(
+    score_timeline=None,
+    verify=True,
+)
+```
+
+Assemble an AlignmentBundle from the loaded data.
+
+Returns an ``AlignmentBundle`` directly. The bundle contains:
+
+- The score timeline in its own group (``as_group="score"``)
+- Each performance timeline as a standalone timeline
+- All MatchClaims as cross-group claims
+
+This method takes NO file arguments. Files must be loaded first
+via ``load()``.
+
+When an external *score_timeline* is supplied and *verify* is
+``True`` (the default), the loader cross-checks every internally
+built score event against the external timeline using
+`Timeline.get_event`. A ``ValueError`` is raised if any event
+coordinates are incompatible.
+
+Args:
+    score_timeline: Optional pre-existing score timeline. When
+        supplied, the bundle uses this timeline instead of the
+        loader's internally built one. MatchClaims are NOT
+        rebound — they still reference the internally built
+        score timeline's uid. For correct cross-referencing,
+        the external timeline should have the same uid.
+    verify: If ``True`` (default) and *score_timeline* is not
+        ``None``, verify that internally built events are
+        compatible with the external timeline. Set to ``False``
+        to skip verification (e.g. when the external timeline
+        is known to be authoritative and you accept any
+        coordinate differences).
+
+Returns:
+    ``AlignmentBundle`` with score group + standalone performances
+    + MatchClaims.
+
+Raises:
+    RuntimeError: If ``load()`` has not been called yet.
+    ValueError: If *verify* is ``True`` and the external
+        timeline has incompatible event coordinates.
+
+Examples:
+    >>> loader = MatchfileLoader()
+    >>> loader.load(*match_files)
+    >>> bundle = loader.create_alignment_bundle()
+    >>> len(bundle.timelines)  # score + 22 performances
+    23
+
+### create_timeline { #timetoalign.loader.alignment.matchfile.MatchfileLoader.create_timeline }
+
+```python
+loader.alignment.matchfile.MatchfileLoader.create_timeline(id)
+```
+
+Return a single timeline by uid, role string, or partial/regex match.
+
+Matching precedence:
+1. ``"score"`` — returns the shared score timeline.
+2. Exact match on score timeline uid.
+3. Exact match on performance timeline uid.
+4. ``"perf:N"`` (1-indexed) — returns the N-th performance timeline.
+5. ``"perf:pNN"`` — alternative syntax for performance indexing.
+6. Partial/regex match on any timeline uid.
+
+Args:
+    id: Timeline uid (e.g. ``"score:Chopin_op10_no3"``), role
+        shorthand (``"score"``, ``"perf:1"``), or partial/regex
+        pattern.
+
+Returns:
+    The matching Timeline.
+
+Raises:
+    KeyError: If no timeline with the given uid or role exists.
+    RuntimeError: If ``load()`` has not been called yet.
+
+Examples:
+    >>> loader.create_timeline("score")          # Role shorthand
+    >>> loader.create_timeline("perf:1")         # First performance
+    >>> loader.create_timeline("Chopin")         # Partial match
+    >>> loader.create_timeline(r"^perf:.*p01")   # Regex match
+
+### create_timelines { #timetoalign.loader.alignment.matchfile.MatchfileLoader.create_timelines }
+
+```python
+loader.alignment.matchfile.MatchfileLoader.create_timelines()
+```
+
+Return all timelines produced from loaded data.
+
+For MatchfileLoader: ``[score_timeline, perf_p01, ..., perf_pN]``.
+The score timeline is always first.
+
+Returns:
+    List of Timeline objects. Empty if ``load()`` has not been
+    called yet.
+
+### load { #timetoalign.loader.alignment.matchfile.MatchfileLoader.load }
+
+```python
+loader.alignment.matchfile.MatchfileLoader.load(*sources)
+```
+
+Load one or more .match files.
+
+Parses each file via partitura, builds a shared score timeline
+from the first compatible file, and verifies subsequent files
+against it. Incompatible files are logged with a warning and
+tracked internally.
+
+This method can be called multiple times to add more files
+incrementally.
+
+Args:
+    *sources: Paths to ``.match`` files.
+
+Returns:
+    Self, for method chaining.
+
+Raises:
+    FileNotFoundError: If any source path does not exist.
+    ValueError: If any source is not a ``.match`` file.
+
+Examples:
+    >>> loader = MatchfileLoader()
+    >>> loader.load("Chopin_op10_no3_p01.match")
+    >>> # or load all at once
+    >>> loader.load(*sorted(data_dir.glob("*.match")))

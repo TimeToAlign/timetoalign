@@ -153,6 +153,106 @@ class EventStore(ABC):
         """
         return sum(len(data) for data in self)
 
+    def summary(self) -> dict[str, Any]:
+        """Get a summary of the store contents.
+
+        Returns a dictionary mapping table/data names to summary information:
+        - unit: The time unit of the data
+        - range: Tuple of (min_coord, max_coord) for events
+        - count: Number of events in the table
+
+        Subclasses may override to provide additional domain-specific
+        information (e.g., event type breakdown, has_rests for ScoreStore).
+
+        Returns:
+            Dict mapping table names to summary dicts.
+
+        Examples:
+            >>> store = SomeStore(...)
+            >>> store.summary()
+            {"notes": {"unit": "quarters", "range": (0.0, 120.5), "count": 498}}
+        """
+        result: dict[str, Any] = {}
+
+        for name, data in self.items():
+            info: dict[str, Any] = {
+                "unit": str(data.unit) if hasattr(data, "unit") else "unknown",
+                "count": len(data),
+            }
+
+            # Try to extract coordinate range
+            if len(data) > 0:
+                try:
+                    # EventData stores coordinates in 'start' or 'instant' columns
+                    table = data._table if hasattr(data, "_table") else None
+                    if table is not None:
+                        start_col = (
+                            table.column("start")
+                            if "start" in table.schema.names
+                            else None
+                        )
+                        instant_col = (
+                            table.column("instant")
+                            if "instant" in table.schema.names
+                            else None
+                        )
+
+                        # Get min/max from start or instant
+                        coords = []
+                        if start_col is not None:
+                            for i in range(len(start_col)):
+                                s = start_col[i].as_py()
+                                if s is not None and isinstance(s, dict):
+                                    coords.append(s.get("value", 0.0))
+                        if instant_col is not None:
+                            for i in range(len(instant_col)):
+                                s = instant_col[i].as_py()
+                                if s is not None and isinstance(s, dict):
+                                    coords.append(s.get("value", 0.0))
+
+                        if coords:
+                            info["range"] = (min(coords), max(coords))
+                        else:
+                            info["range"] = (0.0, 0.0)
+                    else:
+                        info["range"] = (0.0, 0.0)
+                except Exception:
+                    info["range"] = (0.0, 0.0)
+            else:
+                info["range"] = (0.0, 0.0)
+
+            result[name] = info
+
+        return result
+
+    def _repr_html_(self) -> str:
+        """Return an HTML representation for Jupyter display.
+
+        Renders the store summary as an HTML table showing table names,
+        units, coordinate ranges, and event counts.
+
+        Returns:
+            HTML string for display in Jupyter notebooks.
+        """
+        summary = self.summary()
+
+        rows = []
+        for name, info in summary.items():
+            unit = info.get("unit", "unknown")
+            count = info.get("count", 0)
+            coord_range = info.get("range", (0.0, 0.0))
+            range_str = f"{coord_range[0]:.2f} – {coord_range[1]:.2f}"
+            rows.append(
+                f"<tr><td><strong>{name}</strong></td>"
+                f"<td>{unit}</td><td>{range_str}</td><td>{count}</td></tr>"
+            )
+
+        class_name = self.__class__.__name__
+        header = "<tr><th>Table</th><th>Unit</th><th>Range</th><th>Events</th></tr>"
+        table_html = f"<table>{header}{''.join(rows)}</table>"
+
+        return f"<div><strong>{class_name}</strong> ({self.event_count} events total){table_html}</div>"
+
     # endregion
 
     # region Conversion Maps

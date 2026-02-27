@@ -1,0 +1,104 @@
+@@ ATON Test File - Minimal Synthetic Data
+@@ Created for Time To Align! loader testing
+@@ Format: http://aton.sapp.org
+
+@@BEGIN: ROLLINFO
+@IMAGE_WIDTH:       1024px
+@IMAGE_LENGTH:      2000px
+@LENGTH_DPI:        300.00ppi
+@TRACKER_HOLES:     100
+@FIRST_HOLE:        100px
+@LAST_HOLE:         1900px
+@MUSICAL_LENGTH:    1800px
+@MUSICAL_HOLES:     5
+@MUSICAL_NOTES:     5
+@@END: ROLLINFO
+
+@@BEGIN: HOLES
+
+@@BEGIN: HOLE
+@ID:            H1_N1
+@ORIGIN_ROW:    100px
+@ORIGIN_COL:    200px
+@WIDTH_ROW:     20px
+@WIDTH_COL:     15px
+@CENTROID_ROW:  110.5px
+@CENTROID_COL:  207.5px
+@AREA:          280px
+@PERIMETER:     70.0px
+@CIRCULARITY:   0.72
+@TRACKER_HOLE:  60
+@MIDI_KEY:      60
+@NOTE_ATTACK:   100px
+@OFF_TIME:      120px
+@@END: HOLE
+
+@@BEGIN: HOLE
+@ID:            H2_N2
+@ORIGIN_ROW:    300px
+@ORIGIN_COL:    250px
+@WIDTH_ROW:     25px
+@WIDTH_COL:     15px
+@CENTROID_ROW:  312.5px
+@CENTROID_COL:  257.5px
+@AREA:          350px
+@PERIMETER:     80.0px
+@CIRCULARITY:   0.69
+@TRACKER_HOLE:  62
+@MIDI_KEY:      62
+@NOTE_ATTACK:   300px
+@OFF_TIME:      325px
+@@END: HOLE
+
+@@BEGIN: HOLE
+@ID:            H3_N3
+@ORIGIN_ROW:    500px
+@ORIGIN_COL:    300px
+@WIDTH_ROW:     30px
+@WIDTH_COL:     18px
+@CENTROID_ROW:  515.0px
+@CENTROID_COL:  309.0px
+@AREA:          500px
+@PERIMETER:     96.0px
+@CIRCULARITY:   0.68
+@TRACKER_HOLE:  64
+@MIDI_KEY:      64
+@NOTE_ATTACK:   500px
+@OFF_TIME:      530px
+@@END: HOLE
+
+@@BEGIN: HOLE
+@ID:            H4_N4
+@ORIGIN_ROW:    800px
+@ORIGIN_COL:    350px
+@WIDTH_ROW:     22px
+@WIDTH_COL:     16px
+@CENTROID_ROW:  811.0px
+@CENTROID_COL:  358.0px
+@AREA:          320px
+@PERIMETER:     76.0px
+@CIRCULARITY:   0.70
+@TRACKER_HOLE:  65
+@MIDI_KEY:      65
+@NOTE_ATTACK:   800px
+@OFF_TIME:      822px
+@@END: HOLE
+
+@@BEGIN: HOLE
+@ID:            H5_N5
+@ORIGIN_ROW:    1900px
+@ORIGIN_COL:    400px
+@WIDTH_ROW:     28px
+@WIDTH_COL:     17px
+@CENTROID_ROW:  1914.0px
+@CENTROID_COL:  408.5px
+@AREA:          440px
+@PERIMETER:     90.0px
+@CIRCULARITY:   0.68
+@TRACKER_HOLE:  67
+@MIDI_KEY:      67
+@NOTE_ATTACK:   1900px
+@OFF_TIME:      1928px
+@@END: HOLE
+
+@@END: HOLES

@@ -551,11 +551,16 @@ class TiliaJsonLoader(JsonLoader):
         if media_path is not None:
             self._file_metadata["media_path"] = media_path
 
-        # Process each timeline in the array
-        timelines_array = data["timelines"]
-        if not isinstance(timelines_array, list):
+        # Process each timeline in the array (v1 list) or dict (v2)
+        timelines_raw = data["timelines"]
+        if isinstance(timelines_raw, dict):
+            # v2 format: dict with ID keys
+            timelines_array = [{"_tilia_id": k, **v} for k, v in timelines_raw.items()]
+        elif isinstance(timelines_raw, list):
+            timelines_array = timelines_raw
+        else:
             raise TypeError(
-                f"'timelines' must be a list, got {type(timelines_array).__name__}"
+                f"'timelines' must be a list or dict, got {type(timelines_raw).__name__}"
             )
 
         self._timeline_specs = []
@@ -569,9 +574,18 @@ class TiliaJsonLoader(JsonLoader):
             kind = tl_obj.get("kind", "UNKNOWN")
             name = tl_obj.get("name", "")
             ordinal = tl_obj.get("ordinal", idx)
-            components = tl_obj.get("components", [])
+            components_raw = tl_obj.get("components", [])
 
-            tl_id = f"{kind}_{idx}"
+            # v2 format: components is a dict with ID keys; convert to list
+            if isinstance(components_raw, dict):
+                components = [{"_comp_id": k, **v} for k, v in components_raw.items()]
+                # Update tl_obj so that spec["raw"] has the list format
+                tl_obj["components"] = components
+            else:
+                components = components_raw
+
+            # Use tilia_id if available (from v2 format conversion)
+            tl_id = tl_obj.get("_tilia_id", f"{kind}_{idx}")
 
             # Normalise components into a pa.Table
             if components and isinstance(components, list):
