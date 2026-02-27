@@ -18,7 +18,7 @@ from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import fraction_to_struct
 
 from .base import ScoreLoader
-from .bundle import ScoreStore
+from .store import ScoreStore
 from .stores import (
     AnnotationEventData,
     ControlEventData,
@@ -76,9 +76,21 @@ class PartituraLoader(ScoreLoader):
         self,
         *,
         force_note_ids: bool = True,
+        silence_warnings: bool = False,
     ) -> None:
+        """Initialize PartituraLoader.
+
+        Args:
+            force_note_ids: If True, force note IDs from partitura.
+            silence_warnings: If True, suppress warnings from the partitura
+                library (e.g. "ignoring direction type: metronome",
+                "Found repeat without end"). Partitura can emit numerous
+                warnings for complex scores; this flag sets a warning filter
+                to clean up loader output.
+        """
         super().__init__()
         self._force_note_ids = force_note_ids
+        self._silence_warnings = silence_warnings
         self._anacrusis_offset: float = 0.0
 
     @property
@@ -96,7 +108,26 @@ class PartituraLoader(ScoreLoader):
         return self._anacrusis_offset
 
     def _load_source(self, source: Path) -> ScoreStore:
-        """Load score and return ScoreStore."""
+        """Load score and return ScoreStore.
+
+        When ``silence_warnings=True`` was passed at construction, all
+        warnings from the partitura library are suppressed.
+        """
+        import contextlib
+        import warnings
+
+        if self._silence_warnings:
+            ctx = warnings.catch_warnings()
+        else:
+            ctx = contextlib.nullcontext()
+
+        with ctx:
+            if self._silence_warnings:
+                warnings.filterwarnings("ignore", module="partitura")
+            return self._do_load(source)
+
+    def _do_load(self, source: Path) -> ScoreStore:
+        """Core loading logic for a single source file."""
         score = pt.load_score(str(source), force_note_ids=self._force_note_ids)
 
         # Flatten parts
@@ -417,7 +448,8 @@ class PartituraLoader(ScoreLoader):
 
                 measure_rows.append(
                     {
-                        "id": getattr(m, "id", None) or f"measure_{mc}",
+                        # mc:NNNNN format based on measure count
+                        "id": f"mc:{mc:05d}",
                         "name": str(m.number),
                         "temporal_type": "interval",
                         "event_type": "Measure",
@@ -502,10 +534,17 @@ class PartituraLoader(ScoreLoader):
                             "cents": 0.0,
                         }
 
+                # Compute name from spelled pitch if available
+                note_name = ""
+                if spelled_pitch and "sp" in spelled_pitch:
+                    note_name = spelled_pitch["sp"]
+                elif midi_pitch and "ep" in midi_pitch:
+                    note_name = f"MIDI {midi_pitch['ep']}"
+
                 note_rows.append(
                     {
-                        "id": getattr(obj, "id", None) or f"note_{float(qb_start)}",
-                        "name": "",
+                        # ID auto-generated from event_type (Note or Rest)
+                        "name": note_name,
                         "temporal_type": "interval" if dur_qb > 0 else "instant",
                         "event_type": "Rest" if is_rest else "Note",
                         "quarterbeats": fraction_to_struct(qb_start),
@@ -544,7 +583,7 @@ class PartituraLoader(ScoreLoader):
                 obj_mc = get_mc(obj.start.t)
                 control_rows.append(
                     {
-                        "id": getattr(obj, "id", None) or f"ctrl_{float(qb)}",
+                        # ID auto-generated from event_type (class name)
                         "name": obj.__class__.__name__,
                         "temporal_type": (
                             "interval" if getattr(obj, "end", None) else "instant"
@@ -573,7 +612,7 @@ class PartituraLoader(ScoreLoader):
                 obj_mc = get_mc(obj.start.t)
                 annotation_rows.append(
                     {
-                        "id": getattr(obj, "id", None),
+                        # ID auto-generated from event_type
                         "name": getattr(obj, "text", str(obj)),
                         "temporal_type": "instant",
                         "event_type": "Text",

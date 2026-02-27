@@ -20,7 +20,7 @@ from .enums import (
     NumberType,
     TimeUnit,
 )
-from .ids import IdGenerator, ScopedId, TimelineIdGenerator
+from .ids import IdGenerator, ScopedId, TimelineIdGenerator, resolve_id, resolve_ids
 from .timestamp import (
     TimeIntervalStamp,
     TimeStamp,
@@ -58,4 +58,6 @@ __all__ = [
     "ScopedId",
     "IdGenerator",
     "TimelineIdGenerator",
+    "resolve_id",
+    "resolve_ids",
 ]

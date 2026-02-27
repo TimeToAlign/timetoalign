@@ -150,7 +150,7 @@ class AudioLoader:
         180.0
 
         >>> # Create a timeline
-        >>> timeline = loader.to_timeline(uid="my_audio")
+        >>> timeline = loader.create_timeline(uid="my_audio")
         >>> timeline.unit
         <TimeUnit.samples: 'samples'>
         >>> timeline.length
@@ -506,7 +506,7 @@ class AudioLoader:
 
     # region Timeline Creation
 
-    def to_timeline(
+    def create_timeline(
         self,
         uid: str | None = None,
         name: str | None = None,
@@ -532,7 +532,7 @@ class AudioLoader:
 
         Examples:
             >>> loader = AudioLoader().load("song.wav")
-            >>> timeline = loader.to_timeline()
+            >>> timeline = loader.create_timeline()
             >>> timeline.unit
             <TimeUnit.samples: 'samples'>
 

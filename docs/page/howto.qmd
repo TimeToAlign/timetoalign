@@ -1,65 +1,66 @@
 ---
 title: "How-To Guides"
 subtitle: "Task-oriented recipes for common workflows"
+listing:
+  id: howto-listing
+  contents: howto/*.ipynb
+  type: table
+  fields: [title, description]
+  sort: "filename"
+  sort-ui: false
+  filter-ui: false
 ---
 
 How-to guides are practical, goal-oriented recipes.  Unlike tutorials
 (which teach concepts in a fixed order), each how-to guide solves a
 specific problem and can be read independently.
 
-::: {.callout-note}
-## Coming soon
-The how-to guides listed below are planned but not yet written.
-Contributions are welcome --- see the project repository for details.
+**Prerequisites:** Familiarity with the core concepts from the
+[Tutorials](tutorials.qmd) is recommended but not strictly required.
+
+## How-To Notebooks
+
+::: {#howto-listing}
 :::
 
-## Data Loading
 
-- **Load a MIDI file and create a timeline** --- Use `PerformanceMidiLoader`
-  or `ScoreMidiLoader` to ingest MIDI data into a DiscreteLogicalTimeline.
-- **Load audio metadata** --- Use `AudioLoader` to create a
-  DiscretePhysicalTimeline with sample rate and duration information.
-- **Load annotations from a TSV/CSV** --- Use `TSVLoader` with
-  `CoordinateField` to ingest tabular annotations with typed coordinates.
-- **Load a score from MusicXML or MuseScore** --- Use `PartituraLoader`
-  or `Music21Loader` for symbolic score data.
+## Topics at a Glance
 
-## Timeline Construction
+The guides are grouped into the same four topics used throughout the
+documentation:
 
-- **Build a timeline from scratch** --- Use `create_timeline()` and
-  `add_events()` to manually construct a timeline with events.
-- **Create a SegmentLine from split coordinates** --- Partition a
-  timeline into contiguous segments.
-- **Add flow control (repeats and jumps)** --- Model repeat signs,
-  *dal segno*, and alternative endings using Breaks and Jumps.
-- **Create a BeatGrid from beat times** --- Use `BeatGrid` to add
-  metrical structure (measures, beats) to an audio timeline.
+### Timelines, Events & Maps
 
-## Coordinate Conversion
+- [How to Do Coordinate Math](howto/how01_coordinate_math.ipynb) ---
+  Domains, TimeUnits, NumberType, and Coordinate arithmetic.
+- [How to Use Advanced Conversion Maps](howto/how01_advanced_cmaps.ipynb) ---
+  ChainMap, PiecewiseMap, TableMap, and vectorised operations.
+- [How to Query Timestamps](howto/how01_advanced_timestamps.ipynb) ---
+  TimeStamp, TimeIntervalStamp, boundary tables, and PyArrow.
+- [How to Construct Timelines Manually](howto/how01_manual_timeline_construction.ipynb) ---
+  Events via dict, parent/child hierarchies, and serialisation.
+- [How to Load Data](howto/how01_loading_data.ipynb) ---
+  Format-agnostic data ingestion with Loaders and EventStores.
+- [How to Load Tabular Data](howto/how01_tabular_loaders.ipynb) ---
+  CoordinateField, ComputedField, and custom loader configuration.
+- [How to Work with Graphical Timelines](howto/how01_graphical_timelines.ipynb) ---
+  TimeAxisPath, image-based timelines, and pixel-to-time conversion.
+- [How to Build Beat Grids](howto/how01_beat_grids.ipynb) ---
+  BeatGrid, FloorMap, RotationMap, and measure/beat queries.
 
-- **Convert between units** --- Use ScalarMap, LinearMap, or TableMap
-  to transform coordinates (e.g., samples to seconds, pixels to
-  quarter notes).
-- **Chain multiple conversions** --- Use ChainMap to compose conversion
-  paths (e.g., ticks to beats to seconds).
-- **Map image coordinates to time** --- Use TimeAxisPath and
-  CombinationMap to model non-linear time axes in scanned scores.
+### TimelineGroups
 
-## Alignment
+- [How to Align a Piano Roll (SUPRA)](howto/how02_supra_piano_roll.ipynb) ---
+  End-to-end alignment: IIIF images, ATON, MIDI, Audio, and Score.
 
-- **Align two timelines** --- Use `TimelineGroup` and
-  `PerfectAlignment` to establish commensurability between timelines.
-- **Transfer annotations between timelines** --- Query timestamps
-  across aligned timelines to propagate labels or events.
-- **Create a multimodal alignment bundle** --- Use `AlignmentBundle`
-  to manage multiple groups spanning physical, logical, and graphical
-  timelines.
+### AlignmentBundles
 
-## Export and Interoperability
+- [How to Align Multimodal Data (Beethoven)](howto/how03_beethoven_multimodal.ipynb) ---
+  AlignmentBundle, FlowMap, OMR, 16+ timelines across 3 domains.
+- [How to Load the Vienna 4x22 Corpus](howto/how03_loading_vienna_corpus.ipynb) ---
+  MatchfileLoader, 22 performances, AlignmentBundle.
 
-- **Export timestamps to a DataFrame** --- Use `get_timestamps_df()`
-  to produce a pandas DataFrame of cross-section data.
-- **Serialise an alignment to Parquet** --- *(Planned)* Save and reload
-  alignment data using the columnar Parquet exchange format.
-- **Export beat grids to Sonic Visualiser format** --- Write CSV files
-  compatible with Sonic Visualiser's annotation layers.
+### In-depth Topics
+
+*No in-depth how-to guides have been written yet.  Planned topics include
+flow control recipes, export workflows, and Parquet-based exchange.*

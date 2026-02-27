@@ -352,9 +352,9 @@ class TestGraphicalBundleDGT1:
         """Total length matches expected DGT1 width."""
         assert dgt1_bundle.total_length == DGT1_TOTAL_WIDTH
 
-    def test_to_timeline_creates_correct_timeline(self, dgt1_bundle) -> None:
+    def test_create_timeline_creates_correct_timeline(self, dgt1_bundle) -> None:
         """Bundle creates DiscreteGraphicalTimeline with correct length."""
-        timeline = dgt1_bundle.to_timeline(uid="dgt1", name="Thoresen 2009")
+        timeline = dgt1_bundle.create_timeline(uid="dgt1", name="Thoresen 2009")
         # timeline.length is a Coordinate object, compare the value
         assert timeline.length.value == DGT1_TOTAL_WIDTH
         assert timeline.id == "dgt1"
@@ -501,9 +501,9 @@ class TestGraphicalLoader:
         idx = loader.add_image(DGT1_IMAGE)
         loader.add_horizontal_segment(idx, x0=0, x1=100, y=50)
 
-        bundle1 = loader.bundle
+        bundle1 = loader.store
         loader.add_horizontal_segment(idx, x0=0, x1=100, y=100)
-        bundle2 = loader.bundle
+        bundle2 = loader.store
 
         assert bundle1.n_segments == 1
         assert bundle2.n_segments == 2

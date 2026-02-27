@@ -19,7 +19,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-from timetoalign.core import IdCoordinate, IdGenerator
+from timetoalign.core import IdCoordinate, IdGenerator, resolve_id
 
 from .anchors import MatchClaim
 from .filters import ClaimFilter
@@ -29,6 +29,8 @@ from .matchline import MatchLine
 from .warpmap import WarpMap
 
 if TYPE_CHECKING:
+    import pyarrow as pa
+
     from timetoalign.core.enums import Domain, TimeUnit
     from timetoalign.display.ascii import Diagram
     from timetoalign.maps.base import ConversionMap
@@ -330,34 +332,55 @@ class AlignmentBundle:
     def get_timeline(self, uid: str) -> "Timeline":
         """Get a timeline by ID.
 
+        Supports partial string and regex matching:
+        1. Exact match: If ``uid`` matches an ID exactly, returns it.
+        2. Substring match: If ``uid`` is a substring of exactly one ID,
+           returns that timeline. If multiple match, returns the first and warns.
+        3. Regex match: If ``uid`` is a valid regex, matches via
+           ``re.search()``. Same first-match logic with warning.
+
         Args:
-            uid: The timeline's unique identifier.
+            uid: The timeline's unique identifier, or a partial/regex pattern.
 
         Returns:
             The Timeline object.
 
         Raises:
-            KeyError: If no timeline with that ID exists.
+            KeyError: If no timeline matches the pattern.
+
+        Examples:
+            >>> bundle.get_timeline("clt1")          # Exact match
+            >>> bundle.get_timeline("score")         # Substring match
+            >>> bundle.get_timeline(r"^perf:")       # Regex match
         """
-        if uid not in self.timelines:
-            raise KeyError(f"No timeline '{uid}' in bundle '{self.id}'")
-        return self.timelines[uid]
+        resolved_id = resolve_id(uid, list(self.timelines.keys()))
+        return self.timelines[resolved_id]
 
     def get_group(self, uid: str) -> TimelineGroup:
         """Get a group by ID.
 
+        Supports partial string and regex matching:
+        1. Exact match: If ``uid`` matches an ID exactly, returns it.
+        2. Substring match: If ``uid`` is a substring of exactly one ID,
+           returns that group. If multiple match, returns the first and warns.
+        3. Regex match: If ``uid`` is a valid regex, matches via
+           ``re.search()``. Same first-match logic with warning.
+
         Args:
-            uid: The group's unique identifier.
+            uid: The group's unique identifier, or a partial/regex pattern.
 
         Returns:
             The TimelineGroup object.
 
         Raises:
-            KeyError: If no group with that ID exists.
+            KeyError: If no group matches the pattern.
+
+        Examples:
+            >>> bundle.get_group("score")            # Substring match
+            >>> bundle.get_group(r"^perf")           # Regex match
         """
-        if uid not in self.groups:
-            raise KeyError(f"No group '{uid}' in bundle '{self.id}'")
-        return self.groups[uid]
+        resolved_id = resolve_id(uid, list(self.groups.keys()))
+        return self.groups[resolved_id]
 
     def get_group_for_timeline(self, timeline_id: str) -> TimelineGroup | None:
         """Get the group containing a timeline.
@@ -372,6 +395,29 @@ class AlignmentBundle:
         if group_id is None:
             return None
         return self.groups.get(group_id)
+
+    def get_timelines(self, ids: list[str]) -> list["Timeline"]:
+        """Get multiple timelines by their IDs.
+
+        Convenience method for retrieving several timelines at once.
+        Each ID supports partial string and regex matching (via
+        ``get_timeline()``).
+
+        Args:
+            ids: List of timeline IDs (or partial/regex patterns).
+
+        Returns:
+            List of Timeline objects in the same order as the input IDs.
+
+        Raises:
+            KeyError: If any timeline ID is not found.
+
+        Examples:
+            >>> timelines = bundle.get_timelines(["score", "audio", "midi"])
+            >>> len(timelines)
+            3
+        """
+        return [self.get_timeline(uid) for uid in ids]
 
     @property
     def n_timelines(self) -> int:
@@ -667,6 +713,64 @@ class AlignmentBundle:
 
     # region Cross-Group Claims
 
+    def create_match_claims(
+        self,
+        event_pairs: list[tuple[dict, str, dict, str]],
+        *,
+        synchronous: bool = True,
+        agent: str = "user",
+        decision_criteria: str = "manual",
+    ) -> list[MatchClaim]:
+        """Create MatchClaims from a list of event pairs.
+
+        Convenience factory for creating multiple MatchClaims from paired
+        events. Each tuple specifies two events and their timeline IDs.
+
+        Args:
+            event_pairs: List of tuples, each containing:
+                ``(event_a, timeline_a_id, event_b, timeline_b_id)``.
+                Events must have at least a ``start`` key with a coordinate.
+            synchronous: Whether the matches are temporally synchronous.
+            agent: Name of the agent creating the claims (for provenance).
+            decision_criteria: How the match was determined (e.g., "manual",
+                "dynamic_time_warping", "segment_correspondence").
+
+        Returns:
+            List of MatchClaim objects. Also automatically adds them to
+            the bundle's ``cross_group_claims``.
+
+        Raises:
+            ValueError: If event dicts are missing required keys.
+
+        Examples:
+            >>> pairs = [
+            ...     ({"start": 0.0}, "score", {"start": 45.5}, "audio"),
+            ...     ({"start": 10.0}, "score", {"start": 55.0}, "audio"),
+            ... ]
+            >>> claims = bundle.create_match_claims(pairs, agent="manual_alignment")
+            >>> len(claims)
+            2
+        """
+        from .anchors import MatchClaim, MatchMetadata
+
+        claims = []
+        for event_a, tl_a, event_b, tl_b in event_pairs:
+            metadata = MatchMetadata(agent=agent, decision_criteria=decision_criteria)
+            claim = MatchClaim.from_events(
+                event_a=event_a,
+                tl_a_id=tl_a,
+                event_b=event_b,
+                tl_b_id=tl_b,
+                is_synchronous=synchronous,
+                metadata=metadata,
+            )
+            claims.append(claim)
+
+        if claims:
+            self.add_match_claims(claims)
+
+        return claims
+
     def add_match_claims(
         self,
         claims: list[MatchClaim],
@@ -905,6 +1009,113 @@ class AlignmentBundle:
             )
 
         return stamp
+
+    def get_matchstamps(
+        self,
+        claims: list[MatchClaim] | None = None,
+        *,
+        from_graph: bool = True,
+    ) -> list[MatchStamp]:
+        """Get MatchStamps for a list of MatchClaims.
+
+        Convenience method for retrieving MatchStamps for multiple claims
+        at once. Uses the bundle's caching mechanism for efficient retrieval.
+
+        Args:
+            claims: List of MatchClaims to get stamps for. If None, uses
+                all cross_group_claims.
+            from_graph: If True (default), return full MatchStamps from the
+                MatchGraph (all connected timelines). If False, return
+                reduced 2-timeline stamps.
+
+        Returns:
+            List of MatchStamp objects. Non-synchronous claims yield None
+            entries (filtered out).
+
+        Examples:
+            >>> stamps = bundle.get_matchstamps()
+            >>> len(stamps)
+            100
+            >>> stamps[0].n_timelines
+            23
+        """
+        if claims is None:
+            claims = self.cross_group_claims
+
+        stamps = []
+        for claim in claims:
+            stamp = claim.get_matchstamp(bundle=self, from_graph=from_graph)
+            if stamp is not None:
+                stamps.append(stamp)
+
+        return stamps
+
+    def get_matchstamp_table(
+        self,
+        claims: list[MatchClaim] | None = None,
+        *,
+        timeline_filter: set[str] | None = None,
+    ) -> "pa.Table":
+        """Get a PyArrow table of MatchStamps for alignment queries.
+
+        Analogous to ``get_timestamp_table()`` but for cross-group alignment.
+        Each row represents one MatchClaim/coordinate; columns are timeline IDs
+        with their coordinate values.
+
+        Args:
+            claims: List of MatchClaims to tabulate. If None, uses all
+                cross_group_claims.
+            timeline_filter: Only include these timeline columns.
+
+        Returns:
+            PyArrow Table with one row per synchronous claim, one column
+            per timeline. Non-synchronous claims are excluded.
+
+        Examples:
+            >>> table = bundle.get_matchstamp_table()
+            >>> table.num_rows
+            100
+            >>> table.column_names
+            ['score:clt1', 'perf:dlt1', 'perf:dlt2', ...]
+        """
+        import pyarrow as pa
+
+        if claims is None:
+            claims = self.cross_group_claims
+
+        # Collect all timeline IDs first
+        all_tl_ids: set[str] = set()
+        rows: list[dict[str, float | None]] = []
+
+        for claim in claims:
+            if not claim.is_synchronous or claim.start_anchor is None:
+                continue
+
+            # Get reduced stamp (2 timelines only, for efficiency)
+            stamp = claim.get_matchstamp(bundle=self, from_graph=False)
+            if stamp is None:
+                continue
+
+            row = dict(stamp.coordinates)
+            rows.append(row)
+            all_tl_ids.update(stamp.coordinates.keys())
+
+        if not rows:
+            return pa.table({})
+
+        # Apply timeline filter if provided
+        if timeline_filter is not None:
+            all_tl_ids = all_tl_ids & timeline_filter
+
+        # Build table with consistent columns
+        sorted_ids = sorted(all_tl_ids)
+        columns: dict[str, list[float | None]] = {tl: [] for tl in sorted_ids}
+
+        for row in rows:
+            for tl_id in sorted_ids:
+                columns[tl_id].append(row.get(tl_id))
+
+        return pa.table(columns)
 
     def _invalidate_warp_cache(self) -> None:
         """Clear the WarpMap, MatchLine, and MatchGraph caches, forcing rebuild on next access."""

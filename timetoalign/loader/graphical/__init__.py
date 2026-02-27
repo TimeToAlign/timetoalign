@@ -25,8 +25,8 @@ Examples:
     >>> idx = loader.add_image("score.png")
     >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=100, name="system_1")
     >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=200, name="system_2")
-    >>> store = loader.bundle
-    >>> timeline = store.to_timeline(uid="score", name="Score")
+    >>> store = loader.store
+    >>> timeline = store.create_timeline(uid="score", name="Score")
 
     >>> # Coordinate conversion
     >>> source_idx, (x, y) = store.timeline_to_image(250.0)
@@ -41,8 +41,6 @@ Examples:
 """
 
 from __future__ import annotations
-
-from .bundle import GraphicalStore
 
 # IIIF manifest loader
 from .iiif import IIIFCanvasInfo, IIIFManifestInfo, IIIFManifestLoader
@@ -64,6 +62,7 @@ from .segment import GraphicalSegment
 
 # Image source
 from .source import ImageMetadata, ImageSource
+from .store import GraphicalStore
 
 __all__ = [
     # Paths

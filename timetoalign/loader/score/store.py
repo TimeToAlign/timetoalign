@@ -1,237 +1,481 @@
-"""ScoreEventData: Storage for symbolic score events.
-
-This module defines the ScoreEventData, which extends EventData with
-score-specific fields like pitch, measure numbers, and voices.
-"""
+"""ScoreStore: Container for category-specific EventData classes."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+import json
+import logging
+from collections.abc import Iterator
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-import pyarrow as pa
-from typing_extensions import Self
-
-from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader.store import EventData
+from timetoalign.loader.events import EventData
+from timetoalign.loader.score.stores.annotations import AnnotationEventData
+from timetoalign.loader.score.stores.controls import ControlEventData
+from timetoalign.loader.score.stores.measures import MeasureData
+from timetoalign.loader.score.stores.notes import NoteEventData
+from timetoalign.loader.store import EventStore
 
 if TYPE_CHECKING:
-    pass
+    from timetoalign.maps import ConversionMap
+    from timetoalign.timelines.base import Timeline
+
+module_logger = logging.getLogger(__name__)
+
+# Store names in canonical order
+STORE_NAMES: tuple[str, ...] = ("notes", "measures", "controls", "annotations")
 
 
-class ScoreEventType:
-    """Constants for score event types."""
+@dataclass
+class ScoreStore(EventStore):
+    """Container for score data organized by category.
 
-    # Categories
-    CAT_MEASURE = "measure"
-    CAT_NOTE = "note"
-    CAT_CONTROL = "control"
-    CAT_ANNOTATION = "annotation"
+    A ScoreLoader returns a ScoreStore containing separate EventData
+    for each category (notes, measures, controls, annotations).
 
-    # Common Event Types
-    NOTE = "Note"
-    REST = "Rest"
-    CHORD = "Chord"
-    MEASURE = "Measure"
-
-    # Control/Direction Types
-    TIME_SIGNATURE = "TimeSignature"
-    KEY_SIGNATURE = "KeySignature"
-    TEMPO = "Tempo"
-    METRONOME = "Metronome"
-    DYNAMIC = "Dynamic"
-    DIRECTION = "Direction"
-    WEDGE = "Wedge"  # Hairpins
-    pedal = "Pedal"
-    OCTAVE_SHIFT = "OctaveShift"
-
-    # Annotation
-    TEXT_BOX = "TextBox"
-    TEXT_EXPRESSION = "TextExpression"
-
-
-def make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
-    """Create MIDI and Spelled pitch struct types.
-
-    Returns:
-        Tuple of (midi_pitch_type, spelled_pitch_type).
-    """
-    midi_pitch = pa.struct(
-        [
-            pa.field("ep", pa.int64(), nullable=True),
-            pa.field("epc", pa.int64(), nullable=True),
-        ]
-    )
-
-    spelled_pitch = pa.struct(
-        [
-            pa.field("gpc_int", pa.int64(), nullable=True),
-            pa.field("gpc_str", pa.string(), nullable=True),
-            pa.field("acc", pa.int64(), nullable=True),
-            pa.field("spc_int", pa.int64(), nullable=True),
-            pa.field("spc_str", pa.string(), nullable=True),
-            pa.field("sp", pa.string(), nullable=True),
-            pa.field("cents", pa.float64(), nullable=False),  # Default 0.0
-        ]
-    )
-
-    return midi_pitch, spelled_pitch
-
-
-class ScoreEventData(EventData):
-    """EventData for symbolic music scores.
-
-    Adds fields for pitch, measures, and score structure.
-
-    Schema Extras:
-    - octave (int64): Octave number.
-    - midi_pitch (struct): {ep, epc}
-    - spelled_pitch (struct): {gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}
-    - mn (string): Measure Number label ("1", "1a")
-    - mc (int64): Measure Count (monotonic index)
-    - event_category (string): "measure", "note", "control", "annotation"
-    - voice (int64): Voice number
-    - staff (int64): Staff number
-    - velocity (int64): MIDI velocity (default 64)
-    - part_id (string): Part identifier
+    Attributes:
+        notes: NoteEventData with note/rest/chord events.
+        measures: MeasureData with measure boundaries.
+        controls: ControlEventData with dynamics, tempo, etc.
+        annotations: AnnotationEventData with text annotations.
+        metadata: Source metadata (format, parser, has_rests, divs_per_quarter).
     """
 
-    _midi_type, _spelled_type = make_pitch_types()
-
-    _extra_fields: ClassVar[list[pa.Field]] = [
-        pa.field("octave", pa.int64(), nullable=True),
-        pa.field("midi_pitch", _midi_type, nullable=True),
-        pa.field("spelled_pitch", _spelled_type, nullable=True),
-        pa.field("mn", pa.string(), nullable=True),
-        pa.field("mc", pa.int64(), nullable=True),
-        pa.field("event_category", pa.string(), nullable=False),
-        pa.field("voice", pa.int64(), nullable=True),
-        pa.field("staff", pa.int64(), nullable=True),
-        pa.field("velocity", pa.int64(), nullable=True),
-        pa.field("part_id", pa.string(), nullable=True),
-    ]
-
-    def __init__(
-        self,
-        table: pa.Table,
-        unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
-        has_rests: bool | None = None,
-    ) -> None:
-        """Initialize ScoreEventData.
-
-        Args:
-            table: PyArrow table.
-            unit: Time unit.
-            number_type: Number type.
-            has_rests: Whether the source explicitly includes rests.
-        """
-        super().__init__(table, unit, number_type)
-        self._has_rests = has_rests
+    notes: NoteEventData
+    measures: MeasureData
+    controls: ControlEventData
+    annotations: AnnotationEventData
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
-    def has_rests(self) -> bool | None:
-        """Return whether the store explicitly contains rests."""
-        return self._has_rests
+    def anacrusis_offset(self) -> float:
+        """Quarter-beat shift applied by the loader to normalise anacrusis.
+
+        Equal to ``-min(raw_partitura_onset)`` (or the music21 equivalent)
+        across all notes in the source file.  Zero when the score has no
+        anacrusis (i.e. the first note starts at or after beat 0).
+
+        This value is stored in :attr:`metadata` under the key
+        ``"anacrusis_offset"`` by both ``PartituraLoader`` and
+        ``Music21Loader``.  ``MatchfileLoader`` reads it to convert raw
+        partitura coordinates from ``.match`` files to the TTA coordinate
+        space before comparing them against stored event coordinates.
+
+        The shift is the offset of the ``ShiftMap`` that ``MatchfileLoader``
+        should attach to any score timeline it builds: the forward direction
+        is ``raw → TTA`` (add offset); the ``InverseMap`` converts back
+        (subtract offset).
+        """
+        return float(self.metadata.get("anacrusis_offset", 0.0))
 
     @classmethod
-    def empty(
-        cls,
-        unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
-        has_rests: bool | None = None,
-    ) -> Self:
-        """Create empty ScoreEventData."""
-        store = super().empty(unit, number_type)
-        store._has_rests = has_rests
-        return store
+    def empty(cls) -> ScoreStore:
+        """Create an empty ScoreStore with empty data."""
+
+        return cls(
+            notes=NoteEventData.empty(),
+            measures=MeasureData.empty(),
+            controls=ControlEventData.empty(),
+            annotations=AnnotationEventData.empty(),
+            metadata={},
+        )
+
+    def extend(self, other: ScoreStore) -> None:
+        """Extend this store with another store's data.
+
+        Args:
+            other: The ScoreStore to add.
+        """
+        self.notes.extend(other.notes)
+        self.measures.extend(other.measures)
+        self.controls.extend(other.controls)
+        self.annotations.extend(other.annotations)
+        # Metadata aggregation strategy: keep last or list?
+        # Loader handles source metadata separately.
+        # We can merge non-source metadata if needed.
+        self.metadata.update(other.metadata)
+
+    # region Serialization
+
+    def to_parquet(self, directory: Path | str) -> None:
+        """Save all facets to a directory of Parquet files.
+
+        Creates one ``<facet>.parquet`` file for each non-empty facet
+        (notes, measures, controls, annotations) and a ``metadata.json``
+        containing store-level metadata such as ``anacrusis_offset``.
+
+        Args:
+            directory: Directory to write into.  Created if it does not
+                exist.
+
+        Examples:
+            >>> store.to_parquet("/tmp/my_score")
+            >>> # creates notes.parquet, measures.parquet, …, metadata.json
+        """
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+
+        for name, data in self.items():
+            if len(data) > 0:
+                data.to_parquet(directory / f"{name}.parquet")
+
+        # Persist store-level metadata (e.g. anacrusis_offset)
+        meta_path = directory / "metadata.json"
+        # Serialise only JSON-safe values from self.metadata.
+        serialisable = {}
+        for k, v in self.metadata.items():
+            try:
+                json.dumps(v)
+                serialisable[k] = v
+            except (TypeError, ValueError):
+                module_logger.debug("Skipping non-serialisable metadata key %r", k)
+        meta_path.write_text(json.dumps(serialisable, indent=2))
 
     @classmethod
-    def from_dicts(
-        cls,
-        rows: list[dict[str, Any]],
-        unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
-        has_rests: bool | None = None,
-    ) -> Self:
-        """Create from dicts with has_rests metadata and type sanitization."""
-        # Sanitize common string fields to prevent PyArrow coercion errors
-        for row in rows:
-            for field in [
-                "mn",
-                "part_id",
-                "event_category",
-                "id",
-                "name",
-                "event_type",
-            ]:
-                if row.get(field) is not None:
-                    row[field] = str(row[field])
+    def from_parquet(cls, directory: Path | str) -> ScoreStore:
+        """Load a ScoreStore from a directory of Parquet files.
 
-            # Ensure int fields are ints (handle 1.0 -> 1)
-            for field in ["mc", "voice", "staff", "octave", "velocity"]:
-                val = row.get(field)
-                if val is not None:
-                    try:
-                        row[field] = int(val)
-                    except (ValueError, TypeError):
-                        row[field] = None
+        Expects the layout produced by :meth:`to_parquet`: one
+        ``<facet>.parquet`` per facet and an optional ``metadata.json``.
 
-            # Sanitize structs logic would go here if needed, but loaders should produce minimal dicts
-            # We trust loaders to produce correct nested dicts for midi_pitch and spelled_pitch
-            # Or we can add safety here.
+        Args:
+            directory: Directory containing the Parquet files.
 
-            mp = row.get("midi_pitch")
-            if isinstance(mp, dict):
-                for f in ["ep", "epc"]:
-                    if mp.get(f) is not None:
-                        try:
-                            mp[f] = int(mp[f])
-                        except Exception:
-                            mp[f] = None
+        Returns:
+            A reconstructed ScoreStore.
 
-            sp = row.get("spelled_pitch")
-            if isinstance(sp, dict):
-                # Strings
-                for f in ["gpc_str", "spc_str", "sp"]:
-                    if sp.get(f) is not None:
-                        sp[f] = str(sp[f])
-                # Ints
-                for f in ["gpc_int", "acc", "spc_int"]:
-                    if sp.get(f) is not None:
-                        try:
-                            sp[f] = int(sp[f])
-                        except Exception:
-                            sp[f] = None
-                # Floats
-                if sp.get("cents") is not None:
-                    try:
-                        sp["cents"] = float(sp["cents"])
-                    except Exception:
-                        sp["cents"] = 0.0
-                else:
-                    sp["cents"] = 0.0
+        Raises:
+            FileNotFoundError: If *directory* does not exist.
+        """
+        directory = Path(directory)
+        if not directory.is_dir():
+            raise FileNotFoundError(
+                f"Expected a directory for ScoreStore deserialization: {directory}"
+            )
 
-        store = super().from_dicts(rows, unit, number_type)
-        store._has_rests = has_rests
-        return store
+        facet_classes: dict[str, type[EventData]] = {
+            "notes": NoteEventData,
+            "measures": MeasureData,
+            "controls": ControlEventData,
+            "annotations": AnnotationEventData,
+        }
 
-    @classmethod
-    def from_arrays(
-        cls,
-        columns: dict[str, list[Any]],
-        unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
-        has_rests: bool | None = None,
-    ) -> Self:
-        """Create from arrays with has_rests metadata."""
-        store = super().from_arrays(columns, unit, number_type)
-        store._has_rests = has_rests
-        return store
+        facets: dict[str, EventData] = {}
+        for name, klass in facet_classes.items():
+            parquet_path = directory / f"{name}.parquet"
+            if parquet_path.exists():
+                facets[name] = klass.from_parquet(parquet_path)
+            else:
+                facets[name] = klass.empty()
+
+        # Load metadata
+        meta_path = directory / "metadata.json"
+        metadata: dict[str, Any] = {}
+        if meta_path.exists():
+            metadata = json.loads(meta_path.read_text())
+
+        return cls(
+            notes=facets["notes"],
+            measures=facets["measures"],
+            controls=facets["controls"],
+            annotations=facets["annotations"],
+            metadata=metadata,
+        )
+
+    # endregion
 
     def summary(self) -> dict[str, Any]:
-        """Get summary including score-specific stats."""
-        base = super().summary()
-        base["has_rests"] = self.has_rests
-        if self.count > 0:
-            base["categories"] = self.count_by("event_category")
-        return base
+        """Get summary of all stores."""
+        return {
+            "notes_count": len(self.notes),
+            "measures_count": len(self.measures),
+            "controls_count": len(self.controls),
+            "annotations_count": len(self.annotations),
+            "has_rests": (
+                self.notes.has_rests if hasattr(self.notes, "has_rests") else None
+            ),
+            **self.metadata,
+        }
+
+    def create_timeline(
+        self,
+        uid: str | None = None,
+        store_filters: dict[str, dict[str, Any]] | None = None,
+        include_stores: list[str] | None = None,
+        exclude_stores: list[str] | None = None,
+        flatten: bool = False,
+        ppq: int = 480,
+        attach_cmaps: bool = True,
+    ) -> "Timeline":
+        """Create a Timeline from this ScoreStore.
+
+        Overrides base class to automatically attach conversion maps (C-Maps)
+        and anacrusis ShiftMap when applicable.
+
+        Args:
+            uid: Unique ID for the parent timeline. Auto-generated if None.
+            store_filters: Per-data filter kwargs to apply before timeline
+                creation.
+            include_stores: Only include these data (default: all non-empty).
+            exclude_stores: Exclude these data from the timeline.
+            flatten: If True, merge all events into a single parent timeline.
+            ppq: Pulses per quarter note for the ticks C-Map. Defaults to 480.
+            attach_cmaps: If True (default), attach C-Maps for ticks and
+                seconds conversions, plus a ShiftMap for anacrusis offset.
+
+        Returns:
+            A Timeline with attached C-Maps.
+        """
+        from timetoalign.timelines.factory import create_timeline_from_bundle
+
+        timeline = create_timeline_from_bundle(
+            self,
+            uid=uid,
+            store_filters=store_filters,
+            include_stores=include_stores,
+            exclude_stores=exclude_stores,
+            flatten=flatten,
+        )
+
+        if attach_cmaps:
+            # Attach standard C-Maps (quarters -> ticks, quarters -> seconds)
+            cmaps = self.get_cmaps(ppq=ppq)
+            for cmap in cmaps.values():
+                timeline.add_conversion_map(cmap)
+
+            # Attach ShiftMap for anacrusis if present
+            offset = self.anacrusis_offset
+            if offset != 0.0:
+                from timetoalign.maps import ShiftMap
+
+                shift_map = ShiftMap(
+                    offset=-offset,  # TTA coord - offset = raw coord
+                    source_unit="quarters",
+                    target_unit="quarters",
+                    uid="raw_quarters",
+                    name="raw_quarters",
+                )
+                timeline.add_conversion_map(shift_map)
+
+        return timeline
+
+    def get_cmaps(self, ppq: int = 480) -> dict[str, ConversionMap]:
+        """Get ConversionMaps derivable from score bundle metadata.
+
+        Returns C-Maps based on available metadata:
+        - "ticks": quarters -> ticks (using provided PPQ)
+        - "seconds": quarters -> seconds (if tempo markings available)
+
+        Args:
+            ppq: Pulses per quarter note for ticks conversion. Defaults to 480.
+
+        Returns:
+            Dict mapping target unit name to ConversionMap.
+
+        Examples:
+            >>> bundle = score_loader.load("score.musicxml")
+            >>> cmaps = bundle.get_cmaps(ppq=480)
+            >>> ticks_map = cmaps["ticks"]
+            >>> ticks = ticks_map(2.0)  # 960 ticks at 480 PPQ
+        """
+        from timetoalign.maps import ScalarMap
+
+        cmaps: dict[str, ConversionMap] = {}
+
+        # Always available: quarters -> ticks
+        cmaps["ticks"] = ScalarMap(
+            scalar=ppq,
+            source_unit="quarters",
+            target_unit="ticks",
+        )
+
+        # Check for tempo markings to build quarters -> seconds map
+        tempo_events = self._extract_tempo_markings()
+        if tempo_events:
+            cmaps["seconds"] = self._create_tempo_map(tempo_events)
+
+        return cmaps
+
+    def _extract_tempo_markings(self) -> list[tuple[float, float]]:
+        """Extract tempo markings from controls store.
+
+        Returns:
+            List of (quarter_position, bpm) tuples, sorted by position.
+            Empty list if no tempo markings available.
+        """
+        # Check metadata first for pre-extracted tempo events
+        if "tempo_events" in self.metadata:
+            return self.metadata["tempo_events"]
+
+        # Extract from controls store - look for Tempo subtypes
+        tempo_events: list[tuple[float, float]] = []
+
+        for event in self.controls:
+            subtype = event.get("subtype")
+            if subtype == "Tempo":
+                # Get position (start coordinate) and BPM value
+                start = event.get("start")
+                bpm = event.get("value")
+                if start is not None and bpm is not None:
+                    # Handle Fraction or dict representation of start
+                    if isinstance(start, dict) and "value" in start:
+                        start = start["value"]
+                    tempo_events.append((float(start), float(bpm)))
+
+        # Sort by position
+        tempo_events.sort(key=lambda x: x[0])
+
+        return tempo_events
+
+    def _create_tempo_map(
+        self, tempo_events: list[tuple[float, float]]
+    ) -> ConversionMap:
+        """Create a quarters -> seconds ConversionMap from tempo markings.
+
+        Args:
+            tempo_events: List of (quarter_position, bpm) tuples.
+
+        Returns:
+            A TableMap for quarters -> seconds conversion.
+        """
+        from timetoalign.maps import TableMap
+
+        if not tempo_events:
+            raise ValueError("No tempo events provided")
+
+        # Build cumulative time map
+        quarter_positions: list[float] = []
+        second_positions: list[float] = []
+
+        current_seconds = 0.0
+
+        for i, (quarter, bpm) in enumerate(tempo_events):
+            quarter_positions.append(quarter)
+            second_positions.append(current_seconds)
+
+            # Calculate time to next tempo change
+            if i < len(tempo_events) - 1:
+                next_quarter = tempo_events[i + 1][0]
+                duration_quarters = next_quarter - quarter
+                seconds_per_quarter = 60.0 / bpm
+                current_seconds += duration_quarters * seconds_per_quarter
+
+        # Add a final point to allow extrapolation
+        # Extend 4 quarters beyond the last tempo change
+        final_quarter = quarter_positions[-1] + 4.0
+        seconds_per_quarter = 60.0 / tempo_events[-1][1]
+        final_seconds = current_seconds + 4.0 * seconds_per_quarter
+
+        quarter_positions.append(final_quarter)
+        second_positions.append(final_seconds)
+
+        return TableMap(
+            x_values=quarter_positions,
+            y_values=second_positions,
+            source_unit="quarters",
+            target_unit="seconds",
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"ScoreStore(notes={len(self.notes)}, measures={len(self.measures)}, "
+            f"controls={len(self.controls)}, annotations={len(self.annotations)})"
+        )
+
+    # region Iterator Protocol
+
+    def __iter__(self) -> Iterator[EventData]:
+        """Iterate over data.
+
+        Yields:
+            EventData in canonical order: notes, measures, controls, annotations.
+
+        Examples:
+            >>> for data in store:
+            ...     timeline = Timeline.from_event_data(data)
+        """
+        yield self.notes
+        yield self.measures
+        yield self.controls
+        yield self.annotations
+
+    def __len__(self) -> int:
+        """Return the number of stores (always 4)."""
+        return len(STORE_NAMES)
+
+    def __getitem__(self, name: str) -> EventData:
+        """Get data by name.
+
+        Args:
+            name: Data name (notes, measures, controls, annotations).
+
+        Returns:
+            The EventData for that category.
+
+        Raises:
+            KeyError: If name is not a valid data name.
+
+        Examples:
+            >>> notes_data = store["notes"]
+        """
+        if name == "notes":
+            return self.notes
+        elif name == "measures":
+            return self.measures
+        elif name == "controls":
+            return self.controls
+        elif name == "annotations":
+            return self.annotations
+        else:
+            raise KeyError(f"Unknown store name: {name!r}. Valid: {STORE_NAMES}")
+
+    def __contains__(self, name: object) -> bool:
+        """Check if a data name is valid.
+
+        Args:
+            name: Data name to check.
+
+        Returns:
+            True if name is a valid data name.
+        """
+        return name in STORE_NAMES
+
+    def keys(self) -> tuple[str, ...]:
+        """Return data names.
+
+        Returns:
+            Tuple of data names in canonical order.
+        """
+        return STORE_NAMES
+
+    def values(self) -> Iterator[EventData]:
+        """Iterate over data.
+
+        Yields:
+            EventData in canonical order.
+
+        Examples:
+            >>> for data in store.values():
+            ...     print(len(data))
+        """
+        yield self.notes
+        yield self.measures
+        yield self.controls
+        yield self.annotations
+
+    def items(self) -> Iterator[tuple[str, EventData]]:
+        """Iterate over (name, data) pairs.
+
+        Yields:
+            Tuples of (name, EventData) in canonical order.
+
+        Examples:
+            >>> for name, data in store.items():
+            ...     timeline = Timeline.from_event_data(data, uid=name)
+        """
+        yield ("notes", self.notes)
+        yield ("measures", self.measures)
+        yield ("controls", self.controls)
+        yield ("annotations", self.annotations)
+
+    # endregion

@@ -13,8 +13,9 @@ This module implements the ``TiliaJsonLoader`` class, which parses TiLiA
 
 TiLiA encodes analytical annotations on audio recordings. Each timeline
 in a TiLiA export carries a ``"kind"`` field (``HIERARCHY_TIMELINE``,
-``MARKER_TIMELINE``, ``BEAT_TIMELINE``, ``PDF_TIMELINE``, etc.) and a
-``"components"`` array whose elements have kind-dependent schemas.
+``MARKER_TIMELINE``, ``BEAT_TIMELINE``, ``HARMONY_TIMELINE``,
+``PDF_TIMELINE``, etc.) and a ``"components"`` array whose elements have
+kind-dependent schemas.
 
 The loader follows the standard two-phase pattern:
 
@@ -22,6 +23,15 @@ The loader follows the standard two-phase pattern:
 2. ``loader.create_group()`` -- returns a ``TimelineGroup``.
 3. ``loader.create_timeline(id)`` -- returns a single timeline.
 4. ``loader.create_alignment_bundle()`` -- convenience wrapper.
+
+The loader's ``.store`` property returns a `TiliaDictStore` with helper
+properties for each TiLiA timeline type:
+
+    - ``loader.store.beat`` -- concatenation of all beat timeline tables
+    - ``loader.store.harmony`` -- concatenation of all harmony timeline tables
+    - ``loader.store.hierarchy`` -- concatenation of all hierarchy timeline tables
+    - ``loader.store.marker`` -- concatenation of all marker timeline tables
+    - ``loader.store.pdf`` -- concatenation of all PDF timeline tables
 
 See Also:
     timetoalign.loader.format.json.JsonLoader
@@ -36,8 +46,10 @@ from typing import TYPE_CHECKING, Any
 
 import pyarrow as pa
 
-from timetoalign.core import TimeUnit
+from timetoalign.core import TimeUnit, resolve_id
+from timetoalign.loader.events import EventData
 from timetoalign.loader.format.json import JsonLoader, _normalise_array
+from timetoalign.loader.store import DictStore
 from timetoalign.timelines.types import ContinuousPhysicalTimeline
 
 if TYPE_CHECKING:
@@ -211,6 +223,182 @@ _EVENT_CONVERTERS: dict[str, Any] = {
     "PDF_TIMELINE": _pdf_marker_to_events,
 }
 
+# Mapping from TiLiA kind strings to short type names for store properties
+_KIND_TO_TYPE: dict[str, str] = {
+    "BEAT_TIMELINE": "beat",
+    "HARMONY_TIMELINE": "harmony",
+    "HIERARCHY_TIMELINE": "hierarchy",
+    "MARKER_TIMELINE": "marker",
+    "PDF_TIMELINE": "pdf",
+}
+
+# All recognised TiLiA timeline type names
+TILIA_TYPES: tuple[str, ...] = ("beat", "harmony", "hierarchy", "marker", "pdf")
+
+
+# endregion
+
+
+# region TiliaDictStore
+
+
+class TiliaDictStore(DictStore):
+    """``DictStore`` subclass with convenience properties for TiLiA timeline types.
+
+    Each property returns the concatenation of all ``EventData`` tables
+    whose TiLiA kind matches the requested type.  If no tables of that
+    type exist, an empty ``EventData`` is returned.
+
+    The type of each entry is tracked via a ``kind_map`` that maps store
+    keys to short type names (``beat``, ``harmony``, ``hierarchy``,
+    ``marker``, ``pdf``).
+
+    Examples:
+        >>> loader = TiliaJsonLoader()
+        >>> loader.load("Bruckner5_Scherzo.json")
+        >>> loader.store.hierarchy  # all hierarchy tables concatenated
+        >>> loader.store.marker     # all marker tables concatenated
+        >>> loader.store.beat       # all beat tables concatenated
+
+    See Also:
+        timetoalign.loader.store.DictStore
+    """
+
+    def __init__(
+        self,
+        data: dict[str, EventData] | None = None,
+        kind_map: dict[str, str] | None = None,
+    ) -> None:
+        """Initialize TiliaDictStore.
+
+        Args:
+            data: Dictionary mapping names to EventData tables.
+            kind_map: Dictionary mapping store keys to TiLiA type names
+                (``"beat"``, ``"harmony"``, ``"hierarchy"``, ``"marker"``,
+                ``"pdf"``).
+        """
+        super().__init__(data)
+        self._kind_map: dict[str, str] = kind_map or {}
+
+    def add(self, name: str, events: EventData, kind: str | None = None) -> None:  # type: ignore[override]
+        """Add or replace a named EventData table with optional kind tracking.
+
+        Args:
+            name: The name for this data (e.g., ``"HIERARCHY_TIMELINE_0"``).
+            events: The EventData to store.
+            kind: The TiLiA type name (``"beat"``, ``"hierarchy"``, etc.).
+                If ``None``, the kind is inferred from the name if possible.
+        """
+        super().add(name, events)
+        if kind is not None:
+            self._kind_map[name] = kind
+        elif name in self._kind_map:
+            pass  # already tracked
+        else:
+            # Try to infer from the key name (e.g., "BEAT_TIMELINE_3" -> "beat")
+            for kind_str, type_name in _KIND_TO_TYPE.items():
+                if name.startswith(kind_str):
+                    self._kind_map[name] = type_name
+                    break
+
+    def _get_tables_by_type(self, type_name: str) -> EventData | None:
+        """Get concatenation of all tables matching a TiLiA type.
+
+        Args:
+            type_name: The short type name (``"beat"``, ``"hierarchy"``, etc.).
+
+        Returns:
+            Concatenated ``EventData``, or ``None`` if no tables match.
+        """
+        matching: list[EventData] = []
+        for key, kind in self._kind_map.items():
+            if kind == type_name and key in self._data:
+                matching.append(self._data[key])
+
+        if not matching:
+            return None
+
+        if len(matching) == 1:
+            return matching[0]
+
+        # Concatenate all matching tables
+        tables = [ed._table for ed in matching]
+        merged = pa.concat_tables(tables, promote_options="default")
+        return EventData(merged, matching[0]._unit, matching[0]._number_type)
+
+    @property
+    def beat(self) -> EventData:
+        """All beat timeline tables concatenated.
+
+        Returns:
+            ``EventData`` with all beat events, or empty ``EventData``.
+        """
+        result = self._get_tables_by_type("beat")
+        if result is None:
+            return EventData(pa.table({}), TimeUnit.seconds)
+        return result
+
+    @property
+    def harmony(self) -> EventData:
+        """All harmony timeline tables concatenated.
+
+        Returns:
+            ``EventData`` with all harmony events, or empty ``EventData``.
+        """
+        result = self._get_tables_by_type("harmony")
+        if result is None:
+            return EventData(pa.table({}), TimeUnit.seconds)
+        return result
+
+    @property
+    def hierarchy(self) -> EventData:
+        """All hierarchy timeline tables concatenated.
+
+        Returns:
+            ``EventData`` with all hierarchy events, or empty ``EventData``.
+        """
+        result = self._get_tables_by_type("hierarchy")
+        if result is None:
+            return EventData(pa.table({}), TimeUnit.seconds)
+        return result
+
+    @property
+    def marker(self) -> EventData:
+        """All marker timeline tables concatenated.
+
+        Returns:
+            ``EventData`` with all marker events, or empty ``EventData``.
+        """
+        result = self._get_tables_by_type("marker")
+        if result is None:
+            return EventData(pa.table({}), TimeUnit.seconds)
+        return result
+
+    @property
+    def pdf(self) -> EventData:
+        """All PDF timeline tables concatenated.
+
+        Returns:
+            ``EventData`` with all PDF events, or empty ``EventData``.
+        """
+        result = self._get_tables_by_type("pdf")
+        if result is None:
+            return EventData(pa.table({}), TimeUnit.seconds)
+        return result
+
+    @property
+    def kind_map(self) -> dict[str, str]:
+        """Mapping from store keys to TiLiA type names."""
+        return dict(self._kind_map)
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        type_counts: dict[str, int] = {}
+        for kind in self._kind_map.values():
+            type_counts[kind] = type_counts.get(kind, 0) + 1
+        parts = ", ".join(f"{k}={v}" for k, v in sorted(type_counts.items()))
+        return f"TiliaDictStore({parts})"
+
 
 # endregion
 
@@ -232,6 +420,13 @@ class TiliaJsonLoader(JsonLoader):
     (``"{kind}_{index}"``).  The underlying ``JsonLoader`` machinery is
     used for normalising each timeline's components into a flat table.
 
+    The ``.store`` property returns a `TiliaDictStore` with helper
+    properties for each TiLiA timeline type::
+
+        loader.store.hierarchy  # all hierarchy tables concatenated
+        loader.store.marker     # all marker tables concatenated
+        loader.store.beat       # all beat tables concatenated
+
     **Two-phase usage:**
 
     1. ``loader.load("Bruckner5_Scherzo.json")``
@@ -251,10 +446,13 @@ class TiliaJsonLoader(JsonLoader):
         7
         >>> loader.create_timeline("BEAT_TIMELINE_3").n_events
         1146
+        >>> loader.store.hierarchy._table.num_rows
+        33
 
     See Also:
         timetoalign.loader.format.json.JsonLoader
         timetoalign.alignment.groups.TimelineGroup
+        TiliaDictStore
     """
 
     def __init__(
@@ -270,9 +468,24 @@ class TiliaJsonLoader(JsonLoader):
         self._timeline_specs: list[dict[str, Any]] = []
         self._timelines_cache: dict[str, ContinuousPhysicalTimeline] = {}
         self._media_length: float = 0.0
+        # Replace the plain DictStore from JsonLoader with a TiliaDictStore.
+        # TiliaDictStore is a subclass of DictStore, so this is compatible.
+        self._store: TiliaDictStore = TiliaDictStore()  # type: ignore[assignment]
         self._logger = module_logger.getChild("TiliaJsonLoader")
 
     # region Properties
+
+    @property
+    def store(self) -> TiliaDictStore:
+        """The ``TiliaDictStore`` containing all normalised timeline tables.
+
+        Provides convenience properties for accessing tables by TiLiA
+        timeline type (beat, harmony, hierarchy, marker, pdf).
+
+        Returns:
+            A ``TiliaDictStore`` with one entry per parsed timeline.
+        """
+        return self._store
 
     @property
     def media_length(self) -> float:
@@ -330,13 +543,13 @@ class TiliaJsonLoader(JsonLoader):
             ml = media_meta.get("media length")
             if ml is not None:
                 self._media_length = float(ml)
-            self._metadata.update(
+            self._file_metadata.update(
                 {k: v for k, v in media_meta.items() if not isinstance(v, (dict, list))}
             )
 
         media_path = data.get("media_path")
         if media_path is not None:
-            self._metadata["media_path"] = media_path
+            self._file_metadata["media_path"] = media_path
 
         # Process each timeline in the array
         timelines_array = data["timelines"]
@@ -369,7 +582,11 @@ class TiliaJsonLoader(JsonLoader):
             else:
                 table = pa.table({})
 
-            self._tables[tl_id] = table
+            # Determine the TiLiA type for the store
+            tilia_type = _KIND_TO_TYPE.get(kind)
+
+            # Store in the TiliaDictStore
+            self._store.add(tl_id, self._wrap_table(table), kind=tilia_type)
 
             self._timeline_specs.append(
                 {
@@ -395,7 +612,7 @@ class TiliaJsonLoader(JsonLoader):
 
     # region Domain Object Creation
 
-    def create_timeline(self, id: str) -> "Timeline":
+    def create_timeline(self, id: str | int) -> "Timeline":
         """Create a single ``ContinuousPhysicalTimeline`` by id.
 
         The *id* is the timeline identifier from ``timeline_ids``
@@ -509,13 +726,34 @@ class TiliaJsonLoader(JsonLoader):
 
     # endregion
 
+    # region Clear
+
+    def clear(self) -> None:
+        """Clear all loaded data, including timeline specs and cache."""
+        super().clear()
+        self._timeline_specs = []
+        self._timelines_cache = {}
+        self._media_length = 0.0
+        # Re-create a fresh TiliaDictStore
+        self._store = TiliaDictStore()
+
+    # endregion
+
     # region Internal Helpers
 
     def _find_spec(self, id: str | int) -> dict[str, Any]:
-        """Look up a timeline spec by id or index.
+        """Look up a timeline spec by id, name, or index.
+
+        Matching precedence:
+        1. Integer index (0-indexed).
+        2. String-encoded integer index (e.g. ``"3"``).
+        3. Exact match on spec ``"id"`` field.
+        4. Exact match on spec ``"name"`` field.
+        5. Partial/regex match on spec ``"id"`` field.
+        6. Partial/regex match on spec ``"name"`` field.
 
         Args:
-            id: Timeline identifier string or integer index.
+            id: Timeline identifier, name, or integer index.
 
         Returns:
             The spec dict.
@@ -540,19 +778,38 @@ class TiliaJsonLoader(JsonLoader):
         except ValueError:
             pass
 
-        # Try by id
+        # Try exact match by id
         for spec in self._timeline_specs:
             if spec["id"] == id:
                 return spec
 
-        # Try by name
+        # Try exact match by name
         for spec in self._timeline_specs:
             if spec["name"] == id:
                 return spec
 
+        # Try partial/regex match by id
+        all_ids = [s["id"] for s in self._timeline_specs]
+        try:
+            resolved_id = resolve_id(id, all_ids, warn_multiple=True)
+            for spec in self._timeline_specs:
+                if spec["id"] == resolved_id:
+                    return spec
+        except KeyError:
+            pass
+
+        # Try partial/regex match by name
+        all_names = [s["name"] for s in self._timeline_specs]
+        try:
+            resolved_name = resolve_id(id, all_names, warn_multiple=True)
+            for spec in self._timeline_specs:
+                if spec["name"] == resolved_name:
+                    return spec
+        except KeyError:
+            pass
+
         raise KeyError(
-            f"No timeline with id or name '{id}'. "
-            f"Available: {[s['id'] for s in self._timeline_specs]}"
+            f"No timeline with id or name matching '{id}'. " f"Available IDs: {all_ids}"
         )
 
     def _build_timeline(self, spec: dict[str, Any]) -> ContinuousPhysicalTimeline:

@@ -74,7 +74,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-dfb324f25d9b1687192fa8be62ac8f9c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -469,7 +469,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.AlignmentAnchor.from_dict" id="toc-timetoalign.AlignmentAnchor.from_dict" class="nav-link" data-scroll-target="#timetoalign.AlignmentAnchor.from_dict">from_dict</a></li>
   <li><a href="#timetoalign.AlignmentAnchor.get_coordinate_for" id="toc-timetoalign.AlignmentAnchor.get_coordinate_for" class="nav-link" data-scroll-target="#timetoalign.AlignmentAnchor.get_coordinate_for">get_coordinate_for</a></li>
   <li><a href="#timetoalign.AlignmentAnchor.to_dict" id="toc-timetoalign.AlignmentAnchor.to_dict" class="nav-link" data-scroll-target="#timetoalign.AlignmentAnchor.to_dict">to_dict</a></li>
-  <li><a href="#timetoalign.AlignmentAnchor.with_explicit" id="toc-timetoalign.AlignmentAnchor.with_explicit" class="nav-link" data-scroll-target="#timetoalign.AlignmentAnchor.with_explicit">with_explicit</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -483,28 +482,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.AlignmentAnchor" class="level1">
 <h1>AlignmentAnchor</h1>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    timeline_a_id,</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    coordinate_a,</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    timeline_b_id,</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    coordinate_b,</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    is_explicit<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    is_synchronous<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">''</span>,</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>A claim that two coordinates from different timelines are equivalent.</p>
-<p>This is the atomic unit of alignment. An anchor always connects exactly two timelines (and therefore potentially two groups).</p>
-<p>Anchors can be: - Explicit: Directly claimed by user/algorithm - Inferred: Extended via C-Map or Group membership - Synchronous: Temporally equivalent (same musical moment) - Conceptual: Related but not temporally equivalent (e.g., same structural role)</p>
-<p>Attributes: timeline_a_id: First timeline’s unique identifier. coordinate_a: Coordinate in first timeline. timeline_b_id: Second timeline’s unique identifier. coordinate_b: Coordinate in second timeline. is_explicit: True if user/algorithm explicitly created this anchor. False if inferred via C-Map or Group extension. is_synchronous: True if coordinates are temporally synchronous. False if only conceptually related (structural correspondence). id: Unique identifier for this anchor.</p>
-<p>Examples: &gt;&gt;&gt; # Explicit synchronous anchor (same moment in time) &gt;&gt;&gt; anchor = AlignmentAnchor( … timeline_a_id=“score:1”, … coordinate_a=100.0, … timeline_b_id=“recording:1”, … coordinate_b=45.5, … is_explicit=True, … is_synchronous=True, … )</p>
-<pre><code>&gt;&gt;&gt; # Conceptual anchor (same structural position, different time)
-&gt;&gt;&gt; anchor = AlignmentAnchor(
-...     timeline_a_id="analysis_2009",
-...     coordinate_a=866.0,
-...     timeline_b_id="analysis_2010",
-...     coordinate_b=975.0,
-...     is_synchronous=False,  # Different performances
-... )</code></pre>
+<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor(timeline_a_id, coordinate_a, timeline_b_id, coordinate_b)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>A coordinate pair associating one coordinate on timeline A with one coordinate on timeline B.</p>
+<p>A neutral record with no claim semantics. AlignmentAnchors are value objects: two anchors with the same coordinates and timeline IDs are equivalent regardless of how they were created.</p>
+<p>Only synchronous <code>MatchClaim</code> instances produce AlignmentAnchors. Non-synchronous claims (conceptual matches, NOMATCH) have no anchors.</p>
+<p>Attributes: timeline_a_id: First timeline’s unique identifier. coordinate_a: Coordinate in first timeline. timeline_b_id: Second timeline’s unique identifier. coordinate_b: Coordinate in second timeline.</p>
+<p>Examples: &gt;&gt;&gt; anchor = AlignmentAnchor( … timeline_a_id=“score:1”, … coordinate_a=100.0, … timeline_b_id=“recording:1”, … coordinate_b=45.5, … ) &gt;&gt;&gt; anchor.get_coordinate_for(“score:1”) 100.0</p>
 <section id="attributes" class="level2">
 <h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
@@ -556,49 +539,38 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><a href="#timetoalign.AlignmentAnchor.to_dict">to_dict</a></td>
 <td>Serialize to dictionary for storage.</td>
 </tr>
-<tr class="even">
-<td><a href="#timetoalign.AlignmentAnchor.with_explicit">with_explicit</a></td>
-<td>Return a copy with different explicit flag.</td>
-</tr>
 </tbody>
 </table>
 <section id="timetoalign.AlignmentAnchor.connects" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentAnchor.connects">connects</h3>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor.connects(timeline_id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor.connects(timeline_id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Check if this anchor connects to a specific timeline.</p>
 <p>Args: timeline_id: The timeline to check.</p>
 <p>Returns: True if the anchor involves this timeline.</p>
 </section>
 <section id="timetoalign.AlignmentAnchor.connects_both" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentAnchor.connects_both">connects_both</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor.connects_both(timeline_a_id, timeline_b_id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor.connects_both(timeline_a_id, timeline_b_id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Check if this anchor connects two specific timelines.</p>
 <p>Args: timeline_a_id: First timeline. timeline_b_id: Second timeline.</p>
 <p>Returns: True if the anchor connects exactly these two timelines.</p>
 </section>
 <section id="timetoalign.AlignmentAnchor.from_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentAnchor.from_dict">from_dict</h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor.from_dict(data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor.from_dict(data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Deserialize from dictionary.</p>
 </section>
 <section id="timetoalign.AlignmentAnchor.get_coordinate_for" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentAnchor.get_coordinate_for">get_coordinate_for</h3>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor.get_coordinate_for(timeline_id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor.get_coordinate_for(timeline_id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Get the coordinate for a specific timeline.</p>
 <p>Args: timeline_id: The timeline to get coordinate for.</p>
 <p>Returns: The coordinate, or None if timeline not in this anchor.</p>
 </section>
 <section id="timetoalign.AlignmentAnchor.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentAnchor.to_dict">to_dict</h3>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor.to_dict()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor.to_dict()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Serialize to dictionary for storage.</p>
-</section>
-<section id="timetoalign.AlignmentAnchor.with_explicit" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.AlignmentAnchor.with_explicit">with_explicit</h3>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>AlignmentAnchor.with_explicit(is_explicit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Return a copy with different explicit flag.</p>
-<p>Args: is_explicit: New explicit flag value.</p>
-<p>Returns: New AlignmentAnchor with updated flag.</p>
 
 
 </section>

@@ -12,8 +12,8 @@ from typing_extensions import Self
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.base import Loader
 
-from .bundle import ScoreStore
-from .store import ScoreEventData
+from .events import ScoreEventData
+from .store import ScoreStore
 
 module_logger = logging.getLogger(__name__)
 

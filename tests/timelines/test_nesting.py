@@ -123,9 +123,9 @@ class TestAddChild:
         child = Timeline(length=5.0, uid="child")
         parent.add_child(child, offset=10.0)
 
-        # Check segment event exists
-        all_events = parent.get_events(include_segments=True)
-        assert len(all_events) == 1
+        # Segment events are internal bookkeeping; verify via private access
+        segment_events = parent._events.filter(event_type=SEGMENT_EVENT_TYPE)
+        assert len(segment_events) == 1
 
         # Check segment event properties
         segment_events = parent._events.filter(event_type=SEGMENT_EVENT_TYPE)

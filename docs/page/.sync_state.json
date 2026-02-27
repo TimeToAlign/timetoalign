@@ -10,5 +10,22 @@
   "07_alignment_basics.py": "7181ab00bfce60deb2aee3db4da0848286f7b7bf71fc2ea23d7a47c387b5c1aa",
   "08_supra_piano_roll.py": "0b1935613e32ba50b901cf598a1b37870098880134350ad89a418e17a7b01ef9",
   "09_beat_grids.py": "d9a749a13922857c341db39585f77b557d07d03039872fecd3bb92a038f39a56",
-  "10_beethoven_multimodal.py": "8dd1e45068168b9bae514ce0af553b8b65c78a9a37f47cee861c592bf43a690a"
+  "10_beethoven_multimodal.py": "8dd1e45068168b9bae514ce0af553b8b65c78a9a37f47cee861c592bf43a690a",
+  "tut01a_timelines_events_maps.py": "5207889d63421e200c93fa0cf10a0f9d28ccbd0e1e7fa9c53319dc629ef74b32",
+  "tut04_flow_and_grids.py": "c028be17754ac01896a0912ec1834d4e71108329db3a2b23c30eb087cb16b338",
+  "how01_coordinate_math.py": "5a4cbfe137e66c76fa8cbdd737162e99852487b47e22003fe96fb8329784ee44",
+  "how01_advanced_cmaps.py": "873e6dd597048a920c24c25085c3af016d3dba255075e6cdc071d020c1163950",
+  "how01_advanced_timestamps.py": "2f9b9d650546ada2b96247255486490783b2069a348917448d086be3247b25e6",
+  "how01_manual_timeline_construction.py": "16c151bfb8ab7c7dfd616c2f0ae32b356e8ac105dff84ee7386f8a7d167133ed",
+  "how01_graphical_timelines.py": "bde67c7170315d1f50794b2acd34bfaf9d735a58718734d780f0f99d5b2d4258",
+  "tut01b_children_regions_timestamps.py": "90701b18fbcb53bc4e0f644791648a5bf92c0803f8ea41b8cd2c7a1b95412415",
+  "tut02_timeline_groups.py": "6408b9e8ef6b529f9cd7e7348c4674f7db8af88142bacfc7d82e7e3c28efa476",
+  "tut03_alignment_bundles.py": "ac9f6f31984b11b0d47aa64c6b5f29a945dbcca363b18298d1cec404d4cf2d1c",
+  "how01_loading_data.py": "d8fa16606128093a54a1f9d6bdca816927284852ac7ee7ff0a8ed111f39d361f",
+  "how01_tabular_loaders.py": "b0b731347b193b6dc95b90e5f73d52b72a9febc56c03bd28cf846b64d8612721",
+  "how01_beat_grids.py": "964ba8dd7b04d1d98475b472acbc94398b195f82ec20d29ed303abc587b91c0a",
+  "how02_supra_piano_roll.py": "3fe71d06c68417a03ca772c683ef86f34fee431a3e3e3135b7e3d1d33e5ef447",
+  "how03_beethoven_multimodal.py": "0331b65d44bcb12e43a1fd474a385fcb17b2f87fe48c490019407d8fc63d21d5",
+  "how03_loading_vienna_corpus.py": "1f083e4e6df102c13f62359fe9ebf8a67ec12ffd28e841d1d1bb8b601a648e43",
+  "tut00_quickstart.py": "4c3ae02cb010576cb37794691a64ed5a6e6af403aff2fca956eafd6ce32c9fb2"
 }

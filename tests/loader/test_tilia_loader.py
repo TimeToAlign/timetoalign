@@ -12,6 +12,7 @@ Test specimen:
 
 See Also:
     timetoalign.loader.alignment.tilia.TiliaJsonLoader
+    timetoalign.loader.alignment.tilia.TiliaDictStore
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from pathlib import Path
 import pyarrow as pa
 import pytest
 
-from timetoalign.loader.alignment.tilia import TiliaJsonLoader
+from timetoalign.loader.alignment.tilia import TiliaDictStore, TiliaJsonLoader
 
 # region Test data paths
 
@@ -137,6 +138,84 @@ class TestTiliaLoading:
             assert (
                 table.num_rows == expected_count
             ), f"Table '{tl_id}': expected {expected_count} rows, got {table.num_rows}"
+
+
+# endregion
+
+
+# region Store integration tests
+
+
+class TestTiliaStore:
+    """TiliaJsonLoader.store returns a TiliaDictStore."""
+
+    def test_store_is_tilia_dict_store(self, bruckner_loader: TiliaJsonLoader) -> None:
+        assert isinstance(bruckner_loader.store, TiliaDictStore)
+
+    def test_store_keys_match_timeline_ids(
+        self, bruckner_loader: TiliaJsonLoader
+    ) -> None:
+        assert set(bruckner_loader.store.keys()) == set(EXPECTED_TIMELINE_IDS)
+
+    def test_store_len(self, bruckner_loader: TiliaJsonLoader) -> None:
+        assert len(bruckner_loader.store) == EXPECTED_N_TIMELINES
+
+    def test_store_getitem(self, bruckner_loader: TiliaJsonLoader) -> None:
+        """Store[key] returns EventData wrapping the pa.Table."""
+        from timetoalign.loader.events import EventData
+
+        for tl_id in EXPECTED_TIMELINE_IDS:
+            data = bruckner_loader.store[tl_id]
+            assert isinstance(data, EventData)
+
+    def test_store_hierarchy_property(self, bruckner_loader: TiliaJsonLoader) -> None:
+        """store.hierarchy returns concatenation of all hierarchy tables."""
+        hierarchy = bruckner_loader.store.hierarchy
+        # One hierarchy timeline with 33 components
+        assert hierarchy._table.num_rows == 33
+
+    def test_store_beat_property(self, bruckner_loader: TiliaJsonLoader) -> None:
+        """store.beat returns concatenation of all beat tables."""
+        beat = bruckner_loader.store.beat
+        # One beat timeline with 1146 components
+        assert beat._table.num_rows == 1146
+
+    def test_store_marker_property(self, bruckner_loader: TiliaJsonLoader) -> None:
+        """store.marker returns concatenation of all marker tables.
+
+        Bruckner specimen has 4 marker timelines:
+        - Themen: 14 components
+        - Topik: 5 components
+        - Tempo: 12 components
+        - Dramaturgie: 11 components
+        Total: 42 components
+        """
+        marker = bruckner_loader.store.marker
+        assert marker._table.num_rows == 42
+
+    def test_store_pdf_property(self, bruckner_loader: TiliaJsonLoader) -> None:
+        """store.pdf returns concatenation of all PDF tables."""
+        pdf = bruckner_loader.store.pdf
+        # One PDF timeline with 19 components
+        assert pdf._table.num_rows == 19
+
+    def test_store_harmony_property_empty(
+        self, bruckner_loader: TiliaJsonLoader
+    ) -> None:
+        """store.harmony returns empty EventData when no harmony timelines exist."""
+        harmony = bruckner_loader.store.harmony
+        assert harmony._table.num_rows == 0
+
+    def test_store_kind_map(self, bruckner_loader: TiliaJsonLoader) -> None:
+        """kind_map should track all timeline types."""
+        km = bruckner_loader.store.kind_map
+        assert km["HIERARCHY_TIMELINE_0"] == "hierarchy"
+        assert km["MARKER_TIMELINE_1"] == "marker"
+        assert km["MARKER_TIMELINE_2"] == "marker"
+        assert km["BEAT_TIMELINE_3"] == "beat"
+        assert km["MARKER_TIMELINE_4"] == "marker"
+        assert km["MARKER_TIMELINE_5"] == "marker"
+        assert km["PDF_TIMELINE_6"] == "pdf"
 
 
 # endregion

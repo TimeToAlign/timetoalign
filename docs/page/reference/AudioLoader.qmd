@@ -31,7 +31,7 @@ Examples:
     180.0
 
     >>> # Create a timeline
-    >>> timeline = loader.to_timeline(uid="my_audio")
+    >>> timeline = loader.create_timeline(uid="my_audio")
     >>> timeline.unit
     <TimeUnit.samples: 'samples'>
     >>> timeline.length
@@ -61,9 +61,9 @@ Attributes:
 | Name | Description |
 | --- | --- |
 | [create_samples_to_seconds_map](#timetoalign.AudioLoader.create_samples_to_seconds_map) | Create a SamplesToSeconds conversion map for this audio. |
+| [create_timeline](#timetoalign.AudioLoader.create_timeline) | Create a DiscretePhysicalTimeline from the loaded audio. |
 | [from_file](#timetoalign.AudioLoader.from_file) | Load an audio file and return the loader (convenience constructor). |
 | [load](#timetoalign.AudioLoader.load) | Load audio file metadata. |
-| [to_timeline](#timetoalign.AudioLoader.to_timeline) | Create a DiscretePhysicalTimeline from the loaded audio. |
 
 ### create_samples_to_seconds_map { #timetoalign.AudioLoader.create_samples_to_seconds_map }
 
@@ -78,6 +78,40 @@ Returns:
 
 Raises:
     RuntimeError: If no audio file has been loaded.
+
+### create_timeline { #timetoalign.AudioLoader.create_timeline }
+
+```python
+AudioLoader.create_timeline(uid=None, name=None, attach_cmap=True)
+```
+
+Create a DiscretePhysicalTimeline from the loaded audio.
+
+The timeline is created with:
+- unit=TimeUnit.samples
+- length=n_samples
+- Optionally, a SamplesToSeconds C-map for coordinate conversion
+
+Args:
+    uid: Unique identifier for the timeline. If None, uses filename.
+    name: Human-readable name. If None, uses filename.
+    attach_cmap: If True, attach a SamplesToSeconds conversion map.
+
+Returns:
+    A DiscretePhysicalTimeline representing the audio file.
+
+Raises:
+    RuntimeError: If no audio file has been loaded.
+
+Examples:
+    >>> loader = AudioLoader().load("song.wav")
+    >>> timeline = loader.create_timeline()
+    >>> timeline.unit
+    <TimeUnit.samples: 'samples'>
+
+    >>> # Convert sample coordinates to seconds
+    >>> timeline.convert(44100, target_unit="seconds")
+    1.0
 
 ### from_file { #timetoalign.AudioLoader.from_file }
 
@@ -114,37 +148,3 @@ Returns:
 Raises:
     FileNotFoundError: If the file doesn't exist.
     ValueError: If the file format is not supported or cannot be read.
-
-### to_timeline { #timetoalign.AudioLoader.to_timeline }
-
-```python
-AudioLoader.to_timeline(uid=None, name=None, attach_cmap=True)
-```
-
-Create a DiscretePhysicalTimeline from the loaded audio.
-
-The timeline is created with:
-- unit=TimeUnit.samples
-- length=n_samples
-- Optionally, a SamplesToSeconds C-map for coordinate conversion
-
-Args:
-    uid: Unique identifier for the timeline. If None, uses filename.
-    name: Human-readable name. If None, uses filename.
-    attach_cmap: If True, attach a SamplesToSeconds conversion map.
-
-Returns:
-    A DiscretePhysicalTimeline representing the audio file.
-
-Raises:
-    RuntimeError: If no audio file has been loaded.
-
-Examples:
-    >>> loader = AudioLoader().load("song.wav")
-    >>> timeline = loader.to_timeline()
-    >>> timeline.unit
-    <TimeUnit.samples: 'samples'>
-
-    >>> # Convert sample coordinates to seconds
-    >>> timeline.convert(44100, target_unit="seconds")
-    1.0

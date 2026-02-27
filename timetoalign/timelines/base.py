@@ -14,6 +14,8 @@ Design principles:
 from __future__ import annotations
 
 import logging
+import warnings
+from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterator, Literal, Sequence
 
 import numpy as np
@@ -823,57 +825,162 @@ class Timeline:
     def get_event(self, event_id: str) -> dict[str, Any] | None:
         """Look up a single event by its ``id`` field.
 
-        Searches the timeline's event store for an event whose ``id``
-        column matches *event_id*. Returns the first matching row as a
-        dictionary, or ``None`` if no event with that ID exists.
-
-        This is a convenience wrapper around a PyArrow filter on the
-        ``id`` column and is intended for point lookups (e.g. verifying
-        that a score note exists on a shared timeline). For bulk queries,
-        use `get_events` or `get_events_at` instead.
+        Searches this timeline's events first, then recursively searches
+        all children. When found in a child, coordinates are adjusted to
+        the root timeline's coordinate system.
 
         Args:
             event_id: The event identifier to search for.
 
         Returns:
             A dictionary representing the event row, or ``None`` if not
-            found.
+            found anywhere in the hierarchy.
 
         Examples:
-            >>> event = timeline.get_event("n1")
+            >>> event = timeline.get_event("notes:note:000001")
             >>> event["id"]
-            'n1'
+            'notes:note:000001'
             >>> timeline.get_event("nonexistent") is None
             True
         """
+        # Search own events first
         table = self._events.table
         mask = pc.equal(table.column("id"), event_id)
         filtered = table.filter(mask)
-        if filtered.num_rows == 0:
-            return None
-        return filtered.to_pylist()[0]
+        if filtered.num_rows > 0:
+            return filtered.to_pylist()[0]
+
+        # Search children
+        for child_id, child in self._children.items():
+            result = child.get_event(event_id)
+            if result is not None:
+                # Adjust coordinates to parent space
+                child_offset = float(self._child_offsets[child_id].value)
+                for coord_key in ("start", "end"):
+                    val = result.get(coord_key)
+                    if val is not None:
+                        if isinstance(val, dict) and "value" in val:
+                            val = dict(val)
+                            val["value"] = val["value"] + child_offset
+                            result[coord_key] = val
+                result.setdefault("source_timeline", child_id)
+                return result
+
+        return None
 
     def get_events(
         self,
         temporal_type: Literal["instant", "interval"] | None = None,
         event_type: str | None = None,
-        include_segments: bool = False,
-        min_coord: float | None = None,
-        max_coord: float | None = None,
+        include_children: bool = True,
+        min_coord: float | Coordinate | None = None,
+        max_coord: float | Coordinate | None = None,
+        **column_filters: Any,
     ) -> EventData:
         """Filter and retrieve events.
+
+        When ``include_children=True`` (the default), events from all
+        children are included with their coordinates adjusted to the
+        root timeline's coordinate system. Segment events (internal
+        bookkeeping) are always excluded.
 
         Args:
             temporal_type: Filter by "instant" or "interval".
             event_type: Filter by event type name.
-            include_segments: If True, include segment events. Default False.
-            min_coord: Minimum coordinate (inclusive).
-            max_coord: Maximum coordinate (exclusive).
+            include_children: If True (default), include events from all
+                children with root-relative coordinates.
+            min_coord: Minimum coordinate (inclusive). Can be a float in
+                native units or a `Coordinate` with a different unit
+                (converted via inverse C-Map).
+            max_coord: Maximum coordinate (exclusive). Same conversion
+                rules as min_coord.
+            **column_filters: Additional column equality filters. Each
+                kwarg name is a column name, and the value is the
+                required value (or a list of values for OR logic).
 
         Returns:
-            A filtered EventData.
+            A filtered EventData with all matching events.
+
+        Examples:
+            >>> # Filter by coordinate range
+            >>> events = tl.get_events(min_coord=10.0, max_coord=20.0)
+
+            >>> # Filter with a Coordinate in a different unit
+            >>> from timetoalign import Coordinate, TimeUnit
+            >>> coord = Coordinate(5.0, TimeUnit.seconds)
+            >>> events = tl.get_events(min_coord=coord)
+
+            >>> # Arbitrary column filters
+            >>> events = tl.get_events(pitch=60)  # Only middle C
+            >>> events = tl.get_events(pitch=[60, 62, 64])  # C, D, E
         """
+        # Convert Coordinate objects to native unit if needed
+        min_coord_float: float | None = None
+        max_coord_float: float | None = None
+
+        if min_coord is not None:
+            if isinstance(min_coord, Coordinate):
+                if min_coord.unit != self._unit:
+                    imap = self._get_unit_map(min_coord.unit)
+                    if imap is None:
+                        raise ValueError(
+                            f"No C-Map available for unit '{min_coord.unit}'. "
+                            f"Cannot convert min_coord."
+                        )
+                    min_coord_float = float(imap.inverse(float(min_coord.value)))
+                else:
+                    min_coord_float = float(min_coord.value)
+            else:
+                min_coord_float = float(min_coord)
+
+        if max_coord is not None:
+            if isinstance(max_coord, Coordinate):
+                if max_coord.unit != self._unit:
+                    imap = self._get_unit_map(max_coord.unit)
+                    if imap is None:
+                        raise ValueError(
+                            f"No C-Map available for unit '{max_coord.unit}'. "
+                            f"Cannot convert max_coord."
+                        )
+                    max_coord_float = float(imap.inverse(float(max_coord.value)))
+                else:
+                    max_coord_float = float(max_coord.value)
+            else:
+                max_coord_float = float(max_coord)
+        # Start with own events, always excluding segment events
         result = self._events
+        segment_data = result.filter(event_type=SEGMENT_EVENT_TYPE)
+        if len(segment_data) > 0:
+            result = EventData.from_dicts(
+                [row for row in result if row.get("event_type") != SEGMENT_EVENT_TYPE],
+                self._unit,
+                self._number_type,
+            )
+
+        # Include children's events with offset-adjusted coordinates
+        if include_children and self._children:
+            all_rows: list[dict[str, Any]] = list(result)
+            for child_id, child in self._children.items():
+                child_offset = float(self._child_offsets[child_id].value)
+                child_events = child.get_events(
+                    include_children=True,  # recurse
+                )
+                for event in child_events:
+                    row = dict(event)
+                    # Adjust coordinates to root space
+                    for coord_key in ("start", "end"):
+                        val = row.get(coord_key)
+                        if val is not None:
+                            if isinstance(val, dict) and "value" in val:
+                                val = dict(val)
+                                val["value"] = val["value"] + child_offset
+                                row[coord_key] = val
+                            elif isinstance(val, (int, float)):
+                                row[coord_key] = val + child_offset
+                    # Tag with source timeline for provenance
+                    row.setdefault("source_timeline", child_id)
+                    all_rows.append(row)
+            result = EventData.from_dicts(all_rows, self._unit, self._number_type)
 
         if temporal_type is not None:
             result = result.filter(temporal_type=temporal_type)
@@ -881,24 +988,12 @@ class Timeline:
         if event_type is not None:
             result = result.filter(event_type=event_type)
 
-        if not include_segments:
-            # Exclude segment events by getting all and filtering
-            # Note: This could be optimized with a NOT filter
-            segment_data = result.filter(event_type=SEGMENT_EVENT_TYPE)
-            if len(segment_data) > 0:
-                # Filter by getting non-segment events
-                result = EventData.from_dicts(
-                    [
-                        row
-                        for row in result
-                        if row.get("event_type") != SEGMENT_EVENT_TYPE
-                    ],
-                    self._unit,
-                    self._number_type,
-                )
+        if min_coord_float is not None or max_coord_float is not None:
+            result = result.filter(min_coord=min_coord_float, max_coord=max_coord_float)
 
-        if min_coord is not None or max_coord is not None:
-            result = result.filter(min_coord=min_coord, max_coord=max_coord)
+        # Apply arbitrary column filters
+        if column_filters:
+            result = result.filter(**column_filters)
 
         return result
 
@@ -958,7 +1053,7 @@ class Timeline:
         result: list[dict[str, Any]] = []
 
         # Get this timeline's events (excluding segment events)
-        local_events = self.get_events(include_segments=False)
+        local_events = self.get_events(include_children=False)
 
         for event in local_events:
             # Filter by event type if specified
@@ -1094,7 +1189,7 @@ class Timeline:
         """Get events at a coordinate in this timeline (local, no children)."""
         result = []
 
-        for event in self.get_events(include_segments=False):
+        for event in self.get_events(include_children=False):
             temporal_type = event.get("temporal_type")
 
             if temporal_type == "instant":
@@ -2208,6 +2303,30 @@ class Timeline:
             source_id=self._id,
         )
 
+    def get_timestamp_at(
+        self,
+        coord: CoordinateValue | Coordinate,
+        unit: TimeUnit | str | None = None,
+    ) -> TimeStamp:
+        """Alias for `get_timestamp()` for API consistency with TimelineGroup.
+
+        TimelineGroup uses `get_timestamp_at(coord, tl_id)` with an additional
+        timeline_id parameter. This alias provides a consistent verb across
+        the hierarchy.
+
+        Args:
+            coord: Coordinate value (see `get_timestamp()` for details).
+            unit: Optional unit for coordinate interpretation.
+
+        Returns:
+            TimeStamp object for the resolved coordinate.
+
+        See Also:
+            get_timestamp: The primary coordinate resolution method.
+            timetoalign.TimelineGroup.get_timestamp_at: Group-level version.
+        """
+        return self.get_timestamp(coord, unit)
+
     def get_interval_stamp(
         self,
         start: CoordinateValue | Coordinate,
@@ -2235,6 +2354,132 @@ class Timeline:
             start=self.get_timestamp(start, unit),
             end=self.get_timestamp(end, unit),
         )
+
+    def get_timestamp_of(self, event_id: str) -> TimeStamp | TimeIntervalStamp:
+        """Get the timestamp for a specific event by its ID.
+
+        Returns a TimeStamp for instant events, or a TimeIntervalStamp for
+        interval events. Searches recursively through children if the event
+        is not found on this timeline directly.
+
+        Args:
+            event_id: The event identifier to look up.
+
+        Returns:
+            TimeStamp for instant events, TimeIntervalStamp for interval events.
+
+        Raises:
+            KeyError: If no event with the given ID exists.
+
+        Examples:
+            >>> ts = timeline.get_timestamp_of("note:000001")
+            >>> ts.axis  # For instant events
+            5.0
+
+            >>> ts = timeline.get_timestamp_of("clt1:note:000001")
+            >>> ts.start.axis  # For interval events
+            0.0
+            >>> ts.end.axis
+            2.5
+
+        See Also:
+            get_timestamp: Get timestamp by coordinate.
+            get_event: Get the raw event dict by ID.
+        """
+        event = self.get_event(event_id)
+        if event is None:
+            raise KeyError(f"Event {event_id!r} not found")
+
+        # Extract coordinate from the start field
+        start_val = event.get("start")
+        if start_val is None:
+            raise ValueError(f"Event {event_id!r} has no 'start' coordinate")
+        if isinstance(start_val, dict) and "value" in start_val:
+            start_coord = float(start_val["value"])
+        else:
+            start_coord = float(start_val)
+
+        # Check if this is an interval event
+        end_val = event.get("end")
+        if end_val is not None:
+            if isinstance(end_val, dict) and "value" in end_val:
+                end_coord = float(end_val["value"])
+            else:
+                end_coord = float(end_val)
+            return self.get_interval_stamp(start_coord, end_coord)
+
+        return self.get_timestamp(start_coord)
+
+    def get_timestamps_of(
+        self,
+        event_ids: Sequence[str],
+    ) -> pd.DataFrame:
+        """Get timestamps for multiple events, returned as a DataFrame.
+
+        For each event, includes columns for start coordinate, end coordinate
+        (if interval), event type, and temporal type.
+
+        Args:
+            event_ids: Sequence of event identifiers to look up.
+
+        Returns:
+            DataFrame indexed by event_id with columns:
+            - ``start``: Start coordinate value
+            - ``end``: End coordinate value (NaN for instant events)
+            - ``event_type``: The event type name
+            - ``temporal_type``: "instant" or "interval"
+
+        Raises:
+            KeyError: If any event ID is not found.
+
+        Examples:
+            >>> df = timeline.get_timestamps_of(["note:000001", "note:000002"])
+            >>> df.loc["note:000001", "start"]
+            0.0
+
+        See Also:
+            get_timestamp_of: Get a single event's timestamp.
+            get_events: Filter events by type or coordinate range.
+        """
+        rows = []
+        for event_id in event_ids:
+            event = self.get_event(event_id)
+            if event is None:
+                raise KeyError(f"Event {event_id!r} not found")
+
+            start_val = event.get("start")
+            if start_val is None:
+                raise ValueError(f"Event {event_id!r} has no 'start' coordinate")
+            if isinstance(start_val, dict) and "value" in start_val:
+                start = float(start_val["value"])
+            else:
+                start = float(start_val)
+
+            end_val = event.get("end")
+            if end_val is not None:
+                if isinstance(end_val, dict) and "value" in end_val:
+                    end = float(end_val["value"])
+                else:
+                    end = float(end_val)
+                temporal_type = "interval"
+            else:
+                end = float("nan")
+                temporal_type = "instant"
+
+            rows.append(
+                {
+                    "event_id": event_id,
+                    "start": start,
+                    "end": end,
+                    "event_type": event.get("event_type", ""),
+                    "temporal_type": temporal_type,
+                }
+            )
+
+        df = pd.DataFrame(rows)
+        if len(df) > 0:
+            df = df.set_index("event_id")
+        return df
 
     # endregion
 
@@ -2798,6 +3043,8 @@ class Timeline:
         include_boundaries: bool = False,
         *,
         units: bool = True,
+        include_ids: bool = True,
+        as_fractions: bool | None = None,
     ) -> pd.DataFrame:
         """Generate timestamps as a pandas DataFrame with units in column names.
 
@@ -2825,21 +3072,26 @@ class Timeline:
             include_events: If True and coordinates is None, extract from events.
             include_boundaries: If True, include timeline boundary coordinates.
             units: If True (default), append units to column names like "name (unit)".
+            include_ids: If True (default), add event IDs as the DataFrame
+                index. Each coordinate is matched to the nearest event at that
+                coordinate, showing what each timestamp row corresponds to.
+            as_fractions: If True, convert float values to Fraction objects for
+                fraction number-type timelines. If None (default), auto-detect
+                based on the timeline's number_type.
 
         Returns:
-            pandas DataFrame with units in column names (if units=True).
+            pandas DataFrame with units in column names (if units=True)
+            and event IDs as the index (if include_ids=True). For fraction
+            number-type timelines with as_fractions=True, coordinate columns
+            contain Fraction objects instead of floats.
 
         Examples:
             >>> df = timeline.get_timestamps()
-            >>> df.columns
-            Index(['axis (pixels)', 'tl:1 (pixels)', 'pixels_to_inches (inches)'])
-
-            >>> # Include all attached C-Maps
-            >>> df = timeline.get_timestamps(conversion_maps=True)
-
-            >>> # Without units in column names
-            >>> df = timeline.get_timestamps(units=False)
+            >>> df.index.name
+            'id'
         """
+        from fractions import Fraction
+
         from timetoalign.core.timestamp import timestamp_table_to_dataframe
 
         table = self.get_timestamp_table(
@@ -2849,7 +3101,54 @@ class Timeline:
             include_events=include_events,
             include_boundaries=include_boundaries,
         )
-        return timestamp_table_to_dataframe(table=table, units=units)
+        df = timestamp_table_to_dataframe(table=table, units=units)
+
+        # Determine if we should convert to Fractions
+        # Auto-detect if not specified: use Fractions for fraction number-type timelines
+        use_fractions = as_fractions
+        if use_fractions is None:
+            use_fractions = self._number_type == NumberType.fraction
+
+        if use_fractions:
+            # Convert float columns back to Fraction objects for fraction-type columns
+            # This is slow but provides exact representation for display
+            for col in df.columns:
+                # Skip non-numeric columns
+                if df[col].dtype not in (float, "float64", "Float64"):
+                    continue
+                # Convert to Fraction with reasonable denominator limit
+                df[col] = df[col].apply(
+                    lambda x: (
+                        Fraction(x).limit_denominator(10000) if pd.notna(x) else None
+                    )
+                )
+
+        if include_ids and include_events and coordinates is None:
+            # Build coordinate->event_id lookup from all events (incl. children)
+            all_events = self.get_events(include_children=True)
+            coord_to_ids: dict[float, str] = {}
+            for event in all_events:
+                start = event.get("start")
+                if start is not None:
+                    if isinstance(start, dict) and "value" in start:
+                        coord_val = float(start["value"])
+                    else:
+                        coord_val = float(start)
+                    event_id = event.get("id", "")
+                    # First event at each coordinate wins
+                    if coord_val not in coord_to_ids:
+                        coord_to_ids[coord_val] = event_id
+
+            # Map each row's axis coordinate to an event ID
+            axis_col = df.columns[0]  # First column is always axis
+            ids = []
+            for val in df[axis_col]:
+                fval = float(val) if val is not None else None
+                ids.append(coord_to_ids.get(fval, ""))
+            df.index = ids
+            df.index.name = "id"
+
+        return df
 
     def to_dataframe(
         self,
@@ -2959,6 +3258,11 @@ class Timeline:
     ) -> pa.Table:
         """Generate timestamps for filtered events only.
 
+        .. deprecated::
+            This method is deprecated. Use ``get_events(**filters)`` combined
+            with ``get_timestamp_table()`` instead. The ``get_events()`` method
+            now supports arbitrary column filters via ``**kwargs``.
+
         Applies an event filter before extracting coordinates from EventData.
         This enables efficient timestamp generation for subsets of events
         (e.g., only Note events, events above a certain duration, etc.).
@@ -3005,6 +3309,12 @@ class Timeline:
             ...     conversion_maps=["seconds"],
             ... )
         """
+        warnings.warn(
+            "get_timestamp_table_filtered() is deprecated. Use get_events(**filters) "
+            "combined with get_timestamp_table() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # Extract filtered coordinates
         filtered_coords = self._collect_all_coordinates(
             recursion_limit=recursion_limit,
@@ -3046,6 +3356,11 @@ class Timeline:
     ) -> pd.DataFrame:
         """Generate timestamps for filtered events as a pandas DataFrame.
 
+        .. deprecated::
+            This method is deprecated. Use ``get_events(**filters)`` combined
+            with ``get_timestamps()`` instead. The ``get_events()`` method
+            now supports arbitrary column filters via ``**kwargs``.
+
         Convenience wrapper around get_timestamp_table_filtered() for users
         who prefer working with pandas.
 
@@ -3062,6 +3377,12 @@ class Timeline:
             >>> df = timeline.get_timestamps_filtered({"event_type": "Note"})
             >>> df.head()
         """
+        warnings.warn(
+            "get_timestamps_filtered() is deprecated. Use get_events(**filters) "
+            "combined with get_timestamps() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         table = self.get_timestamp_table_filtered(
             event_filter=event_filter,
             conversion_maps=conversion_maps,
@@ -3618,7 +3939,7 @@ class Timeline:
 
     def _sorted_event_dicts(self) -> list[dict[str, Any]]:
         """Return events as dicts sorted by start coordinate."""
-        events_list = list(self.get_events(include_segments=False))
+        events_list = list(self.get_events(include_children=False))
         events_list.sort(
             key=lambda e: self._extract_coord_value(e, "start", "instant") or 0.0
         )
@@ -3865,6 +4186,266 @@ class Timeline:
 
         if adjusted_events:
             child.add_events(adjusted_events)
+
+    # endregion
+
+    # region Slicing
+
+    def get_slice(
+        self,
+        start: CoordinateValue,
+        end: CoordinateValue,
+        *,
+        truncate_events: bool = True,
+        include_children: bool = True,
+        copy_cmaps: bool = True,
+    ) -> "Timeline":
+        """Extract a portion of this timeline as a new, independent timeline.
+
+        Returns a new timeline containing all events within [start, end).
+        The returned timeline has its coordinate origin at 0, with all
+        coordinates shifted by -start.
+
+        From the TTA manuscript: slicing creates a new timeline that is a
+        structural copy of the specified interval of the source.
+
+        Args:
+            start: Start coordinate (inclusive).
+            end: End coordinate (exclusive).
+            truncate_events: If True (default), interval events straddling
+                the slice boundaries are clipped to [start, end). If False,
+                events must be fully contained to be included.
+            include_children: If True (default), child timelines whose span
+                overlaps [start, end) are recursively sliced and included.
+            copy_cmaps: If True (default), ConversionMaps are bounded-copied
+                for the slice range.
+
+        Returns:
+            New Timeline (same concrete subclass) with length = end - start,
+            coordinates shifted to [0, end-start).
+
+        Raises:
+            ValueError: If start >= end or either is outside timeline bounds.
+
+        Examples:
+            >>> source = ContinuousLogicalTimeline(length=100)
+            >>> source.add_events([
+            ...     {"event_type": "Note", "start": 10, "end": 30},
+            ...     {"event_type": "Beat", "instant": 25},
+            ... ])
+            >>> sliced = source.get_slice(20, 40)
+            >>> sliced.length.value  # 40 - 20 = 20
+            Fraction(20, 1)
+        """
+        # Coerce to the timeline's native number type for consistent arithmetic
+        nt = self._number_type
+        if nt == NumberType.fraction:
+            s = Fraction(start)
+            e = Fraction(end)
+        elif nt == NumberType.int:
+            s = int(start)
+            e = int(end)
+        else:
+            s = float(start)
+            e = float(end)
+
+        # Validate
+        if s >= e:
+            raise ValueError(f"start ({s}) must be less than end ({e})")
+        if s < 0:
+            raise ValueError(
+                f"start ({s}) is outside timeline bounds [0, {self._length.value})"
+            )
+        if e > self._length.value:
+            raise ValueError(
+                f"end ({e}) is outside timeline bounds [0, {self._length.value}]"
+            )
+
+        slice_length = e - s
+
+        # Create new timeline of same concrete class
+        sliced = self.__class__(
+            length=slice_length,
+            unit=self._unit,
+            number_type=self._number_type,
+        )
+
+        # Copy events with coordinate shifting
+        self._copy_events_to_slice(sliced, s, e, truncate_events)
+
+        # Recursively slice children
+        if include_children:
+            self._copy_children_to_slice(sliced, s, e)
+
+        # Copy conversion maps (bounded to slice range)
+        if copy_cmaps:
+            self._copy_cmaps_to_slice(sliced, s, e)
+
+        return sliced
+
+    def _copy_events_to_slice(
+        self,
+        target: "Timeline",
+        start: Any,
+        end: Any,
+        truncate_events: bool,
+    ) -> None:
+        """Copy events from [start, end) to target with coordinate shifting.
+
+        All coordinates are shifted by -start. Interval events straddling
+        boundaries are either truncated or excluded depending on
+        truncate_events.
+
+        Note: In the EventData PyArrow schema, all events store their
+        coordinate in 'start' (a struct with 'value', 'numerator',
+        'denominator' keys). Instant events have 'start' but no 'end'.
+        The 'instant' key is only used as input convenience during
+        ``add_events()`` and is converted to 'start' internally.
+
+        Args:
+            target: The target timeline to receive events.
+            start: Start coordinate (inclusive) in source coords.
+            end: End coordinate (exclusive) in source coords.
+            truncate_events: If True, clip straddling intervals. If False,
+                only include fully-contained intervals.
+        """
+        # Get all events (excluding segments, which are managed via children)
+        all_events = self.get_events()
+
+        # Convert start/end to float for comparison with PyArrow struct values
+        start_f = float(start)
+        end_f = float(end)
+
+        adjusted_events = []
+        for event in all_events:
+            ev = dict(event)
+            temporal = ev.get("temporal_type")
+
+            if temporal == "instant":
+                # In EventData, instant events have start={value:...} and end=None
+                start_dict = ev.get("start")
+                if start_dict is None:
+                    continue
+                coord = (
+                    start_dict["value"] if isinstance(start_dict, dict) else start_dict
+                )
+                # Left-inclusive, right-exclusive: start <= coord < end
+                if coord >= start_f and coord < end_f:
+                    shifted = coord - start_f
+                    ev["start"] = shifted
+                    adjusted_events.append(ev)
+
+            elif temporal == "interval":
+                ev_start_dict = ev.get("start")
+                ev_end_dict = ev.get("end")
+                if ev_start_dict is None or ev_end_dict is None:
+                    continue
+                ev_start = (
+                    ev_start_dict["value"]
+                    if isinstance(ev_start_dict, dict)
+                    else ev_start_dict
+                )
+                ev_end = (
+                    ev_end_dict["value"]
+                    if isinstance(ev_end_dict, dict)
+                    else ev_end_dict
+                )
+
+                if truncate_events:
+                    # Clip to [start, end)
+                    clipped_start = max(ev_start, start_f)
+                    clipped_end = min(ev_end, end_f)
+
+                    if clipped_start >= clipped_end:
+                        continue  # Fully outside
+
+                    shifted_start = clipped_start - start_f
+                    shifted_end = clipped_end - start_f
+                    ev["start"] = shifted_start
+                    ev["end"] = shifted_end
+                    ev["duration"] = shifted_end - shifted_start
+                    adjusted_events.append(ev)
+                else:
+                    # Only include fully contained intervals
+                    if ev_start >= start_f and ev_end <= end_f:
+                        ev["start"] = ev_start - start_f
+                        ev["end"] = ev_end - start_f
+                        ev["duration"] = (ev_end - start_f) - (ev_start - start_f)
+                        adjusted_events.append(ev)
+
+        if adjusted_events:
+            target._add_events_unchecked(adjusted_events)
+
+    def _copy_children_to_slice(
+        self,
+        target: "Timeline",
+        start: Any,
+        end: Any,
+    ) -> None:
+        """Recursively slice child timelines that overlap [start, end).
+
+        For each child at offset o with length l, if [o, o+l) overlaps
+        [start, end), recursively slice the child at the overlapping range.
+        The child's offset in the target is max(0, o - start).
+
+        Args:
+            target: The target timeline to receive sliced children.
+            start: Start coordinate in source (parent) coords.
+            end: End coordinate in source (parent) coords.
+        """
+        for child_id, child in self._children.items():
+            child_offset = self._child_offsets[child_id].value
+            child_end = child_offset + child.length.value
+
+            # Check overlap with [start, end)
+            overlap_start = max(child_offset, start)
+            overlap_end = min(child_end, end)
+
+            if overlap_start >= overlap_end:
+                continue  # No overlap
+
+            # Convert to child-local coordinates
+            child_local_start = overlap_start - child_offset
+            child_local_end = overlap_end - child_offset
+
+            # Recursively slice the child
+            sliced_child = child.get_slice(
+                child_local_start,
+                child_local_end,
+                truncate_events=True,
+                include_children=True,
+                copy_cmaps=True,
+            )
+
+            # Offset in the target timeline
+            target_offset = overlap_start - start
+            target.add_child(sliced_child, offset=target_offset, allow_expansion=True)
+
+    def _copy_cmaps_to_slice(
+        self,
+        target: "Timeline",
+        start: Any,
+        end: Any,
+    ) -> None:
+        """Copy conversion maps to a sliced timeline.
+
+        Currently copies all conversion maps without range bounding.
+        Future enhancement: implement bounded C-Map copying for the
+        slice coordinate range.
+
+        Args:
+            target: The target timeline to receive C-Maps.
+            start: Start coordinate in source coords (for future bounded copy).
+            end: End coordinate in source coords (for future bounded copy).
+        """
+        for cmap_id, cmap in self._conversion_maps.items():
+            try:
+                target.add_conversion_map(cmap)
+            except (ValueError, TypeError):
+                # Skip incompatible maps (e.g., unit mismatch after slicing)
+                self._logger.debug(
+                    f"Skipping C-Map '{cmap_id}' during slice: incompatible"
+                )
 
     # endregion
 
@@ -4411,14 +4992,16 @@ class Timeline:
 
     def __repr__(self) -> str:
         """Return string representation."""
-        return (
-            f"{self.class_name}("
-            f"id={self._id!r}, "
-            f"length={self._length.value}, "
-            f"unit={self._unit}, "
-            f"events={self.n_events}, "
-            f"children={self.n_children})"
-        )
+        parts = [
+            f"id={self._id!r}",
+            f"length={self._length.value}",
+            f"unit={self._unit}",
+            f"events={self.n_events}",
+            f"children={self.n_children}",
+        ]
+        if self.n_conversion_maps > 0:
+            parts.append(f"cmaps={self.n_conversion_maps}")
+        return f"{self.class_name}({', '.join(parts)})"
 
     def __str__(self) -> str:
         """Return human-readable ASCII diagram of the timeline.

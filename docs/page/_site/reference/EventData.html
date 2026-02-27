@@ -74,7 +74,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-dfb324f25d9b1687192fa8be62ac8f9c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -478,13 +478,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.EventData.from_dataframe" id="toc-timetoalign.EventData.from_dataframe" class="nav-link" data-scroll-target="#timetoalign.EventData.from_dataframe">from_dataframe</a></li>
   <li><a href="#timetoalign.EventData.from_dicts" id="toc-timetoalign.EventData.from_dicts" class="nav-link" data-scroll-target="#timetoalign.EventData.from_dicts">from_dicts</a></li>
   <li><a href="#timetoalign.EventData.from_parquet" id="toc-timetoalign.EventData.from_parquet" class="nav-link" data-scroll-target="#timetoalign.EventData.from_parquet">from_parquet</a></li>
-  <li><a href="#timetoalign.EventData.schema" id="toc-timetoalign.EventData.schema" class="nav-link" data-scroll-target="#timetoalign.EventData.schema">schema</a></li>
+  <li><a href="#timetoalign.EventData.get_schema" id="toc-timetoalign.EventData.get_schema" class="nav-link" data-scroll-target="#timetoalign.EventData.get_schema">get_schema</a></li>
+  <li><a href="#timetoalign.EventData.prefix_ids" id="toc-timetoalign.EventData.prefix_ids" class="nav-link" data-scroll-target="#timetoalign.EventData.prefix_ids">prefix_ids</a></li>
   <li><a href="#timetoalign.EventData.select" id="toc-timetoalign.EventData.select" class="nav-link" data-scroll-target="#timetoalign.EventData.select">select</a></li>
   <li><a href="#timetoalign.EventData.summary" id="toc-timetoalign.EventData.summary" class="nav-link" data-scroll-target="#timetoalign.EventData.summary">summary</a></li>
   <li><a href="#timetoalign.EventData.to_dataframe" id="toc-timetoalign.EventData.to_dataframe" class="nav-link" data-scroll-target="#timetoalign.EventData.to_dataframe">to_dataframe</a></li>
   <li><a href="#timetoalign.EventData.to_pandas" id="toc-timetoalign.EventData.to_pandas" class="nav-link" data-scroll-target="#timetoalign.EventData.to_pandas">to_pandas</a></li>
   <li><a href="#timetoalign.EventData.to_parquet" id="toc-timetoalign.EventData.to_parquet" class="nav-link" data-scroll-target="#timetoalign.EventData.to_parquet">to_parquet</a></li>
-  <li><a href="#timetoalign.EventData.to_timeline" id="toc-timetoalign.EventData.to_timeline" class="nav-link" data-scroll-target="#timetoalign.EventData.to_timeline">to_timeline</a></li>
   <li><a href="#timetoalign.EventData.where" id="toc-timetoalign.EventData.where" class="nav-link" data-scroll-target="#timetoalign.EventData.where">where</a></li>
   </ul></li>
   </ul></li>
@@ -530,10 +530,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>The number type for coordinate interpretation.</td>
 </tr>
 <tr class="odd">
+<td><a href="#timetoalign.EventData.schema">schema</a></td>
+<td>The PyArrow schema of the underlying table.</td>
+</tr>
+<tr class="even">
 <td><a href="#timetoalign.EventData.table">table</a></td>
 <td>The underlying PyArrow table.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.EventData.unit">unit</a></td>
 <td>The time unit for coordinates.</td>
 </tr>
@@ -607,32 +611,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Load EventData from a Parquet file.</td>
 </tr>
 <tr class="odd">
-<td><a href="#timetoalign.EventData.schema">schema</a></td>
-<td>Get the PyArrow schema for this EventData class.</td>
+<td><a href="#timetoalign.EventData.get_schema">get_schema</a></td>
+<td>Get the canonical PyArrow schema for this EventData class.</td>
 </tr>
 <tr class="even">
+<td><a href="#timetoalign.EventData.prefix_ids">prefix_ids</a></td>
+<td>Return a new EventData with all event IDs prefixed.</td>
+</tr>
+<tr class="odd">
 <td><a href="#timetoalign.EventData.select">select</a></td>
 <td>Select specific columns from the table.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.EventData.summary">summary</a></td>
 <td>Get a comprehensive summary of the store.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.EventData.to_dataframe">to_dataframe</a></td>
 <td>Convert to a DataFrame in the specified format.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.EventData.to_pandas">to_pandas</a></td>
 <td>Convert to a pandas DataFrame.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.EventData.to_parquet">to_parquet</a></td>
 <td>Save the EventData to a Parquet file.</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.EventData.to_timeline">to_timeline</a></td>
-<td>Deprecated alias for create_timeline().</td>
 </tr>
 <tr class="even">
 <td><a href="#timetoalign.EventData.where">where</a></td>
@@ -760,7 +764,7 @@ extra_fields: Optional list of PyArrow fields for extra columns.
 <p>Create EventData from a list of row dictionaries.</p>
 <p>Coordinate values (instant, start, end, duration) are automatically converted to the internal struct format. Convenience defaults are applied so that callers can omit boilerplate fields:</p>
 <ul>
-<li><strong>id</strong>: Auto-generated as <code>e000001</code>, <code>e000002</code>, … if missing.</li>
+<li><strong>id</strong>: Auto-generated as <code>{event_type}:{counter}</code> if missing, e.g.&nbsp;<code>note:000001</code>, <code>rest:000001</code>, <code>beat:000001</code>. When events are placed on a timeline, the timeline’s ID is prepended, yielding e.g.&nbsp;<code>clt:1:note:000001</code>.</li>
 <li><strong>temporal_type</strong>: Inferred from the keys present in the dict – <code>"interval"</code> when <em>both</em> <code>start</code> and <code>end</code> (or <code>duration</code>) are given, <code>"instant"</code> otherwise.</li>
 </ul>
 <p>Args: rows: List of event dictionaries. At minimum each dict needs a coordinate (<code>instant</code> <em>or</em> <code>start</code>/<code>end</code>) and an <code>event_type</code>. All other fields have sensible defaults. unit: The time unit for coordinates. number_type: The number type for coordinates.</p>
@@ -775,29 +779,39 @@ extra_fields: Optional list of PyArrow fields for extra columns.
 <p>Returns: An EventData loaded from the file.</p>
 <p>Raises: ValueError: If the file lacks required TimeToAlign! metadata.</p>
 </section>
-<section id="timetoalign.EventData.schema" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.EventData.schema">schema</h3>
-<div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>EventData.schema(unit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Get the PyArrow schema for this EventData class.</p>
+<section id="timetoalign.EventData.get_schema" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.EventData.get_schema">get_schema</h3>
+<div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>EventData.get_schema(unit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Get the canonical PyArrow schema for this EventData class.</p>
+<p>This is a class-level method that returns the schema for a given unit, independent of any specific instance. Useful for constructing empty tables or validating incoming data.</p>
 <p>Args: unit: The time unit for coordinate columns.</p>
 <p>Returns: The complete schema including base and extra fields.</p>
 </section>
+<section id="timetoalign.EventData.prefix_ids" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.EventData.prefix_ids">prefix_ids</h3>
+<div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>EventData.prefix_ids(prefix)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Return a new EventData with all event IDs prefixed.</p>
+<p>Prepends <code>prefix:</code> to every event ID. Used when events are placed onto a timeline so that IDs become globally unique and informative, e.g.&nbsp;<code>clt1:note:000001</code>.</p>
+<p>If the IDs already start with the prefix, they are left unchanged.</p>
+<p>Args: prefix: The prefix to prepend (without trailing colon).</p>
+<p>Returns: A new EventData with prefixed IDs.</p>
+</section>
 <section id="timetoalign.EventData.select" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.select">select</h3>
-<div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>EventData.select(columns)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>EventData.select(columns)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Select specific columns from the table.</p>
 <p>Args: columns: List of column names to select.</p>
 <p>Returns: A PyArrow table with only the selected columns.</p>
 </section>
 <section id="timetoalign.EventData.summary" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.summary">summary</h3>
-<div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>EventData.summary()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>EventData.summary()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Get a comprehensive summary of the store.</p>
 <p>Returns: Dict with count, temporal type counts, event type counts, coordinate range, unit, and number type.</p>
 </section>
 <section id="timetoalign.EventData.to_dataframe" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.to_dataframe">to_dataframe</h3>
-<div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>EventData.to_dataframe(<span class="bu">format</span><span class="op">=</span><span class="st">'pandas'</span>, <span class="op">*</span>, raw<span class="op">=</span><span class="va">False</span>, coordinates<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>EventData.to_dataframe(<span class="bu">format</span><span class="op">=</span><span class="st">'pandas'</span>, <span class="op">*</span>, raw<span class="op">=</span><span class="va">False</span>, coordinates<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Convert to a DataFrame in the specified format.</p>
 <p>Higher-level method that dispatches to format-specific implementations. Currently supports pandas; polars support can be added later.</p>
 <p>Args: format: DataFrame format (“pandas”). Default “pandas”. raw: If True, return raw conversion with struct dicts for coordinates. coordinates: If True, wrap values in Coordinate objects with unit info.</p>
@@ -807,7 +821,7 @@ extra_fields: Optional list of PyArrow fields for extra columns.
 </section>
 <section id="timetoalign.EventData.to_pandas" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.to_pandas">to_pandas</h3>
-<div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>EventData.to_pandas(raw<span class="op">=</span><span class="va">False</span>, coordinates<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>EventData.to_pandas(raw<span class="op">=</span><span class="va">False</span>, coordinates<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Convert to a pandas DataFrame.</p>
 <p>By default, coordinate columns (start, end, duration) are converted from the internal struct representation to the appropriate Python number type: - Fraction if numerator/denominator are present - float otherwise</p>
 <p>Args: raw: If True, return the raw PyArrow-to-pandas conversion with struct dicts for coordinate columns. Default False shows cleaned numbers. coordinates: If True, wrap coordinate values in Coordinate objects that include unit information. Only effective when raw=False.</p>
@@ -823,15 +837,9 @@ extra_fields: Optional list of PyArrow fields for extra columns.
 </section>
 <section id="timetoalign.EventData.to_parquet" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.to_parquet">to_parquet</h3>
-<div class="sourceCode" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>EventData.to_parquet(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>EventData.to_parquet(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Save the EventData to a Parquet file.</p>
 <p>Args: path: Path to write the Parquet file.</p>
-</section>
-<section id="timetoalign.EventData.to_timeline" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.EventData.to_timeline">to_timeline</h3>
-<div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>EventData.to_timeline(uid<span class="op">=</span><span class="va">None</span>, filters<span class="op">=</span><span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Deprecated alias for create_timeline().</p>
-<p>.. deprecated:: 0.2.0 Use :meth:<code>create_timeline</code> instead.</p>
 </section>
 <section id="timetoalign.EventData.where" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.where">where</h3>

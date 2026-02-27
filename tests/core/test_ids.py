@@ -477,3 +477,123 @@ class TestTimelineIdGeneratorMetadata:
 
 
 # endregion
+
+
+# region resolve_id and resolve_ids
+
+
+class TestResolveIds:
+    """Tests for resolve_ids utility."""
+
+    def test_exact_match(self) -> None:
+        """Exact match returns single-element list."""
+        from timetoalign.core import resolve_ids
+
+        ids = ["clt1", "clt2", "dlt1"]
+        assert resolve_ids("clt1", ids) == ["clt1"]
+
+    def test_substring_match(self) -> None:
+        """Substring match returns all containing IDs."""
+        from timetoalign.core import resolve_ids
+
+        ids = ["clt1", "clt2", "dlt1", "score:clt1"]
+        result = resolve_ids("clt", ids)
+        assert set(result) == {"clt1", "clt2", "score:clt1"}
+
+    def test_regex_match(self) -> None:
+        """Regex match uses re.search."""
+        from timetoalign.core import resolve_ids
+
+        ids = ["score:clt1", "perf:dlt1", "perf:dlt2"]
+        assert resolve_ids(r"^perf:", ids) == ["perf:dlt1", "perf:dlt2"]
+
+    def test_no_match_returns_empty(self) -> None:
+        """No match returns empty list."""
+        from timetoalign.core import resolve_ids
+
+        ids = ["clt1", "clt2"]
+        assert resolve_ids("xyz", ids) == []
+
+    def test_empty_pattern_returns_empty(self) -> None:
+        """Empty pattern returns empty list."""
+        from timetoalign.core import resolve_ids
+
+        assert resolve_ids("", ["clt1", "clt2"]) == []
+
+    def test_empty_ids_returns_empty(self) -> None:
+        """Empty ID list returns empty list."""
+        from timetoalign.core import resolve_ids
+
+        assert resolve_ids("clt", []) == []
+
+    def test_invalid_regex_returns_empty(self) -> None:
+        """Invalid regex pattern returns empty list (no substring match)."""
+        from timetoalign.core import resolve_ids
+
+        ids = ["clt1", "clt2"]
+        # This is an invalid regex but not a substring match
+        assert resolve_ids("[invalid", ids) == []
+
+
+class TestResolveId:
+    """Tests for resolve_id utility (single ID resolution)."""
+
+    def test_exact_match(self) -> None:
+        """Exact match returns immediately."""
+        from timetoalign.core import resolve_id
+
+        ids = ["clt1", "clt2", "dlt1"]
+        assert resolve_id("clt1", ids) == "clt1"
+
+    def test_single_substring_match(self) -> None:
+        """Single substring match returns that ID."""
+        from timetoalign.core import resolve_id
+
+        ids = ["score:clt1", "perf:dlt1"]
+        assert resolve_id("score", ids) == "score:clt1"
+
+    def test_multiple_match_returns_first_and_warns(self) -> None:
+        """Multiple matches return first and emit warning."""
+        import warnings
+
+        from timetoalign.core import resolve_id
+
+        ids = ["clt1", "clt2", "dlt1"]
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = resolve_id("clt", ids)
+            assert result == "clt1"
+            assert len(w) == 1
+            assert "matches 2 IDs" in str(w[0].message)
+
+    def test_multiple_match_no_warn(self) -> None:
+        """Multiple matches with warn_multiple=False do not warn."""
+        import warnings
+
+        from timetoalign.core import resolve_id
+
+        ids = ["clt1", "clt2", "dlt1"]
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = resolve_id("clt", ids, warn_multiple=False)
+            assert result == "clt1"
+            assert len(w) == 0
+
+    def test_no_match_raises_keyerror(self) -> None:
+        """No match raises KeyError with helpful message."""
+        from timetoalign.core import resolve_id
+
+        ids = ["clt1", "clt2"]
+        with pytest.raises(KeyError, match="No ID matches pattern"):
+            resolve_id("xyz", ids)
+
+    def test_regex_match(self) -> None:
+        """Regex pattern resolves correctly."""
+        from timetoalign.core import resolve_id
+
+        ids = ["score:clt1", "perf:dlt1", "perf:dlt2"]
+        result = resolve_id(r"^perf:", ids, warn_multiple=False)
+        assert result == "perf:dlt1"
+
+
+# endregion

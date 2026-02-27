@@ -63,13 +63,16 @@ Examples:
 | [convert](#timetoalign.TimelineGroup.convert) | Convert a coordinate from one timeline to another. |
 | [diagram](#timetoalign.TimelineGroup.diagram) | Generate ASCII diagram for this group. |
 | [from_reference](#timetoalign.TimelineGroup.from_reference) | Create a new group with a reference timeline. |
+| [get_events](#timetoalign.TimelineGroup.get_events) | Get events from all timelines in the group, concatenated. |
 | [get_range](#timetoalign.TimelineGroup.get_range) | Get the coordinate range for a timeline in the group. |
 | [get_timeline](#timetoalign.TimelineGroup.get_timeline) | Get a timeline by ID. |
 | [get_timestamp](#timetoalign.TimelineGroup.get_timestamp) | Get a specific timestamp by index. |
 | [get_timestamp_at](#timetoalign.TimelineGroup.get_timestamp_at) | Get a GroupTimestamp at a specific coordinate. |
+| [get_timestamp_of](#timetoalign.TimelineGroup.get_timestamp_of) | Get the GroupTimestamp for a specific event by its ID. |
 | [get_timestamp_table](#timetoalign.TimelineGroup.get_timestamp_table) | Get the timestamp table (or a filtered subset). |
 | [get_timestamps_at](#timetoalign.TimelineGroup.get_timestamps_at) | Get timestamps at multiple coordinates - the batch version of get_timestamp_at. |
 | [get_timestamps_df](#timetoalign.TimelineGroup.get_timestamps_df) | Convenience wrapper returning pandas DataFrame with units in column names. |
+| [get_timestamps_of](#timetoalign.TimelineGroup.get_timestamps_of) | Get timestamps for multiple events. |
 | [get_unified_interval_stamp](#timetoalign.TimelineGroup.get_unified_interval_stamp) | Get a unified TimeIntervalStamp for a coordinate range. |
 | [get_unified_timestamp](#timetoalign.TimelineGroup.get_unified_timestamp) | Get a unified TimeStamp at a specific coordinate. |
 | [lock](#timetoalign.TimelineGroup.lock) | Lock the group to prevent extension. |
@@ -224,6 +227,39 @@ Args:
 Returns:
     A new TimelineGroup containing only the reference timeline.
 
+### get_events { #timetoalign.TimelineGroup.get_events }
+
+```python
+TimelineGroup.get_events(timeline_id=None, **kwargs)
+```
+
+Get events from all timelines in the group, concatenated.
+
+Collects events from all member timelines (or a specific one) and
+concatenates them into a single DataFrame. Each row includes a
+``timeline_id`` column identifying the source timeline.
+
+Args:
+    timeline_id: If provided, only return events from this timeline.
+        Supports partial string and regex matching.
+    **kwargs: Passed through to each timeline's ``get_events()`` method
+        (e.g., ``min_coord``, ``max_coord``, ``event_type``).
+
+Returns:
+    DataFrame with events from all (or specified) timelines. Includes
+    a ``timeline_id`` column and standard event columns (``start``,
+    ``end``, ``event_type``, etc.).
+
+Examples:
+    >>> # Get all events from all timelines
+    >>> df = group.get_events()
+
+    >>> # Get events from a specific timeline
+    >>> df = group.get_events(timeline_id="clt1")
+
+    >>> # Get events with filters
+    >>> df = group.get_events(event_type="Note", min_coord=0.0, max_coord=100.0)
+
 ### get_range { #timetoalign.TimelineGroup.get_range }
 
 ```python
@@ -247,14 +283,26 @@ TimelineGroup.get_timeline(timeline_id)
 
 Get a timeline by ID.
 
+Supports partial string and regex matching:
+1. Exact match: If ``timeline_id`` matches an ID exactly, returns it.
+2. Substring match: If ``timeline_id`` is a substring of exactly one ID,
+   returns that timeline. If multiple match, returns the first and warns.
+3. Regex match: If ``timeline_id`` is a valid regex, matches via
+   ``re.search()``. Same first-match logic with warning.
+
 Args:
-    timeline_id: The timeline's unique identifier.
+    timeline_id: The timeline's unique identifier, or a partial/regex pattern.
 
 Returns:
     The Timeline object.
 
 Raises:
-    KeyError: If no timeline with that ID exists.
+    KeyError: If no timeline matches the pattern.
+
+Examples:
+    >>> group.get_timeline("clt1")           # Exact match
+    >>> group.get_timeline("notes")          # Substring match
+    >>> group.get_timeline(r"^score:")       # Regex match
 
 ### get_timestamp { #timetoalign.TimelineGroup.get_timestamp }
 
@@ -320,6 +368,32 @@ Examples:
     33.33...
     >>> ts["pixels_to_inches"]  # C-Map value (if conversion_maps=True)
     0.25
+
+### get_timestamp_of { #timetoalign.TimelineGroup.get_timestamp_of }
+
+```python
+TimelineGroup.get_timestamp_of(event_id)
+```
+
+Get the GroupTimestamp for a specific event by its ID.
+
+Searches all timelines in the group for the event and returns
+the corresponding group timestamp (coordinates on all timelines).
+
+Args:
+    event_id: The event's unique identifier.
+
+Returns:
+    GroupTimestamp at the event's coordinate, with coordinates
+    on all timelines in the group.
+
+Raises:
+    KeyError: If the event is not found in any timeline.
+
+Examples:
+    >>> ts = group.get_timestamp_of("note:000001")
+    >>> ts["audio"]  # Get coordinate on audio timeline
+    45.5
 
 ### get_timestamp_table { #timetoalign.TimelineGroup.get_timestamp_table }
 
@@ -399,6 +473,30 @@ Returns:
     pandas DataFrame with timestamp data and units in column names,
     including C-Map columns if conversion_maps=True.
 
+### get_timestamps_of { #timetoalign.TimelineGroup.get_timestamps_of }
+
+```python
+TimelineGroup.get_timestamps_of(event_ids)
+```
+
+Get timestamps for multiple events.
+
+Searches all timelines in the group for each event and returns
+a DataFrame with group timestamps.
+
+Args:
+    event_ids: List of event IDs to look up.
+
+Returns:
+    DataFrame with one row per event, indexed by event_id.
+    Columns are timeline IDs with their coordinates.
+    Events not found have NaN values.
+
+Examples:
+    >>> df = group.get_timestamps_of(["note:000001", "note:000002"])
+    >>> df.columns
+    Index(['clt1', 'audio', 'dgt1'])
+
 ### get_unified_interval_stamp { #timetoalign.TimelineGroup.get_unified_interval_stamp }
 
 ```python
@@ -406,6 +504,10 @@ TimelineGroup.get_unified_interval_stamp(start, end, timeline_id)
 ```
 
 Get a unified TimeIntervalStamp for a coordinate range.
+
+.. deprecated::
+    This method is deprecated. Use ``get_timestamp_at()`` for start and end
+    coordinates separately, then combine into a ``TimeIntervalStamp`` if needed.
 
 Args:
     start: Start coordinate.
@@ -429,6 +531,10 @@ TimelineGroup.get_unified_timestamp(coordinate, timeline_id)
 ```
 
 Get a unified TimeStamp at a specific coordinate.
+
+.. deprecated::
+    This method is deprecated. Use ``get_timestamp_at(coordinate, timeline_id)``
+    instead, which returns a ``GroupTimestamp`` with full group-level expansion.
 
 This is the new unified API that returns a TimeStamp object
 compatible with Timeline.get_timestamp(). It provides the same

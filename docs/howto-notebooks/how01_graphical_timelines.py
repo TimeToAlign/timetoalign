@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.0
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -72,7 +72,7 @@ idx = 0  # Mock source index
 # loader.add_horizontal_segment(idx, x0=50, x1=800, y=400, name="system_3")
 
 # Build the bundle
-# bundle = loader.bundle
+# bundle = loader.store
 
 print("Bundle structure:")
 # print(f"  Sources: {bundle.n_sources}")
@@ -134,7 +134,7 @@ loader2 = GraphicalLoader(metadata={"source": "Multi-page Analysis"})
 
 # %%
 # Create timeline from bundle
-# timeline = bundle.to_timeline(uid="score_timeline", name="Example Score")
+# timeline = bundle.create_timeline(uid="score_timeline", name="Example Score")
 
 # print(f"Timeline: {timeline.id}")
 # print(f"  Length: {timeline.length}")

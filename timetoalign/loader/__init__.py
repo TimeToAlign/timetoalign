@@ -45,7 +45,7 @@ structures and table metadata.
 from __future__ import annotations
 
 from .base import AlignmentLoader, EventLoader, Loader, ManifestData, ManifestLoader
-from .bundle import AlignmentStore, DictStore, EventStore, MatchData, SingleStore
+from .events import EventData
 from .physical import (
     AudioInfo,
     AudioLoader,
@@ -75,7 +75,7 @@ from .schema import (
     parse_table_metadata,
     struct_to_coordinate,
 )
-from .store import EventData
+from .store import AlignmentStore, DictStore, EventStore, MatchData, SingleStore
 from .table_schema import (
     CMapColumn,
     ColumnRole,
@@ -107,6 +107,7 @@ __all__ = [
     "AlignmentLoader",
     # Alignment loaders
     "MatchfileLoader",
+    "TiliaDictStore",
     "TiliaJsonLoader",
     # Physical domain loaders
     "AudioLoader",
@@ -166,4 +167,8 @@ def __getattr__(name: str):
         from .alignment import TiliaJsonLoader
 
         return TiliaJsonLoader
+    if name == "TiliaDictStore":
+        from .alignment import TiliaDictStore
+
+        return TiliaDictStore
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

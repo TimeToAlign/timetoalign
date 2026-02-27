@@ -30,7 +30,7 @@ import partitura as pt
 from typing_extensions import Self
 
 from timetoalign.alignment.anchors import MatchClaim, MatchMetadata
-from timetoalign.core import TimeUnit
+from timetoalign.core import TimeUnit, resolve_id
 from timetoalign.maps.linear import ScalarMap, ShiftMap
 from timetoalign.timelines.types import (
     ContinuousLogicalTimeline,
@@ -690,17 +690,20 @@ class MatchfileLoader:
         return bundle
 
     def create_timeline(self, id: str) -> "Timeline":
-        """Return a single timeline by uid or role string.
+        """Return a single timeline by uid, role string, or partial/regex match.
+
+        Matching precedence:
+        1. ``"score"`` — returns the shared score timeline.
+        2. Exact match on score timeline uid.
+        3. Exact match on performance timeline uid.
+        4. ``"perf:N"`` (1-indexed) — returns the N-th performance timeline.
+        5. ``"perf:pNN"`` — alternative syntax for performance indexing.
+        6. Partial/regex match on any timeline uid.
 
         Args:
-            id: Timeline uid (e.g. ``"score:Chopin_op10_no3"``) or a role
-                shorthand. For MatchfileLoader:
-
-                - ``"score"`` returns the shared score timeline.
-                - ``"perf:N"`` (1-indexed) returns the N-th performance
-                  timeline (e.g. ``"perf:1"`` for the first loaded file).
-                - The full uid of any loaded timeline is also accepted
-                  (e.g. ``"perf:Chopin_op10_no3_p01"``).
+            id: Timeline uid (e.g. ``"score:Chopin_op10_no3"``), role
+                shorthand (``"score"``, ``"perf:1"``), or partial/regex
+                pattern.
 
         Returns:
             The matching Timeline.
@@ -708,6 +711,12 @@ class MatchfileLoader:
         Raises:
             KeyError: If no timeline with the given uid or role exists.
             RuntimeError: If ``load()`` has not been called yet.
+
+        Examples:
+            >>> loader.create_timeline("score")          # Role shorthand
+            >>> loader.create_timeline("perf:1")         # First performance
+            >>> loader.create_timeline("Chopin")         # Partial match
+            >>> loader.create_timeline(r"^perf:.*p01")   # Regex match
         """
         if self._score_timeline is None:
             raise RuntimeError(
@@ -746,6 +755,20 @@ class MatchfileLoader:
                     return self._performance_timelines[idx]
             except ValueError:
                 pass
+
+        # Fallback: partial/regex match on all timeline IDs
+        all_ids = [self._score_timeline.id] + [
+            tl.id for tl in self._performance_timelines
+        ]
+        try:
+            resolved_id = resolve_id(id, all_ids, warn_multiple=True)
+            if resolved_id == self._score_timeline.id:
+                return self._score_timeline
+            for perf_tl in self._performance_timelines:
+                if perf_tl.id == resolved_id:
+                    return perf_tl
+        except KeyError:
+            pass
 
         raise KeyError(
             f"No timeline with id or role '{id}'. "

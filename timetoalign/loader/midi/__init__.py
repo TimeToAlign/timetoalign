@@ -13,9 +13,9 @@ If you attempt to import a loader whose dependency is not installed, an
 """
 
 from .base import MidiLoader
-from .bundle import MidiStore
 from .constants import CC_PURPOSE, MidiEventType
-from .store import MidiEventData
+from .events import MidiEventData
+from .store import MidiStore
 
 __all__ = [
     "CC_PURPOSE",

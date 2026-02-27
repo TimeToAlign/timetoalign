@@ -36,7 +36,7 @@ This documentation follows the
 :   Step-by-step notebooks that teach the `timetoalign` library from
     first principles, using real-world data.
 
-    - [Why TimeToAlign! Matters](tutorials/tut00_motivation.ipynb)
+    - [Quickstart](tutorials/tut00_quickstart.ipynb)
     - [Timelines, Events, and Maps](tutorials/tut01a_timelines_events_maps.ipynb)
     - [Children, Regions, and Timestamps](tutorials/tut01b_children_regions_timestamps.ipynb)
     - [Timeline Groups and Commensurability](tutorials/tut02_timeline_groups.ipynb)

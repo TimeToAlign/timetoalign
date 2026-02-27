@@ -17,6 +17,7 @@ import pyarrow as pa
 import pytest
 
 from timetoalign.loader.format.json import JsonLoader
+from timetoalign.loader.store import DictStore
 
 # region Test data paths
 
@@ -211,6 +212,58 @@ class TestCocoAnnotations:
 # endregion
 
 
+# region Store integration
+
+
+class TestJsonLoaderStore:
+    """JsonLoader.store returns a DictStore wrapping the normalised tables."""
+
+    def test_store_is_dict_store(self, wagner_loader: JsonLoader) -> None:
+        assert isinstance(wagner_loader.store, DictStore)
+
+    def test_store_keys_match_loader_keys(self, wagner_loader: JsonLoader) -> None:
+        assert set(wagner_loader.store.keys()) == set(wagner_loader.keys())
+
+    def test_store_len_matches_loader_len(self, wagner_loader: JsonLoader) -> None:
+        assert len(wagner_loader.store) == len(wagner_loader)
+
+    def test_store_getitem_returns_event_data(self, wagner_loader: JsonLoader) -> None:
+        """Store values should be EventData wrapping pa.Table."""
+        from timetoalign.loader.events import EventData
+
+        for key in wagner_loader.keys():
+            data = wagner_loader.store[key]
+            assert isinstance(data, EventData)
+
+    def test_store_table_matches_get_table(self, wagner_loader: JsonLoader) -> None:
+        """EventData._table should be the same pa.Table as get_table()."""
+        for key in wagner_loader.keys():
+            store_table = wagner_loader.store[key]._table
+            direct_table = wagner_loader.get_table(key)
+            assert store_table.equals(direct_table)
+
+    def test_store_iteration(self, wagner_loader: JsonLoader) -> None:
+        """Should be able to iterate over store items."""
+        count = 0
+        for name, data in wagner_loader.store.items():
+            assert isinstance(name, str)
+            count += 1
+        assert count == 3
+
+    def test_store_contains(self, wagner_loader: JsonLoader) -> None:
+        assert "staves" in wagner_loader.store
+        assert "nonexistent" not in wagner_loader.store
+
+    def test_tables_property_unwraps(self, wagner_loader: JsonLoader) -> None:
+        """tables property should return raw pa.Table objects."""
+        tables = wagner_loader.tables
+        for key, table in tables.items():
+            assert isinstance(table, pa.Table)
+
+
+# endregion
+
+
 # region Edge cases
 
 
@@ -232,6 +285,11 @@ class TestJsonLoaderEdgeCases:
         assert len(wagner_loader) == 0
         assert wagner_loader.raw_data is None
 
+    def test_clear_resets_store(self, wagner_loader: JsonLoader) -> None:
+        assert len(wagner_loader.store) > 0
+        wagner_loader.clear()
+        assert len(wagner_loader.store) == 0
+
     def test_load_dict_api(self) -> None:
         """load_dict() should work with an already-parsed dict."""
         data = {
@@ -244,6 +302,19 @@ class TestJsonLoaderEdgeCases:
         loader.load_dict(data)
         table = loader.get_table("items")
         assert table.num_rows == 2
+
+    def test_load_dict_populates_store(self) -> None:
+        """load_dict() should populate the store."""
+        data = {
+            "items": [
+                {"id": 1, "name": "a"},
+                {"id": 2, "name": "b"},
+            ]
+        }
+        loader = JsonLoader()
+        loader.load_dict(data)
+        assert "items" in loader.store
+        assert len(loader.store) == 1
 
     def test_repr(self, wagner_loader: JsonLoader) -> None:
         r = repr(wagner_loader)

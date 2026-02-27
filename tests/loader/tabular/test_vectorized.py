@@ -166,8 +166,8 @@ class TestEventDataFromArrays:
 
     def test_from_arrays_with_struct_arrays(self) -> None:
         """Construct EventData with pre-parsed coordinate arrays."""
+        from timetoalign.loader.events import EventData
         from timetoalign.loader.parsing import CoordinateParser
-        from timetoalign.loader.store import EventData
 
         # Pre-parse coordinates
         start_coords = CoordinateParser.parse(
@@ -188,8 +188,8 @@ class TestEventDataFromArrays:
 
     def test_from_arrays_infers_temporal_type(self) -> None:
         """from_arrays infers temporal_type from end coordinate."""
+        from timetoalign.loader.events import EventData
         from timetoalign.loader.parsing import CoordinateParser
-        from timetoalign.loader.store import EventData
 
         coord_type = pa.struct(
             [

@@ -13,7 +13,7 @@ from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import coordinate_to_struct, fraction_to_struct
 
 from .base import ScoreLoader
-from .bundle import ScoreStore
+from .store import ScoreStore
 from .stores import (
     AnnotationEventData,
     ControlEventData,
@@ -278,6 +278,36 @@ class TSVLoader(ScoreLoader):
             return Fraction(val).limit_denominator(10000)
         return None
 
+    def _resolve_quarterbeats(self, row: "pd.Series") -> Fraction | None:
+        """Resolve the quarterbeats coordinate from a TSV row.
+
+        Prefers ``quarterbeats_all_endings`` when the column is present
+        in the row, falling back to ``quarterbeats`` otherwise.  This is
+        required for scores with volta brackets: the ``quarterbeats``
+        column uses a coordinate space that *skips* first-ending measures
+        (leaving them as NaN), whereas ``quarterbeats_all_endings``
+        assigns every measure a unique position in a continuous coordinate
+        space that includes all volta endings.
+
+        Using ``quarterbeats_all_endings`` as the primary source ensures
+        that the resulting `timetoalign.Timeline` has a coordinate range
+        that spans the full folded score, matching the cumulative
+        MeasureUnit durations used by `compute_qb_sections`.
+
+        Args:
+            row: A pandas Series representing one row of the TSV.
+
+        Returns:
+            Parsed Fraction coordinate, or *None* if neither column
+            provides a usable value.
+        """
+        # Prefer quarterbeats_all_endings (includes all volta endings)
+        qb_all = self._parse_fraction(row.get("quarterbeats_all_endings"))
+        if qb_all is not None:
+            return qb_all
+        # Fallback: plain quarterbeats
+        return self._parse_fraction(row.get("quarterbeats"))
+
     def _load_notes(self, df: pd.DataFrame, source: Path) -> ScoreStore:
         """Load notes TSV into NoteEventData."""
         import pandas as pd
@@ -289,8 +319,8 @@ class TSVLoader(ScoreLoader):
         has_rests = False
 
         for _, row in df.iterrows():
-            # Temporal - Primary
-            qb = self._parse_fraction(row.get("quarterbeats", 0))
+            # Temporal - Primary (with quarterbeats_all_endings fallback)
+            qb = self._resolve_quarterbeats(row)
             qb_float = float(qb) if qb else 0.0
 
             dur_qb = self._parse_fraction(row.get("duration_qb", 0))
@@ -378,7 +408,6 @@ class TSVLoader(ScoreLoader):
 
             note_rows.append(
                 {
-                    "id": f"note_{qb_float}_{row.name}",
                     "name": str(row.get("name", "")),
                     "temporal_type": "interval" if dur_qb_float > 0 else "instant",
                     "event_type": "Note" if midi_pitch else "Rest",
@@ -496,8 +525,8 @@ class TSVLoader(ScoreLoader):
             except ValueError:
                 mn_int = mc
 
-            # ===== Temporal =====
-            qb = self._parse_fraction(row.get("quarterbeats", 0))
+            # ===== Temporal (with quarterbeats_all_endings fallback) =====
+            qb = self._resolve_quarterbeats(row)
             qb_float = float(qb) if qb else 0.0
 
             dur_qb = self._parse_fraction(row.get("duration_qb", 0))
@@ -599,8 +628,8 @@ class TSVLoader(ScoreLoader):
             # ===== Build row =====
             measure_rows.append(
                 {
-                    # Identity
-                    "id": f"measure_{mc}",
+                    # Identity - mc:NNNNN format based on measure count
+                    "id": f"mc:{mc:05d}",
                     "name": f"M{mn}",
                     "temporal_type": "interval",
                     "event_type": "Measure",
@@ -684,8 +713,8 @@ class TSVLoader(ScoreLoader):
         annotation_rows = []
 
         for idx, row in df.iterrows():
-            # Temporal
-            qb = self._parse_fraction(row.get("quarterbeats", 0))
+            # Temporal (with quarterbeats_all_endings fallback)
+            qb = self._resolve_quarterbeats(row)
             qb_float = float(qb) if qb else 0.0
 
             # Duration (if available)
@@ -718,10 +747,10 @@ class TSVLoader(ScoreLoader):
 
             annotation_rows.append(
                 {
-                    "id": f"ann_{subtype.lower()}_{qb_float}_{idx}",
+                    # ID auto-generated from event_type (subtype is used as event_type)
                     "name": label,
                     "temporal_type": "interval" if dur_qb_float else "instant",
-                    "event_type": "Annotation",
+                    "event_type": subtype,  # Use subtype (e.g., "Harmony") as event_type
                     "subtype": subtype,
                     "text": label,
                     # Temporal
@@ -796,8 +825,8 @@ class TSVLoader(ScoreLoader):
         control_rows = []
 
         for idx, row in df.iterrows():
-            # Temporal
-            qb = self._parse_fraction(row.get("quarterbeats", 0))
+            # Temporal (with quarterbeats_all_endings fallback)
+            qb = self._resolve_quarterbeats(row)
             qb_float = float(qb) if qb else 0.0
 
             # Duration (if available)
@@ -831,10 +860,10 @@ class TSVLoader(ScoreLoader):
 
             control_rows.append(
                 {
-                    "id": f"ctrl_{subtype.lower()}_{qb_float}_{idx}",
+                    # ID auto-generated from event_type (subtype is used as event_type)
                     "name": label,
                     "temporal_type": "interval" if dur_qb_float else "instant",
-                    "event_type": "Control",
+                    "event_type": subtype,  # Use subtype (e.g., "Chord") as event_type
                     "subtype": subtype,
                     "text": label,
                     "value": None,  # Chord symbols don't have numeric values

@@ -311,7 +311,7 @@ class TestMeasureDataSchema:
         from timetoalign.core import TimeUnit
         from timetoalign.loader.score.stores import MeasureData
 
-        schema = MeasureData.schema(TimeUnit.quarters)
+        schema = MeasureData.get_schema(TimeUnit.quarters)
         field_names = [f.name for f in schema]
 
         assert "start_repeat" in field_names
@@ -325,7 +325,7 @@ class TestMeasureDataSchema:
         from timetoalign.core import TimeUnit
         from timetoalign.loader.score.stores import MeasureData
 
-        schema = MeasureData.schema(TimeUnit.quarters)
+        schema = MeasureData.get_schema(TimeUnit.quarters)
         field_names = [f.name for f in schema]
 
         assert "mc" in field_names
