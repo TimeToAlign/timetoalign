@@ -448,7 +448,8 @@ class PartituraLoader(ScoreLoader):
 
                 measure_rows.append(
                     {
-                        "id": getattr(m, "id", None) or f"measure_{mc}",
+                        # mc:NNNNN format based on measure count
+                        "id": f"mc:{mc:05d}",
                         "name": str(m.number),
                         "temporal_type": "interval",
                         "event_type": "Measure",
@@ -533,10 +534,17 @@ class PartituraLoader(ScoreLoader):
                             "cents": 0.0,
                         }
 
+                # Compute name from spelled pitch if available
+                note_name = ""
+                if spelled_pitch and "sp" in spelled_pitch:
+                    note_name = spelled_pitch["sp"]
+                elif midi_pitch and "ep" in midi_pitch:
+                    note_name = f"MIDI {midi_pitch['ep']}"
+
                 note_rows.append(
                     {
-                        "id": getattr(obj, "id", None) or f"note_{float(qb_start)}",
-                        "name": "",
+                        # ID auto-generated from event_type (Note or Rest)
+                        "name": note_name,
                         "temporal_type": "interval" if dur_qb > 0 else "instant",
                         "event_type": "Rest" if is_rest else "Note",
                         "quarterbeats": fraction_to_struct(qb_start),
@@ -575,7 +583,7 @@ class PartituraLoader(ScoreLoader):
                 obj_mc = get_mc(obj.start.t)
                 control_rows.append(
                     {
-                        "id": getattr(obj, "id", None) or f"ctrl_{float(qb)}",
+                        # ID auto-generated from event_type (class name)
                         "name": obj.__class__.__name__,
                         "temporal_type": (
                             "interval" if getattr(obj, "end", None) else "instant"
@@ -604,7 +612,7 @@ class PartituraLoader(ScoreLoader):
                 obj_mc = get_mc(obj.start.t)
                 annotation_rows.append(
                     {
-                        "id": getattr(obj, "id", None),
+                        # ID auto-generated from event_type
                         "name": getattr(obj, "text", str(obj)),
                         "temporal_type": "instant",
                         "event_type": "Text",

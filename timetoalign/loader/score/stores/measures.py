@@ -312,7 +312,8 @@ class MeasureData(EventData):
 
             # Remove unused legacy fields
             processed.pop("quarterbeats_float", None)
-            processed.pop("name", None)  # Already mapped to mn
+            # Keep 'name' field - it's part of the base schema and should be preserved
+            # (e.g., "M1", "M2" for measure labels)
 
             # ===== Convert temporal columns to struct format =====
             # The schema expects coordinate structs ({value, numerator,

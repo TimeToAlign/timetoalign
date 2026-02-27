@@ -628,8 +628,8 @@ class TSVLoader(ScoreLoader):
             # ===== Build row =====
             measure_rows.append(
                 {
-                    # Identity
-                    "id": f"measure_{mc}",
+                    # Identity - mc:NNNNN format based on measure count
+                    "id": f"mc:{mc:05d}",
                     "name": f"M{mn}",
                     "temporal_type": "interval",
                     "event_type": "Measure",
@@ -747,10 +747,10 @@ class TSVLoader(ScoreLoader):
 
             annotation_rows.append(
                 {
-                    "id": f"ann_{subtype.lower()}_{qb_float}_{idx}",
+                    # ID auto-generated from event_type (subtype is used as event_type)
                     "name": label,
                     "temporal_type": "interval" if dur_qb_float else "instant",
-                    "event_type": "Annotation",
+                    "event_type": subtype,  # Use subtype (e.g., "Harmony") as event_type
                     "subtype": subtype,
                     "text": label,
                     # Temporal
@@ -860,10 +860,10 @@ class TSVLoader(ScoreLoader):
 
             control_rows.append(
                 {
-                    "id": f"ctrl_{subtype.lower()}_{qb_float}_{idx}",
+                    # ID auto-generated from event_type (subtype is used as event_type)
                     "name": label,
                     "temporal_type": "interval" if dur_qb_float else "instant",
-                    "event_type": "Control",
+                    "event_type": subtype,  # Use subtype (e.g., "Chord") as event_type
                     "subtype": subtype,
                     "text": label,
                     "value": None,  # Chord symbols don't have numeric values
