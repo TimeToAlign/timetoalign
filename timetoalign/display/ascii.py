@@ -340,6 +340,7 @@ def _build_child_row(
     coord_width: int,
     is_last: bool,
     tree_chars: dict[str, str],
+    n_events: int = 0,
 ) -> str:
     """Build a single child row with positioned bar.
 
@@ -354,6 +355,7 @@ def _build_child_row(
         coord_width: Width for coordinate columns.
         is_last: True if this is the last child (use └ instead of ├).
         tree_chars: Tree drawing character set.
+        n_events: Number of events in the child timeline.
 
     Returns:
         Formatted row string.
@@ -384,12 +386,15 @@ def _build_child_row(
     # Choose tree character
     prefix = tree_chars["last"] if is_last else tree_chars["branch"]
 
+    # Append event count after exit coordinate
+    events_suffix = f" ({n_events} events)" if n_events > 0 else ""
+
     return (
         f"  {prefix}{tree_chars['horizontal']} "
         f"{display_name:<{name_width}} "
         f"{entry_coord:>{coord_width}} "
         f"{''.join(bar_area)} "
-        f"{exit_coord}"
+        f"{exit_coord}{events_suffix}"
     )
 
 
@@ -603,8 +608,15 @@ def timeline_diagram(
         header += f" (child of {parent_id})"
 
     details: list[str] = []
-    if timeline.n_events > 0:
-        details.append(f"{timeline.n_events} events")
+    # Compute total events including children
+    own_events = timeline.n_events
+    child_events = sum(c.n_events for c in timeline._children.values())
+    total_events = own_events + child_events
+    if total_events > 0:
+        if child_events > 0 and own_events > 0:
+            details.append(f"{total_events} events ({own_events} own)")
+        else:
+            details.append(f"{total_events} events")
     if timeline.n_children > 0:
         details.append(f"{timeline.n_children} children")
     if timeline.n_regions > 0:
@@ -677,6 +689,7 @@ def timeline_diagram(
                 coord_width=coord_width,
                 is_last=is_last_overall,
                 tree_chars=tree,
+                n_events=child.n_events,
             )
             lines.append(prefix + row)
             display_index += 1
@@ -702,6 +715,7 @@ def timeline_diagram(
                 coord_width=coord_width,
                 is_last=is_last_overall,
                 tree_chars=tree,
+                n_events=child.n_events,
             )
             lines.append(prefix + row)
 

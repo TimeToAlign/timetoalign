@@ -99,11 +99,25 @@ class EventData:
         self._unit = unit
         self._number_type = number_type
 
-    # region Class Methods - Schema
+    # region Schema
+
+    @property
+    def schema(self) -> pa.Schema:
+        """The PyArrow schema of the underlying table.
+
+        Returns:
+            The schema of the stored PyArrow table, including all base and
+            extra fields with their metadata.
+        """
+        return self._table.schema
 
     @classmethod
-    def schema(cls, unit: TimeUnit) -> pa.Schema:
-        """Get the PyArrow schema for this EventData class.
+    def get_schema(cls, unit: TimeUnit) -> pa.Schema:
+        """Get the canonical PyArrow schema for this EventData class.
+
+        This is a class-level method that returns the schema for a given unit,
+        independent of any specific instance. Useful for constructing empty
+        tables or validating incoming data.
 
         Args:
             unit: The time unit for coordinate columns.
@@ -142,7 +156,7 @@ class EventData:
         Returns:
             An empty EventData with the appropriate schema.
         """
-        schema = cls.schema(unit)
+        schema = cls.get_schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
         table = pa.table({name: [] for name in cls.column_names()}, schema=schema)
@@ -161,7 +175,10 @@ class EventData:
         converted to the internal struct format. Convenience defaults are
         applied so that callers can omit boilerplate fields:
 
-        - **id**: Auto-generated as ``e000001``, ``e000002``, ... if missing.
+        - **id**: Auto-generated as ``{event_type}:{counter}`` if missing,
+          e.g. ``note:000001``, ``rest:000001``, ``beat:000001``.
+          When events are placed on a timeline, the timeline's ID is
+          prepended, yielding e.g. ``clt:1:note:000001``.
         - **temporal_type**: Inferred from the keys present in the dict --
           ``"interval"`` when *both* ``start`` and ``end`` (or ``duration``)
           are given, ``"instant"`` otherwise.
@@ -187,12 +204,17 @@ class EventData:
 
         # Convert coordinate values to struct format
         processed_rows = []
+        # Per-type counters for generating informative IDs
+        type_counters: dict[str, int] = {}
         for i, row in enumerate(rows):
             processed = dict(row)
 
-            # Auto-generate id if missing
+            # Auto-generate id if missing: use event_type prefix for informative IDs
             if "id" not in processed or processed["id"] is None:
-                processed["id"] = f"e{i:06d}"
+                etype = str(processed.get("event_type", "event")).lower()
+                type_counters.setdefault(etype, 0)
+                type_counters[etype] += 1
+                processed["id"] = f"{etype}:{type_counters[etype]:06d}"
 
             # Infer temporal_type if missing
             if "temporal_type" not in processed or processed["temporal_type"] is None:
@@ -224,7 +246,7 @@ class EventData:
                 processed["name"] = None
             processed_rows.append(processed)
 
-        schema = cls.schema(unit)
+        schema = cls.get_schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
 
@@ -299,7 +321,7 @@ class EventData:
 
         # Build processed columns dict for PyArrow table
         processed: dict[str, Any] = {}
-        schema = cls.schema(unit)
+        schema = cls.get_schema(unit)
 
         for field in schema:
             col_name = field.name
@@ -383,9 +405,27 @@ class EventData:
                             [str(x) for x in col_data], type=pa.string()
                         )
                 else:
-                    # Auto-generate IDs (vectorized)
-                    ids = np.array([f"e{i:06d}" for i in range(n_rows)])
-                    processed[col_name] = pa.array(ids)
+                    # Auto-generate IDs using event_type prefix if available
+                    event_types = get_col("event_type")
+                    if event_types is not None:
+                        # Use per-type counters for informative IDs
+                        type_counters: dict[str, int] = {}
+                        id_list = []
+                        if isinstance(event_types, (pa.Array, pa.ChunkedArray)):
+                            et_py = event_types.to_pylist()
+                        elif isinstance(event_types, np.ndarray):
+                            et_py = event_types.tolist()
+                        else:
+                            et_py = list(event_types)
+                        for et in et_py:
+                            etype = str(et).lower() if et else "event"
+                            type_counters.setdefault(etype, 0)
+                            type_counters[etype] += 1
+                            id_list.append(f"{etype}:{type_counters[etype]:06d}")
+                        processed[col_name] = pa.array(id_list, type=pa.string())
+                    else:
+                        ids = np.array([f"event:{i + 1:06d}" for i in range(n_rows)])
+                        processed[col_name] = pa.array(ids)
             elif col_data is not None:
                 # Regular column - convert to PyArrow array
                 if isinstance(col_data, (pa.Array, pa.ChunkedArray)):
@@ -532,7 +572,7 @@ class EventData:
             else:
                 processed[col_name] = [None] * n_rows
 
-        schema = cls.schema(unit)
+        schema = cls.get_schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
 
@@ -668,6 +708,34 @@ class EventData:
 
         new_table = pa.concat_tables(tables)
         return self.__class__(new_table, self.unit, self.number_type)
+
+    def prefix_ids(self, prefix: str) -> "EventData":
+        """Return a new EventData with all event IDs prefixed.
+
+        Prepends ``prefix:`` to every event ID. Used when events are placed
+        onto a timeline so that IDs become globally unique and informative,
+        e.g. ``clt1:note:000001``.
+
+        If the IDs already start with the prefix, they are left unchanged.
+
+        Args:
+            prefix: The prefix to prepend (without trailing colon).
+
+        Returns:
+            A new EventData with prefixed IDs.
+        """
+        id_col = self._table.column("id")
+        prefix_str = f"{prefix}:"
+        new_ids = pa.array(
+            [
+                f"{prefix_str}{v}" if not v.startswith(prefix_str) else v
+                for v in id_col.to_pylist()
+            ],
+            type=pa.string(),
+        )
+        idx = self._table.schema.get_field_index("id")
+        new_table = self._table.set_column(idx, self._table.schema.field(idx), new_ids)
+        return self.__class__(new_table, self._unit, self._number_type)
 
     # endregion
 

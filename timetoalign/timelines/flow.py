@@ -3531,7 +3531,7 @@ def _flatten_segment_line_onto(
         segment = segment_line._children[seg_id]
 
         # Copy parent-level events from this segment
-        events = list(segment.get_events(include_segments=False))
+        events = list(segment.get_events(include_children=False))
         if events:
             shifted_events: list[dict[str, Any]] = []
             for event in events:
@@ -3564,7 +3564,7 @@ def _flatten_segment_line_onto(
                     name=child.name,
                 )
                 # Copy child's events directly (they're already in local coords)
-                child_events = list(child.get_events(include_segments=False))
+                child_events = list(child.get_events(include_children=False))
                 if child_events:
                     child_copy.add_events(child_events, allow_expansion=True)
                 try:

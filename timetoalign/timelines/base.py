@@ -824,79 +824,115 @@ class Timeline:
     def get_event(self, event_id: str) -> dict[str, Any] | None:
         """Look up a single event by its ``id`` field.
 
-        Searches the timeline's event store for an event whose ``id``
-        column matches *event_id*. Returns the first matching row as a
-        dictionary, or ``None`` if no event with that ID exists.
-
-        This is a convenience wrapper around a PyArrow filter on the
-        ``id`` column and is intended for point lookups (e.g. verifying
-        that a score note exists on a shared timeline). For bulk queries,
-        use `get_events` or `get_events_at` instead.
+        Searches this timeline's events first, then recursively searches
+        all children. When found in a child, coordinates are adjusted to
+        the root timeline's coordinate system.
 
         Args:
             event_id: The event identifier to search for.
 
         Returns:
             A dictionary representing the event row, or ``None`` if not
-            found.
+            found anywhere in the hierarchy.
 
         Examples:
-            >>> event = timeline.get_event("n1")
+            >>> event = timeline.get_event("notes:note:000001")
             >>> event["id"]
-            'n1'
+            'notes:note:000001'
             >>> timeline.get_event("nonexistent") is None
             True
         """
+        # Search own events first
         table = self._events.table
         mask = pc.equal(table.column("id"), event_id)
         filtered = table.filter(mask)
-        if filtered.num_rows == 0:
-            return None
-        return filtered.to_pylist()[0]
+        if filtered.num_rows > 0:
+            return filtered.to_pylist()[0]
+
+        # Search children
+        for child_id, child in self._children.items():
+            result = child.get_event(event_id)
+            if result is not None:
+                # Adjust coordinates to parent space
+                child_offset = float(self._child_offsets[child_id].value)
+                for coord_key in ("start", "end"):
+                    val = result.get(coord_key)
+                    if val is not None:
+                        if isinstance(val, dict) and "value" in val:
+                            val = dict(val)
+                            val["value"] = val["value"] + child_offset
+                            result[coord_key] = val
+                result.setdefault("source_timeline", child_id)
+                return result
+
+        return None
 
     def get_events(
         self,
         temporal_type: Literal["instant", "interval"] | None = None,
         event_type: str | None = None,
-        include_segments: bool = False,
+        include_children: bool = True,
         min_coord: float | None = None,
         max_coord: float | None = None,
     ) -> EventData:
         """Filter and retrieve events.
 
+        When ``include_children=True`` (the default), events from all
+        children are included with their coordinates adjusted to the
+        root timeline's coordinate system. Segment events (internal
+        bookkeeping) are always excluded.
+
         Args:
             temporal_type: Filter by "instant" or "interval".
             event_type: Filter by event type name.
-            include_segments: If True, include segment events. Default False.
-            min_coord: Minimum coordinate (inclusive).
-            max_coord: Maximum coordinate (exclusive).
+            include_children: If True (default), include events from all
+                children with root-relative coordinates.
+            min_coord: Minimum coordinate (inclusive), in root coordinates.
+            max_coord: Maximum coordinate (exclusive), in root coordinates.
 
         Returns:
-            A filtered EventData.
+            A filtered EventData with all matching events.
         """
+        # Start with own events, always excluding segment events
         result = self._events
+        segment_data = result.filter(event_type=SEGMENT_EVENT_TYPE)
+        if len(segment_data) > 0:
+            result = EventData.from_dicts(
+                [row for row in result if row.get("event_type") != SEGMENT_EVENT_TYPE],
+                self._unit,
+                self._number_type,
+            )
+
+        # Include children's events with offset-adjusted coordinates
+        if include_children and self._children:
+            all_rows: list[dict[str, Any]] = list(result)
+            for child_id, child in self._children.items():
+                child_offset = float(self._child_offsets[child_id].value)
+                child_events = child.get_events(
+                    include_children=True,  # recurse
+                )
+                for event in child_events:
+                    row = dict(event)
+                    # Adjust coordinates to root space
+                    for coord_key in ("start", "end"):
+                        val = row.get(coord_key)
+                        if val is not None:
+                            if isinstance(val, dict) and "value" in val:
+                                val = dict(val)
+                                val["value"] = val["value"] + child_offset
+                                row[coord_key] = val
+                            elif isinstance(val, (int, float)):
+                                row[coord_key] = val + child_offset
+                    # Tag with source timeline for provenance
+                    row.setdefault("source_timeline", child_id)
+                    all_rows.append(row)
+            result = EventData.from_dicts(all_rows, self._unit, self._number_type)
 
         if temporal_type is not None:
             result = result.filter(temporal_type=temporal_type)
 
         if event_type is not None:
             result = result.filter(event_type=event_type)
-
-        if not include_segments:
-            # Exclude segment events by getting all and filtering
-            # Note: This could be optimized with a NOT filter
-            segment_data = result.filter(event_type=SEGMENT_EVENT_TYPE)
-            if len(segment_data) > 0:
-                # Filter by getting non-segment events
-                result = EventData.from_dicts(
-                    [
-                        row
-                        for row in result
-                        if row.get("event_type") != SEGMENT_EVENT_TYPE
-                    ],
-                    self._unit,
-                    self._number_type,
-                )
 
         if min_coord is not None or max_coord is not None:
             result = result.filter(min_coord=min_coord, max_coord=max_coord)
@@ -959,7 +995,7 @@ class Timeline:
         result: list[dict[str, Any]] = []
 
         # Get this timeline's events (excluding segment events)
-        local_events = self.get_events(include_segments=False)
+        local_events = self.get_events(include_children=False)
 
         for event in local_events:
             # Filter by event type if specified
@@ -1095,7 +1131,7 @@ class Timeline:
         """Get events at a coordinate in this timeline (local, no children)."""
         result = []
 
-        for event in self.get_events(include_segments=False):
+        for event in self.get_events(include_children=False):
             temporal_type = event.get("temporal_type")
 
             if temporal_type == "instant":
@@ -2799,6 +2835,7 @@ class Timeline:
         include_boundaries: bool = False,
         *,
         units: bool = True,
+        include_ids: bool = True,
     ) -> pd.DataFrame:
         """Generate timestamps as a pandas DataFrame with units in column names.
 
@@ -2826,20 +2863,18 @@ class Timeline:
             include_events: If True and coordinates is None, extract from events.
             include_boundaries: If True, include timeline boundary coordinates.
             units: If True (default), append units to column names like "name (unit)".
+            include_ids: If True (default), add event IDs as the DataFrame
+                index. Each coordinate is matched to the nearest event at that
+                coordinate, showing what each timestamp row corresponds to.
 
         Returns:
-            pandas DataFrame with units in column names (if units=True).
+            pandas DataFrame with units in column names (if units=True)
+            and event IDs as the index (if include_ids=True).
 
         Examples:
             >>> df = timeline.get_timestamps()
-            >>> df.columns
-            Index(['axis (pixels)', 'tl:1 (pixels)', 'pixels_to_inches (inches)'])
-
-            >>> # Include all attached C-Maps
-            >>> df = timeline.get_timestamps(conversion_maps=True)
-
-            >>> # Without units in column names
-            >>> df = timeline.get_timestamps(units=False)
+            >>> df.index.name
+            'id'
         """
         from timetoalign.core.timestamp import timestamp_table_to_dataframe
 
@@ -2850,7 +2885,34 @@ class Timeline:
             include_events=include_events,
             include_boundaries=include_boundaries,
         )
-        return timestamp_table_to_dataframe(table=table, units=units)
+        df = timestamp_table_to_dataframe(table=table, units=units)
+
+        if include_ids and include_events and coordinates is None:
+            # Build coordinate->event_id lookup from all events (incl. children)
+            all_events = self.get_events(include_children=True)
+            coord_to_ids: dict[float, str] = {}
+            for event in all_events:
+                start = event.get("start")
+                if start is not None:
+                    if isinstance(start, dict) and "value" in start:
+                        coord_val = float(start["value"])
+                    else:
+                        coord_val = float(start)
+                    event_id = event.get("id", "")
+                    # First event at each coordinate wins
+                    if coord_val not in coord_to_ids:
+                        coord_to_ids[coord_val] = event_id
+
+            # Map each row's axis coordinate to an event ID
+            axis_col = df.columns[0]  # First column is always axis
+            ids = []
+            for val in df[axis_col]:
+                fval = float(val) if val is not None else None
+                ids.append(coord_to_ids.get(fval, ""))
+            df.index = ids
+            df.index.name = "id"
+
+        return df
 
     def to_dataframe(
         self,
@@ -3619,7 +3681,7 @@ class Timeline:
 
     def _sorted_event_dicts(self) -> list[dict[str, Any]]:
         """Return events as dicts sorted by start coordinate."""
-        events_list = list(self.get_events(include_segments=False))
+        events_list = list(self.get_events(include_children=False))
         events_list.sort(
             key=lambda e: self._extract_coord_value(e, "start", "instant") or 0.0
         )

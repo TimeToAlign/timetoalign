@@ -301,7 +301,7 @@ def create_timeline_from_bundle(
             number_type=effective_number_type,
             uid=uid,
         )
-        timeline._events = merged_data
+        timeline._events = merged_data.prefix_ids(timeline.id)
 
         module_logger.debug(
             f"Created timeline '{timeline.id}' with {len(merged_data)} events"
@@ -336,7 +336,7 @@ def create_timeline_from_bundle(
                 number_type=effective_number_type,
                 uid=name,
             )
-            child._events = data
+            child._events = data.prefix_ids(child.id)
             parent.add_child(child, offset=0, allow_expansion=True)
 
         module_logger.debug(
