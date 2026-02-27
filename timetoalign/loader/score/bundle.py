@@ -18,6 +18,7 @@ from timetoalign.loader.store import EventData
 
 if TYPE_CHECKING:
     from timetoalign.maps import ConversionMap
+    from timetoalign.timelines.base import Timeline
 
 module_logger = logging.getLogger(__name__)
 
@@ -195,6 +196,68 @@ class ScoreStore(EventStore):
             ),
             **self.metadata,
         }
+
+    def create_timeline(
+        self,
+        uid: str | None = None,
+        store_filters: dict[str, dict[str, Any]] | None = None,
+        include_stores: list[str] | None = None,
+        exclude_stores: list[str] | None = None,
+        flatten: bool = False,
+        ppq: int = 480,
+        attach_cmaps: bool = True,
+    ) -> "Timeline":
+        """Create a Timeline from this ScoreStore.
+
+        Overrides base class to automatically attach conversion maps (C-Maps)
+        and anacrusis ShiftMap when applicable.
+
+        Args:
+            uid: Unique ID for the parent timeline. Auto-generated if None.
+            store_filters: Per-data filter kwargs to apply before timeline
+                creation.
+            include_stores: Only include these data (default: all non-empty).
+            exclude_stores: Exclude these data from the timeline.
+            flatten: If True, merge all events into a single parent timeline.
+            ppq: Pulses per quarter note for the ticks C-Map. Defaults to 480.
+            attach_cmaps: If True (default), attach C-Maps for ticks and
+                seconds conversions, plus a ShiftMap for anacrusis offset.
+
+        Returns:
+            A Timeline with attached C-Maps.
+        """
+        from timetoalign.timelines.factory import create_timeline_from_bundle
+
+        timeline = create_timeline_from_bundle(
+            self,
+            uid=uid,
+            store_filters=store_filters,
+            include_stores=include_stores,
+            exclude_stores=exclude_stores,
+            flatten=flatten,
+        )
+
+        if attach_cmaps:
+            # Attach standard C-Maps (quarters -> ticks, quarters -> seconds)
+            cmaps = self.get_cmaps(ppq=ppq)
+            for cmap in cmaps.values():
+                timeline.add_conversion_map(cmap)
+
+            # Attach ShiftMap for anacrusis if present
+            offset = self.anacrusis_offset
+            if offset != 0.0:
+                from timetoalign.maps import ShiftMap
+
+                shift_map = ShiftMap(
+                    offset=-offset,  # TTA coord - offset = raw coord
+                    source_unit="quarters",
+                    target_unit="quarters",
+                    uid="raw_quarters",
+                    name="raw_quarters",
+                )
+                timeline.add_conversion_map(shift_map)
+
+        return timeline
 
     def get_cmaps(self, ppq: int = 480) -> dict[str, ConversionMap]:
         """Get ConversionMaps derivable from score bundle metadata.

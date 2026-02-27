@@ -3044,6 +3044,7 @@ class Timeline:
         *,
         units: bool = True,
         include_ids: bool = True,
+        as_fractions: bool | None = None,
     ) -> pd.DataFrame:
         """Generate timestamps as a pandas DataFrame with units in column names.
 
@@ -3074,16 +3075,23 @@ class Timeline:
             include_ids: If True (default), add event IDs as the DataFrame
                 index. Each coordinate is matched to the nearest event at that
                 coordinate, showing what each timestamp row corresponds to.
+            as_fractions: If True, convert float values to Fraction objects for
+                fraction number-type timelines. If None (default), auto-detect
+                based on the timeline's number_type.
 
         Returns:
             pandas DataFrame with units in column names (if units=True)
-            and event IDs as the index (if include_ids=True).
+            and event IDs as the index (if include_ids=True). For fraction
+            number-type timelines with as_fractions=True, coordinate columns
+            contain Fraction objects instead of floats.
 
         Examples:
             >>> df = timeline.get_timestamps()
             >>> df.index.name
             'id'
         """
+        from fractions import Fraction
+
         from timetoalign.core.timestamp import timestamp_table_to_dataframe
 
         table = self.get_timestamp_table(
@@ -3094,6 +3102,26 @@ class Timeline:
             include_boundaries=include_boundaries,
         )
         df = timestamp_table_to_dataframe(table=table, units=units)
+
+        # Determine if we should convert to Fractions
+        # Auto-detect if not specified: use Fractions for fraction number-type timelines
+        use_fractions = as_fractions
+        if use_fractions is None:
+            use_fractions = self._number_type == NumberType.fraction
+
+        if use_fractions:
+            # Convert float columns back to Fraction objects for fraction-type columns
+            # This is slow but provides exact representation for display
+            for col in df.columns:
+                # Skip non-numeric columns
+                if df[col].dtype not in (float, "float64", "Float64"):
+                    continue
+                # Convert to Fraction with reasonable denominator limit
+                df[col] = df[col].apply(
+                    lambda x: (
+                        Fraction(x).limit_denominator(10000) if pd.notna(x) else None
+                    )
+                )
 
         if include_ids and include_events and coordinates is None:
             # Build coordinate->event_id lookup from all events (incl. children)
@@ -4964,14 +4992,16 @@ class Timeline:
 
     def __repr__(self) -> str:
         """Return string representation."""
-        return (
-            f"{self.class_name}("
-            f"id={self._id!r}, "
-            f"length={self._length.value}, "
-            f"unit={self._unit}, "
-            f"events={self.n_events}, "
-            f"children={self.n_children})"
-        )
+        parts = [
+            f"id={self._id!r}",
+            f"length={self._length.value}",
+            f"unit={self._unit}",
+            f"events={self.n_events}",
+            f"children={self.n_children}",
+        ]
+        if self.n_conversion_maps > 0:
+            parts.append(f"cmaps={self.n_conversion_maps}")
+        return f"{self.class_name}({', '.join(parts)})"
 
     def __str__(self) -> str:
         """Return human-readable ASCII diagram of the timeline.

@@ -121,7 +121,9 @@ tsv_tl.get_events(event_type="Note", min_coord=0, max_coord=10)
 # This needs harmonisation.
 
 # %%
-tsv_tl.get_event("e000001")
+# Get first event dynamically - IDs are auto-generated as {timeline_id}:{event_type}:{counter}
+first_event_id = tsv_tl.get_events().to_pandas().index[0]
+tsv_tl.get_event(first_event_id)
 
 # %%
 # TARGET API:
@@ -169,7 +171,7 @@ partitura_file = (
 partitura_file.name
 
 # %%
-partitura_loader = PartituraLoader()
+partitura_loader = PartituraLoader(silence_warnings=True)
 partitura_loader.load(partitura_file)
 partitura_loader
 
@@ -245,9 +247,6 @@ music21_loader.store.notes.schema
 
 # %%
 music21_loader.store.measures
-
-# %%
-music21_loader.store["notes"].to_pandas().head()
 
 # %%
 music21_tl = music21_loader.create_timeline()
