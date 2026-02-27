@@ -17,16 +17,17 @@
   "how01_advanced_cmaps.py": "873e6dd597048a920c24c25085c3af016d3dba255075e6cdc071d020c1163950",
   "how01_advanced_timestamps.py": "2f9b9d650546ada2b96247255486490783b2069a348917448d086be3247b25e6",
   "how01_manual_timeline_construction.py": "16c151bfb8ab7c7dfd616c2f0ae32b356e8ac105dff84ee7386f8a7d167133ed",
-  "how01_graphical_timelines.py": "bde67c7170315d1f50794b2acd34bfaf9d735a58718734d780f0f99d5b2d4258",
+  "how01_graphical_timelines.py": "31c7dbd30afeae80b8ba9a3f3beb1f16bbd90218477233559f3696eed3f74dfb",
   "tut01b_children_regions_timestamps.py": "90701b18fbcb53bc4e0f644791648a5bf92c0803f8ea41b8cd2c7a1b95412415",
   "tut02_timeline_groups.py": "6408b9e8ef6b529f9cd7e7348c4674f7db8af88142bacfc7d82e7e3c28efa476",
   "tut03_alignment_bundles.py": "ac9f6f31984b11b0d47aa64c6b5f29a945dbcca363b18298d1cec404d4cf2d1c",
-  "how01_loading_data.py": "d8fa16606128093a54a1f9d6bdca816927284852ac7ee7ff0a8ed111f39d361f",
+  "how01_loading_data.py": "686b9782f9bb1be6fb879dee02434831a14c30ce732dda06466b03ea0aac9fd3",
   "how01_tabular_loaders.py": "b0b731347b193b6dc95b90e5f73d52b72a9febc56c03bd28cf846b64d8612721",
   "how01_beat_grids.py": "964ba8dd7b04d1d98475b472acbc94398b195f82ec20d29ed303abc587b91c0a",
   "how02_supra_piano_roll.py": "3fe71d06c68417a03ca772c683ef86f34fee431a3e3e3135b7e3d1d33e5ef447",
   "how03_beethoven_multimodal.py": "0331b65d44bcb12e43a1fd474a385fcb17b2f87fe48c490019407d8fc63d21d5",
   "how03_loading_vienna_corpus.py": "1f083e4e6df102c13f62359fe9ebf8a67ec12ffd28e841d1d1bb8b601a648e43",
   "tut00_quickstart.py": "4c3ae02cb010576cb37794691a64ed5a6e6af403aff2fca956eafd6ce32c9fb2",
-  "how03_create_note_alignment.py": "8c23e2728bc9aa84e20fdac5f72a9871a81d578208473a0486a58a32fd1dfc6c"
+  "how03_create_note_alignment.py": "8c23e2728bc9aa84e20fdac5f72a9871a81d578208473a0486a58a32fd1dfc6c",
+  "how01_thoresen_annotation_transfer.py": "123f268bbeac92f4188d0e2f5a35178d322bfaadb7bd0eef0505cf2ba2c22bf0"
 }
