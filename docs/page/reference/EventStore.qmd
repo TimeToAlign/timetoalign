@@ -48,6 +48,7 @@ Examples:
 | [get_cmaps](#timetoalign.EventStore.get_cmaps) | Get ConversionMaps derivable from store metadata. |
 | [items](#timetoalign.EventStore.items) | Iterate over (name, data) pairs in canonical order. |
 | [keys](#timetoalign.EventStore.keys) | Return data names in canonical order. |
+| [summary](#timetoalign.EventStore.summary) | Get a summary of the store contents. |
 | [values](#timetoalign.EventStore.values) | Iterate over data. |
 
 ### create_timeline { #timetoalign.EventStore.create_timeline }
@@ -141,6 +142,30 @@ Return data names in canonical order.
 
 Returns:
     Tuple of data names.
+
+### summary { #timetoalign.EventStore.summary }
+
+```python
+EventStore.summary()
+```
+
+Get a summary of the store contents.
+
+Returns a dictionary mapping table/data names to summary information:
+- unit: The time unit of the data
+- range: Tuple of (min_coord, max_coord) for events
+- count: Number of events in the table
+
+Subclasses may override to provide additional domain-specific
+information (e.g., event type breakdown, has_rests for ScoreStore).
+
+Returns:
+    Dict mapping table names to summary dicts.
+
+Examples:
+    >>> store = SomeStore(...)
+    >>> store.summary()
+    {"notes": {"unit": "quarters", "range": (0.0, 120.5), "count": 498}}
 
 ### values { #timetoalign.EventStore.values }
 
