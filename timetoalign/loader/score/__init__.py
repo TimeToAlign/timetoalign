@@ -15,9 +15,9 @@ If you attempt to import a loader whose dependency is not installed, an
 
 from __future__ import annotations
 
-from .bundle import ScoreStore
+from .events import ScoreEventData, ScoreEventType
 from .measuremap import MeasureMapLoader
-from .store import ScoreEventData, ScoreEventType
+from .store import ScoreStore
 
 __all__ = [
     "MeasureMapLoader",
