@@ -14,6 +14,7 @@ Design principles:
 from __future__ import annotations
 
 import logging
+import warnings
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterator, Literal, Sequence
 
@@ -872,8 +873,9 @@ class Timeline:
         temporal_type: Literal["instant", "interval"] | None = None,
         event_type: str | None = None,
         include_children: bool = True,
-        min_coord: float | None = None,
-        max_coord: float | None = None,
+        min_coord: float | Coordinate | None = None,
+        max_coord: float | Coordinate | None = None,
+        **column_filters: Any,
     ) -> EventData:
         """Filter and retrieve events.
 
@@ -887,12 +889,64 @@ class Timeline:
             event_type: Filter by event type name.
             include_children: If True (default), include events from all
                 children with root-relative coordinates.
-            min_coord: Minimum coordinate (inclusive), in root coordinates.
-            max_coord: Maximum coordinate (exclusive), in root coordinates.
+            min_coord: Minimum coordinate (inclusive). Can be a float in
+                native units or a `Coordinate` with a different unit
+                (converted via inverse C-Map).
+            max_coord: Maximum coordinate (exclusive). Same conversion
+                rules as min_coord.
+            **column_filters: Additional column equality filters. Each
+                kwarg name is a column name, and the value is the
+                required value (or a list of values for OR logic).
 
         Returns:
             A filtered EventData with all matching events.
+
+        Examples:
+            >>> # Filter by coordinate range
+            >>> events = tl.get_events(min_coord=10.0, max_coord=20.0)
+
+            >>> # Filter with a Coordinate in a different unit
+            >>> from timetoalign import Coordinate, TimeUnit
+            >>> coord = Coordinate(5.0, TimeUnit.seconds)
+            >>> events = tl.get_events(min_coord=coord)
+
+            >>> # Arbitrary column filters
+            >>> events = tl.get_events(pitch=60)  # Only middle C
+            >>> events = tl.get_events(pitch=[60, 62, 64])  # C, D, E
         """
+        # Convert Coordinate objects to native unit if needed
+        min_coord_float: float | None = None
+        max_coord_float: float | None = None
+
+        if min_coord is not None:
+            if isinstance(min_coord, Coordinate):
+                if min_coord.unit != self._unit:
+                    imap = self._get_unit_map(min_coord.unit)
+                    if imap is None:
+                        raise ValueError(
+                            f"No C-Map available for unit '{min_coord.unit}'. "
+                            f"Cannot convert min_coord."
+                        )
+                    min_coord_float = float(imap.inverse(float(min_coord.value)))
+                else:
+                    min_coord_float = float(min_coord.value)
+            else:
+                min_coord_float = float(min_coord)
+
+        if max_coord is not None:
+            if isinstance(max_coord, Coordinate):
+                if max_coord.unit != self._unit:
+                    imap = self._get_unit_map(max_coord.unit)
+                    if imap is None:
+                        raise ValueError(
+                            f"No C-Map available for unit '{max_coord.unit}'. "
+                            f"Cannot convert max_coord."
+                        )
+                    max_coord_float = float(imap.inverse(float(max_coord.value)))
+                else:
+                    max_coord_float = float(max_coord.value)
+            else:
+                max_coord_float = float(max_coord)
         # Start with own events, always excluding segment events
         result = self._events
         segment_data = result.filter(event_type=SEGMENT_EVENT_TYPE)
@@ -934,8 +988,12 @@ class Timeline:
         if event_type is not None:
             result = result.filter(event_type=event_type)
 
-        if min_coord is not None or max_coord is not None:
-            result = result.filter(min_coord=min_coord, max_coord=max_coord)
+        if min_coord_float is not None or max_coord_float is not None:
+            result = result.filter(min_coord=min_coord_float, max_coord=max_coord_float)
+
+        # Apply arbitrary column filters
+        if column_filters:
+            result = result.filter(**column_filters)
 
         return result
 
@@ -2245,6 +2303,30 @@ class Timeline:
             source_id=self._id,
         )
 
+    def get_timestamp_at(
+        self,
+        coord: CoordinateValue | Coordinate,
+        unit: TimeUnit | str | None = None,
+    ) -> TimeStamp:
+        """Alias for `get_timestamp()` for API consistency with TimelineGroup.
+
+        TimelineGroup uses `get_timestamp_at(coord, tl_id)` with an additional
+        timeline_id parameter. This alias provides a consistent verb across
+        the hierarchy.
+
+        Args:
+            coord: Coordinate value (see `get_timestamp()` for details).
+            unit: Optional unit for coordinate interpretation.
+
+        Returns:
+            TimeStamp object for the resolved coordinate.
+
+        See Also:
+            get_timestamp: The primary coordinate resolution method.
+            timetoalign.TimelineGroup.get_timestamp_at: Group-level version.
+        """
+        return self.get_timestamp(coord, unit)
+
     def get_interval_stamp(
         self,
         start: CoordinateValue | Coordinate,
@@ -2272,6 +2354,132 @@ class Timeline:
             start=self.get_timestamp(start, unit),
             end=self.get_timestamp(end, unit),
         )
+
+    def get_timestamp_of(self, event_id: str) -> TimeStamp | TimeIntervalStamp:
+        """Get the timestamp for a specific event by its ID.
+
+        Returns a TimeStamp for instant events, or a TimeIntervalStamp for
+        interval events. Searches recursively through children if the event
+        is not found on this timeline directly.
+
+        Args:
+            event_id: The event identifier to look up.
+
+        Returns:
+            TimeStamp for instant events, TimeIntervalStamp for interval events.
+
+        Raises:
+            KeyError: If no event with the given ID exists.
+
+        Examples:
+            >>> ts = timeline.get_timestamp_of("note:000001")
+            >>> ts.axis  # For instant events
+            5.0
+
+            >>> ts = timeline.get_timestamp_of("clt1:note:000001")
+            >>> ts.start.axis  # For interval events
+            0.0
+            >>> ts.end.axis
+            2.5
+
+        See Also:
+            get_timestamp: Get timestamp by coordinate.
+            get_event: Get the raw event dict by ID.
+        """
+        event = self.get_event(event_id)
+        if event is None:
+            raise KeyError(f"Event {event_id!r} not found")
+
+        # Extract coordinate from the start field
+        start_val = event.get("start")
+        if start_val is None:
+            raise ValueError(f"Event {event_id!r} has no 'start' coordinate")
+        if isinstance(start_val, dict) and "value" in start_val:
+            start_coord = float(start_val["value"])
+        else:
+            start_coord = float(start_val)
+
+        # Check if this is an interval event
+        end_val = event.get("end")
+        if end_val is not None:
+            if isinstance(end_val, dict) and "value" in end_val:
+                end_coord = float(end_val["value"])
+            else:
+                end_coord = float(end_val)
+            return self.get_interval_stamp(start_coord, end_coord)
+
+        return self.get_timestamp(start_coord)
+
+    def get_timestamps_of(
+        self,
+        event_ids: Sequence[str],
+    ) -> pd.DataFrame:
+        """Get timestamps for multiple events, returned as a DataFrame.
+
+        For each event, includes columns for start coordinate, end coordinate
+        (if interval), event type, and temporal type.
+
+        Args:
+            event_ids: Sequence of event identifiers to look up.
+
+        Returns:
+            DataFrame indexed by event_id with columns:
+            - ``start``: Start coordinate value
+            - ``end``: End coordinate value (NaN for instant events)
+            - ``event_type``: The event type name
+            - ``temporal_type``: "instant" or "interval"
+
+        Raises:
+            KeyError: If any event ID is not found.
+
+        Examples:
+            >>> df = timeline.get_timestamps_of(["note:000001", "note:000002"])
+            >>> df.loc["note:000001", "start"]
+            0.0
+
+        See Also:
+            get_timestamp_of: Get a single event's timestamp.
+            get_events: Filter events by type or coordinate range.
+        """
+        rows = []
+        for event_id in event_ids:
+            event = self.get_event(event_id)
+            if event is None:
+                raise KeyError(f"Event {event_id!r} not found")
+
+            start_val = event.get("start")
+            if start_val is None:
+                raise ValueError(f"Event {event_id!r} has no 'start' coordinate")
+            if isinstance(start_val, dict) and "value" in start_val:
+                start = float(start_val["value"])
+            else:
+                start = float(start_val)
+
+            end_val = event.get("end")
+            if end_val is not None:
+                if isinstance(end_val, dict) and "value" in end_val:
+                    end = float(end_val["value"])
+                else:
+                    end = float(end_val)
+                temporal_type = "interval"
+            else:
+                end = float("nan")
+                temporal_type = "instant"
+
+            rows.append(
+                {
+                    "event_id": event_id,
+                    "start": start,
+                    "end": end,
+                    "event_type": event.get("event_type", ""),
+                    "temporal_type": temporal_type,
+                }
+            )
+
+        df = pd.DataFrame(rows)
+        if len(df) > 0:
+            df = df.set_index("event_id")
+        return df
 
     # endregion
 
@@ -3022,6 +3230,11 @@ class Timeline:
     ) -> pa.Table:
         """Generate timestamps for filtered events only.
 
+        .. deprecated::
+            This method is deprecated. Use ``get_events(**filters)`` combined
+            with ``get_timestamp_table()`` instead. The ``get_events()`` method
+            now supports arbitrary column filters via ``**kwargs``.
+
         Applies an event filter before extracting coordinates from EventData.
         This enables efficient timestamp generation for subsets of events
         (e.g., only Note events, events above a certain duration, etc.).
@@ -3068,6 +3281,12 @@ class Timeline:
             ...     conversion_maps=["seconds"],
             ... )
         """
+        warnings.warn(
+            "get_timestamp_table_filtered() is deprecated. Use get_events(**filters) "
+            "combined with get_timestamp_table() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # Extract filtered coordinates
         filtered_coords = self._collect_all_coordinates(
             recursion_limit=recursion_limit,
@@ -3109,6 +3328,11 @@ class Timeline:
     ) -> pd.DataFrame:
         """Generate timestamps for filtered events as a pandas DataFrame.
 
+        .. deprecated::
+            This method is deprecated. Use ``get_events(**filters)`` combined
+            with ``get_timestamps()`` instead. The ``get_events()`` method
+            now supports arbitrary column filters via ``**kwargs``.
+
         Convenience wrapper around get_timestamp_table_filtered() for users
         who prefer working with pandas.
 
@@ -3125,6 +3349,12 @@ class Timeline:
             >>> df = timeline.get_timestamps_filtered({"event_type": "Note"})
             >>> df.head()
         """
+        warnings.warn(
+            "get_timestamps_filtered() is deprecated. Use get_events(**filters) "
+            "combined with get_timestamps() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         table = self.get_timestamp_table_filtered(
             event_filter=event_filter,
             conversion_maps=conversion_maps,

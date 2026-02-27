@@ -473,7 +473,8 @@ class TestGetTimestamps:
 
     def test_same_data_as_table(self, simple_timeline: Timeline) -> None:
         """Returns same data as get_timestamp_table().to_pandas()."""
-        df1 = simple_timeline.get_timestamps(units=False)
+        # Use include_ids=False since get_timestamp_table() doesn't add ID index
+        df1 = simple_timeline.get_timestamps(units=False, include_ids=False)
         df2 = simple_timeline.get_timestamp_table().to_pandas()
         pd.testing.assert_frame_equal(df1, df2)
 
