@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.0
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -25,7 +25,7 @@ from pathlib import Path
 
 from timetoalign import MatchfileLoader
 
-DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data" / "vienna_1x22"
+DATA_DIR = Path(".").resolve().parent.parent / "tests" / "data" / "vienna_1x22"
 
 # %% [markdown]
 # ## Load All Match Files at Once

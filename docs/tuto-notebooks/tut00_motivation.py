@@ -45,7 +45,7 @@ from pathlib import Path
 from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.tsv import TSVLoader
 
-DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data" / "vienna_1x22"
+DATA_DIR = Path(".").resolve().parents[2] / "tests" / "data" / "vienna_1x22"
 
 # %%
 pt_loader = PartituraLoader()

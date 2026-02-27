@@ -122,7 +122,7 @@ tsv_tl.get_events(event_type="Note", min_coord=0, max_coord=10)
 
 # %%
 # Get first event dynamically - IDs are auto-generated as {timeline_id}:{event_type}:{counter}
-first_event_id = tsv_tl.get_events().to_pandas().index[0]
+first_event_id = tsv_tl.get_events().column("id")[0].as_py()
 tsv_tl.get_event(first_event_id)
 
 # %%
