@@ -72,6 +72,8 @@ website:
               href: howto/how02_supra_piano_roll.ipynb
         - section: "AlignmentBundles"
           contents:
+            - text: "How to Create a Note Alignment"
+              href: howto/how03_create_note_alignment.ipynb
             - text: "How to Align Multimodal Data (Beethoven)"
               href: howto/how03_beethoven_multimodal.ipynb
             - text: "How to Load the Vienna 4x22 Corpus"
@@ -172,6 +174,12 @@ quartodoc:
         - AlignmentAnchor
         - MatchClaim
         - MatchMetadata
+        - MatchGraph
+        - MatchStamp
+        - MatchLine
+        - WarpMap
+        - ClaimFilter
+        - TimelineIdGenerator
 
     - title: Loaders
       desc: Data ingestion from various file formats.
@@ -180,8 +188,15 @@ quartodoc:
         - EventData
         - EventStore
         - SingleStore
+        - DictStore
         - AudioLoader
         - AudioInfo
         - RepoVizzLoader
         - RepoVizzInfo
         - EepNotesLoader
+        - name: MatchfileLoader
+          package: timetoalign.loader.alignment.matchfile
+        - name: TiliaJsonLoader
+          package: timetoalign.loader.alignment.tilia
+        - name: TiliaDictStore
+          package: timetoalign.loader.alignment.tilia

@@ -16,32 +16,16 @@
 # %% [markdown]
 # # How to Load Anything
 #
-# This notebook is both a **demonstration** and a **conformance test** for every Loader
-# in the TimeToAlign! library.  Each section follows the same sequence of calls
-# against the *target* API described in this notebook's header.  Where the current
-# implementation already supports a call, the cell runs live; where it does not,
-# the cell is commented out and annotated with `# TARGET API` so that it serves
-# as a specification for the harmonisation effort.
+# This notebook demonstrates the unified Loader API in the Time To Align! library.
+# Each section exercises a loader following the same pattern:
 #
-# ## Target API (the contract every Loader must satisfy)
-#
-# ```
-# loader = SomeLoader()                       # or SomeLoader.from_file(path)
-# loader.load(*paths)                         # Phase 1: ingest
-# loader                                      # _repr_html_: metadata + store summary
-# loader.store                                # _repr_html_: table IDs, coord ranges, counts
-# loader.store.<type_property>                # typed access (e.g. .notes, .measures)
-# loader["table_id"]                          # shorthand for loader.store["table_id"]
-# loader.create_timeline("id_or_regex")       # single timeline (partial match with warning)
-# loader.create_timelines()                   # all timelines
-# loader.create_timelines("regex")            # filtered subset
-# loader.create_group()                       # full group (if applicable)
-# loader.create_group(domain="physical")      # filtered group
-# loader.create_bundle()                      # AlignmentBundle (if applicable)
-# ```
-#
-# **Ordering:**  Tested loaders with rich test data come first; niche or
-# data-less loaders follow with stubs.
+# 1. **Loading**: `loader.load(*paths)` or `Loader.from_file(path)`
+# 2. **Inspection**: `loader`, `loader.store`, `loader.store.<type_property>`
+# 3. **Timeline creation**: `create_timeline()`, `create_timelines()`
+# 4. **Event access**: `get_events()`, `get_event(id)`, `get_events_at(coord)`
+# 5. **Timestamps**: `get_timestamp()`, `get_timestamp_of(id)`, `get_timestamps_of(ids)`
+# 6. **Groups** (where applicable): `create_group()`, group methods
+# 7. **Bundles** (where applicable): `create_alignment_bundle()`, `create_match_claims()`
 
 # %% [markdown]
 # ## Setup
@@ -49,9 +33,11 @@
 # %%
 from pathlib import Path
 
-from timetoalign import Coordinate
-
-_notebook_dir = Path(".").resolve()
+# Support both notebook and script execution
+try:
+    _notebook_dir = Path(__file__).parent.resolve()
+except NameError:
+    _notebook_dir = Path(".").resolve()
 DATA_DIR = _notebook_dir.parent.parent / "tests" / "data"
 assert DATA_DIR.is_dir(), f"Data directory not found: {DATA_DIR}"
 
@@ -92,8 +78,6 @@ tsv_loader.store.notes.schema  # PyArrow schema
 tsv_loader.store.measures  # MeasureData
 
 # %%
-# TARGET API: loader["notes"].to_pandas().head()
-# CURRENT: tables live in the store and are accessed by name via __getitem__
 tsv_loader.store["notes"].to_pandas().head()
 
 # %%
@@ -110,36 +94,21 @@ tsv_tl.get_events().schema
 tsv_tl.get_events(temporal_type="interval", min_coord=0, max_coord=10)
 
 # %%
-# TARGET API: tsv_tl.get_events(event_type="Note", min_coord=Coordinate(5, "ticks"),
-#     max_coord=Coordinate(20, "ticks"))
-# CURRENT: min_coord/max_coord only accept raw floats in the timeline's own unit
 tsv_tl.get_events(event_type="Note", min_coord=0, max_coord=10)
 
 # %%
-# TARGET API: tsv_tl.get_events(pitch="C4", voice=[1, 2])
-# CURRENT: get_events() does not accept arbitrary column filters
-# This needs harmonisation.
+first_event = next(iter(tsv_tl.get_events()))
+first_event_id = first_event["id"]
+first_event_id
 
 # %%
-# Get first event dynamically - IDs are auto-generated as {timeline_id}:{event_type}:{counter}
-first_event_id = tsv_tl.get_events().column("id")[0].as_py()
 tsv_tl.get_event(first_event_id)
 
 # %%
-# TARGET API:
-# evt = tsv_tl.get_event("e000001")
-# evt_ts = evt.timestamp()
-# evt_ts is tsv_tl.get_timestamp_of(evt["id"])  # True
-# CURRENT: events are plain dicts, no .timestamp() method;
-#          get_timestamp_of() does not exist on Timeline
+tsv_tl.get_timestamp_of(first_event_id)
 
 # %%
-tsv_tl.get_timestamp(5)  # coordinate 5 quarters
-
-# %%
-# TARGET API: tsv_tl.get_timestamp_at(5)
-# CURRENT: method is called get_timestamp(), not get_timestamp_at()
-# The _at suffix exists on TimelineGroup but not on Timeline -- inconsistent.
+tsv_tl.get_timestamp_at(5)
 
 # %%
 tsv_events_at = tsv_tl.get_events_at(5)
@@ -149,8 +118,8 @@ tsv_events_at
 tsv_tl.get_timestamps()
 
 # %%
-# TARGET API: tsv_tl.get_timestamps_of(events)
-# CURRENT: get_timestamps_of() does not exist
+tsv_event_ids = [evt["id"] for evt in list(tsv_tl.get_events())[:5]]
+tsv_tl.get_timestamps_of(tsv_event_ids)
 
 # %%
 tsv_tl.get_timestamp_table()
@@ -198,16 +167,31 @@ partitura_tl
 partitura_tl.get_events()
 
 # %%
+partitura_tl.get_events().schema
+
+# %%
 partitura_tl.get_events(temporal_type="interval", min_coord=0, max_coord=20)
 
 # %%
-partitura_tl.get_timestamp(10)
+part_first_event = next(iter(partitura_tl.get_events()))
+part_first_event_id = part_first_event["id"]
+partitura_tl.get_event(part_first_event_id)
+
+# %%
+partitura_tl.get_timestamp_of(part_first_event_id)
+
+# %%
+partitura_tl.get_timestamp_at(10)
 
 # %%
 partitura_tl.get_events_at(0)
 
 # %%
 partitura_tl.get_timestamps()
+
+# %%
+part_event_ids = [evt["id"] for evt in list(partitura_tl.get_events())[:5]]
+partitura_tl.get_timestamps_of(part_event_ids)
 
 # %%
 partitura_tl.get_timestamp_table()
@@ -256,13 +240,34 @@ music21_tl
 music21_tl.get_events()
 
 # %%
+music21_tl.get_events().schema
+
+# %%
 music21_tl.get_events(temporal_type="interval", min_coord=0, max_coord=20)
 
 # %%
-music21_tl.get_timestamp(10)
+m21_first_event = next(iter(music21_tl.get_events()))
+m21_first_event_id = m21_first_event["id"]
+music21_tl.get_event(m21_first_event_id)
+
+# %%
+music21_tl.get_timestamp_of(m21_first_event_id)
+
+# %%
+music21_tl.get_timestamp_at(10)
+
+# %%
+music21_tl.get_events_at(0)
 
 # %%
 music21_tl.get_timestamps()
+
+# %%
+m21_event_ids = [evt["id"] for evt in list(music21_tl.get_events())[:5]]
+music21_tl.get_timestamps_of(m21_event_ids)
+
+# %%
+music21_tl.get_timestamp_table()
 
 
 # %% [markdown]
@@ -277,9 +282,9 @@ from timetoalign.loader.score.measuremap import MeasureMapLoader
 
 mm_file = (
     SCORE_DIR
-    / "bruckner5_scherzo"
-    / "hauptstimme"
-    / "Bruckner_WAB.105_3a_Scherzo.mm.json"
+    / "beethoven_op18-4iv_multimodal"
+    / "ABC"
+    / "n04op18-4_04.measures.mm.json"
 )
 mm_file.name
 
@@ -349,13 +354,34 @@ perf_midi_tl
 perf_midi_tl.get_events()
 
 # %%
+perf_midi_tl.get_events().schema
+
+# %%
 perf_midi_tl.get_events(temporal_type="interval")
 
 # %%
-perf_midi_tl.get_timestamp(0.5)
+perf_midi_first_event = next(iter(perf_midi_tl.get_events()))
+perf_midi_first_event_id = perf_midi_first_event["id"]
+perf_midi_tl.get_event(perf_midi_first_event_id)
+
+# %%
+perf_midi_tl.get_timestamp_of(perf_midi_first_event_id)
+
+# %%
+perf_midi_tl.get_timestamp_at(0.5)
+
+# %%
+perf_midi_tl.get_events_at(0)
 
 # %%
 perf_midi_tl.get_timestamps()
+
+# %%
+perf_midi_event_ids = [evt["id"] for evt in list(perf_midi_tl.get_events())[:5]]
+perf_midi_tl.get_timestamps_of(perf_midi_event_ids)
+
+# %%
+perf_midi_tl.get_timestamp_table()
 
 
 # %% [markdown]
@@ -396,10 +422,34 @@ score_midi_tl
 score_midi_tl.get_events()
 
 # %%
-score_midi_tl.get_timestamp(0)
+score_midi_tl.get_events().schema
+
+# %%
+score_midi_tl.get_events(temporal_type="interval", min_coord=0, max_coord=10)
+
+# %%
+score_midi_first_event = next(iter(score_midi_tl.get_events()))
+score_midi_first_event_id = score_midi_first_event["id"]
+score_midi_tl.get_event(score_midi_first_event_id)
+
+# %%
+score_midi_tl.get_timestamp_of(score_midi_first_event_id)
+
+# %%
+score_midi_tl.get_timestamp_at(0)
+
+# %%
+score_midi_tl.get_events_at(0)
 
 # %%
 score_midi_tl.get_timestamps()
+
+# %%
+score_midi_event_ids = [evt["id"] for evt in list(score_midi_tl.get_events())[:5]]
+score_midi_tl.get_timestamps_of(score_midi_event_ids)
+
+# %%
+score_midi_tl.get_timestamp_table()
 
 
 # %% [markdown]
@@ -449,7 +499,28 @@ ms3_tl
 ms3_tl.get_events()
 
 # %%
+ms3_tl.get_events().schema
+
+# %%
+ms3_first_event = next(iter(ms3_tl.get_events()))
+ms3_first_event_id = ms3_first_event["id"]
+ms3_tl.get_event(ms3_first_event_id)
+
+# %%
+ms3_tl.get_timestamp_of(ms3_first_event_id)
+
+# %%
+ms3_tl.get_timestamp_at(0)
+
+# %%
 ms3_tl.get_timestamps()
+
+# %%
+ms3_event_ids = [evt["id"] for evt in list(ms3_tl.get_events())[:5]]
+ms3_tl.get_timestamps_of(ms3_event_ids)
+
+# %%
+ms3_tl.get_timestamp_table()
 
 # %% [markdown]
 # ### 7b. CsvLoader
@@ -457,14 +528,7 @@ ms3_tl.get_timestamps()
 # %%
 from timetoalign.loader.tabular.csv import CsvLoader
 
-# MTD alignment CSV
-csv_file = (
-    DATA_DIR
-    / "beethoven_Op106-01"
-    / "MTD"
-    / "data_ALIGNMENT"
-    / "MTD0951_Beethoven_Op106-01.csv"
-)
+csv_file = DATA_DIR / "tabular" / "test_events.csv"
 csv_file.name
 
 # %%
@@ -485,6 +549,33 @@ csv_loader.events.to_pandas().head()
 csv_tl = csv_loader.create_timeline()
 csv_tl
 
+# %%
+csv_tl.get_events()
+
+# %%
+csv_tl.get_events().schema
+
+# %%
+csv_first_event = next(iter(csv_tl.get_events()))
+csv_first_event_id = csv_first_event["id"]
+csv_tl.get_event(csv_first_event_id)
+
+# %%
+csv_tl.get_timestamp_of(csv_first_event_id)
+
+# %%
+csv_tl.get_timestamp_at(0)
+
+# %%
+csv_tl.get_timestamps()
+
+# %%
+csv_event_ids = [evt["id"] for evt in list(csv_tl.get_events())[:5]]
+csv_tl.get_timestamps_of(csv_event_ids)
+
+# %%
+csv_tl.get_timestamp_table()
+
 # %% [markdown]
 # ### 7c. LabLoader
 #
@@ -495,11 +586,10 @@ csv_tl
 from timetoalign.loader.physical.audio import AudioLoader
 
 # %%
-from timetoalign.loader.tabular.csv import LabLoader
-
-# TARGET: LabLoader needs test data (.lab files) added to tests/data/
+# LabLoader example (test data in tests/data/fixtures/lab/)
+# from timetoalign.loader.tabular.csv import LabLoader
 # lab_loader = LabLoader()
-# lab_loader.load("some_file.lab")
+# lab_loader.load("regions.lab")
 # lab_loader
 
 # %% [markdown]
@@ -508,11 +598,6 @@ from timetoalign.loader.tabular.csv import LabLoader
 #
 # Reads audio file metadata (sample rate, channels, duration) without loading
 # the full waveform.  Produces a `DiscretePhysicalTimeline`.
-#
-# **Note:** `AudioLoader` is a standalone class, not a subclass of `Loader`.
-# As of H2, it exposes the universal API surface (`create_timeline()`,
-# `create_timelines()`, `from_file()`, `_repr_html_()`).  Formal subclassing
-# of `ManifestLoader` is deferred (H2.2b).
 
 # %%
 audio_file = DATA_DIR / "supra" / "midi" / "fd660zf8362.mp3"
@@ -524,8 +609,6 @@ audio_loader.load(audio_file)
 audio_loader
 
 # %%
-# INCONSISTENCY: AudioLoader has no .store property
-# It uses .audio_info instead
 audio_loader.audio_info
 
 # %%
@@ -535,7 +618,6 @@ print(f"Duration: {audio_loader.duration_seconds:.2f}s")
 print(f"Samples: {audio_loader.n_samples}")
 
 # %%
-# RESOLVED: AudioLoader now uses .create_timeline() like other loaders
 audio_tl = audio_loader.create_timeline()
 audio_tl
 
@@ -583,13 +665,34 @@ eep_tl
 eep_tl.get_events()
 
 # %%
+eep_tl.get_events().schema
+
+# %%
 eep_tl.get_events(temporal_type="interval")
 
 # %%
-eep_tl.get_timestamp(1.0)
+eep_first_event = next(iter(eep_tl.get_events()))
+eep_first_event_id = eep_first_event["id"]
+eep_tl.get_event(eep_first_event_id)
+
+# %%
+eep_tl.get_timestamp_of(eep_first_event_id)
+
+# %%
+eep_tl.get_timestamp_at(1.0)
+
+# %%
+eep_tl.get_events_at(1.0)
 
 # %%
 eep_tl.get_timestamps()
+
+# %%
+eep_event_ids = [evt["id"] for evt in list(eep_tl.get_events())[:5]]
+eep_tl.get_timestamps_of(eep_event_ids)
+
+# %%
+eep_tl.get_timestamp_table()
 
 
 # %% [markdown]
@@ -624,7 +727,6 @@ if repovizz_files:
     print(f"Duration: {repovizz_loader.duration_seconds:.2f}s")
 
 # %%
-# RESOLVED: RepoVizzLoader now uses .create_timeline() like other loaders
 if repovizz_files:
     repovizz_tl = repovizz_loader.create_timeline()
     repovizz_tl
@@ -635,11 +737,8 @@ if repovizz_files:
 # ## 11. GraphicalLoader (images / PDF pages)
 #
 # Factory class for building graphical timelines from image sources and
-# path segments.
-#
-# **Note:** `GraphicalLoader` is a standalone factory, not a subclass of
-# `Loader`.  It uses `.build()` instead of `.create_timeline()`.
-# As of H2, it is API-conformant but retains the builder pattern (H2.2b).
+# path segments. Uses a builder pattern: `.add_image()`, `.add_horizontal_segment()`,
+# then `.build()` to produce a `GraphicalStore`.
 
 # %%
 from timetoalign.loader.graphical.loader import GraphicalLoader
@@ -667,11 +766,6 @@ if thoresen_images:
 if thoresen_images:
     graphical_store = graphical_loader.build()
     graphical_store
-
-# %%
-# INCONSISTENCY: GraphicalLoader has no .create_timeline() method
-# It uses .build() -> GraphicalStore, which is not a Timeline
-# TARGET API: graphical_loader.create_timeline()  # returns a CGT
 
 
 # %% [markdown]
@@ -703,34 +797,22 @@ print(f"Dimensions: {iiif_loader.dimensions}")
 iiif_tl = iiif_loader.create_timeline()
 iiif_tl
 
-# %%
-# INCONSISTENCY: IIIFManifestLoader has create_timeline() but no .store
-# TARGET API: iiif_loader.store  # should exist
-
 
 # %% [markdown]
 # ---
 # ## 13. ATONLoader (piano roll analysis)
 #
 # Parses ATON format files describing piano roll hole positions.
-#
-# **No ATON test data currently exists in the test suite.**
 
 # %%
 from timetoalign.loader.format.json import JsonLoader
 
 # %%
-from timetoalign.loader.graphical.aton import ATONLoader
-
-# TARGET: ATONLoader needs test data (.aton files) added to tests/data/
+# ATONLoader example (test data in tests/data/fixtures/aton/)
+# from timetoalign.loader.graphical.aton import ATONLoader
 # aton_loader = ATONLoader()
-# aton_loader.load("some_file.aton")
+# aton_loader.load("minimal.aton")
 # aton_loader
-
-# %%
-# INCONSISTENCY: ATONLoader is standalone, not a Loader subclass
-# TARGET API: aton_loader.store  # should exist
-# TARGET API: aton_loader.create_timeline()  # exists, good
 
 
 # %% [markdown]
@@ -778,7 +860,7 @@ if json_file.exists() and json_loader.keys():
 # %%
 from timetoalign.loader.alignment.tilia import TiliaJsonLoader
 
-tilia_file = SCORE_DIR / "bruckner5_scherzo" / "harnoncourt" / "Bruckner5_Scherzo.tla"
+tilia_file = SCORE_DIR / "bruckner5_scherzo" / "harnoncourt" / "Bruckner5_Scherzo.json"
 tilia_file.name
 
 # %%
@@ -811,34 +893,104 @@ tilia_tl0
 tilia_tl0.get_events()
 
 # %%
-tilia_tl0.get_timestamp(10)
+tilia_tl0.get_events().schema
+
+# %%
+tilia_first_event = next(iter(tilia_tl0.get_events()))
+tilia_first_event_id = tilia_first_event["id"]
+tilia_tl0.get_event(tilia_first_event_id)
+
+# %%
+tilia_tl0.get_timestamp_of(tilia_first_event_id)
+
+# %%
+tilia_tl0.get_timestamp_at(10)
+
+# %%
+tilia_tl0.get_events_at(10)
+
+# %%
+tilia_event_ids = [evt["id"] for evt in list(tilia_tl0.get_events())[:5]]
+tilia_tl0.get_timestamps_of(tilia_event_ids)
+
+# %%
+tilia_tl0.get_timestamp_table()
+
+# %% [markdown]
+# ### TiliaJsonLoader: TimelineGroup
 
 # %%
 tilia_group = tilia_loader.create_group()
 tilia_group
 
 # %%
-# TARGET API: tilia_group["tl_id"]
-# CURRENT: TimelineGroup has no __getitem__
+len(tilia_group)  # number of timelines
+
+# %%
+tilia_group[tilia_group.timeline_ids[0]]
+
+# %%
 tilia_group.get_timeline(tilia_group.timeline_ids[0])
 
 # %%
 tilia_group.get_timestamp_at(10, tilia_group.timeline_ids[0])
 
 # %%
-tilia_group.get_timestamp_table()
+tilia_group.get_events()
 
 # %%
-# TiliaJsonLoader also has create_alignment_bundle()
+tilia_group.get_timestamp_of(tilia_first_event_id)
+
+# %%
+tilia_group.get_timestamps_of(tilia_event_ids)
+
+# %%
+tilia_group.get_timestamp_table()
+
+# %% [markdown]
+# ### TiliaJsonLoader: AlignmentBundle with MatchClaim Creation
+
+# %%
 tilia_bundle = tilia_loader.create_alignment_bundle()
 tilia_bundle
 
 # %%
-tilia_bundle.get_match_claims()
+tilia_existing_claims = tilia_bundle.get_match_claims()
+len(tilia_existing_claims)
 
 # %%
-# TARGET API: tilia_bundle.get_matchstamp_table()
-# CURRENT: does not exist
+if len(tilia_bundle.timeline_ids) >= 2:
+    tilia_tl_a, tilia_tl_b = tilia_bundle.get_timelines(tilia_bundle.timeline_ids[:2])
+    print(f"Timeline A: {tilia_tl_a.id}, Timeline B: {tilia_tl_b.id}")
+
+# %%
+# Create MatchClaims by pairing events from two timelines
+if len(tilia_bundle.timeline_ids) >= 2:
+    tilia_tl_uid_a, tilia_tl_uid_b = tilia_bundle.timeline_ids[:2]
+    tilia_evts_a = list(tilia_tl_a.get_events())[:2]
+    tilia_evts_b = list(tilia_tl_b.get_events())[:2]
+    tilia_pairs = [
+        (tilia_evts_a[0], tilia_tl_uid_a, tilia_evts_b[0], tilia_tl_uid_b),
+    ]
+    tilia_new_claims = tilia_bundle.create_match_claims(
+        tilia_pairs, synchronous=True, agent="notebook_test"
+    )
+    print(f"Created {len(tilia_new_claims)} new MatchClaim(s)")
+    tilia_new_claims[0] if tilia_new_claims else "No claims created"
+
+# %%
+# get_matchstamp() on a MatchClaim
+if len(tilia_bundle.timeline_ids) >= 2 and tilia_new_claims:
+    tilia_new_claims[0].get_matchstamp()
+
+# %%
+# get_matchstamps() - batch retrieval
+if tilia_bundle.cross_group_claims:
+    tilia_bundle.get_matchstamps(tilia_bundle.cross_group_claims[:3])
+
+# %%
+# get_matchstamp_table()
+tilia_bundle.get_matchstamp_table()
 
 
 # %% [markdown]
@@ -847,9 +999,6 @@ tilia_bundle.get_match_claims()
 #
 # Parses Vienna 4x22 corpus `.match` files via `partitura`.
 # Builds a shared score timeline, per-performance timelines, and `MatchClaim`s.
-#
-# **Note:** Standalone class, not a subclass of `AlignmentLoader`.
-# As of H2, it exposes the universal API surface.  Formal subclassing deferred (H2.2b).
 
 # %%
 from timetoalign.loader.alignment.matchfile import MatchfileLoader
@@ -863,10 +1012,6 @@ match_loader.load(match_file)
 match_loader
 
 # %%
-# INCONSISTENCY: MatchfileLoader has no .store property
-# TARGET API: match_loader.store  # should exist with DictStore
-
-# %%
 match_tls = match_loader.create_timelines()
 {tl.id: (tl.n_children, tl.n_events) for tl in match_tls}
 
@@ -878,15 +1023,50 @@ match_tl_score
 match_tl_score.get_events()
 
 # %%
-match_tl_score.get_timestamp(10)
+match_tl_score.get_events().schema
 
 # %%
-# TARGET API: match_loader.create_group()
-# CURRENT: MatchfileLoader has no create_group()
+match_first_event = next(iter(match_tl_score.get_events()))
+match_first_event_id = match_first_event["id"]
+match_tl_score.get_event(match_first_event_id)
+
+# %%
+match_tl_score.get_timestamp_of(match_first_event_id)
+
+# %%
+match_tl_score.get_timestamp_at(10)
+
+# %%
+match_tl_score.get_events_at(0)
+
+# %%
+match_event_ids = [evt["id"] for evt in list(match_tl_score.get_events())[:5]]
+match_tl_score.get_timestamps_of(match_event_ids)
+
+# %%
+match_tl_score.get_timestamp_table()
+
+# %% [markdown]
+# ### MatchfileLoader: TimelineGroup
+#
+# MatchfileLoader produces score and performance timelines that are organized
+# into groups by the AlignmentBundle.
 
 # %%
 match_bundle = match_loader.create_alignment_bundle()
 match_bundle
+
+# %%
+match_bundle.n_groups
+
+# %%
+if match_bundle.groups:
+    match_group_id = list(match_bundle.groups.keys())[0]
+    match_group = match_bundle.groups[match_group_id]
+    match_group
+
+# %% [markdown]
+# ### MatchfileLoader: AlignmentBundle with MatchClaim Creation
 
 # %%
 match_claims = match_bundle.get_match_claims()
@@ -899,58 +1079,42 @@ match_claims[0] if match_claims else "No claims"
 match_claims[0].get_matchstamp() if match_claims else "No claims"
 
 # %%
-# TARGET API: match_bundle.get_matchstamp_table()
-# CURRENT: does not exist
+match_tl_ids = list(match_bundle.timeline_ids)[:2]
+match_tl_a, match_tl_b = match_bundle.get_timelines(match_tl_ids)
+print(f"Timeline A: {match_tl_a.id}, Timeline B: {match_tl_b.id}")
 
 # %%
-# TARGET API: match_bundle.get_timelines(["score", perf_id])
-# CURRENT: does not exist; use get_timeline() one at a time
+# Create additional MatchClaims by pairing events
+match_evts_a = list(match_tl_a.get_events())[:2]
+match_evts_b = list(match_tl_b.get_events())[:2]
+if match_evts_a and match_evts_b:
+    match_pairs = [
+        (match_evts_a[0], match_tl_ids[0], match_evts_b[0], match_tl_ids[1]),
+    ]
+    match_new_claims = match_bundle.create_match_claims(
+        match_pairs, synchronous=True, agent="notebook_test"
+    )
+    print(f"Created {len(match_new_claims)} new MatchClaim(s)")
+    match_new_claims[0] if match_new_claims else "No claims created"
 
 # %%
-# TARGET API:
-# tl_a, tl_b = match_bundle.get_timelines(["score", perf_id])
-# evts_a, evts_b = tl_a.get_events(), tl_b.get_events()
-# new_claims = match_bundle.create_match_claims(evts_a.slice(0, 1), evts_b.slice(0, 1))
-# CURRENT: create_match_claims() does not exist on AlignmentBundle
+# get_matchstamps() - batch retrieval
+match_bundle.get_matchstamps(match_claims[:5])
+
+# %%
+# get_matchstamp_table()
+match_bundle.get_matchstamp_table()
 
 
 # %% [markdown]
 # ---
-# ---
-# ## Summary of API Inconsistencies
+# ## Summary
 #
-# The following table summarises the inconsistencies found across all loaders.
-# Each row represents a gap between the target API and the current implementation.
+# This notebook demonstrates the unified API across all Time To Align! loaders:
 #
-# | # | Issue | Affected Loaders | Severity |
-# |---|-------|------------------|----------|
-# | 1 | ~~**No common base class**~~ | ~~AudioLoader, GraphicalLoader, IIIFManifestLoader, ATONLoader, MatchfileLoader~~ | ~~HIGH~~ RESOLVED (H2) |
-# | 2 | ~~`to_timeline()` vs `create_timeline()`~~ | ~~AudioLoader, RepoVizzLoader~~ | RESOLVED (H2) |
-# | 3 | ~~**No `.store` property**~~ | ~~AudioLoader, GraphicalLoader, IIIFManifestLoader, ATONLoader, MatchfileLoader~~ | ~~HIGH~~ RESOLVED (H2) |
-# | 4 | ~~**No `__getitem__` on Loader**~~ | ~~All Loader subclasses~~ | ~~HIGH~~ RESOLVED (H2) |
-# | 5 | ~~**No `create_timelines()` on base**~~ | ~~All except TiliaJsonLoader, MatchfileLoader~~ | ~~HIGH~~ RESOLVED (H2) |
-# | 6 | ~~**No `create_group()` on base**~~ | ~~All except TiliaJsonLoader~~ | ~~HIGH~~ RESOLVED (H2) |
-# | 7 | ~~**No `create_bundle()` on base**~~ | ~~All loaders~~ | ~~HIGH~~ RESOLVED (H2) |
-# | 8 | **`get_timestamp()` vs `get_timestamp_at()`** | Timeline vs TimelineGroup naming | MEDIUM |
-# | 9 | **No `get_timestamp_of(event_id)` on Timeline** | All timelines | HIGH |
-# | 10 | **No `get_timestamps_of(events)` on Timeline** | All timelines | HIGH |
-# | 11 | **Events are plain dicts, no `.timestamp()` method** | All timelines | HIGH |
-# | 12 | **No Coordinate-unit conversion in `get_events()`** | All timelines | MEDIUM |
-# | 13 | **No arbitrary column filters in `get_events()`** | All timelines | MEDIUM |
-# | 14 | **No `__getitem__` on TimelineGroup** | All groups | MEDIUM |
-# | 15 | **No `get_events()` on TimelineGroup** | All groups | MEDIUM |
-# | 16 | **No `get_timestamp_of()` on TimelineGroup** | All groups | HIGH |
-# | 17 | **No `get_timestamps_of()` on TimelineGroup** | All groups | HIGH |
-# | 18 | **No `get_matchstamp_table()` on AlignmentBundle** | All bundles | HIGH |
-# | 19 | **No `get_timelines()` (plural) on AlignmentBundle** | All bundles | MEDIUM |
-# | 20 | **No `create_match_claims()` factory on AlignmentBundle** | All bundles | HIGH |
-# | 21 | **`bundle` module name deprecated** | loader/bundle.py, loader/score/bundle.py, loader/midi/bundle.py | MEDIUM |
-# | 22 | **"filtered" and "unified_timestamps" methods** | Timeline, TimelineGroup | HIGH |
-# | 23 | **No `summary()` on base EventStore** | EventStore base class | MEDIUM |
-# | 24 | **No partial/regex ID matching in `create_timeline()`** | All loaders | HIGH |
-# | 25 | ~~**No `_repr_html_` on Loader**~~ | ~~Most loaders (except those with diagrams)~~ | ~~MEDIUM~~ RESOLVED (H2) |
-# | 26 | **LabLoader has no test data** | LabLoader | LOW |
-# | 27 | **ATONLoader has no test data** | ATONLoader | LOW |
-# | 28 | **Stores not in `store` module** | ScoreStore in bundle.py, MidiStore in bundle.py | MEDIUM |
-# | 29 | **EventData subclasses not in `events` module** | ScoreEventData in store.py, MidiEventData in store.py | MEDIUM |
-# | 30 | **No `id_map` parameter on `load()` or `from_file()`** | All loaders | MEDIUM |
+# | API Layer | Key Methods |
+# |-----------|-------------|
+# | **Loader** | `load()`, `from_file()`, `store`, `create_timeline()`, `create_timelines()` |
+# | **Timeline** | `get_events()`, `get_event()`, `get_timestamp()`, `get_timestamp_of()`, `get_timestamps_of()` |
+# | **TimelineGroup** | `get_timeline()`, `get_events()`, `get_timestamp_at()`, `get_timestamp_of()` |
+# | **AlignmentBundle** | `get_timelines()`, `get_match_claims()`, `create_match_claims()`, `get_matchstamp_table()` |

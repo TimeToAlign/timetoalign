@@ -102,7 +102,7 @@ to the relevant section of the conceptual model.
     arbitrary keys. Used internally by AlignmentLoaders to store one
     `EventData` table per timeline-to-be (e.g., `"score"`, `"perf:p01"`).
     Maintains the uniform `EventStore` interface.
-    See the [API reference](reference/timetoalign.DictStore.qmd).
+    See the [API reference](reference/DictStore.qmd).
 
 **Discrete**
 :   A timeline is discrete when coordinates exist only at discrete points
@@ -195,7 +195,7 @@ to the relevant section of the conceptual model.
     `create_alignment_bundle()`. Score goes into its own group; performances
     are standalone timelines; {{< glossary MatchClaim >}}s connect score to
     performances.
-    See the [API reference](reference/timetoalign.MatchfileLoader.qmd).
+    See the [API reference](reference/MatchfileLoader.qmd).
 
 **MatchClaim**
 :   A claim---issued by a human or algorithmic agent---about one or two timed

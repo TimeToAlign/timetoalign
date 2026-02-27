@@ -792,6 +792,8 @@ class AlignmentBundle:
         Returns:
             self (for method chaining)
         """
+        for claim in claims:
+            claim.set_bundle(self)
         self.cross_group_claims.extend(claims)
         self._invalidate_warp_cache()
         return self

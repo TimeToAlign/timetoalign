@@ -293,6 +293,7 @@ class MatchClaim:
     metadata: MatchMetadata | None = None
     source_claim_id: str | None = None
     id: str = field(default="")
+    _bundle: Any = field(default=None, compare=False, hash=False, repr=False)
 
     def __post_init__(self) -> None:
         """Validate and auto-generate ID if not provided."""
@@ -349,6 +350,23 @@ class MatchClaim:
     def is_interval(self) -> bool:
         """Whether this is an interval match (has end anchor)."""
         return self.end_anchor is not None
+
+    @property
+    def bundle(self) -> Any:
+        """The AlignmentBundle this claim belongs to, if set."""
+        return self._bundle
+
+    def set_bundle(self, bundle: Any) -> None:
+        """Associate this claim with an AlignmentBundle.
+
+        This is called automatically when claims are added to a bundle.
+        Once set, ``get_matchstamp(from_graph=True)`` can be called
+        without passing the bundle explicitly.
+
+        Args:
+            bundle: The AlignmentBundle containing this claim.
+        """
+        object.__setattr__(self, "_bundle", bundle)
 
     @property
     def timelines(self) -> tuple[str, str]:
@@ -454,18 +472,19 @@ class MatchClaim:
             non-synchronous (NOMATCH).
 
         Raises:
-            ValueError: If ``from_graph=True`` but ``bundle`` is None.
+            ValueError: If ``from_graph=True`` but no bundle is available
+                (neither passed nor set via ``set_bundle()``).
 
         Examples:
             Full stamp (default -- from graph, all groups)::
 
-                >>> stamp = claim.get_matchstamp(bundle=bundle)
+                >>> stamp = claim.get_matchstamp()  # uses claim's bundle
                 >>> stamp.n_timelines
                 23  # score + 22 performers at this coordinate
 
             Reduced stamp (two timelines only)::
 
-                >>> stamp = claim.get_matchstamp(bundle=bundle, from_graph=False)
+                >>> stamp = claim.get_matchstamp(from_graph=False)
                 >>> stamp.n_timelines
                 2   # just the two timelines in this claim
         """
@@ -473,13 +492,15 @@ class MatchClaim:
             return None
 
         if from_graph:
-            if bundle is None:
+            # Use provided bundle, or fall back to the claim's bundle
+            effective_bundle = bundle if bundle is not None else self._bundle
+            if effective_bundle is None:
                 raise ValueError(
-                    "bundle is required for from_graph=True. Pass the "
-                    "AlignmentBundle containing this claim."
+                    "bundle is required for from_graph=True. Either pass the "
+                    "AlignmentBundle or ensure this claim was added to a bundle."
                 )
             # Delegate to the bundle's cached MatchGraph mechanism
-            return bundle.get_matchstamp_at(
+            return effective_bundle.get_matchstamp_at(
                 self.start_anchor.coordinate_a,
                 self.timeline_a_id,
             )
@@ -527,20 +548,32 @@ class MatchClaim:
         Returns:
             A synchronous MatchClaim with 1 or 2 anchors.
         """
+
+        def _extract_coord(event: dict, key: str) -> float:
+            """Extract coordinate value from event dict.
+
+            Handles both raw float values and structured coordinate dicts
+            with a 'value' key.
+            """
+            coord = event[key]
+            if isinstance(coord, dict):
+                return float(coord["value"])
+            return float(coord)
+
         start_anchor = AlignmentAnchor(
             timeline_a_id=tl_a_id,
-            coordinate_a=float(event_a[coord_key]),
+            coordinate_a=_extract_coord(event_a, coord_key),
             timeline_b_id=tl_b_id,
-            coordinate_b=float(event_b[coord_key]),
+            coordinate_b=_extract_coord(event_b, coord_key),
         )
 
         end_anchor = None
         if end_coord_key is not None:
             end_anchor = AlignmentAnchor(
                 timeline_a_id=tl_a_id,
-                coordinate_a=float(event_a[end_coord_key]),
+                coordinate_a=_extract_coord(event_a, end_coord_key),
                 timeline_b_id=tl_b_id,
-                coordinate_b=float(event_b[end_coord_key]),
+                coordinate_b=_extract_coord(event_b, end_coord_key),
             )
 
         return cls(

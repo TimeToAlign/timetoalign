@@ -310,3 +310,123 @@ class TestSpecificHoleValues:
 
 
 # endregion
+
+
+# region Test: Minimal Synthetic ATON (Fast Tests)
+
+MINIMAL_ATON_FILE = (
+    Path(__file__).parent.parent.parent / "data" / "fixtures" / "aton" / "minimal.aton"
+)
+
+
+@pytest.fixture
+def minimal_aton_path() -> Path:
+    """Path to the minimal synthetic ATON file."""
+    return MINIMAL_ATON_FILE
+
+
+@pytest.fixture
+def loaded_minimal_loader() -> ATONLoader:
+    """ATONLoader with minimal.aton loaded."""
+    loader = ATONLoader()
+    loader.load(MINIMAL_ATON_FILE)
+    return loader
+
+
+class TestMinimalATON:
+    """Tests for minimal.aton synthetic fixture.
+
+    Per README.md, all values are EXACT with ZERO TOLERANCE.
+    These tests are fast (5 holes vs 30092 in SUPRA).
+    """
+
+    def test_load_minimal_aton(self, minimal_aton_path: Path) -> None:
+        """minimal.aton loads without error."""
+        loader = ATONLoader()
+        result = loader.load(minimal_aton_path)
+        assert result is loader
+
+    def test_hole_count_exact(self, loaded_minimal_loader: ATONLoader) -> None:
+        """minimal.aton contains exactly 5 holes."""
+        assert loaded_minimal_loader.n_holes == 5
+
+    def test_musical_holes_exact(self, loaded_minimal_loader: ATONLoader) -> None:
+        """ROLLINFO MUSICAL_HOLES is exactly 5."""
+        assert loaded_minimal_loader.musical_holes == 5
+
+    def test_musical_notes_exact(self, loaded_minimal_loader: ATONLoader) -> None:
+        """ROLLINFO MUSICAL_NOTES is exactly 5."""
+        assert loaded_minimal_loader.musical_notes == 5
+
+    def test_first_hole_exact(self, loaded_minimal_loader: ATONLoader) -> None:
+        """ROLLINFO FIRST_HOLE is exactly 100 pixels."""
+        assert loaded_minimal_loader.first_hole.value == 100
+
+    def test_last_hole_exact(self, loaded_minimal_loader: ATONLoader) -> None:
+        """ROLLINFO LAST_HOLE is exactly 1900 pixels."""
+        assert loaded_minimal_loader.last_hole.value == 1900
+
+    def test_musical_length_exact(self, loaded_minimal_loader: ATONLoader) -> None:
+        """ROLLINFO MUSICAL_LENGTH is exactly 1800 pixels."""
+        assert loaded_minimal_loader.musical_length.value == 1800
+
+    def test_image_dimensions_exact(self, loaded_minimal_loader: ATONLoader) -> None:
+        """Image dimensions match expected values."""
+        dims = loaded_minimal_loader.image_dimensions
+        assert dims["width"] == 1024
+        assert dims["height"] == 2000
+
+    def test_dpi_exact(self, loaded_minimal_loader: ATONLoader) -> None:
+        """DPI is exactly 300.0."""
+        assert loaded_minimal_loader.dpi == 300.0
+
+    def test_first_hole_detailed(self, loaded_minimal_loader: ATONLoader) -> None:
+        """First hole (H1_N1) has exact expected values."""
+        first = loaded_minimal_loader.holes[0]
+
+        assert first.id == "H1_N1"
+        assert first.origin_row == 100
+        assert first.origin_col == 200
+        assert first.width_row == 20
+        assert first.width_col == 15
+        assert first.centroid_row == 110.5
+        assert first.centroid_col == 207.5
+        assert first.area == 280
+        assert first.perimeter == 70.0
+        assert first.circularity == 0.72
+        assert first.tracker_hole == 60
+        assert first.midi_key == 60
+        assert first.note_attack == 100
+        assert first.off_time == 120
+
+    def test_all_holes_have_note_attack(
+        self, loaded_minimal_loader: ATONLoader
+    ) -> None:
+        """All holes in minimal.aton are musical (have NOTE_ATTACK)."""
+        note_holes = loaded_minimal_loader.get_note_holes()
+        assert len(note_holes) == 5
+
+    def test_from_file_convenience(self, minimal_aton_path: Path) -> None:
+        """from_file() classmethod works correctly."""
+        loader = ATONLoader.from_file(minimal_aton_path)
+        assert loader.n_holes == 5
+
+
+class TestMinimalATONTimeline:
+    """Tests for timeline creation from minimal.aton."""
+
+    def test_create_timeline(self, loaded_minimal_loader: ATONLoader) -> None:
+        """create_timeline() produces a valid timeline."""
+        timeline = loaded_minimal_loader.create_timeline()
+
+        assert timeline is not None
+        assert timeline.n_events == 5
+
+    def test_create_timeline_with_uid(self, loaded_minimal_loader: ATONLoader) -> None:
+        """create_timeline() accepts custom uid."""
+        timeline = loaded_minimal_loader.create_timeline(uid="dgt1")
+
+        assert timeline.id == "dgt1"
+
+
+# endregion

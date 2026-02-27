@@ -221,6 +221,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/ClaimFilter.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ClaimFilter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/ContinuousGraphicalTimeline.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">ContinuousGraphicalTimeline</span></a>
   </div>
@@ -259,6 +265,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container">
   <a href="../reference/CoordinateValue.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">CoordinateValue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/DictStore.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DictStore</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -353,8 +365,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/MatchfileLoader.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MatchfileLoader</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/MatchGraph.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MatchGraph</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/MatchLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MatchLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/MatchMetadata.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">MatchMetadata</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/MatchStamp.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MatchStamp</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -431,6 +467,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/TiliaDictStore.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TiliaDictStore</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/TiliaJsonLoader.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TiliaJsonLoader</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/Timeline.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Timeline</span></a>
   </div>
@@ -443,8 +491,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/TimelineIdGenerator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TimelineIdGenerator</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/TimeUnit.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">TimeUnit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/WarpMap.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">WarpMap</span></a>
   </div>
 </li>
       </ul>
@@ -473,6 +533,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.MatchClaim.get_matchstamp" id="toc-timetoalign.MatchClaim.get_matchstamp" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.get_matchstamp">get_matchstamp</a></li>
   <li><a href="#timetoalign.MatchClaim.implicit" id="toc-timetoalign.MatchClaim.implicit" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.implicit">implicit</a></li>
   <li><a href="#timetoalign.MatchClaim.nomatch" id="toc-timetoalign.MatchClaim.nomatch" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.nomatch">nomatch</a></li>
+  <li><a href="#timetoalign.MatchClaim.set_bundle" id="toc-timetoalign.MatchClaim.set_bundle" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.set_bundle">set_bundle</a></li>
   <li><a href="#timetoalign.MatchClaim.to_dict" id="toc-timetoalign.MatchClaim.to_dict" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.to_dict">to_dict</a></li>
   </ul></li>
   </ul></li>
@@ -497,7 +558,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    metadata<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    source_claim_id<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">''</span>,</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    _bundle<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>A claim that two events or coordinates on different timelines correspond.</p>
 <p>A MatchClaim always knows which two timelines it connects via top-level <code>timeline_a_id</code> and <code>timeline_b_id</code> fields. Anchors are only present for synchronous claims.</p>
 <p>Four cases: (a) <code>from_events</code>: Two timed things on different timelines correspond. (b) <code>from_projection</code>: An event is projected onto a timeline with no matching event. (c) <code>nomatch</code>: An event has no equivalent on the other timeline. (d) <code>implicit</code>: Implicit claim generated by MatchGraph group extension.</p>
@@ -526,10 +588,14 @@ True</code></pre>
 <td>Get all anchors in this claim (0, 1, or 2).</td>
 </tr>
 <tr class="even">
+<td><a href="#timetoalign.MatchClaim.bundle">bundle</a></td>
+<td>The AlignmentBundle this claim belongs to, if set.</td>
+</tr>
+<tr class="odd">
 <td><a href="#timetoalign.MatchClaim.is_interval">is_interval</a></td>
 <td>Whether this is an interval match (has end anchor).</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.MatchClaim.timelines">timelines</a></td>
 <td>Return tuple of timeline IDs.</td>
 </tr>
@@ -583,6 +649,10 @@ True</code></pre>
 <td>Case (c): An event has no equivalent on the other timeline.</td>
 </tr>
 <tr class="even">
+<td><a href="#timetoalign.MatchClaim.set_bundle">set_bundle</a></td>
+<td>Associate this claim with an AlignmentBundle.</td>
+</tr>
+<tr class="odd">
 <td><a href="#timetoalign.MatchClaim.to_dict">to_dict</a></td>
 <td>Serialize to dictionary for storage.</td>
 </tr>
@@ -658,15 +728,15 @@ True</code></pre>
 <p>With <code>from_graph=False</code>, constructs a <strong>reduced</strong> MatchStamp from only the two timelines in this claim (no graph construction needed).</p>
 <p>Args: bundle: The <code>AlignmentBundle</code> containing this claim. Required for <code>from_graph=True</code>. Provides group info and the MatchGraph cache. from_graph: If True (default), build/retrieve the full MatchGraph and return the FULL MatchStamp across ALL connected groups. If False, return a reduced 2-timeline MatchStamp. conversion_maps: Include C-map conversions (reserved for future use).</p>
 <p>Returns: MatchStamp with coordinates, or None if this claim is non-synchronous (NOMATCH).</p>
-<p>Raises: ValueError: If <code>from_graph=True</code> but <code>bundle</code> is None.</p>
+<p>Raises: ValueError: If <code>from_graph=True</code> but no bundle is available (neither passed nor set via <code>set_bundle()</code>).</p>
 <p>Examples: Full stamp (default – from graph, all groups)::</p>
-<pre><code>    &gt;&gt;&gt; stamp = claim.get_matchstamp(bundle=bundle)
+<pre><code>    &gt;&gt;&gt; stamp = claim.get_matchstamp()  # uses claim's bundle
     &gt;&gt;&gt; stamp.n_timelines
     23  # score + 22 performers at this coordinate
 
 Reduced stamp (two timelines only)::
 
-    &gt;&gt;&gt; stamp = claim.get_matchstamp(bundle=bundle, from_graph=False)
+    &gt;&gt;&gt; stamp = claim.get_matchstamp(from_graph=False)
     &gt;&gt;&gt; stamp.n_timelines
     2   # just the two timelines in this claim</code></pre>
 </section>
@@ -693,9 +763,16 @@ Reduced stamp (two timelines only)::
 <p>Args: event: Event dict from the source timeline. source_tl_id: Source timeline’s ID. target_tl_id: Target timeline’s ID. metadata: Provenance information.</p>
 <p>Returns: A non-synchronous MatchClaim with no anchors.</p>
 </section>
+<section id="timetoalign.MatchClaim.set_bundle" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.MatchClaim.set_bundle">set_bundle</h3>
+<div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.set_bundle(bundle)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Associate this claim with an AlignmentBundle.</p>
+<p>This is called automatically when claims are added to a bundle. Once set, <code>get_matchstamp(from_graph=True)</code> can be called without passing the bundle explicitly.</p>
+<p>Args: bundle: The AlignmentBundle containing this claim.</p>
+</section>
 <section id="timetoalign.MatchClaim.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchClaim.to_dict">to_dict</h3>
-<div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.to_dict()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.to_dict()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Serialize to dictionary for storage.</p>
 
 

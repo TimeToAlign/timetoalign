@@ -186,6 +186,12 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/ClaimFilter.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ClaimFilter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/ContinuousGraphicalTimeline.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">ContinuousGraphicalTimeline</span></a>
   </div>
@@ -224,6 +230,12 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container">
   <a href="../reference/CoordinateValue.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">CoordinateValue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/DictStore.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DictStore</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -318,8 +330,32 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/MatchfileLoader.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MatchfileLoader</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/MatchGraph.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MatchGraph</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/MatchLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MatchLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/MatchMetadata.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">MatchMetadata</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/MatchStamp.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MatchStamp</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -396,6 +432,18 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/TiliaDictStore.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TiliaDictStore</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/TiliaJsonLoader.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TiliaJsonLoader</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/Timeline.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Timeline</span></a>
   </div>
@@ -408,8 +456,20 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/TimelineIdGenerator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TimelineIdGenerator</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/TimeUnit.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">TimeUnit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/WarpMap.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">WarpMap</span></a>
   </div>
 </li>
       </ul>
@@ -612,6 +672,30 @@ ul.task-list li input[type="checkbox"] {
 <td><a href="../reference/MatchMetadata.html#timetoalign.MatchMetadata">MatchMetadata</a></td>
 <td>Provenance information for a match claim.</td>
 </tr>
+<tr class="odd">
+<td><a href="../reference/MatchGraph.html#timetoalign.MatchGraph">MatchGraph</a></td>
+<td>A graph of MatchClaims connecting events across timelines/groups.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/MatchStamp.html#timetoalign.MatchStamp">MatchStamp</a></td>
+<td>A synchronized timestamp across multiple timelines.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/MatchLine.html#timetoalign.MatchLine">MatchLine</a></td>
+<td>Ordered sequence of MatchStamps for a source timeline.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/WarpMap.html#timetoalign.WarpMap">WarpMap</a></td>
+<td>Bidirectional coordinate warping derived from alignment data.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/ClaimFilter.html#timetoalign.ClaimFilter">ClaimFilter</a></td>
+<td>Reusable filter for querying MatchClaims and related objects.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/TimelineIdGenerator.html#timetoalign.TimelineIdGenerator">TimelineIdGenerator</a></td>
+<td>Generates systematic timeline IDs based on type.</td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -637,24 +721,40 @@ ul.task-list li input[type="checkbox"] {
 <td>Store wrapper for a single EventData.</td>
 </tr>
 <tr class="odd">
+<td><a href="../reference/DictStore.html#timetoalign.DictStore">DictStore</a></td>
+<td>Generic EventStore with arbitrary named EventData tables.</td>
+</tr>
+<tr class="even">
 <td><a href="../reference/AudioLoader.html#timetoalign.AudioLoader">AudioLoader</a></td>
 <td>Load audio file metadata for creating physical timelines.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="../reference/AudioInfo.html#timetoalign.AudioInfo">AudioInfo</a></td>
 <td>Metadata for an audio file.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="../reference/RepoVizzLoader.html#timetoalign.RepoVizzLoader">RepoVizzLoader</a></td>
 <td>Load RepoVizz 2-line CSV sensor data metadata for creating physical timelines.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="../reference/RepoVizzInfo.html#timetoalign.RepoVizzInfo">RepoVizzInfo</a></td>
 <td>Parsed metadata from a RepoVizz CSV file.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="../reference/EepNotesLoader.html#timetoalign.EepNotesLoader">EepNotesLoader</a></td>
 <td>Loader for EEP <code>.notes</code> alignment files.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/MatchfileLoader.html#timetoalign.loader.alignment.matchfile.MatchfileLoader">MatchfileLoader</a></td>
+<td>Load Vienna Match (.match) alignment files via partitura.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/TiliaJsonLoader.html#timetoalign.loader.alignment.tilia.TiliaJsonLoader">TiliaJsonLoader</a></td>
+<td>Loader for TiLiA JSON annotation exports.</td>
+</tr>
+<tr class="odd">
+<td><a href="../reference/TiliaDictStore.html#timetoalign.loader.alignment.tilia.TiliaDictStore">TiliaDictStore</a></td>
+<td><code>DictStore</code> subclass with convenience properties for TiLiA timeline types.</td>
 </tr>
 </tbody>
 </table>

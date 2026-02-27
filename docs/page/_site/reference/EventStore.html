@@ -221,6 +221,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/ClaimFilter.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ClaimFilter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/ContinuousGraphicalTimeline.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">ContinuousGraphicalTimeline</span></a>
   </div>
@@ -259,6 +265,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container">
   <a href="../reference/CoordinateValue.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">CoordinateValue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/DictStore.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DictStore</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -353,8 +365,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/MatchfileLoader.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MatchfileLoader</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/MatchGraph.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MatchGraph</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/MatchLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MatchLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/MatchMetadata.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">MatchMetadata</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/MatchStamp.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MatchStamp</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -431,6 +467,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/TiliaDictStore.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TiliaDictStore</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/TiliaJsonLoader.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TiliaJsonLoader</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/Timeline.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Timeline</span></a>
   </div>
@@ -443,8 +491,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/TimelineIdGenerator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TimelineIdGenerator</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/TimeUnit.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">TimeUnit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/WarpMap.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">WarpMap</span></a>
   </div>
 </li>
       </ul>
@@ -468,6 +528,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.EventStore.get_cmaps" id="toc-timetoalign.EventStore.get_cmaps" class="nav-link" data-scroll-target="#timetoalign.EventStore.get_cmaps">get_cmaps</a></li>
   <li><a href="#timetoalign.EventStore.items" id="toc-timetoalign.EventStore.items" class="nav-link" data-scroll-target="#timetoalign.EventStore.items">items</a></li>
   <li><a href="#timetoalign.EventStore.keys" id="toc-timetoalign.EventStore.keys" class="nav-link" data-scroll-target="#timetoalign.EventStore.keys">keys</a></li>
+  <li><a href="#timetoalign.EventStore.summary" id="toc-timetoalign.EventStore.summary" class="nav-link" data-scroll-target="#timetoalign.EventStore.summary">summary</a></li>
   <li><a href="#timetoalign.EventStore.values" id="toc-timetoalign.EventStore.values" class="nav-link" data-scroll-target="#timetoalign.EventStore.values">values</a></li>
   </ul></li>
   </ul></li>
@@ -541,6 +602,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Return data names in canonical order.</td>
 </tr>
 <tr class="odd">
+<td><a href="#timetoalign.EventStore.summary">summary</a></td>
+<td>Get a summary of the store contents.</td>
+</tr>
+<tr class="even">
 <td><a href="#timetoalign.EventStore.values">values</a></td>
 <td>Iterate over data.</td>
 </tr>
@@ -587,9 +652,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Return data names in canonical order.</p>
 <p>Returns: Tuple of data names.</p>
 </section>
+<section id="timetoalign.EventStore.summary" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.EventStore.summary">summary</h3>
+<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>EventStore.summary()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Get a summary of the store contents.</p>
+<p>Returns a dictionary mapping table/data names to summary information: - unit: The time unit of the data - range: Tuple of (min_coord, max_coord) for events - count: Number of events in the table</p>
+<p>Subclasses may override to provide additional domain-specific information (e.g., event type breakdown, has_rests for ScoreStore).</p>
+<p>Returns: Dict mapping table names to summary dicts.</p>
+<p>Examples: &gt;&gt;&gt; store = SomeStore(…) &gt;&gt;&gt; store.summary() {“notes”: {“unit”: “quarters”, “range”: (0.0, 120.5), “count”: 498}}</p>
+</section>
 <section id="timetoalign.EventStore.values" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventStore.values">values</h3>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>EventStore.values()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>EventStore.values()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Iterate over data.</p>
 <p>Yields: EventData in canonical order.</p>
 
