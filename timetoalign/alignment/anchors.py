@@ -548,20 +548,32 @@ class MatchClaim:
         Returns:
             A synchronous MatchClaim with 1 or 2 anchors.
         """
+
+        def _extract_coord(event: dict, key: str) -> float:
+            """Extract coordinate value from event dict.
+
+            Handles both raw float values and structured coordinate dicts
+            with a 'value' key.
+            """
+            coord = event[key]
+            if isinstance(coord, dict):
+                return float(coord["value"])
+            return float(coord)
+
         start_anchor = AlignmentAnchor(
             timeline_a_id=tl_a_id,
-            coordinate_a=float(event_a[coord_key]),
+            coordinate_a=_extract_coord(event_a, coord_key),
             timeline_b_id=tl_b_id,
-            coordinate_b=float(event_b[coord_key]),
+            coordinate_b=_extract_coord(event_b, coord_key),
         )
 
         end_anchor = None
         if end_coord_key is not None:
             end_anchor = AlignmentAnchor(
                 timeline_a_id=tl_a_id,
-                coordinate_a=float(event_a[end_coord_key]),
+                coordinate_a=_extract_coord(event_a, end_coord_key),
                 timeline_b_id=tl_b_id,
-                coordinate_b=float(event_b[end_coord_key]),
+                coordinate_b=_extract_coord(event_b, end_coord_key),
             )
 
         return cls(
