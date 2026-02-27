@@ -27,5 +27,6 @@
   "how02_supra_piano_roll.py": "3fe71d06c68417a03ca772c683ef86f34fee431a3e3e3135b7e3d1d33e5ef447",
   "how03_beethoven_multimodal.py": "0331b65d44bcb12e43a1fd474a385fcb17b2f87fe48c490019407d8fc63d21d5",
   "how03_loading_vienna_corpus.py": "1f083e4e6df102c13f62359fe9ebf8a67ec12ffd28e841d1d1bb8b601a648e43",
-  "tut00_quickstart.py": "4c3ae02cb010576cb37794691a64ed5a6e6af403aff2fca956eafd6ce32c9fb2"
+  "tut00_quickstart.py": "4c3ae02cb010576cb37794691a64ed5a6e6af403aff2fca956eafd6ce32c9fb2",
+  "how03_create_note_alignment.py": "8c23e2728bc9aa84e20fdac5f72a9871a81d578208473a0486a58a32fd1dfc6c"
 }
