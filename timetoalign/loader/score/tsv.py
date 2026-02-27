@@ -13,7 +13,7 @@ from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.schema import coordinate_to_struct, fraction_to_struct
 
 from .base import ScoreLoader
-from .bundle import ScoreStore
+from .store import ScoreStore
 from .stores import (
     AnnotationEventData,
     ControlEventData,

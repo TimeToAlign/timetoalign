@@ -8,8 +8,8 @@ import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
+from timetoalign.loader.events import EventData
 from timetoalign.loader.schema import make_fraction_field
-from timetoalign.loader.store import EventData
 
 if TYPE_CHECKING:
     pass

@@ -43,7 +43,7 @@ from typing import Any
 from timetoalign.core import NumberType, TimeUnit
 
 from .base import ScoreLoader
-from .bundle import ScoreStore
+from .store import ScoreStore
 from .stores import (
     AnnotationEventData,
     ControlEventData,

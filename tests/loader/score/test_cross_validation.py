@@ -35,9 +35,9 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from timetoalign.loader.score.bundle import ScoreStore
 from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
+from timetoalign.loader.score.store import ScoreStore
 from timetoalign.loader.score.tsv import TSVLoader
 
 DATA_DIR = Path(__file__).parents[2] / "data" / "vienna_1x22"

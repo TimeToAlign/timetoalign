@@ -157,7 +157,7 @@ def _create_grouped_timeline(
     # Create child for each unique value
     import pyarrow.compute as pc
 
-    from timetoalign.loader.store import EventData
+    from timetoalign.loader.events import EventData
 
     for group_value in unique_values:
         if group_value is None:
@@ -240,7 +240,7 @@ def create_timeline_from_bundle(
     Raises:
         ValueError: If no data remain after filtering, or all are empty.
     """
-    from timetoalign.loader.store import EventData
+    from timetoalign.loader.events import EventData
 
     store_filters = store_filters or {}
     exclude_set = set(exclude_stores or [])
@@ -419,8 +419,8 @@ def create_timeline(
         >>> # Creates children: page1.png, page2.png, etc.
     """
     from timetoalign.loader.base import Loader
-    from timetoalign.loader.bundle import EventStore, SingleStore
-    from timetoalign.loader.store import EventData
+    from timetoalign.loader.events import EventData
+    from timetoalign.loader.store import EventStore, SingleStore
 
     # Normalize to EventStore
     if isinstance(source, EventStore):

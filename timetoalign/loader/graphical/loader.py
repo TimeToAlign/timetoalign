@@ -16,10 +16,10 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .bundle import GraphicalStore
 from .paths import HorizontalLinePath, TimeAxisPath, VerticalLinePath
 from .segment import GraphicalSegment
 from .source import ImageSource
+from .store import GraphicalStore
 
 if TYPE_CHECKING:
     import pymupdf
@@ -38,7 +38,7 @@ class GraphicalLoader:
         >>> idx = loader.add_image("score.png")
         >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=100, name="system_1")
         >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=200, name="system_2")
-        >>> store = loader.bundle
+        >>> store = loader.store
 
         >>> # From PDF
         >>> import pymupdf

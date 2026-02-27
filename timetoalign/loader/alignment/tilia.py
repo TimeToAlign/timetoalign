@@ -47,9 +47,9 @@ from typing import TYPE_CHECKING, Any
 import pyarrow as pa
 
 from timetoalign.core import TimeUnit, resolve_id
-from timetoalign.loader.bundle import DictStore
+from timetoalign.loader.events import EventData
 from timetoalign.loader.format.json import JsonLoader, _normalise_array
-from timetoalign.loader.store import EventData
+from timetoalign.loader.store import DictStore
 from timetoalign.timelines.types import ContinuousPhysicalTimeline
 
 if TYPE_CHECKING:
@@ -261,7 +261,7 @@ class TiliaDictStore(DictStore):
         >>> loader.store.beat       # all beat tables concatenated
 
     See Also:
-        timetoalign.loader.bundle.DictStore
+        timetoalign.loader.store.DictStore
     """
 
     def __init__(
