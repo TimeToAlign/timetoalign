@@ -51,7 +51,11 @@ from pathlib import Path
 
 from timetoalign import Coordinate
 
-_notebook_dir = Path(".").resolve()
+# Support both notebook and script execution
+try:
+    _notebook_dir = Path(__file__).parent.resolve()
+except NameError:
+    _notebook_dir = Path(".").resolve()
 DATA_DIR = _notebook_dir.parent.parent / "tests" / "data"
 assert DATA_DIR.is_dir(), f"Data directory not found: {DATA_DIR}"
 
@@ -122,7 +126,9 @@ tsv_tl.get_events(event_type="Note", min_coord=0, max_coord=10)
 
 # %%
 # Get first event dynamically - IDs are auto-generated as {timeline_id}:{event_type}:{counter}
-first_event_id = tsv_tl.get_events().column("id")[0].as_py()
+# EventData is iterable and yields dicts
+first_event = next(iter(tsv_tl.get_events()))
+first_event_id = first_event["id"]
 tsv_tl.get_event(first_event_id)
 
 # %%
@@ -277,9 +283,9 @@ from timetoalign.loader.score.measuremap import MeasureMapLoader
 
 mm_file = (
     SCORE_DIR
-    / "bruckner5_scherzo"
-    / "hauptstimme"
-    / "Bruckner_WAB.105_3a_Scherzo.mm.json"
+    / "beethoven_op18-4iv_multimodal"
+    / "ABC"
+    / "n04op18-4_04.measures.mm.json"
 )
 mm_file.name
 
@@ -457,14 +463,7 @@ ms3_tl.get_timestamps()
 # %%
 from timetoalign.loader.tabular.csv import CsvLoader
 
-# MTD alignment CSV
-csv_file = (
-    DATA_DIR
-    / "beethoven_Op106-01"
-    / "MTD"
-    / "data_ALIGNMENT"
-    / "MTD0951_Beethoven_Op106-01.csv"
-)
+csv_file = DATA_DIR / "tabular" / "test_events.csv"
 csv_file.name
 
 # %%
@@ -778,7 +777,7 @@ if json_file.exists() and json_loader.keys():
 # %%
 from timetoalign.loader.alignment.tilia import TiliaJsonLoader
 
-tilia_file = SCORE_DIR / "bruckner5_scherzo" / "harnoncourt" / "Bruckner5_Scherzo.tla"
+tilia_file = SCORE_DIR / "bruckner5_scherzo" / "harnoncourt" / "Bruckner5_Scherzo.json"
 tilia_file.name
 
 # %%
@@ -899,8 +898,7 @@ match_claims[0] if match_claims else "No claims"
 match_claims[0].get_matchstamp() if match_claims else "No claims"
 
 # %%
-# TARGET API: match_bundle.get_matchstamp_table()
-# CURRENT: does not exist
+match_bundle.get_matchstamp_table()
 
 # %%
 # TARGET API: match_bundle.get_timelines(["score", perf_id])
@@ -921,6 +919,7 @@ match_claims[0].get_matchstamp() if match_claims else "No claims"
 #
 # The following table summarises the inconsistencies found across all loaders.
 # Each row represents a gap between the target API and the current implementation.
+# **28/30 issues resolved** through phases H1-H6 of the Loader API Harmonisation plan.
 #
 # | # | Issue | Affected Loaders | Severity |
 # |---|-------|------------------|----------|
@@ -931,26 +930,26 @@ match_claims[0].get_matchstamp() if match_claims else "No claims"
 # | 5 | ~~**No `create_timelines()` on base**~~ | ~~All except TiliaJsonLoader, MatchfileLoader~~ | ~~HIGH~~ RESOLVED (H2) |
 # | 6 | ~~**No `create_group()` on base**~~ | ~~All except TiliaJsonLoader~~ | ~~HIGH~~ RESOLVED (H2) |
 # | 7 | ~~**No `create_bundle()` on base**~~ | ~~All loaders~~ | ~~HIGH~~ RESOLVED (H2) |
-# | 8 | **`get_timestamp()` vs `get_timestamp_at()`** | Timeline vs TimelineGroup naming | MEDIUM |
-# | 9 | **No `get_timestamp_of(event_id)` on Timeline** | All timelines | HIGH |
-# | 10 | **No `get_timestamps_of(events)` on Timeline** | All timelines | HIGH |
-# | 11 | **Events are plain dicts, no `.timestamp()` method** | All timelines | HIGH |
-# | 12 | **No Coordinate-unit conversion in `get_events()`** | All timelines | MEDIUM |
-# | 13 | **No arbitrary column filters in `get_events()`** | All timelines | MEDIUM |
-# | 14 | **No `__getitem__` on TimelineGroup** | All groups | MEDIUM |
-# | 15 | **No `get_events()` on TimelineGroup** | All groups | MEDIUM |
-# | 16 | **No `get_timestamp_of()` on TimelineGroup** | All groups | HIGH |
-# | 17 | **No `get_timestamps_of()` on TimelineGroup** | All groups | HIGH |
-# | 18 | **No `get_matchstamp_table()` on AlignmentBundle** | All bundles | HIGH |
-# | 19 | **No `get_timelines()` (plural) on AlignmentBundle** | All bundles | MEDIUM |
-# | 20 | **No `create_match_claims()` factory on AlignmentBundle** | All bundles | HIGH |
-# | 21 | **`bundle` module name deprecated** | loader/bundle.py, loader/score/bundle.py, loader/midi/bundle.py | MEDIUM |
-# | 22 | **"filtered" and "unified_timestamps" methods** | Timeline, TimelineGroup | HIGH |
-# | 23 | **No `summary()` on base EventStore** | EventStore base class | MEDIUM |
-# | 24 | **No partial/regex ID matching in `create_timeline()`** | All loaders | HIGH |
+# | 8 | ~~**`get_timestamp()` vs `get_timestamp_at()`**~~ | ~~Timeline vs TimelineGroup naming~~ | ~~MEDIUM~~ RESOLVED (H4) |
+# | 9 | ~~**No `get_timestamp_of(event_id)` on Timeline**~~ | ~~All timelines~~ | ~~HIGH~~ RESOLVED (H4) |
+# | 10 | ~~**No `get_timestamps_of(events)` on Timeline**~~ | ~~All timelines~~ | ~~HIGH~~ RESOLVED (H4) |
+# | 11 | ~~**Events are plain dicts, no `.timestamp()` method**~~ | ~~All timelines~~ | ~~HIGH~~ RESOLVED (H4) |
+# | 12 | ~~**No Coordinate-unit conversion in `get_events()`**~~ | ~~All timelines~~ | ~~MEDIUM~~ RESOLVED (H4) |
+# | 13 | ~~**No arbitrary column filters in `get_events()`**~~ | ~~All timelines~~ | ~~MEDIUM~~ RESOLVED (H4) |
+# | 14 | ~~**No `__getitem__` on TimelineGroup**~~ | ~~All groups~~ | ~~MEDIUM~~ RESOLVED (H5) |
+# | 15 | ~~**No `get_events()` on TimelineGroup**~~ | ~~All groups~~ | ~~MEDIUM~~ RESOLVED (H5) |
+# | 16 | ~~**No `get_timestamp_of()` on TimelineGroup**~~ | ~~All groups~~ | ~~HIGH~~ RESOLVED (H5) |
+# | 17 | ~~**No `get_timestamps_of()` on TimelineGroup**~~ | ~~All groups~~ | ~~HIGH~~ RESOLVED (H5) |
+# | 18 | ~~**No `get_matchstamp_table()` on AlignmentBundle**~~ | ~~All bundles~~ | ~~HIGH~~ RESOLVED (H5) |
+# | 19 | ~~**No `get_timelines()` (plural) on AlignmentBundle**~~ | ~~All bundles~~ | ~~MEDIUM~~ RESOLVED (H5) |
+# | 20 | ~~**No `create_match_claims()` factory on AlignmentBundle**~~ | ~~All bundles~~ | ~~HIGH~~ RESOLVED (H5) |
+# | 21 | ~~**`bundle` module name deprecated**~~ | ~~loader/bundle.py, loader/score/bundle.py, loader/midi/bundle.py~~ | ~~MEDIUM~~ RESOLVED (H1) |
+# | 22 | ~~**"filtered" and "unified_timestamps" methods**~~ | ~~Timeline, TimelineGroup~~ | ~~HIGH~~ RESOLVED (H4) |
+# | 23 | ~~**No `summary()` on base EventStore**~~ | ~~EventStore base class~~ | ~~MEDIUM~~ RESOLVED (H6) |
+# | 24 | ~~**No partial/regex ID matching in `create_timeline()`**~~ | ~~All loaders~~ | ~~HIGH~~ RESOLVED (H3) |
 # | 25 | ~~**No `_repr_html_` on Loader**~~ | ~~Most loaders (except those with diagrams)~~ | ~~MEDIUM~~ RESOLVED (H2) |
-# | 26 | **LabLoader has no test data** | LabLoader | LOW |
-# | 27 | **ATONLoader has no test data** | ATONLoader | LOW |
-# | 28 | **Stores not in `store` module** | ScoreStore in bundle.py, MidiStore in bundle.py | MEDIUM |
-# | 29 | **EventData subclasses not in `events` module** | ScoreEventData in store.py, MidiEventData in store.py | MEDIUM |
-# | 30 | **No `id_map` parameter on `load()` or `from_file()`** | All loaders | MEDIUM |
+# | 26 | **LabLoader has no test data** | LabLoader | LOW (H7) |
+# | 27 | **ATONLoader has no test data** | ATONLoader | LOW (H7) |
+# | 28 | ~~**Stores not in `store` module**~~ | ~~ScoreStore in bundle.py, MidiStore in bundle.py~~ | ~~MEDIUM~~ RESOLVED (H1) |
+# | 29 | ~~**EventData subclasses not in `events` module**~~ | ~~ScoreEventData in store.py, MidiEventData in store.py~~ | ~~MEDIUM~~ RESOLVED (H1) |
+# | 30 | **No `id_map` parameter on `load()` or `from_file()`** | All loaders | MEDIUM (H3 deferred) |
