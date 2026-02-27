@@ -31,8 +31,8 @@ same four topics used throughout the documentation:
 
 ### Timelines, Events & Maps
 
-- [Why TimeToAlign! Matters](tutorials/tut00_motivation.ipynb) ---
-  The problem of fragmented music data and how TimeToAlign! solves it.
+- [Quickstart](tutorials/tut00_quickstart.ipynb) ---
+  A five-minute tour of Timelines, Groups, Bundles, and Grids.
 - [Timelines, Events, and Maps](tutorials/tut01a_timelines_events_maps.ipynb) ---
   Loading, EventStore, Coordinate, and ConversionMap.
 - [Children, Regions, and Timestamps](tutorials/tut01b_children_regions_timestamps.ipynb) ---

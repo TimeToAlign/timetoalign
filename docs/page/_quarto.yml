@@ -26,8 +26,8 @@ website:
         - tutorials.qmd
         - section: "Timelines, Events & Maps"
           contents:
-            - text: "Why TimeToAlign! Matters"
-              href: tutorials/tut00_motivation.ipynb
+            - text: "Quickstart"
+              href: tutorials/tut00_quickstart.ipynb
             - text: "Timelines, Events, and Maps"
               href: tutorials/tut01a_timelines_events_maps.ipynb
             - text: "Children, Regions, and Timestamps"
