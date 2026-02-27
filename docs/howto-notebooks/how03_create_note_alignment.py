@@ -26,6 +26,7 @@
 # 2. Create an `AlignmentBundle` with performance and score groups
 # 3. Query coordinates across both using `get_matchstamp_at()`
 # 4. Create `MatchLine` objects from both directions
+# 5. Export a `MatchLine` to the Vienna `.match` format
 
 # %% [markdown]
 # ## TL;DR
@@ -40,11 +41,13 @@
 # ## 1. Setup
 
 # %%
+import tempfile
 from pathlib import Path
 
 import pandas as pd
 
 from timetoalign.alignment import AlignmentBundle, MatchLine, TimelineGroup
+from timetoalign.alignment.match_format import MatchFileContext
 from timetoalign.alignment.matching import (
     match_notes_by_attributes,
     prepare_abc_notes_for_matching,
@@ -231,6 +234,39 @@ pairs = score_to_perf.get_coordinate_pairs("cpt1")
 }
 
 # %% [markdown]
+# ## 7. Export to .match Format
+#
+# A {{< glossary MatchLine >}} can be exported to the Vienna `.match` file
+# format using `save_as()`.  The `.match` format is the standard interchange
+# format for note-level alignments in MIR.
+#
+# To produce a rich `.match` file (with real pitch, duration, and staff
+# data rather than placeholders), supply a `MatchFileContext` built from
+# the same DataFrames used for matching.
+
+# %%
+ctx = MatchFileContext.from_dataframes(
+    score_df=abc_prepared,
+    perf_df=eep_prepared,
+    match_result=match_result,
+    piece="Beethoven Op.18/4-iv",
+    composer="Ludwig van Beethoven",
+    performer="StringQuartetEEP Normal",
+)
+
+with tempfile.TemporaryDirectory() as tmp:
+    out_path = score_to_perf.save_as(f"{tmp}/alignment.match", context=ctx)
+    text = out_path.read_text()
+
+# Show the first 15 lines
+for line in text.splitlines()[:15]:
+    print(line)
+
+# %% [markdown]
+# The exported file is a valid `.match` file that can be loaded back with
+# `MatchfileLoader` or any tool that reads the Vienna format.
+
+# %% [markdown]
 # ## Summary
 #
 # > *"MatchClaims connect timelines across groups. The AlignmentBundle
@@ -243,5 +279,6 @@ pairs = score_to_perf.get_coordinate_pairs("cpt1")
 # | Add claims to bundle | `bundle.add_match_claims(claims)` |
 # | Query by coordinate | `bundle.get_matchstamp_at(coord, tl_id)` |
 # | Create MatchLine | `MatchLine.from_claims(claims, source_timeline_id)` |
+# | Export to `.match` | `matchline.save_as("out.match", context=ctx)` |
 
 # %%
