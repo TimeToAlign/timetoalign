@@ -36,7 +36,7 @@
 
 # %%
 # Install dependencies if needed
-# # !pip install timetoalign[graphical]
+# # !pip install -e ".[graphical]"
 
 # %%
 import math

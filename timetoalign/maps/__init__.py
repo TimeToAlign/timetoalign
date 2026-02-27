@@ -25,6 +25,7 @@ from __future__ import annotations
 from .base import ConversionMap
 from .combination import CombinationMap
 from .composite import ChainMap, PiecewiseMap
+from .constant import ConstantMap
 from .convenience import (
     QuartersToTicks,
     SamplesToSeconds,
@@ -40,6 +41,8 @@ from .table import TableMap
 __all__ = [
     # Base
     "ConversionMap",
+    # Constant map
+    "ConstantMap",
     # Interpolation (internal engine)
     "InterpolationMap",
     # Linear maps

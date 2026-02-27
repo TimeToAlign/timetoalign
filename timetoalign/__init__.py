@@ -20,7 +20,7 @@ Basic usage::
 Installation & Optional Dependencies
 =====================================
 
-The core install (``pip install timetoalign``) is deliberately lightweight:
+The core install (``pip install -e .``) is deliberately lightweight:
 only PyArrow, pandas, NetworkX, and typing_extensions are required.  This
 gives you the full timeline/map/alignment framework but **no file-format-
 specific loaders**.  Loader backends and other features are available through
@@ -29,7 +29,7 @@ optional extras.
 Atomic extras — one concern each
 --------------------------------
 
-Install with ``pip install timetoalign[<extra>]``.
+Install with ``pip install -e ".[<extra>]"`` from the repository root.
 
 +---------------+--------------------------------------+----------------------------------------------+
 | Extra         | Packages                             | Purpose                                      |
@@ -82,17 +82,17 @@ The inclusion chain is::
                                             +  plot, jupytext, jupyter
                                +  delta, rdf
 
-Examples::
+Examples (from the repository root)::
 
-    pip install timetoalign                  # Core only
-    pip install timetoalign[midi]            # Core + MIDI loading
-    pip install timetoalign[scores]          # Core + all score-loader backends
-    pip install timetoalign[loaders]         # Core + every loader
-    pip install timetoalign[tutorial]        # Loaders + plotting + Jupyter
-    pip install timetoalign[all]             # All runtime features
-    pip install timetoalign[dev]             # Everything + dev tooling
+    pip install -e .                         # Core only
+    pip install -e ".[midi]"                 # Core + MIDI loading
+    pip install -e ".[scores]"               # Core + all score-loader backends
+    pip install -e ".[loaders]"              # Core + every loader
+    pip install -e ".[tutorial]"             # Loaders + plotting + Jupyter
+    pip install -e ".[all]"                  # All runtime features
+    pip install -e ".[dev]"                  # Everything + dev tooling
 
-For more information, see the documentation at https://timetoalign.readthedocs.io
+For more information, see the documentation site.
 """
 
 from __future__ import annotations
@@ -139,6 +139,7 @@ from timetoalign.loader import (
 )
 from timetoalign.maps import (
     ChainMap,
+    ConstantMap,
     ConversionMap,
     LinearMap,
     PiecewiseMap,
@@ -212,6 +213,7 @@ __all__ = [
     "DiscreteGraphicalTimeline",
     "BeatGrid",
     # Maps
+    "ConstantMap",
     "ConversionMap",
     "LinearMap",
     "ScalarMap",
