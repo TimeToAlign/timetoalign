@@ -60,6 +60,12 @@ Coordinate: |
   A position on a timeline, expressed as the distance from the origin in the
   timeline's measuring unit. Combines a numeric value with a TimeUnit.
 
+GroupTimestamp: |
+  A cross-section through a TimelineGroup at a given coordinate. Contains
+  one coordinate per timeline in the group plus (optionally) C-map conversion
+  values. A MatchStamp is the union of GroupTimestamps from each participating
+  group. Produced by TimelineGroup.get_timestamp_at().
+
 DictStore: |
   A generic EventStore subclass holding a dict[str, EventData] with arbitrary
   keys. Used internally by AlignmentLoaders to store one EventData table per
@@ -145,8 +151,9 @@ MatchLine: |
 
 MatchStamp: |
   A synchronised instant across multiple timelines, extracted from a MatchGraph's
-  connected components. Contains one coordinate per participating timeline.
-  Can be expanded with group-member coordinates and C-map conversions.
+  connected components. Formally, the union of GroupTimestamps from each
+  participating TimelineGroup. Contains one coordinate per participating timeline
+  and, with conversion_maps=True (the default), C-map conversion values.
 
 MultiMap: |
   An umbrella term for composed ConversionMaps: ChainMap (sequential),

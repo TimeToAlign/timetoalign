@@ -157,8 +157,8 @@ Make sure you have installed the `tutorial` extra (see
 and launch Jupyter:
 
 ```bash
-jupytext --sync docs/notebooks/*.py
-jupyter notebook docs/notebooks/
+jupytext --sync docs/*-notebooks/*.py
+jupyter notebook docs/tuto-notebooks/
 ```
 
 ## Development

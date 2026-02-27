@@ -155,20 +155,30 @@ class TestEventDataCreation:
 class TestEventDataSchema:
     """Tests for EventData schema methods."""
 
-    def test_schema_returns_pyarrow_schema(self) -> None:
-        """schema() returns a PyArrow schema."""
-        schema = EventData.schema(TimeUnit.ticks)
+    def test_get_schema_returns_pyarrow_schema(self) -> None:
+        """get_schema() returns a PyArrow schema."""
+        schema = EventData.get_schema(TimeUnit.ticks)
         assert isinstance(schema, pa.Schema)
 
-    def test_schema_has_base_columns(self) -> None:
-        """schema() includes all base columns.
+    def test_get_schema_has_base_columns(self) -> None:
+        """get_schema() includes all base columns.
 
         Note: The schema no longer has a separate 'instant' column.
         """
-        schema = EventData.schema(TimeUnit.ticks)
+        schema = EventData.get_schema(TimeUnit.ticks)
         assert "id" in schema.names
         assert "start" in schema.names
         assert "end" in schema.names
+
+    def test_instance_schema_property(self) -> None:
+        """Instance .schema returns the table's PyArrow schema."""
+        data = EventData.from_dicts(
+            [{"event_type": "Beat", "instant": 0}],
+            unit=TimeUnit.ticks,
+        )
+        assert isinstance(data.schema, pa.Schema)
+        assert "id" in data.schema.names
+        assert "start" in data.schema.names
 
     def test_column_names(self) -> None:
         """column_names() returns list of column names.
@@ -439,7 +449,7 @@ class TestEventDataSubclass:
                 pa.field("velocity", pa.int8()),
             ]
 
-        schema = NoteEventData.schema(TimeUnit.ticks)
+        schema = NoteEventData.get_schema(TimeUnit.ticks)
         assert "pitch" in schema.names
         assert "velocity" in schema.names
 

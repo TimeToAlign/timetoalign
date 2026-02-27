@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.0
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -313,7 +313,7 @@ dlt2_exp
 # %%
 try:
     audio_loader = AudioLoader.from_file(MP3_PATH)
-    dpt1_audio = audio_loader.to_timeline(uid="dpt1_audio")
+    dpt1_audio = audio_loader.create_timeline(uid="dpt1_audio")
     audio_duration = audio_loader.duration_seconds
     audio_info = {
         "DPT1 (Audio)": dpt1_audio.id,

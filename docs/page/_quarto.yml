@@ -24,39 +24,58 @@ website:
     - title: "Tutorials"
       contents:
         - tutorials.qmd
-        - section: "Foundations"
+        - section: "Timelines, Events & Maps"
           contents:
-            - tutorials/tut00_motivation.ipynb
-            - tutorials/tut01a_timelines_events_maps.ipynb
-            - tutorials/tut01b_children_regions_timestamps.ipynb
-        - section: "Alignment"
+            - text: "Quickstart"
+              href: tutorials/tut00_quickstart.ipynb
+            - text: "Timelines, Events, and Maps"
+              href: tutorials/tut01a_timelines_events_maps.ipynb
+            - text: "Children, Regions, and Timestamps"
+              href: tutorials/tut01b_children_regions_timestamps.ipynb
+        - section: "TimelineGroups"
           contents:
-            - tutorials/tut02_timeline_groups.ipynb
-            - tutorials/tut03_alignment_bundles.ipynb
-        - section: "Advanced"
+            - text: "Timeline Groups and Commensurability"
+              href: tutorials/tut02_timeline_groups.ipynb
+        - section: "AlignmentBundles"
           contents:
-            - tutorials/tut04_flow_and_grids.ipynb
+            - text: "Alignment Bundles"
+              href: tutorials/tut03_alignment_bundles.ipynb
+        - section: "In-depth Topics"
+          contents:
+            - text: "Flow Control and Grids"
+              href: tutorials/tut04_flow_and_grids.ipynb
 
     - title: "How-To Guides"
       contents:
         - howto.qmd
-        - section: "Topic 1: Timelines, Events & Maps"
+        - section: "Timelines, Events & Maps"
           contents:
-            - howto/how01_coordinate_math.ipynb
-            - howto/how01_advanced_cmaps.ipynb
-            - howto/how01_advanced_timestamps.ipynb
-            - howto/how01_manual_timeline_construction.ipynb
-            - howto/how01_loading_data.ipynb
-            - howto/how01_tabular_loaders.ipynb
-            - howto/how01_graphical_timelines.ipynb
-            - howto/how01_beat_grids.ipynb
-        - section: "Topic 2: TimelineGroups"
+            - text: "How to Do Coordinate Math"
+              href: howto/how01_coordinate_math.ipynb
+            - text: "How to Use Advanced Conversion Maps"
+              href: howto/how01_advanced_cmaps.ipynb
+            - text: "How to Query Timestamps"
+              href: howto/how01_advanced_timestamps.ipynb
+            - text: "How to Construct Timelines Manually"
+              href: howto/how01_manual_timeline_construction.ipynb
+            - text: "How to Load Data"
+              href: howto/how01_loading_data.ipynb
+            - text: "How to Load Tabular Data"
+              href: howto/how01_tabular_loaders.ipynb
+            - text: "How to Work with Graphical Timelines"
+              href: howto/how01_graphical_timelines.ipynb
+            - text: "How to Build Beat Grids"
+              href: howto/how01_beat_grids.ipynb
+        - section: "TimelineGroups"
           contents:
-            - howto/how02_supra_piano_roll.ipynb
-        - section: "Topic 3: AlignmentBundles"
+            - text: "How to Align a Piano Roll (SUPRA)"
+              href: howto/how02_supra_piano_roll.ipynb
+        - section: "AlignmentBundles"
           contents:
-            - howto/how03_beethoven_multimodal.ipynb
-            - howto/how03_loading_vienna_corpus.ipynb
+            - text: "How to Align Multimodal Data (Beethoven)"
+              href: howto/how03_beethoven_multimodal.ipynb
+            - text: "How to Load the Vienna 4x22 Corpus"
+              href: howto/how03_loading_vienna_corpus.ipynb
 
     - title: "Explanation"
       contents:

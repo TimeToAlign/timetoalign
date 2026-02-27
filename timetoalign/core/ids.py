@@ -1,13 +1,16 @@
 """Identity management for TTA objects.
 
-This module provides scoped IDs that preserve source provenance
-and generators for creating unique IDs within a scope.
+This module provides scoped IDs that preserve source provenance,
+generators for creating unique IDs within a scope, and utilities
+for resolving partial/regex ID patterns.
 
 Includes:
 - ScopedId: An identifier with scope:local format.
 - IdGenerator: General-purpose unique ID generation within a scope.
 - TimelineIdGenerator: Generates systematic timeline IDs based on type
   (e.g., ``clt1``, ``dlt2``, ``score:clt1``, ``perf:dlt3``).
+- resolve_id: Resolve a partial string or regex to a single ID.
+- resolve_ids: Resolve a pattern to all matching IDs.
 """
 
 from __future__ import annotations
@@ -368,3 +371,120 @@ class TimelineIdGenerator:
     def count(self) -> int:
         """Total number of IDs generated."""
         return sum(self._counters.values())
+
+
+# region ID Resolution Utilities
+
+
+def resolve_ids(pattern: str, available_ids: list[str]) -> list[str]:
+    """Resolve a partial string or regex pattern to matching IDs.
+
+    Matching precedence:
+    1. Exact match: Returns ``[pattern]`` immediately if found.
+    2. Substring match: All IDs containing the pattern.
+    3. Regex match: All IDs matching the compiled pattern via ``re.search``.
+
+    Args:
+        pattern: The search pattern (exact string, substring, or regex).
+        available_ids: The IDs to search.
+
+    Returns:
+        List of matching IDs (may be empty).
+
+    Examples:
+        >>> resolve_ids("clt1", ["clt1", "clt2", "dlt1"])
+        ['clt1']
+
+        >>> resolve_ids("clt", ["clt1", "clt2", "dlt1"])
+        ['clt1', 'clt2']
+
+        >>> resolve_ids(r"^clt\\d+$", ["clt1", "clt2", "dlt1"])
+        ['clt1', 'clt2']
+
+        >>> resolve_ids("xyz", ["clt1", "clt2"])
+        []
+    """
+    if not pattern or not available_ids:
+        return []
+
+    # 1. Exact match
+    if pattern in available_ids:
+        return [pattern]
+
+    # 2. Substring match
+    substring_matches = [id_ for id_ in available_ids if pattern in id_]
+    if substring_matches:
+        return substring_matches
+
+    # 3. Regex match
+    try:
+        regex = re.compile(pattern)
+        regex_matches = [id_ for id_ in available_ids if regex.search(id_)]
+        return regex_matches
+    except re.error:
+        # Invalid regex, no matches
+        return []
+
+
+def resolve_id(
+    pattern: str,
+    available_ids: list[str],
+    *,
+    warn_multiple: bool = True,
+) -> str:
+    """Resolve a partial string or regex pattern to a single ID.
+
+    When multiple IDs match, returns the first match and optionally
+    warns (see ``warn_multiple``).
+
+    Matching precedence:
+    1. Exact match: Returns immediately.
+    2. Substring match: If exactly one, returns it; if multiple, returns first.
+    3. Regex match: Same logic.
+
+    Args:
+        pattern: The search pattern (exact string, substring, or regex).
+        available_ids: The IDs to search.
+        warn_multiple: If ``True`` (default), emit a warning when multiple IDs
+            match and the first is returned.
+
+    Returns:
+        The matching ID.
+
+    Raises:
+        KeyError: If no ID matches the pattern.
+
+    Examples:
+        >>> resolve_id("clt1", ["clt1", "clt2", "dlt1"])
+        'clt1'
+
+        >>> resolve_id("clt", ["clt1", "clt2", "dlt1"])  # warns
+        'clt1'
+
+        >>> resolve_id("xyz", ["clt1", "clt2"])
+        Traceback (most recent call last):
+            ...
+        KeyError: "No ID matches pattern 'xyz'. Available: clt1, clt2"
+    """
+    import warnings
+
+    matches = resolve_ids(pattern, available_ids)
+
+    if not matches:
+        available_str = ", ".join(available_ids[:10])
+        if len(available_ids) > 10:
+            available_str += f", ... ({len(available_ids)} total)"
+        raise KeyError(f"No ID matches pattern {pattern!r}. Available: {available_str}")
+
+    if len(matches) > 1 and warn_multiple:
+        warnings.warn(
+            f"Pattern {pattern!r} matches {len(matches)} IDs: {matches}. "
+            f"Returning first match: {matches[0]!r}",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    return matches[0]
+
+
+# endregion

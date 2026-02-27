@@ -1,5 +1,5 @@
 section,source,slug,title,description
-tutorials,tut00_motivation.py,tut00_motivation,Why TimeToAlign! Matters,The problem of fragmented music data and how TimeToAlign! solves it
+tutorials,tut00_quickstart.py,tut00_quickstart,Quickstart,A five-minute tour of Timelines, Groups, Bundles, and Grids
 tutorials,tut01a_timelines_events_maps.py,tut01a_timelines_events_maps,"Timelines, Events, and Maps","Loading, EventStore, Coordinate, ConversionMap"
 tutorials,tut01b_children_regions_timestamps.py,tut01b_children_regions_timestamps,"Children, Regions, and Timestamps","Hierarchy, cross-section queries"
 tutorials,tut02_timeline_groups.py,tut02_timeline_groups,Timeline Groups and Commensurability,"TimelineGroup, coordinate transfer, partial alignment"

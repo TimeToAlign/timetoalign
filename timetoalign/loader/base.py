@@ -29,7 +29,7 @@ from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
 
-from .store import EventData
+from .events import EventData
 
 # Type alias for _load_source return: supports both vectorized and legacy modes
 LoadSourceResult = Union[
@@ -38,7 +38,7 @@ LoadSourceResult = Union[
 ]
 
 if TYPE_CHECKING:
-    from timetoalign.loader.bundle import AlignmentStore, EventStore
+    from timetoalign.loader.store import AlignmentStore, EventStore
     from timetoalign.timelines.base import Timeline
 
 module_logger = logging.getLogger(__name__)
@@ -186,7 +186,7 @@ class Loader(ABC):
         Returns:
             An EventStore providing uniform access to loaded data.
         """
-        from timetoalign.loader.bundle import SingleStore
+        from timetoalign.loader.store import SingleStore
 
         return SingleStore(self._events, name="events")
 
@@ -226,7 +226,59 @@ class Loader(ABC):
             flatten=flatten,
         )
 
+    def create_timelines(
+        self,
+        id_pattern: str | None = None,
+    ) -> "list[Timeline]":
+        """Create all timelines, optionally filtered by regex pattern.
+
+        The default implementation returns a single-element list with
+        ``create_timeline()``. Subclasses with multi-timeline output
+        (e.g., ``TiliaJsonLoader``, ``MatchfileLoader``) override this.
+
+        Args:
+            id_pattern: Optional regex pattern to filter timeline IDs.
+
+        Returns:
+            List of `Timeline` objects.
+        """
+        return [self.create_timeline()]
+
+    def create_group(self, **kwargs: Any) -> Any:
+        """Create a `TimelineGroup`. Override in subclasses that support groups.
+
+        Returns:
+            A `TimelineGroup`, or ``None`` if the loader does not produce groups.
+        """
+        return None
+
+    def create_bundle(self, **kwargs: Any) -> Any:
+        """Create an `AlignmentBundle`. Override in subclasses that support bundles.
+
+        Returns:
+            An `AlignmentBundle`, or ``None`` if the loader does not produce bundles.
+        """
+        return None
+
     # endregion
+
+    # region Item Access
+
+    def __getitem__(self, key: str) -> "EventData":
+        """Access a named EventData table from the store.
+
+        Delegates to ``self.store[key]``.
+
+        Args:
+            key: The name of the EventData table.
+
+        Returns:
+            The `EventData` for the given key.
+
+        Raises:
+            KeyError: If the key is not found in the store.
+        """
+        return self.store[key]
 
     # region Loading
 
@@ -340,15 +392,15 @@ class Loader(ABC):
     # region Magic Methods
 
     def __len__(self) -> int:
-        """Return the number of events."""
-        return len(self._events)
+        """Return the total number of events across all store tables."""
+        return self.store.event_count
 
     def __repr__(self) -> str:
         """Return string representation."""
         return (
             f"{self.__class__.__name__}("
             f"sources={len(self._sources)}, "
-            f"events={len(self._events)}, "
+            f"events={self.store.event_count}, "
             f"unit={self._unit})"
         )
 
@@ -538,6 +590,72 @@ class Loader(ABC):
             return str(self._unit.value) if self._unit else None
 
         return None
+
+    # endregion
+
+    # region Convenience Constructors
+
+    @classmethod
+    def from_file(cls, *paths: Path | str, **kwargs: Any) -> Self:
+        """Load one or more files and return the loader (convenience constructor).
+
+        This combines instantiation and loading into a single call.
+
+        Args:
+            *paths: Paths to source files.
+            **kwargs: Additional keyword arguments passed to ``__init__``.
+
+        Returns:
+            A new Loader instance with the files already loaded.
+
+        Examples:
+            >>> loader = Ms3Loader.from_file("notes.tsv")
+            >>> len(loader.events)
+            42
+        """
+        loader = cls(**kwargs)
+        loader.load(*paths)
+        return loader
+
+    # endregion
+
+    # region HTML Representation
+
+    def _repr_html_(self) -> str:
+        """Rich HTML representation for Jupyter notebooks.
+
+        Shows the loader class name, source files, store summary,
+        and available create methods.
+        """
+        parts = [f"<h4>{self.__class__.__name__}</h4>"]
+        parts.append("<table>")
+
+        # Sources
+        n_sources = len(self._sources)
+        parts.append(f"<tr><td><b>Sources</b></td><td>{n_sources} file(s)</td></tr>")
+        for s in self._sources[:5]:
+            parts.append(f"<tr><td></td><td><code>{s.name}</code></td></tr>")
+        if n_sources > 5:
+            parts.append(f"<tr><td></td><td>... and {n_sources - 5} more</td></tr>")
+
+        # Events
+        parts.append(
+            f"<tr><td><b>Events</b></td><td>{self.store.event_count}</td></tr>"
+        )
+        parts.append(f"<tr><td><b>Unit</b></td><td>{self._unit.value}</td></tr>")
+
+        # Available create methods
+        creates = ["create_timeline()"]
+        if self.create_group.__func__ is not Loader.create_group:
+            creates.append("create_group()")
+        if self.create_bundle.__func__ is not Loader.create_bundle:
+            creates.append("create_bundle()")
+        parts.append(
+            f"<tr><td><b>Create</b></td>" f"<td>{', '.join(creates)}</td></tr>"
+        )
+
+        parts.append("</table>")
+        return "\n".join(parts)
 
     # endregion
 
@@ -737,6 +855,98 @@ class ManifestLoader(ABC):
 
     # endregion
 
+    # region Timeline Creation
+
+    def create_timeline(
+        self,
+        uid: str | None = None,
+        **kwargs: Any,
+    ) -> "Timeline":
+        """Create a Timeline from the loaded manifest.
+
+        Subclasses override this to create the appropriate timeline type
+        (e.g., ``DiscretePhysicalTimeline`` for audio, ``DiscreteGraphicalTimeline``
+        for images).
+
+        Args:
+            uid: Unique identifier for the timeline. Auto-generated if None.
+            **kwargs: Additional arguments for subclass implementations.
+
+        Returns:
+            A Timeline representing the loaded source.
+
+        Raises:
+            NotImplementedError: If the subclass does not provide an implementation.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement create_timeline(). "
+            "Subclasses should override this method."
+        )
+
+    def create_timelines(
+        self,
+        id_pattern: str | None = None,
+    ) -> "list[Timeline]":
+        """Create all timelines, optionally filtered by regex pattern.
+
+        Default implementation returns a single-element list.
+
+        Args:
+            id_pattern: Optional regex pattern to filter timeline IDs.
+
+        Returns:
+            List of `Timeline` objects.
+        """
+        return [self.create_timeline()]
+
+    # endregion
+
+    # region Convenience Constructors
+
+    @classmethod
+    def from_file(cls, *paths: Path | str, **kwargs: Any) -> Self:
+        """Load one or more files and return the loader (convenience constructor).
+
+        Args:
+            *paths: Paths to source files.
+            **kwargs: Additional keyword arguments passed to ``__init__``.
+
+        Returns:
+            A new ManifestLoader instance with the files already loaded.
+
+        Examples:
+            >>> loader = AudioLoader.from_file("song.wav")
+            >>> loader.duration_seconds
+            180.0
+        """
+        loader = cls(**kwargs)
+        loader.load(*paths)
+        return loader
+
+    # endregion
+
+    # region HTML Representation
+
+    def _repr_html_(self) -> str:
+        """Rich HTML representation for Jupyter notebooks."""
+        parts = [f"<h4>{self.__class__.__name__}</h4>"]
+        parts.append("<table>")
+
+        n_sources = len(self._sources)
+        parts.append(f"<tr><td><b>Sources</b></td><td>{n_sources} file(s)</td></tr>")
+        for s in self._sources[:5]:
+            parts.append(f"<tr><td></td><td><code>{s.name}</code></td></tr>")
+
+        if self._manifests:
+            m = self._manifests[0]
+            for k, v in m.dimensions.items():
+                parts.append(f"<tr><td><b>{k}</b></td><td>{v}</td></tr>")
+
+        parts.append("</table>")
+        return "\n".join(parts)
+
+    # endregion
+
     # region Magic Methods
 
     def __len__(self) -> int:
@@ -882,6 +1092,126 @@ class AlignmentLoader(ABC):
         self._sources.clear()
         self._source_metadata.clear()
         self._store = None
+
+    # endregion
+
+    # region Timeline & Bundle Creation
+
+    def create_timeline(self, id: str | None = None, **kwargs: Any) -> "Timeline":
+        """Create a single Timeline by ID.
+
+        Subclasses override this to assemble timelines from loaded data.
+
+        Args:
+            id: Timeline identifier. Interpretation is subclass-specific.
+            **kwargs: Additional arguments for subclass implementations.
+
+        Returns:
+            A Timeline.
+
+        Raises:
+            NotImplementedError: If the subclass does not provide an implementation.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement create_timeline(). "
+            "Subclasses should override this method."
+        )
+
+    def create_timelines(
+        self,
+        id_pattern: str | None = None,
+    ) -> "list[Timeline]":
+        """Create all timelines, optionally filtered by regex pattern.
+
+        Args:
+            id_pattern: Optional regex pattern to filter timeline IDs.
+
+        Returns:
+            List of `Timeline` objects.
+
+        Raises:
+            NotImplementedError: If the subclass does not provide an implementation.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement create_timelines(). "
+            "Subclasses should override this method."
+        )
+
+    def create_group(self, **kwargs: Any) -> Any:
+        """Create a `TimelineGroup`. Override in subclasses that support groups.
+
+        Returns:
+            A `TimelineGroup`, or ``None`` if not supported.
+        """
+        return None
+
+    def create_bundle(self, **kwargs: Any) -> Any:
+        """Create an `AlignmentBundle`. Override in subclasses that support bundles.
+
+        Returns:
+            An `AlignmentBundle`, or ``None`` if not supported.
+        """
+        return None
+
+    # endregion
+
+    # region Convenience Constructors
+
+    @classmethod
+    def from_file(cls, *paths: Path | str, **kwargs: Any) -> Self:
+        """Load one or more files and return the loader (convenience constructor).
+
+        Args:
+            *paths: Paths to source files.
+            **kwargs: Additional keyword arguments passed to ``__init__``.
+
+        Returns:
+            A new AlignmentLoader instance with the files already loaded.
+        """
+        loader = cls(**kwargs)
+        loader.load(*paths)
+        return loader
+
+    # endregion
+
+    # region HTML Representation
+
+    def _repr_html_(self) -> str:
+        """Rich HTML representation for Jupyter notebooks."""
+        parts = [f"<h4>{self.__class__.__name__}</h4>"]
+        parts.append("<table>")
+
+        n_sources = len(self._sources)
+        parts.append(f"<tr><td><b>Sources</b></td><td>{n_sources} file(s)</td></tr>")
+        for s in self._sources[:5]:
+            parts.append(f"<tr><td></td><td><code>{s.name}</code></td></tr>")
+
+        n_events = len(self)
+        parts.append(f"<tr><td><b>Events</b></td><td>{n_events}</td></tr>")
+
+        # Available create methods
+        creates = []
+        try:
+            self.create_timeline
+            creates.append("create_timeline()")
+        except Exception:
+            pass
+        try:
+            self.create_timelines
+            creates.append("create_timelines()")
+        except Exception:
+            pass
+        if self.create_group.__func__ is not AlignmentLoader.create_group:
+            creates.append("create_group()")
+        if self.create_bundle.__func__ is not AlignmentLoader.create_bundle:
+            creates.append("create_bundle()")
+        if creates:
+            parts.append(
+                f"<tr><td><b>Create</b></td>" f"<td>{', '.join(creates)}</td></tr>"
+            )
+
+        parts.append("</table>")
+        return "\n".join(parts)
 
     # endregion
 

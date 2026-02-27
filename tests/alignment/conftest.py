@@ -269,7 +269,7 @@ def dgt1_bundle():
             name=f"system_{i+1}",
         )
 
-    return loader.bundle
+    return loader.store
 
 
 @pytest.fixture
@@ -304,7 +304,7 @@ def dgt2_bundle():
             name=f"page_{i+1}",
         )
 
-    return loader.bundle
+    return loader.store
 
 
 # endregion

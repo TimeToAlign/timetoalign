@@ -52,9 +52,13 @@ Examples:
 | [clear](#timetoalign.Loader.clear) | Clear all loaded sources and events. |
 | [count_events_by_temporal_type](#timetoalign.Loader.count_events_by_temporal_type) | Count events grouped by temporal_type (instant/interval). |
 | [count_events_by_type](#timetoalign.Loader.count_events_by_type) | Count events grouped by event_type. |
+| [create_bundle](#timetoalign.Loader.create_bundle) | Create an `AlignmentBundle`. Override in subclasses that support bundles. |
 | [create_cmap](#timetoalign.Loader.create_cmap) | Create a ConversionMap from two coordinate columns. |
+| [create_group](#timetoalign.Loader.create_group) | Create a `TimelineGroup`. Override in subclasses that support groups. |
 | [create_timeline](#timetoalign.Loader.create_timeline) | Create a Timeline from the loaded events. |
+| [create_timelines](#timetoalign.Loader.create_timelines) | Create all timelines, optionally filtered by regex pattern. |
 | [event_summary](#timetoalign.Loader.event_summary) | Get a summary of loaded events. |
+| [from_file](#timetoalign.Loader.from_file) | Load one or more files and return the loader (convenience constructor). |
 | [from_parquet](#timetoalign.Loader.from_parquet) | Load a Loader from a Parquet file. |
 | [load](#timetoalign.Loader.load) | Load one or more source files. |
 | [to_parquet](#timetoalign.Loader.to_parquet) | Save the loaded events to a Parquet file. |
@@ -88,6 +92,17 @@ Count events grouped by event_type.
 
 Returns:
     Dict mapping event type names to counts.
+
+### create_bundle { #timetoalign.Loader.create_bundle }
+
+```python
+Loader.create_bundle(**kwargs)
+```
+
+Create an `AlignmentBundle`. Override in subclasses that support bundles.
+
+Returns:
+    An `AlignmentBundle`, or ``None`` if the loader does not produce bundles.
 
 ### create_cmap { #timetoalign.Loader.create_cmap }
 
@@ -132,6 +147,17 @@ Examples:
     >>> # TableMap with custom interpolation
     >>> cmap = loader.create_cmap("start", "x_pixels", kind="cubic")
 
+### create_group { #timetoalign.Loader.create_group }
+
+```python
+Loader.create_group(**kwargs)
+```
+
+Create a `TimelineGroup`. Override in subclasses that support groups.
+
+Returns:
+    A `TimelineGroup`, or ``None`` if the loader does not produce groups.
+
 ### create_timeline { #timetoalign.Loader.create_timeline }
 
 ```python
@@ -164,6 +190,24 @@ Examples:
     >>> loader.load("notes.tsv")
     >>> timeline = loader.create_timeline(uid="my_score")
 
+### create_timelines { #timetoalign.Loader.create_timelines }
+
+```python
+Loader.create_timelines(id_pattern=None)
+```
+
+Create all timelines, optionally filtered by regex pattern.
+
+The default implementation returns a single-element list with
+``create_timeline()``. Subclasses with multi-timeline output
+(e.g., ``TiliaJsonLoader``, ``MatchfileLoader``) override this.
+
+Args:
+    id_pattern: Optional regex pattern to filter timeline IDs.
+
+Returns:
+    List of `Timeline` objects.
+
 ### event_summary { #timetoalign.Loader.event_summary }
 
 ```python
@@ -174,6 +218,28 @@ Get a summary of loaded events.
 
 Returns:
     Dict with event counts, types, coordinate range, etc.
+
+### from_file { #timetoalign.Loader.from_file }
+
+```python
+Loader.from_file(*paths, **kwargs)
+```
+
+Load one or more files and return the loader (convenience constructor).
+
+This combines instantiation and loading into a single call.
+
+Args:
+    *paths: Paths to source files.
+    **kwargs: Additional keyword arguments passed to ``__init__``.
+
+Returns:
+    A new Loader instance with the files already loaded.
+
+Examples:
+    >>> loader = Ms3Loader.from_file("notes.tsv")
+    >>> len(loader.events)
+    42
 
 ### from_parquet { #timetoalign.Loader.from_parquet }
 

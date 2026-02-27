@@ -74,7 +74,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-dfb324f25d9b1687192fa8be62ac8f9c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <link href="site_libs/quarto-contrib/glossary/glossary.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
@@ -205,8 +205,27 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="documentation-structure" class="level2">
 <h2 class="anchored" data-anchor-id="documentation-structure">Documentation Structure</h2>
-<p>This documentation follows the <a href="https://diataxis.fr/">Diataxis</a> framework. At present, it focuses on the <strong>Explanation</strong> quadrant—the conceptual model that underpins the library.</p>
+<p>This documentation follows the <a href="https://diataxis.fr/">Diataxis</a> framework.</p>
 <dl>
+<dt><a href="./tutorials.html"><strong>Tutorials</strong></a></dt>
+<dd>
+<p>Step-by-step notebooks that teach the <code>timetoalign</code> library from first principles, using real-world data.</p>
+<ul>
+<li><a href="./tutorials/tut00_quickstart.html">Quickstart</a></li>
+<li><a href="./tutorials/tut01a_timelines_events_maps.html">Timelines, Events, and Maps</a></li>
+<li><a href="./tutorials/tut01b_children_regions_timestamps.html">Children, Regions, and Timestamps</a></li>
+<li><a href="./tutorials/tut02_timeline_groups.html">Timeline Groups and Commensurability</a></li>
+<li><a href="./tutorials/tut03_alignment_bundles.html">Alignment Bundles</a></li>
+<li><a href="./tutorials/tut04_flow_and_grids.html">Flow Control and Grids</a></li>
+</ul>
+</dd>
+<dt><a href="./howto.html"><strong>How-To Guides</strong></a></dt>
+<dd>
+<p>Task-oriented recipes grouped by topic.</p>
+<p><em>Timelines, Events &amp; Maps</em> — <a href="./howto/how01_coordinate_math.html">How to Do Coordinate Math</a> · <a href="./howto/how01_advanced_cmaps.html">How to Use Advanced Conversion Maps</a> · <a href="./howto/how01_advanced_timestamps.html">How to Query Timestamps</a> · <a href="./howto/how01_manual_timeline_construction.html">How to Construct Timelines Manually</a> · <a href="./howto/how01_loading_data.html">How to Load Data</a> · <a href="./howto/how01_tabular_loaders.html">How to Load Tabular Data</a> · <a href="./howto/how01_graphical_timelines.html">How to Work with Graphical Timelines</a> · <a href="./howto/how01_beat_grids.html">How to Build Beat Grids</a></p>
+<p><em>TimelineGroups</em> — <a href="./howto/how02_supra_piano_roll.html">How to Align a Piano Roll (SUPRA)</a></p>
+<p><em>AlignmentBundles</em> — <a href="./howto/how03_beethoven_multimodal.html">How to Align Multimodal Data (Beethoven)</a> · <a href="./howto/how03_loading_vienna_corpus.html">How to Load the Vienna 4x22 Corpus</a></p>
+</dd>
 <dt><a href="./concepts.html"><strong>Conceptual Model</strong></a></dt>
 <dd>
 The full specification of TimeToAlign!’s cross-domain timeline model: temporal domains, coordinates, events, flow control, conversion maps, nested timelines, alignment, and matching. This is the authoritative reference for the model’s formal definitions and visual conventions.
@@ -215,15 +234,7 @@ The full specification of TimeToAlign!’s cross-domain timeline model: temporal
 <dd>
 An alphabetical reference of all model terms, from AlignmentAnchor to WarpMap.
 </dd>
-<dt><strong>Tutorials</strong> <em>(coming soon)</em></dt>
-<dd>
-Step-by-step notebooks demonstrating the <code>timetoalign</code> library on real-world data, from loading a MIDI file to aligning 23 timelines across a multimodal Beethoven dataset.
-</dd>
-<dt><strong>How-to Guides</strong> <em>(planned)</em></dt>
-<dd>
-Task-oriented recipes for common workflows: loading data, building timeline hierarchies, transferring annotations, and exchanging alignment data.
-</dd>
-<dt><strong>API Reference</strong> <em>(planned)</em></dt>
+<dt><a href="./reference.html"><strong>API Reference</strong></a></dt>
 <dd>
 Auto-generated documentation for the <code>timetoalign</code> Python package.
 </dd>

@@ -277,36 +277,36 @@ class TestAudioLoaderWAV:
 class TestAudioLoaderTimeline:
     """Tests for creating timelines from AudioLoader."""
 
-    def test_to_timeline_basic(self, wav_file: Path):
+    def test_create_timeline_basic(self, wav_file: Path):
         """Test basic timeline creation."""
         loader = AudioLoader().load(wav_file)
-        timeline = loader.to_timeline()
+        timeline = loader.create_timeline()
 
         assert isinstance(timeline, DiscretePhysicalTimeline)
         assert timeline.unit == TimeUnit.samples
         assert timeline.number_type == NumberType.int
         assert timeline.length.value == 44100
 
-    def test_to_timeline_with_uid(self, wav_file: Path):
+    def test_create_timeline_with_uid(self, wav_file: Path):
         """Test timeline creation with custom uid."""
         loader = AudioLoader().load(wav_file)
-        timeline = loader.to_timeline(uid="my_audio", name="My Audio File")
+        timeline = loader.create_timeline(uid="my_audio", name="My Audio File")
 
         assert timeline.id == "my_audio"
         assert timeline.name == "My Audio File"
 
-    def test_to_timeline_default_uid_from_filename(self, wav_file: Path):
+    def test_create_timeline_default_uid_from_filename(self, wav_file: Path):
         """Test that uid defaults to filename stem."""
         loader = AudioLoader().load(wav_file)
-        timeline = loader.to_timeline()
+        timeline = loader.create_timeline()
 
         assert timeline.id == "test"  # From "test.wav"
         assert timeline.name == "test.wav"
 
-    def test_to_timeline_with_cmap(self, wav_file: Path):
+    def test_create_timeline_with_cmap(self, wav_file: Path):
         """Test timeline creation with SamplesToSeconds C-map."""
         loader = AudioLoader().load(wav_file)
-        timeline = loader.to_timeline(attach_cmap=True)
+        timeline = loader.create_timeline(attach_cmap=True)
 
         # Should have a C-map to seconds
         cmap = timeline.get_conversion_map(TimeUnit.seconds)
@@ -317,19 +317,19 @@ class TestAudioLoaderTimeline:
         result = cmap(44100)
         assert result == pytest.approx(1.0, rel=1e-6)
 
-    def test_to_timeline_without_cmap(self, wav_file: Path):
+    def test_create_timeline_without_cmap(self, wav_file: Path):
         """Test timeline creation without C-map attachment."""
         loader = AudioLoader().load(wav_file)
-        timeline = loader.to_timeline(attach_cmap=False)
+        timeline = loader.create_timeline(attach_cmap=False)
 
         # Should NOT have a C-map to seconds
         cmap = timeline.get_conversion_map(TimeUnit.seconds)
         assert cmap is None
 
-    def test_to_timeline_metadata(self, wav_file: Path):
+    def test_create_timeline_metadata(self, wav_file: Path):
         """Test that timeline has metadata attached."""
         loader = AudioLoader().load(wav_file)
-        timeline = loader.to_timeline()
+        timeline = loader.create_timeline()
 
         assert hasattr(timeline, "_metadata")
         assert timeline._metadata["sample_rate"] == 44100
@@ -358,7 +358,7 @@ class TestAudioLoaderIntegration:
     def test_timeline_coordinate_conversion(self, wav_file: Path):
         """Test coordinate conversion on audio timeline."""
         loader = AudioLoader().load(wav_file)
-        timeline = loader.to_timeline()
+        timeline = loader.create_timeline()
 
         # The timeline should be able to convert samples to seconds
         # This tests integration with the C-map system
@@ -374,7 +374,7 @@ class TestAudioLoaderIntegration:
         from timetoalign.timelines import ContinuousPhysicalTimeline
 
         loader = AudioLoader().load(stereo_wav_file)
-        discrete_tl = loader.to_timeline(uid="audio_samples")
+        discrete_tl = loader.create_timeline(uid="audio_samples")
 
         # Create a continuous timeline representing the same duration
         continuous_tl = ContinuousPhysicalTimeline(
@@ -432,7 +432,7 @@ class TestAudioLoaderEdgeCases:
 
     def test_method_chaining(self, wav_file: Path):
         """Test that load() returns self for method chaining."""
-        timeline = AudioLoader().load(wav_file).to_timeline()
+        timeline = AudioLoader().load(wav_file).create_timeline()
         assert isinstance(timeline, DiscretePhysicalTimeline)
 
 

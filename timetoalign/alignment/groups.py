@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 
-from timetoalign.core import CoordinateSpec, IdCoordinate, IdGenerator
+from timetoalign.core import CoordinateSpec, IdCoordinate, IdGenerator, resolve_id
 from timetoalign.core.enums import NumberType
 from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
 from timetoalign.maps.interpolation import InterpolationMap
@@ -512,18 +512,29 @@ class TimelineGroup:
     def get_timeline(self, timeline_id: str) -> "Timeline":
         """Get a timeline by ID.
 
+        Supports partial string and regex matching:
+        1. Exact match: If ``timeline_id`` matches an ID exactly, returns it.
+        2. Substring match: If ``timeline_id`` is a substring of exactly one ID,
+           returns that timeline. If multiple match, returns the first and warns.
+        3. Regex match: If ``timeline_id`` is a valid regex, matches via
+           ``re.search()``. Same first-match logic with warning.
+
         Args:
-            timeline_id: The timeline's unique identifier.
+            timeline_id: The timeline's unique identifier, or a partial/regex pattern.
 
         Returns:
             The Timeline object.
 
         Raises:
-            KeyError: If no timeline with that ID exists.
+            KeyError: If no timeline matches the pattern.
+
+        Examples:
+            >>> group.get_timeline("clt1")           # Exact match
+            >>> group.get_timeline("notes")          # Substring match
+            >>> group.get_timeline(r"^score:")       # Regex match
         """
-        if timeline_id not in self._timelines:
-            raise KeyError(f"No timeline '{timeline_id}' in group '{self.id}'")
-        return self._timelines[timeline_id]
+        resolved_id = resolve_id(timeline_id, list(self._timelines.keys()))
+        return self._timelines[resolved_id]
 
     @property
     def n_timelines(self) -> int:
@@ -538,6 +549,86 @@ class TimelineGroup:
     def __contains__(self, timeline_id: str) -> bool:
         """Check if a timeline is in the group."""
         return timeline_id in self._timelines
+
+    def __getitem__(self, timeline_id: str) -> "Timeline":
+        """Get a timeline by ID.
+
+        Shorthand for ``get_timeline(timeline_id)``. Supports partial
+        string and regex matching.
+
+        Args:
+            timeline_id: The timeline's unique identifier, or a partial/regex pattern.
+
+        Returns:
+            The Timeline object.
+
+        Raises:
+            KeyError: If no timeline matches the pattern.
+
+        Examples:
+            >>> tl = group["clt1"]           # Exact match
+            >>> tl = group["score"]          # Substring match
+        """
+        return self.get_timeline(timeline_id)
+
+    def get_events(
+        self,
+        *,
+        timeline_id: str | None = None,
+        **kwargs: Any,
+    ) -> "pd.DataFrame":
+        """Get events from all timelines in the group, concatenated.
+
+        Collects events from all member timelines (or a specific one) and
+        concatenates them into a single DataFrame. Each row includes a
+        ``timeline_id`` column identifying the source timeline.
+
+        Args:
+            timeline_id: If provided, only return events from this timeline.
+                Supports partial string and regex matching.
+            **kwargs: Passed through to each timeline's ``get_events()`` method
+                (e.g., ``min_coord``, ``max_coord``, ``event_type``).
+
+        Returns:
+            DataFrame with events from all (or specified) timelines. Includes
+            a ``timeline_id`` column and standard event columns (``start``,
+            ``end``, ``event_type``, etc.).
+
+        Examples:
+            >>> # Get all events from all timelines
+            >>> df = group.get_events()
+
+            >>> # Get events from a specific timeline
+            >>> df = group.get_events(timeline_id="clt1")
+
+            >>> # Get events with filters
+            >>> df = group.get_events(event_type="Note", min_coord=0.0, max_coord=100.0)
+        """
+        dfs = []
+
+        if timeline_id is not None:
+            # Single timeline
+            tl = self.get_timeline(timeline_id)
+            events = tl.get_events(**kwargs)
+            df = events.to_dataframe()
+            df["timeline_id"] = tl.id
+            dfs.append(df)
+        else:
+            # All timelines
+            for tl_id, tl in self._timelines.items():
+                try:
+                    events = tl.get_events(**kwargs)
+                    df = events.to_dataframe()
+                    df["timeline_id"] = tl_id
+                    dfs.append(df)
+                except Exception:
+                    # Skip timelines that fail (e.g., no events)
+                    continue
+
+        if not dfs:
+            return pd.DataFrame()
+
+        return pd.concat(dfs, ignore_index=True)
 
     # endregion
 
@@ -1108,6 +1199,74 @@ class TimelineGroup:
 
     # region Unified Timestamp API (TimeStampSource Protocol)
 
+    def get_timestamp_of(self, event_id: str) -> GroupTimestamp:
+        """Get the GroupTimestamp for a specific event by its ID.
+
+        Searches all timelines in the group for the event and returns
+        the corresponding group timestamp (coordinates on all timelines).
+
+        Args:
+            event_id: The event's unique identifier.
+
+        Returns:
+            GroupTimestamp at the event's coordinate, with coordinates
+            on all timelines in the group.
+
+        Raises:
+            KeyError: If the event is not found in any timeline.
+
+        Examples:
+            >>> ts = group.get_timestamp_of("note:000001")
+            >>> ts["audio"]  # Get coordinate on audio timeline
+            45.5
+        """
+        for tl_id, tl in self._timelines.items():
+            event = tl.get_event(event_id)
+            if event is not None:
+                # Found the event - get its coordinate and return group timestamp
+                coord = event["start"]["value"]
+                return self.get_timestamp_at(coord, tl_id)
+
+        raise KeyError(f"Event {event_id!r} not found in any timeline in group")
+
+    def get_timestamps_of(self, event_ids: Sequence[str]) -> pd.DataFrame:
+        """Get timestamps for multiple events.
+
+        Searches all timelines in the group for each event and returns
+        a DataFrame with group timestamps.
+
+        Args:
+            event_ids: List of event IDs to look up.
+
+        Returns:
+            DataFrame with one row per event, indexed by event_id.
+            Columns are timeline IDs with their coordinates.
+            Events not found have NaN values.
+
+        Examples:
+            >>> df = group.get_timestamps_of(["note:000001", "note:000002"])
+            >>> df.columns
+            Index(['clt1', 'audio', 'dgt1'])
+        """
+        rows = []
+        for event_id in event_ids:
+            try:
+                ts = self.get_timestamp_of(event_id)
+                row = dict(ts.coordinates)
+                row["event_id"] = event_id
+                rows.append(row)
+            except KeyError:
+                # Event not found - add row with NaN
+                row = {"event_id": event_id}
+                rows.append(row)
+
+        if not rows:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(rows)
+        df = df.set_index("event_id")
+        return df
+
     def _get_interpolation_map(
         self, target_id: str, source_id: str | None = None
     ) -> InterpolationMap | None:
@@ -1198,6 +1357,10 @@ class TimelineGroup:
     ) -> TimeStamp:
         """Get a unified TimeStamp at a specific coordinate.
 
+        .. deprecated::
+            This method is deprecated. Use ``get_timestamp_at(coordinate, timeline_id)``
+            instead, which returns a ``GroupTimestamp`` with full group-level expansion.
+
         This is the new unified API that returns a TimeStamp object
         compatible with Timeline.get_timestamp(). It provides the same
         interface as Timeline and enables consistent traversal.
@@ -1222,6 +1385,11 @@ class TimelineGroup:
             >>> ts["dgt1:1"]  # Get coordinate on another timeline
             2437.5
         """
+        warnings.warn(
+            "get_unified_timestamp() is deprecated. Use get_timestamp_at() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if timeline_id not in self._timelines:
             raise KeyError(f"Timeline '{timeline_id}' not in group")
 
@@ -1243,6 +1411,10 @@ class TimelineGroup:
     ) -> TimeIntervalStamp:
         """Get a unified TimeIntervalStamp for a coordinate range.
 
+        .. deprecated::
+            This method is deprecated. Use ``get_timestamp_at()`` for start and end
+            coordinates separately, then combine into a ``TimeIntervalStamp`` if needed.
+
         Args:
             start: Start coordinate.
             end: End coordinate.
@@ -1258,6 +1430,12 @@ class TimelineGroup:
             >>> interval["dgt1:1"]  # Get (start, end) tuple
             (0.0, 3250.0)
         """
+        warnings.warn(
+            "get_unified_interval_stamp() is deprecated. Use get_timestamp_at() "
+            "for start and end coordinates separately.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return TimeIntervalStamp(
             start=self.get_unified_timestamp(start, timeline_id),
             end=self.get_unified_timestamp(end, timeline_id),

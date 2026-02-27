@@ -74,7 +74,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-dfb324f25d9b1687192fa8be62ac8f9c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -465,9 +465,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.AudioLoader.create_samples_to_seconds_map" id="toc-timetoalign.AudioLoader.create_samples_to_seconds_map" class="nav-link" data-scroll-target="#timetoalign.AudioLoader.create_samples_to_seconds_map">create_samples_to_seconds_map</a></li>
+  <li><a href="#timetoalign.AudioLoader.create_timeline" id="toc-timetoalign.AudioLoader.create_timeline" class="nav-link" data-scroll-target="#timetoalign.AudioLoader.create_timeline">create_timeline</a></li>
   <li><a href="#timetoalign.AudioLoader.from_file" id="toc-timetoalign.AudioLoader.from_file" class="nav-link" data-scroll-target="#timetoalign.AudioLoader.from_file">from_file</a></li>
   <li><a href="#timetoalign.AudioLoader.load" id="toc-timetoalign.AudioLoader.load" class="nav-link" data-scroll-target="#timetoalign.AudioLoader.load">load</a></li>
-  <li><a href="#timetoalign.AudioLoader.to_timeline" id="toc-timetoalign.AudioLoader.to_timeline" class="nav-link" data-scroll-target="#timetoalign.AudioLoader.to_timeline">to_timeline</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -488,7 +488,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Supported formats depend on installed backends: - soundfile: WAV, FLAC, OGG, AIFF, and many more (via libsndfile) - mutagen: MP3, M4A, FLAC, OGG (metadata only, may not have exact sample count) - wave (builtin): WAV only</p>
 <p>Examples: &gt;&gt;&gt; loader = AudioLoader() &gt;&gt;&gt; loader.load(“recording.wav”) &gt;&gt;&gt; loader.n_samples 7938048 &gt;&gt;&gt; loader.sample_rate 44100 &gt;&gt;&gt; loader.duration_seconds 180.0</p>
 <pre><code>&gt;&gt;&gt; # Create a timeline
-&gt;&gt;&gt; timeline = loader.to_timeline(uid="my_audio")
+&gt;&gt;&gt; timeline = loader.create_timeline(uid="my_audio")
 &gt;&gt;&gt; timeline.unit
 &lt;TimeUnit.samples: 'samples'&gt;
 &gt;&gt;&gt; timeline.length
@@ -554,16 +554,16 @@ Coordinate(7938048, samples)
 <td>Create a SamplesToSeconds conversion map for this audio.</td>
 </tr>
 <tr class="even">
+<td><a href="#timetoalign.AudioLoader.create_timeline">create_timeline</a></td>
+<td>Create a DiscretePhysicalTimeline from the loaded audio.</td>
+</tr>
+<tr class="odd">
 <td><a href="#timetoalign.AudioLoader.from_file">from_file</a></td>
 <td>Load an audio file and return the loader (convenience constructor).</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.AudioLoader.load">load</a></td>
 <td>Load audio file metadata.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.AudioLoader.to_timeline">to_timeline</a></td>
-<td>Create a DiscretePhysicalTimeline from the loaded audio.</td>
 </tr>
 </tbody>
 </table>
@@ -574,9 +574,22 @@ Coordinate(7938048, samples)
 <p>Returns: A SamplesToSeconds C-map configured with this audio’s sample rate.</p>
 <p>Raises: RuntimeError: If no audio file has been loaded.</p>
 </section>
+<section id="timetoalign.AudioLoader.create_timeline" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.AudioLoader.create_timeline">create_timeline</h3>
+<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>AudioLoader.create_timeline(uid<span class="op">=</span><span class="va">None</span>, name<span class="op">=</span><span class="va">None</span>, attach_cmap<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Create a DiscretePhysicalTimeline from the loaded audio.</p>
+<p>The timeline is created with: - unit=TimeUnit.samples - length=n_samples - Optionally, a SamplesToSeconds C-map for coordinate conversion</p>
+<p>Args: uid: Unique identifier for the timeline. If None, uses filename. name: Human-readable name. If None, uses filename. attach_cmap: If True, attach a SamplesToSeconds conversion map.</p>
+<p>Returns: A DiscretePhysicalTimeline representing the audio file.</p>
+<p>Raises: RuntimeError: If no audio file has been loaded.</p>
+<p>Examples: &gt;&gt;&gt; loader = AudioLoader().load(“song.wav”) &gt;&gt;&gt; timeline = loader.create_timeline() &gt;&gt;&gt; timeline.unit &lt;TimeUnit.samples: ‘samples’&gt;</p>
+<pre><code>&gt;&gt;&gt; # Convert sample coordinates to seconds
+&gt;&gt;&gt; timeline.convert(44100, target_unit="seconds")
+1.0</code></pre>
+</section>
 <section id="timetoalign.AudioLoader.from_file" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AudioLoader.from_file">from_file</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>AudioLoader.from_file(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>AudioLoader.from_file(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Load an audio file and return the loader (convenience constructor).</p>
 <p>Args: path: Path to the audio file.</p>
 <p>Returns: An AudioLoader with the file already loaded.</p>
@@ -584,24 +597,11 @@ Coordinate(7938048, samples)
 </section>
 <section id="timetoalign.AudioLoader.load" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AudioLoader.load">load</h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>AudioLoader.load(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>AudioLoader.load(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Load audio file metadata.</p>
 <p>Args: path: Path to the audio file.</p>
 <p>Returns: Self, for method chaining.</p>
 <p>Raises: FileNotFoundError: If the file doesn’t exist. ValueError: If the file format is not supported or cannot be read.</p>
-</section>
-<section id="timetoalign.AudioLoader.to_timeline" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.AudioLoader.to_timeline">to_timeline</h3>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>AudioLoader.to_timeline(uid<span class="op">=</span><span class="va">None</span>, name<span class="op">=</span><span class="va">None</span>, attach_cmap<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Create a DiscretePhysicalTimeline from the loaded audio.</p>
-<p>The timeline is created with: - unit=TimeUnit.samples - length=n_samples - Optionally, a SamplesToSeconds C-map for coordinate conversion</p>
-<p>Args: uid: Unique identifier for the timeline. If None, uses filename. name: Human-readable name. If None, uses filename. attach_cmap: If True, attach a SamplesToSeconds conversion map.</p>
-<p>Returns: A DiscretePhysicalTimeline representing the audio file.</p>
-<p>Raises: RuntimeError: If no audio file has been loaded.</p>
-<p>Examples: &gt;&gt;&gt; loader = AudioLoader().load(“song.wav”) &gt;&gt;&gt; timeline = loader.to_timeline() &gt;&gt;&gt; timeline.unit &lt;TimeUnit.samples: ‘samples’&gt;</p>
-<pre><code>&gt;&gt;&gt; # Convert sample coordinates to seconds
-&gt;&gt;&gt; timeline.convert(44100, target_unit="seconds")
-1.0</code></pre>
 
 
 </section>

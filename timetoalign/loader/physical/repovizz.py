@@ -95,7 +95,7 @@ class RepoVizzLoader(ManifestLoader):
         >>> loader.frame_rate
         240
 
-        >>> timeline = loader.to_timeline(uid="mocap_angle")
+        >>> timeline = loader.create_timeline(uid="mocap_angle")
         >>> timeline.length
         Coordinate(63965, samples)
     """
@@ -210,7 +210,7 @@ class RepoVizzLoader(ManifestLoader):
 
     # region Timeline Creation
 
-    def to_timeline(
+    def create_timeline(
         self,
         uid: str | None = None,
         name: str | None = None,
