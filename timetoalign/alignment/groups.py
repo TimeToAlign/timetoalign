@@ -1209,6 +1209,10 @@ class TimelineGroup:
     ) -> TimeStamp:
         """Get a unified TimeStamp at a specific coordinate.
 
+        .. deprecated::
+            This method is deprecated. Use ``get_timestamp_at(coordinate, timeline_id)``
+            instead, which returns a ``GroupTimestamp`` with full group-level expansion.
+
         This is the new unified API that returns a TimeStamp object
         compatible with Timeline.get_timestamp(). It provides the same
         interface as Timeline and enables consistent traversal.
@@ -1233,6 +1237,11 @@ class TimelineGroup:
             >>> ts["dgt1:1"]  # Get coordinate on another timeline
             2437.5
         """
+        warnings.warn(
+            "get_unified_timestamp() is deprecated. Use get_timestamp_at() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if timeline_id not in self._timelines:
             raise KeyError(f"Timeline '{timeline_id}' not in group")
 
@@ -1254,6 +1263,10 @@ class TimelineGroup:
     ) -> TimeIntervalStamp:
         """Get a unified TimeIntervalStamp for a coordinate range.
 
+        .. deprecated::
+            This method is deprecated. Use ``get_timestamp_at()`` for start and end
+            coordinates separately, then combine into a ``TimeIntervalStamp`` if needed.
+
         Args:
             start: Start coordinate.
             end: End coordinate.
@@ -1269,6 +1282,12 @@ class TimelineGroup:
             >>> interval["dgt1:1"]  # Get (start, end) tuple
             (0.0, 3250.0)
         """
+        warnings.warn(
+            "get_unified_interval_stamp() is deprecated. Use get_timestamp_at() "
+            "for start and end coordinates separately.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return TimeIntervalStamp(
             start=self.get_unified_timestamp(start, timeline_id),
             end=self.get_unified_timestamp(end, timeline_id),
