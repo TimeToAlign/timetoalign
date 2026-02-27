@@ -223,12 +223,16 @@ def sync_one(
     ipynb_path = notebooks_dir / ipynb_name
 
     # 1. jupytext --sync --execute (produces .ipynb with cell outputs)
+    # IMPORTANT: We set cwd=notebooks_dir so that the notebook's Path(".")
+    # resolves to its own directory, allowing relative path calculations
+    # like `Path(".").resolve().parents[1] / "tests" / "data"` to work.
     logger.info("jupytext --sync --execute %s", py_path)
     if not dry_run:
         result = subprocess.run(
             [sys.executable, "-m", "jupytext", "--sync", "--execute", str(py_path)],
             capture_output=True,
             text=True,
+            cwd=notebooks_dir,
         )
         if result.returncode != 0:
             logger.error(
