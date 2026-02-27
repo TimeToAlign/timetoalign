@@ -133,6 +133,7 @@ class RepovizzDictStore(DictStore):
     - ``.score`` — Score annotation entries (.notes files)
     - ``.descriptors`` — Bowing gesture descriptor entries (CSV)
     - ``.mocap`` — MoCap marker entries (X/Y/Z grouped)
+    - ``.notes`` — Note events from .notes files (per-instrument)
 
     Unlike TiliaDictStore which concatenates EventData tables, this store
     returns ID lists because the data is heterogeneous (different sample
@@ -156,6 +157,8 @@ class RepovizzDictStore(DictStore):
         """
         super().__init__(data)
         self._catalogue: dict[str, CatalogueEntry] = catalogue or {}
+        self._notes: EventData | None = None
+        self._notes_by_instrument: dict[str, EventData] = {}
 
     def set_catalogue(self, catalogue: dict[str, CatalogueEntry]) -> None:
         """Set the catalogue after parsing.
@@ -198,6 +201,36 @@ class RepovizzDictStore(DictStore):
     def groups(self) -> list[str]:
         """List of all group names present in the catalogue."""
         return sorted(set(e.group for e in self._catalogue.values()))
+
+    @property
+    def notes(self) -> EventData | None:
+        """Combined note events from all .notes files."""
+        return self._notes
+
+    def notes_for_instrument(self, instrument: str) -> EventData | None:
+        """Get note events for a specific instrument.
+
+        Args:
+            instrument: Instrument name (vln1, vln2, vla, cello).
+
+        Returns:
+            EventData for the instrument, or None if not found.
+        """
+        return self._notes_by_instrument.get(instrument)
+
+    def set_notes(
+        self,
+        notes: EventData,
+        notes_by_instrument: dict[str, EventData],
+    ) -> None:
+        """Set the notes data after loading.
+
+        Args:
+            notes: Combined EventData from all .notes files.
+            notes_by_instrument: Dict mapping instrument to EventData.
+        """
+        self._notes = notes
+        self._notes_by_instrument = notes_by_instrument
 
     def __repr__(self) -> str:
         """Return string representation."""
@@ -468,10 +501,66 @@ class RepoVizzLoader(ManifestLoader):
                         break
                 break
 
+        # Load notes from score entries
+        self._load_notes(catalogue)
+
         self._logger.debug(
             "Loaded XML manifest with %d catalogue entries",
             len(catalogue),
         )
+
+    def _load_notes(self, catalogue: dict[str, CatalogueEntry]) -> None:
+        """Load notes from .notes files referenced in the catalogue.
+
+        Loads each .notes file via EepNotesLoader and stores them in the
+        store, accessible via ``store.notes`` (combined) or
+        ``store.notes_for_instrument(instrument)``.
+
+        Args:
+            catalogue: The parsed catalogue with score entries.
+        """
+        from timetoalign.loader.physical.eep_notes import EepNotesLoader
+
+        if self._xml_root_path is None:
+            return
+
+        # Get score entry IDs and load each .notes file
+        score_ids = [e.xml_id for e in catalogue.values() if e.group == "score"]
+        if not score_ids:
+            return
+
+        notes_files: list[Path] = []
+        for entry_id in score_ids:
+            entry = catalogue[entry_id]
+            if entry.filename:
+                notes_path = self._xml_root_path / entry.filename
+                if notes_path.exists():
+                    notes_files.append(notes_path)
+
+        if not notes_files:
+            return
+
+        # Load all notes via EepNotesLoader
+        loader = EepNotesLoader()
+        loader.load(*sorted(notes_files))
+
+        # Store combined notes
+        combined_notes = loader.events
+
+        # Group by instrument (staff column maps to instrument)
+        # staff 1=vln1, 2=vln2, 3=vla, 4=cello
+        staff_to_instrument = {1: "vln1", 2: "vln2", 3: "vla", 4: "cello"}
+        notes_by_instrument: dict[str, EventData] = {}
+
+        df = combined_notes.to_pandas()
+        for staff_num, instrument in staff_to_instrument.items():
+            instrument_df = df[df["staff"] == staff_num].copy()
+            if len(instrument_df) > 0:
+                notes_by_instrument[instrument] = EventData.from_dataframe(
+                    instrument_df, unit=TimeUnit.seconds
+                )
+
+        self._store.set_notes(combined_notes, notes_by_instrument)
 
     def _walk_xml(
         self,
@@ -853,7 +942,8 @@ class RepoVizzLoader(ManifestLoader):
                     "Use timeline_ids property to see options."
                 )
 
-        # Find the entry
+        # Find the entry (uid is guaranteed non-None here)
+        assert uid is not None
         entry = self._find_entry(uid)
 
         # Check cache
