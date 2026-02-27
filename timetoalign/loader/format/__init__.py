@@ -8,12 +8,16 @@ subclasses.
 Loaders:
     JsonLoader: Configurable JSON loader that normalises nested structures
         into flat PyArrow tables (one row per principal object).
+    XmlLoader: Configurable XML loader that normalises nested element
+        structures into flat PyArrow tables (one row per principal tag).
 """
 
 from __future__ import annotations
 
 from .json import JsonLoader
+from .xml import XmlLoader
 
 __all__ = [
     "JsonLoader",
+    "XmlLoader",
 ]
