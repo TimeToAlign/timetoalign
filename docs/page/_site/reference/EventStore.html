@@ -74,7 +74,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-dfb324f25d9b1687192fa8be62ac8f9c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -461,14 +461,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.EventStore" id="toc-timetoalign.EventStore" class="nav-link active" data-scroll-target="#timetoalign.EventStore">EventStore</a>
   <ul>
+  <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.EventStore.create_timeline" id="toc-timetoalign.EventStore.create_timeline" class="nav-link" data-scroll-target="#timetoalign.EventStore.create_timeline">create_timeline</a></li>
   <li><a href="#timetoalign.EventStore.get_cmaps" id="toc-timetoalign.EventStore.get_cmaps" class="nav-link" data-scroll-target="#timetoalign.EventStore.get_cmaps">get_cmaps</a></li>
   <li><a href="#timetoalign.EventStore.items" id="toc-timetoalign.EventStore.items" class="nav-link" data-scroll-target="#timetoalign.EventStore.items">items</a></li>
   <li><a href="#timetoalign.EventStore.keys" id="toc-timetoalign.EventStore.keys" class="nav-link" data-scroll-target="#timetoalign.EventStore.keys">keys</a></li>
-  <li><a href="#timetoalign.EventStore.to_default_timeline" id="toc-timetoalign.EventStore.to_default_timeline" class="nav-link" data-scroll-target="#timetoalign.EventStore.to_default_timeline">to_default_timeline</a></li>
-  <li><a href="#timetoalign.EventStore.to_timeline" id="toc-timetoalign.EventStore.to_timeline" class="nav-link" data-scroll-target="#timetoalign.EventStore.to_timeline">to_timeline</a></li>
   <li><a href="#timetoalign.EventStore.values" id="toc-timetoalign.EventStore.values" class="nav-link" data-scroll-target="#timetoalign.EventStore.values">values</a></li>
   </ul></li>
   </ul></li>
@@ -491,13 +490,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Subclasses: - ScoreStore: notes, measures, controls, annotations - MidiStore: notes, controls - SingleStore: generic wrapper for any single EventData</p>
 <p>Examples: &gt;&gt;&gt; # Iterate over stores &gt;&gt;&gt; for name, store in bundle.items(): … print(f”{name}: {len(store)} events”)</p>
 <pre><code>&gt;&gt;&gt; # Create default timeline with children
-&gt;&gt;&gt; timeline = bundle.to_default_timeline(uid="my_score")
+&gt;&gt;&gt; timeline = bundle.create_timeline(uid="my_score")
 
 &gt;&gt;&gt; # Create filtered timeline
-&gt;&gt;&gt; timeline = bundle.to_timeline(
+&gt;&gt;&gt; timeline = bundle.create_timeline(
 ...     store_filters={"notes": {"event_type": "Note"}},
 ...     exclude_stores=["annotations"],
 ... )</code></pre>
+<section id="attributes" class="level2">
+<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="#timetoalign.EventStore.event_count">event_count</a></td>
+<td>Total number of events across all data tables in the store.</td>
+</tr>
+</tbody>
+</table>
+</section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
 <table class="caption-top table">
@@ -523,14 +539,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="even">
 <td><a href="#timetoalign.EventStore.keys">keys</a></td>
 <td>Return data names in canonical order.</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.EventStore.to_default_timeline">to_default_timeline</a></td>
-<td>Create a canonical timeline from this store’s data.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.EventStore.to_timeline">to_timeline</a></td>
-<td>Deprecated alias for create_timeline().</td>
 </tr>
 <tr class="odd">
 <td><a href="#timetoalign.EventStore.values">values</a></td>
@@ -579,30 +587,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Return data names in canonical order.</p>
 <p>Returns: Tuple of data names.</p>
 </section>
-<section id="timetoalign.EventStore.to_default_timeline" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.EventStore.to_default_timeline">to_default_timeline</h3>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>EventStore.to_default_timeline(uid<span class="op">=</span><span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Create a canonical timeline from this store’s data.</p>
-<p>When the store contains <strong>multiple</strong> data sources each one becomes a child timeline at offset 0, preserving its own 0-based coordinate system. When the store contains a <strong>single</strong> data source the events are placed directly on the timeline (no child wrapping) for simplicity. This is the recommended way to create timelines from loaded data.</p>
-<p>Args: uid: Unique ID for the parent timeline.</p>
-<p>Returns: A Timeline with events (single data) or children (multiple data).</p>
-<p>Examples: &gt;&gt;&gt; timeline = store.to_default_timeline(uid=“chopin_score”) &gt;&gt;&gt; for offset, child in timeline.iter_children(): … print(f”{child.id}: {child.n_events} events at offset {offset}“)</p>
-</section>
-<section id="timetoalign.EventStore.to_timeline" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.EventStore.to_timeline">to_timeline</h3>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>EventStore.to_timeline(</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    uid<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    store_filters<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    include_stores<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    exclude_stores<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    flatten<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Deprecated alias for create_timeline().</p>
-<p>.. deprecated:: 0.2.0 Use :meth:<code>create_timeline</code> instead.</p>
-</section>
 <section id="timetoalign.EventStore.values" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventStore.values">values</h3>
-<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>EventStore.values()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>EventStore.values()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Iterate over data.</p>
 <p>Yields: EventData in canonical order.</p>
 

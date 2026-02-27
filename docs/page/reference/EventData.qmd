@@ -41,6 +41,7 @@ Examples:
 | --- | --- |
 | [count](#timetoalign.EventData.count) | The number of events in the store. |
 | [number_type](#timetoalign.EventData.number_type) | The number type for coordinate interpretation. |
+| [schema](#timetoalign.EventData.schema) | The PyArrow schema of the underlying table. |
 | [table](#timetoalign.EventData.table) | The underlying PyArrow table. |
 | [unit](#timetoalign.EventData.unit) | The time unit for coordinates. |
 
@@ -62,13 +63,13 @@ Examples:
 | [from_dataframe](#timetoalign.EventData.from_dataframe) | Create EventData from a pandas DataFrame. |
 | [from_dicts](#timetoalign.EventData.from_dicts) | Create EventData from a list of row dictionaries. |
 | [from_parquet](#timetoalign.EventData.from_parquet) | Load EventData from a Parquet file. |
-| [schema](#timetoalign.EventData.schema) | Get the PyArrow schema for this EventData class. |
+| [get_schema](#timetoalign.EventData.get_schema) | Get the canonical PyArrow schema for this EventData class. |
+| [prefix_ids](#timetoalign.EventData.prefix_ids) | Return a new EventData with all event IDs prefixed. |
 | [select](#timetoalign.EventData.select) | Select specific columns from the table. |
 | [summary](#timetoalign.EventData.summary) | Get a comprehensive summary of the store. |
 | [to_dataframe](#timetoalign.EventData.to_dataframe) | Convert to a DataFrame in the specified format. |
 | [to_pandas](#timetoalign.EventData.to_pandas) | Convert to a pandas DataFrame. |
 | [to_parquet](#timetoalign.EventData.to_parquet) | Save the EventData to a Parquet file. |
-| [to_timeline](#timetoalign.EventData.to_timeline) | Deprecated alias for create_timeline(). |
 | [where](#timetoalign.EventData.where) | Filter with a custom PyArrow compute expression. |
 
 ### column_names { #timetoalign.EventData.column_names }
@@ -313,7 +314,10 @@ Coordinate values (instant, start, end, duration) are automatically
 converted to the internal struct format. Convenience defaults are
 applied so that callers can omit boilerplate fields:
 
-- **id**: Auto-generated as ``e000001``, ``e000002``, ... if missing.
+- **id**: Auto-generated as ``{event_type}:{counter}`` if missing,
+  e.g. ``note:000001``, ``rest:000001``, ``beat:000001``.
+  When events are placed on a timeline, the timeline's ID is
+  prepended, yielding e.g. ``clt:1:note:000001``.
 - **temporal_type**: Inferred from the keys present in the dict --
   ``"interval"`` when *both* ``start`` and ``end`` (or ``duration``)
   are given, ``"instant"`` otherwise.
@@ -351,19 +355,43 @@ Returns:
 Raises:
     ValueError: If the file lacks required TimeToAlign! metadata.
 
-### schema { #timetoalign.EventData.schema }
+### get_schema { #timetoalign.EventData.get_schema }
 
 ```python
-EventData.schema(unit)
+EventData.get_schema(unit)
 ```
 
-Get the PyArrow schema for this EventData class.
+Get the canonical PyArrow schema for this EventData class.
+
+This is a class-level method that returns the schema for a given unit,
+independent of any specific instance. Useful for constructing empty
+tables or validating incoming data.
 
 Args:
     unit: The time unit for coordinate columns.
 
 Returns:
     The complete schema including base and extra fields.
+
+### prefix_ids { #timetoalign.EventData.prefix_ids }
+
+```python
+EventData.prefix_ids(prefix)
+```
+
+Return a new EventData with all event IDs prefixed.
+
+Prepends ``prefix:`` to every event ID. Used when events are placed
+onto a timeline so that IDs become globally unique and informative,
+e.g. ``clt1:note:000001``.
+
+If the IDs already start with the prefix, they are left unchanged.
+
+Args:
+    prefix: The prefix to prepend (without trailing colon).
+
+Returns:
+    A new EventData with prefixed IDs.
 
 ### select { #timetoalign.EventData.select }
 
@@ -462,17 +490,6 @@ Save the EventData to a Parquet file.
 
 Args:
     path: Path to write the Parquet file.
-
-### to_timeline { #timetoalign.EventData.to_timeline }
-
-```python
-EventData.to_timeline(uid=None, filters=None)
-```
-
-Deprecated alias for create_timeline().
-
-.. deprecated:: 0.2.0
-    Use :meth:`create_timeline` instead.
 
 ### where { #timetoalign.EventData.where }
 

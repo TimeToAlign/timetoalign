@@ -1,19 +1,43 @@
 [
   {
+    "listing": "/howto.html",
+    "items": [
+      "/howto/how01_advanced_cmaps.html",
+      "/howto/how01_advanced_timestamps.html",
+      "/howto/how01_beat_grids.html",
+      "/howto/how01_coordinate_math.html",
+      "/howto/how01_graphical_timelines.html",
+      "/howto/how01_loading_data.html",
+      "/howto/how01_manual_timeline_construction.html",
+      "/howto/how01_tabular_loaders.html",
+      "/howto/how02_supra_piano_roll.html",
+      "/howto/how03_beethoven_multimodal.html",
+      "/howto/how03_loading_vienna_corpus.html"
+    ]
+  },
+  {
     "listing": "/tutorials.html",
     "items": [
       "/tutorials/00_motivation.html",
       "/tutorials/01_core_concepts.html",
       "/tutorials/02_loading_data.html",
       "/tutorials/02a_tabular_loaders.html",
+      "/tutorials/03_alignment_bundles.html",
       "/tutorials/03_conversion_maps.html",
       "/tutorials/04_building_timelines.html",
+      "/tutorials/04_flow_and_grids.html",
       "/tutorials/05_timestamps.html",
       "/tutorials/06_graphical_timelines.html",
       "/tutorials/07_alignment_basics.html",
       "/tutorials/08_supra_piano_roll.html",
       "/tutorials/09_beat_grids.html",
-      "/tutorials/10_beethoven_multimodal.html"
+      "/tutorials/10_beethoven_multimodal.html",
+      "/tutorials/tut00_quickstart.html",
+      "/tutorials/tut01a_timelines_events_maps.html",
+      "/tutorials/tut01b_children_regions_timestamps.html",
+      "/tutorials/tut02_timeline_groups.html",
+      "/tutorials/tut03_alignment_bundles.html",
+      "/tutorials/tut04_flow_and_grids.html"
     ]
   }
 ]

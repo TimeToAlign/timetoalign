@@ -135,11 +135,15 @@ Examples:
 | [get_interval_stamp](#timetoalign.Timeline.get_interval_stamp) | Get a TimeIntervalStamp for a coordinate range. |
 | [get_region](#timetoalign.Timeline.get_region) | Get a Region by name. |
 | [get_regions_at](#timetoalign.Timeline.get_regions_at) | Return all regions containing the given coordinate. |
+| [get_slice](#timetoalign.Timeline.get_slice) | Extract a portion of this timeline as a new, independent timeline. |
 | [get_timestamp](#timetoalign.Timeline.get_timestamp) | Get a TimeStamp at a specific coordinate. |
+| [get_timestamp_at](#timetoalign.Timeline.get_timestamp_at) | Alias for `get_timestamp()` for API consistency with TimelineGroup. |
+| [get_timestamp_of](#timetoalign.Timeline.get_timestamp_of) | Get the timestamp for a specific event by its ID. |
 | [get_timestamp_table](#timetoalign.Timeline.get_timestamp_table) | Generate a timestamp table as a PyArrow Table. |
 | [get_timestamp_table_filtered](#timetoalign.Timeline.get_timestamp_table_filtered) | Generate timestamps for filtered events only. |
 | [get_timestamps](#timetoalign.Timeline.get_timestamps) | Generate timestamps as a pandas DataFrame with units in column names. |
 | [get_timestamps_filtered](#timetoalign.Timeline.get_timestamps_filtered) | Generate timestamps for filtered events as a pandas DataFrame. |
+| [get_timestamps_of](#timetoalign.Timeline.get_timestamps_of) | Get timestamps for multiple events, returned as a DataFrame. |
 | [has_child](#timetoalign.Timeline.has_child) | Check if a child with the given ID exists. |
 | [has_flow_map](#timetoalign.Timeline.has_flow_map) | Check if a FlowMap with the given id is attached. |
 | [has_region](#timetoalign.Timeline.has_region) | Check if a region exists. |
@@ -1117,8 +1121,8 @@ When *target_unit* is a string that does **not** correspond to any
 ``TimeUnit`` member, the method falls back to a name-based lookup:
 it searches first by ``cmap.id``, then by ``cmap.name``.  This is
 useful for maps where source and target units are identical (e.g. a
-``ShiftMap`` named ``"raw_to_normalised"`` that maps quarters to
-quarters).
+``ShiftMap`` named ``"raw_quarters"`` that maps normalised quarters
+back to raw partitura quarters).
 
 Args:
     target_unit: A ``TimeUnit`` member, a unit alias string, or a
@@ -1130,8 +1134,8 @@ Returns:
 Examples:
     >>> timeline.get_conversion_map(TimeUnit.seconds)
     ScalarMap(...)
-    >>> timeline.get_conversion_map("raw_to_normalised")
-    ShiftMap(offset=0.5, ...)
+    >>> timeline.get_conversion_map("raw_quarters")
+    ShiftMap(offset=-0.5, ...)
 
 ### get_event { #timetoalign.Timeline.get_event }
 
@@ -1141,26 +1145,21 @@ Timeline.get_event(event_id)
 
 Look up a single event by its ``id`` field.
 
-Searches the timeline's event store for an event whose ``id``
-column matches *event_id*. Returns the first matching row as a
-dictionary, or ``None`` if no event with that ID exists.
-
-This is a convenience wrapper around a PyArrow filter on the
-``id`` column and is intended for point lookups (e.g. verifying
-that a score note exists on a shared timeline). For bulk queries,
-use `get_events` or `get_events_at` instead.
+Searches this timeline's events first, then recursively searches
+all children. When found in a child, coordinates are adjusted to
+the root timeline's coordinate system.
 
 Args:
     event_id: The event identifier to search for.
 
 Returns:
     A dictionary representing the event row, or ``None`` if not
-    found.
+    found anywhere in the hierarchy.
 
 Examples:
-    >>> event = timeline.get_event("n1")
+    >>> event = timeline.get_event("notes:note:000001")
     >>> event["id"]
-    'n1'
+    'notes:note:000001'
     >>> timeline.get_event("nonexistent") is None
     True
 
@@ -1170,23 +1169,49 @@ Examples:
 Timeline.get_events(
     temporal_type=None,
     event_type=None,
-    include_segments=False,
+    include_children=True,
     min_coord=None,
     max_coord=None,
+    **column_filters,
 )
 ```
 
 Filter and retrieve events.
 
+When ``include_children=True`` (the default), events from all
+children are included with their coordinates adjusted to the
+root timeline's coordinate system. Segment events (internal
+bookkeeping) are always excluded.
+
 Args:
     temporal_type: Filter by "instant" or "interval".
     event_type: Filter by event type name.
-    include_segments: If True, include segment events. Default False.
-    min_coord: Minimum coordinate (inclusive).
-    max_coord: Maximum coordinate (exclusive).
+    include_children: If True (default), include events from all
+        children with root-relative coordinates.
+    min_coord: Minimum coordinate (inclusive). Can be a float in
+        native units or a `Coordinate` with a different unit
+        (converted via inverse C-Map).
+    max_coord: Maximum coordinate (exclusive). Same conversion
+        rules as min_coord.
+    **column_filters: Additional column equality filters. Each
+        kwarg name is a column name, and the value is the
+        required value (or a list of values for OR logic).
 
 Returns:
-    A filtered EventData.
+    A filtered EventData with all matching events.
+
+Examples:
+    >>> # Filter by coordinate range
+    >>> events = tl.get_events(min_coord=10.0, max_coord=20.0)
+
+    >>> # Filter with a Coordinate in a different unit
+    >>> from timetoalign import Coordinate, TimeUnit
+    >>> coord = Coordinate(5.0, TimeUnit.seconds)
+    >>> events = tl.get_events(min_coord=coord)
+
+    >>> # Arbitrary column filters
+    >>> events = tl.get_events(pitch=60)  # Only middle C
+    >>> events = tl.get_events(pitch=[60, 62, 64])  # C, D, E
 
 ### get_events_at { #timetoalign.Timeline.get_events_at }
 
@@ -1297,6 +1322,56 @@ Examples:
     >>> tl.get_regions_at(75.0)
     [Region('verse_1', 30-90), Region('chorus', 60-120)]
 
+### get_slice { #timetoalign.Timeline.get_slice }
+
+```python
+Timeline.get_slice(
+    start,
+    end,
+    *,
+    truncate_events=True,
+    include_children=True,
+    copy_cmaps=True,
+)
+```
+
+Extract a portion of this timeline as a new, independent timeline.
+
+Returns a new timeline containing all events within [start, end).
+The returned timeline has its coordinate origin at 0, with all
+coordinates shifted by -start.
+
+From the TTA manuscript: slicing creates a new timeline that is a
+structural copy of the specified interval of the source.
+
+Args:
+    start: Start coordinate (inclusive).
+    end: End coordinate (exclusive).
+    truncate_events: If True (default), interval events straddling
+        the slice boundaries are clipped to [start, end). If False,
+        events must be fully contained to be included.
+    include_children: If True (default), child timelines whose span
+        overlaps [start, end) are recursively sliced and included.
+    copy_cmaps: If True (default), ConversionMaps are bounded-copied
+        for the slice range.
+
+Returns:
+    New Timeline (same concrete subclass) with length = end - start,
+    coordinates shifted to [0, end-start).
+
+Raises:
+    ValueError: If start >= end or either is outside timeline bounds.
+
+Examples:
+    >>> source = ContinuousLogicalTimeline(length=100)
+    >>> source.add_events([
+    ...     {"event_type": "Note", "start": 10, "end": 30},
+    ...     {"event_type": "Beat", "instant": 25},
+    ... ])
+    >>> sliced = source.get_slice(20, 40)
+    >>> sliced.length.value  # 40 - 20 = 20
+    Fraction(20, 1)
+
 ### get_timestamp { #timetoalign.Timeline.get_timestamp }
 
 ```python
@@ -1332,6 +1407,65 @@ Examples:
     >>> ts = timeline.get_timestamp(10.5, unit=TimeUnit.seconds)
     >>> ts.axis  # Converted from seconds to timeline's unit
     5.0
+
+### get_timestamp_at { #timetoalign.Timeline.get_timestamp_at }
+
+```python
+Timeline.get_timestamp_at(coord, unit=None)
+```
+
+Alias for `get_timestamp()` for API consistency with TimelineGroup.
+
+TimelineGroup uses `get_timestamp_at(coord, tl_id)` with an additional
+timeline_id parameter. This alias provides a consistent verb across
+the hierarchy.
+
+Args:
+    coord: Coordinate value (see `get_timestamp()` for details).
+    unit: Optional unit for coordinate interpretation.
+
+Returns:
+    TimeStamp object for the resolved coordinate.
+
+See Also:
+    get_timestamp: The primary coordinate resolution method.
+    timetoalign.TimelineGroup.get_timestamp_at: Group-level version.
+
+### get_timestamp_of { #timetoalign.Timeline.get_timestamp_of }
+
+```python
+Timeline.get_timestamp_of(event_id)
+```
+
+Get the timestamp for a specific event by its ID.
+
+Returns a TimeStamp for instant events, or a TimeIntervalStamp for
+interval events. Searches recursively through children if the event
+is not found on this timeline directly.
+
+Args:
+    event_id: The event identifier to look up.
+
+Returns:
+    TimeStamp for instant events, TimeIntervalStamp for interval events.
+
+Raises:
+    KeyError: If no event with the given ID exists.
+
+Examples:
+    >>> ts = timeline.get_timestamp_of("note:000001")
+    >>> ts.axis  # For instant events
+    5.0
+
+    >>> ts = timeline.get_timestamp_of("clt1:note:000001")
+    >>> ts.start.axis  # For interval events
+    0.0
+    >>> ts.end.axis
+    2.5
+
+See Also:
+    get_timestamp: Get timestamp by coordinate.
+    get_event: Get the raw event dict by ID.
 
 ### get_timestamp_table { #timetoalign.Timeline.get_timestamp_table }
 
@@ -1414,6 +1548,11 @@ Timeline.get_timestamp_table_filtered(
 
 Generate timestamps for filtered events only.
 
+.. deprecated::
+    This method is deprecated. Use ``get_events(**filters)`` combined
+    with ``get_timestamp_table()`` instead. The ``get_events()`` method
+    now supports arbitrary column filters via ``**kwargs``.
+
 Applies an event filter before extracting coordinates from EventData.
 This enables efficient timestamp generation for subsets of events
 (e.g., only Note events, events above a certain duration, etc.).
@@ -1471,6 +1610,8 @@ Timeline.get_timestamps(
     include_boundaries=False,
     *,
     units=True,
+    include_ids=True,
+    as_fractions=None,
 )
 ```
 
@@ -1500,20 +1641,23 @@ Args:
     include_events: If True and coordinates is None, extract from events.
     include_boundaries: If True, include timeline boundary coordinates.
     units: If True (default), append units to column names like "name (unit)".
+    include_ids: If True (default), add event IDs as the DataFrame
+        index. Each coordinate is matched to the nearest event at that
+        coordinate, showing what each timestamp row corresponds to.
+    as_fractions: If True, convert float values to Fraction objects for
+        fraction number-type timelines. If None (default), auto-detect
+        based on the timeline's number_type.
 
 Returns:
-    pandas DataFrame with units in column names (if units=True).
+    pandas DataFrame with units in column names (if units=True)
+    and event IDs as the index (if include_ids=True). For fraction
+    number-type timelines with as_fractions=True, coordinate columns
+    contain Fraction objects instead of floats.
 
 Examples:
     >>> df = timeline.get_timestamps()
-    >>> df.columns
-    Index(['axis (pixels)', 'tl:1 (pixels)', 'pixels_to_inches (inches)'])
-
-    >>> # Include all attached C-Maps
-    >>> df = timeline.get_timestamps(conversion_maps=True)
-
-    >>> # Without units in column names
-    >>> df = timeline.get_timestamps(units=False)
+    >>> df.index.name
+    'id'
 
 ### get_timestamps_filtered { #timetoalign.Timeline.get_timestamps_filtered }
 
@@ -1527,6 +1671,11 @@ Timeline.get_timestamps_filtered(
 ```
 
 Generate timestamps for filtered events as a pandas DataFrame.
+
+.. deprecated::
+    This method is deprecated. Use ``get_events(**filters)`` combined
+    with ``get_timestamps()`` instead. The ``get_events()`` method
+    now supports arbitrary column filters via ``**kwargs``.
 
 Convenience wrapper around get_timestamp_table_filtered() for users
 who prefer working with pandas.
@@ -1543,6 +1692,39 @@ Returns:
 Examples:
     >>> df = timeline.get_timestamps_filtered({"event_type": "Note"})
     >>> df.head()
+
+### get_timestamps_of { #timetoalign.Timeline.get_timestamps_of }
+
+```python
+Timeline.get_timestamps_of(event_ids)
+```
+
+Get timestamps for multiple events, returned as a DataFrame.
+
+For each event, includes columns for start coordinate, end coordinate
+(if interval), event type, and temporal type.
+
+Args:
+    event_ids: Sequence of event identifiers to look up.
+
+Returns:
+    DataFrame indexed by event_id with columns:
+    - ``start``: Start coordinate value
+    - ``end``: End coordinate value (NaN for instant events)
+    - ``event_type``: The event type name
+    - ``temporal_type``: "instant" or "interval"
+
+Raises:
+    KeyError: If any event ID is not found.
+
+Examples:
+    >>> df = timeline.get_timestamps_of(["note:000001", "note:000002"])
+    >>> df.loc["note:000001", "start"]
+    0.0
+
+See Also:
+    get_timestamp_of: Get a single event's timestamp.
+    get_events: Filter events by type or coordinate range.
 
 ### has_child { #timetoalign.Timeline.has_child }
 

@@ -26,13 +26,19 @@ Examples:
     ...     print(f"{name}: {len(store)} events")
 
     >>> # Create default timeline with children
-    >>> timeline = bundle.to_default_timeline(uid="my_score")
+    >>> timeline = bundle.create_timeline(uid="my_score")
 
     >>> # Create filtered timeline
-    >>> timeline = bundle.to_timeline(
+    >>> timeline = bundle.create_timeline(
     ...     store_filters={"notes": {"event_type": "Note"}},
     ...     exclude_stores=["annotations"],
     ... )
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [event_count](#timetoalign.EventStore.event_count) | Total number of events across all data tables in the store. |
 
 ## Methods
 
@@ -42,8 +48,6 @@ Examples:
 | [get_cmaps](#timetoalign.EventStore.get_cmaps) | Get ConversionMaps derivable from store metadata. |
 | [items](#timetoalign.EventStore.items) | Iterate over (name, data) pairs in canonical order. |
 | [keys](#timetoalign.EventStore.keys) | Return data names in canonical order. |
-| [to_default_timeline](#timetoalign.EventStore.to_default_timeline) | Create a canonical timeline from this store's data. |
-| [to_timeline](#timetoalign.EventStore.to_timeline) | Deprecated alias for create_timeline(). |
 | [values](#timetoalign.EventStore.values) | Iterate over data. |
 
 ### create_timeline { #timetoalign.EventStore.create_timeline }
@@ -137,49 +141,6 @@ Return data names in canonical order.
 
 Returns:
     Tuple of data names.
-
-### to_default_timeline { #timetoalign.EventStore.to_default_timeline }
-
-```python
-EventStore.to_default_timeline(uid=None)
-```
-
-Create a canonical timeline from this store's data.
-
-When the store contains **multiple** data sources each one becomes
-a child timeline at offset 0, preserving its own 0-based coordinate
-system.  When the store contains a **single** data source the events
-are placed directly on the timeline (no child wrapping) for
-simplicity.  This is the recommended way to create timelines from
-loaded data.
-
-Args:
-    uid: Unique ID for the parent timeline.
-
-Returns:
-    A Timeline with events (single data) or children (multiple data).
-
-Examples:
-    >>> timeline = store.to_default_timeline(uid="chopin_score")
-    >>> for offset, child in timeline.iter_children():
-    ...     print(f"{child.id}: {child.n_events} events at offset {offset}")
-
-### to_timeline { #timetoalign.EventStore.to_timeline }
-
-```python
-EventStore.to_timeline(
-    uid=None,
-    store_filters=None,
-    include_stores=None,
-    exclude_stores=None,
-    flatten=False,
-)
-```
-
-Deprecated alias for create_timeline().
-
-.. deprecated:: 0.2.0
-    Use :meth:`create_timeline` instead.
 
 ### values { #timetoalign.EventStore.values }
 

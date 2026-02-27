@@ -74,7 +74,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-dfb324f25d9b1687192fa8be62ac8f9c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -467,9 +467,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.MatchClaim.connects" id="toc-timetoalign.MatchClaim.connects" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.connects">connects</a></li>
   <li><a href="#timetoalign.MatchClaim.connects_both" id="toc-timetoalign.MatchClaim.connects_both" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.connects_both">connects_both</a></li>
   <li><a href="#timetoalign.MatchClaim.from_dict" id="toc-timetoalign.MatchClaim.from_dict" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.from_dict">from_dict</a></li>
+  <li><a href="#timetoalign.MatchClaim.from_events" id="toc-timetoalign.MatchClaim.from_events" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.from_events">from_events</a></li>
+  <li><a href="#timetoalign.MatchClaim.from_projection" id="toc-timetoalign.MatchClaim.from_projection" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.from_projection">from_projection</a></li>
   <li><a href="#timetoalign.MatchClaim.get_coordinates_for" id="toc-timetoalign.MatchClaim.get_coordinates_for" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.get_coordinates_for">get_coordinates_for</a></li>
-  <li><a href="#timetoalign.MatchClaim.instant" id="toc-timetoalign.MatchClaim.instant" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.instant">instant</a></li>
-  <li><a href="#timetoalign.MatchClaim.interval" id="toc-timetoalign.MatchClaim.interval" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.interval">interval</a></li>
+  <li><a href="#timetoalign.MatchClaim.get_matchstamp" id="toc-timetoalign.MatchClaim.get_matchstamp" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.get_matchstamp">get_matchstamp</a></li>
+  <li><a href="#timetoalign.MatchClaim.implicit" id="toc-timetoalign.MatchClaim.implicit" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.implicit">implicit</a></li>
+  <li><a href="#timetoalign.MatchClaim.nomatch" id="toc-timetoalign.MatchClaim.nomatch" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.nomatch">nomatch</a></li>
   <li><a href="#timetoalign.MatchClaim.to_dict" id="toc-timetoalign.MatchClaim.to_dict" class="nav-link" data-scroll-target="#timetoalign.MatchClaim.to_dict">to_dict</a></li>
   </ul></li>
   </ul></li>
@@ -485,38 +488,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="timetoalign.MatchClaim" class="level1">
 <h1>MatchClaim</h1>
 <div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>MatchClaim(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    start_anchor,</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    end_anchor<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    is_explicit<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    is_synchronous<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    metadata<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">''</span>,</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>A claim that two events are matched.</p>
-<p>A MatchClaim represents a match between two events, consisting of: - 1 AlignmentAnchor for instant events (single time point) - 2 AlignmentAnchors for interval events (start and end)</p>
-<p>The MatchClaim is the fundamental unit for building MatchGraphs and ultimately creating alignment relationships between timelines.</p>
-<p>Attributes: start_anchor: AlignmentAnchor for event starts. end_anchor: AlignmentAnchor for event ends (None for instant matches). is_explicit: True if directly claimed, False if inferred. is_synchronous: True if temporally synchronous matches. metadata: Provenance information (agent, criteria, certainty). id: Unique identifier for this claim.</p>
-<p>Examples: &gt;&gt;&gt; # Instant match (single anchor) &gt;&gt;&gt; claim = MatchClaim( … start_anchor=AlignmentAnchor( … timeline_a_id=“score:1”, … coordinate_a=0.0, … timeline_b_id=“recording:1”, … coordinate_b=0.0, … ), … metadata=MatchMetadata( … agent=“manual”, … decision_criteria=“beat_alignment”, … ), … ) &gt;&gt;&gt; claim.is_interval False</p>
-<pre><code>&gt;&gt;&gt; # Interval match (two anchors: start and end)
-&gt;&gt;&gt; claim = MatchClaim(
-...     start_anchor=AlignmentAnchor(
-...         timeline_a_id="dgt1",
-...         coordinate_a=0.0,
-...         timeline_b_id="dgt2",
-...         coordinate_b=0.0,
-...     ),
-...     end_anchor=AlignmentAnchor(
-...         timeline_a_id="dgt1",
-...         coordinate_a=975.0,
-...         timeline_b_id="dgt2",
-...         coordinate_b=866.0,
-...     ),
-...     metadata=MatchMetadata(
-...         agent="analyst",
-...         decision_criteria="segment_correspondence",
-...     ),
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    timeline_a_id,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    timeline_b_id,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    start_anchor<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    end_anchor<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    is_synchronous<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    is_explicit<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    metadata<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    source_claim_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">''</span>,</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>A claim that two events or coordinates on different timelines correspond.</p>
+<p>A MatchClaim always knows which two timelines it connects via top-level <code>timeline_a_id</code> and <code>timeline_b_id</code> fields. Anchors are only present for synchronous claims.</p>
+<p>Four cases: (a) <code>from_events</code>: Two timed things on different timelines correspond. (b) <code>from_projection</code>: An event is projected onto a timeline with no matching event. (c) <code>nomatch</code>: An event has no equivalent on the other timeline. (d) <code>implicit</code>: Implicit claim generated by MatchGraph group extension.</p>
+<p>Attributes: timeline_a_id: First timeline’s unique identifier. timeline_b_id: Second timeline’s unique identifier. start_anchor: AlignmentAnchor for event starts (None for non-synchronous). end_anchor: AlignmentAnchor for event ends (None for instants or non-synchronous claims). is_synchronous: True if temporally synchronous matches. is_explicit: True if directly claimed, False if inferred. metadata: Provenance information (agent, criteria, certainty). source_claim_id: For implicit claims, the ID of the claim that generated this one. id: Unique identifier for this claim.</p>
+<p>Examples: &gt;&gt;&gt; # Synchronous instant match via factory &gt;&gt;&gt; claim = MatchClaim.from_events( … event_a={“start”: 100.0}, … tl_a_id=“score:1”, … event_b={“start”: 45.5}, … tl_b_id=“recording:1”, … )</p>
+<pre><code>&gt;&gt;&gt; # Non-synchronous claim (no anchors)
+&gt;&gt;&gt; claim = MatchClaim.nomatch(
+...     event={"start": 100.0},
+...     source_tl_id="score:1",
+...     target_tl_id="recording:1",
 ... )
-&gt;&gt;&gt; claim.is_interval
+&gt;&gt;&gt; claim.start_anchor is None
 True</code></pre>
 <section id="attributes" class="level2">
 <h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
@@ -530,19 +523,11 @@ True</code></pre>
 <tbody>
 <tr class="odd">
 <td><a href="#timetoalign.MatchClaim.anchors">anchors</a></td>
-<td>Get all anchors in this claim (1 or 2).</td>
+<td>Get all anchors in this claim (0, 1, or 2).</td>
 </tr>
 <tr class="even">
 <td><a href="#timetoalign.MatchClaim.is_interval">is_interval</a></td>
 <td>Whether this is an interval match (has end anchor).</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.MatchClaim.timeline_a_id">timeline_a_id</a></td>
-<td>ID of the first timeline in this match.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.MatchClaim.timeline_b_id">timeline_b_id</a></td>
-<td>ID of the second timeline in this match.</td>
 </tr>
 <tr class="odd">
 <td><a href="#timetoalign.MatchClaim.timelines">timelines</a></td>
@@ -574,18 +559,30 @@ True</code></pre>
 <td>Deserialize from dictionary.</td>
 </tr>
 <tr class="even">
+<td><a href="#timetoalign.MatchClaim.from_events">from_events</a></td>
+<td>Case (a): Two timed things on different timelines correspond.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.MatchClaim.from_projection">from_projection</a></td>
+<td>Case (b): An event is projected onto a timeline with no matching event.</td>
+</tr>
+<tr class="even">
 <td><a href="#timetoalign.MatchClaim.get_coordinates_for">get_coordinates_for</a></td>
 <td>Get start and end coordinates for a specific timeline.</td>
 </tr>
 <tr class="odd">
-<td><a href="#timetoalign.MatchClaim.instant">instant</a></td>
-<td>Create an instant match (single anchor).</td>
+<td><a href="#timetoalign.MatchClaim.get_matchstamp">get_matchstamp</a></td>
+<td>Return a MatchStamp for this claim’s start anchor.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.MatchClaim.interval">interval</a></td>
-<td>Create an interval match (two anchors).</td>
+<td><a href="#timetoalign.MatchClaim.implicit">implicit</a></td>
+<td>Case (d): Implicit claim generated by MatchGraph group extension.</td>
 </tr>
 <tr class="odd">
+<td><a href="#timetoalign.MatchClaim.nomatch">nomatch</a></td>
+<td>Case (c): An event has no equivalent on the other timeline.</td>
+</tr>
+<tr class="even">
 <td><a href="#timetoalign.MatchClaim.to_dict">to_dict</a></td>
 <td>Serialize to dictionary for storage.</td>
 </tr>
@@ -610,49 +607,95 @@ True</code></pre>
 <div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.from_dict(data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Deserialize from dictionary.</p>
 </section>
+<section id="timetoalign.MatchClaim.from_events" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.MatchClaim.from_events">from_events</h3>
+<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.from_events(</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    event_a,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    tl_a_id,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    event_b,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    tl_b_id,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    coord_key<span class="op">=</span><span class="st">'start'</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    end_coord_key<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    is_synchronous<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    metadata<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Case (a): Two timed things on different timelines correspond.</p>
+<p>Args: event_a: Event dict from timeline A (must contain <code>coord_key</code>). tl_a_id: Timeline A’s ID. event_b: Event dict from timeline B (must contain <code>coord_key</code>). tl_b_id: Timeline B’s ID. coord_key: Key for start coordinate in event dicts. end_coord_key: Key for end coordinate (creates interval match). is_synchronous: Whether events are temporally synchronous. metadata: Provenance information.</p>
+<p>Returns: A synchronous MatchClaim with 1 or 2 anchors.</p>
+</section>
+<section id="timetoalign.MatchClaim.from_projection" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.MatchClaim.from_projection">from_projection</h3>
+<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.from_projection(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    event,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    source_tl_id,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    target_tl_id,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    target_coord,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    coord_key<span class="op">=</span><span class="st">'start'</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    target_end_coord<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    end_coord_key<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    metadata<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Case (b): An event is projected onto a timeline with no matching event.</p>
+<p>The source event has a coordinate; the target coordinate is specified explicitly (e.g., computed by interpolation or DTW).</p>
+<p>Args: event: Event dict from the source timeline. source_tl_id: Source timeline’s ID. target_tl_id: Target timeline’s ID. target_coord: Projected coordinate on the target timeline. coord_key: Key for start coordinate in event dict. target_end_coord: Projected end coordinate (creates interval match). end_coord_key: Key for end coordinate in event dict. metadata: Provenance information.</p>
+<p>Returns: A synchronous MatchClaim with 1 or 2 anchors.</p>
+</section>
 <section id="timetoalign.MatchClaim.get_coordinates_for" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchClaim.get_coordinates_for">get_coordinates_for</h3>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.get_coordinates_for(timeline_id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.get_coordinates_for(timeline_id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Get start and end coordinates for a specific timeline.</p>
 <p>Args: timeline_id: The timeline to get coordinates for.</p>
 <p>Returns: Tuple of (start_coord, end_coord). end_coord is None for instants.</p>
-<p>Raises: ValueError: If timeline is not in this claim.</p>
+<p>Raises: ValueError: If timeline is not in this claim or claim has no anchors.</p>
 </section>
-<section id="timetoalign.MatchClaim.instant" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.MatchClaim.instant">instant</h3>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.instant(</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    timeline_a_id,</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    coordinate_a,</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    timeline_b_id,</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    coordinate_b,</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    metadata<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    is_synchronous<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Create an instant match (single anchor).</p>
-<p>Convenience constructor for instant (non-interval) matches.</p>
-<p>Args: timeline_a_id: First timeline’s ID. coordinate_a: Coordinate in first timeline. timeline_b_id: Second timeline’s ID. coordinate_b: Coordinate in second timeline. metadata: Optional provenance information. is_synchronous: Whether match is temporally synchronous.</p>
-<p>Returns: A new MatchClaim with a single anchor.</p>
+<section id="timetoalign.MatchClaim.get_matchstamp" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.MatchClaim.get_matchstamp">get_matchstamp</h3>
+<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.get_matchstamp(bundle<span class="op">=</span><span class="va">None</span>, from_graph<span class="op">=</span><span class="va">True</span>, conversion_maps<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Return a MatchStamp for this claim’s start anchor.</p>
+<p>With <code>from_graph=True</code> (the default), the method builds or retrieves the full MatchGraph for this claim’s coordinate from the bundle’s cache and returns the FULL MatchStamp combining timestamps from ALL groups connected at this coordinate.</p>
+<p>With <code>from_graph=False</code>, constructs a <strong>reduced</strong> MatchStamp from only the two timelines in this claim (no graph construction needed).</p>
+<p>Args: bundle: The <code>AlignmentBundle</code> containing this claim. Required for <code>from_graph=True</code>. Provides group info and the MatchGraph cache. from_graph: If True (default), build/retrieve the full MatchGraph and return the FULL MatchStamp across ALL connected groups. If False, return a reduced 2-timeline MatchStamp. conversion_maps: Include C-map conversions (reserved for future use).</p>
+<p>Returns: MatchStamp with coordinates, or None if this claim is non-synchronous (NOMATCH).</p>
+<p>Raises: ValueError: If <code>from_graph=True</code> but <code>bundle</code> is None.</p>
+<p>Examples: Full stamp (default – from graph, all groups)::</p>
+<pre><code>    &gt;&gt;&gt; stamp = claim.get_matchstamp(bundle=bundle)
+    &gt;&gt;&gt; stamp.n_timelines
+    23  # score + 22 performers at this coordinate
+
+Reduced stamp (two timelines only)::
+
+    &gt;&gt;&gt; stamp = claim.get_matchstamp(bundle=bundle, from_graph=False)
+    &gt;&gt;&gt; stamp.n_timelines
+    2   # just the two timelines in this claim</code></pre>
 </section>
-<section id="timetoalign.MatchClaim.interval" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.MatchClaim.interval">interval</h3>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.interval(</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    timeline_a_id,</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    start_a,</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    end_a,</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    timeline_b_id,</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    start_b,</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    end_b,</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    metadata<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    is_synchronous<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Create an interval match (two anchors).</p>
-<p>Convenience constructor for interval matches.</p>
-<p>Args: timeline_a_id: First timeline’s ID. start_a: Start coordinate in first timeline. end_a: End coordinate in first timeline. timeline_b_id: Second timeline’s ID. start_b: Start coordinate in second timeline. end_b: End coordinate in second timeline. metadata: Optional provenance information. is_synchronous: Whether match is temporally synchronous.</p>
-<p>Returns: A new MatchClaim with start and end anchors.</p>
+<section id="timetoalign.MatchClaim.implicit" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.MatchClaim.implicit">implicit</h3>
+<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.implicit(</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    tl_a_id,</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    coord_a,</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    tl_b_id,</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    coord_b,</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    source_claim<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    metadata<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Case (d): Implicit claim generated by MatchGraph group extension.</p>
+<p>Args: tl_a_id: First timeline’s ID. coord_a: Coordinate on timeline A. tl_b_id: Second timeline’s ID. coord_b: Coordinate on timeline B. source_claim: The claim that generated this one. metadata: Provenance information.</p>
+<p>Returns: A synchronous, non-explicit MatchClaim with one anchor.</p>
+</section>
+<section id="timetoalign.MatchClaim.nomatch" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.MatchClaim.nomatch">nomatch</h3>
+<div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.nomatch(event, source_tl_id, target_tl_id, <span class="op">*</span>, metadata<span class="op">=</span><span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Case (c): An event has no equivalent on the other timeline.</p>
+<p>Creates a non-synchronous claim with no anchors (NOMATCH sentinel).</p>
+<p>Args: event: Event dict from the source timeline. source_tl_id: Source timeline’s ID. target_tl_id: Target timeline’s ID. metadata: Provenance information.</p>
+<p>Returns: A non-synchronous MatchClaim with no anchors.</p>
 </section>
 <section id="timetoalign.MatchClaim.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchClaim.to_dict">to_dict</h3>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.to_dict()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>MatchClaim.to_dict()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Serialize to dictionary for storage.</p>
 
 

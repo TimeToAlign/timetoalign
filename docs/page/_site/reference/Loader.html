@@ -74,7 +74,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-dfb324f25d9b1687192fa8be62ac8f9c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -467,9 +467,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.Loader.clear" id="toc-timetoalign.Loader.clear" class="nav-link" data-scroll-target="#timetoalign.Loader.clear">clear</a></li>
   <li><a href="#timetoalign.Loader.count_events_by_temporal_type" id="toc-timetoalign.Loader.count_events_by_temporal_type" class="nav-link" data-scroll-target="#timetoalign.Loader.count_events_by_temporal_type">count_events_by_temporal_type</a></li>
   <li><a href="#timetoalign.Loader.count_events_by_type" id="toc-timetoalign.Loader.count_events_by_type" class="nav-link" data-scroll-target="#timetoalign.Loader.count_events_by_type">count_events_by_type</a></li>
+  <li><a href="#timetoalign.Loader.create_bundle" id="toc-timetoalign.Loader.create_bundle" class="nav-link" data-scroll-target="#timetoalign.Loader.create_bundle">create_bundle</a></li>
   <li><a href="#timetoalign.Loader.create_cmap" id="toc-timetoalign.Loader.create_cmap" class="nav-link" data-scroll-target="#timetoalign.Loader.create_cmap">create_cmap</a></li>
+  <li><a href="#timetoalign.Loader.create_group" id="toc-timetoalign.Loader.create_group" class="nav-link" data-scroll-target="#timetoalign.Loader.create_group">create_group</a></li>
   <li><a href="#timetoalign.Loader.create_timeline" id="toc-timetoalign.Loader.create_timeline" class="nav-link" data-scroll-target="#timetoalign.Loader.create_timeline">create_timeline</a></li>
+  <li><a href="#timetoalign.Loader.create_timelines" id="toc-timetoalign.Loader.create_timelines" class="nav-link" data-scroll-target="#timetoalign.Loader.create_timelines">create_timelines</a></li>
   <li><a href="#timetoalign.Loader.event_summary" id="toc-timetoalign.Loader.event_summary" class="nav-link" data-scroll-target="#timetoalign.Loader.event_summary">event_summary</a></li>
+  <li><a href="#timetoalign.Loader.from_file" id="toc-timetoalign.Loader.from_file" class="nav-link" data-scroll-target="#timetoalign.Loader.from_file">from_file</a></li>
   <li><a href="#timetoalign.Loader.from_parquet" id="toc-timetoalign.Loader.from_parquet" class="nav-link" data-scroll-target="#timetoalign.Loader.from_parquet">from_parquet</a></li>
   <li><a href="#timetoalign.Loader.load" id="toc-timetoalign.Loader.load" class="nav-link" data-scroll-target="#timetoalign.Loader.load">load</a></li>
   <li><a href="#timetoalign.Loader.to_parquet" id="toc-timetoalign.Loader.to_parquet" class="nav-link" data-scroll-target="#timetoalign.Loader.to_parquet">to_parquet</a></li>
@@ -552,16 +556,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Count events grouped by event_type.</td>
 </tr>
 <tr class="even">
+<td><a href="#timetoalign.Loader.create_bundle">create_bundle</a></td>
+<td>Create an <code>AlignmentBundle</code>. Override in subclasses that support bundles.</td>
+</tr>
+<tr class="odd">
 <td><a href="#timetoalign.Loader.create_cmap">create_cmap</a></td>
 <td>Create a ConversionMap from two coordinate columns.</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.Loader.create_group">create_group</a></td>
+<td>Create a <code>TimelineGroup</code>. Override in subclasses that support groups.</td>
 </tr>
 <tr class="odd">
 <td><a href="#timetoalign.Loader.create_timeline">create_timeline</a></td>
 <td>Create a Timeline from the loaded events.</td>
 </tr>
 <tr class="even">
+<td><a href="#timetoalign.Loader.create_timelines">create_timelines</a></td>
+<td>Create all timelines, optionally filtered by regex pattern.</td>
+</tr>
+<tr class="odd">
 <td><a href="#timetoalign.Loader.event_summary">event_summary</a></td>
 <td>Get a summary of loaded events.</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.Loader.from_file">from_file</a></td>
+<td>Load one or more files and return the loader (convenience constructor).</td>
 </tr>
 <tr class="odd">
 <td><a href="#timetoalign.Loader.from_parquet">from_parquet</a></td>
@@ -594,9 +614,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Count events grouped by event_type.</p>
 <p>Returns: Dict mapping event type names to counts.</p>
 </section>
+<section id="timetoalign.Loader.create_bundle" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.Loader.create_bundle">create_bundle</h3>
+<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>Loader.create_bundle(<span class="op">**</span>kwargs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Create an <code>AlignmentBundle</code>. Override in subclasses that support bundles.</p>
+<p>Returns: An <code>AlignmentBundle</code>, or <code>None</code> if the loader does not produce bundles.</p>
+</section>
 <section id="timetoalign.Loader.create_cmap" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.Loader.create_cmap">create_cmap</h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>Loader.create_cmap(source_column, target_column, <span class="op">*</span>, map_type<span class="op">=</span><span class="va">None</span>, <span class="op">**</span>kwargs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>Loader.create_cmap(source_column, target_column, <span class="op">*</span>, map_type<span class="op">=</span><span class="va">None</span>, <span class="op">**</span>kwargs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Create a ConversionMap from two coordinate columns.</p>
 <p>This method creates a C-Map from loaded coordinate data, enabling conversion between different coordinate systems (e.g., seconds to pixels).</p>
 <p>Both columns must contain coordinate data (either core coordinates like ‘start’/‘end’, or CoordinateField extra columns).</p>
@@ -613,30 +639,53 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 &gt;&gt;&gt; # TableMap with custom interpolation
 &gt;&gt;&gt; cmap = loader.create_cmap("start", "x_pixels", kind="cubic")</code></pre>
 </section>
+<section id="timetoalign.Loader.create_group" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.Loader.create_group">create_group</h3>
+<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>Loader.create_group(<span class="op">**</span>kwargs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Create a <code>TimelineGroup</code>. Override in subclasses that support groups.</p>
+<p>Returns: A <code>TimelineGroup</code>, or <code>None</code> if the loader does not produce groups.</p>
+</section>
 <section id="timetoalign.Loader.create_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.Loader.create_timeline">create_timeline</h3>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>Loader.create_timeline(</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    uid<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    store_filters<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    include_stores<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    exclude_stores<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    flatten<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>Loader.create_timeline(</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    uid<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    store_filters<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    include_stores<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    exclude_stores<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    flatten<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Create a Timeline from the loaded events.</p>
 <p>Convenience method that delegates to self.store.create_timeline().</p>
 <p>Args: uid: Unique ID for the parent timeline. Auto-generated if None. store_filters: Per-data filter kwargs to apply before timeline creation. Example: {“notes”: {“event_type”: “Note”}}. include_stores: Only include these data (default: all non-empty). exclude_stores: Exclude these data from the timeline. flatten: If True, merge all events into a single parent timeline.</p>
 <p>Returns: A Timeline containing the loaded events.</p>
 <p>Examples: &gt;&gt;&gt; loader = Ms3Loader() &gt;&gt;&gt; loader.load(“notes.tsv”) &gt;&gt;&gt; timeline = loader.create_timeline(uid=“my_score”)</p>
 </section>
+<section id="timetoalign.Loader.create_timelines" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.Loader.create_timelines">create_timelines</h3>
+<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>Loader.create_timelines(id_pattern<span class="op">=</span><span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Create all timelines, optionally filtered by regex pattern.</p>
+<p>The default implementation returns a single-element list with <code>create_timeline()</code>. Subclasses with multi-timeline output (e.g., <code>TiliaJsonLoader</code>, <code>MatchfileLoader</code>) override this.</p>
+<p>Args: id_pattern: Optional regex pattern to filter timeline IDs.</p>
+<p>Returns: List of <code>Timeline</code> objects.</p>
+</section>
 <section id="timetoalign.Loader.event_summary" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.Loader.event_summary">event_summary</h3>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>Loader.event_summary()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>Loader.event_summary()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Get a summary of loaded events.</p>
 <p>Returns: Dict with event counts, types, coordinate range, etc.</p>
 </section>
+<section id="timetoalign.Loader.from_file" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.Loader.from_file">from_file</h3>
+<div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>Loader.from_file(<span class="op">*</span>paths, <span class="op">**</span>kwargs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Load one or more files and return the loader (convenience constructor).</p>
+<p>This combines instantiation and loading into a single call.</p>
+<p>Args: *paths: Paths to source files. **kwargs: Additional keyword arguments passed to <code>__init__</code>.</p>
+<p>Returns: A new Loader instance with the files already loaded.</p>
+<p>Examples: &gt;&gt;&gt; loader = Ms3Loader.from_file(“notes.tsv”) &gt;&gt;&gt; len(loader.events) 42</p>
+</section>
 <section id="timetoalign.Loader.from_parquet" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.Loader.from_parquet">from_parquet</h3>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>Loader.from_parquet(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>Loader.from_parquet(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Load a Loader from a Parquet file.</p>
 <p>Note: This creates a new Loader with the EventData loaded, but source paths may not be accessible for re-loading.</p>
 <p>Args: path: Path to the Parquet file.</p>
@@ -644,7 +693,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.Loader.load" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.Loader.load">load</h3>
-<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>Loader.load(<span class="op">*</span>sources)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>Loader.load(<span class="op">*</span>sources)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Load one or more source files.</p>
 <p>Events from all sources are aggregated into the EventData. Metadata for each source is recorded separately.</p>
 <p>Supports both vectorized (column dict) and legacy (row dicts) modes: - Vectorized: _load_source returns dict[str, np.ndarray | pa.Array] - Legacy: _load_source returns list[dict[str, Any]]</p>
@@ -654,7 +703,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.Loader.to_parquet" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.Loader.to_parquet">to_parquet</h3>
-<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>Loader.to_parquet(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>Loader.to_parquet(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Save the loaded events to a Parquet file.</p>
 <p>The metadata (including source info) is preserved in the file.</p>
 <p>Args: path: Path to write the Parquet file.</p>
