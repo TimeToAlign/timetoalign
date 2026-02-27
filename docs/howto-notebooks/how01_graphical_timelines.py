@@ -72,7 +72,7 @@ idx = 0  # Mock source index
 # loader.add_horizontal_segment(idx, x0=50, x1=800, y=400, name="system_3")
 
 # Build the bundle
-# bundle = loader.bundle
+# bundle = loader.store
 
 print("Bundle structure:")
 # print(f"  Sources: {bundle.n_sources}")
