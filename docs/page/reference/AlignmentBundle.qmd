@@ -12,6 +12,7 @@ AlignmentBundle(
     _uid_to_timeline_id=dict(),
     _timeline_id_to_uid=dict(),
     _warp_map_cache=dict(),
+    _matchline_cache=dict(),
     _matchgraph_cache=dict(),
     _cache_claims_hash=0,
 )
@@ -81,12 +82,16 @@ Examples:
 | [add_match_claims](#timetoalign.AlignmentBundle.add_match_claims) | Add MatchClaims connecting timelines across different groups. |
 | [add_timeline](#timetoalign.AlignmentBundle.add_timeline) | Add a timeline, optionally aligned to an existing timeline. |
 | [are_commensurable](#timetoalign.AlignmentBundle.are_commensurable) | Check if two timelines can be connected via transfer. |
+| [create_match_claims](#timetoalign.AlignmentBundle.create_match_claims) | Create MatchClaims from a list of event pairs. |
 | [diagram](#timetoalign.AlignmentBundle.diagram) | Generate ASCII diagram for this bundle. |
 | [get_group](#timetoalign.AlignmentBundle.get_group) | Get a group by ID. |
 | [get_group_for_timeline](#timetoalign.AlignmentBundle.get_group_for_timeline) | Get the group containing a timeline. |
 | [get_match_claims](#timetoalign.AlignmentBundle.get_match_claims) | Query MatchClaims connecting timelines across groups. |
 | [get_matchstamp_at](#timetoalign.AlignmentBundle.get_matchstamp_at) | Get a cross-group MatchStamp at a coordinate on a timeline. |
+| [get_matchstamp_table](#timetoalign.AlignmentBundle.get_matchstamp_table) | Get a PyArrow table of MatchStamps for alignment queries. |
+| [get_matchstamps](#timetoalign.AlignmentBundle.get_matchstamps) | Get MatchStamps for a list of MatchClaims. |
 | [get_timeline](#timetoalign.AlignmentBundle.get_timeline) | Get a timeline by ID. |
+| [get_timelines](#timetoalign.AlignmentBundle.get_timelines) | Get multiple timelines by their IDs. |
 | [get_timestamp_at](#timetoalign.AlignmentBundle.get_timestamp_at) | Get a cross-group timestamp at a coordinate on a given timeline. |
 | [summary](#timetoalign.AlignmentBundle.summary) | Get a summary of the bundle contents. |
 | [transfer](#timetoalign.AlignmentBundle.transfer) | Transfer a coordinate from one timeline to another. |
@@ -228,6 +233,48 @@ Args:
 Returns:
     True if coordinates can be transferred between them.
 
+### create_match_claims { #timetoalign.AlignmentBundle.create_match_claims }
+
+```python
+AlignmentBundle.create_match_claims(
+    event_pairs,
+    *,
+    synchronous=True,
+    agent='user',
+    decision_criteria='manual',
+)
+```
+
+Create MatchClaims from a list of event pairs.
+
+Convenience factory for creating multiple MatchClaims from paired
+events. Each tuple specifies two events and their timeline IDs.
+
+Args:
+    event_pairs: List of tuples, each containing:
+        ``(event_a, timeline_a_id, event_b, timeline_b_id)``.
+        Events must have at least a ``start`` key with a coordinate.
+    synchronous: Whether the matches are temporally synchronous.
+    agent: Name of the agent creating the claims (for provenance).
+    decision_criteria: How the match was determined (e.g., "manual",
+        "dynamic_time_warping", "segment_correspondence").
+
+Returns:
+    List of MatchClaim objects. Also automatically adds them to
+    the bundle's ``cross_group_claims``.
+
+Raises:
+    ValueError: If event dicts are missing required keys.
+
+Examples:
+    >>> pairs = [
+    ...     ({"start": 0.0}, "score", {"start": 45.5}, "audio"),
+    ...     ({"start": 10.0}, "score", {"start": 55.0}, "audio"),
+    ... ]
+    >>> claims = bundle.create_match_claims(pairs, agent="manual_alignment")
+    >>> len(claims)
+    2
+
 ### diagram { #timetoalign.AlignmentBundle.diagram }
 
 ```python
@@ -274,14 +321,25 @@ AlignmentBundle.get_group(uid)
 
 Get a group by ID.
 
+Supports partial string and regex matching:
+1. Exact match: If ``uid`` matches an ID exactly, returns it.
+2. Substring match: If ``uid`` is a substring of exactly one ID,
+   returns that group. If multiple match, returns the first and warns.
+3. Regex match: If ``uid`` is a valid regex, matches via
+   ``re.search()``. Same first-match logic with warning.
+
 Args:
-    uid: The group's unique identifier.
+    uid: The group's unique identifier, or a partial/regex pattern.
 
 Returns:
     The TimelineGroup object.
 
 Raises:
-    KeyError: If no group with that ID exists.
+    KeyError: If no group matches the pattern.
+
+Examples:
+    >>> bundle.get_group("score")            # Substring match
+    >>> bundle.get_group(r"^perf")           # Regex match
 
 ### get_group_for_timeline { #timetoalign.AlignmentBundle.get_group_for_timeline }
 
@@ -400,6 +458,63 @@ Examples:
     >>> ms.n_timelines
     23  # score + 22 performers
 
+### get_matchstamp_table { #timetoalign.AlignmentBundle.get_matchstamp_table }
+
+```python
+AlignmentBundle.get_matchstamp_table(claims=None, *, timeline_filter=None)
+```
+
+Get a PyArrow table of MatchStamps for alignment queries.
+
+Analogous to ``get_timestamp_table()`` but for cross-group alignment.
+Each row represents one MatchClaim/coordinate; columns are timeline IDs
+with their coordinate values.
+
+Args:
+    claims: List of MatchClaims to tabulate. If None, uses all
+        cross_group_claims.
+    timeline_filter: Only include these timeline columns.
+
+Returns:
+    PyArrow Table with one row per synchronous claim, one column
+    per timeline. Non-synchronous claims are excluded.
+
+Examples:
+    >>> table = bundle.get_matchstamp_table()
+    >>> table.num_rows
+    100
+    >>> table.column_names
+    ['score:clt1', 'perf:dlt1', 'perf:dlt2', ...]
+
+### get_matchstamps { #timetoalign.AlignmentBundle.get_matchstamps }
+
+```python
+AlignmentBundle.get_matchstamps(claims=None, *, from_graph=True)
+```
+
+Get MatchStamps for a list of MatchClaims.
+
+Convenience method for retrieving MatchStamps for multiple claims
+at once. Uses the bundle's caching mechanism for efficient retrieval.
+
+Args:
+    claims: List of MatchClaims to get stamps for. If None, uses
+        all cross_group_claims.
+    from_graph: If True (default), return full MatchStamps from the
+        MatchGraph (all connected timelines). If False, return
+        reduced 2-timeline stamps.
+
+Returns:
+    List of MatchStamp objects. Non-synchronous claims yield None
+    entries (filtered out).
+
+Examples:
+    >>> stamps = bundle.get_matchstamps()
+    >>> len(stamps)
+    100
+    >>> stamps[0].n_timelines
+    23
+
 ### get_timeline { #timetoalign.AlignmentBundle.get_timeline }
 
 ```python
@@ -408,14 +523,52 @@ AlignmentBundle.get_timeline(uid)
 
 Get a timeline by ID.
 
+Supports partial string and regex matching:
+1. Exact match: If ``uid`` matches an ID exactly, returns it.
+2. Substring match: If ``uid`` is a substring of exactly one ID,
+   returns that timeline. If multiple match, returns the first and warns.
+3. Regex match: If ``uid`` is a valid regex, matches via
+   ``re.search()``. Same first-match logic with warning.
+
 Args:
-    uid: The timeline's unique identifier.
+    uid: The timeline's unique identifier, or a partial/regex pattern.
 
 Returns:
     The Timeline object.
 
 Raises:
-    KeyError: If no timeline with that ID exists.
+    KeyError: If no timeline matches the pattern.
+
+Examples:
+    >>> bundle.get_timeline("clt1")          # Exact match
+    >>> bundle.get_timeline("score")         # Substring match
+    >>> bundle.get_timeline(r"^perf:")       # Regex match
+
+### get_timelines { #timetoalign.AlignmentBundle.get_timelines }
+
+```python
+AlignmentBundle.get_timelines(ids)
+```
+
+Get multiple timelines by their IDs.
+
+Convenience method for retrieving several timelines at once.
+Each ID supports partial string and regex matching (via
+``get_timeline()``).
+
+Args:
+    ids: List of timeline IDs (or partial/regex patterns).
+
+Returns:
+    List of Timeline objects in the same order as the input IDs.
+
+Raises:
+    KeyError: If any timeline ID is not found.
+
+Examples:
+    >>> timelines = bundle.get_timelines(["score", "audio", "midi"])
+    >>> len(timelines)
+    3
 
 ### get_timestamp_at { #timetoalign.AlignmentBundle.get_timestamp_at }
 

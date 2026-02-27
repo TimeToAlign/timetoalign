@@ -20,7 +20,7 @@ Examples:
     >>> loader.frame_rate
     240
 
-    >>> timeline = loader.to_timeline(uid="mocap_angle")
+    >>> timeline = loader.create_timeline(uid="mocap_angle")
     >>> timeline.length
     Coordinate(63965, samples)
 
@@ -37,27 +37,13 @@ Examples:
 
 | Name | Description |
 | --- | --- |
+| [create_timeline](#timetoalign.RepoVizzLoader.create_timeline) | Create a DiscretePhysicalTimeline from the loaded sensor data. |
 | [from_file](#timetoalign.RepoVizzLoader.from_file) | Load a RepoVizz CSV file and return the loader. |
-| [to_timeline](#timetoalign.RepoVizzLoader.to_timeline) | Create a DiscretePhysicalTimeline from the loaded sensor data. |
 
-### from_file { #timetoalign.RepoVizzLoader.from_file }
-
-```python
-RepoVizzLoader.from_file(path)
-```
-
-Load a RepoVizz CSV file and return the loader.
-
-Args:
-    path: Path to the RepoVizz CSV file.
-
-Returns:
-    A RepoVizzLoader with the file already loaded.
-
-### to_timeline { #timetoalign.RepoVizzLoader.to_timeline }
+### create_timeline { #timetoalign.RepoVizzLoader.create_timeline }
 
 ```python
-RepoVizzLoader.to_timeline(uid=None, name=None, attach_cmap=True)
+RepoVizzLoader.create_timeline(uid=None, name=None, attach_cmap=True)
 ```
 
 Create a DiscretePhysicalTimeline from the loaded sensor data.
@@ -77,3 +63,17 @@ Returns:
 
 Raises:
     RuntimeError: If no file has been loaded.
+
+### from_file { #timetoalign.RepoVizzLoader.from_file }
+
+```python
+RepoVizzLoader.from_file(path)
+```
+
+Load a RepoVizz CSV file and return the loader.
+
+Args:
+    path: Path to the RepoVizz CSV file.
+
+Returns:
+    A RepoVizzLoader with the file already loaded.

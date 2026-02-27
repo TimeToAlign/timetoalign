@@ -74,7 +74,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-dfb324f25d9b1687192fa8be62ac8f9c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -464,8 +464,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
+  <li><a href="#timetoalign.RepoVizzLoader.create_timeline" id="toc-timetoalign.RepoVizzLoader.create_timeline" class="nav-link" data-scroll-target="#timetoalign.RepoVizzLoader.create_timeline">create_timeline</a></li>
   <li><a href="#timetoalign.RepoVizzLoader.from_file" id="toc-timetoalign.RepoVizzLoader.from_file" class="nav-link" data-scroll-target="#timetoalign.RepoVizzLoader.from_file">from_file</a></li>
-  <li><a href="#timetoalign.RepoVizzLoader.to_timeline" id="toc-timetoalign.RepoVizzLoader.to_timeline" class="nav-link" data-scroll-target="#timetoalign.RepoVizzLoader.to_timeline">to_timeline</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -484,7 +484,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>RepoVizzLoader extracts the sampling rate and sample count from the two-line CSV format used by the EEP dataset for motion capture descriptors and other sensor signals. No actual sample data is loaded.</p>
 <p>The loader creates :class:<code>DiscretePhysicalTimeline</code> instances with the <code>samples</code> unit and an attached <code>SamplesToSeconds</code> conversion map.</p>
 <p>Examples: &gt;&gt;&gt; loader = RepoVizzLoader.from_file(“cello_bb_angle.csv”) &gt;&gt;&gt; loader.n_samples 63965 &gt;&gt;&gt; loader.frame_rate 240</p>
-<pre><code>&gt;&gt;&gt; timeline = loader.to_timeline(uid="mocap_angle")
+<pre><code>&gt;&gt;&gt; timeline = loader.create_timeline(uid="mocap_angle")
 &gt;&gt;&gt; timeline.length
 Coordinate(63965, samples)</code></pre>
 <section id="attributes" class="level2">
@@ -527,30 +527,30 @@ Coordinate(63965, samples)</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
+<td><a href="#timetoalign.RepoVizzLoader.create_timeline">create_timeline</a></td>
+<td>Create a DiscretePhysicalTimeline from the loaded sensor data.</td>
+</tr>
+<tr class="even">
 <td><a href="#timetoalign.RepoVizzLoader.from_file">from_file</a></td>
 <td>Load a RepoVizz CSV file and return the loader.</td>
 </tr>
-<tr class="even">
-<td><a href="#timetoalign.RepoVizzLoader.to_timeline">to_timeline</a></td>
-<td>Create a DiscretePhysicalTimeline from the loaded sensor data.</td>
-</tr>
 </tbody>
 </table>
-<section id="timetoalign.RepoVizzLoader.from_file" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.RepoVizzLoader.from_file">from_file</h3>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>RepoVizzLoader.from_file(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Load a RepoVizz CSV file and return the loader.</p>
-<p>Args: path: Path to the RepoVizz CSV file.</p>
-<p>Returns: A RepoVizzLoader with the file already loaded.</p>
-</section>
-<section id="timetoalign.RepoVizzLoader.to_timeline" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.RepoVizzLoader.to_timeline">to_timeline</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>RepoVizzLoader.to_timeline(uid<span class="op">=</span><span class="va">None</span>, name<span class="op">=</span><span class="va">None</span>, attach_cmap<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="timetoalign.RepoVizzLoader.create_timeline" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.RepoVizzLoader.create_timeline">create_timeline</h3>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>RepoVizzLoader.create_timeline(uid<span class="op">=</span><span class="va">None</span>, name<span class="op">=</span><span class="va">None</span>, attach_cmap<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Create a DiscretePhysicalTimeline from the loaded sensor data.</p>
 <p>The timeline is created with: - unit=TimeUnit.samples - length=n_samples - Optionally, a SamplesToSeconds C-map for coordinate conversion</p>
 <p>Args: uid: Unique identifier for the timeline. If None, uses filename stem. name: Human-readable name. If None, uses filename. attach_cmap: If True, attach a SamplesToSeconds conversion map.</p>
 <p>Returns: A DiscretePhysicalTimeline representing the sensor data.</p>
 <p>Raises: RuntimeError: If no file has been loaded.</p>
+</section>
+<section id="timetoalign.RepoVizzLoader.from_file" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.RepoVizzLoader.from_file">from_file</h3>
+<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>RepoVizzLoader.from_file(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Load a RepoVizz CSV file and return the loader.</p>
+<p>Args: path: Path to the RepoVizz CSV file.</p>
+<p>Returns: A RepoVizzLoader with the file already loaded.</p>
 
 
 </section>
