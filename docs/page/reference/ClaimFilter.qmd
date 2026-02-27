@@ -1,0 +1,131 @@
+# ClaimFilter { #timetoalign.ClaimFilter }
+
+```python
+ClaimFilter(
+    timeline_id=None,
+    timeline_ids=None,
+    id_pattern=None,
+    between=None,
+    synchronous_only=False,
+    nomatch_only=False,
+    include_domains=None,
+    include_units=None,
+)
+```
+
+Reusable filter for querying MatchClaims and related objects.
+
+All fields are optional. When multiple fields are set, they are combined
+with AND logic: a claim must satisfy every non-None criterion.
+
+The ``matches_claim()`` method tests a single MatchClaim against all
+criteria. The ``matches_timeline()`` method tests a single timeline ID
+(used by MatchGraph node-level filtering).
+
+Examples:
+    Filter for claims involving a specific performer::
+
+        f = ClaimFilter(id_pattern=r"^perf:")
+        filtered = [c for c in claims if f.matches_claim(c)]
+
+    Filter for synchronous claims between score and one performer::
+
+        f = ClaimFilter(
+            between=("score:clt1", "perf:dlt1"),
+            synchronous_only=True,
+        )
+
+Attributes:
+    timeline_id: Return claims involving this exact timeline ID.
+    timeline_ids: Return claims involving any of these timeline IDs.
+    id_pattern: Regex pattern matched against timeline IDs via
+        ``re.search()``. Example: ``r"^perf:"`` matches all
+        performance timelines.
+    between: Return claims connecting exactly these two timelines
+        (order-independent).
+    synchronous_only: If True, exclude non-synchronous (NOMATCH) claims.
+    nomatch_only: If True, return only non-synchronous (NOMATCH) claims.
+    include_domains: Only include timelines in these domains.
+        Requires a ``timelines`` dict for resolution.
+    include_units: Only include timelines with these units.
+        Requires a ``timelines`` dict for resolution.
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_kwargs](#timetoalign.ClaimFilter.from_kwargs) | Create a ClaimFilter from keyword arguments. |
+| [matches_claim](#timetoalign.ClaimFilter.matches_claim) | Test whether a MatchClaim passes all filter criteria. |
+| [matches_timeline](#timetoalign.ClaimFilter.matches_timeline) | Test whether a single timeline ID passes the filter criteria. |
+
+### from_kwargs { #timetoalign.ClaimFilter.from_kwargs }
+
+```python
+ClaimFilter.from_kwargs(
+    timeline_id=None,
+    timeline_ids=None,
+    id_pattern=None,
+    between=None,
+    synchronous_only=False,
+    nomatch_only=False,
+    include_domains=None,
+    include_units=None,
+)
+```
+
+Create a ClaimFilter from keyword arguments.
+
+Convenience constructor mirroring the canonical filter parameter
+signature used across the API.
+
+Args:
+    timeline_id: Return claims involving this timeline.
+    timeline_ids: Return claims involving any of these timelines.
+    id_pattern: Regex pattern matched against timeline IDs.
+    between: Return claims connecting exactly these two timelines.
+    synchronous_only: Exclude non-synchronous claims.
+    nomatch_only: Return only non-synchronous claims.
+    include_domains: Only timelines in these domains.
+    include_units: Only timelines with these units.
+
+Returns:
+    A new ClaimFilter.
+
+### matches_claim { #timetoalign.ClaimFilter.matches_claim }
+
+```python
+ClaimFilter.matches_claim(claim, *, timelines=None)
+```
+
+Test whether a MatchClaim passes all filter criteria.
+
+Args:
+    claim: The MatchClaim to test.
+    timelines: Dict of timeline_id -> Timeline for resolving
+        domain/unit filters. Required only when ``include_domains``
+        or ``include_units`` are set.
+
+Returns:
+    True if the claim passes all filters.
+
+### matches_timeline { #timetoalign.ClaimFilter.matches_timeline }
+
+```python
+ClaimFilter.matches_timeline(timeline_id, *, timelines=None)
+```
+
+Test whether a single timeline ID passes the filter criteria.
+
+Used for node-level filtering in MatchGraph. Only the timeline-ID
+related filters are applied (``timeline_id``, ``timeline_ids``,
+``id_pattern``, ``include_domains``, ``include_units``). The
+claim-level filters (``synchronous_only``, ``nomatch_only``,
+``between``) are ignored.
+
+Args:
+    timeline_id: The timeline ID to test.
+    timelines: Dict of timeline_id -> Timeline for resolving
+        domain/unit filters.
+
+Returns:
+    True if the timeline passes all applicable filters.

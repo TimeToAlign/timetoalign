@@ -44,17 +44,27 @@ website:
       - reference/AlignmentAnchor.qmd
       - reference/MatchClaim.qmd
       - reference/MatchMetadata.qmd
+      - reference/MatchGraph.qmd
+      - reference/MatchStamp.qmd
+      - reference/MatchLine.qmd
+      - reference/WarpMap.qmd
+      - reference/ClaimFilter.qmd
+      - reference/TimelineIdGenerator.qmd
       section: Alignment
     - contents:
       - reference/Loader.qmd
       - reference/EventData.qmd
       - reference/EventStore.qmd
       - reference/SingleStore.qmd
+      - reference/DictStore.qmd
       - reference/AudioLoader.qmd
       - reference/AudioInfo.qmd
       - reference/RepoVizzLoader.qmd
       - reference/RepoVizzInfo.qmd
       - reference/EepNotesLoader.qmd
+      - reference/MatchfileLoader.qmd
+      - reference/TiliaJsonLoader.qmd
+      - reference/TiliaDictStore.qmd
       section: Loaders
     id: reference
   - id: dummy-sidebar

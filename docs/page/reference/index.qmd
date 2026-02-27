@@ -62,6 +62,12 @@ Classes for connecting and aligning timelines.
 | [AlignmentAnchor](AlignmentAnchor.qmd#timetoalign.AlignmentAnchor) | A coordinate pair associating one coordinate on timeline A with one |
 | [MatchClaim](MatchClaim.qmd#timetoalign.MatchClaim) | A claim that two events or coordinates on different timelines correspond. |
 | [MatchMetadata](MatchMetadata.qmd#timetoalign.MatchMetadata) | Provenance information for a match claim. |
+| [MatchGraph](MatchGraph.qmd#timetoalign.MatchGraph) | A graph of MatchClaims connecting events across timelines/groups. |
+| [MatchStamp](MatchStamp.qmd#timetoalign.MatchStamp) | A synchronized timestamp across multiple timelines. |
+| [MatchLine](MatchLine.qmd#timetoalign.MatchLine) | Ordered sequence of MatchStamps for a source timeline. |
+| [WarpMap](WarpMap.qmd#timetoalign.WarpMap) | Bidirectional coordinate warping derived from alignment data. |
+| [ClaimFilter](ClaimFilter.qmd#timetoalign.ClaimFilter) | Reusable filter for querying MatchClaims and related objects. |
+| [TimelineIdGenerator](TimelineIdGenerator.qmd#timetoalign.TimelineIdGenerator) | Generates systematic timeline IDs based on type. |
 
 ## Loaders
 
@@ -73,8 +79,12 @@ Data ingestion from various file formats.
 | [EventData](EventData.qmd#timetoalign.EventData) | PyArrow-based storage for timeline events. |
 | [EventStore](EventStore.qmd#timetoalign.EventStore) | Abstract base class for collections of EventData. |
 | [SingleStore](SingleStore.qmd#timetoalign.SingleStore) | Store wrapper for a single EventData. |
+| [DictStore](DictStore.qmd#timetoalign.DictStore) | Generic EventStore with arbitrary named EventData tables. |
 | [AudioLoader](AudioLoader.qmd#timetoalign.AudioLoader) | Load audio file metadata for creating physical timelines. |
 | [AudioInfo](AudioInfo.qmd#timetoalign.AudioInfo) | Metadata for an audio file. |
 | [RepoVizzLoader](RepoVizzLoader.qmd#timetoalign.RepoVizzLoader) | Load RepoVizz 2-line CSV sensor data metadata for creating physical timelines. |
 | [RepoVizzInfo](RepoVizzInfo.qmd#timetoalign.RepoVizzInfo) | Parsed metadata from a RepoVizz CSV file. |
 | [EepNotesLoader](EepNotesLoader.qmd#timetoalign.EepNotesLoader) | Loader for EEP ``.notes`` alignment files. |
+| [MatchfileLoader](MatchfileLoader.qmd#timetoalign.loader.alignment.matchfile.MatchfileLoader) | Load Vienna Match (.match) alignment files via partitura. |
+| [TiliaJsonLoader](TiliaJsonLoader.qmd#timetoalign.loader.alignment.tilia.TiliaJsonLoader) | Loader for TiLiA JSON annotation exports. |
+| [TiliaDictStore](TiliaDictStore.qmd#timetoalign.loader.alignment.tilia.TiliaDictStore) | ``DictStore`` subclass with convenience properties for TiLiA timeline types. |

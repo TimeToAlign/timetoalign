@@ -1,0 +1,175 @@
+# MatchLine { #timetoalign.MatchLine }
+
+```python
+MatchLine(source_timeline_id, stamps=list())
+```
+
+Ordered sequence of MatchStamps for a source timeline.
+
+A MatchLine collects all synchronised timestamps that mention a
+given *source* timeline, orders them by coordinate on that timeline,
+and exposes ``get_coordinate_pairs()`` to extract the
+``(source_coord, target_coord)`` table consumed by WarpMap.
+
+Attributes:
+    source_timeline_id: The timeline whose coordinates define the
+        ordering of the stamps.
+    stamps: MatchStamps sorted by coordinate on ``source_timeline_id``.
+
+Examples:
+    >>> line = MatchLine.from_claims(
+    ...     claims=claims,
+    ...     source_timeline_id="score",
+    ... )
+    >>> pairs = line.get_coordinate_pairs("audio")
+    >>> pairs
+    [(0.0, 0.0), (100.0, 45.5), (200.0, 91.0)]
+
+See Also:
+    `timetoalign.MatchGraph`
+    `timetoalign.MatchStamp`
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [n_stamps](#timetoalign.MatchLine.n_stamps) | Number of stamps in this MatchLine. |
+| [source_coordinates](#timetoalign.MatchLine.source_coordinates) | Sorted list of coordinates on the source timeline. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_claims](#timetoalign.MatchLine.from_claims) | Build a MatchLine from claims via a MatchGraph. |
+| [from_dict](#timetoalign.MatchLine.from_dict) | Deserialize from dictionary. |
+| [from_graphs](#timetoalign.MatchLine.from_graphs) | Build a MatchLine from multiple MatchGraphs. |
+| [get_coordinate_pairs](#timetoalign.MatchLine.get_coordinate_pairs) | Extract (source_coord, target_coord) pairs for a target timeline. |
+| [target_timeline_ids](#timetoalign.MatchLine.target_timeline_ids) | All target timelines appearing in at least 2 stamps. |
+| [to_dict](#timetoalign.MatchLine.to_dict) | Serialize to dictionary for storage. |
+
+### from_claims { #timetoalign.MatchLine.from_claims }
+
+```python
+MatchLine.from_claims(
+    claims,
+    source_timeline_id,
+    *,
+    groups=None,
+    timeline_to_group=None,
+    timelines=None,
+    include_timelines=None,
+    exclude_timelines=None,
+    include_domains=None,
+    include_units=None,
+)
+```
+
+Build a MatchLine from claims via a MatchGraph.
+
+Constructs a MatchGraph from the supplied claims, optionally
+extends it to groups, extracts MatchStamps, and orders them by
+coordinate on the source timeline.
+
+Args:
+    claims: List of MatchClaims to resolve.
+    source_timeline_id: The timeline whose coordinates define
+        the ordering.
+    groups: Dict of group_id -> TimelineGroup for group extension.
+        If None, no group extension is performed.
+    timeline_to_group: Dict of timeline_id -> group_id.  Required
+        if ``groups`` is provided.
+    timelines: Dict of timeline_id -> Timeline for domain/unit
+        filtering.  Required if ``include_domains`` or
+        ``include_units`` are set.
+    include_timelines: Only extend to these timeline IDs.
+    exclude_timelines: Do not extend to these timeline IDs.
+    include_domains: Only extend to timelines in these domains.
+    include_units: Only extend to timelines with these units.
+
+Returns:
+    A MatchLine with stamps sorted by source coordinate.
+
+### from_dict { #timetoalign.MatchLine.from_dict }
+
+```python
+MatchLine.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+Args:
+    data: Dict as produced by ``to_dict()``.
+
+Returns:
+    A new MatchLine.
+
+### from_graphs { #timetoalign.MatchLine.from_graphs }
+
+```python
+MatchLine.from_graphs(graphs, source_timeline_id)
+```
+
+Build a MatchLine from multiple MatchGraphs.
+
+Merges MatchStamps from several MatchGraphs (the Hendrix M6-M9
+pattern) into a single ordered sequence. Duplicate stamps
+(same source coordinate) are deduplicated, keeping the stamp
+with the most timelines.
+
+Args:
+    graphs: List of MatchGraphs to merge.
+    source_timeline_id: The timeline whose coordinates define
+        the ordering.
+
+Returns:
+    A MatchLine with merged, deduplicated stamps sorted by
+    source coordinate.
+
+### get_coordinate_pairs { #timetoalign.MatchLine.get_coordinate_pairs }
+
+```python
+MatchLine.get_coordinate_pairs(target_timeline_id)
+```
+
+Extract (source_coord, target_coord) pairs for a target timeline.
+
+Only stamps that contain both the source and target timelines
+contribute to the result. Pairs are ordered by source coordinate.
+
+Args:
+    target_timeline_id: The timeline to extract target coordinates
+        for.
+
+Returns:
+    List of ``(source_coord, target_coord)`` tuples, sorted by
+    source coordinate.
+
+Raises:
+    ValueError: If ``target_timeline_id`` equals
+        ``source_timeline_id``.
+
+### target_timeline_ids { #timetoalign.MatchLine.target_timeline_ids }
+
+```python
+MatchLine.target_timeline_ids()
+```
+
+All target timelines appearing in at least 2 stamps.
+
+A target timeline must appear in at least two stamps for
+interpolation (i.e., WarpMap construction) to be meaningful.
+
+Returns:
+    Set of timeline IDs (excluding the source) that appear
+    in >= 2 stamps.
+
+### to_dict { #timetoalign.MatchLine.to_dict }
+
+```python
+MatchLine.to_dict()
+```
+
+Serialize to dictionary for storage.
+
+Returns:
+    Dict with ``source_timeline_id`` and ``stamps``.

@@ -55,6 +55,8 @@ documentation:
 
 ### AlignmentBundles
 
+- [How to Create a Note Alignment](howto/how03_create_note_alignment.ipynb) ---
+  MatchClaims, AlignmentBundle, MatchLines, and cross-group MatchStamps.
 - [How to Align Multimodal Data (Beethoven)](howto/how03_beethoven_multimodal.ipynb) ---
   AlignmentBundle, FlowMap, OMR, 16+ timelines across 3 domains.
 - [How to Load the Vienna 4x22 Corpus](howto/how03_loading_vienna_corpus.ipynb) ---

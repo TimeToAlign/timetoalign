@@ -1,0 +1,115 @@
+# MatchStamp { #timetoalign.MatchStamp }
+
+```python
+MatchStamp(coordinates=dict(), anchor_edges=list(), inferred_edges=list())
+```
+
+A synchronized timestamp across multiple timelines.
+
+A MatchStamp represents a single coordinate (or instant) that has been
+synchronized across multiple timelines via explicit anchors and/or
+inferred group membership.
+
+Contains one coordinate per participating timeline, where coordinates
+are linked via explicit anchors or inferred group membership.
+
+Attributes:
+    coordinates: Dict of timeline_id -> coordinate.
+    anchor_edges: List of (tl_a, tl_b) pairs that are explicitly anchored.
+    inferred_edges: List of (tl_a, tl_b) pairs inferred via groups.
+
+Examples:
+    >>> stamp = MatchStamp(
+    ...     coordinates={"score": 100.0, "audio": 45.5, "video": 1365.0},
+    ...     anchor_edges=[("score", "audio")],
+    ...     inferred_edges=[("audio", "video")],
+    ... )
+    >>> stamp.get_coordinate("audio")
+    45.5
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [n_explicit_edges](#timetoalign.MatchStamp.n_explicit_edges) | Number of explicitly anchored pairs. |
+| [n_inferred_edges](#timetoalign.MatchStamp.n_inferred_edges) | Number of inferred (via group) pairs. |
+| [n_timelines](#timetoalign.MatchStamp.n_timelines) | Number of timelines in this stamp. |
+| [timeline_ids](#timetoalign.MatchStamp.timeline_ids) | List of timeline IDs in this stamp. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [filter_by_timelines](#timetoalign.MatchStamp.filter_by_timelines) | Create filtered stamp with subset of timelines. |
+| [from_dict](#timetoalign.MatchStamp.from_dict) | Deserialize from dictionary. |
+| [get_coordinate](#timetoalign.MatchStamp.get_coordinate) | Get coordinate for a specific timeline. |
+| [get_group_coordinates](#timetoalign.MatchStamp.get_group_coordinates) | Get all coordinates for timelines in a specific group. |
+| [has_timeline](#timetoalign.MatchStamp.has_timeline) | Check if timeline is in this stamp. |
+| [to_dict](#timetoalign.MatchStamp.to_dict) | Serialize to dictionary. |
+
+### filter_by_timelines { #timetoalign.MatchStamp.filter_by_timelines }
+
+```python
+MatchStamp.filter_by_timelines(include=None, exclude=None)
+```
+
+Create filtered stamp with subset of timelines.
+
+Args:
+    include: Only include these timelines (None = all).
+    exclude: Exclude these timelines (None = none).
+
+Returns:
+    New MatchStamp with filtered timelines.
+
+### from_dict { #timetoalign.MatchStamp.from_dict }
+
+```python
+MatchStamp.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+### get_coordinate { #timetoalign.MatchStamp.get_coordinate }
+
+```python
+MatchStamp.get_coordinate(timeline_id)
+```
+
+Get coordinate for a specific timeline.
+
+Args:
+    timeline_id: The timeline to get coordinate for.
+
+Returns:
+    The coordinate, or None if timeline not in this stamp.
+
+### get_group_coordinates { #timetoalign.MatchStamp.get_group_coordinates }
+
+```python
+MatchStamp.get_group_coordinates(group)
+```
+
+Get all coordinates for timelines in a specific group.
+
+Args:
+    group: The TimelineGroup to filter by.
+
+Returns:
+    Dict of timeline_id -> coordinate for timelines in the group.
+
+### has_timeline { #timetoalign.MatchStamp.has_timeline }
+
+```python
+MatchStamp.has_timeline(timeline_id)
+```
+
+Check if timeline is in this stamp.
+
+### to_dict { #timetoalign.MatchStamp.to_dict }
+
+```python
+MatchStamp.to_dict()
+```
+
+Serialize to dictionary.

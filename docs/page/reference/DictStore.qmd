@@ -1,0 +1,62 @@
+# DictStore { #timetoalign.DictStore }
+
+```python
+DictStore(data=None)
+```
+
+Generic EventStore with arbitrary named EventData tables.
+
+Used by AlignmentLoaders that produce a variable number of timelines
+(e.g., MatchfileLoader: 1 score + N performances; Ieee1599Loader:
+logic + audio_1 + audio_2 + graphical_1).
+
+Maintains the uniform EventStore interface (iteration, keys, items,
+getitem) while supporting any number of named data sources.
+
+Args:
+    data: Dictionary mapping names to EventData tables.
+
+Examples:
+    >>> store = DictStore({
+    ...     "score": score_event_data,
+    ...     "perf:p01": perf_01_event_data,
+    ...     "perf:p02": perf_02_event_data,
+    ... })
+    >>> for name, events in store.items():
+    ...     print(f"{name}: {len(events)} events")
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [add](#timetoalign.DictStore.add) | Add or replace a named EventData table. |
+| [items](#timetoalign.DictStore.items) | Iterate over (name, EventData) pairs in insertion order. |
+| [keys](#timetoalign.DictStore.keys) | Return data names in insertion order. |
+
+### add { #timetoalign.DictStore.add }
+
+```python
+DictStore.add(name, events)
+```
+
+Add or replace a named EventData table.
+
+Args:
+    name: The name for this data (e.g., ``"score"``, ``"perf:p01"``).
+    events: The EventData to store.
+
+### items { #timetoalign.DictStore.items }
+
+```python
+DictStore.items()
+```
+
+Iterate over (name, EventData) pairs in insertion order.
+
+### keys { #timetoalign.DictStore.keys }
+
+```python
+DictStore.keys()
+```
+
+Return data names in insertion order.

@@ -14,5 +14,6 @@ howto,how01_tabular_loaders.py,how01_tabular_loaders,How to Load Tabular Data,"C
 howto,how01_graphical_timelines.py,how01_graphical_timelines,How to Work with Graphical Timelines,"TimeAxisPath, image-based timelines, and pixel-to-time conversion"
 howto,how01_beat_grids.py,how01_beat_grids,How to Build Beat Grids,"BeatGrid, FloorMap, RotationMap, and measure/beat queries"
 howto,how02_supra_piano_roll.py,how02_supra_piano_roll,How to Align a Piano Roll (SUPRA),"End-to-end alignment: IIIF images, ATON, MIDI, Audio, and Score"
+howto,how03_create_note_alignment.py,how03_create_note_alignment,How to Create a Note Alignment,"MatchClaims, AlignmentBundle, MatchLines, cross-group MatchStamps"
 howto,how03_beethoven_multimodal.py,how03_beethoven_multimodal,How to Align Multimodal Data (Beethoven),"AlignmentBundle, FlowMap, OMR, 16+ timelines across 3 domains"
 howto,how03_loading_vienna_corpus.py,how03_loading_vienna_corpus,How to Load the Vienna 4x22 Corpus,"MatchfileLoader, 22 performances, AlignmentBundle"

@@ -1,0 +1,156 @@
+# TiliaJsonLoader { #timetoalign.loader.alignment.tilia.TiliaJsonLoader }
+
+```python
+loader.alignment.tilia.TiliaJsonLoader(media_unit=TimeUnit.seconds)
+```
+
+Loader for TiLiA JSON annotation exports.
+
+Parses a TiLiA ``.tla`` or ``.json`` file and produces one
+`ContinuousPhysicalTimeline` (seconds) per annotated timeline in
+the file.  The primary output is a `timetoalign.alignment.groups.TimelineGroup`
+containing all timelines, accessible via ``create_group()``.
+
+Internally, the ``"timelines"`` array is parsed so that each element
+(which has its own ``"kind"`` and ``"components"``) becomes a
+separate ``pa.Table`` keyed by a generated identifier
+(``"{kind}_{index}"``).  The underlying ``JsonLoader`` machinery is
+used for normalising each timeline's components into a flat table.
+
+The ``.store`` property returns a `TiliaDictStore` with helper
+properties for each TiLiA timeline type::
+
+    loader.store.hierarchy  # all hierarchy tables concatenated
+    loader.store.marker     # all marker tables concatenated
+    loader.store.beat       # all beat tables concatenated
+
+**Two-phase usage:**
+
+1. ``loader.load("Bruckner5_Scherzo.json")``
+2. ``group = loader.create_group()``
+3. ``tl = loader.create_timeline("BEAT_TIMELINE_3")``
+4. ``bundle = loader.create_alignment_bundle()``
+
+Args:
+    media_unit: The ``TimeUnit`` for all timelines.  Default
+        ``TimeUnit.seconds`` (TiLiA annotations are time-based).
+
+Examples:
+    >>> loader = TiliaJsonLoader()
+    >>> loader.load("Bruckner5_Scherzo.json")
+    >>> group = loader.create_group()
+    >>> group.n_timelines
+    7
+    >>> loader.create_timeline("BEAT_TIMELINE_3").n_events
+    1146
+    >>> loader.store.hierarchy._table.num_rows
+    33
+
+See Also:
+    timetoalign.loader.format.json.JsonLoader
+    timetoalign.alignment.groups.TimelineGroup
+    TiliaDictStore
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [media_length](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.media_length) | Media length in seconds (from ``media_metadata.media length``). |
+| [store](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.store) | The ``TiliaDictStore`` containing all normalised timeline tables. |
+| [timeline_ids](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.timeline_ids) | Identifiers for all parsed timelines. |
+| [timeline_specs](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.timeline_specs) | Metadata dicts for each parsed timeline. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [clear](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.clear) | Clear all loaded data, including timeline specs and cache. |
+| [create_alignment_bundle](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_alignment_bundle) | Create an ``AlignmentBundle`` wrapping all timelines in one group. |
+| [create_group](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group) | Create a ``TimelineGroup`` containing all (or selected) timelines. |
+| [create_timeline](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline) | Create a single ``ContinuousPhysicalTimeline`` by id. |
+| [create_timelines](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines) | Create multiple timelines. |
+
+### clear { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.clear }
+
+```python
+loader.alignment.tilia.TiliaJsonLoader.clear()
+```
+
+Clear all loaded data, including timeline specs and cache.
+
+### create_alignment_bundle { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_alignment_bundle }
+
+```python
+loader.alignment.tilia.TiliaJsonLoader.create_alignment_bundle()
+```
+
+Create an ``AlignmentBundle`` wrapping all timelines in one group.
+
+This is a convenience method.  The bundle contains a single
+``TimelineGroup`` with no cross-group ``MatchClaim`` objects.
+
+Returns:
+    An ``AlignmentBundle`` with one group and no claims.
+
+Raises:
+    RuntimeError: If ``load()`` has not been called.
+
+### create_group { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group }
+
+```python
+loader.alignment.tilia.TiliaJsonLoader.create_group(ids=None)
+```
+
+Create a ``TimelineGroup`` containing all (or selected) timelines.
+
+This is the primary output method for TiliaJsonLoader.  The
+group is built with all member timelines mapped to the same
+physical time axis (seconds).
+
+Args:
+    ids: Timeline identifiers to include.  ``None`` (default)
+        means all.
+
+Returns:
+    A ``TimelineGroup`` with one member per timeline.
+
+Raises:
+    RuntimeError: If ``load()`` has not been called.
+
+### create_timeline { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline }
+
+```python
+loader.alignment.tilia.TiliaJsonLoader.create_timeline(id)
+```
+
+Create a single ``ContinuousPhysicalTimeline`` by id.
+
+The *id* is the timeline identifier from ``timeline_ids``
+(e.g. ``"BEAT_TIMELINE_3"``).  Alternatively, pass an integer
+index (as string or int) to select by position.
+
+Args:
+    id: Timeline identifier or integer index.
+
+Returns:
+    A ``ContinuousPhysicalTimeline`` with events from the
+    timeline's components.
+
+Raises:
+    KeyError: If no timeline with *id* exists.
+    RuntimeError: If ``load()`` has not been called.
+
+### create_timelines { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines }
+
+```python
+loader.alignment.tilia.TiliaJsonLoader.create_timelines(ids=None)
+```
+
+Create multiple timelines.
+
+Args:
+    ids: List of timeline identifiers to create.  If ``None``
+        (the default), all timelines are created.
+
+Returns:
+    List of ``ContinuousPhysicalTimeline`` objects.
