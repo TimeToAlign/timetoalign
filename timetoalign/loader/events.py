@@ -235,6 +235,34 @@ class EventData:
             # Remove 'instant' key if it remains
             processed.pop("instant", None)
 
+            # Compute missing duration or end for interval events
+            # If end is present but duration is not, compute duration = end - start
+            # If duration is present but end is not, compute end = start + duration
+            start_val = processed.get("start")
+            end_val = processed.get("end")
+            duration_val = processed.get("duration")
+
+            if start_val is not None:
+                start_float = (
+                    float(start_val["value"])
+                    if isinstance(start_val, dict)
+                    else float(start_val)
+                )
+                if end_val is not None and duration_val is None:
+                    end_float = (
+                        float(end_val["value"])
+                        if isinstance(end_val, dict)
+                        else float(end_val)
+                    )
+                    processed["duration"] = end_float - start_float
+                elif duration_val is not None and end_val is None:
+                    dur_float = (
+                        float(duration_val["value"])
+                        if isinstance(duration_val, dict)
+                        else float(duration_val)
+                    )
+                    processed["end"] = start_float + dur_float
+
             # Handle coordinate columns
             for coord_col in ("start", "end", "duration"):
                 if coord_col in processed and processed[coord_col] is not None:
@@ -249,6 +277,35 @@ class EventData:
         schema = cls.get_schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
+
+        # Collect extra columns not in the base schema and add them dynamically
+        base_col_names = set(schema.names)
+        extra_col_names: set[str] = set()
+        for row in processed_rows:
+            for key in row.keys():
+                if key not in base_col_names:
+                    extra_col_names.add(key)
+
+        # Add extra columns to schema (as nullable strings for flexibility)
+        if extra_col_names:
+            new_fields = list(schema)
+            for col_name in sorted(extra_col_names):
+                new_fields.append(pa.field(col_name, pa.string(), nullable=True))
+            schema = pa.schema(new_fields, metadata=schema.metadata)
+            # Convert extra column values to strings for storage
+            for row in processed_rows:
+                for col_name in extra_col_names:
+                    if col_name in row and row[col_name] is not None:
+                        # Convert non-string values to JSON strings for complex types
+                        val = row[col_name]
+                        if isinstance(val, (dict, list)):
+                            import json
+
+                            row[col_name] = json.dumps(val)
+                        elif not isinstance(val, str):
+                            row[col_name] = str(val)
+                    elif col_name not in row:
+                        row[col_name] = None
 
         table = pa.Table.from_pylist(processed_rows, schema=schema)
         return cls(table, unit, number_type)
@@ -678,7 +735,8 @@ class EventData:
         """Extend this data with events from another EventData (in-place).
 
         Args:
-            other: Another EventData with compatible schema.
+            other: Another EventData with compatible schema (extra columns
+                are allowed and will be merged using schema promotion).
 
         Raises:
             ValueError: If units don't match.
@@ -686,13 +744,19 @@ class EventData:
         if other.unit != self.unit:
             raise ValueError(f"Unit mismatch: {self.unit} vs {other.unit}")
 
-        self._table = pa.concat_tables([self._table, other._table])
+        # Use promote_options="default" to handle schema differences
+        # (e.g., extra columns from JSON loaders). Missing columns are
+        # filled with nulls.
+        self._table = pa.concat_tables(
+            [self._table, other._table], promote_options="default"
+        )
 
     def concat(self, *others: "EventData") -> "EventData":
         """Concatenate with other EventData, returning a new EventData.
 
         Args:
-            *others: Other EventData to concatenate.
+            *others: Other EventData to concatenate (extra columns are
+                allowed and will be merged using schema promotion).
 
         Returns:
             A new EventData containing all events.
@@ -706,7 +770,8 @@ class EventData:
                 raise ValueError(f"Unit mismatch: {self.unit} vs {other.unit}")
             tables.append(other._table)
 
-        new_table = pa.concat_tables(tables)
+        # Use promote_options="default" to handle schema differences
+        new_table = pa.concat_tables(tables, promote_options="default")
         return self.__class__(new_table, self.unit, self.number_type)
 
     def prefix_ids(self, prefix: str) -> "EventData":
