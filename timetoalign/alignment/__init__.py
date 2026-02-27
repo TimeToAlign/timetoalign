@@ -24,6 +24,7 @@ from .bundle import AlignmentBundle
 from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
 from .groups import GroupTimestamp, PerfectAlignment, TimelineGroup
+from .match_format import MatchFileContext, NoteRecord, SnoteRecord
 from .matching import (
     MatchResult,
     match_notes_by_attributes,
@@ -52,6 +53,10 @@ __all__ = [
     "MatchStamp",
     "MatchLine",
     "WarpMap",
+    # Match Format (export)
+    "MatchFileContext",
+    "SnoteRecord",
+    "NoteRecord",
     # Matching
     "MatchResult",
     "match_notes_by_attributes",

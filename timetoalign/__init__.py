@@ -102,11 +102,14 @@ from timetoalign.alignment import (
     AlignmentBundle,
     ClaimFilter,
     MatchClaim,
+    MatchFileContext,
     MatchGraph,
     MatchLine,
     MatchMetadata,
     MatchStamp,
+    NoteRecord,
     PerfectAlignment,
+    SnoteRecord,
     TimelineGroup,
     WarpMap,
 )
@@ -229,10 +232,13 @@ __all__ = [
     "AlignmentAnchor",
     "ClaimFilter",
     "MatchClaim",
+    "MatchFileContext",
     "MatchGraph",
     "MatchLine",
     "MatchMetadata",
     "MatchStamp",
+    "NoteRecord",
+    "SnoteRecord",
     "WarpMap",
 ]
 
