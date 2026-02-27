@@ -25,7 +25,7 @@ pip install -e ".[tutorial]"    # Loaders + plotting + Jupyter
 TimeToAlign! organises its optional dependencies into *atomic* extras
 (one concern each) and *composite* extras (convenience bundles that
 include several atomic ones).  You can mix and match freely:
-`pip install timetoalign[midi,plot]` is perfectly valid.
+`pip install -e ".[midi,plot]"` is perfectly valid.
 
 #### Atomic extras
 
@@ -66,14 +66,16 @@ dev  ⊃  all  ⊃  tutorial  ⊃  loaders  ⊃  { midi, scores, audio, graphica
 
 #### Examples
 
+From the repository root:
+
 ```bash
-pip install timetoalign                  # Core only
-pip install timetoalign[midi]            # Core + MIDI loading
-pip install timetoalign[partitura]       # Core + partitura score parsing
-pip install timetoalign[scores]          # Core + all score-loader backends
-pip install timetoalign[loaders]         # Core + every loader
-pip install timetoalign[tutorial]        # Loaders + plotting + Jupyter
-pip install timetoalign[all]             # All runtime features
+pip install -e .                         # Core only
+pip install -e ".[midi]"                 # Core + MIDI loading
+pip install -e ".[partitura]"            # Core + partitura score parsing
+pip install -e ".[scores]"               # Core + all score-loader backends
+pip install -e ".[loaders]"              # Core + every loader
+pip install -e ".[tutorial]"             # Loaders + plotting + Jupyter
+pip install -e ".[all]"                  # All runtime features
 pip install -e ".[dev]"                  # Editable install + everything + dev tooling
 ```
 
