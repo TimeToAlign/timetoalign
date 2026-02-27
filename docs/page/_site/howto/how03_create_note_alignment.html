@@ -232,6 +232,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../howto/how01_thoresen_annotation_transfer.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">How to Transfer Annotations Between Graphical Analyses</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../howto/how01_beat_grids.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">How to Build Beat Grids</span></a>
   </div>
@@ -340,7 +346,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="how-to-create-a-note-alignment" class="level1">
 <h1>How to Create a Note Alignment</h1>
-<p>This notebook demonstrates the essential pattern for aligning a performance with a score using <button class="glossary" title="">MatchClaim</button> objects in an <button class="glossary" title="">AlignmentBundle</button>.</p>
+<p>This notebook demonstrates the essential pattern for aligning a performance with a score using <button class="glossary" title="A claim — issued by a human or algorithmic agent — about one or two timed things (events, regions, children) on two specific timelines. Always knows which pair of timelines it connects. Contains 0-2 AlignmentAnchors (only if synchronous), synchrony and explicitness flags, and optional MatchMetadata (agent, decision criteria, certainty). Four cases: (a) ID<->ID, (b) ID->coord (projection), (c) ID->NOMATCH, (d) implicit (from group extension). The manuscript shorthand “Match” refers to this concept.">MatchClaim</button> objects in an <button class="glossary" title="The top-level container for alignment workflows, holding timelines, groups, and cross-group MatchClaims. Provides coordinate transfer within groups (via interpolation) and across groups (via MatchLine and WarpMap). Not a graph.">AlignmentBundle</button>.</p>
 <p><strong>What you will learn:</strong></p>
 <ol type="1">
 <li>Match performance notes to score notes by shared attributes (pitch, staff)</li>
@@ -435,7 +441,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="create-alignmentbundle" class="level2">
 <h2 class="anchored" data-anchor-id="create-alignmentbundle">4. Create AlignmentBundle</h2>
-<p>We need two <button class="glossary" title="">TimelineGroup</button> objects: one for the performance, one for the score. The <code>AlignmentBundle</code> holds both and manages cross-group connections via <button class="glossary" title="">MatchClaim</button> objects.</p>
+<p>We need two <button class="glossary" title="A container for commensurable timelines, connected via a shared timestamp table and pairwise InterpolationMaps. Enables coordinate transfer between timelines of potentially different units via linear interpolation.">TimelineGroup</button> objects: one for the performance, one for the score. The <code>AlignmentBundle</code> holds both and manages cross-group connections via <button class="glossary" title="A claim — issued by a human or algorithmic agent — about one or two timed things (events, regions, children) on two specific timelines. Always knows which pair of timelines it connects. Contains 0-2 AlignmentAnchors (only if synchronous), synchrony and explicitness flags, and optional MatchMetadata (agent, decision criteria, certainty). Four cases: (a) ID<->ID, (b) ID->coord (projection), (c) ID->NOMATCH, (d) implicit (from group extension). The manuscript shorthand “Match” refers to this concept.">MatchClaim</button> objects.</p>
 <div id="ba8abd5b" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T13:43:43.032998Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T13:43:43.032552Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T13:43:43.061743Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T13:43:43.061023Z&quot;}}" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create the performance timeline (seconds)</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>perf_tl <span class="op">=</span> eep_loader.create_timeline(uid<span class="op">=</span><span class="st">"cpt1"</span>)</span>
@@ -571,7 +577,7 @@ Timestamps: 2</pre>
 </section>
 <section id="create-matchlines" class="level2">
 <h2 class="anchored" data-anchor-id="create-matchlines">6. Create MatchLines</h2>
-<p>A <button class="glossary" title="">MatchLine</button> is an ordered sequence of coordinate pairs for a given source timeline. It is the input for WarpMap generation.</p>
+<p>A <button class="glossary" title="An ordered sequence of MatchStamps for a given source timeline, sorted by coordinate on that source timeline. Created by selecting and resolving MatchClaims (all or filtered subset). Used as input for WarpMap generation. In the Hendrix example, the “inferred chord event alignment” is based on a MatchLine selecting MatchGraphs M6-M9.">MatchLine</button> is an ordered sequence of coordinate pairs for a given source timeline. It is the input for WarpMap generation.</p>
 <p>The <strong>direction matters</strong>: the source timeline determines the ordering.</p>
 <div id="4267d809" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T13:43:45.320035Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T13:43:45.319727Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T13:43:45.392397Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T13:43:45.391564Z&quot;}}" data-execution_count="11">
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Performance-to-score: source is performance, sorted by performance time</span></span>
