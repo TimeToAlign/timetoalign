@@ -3,7 +3,7 @@ title: "Tutorials"
 subtitle: "Learn TimeToAlign! step by step"
 listing:
   id: tutorial-listing
-  contents: tutorials/*.ipynb
+  contents: tutorials/tut*.ipynb
   type: table
   fields: [title, description]
   sort: "filename"
