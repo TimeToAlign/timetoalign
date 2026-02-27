@@ -408,7 +408,6 @@ class TSVLoader(ScoreLoader):
 
             note_rows.append(
                 {
-                    "id": f"note_{qb_float}_{row.name}",
                     "name": str(row.get("name", "")),
                     "temporal_type": "interval" if dur_qb_float > 0 else "instant",
                     "event_type": "Note" if midi_pitch else "Rest",

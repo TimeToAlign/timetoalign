@@ -191,7 +191,7 @@ class MeasureData(EventData):
     def empty(
         cls,
         unit: TimeUnit = TimeUnit.quarters,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType = NumberType.fraction,
     ) -> Self:
         """Create empty MeasureData."""
         return super().empty(unit, number_type)
@@ -201,7 +201,7 @@ class MeasureData(EventData):
         cls,
         rows: list[dict[str, Any]],
         unit: TimeUnit = TimeUnit.quarters,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType = NumberType.fraction,
     ) -> Self:
         """Create from dicts.
 
@@ -220,13 +220,38 @@ class MeasureData(EventData):
 
         from timetoalign.loader.schema import coordinate_to_struct, make_table_metadata
 
-        schema = cls.schema(unit)
+        schema = cls.get_schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
 
         processed_rows = []
+        type_counters: dict[str, int] = {}
         for row in rows:
             processed = dict(row)
+
+            # Auto-generate id if missing (mirrors EventData.from_dicts logic)
+            if "id" not in processed or processed["id"] is None:
+                etype = str(processed.get("event_type", "event")).lower()
+                type_counters.setdefault(etype, 0)
+                type_counters[etype] += 1
+                processed["id"] = f"{etype}:{type_counters[etype]:06d}"
+
+            # Infer temporal_type if missing
+            if "temporal_type" not in processed or processed["temporal_type"] is None:
+                has_end = processed.get("end") is not None
+                has_duration = (
+                    processed.get("duration") is not None
+                    or processed.get("duration_qb") is not None
+                )
+                has_start = (
+                    processed.get("start") is not None
+                    or processed.get("quarterbeats") is not None
+                    or processed.get("qstamp") is not None
+                )
+                if has_start and (has_end or has_duration):
+                    processed["temporal_type"] = "interval"
+                else:
+                    processed["temporal_type"] = "instant"
 
             # ===== Map MeasureMap JSON fields to schema =====
             # MeasureMap uses "count" for MC, "number" for MN as int

@@ -430,7 +430,7 @@ class TimeStamp:
             f"<td><em>axis</em></td></tr>"
         )
 
-        # Add related timeline coordinates
+        # Add related timeline coordinates (children)
         for tid in self.source._get_related_timeline_ids():
             val = self.get(tid)
             if val is not None:
@@ -439,7 +439,7 @@ class TimeStamp:
                 rows.append(
                     f"<tr><td>{html.escape(tid)}</td>"
                     f"<td style='text-align: right;'>{val:.6g}{unit_str}</td>"
-                    f"<td></td></tr>"
+                    f"<td><em>child</em></td></tr>"
                 )
 
         # Add C-Map conversions

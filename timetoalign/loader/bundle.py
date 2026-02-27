@@ -142,6 +142,19 @@ class EventStore(ABC):
 
     # endregion
 
+    # region Properties
+
+    @property
+    def event_count(self) -> int:
+        """Total number of events across all data tables in the store.
+
+        Returns:
+            Sum of event counts from all constituent EventData tables.
+        """
+        return sum(len(data) for data in self)
+
+    # endregion
+
     # region Conversion Maps
 
     def get_cmaps(self) -> dict[str, "ConversionMap"]:

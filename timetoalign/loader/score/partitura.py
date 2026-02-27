@@ -76,9 +76,21 @@ class PartituraLoader(ScoreLoader):
         self,
         *,
         force_note_ids: bool = True,
+        silence_warnings: bool = False,
     ) -> None:
+        """Initialize PartituraLoader.
+
+        Args:
+            force_note_ids: If True, force note IDs from partitura.
+            silence_warnings: If True, suppress warnings from the partitura
+                library (e.g. "ignoring direction type: metronome",
+                "Found repeat without end"). Partitura can emit numerous
+                warnings for complex scores; this flag sets a warning filter
+                to clean up loader output.
+        """
         super().__init__()
         self._force_note_ids = force_note_ids
+        self._silence_warnings = silence_warnings
         self._anacrusis_offset: float = 0.0
 
     @property
@@ -96,7 +108,26 @@ class PartituraLoader(ScoreLoader):
         return self._anacrusis_offset
 
     def _load_source(self, source: Path) -> ScoreStore:
-        """Load score and return ScoreStore."""
+        """Load score and return ScoreStore.
+
+        When ``silence_warnings=True`` was passed at construction, all
+        warnings from the partitura library are suppressed.
+        """
+        import contextlib
+        import warnings
+
+        if self._silence_warnings:
+            ctx = warnings.catch_warnings()
+        else:
+            ctx = contextlib.nullcontext()
+
+        with ctx:
+            if self._silence_warnings:
+                warnings.filterwarnings("ignore", module="partitura")
+            return self._do_load(source)
+
+    def _do_load(self, source: Path) -> ScoreStore:
+        """Core loading logic for a single source file."""
         score = pt.load_score(str(source), force_note_ids=self._force_note_ids)
 
         # Flatten parts

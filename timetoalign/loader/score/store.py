@@ -114,7 +114,7 @@ class ScoreEventData(EventData):
         self,
         table: pa.Table,
         unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType = NumberType.fraction,
         has_rests: bool | None = None,
     ) -> None:
         """Initialize ScoreEventData.
@@ -122,7 +122,7 @@ class ScoreEventData(EventData):
         Args:
             table: PyArrow table.
             unit: Time unit.
-            number_type: Number type.
+            number_type: Number type. Defaults to fraction for score data.
             has_rests: Whether the source explicitly includes rests.
         """
         super().__init__(table, unit, number_type)
@@ -137,7 +137,7 @@ class ScoreEventData(EventData):
     def empty(
         cls,
         unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType = NumberType.fraction,
         has_rests: bool | None = None,
     ) -> Self:
         """Create empty ScoreEventData."""
@@ -150,7 +150,7 @@ class ScoreEventData(EventData):
         cls,
         rows: list[dict[str, Any]],
         unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType = NumberType.fraction,
         has_rests: bool | None = None,
     ) -> Self:
         """Create from dicts with has_rests metadata and type sanitization."""

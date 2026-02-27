@@ -9,7 +9,7 @@ class TestMidiEventData:
 
     def test_schema_fields(self) -> None:
         """Schema should include MIDI-specific fields."""
-        schema = MidiEventData.schema(TimeUnit.ticks)
+        schema = MidiEventData.get_schema(TimeUnit.ticks)
         names = schema.names
 
         # Base fields
@@ -31,7 +31,7 @@ class TestMidiEventData:
 
     def test_nullable_fields(self) -> None:
         """Extra fields should be nullable."""
-        schema = MidiEventData.schema(TimeUnit.ticks)
+        schema = MidiEventData.get_schema(TimeUnit.ticks)
 
         assert schema.field("voice").nullable
         assert schema.field("control").nullable

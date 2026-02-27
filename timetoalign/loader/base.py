@@ -392,15 +392,15 @@ class Loader(ABC):
     # region Magic Methods
 
     def __len__(self) -> int:
-        """Return the number of events."""
-        return len(self._events)
+        """Return the total number of events across all store tables."""
+        return self.store.event_count
 
     def __repr__(self) -> str:
         """Return string representation."""
         return (
             f"{self.__class__.__name__}("
             f"sources={len(self._sources)}, "
-            f"events={len(self._events)}, "
+            f"events={self.store.event_count}, "
             f"unit={self._unit})"
         )
 
@@ -639,7 +639,9 @@ class Loader(ABC):
             parts.append(f"<tr><td></td><td>... and {n_sources - 5} more</td></tr>")
 
         # Events
-        parts.append(f"<tr><td><b>Events</b></td><td>{len(self._events)}</td></tr>")
+        parts.append(
+            f"<tr><td><b>Events</b></td><td>{self.store.event_count}</td></tr>"
+        )
         parts.append(f"<tr><td><b>Unit</b></td><td>{self._unit.value}</td></tr>")
 
         # Available create methods
