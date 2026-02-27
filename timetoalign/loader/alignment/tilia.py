@@ -46,7 +46,7 @@ from typing import TYPE_CHECKING, Any
 
 import pyarrow as pa
 
-from timetoalign.core import TimeUnit
+from timetoalign.core import TimeUnit, resolve_id
 from timetoalign.loader.bundle import DictStore
 from timetoalign.loader.format.json import JsonLoader, _normalise_array
 from timetoalign.loader.store import EventData
@@ -742,10 +742,18 @@ class TiliaJsonLoader(JsonLoader):
     # region Internal Helpers
 
     def _find_spec(self, id: str | int) -> dict[str, Any]:
-        """Look up a timeline spec by id or index.
+        """Look up a timeline spec by id, name, or index.
+
+        Matching precedence:
+        1. Integer index (0-indexed).
+        2. String-encoded integer index (e.g. ``"3"``).
+        3. Exact match on spec ``"id"`` field.
+        4. Exact match on spec ``"name"`` field.
+        5. Partial/regex match on spec ``"id"`` field.
+        6. Partial/regex match on spec ``"name"`` field.
 
         Args:
-            id: Timeline identifier string or integer index.
+            id: Timeline identifier, name, or integer index.
 
         Returns:
             The spec dict.
@@ -770,19 +778,38 @@ class TiliaJsonLoader(JsonLoader):
         except ValueError:
             pass
 
-        # Try by id
+        # Try exact match by id
         for spec in self._timeline_specs:
             if spec["id"] == id:
                 return spec
 
-        # Try by name
+        # Try exact match by name
         for spec in self._timeline_specs:
             if spec["name"] == id:
                 return spec
 
+        # Try partial/regex match by id
+        all_ids = [s["id"] for s in self._timeline_specs]
+        try:
+            resolved_id = resolve_id(id, all_ids, warn_multiple=True)
+            for spec in self._timeline_specs:
+                if spec["id"] == resolved_id:
+                    return spec
+        except KeyError:
+            pass
+
+        # Try partial/regex match by name
+        all_names = [s["name"] for s in self._timeline_specs]
+        try:
+            resolved_name = resolve_id(id, all_names, warn_multiple=True)
+            for spec in self._timeline_specs:
+                if spec["name"] == resolved_name:
+                    return spec
+        except KeyError:
+            pass
+
         raise KeyError(
-            f"No timeline with id or name '{id}'. "
-            f"Available: {[s['id'] for s in self._timeline_specs]}"
+            f"No timeline with id or name matching '{id}'. " f"Available IDs: {all_ids}"
         )
 
     def _build_timeline(self, spec: dict[str, Any]) -> ContinuousPhysicalTimeline:

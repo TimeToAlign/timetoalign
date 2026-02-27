@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.0
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3
 #     language: python
@@ -134,7 +134,7 @@ loader2 = GraphicalLoader(metadata={"source": "Multi-page Analysis"})
 
 # %%
 # Create timeline from bundle
-# timeline = bundle.to_timeline(uid="score_timeline", name="Example Score")
+# timeline = bundle.create_timeline(uid="score_timeline", name="Example Score")
 
 # print(f"Timeline: {timeline.id}")
 # print(f"  Length: {timeline.length}")

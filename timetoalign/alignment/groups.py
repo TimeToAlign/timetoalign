@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 
-from timetoalign.core import CoordinateSpec, IdCoordinate, IdGenerator
+from timetoalign.core import CoordinateSpec, IdCoordinate, IdGenerator, resolve_id
 from timetoalign.core.enums import NumberType
 from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
 from timetoalign.maps.interpolation import InterpolationMap
@@ -512,18 +512,29 @@ class TimelineGroup:
     def get_timeline(self, timeline_id: str) -> "Timeline":
         """Get a timeline by ID.
 
+        Supports partial string and regex matching:
+        1. Exact match: If ``timeline_id`` matches an ID exactly, returns it.
+        2. Substring match: If ``timeline_id`` is a substring of exactly one ID,
+           returns that timeline. If multiple match, returns the first and warns.
+        3. Regex match: If ``timeline_id`` is a valid regex, matches via
+           ``re.search()``. Same first-match logic with warning.
+
         Args:
-            timeline_id: The timeline's unique identifier.
+            timeline_id: The timeline's unique identifier, or a partial/regex pattern.
 
         Returns:
             The Timeline object.
 
         Raises:
-            KeyError: If no timeline with that ID exists.
+            KeyError: If no timeline matches the pattern.
+
+        Examples:
+            >>> group.get_timeline("clt1")           # Exact match
+            >>> group.get_timeline("notes")          # Substring match
+            >>> group.get_timeline(r"^score:")       # Regex match
         """
-        if timeline_id not in self._timelines:
-            raise KeyError(f"No timeline '{timeline_id}' in group '{self.id}'")
-        return self._timelines[timeline_id]
+        resolved_id = resolve_id(timeline_id, list(self._timelines.keys()))
+        return self._timelines[resolved_id]
 
     @property
     def n_timelines(self) -> int:

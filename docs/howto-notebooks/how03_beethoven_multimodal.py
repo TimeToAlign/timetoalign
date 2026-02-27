@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.0
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -117,21 +117,21 @@ def build_recording_group(recording_dir, prefix, group_id, group_name, dpt_base)
         TimelineGroup with 5 DPTs, audio DPT containing notes as a child.
     """
     n = dpt_base
-    audio = AudioLoader.from_file(recording_dir / f"{prefix}_mono.mp3").to_timeline(
+    audio = AudioLoader.from_file(recording_dir / f"{prefix}_mono.mp3").create_timeline(
         uid=f"dpt{n}"
     )
     tonal = AudioLoader.from_file(
         recording_dir / f"{prefix}_mono.wav.tonal.ChordsStrength.wav"
-    ).to_timeline(uid=f"dpt{n + 1}")
+    ).create_timeline(uid=f"dpt{n + 1}")
     lowlevel = AudioLoader.from_file(
         recording_dir / f"{prefix}_mono.wav.lowlevel.Dissonance.wav"
-    ).to_timeline(uid=f"dpt{n + 2}")
+    ).create_timeline(uid=f"dpt{n + 2}")
     rhythm = AudioLoader.from_file(
         recording_dir / f"{prefix}_mono.wav.rhythm.BeatsLoudness.wav"
-    ).to_timeline(uid=f"dpt{n + 3}")
-    mocap = RepoVizzLoader.from_file(recording_dir / "vln1_bb_angle.csv").to_timeline(
-        uid=f"dpt{n + 4}"
-    )
+    ).create_timeline(uid=f"dpt{n + 3}")
+    mocap = RepoVizzLoader.from_file(
+        recording_dir / "vln1_bb_angle.csv"
+    ).create_timeline(uid=f"dpt{n + 4}")
 
     # Load EEP notes and add as child of the audio timeline
     notes = EepNotesLoader()
