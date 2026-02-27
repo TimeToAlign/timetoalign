@@ -127,7 +127,7 @@ class TestTimelineManagement:
         """Getting non-existent timeline raises KeyError."""
         bundle = AlignmentBundle()
 
-        with pytest.raises(KeyError, match="No timeline"):
+        with pytest.raises(KeyError, match="No ID matches pattern"):
             bundle.get_timeline("nonexistent")
 
     def test_timeline_ids_property(

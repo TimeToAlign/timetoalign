@@ -19,7 +19,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-from timetoalign.core import IdCoordinate, IdGenerator
+from timetoalign.core import IdCoordinate, IdGenerator, resolve_id
 
 from .anchors import MatchClaim
 from .filters import ClaimFilter
@@ -330,34 +330,55 @@ class AlignmentBundle:
     def get_timeline(self, uid: str) -> "Timeline":
         """Get a timeline by ID.
 
+        Supports partial string and regex matching:
+        1. Exact match: If ``uid`` matches an ID exactly, returns it.
+        2. Substring match: If ``uid`` is a substring of exactly one ID,
+           returns that timeline. If multiple match, returns the first and warns.
+        3. Regex match: If ``uid`` is a valid regex, matches via
+           ``re.search()``. Same first-match logic with warning.
+
         Args:
-            uid: The timeline's unique identifier.
+            uid: The timeline's unique identifier, or a partial/regex pattern.
 
         Returns:
             The Timeline object.
 
         Raises:
-            KeyError: If no timeline with that ID exists.
+            KeyError: If no timeline matches the pattern.
+
+        Examples:
+            >>> bundle.get_timeline("clt1")          # Exact match
+            >>> bundle.get_timeline("score")         # Substring match
+            >>> bundle.get_timeline(r"^perf:")       # Regex match
         """
-        if uid not in self.timelines:
-            raise KeyError(f"No timeline '{uid}' in bundle '{self.id}'")
-        return self.timelines[uid]
+        resolved_id = resolve_id(uid, list(self.timelines.keys()))
+        return self.timelines[resolved_id]
 
     def get_group(self, uid: str) -> TimelineGroup:
         """Get a group by ID.
 
+        Supports partial string and regex matching:
+        1. Exact match: If ``uid`` matches an ID exactly, returns it.
+        2. Substring match: If ``uid`` is a substring of exactly one ID,
+           returns that group. If multiple match, returns the first and warns.
+        3. Regex match: If ``uid`` is a valid regex, matches via
+           ``re.search()``. Same first-match logic with warning.
+
         Args:
-            uid: The group's unique identifier.
+            uid: The group's unique identifier, or a partial/regex pattern.
 
         Returns:
             The TimelineGroup object.
 
         Raises:
-            KeyError: If no group with that ID exists.
+            KeyError: If no group matches the pattern.
+
+        Examples:
+            >>> bundle.get_group("score")            # Substring match
+            >>> bundle.get_group(r"^perf")           # Regex match
         """
-        if uid not in self.groups:
-            raise KeyError(f"No group '{uid}' in bundle '{self.id}'")
-        return self.groups[uid]
+        resolved_id = resolve_id(uid, list(self.groups.keys()))
+        return self.groups[resolved_id]
 
     def get_group_for_timeline(self, timeline_id: str) -> TimelineGroup | None:
         """Get the group containing a timeline.
