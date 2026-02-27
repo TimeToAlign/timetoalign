@@ -501,9 +501,9 @@ class TestGraphicalLoader:
         idx = loader.add_image(DGT1_IMAGE)
         loader.add_horizontal_segment(idx, x0=0, x1=100, y=50)
 
-        bundle1 = loader.bundle
+        bundle1 = loader.store
         loader.add_horizontal_segment(idx, x0=0, x1=100, y=100)
-        bundle2 = loader.bundle
+        bundle2 = loader.store
 
         assert bundle1.n_segments == 1
         assert bundle2.n_segments == 2

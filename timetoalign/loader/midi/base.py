@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, ClassVar, cast
 from timetoalign.core import TimeUnit
 from timetoalign.loader import Loader
 
-from .store import MidiEventData
+from .events import MidiEventData
 
 if TYPE_CHECKING:
-    from timetoalign.loader.midi.bundle import MidiStore
+    from timetoalign.loader.midi.store import MidiStore
 
 
 class MidiLoader(Loader):
@@ -46,6 +46,6 @@ class MidiLoader(Loader):
         Returns:
             A MidiStore with notes and controls separated.
         """
-        from timetoalign.loader.midi.bundle import MidiStore
+        from timetoalign.loader.midi.store import MidiStore
 
         return MidiStore.from_data(self.events, metadata=self.metadata)

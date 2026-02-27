@@ -162,7 +162,7 @@ class TestTiliaStore:
 
     def test_store_getitem(self, bruckner_loader: TiliaJsonLoader) -> None:
         """Store[key] returns EventData wrapping the pa.Table."""
-        from timetoalign.loader.store import EventData
+        from timetoalign.loader.events import EventData
 
         for tl_id in EXPECTED_TIMELINE_IDS:
             data = bruckner_loader.store[tl_id]

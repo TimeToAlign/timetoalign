@@ -33,7 +33,7 @@ import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader.store import EventData
+from timetoalign.loader.events import EventData
 
 if TYPE_CHECKING:
     pass

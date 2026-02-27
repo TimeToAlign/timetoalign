@@ -29,7 +29,7 @@ from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
 
-from .store import EventData
+from .events import EventData
 
 # Type alias for _load_source return: supports both vectorized and legacy modes
 LoadSourceResult = Union[
@@ -38,7 +38,7 @@ LoadSourceResult = Union[
 ]
 
 if TYPE_CHECKING:
-    from timetoalign.loader.bundle import AlignmentStore, EventStore
+    from timetoalign.loader.store import AlignmentStore, EventStore
     from timetoalign.timelines.base import Timeline
 
 module_logger = logging.getLogger(__name__)
@@ -186,7 +186,7 @@ class Loader(ABC):
         Returns:
             An EventStore providing uniform access to loaded data.
         """
-        from timetoalign.loader.bundle import SingleStore
+        from timetoalign.loader.store import SingleStore
 
         return SingleStore(self._events, name="events")
 

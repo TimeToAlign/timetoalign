@@ -20,7 +20,7 @@ import pytest
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader import EventData, SingleStore
-from timetoalign.loader.bundle import EventStore
+from timetoalign.loader.store import EventStore
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
