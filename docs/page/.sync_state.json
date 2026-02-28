@@ -25,10 +25,10 @@
   "how01_tabular_loaders.py": "b0b731347b193b6dc95b90e5f73d52b72a9febc56c03bd28cf846b64d8612721",
   "how01_beat_grids.py": "964ba8dd7b04d1d98475b472acbc94398b195f82ec20d29ed303abc587b91c0a",
   "how02_supra_piano_roll.py": "1e6801f6806e19d863baaff703bb444ff8831ea9718acef059a65b844c81519b",
-  "how03_beethoven_multimodal.py": "f7f764b9d938616207e99a0c193145af30aff0ee610a934ee5bfd361b92d7b00",
+  "how03_beethoven_multimodal.py": "61c4d69454fe462e7fbaf5721281fac3ab88ad5c7318e542acd7d6fa39b66a66",
   "how03_loading_vienna_corpus.py": "1f083e4e6df102c13f62359fe9ebf8a67ec12ffd28e841d1d1bb8b601a648e43",
   "tut00_quickstart.py": "3541e82ba05efeef863d60bb701876471a3b8749acb43d9246eddb393715b8bf",
-  "how03_create_note_alignment.py": "2145825d855068d332331a264c12a7271ef46b92bc534718db681de13b86d7bf",
-  "how01_thoresen_annotation_transfer.py": "123f268bbeac92f4188d0e2f5a35178d322bfaadb7bd0eef0505cf2ba2c22bf0",
-  "how04_hendrix_song_genesis.py": "e4e2e5649e9043d2d3ff2607843314a039f77626dff5b586ae9c98f25e161ad8"
+  "how03_create_note_alignment.py": "d043911d58b2236baec5cc97dc6e0515c37d2317fd93b73504f756910c73bfaa",
+  "how01_thoresen_annotation_transfer.py": "b47272c9b6d96160108918a3ba9ce64a83f02356709f5e8de81807467d3de0c8",
+  "how04_hendrix_song_genesis.py": "1bb92dcb5a3e68c216ddf21de3ef69397c55be1295edbe9afbb41797d5cd7dc6"
 }
