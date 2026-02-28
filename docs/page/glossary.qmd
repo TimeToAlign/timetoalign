@@ -14,8 +14,8 @@ to the relevant section of the conceptual model.
 ## A
 
 **AlignmentAnchor**
-:   A pure coordinate pair associating one coordinate on timeline A with one
-    on timeline B. A neutral record with no claim semantics---provenance is
+:   A coordinate pair associating one coordinate on timeline A with one on
+    timeline B; a neutral record with no claim semantics---provenance is
     carried by the enclosing {{< glossary MatchClaim >}}. Only synchronous
     MatchClaims produce AlignmentAnchors. From a {{< glossary MatchClaim >}}
     of {{< glossary TimeIntervalEvent >}}s, one derives a **StartAnchor** and
@@ -23,11 +23,9 @@ to the relevant section of the conceptual model.
     See [Alignment](concepts.qmd#alignment).
 
 **AlignmentBundle**
-:   The top-level container for alignment workflows, holding timelines,
-    {{< glossary TimelineGroup >}}s, and cross-group
-    {{< glossary MatchClaim >}}s. Provides coordinate transfer within groups
-    (via interpolation) and across groups (via {{< glossary MatchLine >}} and
-    {{< glossary WarpMap >}}).
+:   A collection of {{< glossary TimelineGroup >}}s with inter-group
+    {{< glossary MatchClaim >}} connections; provides coordinate transfer via
+    offset arithmetic, interpolation, and {{< glossary WarpMap >}}s.
     See [Alignment](concepts.qmd#alignment).
 
 ## B
@@ -47,9 +45,9 @@ to the relevant section of the conceptual model.
     See [Conversion maps](concepts.qmd#conversion-maps).
 
 **Child**
-:   A {{< glossary Timeline >}} nested within a parent timeline, sharing
-    the same measuring unit. Children are locked upon insertion to prevent
-    side effects from modifications.
+:   A {{< glossary Timeline >}} nested within a parent, sharing its
+    measuring unit but defining its own origin. Children are locked upon
+    insertion to prevent side effects from modifications.
     See [Nested timelines](concepts.qmd#nested-timelines).
 
 **CombinationMap**
@@ -58,11 +56,15 @@ to the relevant section of the conceptual model.
     coordinate pairs).
     See [Conversion maps](concepts.qmd#conversion-maps).
 
-**Commensurable**
-:   Two timelines are commensurable when connected by a
-    {{< glossary Match >}} path or {{< glossary ConversionMap >}} chain,
-    enabling coordinate translation between them.
+**Commensurability**
+:   Two timelines are commensurable if connected by a chain of
+    {{< glossary ConversionMap >}}s, membership in the same
+    {{< glossary TimelineGroup >}}, or cross-group
+    {{< glossary MatchClaim >}}s, enabling coordinate translation between them.
     See [Alignment](concepts.qmd#alignment).
+
+**Commensurable**
+:   See {{< glossary Commensurability >}}.
 
 **ConcatenationMap**
 :   A {{< glossary MultiMap >}} combining bounded
@@ -84,9 +86,10 @@ to the relevant section of the conceptual model.
     See [Flow control](concepts.qmd#flow-control).
 
 **ConversionMap**
-:   A function mapping any coordinate to at most one value (another
-    coordinate, a specifier, or a constant). Also called **C-map**. If
-    bijective, an {{< glossary InverseMap >}} can be derived.
+:   A typed function attached to a {{< glossary Timeline >}} that maps each
+    coordinate to exactly one value (coordinate, label, or filename); also
+    permits inverse conversion back to the timeline's own unit. Also called
+    **C-map**.
     See [Conversion maps](concepts.qmd#conversion-maps).
 
 **Coordinate**
@@ -130,6 +133,15 @@ to the relevant section of the conceptual model.
     duration; a {{< glossary TimeIntervalEvent >}} has duration defined by
     start and end coordinates.
     See [Foundations](concepts.qmd#foundations).
+
+## F
+
+**FlowMap**
+:   A sequence of {{< glossary TimeInterval >}}s specifying a particular path
+    through a score's control structure (repeats, jumps); not itself a
+    {{< glossary Timeline >}}. Used for unfolding a score into performance
+    order.
+    See [Derivative timelines](concepts.qmd#derivative-timelines).
 
 ## G
 
@@ -183,8 +195,7 @@ to the relevant section of the conceptual model.
 ## M
 
 **Match**
-:   See {{< glossary MatchClaim >}}. The manuscript shorthand "Match" refers
-    to the MatchClaim concept.
+:   See {{< glossary MatchClaim >}}.
 
 **MatchfileLoader**
 :   Loader for Vienna Match (`.match`) alignment files. Uses the standard
@@ -198,29 +209,26 @@ to the relevant section of the conceptual model.
     See the [API reference](reference/MatchfileLoader.qmd).
 
 **MatchClaim**
-:   A claim---issued by a human or algorithmic agent---about one or two timed
-    things (events, regions, children) on two specific timelines. Always knows
-    which pair of timelines it connects. Contains 0--2
-    {{< glossary AlignmentAnchor >}}s (only if synchronous), synchrony and
-    explicitness flags, and optional metadata (agent, decision criteria,
-    certainty). Four cases: (a) event-to-event, (b) projection,
+:   A claim of equivalence between events on different timelines, with
+    provenance metadata (agent, method, certainty). May be synchronous
+    (producing {{< glossary AlignmentAnchor >}}s) or conceptual (structural
+    equivalence without temporal commitment). Always knows which pair of
+    timelines it connects. Four cases: (a) event-to-event, (b) projection,
     (c) {{< glossary NOMATCH >}}, (d) implicit (from group extension).
     See [Alignment](concepts.qmd#alignment).
 
 **MatchGraph**
-:   An on-demand analytical structure built from {{< glossary MatchClaim >}}s
-    using a networkx graph. Nodes are `(timeline_id, coordinate)` tuples;
-    edges derive from {{< glossary AlignmentAnchor >}}s of synchronous claims.
-    Connected components yield {{< glossary MatchStamp >}}s. Can be extended
-    with implicit claims based on {{< glossary TimelineGroup >}} membership.
-    Each Match box M1--M15 in the Hendrix figure is a MatchGraph.
+:   An auxiliary structure formed by extending {{< glossary MatchClaim >}}s
+    through shared coordinates; may be viewed as a hyperedge connecting
+    multiple coordinates from different timelines. Connected components yield
+    {{< glossary MatchStamp >}}s. Each Match box M1--M15 in the Hendrix
+    figure is a MatchGraph.
     See [Alignment](concepts.qmd#alignment).
 
 **MatchLine**
-:   An ordered sequence of {{< glossary MatchStamp >}}s for a given source
-    timeline, sorted by coordinate on that source timeline. Created by
-    selecting and resolving {{< glossary MatchClaim >}}s (all or a filtered
-    subset). Used as input for {{< glossary WarpMap >}} generation.
+:   An ordered sequence of {{< glossary AlignmentAnchor >}}s derived from
+    {{< glossary MatchClaim >}}s, sorted by coordinate on a source timeline;
+    input for {{< glossary WarpMap >}} generation.
     See [Alignment](concepts.qmd#alignment).
 
 **MatchPath**
@@ -229,13 +237,10 @@ to the relevant section of the conceptual model.
     See [Alignment](concepts.qmd#alignment).
 
 **MatchStamp**
-:   A synchronised instant across multiple timelines, extracted from a
-    {{< glossary MatchGraph >}}'s connected components. Formally, a
-    MatchStamp is the union of {{< glossary GroupTimestamp >}}s from each
-    participating {{< glossary TimelineGroup >}}. Contains one coordinate
-    per participating timeline and, with `conversion_maps=True` (the
-    default), C-map conversion values. Can be expanded with group-member
-    coordinates.
+:   The union of {{< glossary TimeStamp >}}s from groups synchronously
+    connected by a {{< glossary MatchGraph >}}. Contains one coordinate per
+    participating timeline and, with `conversion_maps=True` (the default),
+    C-map conversion values.
     See [Alignment](concepts.qmd#alignment).
 
 **MultiMap**
@@ -342,35 +347,27 @@ to the relevant section of the conceptual model.
     See [Nested timelines](concepts.qmd#nested-timelines).
 
 **Timeline**
-:   A positive coordinate axis minimally defined by its origin (zero) and
-    measuring unit. Accommodates events and potentially
-    {{< glossary Child >}} timelines.
+:   A positive coordinate axis defined by an origin and a measuring unit;
+    continuous (real) or discrete (integer). Accommodates events and
+    potentially {{< glossary Child >}} timelines.
     See [Foundations](concepts.qmd#foundations).
 
 **TimelineGroup**
-:   A container for commensurable timelines, connected via a shared timestamp
-    table and pairwise interpolation maps. Enables coordinate transfer between
-    timelines of potentially different units via linear interpolation.
+:   A container for timelines claimed to be commensurable; placing timelines
+    in a group asserts {{< glossary Commensurability >}} regardless of
+    underlying units. Coordinates transfer via interpolation.
     See [Alignment](concepts.qmd#alignment).
 
 **TimeStamp**
-:   A cross-section through a timeline hierarchy at a given coordinate.
-    Computes equivalent coordinates on {{< glossary Child >}} timelines (via
-    offset arithmetic) and on attached {{< glossary ConversionMap >}} target
-    units.
+:   A cross-section through a timeline or group at a given coordinate,
+    capturing positions in all connected systems plus values converted by
+    all attached {{< glossary ConversionMap >}}s.
     See [Nested timelines](concepts.qmd#nested-timelines).
-
-**TraversalMap**
-:   A sequence of {{< glossary TimeInterval >}}s representing a specific
-    traversal path through a timeline (handling {{< glossary Jump >}}s and
-    repeats). Also called **T-map**.
-    See [Derivative timelines](concepts.qmd#derivative-timelines).
 
 ## W
 
 **WarpMap**
-:   A standalone class that produces a materialised copy of a source timeline
-    (including its children, events, and regions), warped to the coordinate
-    system of a target timeline. Generated from a {{< glossary MatchLine >}}
-    by extracting coordinate pairs and building an interpolation table.
+:   An interpolation-based coordinate mapping derived from a
+    {{< glossary MatchLine >}}; enables non-linear coordinate transfer
+    between {{< glossary TimelineGroup >}}s.
     See [Alignment](concepts.qmd#coordinate-transfer).
