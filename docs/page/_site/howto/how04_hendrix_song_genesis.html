@@ -386,7 +386,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
-<div id="5541ea40d41df278" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:45:37.237123Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:45:37.236951Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:45:39.814772Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:45:39.813974Z&quot;}}" data-execution_count="1">
+<div id="5541ea40d41df278" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:46.470469Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:46.470052Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.102381Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.099591Z&quot;}}" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
@@ -411,7 +411,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="load-the-three-versions" class="level2">
 <h2 class="anchored" data-anchor-id="load-the-three-versions">1. Load the Three Versions</h2>
 <p>Each version of the song has been annotated in TiLiA, producing a JSON file with hierarchy timelines encoding the form analysis. We load each file and extract the first hierarchy timeline (<code>HIERARCHY_TIMELINE_0</code>), which contains the section-level annotations (Intro, Verse, Bridge, etc.).</p>
-<div id="368b2cb18c47f634" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:45:39.816790Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:45:39.816432Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:45:39.852051Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:45:39.851223Z&quot;}}" data-execution_count="2">
+<div id="368b2cb18c47f634" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.108269Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.107405Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.238139Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.235049Z&quot;}}" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>names <span class="op">=</span> [<span class="st">"Studio"</span>, <span class="st">"Demo2"</span>, <span class="st">"Demo1"</span>]</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>timelines <span class="op">=</span> {}</span>
@@ -436,7 +436,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>The value <code>NOMATCH</code> explicitly records that a section has no equivalent in that version.</li>
 <li>The <code>synchronous</code> column indicates whether the correspondence is temporal (<code>TRUE</code>) or merely conceptual (<code>FALSE</code>).</li>
 </ul>
-<div id="ffe3cff6f066b7ff" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:45:39.853799Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:45:39.853614Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:45:39.865343Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:45:39.864513Z&quot;}}" data-execution_count="3">
+<div id="ffe3cff6f066b7ff" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.247823Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.246909Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.282763Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.279170Z&quot;}}" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(DATA_DIR <span class="op">/</span> <span class="st">"match_data.csv"</span>, sep<span class="op">=</span><span class="st">"</span><span class="ch">\t</span><span class="st">"</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>df</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="3">
@@ -577,7 +577,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="create-the-alignmentbundle" class="level2">
 <h2 class="anchored" data-anchor-id="create-the-alignmentbundle">3. Create the AlignmentBundle</h2>
 <p>We add each hierarchy timeline to a single <button class="glossary" title="The top-level container for alignment workflows, holding timelines, groups, and cross-group MatchClaims. Provides coordinate transfer within groups (via interpolation) and across groups (via MatchLine and WarpMap). Not a graph.">AlignmentBundle</button>, assigning human-readable IDs that match the column names in <code>match_data.csv</code>.</p>
-<div id="80b70586407bf695" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:45:39.867540Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:45:39.867207Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:45:39.874906Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:45:39.873965Z&quot;}}" data-execution_count="4">
+<div id="80b70586407bf695" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.287850Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.287315Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.309566Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.304331Z&quot;}}" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>bundle <span class="op">=</span> AlignmentBundle(name<span class="op">=</span><span class="st">"Hendrix Song Genesis"</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, tl <span class="kw">in</span> timelines.items():</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    bundle.add_timeline(tl, uid<span class="op">=</span>name)</span>
@@ -604,7 +604,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>For the remaining timelines with events present, create <strong>pairwise MatchClaims</strong> – synchronous or conceptual according to the <code>synchronous</code> column.</li>
 </ol>
 <p>The pairwise strategy fans out from the first available timeline to each of the others (a “star” topology).</p>
-<div id="ef2ad7347b660ddf" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:45:39.876880Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:45:39.876698Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:45:39.923561Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:45:39.922778Z&quot;}}" data-execution_count="5">
+<div id="ef2ad7347b660ddf" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.316759Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.315902Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.456437Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.454346Z&quot;}}" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>metadata <span class="op">=</span> MatchMetadata(agent<span class="op">=</span><span class="st">"user"</span>, decision_criteria<span class="op">=</span><span class="st">"match_data.csv"</span>)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>tl_columns <span class="op">=</span> [c <span class="cf">for</span> c <span class="kw">in</span> df.columns <span class="cf">if</span> c <span class="kw">not</span> <span class="kw">in</span> (<span class="st">"match"</span>, <span class="st">"synchronous"</span>)]</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -689,82 +689,122 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="synchronous-claims-with-alignmentanchors" class="level3">
 <h3 class="anchored" data-anchor-id="synchronous-claims-with-alignmentanchors">Synchronous claims (with AlignmentAnchors)</h3>
 <p>These claims carry coordinate pairs (start and end) that enable temporal alignment between versions. Each interval match corresponds to a pair of section boundaries in seconds.</p>
-<div id="ea4ae8ee" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:45:39.925500Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:45:39.925310Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:45:39.930434Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:45:39.929576Z&quot;}}" data-execution_count="6">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> c <span class="kw">in</span> sync_claims:</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"  </span><span class="sc">{</span>c<span class="sc">.</span>timeline_a_id<span class="sc">}</span><span class="ss"> &lt;-&gt; </span><span class="sc">{</span>c<span class="sc">.</span>timeline_b_id<span class="sc">}</span><span class="ss">"</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"  [</span><span class="sc">{</span>c<span class="sc">.</span>start_anchor<span class="sc">.</span>coordinate_a<span class="sc">:.1f}</span><span class="ss">--</span><span class="sc">{</span>c<span class="sc">.</span>end_anchor<span class="sc">.</span>coordinate_a<span class="sc">:.1f}</span><span class="ss">]"</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f" &lt;-&gt; [</span><span class="sc">{</span>c<span class="sc">.</span>start_anchor<span class="sc">.</span>coordinate_b<span class="sc">:.1f}</span><span class="ss">--</span><span class="sc">{</span>c<span class="sc">.</span>end_anchor<span class="sc">.</span>coordinate_b<span class="sc">:.1f}</span><span class="ss">]"</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"synchronous_claims"</span>: <span class="bu">len</span>(sync_claims),</span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"is_interval"</span>: <span class="bu">all</span>(c.is_interval <span class="cf">for</span> c <span class="kw">in</span> sync_claims),</span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>  Studio &lt;-&gt; Demo2  [32.6--72.2] &lt;-&gt; [35.8--73.0]
-  Studio &lt;-&gt; Demo1  [32.6--72.2] &lt;-&gt; [7.1--42.1]
-  Studio &lt;-&gt; Demo2  [72.2--111.4] &lt;-&gt; [73.0--110.8]
-  Studio &lt;-&gt; Demo1  [72.2--111.4] &lt;-&gt; [42.1--75.4]
-  Studio &lt;-&gt; Demo2  [111.4--125.3] &lt;-&gt; [110.8--124.2]
-  Studio &lt;-&gt; Demo1  [111.4--125.3] &lt;-&gt; [78.8--91.8]
-  Studio &lt;-&gt; Demo2  [125.3--138.9] &lt;-&gt; [124.2--137.4]
-  Studio &lt;-&gt; Demo1  [125.3--138.9] &lt;-&gt; [91.8--104.4]
-  Studio &lt;-&gt; Demo2  [138.9--153.2] &lt;-&gt; [137.4--150.7]
-  Studio &lt;-&gt; Demo1  [138.9--153.2] &lt;-&gt; [104.4--117.2]
-  Studio &lt;-&gt; Demo2  [153.2--167.1] &lt;-&gt; [150.7--164.3]
-  Studio &lt;-&gt; Demo1  [153.2--167.1] &lt;-&gt; [117.2--130.0]
-  Demo2 &lt;-&gt; Demo1  [164.3--195.0] &lt;-&gt; [130.0--152.3]</code></pre>
-</div>
+<p>The MatchClaim’s rich display shows timelines, coordinates, events, and metadata — no need to compile info-dicts manually.</p>
+<div id="ea4ae8ee" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.461971Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.461493Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.469331Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.467574Z&quot;}}" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Display an example synchronous claim (shows timeline IDs, coordinates, events)</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>sync_claims[<span class="dv">0</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="6">
+<div style="font-family: monospace;"><strong>MatchClaim</strong> <span style="background: #e3f2fd; padding: 0 4px; border-radius: 3px; font-size: 0.8em;">synchronous, interval</span>
+<table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<tbody>
+<tr class="odd">
+<td>Timeline A</td>
+<td><strong>Studio</strong></td>
+<td>[32.573792 – 72.172127]</td>
+</tr>
+<tr class="even" style="color: #555; font-size: 0.9em;">
+<td>Event A</td>
+<td>h0034</td>
+<td>"A: Verse"</td>
+</tr>
+<tr class="odd">
+<td>Timeline B</td>
+<td><strong>Demo2</strong></td>
+<td>[35.839063 – 73.036544]</td>
+</tr>
+<tr class="even" style="color: #555; font-size: 0.9em;">
+<td>Event B</td>
+<td>h0018</td>
+<td>"A: Verse"</td>
+</tr>
+<tr class="odd" style="color: #666;">
+<td>Metadata</td>
+<td colspan="2">agent=user</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="a5d57434" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.473887Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.473359Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.483400Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.481331Z&quot;}}" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Summary of all synchronous claims</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"synchronous_claims"</span>: <span class="bu">len</span>(sync_claims),</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"is_interval"</span>: <span class="bu">all</span>(c.is_interval <span class="cf">for</span> c <span class="kw">in</span> sync_claims),</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="7">
 <pre><code>{'synchronous_claims': 13, 'is_interval': True}</code></pre>
 </div>
 </div>
 </section>
 <section id="conceptual-claims-no-anchors" class="level3">
 <h3 class="anchored" data-anchor-id="conceptual-claims-no-anchors">Conceptual claims (no anchors)</h3>
-<p>These record structural equivalence without temporal commitment – for instance, “both versions have an Intro” without asserting that the intros can be aligned beat-by-beat.</p>
-<div id="d00cf44f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:45:39.932384Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:45:39.932202Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:45:39.936515Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:45:39.935865Z&quot;}}" data-execution_count="7">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> c <span class="kw">in</span> conceptual_claims:</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>c<span class="sc">.</span>timeline_a_id<span class="sc">}</span><span class="ss"> &lt;-&gt; </span><span class="sc">{</span>c<span class="sc">.</span>timeline_b_id<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>{<span class="st">"conceptual_claims"</span>: <span class="bu">len</span>(conceptual_claims)}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>  Studio &lt;-&gt; Demo2
-  Studio &lt;-&gt; Demo1
-  Studio &lt;-&gt; Demo2
-  Studio &lt;-&gt; Demo1
-  Studio &lt;-&gt; Demo2
-  Studio &lt;-&gt; Demo2</code></pre>
+<p>These record structural equivalence without temporal commitment — for instance, “both versions have an Intro” without asserting that the intros can be aligned beat-by-beat.</p>
+<div id="723a593c" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.488555Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.488130Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.495932Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.494353Z&quot;}}" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Display an example conceptual claim (no coordinates, just timeline connection)</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>conceptual_claims[<span class="dv">0</span>] <span class="cf">if</span> conceptual_claims <span class="cf">else</span> <span class="st">"No conceptual claims"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="8">
+<div style="font-family: monospace;"><strong>MatchClaim</strong> <span style="background: #ffcdd2; padding: 0 4px; border-radius: 3px; font-size: 0.8em;">NOMATCH</span>
+<table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<tbody>
+<tr class="odd">
+<td>Timeline A</td>
+<td>Studio</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>Timeline B</td>
+<td>Demo2</td>
+<td></td>
+</tr>
+<tr class="odd" style="color: #666;">
+<td>Metadata</td>
+<td colspan="2">agent=user</td>
+</tr>
+</tbody>
+</table>
 </div>
-<div class="cell-output cell-output-display" data-execution_count="7">
+</div>
+</div>
+<div id="d00cf44f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.501025Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.500680Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.509078Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.506577Z&quot;}}" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>{<span class="st">"conceptual_claims"</span>: <span class="bu">len</span>(conceptual_claims)}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="9">
 <pre><code>{'conceptual_claims': 6}</code></pre>
 </div>
 </div>
 </section>
 <section id="nomatch-sentinels" class="level3">
 <h3 class="anchored" data-anchor-id="nomatch-sentinels">NOMATCH sentinels</h3>
-<p>These explicitly record that a section has no equivalent in the target version – a positive assertion of absence, not a mere gap in the data. For instance, the “Instrumental Part” in the studio recording has no equivalent in Demo1.</p>
-<div id="0b1bafba" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:45:39.938360Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:45:39.938155Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:45:39.942578Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:45:39.941869Z&quot;}}" data-execution_count="8">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> c <span class="kw">in</span> nomatch_claims:</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>c<span class="sc">.</span>timeline_a_id<span class="sc">}</span><span class="ss"> -&gt; NOMATCH on </span><span class="sc">{</span>c<span class="sc">.</span>timeline_b_id<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>{<span class="st">"nomatch_sentinels"</span>: <span class="bu">len</span>(nomatch_claims)}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>  Demo2 -&gt; NOMATCH on Studio
-  Demo2 -&gt; NOMATCH on Demo1
-  Studio -&gt; NOMATCH on Demo2
-  Studio -&gt; NOMATCH on Demo1
-  Studio -&gt; NOMATCH on Demo2
-  Studio -&gt; NOMATCH on Demo1
-  Demo1 -&gt; NOMATCH on Studio
-  Demo1 -&gt; NOMATCH on Demo2
-  Demo1 -&gt; NOMATCH on Studio
-  Demo1 -&gt; NOMATCH on Demo2
-  Demo1 -&gt; NOMATCH on Studio
-  Demo1 -&gt; NOMATCH on Demo2</code></pre>
+<p>These explicitly record that a section has no equivalent in the target version — a positive assertion of absence, not a mere gap in the data. For instance, the “Instrumental Part” in the studio recording has no equivalent in Demo1.</p>
+<div id="c0d2dfc3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.513771Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.513227Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.522532Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.520381Z&quot;}}" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Display an example NOMATCH claim</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>nomatch_claims[<span class="dv">0</span>] <span class="cf">if</span> nomatch_claims <span class="cf">else</span> <span class="st">"No NOMATCH claims"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="10">
+<div style="font-family: monospace;"><strong>MatchClaim</strong> <span style="background: #ffcdd2; padding: 0 4px; border-radius: 3px; font-size: 0.8em;">NOMATCH</span>
+<table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<tbody>
+<tr class="odd">
+<td>Timeline A</td>
+<td>Demo2</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>Timeline B</td>
+<td>Studio</td>
+<td></td>
+</tr>
+<tr class="odd" style="color: #666;">
+<td>Metadata</td>
+<td colspan="2">agent=user</td>
+</tr>
+</tbody>
+</table>
 </div>
-<div class="cell-output cell-output-display" data-execution_count="8">
+</div>
+</div>
+<div id="0b1bafba" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.527039Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.526559Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.537458Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.535513Z&quot;}}" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>{<span class="st">"nomatch_sentinels"</span>: <span class="bu">len</span>(nomatch_claims)}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="11">
 <pre><code>{'nomatch_sentinels': 12}</code></pre>
 </div>
 </div>
