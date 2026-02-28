@@ -20,7 +20,7 @@ Basic usage::
 Installation & Optional Dependencies
 =====================================
 
-The core install (``pip install timetoalign``) is deliberately lightweight:
+The core install (``pip install -e .``) is deliberately lightweight:
 only PyArrow, pandas, NetworkX, and typing_extensions are required.  This
 gives you the full timeline/map/alignment framework but **no file-format-
 specific loaders**.  Loader backends and other features are available through
@@ -29,7 +29,7 @@ optional extras.
 Atomic extras — one concern each
 --------------------------------
 
-Install with ``pip install timetoalign[<extra>]``.
+Install with ``pip install -e ".[<extra>]"`` from the repository root.
 
 +---------------+--------------------------------------+----------------------------------------------+
 | Extra         | Packages                             | Purpose                                      |
@@ -82,17 +82,17 @@ The inclusion chain is::
                                             +  plot, jupytext, jupyter
                                +  delta, rdf
 
-Examples::
+Examples (from the repository root)::
 
-    pip install timetoalign                  # Core only
-    pip install timetoalign[midi]            # Core + MIDI loading
-    pip install timetoalign[scores]          # Core + all score-loader backends
-    pip install timetoalign[loaders]         # Core + every loader
-    pip install timetoalign[tutorial]        # Loaders + plotting + Jupyter
-    pip install timetoalign[all]             # All runtime features
-    pip install timetoalign[dev]             # Everything + dev tooling
+    pip install -e .                         # Core only
+    pip install -e ".[midi]"                 # Core + MIDI loading
+    pip install -e ".[scores]"               # Core + all score-loader backends
+    pip install -e ".[loaders]"              # Core + every loader
+    pip install -e ".[tutorial]"             # Loaders + plotting + Jupyter
+    pip install -e ".[all]"                  # All runtime features
+    pip install -e ".[dev]"                  # Everything + dev tooling
 
-For more information, see the documentation at https://timetoalign.readthedocs.io
+For more information, see the documentation site.
 """
 
 from __future__ import annotations
@@ -102,11 +102,14 @@ from timetoalign.alignment import (
     AlignmentBundle,
     ClaimFilter,
     MatchClaim,
+    MatchFileContext,
     MatchGraph,
     MatchLine,
     MatchMetadata,
     MatchStamp,
+    NoteRecord,
     PerfectAlignment,
+    SnoteRecord,
     TimelineGroup,
     WarpMap,
 )
@@ -122,7 +125,9 @@ from timetoalign.core import (
     NumberType,
     OptionalCoordinate,
     ScopedId,
+    TimeIntervalStamp,
     TimelineIdGenerator,
+    TimeStamp,
     TimeUnit,
 )
 from timetoalign.loader import (
@@ -139,9 +144,13 @@ from timetoalign.loader import (
 )
 from timetoalign.maps import (
     ChainMap,
+    ConstantMap,
     ConversionMap,
+    IntervalToConstantMap,
     LinearMap,
     PiecewiseMap,
+    QuartersToFloatingMeasures,
+    QuartersToMeasureNumber,
     ScalarMap,
     SecondsToSamples,
     ShiftMap,
@@ -161,6 +170,9 @@ from timetoalign.timelines import (
     Timeline,
 )
 
+# User-friendly alias for Coordinate
+Coord = Coordinate
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -174,10 +186,14 @@ __all__ = [
     "EventType",
     # Types
     "Coordinate",
+    "Coord",  # Alias for Coordinate
     "IdCoordinate",
     "CoordinateValue",
     "CoordinateSpec",
     "OptionalCoordinate",
+    # Timestamps (first-class citizens)
+    "TimeStamp",
+    "TimeIntervalStamp",
     # IDs
     "ScopedId",
     "IdGenerator",
@@ -212,14 +228,18 @@ __all__ = [
     "DiscreteGraphicalTimeline",
     "BeatGrid",
     # Maps
+    "ConstantMap",
     "ConversionMap",
+    "IntervalToConstantMap",
     "LinearMap",
+    "PiecewiseMap",
+    "QuartersToFloatingMeasures",
+    "QuartersToMeasureNumber",
     "ScalarMap",
     "SecondsToSamples",
     "ShiftMap",
     "TableMap",
     "ChainMap",
-    "PiecewiseMap",
     # Alignment
     "AlignmentBundle",
     "PerfectAlignment",
@@ -227,10 +247,13 @@ __all__ = [
     "AlignmentAnchor",
     "ClaimFilter",
     "MatchClaim",
+    "MatchFileContext",
     "MatchGraph",
     "MatchLine",
     "MatchMetadata",
     "MatchStamp",
+    "NoteRecord",
+    "SnoteRecord",
     "WarpMap",
 ]
 

@@ -325,11 +325,17 @@ class ConversionMap(ABC, Generic[T]):
         # Import all map types for dispatch
         from .combination import CombinationMap
         from .composite import ChainMap, PiecewiseMap
+        from .constant import ConstantMap
         from .convenience import (
             QuartersToTicks,
             SamplesToSeconds,
             SecondsToSamples,
             TicksToQuarters,
+        )
+        from .interval import (
+            IntervalToConstantMap,
+            QuartersToFloatingMeasures,
+            QuartersToMeasureNumber,
         )
         from .linear import LinearMap, ScalarMap, ShiftMap
         from .periodic import FloorMap, RotationMap
@@ -342,6 +348,12 @@ class ConversionMap(ABC, Generic[T]):
             "TableMap": TableMap,
             "ChainMap": ChainMap,
             "PiecewiseMap": PiecewiseMap,
+            # Constant map
+            "ConstantMap": ConstantMap,
+            # Interval-to-constant maps
+            "IntervalToConstantMap": IntervalToConstantMap,
+            "QuartersToMeasureNumber": QuartersToMeasureNumber,
+            "QuartersToFloatingMeasures": QuartersToFloatingMeasures,
             # Multi-output maps
             "CombinationMap": CombinationMap,
             # Periodic/floor maps

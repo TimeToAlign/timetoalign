@@ -685,48 +685,83 @@ class TimelineGroup:
 
     def get_timestamp_at(
         self,
-        coordinate: float,
-        timeline_id: str,
+        coordinate: CoordinateSpec,
+        timeline_id: str | None = None,
         *,
         relative_to: Literal["group", "original"] = "group",
         conversion_maps: ConversionMapsSpec = True,
-    ) -> GroupTimestamp:
-        """Get a GroupTimestamp at a specific coordinate.
+    ) -> TimeStamp:
+        """Get a TimeStamp at a specific coordinate.
 
-        Interpolates between boundary timestamps to get all timeline
-        coordinates at the specified point.
+        This is the primary coordinate resolution API for TimelineGroup.
+        Returns a proper TimeStamp object (same as Timeline.get_timestamp).
 
         Args:
-            coordinate: The query coordinate.
+            coordinate: The query coordinate. Can be:
+                - int/float/Fraction: Raw value, timeline_id required
+                - Coordinate: Value with unit, timeline_id required
+                - IdCoordinate: Value with unit AND timeline_id (timeline_id param optional)
             timeline_id: Which timeline the coordinate refers to.
+                Required unless coordinate is an IdCoordinate.
             relative_to:
                 "group" - coordinate is relative to timeline's 0-origin IN THIS GROUP
                          (default; e.g., "3 seconds into this group")
                 "original" - coordinate is relative to timeline's ORIGINAL origin
                             (e.g., "50 seconds in the original timeline")
                             NOTE: Currently not implemented, reserved for future use.
-            conversion_maps: Whether to include C-Map values from member timelines.
-                - True (default): Include all attached C-Maps
+            conversion_maps: Whether to include C-Map values in timestamp.
+                - True (default): C-Maps accessible via ts.get_unit() and ts["unit_name"]
                 - False/None: Only timeline coordinates
 
         Returns:
-            GroupTimestamp with interpolated coordinates for all timelines,
-            plus C-Map values if conversion_maps=True.
-            Timelines not commensurable at this point have None.
+            TimeStamp with axis set to the input coordinate and source_id set to
+            the timeline. Access other timelines via ts["other_id"] or ts.get().
+            Access C-Maps via ts.get_unit() or ts["unit_name"].
 
         Raises:
             KeyError: If timeline_id is not in the group.
             ValueError: If coordinate is outside the timeline's range in the group.
+            ValueError: If timeline_id is None and coordinate is not IdCoordinate.
 
         Examples:
             >>> ts = group.get_timestamp_at(75.0, "audio:1")
+            >>> ts.axis
+            75.0
             >>> ts["dgt1:1"]
             2437.5
-            >>> ts["score:1"]
-            33.33...
-            >>> ts["pixels_to_inches"]  # C-Map value (if conversion_maps=True)
-            0.25
+            >>> ts.get_unit(TimeUnit.seconds)  # C-Map conversion
+            75.0
+
+            >>> # Using IdCoordinate (timeline_id extracted automatically)
+            >>> coord = IdCoordinate(75.0, TimeUnit.seconds, "audio:1")
+            >>> ts = group.get_timestamp_at(coord)
+            >>> ts.axis
+            75.0
         """
+        # Extract coordinate value and timeline_id from IdCoordinate if needed
+        from fractions import Fraction
+
+        from timetoalign.core.types import Coordinate
+
+        if isinstance(coordinate, IdCoordinate):
+            if timeline_id is None:
+                timeline_id = coordinate.timeline_id
+            coord_value = float(coordinate.value)
+        elif isinstance(coordinate, Coordinate):
+            coord_value = float(coordinate.value)
+        elif isinstance(coordinate, (int, float, Fraction)):
+            coord_value = float(coordinate)
+        else:
+            raise TypeError(
+                f"coordinate must be int, float, Fraction, Coordinate, or IdCoordinate, "
+                f"got {type(coordinate).__name__}"
+            )
+
+        if timeline_id is None:
+            raise ValueError(
+                "timeline_id is required unless coordinate is an IdCoordinate"
+            )
+
         if timeline_id not in self._timelines:
             raise KeyError(f"Timeline '{timeline_id}' not in group")
 
@@ -739,7 +774,7 @@ class TimelineGroup:
             # For now, treat as group-relative
             pass
 
-        # Get column for this timeline
+        # Find the row index (exact match) or verify coordinate is in range
         col = self._timestamp_table.column(timeline_id).to_pylist()
 
         # Find bounding rows
@@ -747,59 +782,32 @@ class TimelineGroup:
         high_idx = None
         for i, val in enumerate(col):
             if val is not None:
-                if val <= coordinate:
+                if val <= coord_value:
                     low_idx = i
-                if val >= coordinate and high_idx is None:
+                if val >= coord_value and high_idx is None:
                     high_idx = i
                     break
 
         if low_idx is None or high_idx is None:
             raise ValueError(
-                f"Coordinate {coordinate} outside range for '{timeline_id}'"
+                f"Coordinate {coord_value} outside range for '{timeline_id}'"
             )
 
-        # Exact match at a boundary
+        # Determine row_index: -1 for interpolated, actual index for exact match
+        row_index = -1  # Default: interpolated
         if low_idx == high_idx:
-            ts = self._row_to_timestamp(low_idx)
-            if conversion_maps:
-                return self._add_cmap_values_to_timestamp(ts)
-            return ts
+            # Exact match at a boundary
+            row_index = low_idx
 
-        # Interpolate all columns
-        ratio = (coordinate - col[low_idx]) / (col[high_idx] - col[low_idx])
-
-        coords: dict[str, float | None] = {}
-        units: dict[str, str] = {}
-
-        for data_field in self._timestamp_table.schema:
-            col_name = data_field.name
-            col_data = self._timestamp_table.column(col_name).to_pylist()
-            low_val = col_data[low_idx]
-            high_val = col_data[high_idx]
-
-            if low_val is None or high_val is None:
-                coords[col_name] = None
-            else:
-                val = low_val + ratio * (high_val - low_val)
-                # Round to integer for discrete timelines (samples, pixels, …)
-                tl = self._timelines.get(col_name)
-                if tl is not None and tl.number_type == NumberType.int:
-                    val = round(val)
-                coords[col_name] = val
-
-            # Extract unit from field metadata
-            if data_field.metadata:
-                unit_bytes = data_field.metadata.get(b"unit")
-                if unit_bytes:
-                    units[col_name] = unit_bytes.decode("utf-8")
-
-        ts = GroupTimestamp(
-            coordinates=coords, units=units, row_index=-1
-        )  # -1 = interpolated
-
-        if conversion_maps:
-            return self._add_cmap_values_to_timestamp(ts)
-        return ts
+        # Return a proper TimeStamp object
+        # The TimeStamp will use InterpolationMaps for coordinate conversion
+        # and _get_unit_map_for_timeline for C-Map access
+        return TimeStamp(
+            axis=coord_value,
+            source=self,
+            source_id=timeline_id,
+            row_index=row_index,
+        )
 
     def get_timestamps_at(
         self,
@@ -842,36 +850,38 @@ class TimelineGroup:
                 return float(c.value)
             return float(c)
 
-        # Get individual timestamps
-        timestamps = []
+        # Get individual timestamps and convert to dicts
+        timestamp_dicts: list[dict[str, float | None]] = []
         for coord in coordinates:
             coord_float = _to_float(coord)
             try:
                 ts = self.get_timestamp_at(
                     coord_float, timeline_id, conversion_maps=conversion_maps
                 )
-                timestamps.append(ts.coordinates)
+                # Use to_dict() to get all coordinates including C-Maps
+                ts_dict = ts.to_dict(
+                    include_children=True,
+                    conversion_units="all" if conversion_maps else None,
+                )
+                timestamp_dicts.append(ts_dict)
             except (KeyError, ValueError):
-                # Coordinate out of range - add row with NaN
-                timestamps.append({timeline_id: coord_float})
+                # Coordinate out of range - add row with just the input coordinate
+                timestamp_dicts.append({timeline_id: coord_float})
 
-        if not timestamps:
+        if not timestamp_dicts:
             return pd.DataFrame()
 
         # Build DataFrame
-        df = pd.DataFrame(timestamps)
+        df = pd.DataFrame(timestamp_dicts)
 
         # Add units to column names if requested
-        if units and timestamps:
-            first_ts = self.get_timestamp_at(
-                _to_float(coordinates[0]), timeline_id, conversion_maps=conversion_maps
-            )
-            unit_map = first_ts.units
-
+        if units:
             new_columns = {}
             for col in df.columns:
-                if col in unit_map:
-                    new_columns[col] = f"{col} ({unit_map[col]})"
+                # Try to get unit for this column (timeline ID or C-map unit)
+                unit = self._get_unit_for_timeline(col)
+                if unit is not None:
+                    new_columns[col] = f"{col} ({unit.value})"
                 else:
                     new_columns[col] = col
             df = df.rename(columns=new_columns)
@@ -1199,18 +1209,18 @@ class TimelineGroup:
 
     # region Unified Timestamp API (TimeStampSource Protocol)
 
-    def get_timestamp_of(self, event_id: str) -> GroupTimestamp:
-        """Get the GroupTimestamp for a specific event by its ID.
+    def get_timestamp_of(self, event_id: str) -> TimeStamp:
+        """Get the TimeStamp for a specific event by its ID.
 
         Searches all timelines in the group for the event and returns
-        the corresponding group timestamp (coordinates on all timelines).
+        the corresponding TimeStamp (same structure as Timeline.get_timestamp).
 
         Args:
             event_id: The event's unique identifier.
 
         Returns:
-            GroupTimestamp at the event's coordinate, with coordinates
-            on all timelines in the group.
+            TimeStamp at the event's coordinate, with access to all
+            timelines via ts["timeline_id"] and C-Maps via ts.get_unit().
 
         Raises:
             KeyError: If the event is not found in any timeline.
@@ -1219,11 +1229,13 @@ class TimelineGroup:
             >>> ts = group.get_timestamp_of("note:000001")
             >>> ts["audio"]  # Get coordinate on audio timeline
             45.5
+            >>> ts.get_unit(TimeUnit.seconds)  # C-Map conversion
+            45.5
         """
         for tl_id, tl in self._timelines.items():
             event = tl.get_event(event_id)
             if event is not None:
-                # Found the event - get its coordinate and return group timestamp
+                # Found the event - get its coordinate and return TimeStamp
                 coord = event["start"]["value"]
                 return self.get_timestamp_at(coord, tl_id)
 
@@ -1233,7 +1245,7 @@ class TimelineGroup:
         """Get timestamps for multiple events.
 
         Searches all timelines in the group for each event and returns
-        a DataFrame with group timestamps.
+        a DataFrame with coordinates on all timelines.
 
         Args:
             event_ids: List of event IDs to look up.
@@ -1248,11 +1260,14 @@ class TimelineGroup:
             >>> df.columns
             Index(['clt1', 'audio', 'dgt1'])
         """
-        rows = []
+        rows: list[dict[str, Any]] = []
         for event_id in event_ids:
             try:
                 ts = self.get_timestamp_of(event_id)
-                row = dict(ts.coordinates)
+                # Use to_dict() to materialize coordinates
+                row: dict[str, Any] = dict(
+                    ts.to_dict(include_children=True, conversion_units=None)
+                )
                 row["event_id"] = event_id
                 rows.append(row)
             except KeyError:
@@ -1293,16 +1308,36 @@ class TimelineGroup:
         """Get InterpolationMap for unit-based conversion.
 
         This method is part of the TimeStampSource protocol.
-        TimelineGroup does not support unit conversion directly
-        (individual timelines may have their own C-Maps).
+        For TimelineGroup, returns None as groups don't have their own C-Maps.
+        Use _get_unit_map_for_timeline() to get C-Maps from member timelines.
 
         Args:
             unit: Target unit.
 
         Returns:
-            None (TimelineGroup does not have C-Maps).
+            None (use _get_unit_map_for_timeline for member timeline C-Maps).
         """
         return None
+
+    def _get_unit_map_for_timeline(
+        self, timeline_id: str, unit: "TimeUnit"
+    ) -> "InterpolationMap | Any | None":
+        """Get a C-Map for a specific member timeline.
+
+        This method enables TimeStamp.get_unit() to access C-Maps from
+        member timelines when the source is a TimelineGroup.
+
+        Args:
+            timeline_id: The member timeline to look up C-Map on.
+            unit: The target unit.
+
+        Returns:
+            The C-Map (InterpolationMap or ConversionMap), or None if not found.
+        """
+        timeline = self._timelines.get(timeline_id)
+        if timeline is None:
+            return None
+        return timeline._get_unit_map(unit)
 
     def _get_related_timeline_ids(self) -> list[str]:
         """Get IDs of all related timelines (members).
@@ -1315,15 +1350,18 @@ class TimelineGroup:
         return list(self._timelines.keys())
 
     def _get_available_units(self) -> list["TimeUnit"]:
-        """Get all units available via C-Maps.
+        """Get all units available via C-Maps from member timelines.
 
         This method is part of the TimeStampSource protocol.
-        TimelineGroup does not have C-Maps directly.
+        Aggregates all C-Map target units from all member timelines.
 
         Returns:
-            Empty list.
+            List of all available units from member timeline C-Maps.
         """
-        return []
+        units: set["TimeUnit"] = set()
+        for timeline in self._timelines.values():
+            units.update(timeline._get_available_units())
+        return list(units)
 
     def _get_unit_for_timeline(self, timeline_id: str) -> "TimeUnit | None":
         """Get the TimeUnit for a timeline in the group.
@@ -1341,14 +1379,64 @@ class TimelineGroup:
             return self._timelines[timeline_id].unit
         return None
 
-    def _contains_coordinate(self, timeline_id: str, axis: float) -> bool:
-        """All members of a group are always reachable.
+    def _contains_coordinate(
+        self, timeline_id: str, axis: float, source_id: str | None = None
+    ) -> bool:
+        """Check if a timeline has a valid coordinate at the given axis.
 
-        This method is part of the TimeStampSource protocol. Unlike
-        Timeline children (which have bounded spans), group members are
-        bijectively mapped and therefore always valid targets.
+        This method is part of the TimeStampSource protocol. For TimelineGroup,
+        we need to check if the target timeline has values at the given axis
+        coordinate on the source timeline.
+
+        Args:
+            timeline_id: The target timeline to check.
+            axis: The coordinate on the source timeline.
+            source_id: The source timeline ID (required for accurate checking).
+
+        Returns:
+            True if the target timeline is reachable at this axis coordinate.
         """
-        return timeline_id in self._timelines or timeline_id == self._axis_id
+        if timeline_id not in self._timelines:
+            return False
+
+        # If no timestamp table, assume reachable (will fail later anyway)
+        if self._timestamp_table is None:
+            return True
+
+        # For the source timeline itself, always reachable
+        if source_id is not None and timeline_id == source_id:
+            return True
+
+        # If we don't know the source_id, we can't check properly
+        if source_id is None:
+            # Fall back to checking if the timeline has any values
+            target_col = self._timestamp_table.column(timeline_id).to_pylist()
+            return any(v is not None for v in target_col)
+
+        # Get the source column to find bounding rows
+        source_col = self._timestamp_table.column(source_id).to_pylist()
+        target_col = self._timestamp_table.column(timeline_id).to_pylist()
+
+        # Find bounding rows for the axis coordinate on source
+        low_idx = None
+        high_idx = None
+        for i, val in enumerate(source_col):
+            if val is not None:
+                if val <= axis:
+                    low_idx = i
+                if val >= axis and high_idx is None:
+                    high_idx = i
+                    break
+
+        if low_idx is None or high_idx is None:
+            return False
+
+        # Check if target timeline has non-None values in the bounding rows
+        low_target = target_col[low_idx] if low_idx < len(target_col) else None
+        high_target = target_col[high_idx] if high_idx < len(target_col) else None
+
+        # Both bounds must have values for interpolation to work
+        return low_target is not None and high_target is not None
 
     def get_unified_timestamp(
         self,
@@ -1359,13 +1447,7 @@ class TimelineGroup:
 
         .. deprecated::
             This method is deprecated. Use ``get_timestamp_at(coordinate, timeline_id)``
-            instead, which returns a ``GroupTimestamp`` with full group-level expansion.
-
-        This is the new unified API that returns a TimeStamp object
-        compatible with Timeline.get_timestamp(). It provides the same
-        interface as Timeline and enables consistent traversal.
-
-        Uses InterpolationMaps for O(log n) coordinate conversion.
+            instead, which provides the same functionality.
 
         Args:
             coordinate: The query coordinate.
@@ -1390,18 +1472,7 @@ class TimelineGroup:
             DeprecationWarning,
             stacklevel=2,
         )
-        if timeline_id not in self._timelines:
-            raise KeyError(f"Timeline '{timeline_id}' not in group")
-
-        if self._timestamp_table is None:
-            raise ValueError(f"Group '{self.id}' has no timestamps")
-
-        # The axis coordinate is the coordinate on the specified timeline
-        return TimeStamp(
-            axis=coordinate,
-            source=self,
-            source_id=timeline_id,  # Use the timeline_id as source_id for lookups
-        )
+        return self.get_timestamp_at(coordinate, timeline_id)
 
     def get_unified_interval_stamp(
         self,
@@ -1437,8 +1508,8 @@ class TimelineGroup:
             stacklevel=2,
         )
         return TimeIntervalStamp(
-            start=self.get_unified_timestamp(start, timeline_id),
-            end=self.get_unified_timestamp(end, timeline_id),
+            start=self.get_timestamp_at(start, timeline_id),
+            end=self.get_timestamp_at(end, timeline_id),
         )
 
     def _build_interpolation_maps(self) -> None:
@@ -1507,7 +1578,7 @@ class TimelineGroup:
 
     def _resolve_boundary(
         self,
-        spec: GroupTimestamp | tuple[float, str] | float | None,
+        spec: IdCoordinate | GroupTimestamp | tuple[float, str] | float | None,
         is_start: bool,
         new_timeline: "Timeline",
     ) -> dict[str, Any]:

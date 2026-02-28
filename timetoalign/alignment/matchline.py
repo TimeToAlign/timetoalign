@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
@@ -28,6 +29,7 @@ from timetoalign.alignment.graph import MatchGraph, MatchStamp
 if TYPE_CHECKING:
     from timetoalign.alignment.anchors import MatchClaim
     from timetoalign.alignment.groups import TimelineGroup
+    from timetoalign.alignment.match_format import MatchFileContext
     from timetoalign.core.enums import Domain, TimeUnit
     from timetoalign.timelines import Timeline
 
@@ -250,6 +252,50 @@ class MatchLine:
             source_timeline_id=source_timeline_id,
             stamps=list(seen.values()),
         )
+
+    def save_as(
+        self,
+        filepath: str | Path,
+        *,
+        format: str = "match",
+        context: MatchFileContext | None = None,
+    ) -> Path:
+        """Export this MatchLine to a file.
+
+        Args:
+            filepath: Output file path.  If the extension matches a known
+                format, the format is inferred (e.g. ``.match``).
+            format: Export format.  Currently supported: ``"match"``.
+            context: Supplementary data for format-specific fields.
+                Required for full ``.match`` export; if ``None``, a minimal
+                file with coordinate-only placeholder data is produced.
+
+        Returns:
+            The resolved output path.
+
+        Raises:
+            ValueError: If the format is not supported.
+
+        Examples:
+            >>> line.save_as("output.match")  # minimal placeholder export
+            >>> line.save_as("output.match", context=ctx)  # rich export
+        """
+        from timetoalign.alignment.match_format import write_match_file
+
+        filepath = Path(filepath)
+
+        # Infer format from extension if it matches a known format
+        ext = filepath.suffix.lower()
+        if ext == ".match":
+            format = "match"
+
+        if format != "match":
+            raise ValueError(
+                f"Unsupported export format: {format!r}. "
+                f"Currently supported: 'match'."
+            )
+
+        return write_match_file(filepath, self, context)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary for storage.
