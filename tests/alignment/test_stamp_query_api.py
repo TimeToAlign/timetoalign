@@ -804,6 +804,204 @@ class TestMatchClaimDisplay:
 # endregion
 
 
+# region MatchClaim event storage and display
+
+
+class TestMatchClaimEventStorage:
+    """Tests for MatchClaim storing and displaying event information.
+
+    Events should be stored with their ID and name (when provided),
+    and always displayed in __str__ and _repr_html_.
+    """
+
+    def test_from_events_stores_event_ids(self):
+        """from_events() extracts and stores event IDs from event dicts."""
+        event_a = {"id": "e000001", "start": 10.0}
+        event_b = {"id": "e000042", "start": 128.0}
+
+        claim = MatchClaim.from_events(
+            event_a=event_a,
+            tl_a_id="score:clt1",
+            event_b=event_b,
+            tl_b_id="perf:dlt1",
+        )
+
+        assert claim.event_a_id == "e000001"
+        assert claim.event_b_id == "e000042"
+
+    def test_from_events_stores_event_names(self):
+        """from_events() extracts and stores event names from event dicts."""
+        event_a = {"id": "e001", "name": "Intro", "start": 0.0}
+        event_b = {"id": "e002", "name": "Verse 1", "start": 0.0}
+
+        claim = MatchClaim.from_events(
+            event_a=event_a,
+            tl_a_id="tl_a",
+            event_b=event_b,
+            tl_b_id="tl_b",
+        )
+
+        assert claim.event_a_name == "Intro"
+        assert claim.event_b_name == "Verse 1"
+
+    def test_from_events_handles_missing_id_and_name(self):
+        """from_events() gracefully handles missing id/name fields."""
+        event_a = {"start": 10.0}  # No id or name
+        event_b = {"start": 20.0}
+
+        claim = MatchClaim.from_events(
+            event_a=event_a,
+            tl_a_id="tl_a",
+            event_b=event_b,
+            tl_b_id="tl_b",
+        )
+
+        assert claim.event_a_id is None
+        assert claim.event_a_name is None
+        assert claim.event_b_id is None
+        assert claim.event_b_name is None
+
+    def test_from_projection_stores_source_event_info(self):
+        """from_projection() stores source event ID and name."""
+        event = {"id": "e100", "name": "Beat 1", "start": 0.0}
+
+        claim = MatchClaim.from_projection(
+            event=event,
+            source_tl_id="source",
+            target_tl_id="target",
+            target_coord=10.0,
+        )
+
+        assert claim.event_a_id == "e100"
+        assert claim.event_a_name == "Beat 1"
+        # Target has no event, so event_b fields are None
+        assert claim.event_b_id is None
+        assert claim.event_b_name is None
+
+    def test_nomatch_stores_source_event_info(self):
+        """nomatch() stores source event ID and name."""
+        event = {"id": "e999", "name": "Orphan Note", "start": 50.0}
+
+        claim = MatchClaim.nomatch(
+            event=event,
+            source_tl_id="score",
+            target_tl_id="perf",
+        )
+
+        assert claim.event_a_id == "e999"
+        assert claim.event_a_name == "Orphan Note"
+
+    def test_str_displays_event_ids(self):
+        """__str__ includes event IDs when present."""
+        claim = MatchClaim.from_events(
+            event_a={"id": "e001", "start": 10.0},
+            tl_a_id="score:clt1",
+            event_b={"id": "e042", "start": 128.0},
+            tl_b_id="perf:dlt1",
+        )
+
+        s = str(claim)
+        assert "e001" in s
+        assert "e042" in s
+
+    def test_str_displays_event_names(self):
+        """__str__ includes event names when present."""
+        claim = MatchClaim.from_events(
+            event_a={"id": "e001", "name": "Intro", "start": 0.0},
+            tl_a_id="tl_a",
+            event_b={"id": "e002", "name": "Verse 1", "start": 0.0},
+            tl_b_id="tl_b",
+        )
+
+        s = str(claim)
+        assert "Intro" in s
+        assert "Verse 1" in s
+
+    def test_repr_html_displays_event_info(self):
+        """_repr_html_ includes event ID and name when present."""
+        claim = MatchClaim.from_events(
+            event_a={"id": "note_001", "name": "C4", "start": 10.0},
+            tl_a_id="score",
+            event_b={"id": "note_042", "name": "C4", "start": 128.0},
+            tl_b_id="perf",
+        )
+
+        html = claim._repr_html_()
+        assert "note_001" in html
+        assert "note_042" in html
+        assert "C4" in html
+
+    def test_repr_html_no_event_info_still_valid(self):
+        """_repr_html_ is valid HTML even without event info."""
+        claim = MatchClaim.from_events(
+            event_a={"start": 10.0},  # No id/name
+            tl_a_id="tl_a",
+            event_b={"start": 20.0},
+            tl_b_id="tl_b",
+        )
+
+        html = claim._repr_html_()
+        assert "<table" in html
+        assert "MatchClaim" in html
+
+    def test_to_dict_includes_event_info(self):
+        """to_dict() serializes event ID and name fields."""
+        claim = MatchClaim.from_events(
+            event_a={"id": "e001", "name": "Note A", "start": 0.0},
+            tl_a_id="tl_a",
+            event_b={"id": "e002", "name": "Note B", "start": 0.0},
+            tl_b_id="tl_b",
+        )
+
+        d = claim.to_dict()
+        assert d["event_a_id"] == "e001"
+        assert d["event_a_name"] == "Note A"
+        assert d["event_b_id"] == "e002"
+        assert d["event_b_name"] == "Note B"
+
+    def test_from_dict_restores_event_info(self):
+        """from_dict() restores event ID and name fields."""
+        original = MatchClaim.from_events(
+            event_a={"id": "e001", "name": "Beat", "start": 0.0},
+            tl_a_id="tl_a",
+            event_b={"id": "e002", "name": "Onset", "start": 0.0},
+            tl_b_id="tl_b",
+        )
+
+        d = original.to_dict()
+        restored = MatchClaim.from_dict(d)
+
+        assert restored.event_a_id == "e001"
+        assert restored.event_a_name == "Beat"
+        assert restored.event_b_id == "e002"
+        assert restored.event_b_name == "Onset"
+
+    def test_direct_construction_with_event_info(self):
+        """MatchClaim can be constructed directly with event info."""
+        claim = MatchClaim(
+            timeline_a_id="tl_a",
+            timeline_b_id="tl_b",
+            start_anchor=AlignmentAnchor(
+                timeline_a_id="tl_a",
+                coordinate_a=0.0,
+                timeline_b_id="tl_b",
+                coordinate_b=0.0,
+            ),
+            event_a_id="ev_a",
+            event_a_name="Event A",
+            event_b_id="ev_b",
+            event_b_name="Event B",
+        )
+
+        assert claim.event_a_id == "ev_a"
+        assert claim.event_a_name == "Event A"
+        assert claim.event_b_id == "ev_b"
+        assert claim.event_b_name == "Event B"
+
+
+# endregion
+
+
 # region transfer() docstring correctness
 
 

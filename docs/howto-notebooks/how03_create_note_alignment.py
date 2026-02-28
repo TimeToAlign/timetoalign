@@ -156,6 +156,10 @@ bundle.add_match_claims(match_result.match_claims)
 
 bundle
 
+# %%
+# Display an example MatchClaim (shows event IDs, timelines, coordinates)
+match_result.match_claims[0]
+
 # %% [markdown]
 # ## 5. Query Coordinates via MatchStamp
 #

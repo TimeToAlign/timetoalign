@@ -397,6 +397,10 @@ print(f"Created {len(claims)} MatchClaims")
 # Add claims to the bundle
 bundle.add_match_claims(claims)
 
+# %%
+# Display an example claim (shows event ID, timelines, coordinates)
+claims[0]
+
 # %% [markdown]
 # ## 6. Query MatchStamps
 #

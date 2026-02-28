@@ -263,20 +263,28 @@ class MatchClaim:
         metadata: Provenance information (agent, criteria, certainty).
         source_claim_id: For implicit claims, the ID of the claim that
             generated this one.
+        event_a_id: ID of the event on timeline A (if known).
+        event_a_name: Name/label of the event on timeline A (if known).
+        event_b_id: ID of the event on timeline B (if known).
+        event_b_name: Name/label of the event on timeline B (if known).
         id: Unique identifier for this claim.
 
     Examples:
         >>> # Synchronous instant match via factory
         >>> claim = MatchClaim.from_events(
-        ...     event_a={"start": 100.0},
+        ...     event_a={"id": "e001", "name": "Note C4", "start": 100.0},
         ...     tl_a_id="score:1",
-        ...     event_b={"start": 45.5},
+        ...     event_b={"id": "e042", "name": "Note C4", "start": 45.5},
         ...     tl_b_id="recording:1",
         ... )
+        >>> claim.event_a_id
+        'e001'
+        >>> claim.event_a_name
+        'Note C4'
 
         >>> # Non-synchronous claim (no anchors)
         >>> claim = MatchClaim.nomatch(
-        ...     event={"start": 100.0},
+        ...     event={"id": "orphan", "start": 100.0},
         ...     source_tl_id="score:1",
         ...     target_tl_id="recording:1",
         ... )
@@ -292,6 +300,10 @@ class MatchClaim:
     is_explicit: bool = True
     metadata: MatchMetadata | None = None
     source_claim_id: str | None = None
+    event_a_id: str | None = None
+    event_a_name: str | None = None
+    event_b_id: str | None = None
+    event_b_name: str | None = None
     id: str = field(default="")
     _bundle: Any = field(default=None, compare=False, hash=False, repr=False)
 
@@ -537,8 +549,10 @@ class MatchClaim:
 
         Args:
             event_a: Event dict from timeline A (must contain ``coord_key``).
+                May also contain ``id`` and ``name`` fields.
             tl_a_id: Timeline A's ID.
             event_b: Event dict from timeline B (must contain ``coord_key``).
+                May also contain ``id`` and ``name`` fields.
             tl_b_id: Timeline B's ID.
             coord_key: Key for start coordinate in event dicts.
             end_coord_key: Key for end coordinate (creates interval match).
@@ -546,7 +560,7 @@ class MatchClaim:
             metadata: Provenance information.
 
         Returns:
-            A synchronous MatchClaim with 1 or 2 anchors.
+            A synchronous MatchClaim with 1 or 2 anchors and event info.
         """
 
         def _extract_coord(event: dict, key: str) -> float:
@@ -559,6 +573,11 @@ class MatchClaim:
             if isinstance(coord, dict):
                 return float(coord["value"])
             return float(coord)
+
+        def _extract_str(event: dict, key: str) -> str | None:
+            """Extract string value from event dict, returning None if absent."""
+            val = event.get(key)
+            return str(val) if val is not None else None
 
         start_anchor = AlignmentAnchor(
             timeline_a_id=tl_a_id,
@@ -583,6 +602,10 @@ class MatchClaim:
             end_anchor=end_anchor,
             is_synchronous=is_synchronous,
             metadata=metadata,
+            event_a_id=_extract_str(event_a, "id"),
+            event_a_name=_extract_str(event_a, "name"),
+            event_b_id=_extract_str(event_b, "id"),
+            event_b_name=_extract_str(event_b, "name"),
         )
 
     @classmethod
@@ -604,7 +627,8 @@ class MatchClaim:
         explicitly (e.g., computed by interpolation or DTW).
 
         Args:
-            event: Event dict from the source timeline.
+            event: Event dict from the source timeline. May contain ``id``
+                and ``name`` fields.
             source_tl_id: Source timeline's ID.
             target_tl_id: Target timeline's ID.
             target_coord: Projected coordinate on the target timeline.
@@ -614,7 +638,7 @@ class MatchClaim:
             metadata: Provenance information.
 
         Returns:
-            A synchronous MatchClaim with 1 or 2 anchors.
+            A synchronous MatchClaim with 1 or 2 anchors and source event info.
         """
         start_anchor = AlignmentAnchor(
             timeline_a_id=source_tl_id,
@@ -632,6 +656,10 @@ class MatchClaim:
                 coordinate_b=target_end_coord,
             )
 
+        # Extract event info from source event (target has no event)
+        event_a_id = str(event["id"]) if event.get("id") is not None else None
+        event_a_name = str(event["name"]) if event.get("name") is not None else None
+
         return cls(
             timeline_a_id=source_tl_id,
             timeline_b_id=target_tl_id,
@@ -639,6 +667,10 @@ class MatchClaim:
             end_anchor=end_anchor,
             is_synchronous=True,
             metadata=metadata,
+            event_a_id=event_a_id,
+            event_a_name=event_a_name,
+            event_b_id=None,
+            event_b_name=None,
         )
 
     @classmethod
@@ -655,14 +687,19 @@ class MatchClaim:
         Creates a non-synchronous claim with no anchors (NOMATCH sentinel).
 
         Args:
-            event: Event dict from the source timeline.
+            event: Event dict from the source timeline. May contain ``id``
+                and ``name`` fields.
             source_tl_id: Source timeline's ID.
             target_tl_id: Target timeline's ID.
             metadata: Provenance information.
 
         Returns:
-            A non-synchronous MatchClaim with no anchors.
+            A non-synchronous MatchClaim with no anchors but source event info.
         """
+        # Extract event info from source event
+        event_a_id = str(event["id"]) if event.get("id") is not None else None
+        event_a_name = str(event["name"]) if event.get("name") is not None else None
+
         return cls(
             timeline_a_id=source_tl_id,
             timeline_b_id=target_tl_id,
@@ -671,6 +708,10 @@ class MatchClaim:
             is_synchronous=False,
             is_explicit=True,
             metadata=metadata,
+            event_a_id=event_a_id,
+            event_a_name=event_a_name,
+            event_b_id=None,
+            event_b_name=None,
         )
 
     @classmethod
@@ -725,6 +766,10 @@ class MatchClaim:
             "is_explicit": self.is_explicit,
             "is_synchronous": self.is_synchronous,
             "metadata": self.metadata.to_dict() if self.metadata else None,
+            "event_a_id": self.event_a_id,
+            "event_a_name": self.event_a_name,
+            "event_b_id": self.event_b_id,
+            "event_b_name": self.event_b_name,
         }
         if self.source_claim_id is not None:
             data["source_claim_id"] = self.source_claim_id
@@ -769,6 +814,10 @@ class MatchClaim:
                 else None
             ),
             source_claim_id=data.get("source_claim_id"),
+            event_a_id=data.get("event_a_id"),
+            event_a_name=data.get("event_a_name"),
+            event_b_id=data.get("event_b_id"),
+            event_b_name=data.get("event_b_name"),
             id=data.get("id", ""),
         )
 
@@ -805,13 +854,15 @@ class MatchClaim:
     def __str__(self) -> str:
         """Readable multi-line display showing claim details.
 
-        Shows claim type, timelines with coordinates, and metadata.
+        Shows claim type, timelines with coordinates, events, and metadata.
 
         Examples:
             >>> print(claim)
             MatchClaim (synchronous, interval)
               Timeline A:  score:clt1  [0.0 -- 0.5]
+              Event A:     e001 "Intro"
               Timeline B:  perf:dlt1   [0 -- 261]
+              Event B:     e042 "Intro"
               Metadata:    agent=partitura, certainty=1.0
         """
 
@@ -826,6 +877,16 @@ class MatchClaim:
             else:
                 return f"{v:.6f}".rstrip("0").rstrip(".")
 
+        def _event_str(ev_id: str | None, ev_name: str | None) -> str | None:
+            """Format event info as 'id "name"' or just id/name if one is missing."""
+            if ev_id and ev_name:
+                return f'{ev_id} "{ev_name}"'
+            elif ev_id:
+                return ev_id
+            elif ev_name:
+                return f'"{ev_name}"'
+            return None
+
         # Header
         if not self.is_synchronous:
             header = "MatchClaim (NOMATCH)"
@@ -839,7 +900,7 @@ class MatchClaim:
 
         lines = [header]
 
-        # Timeline A
+        # Timeline A and Event A
         if self.is_synchronous and self.start_anchor is not None:
             if self.is_interval and self.end_anchor is not None:
                 lines.append(
@@ -847,6 +908,22 @@ class MatchClaim:
                     f"[{_fmt(self.start_anchor.coordinate_a)} -- "
                     f"{_fmt(self.end_anchor.coordinate_a)}]"
                 )
+            else:
+                lines.append(
+                    f"  Timeline A:  {self.timeline_a_id}  "
+                    f"@{_fmt(self.start_anchor.coordinate_a)}"
+                )
+        else:
+            lines.append(f"  Timeline A:  {self.timeline_a_id}")
+
+        # Event A (always show if present)
+        event_a_str = _event_str(self.event_a_id, self.event_a_name)
+        if event_a_str:
+            lines.append(f"  Event A:     {event_a_str}")
+
+        # Timeline B and Event B
+        if self.is_synchronous and self.start_anchor is not None:
+            if self.is_interval and self.end_anchor is not None:
                 lines.append(
                     f"  Timeline B:  {self.timeline_b_id}  "
                     f"[{_fmt(self.start_anchor.coordinate_b)} -- "
@@ -854,16 +931,16 @@ class MatchClaim:
                 )
             else:
                 lines.append(
-                    f"  Timeline A:  {self.timeline_a_id}  "
-                    f"@{_fmt(self.start_anchor.coordinate_a)}"
-                )
-                lines.append(
                     f"  Timeline B:  {self.timeline_b_id}  "
                     f"@{_fmt(self.start_anchor.coordinate_b)}"
                 )
         else:
-            lines.append(f"  Timeline A:  {self.timeline_a_id}")
             lines.append(f"  Timeline B:  {self.timeline_b_id}")
+
+        # Event B (always show if present)
+        event_b_str = _event_str(self.event_b_id, self.event_b_name)
+        if event_b_str:
+            lines.append(f"  Event B:     {event_b_str}")
 
         # Metadata
         if self.metadata is not None:
@@ -916,32 +993,44 @@ class MatchClaim:
             f"border-radius: 3px; font-size: 0.8em;'>{badge_text}</span>"
         )
 
+        def _event_html(
+            ev_id: str | None, ev_name: str | None, label: str
+        ) -> str | None:
+            """Format event info as an HTML row, or None if no event info."""
+            if ev_id and ev_name:
+                return (
+                    f"<tr style='color: #555; font-size: 0.9em;'><td>{label}</td>"
+                    f"<td>{html_mod.escape(ev_id)}</td>"
+                    f'<td>"{html_mod.escape(ev_name)}"</td></tr>'
+                )
+            elif ev_id:
+                return (
+                    f"<tr style='color: #555; font-size: 0.9em;'><td>{label}</td>"
+                    f"<td colspan='2'>{html_mod.escape(ev_id)}</td></tr>"
+                )
+            elif ev_name:
+                return (
+                    f"<tr style='color: #555; font-size: 0.9em;'><td>{label}</td>"
+                    f"<td colspan='2'>\"{html_mod.escape(ev_name)}\"</td></tr>"
+                )
+            return None
+
         rows = []
 
-        # Timeline rows
+        # Timeline A row
         if self.is_synchronous and self.start_anchor is not None:
             if self.is_interval and self.end_anchor is not None:
                 coord_a = (
                     f"[{_fmt(self.start_anchor.coordinate_a)} &ndash; "
                     f"{_fmt(self.end_anchor.coordinate_a)}]"
                 )
-                coord_b = (
-                    f"[{_fmt(self.start_anchor.coordinate_b)} &ndash; "
-                    f"{_fmt(self.end_anchor.coordinate_b)}]"
-                )
             else:
                 coord_a = f"@{_fmt(self.start_anchor.coordinate_a)}"
-                coord_b = f"@{_fmt(self.start_anchor.coordinate_b)}"
 
             rows.append(
                 f"<tr><td>Timeline A</td>"
                 f"<td><strong>{html_mod.escape(self.timeline_a_id)}</strong></td>"
                 f"<td>{coord_a}</td></tr>"
-            )
-            rows.append(
-                f"<tr><td>Timeline B</td>"
-                f"<td><strong>{html_mod.escape(self.timeline_b_id)}</strong></td>"
-                f"<td>{coord_b}</td></tr>"
             )
         else:
             rows.append(
@@ -949,11 +1038,38 @@ class MatchClaim:
                 f"<td>{html_mod.escape(self.timeline_a_id)}</td>"
                 f"<td></td></tr>"
             )
+
+        # Event A row (if present)
+        event_a_row = _event_html(self.event_a_id, self.event_a_name, "Event A")
+        if event_a_row:
+            rows.append(event_a_row)
+
+        # Timeline B row
+        if self.is_synchronous and self.start_anchor is not None:
+            if self.is_interval and self.end_anchor is not None:
+                coord_b = (
+                    f"[{_fmt(self.start_anchor.coordinate_b)} &ndash; "
+                    f"{_fmt(self.end_anchor.coordinate_b)}]"
+                )
+            else:
+                coord_b = f"@{_fmt(self.start_anchor.coordinate_b)}"
+
+            rows.append(
+                f"<tr><td>Timeline B</td>"
+                f"<td><strong>{html_mod.escape(self.timeline_b_id)}</strong></td>"
+                f"<td>{coord_b}</td></tr>"
+            )
+        else:
             rows.append(
                 f"<tr><td>Timeline B</td>"
                 f"<td>{html_mod.escape(self.timeline_b_id)}</td>"
                 f"<td></td></tr>"
             )
+
+        # Event B row (if present)
+        event_b_row = _event_html(self.event_b_id, self.event_b_name, "Event B")
+        if event_b_row:
+            rows.append(event_b_row)
 
         # Metadata row
         if self.metadata is not None:
