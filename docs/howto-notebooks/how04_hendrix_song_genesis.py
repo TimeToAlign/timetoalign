@@ -211,15 +211,16 @@ bundle.add_match_claims(all_claims)
 # These claims carry coordinate pairs (start and end) that enable temporal
 # alignment between versions.  Each interval match corresponds to a pair
 # of section boundaries in seconds.
+#
+# The MatchClaim's rich display shows timelines, coordinates, events, and
+# metadata — no need to compile info-dicts manually.
 
 # %%
-for c in sync_claims:
-    print(
-        f"  {c.timeline_a_id} <-> {c.timeline_b_id}"
-        f"  [{c.start_anchor.coordinate_a:.1f}--{c.end_anchor.coordinate_a:.1f}]"
-        f" <-> [{c.start_anchor.coordinate_b:.1f}--{c.end_anchor.coordinate_b:.1f}]"
-    )
+# Display an example synchronous claim (shows timeline IDs, coordinates, events)
+sync_claims[0]
 
+# %%
+# Summary of all synchronous claims
 {
     "synchronous_claims": len(sync_claims),
     "is_interval": all(c.is_interval for c in sync_claims),
@@ -228,28 +229,30 @@ for c in sync_claims:
 # %% [markdown]
 # ### Conceptual claims (no anchors)
 #
-# These record structural equivalence without temporal commitment -- for
+# These record structural equivalence without temporal commitment — for
 # instance, "both versions have an Intro" without asserting that the intros
 # can be aligned beat-by-beat.
 
 # %%
-for c in conceptual_claims:
-    print(f"  {c.timeline_a_id} <-> {c.timeline_b_id}")
+# Display an example conceptual claim (no coordinates, just timeline connection)
+conceptual_claims[0] if conceptual_claims else "No conceptual claims"
 
+# %%
 {"conceptual_claims": len(conceptual_claims)}
 
 # %% [markdown]
 # ### NOMATCH sentinels
 #
 # These explicitly record that a section has no equivalent in the target
-# version -- a positive assertion of absence, not a mere gap in the data.
+# version — a positive assertion of absence, not a mere gap in the data.
 # For instance, the "Instrumental Part" in the studio recording has no
 # equivalent in Demo1.
 
 # %%
-for c in nomatch_claims:
-    print(f"  {c.timeline_a_id} -> NOMATCH on {c.timeline_b_id}")
+# Display an example NOMATCH claim
+nomatch_claims[0] if nomatch_claims else "No NOMATCH claims"
 
+# %%
 {"nomatch_sentinels": len(nomatch_claims)}
 
 # %% [markdown]
