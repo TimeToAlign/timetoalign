@@ -1,0 +1,6336 @@
+{
+  "timelines": [
+    {
+      "kind": "HIERARCHY_TIMELINE",
+      "name": "Demo 2",
+      "height": 120,
+      "is_visible": true,
+      "ordinal": 2,
+      "components": [
+        {
+          "start": 5.030755519764574,
+          "pre_start": 5.030755519764574,
+          "end": 8.570210836444266,
+          "post_end": 8.570210836444266,
+          "level": 1,
+          "label": "Count-in",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 0,
+          "start_beat": 1,
+          "end_measure": 1,
+          "end_beat": 1,
+          "length": 3.5394553166796925,
+          "length_in_measures": [
+            1,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 8.570210836444266,
+          "pre_start": 8.570210836444266,
+          "end": 22.266145857364766,
+          "post_end": 22.266145857364766,
+          "level": 1,
+          "label": "Riff 1",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 1,
+          "start_beat": 1,
+          "end_measure": 5,
+          "end_beat": 1,
+          "length": 13.6959350209205,
+          "length_in_measures": [
+            4,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 22.266145857364766,
+          "pre_start": 22.266145857364766,
+          "end": 35.839063497857836,
+          "post_end": 35.839063497857836,
+          "level": 1,
+          "label": "%",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 5,
+          "start_beat": 1,
+          "end_measure": 9,
+          "end_beat": 1,
+          "length": 13.57291764049307,
+          "length_in_measures": [
+            4,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 35.839063497857836,
+          "pre_start": 35.839063497857836,
+          "end": 59.53197475430747,
+          "post_end": 59.53197475430747,
+          "level": 1,
+          "label": "Verse 1",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 9,
+          "start_beat": 1,
+          "end_measure": 16,
+          "end_beat": 1,
+          "length": 23.692911256449634,
+          "length_in_measures": [
+            7,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 59.53197475430747,
+          "pre_start": 59.53197475430747,
+          "end": 73.03654352407655,
+          "post_end": 73.03654352407655,
+          "level": 1,
+          "label": "Riff 2",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 16,
+          "start_beat": 1,
+          "end_measure": 20,
+          "end_beat": 1,
+          "length": 13.50456876976908,
+          "length_in_measures": [
+            4,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 73.03654352407655,
+          "pre_start": 73.03654352407655,
+          "end": 97.08905949863568,
+          "post_end": 97.08905949863568,
+          "level": 1,
+          "label": "Verse 2",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 20,
+          "start_beat": 1,
+          "end_measure": 27,
+          "end_beat": 1,
+          "length": 24.052515974559128,
+          "length_in_measures": [
+            7,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 97.08905949863568,
+          "pre_start": 97.08905949863568,
+          "end": 110.83335434124089,
+          "post_end": 110.83335434124089,
+          "level": 1,
+          "label": "Riff 3",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 27,
+          "start_beat": 1,
+          "end_measure": 31,
+          "end_beat": 1,
+          "length": 13.744294842605214,
+          "length_in_measures": [
+            4,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 110.83335434124089,
+          "pre_start": 110.83335434124089,
+          "end": 124.22169228781657,
+          "post_end": 124.22169228781657,
+          "level": 1,
+          "label": "1",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 31,
+          "start_beat": 1,
+          "end_measure": 35,
+          "end_beat": 1,
+          "length": 13.388337946575675,
+          "length_in_measures": [
+            4,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 124.22169228781657,
+          "pre_start": 124.22169228781657,
+          "end": 137.36370013751113,
+          "post_end": 137.36370013751113,
+          "level": 1,
+          "label": "2",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 35,
+          "start_beat": 1,
+          "end_measure": 39,
+          "end_beat": 1,
+          "length": 13.142007849694565,
+          "length_in_measures": [
+            4,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 137.36370013751113,
+          "pre_start": 137.36370013751113,
+          "end": 150.7038287085579,
+          "post_end": 150.7038287085579,
+          "level": 1,
+          "label": "3",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 39,
+          "start_beat": 1,
+          "end_measure": 43,
+          "end_beat": 1,
+          "length": 13.340128571046762,
+          "length_in_measures": [
+            4,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 150.7038287085579,
+          "pre_start": 150.7038287085579,
+          "end": 164.28427771460488,
+          "post_end": 164.28427771460488,
+          "level": 1,
+          "label": "4",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 43,
+          "start_beat": 1,
+          "end_measure": 47,
+          "end_beat": 1,
+          "length": 13.58044900604699,
+          "length_in_measures": [
+            4,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 164.28427771460488,
+          "pre_start": 164.28427771460488,
+          "end": 194.96122416853592,
+          "post_end": 194.96122416853592,
+          "level": 1,
+          "label": "Verse 3",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 47,
+          "start_beat": 1,
+          "end_measure": 56,
+          "end_beat": 1,
+          "length": 30.676946453931038,
+          "length_in_measures": [
+            9,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 194.96122416853592,
+          "pre_start": 194.96122416853592,
+          "end": 208.53184509277344,
+          "post_end": 208.53184509277344,
+          "level": 1,
+          "label": "Riff 4",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 56,
+          "start_beat": 1,
+          "end_measure": 60,
+          "end_beat": 1,
+          "length": 13.570620924237517,
+          "length_in_measures": [
+            4,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 208.53184509277344,
+          "pre_start": 208.53184509277344,
+          "end": 222.34837766563706,
+          "post_end": 222.34837766563706,
+          "level": 1,
+          "label": "%",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 60,
+          "start_beat": 1,
+          "end_measure": 64,
+          "end_beat": 1,
+          "length": 13.816532572863622,
+          "length_in_measures": [
+            4,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 483.338428571428,
+          "pre_start": 483.338428571428,
+          "end": 507.9653625488281,
+          "post_end": 507.9653625488281,
+          "level": 1,
+          "label": "Guitar",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 69,
+          "start_beat": 1,
+          "end_measure": 69,
+          "end_beat": 1,
+          "length": 24.626933977400142,
+          "length_in_measures": [
+            0,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 507.9653625488281,
+          "pre_start": 507.9653625488281,
+          "end": 537.6992003668173,
+          "post_end": 537.6992003668173,
+          "level": 1,
+          "label": "SFX",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 69,
+          "start_beat": 1,
+          "end_measure": 69,
+          "end_beat": 1,
+          "length": 29.733837817989183,
+          "length_in_measures": [
+            0,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 537.6992003668173,
+          "pre_start": 537.6992003668173,
+          "end": 544.395135963626,
+          "post_end": 544.395135963626,
+          "level": 1,
+          "label": "Fill",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 69,
+          "start_beat": 1,
+          "end_measure": 70,
+          "end_beat": 4,
+          "length": 6.695935596808681,
+          "length_in_measures": [
+            1,
+            3
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 8.570210836444266,
+          "pre_start": 8.570210836444266,
+          "end": 35.839063497857836,
+          "post_end": 35.839063497857836,
+          "level": 2,
+          "label": "Intro",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 1,
+          "start_beat": 1,
+          "end_measure": 9,
+          "end_beat": 1,
+          "length": 27.26885266141357,
+          "length_in_measures": [
+            8,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 35.839063497857836,
+          "pre_start": 35.839063497857836,
+          "end": 73.03654352407655,
+          "post_end": 73.03654352407655,
+          "level": 2,
+          "label": "A: Verse",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 9,
+          "start_beat": 1,
+          "end_measure": 20,
+          "end_beat": 1,
+          "length": 37.19748002621871,
+          "length_in_measures": [
+            11,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 73.03654352407655,
+          "pre_start": 73.03654352407655,
+          "end": 110.83335434124089,
+          "post_end": 110.83335434124089,
+          "level": 2,
+          "label": "A: Verse (rep.)",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 20,
+          "start_beat": 1,
+          "end_measure": 31,
+          "end_beat": 1,
+          "length": 37.79681081716434,
+          "length_in_measures": [
+            11,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 110.83335434124089,
+          "pre_start": 110.83335434124089,
+          "end": 164.28427771460488,
+          "post_end": 164.28427771460488,
+          "level": 2,
+          "label": "B: Bridge",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 31,
+          "start_beat": 1,
+          "end_measure": 47,
+          "end_beat": 1,
+          "length": 53.45092337336399,
+          "length_in_measures": [
+            16,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 164.28427771460488,
+          "pre_start": 164.28427771460488,
+          "end": 222.34837766563706,
+          "post_end": 222.34837766563706,
+          "level": 2,
+          "label": "A': Verse",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 47,
+          "start_beat": 1,
+          "end_measure": 64,
+          "end_beat": 1,
+          "length": 58.064099951032176,
+          "length_in_measures": [
+            17,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 222.34837766563706,
+          "pre_start": 222.34837766563706,
+          "end": 291.9067296340022,
+          "post_end": 291.9067296340022,
+          "level": 2,
+          "label": "Dissolving",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 64,
+          "start_beat": 1,
+          "end_measure": 68,
+          "end_beat": 4,
+          "length": 69.55835196836514,
+          "length_in_measures": [
+            4,
+            3
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 291.9067296340022,
+          "pre_start": 291.9067296340022,
+          "end": 358.22757142857097,
+          "post_end": 358.22757142857097,
+          "level": 2,
+          "label": "Clean Guitar Solo",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 68,
+          "start_beat": 4,
+          "end_measure": 68,
+          "end_beat": 4,
+          "length": 66.32084179456876,
+          "length_in_measures": [
+            0,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 358.22757142857097,
+          "pre_start": 358.22757142857097,
+          "end": 420.78299999999945,
+          "post_end": 420.78299999999945,
+          "level": 2,
+          "label": "Guitar Part 2",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 68,
+          "start_beat": 4,
+          "end_measure": 69,
+          "end_beat": 1,
+          "length": 62.55542857142848,
+          "length_in_measures": [
+            0,
+            1
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 420.78299999999945,
+          "pre_start": 420.78299999999945,
+          "end": 483.338428571428,
+          "post_end": 483.338428571428,
+          "level": 2,
+          "label": "Distorted ",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 69,
+          "start_beat": 1,
+          "end_measure": 69,
+          "end_beat": 1,
+          "length": 62.555428571428536,
+          "length_in_measures": [
+            0,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 483.338428571428,
+          "pre_start": 483.338428571428,
+          "end": 544.395135963626,
+          "post_end": 544.395135963626,
+          "level": 2,
+          "label": "Calmer  ",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 69,
+          "start_beat": 1,
+          "end_measure": 70,
+          "end_beat": 4,
+          "length": 61.05670739219801,
+          "length_in_measures": [
+            1,
+            3
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 544.395135963626,
+          "pre_start": 544.395135963626,
+          "end": 574.1333047118154,
+          "post_end": 574.1333047118154,
+          "level": 2,
+          "label": "A': Verse (rec.)",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 70,
+          "start_beat": 4,
+          "end_measure": 79,
+          "end_beat": 1,
+          "length": 29.738168748189423,
+          "length_in_measures": [
+            8,
+            1
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 574.1333047118154,
+          "pre_start": 574.1333047118154,
+          "end": 622,
+          "post_end": 622,
+          "level": 2,
+          "label": "Verse Variation",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 79,
+          "start_beat": 1,
+          "end_measure": 90,
+          "end_beat": 2,
+          "length": 47.86669528818459,
+          "length_in_measures": [
+            11,
+            1
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 8.570210836444266,
+          "pre_start": 8.570210836444266,
+          "end": 222.34837766563706,
+          "post_end": 222.34837766563706,
+          "level": 3,
+          "label": "Part 1: AABA",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 1,
+          "start_beat": 1,
+          "end_measure": 64,
+          "end_beat": 1,
+          "length": 213.7781668291928,
+          "length_in_measures": [
+            63,
+            0
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 222.34837766563706,
+          "pre_start": 222.34837766563706,
+          "end": 544.395135963626,
+          "post_end": 544.395135963626,
+          "level": 3,
+          "label": "Part 2: Free Soli / Soundscape",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 64,
+          "start_beat": 1,
+          "end_measure": 70,
+          "end_beat": 4,
+          "length": 322.04675829798896,
+          "length_in_measures": [
+            6,
+            3
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 544.395135963626,
+          "pre_start": 544.395135963626,
+          "end": 622,
+          "post_end": 622,
+          "level": 3,
+          "label": "Part 3: Reprise",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 70,
+          "start_beat": 4,
+          "end_measure": 90,
+          "end_beat": 2,
+          "length": 77.60486403637401,
+          "length_in_measures": [
+            19,
+            2
+          ],
+          "kind": "HIERARCHY"
+        },
+        {
+          "start": 8.570210836444266,
+          "pre_start": 8.570210836444266,
+          "end": 622,
+          "post_end": 622,
+          "level": 4,
+          "label": "Song",
+          "formal_type": "",
+          "formal_function": "",
+          "comments": "",
+          "start_measure": 1,
+          "start_beat": 1,
+          "end_measure": 90,
+          "end_beat": 2,
+          "length": 613.4297891635557,
+          "length_in_measures": [
+            89,
+            1
+          ],
+          "kind": "HIERARCHY"
+        }
+      ]
+    },
+    {
+      "kind": "MARKER_TIMELINE",
+      "name": "notes",
+      "height": 30,
+      "is_visible": false,
+      "ordinal": 6,
+      "components": [
+        {
+          "time": 228.9691730303695,
+          "comments": "",
+          "label": "time becomes uncertain",
+          "measure": 65,
+          "beat": 4,
+          "kind": "MARKER"
+        },
+        {
+          "time": 363.11471428571383,
+          "comments": "",
+          "label": "Pendelharmonik",
+          "measure": 68,
+          "beat": 4,
+          "kind": "MARKER"
+        },
+        {
+          "time": 423.7152857142852,
+          "comments": "",
+          "label": "louder, distorted",
+          "measure": 69,
+          "beat": 1,
+          "kind": "MARKER"
+        },
+        {
+          "time": 573.1319094128994,
+          "comments": "",
+          "label": "Rhythm later in bridge",
+          "measure": 78,
+          "beat": 4,
+          "kind": "MARKER"
+        }
+      ]
+    },
+    {
+      "kind": "BEAT_TIMELINE",
+      "beat_pattern": [
+        4
+      ],
+      "measure_numbers": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90
+      ],
+      "beats_in_measure": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "measures_to_force_display": [
+        1
+      ],
+      "height": 35,
+      "is_visible": true,
+      "name": "Beats",
+      "ordinal": 3,
+      "components": [
+        {
+          "time": 5.191853872207641,
+          "measure": 0,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 5.865298748016357,
+          "measure": 0,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 6.765987873077393,
+          "measure": 0,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 7.710093099182129,
+          "measure": 0,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 8.567588806152344,
+          "measure": 1,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 9.479135979019166,
+          "measure": 1,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 10.365339279174805,
+          "measure": 1,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 11.166007041931152,
+          "measure": 1,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 12.014306927520751,
+          "measure": 2,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 12.882767026702881,
+          "measure": 2,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 13.765353202819824,
+          "measure": 2,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 14.665221214294434,
+          "measure": 2,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 15.392788879837036,
+          "measure": 3,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 16.26919904196167,
+          "measure": 3,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 17.16743411253357,
+          "measure": 3,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 17.96542739868164,
+          "measure": 3,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 18.76513671875,
+          "measure": 4,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 19.675006872207643,
+          "measure": 4,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 20.566190719604492,
+          "measure": 4,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 21.466344833374023,
+          "measure": 4,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 22.303800994277953,
+          "measure": 5,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 23.179926990463258,
+          "measure": 5,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 24.16657066345215,
+          "measure": 5,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 24.966726303100586,
+          "measure": 5,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 25.822039051498415,
+          "measure": 6,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 26.699180975204467,
+          "measure": 6,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 27.466896057128906,
+          "measure": 6,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 28.26621437072754,
+          "measure": 6,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 29.10315291416931,
+          "measure": 7,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 29.976763856948853,
+          "measure": 7,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 30.76702117919922,
+          "measure": 7,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 31.667329788208008,
+          "measure": 7,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 32.489491001907346,
+          "measure": 8,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 33.266353607177734,
+          "measure": 8,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 34.1555928626709,
+          "measure": 8,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 35.020025074386595,
+          "measure": 8,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 35.90234011253357,
+          "measure": 9,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 36.770163973297116,
+          "measure": 9,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 37.666507720947266,
+          "measure": 9,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 38.419090205993655,
+          "measure": 9,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 39.298223952316285,
+          "measure": 10,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 40.16607205149841,
+          "measure": 10,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 41.14211308583069,
+          "measure": 10,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 41.96611404418945,
+          "measure": 10,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 42.78377101716614,
+          "measure": 11,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 43.567108154296875,
+          "measure": 11,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 44.54039405149841,
+          "measure": 11,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 45.36677551269531,
+          "measure": 11,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 46.176365074386595,
+          "measure": 12,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 47.0535789256134,
+          "measure": 12,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 47.86666488647461,
+          "measure": 12,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 48.6664924621582,
+          "measure": 12,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 49.4671745300293,
+          "measure": 13,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 50.33510302670288,
+          "measure": 13,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 51.16542434692383,
+          "measure": 13,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 51.97383610299683,
+          "measure": 13,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 52.86763381958008,
+          "measure": 14,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 53.66422653198242,
+          "measure": 14,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 54.56611251831055,
+          "measure": 14,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 55.367164611816406,
+          "measure": 14,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 56.167335510253906,
+          "measure": 15,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 57.01718091607666,
+          "measure": 15,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 57.89248695231628,
+          "measure": 15,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 58.76786987602234,
+          "measure": 15,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 59.56624221801758,
+          "measure": 16,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 60.4665412902832,
+          "measure": 16,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 61.28686689700317,
+          "measure": 16,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 62.27033890081787,
+          "measure": 16,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 63.06679153442383,
+          "measure": 17,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 63.96607208251953,
+          "measure": 17,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 64.80274204577637,
+          "measure": 17,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 65.66737365722656,
+          "measure": 17,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 66.46710968017578,
+          "measure": 18,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 67.31978899427796,
+          "measure": 18,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 68.18969018692016,
+          "measure": 18,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 69.09636981117248,
+          "measure": 18,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 69.87035797520447,
+          "measure": 19,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 70.75632703433227,
+          "measure": 19,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 71.56549072265625,
+          "measure": 19,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 72.46807098388672,
+          "measure": 19,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 73.26627349853516,
+          "measure": 20,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 74.1661605834961,
+          "measure": 20,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 75.03912502670288,
+          "measure": 20,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 75.93101895040894,
+          "measure": 20,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 76.76712799072266,
+          "measure": 21,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 77.56760217166138,
+          "measure": 21,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 78.46729278564453,
+          "measure": 21,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 79.36717987060547,
+          "measure": 21,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 80.1899360858307,
+          "measure": 22,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 81.06762617547608,
+          "measure": 22,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 81.96672821044922,
+          "measure": 22,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 82.81630604196167,
+          "measure": 22,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 83.69177587220764,
+          "measure": 23,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 84.56924996185303,
+          "measure": 23,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 85.36721801757812,
+          "measure": 23,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 86.3284431296997,
+          "measure": 23,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 87.09137820980835,
+          "measure": 24,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 87.96630859375,
+          "measure": 24,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 88.766845703125,
+          "measure": 24,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 89.61022715830994,
+          "measure": 24,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 90.47135381117249,
+          "measure": 25,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 91.267578125,
+          "measure": 25,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 92.11293211444092,
+          "measure": 25,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 93.06637573242188,
+          "measure": 25,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 93.86677551269531,
+          "measure": 26,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 94.76760864257812,
+          "measure": 26,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 95.62782907820129,
+          "measure": 26,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 96.39342701335144,
+          "measure": 26,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 97.26898600953675,
+          "measure": 27,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 98.16665649414062,
+          "measure": 27,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 99.02166313542175,
+          "measure": 27,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 99.78484000953674,
+          "measure": 27,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 100.68156688174439,
+          "measure": 28,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 101.46682739257812,
+          "measure": 28,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 102.42772599809265,
+          "measure": 28,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 103.19294017166138,
+          "measure": 28,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 104.06551361083984,
+          "measure": 29,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 104.87826498092652,
+          "measure": 29,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 105.6658935546875,
+          "measure": 29,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 106.56723022460938,
+          "measure": 29,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 107.39643700190734,
+          "measure": 30,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 108.26963697711182,
+          "measure": 30,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 109.1670150756836,
+          "measure": 30,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 109.96592712402344,
+          "measure": 30,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 110.78496318310548,
+          "measure": 31,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 111.66645812988281,
+          "measure": 31,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 112.53416784359742,
+          "measure": 31,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 113.36697387695312,
+          "measure": 31,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 114.17425098092652,
+          "measure": 32,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 115.0644302368164,
+          "measure": 32,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 115.9347208703003,
+          "measure": 32,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 116.806597917984,
+          "measure": 32,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 117.68207888174439,
+          "measure": 33,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 118.4656982421875,
+          "measure": 33,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 119.32830809346008,
+          "measure": 33,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 120.08846015258788,
+          "measure": 33,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 120.96851348876953,
+          "measure": 34,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 121.86634063720703,
+          "measure": 34,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 122.66569519042969,
+          "measure": 34,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 123.4654769897461,
+          "measure": 34,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 124.16921103623963,
+          "measure": 35,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 125.06694030761719,
+          "measure": 35,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 125.86763763427734,
+          "measure": 35,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 126.78331405340576,
+          "measure": 35,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 127.55634888555909,
+          "measure": 36,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 128.32296998664856,
+          "measure": 36,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 129.1665802001953,
+          "measure": 36,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 129.97740202288819,
+          "measure": 36,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 130.8663787841797,
+          "measure": 37,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 131.6690909065399,
+          "measure": 37,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 132.46633911132812,
+          "measure": 37,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 133.1897271182556,
+          "measure": 37,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 133.9727949408722,
+          "measure": 38,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 134.76715087890625,
+          "measure": 38,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 135.66700744628906,
+          "measure": 38,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 136.49157716784669,
+          "measure": 38,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 137.3660430908203,
+          "measure": 39,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 138.16615295410156,
+          "measure": 39,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 139.02021994087218,
+          "measure": 39,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 139.89828795803834,
+          "measure": 39,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 140.66587829589844,
+          "measure": 40,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 141.56594848632812,
+          "measure": 40,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 142.36569213867188,
+          "measure": 40,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 143.1824948817444,
+          "measure": 40,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 144.05546202288818,
+          "measure": 41,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 144.9246421220703,
+          "measure": 41,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 145.7655792236328,
+          "measure": 41,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 146.56862713542176,
+          "measure": 41,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 147.4501340076294,
+          "measure": 42,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 148.26773071289062,
+          "measure": 42,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 149.0677032470703,
+          "measure": 42,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 149.86732482910156,
+          "measure": 42,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 150.66722106933594,
+          "measure": 43,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 151.5674285888672,
+          "measure": 43,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 152.38101510299683,
+          "measure": 43,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 153.16668701171875,
+          "measure": 43,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 154.0669708251953,
+          "measure": 44,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 154.90123294659423,
+          "measure": 44,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 155.66746520996094,
+          "measure": 44,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 156.5668182373047,
+          "measure": 44,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 157.36654663085938,
+          "measure": 45,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 158.18036095422363,
+          "measure": 45,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 159.06756591796875,
+          "measure": 45,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 159.92780803814696,
+          "measure": 45,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 160.76773071289062,
+          "measure": 46,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 161.67406791607667,
+          "measure": 46,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 162.5673370361328,
+          "measure": 46,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 163.3667755126953,
+          "measure": 46,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 164.26600646972656,
+          "measure": 47,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 165.09897311062622,
+          "measure": 47,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 165.97359714686584,
+          "measure": 47,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 166.86634826660156,
+          "measure": 47,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 167.6651611328125,
+          "measure": 48,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 168.6104840934601,
+          "measure": 48,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 169.47317307820128,
+          "measure": 48,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 170.46532393896484,
+          "measure": 48,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 171.22798701907348,
+          "measure": 49,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 172.06776428222656,
+          "measure": 49,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 172.868730917984,
+          "measure": 49,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 173.7677001953125,
+          "measure": 49,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 174.66651916503906,
+          "measure": 50,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 175.5033921144409,
+          "measure": 50,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 176.3806089332428,
+          "measure": 50,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 177.25415290844725,
+          "measure": 50,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 178.02034000953674,
+          "measure": 51,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 178.8980260267029,
+          "measure": 51,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 179.76756286621094,
+          "measure": 51,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 180.56880996948243,
+          "measure": 51,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 181.46633911132812,
+          "measure": 52,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 182.36773681640625,
+          "measure": 52,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 183.19401010299683,
+          "measure": 52,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 184.0687250667572,
+          "measure": 52,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 184.96835327148438,
+          "measure": 53,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 185.8203578931885,
+          "measure": 53,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 186.6961007844696,
+          "measure": 53,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 187.46702575683594,
+          "measure": 53,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 188.36572265625,
+          "measure": 54,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 189.26678466796875,
+          "measure": 54,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 190.20361816212463,
+          "measure": 54,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 190.96632385253906,
+          "measure": 54,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 191.76730346679688,
+          "measure": 55,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 192.59985996566772,
+          "measure": 55,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 193.3675994873047,
+          "measure": 55,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 194.1437798474121,
+          "measure": 55,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 194.96707153320312,
+          "measure": 56,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 195.89763709918213,
+          "measure": 56,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 196.66866183787536,
+          "measure": 56,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 197.56707763671875,
+          "measure": 56,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 198.36573791503906,
+          "measure": 57,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 199.30111990844728,
+          "measure": 57,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 200.0693200305176,
+          "measure": 57,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 200.96829223632812,
+          "measure": 57,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 201.76596069335938,
+          "measure": 58,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 202.58067815449525,
+          "measure": 58,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 203.3673095703125,
+          "measure": 58,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 204.26681518554688,
+          "measure": 58,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 205.10137216403197,
+          "measure": 59,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 205.97574899427795,
+          "measure": 59,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 206.7669219970703,
+          "measure": 59,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 207.66558837890625,
+          "measure": 59,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 208.4664306640625,
+          "measure": 60,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 209.27569195040894,
+          "measure": 60,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 210.16787719726562,
+          "measure": 60,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 211.12930690844726,
+          "measure": 60,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 211.89693113542177,
+          "measure": 61,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 212.7681109847412,
+          "measure": 61,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 213.64834409536743,
+          "measure": 61,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 214.52305299809265,
+          "measure": 61,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 215.28612500572206,
+          "measure": 62,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 216.16860101144408,
+          "measure": 62,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 216.9656982421875,
+          "measure": 62,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 217.91354496185303,
+          "measure": 62,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 218.78736086457826,
+          "measure": 63,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 219.56666564941406,
+          "measure": 63,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 220.46560668945312,
+          "measure": 63,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 221.3672332763672,
+          "measure": 63,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 222.19521202670288,
+          "measure": 64,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 223.06724548339844,
+          "measure": 64,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 224.06631469726562,
+          "measure": 64,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 225.06759643554688,
+          "measure": 64,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 226.02130303433228,
+          "measure": 65,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 226.9673309326172,
+          "measure": 65,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 227.9027878703003,
+          "measure": 65,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 228.71577510681152,
+          "measure": 65,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 229.60215759277344,
+          "measure": 66,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 230.60179138183594,
+          "measure": 66,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 231.5581739446869,
+          "measure": 66,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 232.56004700190735,
+          "measure": 66,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 233.55189993515015,
+          "measure": 67,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 234.53315108392334,
+          "measure": 67,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 235.51090804577638,
+          "measure": 67,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 236.50184631347656,
+          "measure": 67,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 237.50177001953125,
+          "measure": 68,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 238.50088500976562,
+          "measure": 68,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 239.44848118692016,
+          "measure": 68,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 240.50146484375,
+          "measure": 68,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 538.6741333007812,
+          "measure": 69,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 539.5474261411438,
+          "measure": 69,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 540.4134379084472,
+          "measure": 69,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 541.2074749599457,
+          "measure": 69,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 542.0522719847412,
+          "measure": 70,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 542.8738403320312,
+          "measure": 70,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 543.7004650514984,
+          "measure": 70,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 544.5753784179688,
+          "measure": 70,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 545.2337646484375,
+          "measure": 71,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 545.9345703125,
+          "measure": 71,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 546.8436629580383,
+          "measure": 71,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 547.8347778320312,
+          "measure": 71,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 548.734619140625,
+          "measure": 72,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 549.5860289961853,
+          "measure": 72,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 550.5343017578125,
+          "measure": 72,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 551.3345947265625,
+          "measure": 72,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 552.2345581054688,
+          "measure": 73,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 553.2007590705718,
+          "measure": 73,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 554.0772658283386,
+          "measure": 73,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 554.9516339694824,
+          "measure": 73,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 555.83544921875,
+          "measure": 74,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 556.8356323242188,
+          "measure": 74,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 557.7099141010895,
+          "measure": 74,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 558.5732730133515,
+          "measure": 74,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 559.4493870095367,
+          "measure": 75,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 560.3350830078125,
+          "measure": 75,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 561.236572265625,
+          "measure": 75,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 562.1347045898438,
+          "measure": 75,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 562.9661609408722,
+          "measure": 76,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 563.8488540724793,
+          "measure": 76,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 564.7347412109375,
+          "measure": 76,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 565.6351318359375,
+          "measure": 76,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 566.5730659847412,
+          "measure": 77,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 567.4504940419616,
+          "measure": 77,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 568.3336181640625,
+          "measure": 77,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 569.2348022460938,
+          "measure": 77,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 570.1354370117188,
+          "measure": 78,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 571.0589021792907,
+          "measure": 78,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 571.9363668645783,
+          "measure": 78,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 572.8349609375,
+          "measure": 78,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 573.7354736328125,
+          "measure": 79,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 574.6349487304688,
+          "measure": 79,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 575.5442820419617,
+          "measure": 79,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 576.4346923828125,
+          "measure": 79,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 577.3346557617188,
+          "measure": 80,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 578.234130859375,
+          "measure": 80,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 579.0707329961853,
+          "measure": 80,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 579.936256207901,
+          "measure": 80,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 580.8356323242188,
+          "measure": 81,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 581.7351684570312,
+          "measure": 81,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 582.6353759765625,
+          "measure": 81,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 583.4360509008179,
+          "measure": 81,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 584.3353881835938,
+          "measure": 82,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 585.2341918945312,
+          "measure": 82,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 586.0756901068115,
+          "measure": 82,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 586.9353637695312,
+          "measure": 82,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 587.734375,
+          "measure": 83,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 588.6354370117188,
+          "measure": 83,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 589.5355834960938,
+          "measure": 83,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 590.3594768607635,
+          "measure": 83,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 591.233642578125,
+          "measure": 84,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 592.13525390625,
+          "measure": 84,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 593.0347900390625,
+          "measure": 84,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 593.9336547851562,
+          "measure": 84,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 594.8352661132812,
+          "measure": 85,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 595.6351318359375,
+          "measure": 85,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 596.4864529866486,
+          "measure": 85,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 597.3542968474121,
+          "measure": 85,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 598.2337036132812,
+          "measure": 86,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 599.1363525390625,
+          "measure": 86,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 600.0354614257812,
+          "measure": 86,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 600.8545190171661,
+          "measure": 86,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 601.7342529296875,
+          "measure": 87,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 602.6086020705719,
+          "measure": 87,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 603.4346313476562,
+          "measure": 87,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 604.3357543945312,
+          "measure": 87,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 605.1345825195312,
+          "measure": 88,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 606.0348510742188,
+          "measure": 88,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 606.8696499885559,
+          "measure": 88,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 607.7500620991822,
+          "measure": 88,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 608.5347290039062,
+          "measure": 89,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 609.4989267997283,
+          "measure": 89,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 610.3719939408722,
+          "measure": 89,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 611.2525910514984,
+          "measure": 89,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 612.0362548828125,
+          "measure": 90,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 612.9352416992188,
+          "measure": 90,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 613.776475082016,
+          "measure": 90,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 614.658200120163,
+          "measure": 90,
+          "beat": 2,
+          "kind": "BEAT"
+        }
+      ]
+    },
+    {
+      "kind": "BEAT_TIMELINE",
+      "beat_pattern": [
+        6
+      ],
+      "measure_numbers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50
+      ],
+      "beats_in_measure": [
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        4
+      ],
+      "measures_to_force_display": [],
+      "height": 35,
+      "is_visible": true,
+      "name": "beat_2",
+      "ordinal": 4,
+      "components": [
+        {
+          "time": 282.7613525390625,
+          "measure": 1,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 283.2618408203125,
+          "measure": 1,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 283.66180419921875,
+          "measure": 1,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 284.0716460629425,
+          "measure": 1,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 284.4613037109375,
+          "measure": 1,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 284.8619689941406,
+          "measure": 1,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 285.3631286621094,
+          "measure": 2,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 285.7616882324219,
+          "measure": 2,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 286.1612243652344,
+          "measure": 2,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 286.66119384765625,
+          "measure": 2,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 287.0623474121094,
+          "measure": 2,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 287.4624411316071,
+          "measure": 2,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 287.96075439453125,
+          "measure": 3,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 288.3618469238281,
+          "measure": 3,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 288.7848900896454,
+          "measure": 3,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 289.16204833984375,
+          "measure": 3,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 289.56231689453125,
+          "measure": 3,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 289.9799299542236,
+          "measure": 3,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 290.42529602098085,
+          "measure": 4,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 290.86212158203125,
+          "measure": 4,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 291.2622985839844,
+          "measure": 4,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 291.66278076171875,
+          "measure": 4,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 292.05225290844726,
+          "measure": 4,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 292.3810761106262,
+          "measure": 4,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 292.8619384765625,
+          "measure": 5,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 293.1611328125,
+          "measure": 5,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 293.66107177734375,
+          "measure": 5,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 294.0616455078125,
+          "measure": 5,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 294.46362588937376,
+          "measure": 5,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 294.8626403808594,
+          "measure": 5,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 295.2618408203125,
+          "measure": 6,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 295.6644570667572,
+          "measure": 6,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 296.10990310108946,
+          "measure": 6,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 296.4615478515625,
+          "measure": 6,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 296.86903399427797,
+          "measure": 6,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 297.31029187411497,
+          "measure": 6,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 297.76251220703125,
+          "measure": 7,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 298.1612243652344,
+          "measure": 7,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 298.5615539550781,
+          "measure": 7,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 298.9609069824219,
+          "measure": 7,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 299.38217290081786,
+          "measure": 7,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 299.7631530761719,
+          "measure": 7,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 300.1645630343323,
+          "measure": 8,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 300.61152492370604,
+          "measure": 8,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 301.0399360305176,
+          "measure": 8,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 301.36609886839295,
+          "measure": 8,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 301.8606872558594,
+          "measure": 8,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 302.2425451029968,
+          "measure": 8,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 302.5704328283386,
+          "measure": 9,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 303.0077332040863,
+          "measure": 9,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 303.46044921875,
+          "measure": 9,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 303.8627624511719,
+          "measure": 9,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 304.2620544433594,
+          "measure": 9,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 304.66217041015625,
+          "measure": 9,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 304.9724699847412,
+          "measure": 10,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 305.41726309155274,
+          "measure": 10,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 305.862060546875,
+          "measure": 10,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 306.18105486076354,
+          "measure": 10,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 306.63219596948244,
+          "measure": 10,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 307.0689689408722,
+          "measure": 10,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 307.4623107910156,
+          "measure": 11,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 307.86138916015625,
+          "measure": 11,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 308.30874814305116,
+          "measure": 11,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 308.6782531738281,
+          "measure": 11,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 309.1861268283386,
+          "measure": 11,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 309.5781555175781,
+          "measure": 11,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 309.9776916503906,
+          "measure": 12,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 310.3854611182556,
+          "measure": 12,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 310.82667599809264,
+          "measure": 12,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 311.2784423828125,
+          "measure": 12,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 311.702512961853,
+          "measure": 12,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 312.07757568359375,
+          "measure": 12,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 312.48725411634825,
+          "measure": 13,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 312.8780517578125,
+          "measure": 13,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 313.2791442871094,
+          "measure": 13,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 313.7770690917969,
+          "measure": 13,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 314.1286470476837,
+          "measure": 13,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 314.5778503417969,
+          "measure": 13,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 314.99684007438657,
+          "measure": 14,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 315.3777160644531,
+          "measure": 14,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 315.7783203125,
+          "measure": 14,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 316.1205029446869,
+          "measure": 14,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 316.5787048339844,
+          "measure": 14,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 317.003187043869,
+          "measure": 14,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 317.47784423828125,
+          "measure": 15,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 317.87713623046875,
+          "measure": 15,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 318.30822194850157,
+          "measure": 15,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 318.6777038574219,
+          "measure": 15,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 319.0787048339844,
+          "measure": 15,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 319.47845458984375,
+          "measure": 15,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 319.8776550292969,
+          "measure": 16,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 320.27869986457824,
+          "measure": 16,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 320.67852783203125,
+          "measure": 16,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 321.0776062011719,
+          "measure": 16,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 321.48076604196166,
+          "measure": 16,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 321.87847900390625,
+          "measure": 16,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 322.2782287597656,
+          "measure": 17,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 322.57885009536744,
+          "measure": 17,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 323.0128070782013,
+          "measure": 17,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 323.376953125,
+          "measure": 17,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 323.780369961853,
+          "measure": 17,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 324.178466796875,
+          "measure": 17,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 324.5776672363281,
+          "measure": 18,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 324.9803041792908,
+          "measure": 18,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 325.3780822753906,
+          "measure": 18,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 325.7774963378906,
+          "measure": 18,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 326.0787940267029,
+          "measure": 18,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 326.47821044921875,
+          "measure": 18,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 326.8778991699219,
+          "measure": 19,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 327.27734375,
+          "measure": 19,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 327.71711510299684,
+          "measure": 19,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 328.15195014686583,
+          "measure": 19,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 328.47848085122683,
+          "measure": 19,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 328.9757385253906,
+          "measure": 19,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 329.3789978027344,
+          "measure": 20,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 329.8785705566406,
+          "measure": 20,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 330.27740478515625,
+          "measure": 20,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 330.6780700683594,
+          "measure": 20,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 331.1778259277344,
+          "measure": 20,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 331.57843017578125,
+          "measure": 20,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 332.12164280354307,
+          "measure": 21,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 332.4766845703125,
+          "measure": 21,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 332.9788818359375,
+          "measure": 21,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 333.3783874511719,
+          "measure": 21,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 333.7776794433594,
+          "measure": 21,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 334.20130999809265,
+          "measure": 21,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 334.77947998046875,
+          "measure": 22,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 335.1791687011719,
+          "measure": 22,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 335.5971568283386,
+          "measure": 22,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 335.9786682128906,
+          "measure": 22,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 336.3778991699219,
+          "measure": 22,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 336.87823486328125,
+          "measure": 22,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 337.2789611816406,
+          "measure": 23,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 337.5774841308594,
+          "measure": 23,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 338.0773010253906,
+          "measure": 23,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 338.4786682128906,
+          "measure": 23,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 338.8773193359375,
+          "measure": 23,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 339.3787536621094,
+          "measure": 23,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 339.7781982421875,
+          "measure": 24,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 340.177978515625,
+          "measure": 24,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 340.5788269042969,
+          "measure": 24,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 341.00358213542177,
+          "measure": 24,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 341.4371321182556,
+          "measure": 24,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 341.8774108886719,
+          "measure": 24,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 342.32599009346006,
+          "measure": 25,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 342.67840576171875,
+          "measure": 25,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 343.17999267578125,
+          "measure": 25,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 343.5784912109375,
+          "measure": 25,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 343.9781188964844,
+          "measure": 25,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 344.5045920667572,
+          "measure": 25,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 344.9783630371094,
+          "measure": 26,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 345.3790660629425,
+          "measure": 26,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 345.8179858893738,
+          "measure": 26,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 346.1787414550781,
+          "measure": 26,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 346.58012204196166,
+          "measure": 26,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 347.0319180782013,
+          "measure": 26,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 347.3797302246094,
+          "measure": 27,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 347.90751387602234,
+          "measure": 27,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 348.24532606866455,
+          "measure": 27,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 348.6785583496094,
+          "measure": 27,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 349.10865905340574,
+          "measure": 27,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 349.550970994278,
+          "measure": 27,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 349.9878980705719,
+          "measure": 28,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 350.47735595703125,
+          "measure": 28,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 350.87786865234375,
+          "measure": 28,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 351.299894038147,
+          "measure": 28,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 351.77886962890625,
+          "measure": 28,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 352.1785583496094,
+          "measure": 28,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 352.6781005859375,
+          "measure": 29,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 353.0781555175781,
+          "measure": 29,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 353.5796203613281,
+          "measure": 29,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 354.04164797138975,
+          "measure": 29,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 354.47808837890625,
+          "measure": 29,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 354.91024699809265,
+          "measure": 29,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 355.3799743652344,
+          "measure": 30,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 355.7917578703003,
+          "measure": 30,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 356.178466796875,
+          "measure": 30,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 356.57696533203125,
+          "measure": 30,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 356.87738037109375,
+          "measure": 30,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 357.32738194850157,
+          "measure": 30,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 357.67803955078125,
+          "measure": 31,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 358.07781982421875,
+          "measure": 31,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 358.53053702098083,
+          "measure": 31,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 358.9781494140625,
+          "measure": 31,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 359.3917700782013,
+          "measure": 31,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 359.8308969370575,
+          "measure": 31,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 360.2779846191406,
+          "measure": 32,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 360.7093768493195,
+          "measure": 32,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 361.0780334472656,
+          "measure": 32,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 361.3789367675781,
+          "measure": 32,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 361.79647501716613,
+          "measure": 32,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 362.2427370114441,
+          "measure": 32,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 362.5771789550781,
+          "measure": 33,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 363.00404199809265,
+          "measure": 33,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 363.3785400390625,
+          "measure": 33,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 363.7814369446869,
+          "measure": 33,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 364.22009215449526,
+          "measure": 33,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 364.5797119140625,
+          "measure": 33,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 364.99757702861024,
+          "measure": 34,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 365.3780822753906,
+          "measure": 34,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 365.7785269961853,
+          "measure": 34,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 366.20546000953675,
+          "measure": 34,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 366.57958984375,
+          "measure": 34,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 366.9802511010895,
+          "measure": 34,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 483.01043701171875,
+          "measure": 35,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 483.655675917984,
+          "measure": 35,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 484.27580614305117,
+          "measure": 35,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 484.8559839294281,
+          "measure": 35,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 485.4104309082031,
+          "measure": 35,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 486.0544048149872,
+          "measure": 35,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 486.7102966308594,
+          "measure": 36,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 487.4516089866486,
+          "measure": 36,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 488.01484588555905,
+          "measure": 36,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 488.7115173339844,
+          "measure": 36,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 489.3119201660156,
+          "measure": 36,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 489.97866314305116,
+          "measure": 36,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 490.55645804196166,
+          "measure": 37,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 491.2113037109375,
+          "measure": 37,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 491.74780799046323,
+          "measure": 37,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 492.3107604980469,
+          "measure": 37,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 492.713938868393,
+          "measure": 37,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 493.2596030457764,
+          "measure": 37,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 493.810791015625,
+          "measure": 38,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 494.35393787220767,
+          "measure": 38,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 494.89879404959106,
+          "measure": 38,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 495.41021728515625,
+          "measure": 38,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 495.91162109375,
+          "measure": 38,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 496.4529841602173,
+          "measure": 38,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 496.91070556640625,
+          "measure": 39,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 497.4338121754761,
+          "measure": 39,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 498.0109558105469,
+          "measure": 39,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 498.53742388746645,
+          "measure": 39,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 499.11083984375,
+          "measure": 39,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 499.5111083984375,
+          "measure": 39,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 500.1102294921875,
+          "measure": 40,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 500.6107177734375,
+          "measure": 40,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 501.1107482910156,
+          "measure": 40,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 501.61102294921875,
+          "measure": 40,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 502.16165912969973,
+          "measure": 40,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 502.7103576660156,
+          "measure": 40,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 503.3118896484375,
+          "measure": 41,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 503.91119384765625,
+          "measure": 41,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 504.4112243652344,
+          "measure": 41,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 504.9097900390625,
+          "measure": 41,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 505.5111083984375,
+          "measure": 41,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 506.0107421875,
+          "measure": 41,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 506.660390169754,
+          "measure": 42,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 507.2110900878906,
+          "measure": 42,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 507.7566110896454,
+          "measure": 42,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 508.311279296875,
+          "measure": 42,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 508.9106750488281,
+          "measure": 42,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 509.4112548828125,
+          "measure": 42,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 510.01129150390625,
+          "measure": 43,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 510.6109313964844,
+          "measure": 43,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 511.15930189891054,
+          "measure": 43,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 511.7117004394531,
+          "measure": 43,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 512.1102294921875,
+          "measure": 43,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 512.7621109618531,
+          "measure": 43,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 513.4098510742188,
+          "measure": 44,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 514.0111694335938,
+          "measure": 44,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 514.6104736328125,
+          "measure": 44,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 515.165018879837,
+          "measure": 44,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 515.8107299804688,
+          "measure": 44,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 516.410888671875,
+          "measure": 44,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 517.1096801757812,
+          "measure": 45,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 517.71044921875,
+          "measure": 45,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 518.31201171875,
+          "measure": 45,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 518.9120483398438,
+          "measure": 45,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 519.5117797851562,
+          "measure": 45,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 520.1119995117188,
+          "measure": 45,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 520.8108520507812,
+          "measure": 46,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 521.3115844726562,
+          "measure": 46,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 521.963605005722,
+          "measure": 46,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 522.5120849609375,
+          "measure": 46,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 523.110595703125,
+          "measure": 46,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 523.6123657226562,
+          "measure": 46,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 524.2109375,
+          "measure": 47,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 524.8150431773835,
+          "measure": 47,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 525.3116455078125,
+          "measure": 47,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 525.9129028320312,
+          "measure": 47,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 526.5106811523438,
+          "measure": 47,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 527.0108032226562,
+          "measure": 47,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 527.5552467787476,
+          "measure": 48,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 528.111083984375,
+          "measure": 48,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 528.715749994278,
+          "measure": 48,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 529.312744140625,
+          "measure": 48,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 529.8565768970032,
+          "measure": 48,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 530.4120483398438,
+          "measure": 48,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 531.1114501953125,
+          "measure": 49,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 531.7105712890625,
+          "measure": 49,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 532.2113647460938,
+          "measure": 49,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 532.8106689453125,
+          "measure": 49,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 533.4610669809265,
+          "measure": 49,
+          "beat": 5,
+          "kind": "BEAT"
+        },
+        {
+          "time": 534.2093505859375,
+          "measure": 49,
+          "beat": 6,
+          "kind": "BEAT"
+        },
+        {
+          "time": 535.2076894470753,
+          "measure": 50,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 535.8123779296875,
+          "measure": 50,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 536.3103637695312,
+          "measure": 50,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 537.1109008789062,
+          "measure": 50,
+          "beat": 2,
+          "kind": "BEAT"
+        }
+      ]
+    },
+    {
+      "kind": "BEAT_TIMELINE",
+      "beat_pattern": [
+        4
+      ],
+      "measure_numbers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37
+      ],
+      "beats_in_measure": [
+        4,
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "measures_to_force_display": [],
+      "height": 35,
+      "is_visible": true,
+      "name": "4/4 in Solo",
+      "ordinal": 5,
+      "components": [
+        {
+          "time": 364.6089172363281,
+          "measure": 1,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 365.41046142578125,
+          "measure": 1,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 366.22394597329713,
+          "measure": 1,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 367.0099182128906,
+          "measure": 1,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 367.8085021972656,
+          "measure": 2,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 368.60992431640625,
+          "measure": 2,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 369.3098449707031,
+          "measure": 2,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 370.1097106933594,
+          "measure": 3,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 370.9096984863281,
+          "measure": 3,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 371.6109924316406,
+          "measure": 3,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 372.4093933105469,
+          "measure": 3,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 373.12389093133544,
+          "measure": 4,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 373.9095764160156,
+          "measure": 4,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 374.7105712890625,
+          "measure": 4,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 375.4100179446869,
+          "measure": 4,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 376.2095642089844,
+          "measure": 5,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 377.05281196948243,
+          "measure": 5,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 377.82254409155274,
+          "measure": 5,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 378.71136474609375,
+          "measure": 5,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 379.509033203125,
+          "measure": 6,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 380.25865382452395,
+          "measure": 6,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 381.02079700953675,
+          "measure": 6,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 381.8963449732971,
+          "measure": 6,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 382.7090148925781,
+          "measure": 7,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 383.53510004959105,
+          "measure": 7,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 384.310546875,
+          "measure": 7,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 385.2098693847656,
+          "measure": 7,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 386.0530040705719,
+          "measure": 8,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 386.82301112016296,
+          "measure": 8,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 387.6107482910156,
+          "measure": 8,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 388.5105285644531,
+          "measure": 8,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 389.4088439941406,
+          "measure": 9,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 390.21184499046325,
+          "measure": 9,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 391.1090087890625,
+          "measure": 9,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 392.0097351074219,
+          "measure": 9,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 392.8399779465942,
+          "measure": 10,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 393.7090759277344,
+          "measure": 10,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 394.6094970703125,
+          "measure": 10,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 395.41082763671875,
+          "measure": 10,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 396.2218940858307,
+          "measure": 11,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 397.00933837890625,
+          "measure": 11,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 397.9777740267029,
+          "measure": 11,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 398.8509368970032,
+          "measure": 11,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 399.62047205149844,
+          "measure": 12,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 400.509765625,
+          "measure": 12,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 401.4095458984375,
+          "measure": 12,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 402.25759899809265,
+          "measure": 12,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 403.10968017578125,
+          "measure": 13,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 404.0107116699219,
+          "measure": 13,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 404.8101501464844,
+          "measure": 13,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 405.6089172363281,
+          "measure": 13,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 406.3101806640625,
+          "measure": 14,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 407.2100830078125,
+          "measure": 14,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 408.0524359732971,
+          "measure": 14,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 408.9087829589844,
+          "measure": 14,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 409.711669921875,
+          "measure": 15,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 410.56592301335144,
+          "measure": 15,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 411.3328390419617,
+          "measure": 15,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 412.1107482910156,
+          "measure": 15,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 413.0091552734375,
+          "measure": 16,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 413.9098815917969,
+          "measure": 16,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 414.7263348931885,
+          "measure": 16,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 415.6288301182556,
+          "measure": 16,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 416.41021728515625,
+          "measure": 17,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 417.3089599609375,
+          "measure": 17,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 418.1087646484375,
+          "measure": 17,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 419.01019287109375,
+          "measure": 17,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 419.81190892752073,
+          "measure": 18,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 420.71063232421875,
+          "measure": 18,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 421.70977783203125,
+          "measure": 18,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 422.6110534667969,
+          "measure": 18,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 423.2981292170196,
+          "measure": 19,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 424.09721612647337,
+          "measure": 19,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 425.214030874115,
+          "measure": 19,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 426.0133361816406,
+          "measure": 19,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 426.812744140625,
+          "measure": 20,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 427.6147281029968,
+          "measure": 20,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 428.41229248046875,
+          "measure": 20,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 429.3146667480469,
+          "measure": 20,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 430.126858082016,
+          "measure": 21,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 430.90283417356875,
+          "measure": 21,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 431.7142028808594,
+          "measure": 21,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 432.54065808392335,
+          "measure": 21,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 433.31231689453125,
+          "measure": 22,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 434.18353607629393,
+          "measure": 22,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 434.9412579694824,
+          "measure": 22,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 435.71185302734375,
+          "measure": 22,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 436.6125793457031,
+          "measure": 23,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 437.4130554199219,
+          "measure": 23,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 438.1127014160156,
+          "measure": 23,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 438.9124450683594,
+          "measure": 23,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 439.77902796376037,
+          "measure": 24,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 440.71234130859375,
+          "measure": 24,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 441.61248779296875,
+          "measure": 24,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 442.41424560546875,
+          "measure": 24,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 443.2122497558594,
+          "measure": 25,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 444.0135192871094,
+          "measure": 25,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 444.9140319824219,
+          "measure": 25,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 445.712890625,
+          "measure": 25,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 446.6131591796875,
+          "measure": 26,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 447.44974197138976,
+          "measure": 26,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 448.3224071125336,
+          "measure": 26,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 449.2122802734375,
+          "measure": 26,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 450.07055099046323,
+          "measure": 27,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 450.91326904296875,
+          "measure": 27,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 451.720717879837,
+          "measure": 27,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 452.61407470703125,
+          "measure": 27,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 453.4703949446869,
+          "measure": 28,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 454.354943043869,
+          "measure": 28,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 455.2204910495911,
+          "measure": 28,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 456.0119934082031,
+          "measure": 28,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 456.91180419921875,
+          "measure": 29,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 457.7421980915527,
+          "measure": 29,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 458.61322021484375,
+          "measure": 29,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 459.51492619836426,
+          "measure": 29,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 460.4132995605469,
+          "measure": 30,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 461.25968387792966,
+          "measure": 30,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 462.12830690463255,
+          "measure": 30,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 462.9129943847656,
+          "measure": 30,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 463.7930680038147,
+          "measure": 31,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 464.61248779296875,
+          "measure": 31,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 465.42865313160706,
+          "measure": 31,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 466.3208360553131,
+          "measure": 31,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 467.11279296875,
+          "measure": 32,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 467.957739038147,
+          "measure": 32,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 468.8293480858307,
+          "measure": 32,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 469.6133728027344,
+          "measure": 32,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 470.4134826660156,
+          "measure": 33,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 471.24071199427794,
+          "measure": 33,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 472.01202392578125,
+          "measure": 33,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 472.88265985313416,
+          "measure": 33,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 473.7564360343323,
+          "measure": 34,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 474.5224200629425,
+          "measure": 34,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 475.3121337890625,
+          "measure": 34,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 476.2136535644531,
+          "measure": 34,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 477.0343588035431,
+          "measure": 35,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 477.814083082016,
+          "measure": 35,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 478.61297607421875,
+          "measure": 35,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 479.5128479003906,
+          "measure": 35,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 480.4124450683594,
+          "measure": 36,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 481.41351318359375,
+          "measure": 36,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 482.4128723144531,
+          "measure": 36,
+          "beat": 3,
+          "kind": "BEAT"
+        },
+        {
+          "time": 483.43966201335144,
+          "measure": 36,
+          "beat": 4,
+          "kind": "BEAT"
+        },
+        {
+          "time": 484.6133117675781,
+          "measure": 37,
+          "beat": 1,
+          "kind": "BEAT"
+        },
+        {
+          "time": 485.7134704589844,
+          "measure": 37,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 486.7654849923706,
+          "measure": 37,
+          "beat": 2,
+          "kind": "BEAT"
+        },
+        {
+          "time": 487.8515311602173,
+          "measure": 37,
+          "beat": 2,
+          "kind": "BEAT"
+        }
+      ]
+    },
+    {
+      "kind": "HARMONY_TIMELINE",
+      "is_visible": true,
+      "name": "Harmony (Bridge)",
+      "ordinal": 7,
+      "visible_level_count": 2,
+      "components": [
+        {
+          "time": 110.83335434124089,
+          "comments": "",
+          "step": 1,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 31,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 114.17425098092652,
+          "comments": "",
+          "step": 5,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 32,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 117.68207888174439,
+          "comments": "",
+          "step": 0,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 33,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 119.0705535326599,
+          "comments": "",
+          "step": 4,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 33,
+          "beat": 3,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 121.05150946133386,
+          "comments": "",
+          "step": 4,
+          "accidental": 0,
+          "quality": "dominant-seventh",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "custom",
+          "custom_text": "G7#9",
+          "custom_text_font_type": "analytic",
+          "measure": 34,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 124.16921103623963,
+          "comments": "",
+          "step": 1,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 35,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 127.51010767592525,
+          "comments": "",
+          "step": 5,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 36,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 131.01793557674313,
+          "comments": "",
+          "step": 0,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 37,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 132.40641022765863,
+          "comments": "",
+          "step": 4,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 37,
+          "beat": 3,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 133.9727949408722,
+          "comments": "",
+          "step": 4,
+          "accidental": 0,
+          "quality": "major-ninth",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "Gadd9",
+          "custom_text_font_type": "analytic",
+          "measure": 38,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 137.3660430908203,
+          "comments": "",
+          "step": 1,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 39,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 140.70693973050595,
+          "comments": "",
+          "step": 5,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 40,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 144.2147676313238,
+          "comments": "",
+          "step": 0,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 41,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 145.6032422822393,
+          "comments": "",
+          "step": 4,
+          "accidental": 0,
+          "quality": "major-ninth",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "Gadd9",
+          "custom_text_font_type": "analytic",
+          "measure": 41,
+          "beat": 3,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 150.66722106933594,
+          "comments": "",
+          "step": 1,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 43,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 154.00811770902158,
+          "comments": "",
+          "step": 5,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 44,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 157.51594560983943,
+          "comments": "",
+          "step": 0,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 45,
+          "beat": 1,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 158.90442026075493,
+          "comments": "",
+          "step": 4,
+          "accidental": 0,
+          "quality": "major",
+          "inversion": 0,
+          "applied_to": 0,
+          "level": 1,
+          "display_mode": "chord",
+          "custom_text": "",
+          "custom_text_font_type": "analytic",
+          "measure": 45,
+          "beat": 3,
+          "kind": "HARMONY"
+        },
+        {
+          "time": 110.83335434124089,
+          "step": 1,
+          "accidental": 0,
+          "type": "major",
+          "comments": "",
+          "level": 2,
+          "measure": 31,
+          "beat": 1,
+          "kind": "MODE"
+        }
+      ]
+    }
+  ],
+  "media_metadata": {
+    "title": "Hendrix Demo 2",
+    "notes": "",
+    "composer": "",
+    "tonality": "",
+    "time signature": "",
+    "performer": "",
+    "performance year": "",
+    "arranger": "",
+    "composition year": "",
+    "recording year": "",
+    "form": "",
+    "instrumentation": "",
+    "genre": "",
+    "lyrics": "",
+    "media length": 622
+  },
+  "media_path": ""
+}

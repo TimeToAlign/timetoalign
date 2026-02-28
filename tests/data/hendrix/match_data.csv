@@ -1,0 +1,15 @@
+match	Studio	Demo2	Demo1	synchronous
+M1	Intro	Intro	Intro	FALSE
+M3	A: Verse	A: Verse	A: Verse	TRUE
+M4	A: Verse (rep.)	A: Verse (rep.)	A: Verse (rep.)	TRUE
+M5	B: Bridge	B: Bridge	B: Bridge	FALSE
+M6	1	1	1	TRUE
+M7	2	2	2	TRUE
+M8	3	3	3	TRUE
+M9	4	4	4	TRUE
+M10	A’: Verse	NOMATCH	A’: Verse	FALSE
+M11	NOMATCH	Verse 3	Verse 3	TRUE
+M12	NOMATCH	Riff 4	Interlude	TRUE
+M13	Intrumental Part: Free Soli / Soundscape	Part 2: Free Soli / Soundscape	NOMATCH	FALSE
+M14	Dissolving	Dissolving	NOMATCH	FALSE
+M15	Clean Guitar Solo	Clean Guitar Solo	NOMATCH	FALSE
