@@ -269,7 +269,7 @@ two coordinates.
 Together, breaks and jumps form the **flow-control apparatus** of the model.
 They determine how a timeline is traversed---which sections are played in what
 order---without altering the underlying coordinate system. The traversal
-itself is captured by a {{< glossary TraversalMap >}} (see
+itself is captured by a {{< glossary FlowMap >}} (see
 [Derivative timelines](#derivative-timelines)).
 
 
@@ -279,8 +279,10 @@ itself is captured by a {{< glossary TraversalMap >}} (see
 ::: {.definition-header}
 Definition: ConversionMap (C-map)
 :::
-A **ConversionMap** is a function that maps any coordinate to at most one
-value. If the function is bijective, we can derive an **InverseMap**.
+A **ConversionMap** is a typed function attached to a timeline that maps
+each coordinate to exactly one value. If the function is bijective, we can
+derive an **InverseMap**; also permits inverse conversion back to the
+timeline's own unit.
 :::
 
 Conversion maps are at the heart of the model. They connect coordinate
@@ -497,24 +499,24 @@ TimeInterval.
 
 Three kinds of derived timelines play a central role in alignment:
 
-**TraversalMap (T-map)**
+**FlowMap**
 :   A sequence of {{< glossary TimeInterval >}}s (often corresponding to
-    previously defined {{< glossary Region >}}s) reflecting a specific
-    traversal path through the timeline. A TraversalMap is computed from
-    flow-control events ({{< glossary Break >}}s and {{< glossary Jump >}}s)
-    or assembled manually. The T-map's intervals can be partitioned and
-    concatenated, yielding a new {{< glossary SegmentLine >}} reflecting the
-    traversal.
+    previously defined {{< glossary Region >}}s) specifying a particular
+    path through the timeline's control structure (repeats, jumps). A
+    {{< glossary FlowMap >}} is computed from flow-control events
+    ({{< glossary Break >}}s and {{< glossary Jump >}}s) or assembled
+    manually. Its intervals can be partitioned and concatenated, yielding a
+    new {{< glossary SegmentLine >}} reflecting the traversal---i.e.,
+    **unfolding** the score into performance order.
 
     For example, a score with a repeat and a *dal segno al coda* has a
-    T-map like [A, B, A, B, C, D] where some regions appear more than
-    once. The resulting SegmentLine is a new timeline in "performance
-    order."
+    FlowMap like [A, B, A, B, C, D] where some regions appear more than
+    once. The resulting SegmentLine is a new timeline in performance order.
 
 **Converted timeline**
 :   A timeline whose coordinates have been transformed to another unit via
     a {{< glossary ConversionMap >}} or {{< glossary ChainMap >}},
-    potentially after applying a T-map.
+    potentially after applying a {{< glossary FlowMap >}}.
 
 **WarpMap**
 :   A derived timeline where coordinates have been re-adjusted to align with
@@ -528,37 +530,37 @@ Three kinds of derived timelines play a central role in alignment:
 The alignment layer is where the model's cross-domain capability comes
 together.
 
-### The Match
+### MatchClaim
 
 ::: {.definition}
 ::: {.definition-header}
-Definition: Match
+Definition: MatchClaim
 :::
-A **Match** represents the claim---issued by a human or algorithmic
-agent---that a given set of events from disparate timelines are synchronous or
-equivalent in some other way. The set may include special **sentinel values**
-(NOMATCH) allowing one to encode a reason for which a given timeline is
-asserted *not* to include any synchronous event corresponding to the matched
-events from the remaining timelines.
+A **MatchClaim** is a claim of equivalence between events on different
+timelines, with provenance metadata (agent, method, certainty). A MatchClaim
+may be **synchronous** (producing {{< glossary AlignmentAnchor >}}s) or
+**conceptual** (structural equivalence without temporal commitment). It may
+include special **sentinel values** ({{< glossary NOMATCH >}}) explicitly
+encoding the absence of a corresponding event on the other timeline.
 :::
 
-A Match takes the form of named references (IDs) of claimed-equivalent
+A MatchClaim takes the form of named references (IDs) of claimed-equivalent
 events, combined with metadata on genesis:
 
-- **Agent**: who or what produced the match (human annotator, DTW algorithm,
+- **Agent**: who or what produced the claim (human annotator, DTW algorithm,
   neural model, ...).
 - **Decision criteria**: what evidence was used (temporal similarity,
   harmonic content, expert judgement, ...).
 - **Certainty level**: how confident the agent is in the claim.
 
-Matches grow incrementally: an initial match between events A and B can be
-extended by adding B-C, creating a **match path** A -> B -> C that connects
-three timelines. The model explicitly matches *events* (not coordinates) to
-allow richer metadata about the alignment procedure.
+MatchClaims grow incrementally: an initial claim between events A and B can
+be extended by adding B-C, creating a **match path** A -> B -> C that
+connects three timelines. The model explicitly matches *events* (not
+coordinates) to allow richer metadata about the alignment procedure.
 
 Two levels of matching are distinguished:
 
-- **Temporal matching**: the matched events occupy corresponding temporal
+- **Synchronous matching**: the matched events occupy corresponding temporal
   positions (e.g., "this beat in the score corresponds to this moment in
   the recording").
 - **Conceptual matching**: the matched events are semantically equivalent
@@ -593,12 +595,11 @@ using the same or a similar visual style as the Matches they derive from.
 :::
 
 
-### MatchClaim
+#### MatchClaim cases
 
-A **MatchClaim** always knows which pair of timelines it connects
-(`timeline_a_id` and `timeline_b_id` are top-level fields). It contains 0--2
-AlignmentAnchors (only if synchronous), synchrony and explicitness flags, and
-optional metadata (agent, decision criteria,
+A MatchClaim always knows which pair of timelines it connects. It contains
+0--2 {{< glossary AlignmentAnchor >}}s (only if synchronous), synchrony and
+explicitness flags, and optional metadata (agent, decision criteria,
 certainty). Four cases are distinguished:
 
 1. **Event-to-event** (case a): two timed things on different timelines
@@ -627,30 +628,26 @@ Match box M1--M15 is a MatchGraph, not a single MatchClaim.
 ::: {.definition-header}
 Definition: MatchStamp
 :::
-A **MatchStamp** is the union of the {{< glossary GroupTimestamp >}}s
-from each participating {{< glossary TimelineGroup >}}. It contains one
-coordinate per participating timeline and, with `conversion_maps=True`
+A **MatchStamp** is the union of {{< glossary TimeStamp >}}s from groups
+synchronously connected by a {{< glossary MatchGraph >}}. It contains
+one coordinate per participating timeline and, with `conversion_maps=True`
 (the default), the results of all {{< glossary ConversionMap >}}s
 associated with those timelines.
 :::
 
-A MatchStamp from a single {{< glossary MatchClaim >}} contains the two
-GroupTimestamps for the claim's {{< glossary AlignmentAnchor >}}. A
-MatchStamp from a MatchGraph contains *all* GroupTimestamps that the
-graph connects through its connected components. Like a
-{{< glossary TimeStamp >}}, it can be expanded with within-group
-coordinates (delegating to {{< glossary TimelineGroup >}}) and C-map
-conversions.
+A MatchStamp from a single {{< glossary MatchClaim >}} contains the
+TimeStamps for the claim's {{< glossary AlignmentAnchor >}}. A MatchStamp
+from a MatchGraph contains *all* TimeStamps that the graph connects
+through its connected components. Like a {{< glossary TimeStamp >}}, it
+can be expanded with within-group coordinates (delegating to
+{{< glossary TimelineGroup >}}) and C-map conversions.
 
 
 ### The MatchLine
 
-The **MatchLine** is an ordered sequence of {{< glossary MatchStamp >}}s for
-a given source timeline, sorted by coordinate on that source timeline.
-Created by selecting and resolving MatchClaims (all or a filtered subset),
-it serves as input for {{< glossary WarpMap >}} generation. In the Hendrix
-example, the inferred chord-event alignment is based on a MatchLine
-selecting MatchGraphs M6--M9.
+The **MatchLine** is an ordered sequence of {{< glossary AlignmentAnchor >}}s
+derived from {{< glossary MatchClaim >}}s, sorted by coordinate on a source
+timeline. It serves as input for {{< glossary WarpMap >}} generation.
 
 
 ### WarpMap
@@ -659,14 +656,13 @@ selecting MatchGraphs M6--M9.
 ::: {.definition-header}
 Definition: WarpMap
 :::
-A **WarpMap** is a standalone object that produces a materialised copy
-of a source timeline---including all its events, children, regions, and
-{{< glossary ConversionMap >}}s---warped to the coordinate system of a
-target timeline. It is generated from a {{< glossary MatchLine >}} by
-extracting `(source_coord, target_coord)` pairs and building an
-interpolation table.
+A **WarpMap** is an interpolation-based coordinate mapping derived from
+a {{< glossary MatchLine >}}; it enables non-linear coordinate transfer
+between {{< glossary TimelineGroup >}}s.
 :::
 
+A WarpMap is generated from a MatchLine by extracting
+`(source_coord, target_coord)` pairs and building an interpolation table.
 If the source and target timelines have different units, the warped copy
 is in the target's unit and of the appropriate timeline type (e.g., a
 ContinuousLogicalTimeline warped to a ContinuousPhysicalTimeline). A
@@ -682,10 +678,10 @@ metronomic score---are captured.
 ::: {.definition-header}
 Definition: AlignmentBundle
 :::
-The **AlignmentBundle** is the top-level container for alignment
-workflows. It holds a set of timelines, a set of
-{{< glossary TimelineGroup >}}s, and a set of cross-group
-{{< glossary MatchClaim >}}s.
+The **AlignmentBundle** is a collection of
+{{< glossary TimelineGroup >}}s with inter-group
+{{< glossary MatchClaim >}} connections; it provides coordinate transfer
+via offset arithmetic, interpolation, and {{< glossary WarpMap >}}s.
 :::
 
 The AlignmentBundle provides coordinate transfer at two levels:
@@ -731,10 +727,10 @@ The model implements three tiers of coordinate transfer:
    {{< glossary MatchLine >}}, a WarpMap materialises a complete copy
    of a source timeline warped to a target timeline's coordinates.
 
-Two timelines are **commensurable** if they are connected by a C-map chain
-(within a timeline), TimelineGroup membership (within a group), or a
-MatchClaim chain (across groups). Commensurability is the precondition for
-coordinate transfer.
+Two timelines are **commensurable** if connected by a chain of C-maps,
+membership in the same {{< glossary TimelineGroup >}}, or cross-group
+{{< glossary MatchClaim >}}s. {{< glossary Commensurability >}} is the
+precondition for coordinate transfer.
 
 This layered architecture is what enables TimeToAlign! to propagate
 annotations, transfer coordinates, and answer queries across arbitrarily
@@ -750,11 +746,11 @@ specimen collection and (where applicable) a tutorial notebook.
 
 | # | Scenario | Key concepts introduced | Specimen |
 |---|----------|------------------------|----------|
-| 1 | **Thoresen**: Transferring graphical annotations between two versions of a spectromorphological analysis | Timeline, Coordinate, DGT, Segment, SegmentLine, C-map, InverseMap, TimeIntervalStamp | `specimens/thoresen/` |
-| 2 | **SUPRA**: Aligning a historical piano roll with a digital score | DLT, CLT, Child, discrete-continuous conversion, TimelineGroup, commensurability | `specimens/supra_rolls/` |
-| 3 | **Chorissimo**: Flow control in a school song with repeats | Region, Break, Jump, RotationMap, graphical-logical duality | `specimens/audiolabs_omr/Chorissimo_Blue081/` |
-| 4 | **Beethoven**: Multimodal alignment across 23 timelines | TraversalMap, DPT, MatchClaim, AlignmentAnchor, WarpMap, AlignmentBundle | `specimens/beethoven_op18-4_iv/` |
-| 5 | **Hendrix**: Studying the genesis of a rock song across three versions | MatchClaim (conceptual/temporal), MatchGraph, NOMATCH, MatchLine, certainty metadata | `specimens/hendrix/` |
+| 1 | **SUPRA**: Aligning a historical piano roll with a digital score | Timeline (six types), C-map, Child, TimelineGroup, commensurability, TimeStamp | `specimens/supra_rolls/` |
+| 2 | **Chorissimo**: Flow control in a school song with repeats | Segment, SegmentLine, Region, Break, Jump, FlowMap, RotationMap, unfolding | `specimens/audiolabs_omr/Chorissimo_Blue081/` |
+| 3 | **Thoresen**: Transferring annotations between graphical analyses | MatchClaim, InverseMap, y-coordinate warping via custom C-map | `specimens/thoresen/` |
+| 4 | **Beethoven**: Multimodal alignment across 23 timelines | FlowMap (unfolding at scale), AlignmentBundle, AlignmentAnchor, WarpMap, MatchLine | `specimens/beethoven_op18-4_iv/` |
+| 5 | **Hendrix**: Studying the genesis of a rock song across three versions | MatchClaim (conceptual/synchronous), MatchGraph, NOMATCH, MatchStamp, certainty metadata | `specimens/hendrix/` |
 
 : The five demonstration scenarios from the TISMIR manuscript. {#tbl-scenarios}
 

@@ -365,7 +365,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="how-to-encode-song-genesis-relationships-hendrix" class="level1">
 <h1>How to Encode Song Genesis Relationships (Hendrix)</h1>
-<p>This notebook demonstrates how to encode <strong>conceptual and temporal relationships</strong> between multiple versions of a work using <button class="glossary" title="A claim — issued by a human or algorithmic agent — about one or two timed things (events, regions, children) on two specific timelines. Always knows which pair of timelines it connects. Contains 0-2 AlignmentAnchors (only if synchronous), synchrony and explicitness flags, and optional MatchMetadata (agent, decision criteria, certainty). Four cases: (a) ID<->ID, (b) ID->coord (projection), (c) ID->NOMATCH, (d) implicit (from group extension). The manuscript shorthand “Match” refers to this concept.">MatchClaim</button> objects, <button class="glossary" title="An on-demand analytical structure built from MatchClaims using a networkx graph. Nodes are (timeline_id, coordinate) tuples; edges derive from AlignmentAnchors of synchronous claims. Connected components yield MatchStamps. Can be extended with implicit claims based on group membership. Each “Match” box M1-M15 in the Hendrix figure is a MatchGraph, not a single MatchClaim.">MatchGraph</button> structures, and the <strong>NOMATCH</strong> sentinel.</p>
+<p>This notebook demonstrates how to encode <strong>conceptual and temporal relationships</strong> between multiple versions of a work using <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button> objects, <button class="glossary" title="">MatchGraph</button> structures, and the <strong>NOMATCH</strong> sentinel.</p>
 <p>The use case comes from a genesis study of Jimi Hendrix’s <em>1983… (A Merman I Should Turn to Be)</em>, comparing three versions:</p>
 <ul>
 <li><strong>Studio</strong> – the studio recording from <em>Electric Ladyland</em> (CPT1)</li>
@@ -377,9 +377,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="key-concepts-demonstrated">Key Concepts Demonstrated</h2>
 <ul>
 <li>Loading TiLiA JSON files via <code>TiliaJsonLoader</code></li>
-<li>Creating an <button class="glossary" title="The top-level container for alignment workflows, holding timelines, groups, and cross-group MatchClaims. Provides coordinate transfer within groups (via interpolation) and across groups (via MatchLine and WarpMap). Not a graph.">AlignmentBundle</button> from independent timelines</li>
+<li>Creating an <button class="glossary" title="">AlignmentBundle</button> from independent timelines</li>
 <li>Parsing a match table with <strong>synchronous</strong> and <strong>NOMATCH</strong> columns</li>
-<li>Creating synchronous vs.&nbsp;conceptual <button class="glossary" title="A claim — issued by a human or algorithmic agent — about one or two timed things (events, regions, children) on two specific timelines. Always knows which pair of timelines it connects. Contains 0-2 AlignmentAnchors (only if synchronous), synchrony and explicitness flags, and optional MatchMetadata (agent, decision criteria, certainty). Four cases: (a) ID<->ID, (b) ID->coord (projection), (c) ID->NOMATCH, (d) implicit (from group extension). The manuscript shorthand “Match” refers to this concept.">MatchClaim</button> objects</li>
+<li>Creating synchronous vs.&nbsp;conceptual <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button> objects</li>
 <li>Using <code>MatchClaim.nomatch()</code> for explicit structural absence</li>
 <li>Querying events by name on hierarchy timelines</li>
 </ul>
@@ -430,7 +430,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="load-the-match-data" class="level2">
 <h2 class="anchored" data-anchor-id="load-the-match-data">2. Load the Match Data</h2>
-<p>The file <code>match_data.csv</code> is a tab-separated table recording which sections correspond across the three versions. Each row represents a <button class="glossary" title="An on-demand analytical structure built from MatchClaims using a networkx graph. Nodes are (timeline_id, coordinate) tuples; edges derive from AlignmentAnchors of synchronous claims. Connected components yield MatchStamps. Can be extended with implicit claims based on group membership. Each “Match” box M1-M15 in the Hendrix figure is a MatchGraph, not a single MatchClaim.">MatchGraph</button> (M1–M15).</p>
+<p>The file <code>match_data.csv</code> is a tab-separated table recording which sections correspond across the three versions. Each row represents a <button class="glossary" title="">MatchGraph</button> (M1–M15).</p>
 <ul>
 <li>Cells contain the <strong>event name</strong> (section label) on the respective timeline.</li>
 <li>The value <code>NOMATCH</code> explicitly records that a section has no equivalent in that version.</li>
@@ -576,7 +576,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="create-the-alignmentbundle" class="level2">
 <h2 class="anchored" data-anchor-id="create-the-alignmentbundle">3. Create the AlignmentBundle</h2>
-<p>We add each hierarchy timeline to a single <button class="glossary" title="The top-level container for alignment workflows, holding timelines, groups, and cross-group MatchClaims. Provides coordinate transfer within groups (via interpolation) and across groups (via MatchLine and WarpMap). Not a graph.">AlignmentBundle</button>, assigning human-readable IDs that match the column names in <code>match_data.csv</code>.</p>
+<p>We add each hierarchy timeline to a single <button class="glossary" title="">AlignmentBundle</button>, assigning human-readable IDs that match the column names in <code>match_data.csv</code>.</p>
 <div id="80b70586407bf695" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.287850Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.287315Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.309566Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.304331Z&quot;}}" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>bundle <span class="op">=</span> AlignmentBundle(name<span class="op">=</span><span class="st">"Hendrix Song Genesis"</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, tl <span class="kw">in</span> timelines.items():</span>

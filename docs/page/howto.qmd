@@ -45,6 +45,8 @@ documentation:
   CoordinateField, ComputedField, and custom loader configuration.
 - [How to Work with Graphical Timelines](howto/how01_graphical_timelines.ipynb) ---
   TimeAxisPath, image-based timelines, and pixel-to-time conversion.
+- [How to Transfer Annotations Between Graphical Analyses](howto/how01_thoresen_annotation_transfer.ipynb) ---
+  SegmentLine, ConstantMap, MatchClaim.from_projection, y-coordinate transfer.
 - [How to Build Beat Grids](howto/how01_beat_grids.ipynb) ---
   BeatGrid, FloorMap, RotationMap, and measure/beat queries.
 

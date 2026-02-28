@@ -1,20 +1,18 @@
 # TimeToAlign! Glossary of Terms
 # Alphabetical listing of model terminology
-# Last updated: 2026-02-24 — Alignment architecture overhaul (MatchClaim cases,
-# AlignmentAnchor stripped to pure coordinate pair, MatchGraph = each Hendrix M-box,
-# WarpMap materialises timeline copies from MatchLine).
+# Last updated: 2026-02-28 — Harmonized with TISMIR manuscript glossary table;
+# added FlowMap, aligned all definitions with article.
 
 AlignmentAnchor: |
-  A pure coordinate pair associating one coordinate on timeline A with one
-  coordinate on timeline B. The atomic unit of alignment data. Contains no
-  metadata and no claim semantics — it is a neutral record of two associated
-  coordinates. Provenance and interpretation are carried by the enclosing
-  MatchClaim. Only synchronous MatchClaims produce AlignmentAnchors.
+  A coordinate pair associating one coordinate on timeline A with one on
+  timeline B; a neutral record with no claim semantics. Provenance and
+  interpretation are carried by the enclosing MatchClaim. Only synchronous
+  MatchClaims produce AlignmentAnchors.
 
 AlignmentBundle: |
-  The top-level container for alignment workflows, holding timelines, groups,
-  and cross-group MatchClaims. Provides coordinate transfer within groups (via
-  interpolation) and across groups (via MatchLine and WarpMap). Not a graph.
+  A collection of TimelineGroups with inter-group MatchClaim connections;
+  provides coordinate transfer via offset arithmetic, interpolation, and
+  WarpMaps.
 
 Break: |
   A control event that voids contiguity at its Instant. TimeIntervals cannot span
@@ -25,18 +23,21 @@ ChainMap: |
   path from source to target unit.
 
 Child: |
-  A timeline nested within a parent timeline, sharing the same measuring unit.
-  Coordinate transfer between parent and child uses exact offset arithmetic
-  (addition/subtraction), applied recursively. Children are locked upon insertion.
+  A timeline nested within a parent, sharing its measuring unit but defining
+  its own origin. Coordinate transfer between parent and child uses exact offset
+  arithmetic, applied recursively. Children are locked upon insertion.
 
 CombinationMap: |
   A MultiMap yielding outputs from multiple ConversionMaps simultaneously
   (e.g., (x, y) coordinate pairs).
 
+Commensurability: |
+  Two timelines are commensurable if connected by a chain of C-maps, membership
+  in the same TimelineGroup, or cross-group MatchClaims, enabling coordinate
+  translation between them.
+
 Commensurable: |
-  Two timelines are commensurable when connected by a ConversionMap chain (within
-  a timeline), TimelineGroup membership (within a group), or a MatchClaim chain
-  (across groups), enabling coordinate translation between them.
+  See Commensurability.
 
 ConcatenationMap: |
   A MultiMap combining bounded ConversionMaps such that each coordinate region is
@@ -52,13 +53,18 @@ ControlEvent: |
   (creating new contiguity).
 
 ConversionMap: |
-  A typed function attached to a single timeline, mapping any coordinate to at most
-  one value (another coordinate, specifier, or constant). Also called C-map.
-  C-Maps are properties of the timeline they belong to, not edges between timelines.
+  A typed function attached to a timeline that maps each coordinate to exactly
+  one value (coordinate, label, or filename); also permits inverse conversion
+  back to the timeline's own unit. Also called C-map.
 
 Coordinate: |
   A position on a timeline, expressed as the distance from the origin in the
   timeline's measuring unit. Combines a numeric value with a TimeUnit.
+
+FlowMap: |
+  A sequence of TimeIntervals specifying a particular path through a score's
+  control structure (repeats, jumps); not itself a timeline. Used for
+  unfolding a score into performance order.
 
 GroupTimestamp: |
   A cross-section through a TimelineGroup at a given coordinate. Contains
@@ -127,33 +133,27 @@ MatchfileLoader: |
   standalone timelines; MatchClaims connect score to performances.
 
 MatchClaim: |
-  A claim — issued by a human or algorithmic agent — about one or two timed things
-  (events, regions, children) on two specific timelines. Always knows which pair of
-  timelines it connects. Contains 0-2 AlignmentAnchors (only if synchronous),
-  synchrony and explicitness flags, and optional MatchMetadata (agent, decision
-  criteria, certainty). Four cases: (a) ID<->ID, (b) ID->coord (projection),
-  (c) ID->NOMATCH, (d) implicit (from group extension). The manuscript shorthand
-  "Match" refers to this concept.
+  A claim of equivalence between events on different timelines, with provenance
+  metadata (agent, method, certainty). May be synchronous (producing
+  AlignmentAnchors) or conceptual (structural equivalence without temporal
+  commitment). Always knows which pair of timelines it connects. Four cases:
+  (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group
+  extension).
 
 MatchGraph: |
-  An on-demand analytical structure built from MatchClaims using a networkx graph.
-  Nodes are (timeline_id, coordinate) tuples; edges derive from AlignmentAnchors
-  of synchronous claims. Connected components yield MatchStamps. Can be extended
-  with implicit claims based on group membership. Each "Match" box M1-M15 in the
-  Hendrix figure is a MatchGraph, not a single MatchClaim.
+  An auxiliary structure formed by extending MatchClaims through shared
+  coordinates; may be viewed as a hyperedge connecting multiple coordinates
+  from different timelines. Connected components yield MatchStamps. Each
+  Match box M1–M15 in the Hendrix figure is a MatchGraph.
 
 MatchLine: |
-  An ordered sequence of MatchStamps for a given source timeline, sorted by
-  coordinate on that source timeline. Created by selecting and resolving
-  MatchClaims (all or filtered subset). Used as input for WarpMap generation.
-  In the Hendrix example, the "inferred chord event alignment" is based on
-  a MatchLine selecting MatchGraphs M6-M9.
+  An ordered sequence of AlignmentAnchors derived from MatchClaims, sorted by
+  coordinate on a source timeline; input for WarpMap generation.
 
 MatchStamp: |
-  A synchronised instant across multiple timelines, extracted from a MatchGraph's
-  connected components. Formally, the union of GroupTimestamps from each
-  participating TimelineGroup. Contains one coordinate per participating timeline
-  and, with conversion_maps=True (the default), C-map conversion values.
+  The union of TimeStamps from groups synchronously connected by a MatchGraph.
+  Contains one coordinate per participating timeline and, with
+  conversion_maps=True (the default), C-map conversion values.
 
 MultiMap: |
   An umbrella term for composed ConversionMaps: ChainMap (sequential),
@@ -209,9 +209,9 @@ Synchrony: |
   Instants binned together based on a threshold (e.g., for quantisation).
 
 TimelineGroup: |
-  A container for commensurable timelines, connected via a shared timestamp table
-  and pairwise InterpolationMaps. Enables coordinate transfer between timelines
-  of potentially different units via linear interpolation.
+  A container for timelines claimed to be commensurable; placing timelines in
+  a group asserts commensurability regardless of underlying units. Coordinates
+  transfer via interpolation.
 
 TimeInterval: |
   Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive
@@ -226,23 +226,15 @@ TimeIntervalStamp: |
   cross-section of an interval through the timeline hierarchy.
 
 Timeline: |
-  A positive coordinate axis minimally defined by its origin (zero) and
-  measuring unit. Accommodates events and potentially Child timelines.
+  A positive coordinate axis defined by an origin and a measuring unit;
+  continuous (real) or discrete (integer). Accommodates events and potentially
+  Child timelines.
 
 TimeStamp: |
-  A cross-section through a timeline hierarchy at a given coordinate. Computes
-  equivalent coordinates on children (via offset arithmetic) and on attached
-  C-map target units. The single API for coordinate resolution, using separate
-  internal methods for parent-child (shift) and group (interpolation) lookups.
-
-TraversalMap: |
-  A sequence of TimeIntervals representing a specific traversal path through
-  a timeline (handling Jumps and repeats). Also called T-map.
+  A cross-section through a timeline or group at a given coordinate, capturing
+  positions in all connected systems plus values converted by all attached
+  C-maps.
 
 WarpMap: |
-  A standalone class that produces a materialised copy of a source timeline
-  (including its children, events, regions, etc.), warped to the coordinate
-  system of a target timeline. Generated from a MatchLine by extracting
-  coordinate pairs and building an interpolation table. If source and target
-  have different units, the warped copy changes timeline type. Uses
-  InterpolationMap (numpy.interp) under the hood.
+  An interpolation-based coordinate mapping derived from a MatchLine; enables
+  non-linear coordinate transfer between TimelineGroups.
