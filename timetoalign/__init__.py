@@ -125,7 +125,9 @@ from timetoalign.core import (
     NumberType,
     OptionalCoordinate,
     ScopedId,
+    TimeIntervalStamp,
     TimelineIdGenerator,
+    TimeStamp,
     TimeUnit,
 )
 from timetoalign.loader import (
@@ -168,6 +170,9 @@ from timetoalign.timelines import (
     Timeline,
 )
 
+# User-friendly alias for Coordinate
+Coord = Coordinate
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -181,10 +186,14 @@ __all__ = [
     "EventType",
     # Types
     "Coordinate",
+    "Coord",  # Alias for Coordinate
     "IdCoordinate",
     "CoordinateValue",
     "CoordinateSpec",
     "OptionalCoordinate",
+    # Timestamps (first-class citizens)
+    "TimeStamp",
+    "TimeIntervalStamp",
     # IDs
     "ScopedId",
     "IdGenerator",

@@ -2217,7 +2217,9 @@ class Timeline:
 
         return None
 
-    def _contains_coordinate(self, timeline_id: str, axis: float) -> bool:
+    def _contains_coordinate(
+        self, timeline_id: str, axis: float, source_id: str | None = None
+    ) -> bool:
         """Check whether *axis* falls within the span of a child timeline.
 
         A child embedded at *offset* with *length* spans
@@ -2228,6 +2230,7 @@ class Timeline:
         Args:
             timeline_id: Child timeline ID.
             axis: Coordinate on the parent (source) timeline.
+            source_id: Source timeline ID (ignored for Timeline, used by TimelineGroup).
 
         Returns:
             True if *axis* is inside the child's span, or if
