@@ -61,18 +61,14 @@ group
 # ## Transfer Coordinates
 
 # %%
+# Get timestamp at score position 20.0 - shows ALL peer timelines
 ts = group.get_timestamp_at(20.0, "score")
-{
-    "score coordinate": 20.0,
-    "performance coordinate": ts["performance"],
-}
+ts
 
 # %%
-ts_back = group.get_timestamp_at(50.0, "performance")
-{
-    "performance coordinate": 50.0,
-    "score coordinate": ts_back["score"],
-}
+# Transfer back: get timestamp at performance position 50.0 (ticks are DISCRETE)
+ts_back = group.get_timestamp_at(50, "performance")
+ts_back
 
 # %% [markdown]
 # ## Partial Alignment

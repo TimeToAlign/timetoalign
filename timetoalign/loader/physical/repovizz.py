@@ -554,10 +554,11 @@ class RepoVizzLoader(ManifestLoader):
 
         df = combined_notes.to_pandas()
         for staff_num, instrument in staff_to_instrument.items():
-            instrument_df = df[df["staff"] == staff_num].copy()
+            mask = df["staff"] == staff_num
+            instrument_df = df.loc[mask].copy()  # type: ignore[arg-type]
             if len(instrument_df) > 0:
                 notes_by_instrument[instrument] = EventData.from_dataframe(
-                    instrument_df, unit=TimeUnit.seconds
+                    instrument_df, unit=TimeUnit.seconds  # type: ignore[arg-type]
                 )
 
         self._store.set_notes(combined_notes, notes_by_instrument)
@@ -860,18 +861,20 @@ class RepoVizzLoader(ManifestLoader):
         uid: str | None = None,
         **kwargs: Any,
     ) -> "DiscretePhysicalTimeline":
-        """Create a DiscretePhysicalTimeline.
+        """Create a DiscretePhysicalTimeline from a catalogue entry.
 
-        In XML mode: creates timeline for the specified catalogue entry.
+        In XML mode: looks up the entry and creates a timeline with its metadata.
         In legacy CSV mode: creates timeline from the loaded CSV.
 
         Args:
-            uid: Unique identifier for the timeline. In XML mode, this is
-                used to look up the catalogue entry (by ID, name, or partial match).
-                Defaults to the first timeline if not specified.
+            uid: Entry lookup key or timeline ID. In XML mode, supports:
+                - Audio shorthand: "mono", "binaural", "pickup_vln1"
+                - Descriptor pattern: "tonal.ChordsStrength.mono"
+                - Exact xml_id or name
             **kwargs: Additional arguments:
-                - name: Human-readable name for the timeline.
-                - attach_cmap: If True (default), attach a SamplesToSeconds conversion map.
+                - name: Override the timeline's name (defaults to entry's name).
+                - attach_cmap: If True (default), attach a SamplesToSeconds C-map.
+                - tl_uid: Override the timeline's ID (defaults to entry's xml_id).
 
         Returns:
             A DiscretePhysicalTimeline representing the data.
@@ -882,11 +885,12 @@ class RepoVizzLoader(ManifestLoader):
         """
         name = kwargs.get("name")
         attach_cmap = kwargs.get("attach_cmap", True)
+        tl_uid = kwargs.get("tl_uid")  # Override for the actual timeline ID
 
         if self._is_xml_mode:
-            return self._create_timeline_xml(uid, name, attach_cmap)
+            return self._create_timeline_xml(uid, tl_uid, name, attach_cmap)
         else:
-            return self._create_timeline_csv(uid, name, attach_cmap)
+            return self._create_timeline_csv(tl_uid or uid, name, attach_cmap)
 
     def _create_timeline_csv(
         self,
@@ -920,8 +924,41 @@ class RepoVizzLoader(ManifestLoader):
 
         return timeline
 
+    def _resolve_csv_sample_count(self, entry: CatalogueEntry) -> int:
+        """Read a RepoVizz CSV file to determine the actual sample count.
+
+        When the XML manifest has an empty ``numsamples`` attribute (common
+        for descriptor entries), this method reads the CSV's data line and
+        counts the values.
+
+        Args:
+            entry: Catalogue entry with a CSV filename.
+
+        Returns:
+            Number of samples, or 0 if the file cannot be read.
+        """
+        if self._xml_root_path is None or not entry.filename:
+            return 0
+
+        csv_path = self._xml_root_path / entry.filename
+        if not csv_path.exists():
+            self._logger.warning("CSV file not found: %s", csv_path)
+            return 0
+
+        try:
+            with open(csv_path, "r", encoding="utf-8") as f:
+                f.readline()  # skip header
+                data_line = f.readline().strip()
+            if not data_line:
+                return 0
+            return sum(1 for v in data_line.split(",") if v.strip())
+        except Exception:
+            self._logger.warning("Failed to read CSV: %s", csv_path, exc_info=True)
+            return 0
+
     def _create_timeline_xml(
         self,
+        entry_id: str | None,
         uid: str | None,
         name: str | None,
         attach_cmap: bool,
@@ -932,22 +969,22 @@ class RepoVizzLoader(ManifestLoader):
         if not self._timeline_specs:
             raise RuntimeError("No XML manifest loaded. Call load() first.")
 
-        # If uid is not specified, use the first timeline
-        if uid is None:
+        # If entry_id is not specified, use the first timeline
+        if entry_id is None:
             if len(self._timeline_specs) == 1:
-                uid = self._timeline_specs[0]["id"]
+                entry_id = self._timeline_specs[0]["id"]
             else:
                 raise ValueError(
-                    f"Must specify uid for XML mode with {len(self._timeline_specs)} entries. "
+                    f"Must specify entry_id for XML mode with {len(self._timeline_specs)} entries. "
                     "Use timeline_ids property to see options."
                 )
 
-        # Find the entry (uid is guaranteed non-None here)
-        assert uid is not None
-        entry = self._find_entry(uid)
+        # Find the entry (entry_id is guaranteed non-None here)
+        assert entry_id is not None
+        entry = self._find_entry(entry_id)
 
-        # Check cache
-        cache_key = entry.xml_id
+        # Check cache (include uid in key if overridden)
+        cache_key = f"{entry.xml_id}:{uid}" if uid else entry.xml_id
         if cache_key in self._timeline_cache:
             return self._timeline_cache[cache_key]
 
@@ -965,6 +1002,24 @@ class RepoVizzLoader(ManifestLoader):
                 first_signal = self.catalogue[first_signal_id]
                 n_samples = first_signal.n_samples
                 sample_rate = first_signal.sample_rate
+
+        # For CSV entries with missing n_samples, read from file
+        if n_samples == 0 and entry.file_type == "CSV" and entry.filename:
+            n_samples = self._resolve_csv_sample_count(entry)
+            if sample_rate == 0.0:
+                sample_rate = 240.0  # Default descriptor rate
+
+        # For MoCap CSV sub-signals that also lack n_samples
+        if n_samples == 0 and entry.file_type == "MoCapMarker" and entry.related_ids:
+            for rid in entry.related_ids:
+                if rid in self.catalogue:
+                    sub = self.catalogue[rid]
+                    if sub.filename and sub.n_samples == 0:
+                        resolved = self._resolve_csv_sample_count(sub)
+                        if resolved > 0:
+                            n_samples = resolved
+                            sample_rate = sub.sample_rate or 240.0
+                            break
 
         timeline = DiscretePhysicalTimeline(
             length=n_samples,
@@ -1012,32 +1067,64 @@ class RepoVizzLoader(ManifestLoader):
 
     def create_group(
         self,
-        group_id: str | None = None,
+        category: str | None = None,
         ids: list[str] | None = None,
+        *,
+        id: str | None = None,
+        name: str | None = None,
+        with_notes: bool = False,
+        group_id: str | None = None,  # Deprecated alias for category
     ) -> "TimelineGroup":
         """Create a TimelineGroup containing timelines.
 
         Args:
-            group_id: Filter to a specific category ("audio", "mocap", etc.).
+            category: Filter to a specific category ("audio", "mocap", etc.).
             ids: Specific timeline IDs to include.
+            id: Custom ID for the TimelineGroup. Defaults to
+                ``"repovizz:{category or 'all'}"``.
+            name: Custom name for the TimelineGroup. Defaults to
+                the source filename stem.
+            with_notes: If True, add notes as a child of the first audio
+                timeline using ``use_conversion_map=True``. This enables
+                automatic coordinate transfer from seconds (notes) to
+                samples (audio). Default: False.
+            group_id: Deprecated alias for ``category``.
 
         Returns:
             A TimelineGroup containing the specified timelines.
 
         Raises:
-            ValueError: If group_id is invalid.
+            ValueError: If category is invalid.
             RuntimeError: If no XML manifest loaded.
+
+        Examples:
+            Load an EEP recording with all timelines and notes:
+
+            >>> loader = RepoVizzLoader.from_file("recording.xml")
+            >>> group = loader.create_group(id="normal", name="Normal Recording", with_notes=True)
         """
+        import warnings
+
         from timetoalign.alignment.groups import TimelineGroup
+
+        # Handle deprecated group_id parameter
+        if group_id is not None:
+            warnings.warn(
+                "group_id is deprecated, use category instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if category is None:
+                category = group_id
 
         if not self._is_xml_mode:
             # Legacy mode: single timeline group
-            group_name = "csv"
+            default_name = "csv"
             if self._info and self._info.source_path:
-                group_name = self._info.source_path.stem
+                default_name = self._info.source_path.stem
             return TimelineGroup(
-                id="repovizz:csv",
-                name=group_name,
+                id=id or "repovizz:csv",
+                name=name or default_name,
                 timelines=list(self.create_timelines()),
             )
 
@@ -1047,31 +1134,67 @@ class RepoVizzLoader(ManifestLoader):
         # Determine which IDs to include
         if ids is not None:
             target_ids = ids
-        elif group_id is not None:
-            # Filter by group
+        elif category is not None:
+            # Filter by category
             valid_groups = self._store.groups
-            if group_id not in valid_groups:
+            if category not in valid_groups:
                 raise ValueError(
-                    f"Unknown group '{group_id}'. Valid groups: {valid_groups}"
+                    f"Unknown category '{category}'. Valid categories: {valid_groups}"
                 )
             target_ids = [
                 spec["id"]
                 for spec in self._timeline_specs
-                if spec.get("group") == group_id
+                if spec.get("group") == category
             ]
         else:
             target_ids = self.timeline_ids
 
         timelines = list(self.create_timelines(ids=target_ids))
 
-        # Use source filename as group name
-        group_name: str | None = None
+        # Add notes as child of first audio timeline if requested
+        if with_notes and self._store.notes is not None:
+            # Find the first audio timeline (main audio, usually the mp3)
+            audio_timeline = None
+            for tl in timelines:
+                # Check if this timeline corresponds to an audio entry
+                for entry in self._store.catalogue.values():
+                    if entry.xml_id == tl.id and entry.group == "audio":
+                        # Prefer the main audio (ambient mono, typically mp3)
+                        if "mono" in entry.name.lower() or entry.file_type == "BWF":
+                            audio_timeline = tl
+                            break
+                if audio_timeline:
+                    break
+
+            # Fallback: use first audio timeline
+            if audio_timeline is None:
+                audio_ids = self._store.audio
+                if audio_ids:
+                    for tl in timelines:
+                        if tl.id in audio_ids:
+                            audio_timeline = tl
+                            break
+
+            if audio_timeline:
+                from timetoalign.loader.store import SingleStore
+
+                # Create notes timeline from stored notes EventData
+                notes_data = self._store.notes
+                group_id_str = id or (category or "group")
+                notes_store = SingleStore(notes_data, name="notes")
+                notes_tl = notes_store.create_timeline(uid=f"{group_id_str}_notes")
+
+                # Add as child with automatic unit conversion (seconds -> samples)
+                audio_timeline.add_child(notes_tl, offset=0, use_conversion_map=True)
+
+        # Use source filename as group name if not specified
+        default_name: str | None = None
         if self._sources:
-            group_name = self._sources[-1].stem
+            default_name = self._sources[-1].stem
 
         return TimelineGroup(
-            id=f"repovizz:{group_id or 'all'}",
-            name=group_name,
+            id=id or f"repovizz:{category or 'all'}",
+            name=name or default_name,
             timelines=timelines,
         )
 
@@ -1080,10 +1203,17 @@ class RepoVizzLoader(ManifestLoader):
     # region Helper Methods
 
     def _find_entry(self, id: str) -> CatalogueEntry:
-        """Look up a catalogue entry by ID, name, or partial match.
+        """Look up a catalogue entry by ID, name, pattern, or shorthand.
+
+        Supports multiple lookup strategies:
+        1. Exact xml_id match
+        2. Exact name match
+        3. Audio shorthand: "mono", "binaural", "pickup_vln1", etc.
+        4. Descriptor pattern: "tonal.ChordsStrength.mono", "lowlevel.Dissonance.binaural"
+        5. Partial/regex match on xml_id
 
         Args:
-            id: Entry identifier, name, or partial match.
+            id: Entry identifier, name, shorthand, or pattern.
 
         Returns:
             The CatalogueEntry.
@@ -1091,16 +1221,30 @@ class RepoVizzLoader(ManifestLoader):
         Raises:
             KeyError: If not found.
         """
-        # Exact match by xml_id
+        # 1. Exact match by xml_id
         if id in self.catalogue:
             return self.catalogue[id]
 
-        # Exact match by name
+        # 2. Exact match by name
         for entry in self.catalogue.values():
             if entry.name == id:
                 return entry
 
-        # Partial/regex match by id
+        # 3. Audio shorthand (mono, binaural, pickup_*)
+        audio_id = self.find_audio(id)
+        if audio_id:
+            return self.catalogue[audio_id]
+
+        # 4. Descriptor pattern: "type.name.source" (e.g., "tonal.ChordsStrength.mono")
+        if "." in id:
+            parts = id.split(".")
+            if len(parts) >= 3:
+                desc_type, desc_name, source = parts[0], parts[1], parts[2]
+                desc_id = self.find_audio_descriptor(desc_type, desc_name, source)
+                if desc_id:
+                    return self.catalogue[desc_id]
+
+        # 5. Partial/regex match by id
         all_ids = list(self.catalogue.keys())
         try:
             resolved_id = resolve_id(id, all_ids, warn_multiple=True)
@@ -1109,8 +1253,10 @@ class RepoVizzLoader(ManifestLoader):
             pass
 
         raise KeyError(
-            f"No catalogue entry with id or name matching '{id}'. "
-            f"Available IDs: {all_ids[:10]}..."
+            f"No catalogue entry matching '{id}'. "
+            f"Try: audio source (mono, binaural, pickup_vln1), "
+            f"descriptor pattern (tonal.ChordsStrength.mono), "
+            f"or exact xml_id."
         )
 
     def get_entry(self, id: str) -> CatalogueEntry:
@@ -1162,6 +1308,11 @@ class RepoVizzLoader(ManifestLoader):
     ) -> str | None:
         """Find a descriptor entry by name.
 
+        Searches both the entry name and filename for matches.  The
+        instrument filter is checked against the subgroup first, then
+        the filename as a fallback (bowing gesture descriptors often
+        encode the instrument in the filename, e.g. ``vln1_bb_angle.csv``).
+
         Args:
             descriptor_name: Descriptor name (e.g., "bb_angle", "bow_vel").
             instrument: Optional instrument filter (e.g., "vln1", "cello").
@@ -1172,12 +1323,134 @@ class RepoVizzLoader(ManifestLoader):
         for entry in self.catalogue.values():
             if entry.group != "descriptors":
                 continue
-            if instrument and instrument.lower() not in entry.subgroup.lower():
-                continue
-            if descriptor_name.lower() in entry.name.lower():
+            if instrument:
+                inst_lower = instrument.lower()
+                # Check subgroup first, then filename
+                in_subgroup = (
+                    inst_lower in entry.subgroup.lower() if entry.subgroup else False
+                )
+                in_filename = (
+                    inst_lower in entry.filename.lower() if entry.filename else False
+                )
+                if not (in_subgroup or in_filename):
+                    continue
+            name_lower = descriptor_name.lower()
+            if name_lower in entry.name.lower() or (
+                entry.filename and name_lower in entry.filename.lower()
+            ):
                 return entry.xml_id
 
         return None
+
+    def find_audio(
+        self,
+        source: str | None,
+    ) -> str | None:
+        """Find an audio entry by source name.
+
+        Args:
+            source: Source name (e.g., "mono", "binaural", "pickup_vln1").
+                For pickup sources, can use "vln1" shorthand.
+
+        Returns:
+            The matching entry ID, or None if not found.
+        """
+        if source is None:
+            return None
+        source_lower = source.lower()
+
+        for entry in self.catalogue.values():
+            if entry.group != "audio":
+                continue
+            # Audio entries only (not AuDesc signals)
+            if (
+                entry.file_type not in ("BWF", "mp3", "wav")
+                or entry.category == "AuDesc"
+            ):
+                continue
+            if not entry.filename:
+                continue
+
+            filename_lower = entry.filename.lower()
+
+            # Match by source name in filename
+            if source_lower in filename_lower:
+                return entry.xml_id
+
+            # For pickup sources, match instrument suffix
+            if source_lower.startswith("pickup_"):
+                instrument = source_lower.replace("pickup_", "")
+                if f"pickup_{instrument}" in filename_lower or filename_lower.endswith(
+                    f"_{instrument}.mp3"
+                ):
+                    return entry.xml_id
+            elif "pickup" in entry.category.lower():
+                # Match instrument name for pickup entries
+                if source_lower in filename_lower:
+                    return entry.xml_id
+
+        return None
+
+    def find_audio_descriptor(
+        self,
+        descriptor_type: str,
+        descriptor_name: str,
+        source: str,
+    ) -> str | None:
+        """Find an audio descriptor entry (Essentia features).
+
+        Audio descriptors are WAV files with feature data extracted from
+        audio by Essentia. They're organized by type (tonal, lowlevel,
+        rhythm) and named by the feature (ChordsStrength, Dissonance, etc.).
+
+        Args:
+            descriptor_type: Type of descriptor ("tonal", "lowlevel", "rhythm").
+            descriptor_name: Feature name (e.g., "ChordsStrength", "Dissonance").
+            source: Audio source (e.g., "mono", "binaural", "pickup_vln1").
+
+        Returns:
+            The matching entry ID, or None if not found.
+        """
+        source_lower = source.lower()
+        type_lower = descriptor_type.lower()
+        name_lower = descriptor_name.lower()
+
+        for entry in self.catalogue.values():
+            if entry.group != "audio" or entry.category != "AuDesc":
+                continue
+            if not entry.filename:
+                continue
+
+            filename_lower = entry.filename.lower()
+
+            # Match pattern: {prefix}_{source}.wav.{type}.{name}.wav
+            if (
+                source_lower in filename_lower
+                and f".{type_lower}." in filename_lower
+                and name_lower in filename_lower
+            ):
+                return entry.xml_id
+
+        return None
+
+    def get_sample_rate_for_descriptor_type(self, descriptor_type: str) -> int:
+        """Get the sample rate for a descriptor type.
+
+        Args:
+            descriptor_type: Type of descriptor ("tonal", "lowlevel", "rhythm").
+
+        Returns:
+            Sample rate in Hz.
+        """
+        # Default sample rates from the EEP dataset
+        rates = {
+            "tonal": 42,
+            "lowlevel": 84,
+            "rhythm": 172,
+            "mocap": 240,
+            "descriptors": 240,
+        }
+        return rates.get(descriptor_type.lower(), 240)
 
     # endregion
 

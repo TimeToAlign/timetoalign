@@ -87,7 +87,7 @@ group.add_timeline(score)
 group.add_timeline(perf)
 
 ts = group.get_timestamp_at(20.0, "score")
-{"score": 20.0, "perf": ts["perf"]}
+ts
 
 # %% [markdown]
 # ## 5. Alignment Bundles

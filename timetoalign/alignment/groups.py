@@ -36,7 +36,11 @@ import pyarrow as pa
 
 from timetoalign.core import CoordinateSpec, IdCoordinate, IdGenerator, resolve_id
 from timetoalign.core.enums import NumberType
-from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
+from timetoalign.core.timestamp import (
+    TimeIntervalStamp,
+    TimeStamp,
+    _format_coordinate_value,
+)
 from timetoalign.maps.interpolation import InterpolationMap
 
 if TYPE_CHECKING:
@@ -149,13 +153,15 @@ class GroupTimestamp:
         rows = []
         for tid, val in self.coordinates.items():
             unit = self.units.get(tid, "")
-            unit_display = f" ({unit})" if unit else ""
             if val is not None:
+                # Use proper formatting that avoids scientific notation
+                formatted = _format_coordinate_value(val, unit)
                 rows.append(
-                    f"<tr><td>{html.escape(tid)}{unit_display}</td>"
-                    f"<td style='text-align: right;'>{val:.6g}</td></tr>"
+                    f"<tr><td>{html.escape(tid)}</td>"
+                    f"<td style='text-align: right;'>{formatted}</td></tr>"
                 )
             else:
+                unit_display = f" ({unit})" if unit else ""
                 rows.append(
                     f"<tr><td style='color: #999;'>{html.escape(tid)}{unit_display}</td>"
                     f"<td style='text-align: right; color: #999;'>-</td></tr>"
