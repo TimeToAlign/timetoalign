@@ -33,6 +33,11 @@ from .convenience import (
     TicksToQuarters,
 )
 from .interpolation import InterpolationMap
+from .interval import (
+    IntervalToConstantMap,
+    QuartersToFloatingMeasures,
+    QuartersToMeasureNumber,
+)
 from .linear import LinearMap, ScalarMap, ShiftMap
 from .meter import BeatInMeasureMap, MetricalPositionMap, MetricMap
 from .periodic import FloorMap, RotationMap
@@ -45,6 +50,10 @@ __all__ = [
     "ConstantMap",
     # Interpolation (internal engine)
     "InterpolationMap",
+    # Interval-to-constant maps
+    "IntervalToConstantMap",
+    "QuartersToMeasureNumber",
+    "QuartersToFloatingMeasures",
     # Linear maps
     "LinearMap",
     "ScalarMap",

@@ -265,6 +265,7 @@ class ScoreStore(EventStore):
         Returns C-Maps based on available metadata:
         - "ticks": quarters -> ticks (using provided PPQ)
         - "seconds": quarters -> seconds (if tempo markings available)
+        - "measures": quarters -> measures (if measure data available)
 
         Args:
             ppq: Pulses per quarter note for ticks conversion. Defaults to 480.
@@ -277,8 +278,12 @@ class ScoreStore(EventStore):
             >>> cmaps = bundle.get_cmaps(ppq=480)
             >>> ticks_map = cmaps["ticks"]
             >>> ticks = ticks_map(2.0)  # 960 ticks at 480 PPQ
+            >>> # Get measure position
+            >>> measure_map = cmaps["measures"]
+            >>> measure_map(4.0)  # e.g., 2.0 (start of measure 2)
         """
         from timetoalign.maps import ScalarMap
+        from timetoalign.maps.interval import QuartersToFloatingMeasures
 
         cmaps: dict[str, ConversionMap] = {}
 
@@ -293,6 +298,16 @@ class ScoreStore(EventStore):
         tempo_events = self._extract_tempo_markings()
         if tempo_events:
             cmaps["seconds"] = self._create_tempo_map(tempo_events)
+
+        # Measure map (if measures are present)
+        if len(self.measures) > 0:
+            try:
+                cmaps["measures"] = QuartersToFloatingMeasures.from_measure_data(
+                    self.measures
+                )
+            except ValueError:
+                # MeasureData might be present but invalid for map creation
+                pass
 
         return cmaps
 
