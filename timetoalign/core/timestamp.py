@@ -92,7 +92,9 @@ class TimeStampSource(Protocol):
         """
         ...
 
-    def _contains_coordinate(self, timeline_id: str, axis: float) -> bool:
+    def _contains_coordinate(
+        self, timeline_id: str, axis: float, source_id: str | None = None
+    ) -> bool:
         """Check whether *axis* falls within the span of a related timeline.
 
         For a child embedded at *offset* with *length*, the span on the
@@ -102,7 +104,9 @@ class TimeStampSource(Protocol):
 
         Args:
             timeline_id: The related timeline to check.
-            axis: The coordinate on the source (parent) timeline.
+            axis: The coordinate on the source timeline.
+            source_id: The source timeline ID (required for TimelineGroup,
+                optional for Timeline where it defaults to the parent).
 
         Returns:
             True if *axis* is inside the related timeline's span.
@@ -173,10 +177,18 @@ class TimeStamp:
             reachable or the axis is outside the target's span.
         """
         if timeline_id == self.source_id:
+            # Round for discrete timelines (TimelineGroup members)
+            _timelines = getattr(self.source, "_timelines", None)
+            if _timelines is not None and timeline_id in _timelines:
+                from ..core.enums import NumberType
+
+                tl = _timelines[timeline_id]
+                if hasattr(tl, "number_type") and tl.number_type == NumberType.int:
+                    return round(self.axis)
             return self.axis
 
         # Bounds check: is axis inside the related timeline's span?
-        if not self.source._contains_coordinate(timeline_id, self.axis):
+        if not self.source._contains_coordinate(timeline_id, self.axis, self.source_id):
             return default
 
         # Strategy 1: exact offset arithmetic (Timeline with children)
@@ -196,9 +208,20 @@ class TimeStamp:
 
         # Determine direction based on source/target IDs
         if imap.source_id == self.source_id:
-            return float(imap.forward(self.axis))
+            result = float(imap.forward(self.axis))
         else:
-            return float(imap.inverse(self.axis))
+            result = float(imap.inverse(self.axis))
+
+        # Round for discrete timelines (TimelineGroup members)
+        _timelines = getattr(self.source, "_timelines", None)
+        if _timelines is not None and timeline_id in _timelines:
+            from ..core.enums import NumberType
+
+            tl = _timelines[timeline_id]
+            if hasattr(tl, "number_type") and tl.number_type == NumberType.int:
+                result = round(result)
+
+        return result
 
     def get_unit(self, unit: "TimeUnit") -> float | None:
         """Get coordinate converted to a specific unit.
@@ -207,13 +230,21 @@ class TimeStamp:
         ``InterpolationMap`` (for ``TableMap``), or analytical
         ``ConversionMap`` subclasses (``ScalarMap``, ``LinearMap``, ...).
 
+        For TimelineGroup sources, looks up the C-Map on the source_id timeline.
+
         Args:
             unit: The target unit for conversion.
 
         Returns:
             Converted coordinate, or None if no C-Map available.
         """
-        umap = self.source._get_unit_map(unit)
+        # For TimelineGroup: use source_id to find the right timeline's C-map
+        _get_unit_for_tl = getattr(self.source, "_get_unit_map_for_timeline", None)
+        if _get_unit_for_tl is not None:
+            umap = _get_unit_for_tl(self.source_id, unit)
+        else:
+            umap = self.source._get_unit_map(unit)
+
         if umap is None:
             return None
         # InterpolationMap exposes .forward(); ConversionMap exposes __call__

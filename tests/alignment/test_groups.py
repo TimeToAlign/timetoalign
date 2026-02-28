@@ -823,12 +823,13 @@ class TestTimelineGroupUnifiedTimestamp:
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
         # audio: 0 -> 150, dgt: 0 -> 4875
-        # At audio=75 (half), dgt should be 4875/2 = 2437.5
+        # At audio=75 (half), dgt should be 4875/2 = 2437.5 -> rounded to 2438
         ts = group.get_unified_timestamp(75.0, "audio")
 
         dgt_coord = ts["dgt1"]
         assert dgt_coord is not None
-        assert dgt_coord == pytest.approx(2437.5)
+        # Discrete timelines are rounded to nearest integer
+        assert dgt_coord == 2438
 
     def test_get_unified_timestamp_bidirectional(
         self,
@@ -899,12 +900,13 @@ class TestTimelineGroupUnifiedTimestamp:
 
         # All timelines aligned start-to-start and end-to-end
         # At audio midpoint (75.0):
-        # - dgt should be 2437.5
+        # - dgt should be 2437.5 -> rounded to 2438 (discrete timeline)
         # - score should be 50.0 (midpoint of 0-100)
 
         ts = group.get_unified_timestamp(75.0, "audio")
 
-        assert ts["dgt1"] == pytest.approx(2437.5)
+        # Discrete timelines are rounded to nearest integer
+        assert ts["dgt1"] == 2438
         assert ts["score"] == pytest.approx(50.0)
         assert ts["audio"] == pytest.approx(75.0)
 
