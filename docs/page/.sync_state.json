@@ -19,15 +19,16 @@
   "how01_manual_timeline_construction.py": "16c151bfb8ab7c7dfd616c2f0ae32b356e8ac105dff84ee7386f8a7d167133ed",
   "how01_graphical_timelines.py": "31c7dbd30afeae80b8ba9a3f3beb1f16bbd90218477233559f3696eed3f74dfb",
   "tut01b_children_regions_timestamps.py": "90701b18fbcb53bc4e0f644791648a5bf92c0803f8ea41b8cd2c7a1b95412415",
-  "tut02_timeline_groups.py": "6408b9e8ef6b529f9cd7e7348c4674f7db8af88142bacfc7d82e7e3c28efa476",
+  "tut02_timeline_groups.py": "1f7a18e5ed15567ae34ef5f0c687c4c59b64a59604d0845bdffc2be3941397cb",
   "tut03_alignment_bundles.py": "ac9f6f31984b11b0d47aa64c6b5f29a945dbcca363b18298d1cec404d4cf2d1c",
   "how01_loading_data.py": "686b9782f9bb1be6fb879dee02434831a14c30ce732dda06466b03ea0aac9fd3",
   "how01_tabular_loaders.py": "b0b731347b193b6dc95b90e5f73d52b72a9febc56c03bd28cf846b64d8612721",
   "how01_beat_grids.py": "964ba8dd7b04d1d98475b472acbc94398b195f82ec20d29ed303abc587b91c0a",
-  "how02_supra_piano_roll.py": "3fe71d06c68417a03ca772c683ef86f34fee431a3e3e3135b7e3d1d33e5ef447",
-  "how03_beethoven_multimodal.py": "0331b65d44bcb12e43a1fd474a385fcb17b2f87fe48c490019407d8fc63d21d5",
+  "how02_supra_piano_roll.py": "1e6801f6806e19d863baaff703bb444ff8831ea9718acef059a65b844c81519b",
+  "how03_beethoven_multimodal.py": "f7f764b9d938616207e99a0c193145af30aff0ee610a934ee5bfd361b92d7b00",
   "how03_loading_vienna_corpus.py": "1f083e4e6df102c13f62359fe9ebf8a67ec12ffd28e841d1d1bb8b601a648e43",
-  "tut00_quickstart.py": "4c3ae02cb010576cb37794691a64ed5a6e6af403aff2fca956eafd6ce32c9fb2",
-  "how03_create_note_alignment.py": "8c23e2728bc9aa84e20fdac5f72a9871a81d578208473a0486a58a32fd1dfc6c",
-  "how01_thoresen_annotation_transfer.py": "123f268bbeac92f4188d0e2f5a35178d322bfaadb7bd0eef0505cf2ba2c22bf0"
+  "tut00_quickstart.py": "3541e82ba05efeef863d60bb701876471a3b8749acb43d9246eddb393715b8bf",
+  "how03_create_note_alignment.py": "2145825d855068d332331a264c12a7271ef46b92bc534718db681de13b86d7bf",
+  "how01_thoresen_annotation_transfer.py": "123f268bbeac92f4188d0e2f5a35178d322bfaadb7bd0eef0505cf2ba2c22bf0",
+  "how04_hendrix_song_genesis.py": "e4e2e5649e9043d2d3ff2607843314a039f77626dff5b586ae9c98f25e161ad8"
 }

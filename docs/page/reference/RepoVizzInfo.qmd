@@ -4,7 +4,7 @@
 RepoVizzInfo(n_samples, frame_rate, metadata, source_path=None)
 ```
 
-Parsed metadata from a RepoVizz CSV file.
+Parsed metadata from a RepoVizz CSV file (legacy mode).
 
 Attributes:
     n_samples: Number of data values on line 2.

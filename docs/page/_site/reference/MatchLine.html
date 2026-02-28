@@ -528,6 +528,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.MatchLine.from_dict" id="toc-timetoalign.MatchLine.from_dict" class="nav-link" data-scroll-target="#timetoalign.MatchLine.from_dict">from_dict</a></li>
   <li><a href="#timetoalign.MatchLine.from_graphs" id="toc-timetoalign.MatchLine.from_graphs" class="nav-link" data-scroll-target="#timetoalign.MatchLine.from_graphs">from_graphs</a></li>
   <li><a href="#timetoalign.MatchLine.get_coordinate_pairs" id="toc-timetoalign.MatchLine.get_coordinate_pairs" class="nav-link" data-scroll-target="#timetoalign.MatchLine.get_coordinate_pairs">get_coordinate_pairs</a></li>
+  <li><a href="#timetoalign.MatchLine.save_as" id="toc-timetoalign.MatchLine.save_as" class="nav-link" data-scroll-target="#timetoalign.MatchLine.save_as">save_as</a></li>
   <li><a href="#timetoalign.MatchLine.target_timeline_ids" id="toc-timetoalign.MatchLine.target_timeline_ids" class="nav-link" data-scroll-target="#timetoalign.MatchLine.target_timeline_ids">target_timeline_ids</a></li>
   <li><a href="#timetoalign.MatchLine.to_dict" id="toc-timetoalign.MatchLine.to_dict" class="nav-link" data-scroll-target="#timetoalign.MatchLine.to_dict">to_dict</a></li>
   </ul></li>
@@ -597,10 +598,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Extract (source_coord, target_coord) pairs for a target timeline.</td>
 </tr>
 <tr class="odd">
+<td><a href="#timetoalign.MatchLine.save_as">save_as</a></td>
+<td>Export this MatchLine to a file.</td>
+</tr>
+<tr class="even">
 <td><a href="#timetoalign.MatchLine.target_timeline_ids">target_timeline_ids</a></td>
 <td>All target timelines appearing in at least 2 stamps.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.MatchLine.to_dict">to_dict</a></td>
 <td>Serialize to dictionary for storage.</td>
 </tr>
@@ -649,16 +654,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Returns: List of <code>(source_coord, target_coord)</code> tuples, sorted by source coordinate.</p>
 <p>Raises: ValueError: If <code>target_timeline_id</code> equals <code>source_timeline_id</code>.</p>
 </section>
+<section id="timetoalign.MatchLine.save_as" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.MatchLine.save_as">save_as</h3>
+<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>MatchLine.save_as(filepath, <span class="op">*</span>, <span class="bu">format</span><span class="op">=</span><span class="st">'match'</span>, context<span class="op">=</span><span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Export this MatchLine to a file.</p>
+<p>Args: filepath: Output file path. If the extension matches a known format, the format is inferred (e.g.&nbsp;<code>.match</code>). format: Export format. Currently supported: <code>"match"</code>. context: Supplementary data for format-specific fields. Required for full <code>.match</code> export; if <code>None</code>, a minimal file with coordinate-only placeholder data is produced.</p>
+<p>Returns: The resolved output path.</p>
+<p>Raises: ValueError: If the format is not supported.</p>
+<p>Examples: &gt;&gt;&gt; line.save_as(“output.match”) # minimal placeholder export &gt;&gt;&gt; line.save_as(“output.match”, context=ctx) # rich export</p>
+</section>
 <section id="timetoalign.MatchLine.target_timeline_ids" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchLine.target_timeline_ids">target_timeline_ids</h3>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>MatchLine.target_timeline_ids()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>MatchLine.target_timeline_ids()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>All target timelines appearing in at least 2 stamps.</p>
 <p>A target timeline must appear in at least two stamps for interpolation (i.e., WarpMap construction) to be meaningful.</p>
 <p>Returns: Set of timeline IDs (excluding the source) that appear in &gt;= 2 stamps.</p>
 </section>
 <section id="timetoalign.MatchLine.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchLine.to_dict">to_dict</h3>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>MatchLine.to_dict()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>MatchLine.to_dict()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Serialize to dictionary for storage.</p>
 <p>Returns: Dict with <code>source_timeline_id</code> and <code>stamps</code>.</p>
 
