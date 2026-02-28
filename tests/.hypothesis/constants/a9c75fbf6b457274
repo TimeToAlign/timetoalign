@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/core/__init__.py
-# hypothesis_version: 6.151.2
-
-['Coordinate', 'CoordinateSpec', 'CoordinateValue', 'Domain', 'EventType', 'FlowControlType', 'IdCoordinate', 'IdGenerator', 'NumberType', 'OptionalCoordinate', 'ScopedId', 'TimeIntervalStamp', 'TimeStamp', 'TimeStampSource', 'TimeUnit']
