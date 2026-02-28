@@ -64,5 +64,5 @@ documentation:
 
 ### In-depth Topics
 
-*No in-depth how-to guides have been written yet.  Planned topics include
-flow control recipes, export workflows, and Parquet-based exchange.*
+- [How to Encode Song Genesis (Hendrix)](howto/how04_hendrix_song_genesis.ipynb) ---
+  MatchClaim (synchronous vs conceptual), NOMATCH sentinels, TiliaJsonLoader.

@@ -64,6 +64,9 @@ This documentation follows the
     [How to Align Multimodal Data (Beethoven)](howto/how03_beethoven_multimodal.ipynb) ·
     [How to Load the Vienna 4x22 Corpus](howto/how03_loading_vienna_corpus.ipynb)
 
+    *In-depth Topics* ---
+    [How to Encode Song Genesis (Hendrix)](howto/how04_hendrix_song_genesis.ipynb)
+
 [**Conceptual Model**](concepts.qmd)
 :   The full specification of TimeToAlign!'s cross-domain timeline model:
     temporal domains, coordinates, events, flow control, conversion maps,

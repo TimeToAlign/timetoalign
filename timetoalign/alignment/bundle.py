@@ -730,6 +730,9 @@ class AlignmentBundle:
             event_pairs: List of tuples, each containing:
                 ``(event_a, timeline_a_id, event_b, timeline_b_id)``.
                 Events must have at least a ``start`` key with a coordinate.
+                If both events also have an ``end`` key, the resulting
+                `MatchClaim` will be an interval match (with both
+                ``start_anchor`` and ``end_anchor``).
             synchronous: Whether the matches are temporally synchronous.
             agent: Name of the agent creating the claims (for provenance).
             decision_criteria: How the match was determined (e.g., "manual",
@@ -756,11 +759,25 @@ class AlignmentBundle:
         claims = []
         for event_a, tl_a, event_b, tl_b in event_pairs:
             metadata = MatchMetadata(agent=agent, decision_criteria=decision_criteria)
+            # Auto-detect interval events: if both events have a non-null
+            # "end" key, create an interval match with both start and end
+            # anchors.  Event dicts from PyArrow may store coordinates as
+            # structs ``{"value": float, ...}``; a None value means no end.
+            end_key = None
+            end_a = event_a.get("end")
+            end_b = event_b.get("end")
+            if end_a is not None and end_b is not None:
+                # Handle struct dicts: {"value": float, ...}
+                val_a = end_a["value"] if isinstance(end_a, dict) else end_a
+                val_b = end_b["value"] if isinstance(end_b, dict) else end_b
+                if val_a is not None and val_b is not None:
+                    end_key = "end"
             claim = MatchClaim.from_events(
                 event_a=event_a,
                 tl_a_id=tl_a,
                 event_b=event_b,
                 tl_b_id=tl_b,
+                end_coord_key=end_key,
                 is_synchronous=synchronous,
                 metadata=metadata,
             )
