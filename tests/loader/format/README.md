@@ -35,6 +35,45 @@ PyArrow tables from nested JSON structures.
 - Parent context propagation in nested search (audio item scalars appear on hotCuePoints rows)
 - Auto-detection correctly identifies all top-level keys with list-of-dict values
 
+---
+
+### `test_xml_loader.py` (45 tests)
+
+Tests for `XmlLoader`, a generic XML-to-flat-table loader using `xml.etree.ElementTree`.
+
+**Test Classes:**
+
+| Class | Tests | Focus |
+|-------|-------|-------|
+| `TestXmlLoaderBasic` | 15 | Core functionality: loading, element extraction, attribute propagation |
+| `TestXmlLoaderPrincipalTags` | 8 | Principal tag filtering and auto-detection |
+| `TestXmlLoaderAncestorPropagation` | 6 | Ancestor attribute inheritance |
+| `TestXmlLoaderRealSpecimens` | 10 | Real-world XML files (RepoVizz, MusicXML structure) |
+| `TestXmlLoaderEdgeCases` | 6 | Error handling, empty files, malformed XML |
+
+**Test Specimens:**
+
+| Specimen | Principal Tags | Validation Focus |
+|----------|---------------|------------------|
+| RepoVizz XML manifest | Audio, Signal, Annotation | Hierarchical catalogue parsing |
+| Inline test XML | Various | Attribute extraction, text content |
+
+**Key Validations:**
+
+- Ancestor attribute propagation (parent attributes appear on child rows)
+- Principal tag filtering (extract only specified element types)
+- Auto-detection of principal tags from XML structure
+- Text content extraction as `_text` column
+- Error handling for malformed XML
+
+---
+
 ## Test Results
 
-All 29 tests pass in parallel mode (`pytest-xdist`).
+| Test File | Tests | Status |
+|-----------|-------|--------|
+| `test_json_loader.py` | 29 | All pass |
+| `test_xml_loader.py` | 45 | All pass |
+| **Total** | **74** | **All pass** |
+
+All tests pass in parallel mode (`pytest-xdist -n auto`).

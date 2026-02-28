@@ -25,6 +25,7 @@ from __future__ import annotations
 from .base import ConversionMap
 from .combination import CombinationMap
 from .composite import ChainMap, PiecewiseMap
+from .constant import ConstantMap
 from .convenience import (
     QuartersToTicks,
     SamplesToSeconds,
@@ -32,6 +33,11 @@ from .convenience import (
     TicksToQuarters,
 )
 from .interpolation import InterpolationMap
+from .interval import (
+    IntervalToConstantMap,
+    QuartersToFloatingMeasures,
+    QuartersToMeasureNumber,
+)
 from .linear import LinearMap, ScalarMap, ShiftMap
 from .meter import BeatInMeasureMap, MetricalPositionMap, MetricMap
 from .periodic import FloorMap, RotationMap
@@ -40,8 +46,14 @@ from .table import TableMap
 __all__ = [
     # Base
     "ConversionMap",
+    # Constant map
+    "ConstantMap",
     # Interpolation (internal engine)
     "InterpolationMap",
+    # Interval-to-constant maps
+    "IntervalToConstantMap",
+    "QuartersToMeasureNumber",
+    "QuartersToFloatingMeasures",
     # Linear maps
     "LinearMap",
     "ScalarMap",

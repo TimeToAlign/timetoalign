@@ -70,7 +70,8 @@ def _hierarchy_to_events(
 
     Hierarchy components have ``start``, ``end``, ``label``, ``level``
     and other fields.  We map them to interval events with ``start`` and
-    ``end`` coordinates plus metadata.
+    ``end`` coordinates plus metadata.  All JSON fields are preserved as
+    event properties, with ``label`` mapped to ``name``.
 
     Args:
         components: List of HIERARCHY component dicts.
@@ -80,16 +81,20 @@ def _hierarchy_to_events(
     """
     events: list[dict[str, Any]] = []
     for i, comp in enumerate(components):
-        events.append(
-            {
-                "id": f"h{i:04d}",
-                "start": float(comp["start"]),
-                "end": float(comp["end"]),
-                "event_type": "Hierarchy",
-                "label": comp.get("label", ""),
-                "level": comp.get("level", 0),
-            }
-        )
+        event: dict[str, Any] = {
+            "id": f"h{i:04d}",
+            "start": float(comp["start"]),
+            "end": float(comp["end"]),
+            "event_type": "Hierarchy",
+        }
+        # Map label → name (the canonical event name field)
+        if "label" in comp:
+            event["name"] = comp["label"]
+        # Include ALL other fields from the JSON component
+        for key, value in comp.items():
+            if key not in ("start", "end", "label"):
+                event[key] = value
+        events.append(event)
     return events
 
 
@@ -99,7 +104,8 @@ def _marker_to_events(
     """Convert MARKER components to instant events.
 
     Marker components have ``time``, ``label``, and optional
-    ``measure``/``beat`` fields.
+    ``measure``/``beat`` fields.  All JSON fields are preserved as
+    event properties, with ``label`` mapped to ``name``.
 
     Args:
         components: List of MARKER component dicts.
@@ -109,14 +115,19 @@ def _marker_to_events(
     """
     events: list[dict[str, Any]] = []
     for i, comp in enumerate(components):
-        events.append(
-            {
-                "id": f"m{i:04d}",
-                "instant": float(comp["time"]),
-                "event_type": "Marker",
-                "label": comp.get("label", ""),
-            }
-        )
+        event: dict[str, Any] = {
+            "id": f"m{i:04d}",
+            "instant": float(comp["time"]),
+            "event_type": "Marker",
+        }
+        # Map label → name (the canonical event name field)
+        if "label" in comp:
+            event["name"] = comp["label"]
+        # Include ALL other fields from the JSON component
+        for key, value in comp.items():
+            if key not in ("time", "label"):
+                event[key] = value
+        events.append(event)
     return events
 
 
@@ -126,6 +137,8 @@ def _beat_to_events(
     """Convert BEAT components to instant events.
 
     Beat components have ``time``, ``measure``, and ``beat`` fields.
+    All JSON fields are preserved as event properties, with ``label``
+    mapped to ``name`` if present.
 
     Args:
         components: List of BEAT component dicts.
@@ -135,15 +148,19 @@ def _beat_to_events(
     """
     events: list[dict[str, Any]] = []
     for i, comp in enumerate(components):
-        events.append(
-            {
-                "id": f"b{i:04d}",
-                "instant": float(comp["time"]),
-                "event_type": "Beat",
-                "measure": comp.get("measure"),
-                "beat": comp.get("beat"),
-            }
-        )
+        event: dict[str, Any] = {
+            "id": f"b{i:04d}",
+            "instant": float(comp["time"]),
+            "event_type": "Beat",
+        }
+        # Map label → name (the canonical event name field) if present
+        if "label" in comp:
+            event["name"] = comp["label"]
+        # Include ALL other fields from the JSON component
+        for key, value in comp.items():
+            if key not in ("time", "label"):
+                event[key] = value
+        events.append(event)
     return events
 
 
@@ -153,7 +170,8 @@ def _pdf_marker_to_events(
     """Convert PDF_MARKER components to instant events.
 
     PDF marker components have ``time``, ``page_number``, and optional
-    ``measure``/``beat`` fields.
+    ``measure``/``beat`` fields.  All JSON fields are preserved as
+    event properties, with ``label`` mapped to ``name`` if present.
 
     Args:
         components: List of PDF_MARKER component dicts.
@@ -163,14 +181,19 @@ def _pdf_marker_to_events(
     """
     events: list[dict[str, Any]] = []
     for i, comp in enumerate(components):
-        events.append(
-            {
-                "id": f"p{i:04d}",
-                "instant": float(comp["time"]),
-                "event_type": "PdfMarker",
-                "page_number": comp.get("page_number"),
-            }
-        )
+        event: dict[str, Any] = {
+            "id": f"p{i:04d}",
+            "instant": float(comp["time"]),
+            "event_type": "PdfMarker",
+        }
+        # Map label → name (the canonical event name field) if present
+        if "label" in comp:
+            event["name"] = comp["label"]
+        # Include ALL other fields from the JSON component
+        for key, value in comp.items():
+            if key not in ("time", "label"):
+                event[key] = value
+        events.append(event)
     return events
 
 
@@ -181,6 +204,8 @@ def _generic_to_events(
 
     Attempts to detect instant vs interval events by looking for
     ``time`` (instant), or ``start``/``end`` (interval) keys.
+    All JSON fields are preserved as event properties, with ``label``
+    mapped to ``name`` if present.
 
     Args:
         components: List of component dicts.
@@ -191,22 +216,34 @@ def _generic_to_events(
     events: list[dict[str, Any]] = []
     for i, comp in enumerate(components):
         if "start" in comp and "end" in comp:
-            events.append(
-                {
-                    "id": f"g{i:04d}",
-                    "start": float(comp["start"]),
-                    "end": float(comp["end"]),
-                    "event_type": comp.get("kind", "Unknown"),
-                }
-            )
+            event: dict[str, Any] = {
+                "id": f"g{i:04d}",
+                "start": float(comp["start"]),
+                "end": float(comp["end"]),
+                "event_type": comp.get("kind", "Unknown"),
+            }
+            # Map label → name (the canonical event name field) if present
+            if "label" in comp:
+                event["name"] = comp["label"]
+            # Include ALL other fields from the JSON component
+            for key, value in comp.items():
+                if key not in ("start", "end", "kind", "label"):
+                    event[key] = value
+            events.append(event)
         elif "time" in comp:
-            events.append(
-                {
-                    "id": f"g{i:04d}",
-                    "instant": float(comp["time"]),
-                    "event_type": comp.get("kind", "Unknown"),
-                }
-            )
+            event = {
+                "id": f"g{i:04d}",
+                "instant": float(comp["time"]),
+                "event_type": comp.get("kind", "Unknown"),
+            }
+            # Map label → name (the canonical event name field) if present
+            if "label" in comp:
+                event["name"] = comp["label"]
+            # Include ALL other fields from the JSON component
+            for key, value in comp.items():
+                if key not in ("time", "kind", "label"):
+                    event[key] = value
+            events.append(event)
         else:
             module_logger.warning(
                 "Component %d has no 'time', 'start', or 'end' key; skipping.",

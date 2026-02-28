@@ -64,6 +64,8 @@ website:
               href: howto/how01_tabular_loaders.ipynb
             - text: "How to Work with Graphical Timelines"
               href: howto/how01_graphical_timelines.ipynb
+            - text: "How to Transfer Annotations Between Graphical Analyses"
+              href: howto/how01_thoresen_annotation_transfer.ipynb
             - text: "How to Build Beat Grids"
               href: howto/how01_beat_grids.ipynb
         - section: "TimelineGroups"

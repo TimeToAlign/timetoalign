@@ -26,7 +26,7 @@
 #
 # **Prerequisites:**
 # - Basic Python and pandas knowledge
-# - TimeToAlign! installed (`pip install timetoalign`)
+# - TimeToAlign! installed (`pip install -e .` from repository root)
 
 # %% [markdown]
 # ## Why Loaders Matter

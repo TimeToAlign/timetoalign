@@ -52,6 +52,7 @@ from timetoalign import (
     AudioLoader,
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
+    DiscretePhysicalTimeline,
     NumberType,
     RepoVizzLoader,
     TableMap,
@@ -63,8 +64,8 @@ from timetoalign.alignment.matching import (
     prepare_abc_notes_for_matching,
     prepare_eep_notes_for_matching,
 )
-from timetoalign.loader.physical.eep_notes import EepNotesLoader
 from timetoalign.loader.score import TSVLoader
+from timetoalign.maps import SamplesToSeconds
 from timetoalign.timelines.flow import (
     FlowMode,
     ScoreFlowController,
@@ -81,6 +82,16 @@ DATA_DIR = (
     / "beethoven_op18-4iv_multimodal"
 )
 
+# XML manifest paths
+NORMAL_XML = DATA_DIR / "StringQuartetEEP_I_Normal" / "StringQuartetEEP_I_Normal.xml"
+MECHANICAL_XML = (
+    DATA_DIR / "StringQuartetEEP_I_Mechanical" / "StringQuartetEEP_I_Mechanical.xml"
+)
+EXAGGERATED_XML = (
+    DATA_DIR / "StringQuartetEEP_I_Exaggerated" / "StringQuartetEEP_I_Exaggerated.xml"
+)
+
+# Recording directory paths (for file discovery)
 NORMAL_DIR = DATA_DIR / "StringQuartetEEP_I_Normal"
 MECHANICAL_DIR = DATA_DIR / "StringQuartetEEP_I_Mechanical"
 EXAGGERATED_DIR = DATA_DIR / "StringQuartetEEP_I_Exaggerated"
@@ -89,60 +100,169 @@ NORMAL_PREFIX = "StringQuartetEEP_I_Normal"
 MECHANICAL_PREFIX = "StringQuartetEEP_I_Mechanical"
 EXAGGERATED_PREFIX = "StringQuartetEEP_I_Exaggerated"
 
+# Audio sources and instruments
+AUDIO_SOURCES = [
+    "mono",
+    "binaural",
+    "pickup_vln1",
+    "pickup_vln2",
+    "pickup_vla",
+    "pickup_cello",
+]
+INSTRUMENTS = ["vln1", "vln2", "vla", "cello"]
+
 
 # %% [markdown]
 # Each EEP recording directory contains 5 modalities (audio, 3 feature types,
 # MoCap) plus `.notes` files with annotated note events. The function below
-# builds a `TimelineGroup` from one such directory, adding the note events as
-# a child of the audio timeline via `use_conversion_map=True` (notes are in
-# seconds, audio in samples — the C-map handles the conversion automatically).
+# builds a `TimelineGroup` from one such directory via the XML manifest.
+#
+# **Structure (per manuscript):**
+# - 5 parent physical timelines, each with a `SamplesToSeconds` c-map
+# - Audio, Tonal, LowLevel, Rhythm parents: 6 children each (mono, binaural, 4 pickups)
+# - MoCap parent: 4 children (one per instrument: vln1, vln2, vla, cello)
 
 
 # %%
-def build_recording_group(recording_dir, prefix, group_id, group_name, dpt_base):
-    """Build a TimelineGroup from one EEP recording directory.
+def build_recording_group(xml_path, group_id, group_name, dpt_base):
+    """Build a TimelineGroup from one EEP recording directory via XML manifest.
 
-    Creates 5 DPTs (audio, tonal, lowlevel, rhythm, MoCap) and loads the
-    EEP note annotations. The notes timeline is added as a child of the
-    audio DPT via automatic unit conversion (seconds -> samples).
+    Creates 5 parent DPTs with children representing each audio source/instrument:
+    - Audio parent: 6 children (mono, binaural, 4 pickup recordings)
+    - Tonal parent: 6 children (ChordsStrength for each source)
+    - LowLevel parent: 6 children (Dissonance for each source)
+    - Rhythm parent: 6 children (BeatsLoudness for each source)
+    - MoCap parent: 4 children (bb_angle for vln1, vln2, vla, cello)
+
+    Each parent has a `SamplesToSeconds` c-map for coordinate conversion.
 
     Args:
-        recording_dir: Path to the recording directory.
-        prefix: Filename prefix (e.g. "StringQuartetEEP_I_Normal").
+        xml_path: Path to the recording's XML manifest file.
         group_id: ID for the TimelineGroup.
         group_name: Human-readable name for the group.
         dpt_base: Starting DPT number (e.g. 1 for dpt1-dpt5).
 
     Returns:
-        TimelineGroup with 5 DPTs, audio DPT containing notes as a child.
+        TimelineGroup with 5 hierarchical DPTs (parent + children).
     """
     n = dpt_base
-    audio = AudioLoader.from_file(recording_dir / f"{prefix}_mono.mp3").create_timeline(
-        uid=f"dpt{n}"
-    )
-    tonal = AudioLoader.from_file(
-        recording_dir / f"{prefix}_mono.wav.tonal.ChordsStrength.wav"
-    ).create_timeline(uid=f"dpt{n + 1}")
-    lowlevel = AudioLoader.from_file(
-        recording_dir / f"{prefix}_mono.wav.lowlevel.Dissonance.wav"
-    ).create_timeline(uid=f"dpt{n + 2}")
-    rhythm = AudioLoader.from_file(
-        recording_dir / f"{prefix}_mono.wav.rhythm.BeatsLoudness.wav"
-    ).create_timeline(uid=f"dpt{n + 3}")
-    mocap = RepoVizzLoader.from_file(
-        recording_dir / "vln1_bb_angle.csv"
-    ).create_timeline(uid=f"dpt{n + 4}")
+    recording_dir = xml_path.parent
+    prefix = xml_path.stem
 
-    # Load EEP notes and add as child of the audio timeline
-    notes = EepNotesLoader()
-    notes.load(*sorted(recording_dir.glob("*_align_*.notes")))
-    notes_tl = notes.create_timeline(uid=f"{group_id}_notes")
-    audio.add_child(notes_tl, offset=0, use_conversion_map=True)
+    # Load the RepoVizz XML manifest for metadata and score access
+    rv = RepoVizzLoader.from_file(xml_path)
+
+    # --- Helper to load audio file and return DPT ---
+    def load_audio(suffix, uid=None):
+        return AudioLoader.from_file(
+            recording_dir / f"{prefix}_{suffix}.mp3"
+        ).create_timeline(uid=uid)
+
+    # --- Helper to load descriptor file and return DPT ---
+    def load_descriptor(source_suffix, desc_type, desc_name, uid=None):
+        return AudioLoader.from_file(
+            recording_dir / f"{prefix}_{source_suffix}.wav.{desc_type}.{desc_name}.wav"
+        ).create_timeline(uid=uid)
+
+    # --- 1. Audio parent (6 children) ---
+    # Use mono recording as the reference for duration
+    mono_loader = AudioLoader.from_file(recording_dir / f"{prefix}_mono.mp3")
+    mono_tl = mono_loader.create_timeline()
+    audio_parent = DiscretePhysicalTimeline(
+        length=mono_tl.length.value,
+        unit=TimeUnit.samples,
+        uid=f"dpt{n}",
+        name="Audio",
+    )
+    audio_parent.add_conversion_map(SamplesToSeconds(sample_rate=44100))
+    # Add 6 audio children
+    for source in AUDIO_SOURCES:
+        child = load_audio(source, uid=source)
+        audio_parent.add_child(child, offset=0)
+
+    # --- 2. Tonal parent (6 children, ChordsStrength) ---
+    tonal_ref = load_descriptor("mono", "tonal", "ChordsStrength")
+    tonal_parent = DiscretePhysicalTimeline(
+        length=tonal_ref.length.value,
+        unit=TimeUnit.samples,
+        uid=f"dpt{n + 1}",
+        name="Tonal",
+    )
+    tonal_parent.add_conversion_map(SamplesToSeconds(sample_rate=42))
+    for source in AUDIO_SOURCES:
+        child = load_descriptor(
+            source, "tonal", "ChordsStrength", uid=f"{source}_tonal"
+        )
+        tonal_parent.add_child(child, offset=0)
+
+    # --- 3. LowLevel parent (6 children, Dissonance) ---
+    lowlevel_ref = load_descriptor("mono", "lowlevel", "Dissonance")
+    lowlevel_parent = DiscretePhysicalTimeline(
+        length=lowlevel_ref.length.value,
+        unit=TimeUnit.samples,
+        uid=f"dpt{n + 2}",
+        name="LowLevel",
+    )
+    lowlevel_parent.add_conversion_map(SamplesToSeconds(sample_rate=84))
+    for source in AUDIO_SOURCES:
+        child = load_descriptor(
+            source, "lowlevel", "Dissonance", uid=f"{source}_lowlevel"
+        )
+        lowlevel_parent.add_child(child, offset=0)
+
+    # --- 4. Rhythm parent (6 children, BeatsLoudness) ---
+    rhythm_ref = load_descriptor("mono", "rhythm", "BeatsLoudness")
+    rhythm_parent = DiscretePhysicalTimeline(
+        length=rhythm_ref.length.value,
+        unit=TimeUnit.samples,
+        uid=f"dpt{n + 3}",
+        name="Rhythm",
+    )
+    rhythm_parent.add_conversion_map(SamplesToSeconds(sample_rate=172))
+    for source in AUDIO_SOURCES:
+        child = load_descriptor(
+            source, "rhythm", "BeatsLoudness", uid=f"{source}_rhythm"
+        )
+        rhythm_parent.add_child(child, offset=0)
+
+    # --- 5. MoCap parent (4 children, bb_angle per instrument) ---
+    mocap_ref = RepoVizzLoader.from_file(
+        recording_dir / "vln1_bb_angle.csv"
+    ).create_timeline()
+    mocap_parent = DiscretePhysicalTimeline(
+        length=mocap_ref.length.value,
+        unit=TimeUnit.samples,
+        uid=f"dpt{n + 4}",
+        name="MoCap",
+    )
+    mocap_parent.add_conversion_map(SamplesToSeconds(sample_rate=240))
+    for instrument in INSTRUMENTS:
+        child = RepoVizzLoader.from_file(
+            recording_dir / f"{instrument}_bb_angle.csv"
+        ).create_timeline(uid=f"{instrument}_mocap")
+        mocap_parent.add_child(child, offset=0)
+
+    # --- Add per-instrument notes to pickup children ---
+    # Notes are loaded from the XML manifest's score section via rv.store.notes
+    for instrument in INSTRUMENTS:
+        notes_events = rv.store.notes_for_instrument(instrument)
+        if notes_events is not None:
+            # Get the pickup child timeline for this instrument
+            pickup_child = audio_parent.get_child(f"pickup_{instrument}")
+            if pickup_child is not None:
+                # Add note events directly to the pickup child timeline
+                pickup_child.add_events(notes_events.to_pandas().to_dict("records"))
 
     return TimelineGroup(
         id=group_id,
         name=group_name,
-        timelines=[audio, tonal, lowlevel, rhythm, mocap],
+        timelines=[
+            audio_parent,
+            tonal_parent,
+            lowlevel_parent,
+            rhythm_parent,
+            mocap_parent,
+        ],
     )
 
 
@@ -159,7 +279,7 @@ def build_recording_group(recording_dir, prefix, group_id, group_name, dpt_base)
 
 # %%
 normal_group = build_recording_group(
-    NORMAL_DIR, NORMAL_PREFIX, "normal", "Normal Recording", dpt_base=1
+    NORMAL_XML, "normal", "Normal Recording", dpt_base=1
 )
 normal_group
 
@@ -174,7 +294,7 @@ normal_group.get_timeline("dpt1")
 
 # %%
 mechanical_group = build_recording_group(
-    MECHANICAL_DIR, MECHANICAL_PREFIX, "mechanical", "Mechanical Recording", dpt_base=6
+    MECHANICAL_XML, "mechanical", "Mechanical Recording", dpt_base=6
 )
 mechanical_group
 
@@ -185,8 +305,7 @@ mechanical_group
 
 # %%
 exaggerated_group = build_recording_group(
-    EXAGGERATED_DIR,
-    EXAGGERATED_PREFIX,
+    EXAGGERATED_XML,
     "exaggerated",
     "Exaggerated Recording",
     dpt_base=11,
@@ -389,17 +508,20 @@ len(abc_prepared)  # note onsets after dropping tied notes
 # Match each recording against the score. The `source_timeline_id` and
 # `target_timeline_id` are the audio DPT and CLT1 respectively — these
 # appear in the resulting `MatchClaim` anchors.
+#
+# We use `rv.store.notes` to access the EEP notes from the XML manifest's
+# score section — no direct `EepNotesLoader` import needed.
 
 # %%
 match_results = {}
-for rec_dir, dpt_id in [
-    (NORMAL_DIR, "dpt1"),
-    (MECHANICAL_DIR, "dpt6"),
-    (EXAGGERATED_DIR, "dpt11"),
+for xml_path, dpt_id in [
+    (NORMAL_XML, "dpt1"),
+    (MECHANICAL_XML, "dpt6"),
+    (EXAGGERATED_XML, "dpt11"),
 ]:
-    eep = EepNotesLoader()
-    eep.load(*sorted(rec_dir.glob("*_align_*.notes")))
-    eep_prepared = prepare_eep_notes_for_matching(eep.events.to_pandas())
+    rv = RepoVizzLoader.from_file(xml_path)
+    eep_events = rv.store.notes.to_pandas()
+    eep_prepared = prepare_eep_notes_for_matching(eep_events)
     match_results[dpt_id] = match_notes_by_attributes(
         eep_prepared,
         abc_prepared,
