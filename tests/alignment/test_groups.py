@@ -1122,3 +1122,282 @@ class TestTimelineGroupUnitMetadata:
 
 
 # endregion
+
+
+# region TestTimelineGroupUnfold
+
+
+class TestTimelineGroupUnfold:
+    """Tests for TimelineGroup.unfold() — group-level unfolding.
+
+    Uses the Beethoven Op.18 No.4 iv multimodal score group containing:
+    - CLT1: ContinuousLogicalTimeline (ABC v2.6, 878.5 quarters)
+    - OpenScore: ContinuousLogicalTimeline (4th movement, 878.5 quarters)
+
+    The FlowMap has 11 PlaythroughSections producing 1116 unfolded QB.
+    Gold standard values from the test_unfolding.py module.
+    """
+
+    # Gold standard constants (same as test_unfolding.py)
+    FOLDED_QB = 878.5
+    UNFOLDED_QB = 1116
+    N_SECTIONS = 11
+
+    @pytest.fixture(scope="class")
+    def score_data(self):
+        """Build score group + flow data for unfolding tests."""
+        from pathlib import Path
+
+        from timetoalign.loader.score import TSVLoader
+        from timetoalign.timelines.flow import FlowMode, ScoreFlowController
+
+        data_dir = (
+            Path(__file__).parent.parent
+            / "data"
+            / "score"
+            / "beethoven_op18-4iv_multimodal"
+        )
+        abc_dir = data_dir / "ABC"
+        os_dir = data_dir / "OpenScoreSQ"
+
+        if not abc_dir.exists():
+            pytest.skip(f"Beethoven test data not found: {abc_dir}")
+
+        # CLT1
+        abc_loader = TSVLoader.from_file(
+            abc_dir / "n04op18-4_04.notes.tsv",
+            abc_dir / "n04op18-4_04.measures.tsv",
+            abc_dir / "n04op18-4_04.harmonies.tsv",
+        )
+        clt1 = abc_loader.create_timeline(uid="clt1")
+
+        # OpenScore (4th movement only)
+        os_loader = TSVLoader.from_file(
+            os_dir / "sq8913219.notes.tsv",
+            os_dir / "sq8913219.measures.tsv",
+        )
+        os_full = os_loader.create_timeline(uid="openscore_full")
+        os_controller = ScoreFlowController(os_loader.store.measures)
+        boundaries = os_controller.get_section_boundary_coordinates()
+        os_full.create_regions_from_boundaries(
+            [0, *[float(b) for b in boundaries], float(os_full.length.value)],
+            prefix="movement",
+        )
+        openscore = os_full.create_child_from_region("movement_4", uid="openscore")
+
+        # Group
+        group = TimelineGroup(
+            id="score",
+            name="Score (ABC + OpenScore)",
+            timelines=[clt1, openscore],
+        )
+
+        # Flow
+        controller = abc_loader.create_flow_controller()
+        flow = controller.compute_flow(FlowMode.DEFAULT)
+
+        return {
+            "group": group,
+            "clt1": clt1,
+            "openscore": openscore,
+            "controller": controller,
+            "flow": flow,
+            "abc_loader": abc_loader,
+        }
+
+    def test_unfold_returns_timeline_group(self, score_data):
+        """unfold() returns a TimelineGroup."""
+        group = score_data["group"]
+        result = group.unfold(score_data["flow"], score_data["controller"], "clt1")
+        assert isinstance(result, TimelineGroup)
+
+    def test_unfold_preserves_timeline_ids(self, score_data):
+        """Unfolded group has the same timeline IDs as the original."""
+        group = score_data["group"]
+        result = group.unfold(score_data["flow"], score_data["controller"], "clt1")
+        assert set(result.timeline_ids) == set(group.timeline_ids)
+
+    def test_unfold_preserves_timeline_count(self, score_data):
+        """Unfolded group has the same number of timelines."""
+        group = score_data["group"]
+        result = group.unfold(score_data["flow"], score_data["controller"], "clt1")
+        assert result.n_timelines == group.n_timelines
+
+    def test_unfold_group_name(self, score_data):
+        """Unfolded group has a descriptive name."""
+        group = score_data["group"]
+        result = group.unfold(score_data["flow"], score_data["controller"], "clt1")
+        assert "unfolded" in result.name.lower()
+
+    def test_unfold_custom_name(self, score_data):
+        """Custom name is used when specified."""
+        group = score_data["group"]
+        result = group.unfold(
+            score_data["flow"],
+            score_data["controller"],
+            "clt1",
+            name="My Unfolded Group",
+        )
+        assert result.name == "My Unfolded Group"
+
+    def test_unfold_as_segment_lines_clt1_length(self, score_data):
+        """CLT1 as SegmentLine has exact unfolded length (1116 QB)."""
+        group = score_data["group"]
+        result = group.unfold(
+            score_data["flow"],
+            score_data["controller"],
+            "clt1",
+            as_segment_lines=True,
+        )
+        clt1 = result.get_timeline("clt1")
+        assert clt1.length.value == self.UNFOLDED_QB
+
+    def test_unfold_as_segment_lines_openscore_length(self, score_data):
+        """OpenScore as SegmentLine has exact unfolded length (1116 QB)."""
+        group = score_data["group"]
+        result = group.unfold(
+            score_data["flow"],
+            score_data["controller"],
+            "clt1",
+            as_segment_lines=True,
+        )
+        openscore = result.get_timeline("openscore")
+        assert openscore.length.value == self.UNFOLDED_QB
+
+    def test_unfold_as_segment_lines_segment_count(self, score_data):
+        """Each SegmentLine has exactly N_SECTIONS segments."""
+        group = score_data["group"]
+        result = group.unfold(
+            score_data["flow"],
+            score_data["controller"],
+            "clt1",
+            as_segment_lines=True,
+        )
+        for tl_id in result.timeline_ids:
+            tl = result.get_timeline(tl_id)
+            assert tl.n_segments == self.N_SECTIONS, (
+                f"{tl_id}: n_segments={tl.n_segments}, " f"expected {self.N_SECTIONS}"
+            )
+
+    def test_unfold_flattened_has_events(self, score_data):
+        """Flattened unfolded CLT1 has note events."""
+        group = score_data["group"]
+        result = group.unfold(score_data["flow"], score_data["controller"], "clt1")
+        clt1 = result.get_timeline("clt1")
+        events = clt1.get_events(event_type="Note", include_children=False)
+        assert len(events) > 0
+
+    def test_unfold_reference_has_flow_maps(self, score_data):
+        """Reference timeline in unfolded group has FlowMaps attached."""
+        group = score_data["group"]
+        result = group.unfold(score_data["flow"], score_data["controller"], "clt1")
+        clt1 = result.get_timeline("clt1")
+        assert clt1.n_flow_maps >= 2
+        assert clt1.has_flow_map("source")
+
+    def test_unfold_invalid_reference_raises(self, score_data):
+        """KeyError when reference_timeline_id is not in the group."""
+        group = score_data["group"]
+        with pytest.raises(KeyError, match="nonexistent"):
+            group.unfold(
+                score_data["flow"],
+                score_data["controller"],
+                "nonexistent",
+            )
+
+    def test_unfold_consistency_with_single_timeline(self, score_data):
+        """Group unfold produces same length as create_unfolded_timeline.
+
+        Verifies that the group-based approach is consistent with the
+        single-timeline function for the reference timeline.
+        """
+        from timetoalign.timelines.flow import create_unfolded_timeline
+
+        group = score_data["group"]
+        controller = score_data["controller"]
+        flow = score_data["flow"]
+        clt1 = score_data["clt1"]
+
+        # Group approach (SegmentLine mode for exact comparison)
+        group_result = group.unfold(flow, controller, "clt1", as_segment_lines=True)
+        group_clt1 = group_result.get_timeline("clt1")
+
+        # Single-timeline approach
+        single_clt1 = create_unfolded_timeline(
+            clt1, flow, controller, as_segment_line=True
+        )
+
+        assert group_clt1.length.value == single_clt1.length.value
+        assert group_clt1.n_segments == single_clt1.n_segments
+
+
+# endregion
+
+
+# region TestScoreLoaderCreateFlowController
+
+
+class TestScoreLoaderCreateFlowController:
+    """Tests for ScoreLoader.create_flow_controller()."""
+
+    @pytest.fixture(scope="class")
+    def abc_loader(self):
+        """Load the Beethoven ABC score."""
+        from pathlib import Path
+
+        from timetoalign.loader.score import TSVLoader
+
+        data_dir = (
+            Path(__file__).parent.parent
+            / "data"
+            / "score"
+            / "beethoven_op18-4iv_multimodal"
+            / "ABC"
+        )
+        if not data_dir.exists():
+            pytest.skip(f"Beethoven test data not found: {data_dir}")
+
+        return TSVLoader.from_file(
+            data_dir / "n04op18-4_04.notes.tsv",
+            data_dir / "n04op18-4_04.measures.tsv",
+        )
+
+    def test_returns_score_flow_controller(self, abc_loader):
+        """create_flow_controller() returns a ScoreFlowController."""
+        from timetoalign.timelines.flow import ScoreFlowController
+
+        controller = abc_loader.create_flow_controller()
+        assert isinstance(controller, ScoreFlowController)
+
+    def test_controller_can_compute_flow(self, abc_loader):
+        """The returned controller can compute a flow."""
+        from timetoalign.timelines.flow import FlowMode
+
+        controller = abc_loader.create_flow_controller()
+        flow = controller.compute_flow(FlowMode.DEFAULT)
+        assert len(flow.sections) == 11
+
+    def test_raises_without_measures(self):
+        """ValueError when no measure data has been loaded."""
+        from timetoalign.loader.score import TSVLoader
+
+        loader = TSVLoader()
+        with pytest.raises(ValueError, match="no measure data"):
+            loader.create_flow_controller()
+
+    def test_equivalent_to_manual_construction(self, abc_loader):
+        """Produces the same result as manual ScoreFlowController()."""
+        from timetoalign.timelines.flow import FlowMode, ScoreFlowController
+
+        # API way
+        ctrl_api = abc_loader.create_flow_controller()
+        flow_api = ctrl_api.compute_flow(FlowMode.DEFAULT)
+
+        # Manual way
+        ctrl_manual = ScoreFlowController(abc_loader.store.measures)
+        flow_manual = ctrl_manual.compute_flow(FlowMode.DEFAULT)
+
+        assert len(flow_api.sections) == len(flow_manual.sections)
+
+
+# endregion

@@ -6,6 +6,7 @@ import logging
 from abc import abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from typing_extensions import Self
 
@@ -14,6 +15,9 @@ from timetoalign.loader.base import Loader
 
 from .events import ScoreEventData
 from .store import ScoreStore
+
+if TYPE_CHECKING:
+    from timetoalign.timelines.flow import ScoreFlowController
 
 module_logger = logging.getLogger(__name__)
 
@@ -88,6 +92,38 @@ class ScoreLoader(Loader):
         """Clear all loaded sources and store data."""
         super().clear()
         self._store = ScoreStore.empty()
+
+    # region Flow Control
+
+    def create_flow_controller(self) -> "ScoreFlowController":
+        """Create a `timetoalign.ScoreFlowController` from the loaded measure data.
+
+        The flow controller derives the repeat structure (repeats, voltas,
+        jumps, D.S., D.C.) from the measure data and computes the
+        traversal order.  Requires measures to have been loaded; raises
+        ``ValueError`` if no measure data is available.
+
+        Returns:
+            A configured ``ScoreFlowController`` ready to compute flows.
+
+        Raises:
+            ValueError: If no measure data has been loaded.
+
+        Examples:
+            >>> loader = TSVLoader.from_file("notes.tsv", "measures.tsv")
+            >>> controller = loader.create_flow_controller()
+            >>> flow = controller.compute_flow(FlowMode.DEFAULT)
+        """
+        from timetoalign.timelines.flow import ScoreFlowController
+
+        if self._store.measures is None or len(self._store.measures) == 0:
+            raise ValueError(
+                "Cannot create a FlowController: no measure data has been "
+                "loaded.  Load a measures file first (e.g. *.measures.tsv)."
+            )
+        return ScoreFlowController(self._store.measures)
+
+    # endregion
 
     # region Serialization
 
