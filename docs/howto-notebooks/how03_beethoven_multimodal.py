@@ -35,9 +35,9 @@
 #
 # | Recording | Notes | Matched | Unmatched EEP | Unmatched ABC |
 # |-----------|-------|---------|---------------|---------------|
-# | Normal | 4,026 | 3,740 | 16 | 10 |
-# | Mechanical | 4,026 | 3,741 | 15 | 9 |
-# | Exaggerated | 2,820 | 2,650 | 4 | 1,100 |
+# | Normal | 4,026 | 3,740 | 16 | 23 |
+# | Mechanical | 4,026 | 3,743 | 13 | 20 |
+# | Exaggerated | 2,820 | 2,650 | 4 | 1,113 |
 
 # %% [markdown]
 # ## 1. Setup
@@ -45,6 +45,7 @@
 # %%
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from PIL import Image
 
@@ -63,11 +64,7 @@ from timetoalign.alignment.matching import (
     prepare_eep_notes_for_matching,
 )
 from timetoalign.loader.score import TSVLoader
-from timetoalign.timelines.flow import (
-    FlowMode,
-    ScoreFlowController,
-    create_unfolded_timeline,
-)
+from timetoalign.timelines.flow import FlowMode
 from timetoalign.timelines.types import SegmentLine
 
 _notebook_dir = Path(".").resolve()
@@ -261,6 +258,24 @@ clt1 = abc_loader.create_timeline(uid="clt1")
 clt1
 
 # %% [markdown]
+# ### 6.1 ABC Flow Control: Repeat Structure
+#
+# The ABC score has repeats and volta brackets. The loader's
+# `create_flow_controller()` derives the repeat structure from the
+# measure data and computes the default flow (all repeats taken).
+# This is **the same** flow control machinery used later for CLT2
+# (the recordings edition) in Part III.
+
+# %%
+abc_controller = abc_loader.create_flow_controller()
+abc_flow = abc_controller.compute_flow(FlowMode.DEFAULT)
+abc_flow
+
+# %% [markdown]
+# The flow controller and flow will be used in §9.2 to unfold the
+# **entire** score group at once — not just CLT1, but all timelines.
+
+# %% [markdown]
 # ## 7. DGT1: OMR Ground Truth
 #
 # The OMR data contains 3,190 note head bounding boxes across 22 score pages.
@@ -305,6 +320,7 @@ dgt1 = SegmentLine(
     number_type=NumberType.int,
     segment_type=SegmentLine,
     inner_segment_type=DiscreteGraphicalTimeline,
+    uid="dgt1",
 )
 
 for page_idx, page_data in noteheads.groupby("page", sort=True):
@@ -371,13 +387,13 @@ os_full = os_loader.create_timeline(uid="openscore_full")
 os_full
 
 # %% [markdown]
-# The `ScoreFlowController` derives section boundaries from the score's
-# flow control markup. Splitting at those coordinates creates one region
-# per movement.
+# The loader's `create_flow_controller()` derives section boundaries from
+# the score's flow control markup. Splitting at those coordinates creates
+# one region per movement.
 
 # %%
-flow = ScoreFlowController(os_loader.store.measures)
-boundaries = flow.get_section_boundary_coordinates()
+os_flow_controller = os_loader.create_flow_controller()
+boundaries = os_flow_controller.get_section_boundary_coordinates()
 os_full.create_regions_from_boundaries(
     [0, *[float(b) for b in boundaries], float(os_full.length.value)], prefix="movement"
 )
@@ -405,18 +421,89 @@ score_group = TimelineGroup(
 score_group
 
 # %% [markdown]
+# ### 9.1 Cross-Domain Section Boundaries (Quarters → Pixels → Pages)
+#
+# The playthrough section boundaries (from §6.1) can now be mapped
+# through the score group to DGT1 pixel coordinates. This demonstrates
+# cross-domain coordinate transfer within a `TimelineGroup`: the
+# `InterpolationMap` between CLT1 (quarters) and DGT1 (pixels) uses
+# each system's pixel-to-quarter `TableMap` as its C-map anchor.
+
+# %%
+# Build a page-boundary lookup from DGT1's segment structure
+_page_bounds = []
+for _seg_id in dgt1.list_segments():
+    _off = dgt1.get_child_offset(_seg_id)
+    _seg = dgt1.get_child(_seg_id)
+    _page_bounds.append(
+        (float(_off.value), float(_off.value) + float(_seg.length.value))
+    )
+
+_section_rows = []
+for _sid, _qb in abc_controller.get_atomic_section_coordinates(flow=abc_flow).items():
+    _ts = score_group.get_timestamp_at(float(_qb), "clt1")
+    _px = _ts.to_dict().get("dgt1")
+    _page = next(
+        (i + 1 for i, (s, e) in enumerate(_page_bounds) if s <= _px < e),
+        "-",
+    )
+    _section_rows.append(
+        {"section": _sid, "quarters": float(_qb), "dgt1_pixels": _px, "page": _page}
+    )
+section_boundary_table = pd.DataFrame(_section_rows).set_index("section")
+section_boundary_table
+
+# %% [markdown]
+# Each atomic section's start coordinate is located precisely on a
+# specific page of the OMR score image. The pixel column gives the
+# linearised x-coordinate across all 22 pages; the page column tells
+# which score image to open.
+
+# %% [markdown]
+# ### 9.2 Unfolding the Entire Score Group
+#
+# The score has repeats and volta brackets. Rather than unfolding each
+# timeline individually, `TimelineGroup.unfold()` does it in one call:
+# the flow controller's section boundaries are resolved via the group's
+# interpolation maps, so every timeline — regardless of domain — is
+# sliced and reassembled in playthrough order.
+
+# %%
+score_group_unfolded = score_group.unfold(
+    abc_flow, abc_controller, reference_timeline_id="clt1"
+)
+score_group_unfolded
+
+# %% [markdown]
+# The unfolded CLT1 carries all note events in playthrough order.
+# Extract them for note matching:
+
+# %%
+clt1_unfolded = score_group_unfolded.get_timeline("clt1")
+abc_notes_df = clt1_unfolded.get_events(
+    event_type="Note", include_children=False
+).to_pandas()
+
+# Cast types restored from string (EventData stores extra columns as strings)
+abc_notes_df["staff"] = pd.to_numeric(abc_notes_df["staff"], errors="coerce").astype(
+    "Int64"
+)
+abc_notes_df["tied"] = pd.to_numeric(abc_notes_df["tied"], errors="coerce")
+abc_notes_df.loc[abc_notes_df["tied"] == 0, "tied"] = np.nan
+abc_notes_df["quarterbeats_playthrough"] = abc_notes_df["start"]
+
+abc_prepared = prepare_abc_notes_for_matching(abc_notes_df)
+len(abc_prepared)  # note onsets after dropping tied notes
+
+# %% [markdown]
 # ## 10. Aligning Recordings with the Score via Note Matching
 #
 # Each EEP recording's note events (seconds, pitch, staff) are matched
-# against the ABC unfolded score notes (quarterbeats, pitch, staff) using
-# greedy sequential matching. The result: `MatchClaim` objects that
-# connect recording coordinates to score coordinates.
-
-# %%
-# Load unfolded ABC notes (the target for all three recordings)
-abc_unfolded_df = pd.read_csv(ABC_DIR / "n04op18-4_04_unfolded.notes.tsv", sep="\t")
-abc_prepared = prepare_abc_notes_for_matching(abc_unfolded_df)
-len(abc_prepared)  # note onsets after dropping tied notes
+# against the ABC **unfolded** score notes (quarterbeats, pitch, staff)
+# prepared in §9.2 using greedy sequential matching. The result:
+# `MatchClaim` objects that connect recording coordinates to score
+# coordinates. No pre-computed TSV is needed — the unfolded CLT1 carries
+# all the notes.
 
 # %% [markdown]
 # Match each recording against the score. The `source_timeline_id` and
@@ -466,9 +553,9 @@ exaggerated_match = match_results["dpt11"]
 #
 # | Recording | Matched | Unmatched EEP | Unmatched ABC |
 # |-----------|---------|---------------|---------------|
-# | Normal | 3,740 | 16 | 10 |
-# | Mechanical | 3,741 | 15 | 9 |
-# | Exaggerated | 2,650 | 4 | 1,100 |
+# | Normal | 3,740 | 16 | 23 |
+# | Mechanical | 3,743 | 13 | 20 |
+# | Exaggerated | 2,650 | 4 | 1,113 |
 #
 # **Next:** Part III adds the Emerson group and demonstrates cross-group
 # coordinate transfer using an `AlignmentBundle`.
@@ -509,11 +596,11 @@ clt2
 # %% [markdown]
 # ### 11.2 Flow Control: Inspect the Score's Repeat Structure
 #
-# The `ScoreFlowController` identifies atomic sections and flow control
-# events (repeats, voltas) from the measure data.
+# The loader's `create_flow_controller()` identifies atomic sections and
+# flow control events (repeats, voltas) from the measure data.
 
 # %%
-rec_controller = ScoreFlowController(rec_loader.store.measures)
+rec_controller = rec_loader.create_flow_controller()
 rec_controller
 
 # %% [markdown]
@@ -529,18 +616,7 @@ single_flow = rec_controller.compute_flow(FlowMode.SINGLE_PASS)
 single_flow
 
 # %% [markdown]
-# ### 11.3 Unfolded Timeline via TraversalMap 2
-#
-# Unfolding CLT2 via the default flow creates a new timeline with events
-# reordered and duplicated according to the repeat structure. The unfolded
-# timeline carries a reverse `FlowMap` for tracing back to the original.
-
-# %%
-clt2_unfolded = create_unfolded_timeline(clt2, default_flow, rec_controller)
-clt2_unfolded
-
-# %% [markdown]
-# ### 11.4 DPT16: Emerson Recording Alignment
+# ### 11.3 DPT16: Emerson Recording Alignment
 #
 # The `measureMapAudio.csv` provides a 10-segment alignment between the
 # unfolded score (floating measures) and the Emerson recording (seconds).
@@ -579,7 +655,7 @@ dpt16.add_conversion_map(
 dpt16
 
 # %% [markdown]
-# ### 11.5 Emerson Group
+# ### 11.4 Emerson Group
 #
 # Both timelines go into one group. The group uses the DPT16 c-map
 # boundaries as alignment anchors (seconds <-> unfolded floating measures).
@@ -701,13 +777,12 @@ pd.Series(
 # ### 13.4 USE CASE B — Transfer Atomic Section Boundaries Across Groups
 #
 # The score's repeat structure defines atomic sections (A through M).
-# The `ScoreFlowController` computes each section's **unfolded**
+# The flow controller (from §6.1) computes each section's **unfolded**
 # quarterbeat start coordinate — the position in the playthrough
 # order, which is what the bundle's WarpMaps expect:
 
 # %%
-abc_controller = ScoreFlowController(abc_loader.store.measures)
-abc_flow = abc_controller.compute_flow(FlowMode.DEFAULT)
+# abc_controller and abc_flow were computed in §6.1
 section_coords = abc_controller.get_atomic_section_coordinates(flow=abc_flow)
 section_coords
 
@@ -744,11 +819,12 @@ boundary_df
 # |---------|---------|---------|
 # | `build_recording_group()` | Reusable factory for EEP recordings | 2-4 |
 # | `TSVLoader.from_file()` | Load ABC score with notes, measures, annotations | 6 |
+# | `create_flow_controller()` | Repeat structure + default flow | 6.1 |
 # | `SegmentLine` nesting | OMR pages → systems → noteheads | 7 |
 # | Region extraction | OpenScore 4-movement → movement 4 child | 8 |
-# | `match_notes_by_attributes()` | EEP ↔ ABC note matching | 10 |
-# | `ScoreFlowController.diagram()` | ASCII flow control visualization | 11 |
-# | `create_unfolded_timeline()` | Repeat expansion via `FlowMap` | 11 |
+# | Cross-domain timestamps | Quarters → pixels → page number | 9.1 |
+# | `TimelineGroup.unfold()` | Unfold entire group via one flow | 9.2 |
+# | `match_notes_by_attributes()` | EEP ↔ ABC note matching (from unfolded TL) | 10 |
 # | `Flow.diagram()` | Flow inspection | 11 |
 # | `get_atomic_section_coordinates()` | Section boundaries in one call | 13 |
 # | `AlignmentBundle` | Multi-group cross-domain transfer | 12-13 |
