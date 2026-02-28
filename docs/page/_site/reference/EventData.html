@@ -714,7 +714,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.concat">concat</h3>
 <div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>EventData.concat(<span class="op">*</span>others)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Concatenate with other EventData, returning a new EventData.</p>
-<p>Args: *others: Other EventData to concatenate.</p>
+<p>Args: *others: Other EventData to concatenate (extra columns are allowed and will be merged using schema promotion).</p>
 <p>Returns: A new EventData containing all events.</p>
 <p>Raises: ValueError: If any units don’t match.</p>
 </section>
@@ -757,7 +757,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.extend">extend</h3>
 <div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>EventData.extend(other)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Extend this data with events from another EventData (in-place).</p>
-<p>Args: other: Another EventData with compatible schema.</p>
+<p>Args: other: Another EventData with compatible schema (extra columns are allowed and will be merged using schema promotion).</p>
 <p>Raises: ValueError: If units don’t match.</p>
 </section>
 <section id="timetoalign.EventData.filter" class="level3">

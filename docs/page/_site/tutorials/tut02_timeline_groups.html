@@ -308,7 +308,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="timeline-groups-and-commensurability" class="level1">
 <h1>Timeline Groups and Commensurability</h1>
 <p>Two timelines become <strong>commensurable</strong> — meaning coordinates can be transferred between them — once they share a <code>TimelineGroup</code>.</p>
-<div id="5ebd2835" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:04.414740Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:04.414356Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:06.473420Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:06.472629Z&quot;}}" data-execution_count="1">
+<div id="5ebd2835" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:44:17.179779Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:44:17.179590Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:44:19.801648Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:44:19.800496Z&quot;}}" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> timetoalign <span class="im">import</span> TimelineGroup</span>
@@ -319,7 +319,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 <section id="load-a-score-and-a-performance" class="level2">
 <h2 class="anchored" data-anchor-id="load-a-score-and-a-performance">Load a Score and a Performance</h2>
-<div id="a3c85868" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:06.475921Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:06.475548Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:06.567337Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:06.566425Z&quot;}}" data-execution_count="2">
+<div id="a3c85868" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:44:19.804699Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:44:19.804051Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:44:19.912490Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:44:19.911860Z&quot;}}" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>_pt <span class="op">=</span> PartituraLoader()</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>_pt.load(DATA_DIR <span class="op">/</span> <span class="st">"midi"</span> <span class="op">/</span> <span class="st">"score"</span> <span class="op">/</span> <span class="st">"rachmaninoff_piano.mid"</span>)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>score_tl <span class="op">=</span> _pt.create_timeline(uid<span class="op">=</span><span class="st">"score"</span>)</span>
@@ -349,15 +349,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   part = create_part(</code></pre>
 </div>
 <div class="cell-output cell-output-display" data-execution_count="2">
-<pre><code>{'score': '25.985416666666666 quarters quarters',
- 'performance': '11537.0 ticks ticks'}</code></pre>
+<pre><code>{'score': '25.985417 quarters quarters', 'performance': '11537 ticks ticks'}</code></pre>
 </div>
 </div>
 </section>
 <section id="create-a-group" class="level2">
 <h2 class="anchored" data-anchor-id="create-a-group">Create a Group</h2>
 <p>Adding both timelines to the same group establishes a linear mapping between their full extents.</p>
-<div id="433f0c7d" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:06.569431Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:06.569230Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:06.579560Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:06.578739Z&quot;}}" data-execution_count="3">
+<div id="433f0c7d" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:44:19.915062Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:44:19.914821Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:44:19.926396Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:44:19.925586Z&quot;}}" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>group <span class="op">=</span> TimelineGroup(<span class="bu">id</span><span class="op">=</span><span class="st">"rachmaninoff"</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>group.add_timeline(score_tl)</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>group.add_timeline(perf_tl)</span>
@@ -365,7 +364,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output cell-output-display" data-execution_count="3">
 <pre style="font-family: monospace; line-height: 1.2;">TimelineGroup[rachmaninoff] (2 timelines, 2 timestamps)
 ┌────────────────────────────────────────────────────────────────────────┐
-│ ContinuousLogicalTimeline[score] (122 events, 3 children, 1 cmaps)     │
+│ ContinuousLogicalTimeline[score] (122 events, 3 children, 2 cmaps)     │
 │                       0 ____________________________ 26.0 quarters     │
 │   ├─ notes            0 ____________________________ 26.0 (111 events) │
 │   ├─ measures         0 ____________________________ 26.0 (7 events)   │
@@ -380,43 +379,103 @@ Timestamps: 2</pre>
 </section>
 <section id="transfer-coordinates" class="level2">
 <h2 class="anchored" data-anchor-id="transfer-coordinates">Transfer Coordinates</h2>
-<div id="28f6b651" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:06.581965Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:06.581761Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:06.586068Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:06.585262Z&quot;}}" data-execution_count="4">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>ts <span class="op">=</span> group.get_timestamp_at(<span class="fl">20.0</span>, <span class="st">"score"</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"score coordinate"</span>: <span class="fl">20.0</span>,</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"performance coordinate"</span>: ts[<span class="st">"performance"</span>],</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="28f6b651" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:44:19.929273Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:44:19.929011Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:44:19.934239Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:44:19.933245Z&quot;}}" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get timestamp at score position 20.0 - shows ALL peer timelines</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>ts <span class="op">=</span> group.get_timestamp_at(<span class="fl">20.0</span>, <span class="st">"score"</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>ts</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="4">
-<pre><code>{'score coordinate': 20.0, 'performance coordinate': 8880}</code></pre>
+<div style="font-family: monospace;"><strong>TimeStamp</strong> <span style="background: #ffeb3b; padding: 0 4px; border-radius: 3px; font-size: 0.8em;">interpolated</span>
+<table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<thead>
+<tr class="header" style="border-bottom: 1px solid #ccc;">
+<th data-quarto-table-cell-role="th" style="text-align: left; padding: 2px 8px;">ID</th>
+<th data-quarto-table-cell-role="th" style="text-align: right; padding: 2px 8px;">Coordinate</th>
+<th data-quarto-table-cell-role="th" style="text-align: left; padding: 2px 8px;">Type</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>score</strong></td>
+<td style="text-align: right;">20 quarters</td>
+<td><em>axis</em></td>
+</tr>
+<tr class="even">
+<td>performance</td>
+<td style="text-align: right;">8880 ticks</td>
+<td><em>child</em></td>
+</tr>
+<tr class="odd">
+<td style="color: #666">measures</td>
+<td style="text-align: right;">6 measures</td>
+<td style="color: #666"><em>cmap</em></td>
+</tr>
+<tr class="even">
+<td style="color: #666">ticks</td>
+<td style="text-align: right;">9600 ticks</td>
+<td style="color: #666"><em>cmap</em></td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
-<div id="878d0d31" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:06.588537Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:06.588143Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:06.593663Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:06.592770Z&quot;}}" data-execution_count="5">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>ts_back <span class="op">=</span> group.get_timestamp_at(<span class="fl">50.0</span>, <span class="st">"performance"</span>)</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"performance coordinate"</span>: <span class="fl">50.0</span>,</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"score coordinate"</span>: ts_back[<span class="st">"score"</span>],</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="878d0d31" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:44:19.937095Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:44:19.936794Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:44:19.942912Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:44:19.941994Z&quot;}}" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Transfer back: get timestamp at performance position 50.0 (ticks are DISCRETE)</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>ts_back <span class="op">=</span> group.get_timestamp_at(<span class="dv">50</span>, <span class="st">"performance"</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>ts_back</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="5">
-<pre><code>{'performance coordinate': 50.0, 'score coordinate': 0.11261773713559273}</code></pre>
+<div style="font-family: monospace;"><strong>TimeStamp</strong> <span style="background: #ffeb3b; padding: 0 4px; border-radius: 3px; font-size: 0.8em;">interpolated</span>
+<table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<thead>
+<tr class="header" style="border-bottom: 1px solid #ccc;">
+<th data-quarto-table-cell-role="th" style="text-align: left; padding: 2px 8px;">ID</th>
+<th data-quarto-table-cell-role="th" style="text-align: right; padding: 2px 8px;">Coordinate</th>
+<th data-quarto-table-cell-role="th" style="text-align: left; padding: 2px 8px;">Type</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>performance</strong></td>
+<td style="text-align: right;">50 ticks</td>
+<td><em>axis</em></td>
+</tr>
+<tr class="even">
+<td>score</td>
+<td style="text-align: right;">0.112618 quarters</td>
+<td><em>child</em></td>
+</tr>
+<tr class="odd">
+<td style="color: #666">measures</td>
+<td style="text-align: right;">1.028154 measures</td>
+<td style="color: #666"><em>cmap</em></td>
+</tr>
+<tr class="even">
+<td style="color: #666">ticks</td>
+<td style="text-align: right;">54 ticks</td>
+<td style="color: #666"><em>cmap</em></td>
+</tr>
+</tbody>
+</table>
+</div>
 </div>
 </div>
 </section>
 <section id="partial-alignment" class="level2">
 <h2 class="anchored" data-anchor-id="partial-alignment">Partial Alignment</h2>
 <p>If the performance only covers part of the score (say, quarter-beat positions 8 to 20), specify <code>start</code> and <code>end</code> boundaries.</p>
-<div id="70fdb091" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:06.595668Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:06.595387Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:06.606796Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:06.605995Z&quot;}}" data-execution_count="6">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>partial <span class="op">=</span> TimelineGroup(<span class="bu">id</span><span class="op">=</span><span class="st">"partial"</span>)</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>partial.add_timeline(score_tl)</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>partial.add_timeline(</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    perf_tl,</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    start<span class="op">=</span>(<span class="fl">8.0</span>, <span class="st">"score"</span>),</span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    end<span class="op">=</span>(<span class="fl">20.0</span>, <span class="st">"score"</span>),</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>partial</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="70fdb091" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T19:44:19.945905Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T19:44:19.945600Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T19:44:19.956761Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T19:44:19.955928Z&quot;}}" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>partial <span class="op">=</span> TimelineGroup(<span class="bu">id</span><span class="op">=</span><span class="st">"partial"</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>partial.add_timeline(score_tl)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>partial.add_timeline(</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    perf_tl,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    start<span class="op">=</span>(<span class="fl">8.0</span>, <span class="st">"score"</span>),</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    end<span class="op">=</span>(<span class="fl">20.0</span>, <span class="st">"score"</span>),</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>partial</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="6">
 <pre style="font-family: monospace; line-height: 1.2;">TimelineGroup[partial] (2 timelines, 4 timestamps)
 ┌────────────────────────────────────────────────────────────────────────┐
-│ ContinuousLogicalTimeline[score] (122 events, 3 children, 1 cmaps)     │
+│ ContinuousLogicalTimeline[score] (122 events, 3 children, 2 cmaps)     │
 │                       0 ____________________________ 26.0 quarters     │
 │   ├─ notes            0 ____________________________ 26.0 (111 events) │
 │   ├─ measures         0 ____________________________ 26.0 (7 events)   │

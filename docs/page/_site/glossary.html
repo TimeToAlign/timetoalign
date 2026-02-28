@@ -221,7 +221,7 @@ A pure coordinate pair associating one coordinate on timeline A with one on time
 </dd>
 <dt><strong>AlignmentBundle</strong></dt>
 <dd>
-The top-level container for alignment workflows, holding timelines, <button class="glossary" title="A container for commensurable timelines, connected via a shared timestamp table and pairwise InterpolationMaps. Enables coordinate transfer between timelines of potentially different units via linear interpolation.">TimelineGroup</button>s, and cross-group <button class="glossary" title="">MatchClaim</button>s. Provides coordinate transfer within groups (via interpolation) and across groups (via <button class="glossary" title="">MatchLine</button> and <button class="glossary" title="A standalone class that produces a materialised copy of a source timeline (including its children, events, regions, etc.), warped to the coordinate system of a target timeline. Generated from a MatchLine by extracting coordinate pairs and building an interpolation table. If source and target have different units, the warped copy changes timeline type. Uses InterpolationMap (numpy.interp) under the hood.">WarpMap</button>). See <a href="./concepts.html#alignment">Alignment</a>.
+The top-level container for alignment workflows, holding timelines, <button class="glossary" title="A container for commensurable timelines, connected via a shared timestamp table and pairwise InterpolationMaps. Enables coordinate transfer between timelines of potentially different units via linear interpolation.">TimelineGroup</button>s, and cross-group <button class="glossary" title="">MatchClaim</button>s. Provides coordinate transfer within groups (via interpolation) and across groups (via <button class="glossary" title="An ordered sequence of MatchStamps for a given source timeline, sorted by coordinate on that source timeline. Created by selecting and resolving MatchClaims (all or filtered subset). Used as input for WarpMap generation. In the Hendrix example, the “inferred chord event alignment” is based on a MatchLine selecting MatchGraphs M6-M9.">MatchLine</button> and <button class="glossary" title="">WarpMap</button>). See <a href="./concepts.html#alignment">Alignment</a>.
 </dd>
 </dl>
 </section>
@@ -230,7 +230,7 @@ The top-level container for alignment workflows, holding timelines, <button clas
 <dl>
 <dt><strong>Break</strong></dt>
 <dd>
-A <button class="glossary" title="An event affecting flow control: either a Break (voiding contiguity) or a Jump (creating new contiguity).">ControlEvent</button> that voids <button class="glossary" title="">Contiguity</button> at its <button class="glossary" title="Associates a coordinate (a “time-point”) with a signification such as “start of event e”. Instants sharing a coordinate are synchronous.">Instant</button>. TimeIntervals cannot span a Break, and Breaks cannot be inserted into existing TimeIntervals. See <a href="./concepts.html#flow-control">Flow control</a>.
+A <button class="glossary" title="An event affecting flow control: either a Break (voiding contiguity) or a Jump (creating new contiguity).">ControlEvent</button> that voids <button class="glossary" title="A TimeInterval is contiguous if it monotonically spans all coordinates between its start and end. An Instant is contiguous with a TimeInterval if it is synchronous with its EndInstant.">Contiguity</button> at its <button class="glossary" title="Associates a coordinate (a “time-point”) with a signification such as “start of event e”. Instants sharing a coordinate are synchronous.">Instant</button>. TimeIntervals cannot span a Break, and Breaks cannot be inserted into existing TimeIntervals. See <a href="./concepts.html#flow-control">Flow control</a>.
 </dd>
 </dl>
 </section>
@@ -259,11 +259,11 @@ A <button class="glossary" title="An umbrella term for composed ConversionMaps: 
 </dd>
 <dt><strong>Contiguity</strong></dt>
 <dd>
-A <button class="glossary" title="Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive [s, e). The EndInstant’s coordinate must be >= the StartInstant’s.">TimeInterval</button> is contiguous if it monotonically spans all coordinates between its start and end. An <button class="glossary" title="Associates a coordinate (a “time-point”) with a signification such as “start of event e”. Instants sharing a coordinate are synchronous.">Instant</button> is contiguous with a TimeInterval if it is synchronous with its <button class="glossary" title="">EndInstant</button>. See <a href="./concepts.html#flow-control">Flow control</a>.
+A <button class="glossary" title="Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive [s, e). The EndInstant’s coordinate must be >= the StartInstant’s.">TimeInterval</button> is contiguous if it monotonically spans all coordinates between its start and end. An <button class="glossary" title="Associates a coordinate (a “time-point”) with a signification such as “start of event e”. Instants sharing a coordinate are synchronous.">Instant</button> is contiguous with a TimeInterval if it is synchronous with its <button class="glossary" title="An Instant marking the end of a TimeInterval. Implies the presence of a corresponding StartInstant with coordinate <= EndInstant’s coordinate.">EndInstant</button>. See <a href="./concepts.html#flow-control">Flow control</a>.
 </dd>
 <dt><strong>ControlEvent</strong></dt>
 <dd>
-An event affecting flow control: either a <button class="glossary" title="A control event that voids contiguity at its Instant. TimeIntervals cannot span a Break, and Breaks cannot be inserted into existing TimeIntervals.">Break</button> (voiding contiguity) or a <button class="glossary" title="A control event with JumpFrom and JumpTo Instants. When active, makes events at JumpTo contiguous with those ending at JumpFrom (e.g., repeats, dal segno).">Jump</button> (creating new contiguity). See <a href="./concepts.html#flow-control">Flow control</a>.
+An event affecting flow control: either a <button class="glossary" title="A control event that voids contiguity at its Instant. TimeIntervals cannot span a Break, and Breaks cannot be inserted into existing TimeIntervals.">Break</button> (voiding contiguity) or a <button class="glossary" title="">Jump</button> (creating new contiguity). See <a href="./concepts.html#flow-control">Flow control</a>.
 </dd>
 <dt><strong>ConversionMap</strong></dt>
 <dd>
@@ -310,7 +310,7 @@ Anything associated with a <button class="glossary" title="A positive coordinate
 <dl>
 <dt><strong>GroupTimestamp</strong></dt>
 <dd>
-A cross-section through a <button class="glossary" title="A container for commensurable timelines, connected via a shared timestamp table and pairwise InterpolationMaps. Enables coordinate transfer between timelines of potentially different units via linear interpolation.">TimelineGroup</button> at a given coordinate. Contains one coordinate per timeline in the group plus (optionally) C-map conversion values. A <button class="glossary" title="A synchronised instant across multiple timelines, extracted from a MatchGraph’s connected components. Formally, the union of GroupTimestamps from each participating TimelineGroup. Contains one coordinate per participating timeline and, with conversion_maps=True (the default), C-map conversion values.">MatchStamp</button> is the union of GroupTimestamps from each participating group. Produced by <code>TimelineGroup.get_timestamp_at()</code>. See <a href="./concepts.html#alignment">Alignment</a>.
+A cross-section through a <button class="glossary" title="A container for commensurable timelines, connected via a shared timestamp table and pairwise InterpolationMaps. Enables coordinate transfer between timelines of potentially different units via linear interpolation.">TimelineGroup</button> at a given coordinate. Contains one coordinate per timeline in the group plus (optionally) C-map conversion values. A <button class="glossary" title="">MatchStamp</button> is the union of GroupTimestamps from each participating group. Produced by <code>TimelineGroup.get_timestamp_at()</code>. See <a href="./concepts.html#alignment">Alignment</a>.
 </dd>
 </dl>
 </section>
@@ -323,7 +323,7 @@ Associates a <button class="glossary" title="A position on a timeline, expressed
 </dd>
 <dt><strong>InstantEvent</strong></dt>
 <dd>
-An <button class="glossary" title="Anything associated with a timeline via Instants. An InstantEvent has zero duration; a TimeIntervalEvent has duration defined by start and end coordinates.">Event</button> defined by a single <button class="glossary" title="Associates a coordinate (a “time-point”) with a signification such as “start of event e”. Instants sharing a coordinate are synchronous.">Instant</button>, having zero duration. See <a href="./concepts.html#foundations">Foundations</a>.
+An <button class="glossary" title="">Event</button> defined by a single <button class="glossary" title="Associates a coordinate (a “time-point”) with a signification such as “start of event e”. Instants sharing a coordinate are synchronous.">Instant</button>, having zero duration. See <a href="./concepts.html#foundations">Foundations</a>.
 </dd>
 <dt><strong>InverseMap</strong></dt>
 <dd>
@@ -349,7 +349,7 @@ The distance between a <button class="glossary" title="A positive coordinate axi
 </dd>
 <dt><strong>Locked</strong></dt>
 <dd>
-A timeline state preventing the addition of <button class="glossary" title="Associates a coordinate (a “time-point”) with a signification such as “start of event e”. Instants sharing a coordinate are synchronous.">Instant</button>s after the last time-point. <button class="glossary" title="A timeline nested within a parent timeline, sharing the same measuring unit. Coordinate transfer between parent and child uses exact offset arithmetic (addition/subtraction), applied recursively. Children are locked upon insertion.">Child</button> timelines are automatically locked when embedded in a parent. See <a href="./concepts.html#nested-timelines">Nested timelines</a>.
+A timeline state preventing the addition of <button class="glossary" title="Associates a coordinate (a “time-point”) with a signification such as “start of event e”. Instants sharing a coordinate are synchronous.">Instant</button>s after the last time-point. <button class="glossary" title="">Child</button> timelines are automatically locked when embedded in a parent. See <a href="./concepts.html#nested-timelines">Nested timelines</a>.
 </dd>
 </dl>
 </section>
@@ -362,7 +362,7 @@ See <button class="glossary" title="">MatchClaim</button>. The manuscript shorth
 </dd>
 <dt><strong>MatchfileLoader</strong></dt>
 <dd>
-Loader for Vienna Match (<code>.match</code>) alignment files. Uses the standard two-phase <code>load()</code> → <code>create_*()</code> pattern. A single instance processes all <code>.match</code> files that share the same score, building a shared score timeline on the first file and verifying subsequent files against it. Returns an <button class="glossary" title="The top-level container for alignment workflows, holding timelines, groups, and cross-group MatchClaims. Provides coordinate transfer within groups (via interpolation) and across groups (via MatchLine and WarpMap). Not a graph.">AlignmentBundle</button> directly via <code>create_alignment_bundle()</code>. Score goes into its own group; performances are standalone timelines; <button class="glossary" title="">MatchClaim</button>s connect score to performances. See the <a href="./reference/MatchfileLoader.html">API reference</a>.
+Loader for Vienna Match (<code>.match</code>) alignment files. Uses the standard two-phase <code>load()</code> → <code>create_*()</code> pattern. A single instance processes all <code>.match</code> files that share the same score, building a shared score timeline on the first file and verifying subsequent files against it. Returns an <button class="glossary" title="">AlignmentBundle</button> directly via <code>create_alignment_bundle()</code>. Score goes into its own group; performances are standalone timelines; <button class="glossary" title="">MatchClaim</button>s connect score to performances. See the <a href="./reference/MatchfileLoader.html">API reference</a>.
 </dd>
 <dt><strong>MatchClaim</strong></dt>
 <dd>
@@ -370,11 +370,11 @@ A claim—issued by a human or algorithmic agent—about one or two timed things
 </dd>
 <dt><strong>MatchGraph</strong></dt>
 <dd>
-An on-demand analytical structure built from <button class="glossary" title="">MatchClaim</button>s using a networkx graph. Nodes are <code>(timeline_id, coordinate)</code> tuples; edges derive from <button class="glossary" title="A pure coordinate pair associating one coordinate on timeline A with one coordinate on timeline B. The atomic unit of alignment data. Contains no metadata and no claim semantics — it is a neutral record of two associated coordinates. Provenance and interpretation are carried by the enclosing MatchClaim. Only synchronous MatchClaims produce AlignmentAnchors.">AlignmentAnchor</button>s of synchronous claims. Connected components yield <button class="glossary" title="A synchronised instant across multiple timelines, extracted from a MatchGraph’s connected components. Formally, the union of GroupTimestamps from each participating TimelineGroup. Contains one coordinate per participating timeline and, with conversion_maps=True (the default), C-map conversion values.">MatchStamp</button>s. Can be extended with implicit claims based on <button class="glossary" title="A container for commensurable timelines, connected via a shared timestamp table and pairwise InterpolationMaps. Enables coordinate transfer between timelines of potentially different units via linear interpolation.">TimelineGroup</button> membership. Each Match box M1–M15 in the Hendrix figure is a MatchGraph. See <a href="./concepts.html#alignment">Alignment</a>.
+An on-demand analytical structure built from <button class="glossary" title="">MatchClaim</button>s using a networkx graph. Nodes are <code>(timeline_id, coordinate)</code> tuples; edges derive from <button class="glossary" title="A pure coordinate pair associating one coordinate on timeline A with one coordinate on timeline B. The atomic unit of alignment data. Contains no metadata and no claim semantics — it is a neutral record of two associated coordinates. Provenance and interpretation are carried by the enclosing MatchClaim. Only synchronous MatchClaims produce AlignmentAnchors.">AlignmentAnchor</button>s of synchronous claims. Connected components yield <button class="glossary" title="">MatchStamp</button>s. Can be extended with implicit claims based on <button class="glossary" title="A container for commensurable timelines, connected via a shared timestamp table and pairwise InterpolationMaps. Enables coordinate transfer between timelines of potentially different units via linear interpolation.">TimelineGroup</button> membership. Each Match box M1–M15 in the Hendrix figure is a MatchGraph. See <a href="./concepts.html#alignment">Alignment</a>.
 </dd>
 <dt><strong>MatchLine</strong></dt>
 <dd>
-An ordered sequence of <button class="glossary" title="A synchronised instant across multiple timelines, extracted from a MatchGraph’s connected components. Formally, the union of GroupTimestamps from each participating TimelineGroup. Contains one coordinate per participating timeline and, with conversion_maps=True (the default), C-map conversion values.">MatchStamp</button>s for a given source timeline, sorted by coordinate on that source timeline. Created by selecting and resolving <button class="glossary" title="">MatchClaim</button>s (all or a filtered subset). Used as input for <button class="glossary" title="A standalone class that produces a materialised copy of a source timeline (including its children, events, regions, etc.), warped to the coordinate system of a target timeline. Generated from a MatchLine by extracting coordinate pairs and building an interpolation table. If source and target have different units, the warped copy changes timeline type. Uses InterpolationMap (numpy.interp) under the hood.">WarpMap</button> generation. See <a href="./concepts.html#alignment">Alignment</a>.
+An ordered sequence of <button class="glossary" title="">MatchStamp</button>s for a given source timeline, sorted by coordinate on that source timeline. Created by selecting and resolving <button class="glossary" title="">MatchClaim</button>s (all or a filtered subset). Used as input for <button class="glossary" title="">WarpMap</button> generation. See <a href="./concepts.html#alignment">Alignment</a>.
 </dd>
 <dt><strong>MatchPath</strong></dt>
 <dd>
@@ -382,11 +382,11 @@ A path traversal connecting matched events across multiple timelines (e.g., A -&
 </dd>
 <dt><strong>MatchStamp</strong></dt>
 <dd>
-A synchronised instant across multiple timelines, extracted from a <button class="glossary" title="An on-demand analytical structure built from MatchClaims using a networkx graph. Nodes are (timeline_id, coordinate) tuples; edges derive from AlignmentAnchors of synchronous claims. Connected components yield MatchStamps. Can be extended with implicit claims based on group membership. Each “Match” box M1-M15 in the Hendrix figure is a MatchGraph, not a single MatchClaim.">MatchGraph</button>’s connected components. Formally, a MatchStamp is the union of <button class="glossary" title="">GroupTimestamp</button>s from each participating <button class="glossary" title="A container for commensurable timelines, connected via a shared timestamp table and pairwise InterpolationMaps. Enables coordinate transfer between timelines of potentially different units via linear interpolation.">TimelineGroup</button>. Contains one coordinate per participating timeline and, with <code>conversion_maps=True</code> (the default), C-map conversion values. Can be expanded with group-member coordinates. See <a href="./concepts.html#alignment">Alignment</a>.
+A synchronised instant across multiple timelines, extracted from a <button class="glossary" title="An on-demand analytical structure built from MatchClaims using a networkx graph. Nodes are (timeline_id, coordinate) tuples; edges derive from AlignmentAnchors of synchronous claims. Connected components yield MatchStamps. Can be extended with implicit claims based on group membership. Each “Match” box M1-M15 in the Hendrix figure is a MatchGraph, not a single MatchClaim.">MatchGraph</button>’s connected components. Formally, a MatchStamp is the union of <button class="glossary" title="A cross-section through a TimelineGroup at a given coordinate. Contains one coordinate per timeline in the group plus (optionally) C-map conversion values. A MatchStamp is the union of GroupTimestamps from each participating group. Produced by TimelineGroup.get_timestamp_at().">GroupTimestamp</button>s from each participating <button class="glossary" title="A container for commensurable timelines, connected via a shared timestamp table and pairwise InterpolationMaps. Enables coordinate transfer between timelines of potentially different units via linear interpolation.">TimelineGroup</button>. Contains one coordinate per participating timeline and, with <code>conversion_maps=True</code> (the default), C-map conversion values. Can be expanded with group-member coordinates. See <a href="./concepts.html#alignment">Alignment</a>.
 </dd>
 <dt><strong>MultiMap</strong></dt>
 <dd>
-An umbrella term for composed <button class="glossary" title="">ConversionMap</button>s: <button class="glossary" title="A MultiMap that applies multiple ConversionMaps in sequence, creating a conversion path from source to target unit.">ChainMap</button> (sequential), <button class="glossary" title="A MultiMap yielding outputs from multiple ConversionMaps simultaneously (e.g., (x, y) coordinate pairs).">CombinationMap</button> (parallel outputs), and <button class="glossary" title="">ConcatenationMap</button> (regional). See <a href="./concepts.html#conversion-maps">Conversion maps</a>.
+An umbrella term for composed <button class="glossary" title="">ConversionMap</button>s: <button class="glossary" title="A MultiMap that applies multiple ConversionMaps in sequence, creating a conversion path from source to target unit.">ChainMap</button> (sequential), <button class="glossary" title="A MultiMap yielding outputs from multiple ConversionMaps simultaneously (e.g., (x, y) coordinate pairs).">CombinationMap</button> (parallel outputs), and <button class="glossary" title="A MultiMap combining bounded ConversionMaps such that each coordinate region is handled by a specific map. Also called PiecewiseMap.">ConcatenationMap</button> (regional). See <a href="./concepts.html#conversion-maps">Conversion maps</a>.
 </dd>
 </dl>
 </section>
@@ -413,7 +413,7 @@ The zero coordinate of a <button class="glossary" title="A positive coordinate a
 <dl>
 <dt><strong>Parent</strong></dt>
 <dd>
-A <button class="glossary" title="A positive coordinate axis minimally defined by its origin (zero) and measuring unit. Accommodates events and potentially Child timelines.">Timeline</button> that contains one or more <button class="glossary" title="A timeline nested within a parent timeline, sharing the same measuring unit. Coordinate transfer between parent and child uses exact offset arithmetic (addition/subtraction), applied recursively. Children are locked upon insertion.">Child</button> timelines. The parent and all its children must share the same measuring unit. See <a href="./concepts.html#nested-timelines">Nested timelines</a>.
+A <button class="glossary" title="A positive coordinate axis minimally defined by its origin (zero) and measuring unit. Accommodates events and potentially Child timelines.">Timeline</button> that contains one or more <button class="glossary" title="">Child</button> timelines. The parent and all its children must share the same measuring unit. See <a href="./concepts.html#nested-timelines">Nested timelines</a>.
 </dd>
 </dl>
 </section>
@@ -443,11 +443,11 @@ A periodic <button class="glossary" title="">ConversionMap</button> that wraps c
 <dl>
 <dt><strong>Segment</strong></dt>
 <dd>
-A <button class="glossary" title="A timeline nested within a parent timeline, sharing the same measuring unit. Coordinate transfer between parent and child uses exact offset arithmetic (addition/subtraction), applied recursively. Children are locked upon insertion.">Child</button> timeline that is contiguous with its siblings. Segments enable concatenation of local coordinate systems. See <a href="./concepts.html#nested-timelines">Nested timelines</a>.
+A <button class="glossary" title="">Child</button> timeline that is contiguous with its siblings. Segments enable concatenation of local coordinate systems. See <a href="./concepts.html#nested-timelines">Nested timelines</a>.
 </dd>
 <dt><strong>SegmentLine</strong></dt>
 <dd>
-A parent <button class="glossary" title="A positive coordinate axis minimally defined by its origin (zero) and measuring unit. Accommodates events and potentially Child timelines.">Timeline</button> containing only contiguous <button class="glossary" title="A Child timeline that is contiguous with its siblings. Segments enable concatenation of local coordinate systems.">Segment</button>s. Enables cumulative coordinate conversion across all segments. See <a href="./concepts.html#nested-timelines">Nested timelines</a>.
+A parent <button class="glossary" title="A positive coordinate axis minimally defined by its origin (zero) and measuring unit. Accommodates events and potentially Child timelines.">Timeline</button> containing only contiguous <button class="glossary" title="">Segment</button>s. Enables cumulative coordinate conversion across all segments. See <a href="./concepts.html#nested-timelines">Nested timelines</a>.
 </dd>
 <dt><strong>StartInstant</strong></dt>
 <dd>
@@ -464,11 +464,11 @@ An <button class="glossary" title="Associates a coordinate (a “time-point”) 
 <dl>
 <dt><strong>TimeInterval</strong></dt>
 <dd>
-Defined by a <button class="glossary" title="">StartInstant</button> and <button class="glossary" title="">EndInstant</button>; left-inclusive and right-exclusive [<em>s</em>, <em>e</em>). The EndInstant’s coordinate must be &gt;= the StartInstant’s. See <a href="./concepts.html#foundations">Foundations</a>.
+Defined by a <button class="glossary" title="">StartInstant</button> and <button class="glossary" title="An Instant marking the end of a TimeInterval. Implies the presence of a corresponding StartInstant with coordinate <= EndInstant’s coordinate.">EndInstant</button>; left-inclusive and right-exclusive [<em>s</em>, <em>e</em>). The EndInstant’s coordinate must be &gt;= the StartInstant’s. See <a href="./concepts.html#foundations">Foundations</a>.
 </dd>
 <dt><strong>TimeIntervalEvent</strong></dt>
 <dd>
-An <button class="glossary" title="Anything associated with a timeline via Instants. An InstantEvent has zero duration; a TimeIntervalEvent has duration defined by start and end coordinates.">Event</button> with duration, defined by a <button class="glossary" title="Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive [s, e). The EndInstant’s coordinate must be >= the StartInstant’s.">TimeInterval</button>. Contrast with <button class="glossary" title="An event defined by a single Instant, having zero duration. Contrast with TimeIntervalEvent which has a duration.">InstantEvent</button>. See <a href="./concepts.html#foundations">Foundations</a>.
+An <button class="glossary" title="">Event</button> with duration, defined by a <button class="glossary" title="Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive [s, e). The EndInstant’s coordinate must be >= the StartInstant’s.">TimeInterval</button>. Contrast with <button class="glossary" title="An event defined by a single Instant, having zero duration. Contrast with TimeIntervalEvent which has a duration.">InstantEvent</button>. See <a href="./concepts.html#foundations">Foundations</a>.
 </dd>
 <dt><strong>TimeIntervalStamp</strong></dt>
 <dd>
@@ -476,7 +476,7 @@ Combination of a start <button class="glossary" title="">TimeStamp</button> and 
 </dd>
 <dt><strong>Timeline</strong></dt>
 <dd>
-A positive coordinate axis minimally defined by its origin (zero) and measuring unit. Accommodates events and potentially <button class="glossary" title="A timeline nested within a parent timeline, sharing the same measuring unit. Coordinate transfer between parent and child uses exact offset arithmetic (addition/subtraction), applied recursively. Children are locked upon insertion.">Child</button> timelines. See <a href="./concepts.html#foundations">Foundations</a>.
+A positive coordinate axis minimally defined by its origin (zero) and measuring unit. Accommodates events and potentially <button class="glossary" title="">Child</button> timelines. See <a href="./concepts.html#foundations">Foundations</a>.
 </dd>
 <dt><strong>TimelineGroup</strong></dt>
 <dd>
@@ -484,11 +484,11 @@ A container for commensurable timelines, connected via a shared timestamp table 
 </dd>
 <dt><strong>TimeStamp</strong></dt>
 <dd>
-A cross-section through a timeline hierarchy at a given coordinate. Computes equivalent coordinates on <button class="glossary" title="A timeline nested within a parent timeline, sharing the same measuring unit. Coordinate transfer between parent and child uses exact offset arithmetic (addition/subtraction), applied recursively. Children are locked upon insertion.">Child</button> timelines (via offset arithmetic) and on attached <button class="glossary" title="">ConversionMap</button> target units. See <a href="./concepts.html#nested-timelines">Nested timelines</a>.
+A cross-section through a timeline hierarchy at a given coordinate. Computes equivalent coordinates on <button class="glossary" title="">Child</button> timelines (via offset arithmetic) and on attached <button class="glossary" title="">ConversionMap</button> target units. See <a href="./concepts.html#nested-timelines">Nested timelines</a>.
 </dd>
 <dt><strong>TraversalMap</strong></dt>
 <dd>
-A sequence of <button class="glossary" title="Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive [s, e). The EndInstant’s coordinate must be >= the StartInstant’s.">TimeInterval</button>s representing a specific traversal path through a timeline (handling <button class="glossary" title="A control event with JumpFrom and JumpTo Instants. When active, makes events at JumpTo contiguous with those ending at JumpFrom (e.g., repeats, dal segno).">Jump</button>s and repeats). Also called <strong>T-map</strong>. See <a href="./concepts.html#derivative-timelines">Derivative timelines</a>.
+A sequence of <button class="glossary" title="Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive [s, e). The EndInstant’s coordinate must be >= the StartInstant’s.">TimeInterval</button>s representing a specific traversal path through a timeline (handling <button class="glossary" title="">Jump</button>s and repeats). Also called <strong>T-map</strong>. See <a href="./concepts.html#derivative-timelines">Derivative timelines</a>.
 </dd>
 </dl>
 </section>
@@ -497,7 +497,7 @@ A sequence of <button class="glossary" title="Defined by a StartInstant and EndI
 <dl>
 <dt><strong>WarpMap</strong></dt>
 <dd>
-A standalone class that produces a materialised copy of a source timeline (including its children, events, and regions), warped to the coordinate system of a target timeline. Generated from a <button class="glossary" title="">MatchLine</button> by extracting coordinate pairs and building an interpolation table. See <a href="./concepts.html#coordinate-transfer">Alignment</a>.
+A standalone class that produces a materialised copy of a source timeline (including its children, events, and regions), warped to the coordinate system of a target timeline. Generated from a <button class="glossary" title="An ordered sequence of MatchStamps for a given source timeline, sorted by coordinate on that source timeline. Created by selecting and resolving MatchClaims (all or filtered subset). Used as input for WarpMap generation. In the Hendrix example, the “inferred chord event alignment” is based on a MatchLine selecting MatchGraphs M6-M9.">MatchLine</button> by extracting coordinate pairs and building an interpolation table. See <a href="./concepts.html#coordinate-transfer">Alignment</a>.
 </dd>
 </dl>
 
