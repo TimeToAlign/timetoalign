@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/timelines/beatgrid.py
-# hypothesis_version: 6.151.2
-
-[0.0, 1.0, 60.0, 10000, 'Beat', 'Measure', '_tempo_bpm', 'beat', 'end', 'event_type', 'id', 'instant', 'interval', 'is_downbeat', 'mc', 'mn', 'name', 'start', 'temporal_type']

@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/loader/store.py
-# hypothesis_version: 6.151.2
-
-[b'unit', 'Coordinate | None', 'Event', 'EventData', 'Timeline', 'coordinate_range', 'count', 'denominator', 'duration', 'end', 'event_type', 'event_types', 'id', 'instant', 'interval', 'name', 'number_type', 'numerator', 'pandas', 'records', 'start', 'temporal_type', 'temporal_types', 'unit', 'utf-8', 'value']

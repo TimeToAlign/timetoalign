@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/loader/score/measuremap.py
-# hypothesis_version: 6.151.2
-
-['/', 'C', 'C|', 'ID', 'Measure', 'MeasureMapLoader', 'actual_length', 'c', 'count', 'cut', 'c|', 'duration', 'end', 'end_repeat', 'event_type', 'flow_control', 'folded_measures', 'format', 'has_repeats', 'id', 'interval', 'mc', 'measuremap_json', 'mm_id', 'mn', 'mn_int', 'n_measures', 'name', 'next', 'nominal_length', 'number', 'parser', 'qstamp', 'source', 'start', 'start_repeat', 'temporal_type', 'time_signature', 'timesig', 'traversal_sequence', 'unfolded_measures', 'utf-8']
