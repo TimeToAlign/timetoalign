@@ -49,10 +49,8 @@ import pandas as pd
 from PIL import Image
 
 from timetoalign import (
-    AudioLoader,
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
-    DiscretePhysicalTimeline,
     NumberType,
     RepoVizzLoader,
     TableMap,
@@ -65,7 +63,6 @@ from timetoalign.alignment.matching import (
     prepare_eep_notes_for_matching,
 )
 from timetoalign.loader.score import TSVLoader
-from timetoalign.maps import SamplesToSeconds
 from timetoalign.timelines.flow import (
     FlowMode,
     ScoreFlowController,
@@ -82,7 +79,7 @@ DATA_DIR = (
     / "beethoven_op18-4iv_multimodal"
 )
 
-# XML manifest paths
+# XML manifest paths — the loader reads metadata from these files
 NORMAL_XML = DATA_DIR / "StringQuartetEEP_I_Normal" / "StringQuartetEEP_I_Normal.xml"
 MECHANICAL_XML = (
     DATA_DIR / "StringQuartetEEP_I_Mechanical" / "StringQuartetEEP_I_Mechanical.xml"
@@ -90,15 +87,6 @@ MECHANICAL_XML = (
 EXAGGERATED_XML = (
     DATA_DIR / "StringQuartetEEP_I_Exaggerated" / "StringQuartetEEP_I_Exaggerated.xml"
 )
-
-# Recording directory paths (for file discovery)
-NORMAL_DIR = DATA_DIR / "StringQuartetEEP_I_Normal"
-MECHANICAL_DIR = DATA_DIR / "StringQuartetEEP_I_Mechanical"
-EXAGGERATED_DIR = DATA_DIR / "StringQuartetEEP_I_Exaggerated"
-
-NORMAL_PREFIX = "StringQuartetEEP_I_Normal"
-MECHANICAL_PREFIX = "StringQuartetEEP_I_Mechanical"
-EXAGGERATED_PREFIX = "StringQuartetEEP_I_Exaggerated"
 
 # Audio sources and instruments
 AUDIO_SOURCES = [
@@ -127,15 +115,6 @@ INSTRUMENTS = ["vln1", "vln2", "vla", "cello"]
 def build_recording_group(xml_path, group_id, group_name, dpt_base):
     """Build a TimelineGroup from one EEP recording directory via XML manifest.
 
-    Creates 5 parent DPTs with children representing each audio source/instrument:
-    - Audio parent: 6 children (mono, binaural, 4 pickup recordings)
-    - Tonal parent: 6 children (ChordsStrength for each source)
-    - LowLevel parent: 6 children (Dissonance for each source)
-    - Rhythm parent: 6 children (BeatsLoudness for each source)
-    - MoCap parent: 4 children (bb_angle for vln1, vln2, vla, cello)
-
-    Each parent has a `SamplesToSeconds` c-map for coordinate conversion.
-
     Args:
         xml_path: Path to the recording's XML manifest file.
         group_id: ID for the TimelineGroup.
@@ -145,124 +124,59 @@ def build_recording_group(xml_path, group_id, group_name, dpt_base):
     Returns:
         TimelineGroup with 5 hierarchical DPTs (parent + children).
     """
-    n = dpt_base
-    recording_dir = xml_path.parent
-    prefix = xml_path.stem
-
-    # Load the RepoVizz XML manifest for metadata and score access
     rv = RepoVizzLoader.from_file(xml_path)
+    n = dpt_base
 
-    # --- Helper to load audio file and return DPT ---
-    def load_audio(suffix, uid=None):
-        return AudioLoader.from_file(
-            recording_dir / f"{prefix}_{suffix}.mp3"
-        ).create_timeline(uid=uid)
+    # 1. Audio (mono as parent, 6 sources as children)
+    audio = rv.create_timeline("mono", tl_uid=f"dpt{n}", name="Audio")
+    for src in AUDIO_SOURCES:
+        audio.add_child(rv.create_timeline(src, tl_uid=src), offset=0)
 
-    # --- Helper to load descriptor file and return DPT ---
-    def load_descriptor(source_suffix, desc_type, desc_name, uid=None):
-        return AudioLoader.from_file(
-            recording_dir / f"{prefix}_{source_suffix}.wav.{desc_type}.{desc_name}.wav"
-        ).create_timeline(uid=uid)
-
-    # --- 1. Audio parent (6 children) ---
-    # Use mono recording as the reference for duration
-    mono_loader = AudioLoader.from_file(recording_dir / f"{prefix}_mono.mp3")
-    mono_tl = mono_loader.create_timeline()
-    audio_parent = DiscretePhysicalTimeline(
-        length=mono_tl.length.value,
-        unit=TimeUnit.samples,
-        uid=f"dpt{n}",
-        name="Audio",
-    )
-    audio_parent.add_conversion_map(SamplesToSeconds(sample_rate=44100))
-    # Add 6 audio children
-    for source in AUDIO_SOURCES:
-        child = load_audio(source, uid=source)
-        audio_parent.add_child(child, offset=0)
-
-    # --- 2. Tonal parent (6 children, ChordsStrength) ---
-    tonal_ref = load_descriptor("mono", "tonal", "ChordsStrength")
-    tonal_parent = DiscretePhysicalTimeline(
-        length=tonal_ref.length.value,
-        unit=TimeUnit.samples,
-        uid=f"dpt{n + 1}",
-        name="Tonal",
-    )
-    tonal_parent.add_conversion_map(SamplesToSeconds(sample_rate=42))
-    for source in AUDIO_SOURCES:
-        child = load_descriptor(
-            source, "tonal", "ChordsStrength", uid=f"{source}_tonal"
+    # 2-4. Essentia descriptors (tonal, lowlevel, rhythm)
+    desc_cfgs = [
+        ("tonal", "ChordsStrength", 1),
+        ("lowlevel", "Dissonance", 2),
+        ("rhythm", "BeatsLoudness", 3),
+    ]
+    descriptors = []
+    for desc_type, desc_name, offset in desc_cfgs:
+        parent = rv.create_timeline(
+            f"{desc_type}.{desc_name}.mono",
+            tl_uid=f"dpt{n + offset}",
+            name=desc_type.title(),
         )
-        tonal_parent.add_child(child, offset=0)
+        for src in AUDIO_SOURCES:
+            parent.add_child(
+                rv.create_timeline(
+                    f"{desc_type}.{desc_name}.{src}", tl_uid=f"{src}_{desc_type}"
+                ),
+                offset=0,
+            )
+        descriptors.append(parent)
 
-    # --- 3. LowLevel parent (6 children, Dissonance) ---
-    lowlevel_ref = load_descriptor("mono", "lowlevel", "Dissonance")
-    lowlevel_parent = DiscretePhysicalTimeline(
-        length=lowlevel_ref.length.value,
-        unit=TimeUnit.samples,
-        uid=f"dpt{n + 2}",
-        name="LowLevel",
-    )
-    lowlevel_parent.add_conversion_map(SamplesToSeconds(sample_rate=84))
-    for source in AUDIO_SOURCES:
-        child = load_descriptor(
-            source, "lowlevel", "Dissonance", uid=f"{source}_lowlevel"
-        )
-        lowlevel_parent.add_child(child, offset=0)
-
-    # --- 4. Rhythm parent (6 children, BeatsLoudness) ---
-    rhythm_ref = load_descriptor("mono", "rhythm", "BeatsLoudness")
-    rhythm_parent = DiscretePhysicalTimeline(
-        length=rhythm_ref.length.value,
-        unit=TimeUnit.samples,
-        uid=f"dpt{n + 3}",
-        name="Rhythm",
-    )
-    rhythm_parent.add_conversion_map(SamplesToSeconds(sample_rate=172))
-    for source in AUDIO_SOURCES:
-        child = load_descriptor(
-            source, "rhythm", "BeatsLoudness", uid=f"{source}_rhythm"
-        )
-        rhythm_parent.add_child(child, offset=0)
-
-    # --- 5. MoCap parent (4 children, bb_angle per instrument) ---
-    mocap_ref = RepoVizzLoader.from_file(
-        recording_dir / "vln1_bb_angle.csv"
-    ).create_timeline()
-    mocap_parent = DiscretePhysicalTimeline(
-        length=mocap_ref.length.value,
-        unit=TimeUnit.samples,
-        uid=f"dpt{n + 4}",
+    # 5. MoCap bb_angle (from the DescriptorGroup section of the XML)
+    mocap = rv.create_timeline(
+        rv.find_descriptor("bb_angle", "vln1"),
+        tl_uid=f"dpt{n + 4}",
         name="MoCap",
     )
-    mocap_parent.add_conversion_map(SamplesToSeconds(sample_rate=240))
-    for instrument in INSTRUMENTS:
-        child = RepoVizzLoader.from_file(
-            recording_dir / f"{instrument}_bb_angle.csv"
-        ).create_timeline(uid=f"{instrument}_mocap")
-        mocap_parent.add_child(child, offset=0)
+    for inst in INSTRUMENTS:
+        child = rv.create_timeline(
+            rv.find_descriptor("bb_angle", inst),
+            tl_uid=f"{inst}_mocap",
+        )
+        mocap.add_child(child, offset=0)
 
-    # --- Add per-instrument notes to pickup children ---
-    # Notes are loaded from the XML manifest's score section via rv.store.notes
-    for instrument in INSTRUMENTS:
-        notes_events = rv.store.notes_for_instrument(instrument)
-        if notes_events is not None:
-            # Get the pickup child timeline for this instrument
-            pickup_child = audio_parent.get_child(f"pickup_{instrument}")
-            if pickup_child is not None:
-                # Add note events directly to the pickup child timeline
-                pickup_child.add_events(notes_events.to_pandas().to_dict("records"))
+    # Add notes to pickup children
+    for inst in INSTRUMENTS:
+        notes = rv.store.notes_for_instrument(inst)
+        if notes and (pickup := audio.get_child(f"pickup_{inst}")):
+            pickup.add_events(notes.to_pandas().to_dict("records"))
 
     return TimelineGroup(
         id=group_id,
         name=group_name,
-        timelines=[
-            audio_parent,
-            tonal_parent,
-            lowlevel_parent,
-            rhythm_parent,
-            mocap_parent,
-        ],
+        timelines=[audio, *descriptors, mocap],
     )
 
 

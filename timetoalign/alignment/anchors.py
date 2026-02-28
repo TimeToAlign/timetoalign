@@ -816,9 +816,15 @@ class MatchClaim:
         """
 
         def _fmt(v: float) -> str:
+            """Format coordinate without scientific notation."""
             if v == int(v) and abs(v) < 1e15:
                 return str(int(v))
-            return f"{v:g}"
+            elif abs(v) >= 1e6:
+                return str(int(round(v)))
+            elif abs(v) >= 1:
+                return f"{v:.6f}".rstrip("0").rstrip(".")
+            else:
+                return f"{v:.6f}".rstrip("0").rstrip(".")
 
         # Header
         if not self.is_synchronous:
@@ -881,9 +887,15 @@ class MatchClaim:
         import html as html_mod
 
         def _fmt(v: float) -> str:
+            """Format coordinate without scientific notation."""
             if v == int(v) and abs(v) < 1e15:
                 return str(int(v))
-            return f"{v:g}"
+            elif abs(v) >= 1e6:
+                return str(int(round(v)))
+            elif abs(v) >= 1:
+                return f"{v:.6f}".rstrip("0").rstrip(".")
+            else:
+                return f"{v:.6f}".rstrip("0").rstrip(".")
 
         # Header badge
         if not self.is_synchronous:

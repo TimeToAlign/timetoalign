@@ -334,7 +334,7 @@ class TestRepoVizzLoaderErrors:
         """XML mode with multiple entries requires uid for create_timeline."""
         loader = RepoVizzLoader.from_file(xml_manifest_path)
         if len(loader.timeline_ids) > 1:
-            with pytest.raises(ValueError, match="Must specify uid"):
+            with pytest.raises(ValueError, match="Must specify entry_id"):
                 loader.create_timeline()
 
     def test_invalid_entry_id_raises(self, xml_manifest_path: Path) -> None:
