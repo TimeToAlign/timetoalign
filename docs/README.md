@@ -1,59 +1,73 @@
-# TimeToAlign! Documentation
+# Time To Align! -- Documentation & Notebooks
 
-## Tutorial Notebooks
+This directory contains the documentation homepage and the runnable
+notebooks for the `timetoalign` library.
 
-The `notebooks/` directory contains the tutorial series for the TimeToAlign! library.
-Each notebook is a jupytext-paired `py:percent` file. The `.py` file is the
-git-tracked source of truth; `.ipynb` files are gitignored and regenerated via
-`jupytext --sync`.
+## Quick start
 
-### Notebook Overview
+From the `timetoalign/` directory (the library root), install the
+library with all dependencies needed to run the notebooks:
 
-| #  | Notebook                    | Purpose                                   | Key Benefit Demonstrated                                          | Status          |
-|----|-----------------------------|--------------------------------------------|-------------------------------------------------------------------|-----------------|
-| 00 | `00_motivation`             | Why alignment matters                      | Problem statement and solution vision                             | Complete        |
-| 01 | `01_core_concepts`          | Domains, Timelines, Coordinates            | Unified representation across domains                             | Complete        |
-| 02 | `02_loading_data`           | Loaders, EventStores                       | Format-agnostic data ingestion                                    | Complete        |
-| 02a| `02a_tabular_loaders`       | Custom loaders, CoordinateField            | Advanced loader configuration                                     | Complete        |
-| 03 | `03_conversion_maps`        | Unit transformations                       | Seamless coordinate conversion                                    | Complete        |
-| 04 | `04_building_timelines`     | Events, Segments, Hierarchy                | Structured temporal representation                                | Complete        |
-| 05 | `05_timestamps`             | Cross-section views                        | Querying timeline hierarchies                                     | Complete        |
-| 06 | `06_graphical_timelines`    | TimeAxisPath, images                       | Visual analysis with time                                         | Complete        |
-| 07 | `07_alignment_basics`       | TimelineGroup, PerfectAlignment            | Coordinate transfer between timelines                             | Complete        |
-| 08 | `08_supra_piano_roll`       | Complete alignment workflow                | `from_file()`, named C-Maps, group timestamps                     | Complete        |
-| 09 | `09_beat_grids`             | Metrical structure                         | Measure/beat queries via BeatGrid                                 | Complete        |
-| 10 | `10_beethoven_multimodal`   | **Figure 3 acid test**                     | AlignmentBundle, FlowMap, OMR, 16+ timelines, 3 domains          | Infra Complete  |
+```bash
+pip install -e ".[tutorial]"
+```
 
-### Manuscript Relevance
+## Documentation homepage
 
-The tutorial notebooks serve as runnable proofs of concept for examples in the
-TISMIR manuscript:
+Open `docs/page/_site/index.html` in a browser. The homepage includes the
+full conceptual specification, a glossary, API reference, and HTML
+renderings of every notebook listed below.
 
-| Paper Example                     | Notebook                    | Status          |
-|-----------------------------------|-----------------------------|-----------------|
-| Ex. 1: Thoresen graphical analysis| `06_graphical_timelines`    | Complete        |
-| Ex. 2: SUPRA piano roll           | `08_supra_piano_roll`       | Complete        |
-| Ex. 3: Beethoven multimodal       | `10_beethoven_multimodal`   | Infra Complete  |
-| Ex. 4: Hendrix song genesis       | (to be created or referenced)| Pending        |
+## Notebooks
 
-### Data Dependencies
+Notebooks are stored as Jupytext `py:percent` files (the `.py` file makes the notebooks version-controllable; paired `.ipynb` files are regenerated via
+`jupytext --sync *.py`).
 
-All notebooks source their data from within the `timetoalign/` package tree:
+### Tutorials (`tuto-notebooks/`)
 
-| Data Location                         | Used By                                       |
-|---------------------------------------|-----------------------------------------------|
-| `tests/data/midi/score/`              | 00, 02, 04                                    |
-| `tests/data/score/beethoven_woo71/`   | 02a                                           |
-| `tests/data/score/beethoven_op18-4iv_multimodal/` | 09, 10                            |
-| `tests/data/audio/`                   | 09                                            |
-| `tests/data/supra/`                   | 08                                            |
-| `tests/alignment/data/thoresen/`      | 02a, 07                                       |
+Step-by-step introductions to the library, from first principles to
+complete alignment workflows.
 
-No notebook should reference the `dashboard/` repository or any path outside
-the `timetoalign/` package root.
+| File | Title | Topics |
+|------|-------|--------|
+| `tut00_quickstart` | Quickstart | Five-minute tour of Timelines, Groups, Bundles, and Grids |
+| `tut01a_timelines_events_maps` | Timelines, Events, and Maps | Loading, EventStore, Coordinate, ConversionMap |
+| `tut01b_children_regions_timestamps` | Children, Regions, and Timestamps | Hierarchy, cross-section queries |
+| `tut02_timeline_groups` | Timeline Groups and Commensurability | TimelineGroup, coordinate transfer, partial alignment |
+| `tut03_alignment_bundles` | Alignment Bundles | MatchfileLoader, AlignmentBundle, cross-group transfer |
+| `tut04_flow_and_grids` | Flow Control and Grids | BeatGrid, repeats, metrical structure |
 
-### Workflow
+### How-to notebooks (`howto-notebooks/`)
 
-1. Edit the `.py` file (percent format with `# %%` cell markers)
-2. Run `jupytext --sync <notebook>.py` to generate/update the paired `.ipynb`
-3. Commit only the `.py` file
+Focused recipes for specific tasks, including four of the five examples from
+the manuscript (not Chorissimo from Figure 5).
+
+| File | Title | Topics |
+|------|-------|--------|
+| `how01_coordinate_math` | Coordinate Math | Domains, TimeUnits, NumberType, arithmetic |
+| `how01_advanced_cmaps` | Advanced Conversion Maps | ChainMap, PiecewiseMap, TableMap |
+| `how01_advanced_timestamps` | Querying Timestamps | TimeStamp, TimeIntervalStamp, boundary tables |
+| `how01_manual_timeline_construction` | Constructing Timelines Manually | Events via dict, parent/child hierarchies |
+| `how01_loading_data` | Loading Data | Format-agnostic ingestion with Loaders |
+| `how01_tabular_loaders` | Loading Tabular Data | CoordinateField, ComputedField |
+| `how01_graphical_timelines` | Graphical Timelines | TimeAxisPath, image timelines, pixel-to-time conversion |
+| `how01_beat_grids` | Building Beat Grids | BeatGrid, FloorMap, RotationMap |
+| **`how01_thoresen_annotation_transfer`** | **Transferring Annotations Between Graphical Analyses** | **SegmentLine, ConstantMap, MatchClaim, y-coordinate transfer (manuscript Section 3.3)** |
+| **`how02_supra_piano_roll`** | **Aligning a Piano Roll (SUPRA)** | **IIIF images, ATON, MIDI, Audio, Score (manuscript Section 3.1)** |
+| `how03_create_note_alignment` | Creating a Note Alignment | MatchClaims, AlignmentBundle, MatchLines (manuscript Section 3.4 prerequisite) |
+| **`how03_beethoven_multimodal`** | **Aligning Multimodal Data (Beethoven)** | **AlignmentBundle, FlowMap, OMR, 23 timelines, 3 domains (manuscript Section 3.4)** |
+| `how03_loading_vienna_corpus` | Loading the Vienna 4x22 Corpus | MatchfileLoader, 22 performances, AlignmentBundle |
+| **`how04_hendrix_song_genesis`** | **Encoding Song Genesis (Hendrix)** | **MatchClaim, NOMATCH, synchronous vs conceptual (manuscript Section 3.5)** |
+
+Notebooks highlighted in bold correspond directly to examples in the
+manuscript.
+
+### Running a notebook
+
+```bash
+jupytext --sync docs/tuto-notebooks/tut00_quickstart.py
+jupyter notebook docs/tuto-notebooks/tut00_quickstart.ipynb
+```
+
+Or open any of the pre-rendered HTML versions on the documentation
+homepage.
