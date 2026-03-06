@@ -17,6 +17,7 @@ Design principles:
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
@@ -28,7 +29,7 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from typing_extensions import Self
 
-from timetoalign.core import Coordinate, NumberType, TimeUnit
+from timetoalign.core import Coordinate, IntervalPolicy, NumberType, TimeUnit
 
 from .parsing import ArrayValidator, CoordinateParser
 from .schema import (
@@ -42,6 +43,8 @@ from .schema import (
 
 if TYPE_CHECKING:
     from timetoalign.timelines.base import Timeline
+
+module_logger = logging.getLogger(__name__)
 
 
 class EventData:
@@ -143,6 +146,431 @@ class EventData:
 
     # endregion
 
+    # region Interval Normalisation
+
+    @staticmethod
+    def _normalize_intervals_vectorized(
+        processed: dict[str, Any],
+        policy: IntervalPolicy = IntervalPolicy.warn,
+    ) -> dict[str, Any]:
+        """Normalise interval events in a column dict (FULLY VECTORIZED).
+
+        Ensures that every interval event has both ``end`` and ``duration``
+        populated, every instant event has both null, and that the
+        ``temporal_type`` column is consistent.  Also handles the case
+        where start/end/duration arrays are raw numeric (not yet parsed)
+        by operating purely on the float ``value`` field of coordinate
+        struct arrays.
+
+        The *policy* parameter controls behaviour when both ``end`` and
+        ``duration`` are present but inconsistent
+        (``end - start != duration``).
+
+        Args:
+            processed: Mutable column dict (modified **in-place**).
+                Must already contain ``"start"`` as a ``pa.StructArray``.
+                ``"end"`` and ``"duration"`` may be ``pa.StructArray``,
+                ``pa.NullArray``, or absent.
+            policy: How to resolve inconsistencies between ``end`` and
+                ``duration``.
+
+        Returns:
+            The same *processed* dict (for chaining convenience).
+
+        Raises:
+            ValueError: If *policy* is ``strict`` and an inconsistency is
+                detected.
+        """
+
+        start_col = processed.get("start")
+        if start_col is None or not isinstance(start_col, pa.StructArray):
+            return processed
+
+        n = len(start_col)
+        start_is_null = start_col.is_null().to_numpy(zero_copy_only=False)
+        start_val = start_col.field("value").to_numpy(zero_copy_only=False)
+        start_num = start_col.field("numerator").to_numpy(zero_copy_only=False)
+        start_den = start_col.field("denominator").to_numpy(zero_copy_only=False)
+
+        # Determine which columns are present and non-null
+        end_col = processed.get("end")
+        dur_col = processed.get("duration")
+
+        def _is_real(col: Any) -> bool:
+            """True when the column is a StructArray with at least one non-null."""
+            if col is None:
+                return False
+            if isinstance(col, pa.StructArray):
+                return col.null_count < len(col)
+            if isinstance(col, pa.ChunkedArray):
+                return col.null_count < len(col)
+            return False
+
+        has_end_data = _is_real(end_col)
+        has_dur_data = _is_real(dur_col)
+
+        # Extract end arrays (if present)
+        if has_end_data:
+            if isinstance(end_col, pa.ChunkedArray):
+                end_col = end_col.combine_chunks()
+            end_is_null = end_col.is_null().to_numpy(zero_copy_only=False)
+            end_val = end_col.field("value").to_numpy(zero_copy_only=False)
+            end_num = end_col.field("numerator").to_numpy(zero_copy_only=False)
+            end_den = end_col.field("denominator").to_numpy(zero_copy_only=False)
+        else:
+            end_is_null = np.ones(n, dtype=bool)
+            end_val = np.full(n, np.nan, dtype=np.float64)
+            end_num = np.full(n, np.nan, dtype=np.float64)
+            end_den = np.full(n, np.nan, dtype=np.float64)
+
+        # Extract duration arrays (if present)
+        if has_dur_data:
+            if isinstance(dur_col, pa.ChunkedArray):
+                dur_col = dur_col.combine_chunks()
+            dur_is_null = dur_col.is_null().to_numpy(zero_copy_only=False)
+            dur_val = dur_col.field("value").to_numpy(zero_copy_only=False)
+            dur_num = dur_col.field("numerator").to_numpy(zero_copy_only=False)
+            dur_den = dur_col.field("denominator").to_numpy(zero_copy_only=False)
+        else:
+            dur_is_null = np.ones(n, dtype=bool)
+            dur_val = np.full(n, np.nan, dtype=np.float64)
+            dur_num = np.full(n, np.nan, dtype=np.float64)
+            dur_den = np.full(n, np.nan, dtype=np.float64)
+
+        # Boolean masks for each situation (vectorized)
+        has_start = ~start_is_null
+        has_end = ~end_is_null
+        has_dur = ~dur_is_null
+
+        # Identify rows that are interval events (have start and at least end or dur)
+        # is_interval = has_start & (has_end | has_dur)
+
+        # ---- Policy-driven resolution ----
+
+        # Rows where both end AND duration are present (potential conflict)
+        both_present = has_start & has_end & has_dur
+        inconsistent = np.zeros(n, dtype=bool)  # default: no inconsistencies
+        if both_present.any():
+            # Compute expected duration from end - start (float)
+            expected_dur = end_val - start_val
+            # Compare against supplied duration
+            actual_dur = dur_val
+            discrepancy = np.abs(expected_dur - actual_dur)
+            # Use a tight tolerance for float comparison
+            tol = 1e-9
+            inconsistent = both_present & (discrepancy > tol)
+
+            if inconsistent.any():
+                n_bad = int(inconsistent.sum())
+                # Find first inconsistent row for the error message
+                first_idx = int(np.argmax(inconsistent))
+
+                if policy == IntervalPolicy.strict:
+                    raise ValueError(
+                        f"Interval inconsistency in {n_bad} event(s): "
+                        f"end - start != duration. First at index {first_idx}: "
+                        f"start={start_val[first_idx]}, end={end_val[first_idx]}, "
+                        f"duration={dur_val[first_idx]} "
+                        f"(expected duration={expected_dur[first_idx]})."
+                    )
+                elif policy == IntervalPolicy.warn:
+                    module_logger.warning(
+                        "Interval inconsistency in %d event(s): end - start != "
+                        "duration. Recomputing duration from end. First at index "
+                        "%d: start=%s, end=%s, duration=%s (expected %s).",
+                        n_bad,
+                        first_idx,
+                        start_val[first_idx],
+                        end_val[first_idx],
+                        dur_val[first_idx],
+                        expected_dur[first_idx],
+                    )
+                # For warn, prefer_end, and strict-without-error: fall through
+                # to the fill logic below (which uses the policy).
+
+        # ---- Fill missing values ----
+        #
+        # After this block every interval row will have both end and
+        # duration.  The policy controls which value is authoritative
+        # when both are already present.
+
+        # Allocate output arrays (copy so we don't mutate the originals)
+        out_end_val = end_val.copy()
+        out_end_num = end_num.copy()
+        out_end_den = end_den.copy()
+        out_end_null = end_is_null.copy()
+
+        out_dur_val = dur_val.copy()
+        out_dur_num = dur_num.copy()
+        out_dur_den = dur_den.copy()
+        out_dur_null = dur_is_null.copy()
+
+        # Helper: vectorized fraction subtraction a/b - c/d
+        def _frac_sub(a_num, a_den, b_num, b_den):
+            r_num = a_num * b_den - b_num * a_den
+            r_den = a_den * b_den
+            g = np.gcd(np.abs(r_num).astype(np.int64), np.abs(r_den).astype(np.int64))
+            g = np.where(g == 0, 1, g)
+            return (r_num // g), (r_den // g)
+
+        # Helper: vectorized fraction addition a/b + c/d
+        def _frac_add(a_num, a_den, b_num, b_den):
+            r_num = a_num * b_den + b_num * a_den
+            r_den = a_den * b_den
+            g = np.gcd(np.abs(r_num).astype(np.int64), np.abs(r_den).astype(np.int64))
+            g = np.where(g == 0, 1, g)
+            return (r_num // g), (r_den // g)
+
+        def _has_frac(num_arr, den_arr):
+            return ~pd.isna(num_arr) & ~pd.isna(den_arr)
+
+        # 1) Rows with end but no duration -> compute duration = end - start
+        need_dur = has_start & has_end & ~has_dur
+        if policy == IntervalPolicy.prefer_end:
+            # Also recompute duration for rows that already have both
+            need_dur = need_dur | both_present
+        elif policy in (IntervalPolicy.warn, IntervalPolicy.strict):
+            # Recompute duration for inconsistent rows (prefer end)
+            if inconsistent.any():
+                need_dur = need_dur | (both_present & inconsistent)
+
+        if need_dur.any():
+            out_dur_val[need_dur] = out_end_val[need_dur] - start_val[need_dur]
+            out_dur_null[need_dur] = False
+
+            # Fraction arithmetic where both have fractions
+            s_has = _has_frac(start_num, start_den)
+            e_has = _has_frac(out_end_num, out_end_den)
+            frac_mask = need_dur & s_has & e_has
+            if frac_mask.any():
+                s_n = np.where(pd.isna(start_num), 0, start_num).astype(np.int64)
+                s_d = np.where(pd.isna(start_den), 1, start_den).astype(np.int64)
+                e_n = np.where(pd.isna(out_end_num), 0, out_end_num).astype(np.int64)
+                e_d = np.where(pd.isna(out_end_den), 1, out_end_den).astype(np.int64)
+                r_n, r_d = _frac_sub(e_n, e_d, s_n, s_d)
+                out_dur_num[frac_mask] = r_n[frac_mask]
+                out_dur_den[frac_mask] = r_d[frac_mask]
+
+        # 2) Rows with duration but no end -> compute end = start + duration
+        need_end = has_start & has_dur & ~has_end
+        if policy == IntervalPolicy.prefer_duration:
+            # Also recompute end for rows that already have both
+            need_end = need_end | both_present
+
+        if need_end.any():
+            out_end_val[need_end] = start_val[need_end] + out_dur_val[need_end]
+            out_end_null[need_end] = False
+
+            s_has = _has_frac(start_num, start_den)
+            d_has = _has_frac(out_dur_num, out_dur_den)
+            frac_mask = need_end & s_has & d_has
+            if frac_mask.any():
+                s_n = np.where(pd.isna(start_num), 0, start_num).astype(np.int64)
+                s_d = np.where(pd.isna(start_den), 1, start_den).astype(np.int64)
+                d_n = np.where(pd.isna(out_dur_num), 0, out_dur_num).astype(np.int64)
+                d_d = np.where(pd.isna(out_dur_den), 1, out_dur_den).astype(np.int64)
+                r_n, r_d = _frac_add(s_n, s_d, d_n, d_d)
+                out_end_num[frac_mask] = r_n[frac_mask]
+                out_end_den[frac_mask] = r_d[frac_mask]
+
+        # ---- Build output struct arrays ----
+
+        coord_type = pa.struct(
+            [
+                pa.field("value", pa.float64(), nullable=True),
+                pa.field("numerator", pa.int64(), nullable=True),
+                pa.field("denominator", pa.int64(), nullable=True),
+            ]
+        )
+
+        # Determine fraction null mask for output arrays
+        def _build_struct_array(
+            val, num, den, null_mask, frac_source_num, frac_source_den
+        ):
+            """Build a coordinate StructArray from numpy arrays."""
+            # Fraction fields are null wherever the struct is null or source had no frac
+            frac_null = null_mask | pd.isna(frac_source_num) | pd.isna(frac_source_den)
+            # Convert to safe int arrays
+            safe_num = np.where(pd.isna(num), 0, num).astype(np.int64)
+            safe_den = np.where(pd.isna(den), 1, den).astype(np.int64)
+            return pa.StructArray.from_arrays(
+                [
+                    pa.array(val, mask=null_mask, type=pa.float64()),
+                    pa.array(safe_num, mask=frac_null, type=pa.int64()),
+                    pa.array(safe_den, mask=frac_null, type=pa.int64()),
+                ],
+                fields=list(coord_type),
+                mask=pa.array(null_mask),
+            )
+
+        processed["end"] = _build_struct_array(
+            out_end_val,
+            out_end_num,
+            out_end_den,
+            out_end_null,
+            out_end_num,
+            out_end_den,
+        )
+        processed["duration"] = _build_struct_array(
+            out_dur_val,
+            out_dur_num,
+            out_dur_den,
+            out_dur_null,
+            out_dur_num,
+            out_dur_den,
+        )
+
+        # ---- Ensure temporal_type is consistent ----
+        # Recompute: interval if end is now non-null, instant otherwise
+        new_has_end = ~out_end_null
+        inferred_tt = np.where(new_has_end, "interval", "instant")
+
+        # Only overwrite temporal_type if it was all-null or not provided;
+        # otherwise just fix the rows that changed.
+        tt = processed.get("temporal_type")
+        if tt is None:
+            processed["temporal_type"] = inferred_tt
+        elif isinstance(tt, pa.Array):
+            if tt.null_count == len(tt):
+                processed["temporal_type"] = inferred_tt
+            else:
+                # Overwrite individual rows where our inference differs
+                existing = tt.to_pylist()
+                for i in range(n):
+                    if new_has_end[i] and existing[i] != "interval":
+                        existing[i] = "interval"
+                    elif not new_has_end[i] and existing[i] != "instant":
+                        existing[i] = "instant"
+                processed["temporal_type"] = pa.array(existing, type=pa.string())
+        elif isinstance(tt, np.ndarray):
+            # Update mismatches
+            tt[new_has_end & (tt != "interval")] = "interval"
+            tt[~new_has_end & (tt != "instant")] = "instant"
+
+        return processed
+
+    @staticmethod
+    def _normalize_intervals_row(
+        processed: dict[str, Any],
+        policy: IntervalPolicy = IntervalPolicy.warn,
+    ) -> dict[str, Any]:
+        """Normalise interval fields in a single event row dict.
+
+        Ensures that ``end`` and ``duration`` are both present (or both
+        absent) and consistent with ``start``.  Also ensures that the
+        ``temporal_type`` field is set correctly.  Coordinate fields are
+        converted to struct-dict format via ``coordinate_to_struct``.
+
+        This is the **row-based** counterpart to
+        ``_normalize_intervals_vectorized`` and is called from
+        ``from_dicts``.
+
+        Args:
+            processed: Mutable row dict (modified **in-place**).
+            policy: How to resolve inconsistencies.
+
+        Returns:
+            The same *processed* dict (for chaining convenience).
+
+        Raises:
+            ValueError: If *policy* is ``strict`` and ``end - start !=
+                duration``.
+        """
+        from timetoalign.loader.schema import coordinate_to_struct
+
+        # ---- Ensure coordinate struct format ----
+        for coord_col in ("start", "end", "duration"):
+            val = processed.get(coord_col)
+            if val is not None:
+                if isinstance(val, dict):
+                    if "num" in val and "value" not in val:
+                        # Legacy fraction_to_struct format -> coordinate format
+                        from fractions import Fraction
+
+                        frac = Fraction(val["num"], val["den"])
+                        processed[coord_col] = coordinate_to_struct(frac)
+                    elif "value" in val:
+                        pass  # Already coordinate struct
+                    else:
+                        processed[coord_col] = coordinate_to_struct(val)
+                else:
+                    processed[coord_col] = coordinate_to_struct(val)
+            elif coord_col not in processed:
+                processed[coord_col] = None
+
+        # ---- Extract float values ----
+        def _float_of(v: Any) -> float | None:
+            if v is None:
+                return None
+            if isinstance(v, dict):
+                return v.get("value")
+            return float(v)
+
+        start_val = _float_of(processed.get("start"))
+        end_val = _float_of(processed.get("end"))
+        dur_val = _float_of(processed.get("duration"))
+
+        has_start = start_val is not None
+        has_end = end_val is not None
+        has_dur = dur_val is not None
+
+        # ---- Consistency check when both present ----
+        if has_start and has_end and has_dur:
+            expected = end_val - start_val
+            if abs(expected - dur_val) > 1e-9:
+                if policy == IntervalPolicy.strict:
+                    raise ValueError(
+                        f"Interval inconsistency: start={start_val}, "
+                        f"end={end_val}, duration={dur_val} "
+                        f"(expected duration={expected})."
+                    )
+                elif policy == IntervalPolicy.warn:
+                    module_logger.warning(
+                        "Interval inconsistency: start=%s, end=%s, "
+                        "duration=%s (expected %s). Recomputing duration "
+                        "from end.",
+                        start_val,
+                        end_val,
+                        dur_val,
+                        expected,
+                    )
+                # After warning: fall through to fill logic
+
+        # ---- Fill missing values ----
+        if has_start:
+            if policy == IntervalPolicy.prefer_end:
+                if has_end:
+                    processed["duration"] = coordinate_to_struct(end_val - start_val)
+                elif has_dur:
+                    processed["end"] = coordinate_to_struct(start_val + dur_val)
+            elif policy == IntervalPolicy.prefer_duration:
+                if has_dur:
+                    processed["end"] = coordinate_to_struct(start_val + dur_val)
+                elif has_end:
+                    processed["duration"] = coordinate_to_struct(end_val - start_val)
+            else:
+                # warn / strict: prefer end when both present, otherwise fill
+                if has_end and not has_dur:
+                    processed["duration"] = coordinate_to_struct(end_val - start_val)
+                elif has_dur and not has_end:
+                    processed["end"] = coordinate_to_struct(start_val + dur_val)
+                elif has_end and has_dur:
+                    # Recompute duration from end (prefer end)
+                    processed["duration"] = coordinate_to_struct(end_val - start_val)
+
+        # ---- Infer temporal_type ----
+        if "temporal_type" not in processed or processed["temporal_type"] is None:
+            now_has_end = processed.get("end") is not None
+            now_has_dur = processed.get("duration") is not None
+            if has_start and (now_has_end or now_has_dur):
+                processed["temporal_type"] = "interval"
+            else:
+                processed["temporal_type"] = "instant"
+
+        return processed
+
+    # endregion
+
     # region Class Methods - Creation
 
     @classmethod
@@ -168,6 +596,8 @@ class EventData:
         rows: list[dict[str, Any]],
         unit: TimeUnit,
         number_type: NumberType = NumberType.float,
+        *,
+        interval_policy: IntervalPolicy = IntervalPolicy.warn,
     ) -> Self:
         """Create EventData from a list of row dictionaries.
 
@@ -183,12 +613,19 @@ class EventData:
           ``"interval"`` when *both* ``start`` and ``end`` (or ``duration``)
           are given, ``"instant"`` otherwise.
 
+        Missing ``end`` or ``duration`` values are computed automatically
+        from the other (``end = start + duration`` or
+        ``duration = end - start``).  Behaviour when both are present but
+        inconsistent is controlled by *interval_policy*.
+
         Args:
             rows: List of event dictionaries. At minimum each dict needs a
                 coordinate (``instant`` *or* ``start``/``end``) and an
                 ``event_type``. All other fields have sensible defaults.
             unit: The time unit for coordinates.
             number_type: The number type for coordinates.
+            interval_policy: How to handle end/duration inconsistencies.
+                See `IntervalPolicy` for options.
 
         Returns:
             A new EventData containing the events.
@@ -216,18 +653,6 @@ class EventData:
                 type_counters[etype] += 1
                 processed["id"] = f"{etype}:{type_counters[etype]:06d}"
 
-            # Infer temporal_type if missing
-            if "temporal_type" not in processed or processed["temporal_type"] is None:
-                has_end = processed.get("end") is not None
-                has_duration = processed.get("duration") is not None
-                has_start = processed.get("start") is not None
-                if (has_start or processed.get("instant") is not None) and (
-                    has_end or has_duration
-                ):
-                    processed["temporal_type"] = "interval"
-                else:
-                    processed["temporal_type"] = "instant"
-
             # Map 'instant' to 'start'
             if "instant" in processed and processed.get("start") is None:
                 processed["start"] = processed.pop("instant")
@@ -235,40 +660,11 @@ class EventData:
             # Remove 'instant' key if it remains
             processed.pop("instant", None)
 
-            # Compute missing duration or end for interval events
-            # If end is present but duration is not, compute duration = end - start
-            # If duration is present but end is not, compute end = start + duration
-            start_val = processed.get("start")
-            end_val = processed.get("end")
-            duration_val = processed.get("duration")
+            # Unified interval normalisation: converts coordinate fields
+            # to struct format, fills missing end/duration, infers
+            # temporal_type, and checks consistency per policy.
+            cls._normalize_intervals_row(processed, policy=interval_policy)
 
-            if start_val is not None:
-                start_float = (
-                    float(start_val["value"])
-                    if isinstance(start_val, dict)
-                    else float(start_val)
-                )
-                if end_val is not None and duration_val is None:
-                    end_float = (
-                        float(end_val["value"])
-                        if isinstance(end_val, dict)
-                        else float(end_val)
-                    )
-                    processed["duration"] = end_float - start_float
-                elif duration_val is not None and end_val is None:
-                    dur_float = (
-                        float(duration_val["value"])
-                        if isinstance(duration_val, dict)
-                        else float(duration_val)
-                    )
-                    processed["end"] = start_float + dur_float
-
-            # Handle coordinate columns
-            for coord_col in ("start", "end", "duration"):
-                if coord_col in processed and processed[coord_col] is not None:
-                    processed[coord_col] = coordinate_to_struct(processed[coord_col])
-                elif coord_col not in processed:
-                    processed[coord_col] = None
             # Ensure name column exists
             if "name" not in processed:
                 processed["name"] = None
@@ -319,11 +715,17 @@ class EventData:
         *,
         validate: bool = True,
         extra_fields: list[pa.Field] | None = None,
+        interval_policy: IntervalPolicy = IntervalPolicy.warn,
     ) -> Self:
         """Create EventData from column-oriented arrays (VECTORIZED).
 
         This is the PRIMARY construction method for loaders. All operations
         are vectorized - NO row iteration occurs.
+
+        Missing ``end`` or ``duration`` values are computed automatically
+        from the other (``end = start + duration`` or
+        ``duration = end - start``).  Behaviour when both are present but
+        inconsistent is controlled by *interval_policy*.
 
         Args:
             columns: Dict mapping column names to arrays. Supports:
@@ -341,6 +743,8 @@ class EventData:
             extra_fields: Optional list of PyArrow fields for extra columns.
                 These fields include metadata (e.g., unit for CoordinateFields).
                 If not provided, fields are inferred from the data arrays.
+            interval_policy: How to handle end/duration inconsistencies.
+                See `IntervalPolicy` for options.
 
         Returns:
             A new EventData containing the events.
@@ -495,19 +899,9 @@ class EventData:
                 # Column not provided - fill with nulls
                 processed[col_name] = pa.nulls(n_rows, type=field.type)
 
-        # Infer temporal_type if not provided or all null (vectorized)
-        if "temporal_type" in processed:
-            tt_col = processed["temporal_type"]
-            if isinstance(tt_col, pa.Array) and tt_col.null_count == len(tt_col):
-                # All null - infer from end column
-                end_col = processed.get("end")
-                if end_col is not None and isinstance(end_col, pa.StructArray):
-                    has_end = ~end_col.is_null().to_numpy(zero_copy_only=False)
-                    inferred = np.where(has_end, "interval", "instant")
-                    processed["temporal_type"] = pa.array(inferred)
-                else:
-                    # No end column - all instant
-                    processed["temporal_type"] = pa.array(["instant"] * n_rows)
+        # Unified interval normalisation: compute missing end/duration,
+        # check consistency, and infer temporal_type -- all vectorized.
+        cls._normalize_intervals_vectorized(processed, policy=interval_policy)
 
         # Infer event_type if not provided or all null (vectorized)
         if "event_type" in processed:

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import pyarrow as pa
 from typing_extensions import Self
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.loader.events import EventData
 from timetoalign.loader.schema import make_fraction_field
 
@@ -66,6 +66,8 @@ class ControlEventData(EventData):
         rows: list[dict[str, Any]],
         unit: TimeUnit = TimeUnit.quarters,
         number_type: NumberType = NumberType.fraction,
+        *,
+        interval_policy: IntervalPolicy = IntervalPolicy.warn,
     ) -> Self:
         """Create from dicts."""
         if not rows:
@@ -76,10 +78,6 @@ class ControlEventData(EventData):
         schema = cls.get_schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
-
-        from fractions import Fraction
-
-        from timetoalign.loader.schema import coordinate_to_struct
 
         processed_rows = []
         type_counters: dict[str, int] = {}
@@ -92,22 +90,6 @@ class ControlEventData(EventData):
                 type_counters.setdefault(etype, 0)
                 type_counters[etype] += 1
                 processed["id"] = f"{etype}:{type_counters[etype]:06d}"
-
-            # Infer temporal_type if missing
-            if "temporal_type" not in processed or processed["temporal_type"] is None:
-                has_end = processed.get("end") is not None
-                has_duration = (
-                    processed.get("duration") is not None
-                    or processed.get("duration_qb") is not None
-                )
-                has_start = (
-                    processed.get("start") is not None
-                    or processed.get("quarterbeats") is not None
-                )
-                if has_start and (has_end or has_duration):
-                    processed["temporal_type"] = "interval"
-                else:
-                    processed["temporal_type"] = "instant"
 
             # Ensure name column exists
             if "name" not in processed:
@@ -124,21 +106,11 @@ class ControlEventData(EventData):
             # Remove unused
             processed.pop("quarterbeats_float", None)
 
-            # Convert temporal columns to coordinate struct format.
-            for col in ["start", "duration"]:
-                val = processed.get(col)
-                if val is not None:
-                    if isinstance(val, dict):
-                        if "num" in val and "value" not in val:
-                            frac = Fraction(val["num"], val["den"])
-                            processed[col] = coordinate_to_struct(frac)
-                    else:
-                        processed[col] = coordinate_to_struct(val)
+            # Unified interval normalisation: converts coordinate fields
+            # to struct format, fills missing end/duration, and infers
+            # temporal_type.
+            EventData._normalize_intervals_row(processed, policy=interval_policy)
 
-            # Base columns need defaults
-            for col in ["start", "end", "duration"]:
-                if col not in processed:
-                    processed[col] = None
             processed_rows.append(processed)
 
         table = pa.Table.from_pylist(processed_rows, schema=schema)
