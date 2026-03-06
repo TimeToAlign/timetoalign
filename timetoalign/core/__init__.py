@@ -17,6 +17,7 @@ from .enums import (
     Domain,
     EventType,
     FlowControlType,
+    IntervalPolicy,
     NumberType,
     TimeUnit,
 )
@@ -39,6 +40,7 @@ __all__ = [
     # Enums
     "ColumnNaming",
     "Domain",
+    "IntervalPolicy",
     "TimeUnit",
     "NumberType",
     "EventType",

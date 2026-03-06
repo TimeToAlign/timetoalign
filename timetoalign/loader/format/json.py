@@ -368,8 +368,9 @@ class JsonLoader(Loader):
         *,
         sep: str = ".",
         resolve_lookups: bool = True,
+        **kwargs: Any,
     ) -> None:
-        super().__init__(unit=TimeUnit.seconds, number_type=NumberType.float)
+        super().__init__(unit=TimeUnit.seconds, number_type=NumberType.float, **kwargs)
         self._principal_keys = principal_keys
         self._sep = sep
         self._resolve_lookups = resolve_lookups

@@ -6,6 +6,7 @@ import bisect
 import warnings
 from fractions import Fraction
 from pathlib import Path
+from typing import Any
 
 # Suppress pkg_resources deprecation warning from partitura
 with warnings.catch_warnings():
@@ -77,6 +78,7 @@ class PartituraLoader(ScoreLoader):
         *,
         force_note_ids: bool = True,
         silence_warnings: bool = False,
+        **kwargs: Any,
     ) -> None:
         """Initialize PartituraLoader.
 
@@ -87,8 +89,9 @@ class PartituraLoader(ScoreLoader):
                 "Found repeat without end"). Partitura can emit numerous
                 warnings for complex scores; this flag sets a warning filter
                 to clean up loader output.
+            **kwargs: Additional arguments passed to parent ScoreLoader.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self._force_note_ids = force_note_ids
         self._silence_warnings = silence_warnings
         self._anacrusis_offset: float = 0.0

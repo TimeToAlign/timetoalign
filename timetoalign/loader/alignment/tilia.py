@@ -496,11 +496,12 @@ class TiliaJsonLoader(JsonLoader):
         self,
         *,
         media_unit: TimeUnit = TimeUnit.seconds,
+        **kwargs: Any,
     ) -> None:
         # TiliaJsonLoader does not use JsonLoader's principal_keys /
         # auto-detect mode.  Instead it overrides _process_json to
         # handle the "timelines" array specially.
-        super().__init__(principal_keys=None, sep=".", resolve_lookups=False)
+        super().__init__(principal_keys=None, sep=".", resolve_lookups=False, **kwargs)
         self._media_unit = media_unit
         self._timeline_specs: list[dict[str, Any]] = []
         self._timelines_cache: dict[str, ContinuousPhysicalTimeline] = {}

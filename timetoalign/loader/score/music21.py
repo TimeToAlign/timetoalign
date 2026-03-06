@@ -46,8 +46,8 @@ class Music21Loader(ScoreLoader):
     directly comparable and compatible with ``MatchfileLoader``.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self._anacrusis_offset: float = 0.0
 
     @property

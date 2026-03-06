@@ -37,6 +37,7 @@ class ScoreMidiLoader(MidiLoader):
         assign_note_ids: bool = True,
         unit: TimeUnit | None = None,
         number_type: NumberType = NumberType.float,
+        **kwargs: Any,
     ) -> None:
         """Initialize ScoreMidiLoader.
 
@@ -48,8 +49,9 @@ class ScoreMidiLoader(MidiLoader):
             assign_note_ids: Ensure unique note IDs.
             unit: Time unit for coordinates.
             number_type: Number type for coordinates.
+            **kwargs: Additional arguments passed to parent Loader.
         """
-        super().__init__(unit, number_type)
+        super().__init__(unit=unit, number_type=number_type, **kwargs)
         self._part_voice_assign_mode = part_voice_assign_mode
         self._quantization_unit = quantization_unit
         self._estimate_voice_info = estimate_voice_info
