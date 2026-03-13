@@ -1,0 +1,345 @@
+"""Tests for fields/base.py — DataField hierarchy and protocol conformance."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import pyarrow as pa
+import pytest
+
+from timetoalign.core.enums import TimeUnit
+from timetoalign.core.protocols import CoordinateLike, SemanticTypeLike
+from timetoalign.core.types import Coordinate
+from timetoalign.fields.base import (
+    MapField,
+    NumericField,
+    SemanticField,
+    StringField,
+    StructField,
+)
+
+# ---------------------------------------------------------------------------
+# Protocol Conformance
+# ---------------------------------------------------------------------------
+
+
+class TestProtocolConformance:
+    """Verify that Coordinate satisfies SemanticTypeLike and CoordinateLike."""
+
+    def test_coordinate_satisfies_semantic_type_like(self) -> None:
+        """isinstance(Coordinate(...), SemanticTypeLike) is True."""
+        coord = Coordinate(1.5, TimeUnit.seconds)
+        assert isinstance(coord, SemanticTypeLike)
+
+    def test_coordinate_satisfies_coordinate_like(self) -> None:
+        """isinstance(Coordinate(...), CoordinateLike) is True."""
+        coord = Coordinate(120, TimeUnit.ticks)
+        assert isinstance(coord, CoordinateLike)
+
+    def test_coordinate_semantic_type_name(self) -> None:
+        """Coordinate.semantic_type_name == 'Coordinate'."""
+        coord = Coordinate(1.5, TimeUnit.seconds)
+        assert coord.semantic_type_name == "Coordinate"
+
+    def test_coordinate_metadata_dict(self) -> None:
+        """metadata_dict returns correct keys/values."""
+        coord = Coordinate(120, TimeUnit.ticks)
+        md = coord.metadata_dict()
+        assert md["field_type"] == "CoordinateField"
+        assert md["unit"] == "ticks"
+        assert md["domain"] == "logical"
+        assert md["number_type"] == "int"
+
+
+# ---------------------------------------------------------------------------
+# NumericField
+# ---------------------------------------------------------------------------
+
+
+class TestNumericField:
+    """Tests for NumericField construction and access."""
+
+    def test_numeric_field_from_int_array(self) -> None:
+        """Construct from pa.array([1, 2, 3], type=pa.int64()), verify len and __getitem__."""
+        arr = pa.array([1, 2, 3], type=pa.int64())
+        field = pa.field("count", pa.int64())
+        nf = NumericField(arr, field)
+        assert len(nf) == 3
+        assert nf[0] == 1
+        assert nf[1] == 2
+        assert nf[2] == 3
+
+    def test_numeric_field_from_float_array(self) -> None:
+        """Construct from pa.array([1.1, 2.2, 3.3], type=pa.float64())."""
+        arr = pa.array([1.1, 2.2, 3.3], type=pa.float64())
+        field = pa.field("vals", pa.float64())
+        nf = NumericField(arr, field)
+        assert len(nf) == 3
+        assert nf[0] == 1.1
+        assert nf[2] == 3.3
+
+    def test_numeric_field_rejects_string(self) -> None:
+        """Passing string array raises TypeError."""
+        arr = pa.array(["a", "b"], type=pa.string())
+        field = pa.field("bad", pa.string())
+        with pytest.raises(TypeError, match="NumericField requires a numeric type"):
+            NumericField(arr, field)
+
+    def test_numeric_field_schema_only(self) -> None:
+        """Construct with data=None, verify is_empty and __len__ raises."""
+        field = pa.field("empty", pa.int64())
+        nf = NumericField(None, field)
+        assert nf.is_empty is True
+        with pytest.raises(TypeError, match="Cannot compute length"):
+            len(nf)
+
+
+# ---------------------------------------------------------------------------
+# StringField
+# ---------------------------------------------------------------------------
+
+
+class TestStringField:
+    """Tests for StringField construction and access."""
+
+    def test_string_field_basic(self) -> None:
+        """Construct and verify __getitem__ returns str."""
+        arr = pa.array(["hello", "world"], type=pa.string())
+        field = pa.field("text", pa.string())
+        sf = StringField(arr, field)
+        assert len(sf) == 2
+        assert sf[0] == "hello"
+        assert sf[1] == "world"
+        assert isinstance(sf[0], str)
+
+    def test_string_field_with_nulls(self) -> None:
+        """Verify None for null entries."""
+        arr = pa.array(["a", None, "c"], type=pa.string())
+        field = pa.field("text", pa.string())
+        sf = StringField(arr, field)
+        assert sf[0] == "a"
+        assert sf[1] is None
+        assert sf[2] == "c"
+
+    def test_string_field_rejects_numeric(self) -> None:
+        """Passing numeric array raises TypeError."""
+        arr = pa.array([1, 2], type=pa.int64())
+        field = pa.field("bad", pa.int64())
+        with pytest.raises(TypeError, match="StringField requires a string type"):
+            StringField(arr, field)
+
+
+# ---------------------------------------------------------------------------
+# StructField
+# ---------------------------------------------------------------------------
+
+
+class TestStructField:
+    """Tests for StructField construction and access."""
+
+    @staticmethod
+    def _make_struct_field() -> StructField:
+        """Helper to build a simple StructField with two sub-fields."""
+        struct_type = pa.struct(
+            [
+                pa.field("value", pa.float64()),
+                pa.field("numerator", pa.int64()),
+            ]
+        )
+        arr = pa.array(
+            [{"value": 1.5, "numerator": 3}, {"value": 2.0, "numerator": 4}],
+            type=struct_type,
+        )
+        pa_field = pa.field("coord", struct_type)
+        return StructField(arr, pa_field)
+
+    def test_struct_field_basic(self) -> None:
+        """Construct from pa.StructArray, verify field_names and __getitem__ returns dict."""
+        sf = self._make_struct_field()
+        assert sf.field_names == ["value", "numerator"]
+        row = sf[0]
+        assert isinstance(row, dict)
+        assert row["value"] == 1.5
+        assert row["numerator"] == 3
+
+    def test_struct_field_get_sub_field(self) -> None:
+        """get_sub_field returns correctly typed DataField."""
+        sf = self._make_struct_field()
+        val_field = sf.get_sub_field("value")
+        assert isinstance(val_field, NumericField)
+        assert val_field[0] == 1.5
+        assert val_field[1] == 2.0
+
+        num_field = sf.get_sub_field("numerator")
+        assert isinstance(num_field, NumericField)
+        assert num_field[0] == 3
+
+    def test_struct_field_get_sub_field_unknown(self) -> None:
+        """KeyError for nonexistent sub-field."""
+        sf = self._make_struct_field()
+        with pytest.raises(KeyError, match="no sub-field"):
+            sf.get_sub_field("nonexistent")
+
+    def test_struct_field_rejects_non_struct(self) -> None:
+        """Passing non-struct type raises TypeError."""
+        arr = pa.array([1, 2], type=pa.int64())
+        field = pa.field("bad", pa.int64())
+        with pytest.raises(TypeError, match="StructField requires a struct type"):
+            StructField(arr, field)
+
+
+# ---------------------------------------------------------------------------
+# MapField
+# ---------------------------------------------------------------------------
+
+
+class TestMapField:
+    """Tests for MapField construction and access."""
+
+    def test_map_field_basic(self) -> None:
+        """Construct a MapField, verify __getitem__ returns dict."""
+        map_type = pa.map_(pa.string(), pa.int64())
+        arr = pa.array(
+            [[("a", 1), ("b", 2)], [("c", 3)]],
+            type=map_type,
+        )
+        field = pa.field("attrs", map_type)
+        mf = MapField(arr, field)
+        assert len(mf) == 2
+        row0 = mf[0]
+        assert isinstance(row0, dict)
+        assert row0 == {"a": 1, "b": 2}
+        assert mf[1] == {"c": 3}
+
+
+# ---------------------------------------------------------------------------
+# SemanticField
+# ---------------------------------------------------------------------------
+
+
+class _TestSemanticField(SemanticField[StructField]):
+    """Minimal concrete SemanticField for testing (SemanticField is abstract)."""
+
+    @property
+    def semantic_type_name(self) -> str:
+        return "TestSemantic"
+
+    def metadata_dict(self) -> dict[str, str]:
+        return {"field_type": "TestSemantic"}
+
+    @classmethod
+    def from_field(cls, source: Any, **kw: Any) -> "_TestSemanticField":
+        data, field = source
+        raw = StructField(data, field)
+        return cls(raw)
+
+
+class TestSemanticField:
+    """Tests for SemanticField delegation and value access."""
+
+    @staticmethod
+    def _make_semantic_field() -> _TestSemanticField:
+        struct_type = pa.struct(
+            [
+                pa.field("value", pa.float64()),
+                pa.field("numerator", pa.int64()),
+            ]
+        )
+        arr = pa.array(
+            [{"value": 1.0, "numerator": 10}],
+            type=struct_type,
+        )
+        pa_field = pa.field("sem", struct_type)
+        return _TestSemanticField(StructField(arr, pa_field))
+
+    def test_semantic_field_delegation(self) -> None:
+        """__getattr__ delegates to raw field (e.g., field_names)."""
+        sf = self._make_semantic_field()
+        # field_names is defined on StructField, not SemanticField
+        assert sf.field_names == ["value", "numerator"]
+
+    def test_semantic_field_value_returns_raw(self) -> None:
+        """.value returns the raw StructField."""
+        sf = self._make_semantic_field()
+        raw = sf.value
+        assert isinstance(raw, StructField)
+        assert raw.field_names == ["value", "numerator"]
+
+
+# ---------------------------------------------------------------------------
+# DataField general behaviour
+# ---------------------------------------------------------------------------
+
+
+class TestDataFieldGeneral:
+    """Tests for DataField base behaviour: to_pyarrow, chunked arrays, metadata, repr."""
+
+    def test_datafield_to_pyarrow(self) -> None:
+        """to_pyarrow returns a contiguous pa.Array."""
+        arr = pa.array([10, 20, 30], type=pa.int64())
+        field = pa.field("x", pa.int64())
+        nf = NumericField(arr, field)
+        result = nf.to_pyarrow()
+        assert isinstance(result, pa.Array)
+        assert result.to_pylist() == [10, 20, 30]
+
+    def test_datafield_chunked_array(self) -> None:
+        """ChunkedArray is handled correctly in __getitem__ and to_pyarrow."""
+        chunk1 = pa.array([1, 2], type=pa.int64())
+        chunk2 = pa.array([3, 4], type=pa.int64())
+        chunked = pa.chunked_array([chunk1, chunk2])
+        field = pa.field("x", pa.int64())
+        nf = NumericField(chunked, field)
+        assert len(nf) == 4
+        assert nf[0] == 1
+        assert nf[3] == 4
+        result = nf.to_pyarrow()
+        assert isinstance(result, pa.Array)
+        assert not isinstance(result, pa.ChunkedArray)
+        assert result.to_pylist() == [1, 2, 3, 4]
+
+    def test_datafield_metadata(self) -> None:
+        """metadata property decodes pa.Field metadata."""
+        field = pa.field(
+            "x", pa.int64(), metadata={b"unit": b"seconds", b"domain": b"physical"}
+        )
+        nf = NumericField(pa.array([1], type=pa.int64()), field)
+        md = nf.metadata
+        assert md == {"unit": "seconds", "domain": "physical"}
+
+    def test_datafield_metadata_empty(self) -> None:
+        """metadata returns empty dict when no metadata present."""
+        field = pa.field("x", pa.int64())
+        nf = NumericField(pa.array([1], type=pa.int64()), field)
+        assert nf.metadata == {}
+
+    def test_datafield_repr(self) -> None:
+        """repr includes class name, field name, and length."""
+        arr = pa.array([1, 2], type=pa.int64())
+        field = pa.field("myfield", pa.int64())
+        nf = NumericField(arr, field)
+        r = repr(nf)
+        assert "NumericField" in r
+        assert "myfield" in r
+        assert "len=2" in r
+
+    def test_datafield_repr_schema_only(self) -> None:
+        """repr of schema-only field shows len=0."""
+        field = pa.field("empty", pa.int64())
+        nf = NumericField(None, field)
+        r = repr(nf)
+        assert "len=0" in r
+
+    def test_datafield_schema_only_getitem_raises(self) -> None:
+        """__getitem__ on schema-only field raises TypeError."""
+        field = pa.field("empty", pa.int64())
+        nf = NumericField(None, field)
+        with pytest.raises(TypeError, match="Cannot index schema-only"):
+            nf[0]
+
+    def test_datafield_schema_only_to_pyarrow_raises(self) -> None:
+        """to_pyarrow on schema-only field raises TypeError."""
+        field = pa.field("empty", pa.int64())
+        nf = NumericField(None, field)
+        with pytest.raises(TypeError, match="Cannot convert schema-only"):
+            nf.to_pyarrow()

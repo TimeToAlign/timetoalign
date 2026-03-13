@@ -1,0 +1,20 @@
+# Dependency constraints for timetoalign
+#
+# USAGE:
+#   pip uninstall -y lark          # remove conflicting package first
+#   pip install -e ".[dev]" -c constraints.txt
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# partitura requires 'lark-parser' (PyPI).  The successor package 'lark'
+# (>=1.0) shares the same Python namespace.  When BOTH are installed,
+# partitura's direction parser raises AttributeError, misclassifying
+# score directions as Words/annotations and producing wrong event counts.
+#
+# This constraint file prevents 'lark' (the new package) from being
+# installed, so only 'lark-parser' (which partitura expects) is present.
+
+lark==0.12.0
+# ^^^ pin to 0.12.0 which is the last version that IS lark-parser
+# (lark 0.12.0 == lark-parser 0.12.0, same release).  This prevents
+# pip from upgrading to lark>=1.0 if another package requests it.

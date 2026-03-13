@@ -5,6 +5,7 @@ tutorials,tut01b_children_regions_timestamps.py,tut01b_children_regions_timestam
 tutorials,tut02_timeline_groups.py,tut02_timeline_groups,Timeline Groups and Commensurability,"TimelineGroup, coordinate transfer, partial alignment"
 tutorials,tut03_alignment_bundles.py,tut03_alignment_bundles,Alignment Bundles,"MatchfileLoader, AlignmentBundle, cross-group transfer"
 tutorials,tut04_flow_and_grids.py,tut04_flow_and_grids,Flow Control and Grids,"BeatGrid, repeats, metrical structure"
+howto,how01_datafield_typing.py,how01_datafield_typing,How to Use DataField Typing,"DataField, SemanticField, CoordinateField, Parquet round-trip"
 howto,how01_coordinate_math.py,how01_coordinate_math,How to Do Coordinate Math,"Domains, TimeUnits, NumberType, Coordinate arithmetic"
 howto,how01_advanced_cmaps.py,how01_advanced_cmaps,How to Use Advanced Conversion Maps,"ChainMap, PiecewiseMap, TableMap, vectorised operations"
 howto,how01_advanced_timestamps.py,how01_advanced_timestamps,How to Query Timestamps,"TimeStamp, TimeIntervalStamp, boundary tables, PyArrow"

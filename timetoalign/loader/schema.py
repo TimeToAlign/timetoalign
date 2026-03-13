@@ -204,6 +204,8 @@ def struct_to_coordinate(
         # Fallback to float if no Fraction data
         return Fraction(struct["value"]).limit_denominator()
     elif number_type == NumberType.int:
+        if struct["numerator"] is not None:
+            return int(struct["numerator"])
         return int(struct["value"])
     else:
         return struct["value"]
