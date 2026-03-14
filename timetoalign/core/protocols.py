@@ -9,6 +9,10 @@ Protocols:
         metadata (a name and a metadata dict for Parquet storage).
     CoordinateLike[V]: Extension for coordinate-bearing objects, adding
         value access, unit, domain, and number_type.
+    PitchLike: Extension for pitch-bearing objects (midi_number, pitch_class).
+    NoteLike: Extension for note objects (onset, pitch, duration).
+    MeasureLike: Extension for measure objects (mc, mn, time_signature).
+    HarmonyLike: Extension for harmony annotations (label, numeral, chord_type).
 
 The existing ``Coordinate`` dataclass already satisfies ``CoordinateLike``
 structurally with zero changes.
@@ -103,4 +107,108 @@ class CoordinateLike(SemanticTypeLike, Protocol[V]):
     @property
     def number_type(self) -> NumberType:
         """The numeric type used for this coordinate's values."""
+        ...
+
+
+@runtime_checkable
+class PitchLike(SemanticTypeLike, Protocol):
+    """Protocol for pitch-bearing objects.
+
+    Any object that exposes a MIDI note number and pitch class satisfies
+    this protocol.  Both scalar types (``MidiPitch``, ``SpelledPitch``)
+    and columnar types (``PitchField``) are expected to conform.
+
+    Attributes:
+        midi_number: MIDI note number (0-127).
+        pitch_class: Pitch class (0-11, C=0).
+    """
+
+    @property
+    def midi_number(self) -> int:
+        """MIDI note number (0-127)."""
+        ...
+
+    @property
+    def pitch_class(self) -> int:
+        """Pitch class (0-11, C=0)."""
+        ...
+
+
+@runtime_checkable
+class NoteLike(SemanticTypeLike, Protocol):
+    """Protocol for note objects with onset, pitch, and duration.
+
+    Attributes:
+        onset: The temporal position of the note.
+        pitch: The pitch of the note, or ``None`` for rests.
+        duration: The duration of the note in quarter-beat units.
+    """
+
+    @property
+    def onset(self) -> CoordinateLike:  # type: ignore[type-arg]
+        """The temporal position of the note."""
+        ...
+
+    @property
+    def pitch(self) -> PitchLike | None:
+        """The pitch of the note, or ``None`` for rests."""
+        ...
+
+    @property
+    def duration(self) -> float:
+        """The duration of the note in quarter-beat units."""
+        ...
+
+
+@runtime_checkable
+class MeasureLike(SemanticTypeLike, Protocol):
+    """Protocol for measure objects.
+
+    Attributes:
+        mc: Measure Count (monotonically increasing, 1-indexed).
+        mn: Measure Number label (may have suffix, e.g. ``"19a"``).
+        time_signature: Tuple of (numerator, denominator).
+    """
+
+    @property
+    def mc(self) -> int:
+        """Measure Count (monotonically increasing, 1-indexed)."""
+        ...
+
+    @property
+    def mn(self) -> str:
+        """Measure Number label."""
+        ...
+
+    @property
+    def time_signature(self) -> tuple[int, int]:
+        """Time signature as (numerator, denominator)."""
+        ...
+
+
+@runtime_checkable
+class HarmonyLike(SemanticTypeLike, Protocol):
+    """Protocol for harmony annotation objects.
+
+    Follows the DCML harmony annotation standard.
+
+    Attributes:
+        label: The full harmony label string.
+        numeral: The Roman numeral component.
+        chord_type: The chord type (e.g. ``"M"``, ``"m"``, ``"o"``).
+    """
+
+    @property
+    def label(self) -> str:
+        """The full harmony label string."""
+        ...
+
+    @property
+    def numeral(self) -> str:
+        """The Roman numeral component."""
+        ...
+
+    @property
+    def chord_type(self) -> str:
+        """The chord type."""
         ...

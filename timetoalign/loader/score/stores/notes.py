@@ -12,7 +12,7 @@ from timetoalign.loader.events import EventData
 from timetoalign.loader.schema import make_fraction_field
 
 if TYPE_CHECKING:
-    pass
+    from timetoalign.fields.pitch import PitchField, SpelledPitchField
 
 
 def _make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
@@ -113,6 +113,45 @@ class NoteEventData(EventData):
     def has_rests(self) -> bool:
         """Return whether the store explicitly contains rests."""
         return self._has_rests
+
+    @property
+    def pitch_field(self) -> PitchField:
+        """Extract the ``midi_pitch`` column as a ``PitchField``.
+
+        Wraps the ``midi_pitch`` struct column ``{ep, epc}`` in a
+        semantic ``PitchField`` for element-level ``MidiPitch`` access.
+
+        Returns:
+            A ``PitchField`` wrapping the ``midi_pitch`` column.
+
+        Raises:
+            KeyError: If the table has no ``midi_pitch`` column.
+        """
+        from timetoalign.fields.pitch import PitchField
+
+        col = self._table.column("midi_pitch")
+        pa_field = self._table.schema.field("midi_pitch")
+        return PitchField.from_field((col, pa_field))
+
+    @property
+    def spelled_pitch_field(self) -> SpelledPitchField:
+        """Extract the ``spelled_pitch`` column as a ``SpelledPitchField``.
+
+        Wraps the ``spelled_pitch`` struct column
+        ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}`` in a
+        semantic ``SpelledPitchField`` for element-level ``SpelledPitch`` access.
+
+        Returns:
+            A ``SpelledPitchField`` wrapping the ``spelled_pitch`` column.
+
+        Raises:
+            KeyError: If the table has no ``spelled_pitch`` column.
+        """
+        from timetoalign.fields.pitch import SpelledPitchField
+
+        col = self._table.column("spelled_pitch")
+        pa_field = self._table.schema.field("spelled_pitch")
+        return SpelledPitchField.from_field((col, pa_field))
 
     @classmethod
     def empty(

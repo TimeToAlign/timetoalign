@@ -15,13 +15,18 @@ from .base import (
     StructField,
 )
 from .coordinate import CoordinateField
+from .harmony import HarmonyField
+from .pitch import PitchField, SpelledPitchField
 
 __all__ = [
     "CoordinateField",
     "DataField",
+    "HarmonyField",
     "MapField",
     "NumericField",
+    "PitchField",
     "SemanticField",
+    "SpelledPitchField",
     "StringField",
     "StructField",
 ]
