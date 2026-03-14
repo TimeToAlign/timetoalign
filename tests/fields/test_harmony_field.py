@@ -7,8 +7,8 @@ import json
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from timetoalign.core.protocols import HarmonyLike, SemanticTypeLike
-from timetoalign.core.scalars.harmony import Harmony
+from timetoalign.core.protocols import DcmlHarmonyLike, SemanticTypeLike
+from timetoalign.core.scalars.harmony import DcmlHarmony
 from timetoalign.fields.base import StructField
 from timetoalign.fields.harmony import HarmonyField
 
@@ -83,19 +83,21 @@ class TestProtocolConformance:
     """Verify HarmonyField satisfies HarmonyLike and SemanticTypeLike."""
 
     def test_harmony_scalar_satisfies_harmonylike(self) -> None:
-        """isinstance(Harmony(...), HarmonyLike) is True."""
-        h = Harmony(
+        """isinstance(DcmlHarmony(...), DcmlHarmonyLike) is True."""
+        from timetoalign.core.enums import TimeUnit
+        from timetoalign.core.types import Coordinate
+
+        h = DcmlHarmony(
             label="i",
             globalkey="c",
             localkey="i",
             numeral="i",
-            form="",
-            figbass="",
             chord_type="m",
             root=0,
-            bass_note=0,
+            bass=0,
+            start=Coordinate(0.0, TimeUnit.quarters),
         )
-        assert isinstance(h, HarmonyLike)
+        assert isinstance(h, DcmlHarmonyLike)
 
     def test_harmony_field_satisfies_semantic_type_like(self) -> None:
         """isinstance(HarmonyField(...), SemanticTypeLike) is True."""
@@ -167,8 +169,8 @@ class TestConstruction:
 class TestElementAccess:
     """Tests for HarmonyField.__getitem__."""
 
-    def test_getitem_returns_harmony(self) -> None:
-        """Verify returns Harmony instance with correct values."""
+    def test_getitem_returns_dcml_label(self) -> None:
+        """Verify returns DcmlLabel instance with correct values."""
         data = [
             {
                 "label": "c.i",
@@ -185,7 +187,7 @@ class TestElementAccess:
         arr = _make_harmony_array(data)
         hf = HarmonyField.from_field(arr)
         h = hf[0]
-        assert isinstance(h, Harmony)
+        assert isinstance(h, DcmlHarmony)
         assert h.label == "c.i"
         assert h.globalkey == "c"
         assert h.numeral == "i"
@@ -205,7 +207,7 @@ class TestElementAccess:
         assert h1 is not None
         assert h1.label == "V65"
         assert h1.numeral == "V"
-        assert h1.figbass == "65"
+        assert h1.inversion == 1  # figbass "65" -> inversion 1
 
     def test_getitem_null_returns_none(self) -> None:
         """Verify None for null struct entries."""

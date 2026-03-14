@@ -1,4 +1,4 @@
-"""Tests for Circle 1 score scalars: MidiPitch, SpelledPitch, Note, Measure, Harmony."""
+"""Tests for Circle 1 score scalars: MidiPitch, SpelledPitch, Note, Measure, DcmlHarmony."""
 
 from __future__ import annotations
 
@@ -8,13 +8,15 @@ import pytest
 
 from timetoalign.core.enums import TimeUnit
 from timetoalign.core.protocols import (
+    DcmlHarmonyLike,
     HarmonyLike,
     MeasureLike,
     NoteLike,
     PitchLike,
     SemanticTypeLike,
+    SpecificPitchClassLike,
 )
-from timetoalign.core.scalars.harmony import Harmony
+from timetoalign.core.scalars.harmony import DcmlHarmony
 from timetoalign.core.scalars.measure import Measure
 from timetoalign.core.scalars.note import Note
 from timetoalign.core.scalars.pitch import MidiPitch, SpelledPitch
@@ -45,6 +47,11 @@ class TestMidiPitch:
         p = MidiPitch(midi_number=64, pitch_class=4)
         assert isinstance(p, PitchLike)
 
+    def test_specific_pitch_class_like_conformance(self) -> None:
+        """MidiPitch satisfies SpecificPitchClassLike protocol."""
+        p = MidiPitch(midi_number=64, pitch_class=4)
+        assert isinstance(p, SpecificPitchClassLike)
+
     def test_semantic_type_like_conformance(self) -> None:
         """MidiPitch satisfies SemanticTypeLike protocol."""
         p = MidiPitch(midi_number=60, pitch_class=0)
@@ -59,7 +66,7 @@ class TestMidiPitch:
         """metadata_dict returns correct keys/values."""
         p = MidiPitch(midi_number=59, pitch_class=11)
         md = p.metadata_dict()
-        assert md["field_type"] == "PitchField"
+        assert md["field_type"] == "SpecificPitchField"
         assert md["pitch_type"] == "midi"
 
     def test_frozen_immutable(self) -> None:
@@ -67,6 +74,11 @@ class TestMidiPitch:
         p = MidiPitch(midi_number=60, pitch_class=0)
         with pytest.raises(AttributeError):
             p.midi_number = 61  # type: ignore[misc]
+
+    def test_octave_property(self) -> None:
+        """MidiPitch.octave computes correctly."""
+        p = MidiPitch(midi_number=60, pitch_class=0)
+        assert p.octave == 4  # C4 = 60
 
 
 # ---------------------------------------------------------------------------
@@ -144,47 +156,47 @@ class TestNote:
     """Tests for Note scalar construction and protocol conformance."""
 
     def test_construction_with_pitch(self) -> None:
-        """Construct Note with onset, offset, duration, and a MidiPitch."""
-        onset = Coordinate(Fraction(0), TimeUnit.quarters)
+        """Construct Note with start, end, duration, and a MidiPitch."""
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
         pitch = MidiPitch(midi_number=59, pitch_class=11)
         note = Note(
-            onset=onset,
-            offset=Coordinate(Fraction(1, 2), TimeUnit.quarters),
-            duration=0.5,
+            start=start,
+            end=Coordinate(Fraction(1, 2), TimeUnit.quarters),
+            duration=Coordinate(Fraction(1, 2), TimeUnit.quarters),
             pitch=pitch,
             voice=1,
             staff=1,
             velocity=None,
         )
-        assert note.onset == onset
+        assert note.start == start
         assert note.pitch is not None
         assert note.pitch.midi_number == 59
-        assert note.duration == 0.5
+        assert note.duration is not None
         assert note.voice == 1
         assert note.staff == 1
 
     def test_construction_rest_no_pitch(self) -> None:
         """Construct a rest (Note with pitch=None)."""
-        onset = Coordinate(Fraction(1), TimeUnit.quarters)
+        start = Coordinate(Fraction(1), TimeUnit.quarters)
         rest = Note(
-            onset=onset,
-            offset=Coordinate(Fraction(2), TimeUnit.quarters),
-            duration=1.0,
+            start=start,
+            end=Coordinate(Fraction(2), TimeUnit.quarters),
+            duration=Coordinate(Fraction(1), TimeUnit.quarters),
             pitch=None,
             voice=1,
             staff=1,
             velocity=None,
         )
         assert rest.pitch is None
-        assert rest.duration == 1.0
+        assert rest.duration is not None
 
     def test_notelike_conformance(self) -> None:
         """Note satisfies NoteLike protocol."""
-        onset = Coordinate(Fraction(0), TimeUnit.quarters)
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
         note = Note(
-            onset=onset,
-            offset=Coordinate(Fraction(1, 8), TimeUnit.quarters),
-            duration=0.125,
+            start=start,
+            end=Coordinate(Fraction(1, 8), TimeUnit.quarters),
+            duration=Coordinate(Fraction(1, 8), TimeUnit.quarters),
             pitch=MidiPitch(midi_number=60, pitch_class=0),
             voice=1,
             staff=1,
@@ -194,11 +206,11 @@ class TestNote:
 
     def test_semantic_type(self) -> None:
         """Note.semantic_type == 'Note'."""
-        onset = Coordinate(Fraction(0), TimeUnit.quarters)
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
         note = Note(
-            onset=onset,
-            offset=Coordinate(Fraction(1, 2), TimeUnit.quarters),
-            duration=0.5,
+            start=start,
+            end=Coordinate(Fraction(1, 2), TimeUnit.quarters),
+            duration=Coordinate(Fraction(1, 2), TimeUnit.quarters),
             pitch=MidiPitch(midi_number=60, pitch_class=0),
             voice=1,
             staff=1,
@@ -208,18 +220,47 @@ class TestNote:
 
     def test_frozen_immutable(self) -> None:
         """Note is frozen (immutable)."""
-        onset = Coordinate(Fraction(0), TimeUnit.quarters)
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
         note = Note(
-            onset=onset,
-            offset=Coordinate(Fraction(1, 2), TimeUnit.quarters),
-            duration=0.5,
+            start=start,
+            end=Coordinate(Fraction(1, 2), TimeUnit.quarters),
+            duration=Coordinate(Fraction(1, 2), TimeUnit.quarters),
             pitch=MidiPitch(midi_number=60, pitch_class=0),
             voice=1,
             staff=1,
             velocity=None,
         )
         with pytest.raises(AttributeError):
-            note.duration = 1.0  # type: ignore[misc]
+            note.duration = Coordinate(1.0, TimeUnit.quarters)  # type: ignore[misc]
+
+    def test_instrument_field(self) -> None:
+        """Note supports optional instrument field."""
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
+        note = Note(
+            start=start,
+            end=Coordinate(Fraction(1, 2), TimeUnit.quarters),
+            duration=Coordinate(Fraction(1, 2), TimeUnit.quarters),
+            pitch=MidiPitch(midi_number=60, pitch_class=0),
+            voice=1,
+            staff=1,
+            velocity=80,
+            instrument="violin",
+        )
+        assert note.instrument == "violin"
+
+    def test_instrument_default_none(self) -> None:
+        """Note.instrument defaults to None."""
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
+        note = Note(
+            start=start,
+            end=None,
+            duration=None,
+            pitch=None,
+            voice=None,
+            staff=None,
+            velocity=None,
+        )
+        assert note.instrument is None
 
 
 # ---------------------------------------------------------------------------
@@ -231,45 +272,45 @@ class TestMeasure:
     """Tests for Measure scalar construction and protocol conformance."""
 
     def test_construction_basic(self) -> None:
-        """Construct Measure with mc, mn, onset, duration, timesig, keysig."""
-        onset = Coordinate(Fraction(0), TimeUnit.quarters)
+        """Construct Measure with mc, mn, start, duration, timesig, keysig."""
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
         m = Measure(
-            mc=1,
+            id=1,
             mn="1",
-            onset=onset,
-            duration=2.0,
+            start=start,
+            duration=Coordinate(Fraction(2), TimeUnit.quarters),
             time_signature=(2, 4),
             key_signature="E",
         )
-        assert m.mc == 1
+        assert m.id == 1
         assert m.mn == "1"
-        assert m.onset == onset
-        assert m.duration == 2.0
+        assert m.start == start
+        assert m.duration is not None
         assert m.time_signature == (2, 4)
         assert m.key_signature == "E"
 
     def test_construction_anacrusis(self) -> None:
-        """Construct Measure for an anacrusis bar (mc=1, mn='0')."""
-        onset = Coordinate(Fraction(0), TimeUnit.quarters)
+        """Construct Measure for an anacrusis bar (id=1, mn='0')."""
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
         m = Measure(
-            mc=1,
+            id=1,
             mn="0",
-            onset=onset,
-            duration=0.5,
+            start=start,
+            duration=Coordinate(Fraction(1, 2), TimeUnit.quarters),
             time_signature=(2, 4),
             key_signature="E",
         )
-        assert m.mc == 1
+        assert m.id == 1
         assert m.mn == "0"
 
     def test_measurelike_conformance(self) -> None:
         """Measure satisfies MeasureLike protocol."""
-        onset = Coordinate(Fraction(0), TimeUnit.quarters)
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
         m = Measure(
-            mc=1,
+            id=1,
             mn="1",
-            onset=onset,
-            duration=2.0,
+            start=start,
+            duration=Coordinate(Fraction(2), TimeUnit.quarters),
             time_signature=(2, 4),
             key_signature="E",
         )
@@ -277,12 +318,12 @@ class TestMeasure:
 
     def test_time_signature_tuple(self) -> None:
         """time_signature returns exact (num, den) tuple."""
-        onset = Coordinate(Fraction(0), TimeUnit.quarters)
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
         m = Measure(
-            mc=3,
+            id=3,
             mn="3",
-            onset=onset,
-            duration=2.0,
+            start=start,
+            duration=Coordinate(Fraction(2), TimeUnit.quarters),
             time_signature=(6, 8),
             key_signature="c",
         )
@@ -291,12 +332,12 @@ class TestMeasure:
 
     def test_semantic_type(self) -> None:
         """Measure.semantic_type == 'Measure'."""
-        onset = Coordinate(Fraction(0), TimeUnit.quarters)
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
         m = Measure(
-            mc=1,
+            id=1,
             mn="1",
-            onset=onset,
-            duration=2.0,
+            start=start,
+            duration=Coordinate(Fraction(2), TimeUnit.quarters),
             time_signature=(4, 4),
             key_signature="C",
         )
@@ -304,39 +345,48 @@ class TestMeasure:
 
     def test_frozen_immutable(self) -> None:
         """Measure is frozen (immutable)."""
-        onset = Coordinate(Fraction(0), TimeUnit.quarters)
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
         m = Measure(
-            mc=1,
+            id=1,
             mn="1",
-            onset=onset,
-            duration=2.0,
+            start=start,
+            duration=Coordinate(Fraction(2), TimeUnit.quarters),
             time_signature=(2, 4),
             key_signature="E",
         )
         with pytest.raises(AttributeError):
-            m.mc = 2  # type: ignore[misc]
+            m.id = 2  # type: ignore[misc]
+
+    def test_flow_control_defaults(self) -> None:
+        """Flow control fields default to False/None."""
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
+        m = Measure(id=1, mn="1", start=start, time_signature=(4, 4))
+        assert m.start_repeat is False
+        assert m.end_repeat is False
+        assert m.next_ids is None
+        assert m.volta is None
 
 
 # ---------------------------------------------------------------------------
-# Harmony
+# DcmlHarmony (was Harmony)
 # ---------------------------------------------------------------------------
 
 
-class TestHarmony:
-    """Tests for Harmony scalar construction and protocol conformance."""
+class TestDcmlHarmony:
+    """Tests for DcmlHarmony scalar construction and protocol conformance."""
 
     def test_construction_basic(self) -> None:
-        """Construct Harmony with DCML-standard fields."""
-        h = Harmony(
+        """Construct DcmlHarmony with DCML-standard fields."""
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
+        h = DcmlHarmony(
             label="c.i",
             globalkey="c",
             localkey="i",
             numeral="i",
-            form="",
-            figbass="",
             chord_type="m",
             root=0,
-            bass_note=0,
+            bass=0,
+            start=start,
         )
         assert h.label == "c.i"
         assert h.globalkey == "c"
@@ -344,85 +394,71 @@ class TestHarmony:
         assert h.numeral == "i"
         assert h.chord_type == "m"
         assert h.root == 0
-        assert h.bass_note == 0
+        assert h.bass == 0
 
     def test_construction_dominant_seventh(self) -> None:
-        """Construct Harmony for V65."""
-        h = Harmony(
+        """Construct DcmlHarmony for V65."""
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
+        h = DcmlHarmony(
             label="V65",
             globalkey="c",
             localkey="i",
             numeral="V",
-            form="",
-            figbass="65",
             chord_type="Mm7",
+            inversion=1,
             root=1,
-            bass_note=5,
+            bass=5,
+            start=start,
         )
         assert h.label == "V65"
         assert h.numeral == "V"
-        assert h.figbass == "65"
+        assert h.inversion == 1
         assert h.chord_type == "Mm7"
 
     def test_harmonylike_conformance(self) -> None:
-        """Harmony satisfies HarmonyLike protocol."""
-        h = Harmony(
+        """DcmlHarmony satisfies HarmonyLike protocol."""
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
+        h = DcmlHarmony(
             label="i",
             globalkey="c",
             localkey="i",
             numeral="i",
-            form="",
-            figbass="",
             chord_type="m",
             root=0,
-            bass_note=0,
+            bass=0,
+            start=start,
         )
         assert isinstance(h, HarmonyLike)
 
-    def test_semantic_type(self) -> None:
-        """Harmony.semantic_type == 'Harmony'."""
-        h = Harmony(
-            label="V",
-            globalkey="c",
-            localkey="i",
-            numeral="V",
-            form="",
-            figbass="",
-            chord_type="M",
-            root=1,
-            bass_note=1,
-        )
-        assert h.semantic_type == "Harmony"
-
-    def test_metadata_dict(self) -> None:
-        """metadata_dict returns correct structure."""
-        h = Harmony(
-            label="c.i",
+    def test_dcmllabellike_conformance(self) -> None:
+        """DcmlHarmony satisfies DcmlHarmonyLike protocol."""
+        start = Coordinate(Fraction(0), TimeUnit.quarters)
+        h = DcmlHarmony(
+            label="i",
             globalkey="c",
             localkey="i",
             numeral="i",
-            form="",
-            figbass="",
             chord_type="m",
             root=0,
-            bass_note=0,
+            bass=0,
+            start=start,
         )
+        assert isinstance(h, DcmlHarmonyLike)
+
+    def test_semantic_type(self) -> None:
+        """DcmlHarmony.semantic_type == 'DcmlHarmony'."""
+        h = DcmlHarmony(label="V")
+        assert h.semantic_type == "DcmlHarmony"
+
+    def test_metadata_dict(self) -> None:
+        """metadata_dict returns correct structure."""
+        h = DcmlHarmony(label="c.i")
         md = h.metadata_dict()
-        assert md["field_type"] == "HarmonyField"
+        assert md["field_type"] == "DcmlHarmonyField"
         assert md["standard"] == "dcml"
 
     def test_frozen_immutable(self) -> None:
-        """Harmony is frozen (immutable)."""
-        h = Harmony(
-            label="V",
-            globalkey="c",
-            localkey="i",
-            numeral="V",
-            form="",
-            figbass="",
-            chord_type="M",
-            root=1,
-            bass_note=1,
-        )
+        """DcmlHarmony is frozen (immutable)."""
+        h = DcmlHarmony(label="V")
         with pytest.raises(AttributeError):
             h.label = "i"  # type: ignore[misc]

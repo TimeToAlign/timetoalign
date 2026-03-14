@@ -13,10 +13,32 @@ import json
 
 import pyarrow as pa
 
-from ..core.scalars.harmony import Harmony
+from ..core.scalars.harmony import DcmlHarmony
 from .base import SemanticField, StructField
 
 _TIMETOALIGN_KEY = b"timetoalign"
+
+# DCML figbass -> inversion number mapping
+_FIGBASS_TO_INVERSION: dict[str, int] = {
+    "": 0,  # root position
+    "6": 1,  # first inversion
+    "64": 2,  # second inversion
+    "2": 3,  # third inversion (seventh chords)
+    "65": 1,  # first inversion (seventh chords)
+    "43": 2,  # second inversion (seventh chords)
+    "42": 3,  # third inversion (seventh chords)
+}
+
+
+def _figbass_to_inversion(figbass: str) -> int | None:
+    """Convert DCML figbass string to an inversion number.
+
+    Returns ``None`` if the figbass string is not recognised.
+    """
+    if not figbass:
+        return 0
+    return _FIGBASS_TO_INVERSION.get(figbass)
+
 
 # The canonical struct type for DCML harmony annotations.
 HARMONY_STRUCT_TYPE = pa.struct(
@@ -82,14 +104,20 @@ class HarmonyField(SemanticField[StructField]):
 
     # -- element access ------------------------------------------------------
 
-    def __getitem__(self, i: int) -> Harmony | None:
-        """Return the *i*-th harmony as a ``Harmony`` scalar.
+    def __getitem__(self, i: int) -> DcmlHarmony | None:
+        """Return the *i*-th harmony as a ``DcmlHarmony`` scalar.
+
+        Maps DCML storage field names to our internal model names:
+        - ``chord_type`` (storage) -> ``chord_type`` (internal, same)
+        - ``figbass`` (storage) -> ``inversion`` (internal; figbass is export-only)
+        - ``bass_note`` (storage) -> ``bass`` (internal)
+        - ``relativeroot`` would map to ``tonicized_key`` (not in current schema)
 
         Args:
             i: Zero-based index.
 
         Returns:
-            A ``Harmony`` instance, or ``None`` for null entries.
+            A ``DcmlHarmony`` instance, or ``None`` for null entries.
 
         Raises:
             TypeError: If the field is schema-only (no data).
@@ -103,20 +131,25 @@ class HarmonyField(SemanticField[StructField]):
         if label is None:
             return None
 
-        return Harmony(
+        globalkey = str(raw_dict.get("globalkey") or "")
+        localkey = str(raw_dict.get("localkey") or "")
+        root = int(raw_dict["root"]) if raw_dict.get("root") is not None else None
+        bass_raw = raw_dict.get("bass_note")
+        bass = int(bass_raw) if bass_raw is not None else None
+
+        # Map DCML figbass to our internal inversion representation
+        figbass_raw = raw_dict.get("figbass") or ""
+        inversion = _figbass_to_inversion(str(figbass_raw))
+
+        return DcmlHarmony(
             label=str(label),
-            globalkey=str(raw_dict.get("globalkey") or ""),
-            localkey=str(raw_dict.get("localkey") or ""),
+            globalkey=globalkey,
+            localkey=localkey,
             numeral=str(raw_dict.get("numeral") or ""),
-            form=str(raw_dict.get("form") or ""),
-            figbass=str(raw_dict.get("figbass") or ""),
             chord_type=str(raw_dict.get("chord_type") or ""),
-            root=int(raw_dict["root"]) if raw_dict.get("root") is not None else None,
-            bass_note=(
-                int(raw_dict["bass_note"])
-                if raw_dict.get("bass_note") is not None
-                else None
-            ),
+            inversion=inversion,
+            root=root,
+            bass=bass,
         )
 
     # -- construction --------------------------------------------------------

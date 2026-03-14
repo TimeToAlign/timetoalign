@@ -1,15 +1,26 @@
-"""Pitch scalars for MIDI and spelled pitch representations.
+"""Pitch scalars for the Time To Align! type hierarchy.
 
-``MidiPitch`` wraps the ``midi_pitch`` struct ``{ep, epc}`` from
-``NoteEventData``.  ``SpelledPitch`` wraps the ``spelled_pitch``
-struct ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``.
+Provides frozen dataclass scalars at four levels of pitch specificity:
 
-Both satisfy the ``PitchLike`` protocol.
+- ``GenericPitch`` -- pitch class only (satisfies ``GenericPitchLike``)
+- ``SpelledPitchClass`` -- pitch class with spelling (satisfies ``SpelledPitchClassLike``)
+- ``MidiPitch`` (alias ``SpecificPitch``) -- MIDI note (satisfies ``SpecificPitchClassLike``)
+- ``SpelledPitch`` (alias ``EnharmonicPitch``) -- full spelling (satisfies ``EnharmonicPitchLike``)
+
+All 12-TET scalars compose ``TwelveTETPitchMixin`` which provides the
+unified ``.to()`` dispatch method and ``.get(format=)`` formatting.
+
+Scalar field names are canonical semantic names; the mapping to storage
+struct names (``ep``, ``epc``, ``gpc_int``, ``gpc_str``, ``acc``,
+``spc_int``, ``spc_str``, ``sp``, ``cents``) is handled by the Field
+classes and loaders.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+from ..protocols import TwelveTETPitchMixin
 
 # Step-name to semitone offset from C (C=0, D=2, E=4, F=5, G=7, A=9, B=11)
 _STEP_TO_SEMITONE: dict[str, int] = {
@@ -22,13 +33,162 @@ _STEP_TO_SEMITONE: dict[str, int] = {
     "B": 11,
 }
 
-# Step-name to pitch-class base (no accidental)
-_STEP_TO_PC: dict[str, int] = _STEP_TO_SEMITONE
+# Pitch-class to step name (for reverse mapping)
+_PC_TO_STEP: dict[int, str] = {v: k for k, v in _STEP_TO_SEMITONE.items()}
+
+
+# region GenericPitch
 
 
 @dataclass(frozen=True, slots=True)
-class MidiPitch:
-    """MIDI pitch scalar.  Satisfies ``PitchLike``.
+class GenericPitch(TwelveTETPitchMixin):
+    """Pitch class only.  Satisfies ``GenericPitchLike``.
+
+    Attributes:
+        pitch_class: Pitch class (0-11, C=0).
+    """
+
+    pitch_class: int  # type: ignore[override]
+
+    @property
+    def semantic_type(self) -> str:
+        """The canonical SemanticType name."""
+        return "GenericPitch"
+
+    def metadata_dict(self) -> dict[str, str]:
+        """Return metadata dict matching the Parquet storage contract."""
+        return {
+            "field_type": "GenericPitchField",
+            "pitch_type": "generic",
+        }
+
+    def to(self, target_type: type, *, format: str | None = None) -> "GenericPitch":
+        """Convert to another pitch type.
+
+        ``GenericPitch`` can only convert to itself (identity).
+        Conversion to ``MidiPitch`` or ``SpelledPitch`` requires
+        additional information (octave, spelling).
+
+        Args:
+            target_type: Target pitch type.
+            format: Optional format specifier.
+
+        Returns:
+            A pitch scalar of the target type.
+
+        Raises:
+            TypeError: If conversion is not supported.
+        """
+        if target_type is GenericPitch or target_type is type(self):
+            return self
+        raise TypeError(
+            f"Cannot convert GenericPitch to {target_type.__name__} "
+            f"(octave and/or spelling information required)"
+        )
+
+    def get(self, *, format: str | None = None) -> str:
+        """Return string representation.
+
+        Args:
+            format: Format specifier (ignored for GenericPitch).
+        """
+        return str(self.pitch_class)
+
+    def __repr__(self) -> str:
+        return f"GenericPitch(pitch_class={self.pitch_class})"
+
+
+# endregion GenericPitch
+
+# region SpelledPitchClass
+
+
+@dataclass(frozen=True, slots=True)
+class SpelledPitchClass(TwelveTETPitchMixin):
+    """Pitch class with spelling.  Satisfies ``SpelledPitchClassLike``.
+
+    Attributes:
+        step: Generic pitch class as string (``"C"``, ``"D"``, etc.).
+            Stored as ``gpc_str`` in the schema.
+        alter: Accidental in semitones (-1=flat, 0=natural, +1=sharp).
+            Stored as ``acc`` in the schema.
+        fifths: Spelled pitch class in fifths.
+            Stored as ``spc_int`` in the schema.
+    """
+
+    step: str
+    alter: int
+    fifths: int
+
+    @property
+    def pitch_class(self) -> int:  # type: ignore[override]
+        """Compute pitch class (0-11) from step and alter."""
+        base = _STEP_TO_SEMITONE.get(self.step, 0)
+        return (base + self.alter) % 12
+
+    @property
+    def semantic_type(self) -> str:
+        """The canonical SemanticType name."""
+        return "SpelledPitchClass"
+
+    def metadata_dict(self) -> dict[str, str]:
+        """Return metadata dict matching the Parquet storage contract."""
+        return {
+            "field_type": "SpelledPitchClassField",
+            "pitch_type": "spelled_class",
+        }
+
+    def to(
+        self, target_type: type, *, format: str | None = None
+    ) -> "SpelledPitchClass":
+        """Convert to another pitch type.
+
+        Args:
+            target_type: Target pitch type.
+            format: Optional format specifier.
+
+        Returns:
+            A pitch scalar of the target type.
+
+        Raises:
+            TypeError: If conversion is not supported.
+        """
+        if target_type is SpelledPitchClass or target_type is type(self):
+            return self
+        if target_type is GenericPitch:
+            return GenericPitch(pitch_class=self.pitch_class)  # type: ignore[return-value]
+        raise TypeError(
+            f"Cannot convert SpelledPitchClass to {target_type.__name__} "
+            f"(octave information required)"
+        )
+
+    def get(self, *, format: str | None = None) -> str:
+        """Return string representation.
+
+        Args:
+            format: Format specifier (ignored for SpelledPitchClass).
+        """
+        alter_str = ""
+        if self.alter > 0:
+            alter_str = "\u266f" * self.alter
+        elif self.alter < 0:
+            alter_str = "\u266d" * abs(self.alter)
+        return f"{self.step}{alter_str}"
+
+    def __repr__(self) -> str:
+        return f"SpelledPitchClass({self.get()})"
+
+
+# endregion SpelledPitchClass
+
+# region MidiPitch
+
+
+@dataclass(frozen=True, slots=True)
+class MidiPitch(TwelveTETPitchMixin):
+    """MIDI pitch scalar.  Satisfies ``SpecificPitchClassLike``.
+
+    Alias: ``SpecificPitch``.
 
     Wraps the ``midi_pitch`` struct ``{ep, epc}`` from ``NoteEventData``
     where ``ep`` is the MIDI note number and ``epc`` is the pitch class.
@@ -39,7 +199,12 @@ class MidiPitch:
     """
 
     midi_number: int
-    pitch_class: int
+    pitch_class: int  # type: ignore[override]
+
+    @property
+    def octave(self) -> int:
+        """Octave number (C4 = 60 -> octave 4)."""
+        return (self.midi_number // 12) - 1
 
     @property
     def semantic_type(self) -> str:
@@ -49,9 +214,41 @@ class MidiPitch:
     def metadata_dict(self) -> dict[str, str]:
         """Return metadata dict matching the Parquet storage contract."""
         return {
-            "field_type": "PitchField",
+            "field_type": "SpecificPitchField",
             "pitch_type": "midi",
         }
+
+    def to(
+        self, target_type: type, *, format: str | None = None
+    ) -> "TwelveTETPitchMixin":
+        """Convert to another pitch type.
+
+        Args:
+            target_type: Target pitch type.
+            format: Optional format specifier.
+
+        Returns:
+            A pitch scalar of the target type.
+
+        Raises:
+            TypeError: If conversion is not supported.
+        """
+        if target_type is MidiPitch or target_type is type(self):
+            return self
+        if target_type is GenericPitch:
+            return GenericPitch(pitch_class=self.pitch_class)
+        raise TypeError(
+            f"Cannot convert MidiPitch to {target_type.__name__} "
+            f"(spelling information required for enharmonic types)"
+        )
+
+    def get(self, *, format: str | None = None) -> str:
+        """Return string representation.
+
+        Args:
+            format: ``"midi"`` (default) returns MIDI number as string.
+        """
+        return str(self.midi_number)
 
     def __repr__(self) -> str:
         return (
@@ -59,17 +256,27 @@ class MidiPitch:
         )
 
 
+# Alias for canonical naming
+SpecificPitch = MidiPitch
+
+# endregion MidiPitch
+
+# region SpelledPitch
+
+
 @dataclass(frozen=True, slots=True)
-class SpelledPitch:
+class SpelledPitch(TwelveTETPitchMixin):
     """Spelled pitch scalar with enharmonic information.
+
+    Satisfies ``EnharmonicPitchLike``.  Alias: ``EnharmonicPitch``.
 
     Wraps the ``spelled_pitch`` struct from ``NoteEventData``:
     ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``.
 
     Attributes:
-        step: Generic pitch class as string (from ``gpc_str``: ``"C"``, ``"D"``, etc.).
-        alter: Accidental in semitones (from ``acc``: -1=flat, 0=natural, 1=sharp).
-        octave: Octave number (derived from ``sp`` or computed).
+        step: Generic pitch class as string (from ``gpc_str``).
+        alter: Accidental in semitones (from ``acc``).
+        octave: Octave number (derived from ``sp``).
         fifths: Spelled pitch class in fifths (from ``spc_int``).
         cents: Cents value.
     """
@@ -90,9 +297,9 @@ class SpelledPitch:
         return (self.octave + 1) * 12 + base + self.alter
 
     @property
-    def pitch_class(self) -> int:
+    def pitch_class(self) -> int:  # type: ignore[override]
         """Compute pitch class (0-11) from step and alter."""
-        base = _STEP_TO_PC.get(self.step, 0)
+        base = _STEP_TO_SEMITONE.get(self.step, 0)
         return (base + self.alter) % 12
 
     @property
@@ -103,14 +310,63 @@ class SpelledPitch:
     def metadata_dict(self) -> dict[str, str]:
         """Return metadata dict matching the Parquet storage contract."""
         return {
-            "field_type": "SpelledPitchField",
+            "field_type": "EnharmonicPitchField",
             "pitch_type": "spelled",
         }
 
-    def __repr__(self) -> str:
+    def to(
+        self, target_type: type, *, format: str | None = None
+    ) -> "TwelveTETPitchMixin":
+        """Convert to another pitch type.
+
+        Args:
+            target_type: Target pitch type.
+            format: Optional format specifier.
+
+        Returns:
+            A pitch scalar of the target type.
+
+        Raises:
+            TypeError: If conversion is not supported.
+        """
+        if target_type is SpelledPitch or target_type is type(self):
+            return self
+        if target_type is MidiPitch:
+            return MidiPitch(
+                midi_number=self.midi_number,
+                pitch_class=self.pitch_class,
+            )
+        if target_type is GenericPitch:
+            return GenericPitch(pitch_class=self.pitch_class)
+        if target_type is SpelledPitchClass:
+            return SpelledPitchClass(
+                step=self.step,
+                alter=self.alter,
+                fifths=self.fifths,
+            )
+        raise TypeError(f"Cannot convert SpelledPitch to {target_type.__name__}")
+
+    def get(self, *, format: str | None = None) -> str:
+        """Return string representation.
+
+        Args:
+            format: ``"spelled"`` (default) returns e.g. ``"C♯4"``.
+                ``"midi"`` returns the MIDI number.
+        """
+        if format == "midi":
+            return str(self.midi_number)
         alter_str = ""
         if self.alter > 0:
-            alter_str = "#" * self.alter
+            alter_str = "\u266f" * self.alter
         elif self.alter < 0:
-            alter_str = "b" * abs(self.alter)
-        return f"SpelledPitch({self.step}{alter_str}{self.octave})"
+            alter_str = "\u266d" * abs(self.alter)
+        return f"{self.step}{alter_str}{self.octave}"
+
+    def __repr__(self) -> str:
+        return f"SpelledPitch({self.get()})"
+
+
+# Alias for canonical naming
+EnharmonicPitch = SpelledPitch
+
+# endregion SpelledPitch

@@ -1,7 +1,9 @@
 """Note scalar for score note/rest events.
 
 ``Note`` is a frozen dataclass that represents a single note or rest
-event extracted from ``NoteEventData``.  It satisfies ``NoteLike``.
+event.  It satisfies ``NoteLike`` (and thus ``IntervalEventLike``).
+
+Uses canonical TTA model names: ``start`` / ``end`` for temporal fields.
 """
 
 from __future__ import annotations
@@ -9,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..types import Coordinate
-from .pitch import MidiPitch
+from .pitch import MidiPitch, SpelledPitch
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,22 +19,25 @@ class Note:
     """A single note or rest event.  Satisfies ``NoteLike``.
 
     Attributes:
-        onset: Temporal position as a ``Coordinate``.
-        offset: End position as a ``Coordinate``, or ``None``.
-        duration: Duration in quarter-beat units.
-        pitch: ``MidiPitch`` for pitched notes, ``None`` for rests.
+        start: Temporal position as a ``Coordinate`` (StartInstant).
+        end: End position as a ``Coordinate``, or ``None`` (EndInstant).
+        duration: Duration as a ``Coordinate``, or ``None``.
+        pitch: ``MidiPitch`` or ``SpelledPitch`` for pitched notes,
+            ``None`` for rests.
         voice: Voice number, or ``None``.
         staff: Staff number, or ``None``.
         velocity: MIDI velocity (0-127), or ``None``.
+        instrument: Instrument name/identifier, or ``None``.
     """
 
-    onset: Coordinate
-    offset: Coordinate | None
-    duration: float
-    pitch: MidiPitch | None
+    start: Coordinate
+    end: Coordinate | None
+    duration: Coordinate | None
+    pitch: MidiPitch | SpelledPitch | None
     voice: int | None
     staff: int | None
     velocity: int | None
+    instrument: str | None = None
 
     @property
     def is_rest(self) -> bool:
@@ -53,4 +58,4 @@ class Note:
 
     def __repr__(self) -> str:
         pitch_str = repr(self.pitch) if self.pitch is not None else "rest"
-        return f"Note(onset={self.onset}, duration={self.duration}, pitch={pitch_str})"
+        return f"Note(start={self.start}, duration={self.duration}, pitch={pitch_str})"
