@@ -209,6 +209,65 @@ class CoordinateField(SemanticField[StructField]):
             f"Unsupported source type for CoordinateField.from_field: {type(source).__name__}"
         )
 
+    @classmethod
+    def from_table(
+        cls,
+        table: pa.Table,
+        column: str | None = None,
+        *,
+        unit: TimeUnit | str | None = None,
+        number_type: NumberType | str | None = None,
+    ) -> CoordinateField:
+        """Construct a ``CoordinateField`` from a ``pa.Table`` column.
+
+        This is the recommended way to reconstruct a ``CoordinateField``
+        after a Parquet round-trip.  It extracts the column data and
+        schema field in one step.
+
+        Args:
+            table: The PyArrow table containing the coordinate column.
+            column: Column name.  If ``None``, auto-detects the column
+                by looking for a struct column whose schema field carries
+                ``b"timetoalign"`` metadata.
+            unit: Optional unit override (otherwise read from metadata).
+            number_type: Optional number_type override.
+
+        Returns:
+            A new ``CoordinateField``.
+
+        Raises:
+            ValueError: If *column* is ``None`` and the table has zero
+                or more than one candidate column.
+            KeyError: If the named *column* does not exist.
+
+        Examples:
+            >>> loaded_cf = CoordinateField.from_table(loaded_table)
+            >>> loaded_cf = CoordinateField.from_table(loaded_table, "onset")
+        """
+        if column is None:
+            candidates = [
+                f.name
+                for f in table.schema
+                if pa.types.is_struct(f.type)
+                and f.metadata
+                and _TIMETOALIGN_KEY in f.metadata
+            ]
+            if len(candidates) == 1:
+                column = candidates[0]
+            elif len(candidates) == 0:
+                raise ValueError(
+                    "No struct column with b'timetoalign' metadata found in table; "
+                    "pass column= explicitly"
+                )
+            else:
+                raise ValueError(
+                    f"Multiple candidate columns found: {candidates}; "
+                    "pass column= explicitly"
+                )
+        pa_field = table.schema.field(column)
+        data = table.column(column)
+        return cls.from_field((data, pa_field), unit=unit, number_type=number_type)
+
     # -- serialisation helpers -----------------------------------------------
 
     def to_field(self) -> pa.Field:

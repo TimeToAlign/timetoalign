@@ -229,9 +229,7 @@ meta
 
 # %%
 # Reconstruct the CoordinateField from the loaded table
-loaded_cf = CoordinateField.from_field(
-    (loaded.column(col_name).combine_chunks(), loaded.schema.field(col_name))
-)
+loaded_cf = CoordinateField.from_table(loaded)
 loaded_cf
 
 # %%

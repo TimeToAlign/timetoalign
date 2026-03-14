@@ -334,10 +334,8 @@ class TestSerialization:
         pq.write_table(table, str(parquet_path))
         table_back = pq.read_table(str(parquet_path))
 
-        # Reconstruct CoordinateField from the read-back column
-        col = table_back.column("coordinate")
-        schema_field = table_back.schema.field("coordinate")
-        cf2 = CoordinateField.from_field((col, schema_field))
+        # Reconstruct CoordinateField from the read-back table
+        cf2 = CoordinateField.from_table(table_back, "coordinate")
 
         # Verify metadata survived
         assert cf2.unit == TimeUnit.quarters
@@ -351,6 +349,67 @@ class TestSerialization:
             assert coord is not None
             assert coord.value == expected
             assert coord.unit == TimeUnit.quarters
+
+
+# ---------------------------------------------------------------------------
+# from_table
+# ---------------------------------------------------------------------------
+
+
+class TestFromTable:
+    """Tests for CoordinateField.from_table()."""
+
+    def _make_table(self) -> pa.Table:
+        """Build a table with a single coordinate column carrying TTA metadata."""
+        values = [Fraction(1, 4), Fraction(1, 2)]
+        arr, _ = _make_coord_array(TimeUnit.quarters, values)
+        cf = CoordinateField.from_field(
+            arr, unit=TimeUnit.quarters, number_type=NumberType.fraction
+        )
+        enriched = cf.to_field()
+        return pa.table(
+            {"coordinate": arr},
+            schema=pa.schema([enriched.with_name("coordinate")]),
+        )
+
+    def test_from_table_explicit_column(self) -> None:
+        table = self._make_table()
+        cf = CoordinateField.from_table(table, "coordinate")
+        assert len(cf) == 2
+        assert cf.unit == TimeUnit.quarters
+        assert cf.number_type == NumberType.fraction
+        assert cf[0] is not None
+        assert cf[0].value == Fraction(1, 4)
+
+    def test_from_table_auto_detect(self) -> None:
+        table = self._make_table()
+        cf = CoordinateField.from_table(table)
+        assert len(cf) == 2
+        assert cf.unit == TimeUnit.quarters
+
+    def test_from_table_no_candidate_raises(self) -> None:
+        table = pa.table({"x": [1, 2, 3]})
+        with pytest.raises(ValueError, match="No struct column"):
+            CoordinateField.from_table(table)
+
+    def test_from_table_multiple_candidates_raises(self) -> None:
+        values = [Fraction(1, 4)]
+        arr, _ = _make_coord_array(TimeUnit.quarters, values)
+        cf = CoordinateField.from_field(
+            arr, unit=TimeUnit.quarters, number_type=NumberType.fraction
+        )
+        enriched = cf.to_field()
+        table = pa.table(
+            {"onset": arr, "offset": arr},
+            schema=pa.schema(
+                [
+                    enriched.with_name("onset"),
+                    enriched.with_name("offset"),
+                ]
+            ),
+        )
+        with pytest.raises(ValueError, match="Multiple candidate"):
+            CoordinateField.from_table(table)
 
 
 # ---------------------------------------------------------------------------
