@@ -56,12 +56,12 @@ class TestProtocolConformance:
         )
         assert isinstance(cf, SemanticTypeLike)
 
-    def test_coordinate_field_semantic_type_name(self) -> None:
+    def test_coordinate_field_semantic_type(self) -> None:
         arr, _ = _make_coord_array()
         cf = CoordinateField.from_field(
             arr, unit=TimeUnit.seconds, number_type=NumberType.float
         )
-        assert cf.semantic_type_name == "Coordinate"
+        assert cf.semantic_type == "Coordinate"
 
 
 # ---------------------------------------------------------------------------

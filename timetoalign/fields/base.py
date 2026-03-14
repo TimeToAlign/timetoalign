@@ -510,7 +510,7 @@ class SemanticField(DataField, Generic[R]):
     Subclasses are expected to:
     - Override ``__getitem__`` to return semantic scalar objects.
     - Implement ``from_field`` for construction from external sources.
-    - Implement ``SemanticTypeLike`` properties (``semantic_type_name``,
+    - Implement ``SemanticTypeLike`` properties (``semantic_type``,
       ``metadata_dict``).
 
     Args:
@@ -523,7 +523,7 @@ class SemanticField(DataField, Generic[R]):
         >>> # Subclass usage (sketch):
         >>> class CoordinateField(SemanticField[StructField]):
         ...     @property
-        ...     def semantic_type_name(self) -> str:
+        ...     def semantic_type(self) -> str:
         ...         return "Coordinate"
         ...     def metadata_dict(self) -> dict[str, str]:
         ...         return {"field_type": "CoordinateField", ...}

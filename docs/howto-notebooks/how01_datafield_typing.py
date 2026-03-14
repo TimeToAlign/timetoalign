@@ -150,7 +150,7 @@ cf[1], cf[2], cf[3]
     "unit": cf.unit,
     "domain": cf.domain,
     "number_type": cf.number_type,
-    "semantic_type_name": cf.semantic_type_name,
+    "semantic_type": cf.semantic_type,
 }
 
 # %%
@@ -197,7 +197,7 @@ isinstance(cf, CoordinateLike)
 coord_scalar.unit, cf.unit
 
 # %%
-coord_scalar.semantic_type_name, cf.semantic_type_name
+coord_scalar.semantic_type, cf.semantic_type
 
 # %% [markdown]
 # ## Parquet Round-Trip

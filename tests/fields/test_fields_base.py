@@ -36,10 +36,10 @@ class TestProtocolConformance:
         coord = Coordinate(120, TimeUnit.ticks)
         assert isinstance(coord, CoordinateLike)
 
-    def test_coordinate_semantic_type_name(self) -> None:
-        """Coordinate.semantic_type_name == 'Coordinate'."""
+    def test_coordinate_semantic_type(self) -> None:
+        """Coordinate.semantic_type == 'Coordinate'."""
         coord = Coordinate(1.5, TimeUnit.seconds)
-        assert coord.semantic_type_name == "Coordinate"
+        assert coord.semantic_type == "Coordinate"
 
     def test_coordinate_metadata_dict(self) -> None:
         """metadata_dict returns correct keys/values."""
@@ -221,7 +221,7 @@ class _TestSemanticField(SemanticField[StructField]):
     """Minimal concrete SemanticField for testing (SemanticField is abstract)."""
 
     @property
-    def semantic_type_name(self) -> str:
+    def semantic_type(self) -> str:
         return "TestSemantic"
 
     def metadata_dict(self) -> dict[str, str]:

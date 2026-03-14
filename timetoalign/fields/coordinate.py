@@ -87,7 +87,7 @@ class CoordinateField(SemanticField[StructField]):
     # -- SemanticTypeLike properties -----------------------------------------
 
     @property
-    def semantic_type_name(self) -> str:
+    def semantic_type(self) -> str:
         """The canonical SemanticType name."""
         return "Coordinate"
 

@@ -27,13 +27,13 @@ V = TypeVar("V", covariant=True)
 class SemanticTypeLike(Protocol):
     """Protocol for objects that carry semantic type metadata.
 
-    Any object with a ``semantic_type_name`` property and a
+    Any object with a ``semantic_type`` property and a
     ``metadata_dict()`` method satisfies this protocol.  This is the
     root contract shared by both scalar types (``Coordinate``) and
     columnar types (future ``SemanticField`` subclasses).
 
     Attributes:
-        semantic_type_name: Canonical name of the semantic type
+        semantic_type: Canonical name of the semantic type
             (e.g., ``"Coordinate"``).
 
     Examples:
@@ -42,12 +42,12 @@ class SemanticTypeLike(Protocol):
         >>> coord = Coordinate(1.5, TimeUnit.seconds)
         >>> isinstance(coord, SemanticTypeLike)
         True
-        >>> coord.semantic_type_name
+        >>> coord.semantic_type
         'Coordinate'
     """
 
     @property
-    def semantic_type_name(self) -> str:
+    def semantic_type(self) -> str:
         """The canonical SemanticType name."""
         ...
 
