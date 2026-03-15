@@ -377,7 +377,6 @@ class TestDcmlHarmony:
 
     def test_construction_basic(self) -> None:
         """Construct DcmlHarmony with DCML-standard fields."""
-        start = Coordinate(Fraction(0), TimeUnit.quarters)
         h = DcmlHarmony(
             label="c.i",
             globalkey="c",
@@ -386,7 +385,6 @@ class TestDcmlHarmony:
             chord_type="m",
             root=0,
             bass=0,
-            start=start,
         )
         assert h.label == "c.i"
         assert h.globalkey == "c"
@@ -398,7 +396,6 @@ class TestDcmlHarmony:
 
     def test_construction_dominant_seventh(self) -> None:
         """Construct DcmlHarmony for V65."""
-        start = Coordinate(Fraction(0), TimeUnit.quarters)
         h = DcmlHarmony(
             label="V65",
             globalkey="c",
@@ -408,7 +405,6 @@ class TestDcmlHarmony:
             inversion=1,
             root=1,
             bass=5,
-            start=start,
         )
         assert h.label == "V65"
         assert h.numeral == "V"
@@ -417,7 +413,6 @@ class TestDcmlHarmony:
 
     def test_harmonylike_conformance(self) -> None:
         """DcmlHarmony satisfies HarmonyLike protocol."""
-        start = Coordinate(Fraction(0), TimeUnit.quarters)
         h = DcmlHarmony(
             label="i",
             globalkey="c",
@@ -426,13 +421,11 @@ class TestDcmlHarmony:
             chord_type="m",
             root=0,
             bass=0,
-            start=start,
         )
         assert isinstance(h, HarmonyLike)
 
     def test_dcmllabellike_conformance(self) -> None:
         """DcmlHarmony satisfies DcmlHarmonyLike protocol."""
-        start = Coordinate(Fraction(0), TimeUnit.quarters)
         h = DcmlHarmony(
             label="i",
             globalkey="c",
@@ -441,7 +434,6 @@ class TestDcmlHarmony:
             chord_type="m",
             root=0,
             bass=0,
-            start=start,
         )
         assert isinstance(h, DcmlHarmonyLike)
 

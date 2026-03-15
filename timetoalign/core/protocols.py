@@ -12,12 +12,12 @@ Hierarchy Overview::
     │   ├── InstantEventLike              Single-instant events
     │   └── IntervalEventLike             Interval [start, end) events
     │       ├── NoteLike                  Notes/rests
-    │       ├── MeasureLike               Measures
-    │       └── HarmonyLabelLike          Harmony annotations (label on timeline)
-    │           └── PitchBasedHarmonyLike  (modelled after OHR)
-    │               └── WesternTertianHarmonyLike
-    │                   └── RomanNumeralHarmonyLike
-    │                       └── DcmlHarmonyLike
+    │       └── MeasureLike               Measures
+    ├── HarmonyLabelLike                   Harmonic content (no temporal binding)
+    │   └── PitchBasedHarmonyLike          (modelled after OHR)
+    │       └── WesternTertianHarmonyLike
+    │           └── RomanNumeralHarmonyLike
+    │               └── DcmlHarmonyLike
     └── PitchLike                          Pitch-bearing objects
         ├── GenericPitchLike              Pitch class only
         │   └── SpelledPitchClassLike     + spelling (step, alter, fifths)
@@ -421,18 +421,16 @@ class MeasureLike(IntervalEventLike, Protocol):
 
 
 @runtime_checkable
-class HarmonyLabelLike(IntervalEventLike, Protocol):
-    """Abstract root for all harmony annotations on a timeline.
+class HarmonyLabelLike(SemanticTypeLike, Protocol):
+    """Abstract root for all harmony annotations.
 
-    A harmony label ties a harmonic analysis to a temporal interval.
-    Minimal schema: a label string and a standard identifier.
-    Temporal fields (``start``, ``end``, ``duration``) come from
-    ``IntervalEventLike``.
+    Represents harmonic content (label + standard).  Temporal placement
+    is NOT part of this protocol -- it belongs to the EventData row
+    that contains the harmony.  A harmony label describes *what* the
+    harmony is, not *when* it occurs.
 
-    This is called ``HarmonyLabelLike`` (not ``HarmonyLike``) because
-    it represents a label placed on a timeline, not the harmonic
-    object itself.  The ``.to_ohr()`` method bridges to FlexOHR's
-    rich harmonic model.
+    The ``.to_ohr()`` method (future) bridges to FlexOHR's rich
+    harmonic model.
     """
 
     @property

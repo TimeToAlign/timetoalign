@@ -40,8 +40,8 @@ import pyarrow.parquet as pq
 import pytest
 
 from timetoalign.core.scalars.pitch import MidiPitch
-from timetoalign.fields.harmony import HARMONY_STRUCT_TYPE, HarmonyField
-from timetoalign.fields.pitch import PitchField
+from timetoalign.fields.harmony import HARMONY_STRUCT_TYPE, DcmlLabelField
+from timetoalign.fields.pitch import SpecificPitchField
 from timetoalign.loader.score.tsv import TSVLoader
 
 # ---------------------------------------------------------------------------
@@ -109,7 +109,7 @@ class TestChopinPitchFieldFromTSV:
         notes_table = chopin_store.notes._table
         midi_pitch_col = notes_table.column("midi_pitch")
         midi_pitch_field = notes_table.schema.field("midi_pitch")
-        pf = PitchField.from_field((midi_pitch_col, midi_pitch_field))
+        pf = SpecificPitchField.from_field((midi_pitch_col, midi_pitch_field))
         # Total rows include rests (which have null pitch), so len >= 498
         assert len(pf) >= 498
 
@@ -118,7 +118,7 @@ class TestChopinPitchFieldFromTSV:
         notes_table = chopin_store.notes._table
         midi_pitch_col = notes_table.column("midi_pitch")
         midi_pitch_field = notes_table.schema.field("midi_pitch")
-        pf = PitchField.from_field((midi_pitch_col, midi_pitch_field))
+        pf = SpecificPitchField.from_field((midi_pitch_col, midi_pitch_field))
         first = pf[0]
         assert first is not None
         assert isinstance(first, MidiPitch)
@@ -185,16 +185,16 @@ class TestChopinMeasuresFromTSV:
 
 
 class TestBeethovenHarmonies:
-    """Validate HarmonyField against the Beethoven Op.18/4 harmonies TSV.
+    """Validate DcmlLabelField against the Beethoven Op.18/4 harmonies TSV.
 
     The DCML harmonies.tsv is loaded directly via pandas (not TSVLoader,
-    which does not yet preserve DCML-specific columns).  A HarmonyField
+    which does not yet preserve DCML-specific columns).  A DcmlLabelField
     is constructed from the raw data to validate the semantic wrapper.
     """
 
     @pytest.fixture
-    def harmony_field(self) -> HarmonyField:
-        """Load Beethoven harmonies.tsv and build a HarmonyField."""
+    def harmony_field(self) -> DcmlLabelField:
+        """Load Beethoven harmonies.tsv and build a DcmlLabelField."""
         df = pd.read_csv(BEETHOVEN_HARMONIES_TSV, sep="\t")
         structs = []
         for _, row in df.iterrows():
@@ -242,39 +242,39 @@ class TestBeethovenHarmonies:
                 }
             )
         arr = pa.array(structs, type=HARMONY_STRUCT_TYPE)
-        return HarmonyField.from_field(arr, name="harmony")
+        return DcmlLabelField.from_field(arr, name="harmony")
 
-    def test_first_label(self, harmony_field: HarmonyField) -> None:
+    def test_first_label(self, harmony_field: DcmlLabelField) -> None:
         """First harmony label is 'c.i'."""
         h = harmony_field[0]
         assert h is not None
         assert h.label == "c.i", f"Expected first label 'c.i', got {h.label!r}"
 
-    def test_first_globalkey(self, harmony_field: HarmonyField) -> None:
+    def test_first_globalkey(self, harmony_field: DcmlLabelField) -> None:
         """First harmony has globalkey == 'c'."""
         h = harmony_field[0]
         assert h is not None
         assert h.globalkey == "c"
 
-    def test_first_numeral(self, harmony_field: HarmonyField) -> None:
+    def test_first_numeral(self, harmony_field: DcmlLabelField) -> None:
         """First harmony has numeral == 'i'."""
         h = harmony_field[0]
         assert h is not None
         assert h.numeral == "i"
 
-    def test_second_harmony_v65(self, harmony_field: HarmonyField) -> None:
+    def test_second_harmony_v65(self, harmony_field: DcmlLabelField) -> None:
         """Second harmony label is 'V65'."""
         h = harmony_field[1]
         assert h is not None
         assert h.label == "V65"
 
-    def test_second_harmony_chord_type(self, harmony_field: HarmonyField) -> None:
+    def test_second_harmony_chord_type(self, harmony_field: DcmlLabelField) -> None:
         """Second harmony has chord_type == 'Mm7'."""
         h = harmony_field[1]
         assert h is not None
         assert h.chord_type == "Mm7"
 
-    def test_harmony_count(self, harmony_field: HarmonyField) -> None:
+    def test_harmony_count(self, harmony_field: DcmlLabelField) -> None:
         """Beethoven Op.18/4 harmonies.tsv has a known number of annotations."""
         assert len(harmony_field) > 0
 
@@ -298,7 +298,7 @@ class TestPitchFieldParquetRoundtrip:
         midi_pitch_field = notes_table.schema.field("midi_pitch")
 
         # Build PitchField from real data
-        pf = PitchField.from_field((midi_pitch_col, midi_pitch_field))
+        pf = SpecificPitchField.from_field((midi_pitch_col, midi_pitch_field))
         enriched_field = pf.to_field()
 
         # Build a table with just the pitch column
@@ -314,7 +314,7 @@ class TestPitchFieldParquetRoundtrip:
         # Reconstruct PitchField from read-back
         col_back = table_back.column("midi_pitch")
         field_back = table_back.schema.field("midi_pitch")
-        pf2 = PitchField.from_field((col_back, field_back))
+        pf2 = SpecificPitchField.from_field((col_back, field_back))
 
         # Verify metadata survived
         assert pf2.semantic_type == "MidiPitch"

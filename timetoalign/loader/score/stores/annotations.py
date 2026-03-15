@@ -9,13 +9,14 @@ from typing_extensions import Self
 
 from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.loader.events import EventData
+from timetoalign.loader.mixins import HarmonyAccessMixin
 from timetoalign.loader.schema import make_fraction_field
 
 if TYPE_CHECKING:
     pass
 
 
-class AnnotationEventData(EventData):
+class AnnotationEventData(EventData, HarmonyAccessMixin):
     """EventData for text annotations.
 
     Subtypes include:

@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.4
+#       jupytext_version: 1.19.1
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -177,8 +177,8 @@ meta = json.loads(loaded.schema.field(pa_field.name).metadata[b"timetoalign"])
 meta
 
 # %%
-# Reconstruct the PitchField from the loaded table
-from timetoalign.fields import PitchField
+# Reconstruct the SpecificPitchField from the loaded table
+from timetoalign.fields import SpecificPitchField
 
-loaded_pf = PitchField.from_table(loaded)
+loaded_pf = SpecificPitchField.from_table(loaded)
 loaded_pf[0]

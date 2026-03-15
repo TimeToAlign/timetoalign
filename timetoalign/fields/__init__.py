@@ -15,17 +15,38 @@ from .base import (
     StructField,
 )
 from .coordinate import CoordinateField
-from .harmony import HarmonyField
-from .pitch import PitchField, SpelledPitchField
+from .harmony import (
+    DcmlLabelField,
+    HarmonyField,
+    RomanNumeralHarmonyField,
+    WesternTertianHarmonyField,
+)
+from .pitch import (
+    EnharmonicPitchField,
+    GenericPitchField,
+    MidiPitchField,
+    PitchField,
+    SpecificPitchField,
+    SpelledPitchClassField,
+    SpelledPitchField,
+)
 
 __all__ = [
     "CoordinateField",
     "DataField",
+    "EnharmonicPitchField",
+    "GenericPitchField",
+    "DcmlLabelField",
     "HarmonyField",
     "MapField",
+    "RomanNumeralHarmonyField",
+    "WesternTertianHarmonyField",
+    "MidiPitchField",
     "NumericField",
     "PitchField",
     "SemanticField",
+    "SpecificPitchField",
+    "SpelledPitchClassField",
     "SpelledPitchField",
     "StringField",
     "StructField",

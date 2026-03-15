@@ -3,14 +3,15 @@
 Provides frozen dataclass scalars at five levels of harmonic specificity,
 using our internal model names (not DCML field names):
 
-- ``HarmonyLabel`` -- root: label + standard + temporal (satisfies ``HarmonyLabelLike``)
+- ``HarmonyLabel`` -- root: label + standard (satisfies ``HarmonyLabelLike``)
 - ``PitchBasedHarmony`` -- adds root/bass (satisfies ``PitchBasedHarmonyLike``)
 - ``WesternTertianHarmony`` -- adds chord_type/inversion (satisfies ``WesternTertianHarmonyLike``)
 - ``RomanNumeralHarmony`` -- adds numeral/localkey/globalkey (satisfies ``RomanNumeralHarmonyLike``)
 - ``DcmlHarmony`` -- DCML codec specifics (satisfies ``DcmlHarmonyLike``)
 
-Each scalar declares ``start``, ``end``, ``duration`` fields to satisfy
-``IntervalEventLike`` (temporal fields use the canonical TTA model names).
+Harmony scalars represent *harmonic content only* -- they do NOT carry
+temporal fields (``start``, ``end``, ``duration``).  Temporal placement
+belongs to the EventData row that contains the harmony scalar.
 
 Internal model name mapping from DCML:
 - DCML ``chord_type`` -> our ``chord_type`` (same)
@@ -24,8 +25,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..types import Coordinate
-
 # region HarmonyLabel (root)
 
 
@@ -33,22 +32,16 @@ from ..types import Coordinate
 class HarmonyLabel:
     """Root harmony scalar.  Satisfies ``HarmonyLabelLike``.
 
-    Minimal: label + standard + temporal position.
-    A harmony label ties a harmonic analysis to a temporal interval.
+    Minimal: label + standard.  Describes harmonic content without
+    temporal placement (time belongs to the EventData row).
 
     Attributes:
         label: The full harmony label string (e.g. ``"V65/IV"``).
         standard: Codec identifier (e.g., ``"dcml"``, ``"chord_symbol"``).
-        start: Temporal position as a ``Coordinate``.
-        end: End position as a ``Coordinate``, or ``None``.
-        duration: Duration as a ``Coordinate``, or ``None``.
     """
 
     label: str
     standard: str
-    start: Coordinate
-    end: Coordinate | None = None
-    duration: Coordinate | None = None
 
     @property
     def semantic_type(self) -> str:
@@ -84,18 +77,12 @@ class PitchBasedHarmony:
     Attributes:
         label: The full harmony label string.
         standard: Codec identifier.
-        start: Temporal position.
-        end: End position, or ``None``.
-        duration: Duration, or ``None``.
         root: Root pitch class (0-11), or ``None``.
         bass: Bass note pitch class (0-11), or ``None``.
     """
 
     label: str
     standard: str
-    start: Coordinate
-    end: Coordinate | None = None
-    duration: Coordinate | None = None
     root: int | None = None
     bass: int | None = None
 
@@ -127,9 +114,6 @@ class WesternTertianHarmony:
     Attributes:
         label: The full harmony label string.
         standard: Codec identifier.
-        start: Temporal position.
-        end: End position, or ``None``.
-        duration: Duration, or ``None``.
         root: Root pitch class (0-11), or ``None``.
         bass: Bass note pitch class (0-11), or ``None``.
         chord_type: Chord type (``"M"``, ``"m"``, ``"o"``, ``"+"``, ``"Mm7"``, etc.).
@@ -139,9 +123,6 @@ class WesternTertianHarmony:
 
     label: str
     standard: str
-    start: Coordinate
-    end: Coordinate | None = None
-    duration: Coordinate | None = None
     root: int | None = None
     bass: int | None = None
     chord_type: str = ""
@@ -178,9 +159,6 @@ class RomanNumeralHarmony:
     Attributes:
         label: The full harmony label string.
         standard: Codec identifier.
-        start: Temporal position.
-        end: End position, or ``None``.
-        duration: Duration, or ``None``.
         root: Root pitch class (0-11), or ``None``.
         bass: Bass note pitch class (0-11), or ``None``.
         chord_type: Chord type.
@@ -192,9 +170,6 @@ class RomanNumeralHarmony:
 
     label: str
     standard: str
-    start: Coordinate
-    end: Coordinate | None = None
-    duration: Coordinate | None = None
     root: int | None = None
     bass: int | None = None
     chord_type: str = ""
@@ -237,9 +212,6 @@ class DcmlHarmony:
     Attributes:
         label: The full DCML label string (e.g. ``"V65/IV"``).
         standard: Always ``"dcml"``.
-        start: Temporal position, or ``None``.
-        end: End position, or ``None``.
-        duration: Duration, or ``None``.
         root: Root pitch class (0-11), or ``None``.
         bass: Bass note pitch class (0-11), or ``None``.
         chord_type: Chord type (our internal name).
@@ -253,9 +225,6 @@ class DcmlHarmony:
 
     label: str
     standard: str = "dcml"
-    start: Coordinate | None = None
-    end: Coordinate | None = None
-    duration: Coordinate | None = None
     root: int | None = None
     bass: int | None = None
     chord_type: str = ""

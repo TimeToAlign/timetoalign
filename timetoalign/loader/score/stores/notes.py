@@ -9,10 +9,14 @@ from typing_extensions import Self
 
 from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.loader.events import EventData
+from timetoalign.loader.mixins import PitchAccessMixin
 from timetoalign.loader.schema import make_fraction_field
 
 if TYPE_CHECKING:
-    from timetoalign.fields.pitch import PitchField, SpelledPitchField
+    from timetoalign.fields.pitch import (
+        EnharmonicPitchField,
+        SpecificPitchField,
+    )
 
 
 def _make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
@@ -39,7 +43,7 @@ def _make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
     return midi_pitch, spelled_pitch
 
 
-class NoteEventData(EventData):
+class NoteEventData(EventData, PitchAccessMixin):
     """EventData for note, rest, and chord events.
 
     Rich temporal schema following TSV gold standard:
@@ -115,43 +119,54 @@ class NoteEventData(EventData):
         return self._has_rests
 
     @property
-    def pitch_field(self) -> PitchField:
-        """Extract the ``midi_pitch`` column as a ``PitchField``.
+    def pitch_field(self) -> SpecificPitchField:
+        """Extract the ``midi_pitch`` column as a ``SpecificPitchField``.
 
-        Wraps the ``midi_pitch`` struct column ``{ep, epc}`` in a
-        semantic ``PitchField`` for element-level ``MidiPitch`` access.
+        Delegates to ``get_pitch_field(SpecificPitchField)`` when
+        ``b"timetoalign"`` metadata is present on the column; otherwise
+        falls back to direct construction from the ``midi_pitch`` column.
 
         Returns:
-            A ``PitchField`` wrapping the ``midi_pitch`` column.
+            A ``SpecificPitchField`` wrapping the ``midi_pitch`` column.
 
         Raises:
             KeyError: If the table has no ``midi_pitch`` column.
         """
-        from timetoalign.fields.pitch import PitchField
+        from timetoalign.fields.pitch import SpecificPitchField
+
+        try:
+            return self.get_pitch_field(SpecificPitchField)  # type: ignore[return-value]
+        except KeyError:
+            pass
 
         col = self._table.column("midi_pitch")
         pa_field = self._table.schema.field("midi_pitch")
-        return PitchField.from_field((col, pa_field))
+        return SpecificPitchField.from_field((col, pa_field))
 
     @property
-    def spelled_pitch_field(self) -> SpelledPitchField:
-        """Extract the ``spelled_pitch`` column as a ``SpelledPitchField``.
+    def spelled_pitch_field(self) -> EnharmonicPitchField:
+        """Extract the ``spelled_pitch`` column as an ``EnharmonicPitchField``.
 
-        Wraps the ``spelled_pitch`` struct column
-        ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}`` in a
-        semantic ``SpelledPitchField`` for element-level ``SpelledPitch`` access.
+        Delegates to ``get_pitch_field(EnharmonicPitchField)`` when
+        ``b"timetoalign"`` metadata is present on the column; otherwise
+        falls back to direct construction from the ``spelled_pitch`` column.
 
         Returns:
-            A ``SpelledPitchField`` wrapping the ``spelled_pitch`` column.
+            An ``EnharmonicPitchField`` wrapping the ``spelled_pitch`` column.
 
         Raises:
             KeyError: If the table has no ``spelled_pitch`` column.
         """
-        from timetoalign.fields.pitch import SpelledPitchField
+        from timetoalign.fields.pitch import EnharmonicPitchField
+
+        try:
+            return self.get_pitch_field(EnharmonicPitchField)  # type: ignore[return-value]
+        except KeyError:
+            pass
 
         col = self._table.column("spelled_pitch")
         pa_field = self._table.schema.field("spelled_pitch")
-        return SpelledPitchField.from_field((col, pa_field))
+        return EnharmonicPitchField.from_field((col, pa_field))
 
     @classmethod
     def empty(
