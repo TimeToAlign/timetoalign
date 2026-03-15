@@ -54,13 +54,11 @@ from timetoalign.core.scalars.pitch import (
 )
 from timetoalign.fields.harmony import (
     DcmlLabelField,
-    HarmonyField,
     WesternTertianHarmonyField,
 )
 from timetoalign.fields.pitch import (
     EnharmonicPitchField,
     GenericPitchField,
-    PitchField,
     SpecificPitchField,
     SpelledPitchClassField,
 )
@@ -97,16 +95,16 @@ from timetoalign.fields.schemas import (
 # | Category | Scalar | Key property | Protocol |
 # |----------|--------|-------------|----------|
 # | **Generic (GP)** | `GenericPitch` | `pitch_class` (0--11) | `GenericPitchLike` |
-# | **Enharmonic (EP)** | `MidiPitch` | `midi_number` + octave | `SpecificPitchClassLike` |
-# | **Specific (SP)** | `SpelledPitch` | spelling + octave + cents | `EnharmonicPitchLike` |
+# | **Enharmonic (EP)** | `EnharmonicPitch` (alias: `MidiPitch`) | `midi_number` + octave | `SpecificPitchClassLike` |
+# | **Specific (SP)** | `SpecificPitch` (alias: `SpelledPitch`) | spelling + octave + cents | `EnharmonicPitchLike` |
 #
 # Additionally, `SpelledPitchClass` is an octave-free variant of the
 # Specific category -- it carries spelling but no octave information.
 #
 # The ms3/DCML naming convention calls the MIDI level "enharmonic"
 # (because it *equates* enharmonic equivalents) and the spelled level
-# "specific" (because it preserves the *specific* spelling).  The class
-# aliases `SpecificPitch = MidiPitch` and `EnharmonicPitch = SpelledPitch`
+# "specific" (because it preserves the *specific* spelling).  The aliases
+# `EnharmonicPitch = MidiPitch` and `SpecificPitch = SpelledPitch`
 # reflect this convention.
 
 # %% [markdown]
@@ -117,57 +115,58 @@ gp_c = GenericPitch(pitch_class=0)
 gp_c
 
 # %%
-# GenericPitch compares directly with integers
-{"GPC(C) == 0": gp_c == 0, "GPC(C) == 7": gp_c == 7}
+# GenericPitch compares directly with integers (pitch class 0-11, C=0)
+{"GPC(C) == 0": gp_c == 0, "GPC(C) == 2": gp_c == 2}
 
 # %%
-gp_g = GenericPitch(pitch_class=7)
-gp_g
+gp_d = GenericPitch(pitch_class=2)
+gp_d
+
+# %%
+gp_c.to_dict()
 
 # %% [markdown]
 # ### Spelled Pitch Class (SPC): spelling without octave
 #
 # `SpelledPitchClass` sits between Generic and Specific -- it
 # distinguishes C♯ from D♭ but carries no octave information.
+# `fifths` is automatically derived from `step` and `alter`.
 
 # %%
-spc = SpelledPitchClass(step="C", alter=1, fifths=7)
+spc = SpelledPitchClass.from_label("C#")
 spc
 
 # %%
-{"pitch_class": spc.pitch_class, "step": spc.step, "alter": spc.alter}
+# All fields are automatically derived from the label
+spc.to_dict()
 
 # %% [markdown]
 # ### Enharmonic Pitch (EP / MIDI): octave without spelling
 #
-# `MidiPitch` knows the MIDI note number and pitch class but cannot
-# distinguish C♯ from D♭.
+# `MidiPitch` knows the MIDI note number; `pitch_class` and `octave`
+# are automatically derived.  It cannot distinguish C♯ from D♭.
 
 # %%
-mp = MidiPitch(midi_number=60, pitch_class=0)
+mp = MidiPitch(midi_number=60)
 mp
 
 # %%
-{"midi_number": mp.midi_number, "octave": mp.octave, "pitch_class": mp.pitch_class}
+mp.to_dict()
 
 # %% [markdown]
 # ### Specific Pitch (SP / Spelled): full spelling with octave
 #
 # `SpelledPitch` is the most informative level -- it preserves the
 # enharmonic identity, octave, and optional cents deviation.
+# Use `from_label()` to construct from a pitch string.
 
 # %%
-sp = SpelledPitch(step="C", alter=1, octave=4, fifths=7, cents=0.0)
+sp = SpelledPitch.from_label("C#4")
 sp
 
 # %%
-{
-    "midi_number": sp.midi_number,
-    "pitch_class": sp.pitch_class,
-    "octave": sp.octave,
-    "step": sp.step,
-    "alter": sp.alter,
-}
+# All fields are automatically inferred from the label
+sp.to_dict()
 
 # %% [markdown]
 # ### Protocol Satisfaction
@@ -183,7 +182,6 @@ sp
         spc, SpelledPitchClassLike
     ),
     "MidiPitch -> SpecificPitchClassLike": isinstance(mp, SpecificPitchClassLike),
-    "MidiPitch -> SpelledPitchClassLike": isinstance(mp, SpelledPitchClassLike),
     "SpelledPitch -> EnharmonicPitchLike": isinstance(sp, EnharmonicPitchLike),
     "SpelledPitch -> SpecificPitchClassLike": isinstance(sp, SpecificPitchClassLike),
     "all are PitchLike": all(isinstance(p, PitchLike) for p in [gp_c, spc, mp, sp]),
@@ -245,6 +243,8 @@ spcf
 # ### EnharmonicPitchField (MIDI)
 #
 # Wraps the EP schema (`{ep, epc}`) and returns `MidiPitch` scalars.
+# The `epc` column (pitch class) is redundant storage -- `MidiPitch`
+# derives it automatically from `ep` (the MIDI number).
 
 # %%
 midi_arr = pa.array(
@@ -259,17 +259,18 @@ epf
     "C4": epf[0],
     "E4": epf[1],
     "G4": epf[2],
-    "C4 midi": epf[0].midi_number,
-    "C4 octave": epf[0].octave,
+    "C4 details": epf[0].to_dict(),
 }
 
 # %% [markdown]
 # ### SpecificPitchField (Spelled)
 #
 # Wraps the SP schema and returns `SpelledPitch` scalars with full
-# enharmonic identity.  The storage struct carries seven fields, but
-# several are derivable -- we specify all of them here because the
-# PyArrow struct requires the full schema.
+# enharmonic identity.  The storage struct carries seven fields for
+# efficient columnar access, but most are derivable from (step, alter,
+# octave).  Below we show how fields are typically populated by loaders;
+# users construct `SpelledPitch` via `from_label()` rather than
+# filling these structs manually.
 
 # %%
 sp_arr = pa.array(
@@ -312,17 +313,8 @@ spf
     "C4": spf[0],
     "E4": spf[1],
     "G4": spf[2],
-    "C4 midi": spf[0].midi_number,
-    "C4 step": spf[0].step,
+    "C4 details": spf[0].to_dict(),
 }
-
-# %% [markdown]
-# ### All Pitch Fields are PitchFields
-#
-# The abstract `PitchField` parent enables polymorphic handling.
-
-# %%
-{type(f).__name__: isinstance(f, PitchField) for f in [gpf, spcf, epf, spf]}
 
 # %% [markdown]
 # ## Harmony Scalars
@@ -353,26 +345,28 @@ hl
 # the parser behind `from_label()` differs.
 
 # %%
-dh = DcmlHarmony.from_label("V65/IV", globalkey="C")
+dh = DcmlHarmony.from_label("V65", globalkey="C")
 dh
 
 # %%
+# Root and bass are stored as pitch classes (0-11).
+# V in C major has root G (pc=7), bass B (pc=11, 1st inversion).
 {
     "label": dh.label,
     "numeral": dh.numeral,
     "chord_type": dh.chord_type,
     "inversion": dh.inversion,
     "root": dh.root,
+    "root_name": GenericPitch(pitch_class=dh.root) if dh.root is not None else None,
     "bass": dh.bass,
-    "tonicized_key": dh.tonicized_key,
-    "globalkey": dh.globalkey,
+    "bass_name": GenericPitch(pitch_class=dh.bass) if dh.bass is not None else None,
 }
 
 # %%
 # The same interface works for any DCML label
 {
     lbl: DcmlHarmony.from_label(lbl, globalkey="C")
-    for lbl in ["I", "viio7", "iv6", "V65/IV"]
+    for lbl in ["I", "viio7", "iv6", "V65"]
 }
 
 # %% [markdown]
@@ -453,20 +447,15 @@ h0 = dlf[0]
 h0
 
 # %%
+# Display root and bass as pitch types rather than opaque integers
 {
     "label": h0.label,
     "numeral": h0.numeral,
     "chord_type": h0.chord_type,
     "inversion": h0.inversion,
-    "root": h0.root,
-    "bass": h0.bass,
+    "root": GenericPitch(pitch_class=h0.root) if h0.root is not None else None,
+    "bass": GenericPitch(pitch_class=h0.bass) if h0.bass is not None else None,
 }
-
-# %% [markdown]
-# ### All Harmony Fields are HarmonyFields
-
-# %%
-{type(f).__name__: isinstance(f, HarmonyField) for f in [wtf, dlf]}
 
 # %% [markdown]
 # ## DcmlLabelField and DcmlHarmony: the Shared Protocol
@@ -498,7 +487,8 @@ from_field = dlf[0]
 }
 
 # %%
-# The same fields are accessible regardless of origin
+# The same fields are accessible regardless of origin.
+# Root and bass are displayed as pitch types for clarity.
 {
     "Property": ["label", "numeral", "chord_type", "inversion", "root", "bass"],
     "from_label()": [
@@ -506,16 +496,32 @@ from_field = dlf[0]
         from_label.numeral,
         from_label.chord_type,
         from_label.inversion,
-        from_label.root,
-        from_label.bass,
+        (
+            GenericPitch(pitch_class=from_label.root)
+            if from_label.root is not None
+            else None
+        ),
+        (
+            GenericPitch(pitch_class=from_label.bass)
+            if from_label.bass is not None
+            else None
+        ),
     ],
     "from_field[0]": [
         from_field.label,
         from_field.numeral,
         from_field.chord_type,
         from_field.inversion,
-        from_field.root,
-        from_field.bass,
+        (
+            GenericPitch(pitch_class=from_field.root)
+            if from_field.root is not None
+            else None
+        ),
+        (
+            GenericPitch(pitch_class=from_field.bass)
+            if from_field.bass is not None
+            else None
+        ),
     ],
 }
 
@@ -536,7 +542,10 @@ from_field = dlf[0]
 # ## Protocol Dispatch
 #
 # The `isinstance` checks on protocols enable writing generic functions
-# that work across the whole hierarchy.
+# that work across the whole hierarchy.  This is also how the individual
+# paradigm's codecs look: they "plug" the right information from the
+# OHR (One Harmony Representation), transforming and assembling it as
+# needed.
 
 
 # %%

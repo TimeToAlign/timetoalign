@@ -4,8 +4,8 @@ Provides frozen dataclass scalars at four levels of pitch specificity:
 
 - ``GenericPitch`` -- pitch class only (satisfies ``GenericPitchLike``)
 - ``SpelledPitchClass`` -- pitch class with spelling (satisfies ``SpelledPitchClassLike``)
-- ``MidiPitch`` (alias ``SpecificPitch``) -- MIDI note (satisfies ``SpecificPitchClassLike``)
-- ``SpelledPitch`` (alias ``EnharmonicPitch``) -- full spelling (satisfies ``EnharmonicPitchLike``)
+- ``MidiPitch`` (alias ``EnharmonicPitch``) -- MIDI note (satisfies ``SpecificPitchClassLike``)
+- ``SpelledPitch`` (alias ``SpecificPitch``) -- full spelling (satisfies ``EnharmonicPitchLike``)
 
 All 12-TET scalars compose ``TwelveTETPitchMixin`` which provides the
 unified ``.to()`` dispatch method and ``.get(format=)`` formatting.
@@ -18,7 +18,8 @@ classes and loaders.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 from typing import Any
 
 from ..protocols import TwelveTETPitchMixin
@@ -36,6 +37,74 @@ _STEP_TO_SEMITONE: dict[str, int] = {
 
 # Pitch-class to step name (for reverse mapping)
 _PC_TO_STEP: dict[int, str] = {v: k for k, v in _STEP_TO_SEMITONE.items()}
+
+# Base fifths for each step (unaltered)
+_BASE_FIFTHS: dict[str, int] = {
+    "F": -1,
+    "C": 0,
+    "G": 1,
+    "D": 2,
+    "A": 3,
+    "E": 4,
+    "B": 5,
+}
+
+# Regex for parsing pitch labels like "C#4", "Bb3", "D♯5", "F♭-1"
+_PITCH_LABEL_RE = re.compile(
+    r"^([A-Ga-g])"  # step letter
+    r"([#♯]*|[b♭]*)"  # accidentals
+    r"(-?\d+)?$"  # optional octave
+)
+
+
+def _step_alter_to_fifths(step: str, alter: int) -> int:
+    """Compute line-of-fifths position from step and alter.
+
+    Each sharp adds 7 fifths, each flat subtracts 7.
+
+    Args:
+        step: Step letter (``"C"``, ``"D"``, etc.).
+        alter: Accidental in semitones.
+
+    Returns:
+        Position on the line of fifths.
+    """
+    return _BASE_FIFTHS.get(step, 0) + (7 * alter)
+
+
+def _parse_pitch_label(label: str) -> tuple[str, int, int | None]:
+    """Parse a pitch label string into (step, alter, octave_or_None).
+
+    Accepts labels like ``"C#4"``, ``"Bb3"``, ``"D♯5"``, ``"F♭-1"``,
+    ``"C♯"`` (no octave).
+
+    Args:
+        label: A pitch label string.
+
+    Returns:
+        A tuple ``(step, alter, octave)`` where ``octave`` is ``None``
+        if not present in the label.
+
+    Raises:
+        ValueError: If the label cannot be parsed.
+    """
+    m = _PITCH_LABEL_RE.match(label.strip())
+    if m is None:
+        raise ValueError(f"Cannot parse pitch label: {label!r}")
+    step = m.group(1).upper()
+    acc_str = m.group(2)
+    octave_str = m.group(3)
+
+    # Count accidentals
+    if not acc_str:
+        alter = 0
+    elif acc_str[0] in ("#", "\u266f"):
+        alter = len(acc_str)
+    else:
+        alter = -len(acc_str)
+
+    octave = int(octave_str) if octave_str is not None else None
+    return step, alter, octave
 
 
 # region GenericPitch
@@ -112,6 +181,18 @@ class GenericPitch(TwelveTETPitchMixin):
             return None
         return cls(pitch_class=int(pc))
 
+    def to_dict(self) -> dict[str, object]:
+        """Return a summary dict of all pitch properties.
+
+        Returns:
+            A dict with ``pitch_class`` and ``name`` keys.
+        """
+        step = _PC_TO_STEP.get(self.pitch_class)
+        return {
+            "pitch_class": self.pitch_class,
+            "name": step if step is not None else str(self.pitch_class),
+        }
+
     def __eq__(self, other: object) -> bool:
         """Compare to another ``GenericPitch`` or to a plain ``int``.
 
@@ -143,18 +224,25 @@ class GenericPitch(TwelveTETPitchMixin):
 class SpelledPitchClass(TwelveTETPitchMixin):
     """Pitch class with spelling.  Satisfies ``SpelledPitchClassLike``.
 
+    ``fifths`` is automatically derived from ``step`` and ``alter``
+    via the line-of-fifths formula.  You need only supply ``step``
+    and ``alter``; ``fifths`` is computed in ``__post_init__``.
+
     Attributes:
         step: Generic pitch class as string (``"C"``, ``"D"``, etc.).
             Stored as ``gpc_str`` in the schema.
         alter: Accidental in semitones (-1=flat, 0=natural, +1=sharp).
             Stored as ``acc`` in the schema.
-        fifths: Spelled pitch class in fifths.
+        fifths: Spelled pitch class in fifths (auto-derived).
             Stored as ``spc_int`` in the schema.
     """
 
     step: str
-    alter: int
-    fifths: int
+    alter: int = 0
+    fifths: int = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "fifths", _step_alter_to_fifths(self.step, self.alter))
 
     @property
     def pitch_class(self) -> int:  # type: ignore[override]
@@ -211,6 +299,46 @@ class SpelledPitchClass(TwelveTETPitchMixin):
             alter_str = "\u266d" * abs(self.alter)
         return f"{self.step}{alter_str}"
 
+    def to_dict(self) -> dict[str, object]:
+        """Return a summary dict of all pitch properties.
+
+        Returns:
+            A dict with ``step``, ``alter``, ``fifths``, ``pitch_class``,
+            and ``label`` keys.
+        """
+        return {
+            "step": self.step,
+            "alter": self.alter,
+            "fifths": self.fifths,
+            "pitch_class": self.pitch_class,
+            "label": self.get(),
+        }
+
+    @classmethod
+    def from_label(cls, label: str) -> SpelledPitchClass:
+        """Construct from a pitch label string.
+
+        Parses labels like ``"C#"``, ``"Bb"``, ``"D♯"``, ``"F♭"``.
+        Any octave portion is ignored.
+
+        Args:
+            label: A pitch label string.
+
+        Returns:
+            A ``SpelledPitchClass``.
+
+        Raises:
+            ValueError: If the label cannot be parsed.
+
+        Examples:
+            >>> SpelledPitchClass.from_label("C#")
+            SpelledPitchClass(C♯)
+            >>> SpelledPitchClass.from_label("Bb")
+            SpelledPitchClass(B♭)
+        """
+        step, alter, _ = _parse_pitch_label(label)
+        return cls(step=step, alter=alter)
+
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> SpelledPitchClass | None:
         """Construct from a PyArrow struct row dict.
@@ -230,7 +358,6 @@ class SpelledPitchClass(TwelveTETPitchMixin):
         return cls(
             step=str(step),
             alter=int(row.get("acc", 0) or 0),
-            fifths=int(row.get("spc_int", 0) or 0),
         )
 
     def __repr__(self) -> str:
@@ -246,18 +373,25 @@ class SpelledPitchClass(TwelveTETPitchMixin):
 class MidiPitch(TwelveTETPitchMixin):
     """MIDI pitch scalar.  Satisfies ``SpecificPitchClassLike``.
 
-    Alias: ``SpecificPitch``.
+    Alias: ``EnharmonicPitch``.
+
+    Called "enharmonic" at the schema/field level because it **equates**
+    enharmonic equivalents (C♯ and D♭ both map to MIDI 61).
 
     Wraps the ``midi_pitch`` struct ``{ep, epc}`` from ``NoteEventData``
     where ``ep`` is the MIDI note number and ``epc`` is the pitch class.
+    ``pitch_class`` is automatically derived from ``midi_number``.
 
     Attributes:
         midi_number: MIDI note number (0-127), stored as ``ep`` in schema.
-        pitch_class: Pitch class (0-11, C=0), stored as ``epc`` in schema.
+        pitch_class: Pitch class (0-11, C=0), auto-derived from ``midi_number``.
     """
 
     midi_number: int
-    pitch_class: int  # type: ignore[override]
+    pitch_class: int = field(init=False)  # type: ignore[override]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "pitch_class", self.midi_number % 12)
 
     @property
     def octave(self) -> int:
@@ -272,7 +406,7 @@ class MidiPitch(TwelveTETPitchMixin):
     def metadata_dict(self) -> dict[str, str]:
         """Return metadata dict matching the Parquet storage contract."""
         return {
-            "field_type": "SpecificPitchField",
+            "field_type": "EnharmonicPitchField",
             "pitch_type": "midi",
         }
 
@@ -297,7 +431,7 @@ class MidiPitch(TwelveTETPitchMixin):
             return GenericPitch(pitch_class=self.pitch_class)
         raise TypeError(
             f"Cannot convert MidiPitch to {target_type.__name__} "
-            f"(spelling information required for enharmonic types)"
+            f"(spelling information required for specific pitch types)"
         )
 
     def get(self, *, format: str | None = None) -> str:
@@ -308,32 +442,42 @@ class MidiPitch(TwelveTETPitchMixin):
         """
         return str(self.midi_number)
 
+    def to_dict(self) -> dict[str, object]:
+        """Return a summary dict of all pitch properties.
+
+        Returns:
+            A dict with ``midi_number``, ``pitch_class``, and ``octave`` keys.
+        """
+        return {
+            "midi_number": self.midi_number,
+            "pitch_class": self.pitch_class,
+            "octave": self.octave,
+        }
+
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> MidiPitch | None:
         """Construct from a PyArrow struct row dict.
 
         Accepts the ``midi_pitch`` (EP) struct: ``{ep: int64, epc: int64}``.
+        Only ``ep`` is required; ``epc`` is ignored (derived from ``ep``).
 
         Args:
             row: Dict with storage field names.
 
         Returns:
-            A ``MidiPitch``, or ``None`` if ``ep`` or ``epc`` is null.
+            A ``MidiPitch``, or ``None`` if ``ep`` is null.
         """
         ep = row.get("ep")
-        epc = row.get("epc")
-        if ep is None or epc is None:
+        if ep is None:
             return None
-        return cls(midi_number=int(ep), pitch_class=int(epc))
+        return cls(midi_number=int(ep))
 
     def __repr__(self) -> str:
-        return (
-            f"MidiPitch(midi_number={self.midi_number}, pitch_class={self.pitch_class})"
-        )
+        return f"MidiPitch(midi={self.midi_number}, pc={self.pitch_class})"
 
 
-# Alias for canonical naming
-SpecificPitch = MidiPitch
+# Alias: "enharmonic" because it equates enharmonic equivalents
+EnharmonicPitch = MidiPitch
 
 # endregion MidiPitch
 
@@ -342,26 +486,34 @@ SpecificPitch = MidiPitch
 
 @dataclass(frozen=True, slots=True)
 class SpelledPitch(TwelveTETPitchMixin):
-    """Spelled pitch scalar with enharmonic information.
+    """Spelled pitch scalar with full enharmonic identity.
 
-    Satisfies ``EnharmonicPitchLike``.  Alias: ``EnharmonicPitch``.
+    Satisfies ``EnharmonicPitchLike``.  Alias: ``SpecificPitch``.
+
+    Called "specific" at the schema/field level because it preserves the
+    *specific* enharmonic spelling (C♯4 ≠ D♭4).
 
     Wraps the ``spelled_pitch`` struct from ``NoteEventData``:
     ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``.
+
+    ``fifths`` is automatically derived from ``step`` and ``alter``.
 
     Attributes:
         step: Generic pitch class as string (from ``gpc_str``).
         alter: Accidental in semitones (from ``acc``).
         octave: Octave number (derived from ``sp``).
-        fifths: Spelled pitch class in fifths (from ``spc_int``).
-        cents: Cents value.
+        fifths: Spelled pitch class in fifths (auto-derived).
+        cents: Cents deviation from 12-TET.
     """
 
     step: str
     alter: int
     octave: int
-    fifths: int
-    cents: float
+    fifths: int = field(init=False)
+    cents: float = 0.0
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "fifths", _step_alter_to_fifths(self.step, self.alter))
 
     @property
     def midi_number(self) -> int:
@@ -386,7 +538,7 @@ class SpelledPitch(TwelveTETPitchMixin):
     def metadata_dict(self) -> dict[str, str]:
         """Return metadata dict matching the Parquet storage contract."""
         return {
-            "field_type": "EnharmonicPitchField",
+            "field_type": "SpecificPitchField",
             "pitch_type": "spelled",
         }
 
@@ -408,17 +560,13 @@ class SpelledPitch(TwelveTETPitchMixin):
         if target_type is SpelledPitch or target_type is type(self):
             return self
         if target_type is MidiPitch:
-            return MidiPitch(
-                midi_number=self.midi_number,
-                pitch_class=self.pitch_class,
-            )
+            return MidiPitch(midi_number=self.midi_number)
         if target_type is GenericPitch:
             return GenericPitch(pitch_class=self.pitch_class)
         if target_type is SpelledPitchClass:
             return SpelledPitchClass(
                 step=self.step,
                 alter=self.alter,
-                fifths=self.fifths,
             )
         raise TypeError(f"Cannot convert SpelledPitch to {target_type.__name__}")
 
@@ -438,6 +586,54 @@ class SpelledPitch(TwelveTETPitchMixin):
             alter_str = "\u266d" * abs(self.alter)
         return f"{self.step}{alter_str}{self.octave}"
 
+    def to_dict(self) -> dict[str, object]:
+        """Return a summary dict of all pitch properties.
+
+        Returns:
+            A dict with step, alter, octave, fifths, midi_number,
+            pitch_class, cents, and label keys.
+        """
+        return {
+            "label": self.get(),
+            "step": self.step,
+            "alter": self.alter,
+            "octave": self.octave,
+            "fifths": self.fifths,
+            "midi_number": self.midi_number,
+            "pitch_class": self.pitch_class,
+            "cents": self.cents,
+        }
+
+    @classmethod
+    def from_label(cls, label: str) -> SpelledPitch:
+        """Construct from a pitch label string.
+
+        Parses labels like ``"C#4"``, ``"Bb3"``, ``"D♯5"``.
+        Octave is **required**.
+
+        Args:
+            label: A pitch label string with octave (e.g. ``"C#4"``).
+
+        Returns:
+            A ``SpelledPitch``.
+
+        Raises:
+            ValueError: If the label cannot be parsed or has no octave.
+
+        Examples:
+            >>> SpelledPitch.from_label("C#4")
+            SpelledPitch(C♯4)
+            >>> SpelledPitch.from_label("Bb3")
+            SpelledPitch(B♭3)
+        """
+        step, alter, octave = _parse_pitch_label(label)
+        if octave is None:
+            raise ValueError(
+                f"Octave required for SpelledPitch, got {label!r}. "
+                f"Use SpelledPitchClass.from_label() for octave-free pitches."
+            )
+        return cls(step=step, alter=alter, octave=octave)
+
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> SpelledPitch | None:
         """Construct from a PyArrow struct row dict.
@@ -455,7 +651,6 @@ class SpelledPitch(TwelveTETPitchMixin):
         if step is None:
             return None
         alter = int(row.get("acc", 0) or 0)
-        fifths = int(row.get("spc_int", 0) or 0)
         cents = float(row.get("cents", 0.0) or 0.0)
         # Extract octave from 'sp' string (e.g. "C4" -> 4)
         sp = row.get("sp", "")
@@ -464,7 +659,6 @@ class SpelledPitch(TwelveTETPitchMixin):
             step=str(step),
             alter=alter,
             octave=octave,
-            fifths=fifths,
             cents=cents,
         )
 
@@ -487,7 +681,7 @@ def _parse_octave_from_sp(sp: str | None, step: str) -> int:
     return 4
 
 
-# Alias for canonical naming
-EnharmonicPitch = SpelledPitch
+# Alias: "specific" because it preserves the specific enharmonic spelling
+SpecificPitch = SpelledPitch
 
 # endregion SpelledPitch

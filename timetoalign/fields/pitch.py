@@ -191,7 +191,7 @@ class SpelledPitchClassField(PitchField):
 
     def __repr__(self) -> str:
         length = len(self) if not self.is_empty else 0
-        return f"SpelledPitchClassField(name={self.name!r}, type=spelled_class, len={length})"
+        return f"SpelledPitchClassField(name={self.name!r}, type=SpelledPitchClass, len={length})"
 
 
 # ---------------------------------------------------------------------------
@@ -215,7 +215,7 @@ class EnharmonicPitchField(PitchField):
         >>> arr = pa.array([{"ep": 60, "epc": 0}], type=EnharmonicPitchSchema.schema)
         >>> pf = EnharmonicPitchField.from_field(arr, name="midi_pitch")
         >>> pf[0]
-        MidiPitch(midi_number=60, pitch_class=0)
+        MidiPitch(midi=60, pc=0)
     """
 
     @property

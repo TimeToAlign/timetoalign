@@ -10,8 +10,8 @@ Type Hierarchy:
 Pitch scalars (satisfy PitchLike hierarchy):
     - ``GenericPitch`` -- pitch class only (GenericPitchLike)
     - ``SpelledPitchClass`` -- pitch class with spelling (SpelledPitchClassLike)
-    - ``MidiPitch`` / ``SpecificPitch`` -- MIDI note (SpecificPitchClassLike)
-    - ``SpelledPitch`` / ``EnharmonicPitch`` -- full spelling (EnharmonicPitchLike)
+    - ``MidiPitch`` / ``EnharmonicPitch`` -- MIDI note (SpecificPitchClassLike)
+    - ``SpelledPitch`` / ``SpecificPitch`` -- full spelling (EnharmonicPitchLike)
 
 Harmony scalars (satisfy HarmonyLabelLike hierarchy):
     - ``HarmonyLabel`` / ``Harmony`` -- label + standard + temporal (HarmonyLabelLike)

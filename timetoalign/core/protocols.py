@@ -234,7 +234,7 @@ class SpecificPitchClassLike(PitchLike, Protocol):
     """Full pitch with octave (no spelling).
 
     Canonical name: ``SpecificPitchClassLike``.
-    The ``MidiPitch`` scalar (alias ``SpecificPitch``) satisfies this.
+    The ``MidiPitch`` scalar (alias ``EnharmonicPitch``) satisfies this.
     """
 
     @property
@@ -257,7 +257,7 @@ class SpecificPitchClassLike(PitchLike, Protocol):
 class EnharmonicPitchLike(SpecificPitchClassLike, Protocol):
     """Full pitch with spelling (C\u266f4 vs D\u266d4).
 
-    The ``SpelledPitch`` scalar (alias ``EnharmonicPitch``) satisfies
+    The ``SpelledPitch`` scalar (alias ``SpecificPitch``) satisfies
     this protocol.
     """
 

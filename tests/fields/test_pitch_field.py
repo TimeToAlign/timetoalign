@@ -220,7 +220,7 @@ class TestProtocolConformance:
 
     def test_midi_pitch_scalar_satisfies_pitchlike(self) -> None:
         """isinstance(MidiPitch(...), PitchLike) is True."""
-        p = MidiPitch(midi_number=60, pitch_class=0)
+        p = MidiPitch(midi_number=60)
         assert isinstance(p, PitchLike)
 
     def test_specific_pitch_field_satisfies_semantic_type_like(self) -> None:

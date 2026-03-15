@@ -31,53 +31,53 @@ class TestMidiPitch:
     """Tests for MidiPitch scalar construction and protocol conformance."""
 
     def test_construction_basic(self) -> None:
-        """Construct MidiPitch with midi_number and pitch_class."""
-        p = MidiPitch(midi_number=60, pitch_class=0)
+        """Construct MidiPitch with midi_number only (pitch_class auto-derived)."""
+        p = MidiPitch(midi_number=60)
         assert p.midi_number == 60
         assert p.pitch_class == 0
 
     def test_construction_b3(self) -> None:
-        """Construct MidiPitch for B3 (midi 59, pitch_class 11)."""
-        p = MidiPitch(midi_number=59, pitch_class=11)
+        """Construct MidiPitch for B3 (midi 59, pitch_class auto-derived to 11)."""
+        p = MidiPitch(midi_number=59)
         assert p.midi_number == 59
         assert p.pitch_class == 11
 
     def test_pitchlike_conformance(self) -> None:
         """MidiPitch satisfies PitchLike protocol."""
-        p = MidiPitch(midi_number=64, pitch_class=4)
+        p = MidiPitch(midi_number=64)
         assert isinstance(p, PitchLike)
 
     def test_specific_pitch_class_like_conformance(self) -> None:
         """MidiPitch satisfies SpecificPitchClassLike protocol."""
-        p = MidiPitch(midi_number=64, pitch_class=4)
+        p = MidiPitch(midi_number=64)
         assert isinstance(p, SpecificPitchClassLike)
 
     def test_semantic_type_like_conformance(self) -> None:
         """MidiPitch satisfies SemanticTypeLike protocol."""
-        p = MidiPitch(midi_number=60, pitch_class=0)
+        p = MidiPitch(midi_number=60)
         assert isinstance(p, SemanticTypeLike)
 
     def test_semantic_type(self) -> None:
         """MidiPitch.semantic_type == 'MidiPitch'."""
-        p = MidiPitch(midi_number=60, pitch_class=0)
+        p = MidiPitch(midi_number=60)
         assert p.semantic_type == "MidiPitch"
 
     def test_metadata_dict(self) -> None:
         """metadata_dict returns correct keys/values."""
-        p = MidiPitch(midi_number=59, pitch_class=11)
+        p = MidiPitch(midi_number=59)
         md = p.metadata_dict()
-        assert md["field_type"] == "SpecificPitchField"
+        assert md["field_type"] == "EnharmonicPitchField"
         assert md["pitch_type"] == "midi"
 
     def test_frozen_immutable(self) -> None:
         """MidiPitch is frozen (immutable)."""
-        p = MidiPitch(midi_number=60, pitch_class=0)
+        p = MidiPitch(midi_number=60)
         with pytest.raises(AttributeError):
             p.midi_number = 61  # type: ignore[misc]
 
     def test_octave_property(self) -> None:
         """MidiPitch.octave computes correctly."""
-        p = MidiPitch(midi_number=60, pitch_class=0)
+        p = MidiPitch(midi_number=60)
         assert p.octave == 4  # C4 = 60
 
 
@@ -90,59 +90,60 @@ class TestSpelledPitch:
     """Tests for SpelledPitch scalar construction and protocol conformance."""
 
     def test_construction_basic(self) -> None:
-        """Construct SpelledPitch for C4."""
-        p = SpelledPitch(step="C", alter=0, octave=4, fifths=0, cents=0.0)
+        """Construct SpelledPitch for C4 (fifths auto-derived)."""
+        p = SpelledPitch(step="C", alter=0, octave=4)
         assert p.step == "C"
         assert p.alter == 0
         assert p.octave == 4
-        assert p.fifths == 0
-        assert p.cents == 0.0
+        assert p.fifths == 0  # auto-derived: C=0
+        assert p.cents == 0.0  # default
 
     def test_construction_gsharp(self) -> None:
-        """Construct SpelledPitch for G#3."""
-        p = SpelledPitch(step="G", alter=1, octave=3, fifths=8, cents=0.0)
+        """Construct SpelledPitch for G#3 (fifths auto-derived)."""
+        p = SpelledPitch(step="G", alter=1, octave=3)
         assert p.step == "G"
         assert p.alter == 1
         assert p.octave == 3
+        assert p.fifths == 8  # auto-derived: G=1 + 7*1=8
 
     def test_pitchlike_conformance(self) -> None:
         """SpelledPitch satisfies PitchLike protocol."""
-        p = SpelledPitch(step="C", alter=0, octave=4, fifths=0, cents=0.0)
+        p = SpelledPitch(step="C", alter=0, octave=4)
         assert isinstance(p, PitchLike)
 
     def test_midi_number_computation_c4(self) -> None:
         """SpelledPitch for C4 computes midi_number == 60."""
-        p = SpelledPitch(step="C", alter=0, octave=4, fifths=0, cents=0.0)
+        p = SpelledPitch(step="C", alter=0, octave=4)
         assert p.midi_number == 60
 
     def test_midi_number_computation_b3(self) -> None:
         """SpelledPitch for B3 computes midi_number == 59."""
-        p = SpelledPitch(step="B", alter=0, octave=3, fifths=5, cents=0.0)
+        p = SpelledPitch(step="B", alter=0, octave=3)
         assert p.midi_number == 59
 
     def test_midi_number_computation_gsharp3(self) -> None:
         """SpelledPitch for G#3 computes midi_number == 56."""
-        p = SpelledPitch(step="G", alter=1, octave=3, fifths=8, cents=0.0)
+        p = SpelledPitch(step="G", alter=1, octave=3)
         assert p.midi_number == 56
 
     def test_pitch_class_computation_c(self) -> None:
         """SpelledPitch for C4 has pitch_class == 0."""
-        p = SpelledPitch(step="C", alter=0, octave=4, fifths=0, cents=0.0)
+        p = SpelledPitch(step="C", alter=0, octave=4)
         assert p.pitch_class == 0
 
     def test_pitch_class_computation_b(self) -> None:
         """SpelledPitch for B3 has pitch_class == 11."""
-        p = SpelledPitch(step="B", alter=0, octave=3, fifths=5, cents=0.0)
+        p = SpelledPitch(step="B", alter=0, octave=3)
         assert p.pitch_class == 11
 
     def test_semantic_type(self) -> None:
         """SpelledPitch.semantic_type == 'SpelledPitch'."""
-        p = SpelledPitch(step="C", alter=0, octave=4, fifths=0, cents=0.0)
+        p = SpelledPitch(step="C", alter=0, octave=4)
         assert p.semantic_type == "SpelledPitch"
 
     def test_frozen_immutable(self) -> None:
         """SpelledPitch is frozen (immutable)."""
-        p = SpelledPitch(step="C", alter=0, octave=4, fifths=0, cents=0.0)
+        p = SpelledPitch(step="C", alter=0, octave=4)
         with pytest.raises(AttributeError):
             p.step = "D"  # type: ignore[misc]
 
@@ -158,7 +159,7 @@ class TestNote:
     def test_construction_with_pitch(self) -> None:
         """Construct Note with start, end, duration, and a MidiPitch."""
         start = Coordinate(Fraction(0), TimeUnit.quarters)
-        pitch = MidiPitch(midi_number=59, pitch_class=11)
+        pitch = MidiPitch(midi_number=59)
         note = Note(
             start=start,
             end=Coordinate(Fraction(1, 2), TimeUnit.quarters),
@@ -197,7 +198,7 @@ class TestNote:
             start=start,
             end=Coordinate(Fraction(1, 8), TimeUnit.quarters),
             duration=Coordinate(Fraction(1, 8), TimeUnit.quarters),
-            pitch=MidiPitch(midi_number=60, pitch_class=0),
+            pitch=MidiPitch(midi_number=60),
             voice=1,
             staff=1,
             velocity=80,
@@ -211,7 +212,7 @@ class TestNote:
             start=start,
             end=Coordinate(Fraction(1, 2), TimeUnit.quarters),
             duration=Coordinate(Fraction(1, 2), TimeUnit.quarters),
-            pitch=MidiPitch(midi_number=60, pitch_class=0),
+            pitch=MidiPitch(midi_number=60),
             voice=1,
             staff=1,
             velocity=None,
@@ -225,7 +226,7 @@ class TestNote:
             start=start,
             end=Coordinate(Fraction(1, 2), TimeUnit.quarters),
             duration=Coordinate(Fraction(1, 2), TimeUnit.quarters),
-            pitch=MidiPitch(midi_number=60, pitch_class=0),
+            pitch=MidiPitch(midi_number=60),
             voice=1,
             staff=1,
             velocity=None,
@@ -240,7 +241,7 @@ class TestNote:
             start=start,
             end=Coordinate(Fraction(1, 2), TimeUnit.quarters),
             duration=Coordinate(Fraction(1, 2), TimeUnit.quarters),
-            pitch=MidiPitch(midi_number=60, pitch_class=0),
+            pitch=MidiPitch(midi_number=60),
             voice=1,
             staff=1,
             velocity=80,
