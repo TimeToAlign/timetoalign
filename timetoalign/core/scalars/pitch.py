@@ -112,8 +112,26 @@ class GenericPitch(TwelveTETPitchMixin):
             return None
         return cls(pitch_class=int(pc))
 
+    def __eq__(self, other: object) -> bool:
+        """Compare to another ``GenericPitch`` or to a plain ``int``.
+
+        ``GPC(C) == 0`` evaluates to ``True``, enabling concise pitch-class
+        arithmetic in interactive contexts.
+        """
+        if isinstance(other, int):
+            return self.pitch_class == other
+        if isinstance(other, GenericPitch):
+            return self.pitch_class == other.pitch_class
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.pitch_class)
+
     def __repr__(self) -> str:
-        return f"GenericPitch(pitch_class={self.pitch_class})"
+        step = _PC_TO_STEP.get(self.pitch_class)
+        if step is not None:
+            return f"GPC({step})"
+        return f"GPC({self.pitch_class})"
 
 
 # endregion GenericPitch

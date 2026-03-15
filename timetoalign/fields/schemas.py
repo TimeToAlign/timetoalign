@@ -309,6 +309,7 @@ class Inversion(IntEnum):
 # DCML figbass -> Inversion enum mapping
 FIGBASS_TO_INVERSION: dict[str, Inversion] = {
     "": Inversion.ROOT,
+    "7": Inversion.ROOT,
     "6": Inversion.FIRST,
     "64": Inversion.SECOND,
     "2": Inversion.THIRD,

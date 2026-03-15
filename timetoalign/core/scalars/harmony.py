@@ -249,6 +249,92 @@ class DcmlHarmony:
         }
 
     @classmethod
+    def from_label(
+        cls,
+        label: str,
+        *,
+        globalkey: str = "C",
+        localkey: str = "I",
+    ) -> DcmlHarmony:
+        """Construct a fully populated ``DcmlHarmony`` from a DCML label string.
+
+        Parses the label using the ``ms3`` DCML regex and derives
+        ``numeral``, ``figbass``, ``chord_type``, ``inversion``,
+        ``root``, ``bass``, and ``tonicized_key`` automatically.
+
+        Args:
+            label: A DCML harmony label (e.g. ``"V65/IV"``, ``"viio7"``, ``"I"``).
+            globalkey: Global key of the piece (default ``"C"``).
+            localkey: Local key at this position (default ``"I"``).
+
+        Returns:
+            A fully populated ``DcmlHarmony``.
+
+        Raises:
+            ValueError: If the label cannot be parsed by the DCML regex.
+
+        Examples:
+            >>> DcmlHarmony.from_label("V65/IV", globalkey="C")
+            DcmlHarmony(label='V65/IV', key=C:I)
+            >>> h = DcmlHarmony.from_label("I")
+            >>> h.chord_type
+            'M'
+        """
+        from ms3.expand_dcml import features2type
+        from ms3.utils import fifths2pc, roman_numeral2fifths
+        from ms3.utils.constants import DCML_REGEX
+
+        from timetoalign.fields.schemas import figbass_to_inversion
+
+        m = DCML_REGEX.match(label)
+        if m is None:
+            raise ValueError(f"Cannot parse DCML label: {label!r}")
+
+        parts = {k: v for k, v in m.groupdict().items() if v is not None}
+        numeral = parts.get("numeral", "")
+        form = parts.get("form")
+        figbass = parts.get("figbass")
+        relativeroot = parts.get("relativeroot")
+        pedal = parts.get("pedal")
+
+        # Chord type from numeral + form + figbass
+        chord_type = features2type(numeral, form, figbass) if numeral else ""
+
+        # Inversion from figbass
+        inv = figbass_to_inversion(figbass or "")
+        inversion = int(inv) if inv is not None else None
+
+        # Root pitch class: numeral offset relative to globalkey
+        root: int | None = None
+        bass: int | None = None
+        if numeral:
+            root_tpc = roman_numeral2fifths(numeral)
+            root = fifths2pc(root_tpc)
+            # Bass: for inverted chords, use chord2tpcs from ms3
+            try:
+                from ms3 import chord2tpcs
+
+                chord_str = parts.get("chord", label)
+                tpcs = chord2tpcs(chord_str)
+                if tpcs:
+                    bass = fifths2pc(tpcs[0])
+            except Exception:
+                bass = root
+
+        return cls(
+            label=label,
+            globalkey=globalkey,
+            localkey=localkey,
+            numeral=numeral,
+            chord_type=chord_type,
+            inversion=inversion,
+            root=root,
+            bass=bass,
+            tonicized_key=relativeroot,
+            pedal=pedal,
+        )
+
+    @classmethod
     def from_row(cls, row: dict[str, Any]) -> DcmlHarmony | None:
         """Construct from a DCML storage row dict.
 
