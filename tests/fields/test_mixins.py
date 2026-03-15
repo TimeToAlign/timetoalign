@@ -8,8 +8,6 @@ import pyarrow as pa
 import pytest
 
 from timetoalign.fields.harmony import (
-    DCML_LABEL_STRUCT_TYPE,
-    WESTERN_TERTIAN_STRUCT_TYPE,
     DcmlLabelField,
     HarmonyField,
     WesternTertianHarmonyField,
@@ -18,6 +16,10 @@ from timetoalign.fields.pitch import (
     EnharmonicPitchField,
     PitchField,
     SpecificPitchField,
+)
+from timetoalign.fields.schemas import (
+    DcmlStorageSchema,
+    WesternTertianSchema,
 )
 from timetoalign.loader.mixins import (
     HarmonyAccessMixin,
@@ -44,17 +46,19 @@ def _inject_metadata(pa_field: pa.Field, field_type: str, **extra: str) -> pa.Fi
 
 
 def _make_midi_pitch_table() -> pa.Table:
-    """Build a table with a midi_pitch column carrying SpecificPitchField metadata."""
+    """Build a table with a midi_pitch column carrying EnharmonicPitchField metadata."""
     midi_type = pa.struct([pa.field("ep", pa.int64()), pa.field("epc", pa.int64())])
     arr = pa.array([{"ep": 60, "epc": 0}, {"ep": 64, "epc": 4}], type=midi_type)
     col_field = _inject_metadata(
-        pa.field("midi_pitch", midi_type), "SpecificPitchField", pitch_type="midi"
+        pa.field("midi_pitch", midi_type),
+        "EnharmonicPitchField",
+        pitch_type="enharmonic",
     )
     return pa.table({"midi_pitch": arr}, schema=pa.schema([col_field]))
 
 
 def _make_spelled_pitch_table() -> pa.Table:
-    """Build a table with a spelled_pitch column carrying EnharmonicPitchField metadata."""
+    """Build a table with a spelled_pitch column carrying SpecificPitchField metadata."""
     spelled_type = pa.struct(
         [
             pa.field("gpc_int", pa.int64()),
@@ -82,8 +86,8 @@ def _make_spelled_pitch_table() -> pa.Table:
     )
     col_field = _inject_metadata(
         pa.field("spelled_pitch", spelled_type),
-        "EnharmonicPitchField",
-        pitch_type="spelled",
+        "SpecificPitchField",
+        pitch_type="specific",
     )
     return pa.table({"spelled_pitch": arr}, schema=pa.schema([col_field]))
 
@@ -93,7 +97,9 @@ def _make_both_pitch_table() -> pa.Table:
     midi_type = pa.struct([pa.field("ep", pa.int64()), pa.field("epc", pa.int64())])
     midi_arr = pa.array([{"ep": 60, "epc": 0}], type=midi_type)
     midi_field = _inject_metadata(
-        pa.field("midi_pitch", midi_type), "SpecificPitchField", pitch_type="midi"
+        pa.field("midi_pitch", midi_type),
+        "EnharmonicPitchField",
+        pitch_type="enharmonic",
     )
 
     spelled_type = pa.struct(
@@ -123,8 +129,8 @@ def _make_both_pitch_table() -> pa.Table:
     )
     spelled_field = _inject_metadata(
         pa.field("spelled_pitch", spelled_type),
-        "EnharmonicPitchField",
-        pitch_type="spelled",
+        "SpecificPitchField",
+        pitch_type="specific",
     )
 
     schema = pa.schema([midi_field, spelled_field])
@@ -149,11 +155,11 @@ def _make_dcml_harmony_table() -> pa.Table:
                 "bass_note": 11,
             }
         ],
-        type=DCML_LABEL_STRUCT_TYPE,
+        type=DcmlStorageSchema.schema,
     )
     # DcmlLabelField stores field_type as "HarmonyField" (backward compat)
     col_field = _inject_metadata(
-        pa.field("harmony", DCML_LABEL_STRUCT_TYPE), "HarmonyField", standard="dcml"
+        pa.field("harmony", DcmlStorageSchema.schema), "HarmonyField", standard="dcml"
     )
     return pa.table({"harmony": arr}, schema=pa.schema([col_field]))
 
@@ -171,10 +177,10 @@ def _make_western_harmony_table() -> pa.Table:
                 "inversion": 0,
             }
         ],
-        type=WESTERN_TERTIAN_STRUCT_TYPE,
+        type=WesternTertianSchema.schema,
     )
     col_field = _inject_metadata(
-        pa.field("harmony", WESTERN_TERTIAN_STRUCT_TYPE),
+        pa.field("harmony", WesternTertianSchema.schema),
         "WesternTertianHarmonyField",
         standard="chord_symbol",
     )
@@ -208,21 +214,21 @@ class TestSemanticFieldAccessMixin:
     def test_get_field_returns_specific_pitch(self) -> None:
         table = _make_midi_pitch_table()
         host = _MixinHost(table)
-        result = host.get_field(SpecificPitchField)
-        assert isinstance(result, SpecificPitchField)
+        result = host.get_field(EnharmonicPitchField)
+        assert isinstance(result, EnharmonicPitchField)
 
     def test_get_field_returns_enharmonic_pitch(self) -> None:
         table = _make_spelled_pitch_table()
         host = _MixinHost(table)
-        result = host.get_field(EnharmonicPitchField)
-        assert isinstance(result, EnharmonicPitchField)
+        result = host.get_field(SpecificPitchField)
+        assert isinstance(result, SpecificPitchField)
 
     def test_get_field_parent_type_matches_subclass(self) -> None:
-        """Requesting PitchField (parent) should match SpecificPitchField (child)."""
+        """Requesting PitchField (parent) should match EnharmonicPitchField (child)."""
         table = _make_midi_pitch_table()
         host = _MixinHost(table)
         result = host.get_field(PitchField)
-        assert isinstance(result, SpecificPitchField)
+        assert isinstance(result, EnharmonicPitchField)
 
     def test_get_field_raises_on_no_match(self) -> None:
         # Table with no pitch metadata
@@ -237,8 +243,8 @@ class TestSemanticFieldAccessMixin:
         results = host.get_fields(PitchField)
         assert len(results) == 2
         types = {type(r) for r in results}
-        assert SpecificPitchField in types
         assert EnharmonicPitchField in types
+        assert SpecificPitchField in types
 
     def test_get_fields_empty_on_no_match(self) -> None:
         table = pa.table({"x": pa.array([1, 2, 3])})
@@ -250,7 +256,7 @@ class TestSemanticFieldAccessMixin:
         table = _make_midi_pitch_table()
         host = _MixinHost(table)
         assert host.has_field(PitchField) is True
-        assert host.has_field(SpecificPitchField) is True
+        assert host.has_field(EnharmonicPitchField) is True
 
     def test_has_field_false(self) -> None:
         table = pa.table({"x": pa.array([1, 2, 3])})
@@ -260,7 +266,7 @@ class TestSemanticFieldAccessMixin:
     def test_has_field_specific_type_false_when_different(self) -> None:
         table = _make_midi_pitch_table()
         host = _MixinHost(table)
-        assert host.has_field(EnharmonicPitchField) is False
+        assert host.has_field(SpecificPitchField) is False
 
     def test_get_field_harmony(self) -> None:
         table = _make_dcml_harmony_table()
@@ -279,7 +285,7 @@ class TestSemanticFieldAccessMixin:
         """Verify the reconstructed field gives access to element data."""
         table = _make_midi_pitch_table()
         host = _MixinHost(table)
-        field = host.get_field(SpecificPitchField)
+        field = host.get_field(EnharmonicPitchField)
         assert len(field) == 2
         pitch = field[0]
         assert pitch is not None
@@ -298,29 +304,29 @@ class TestPitchAccessMixin:
     def test_get_pitch_field_with_type(self) -> None:
         table = _make_midi_pitch_table()
         host = _PitchHost(table)
-        result = host.get_pitch_field(SpecificPitchField)
-        assert isinstance(result, SpecificPitchField)
+        result = host.get_pitch_field(EnharmonicPitchField)
+        assert isinstance(result, EnharmonicPitchField)
 
     def test_get_pitch_field_default_priority_enharmonic(self) -> None:
-        """When both midi and spelled are present, default picks EnharmonicPitchField."""
+        """When both midi and spelled are present, default picks SpecificPitchField."""
         table = _make_both_pitch_table()
         host = _PitchHost(table)
         result = host.get_pitch_field()
-        assert isinstance(result, EnharmonicPitchField)
+        assert isinstance(result, SpecificPitchField)
 
     def test_get_pitch_field_default_only_midi(self) -> None:
-        """When only midi is present, default picks SpecificPitchField."""
+        """When only midi is present, default picks EnharmonicPitchField."""
         table = _make_midi_pitch_table()
         host = _PitchHost(table)
         result = host.get_pitch_field()
-        assert isinstance(result, SpecificPitchField)
+        assert isinstance(result, EnharmonicPitchField)
 
     def test_get_pitch_field_default_only_spelled(self) -> None:
-        """When only spelled is present, default picks EnharmonicPitchField."""
+        """When only spelled is present, default picks SpecificPitchField."""
         table = _make_spelled_pitch_table()
         host = _PitchHost(table)
         result = host.get_pitch_field()
-        assert isinstance(result, EnharmonicPitchField)
+        assert isinstance(result, SpecificPitchField)
 
     def test_get_pitch_field_raises_no_pitch(self) -> None:
         table = pa.table({"x": pa.array([1])})
@@ -440,7 +446,7 @@ class TestEventDataComposition:
             ],
         )
         pf = store.pitch_field
-        assert isinstance(pf, SpecificPitchField)
+        assert isinstance(pf, EnharmonicPitchField)
         assert pf[0] is not None
         assert pf[0].midi_number == 60
 
@@ -467,5 +473,5 @@ class TestEventDataComposition:
             ],
         )
         spf = store.spelled_pitch_field
-        assert isinstance(spf, EnharmonicPitchField)
+        assert isinstance(spf, SpecificPitchField)
         assert spf[0] is not None

@@ -338,12 +338,11 @@ assert dh.bass == 11
 
 # %%
 from timetoalign.fields.harmony import (
-    DCML_LABEL_STRUCT_TYPE,
-    WESTERN_TERTIAN_STRUCT_TYPE,
     DcmlLabelField,
     HarmonyField,
     WesternTertianHarmonyField,
 )
+from timetoalign.fields.schemas import DcmlStorageSchema, WesternTertianSchema
 
 # %% [markdown]
 # ### WesternTertianHarmonyField
@@ -368,7 +367,7 @@ wt_arr = pa.array(
             "inversion": 0,
         },
     ],
-    type=WESTERN_TERTIAN_STRUCT_TYPE,
+    type=WesternTertianSchema.schema,
 )
 wtf = WesternTertianHarmonyField.from_field(wt_arr, name="harmony")
 print(wtf)
@@ -406,7 +405,7 @@ dcml_arr = pa.array(
             "bass_note": 0,
         },
     ],
-    type=DCML_LABEL_STRUCT_TYPE,
+    type=DcmlStorageSchema.schema,
 )
 dlf = DcmlLabelField.from_field(dcml_arr, name="harmony")
 print(dlf)

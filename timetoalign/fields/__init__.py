@@ -31,23 +31,27 @@ from .pitch import (
     SpelledPitchField,
 )
 
+# Alias for consistency with naming convention
+DcmlHarmonyField = DcmlLabelField
+
 __all__ = [
     "CoordinateField",
     "DataField",
+    "DcmlHarmonyField",
+    "DcmlLabelField",
     "EnharmonicPitchField",
     "GenericPitchField",
-    "DcmlLabelField",
     "HarmonyField",
     "MapField",
-    "RomanNumeralHarmonyField",
-    "WesternTertianHarmonyField",
     "MidiPitchField",
     "NumericField",
     "PitchField",
+    "RomanNumeralHarmonyField",
     "SemanticField",
     "SpecificPitchField",
     "SpelledPitchClassField",
     "SpelledPitchField",
     "StringField",
     "StructField",
+    "WesternTertianHarmonyField",
 ]

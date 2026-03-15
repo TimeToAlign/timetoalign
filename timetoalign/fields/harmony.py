@@ -4,18 +4,19 @@ Hierarchy::
 
     SemanticField[StructField]
     └── HarmonyField (ABSTRACT)
-        │   Minimum schema: {label, standard}
+        │   Minimum schema: {label, standard}  (from HarmonyBaseSchema.schema)
         │
         ├── WesternTertianHarmonyField
-        │   Schema adds: root, bass, chord_quality, inversion
+        │   Schema adds: root, bass, chord_type, inversion
         │
         ├── RomanNumeralHarmonyField
-        │   Schema adds: numeral, key_context
+        │   Schema adds: numeral, localkey, globalkey, key_context
         │
-        └── DcmlLabelField (formerly HarmonyField)
-            Schema adds: globalkey, localkey, form, figbass, relativeroot, pedal
+        └── DcmlHarmonyField (imports DCML TSV data, maps to internal model)
+            DCML storage schema -> internal model
 
-Follows the ``CoordinateField`` composition pattern exactly.
+All schema dataclasses and the figbass-to-inversion mapping are defined
+in ``fields.schemas`` -- the single source of truth for schema definitions.
 """
 
 from __future__ import annotations
@@ -34,84 +35,6 @@ from ..core.scalars.harmony import (
 from .base import SemanticField, StructField
 
 _TIMETOALIGN_KEY = b"timetoalign"
-
-# DCML figbass -> inversion number mapping
-_FIGBASS_TO_INVERSION: dict[str, int] = {
-    "": 0,  # root position
-    "6": 1,  # first inversion
-    "64": 2,  # second inversion
-    "2": 3,  # third inversion (seventh chords)
-    "65": 1,  # first inversion (seventh chords)
-    "43": 2,  # second inversion (seventh chords)
-    "42": 3,  # third inversion (seventh chords)
-}
-
-
-def _figbass_to_inversion(figbass: str) -> int | None:
-    """Convert DCML figbass string to an inversion number.
-
-    Returns ``None`` if the figbass string is not recognised.
-    """
-    if not figbass:
-        return 0
-    return _FIGBASS_TO_INVERSION.get(figbass)
-
-
-# ---------------------------------------------------------------------------
-# Struct type constants
-# ---------------------------------------------------------------------------
-
-# Minimum harmony struct: label + standard
-HARMONY_BASE_STRUCT_TYPE = pa.struct(
-    [
-        pa.field("label", pa.string(), nullable=True),
-        pa.field("standard", pa.string(), nullable=True),
-    ]
-)
-
-# Western tertian harmony struct
-WESTERN_TERTIAN_STRUCT_TYPE = pa.struct(
-    [
-        pa.field("label", pa.string(), nullable=True),
-        pa.field("standard", pa.string(), nullable=True),
-        pa.field("root", pa.int64(), nullable=True),
-        pa.field("bass", pa.int64(), nullable=True),
-        pa.field("chord_quality", pa.string(), nullable=True),
-        pa.field("inversion", pa.int64(), nullable=True),
-    ]
-)
-
-# Roman numeral harmony struct
-ROMAN_NUMERAL_STRUCT_TYPE = pa.struct(
-    [
-        pa.field("label", pa.string(), nullable=True),
-        pa.field("standard", pa.string(), nullable=True),
-        pa.field("root", pa.int64(), nullable=True),
-        pa.field("bass", pa.int64(), nullable=True),
-        pa.field("chord_quality", pa.string(), nullable=True),
-        pa.field("inversion", pa.int64(), nullable=True),
-        pa.field("numeral", pa.string(), nullable=True),
-        pa.field("key_context", pa.string(), nullable=True),
-    ]
-)
-
-# DCML label struct (the canonical struct for DCML harmony annotations)
-DCML_LABEL_STRUCT_TYPE = pa.struct(
-    [
-        pa.field("label", pa.string(), nullable=True),
-        pa.field("globalkey", pa.string(), nullable=True),
-        pa.field("localkey", pa.string(), nullable=True),
-        pa.field("numeral", pa.string(), nullable=True),
-        pa.field("form", pa.string(), nullable=True),
-        pa.field("figbass", pa.string(), nullable=True),
-        pa.field("chord_type", pa.string(), nullable=True),
-        pa.field("root", pa.int64(), nullable=True),
-        pa.field("bass_note", pa.int64(), nullable=True),
-    ]
-)
-
-# Backward-compat alias
-HARMONY_STRUCT_TYPE = DCML_LABEL_STRUCT_TYPE
 
 
 # ---------------------------------------------------------------------------
@@ -256,13 +179,12 @@ class WesternTertianHarmonyField(HarmonyField):
 
     Examples:
         >>> import pyarrow as pa
-        >>> from timetoalign.fields.harmony import (
-        ...     WesternTertianHarmonyField, WESTERN_TERTIAN_STRUCT_TYPE,
-        ... )
+        >>> from timetoalign.fields.harmony import WesternTertianHarmonyField
+        >>> from timetoalign.fields.schemas import WesternTertianSchema
         >>> arr = pa.array(
         ...     [{"label": "CM", "standard": "chord_symbol",
         ...       "root": 0, "bass": 0, "chord_quality": "M", "inversion": 0}],
-        ...     type=WESTERN_TERTIAN_STRUCT_TYPE,
+        ...     type=WesternTertianSchema.schema,
         ... )
         >>> wf = WesternTertianHarmonyField.from_field(arr, name="harmony")
         >>> wf[0]
@@ -304,7 +226,7 @@ class WesternTertianHarmonyField(HarmonyField):
         root = int(raw_dict["root"]) if raw_dict.get("root") is not None else None
         bass_raw = raw_dict.get("bass")
         bass = int(bass_raw) if bass_raw is not None else None
-        chord_quality = str(raw_dict.get("chord_quality") or "")
+        chord_type = str(raw_dict.get("chord_type") or "")
         inversion_raw = raw_dict.get("inversion")
         inversion = int(inversion_raw) if inversion_raw is not None else None
 
@@ -313,7 +235,7 @@ class WesternTertianHarmonyField(HarmonyField):
             standard=str(raw_dict.get("standard") or "chord_symbol"),
             root=root,
             bass=bass,
-            chord_type=chord_quality,
+            chord_type=chord_type,
             inversion=inversion,
         )
 
@@ -334,14 +256,13 @@ class RomanNumeralHarmonyField(WesternTertianHarmonyField):
 
     Examples:
         >>> import pyarrow as pa
-        >>> from timetoalign.fields.harmony import (
-        ...     RomanNumeralHarmonyField, ROMAN_NUMERAL_STRUCT_TYPE,
-        ... )
+        >>> from timetoalign.fields.harmony import RomanNumeralHarmonyField
+        >>> from timetoalign.fields.schemas import RomanNumeralSchema
         >>> arr = pa.array(
         ...     [{"label": "I", "standard": "roman_numeral",
         ...       "root": 0, "bass": 0, "chord_quality": "M", "inversion": 0,
         ...       "numeral": "I", "key_context": "C:I"}],
-        ...     type=ROMAN_NUMERAL_STRUCT_TYPE,
+        ...     type=RomanNumeralSchema.schema,
         ... )
         >>> rf = RomanNumeralHarmonyField.from_field(arr, name="harmony")
         >>> rf[0]
@@ -383,7 +304,7 @@ class RomanNumeralHarmonyField(WesternTertianHarmonyField):
         root = int(raw_dict["root"]) if raw_dict.get("root") is not None else None
         bass_raw = raw_dict.get("bass")
         bass = int(bass_raw) if bass_raw is not None else None
-        chord_quality = str(raw_dict.get("chord_quality") or "")
+        chord_type = str(raw_dict.get("chord_type") or "")
         inversion_raw = raw_dict.get("inversion")
         inversion = int(inversion_raw) if inversion_raw is not None else None
 
@@ -392,11 +313,11 @@ class RomanNumeralHarmonyField(WesternTertianHarmonyField):
             standard=str(raw_dict.get("standard") or "roman_numeral"),
             root=root,
             bass=bass,
-            chord_type=chord_quality,
+            chord_type=chord_type,
             inversion=inversion,
             numeral=str(raw_dict.get("numeral") or ""),
-            localkey="",
-            globalkey="",
+            localkey=str(raw_dict.get("localkey") or ""),
+            globalkey=str(raw_dict.get("globalkey") or ""),
         )
 
 
@@ -419,12 +340,13 @@ class DcmlLabelField(HarmonyField):
 
     Examples:
         >>> import pyarrow as pa
-        >>> from timetoalign.fields.harmony import DcmlLabelField, DCML_LABEL_STRUCT_TYPE
+        >>> from timetoalign.fields.harmony import DcmlLabelField
+        >>> from timetoalign.fields.schemas import DcmlStorageSchema
         >>> arr = pa.array(
         ...     [{{"label": "V65", "globalkey": "C", "localkey": "I",
         ...       "numeral": "V", "form": "M", "figbass": "65",
         ...       "chord_type": "M", "root": 7, "bass_note": 11}}],
-        ...     type=DCML_LABEL_STRUCT_TYPE,
+        ...     type=DcmlStorageSchema.schema,
         ... )
         >>> hf = DcmlLabelField.from_field(arr, name="harmony")
         >>> hf[0]
@@ -447,11 +369,9 @@ class DcmlLabelField(HarmonyField):
     def __getitem__(self, i: int) -> DcmlHarmony | None:
         """Return the *i*-th harmony as a ``DcmlHarmony`` scalar.
 
-        Maps DCML storage field names to our internal model names:
-        - ``chord_type`` (storage) -> ``chord_type`` (internal, same)
-        - ``figbass`` (storage) -> ``inversion`` (internal; figbass is export-only)
-        - ``bass_note`` (storage) -> ``bass`` (internal)
-        - ``relativeroot`` would map to ``tonicized_key`` (not in current schema)
+        Delegates to ``DcmlHarmony.from_row()`` which handles the
+        DCML storage -> internal model mapping (figbass -> inversion,
+        bass_note -> bass, etc.).
 
         Args:
             i: Zero-based index.
@@ -466,31 +386,7 @@ class DcmlLabelField(HarmonyField):
         raw_dict = self._raw[i]
         if raw_dict is None:
             return None
-
-        label = raw_dict.get("label")
-        if label is None:
-            return None
-
-        globalkey = str(raw_dict.get("globalkey") or "")
-        localkey = str(raw_dict.get("localkey") or "")
-        root = int(raw_dict["root"]) if raw_dict.get("root") is not None else None
-        bass_raw = raw_dict.get("bass_note")
-        bass = int(bass_raw) if bass_raw is not None else None
-
-        # Map DCML figbass to our internal inversion representation
-        figbass_raw = raw_dict.get("figbass") or ""
-        inversion = _figbass_to_inversion(str(figbass_raw))
-
-        return DcmlHarmony(
-            label=str(label),
-            globalkey=globalkey,
-            localkey=localkey,
-            numeral=str(raw_dict.get("numeral") or ""),
-            chord_type=str(raw_dict.get("chord_type") or ""),
-            inversion=inversion,
-            root=root,
-            bass=bass,
-        )
+        return DcmlHarmony.from_row(raw_dict)
 
     def __repr__(self) -> str:
         length = len(self) if not self.is_empty else 0

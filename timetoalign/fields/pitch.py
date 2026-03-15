@@ -1,15 +1,18 @@
 """Pitch field hierarchy -- semantic columnar wrappers for pitch data.
 
 ``PitchField(SemanticField[StructField])`` is the abstract parent for all
-pitch field types.  Concrete subclasses:
+pitch field types.  Concrete subclasses follow the ms3/DCML naming:
 
-- ``GenericPitchField`` -- pitch class only ``{pitch_class: int64}``
-- ``SpelledPitchClassField`` -- spelled pitch class ``{gpc_str, acc, spc_int}``
-- ``SpecificPitchField`` (alias ``MidiPitchField``) -- MIDI pitch ``{ep, epc}``
-- ``EnharmonicPitchField`` (alias ``SpelledPitchField``) -- full spelling
+- ``GenericPitchField`` -- GP: pitch class only ``{pitch_class: int64}``
+- ``SpelledPitchClassField`` -- SPC: spelled pitch class ``{gpc_str, acc, spc_int}``
+- ``EnharmonicPitchField`` (alias ``MidiPitchField``) -- EP: MIDI ``{ep, epc}``
+  Called "enharmonic" because it equates enharmonic equivalents (C♯ = D♭).
+- ``SpecificPitchField`` (alias ``SpelledPitchField``) -- SP: full spelling
   ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``
+  Called "specific" because it preserves the specific spelling.
 
-All follow the ``CoordinateField`` composition pattern exactly.
+All struct type constants are defined in ``fields.schemas`` -- the single
+source of truth for schema definitions.
 """
 
 from __future__ import annotations
@@ -68,14 +71,7 @@ class PitchField(SemanticField[StructField]):
 
     @abstractmethod
     def __getitem__(self, i: int) -> object:
-        """Return the *i*-th pitch as a pitch scalar.
-
-        Args:
-            i: Zero-based index.
-
-        Returns:
-            A pitch scalar instance, or ``None`` for null entries.
-        """
+        """Return the *i*-th pitch as a pitch scalar."""
         ...
 
     # -- construction (abstract) ---------------------------------------------
@@ -94,25 +90,13 @@ class PitchField(SemanticField[StructField]):
         *,
         name: str = "pitch",
     ) -> PitchField:
-        """Construct a ``PitchField`` from various source types.
-
-        Args:
-            source: The data source.
-            name: Column name used when *source* is a bare ``pa.Array``.
-
-        Returns:
-            A new ``PitchField`` subclass instance.
-        """
+        """Construct a ``PitchField`` from various source types."""
         ...
 
     # -- serialisation helpers -----------------------------------------------
 
     def to_field(self) -> pa.Field:
-        """Return a ``pa.Field`` with ``b"timetoalign"`` metadata injected.
-
-        Returns:
-            A ``pa.Field`` with enriched metadata.
-        """
+        """Return a ``pa.Field`` with ``b"timetoalign"`` metadata injected."""
         meta_blob = json.dumps(self.metadata_dict()).encode("utf-8")
         existing = self._field.metadata or {}
         merged = {**existing, _TIMETOALIGN_KEY: meta_blob}
@@ -120,110 +104,42 @@ class PitchField(SemanticField[StructField]):
 
 
 # ---------------------------------------------------------------------------
-# GenericPitchField
+# GenericPitchField (GP)
 # ---------------------------------------------------------------------------
 
 
 class GenericPitchField(PitchField):
     """Semantic field for generic pitch columns (pitch class only).
 
-    Wraps a ``StructField`` containing the ``generic_pitch`` struct
-    ``{pitch_class: int64}`` and adds semantic identity.
-
-    Args:
-        raw: The inner ``StructField`` holding generic pitch struct data.
+    Wraps struct ``{pitch_class: int64}``
+    (schema: ``GenericPitchSchema.schema``).
 
     Examples:
         >>> import pyarrow as pa
         >>> from timetoalign.fields.pitch import GenericPitchField
-        >>> arr = pa.array(
-        ...     [{"pitch_class": 0}],
-        ...     type=pa.struct([pa.field("pitch_class", pa.int64())]),
-        ... )
+        >>> from timetoalign.fields.schemas import GenericPitchSchema
+        >>> arr = pa.array([{"pitch_class": 0}], type=GenericPitchSchema.schema)
         >>> gpf = GenericPitchField.from_field(arr, name="generic_pitch")
         >>> gpf[0]
         GenericPitch(pitch_class=0)
     """
 
-    def __init__(self, raw: StructField) -> None:
-        super().__init__(raw)
-
-    # -- SemanticTypeLike properties -----------------------------------------
-
     @property
     def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
         return "GenericPitch"
 
     def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract.
-
-        Returns:
-            Dict with ``field_type`` and ``pitch_type`` keys.
-        """
-        return {
-            "field_type": "GenericPitchField",
-            "pitch_type": "generic",
-        }
-
-    # -- element access ------------------------------------------------------
+        return {"field_type": "GenericPitchField", "pitch_type": "generic"}
 
     def __getitem__(self, i: int) -> GenericPitch | None:
-        """Return the *i*-th pitch as a ``GenericPitch`` scalar.
-
-        Args:
-            i: Zero-based index.
-
-        Returns:
-            A ``GenericPitch`` instance, or ``None`` for null entries.
-
-        Raises:
-            TypeError: If the field is schema-only (no data).
-            IndexError: If *i* is out of range.
-        """
         raw_dict = self._raw[i]
         if raw_dict is None:
             return None
-        pc = raw_dict.get("pitch_class")
-        if pc is None:
-            return None
-        return GenericPitch(pitch_class=int(pc))
-
-    # -- construction --------------------------------------------------------
+        return GenericPitch.from_row(raw_dict)
 
     @classmethod
-    def from_field(
-        cls,
-        source: (
-            pa.Array
-            | pa.ChunkedArray
-            | StructField
-            | pa.Field
-            | tuple[pa.Array | None, pa.Field]
-        ),
-        *,
-        name: str = "generic_pitch",
-    ) -> GenericPitchField:
-        """Construct a ``GenericPitchField`` from various source types.
-
-        Accepted source forms:
-
-        1. ``pa.Array`` (struct array).
-        2. ``StructField``.
-        3. ``pa.Field`` (schema-only, no data).
-        4. ``tuple[pa.Array | None, pa.Field]``.
-
-        Args:
-            source: The data source (see above).
-            name: Column name used when *source* is a bare ``pa.Array``.
-
-        Returns:
-            A new ``GenericPitchField``.
-
-        Raises:
-            TypeError: If the source type is not recognised.
-        """
-        return _from_field_impl(cls, source, name, "GenericPitchField")
+    def from_field(cls, source, *, name: str = "generic_pitch") -> GenericPitchField:
+        return _from_field_impl(cls, source, name)
 
     def __repr__(self) -> str:
         length = len(self) if not self.is_empty else 0
@@ -231,120 +147,47 @@ class GenericPitchField(PitchField):
 
 
 # ---------------------------------------------------------------------------
-# SpelledPitchClassField
+# SpelledPitchClassField (SPC)
 # ---------------------------------------------------------------------------
 
 
 class SpelledPitchClassField(PitchField):
     """Semantic field for spelled pitch class columns.
 
-    Wraps a ``StructField`` containing the ``spelled_pitch_class`` struct
-    ``{gpc_str: string, acc: int64, spc_int: int64}`` and adds semantic identity.
-
-    Args:
-        raw: The inner ``StructField`` holding spelled pitch class struct data.
+    Wraps struct ``{gpc_str: string, acc: int64, spc_int: int64}``
+    (schema: ``SpelledPitchClassSchema.schema``).
 
     Examples:
         >>> import pyarrow as pa
         >>> from timetoalign.fields.pitch import SpelledPitchClassField
+        >>> from timetoalign.fields.schemas import SpelledPitchClassSchema
         >>> arr = pa.array(
         ...     [{"gpc_str": "C", "acc": 0, "spc_int": 0}],
-        ...     type=pa.struct([
-        ...         pa.field("gpc_str", pa.string()),
-        ...         pa.field("acc", pa.int64()),
-        ...         pa.field("spc_int", pa.int64()),
-        ...     ]),
+        ...     type=SpelledPitchClassSchema.schema,
         ... )
         >>> spcf = SpelledPitchClassField.from_field(arr, name="spelled_pitch_class")
         >>> spcf[0]
         SpelledPitchClass(C)
     """
 
-    def __init__(self, raw: StructField) -> None:
-        super().__init__(raw)
-
-    # -- SemanticTypeLike properties -----------------------------------------
-
     @property
     def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
         return "SpelledPitchClass"
 
     def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract.
-
-        Returns:
-            Dict with ``field_type`` and ``pitch_type`` keys.
-        """
-        return {
-            "field_type": "SpelledPitchClassField",
-            "pitch_type": "spelled_class",
-        }
-
-    # -- element access ------------------------------------------------------
+        return {"field_type": "SpelledPitchClassField", "pitch_type": "spelled_class"}
 
     def __getitem__(self, i: int) -> SpelledPitchClass | None:
-        """Return the *i*-th pitch as a ``SpelledPitchClass`` scalar.
-
-        Args:
-            i: Zero-based index.
-
-        Returns:
-            A ``SpelledPitchClass`` instance, or ``None`` for null entries.
-
-        Raises:
-            TypeError: If the field is schema-only (no data).
-            IndexError: If *i* is out of range.
-        """
         raw_dict = self._raw[i]
         if raw_dict is None:
             return None
-        step = raw_dict.get("gpc_str")
-        if step is None:
-            return None
-        alter = raw_dict.get("acc", 0) or 0
-        fifths = raw_dict.get("spc_int", 0) or 0
-        return SpelledPitchClass(
-            step=str(step),
-            alter=int(alter),
-            fifths=int(fifths),
-        )
-
-    # -- construction --------------------------------------------------------
+        return SpelledPitchClass.from_row(raw_dict)
 
     @classmethod
     def from_field(
-        cls,
-        source: (
-            pa.Array
-            | pa.ChunkedArray
-            | StructField
-            | pa.Field
-            | tuple[pa.Array | None, pa.Field]
-        ),
-        *,
-        name: str = "spelled_pitch_class",
+        cls, source, *, name: str = "spelled_pitch_class"
     ) -> SpelledPitchClassField:
-        """Construct a ``SpelledPitchClassField`` from various source types.
-
-        Accepted source forms:
-
-        1. ``pa.Array`` (struct array).
-        2. ``StructField``.
-        3. ``pa.Field`` (schema-only, no data).
-        4. ``tuple[pa.Array | None, pa.Field]``.
-
-        Args:
-            source: The data source (see above).
-            name: Column name used when *source* is a bare ``pa.Array``.
-
-        Returns:
-            A new ``SpelledPitchClassField``.
-
-        Raises:
-            TypeError: If the source type is not recognised.
-        """
-        return _from_field_impl(cls, source, name, "SpelledPitchClassField")
+        return _from_field_impl(cls, source, name)
 
     def __repr__(self) -> str:
         length = len(self) if not self.is_empty else 0
@@ -352,264 +195,109 @@ class SpelledPitchClassField(PitchField):
 
 
 # ---------------------------------------------------------------------------
-# SpecificPitchField (renamed from PitchField)
-# ---------------------------------------------------------------------------
-
-
-class SpecificPitchField(PitchField):
-    """Semantic field for MIDI pitch columns.
-
-    Wraps a ``StructField`` containing the ``midi_pitch`` struct
-    ``{ep: int64, epc: int64}`` and adds semantic identity.
-
-    Satisfies ``PitchLike`` at the columnar level.
-
-    Args:
-        raw: The inner ``StructField`` holding MIDI pitch struct data.
-
-    Examples:
-        >>> import pyarrow as pa
-        >>> from timetoalign.fields.pitch import SpecificPitchField
-        >>> arr = pa.array(
-        ...     [{"ep": 60, "epc": 0}],
-        ...     type=pa.struct([
-        ...         pa.field("ep", pa.int64()),
-        ...         pa.field("epc", pa.int64()),
-        ...     ]),
-        ... )
-        >>> pf = SpecificPitchField.from_field(arr, name="midi_pitch")
-        >>> pf[0]
-        MidiPitch(midi_number=60, pitch_class=0)
-    """
-
-    def __init__(self, raw: StructField) -> None:
-        super().__init__(raw)
-
-    # -- SemanticTypeLike properties -----------------------------------------
-
-    @property
-    def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
-        return "MidiPitch"
-
-    def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract.
-
-        Returns:
-            Dict with ``field_type`` and ``pitch_type`` keys.
-        """
-        return {
-            "field_type": "SpecificPitchField",
-            "pitch_type": "midi",
-        }
-
-    # -- element access ------------------------------------------------------
-
-    def __getitem__(self, i: int) -> MidiPitch | None:
-        """Return the *i*-th pitch as a ``MidiPitch`` scalar.
-
-        Args:
-            i: Zero-based index.
-
-        Returns:
-            A ``MidiPitch`` instance, or ``None`` for null entries (rests).
-
-        Raises:
-            TypeError: If the field is schema-only (no data).
-            IndexError: If *i* is out of range.
-        """
-        raw_dict = self._raw[i]
-        if raw_dict is None:
-            return None
-        ep = raw_dict.get("ep")
-        epc = raw_dict.get("epc")
-        if ep is None or epc is None:
-            return None
-        return MidiPitch(midi_number=int(ep), pitch_class=int(epc))
-
-    # -- construction --------------------------------------------------------
-
-    @classmethod
-    def from_field(
-        cls,
-        source: (
-            pa.Array
-            | pa.ChunkedArray
-            | StructField
-            | pa.Field
-            | tuple[pa.Array | None, pa.Field]
-        ),
-        *,
-        name: str = "midi_pitch",
-    ) -> SpecificPitchField:
-        """Construct a ``SpecificPitchField`` from various source types.
-
-        Accepted source forms:
-
-        1. ``pa.Array`` (struct array).
-        2. ``StructField``.
-        3. ``pa.Field`` (schema-only, no data).
-        4. ``tuple[pa.Array | None, pa.Field]``.
-
-        Args:
-            source: The data source (see above).
-            name: Column name used when *source* is a bare ``pa.Array``.
-
-        Returns:
-            A new ``SpecificPitchField``.
-
-        Raises:
-            TypeError: If the source type is not recognised.
-        """
-        return _from_field_impl(cls, source, name, "SpecificPitchField")
-
-    def __repr__(self) -> str:
-        length = len(self) if not self.is_empty else 0
-        return f"SpecificPitchField(name={self.name!r}, type=midi, len={length})"
-
-
-# Alias for backward compatibility and convenience
-MidiPitchField = SpecificPitchField
-
-
-# ---------------------------------------------------------------------------
-# EnharmonicPitchField (renamed from SpelledPitchField)
+# EnharmonicPitchField (EP = MIDI pitch)
 # ---------------------------------------------------------------------------
 
 
 class EnharmonicPitchField(PitchField):
-    """Semantic field for spelled pitch columns.
+    """Semantic field for enharmonic (MIDI) pitch columns.
 
-    Wraps a ``StructField`` containing the ``spelled_pitch`` struct
-    ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``.
+    Called "enharmonic" because it **equates** enharmonic equivalents:
+    C♯4 and D♭4 both map to MIDI number 61.
 
-    Args:
-        raw: The inner ``StructField`` holding spelled pitch struct data.
+    Wraps struct ``{ep: int64, epc: int64}``
+    (schema: ``EnharmonicPitchSchema.schema``).
 
     Examples:
         >>> import pyarrow as pa
         >>> from timetoalign.fields.pitch import EnharmonicPitchField
+        >>> from timetoalign.fields.schemas import EnharmonicPitchSchema
+        >>> arr = pa.array([{"ep": 60, "epc": 0}], type=EnharmonicPitchSchema.schema)
+        >>> pf = EnharmonicPitchField.from_field(arr, name="midi_pitch")
+        >>> pf[0]
+        MidiPitch(midi_number=60, pitch_class=0)
+    """
+
+    @property
+    def semantic_type(self) -> str:
+        return "EnharmonicPitch"
+
+    def metadata_dict(self) -> dict[str, str]:
+        return {"field_type": "EnharmonicPitchField", "pitch_type": "enharmonic"}
+
+    def __getitem__(self, i: int) -> MidiPitch | None:
+        raw_dict = self._raw[i]
+        if raw_dict is None:
+            return None
+        return MidiPitch.from_row(raw_dict)
+
+    @classmethod
+    def from_field(cls, source, *, name: str = "midi_pitch") -> EnharmonicPitchField:
+        return _from_field_impl(cls, source, name)
+
+    def __repr__(self) -> str:
+        length = len(self) if not self.is_empty else 0
+        return (
+            f"EnharmonicPitchField(name={self.name!r}, type=enharmonic, len={length})"
+        )
+
+
+# Alias: MidiPitchField = EnharmonicPitchField
+MidiPitchField = EnharmonicPitchField
+
+
+# ---------------------------------------------------------------------------
+# SpecificPitchField (SP = Spelled pitch)
+# ---------------------------------------------------------------------------
+
+
+class SpecificPitchField(PitchField):
+    """Semantic field for specific (spelled) pitch columns.
+
+    Called "specific" because it preserves the **specific** spelling:
+    C♯4 ≠ D♭4.
+
+    Wraps struct ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``
+    (schema: ``SpecificPitchSchema.schema``).
+
+    Examples:
+        >>> import pyarrow as pa
+        >>> from timetoalign.fields.pitch import SpecificPitchField
+        >>> from timetoalign.fields.schemas import SpecificPitchSchema
         >>> arr = pa.array(
         ...     [{"gpc_int": 0, "gpc_str": "C", "acc": 0, "spc_int": 0,
         ...       "spc_str": "C", "sp": "C4", "cents": 0.0}],
-        ...     type=pa.struct([
-        ...         pa.field("gpc_int", pa.int64()),
-        ...         pa.field("gpc_str", pa.string()),
-        ...         pa.field("acc", pa.int64()),
-        ...         pa.field("spc_int", pa.int64()),
-        ...         pa.field("spc_str", pa.string()),
-        ...         pa.field("sp", pa.string()),
-        ...         pa.field("cents", pa.float64()),
-        ...     ]),
+        ...     type=SpecificPitchSchema.schema,
         ... )
-        >>> spf = EnharmonicPitchField.from_field(arr, name="spelled_pitch")
+        >>> spf = SpecificPitchField.from_field(arr, name="spelled_pitch")
         >>> spf[0]
         SpelledPitch(C4)
     """
 
-    def __init__(self, raw: StructField) -> None:
-        super().__init__(raw)
-
-    # -- SemanticTypeLike properties -----------------------------------------
-
     @property
     def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
-        return "SpelledPitch"
+        return "SpecificPitch"
 
     def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract.
-
-        Returns:
-            Dict with ``field_type`` and ``pitch_type`` keys.
-        """
-        return {
-            "field_type": "EnharmonicPitchField",
-            "pitch_type": "spelled",
-        }
-
-    # -- element access ------------------------------------------------------
+        return {"field_type": "SpecificPitchField", "pitch_type": "specific"}
 
     def __getitem__(self, i: int) -> SpelledPitch | None:
-        """Return the *i*-th pitch as a ``SpelledPitch`` scalar.
-
-        Args:
-            i: Zero-based index.
-
-        Returns:
-            A ``SpelledPitch`` instance, or ``None`` for null entries.
-
-        Raises:
-            TypeError: If the field is schema-only (no data).
-            IndexError: If *i* is out of range.
-        """
         raw_dict = self._raw[i]
         if raw_dict is None:
             return None
-
-        step = raw_dict.get("gpc_str")
-        if step is None:
-            return None
-
-        alter = raw_dict.get("acc", 0) or 0
-        fifths = raw_dict.get("spc_int", 0) or 0
-        cents = raw_dict.get("cents", 0.0) or 0.0
-
-        # Extract octave from 'sp' string (e.g. "C4" -> 4)
-        sp = raw_dict.get("sp", "")
-        octave = _parse_octave(sp, step)
-
-        return SpelledPitch(
-            step=str(step),
-            alter=int(alter),
-            octave=octave,
-            fifths=int(fifths),
-            cents=float(cents),
-        )
-
-    # -- construction --------------------------------------------------------
+        return SpelledPitch.from_row(raw_dict)
 
     @classmethod
-    def from_field(
-        cls,
-        source: (
-            pa.Array
-            | pa.ChunkedArray
-            | StructField
-            | pa.Field
-            | tuple[pa.Array | None, pa.Field]
-        ),
-        *,
-        name: str = "spelled_pitch",
-    ) -> EnharmonicPitchField:
-        """Construct an ``EnharmonicPitchField`` from various source types.
-
-        Accepted source forms:
-
-        1. ``pa.Array`` (struct array).
-        2. ``StructField``.
-        3. ``pa.Field`` (schema-only, no data).
-        4. ``tuple[pa.Array | None, pa.Field]``.
-
-        Args:
-            source: The data source (see above).
-            name: Column name used when *source* is a bare ``pa.Array``.
-
-        Returns:
-            A new ``EnharmonicPitchField``.
-
-        Raises:
-            TypeError: If the source type is not recognised.
-        """
-        return _from_field_impl(cls, source, name, "EnharmonicPitchField")
+    def from_field(cls, source, *, name: str = "spelled_pitch") -> SpecificPitchField:
+        return _from_field_impl(cls, source, name)
 
     def __repr__(self) -> str:
         length = len(self) if not self.is_empty else 0
-        return f"EnharmonicPitchField(name={self.name!r}, type=spelled, len={length})"
+        return f"SpecificPitchField(name={self.name!r}, type=specific, len={length})"
 
 
-# Backward compatibility alias
-SpelledPitchField = EnharmonicPitchField
+# Alias: SpelledPitchField = SpecificPitchField
+SpelledPitchField = SpecificPitchField
 
 
 # ---------------------------------------------------------------------------
@@ -617,68 +305,18 @@ SpelledPitchField = EnharmonicPitchField
 # ---------------------------------------------------------------------------
 
 
-def _from_field_impl(cls, source, name: str, class_name: str):
-    """Shared from_field construction logic for all concrete PitchField subclasses.
-
-    Args:
-        cls: The concrete class to construct.
-        source: The data source.
-        name: Default column name for bare array sources.
-        class_name: Class name used in error messages.
-
-    Returns:
-        A new instance of *cls*.
-
-    Raises:
-        TypeError: If the source type is not recognised.
-    """
-    # -- form 4: tuple -------------------------------------------------------
+def _from_field_impl(cls, source, name: str):
+    """Shared from_field construction logic for all concrete PitchField subclasses."""
     if isinstance(source, tuple):
         data, pa_field = source
-        struct_field = StructField(data, pa_field)
-        return cls(struct_field)
-
-    # -- form 3: pa.Field (schema-only) --------------------------------------
+        return cls(StructField(data, pa_field))
     if isinstance(source, pa.Field):
-        struct_field = StructField(None, source)
-        return cls(struct_field)
-
-    # -- form 2: StructField -------------------------------------------------
+        return cls(StructField(None, source))
     if isinstance(source, StructField):
         return cls(source)
-
-    # -- form 1: pa.Array / pa.ChunkedArray ----------------------------------
     if isinstance(source, (pa.Array, pa.ChunkedArray)):
         pa_field = pa.field(name, source.type)
-        struct_field = StructField(source, pa_field)
-        return cls(struct_field)
-
+        return cls(StructField(source, pa_field))
     raise TypeError(
-        f"Unsupported source type for {class_name}.from_field: {type(source).__name__}"
+        f"Unsupported source type for {cls.__name__}.from_field: {type(source).__name__}"
     )
-
-
-def _parse_octave(sp: str | None, step: str) -> int:
-    """Extract octave number from a spelled pitch string like ``"C4"``.
-
-    Args:
-        sp: The spelled pitch string (e.g. ``"C4"``, ``"Bb3"``).
-        step: The step letter (e.g. ``"C"``, ``"B"``).
-
-    Returns:
-        The octave number, defaulting to 4 if parsing fails.
-    """
-    if not sp:
-        return 4
-    # The octave is typically the last character(s) that form an integer
-    # e.g. "C4" -> 4, "Bb3" -> 3, "F#5" -> 5
-    try:
-        # Walk backwards to find the numeric suffix
-        idx = len(sp)
-        while idx > 0 and (sp[idx - 1].isdigit() or sp[idx - 1] == "-"):
-            idx -= 1
-        if idx < len(sp):
-            return int(sp[idx:])
-    except (ValueError, IndexError):
-        pass
-    return 4

@@ -5,11 +5,12 @@ PyArrow tables.  The base ``SemanticFieldAccessMixin`` scans column
 metadata for ``b"timetoalign"`` JSON blobs containing ``field_type``
 entries and reconstructs the matching ``SemanticField`` subclass.
 
-Domain mixins add convenience accessors with priority-based defaults:
+Domain mixins add convenience accessors with priority-based defaults
+and ``format=`` parameters for on-the-fly conversion:
 
-- ``PitchAccessMixin`` -- ``get_pitch_field()``
-- ``HarmonyAccessMixin`` -- ``get_harmony_field()``
-- ``MeasureAccessMixin`` -- ``get_measure_field()`` (placeholder)
+- ``PitchAccessMixin`` -- ``get_pitch_field(type, format=)``
+- ``HarmonyAccessMixin`` -- ``get_harmony_field(type, format=)``
+- ``MeasureAccessMixin`` -- ``get_measure_field(format=)`` (placeholder)
 """
 
 from __future__ import annotations
@@ -53,33 +54,29 @@ def _get_field_type_map() -> dict[str, type[SemanticField[Any]]]:
     )
 
     _FIELD_TYPE_MAP = {
-        # Pitch hierarchy
+        # Pitch hierarchy (EP = Enharmonic = MIDI, SP = Specific = Spelled)
         "GenericPitchField": GenericPitchField,
         "SpelledPitchClassField": SpelledPitchClassField,
-        "SpecificPitchField": SpecificPitchField,
         "EnharmonicPitchField": EnharmonicPitchField,
+        "SpecificPitchField": SpecificPitchField,
+        # Backward-compat: old names from before the GP/EP/SP correction
+        # Old "SpecificPitchField" wrapped EP (MIDI) -> now EnharmonicPitchField
+        # Old "EnharmonicPitchField" wrapped SP (Spelled) -> now SpecificPitchField
+        "PitchField": EnharmonicPitchField,  # original PitchField was MIDI
+        "SpelledPitchField": SpecificPitchField,  # original SpelledPitchField was SP
         # Harmony hierarchy
         "WesternTertianHarmonyField": WesternTertianHarmonyField,
         "RomanNumeralHarmonyField": RomanNumeralHarmonyField,
         # DcmlLabelField stores its field_type as "HarmonyField" for backward compat
         "HarmonyField": DcmlLabelField,
         "DcmlLabelField": DcmlLabelField,
+        "DcmlHarmonyField": DcmlLabelField,
     }
     return _FIELD_TYPE_MAP
 
 
 def _parse_field_type_metadata(pa_field: pa.Field) -> str | None:
-    """Extract the ``field_type`` string from a PyArrow field's metadata.
-
-    Looks for a ``b"timetoalign"`` key in the field's metadata dict,
-    parses it as JSON, and returns the ``field_type`` value.
-
-    Args:
-        pa_field: A PyArrow field descriptor.
-
-    Returns:
-        The ``field_type`` string, or ``None`` if not present.
-    """
+    """Extract the ``field_type`` string from a PyArrow field's metadata."""
     meta = pa_field.metadata
     if not meta:
         return None
@@ -98,24 +95,13 @@ def _reconstruct_field(
     col: pa.ChunkedArray | pa.Array | None,
     field_type_str: str,
 ) -> SemanticField[Any]:
-    """Reconstruct a ``SemanticField`` subclass from column data and metadata.
-
-    Args:
-        pa_field: The PyArrow field descriptor.
-        col: The column data (may be ``None`` for schema-only).
-        field_type_str: The ``field_type`` string from metadata.
-
-    Returns:
-        A ``SemanticField`` subclass instance.
-
-    Raises:
-        KeyError: If ``field_type_str`` is not in the registry.
-    """
+    """Reconstruct a ``SemanticField`` subclass from column data and metadata."""
     registry = _get_field_type_map()
     cls = registry.get(field_type_str)
     if cls is None:
         raise KeyError(
-            f"Unknown field_type {field_type_str!r} in metadata. Known types: {sorted(registry)}"
+            f"Unknown field_type {field_type_str!r} in metadata. "
+            f"Known types: {sorted(registry)}"
         )
     return cls.from_field((col, pa_field))
 
@@ -129,19 +115,13 @@ class SemanticFieldAccessMixin:
     """Base mixin for type-dispatched field access on EventData.
 
     Expects the host class to provide a ``_table`` attribute of type
-    ``pa.Table``.  Scans column metadata for ``b"timetoalign"`` JSON
-    blobs and dispatches on the ``field_type`` value to reconstruct
-    the appropriate ``SemanticField`` subclass.
+    ``pa.Table``.
     """
 
     _table: pa.Table  # provided by EventData
 
     def get_field(self, field_type: type[SemanticField[Any]]) -> SemanticField[Any]:
         """Return the first column matching *field_type*'s class hierarchy.
-
-        Dispatches on ``metadata[b"timetoalign"]["field_type"]`` and uses
-        ``issubclass`` to support requesting a parent type (e.g.,
-        ``get_field(PitchField)`` matches any pitch field subclass).
 
         Args:
             field_type: The ``SemanticField`` subclass to search for.
@@ -166,7 +146,7 @@ class SemanticFieldAccessMixin:
             field_type: The ``SemanticField`` subclass to search for.
 
         Returns:
-            A list of matching ``SemanticField`` subclass instances (may be empty).
+            A list of matching ``SemanticField`` subclass instances.
         """
         registry = _get_field_type_map()
         result: list[SemanticField[Any]] = []
@@ -196,7 +176,6 @@ class SemanticFieldAccessMixin:
             ``True`` if at least one matching column exists.
         """
         registry = _get_field_type_map()
-
         schema = self._table.schema
         for i in range(len(schema)):
             pa_field = schema.field(i)
@@ -208,7 +187,6 @@ class SemanticFieldAccessMixin:
                 continue
             if issubclass(cls, field_type):
                 return True
-
         return False
 
 
@@ -220,8 +198,9 @@ class SemanticFieldAccessMixin:
 class PitchAccessMixin(SemanticFieldAccessMixin):
     """Mixin providing pitch field access with priority-based defaults.
 
-    Priority order (most specific first):
-    ``EnharmonicPitchField`` > ``SpecificPitchField`` > ``SpelledPitchClassField`` > ``GenericPitchField``
+    Priority order (most informative first):
+    ``SpecificPitchField`` (SP) > ``EnharmonicPitchField`` (EP)
+    > ``SpelledPitchClassField`` (SPC) > ``GenericPitchField`` (GP)
     """
 
     def get_pitch_field(
@@ -232,13 +211,16 @@ class PitchAccessMixin(SemanticFieldAccessMixin):
     ) -> PitchField:
         """Return a pitch field, optionally filtered by type.
 
-        If *pitch_type* is ``None``, returns the most specific available
-        pitch field according to the priority order.
+        This is the one-stop-shop accessor for pitch data.  If
+        *pitch_type* is ``None``, returns the most informative
+        available pitch field.
 
         Args:
             pitch_type: Specific ``PitchField`` subclass to request.
-                If ``None``, returns the most specific available.
-            format: Reserved for future conversion support.
+                If ``None``, returns the most informative available.
+            format: Format specifier for on-the-fly conversion
+                (e.g., ``"midi"``, ``"spelled"``, ``"generic"``).
+                Reserved for future conversion support.
 
         Returns:
             A ``PitchField`` subclass instance.
@@ -259,10 +241,11 @@ class PitchAccessMixin(SemanticFieldAccessMixin):
         if pitch_type is not None:
             return self.get_field(pitch_type)  # type: ignore[return-value]
 
-        # Priority order: most specific first
+        # Priority order: most informative first
+        # SP (Specific/Spelled) > EP (Enharmonic/MIDI) > SPC > GP
         priority: list[type[PitchFieldCls]] = [
-            EnharmonicPitchField,
             SpecificPitchField,
+            EnharmonicPitchField,
             SpelledPitchClassField,
             GenericPitchField,
         ]
@@ -288,15 +271,18 @@ class HarmonyAccessMixin(SemanticFieldAccessMixin):
     def get_harmony_field(
         self,
         harmony_type: type[HarmonyField] | None = None,
+        *,
+        format: str | None = None,
     ) -> HarmonyField:
         """Return a harmony field, optionally filtered by type.
 
-        If *harmony_type* is ``None``, returns the most specific available
-        harmony field according to the priority order.
+        This is the one-stop-shop accessor for harmony data.
 
         Args:
             harmony_type: Specific ``HarmonyField`` subclass to request.
                 If ``None``, returns the most specific available.
+            format: Format specifier for on-the-fly conversion.
+                Reserved for future conversion support.
 
         Returns:
             A ``HarmonyField`` subclass instance.
@@ -316,7 +302,6 @@ class HarmonyAccessMixin(SemanticFieldAccessMixin):
         if harmony_type is not None:
             return self.get_field(harmony_type)  # type: ignore[return-value]
 
-        # Priority order: most specific first
         priority: list[type[HarmonyFieldCls]] = [
             DcmlLabelField,
             RomanNumeralHarmonyField,
@@ -338,12 +323,14 @@ class MeasureAccessMixin(SemanticFieldAccessMixin):
     """Mixin providing measure field access (placeholder).
 
     ``MeasureField`` is not yet defined; this mixin is a forward-looking
-    placeholder that will be filled in when the measure field hierarchy
-    is implemented.
+    placeholder.
     """
 
-    def get_measure_field(self) -> Any:
+    def get_measure_field(self, *, format: str | None = None) -> Any:
         """Return the measure field.
+
+        Args:
+            format: Format specifier (reserved for future use).
 
         Raises:
             NotImplementedError: Always, until MeasureField is defined.

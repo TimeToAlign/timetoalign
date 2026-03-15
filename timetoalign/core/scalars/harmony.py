@@ -24,6 +24,7 @@ Internal model name mapping from DCML:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 # region HarmonyLabel (root)
 
@@ -246,6 +247,56 @@ class DcmlHarmony:
             "field_type": "DcmlHarmonyField",
             "standard": "dcml",
         }
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> DcmlHarmony | None:
+        """Construct from a DCML storage row dict.
+
+        Maps DCML storage field names to internal model names:
+        - ``bass_note`` -> ``bass``
+        - ``figbass`` -> ``inversion`` (via ``figbass_to_inversion()``)
+        - ``chord_type`` -> ``chord_type`` (same)
+        - ``relativeroot`` -> ``tonicized_key``
+
+        Args:
+            row: Dict with DCML storage field names (from PyArrow ``.as_py()``).
+
+        Returns:
+            A ``DcmlHarmony``, or ``None`` if ``label`` is null.
+        """
+        from timetoalign.fields.schemas import figbass_to_inversion
+
+        label = row.get("label")
+        if label is None:
+            return None
+
+        root_raw = row.get("root")
+        root = int(root_raw) if root_raw is not None else None
+        bass_raw = row.get("bass_note", row.get("bass"))
+        bass = int(bass_raw) if bass_raw is not None else None
+        figbass_raw = row.get("figbass", "")
+        inversion_raw = row.get("inversion")
+        if inversion_raw is not None:
+            inversion = int(inversion_raw)
+        else:
+            inv = figbass_to_inversion(str(figbass_raw or ""))
+            inversion = int(inv) if inv is not None else None
+
+        globalkey = str(row.get("globalkey") or "")
+        localkey = str(row.get("localkey") or "")
+
+        return cls(
+            label=str(label),
+            globalkey=globalkey,
+            localkey=localkey,
+            numeral=str(row.get("numeral") or ""),
+            chord_type=str(row.get("chord_type") or ""),
+            inversion=inversion,
+            root=root,
+            bass=bass,
+            tonicized_key=row.get("relativeroot") or row.get("tonicized_key"),
+            pedal=row.get("pedal"),
+        )
 
     def __repr__(self) -> str:
         return (

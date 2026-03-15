@@ -19,6 +19,7 @@ classes and loaders.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from ..protocols import TwelveTETPitchMixin
 
@@ -93,6 +94,23 @@ class GenericPitch(TwelveTETPitchMixin):
             format: Format specifier (ignored for GenericPitch).
         """
         return str(self.pitch_class)
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> GenericPitch | None:
+        """Construct from a PyArrow struct row dict.
+
+        Accepts the ``generic_pitch`` struct: ``{pitch_class: int64}``.
+
+        Args:
+            row: Dict with storage field names (from PyArrow ``.as_py()``).
+
+        Returns:
+            A ``GenericPitch``, or ``None`` if ``pitch_class`` is null.
+        """
+        pc = row.get("pitch_class")
+        if pc is None:
+            return None
+        return cls(pitch_class=int(pc))
 
     def __repr__(self) -> str:
         return f"GenericPitch(pitch_class={self.pitch_class})"
@@ -175,6 +193,28 @@ class SpelledPitchClass(TwelveTETPitchMixin):
             alter_str = "\u266d" * abs(self.alter)
         return f"{self.step}{alter_str}"
 
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> SpelledPitchClass | None:
+        """Construct from a PyArrow struct row dict.
+
+        Accepts the ``spelled_pitch_class`` struct:
+        ``{gpc_str: string, acc: int64, spc_int: int64}``.
+
+        Args:
+            row: Dict with storage field names.
+
+        Returns:
+            A ``SpelledPitchClass``, or ``None`` if ``gpc_str`` is null.
+        """
+        step = row.get("gpc_str")
+        if step is None:
+            return None
+        return cls(
+            step=str(step),
+            alter=int(row.get("acc", 0) or 0),
+            fifths=int(row.get("spc_int", 0) or 0),
+        )
+
     def __repr__(self) -> str:
         return f"SpelledPitchClass({self.get()})"
 
@@ -249,6 +289,24 @@ class MidiPitch(TwelveTETPitchMixin):
             format: ``"midi"`` (default) returns MIDI number as string.
         """
         return str(self.midi_number)
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> MidiPitch | None:
+        """Construct from a PyArrow struct row dict.
+
+        Accepts the ``midi_pitch`` (EP) struct: ``{ep: int64, epc: int64}``.
+
+        Args:
+            row: Dict with storage field names.
+
+        Returns:
+            A ``MidiPitch``, or ``None`` if ``ep`` or ``epc`` is null.
+        """
+        ep = row.get("ep")
+        epc = row.get("epc")
+        if ep is None or epc is None:
+            return None
+        return cls(midi_number=int(ep), pitch_class=int(epc))
 
     def __repr__(self) -> str:
         return (
@@ -362,8 +420,53 @@ class SpelledPitch(TwelveTETPitchMixin):
             alter_str = "\u266d" * abs(self.alter)
         return f"{self.step}{alter_str}{self.octave}"
 
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> SpelledPitch | None:
+        """Construct from a PyArrow struct row dict.
+
+        Accepts the ``spelled_pitch`` (SP) struct:
+        ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``.
+
+        Args:
+            row: Dict with storage field names.
+
+        Returns:
+            A ``SpelledPitch``, or ``None`` if ``gpc_str`` is null.
+        """
+        step = row.get("gpc_str")
+        if step is None:
+            return None
+        alter = int(row.get("acc", 0) or 0)
+        fifths = int(row.get("spc_int", 0) or 0)
+        cents = float(row.get("cents", 0.0) or 0.0)
+        # Extract octave from 'sp' string (e.g. "C4" -> 4)
+        sp = row.get("sp", "")
+        octave = _parse_octave_from_sp(sp, str(step))
+        return cls(
+            step=str(step),
+            alter=alter,
+            octave=octave,
+            fifths=fifths,
+            cents=cents,
+        )
+
     def __repr__(self) -> str:
         return f"SpelledPitch({self.get()})"
+
+
+def _parse_octave_from_sp(sp: str | None, step: str) -> int:
+    """Extract octave number from a spelled pitch string like ``"C4"``."""
+    if not sp:
+        return 4
+    try:
+        idx = len(sp)
+        while idx > 0 and (sp[idx - 1].isdigit() or sp[idx - 1] == "-"):
+            idx -= 1
+        if idx < len(sp):
+            return int(sp[idx:])
+    except (ValueError, IndexError):
+        pass
+    return 4
 
 
 # Alias for canonical naming

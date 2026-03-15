@@ -40,8 +40,9 @@ import pyarrow.parquet as pq
 import pytest
 
 from timetoalign.core.scalars.pitch import MidiPitch
-from timetoalign.fields.harmony import HARMONY_STRUCT_TYPE, DcmlLabelField
-from timetoalign.fields.pitch import SpecificPitchField
+from timetoalign.fields.harmony import DcmlLabelField
+from timetoalign.fields.pitch import EnharmonicPitchField
+from timetoalign.fields.schemas import DcmlStorageSchema
 from timetoalign.loader.score.tsv import TSVLoader
 
 # ---------------------------------------------------------------------------
@@ -109,7 +110,7 @@ class TestChopinPitchFieldFromTSV:
         notes_table = chopin_store.notes._table
         midi_pitch_col = notes_table.column("midi_pitch")
         midi_pitch_field = notes_table.schema.field("midi_pitch")
-        pf = SpecificPitchField.from_field((midi_pitch_col, midi_pitch_field))
+        pf = EnharmonicPitchField.from_field((midi_pitch_col, midi_pitch_field))
         # Total rows include rests (which have null pitch), so len >= 498
         assert len(pf) >= 498
 
@@ -118,7 +119,7 @@ class TestChopinPitchFieldFromTSV:
         notes_table = chopin_store.notes._table
         midi_pitch_col = notes_table.column("midi_pitch")
         midi_pitch_field = notes_table.schema.field("midi_pitch")
-        pf = SpecificPitchField.from_field((midi_pitch_col, midi_pitch_field))
+        pf = EnharmonicPitchField.from_field((midi_pitch_col, midi_pitch_field))
         first = pf[0]
         assert first is not None
         assert isinstance(first, MidiPitch)
@@ -241,7 +242,7 @@ class TestBeethovenHarmonies:
                     ),
                 }
             )
-        arr = pa.array(structs, type=HARMONY_STRUCT_TYPE)
+        arr = pa.array(structs, type=DcmlStorageSchema.schema)
         return DcmlLabelField.from_field(arr, name="harmony")
 
     def test_first_label(self, harmony_field: DcmlLabelField) -> None:
@@ -298,7 +299,7 @@ class TestPitchFieldParquetRoundtrip:
         midi_pitch_field = notes_table.schema.field("midi_pitch")
 
         # Build PitchField from real data
-        pf = SpecificPitchField.from_field((midi_pitch_col, midi_pitch_field))
+        pf = EnharmonicPitchField.from_field((midi_pitch_col, midi_pitch_field))
         enriched_field = pf.to_field()
 
         # Build a table with just the pitch column
@@ -314,10 +315,10 @@ class TestPitchFieldParquetRoundtrip:
         # Reconstruct PitchField from read-back
         col_back = table_back.column("midi_pitch")
         field_back = table_back.schema.field("midi_pitch")
-        pf2 = SpecificPitchField.from_field((col_back, field_back))
+        pf2 = EnharmonicPitchField.from_field((col_back, field_back))
 
         # Verify metadata survived
-        assert pf2.semantic_type == "MidiPitch"
+        assert pf2.semantic_type == "EnharmonicPitch"
 
         # Verify data survived: check first note is B3 (ep=59, epc=11)
         first = pf2[0]

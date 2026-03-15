@@ -15,20 +15,22 @@ from timetoalign.core.scalars.harmony import (
 )
 from timetoalign.fields.base import StructField
 from timetoalign.fields.harmony import (
-    DCML_LABEL_STRUCT_TYPE,
-    ROMAN_NUMERAL_STRUCT_TYPE,
-    WESTERN_TERTIAN_STRUCT_TYPE,
     DcmlLabelField,
     HarmonyField,
     RomanNumeralHarmonyField,
     WesternTertianHarmonyField,
+)
+from timetoalign.fields.schemas import (
+    DcmlStorageSchema,
+    RomanNumeralSchema,
+    WesternTertianSchema,
 )
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-_HARMONY_TYPE = DCML_LABEL_STRUCT_TYPE
+_HARMONY_TYPE = DcmlStorageSchema.schema
 
 
 def _make_harmony_array(
@@ -85,7 +87,7 @@ def _make_western_tertian_array(
                 "standard": "chord_symbol",
                 "root": 0,
                 "bass": 0,
-                "chord_quality": "M",
+                "chord_type": "M",
                 "inversion": 0,
             },
             {
@@ -93,11 +95,11 @@ def _make_western_tertian_array(
                 "standard": "chord_symbol",
                 "root": 5,
                 "bass": 5,
-                "chord_quality": "m",
+                "chord_type": "m",
                 "inversion": 0,
             },
         ]
-    return pa.array(values, type=WESTERN_TERTIAN_STRUCT_TYPE)
+    return pa.array(values, type=WesternTertianSchema.schema)
 
 
 def _make_roman_numeral_array(
@@ -111,7 +113,7 @@ def _make_roman_numeral_array(
                 "standard": "roman_numeral",
                 "root": 0,
                 "bass": 0,
-                "chord_quality": "M",
+                "chord_type": "M",
                 "inversion": 0,
                 "numeral": "I",
                 "key_context": "C:I",
@@ -121,13 +123,13 @@ def _make_roman_numeral_array(
                 "standard": "roman_numeral",
                 "root": 7,
                 "bass": 7,
-                "chord_quality": "M",
+                "chord_type": "M",
                 "inversion": 0,
                 "numeral": "V",
                 "key_context": "C:V",
             },
         ]
-    return pa.array(values, type=ROMAN_NUMERAL_STRUCT_TYPE)
+    return pa.array(values, type=RomanNumeralSchema.schema)
 
 
 # ---------------------------------------------------------------------------
@@ -279,7 +281,7 @@ class TestWesternTertianConstruction:
     def test_from_struct_field(self) -> None:
         """Construct from an existing StructField."""
         arr = _make_western_tertian_array()
-        pa_field = pa.field("harmony", WESTERN_TERTIAN_STRUCT_TYPE)
+        pa_field = pa.field("harmony", WesternTertianSchema.schema)
         sf = StructField(arr, pa_field)
         wf = WesternTertianHarmonyField.from_field(sf)
         assert len(wf) == 2
@@ -302,7 +304,7 @@ class TestRomanNumeralConstruction:
     def test_from_struct_field(self) -> None:
         """Construct from an existing StructField."""
         arr = _make_roman_numeral_array()
-        pa_field = pa.field("harmony", ROMAN_NUMERAL_STRUCT_TYPE)
+        pa_field = pa.field("harmony", RomanNumeralSchema.schema)
         sf = StructField(arr, pa_field)
         rf = RomanNumeralHarmonyField.from_field(sf)
         assert len(rf) == 2
@@ -409,12 +411,12 @@ class TestWesternTertianElementAccess:
                     "standard": "chord_symbol",
                     "root": 0,
                     "bass": 0,
-                    "chord_quality": "M",
+                    "chord_type": "M",
                     "inversion": 0,
                 },
                 None,
             ],
-            type=WESTERN_TERTIAN_STRUCT_TYPE,
+            type=WesternTertianSchema.schema,
         )
         wf = WesternTertianHarmonyField.from_field(arr)
         assert wf[0] is not None
@@ -449,14 +451,14 @@ class TestRomanNumeralElementAccess:
                     "standard": "roman_numeral",
                     "root": 0,
                     "bass": 0,
-                    "chord_quality": "M",
+                    "chord_type": "M",
                     "inversion": 0,
                     "numeral": "I",
                     "key_context": "C:I",
                 },
                 None,
             ],
-            type=ROMAN_NUMERAL_STRUCT_TYPE,
+            type=RomanNumeralSchema.schema,
         )
         rf = RomanNumeralHarmonyField.from_field(arr)
         assert rf[0] is not None

@@ -155,15 +155,15 @@ class TestHierarchy:
     """Verify all concrete subclasses are isinstance of PitchField."""
 
     def test_specific_pitch_field_is_pitch_field(self) -> None:
-        """SpecificPitchField is a PitchField."""
+        """EnharmonicPitchField is a PitchField."""
         arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
-        pf = SpecificPitchField.from_field(arr)
+        pf = EnharmonicPitchField.from_field(arr)
         assert isinstance(pf, PitchField)
 
     def test_enharmonic_pitch_field_is_pitch_field(self) -> None:
-        """EnharmonicPitchField is a PitchField."""
+        """SpecificPitchField is a PitchField."""
         arr = _make_spelled_pitch_array()
-        epf = EnharmonicPitchField.from_field(arr)
+        epf = SpecificPitchField.from_field(arr)
         assert isinstance(epf, PitchField)
 
     def test_generic_pitch_field_is_pitch_field(self) -> None:
@@ -188,25 +188,25 @@ class TestAliases:
     """Verify backward-compat aliases work correctly."""
 
     def test_midi_pitch_field_is_specific_pitch_field(self) -> None:
-        """MidiPitchField is SpecificPitchField."""
-        assert MidiPitchField is SpecificPitchField
+        """MidiPitchField is EnharmonicPitchField."""
+        assert MidiPitchField is EnharmonicPitchField
 
     def test_spelled_pitch_field_is_enharmonic_pitch_field(self) -> None:
-        """SpelledPitchField is EnharmonicPitchField."""
-        assert SpelledPitchField is EnharmonicPitchField
+        """SpelledPitchField is SpecificPitchField."""
+        assert SpelledPitchField is SpecificPitchField
 
     def test_midi_pitch_field_creates_specific_pitch_field(self) -> None:
-        """MidiPitchField.from_field() returns a SpecificPitchField."""
+        """MidiPitchField.from_field() returns a EnharmonicPitchField."""
         arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
         pf = MidiPitchField.from_field(arr)
-        assert isinstance(pf, SpecificPitchField)
+        assert isinstance(pf, EnharmonicPitchField)
         assert isinstance(pf, PitchField)
 
     def test_spelled_pitch_field_creates_enharmonic_pitch_field(self) -> None:
-        """SpelledPitchField.from_field() returns an EnharmonicPitchField."""
+        """SpelledPitchField.from_field() returns an SpecificPitchField."""
         arr = _make_spelled_pitch_array()
         spf = SpelledPitchField.from_field(arr)
-        assert isinstance(spf, EnharmonicPitchField)
+        assert isinstance(spf, SpecificPitchField)
         assert isinstance(spf, PitchField)
 
 
@@ -224,16 +224,16 @@ class TestProtocolConformance:
         assert isinstance(p, PitchLike)
 
     def test_specific_pitch_field_satisfies_semantic_type_like(self) -> None:
-        """isinstance(SpecificPitchField(...), SemanticTypeLike) is True."""
+        """isinstance(EnharmonicPitchField(...), SemanticTypeLike) is True."""
         arr = _make_midi_pitch_array()
-        pf = SpecificPitchField.from_field(arr)
+        pf = EnharmonicPitchField.from_field(arr)
         assert isinstance(pf, SemanticTypeLike)
 
     def test_specific_pitch_field_semantic_type(self) -> None:
-        """SpecificPitchField.semantic_type == 'MidiPitch'."""
+        """EnharmonicPitchField.semantic_type == 'MidiPitch'."""
         arr = _make_midi_pitch_array()
-        pf = SpecificPitchField.from_field(arr)
-        assert pf.semantic_type == "MidiPitch"
+        pf = EnharmonicPitchField.from_field(arr)
+        assert pf.semantic_type == "EnharmonicPitch"
 
     def test_generic_pitch_field_satisfies_semantic_type_like(self) -> None:
         """isinstance(GenericPitchField(...), SemanticTypeLike) is True."""
@@ -248,24 +248,24 @@ class TestProtocolConformance:
         assert isinstance(spcf, SemanticTypeLike)
 
     def test_enharmonic_pitch_field_satisfies_semantic_type_like(self) -> None:
-        """isinstance(EnharmonicPitchField(...), SemanticTypeLike) is True."""
+        """isinstance(SpecificPitchField(...), SemanticTypeLike) is True."""
         arr = _make_spelled_pitch_array()
-        epf = EnharmonicPitchField.from_field(arr)
+        epf = SpecificPitchField.from_field(arr)
         assert isinstance(epf, SemanticTypeLike)
 
 
 # ---------------------------------------------------------------------------
-# SpecificPitchField Construction (from_field)
+# EnharmonicPitchField Construction (from_field)
 # ---------------------------------------------------------------------------
 
 
-class TestSpecificPitchFieldConstruction:
-    """Tests for SpecificPitchField.from_field() with various source types."""
+class TestEnharmonicPitchFieldConstruction:
+    """Tests for EnharmonicPitchField.from_field() with various source types."""
 
     def test_from_pa_array(self) -> None:
         """Construct from pa.Array (struct array)."""
         arr = _make_midi_pitch_array([{"ep": 59, "epc": 11}])
-        pf = SpecificPitchField.from_field(arr)
+        pf = EnharmonicPitchField.from_field(arr)
         assert len(pf) == 1
 
     def test_from_struct_field(self) -> None:
@@ -273,18 +273,18 @@ class TestSpecificPitchFieldConstruction:
         arr = _make_midi_pitch_array()
         pa_field = pa.field("midi_pitch", _MIDI_PITCH_TYPE)
         sf = StructField(arr, pa_field)
-        pf = SpecificPitchField.from_field(sf)
+        pf = EnharmonicPitchField.from_field(sf)
         assert len(pf) == 3
 
     def test_from_pa_field_schema_only(self) -> None:
         """Construct from pa.Field (no data), verify is_empty."""
-        meta_dict = {"field_type": "SpecificPitchField", "pitch_type": "midi"}
+        meta_dict = {"field_type": "EnharmonicPitchField", "pitch_type": "enharmonic"}
         pa_field = pa.field(
             "midi_pitch",
             _MIDI_PITCH_TYPE,
             metadata={b"timetoalign": json.dumps(meta_dict).encode()},
         )
-        pf = SpecificPitchField.from_field(pa_field)
+        pf = EnharmonicPitchField.from_field(pa_field)
         assert pf.is_empty is True
 
     def test_from_tuple(self) -> None:
@@ -295,11 +295,11 @@ class TestSpecificPitchFieldConstruction:
             _MIDI_PITCH_TYPE,
             metadata={
                 b"timetoalign": json.dumps(
-                    {"field_type": "SpecificPitchField", "pitch_type": "midi"}
+                    {"field_type": "EnharmonicPitchField", "pitch_type": "enharmonic"}
                 ).encode()
             },
         )
-        pf = SpecificPitchField.from_field((arr, pa_field))
+        pf = EnharmonicPitchField.from_field((arr, pa_field))
         assert len(pf) == 2
 
 
@@ -384,17 +384,17 @@ class TestSpelledPitchClassFieldConstruction:
 
 
 # ---------------------------------------------------------------------------
-# SpecificPitchField Element Access (__getitem__)
+# EnharmonicPitchField Element Access (__getitem__)
 # ---------------------------------------------------------------------------
 
 
-class TestSpecificPitchFieldElementAccess:
-    """Tests for SpecificPitchField.__getitem__."""
+class TestEnharmonicPitchFieldElementAccess:
+    """Tests for EnharmonicPitchField.__getitem__."""
 
     def test_getitem_returns_midi_pitch(self) -> None:
         """Verify returns MidiPitch instance with correct values."""
         arr = _make_midi_pitch_array([{"ep": 59, "epc": 11}])
-        pf = SpecificPitchField.from_field(arr)
+        pf = EnharmonicPitchField.from_field(arr)
         pitch = pf[0]
         assert isinstance(pitch, MidiPitch)
         assert pitch.midi_number == 59
@@ -408,7 +408,7 @@ class TestSpecificPitchFieldElementAccess:
             {"ep": 64, "epc": 4},
         ]
         arr = _make_midi_pitch_array(values)
-        pf = SpecificPitchField.from_field(arr)
+        pf = EnharmonicPitchField.from_field(arr)
         for i, expected in enumerate(values):
             pitch = pf[i]
             assert pitch is not None
@@ -421,7 +421,7 @@ class TestSpecificPitchFieldElementAccess:
             [{"ep": 60, "epc": 0}, None, {"ep": 64, "epc": 4}],
             type=_MIDI_PITCH_TYPE,
         )
-        pf = SpecificPitchField.from_field(arr)
+        pf = EnharmonicPitchField.from_field(arr)
         assert pf[0] is not None
         assert pf[1] is None
         assert pf[2] is not None
@@ -497,17 +497,17 @@ class TestSpelledPitchClassFieldElementAccess:
 
 
 # ---------------------------------------------------------------------------
-# EnharmonicPitchField Element Access
+# SpecificPitchField Element Access
 # ---------------------------------------------------------------------------
 
 
-class TestEnharmonicPitchFieldElementAccess:
-    """Tests for EnharmonicPitchField.__getitem__."""
+class TestSpecificPitchFieldElementAccess:
+    """Tests for SpecificPitchField.__getitem__."""
 
     def test_getitem_returns_spelled_pitch(self) -> None:
         """Verify returns SpelledPitch instance with correct values."""
         arr = _make_spelled_pitch_array()
-        epf = EnharmonicPitchField.from_field(arr)
+        epf = SpecificPitchField.from_field(arr)
         pitch = epf[0]
         assert isinstance(pitch, SpelledPitch)
         assert pitch.step == "C"
@@ -533,7 +533,7 @@ class TestEnharmonicPitchFieldElementAccess:
             ],
             type=_SPELLED_PITCH_TYPE,
         )
-        epf = EnharmonicPitchField.from_field(arr)
+        epf = SpecificPitchField.from_field(arr)
         assert epf[0] is not None
         assert epf[1] is None
 
@@ -547,18 +547,18 @@ class TestProperties:
     """Tests for pitch field properties."""
 
     def test_specific_semantic_type(self) -> None:
-        """SpecificPitchField.semantic_type == 'MidiPitch'."""
+        """EnharmonicPitchField.semantic_type == 'MidiPitch'."""
         arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
-        pf = SpecificPitchField.from_field(arr)
-        assert pf.semantic_type == "MidiPitch"
+        pf = EnharmonicPitchField.from_field(arr)
+        assert pf.semantic_type == "EnharmonicPitch"
 
     def test_specific_metadata_dict(self) -> None:
-        """Verify SpecificPitchField returns correct metadata_dict."""
+        """Verify EnharmonicPitchField returns correct metadata_dict."""
         arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
-        pf = SpecificPitchField.from_field(arr)
+        pf = EnharmonicPitchField.from_field(arr)
         md = pf.metadata_dict()
-        assert md["field_type"] == "SpecificPitchField"
-        assert md["pitch_type"] == "midi"
+        assert md["field_type"] == "EnharmonicPitchField"
+        assert md["pitch_type"] == "enharmonic"
 
     def test_generic_semantic_type(self) -> None:
         """GenericPitchField.semantic_type == 'GenericPitch'."""
@@ -589,18 +589,18 @@ class TestProperties:
         assert md["pitch_type"] == "spelled_class"
 
     def test_enharmonic_semantic_type(self) -> None:
-        """EnharmonicPitchField.semantic_type == 'SpelledPitch'."""
+        """SpecificPitchField.semantic_type == 'SpelledPitch'."""
         arr = _make_spelled_pitch_array()
-        epf = EnharmonicPitchField.from_field(arr)
-        assert epf.semantic_type == "SpelledPitch"
+        epf = SpecificPitchField.from_field(arr)
+        assert epf.semantic_type == "SpecificPitch"
 
     def test_enharmonic_metadata_dict(self) -> None:
-        """Verify EnharmonicPitchField returns correct metadata_dict."""
+        """Verify SpecificPitchField returns correct metadata_dict."""
         arr = _make_spelled_pitch_array()
-        epf = EnharmonicPitchField.from_field(arr)
+        epf = SpecificPitchField.from_field(arr)
         md = epf.metadata_dict()
-        assert md["field_type"] == "EnharmonicPitchField"
-        assert md["pitch_type"] == "spelled"
+        assert md["field_type"] == "SpecificPitchField"
+        assert md["pitch_type"] == "specific"
 
 
 # ---------------------------------------------------------------------------
@@ -614,31 +614,31 @@ class TestSerialization:
     def test_to_field_injects_metadata(self) -> None:
         """Verify to_field() produces pa.Field with b'timetoalign' JSON blob."""
         arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
-        pf = SpecificPitchField.from_field(arr)
+        pf = EnharmonicPitchField.from_field(arr)
         pa_field = pf.to_field()
 
         assert isinstance(pa_field, pa.Field)
         raw_meta = pa_field.metadata
         assert b"timetoalign" in raw_meta
         blob = json.loads(raw_meta[b"timetoalign"].decode("utf-8"))
-        assert blob["field_type"] == "SpecificPitchField"
-        assert blob["pitch_type"] == "midi"
+        assert blob["field_type"] == "EnharmonicPitchField"
+        assert blob["pitch_type"] == "enharmonic"
 
     def test_parquet_round_trip(self, tmp_path: object) -> None:
-        """Write pa.Table with SpecificPitchField column, read back, verify data + metadata."""
+        """Write pa.Table with EnharmonicPitchField column, read back, verify data + metadata."""
         from pathlib import Path
 
         tmp_dir = Path(str(tmp_path))
         parquet_path = tmp_dir / "pitches.parquet"
 
-        # Build SpecificPitchField
+        # Build EnharmonicPitchField
         values = [
             {"ep": 59, "epc": 11},
             {"ep": 60, "epc": 0},
             {"ep": 64, "epc": 4},
         ]
         arr = _make_midi_pitch_array(values)
-        pf = SpecificPitchField.from_field(arr)
+        pf = EnharmonicPitchField.from_field(arr)
 
         # Build table using the enriched pa.Field
         enriched_field = pf.to_field()
@@ -651,13 +651,13 @@ class TestSerialization:
         pq.write_table(table, str(parquet_path))
         table_back = pq.read_table(str(parquet_path))
 
-        # Reconstruct SpecificPitchField from the read-back table
+        # Reconstruct EnharmonicPitchField from the read-back table
         col = table_back.column("midi_pitch")
         field = table_back.schema.field("midi_pitch")
-        pf2 = SpecificPitchField.from_field((col, field))
+        pf2 = EnharmonicPitchField.from_field((col, field))
 
         # Verify metadata survived
-        assert pf2.semantic_type == "MidiPitch"
+        assert pf2.semantic_type == "EnharmonicPitch"
 
         # Verify data survived
         assert len(pf2) == 3
@@ -680,16 +680,16 @@ class TestSerialization:
         assert blob["pitch_type"] == "generic"
 
     def test_enharmonic_to_field_injects_metadata(self) -> None:
-        """Verify EnharmonicPitchField.to_field() produces correct metadata."""
+        """Verify SpecificPitchField.to_field() produces correct metadata."""
         arr = _make_spelled_pitch_array()
-        epf = EnharmonicPitchField.from_field(arr)
+        epf = SpecificPitchField.from_field(arr)
         pa_field = epf.to_field()
 
         raw_meta = pa_field.metadata
         assert b"timetoalign" in raw_meta
         blob = json.loads(raw_meta[b"timetoalign"].decode("utf-8"))
-        assert blob["field_type"] == "EnharmonicPitchField"
-        assert blob["pitch_type"] == "spelled"
+        assert blob["field_type"] == "SpecificPitchField"
+        assert blob["pitch_type"] == "specific"
 
 
 # ---------------------------------------------------------------------------
@@ -703,25 +703,25 @@ class TestDelegation:
     def test_value_returns_struct_field(self) -> None:
         """Verify .value returns the inner StructField."""
         arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
-        pf = SpecificPitchField.from_field(arr)
+        pf = EnharmonicPitchField.from_field(arr)
         raw = pf.value
         assert isinstance(raw, StructField)
 
     def test_len_delegation(self) -> None:
         """Verify len() passes through to inner StructField."""
         arr = _make_midi_pitch_array()
-        pf = SpecificPitchField.from_field(arr)
+        pf = EnharmonicPitchField.from_field(arr)
         assert len(pf) == 3
 
     def test_is_empty_delegation(self) -> None:
         """Verify is_empty passes through for schema-only field."""
-        meta_dict = {"field_type": "SpecificPitchField", "pitch_type": "midi"}
+        meta_dict = {"field_type": "EnharmonicPitchField", "pitch_type": "enharmonic"}
         pa_field = pa.field(
             "midi_pitch",
             _MIDI_PITCH_TYPE,
             metadata={b"timetoalign": json.dumps(meta_dict).encode()},
         )
-        pf = SpecificPitchField.from_field(pa_field)
+        pf = EnharmonicPitchField.from_field(pa_field)
         assert pf.is_empty is True
 
     def test_name_delegation(self) -> None:
@@ -729,11 +729,11 @@ class TestDelegation:
         arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
         pa_field = pa.field("my_pitch", _MIDI_PITCH_TYPE)
         sf = StructField(arr, pa_field)
-        pf = SpecificPitchField.from_field(sf)
+        pf = EnharmonicPitchField.from_field(sf)
         assert pf.name == "my_pitch"
 
     def test_field_names_delegation(self) -> None:
         """Verify .field_names works via __getattr__ delegation."""
         arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
-        pf = SpecificPitchField.from_field(arr)
+        pf = EnharmonicPitchField.from_field(arr)
         assert pf.field_names == ["ep", "epc"]
