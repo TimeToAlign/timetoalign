@@ -475,3 +475,110 @@ class TestEventDataComposition:
         spf = store.spelled_pitch_field
         assert isinstance(spf, SpecificPitchField)
         assert spf[0] is not None
+
+    def test_plain_event_data_has_field_access(self) -> None:
+        """A plain EventData instance should expose get_field, get_fields, has_field."""
+        from timetoalign.loader.events import EventData
+
+        assert hasattr(EventData, "get_field")
+        assert hasattr(EventData, "get_fields")
+        assert hasattr(EventData, "has_field")
+
+    def test_plain_event_data_get_field_with_metadata(self) -> None:
+        """Plain EventData.get_field(EnharmonicPitchField) works when metadata is present."""
+        from timetoalign.core import TimeUnit
+        from timetoalign.loader.events import EventData
+
+        # Create a minimal EventData with a pitch column carrying field metadata.
+        store = EventData.from_dicts(
+            [
+                {
+                    "event_type": "Note",
+                    "start": 0.0,
+                    "duration": 1.0,
+                }
+            ],
+            unit=TimeUnit.seconds,
+        )
+        # Inject a pitch column with EnharmonicPitchField metadata onto the table.
+        midi_type = pa.struct([pa.field("ep", pa.int64()), pa.field("epc", pa.int64())])
+        pitch_arr = pa.array([{"ep": 60, "epc": 0}], type=midi_type)
+        col_field = _inject_metadata(
+            pa.field("midi_pitch", midi_type),
+            "EnharmonicPitchField",
+            pitch_type="enharmonic",
+        )
+        new_table = store._table.append_column(col_field, pitch_arr)
+        store._table = new_table
+
+        result = store.get_field(EnharmonicPitchField)
+        assert isinstance(result, EnharmonicPitchField)
+        assert result[0] is not None
+        assert result[0].midi_number == 60
+
+    def test_plain_event_data_has_field_false_without_metadata(self) -> None:
+        """Plain EventData.has_field returns False when no field metadata present."""
+        from timetoalign.core import TimeUnit
+        from timetoalign.loader.events import EventData
+
+        store = EventData.from_dicts(
+            [
+                {
+                    "event_type": "Beat",
+                    "start": 0.0,
+                }
+            ],
+            unit=TimeUnit.seconds,
+        )
+        assert store.has_field(PitchField) is False
+
+
+# ---------------------------------------------------------------------------
+# Field cache tests
+# ---------------------------------------------------------------------------
+
+
+class TestFieldCache:
+    """Tests for the _field_cache on SemanticFieldAccessMixin."""
+
+    def test_cache_returns_same_object(self) -> None:
+        """Calling get_field twice returns the exact same object (identity)."""
+        table = _make_midi_pitch_table()
+        host = _MixinHost(table)
+        result1 = host.get_field(EnharmonicPitchField)
+        result2 = host.get_field(EnharmonicPitchField)
+        assert result1 is result2
+
+    def test_cache_independent_per_instance(self) -> None:
+        """Two hosts with the same table have independent caches."""
+        table = _make_midi_pitch_table()
+        host_a = _MixinHost(table)
+        host_b = _MixinHost(table)
+
+        field_a = host_a.get_field(EnharmonicPitchField)
+        field_b = host_b.get_field(EnharmonicPitchField)
+
+        # Both should be EnharmonicPitchField but NOT the same object.
+        assert isinstance(field_a, EnharmonicPitchField)
+        assert isinstance(field_b, EnharmonicPitchField)
+        assert field_a is not field_b
+
+    def test_get_fields_populates_cache(self) -> None:
+        """get_fields populates the cache; a second call returns the same objects."""
+        table = _make_both_pitch_table()
+        host = _MixinHost(table)
+
+        first_call = host.get_fields(PitchField)
+        second_call = host.get_fields(PitchField)
+
+        assert len(first_call) == 2
+        assert len(second_call) == 2
+        for f1, f2 in zip(first_call, second_call):
+            assert f1 is f2
+
+    def test_has_field_after_get_field_uses_cache(self) -> None:
+        """has_field still returns True after get_field has populated the cache."""
+        table = _make_midi_pitch_table()
+        host = _MixinHost(table)
+        host.get_field(EnharmonicPitchField)
+        assert host.has_field(EnharmonicPitchField) is True

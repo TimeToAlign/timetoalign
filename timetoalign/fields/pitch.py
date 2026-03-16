@@ -124,6 +124,8 @@ class GenericPitchField(PitchField):
         GenericPitch(pitch_class=0)
     """
 
+    _default_column: str = "generic_pitch"
+
     @property
     def semantic_type(self) -> str:
         return "GenericPitch"
@@ -169,6 +171,8 @@ class SpelledPitchClassField(PitchField):
         >>> spcf[0]
         SpelledPitchClass(C)
     """
+
+    _default_column: str = "spelled_pitch_class"
 
     @property
     def semantic_type(self) -> str:
@@ -217,6 +221,8 @@ class EnharmonicPitchField(PitchField):
         >>> pf[0]
         MidiPitch(midi=60, pc=0)
     """
+
+    _default_column: str = "midi_pitch"
 
     @property
     def semantic_type(self) -> str:
@@ -297,6 +303,8 @@ class SpecificPitchField(PitchField):
         >>> spf[0]
         SpelledPitch(C4)
     """
+
+    _default_column: str = "spelled_pitch"
 
     @property
     def semantic_type(self) -> str:

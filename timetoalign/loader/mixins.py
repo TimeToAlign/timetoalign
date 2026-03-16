@@ -107,6 +107,81 @@ def _reconstruct_field(
 
 
 # ---------------------------------------------------------------------------
+# Schema-based field discovery (fallback when no metadata is present)
+# ---------------------------------------------------------------------------
+
+
+def _discover_by_schema(
+    table: pa.Table,
+    field_type: type[SemanticField[Any]],
+    cache: dict[tuple[str, str], SemanticField[Any]],
+    registry: dict[str, type[SemanticField[Any]]],
+) -> list[SemanticField[Any]]:
+    """Try to match *field_type* against table columns by schema structure.
+
+    Each concrete ``SemanticField`` subclass may declare a
+    ``_default_column`` attribute (the expected column name) and optionally
+    a ``_expected_schema`` (the PyArrow struct type to match).  When the
+    table contains a column with a matching name and compatible struct
+    type, the field is constructed via ``from_field()`` and cached.
+
+    This function also checks concrete subclasses of *field_type* (e.g.,
+    requesting ``PitchField`` will try ``SpecificPitchField``,
+    ``EnharmonicPitchField``, etc.).
+
+    Args:
+        table: The PyArrow table to search.
+        field_type: The ``SemanticField`` subclass (or parent) to match.
+        cache: The field cache dict to populate.
+        registry: The field type string → class mapping.
+
+    Returns:
+        A list of discovered fields (may be empty).
+    """
+    result: list[SemanticField[Any]] = []
+    column_names = set(table.column_names)
+
+    # Collect candidate classes: the field_type itself + any registered
+    # subclasses that are subclasses of field_type.
+    candidates: list[type[SemanticField[Any]]] = []
+    if hasattr(field_type, "_default_column"):
+        candidates.append(field_type)
+    for cls in registry.values():
+        if cls is field_type:
+            continue
+        if issubclass(cls, field_type) and hasattr(cls, "_default_column"):
+            if cls not in candidates:
+                candidates.append(cls)
+
+    for cls in candidates:
+        col_name = cls._default_column  # type: ignore[attr-defined]
+        if col_name not in column_names:
+            continue
+
+        cache_key = (col_name, cls.__name__)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            result.append(cached)
+            continue
+
+        col = table.column(col_name)
+        pa_field = table.schema.field(col_name)
+
+        # Verify the column is a struct (SemanticFields wrap struct arrays)
+        if not pa.types.is_struct(pa_field.type):
+            continue
+
+        try:
+            field = cls.from_field((col, pa_field))
+        except (TypeError, KeyError, ValueError):
+            continue
+        cache[cache_key] = field
+        result.append(field)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # SemanticFieldAccessMixin
 # ---------------------------------------------------------------------------
 
@@ -119,6 +194,14 @@ class SemanticFieldAccessMixin:
     """
 
     _table: pa.Table  # provided by EventData
+
+    @property
+    def _field_cache(self) -> dict[tuple[str, str], SemanticField[Any]]:
+        try:
+            return self.__field_cache
+        except AttributeError:
+            self.__field_cache: dict[tuple[str, str], SemanticField[Any]] = {}
+            return self.__field_cache
 
     def get_field(self, field_type: type[SemanticField[Any]]) -> SemanticField[Any]:
         """Return the first column matching *field_type*'s class hierarchy.
@@ -142,6 +225,14 @@ class SemanticFieldAccessMixin:
     ) -> list[SemanticField[Any]]:
         """Return ALL columns matching *field_type*'s class hierarchy.
 
+        Discovery uses two strategies:
+
+        1. **Metadata-based**: columns carrying ``b"timetoalign"`` JSON
+           metadata with a ``field_type`` entry.
+        2. **Schema-based fallback**: if no metadata matches are found,
+           tries to match the requested *field_type*'s ``_default_column``
+           name against table columns with a compatible struct type.
+
         Args:
             field_type: The ``SemanticField`` subclass to search for.
 
@@ -149,6 +240,7 @@ class SemanticFieldAccessMixin:
             A list of matching ``SemanticField`` subclass instances.
         """
         registry = _get_field_type_map()
+        cache = self._field_cache
         result: list[SemanticField[Any]] = []
 
         schema = self._table.schema
@@ -161,13 +253,29 @@ class SemanticFieldAccessMixin:
             if cls is None:
                 continue
             if issubclass(cls, field_type):
-                col = self._table.column(i)
-                result.append(_reconstruct_field(pa_field, col, ft_str))
+                cache_key = (pa_field.name, ft_str)
+                cached = cache.get(cache_key)
+                if cached is not None:
+                    result.append(cached)
+                else:
+                    col = self._table.column(i)
+                    field = _reconstruct_field(pa_field, col, ft_str)
+                    cache[cache_key] = field
+                    result.append(field)
 
+        if result:
+            return result
+
+        # Fallback: schema-based discovery via _default_column
+        result = _discover_by_schema(self._table, field_type, cache, registry)
         return result
 
     def has_field(self, field_type: type[SemanticField[Any]]) -> bool:
         """Check whether any column matches *field_type*.
+
+        Uses the same two-strategy discovery as ``get_fields()``
+        (metadata-based, then schema-based fallback) but avoids
+        constructing field objects when possible.
 
         Args:
             field_type: The ``SemanticField`` subclass to search for.
@@ -176,6 +284,20 @@ class SemanticFieldAccessMixin:
             ``True`` if at least one matching column exists.
         """
         registry = _get_field_type_map()
+        cache = self._field_cache
+
+        # Fast path: check if any cached field already matches
+        for (_, cached_ft_str), _ in cache.items():
+            cls = registry.get(cached_ft_str)
+            if cls is not None and issubclass(cls, field_type):
+                return True
+
+        # Check cache keys that came from schema-based discovery
+        for (_, cached_ft_str), _ in cache.items():
+            if cached_ft_str == field_type.__name__:
+                return True
+
+        # Metadata scan
         schema = self._table.schema
         for i in range(len(schema)):
             pa_field = schema.field(i)
@@ -187,6 +309,25 @@ class SemanticFieldAccessMixin:
                 continue
             if issubclass(cls, field_type):
                 return True
+
+        # Schema-based fallback: check if _default_column exists in table
+        column_names = set(self._table.column_names)
+        candidates: list[type[SemanticField[Any]]] = []
+        if hasattr(field_type, "_default_column"):
+            candidates.append(field_type)
+        for cls in registry.values():
+            if cls is field_type:
+                continue
+            if issubclass(cls, field_type) and hasattr(cls, "_default_column"):
+                if cls not in candidates:
+                    candidates.append(cls)
+        for cls in candidates:
+            col_name = cls._default_column  # type: ignore[attr-defined]
+            if col_name in column_names:
+                pa_field = self._table.schema.field(col_name)
+                if pa.types.is_struct(pa_field.type):
+                    return True
+
         return False
 
 

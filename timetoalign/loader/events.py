@@ -31,6 +31,7 @@ from typing_extensions import Self
 
 from timetoalign.core import Coordinate, IntervalPolicy, NumberType, TimeUnit
 
+from .mixins import SemanticFieldAccessMixin
 from .parsing import ArrayValidator, CoordinateParser
 from .schema import (
     coordinate_to_struct,
@@ -47,7 +48,7 @@ if TYPE_CHECKING:
 module_logger = logging.getLogger(__name__)
 
 
-class EventData:
+class EventData(SemanticFieldAccessMixin):
     """PyArrow-based storage for timeline events.
 
     EventData wraps a PyArrow table containing events. Events are rows in the
