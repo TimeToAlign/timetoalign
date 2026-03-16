@@ -4,8 +4,8 @@ Provides frozen dataclass scalars at four levels of pitch specificity:
 
 - ``GenericPitch`` -- pitch class only (satisfies ``GenericPitchLike``)
 - ``SpelledPitchClass`` -- pitch class with spelling (satisfies ``SpelledPitchClassLike``)
-- ``MidiPitch`` (alias ``EnharmonicPitch``) -- MIDI note (satisfies ``SpecificPitchClassLike``)
-- ``SpelledPitch`` (alias ``SpecificPitch``) -- full spelling (satisfies ``EnharmonicPitchLike``)
+- ``MidiPitch`` (alias ``EnharmonicPitch``) -- MIDI note (satisfies ``EnharmonicPitchLike``)
+- ``SpelledPitch`` (alias ``SpecificPitch``) -- full spelling (satisfies ``SpecificPitchLike``)
 
 All 12-TET scalars compose ``TwelveTETPitchMixin`` which provides the
 unified ``.to()`` dispatch method and ``.get(format=)`` formatting.
@@ -37,6 +37,17 @@ _STEP_TO_SEMITONE: dict[str, int] = {
 
 # Pitch-class to step name (for reverse mapping)
 _PC_TO_STEP: dict[int, str] = {v: k for k, v in _STEP_TO_SEMITONE.items()}
+
+# Step-name to diatonic index (C=0, D=1, E=2, F=3, G=4, A=5, B=6)
+_STEP_TO_GPC: dict[str, int] = {
+    "C": 0,
+    "D": 1,
+    "E": 2,
+    "F": 3,
+    "G": 4,
+    "A": 5,
+    "B": 6,
+}
 
 # Base fifths for each step (unaltered)
 _BASE_FIFTHS: dict[str, int] = {
@@ -182,16 +193,12 @@ class GenericPitch(TwelveTETPitchMixin):
         return cls(pitch_class=int(pc))
 
     def to_dict(self) -> dict[str, object]:
-        """Return a summary dict of all pitch properties.
+        """Return a dict mirroring the storage struct.
 
         Returns:
-            A dict with ``pitch_class`` and ``name`` keys.
+            A dict with the ``pitch_class`` storage field.
         """
-        step = _PC_TO_STEP.get(self.pitch_class)
-        return {
-            "pitch_class": self.pitch_class,
-            "name": step if step is not None else str(self.pitch_class),
-        }
+        return {"pitch_class": self.pitch_class}
 
     def __eq__(self, other: object) -> bool:
         """Compare to another ``GenericPitch`` or to a plain ``int``.
@@ -300,16 +307,16 @@ class SpelledPitchClass(TwelveTETPitchMixin):
         return f"{self.step}{alter_str}"
 
     def to_dict(self) -> dict[str, object]:
-        """Return a summary dict of all pitch properties.
+        """Return a dict mirroring the SPC storage struct.
 
         Returns:
-            A dict with ``step``, ``alter``, ``fifths``, ``pitch_class``,
-            and ``label`` keys.
+            A dict with ``gpc_str``, ``acc``, ``spc_int`` storage fields,
+            plus derived ``pitch_class`` and ``label``.
         """
         return {
-            "step": self.step,
-            "alter": self.alter,
-            "fifths": self.fifths,
+            "gpc_str": self.step,
+            "acc": self.alter,
+            "spc_int": self.fifths,
             "pitch_class": self.pitch_class,
             "label": self.get(),
         }
@@ -371,7 +378,7 @@ class SpelledPitchClass(TwelveTETPitchMixin):
 
 @dataclass(frozen=True, slots=True)
 class MidiPitch(TwelveTETPitchMixin):
-    """MIDI pitch scalar.  Satisfies ``SpecificPitchClassLike``.
+    """MIDI pitch scalar.  Satisfies ``EnharmonicPitchLike``.
 
     Alias: ``EnharmonicPitch``.
 
@@ -443,14 +450,15 @@ class MidiPitch(TwelveTETPitchMixin):
         return str(self.midi_number)
 
     def to_dict(self) -> dict[str, object]:
-        """Return a summary dict of all pitch properties.
+        """Return a dict mirroring the EP storage struct.
 
         Returns:
-            A dict with ``midi_number``, ``pitch_class``, and ``octave`` keys.
+            A dict with ``ep`` (MIDI number) and ``epc`` (pitch class)
+            storage fields, plus derived ``octave``.
         """
         return {
-            "midi_number": self.midi_number,
-            "pitch_class": self.pitch_class,
+            "ep": self.midi_number,
+            "epc": self.pitch_class,
             "octave": self.octave,
         }
 
@@ -488,7 +496,7 @@ EnharmonicPitch = MidiPitch
 class SpelledPitch(TwelveTETPitchMixin):
     """Spelled pitch scalar with full enharmonic identity.
 
-    Satisfies ``EnharmonicPitchLike``.  Alias: ``SpecificPitch``.
+    Satisfies ``SpecificPitchLike``.  Alias: ``SpecificPitch``.
 
     Called "specific" at the schema/field level because it preserves the
     *specific* enharmonic spelling (C♯4 ≠ D♭4).
@@ -587,21 +595,23 @@ class SpelledPitch(TwelveTETPitchMixin):
         return f"{self.step}{alter_str}{self.octave}"
 
     def to_dict(self) -> dict[str, object]:
-        """Return a summary dict of all pitch properties.
+        """Return a dict mirroring the SP storage struct.
 
         Returns:
-            A dict with step, alter, octave, fifths, midi_number,
-            pitch_class, cents, and label keys.
+            A dict with ``gpc_int``, ``gpc_str``, ``acc``, ``spc_int``,
+            ``spc_str``, ``sp``, ``cents`` storage fields, plus derived
+            ``midi_number`` and ``pitch_class``.
         """
         return {
-            "label": self.get(),
-            "step": self.step,
-            "alter": self.alter,
-            "octave": self.octave,
-            "fifths": self.fifths,
+            "gpc_int": _STEP_TO_GPC[self.step],
+            "gpc_str": self.step,
+            "acc": self.alter,
+            "spc_int": self.fifths,
+            "spc_str": self.get().rstrip("0123456789-"),
+            "sp": self.get(),
+            "cents": self.cents,
             "midi_number": self.midi_number,
             "pitch_class": self.pitch_class,
-            "cents": self.cents,
         }
 
     @classmethod

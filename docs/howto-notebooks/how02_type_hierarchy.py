@@ -38,7 +38,7 @@ from timetoalign.core.protocols import (
     HarmonyLabelLike,
     PitchLike,
     RomanNumeralHarmonyLike,
-    SpecificPitchClassLike,
+    SpecificPitchLike,
     SpelledPitchClassLike,
     WesternTertianHarmonyLike,
 )
@@ -58,16 +58,10 @@ from timetoalign.fields.harmony import (
 )
 from timetoalign.fields.pitch import (
     EnharmonicPitchField,
-    GenericPitchField,
     SpecificPitchField,
-    SpelledPitchClassField,
 )
 from timetoalign.fields.schemas import (
     DcmlStorageSchema,
-    EnharmonicPitchSchema,
-    GenericPitchSchema,
-    SpecificPitchSchema,
-    SpelledPitchClassSchema,
     WesternTertianSchema,
 )
 
@@ -95,8 +89,8 @@ from timetoalign.fields.schemas import (
 # | Category | Scalar | Key property | Protocol |
 # |----------|--------|-------------|----------|
 # | **Generic (GP)** | `GenericPitch` | `pitch_class` (0--11) | `GenericPitchLike` |
-# | **Enharmonic (EP)** | `EnharmonicPitch` (alias: `MidiPitch`) | `midi_number` + octave | `SpecificPitchClassLike` |
-# | **Specific (SP)** | `SpecificPitch` (alias: `SpelledPitch`) | spelling + octave + cents | `EnharmonicPitchLike` |
+# | **Enharmonic (EP)** | `EnharmonicPitch` (alias: `MidiPitch`) | `midi_number` + octave | `EnharmonicPitchLike` |
+# | **Specific (SP)** | `SpecificPitch` (alias: `SpelledPitch`) | spelling + octave + cents | `SpecificPitchLike` |
 #
 # Additionally, `SpelledPitchClass` is an octave-free variant of the
 # Specific category -- it carries spelling but no octave information.
@@ -181,9 +175,9 @@ sp.to_dict()
     "SpelledPitchClass -> SpelledPitchClassLike": isinstance(
         spc, SpelledPitchClassLike
     ),
-    "MidiPitch -> SpecificPitchClassLike": isinstance(mp, SpecificPitchClassLike),
+    "MidiPitch -> EnharmonicPitchLike": isinstance(mp, EnharmonicPitchLike),
+    "SpelledPitch -> SpecificPitchLike": isinstance(sp, SpecificPitchLike),
     "SpelledPitch -> EnharmonicPitchLike": isinstance(sp, EnharmonicPitchLike),
-    "SpelledPitch -> SpecificPitchClassLike": isinstance(sp, SpecificPitchClassLike),
     "all are PitchLike": all(isinstance(p, PitchLike) for p in [gp_c, spc, mp, sp]),
 }
 
@@ -206,115 +200,39 @@ sp.to_dict()
 #
 # Each pitch scalar has a corresponding columnar field type that wraps a
 # PyArrow struct array and returns scalars on element access.
-
-# %% [markdown]
-# ### GenericPitchField
-
-# %%
-gp_arr = pa.array(
-    [{"pitch_class": 0}, {"pitch_class": 4}, {"pitch_class": 7}],
-    type=GenericPitchSchema.schema,
-)
-gpf = GenericPitchField.from_field(gp_arr, name="generic_pitch")
-gpf
-
-# %%
-{"C": gpf[0], "E": gpf[1], "G": gpf[2]}
-
-# %% [markdown]
-# ### SpelledPitchClassField
-
-# %%
-spc_arr = pa.array(
-    [
-        {"gpc_str": "C", "acc": 0, "spc_int": 0},
-        {"gpc_str": "E", "acc": 0, "spc_int": 4},
-        {"gpc_str": "B", "acc": -1, "spc_int": -2},
-    ],
-    type=SpelledPitchClassSchema.schema,
-)
-spcf = SpelledPitchClassField.from_field(spc_arr, name="spelled_pitch_class")
-spcf
-
-# %%
-{"C": spcf[0], "E": spcf[1], "Bb": spcf[2]}
+# Fields are constructed from minimal information via convenience
+# classmethods.
 
 # %% [markdown]
 # ### EnharmonicPitchField (MIDI)
 #
-# Wraps the EP schema (`{ep, epc}`) and returns `MidiPitch` scalars.
-# The `epc` column (pitch class) is redundant storage -- `MidiPitch`
-# derives it automatically from `ep` (the MIDI number).
+# Wraps the EP schema and returns `MidiPitch` scalars.
 
 # %%
-midi_arr = pa.array(
-    [{"ep": 60, "epc": 0}, {"ep": 64, "epc": 4}, {"ep": 67, "epc": 7}],
-    type=EnharmonicPitchSchema.schema,
-)
-epf = EnharmonicPitchField.from_field(midi_arr, name="midi_pitch")
+epf = EnharmonicPitchField.from_midi_numbers([60, 64, 67])
 epf
 
 # %%
-{
-    "C4": epf[0],
-    "E4": epf[1],
-    "G4": epf[2],
-    "C4 details": epf[0].to_dict(),
-}
+{"C4": epf[0], "E4": epf[1], "G4": epf[2]}
+
+# %%
+epf[0].to_dict()
 
 # %% [markdown]
 # ### SpecificPitchField (Spelled)
 #
 # Wraps the SP schema and returns `SpelledPitch` scalars with full
-# enharmonic identity.  The storage struct carries seven fields for
-# efficient columnar access, but most are derivable from (step, alter,
-# octave).  Below we show how fields are typically populated by loaders;
-# users construct `SpelledPitch` via `from_label()` rather than
-# filling these structs manually.
+# enharmonic identity.
 
 # %%
-sp_arr = pa.array(
-    [
-        {
-            "gpc_int": 0,
-            "gpc_str": "C",
-            "acc": 0,
-            "spc_int": 0,
-            "spc_str": "C",
-            "sp": "C4",
-            "cents": 0.0,
-        },
-        {
-            "gpc_int": 2,
-            "gpc_str": "E",
-            "acc": 0,
-            "spc_int": 4,
-            "spc_str": "E",
-            "sp": "E4",
-            "cents": 0.0,
-        },
-        {
-            "gpc_int": 4,
-            "gpc_str": "G",
-            "acc": 0,
-            "spc_int": 7,
-            "spc_str": "G",
-            "sp": "G4",
-            "cents": 0.0,
-        },
-    ],
-    type=SpecificPitchSchema.schema,
-)
-spf = SpecificPitchField.from_field(sp_arr, name="spelled_pitch")
+spf = SpecificPitchField.from_labels(["C4", "E4", "G4"])
 spf
 
 # %%
-{
-    "C4": spf[0],
-    "E4": spf[1],
-    "G4": spf[2],
-    "C4 details": spf[0].to_dict(),
-}
+{"C4": spf[0], "E4": spf[1], "G4": spf[2]}
+
+# %%
+spf[0].to_dict()
 
 # %% [markdown]
 # ## Harmony Scalars
@@ -349,18 +267,8 @@ dh = DcmlHarmony.from_label("V65", globalkey="C")
 dh
 
 # %%
-# Root and bass are stored as pitch classes (0-11).
-# V in C major has root G (pc=7), bass B (pc=11, 1st inversion).
-{
-    "label": dh.label,
-    "numeral": dh.numeral,
-    "chord_type": dh.chord_type,
-    "inversion": dh.inversion,
-    "root": dh.root,
-    "root_name": GenericPitch(pitch_class=dh.root) if dh.root is not None else None,
-    "bass": dh.bass,
-    "bass_name": GenericPitch(pitch_class=dh.bass) if dh.bass is not None else None,
-}
+# to_dict() displays root and bass as GenericPitch objects
+dh.to_dict()
 
 # %%
 # The same interface works for any DCML label
@@ -447,15 +355,7 @@ h0 = dlf[0]
 h0
 
 # %%
-# Display root and bass as pitch types rather than opaque integers
-{
-    "label": h0.label,
-    "numeral": h0.numeral,
-    "chord_type": h0.chord_type,
-    "inversion": h0.inversion,
-    "root": GenericPitch(pitch_class=h0.root) if h0.root is not None else None,
-    "bass": GenericPitch(pitch_class=h0.bass) if h0.bass is not None else None,
-}
+h0.to_dict()
 
 # %% [markdown]
 # ## DcmlLabelField and DcmlHarmony: the Shared Protocol
@@ -487,43 +387,8 @@ from_field = dlf[0]
 }
 
 # %%
-# The same fields are accessible regardless of origin.
-# Root and bass are displayed as pitch types for clarity.
-{
-    "Property": ["label", "numeral", "chord_type", "inversion", "root", "bass"],
-    "from_label()": [
-        from_label.label,
-        from_label.numeral,
-        from_label.chord_type,
-        from_label.inversion,
-        (
-            GenericPitch(pitch_class=from_label.root)
-            if from_label.root is not None
-            else None
-        ),
-        (
-            GenericPitch(pitch_class=from_label.bass)
-            if from_label.bass is not None
-            else None
-        ),
-    ],
-    "from_field[0]": [
-        from_field.label,
-        from_field.numeral,
-        from_field.chord_type,
-        from_field.inversion,
-        (
-            GenericPitch(pitch_class=from_field.root)
-            if from_field.root is not None
-            else None
-        ),
-        (
-            GenericPitch(pitch_class=from_field.bass)
-            if from_field.bass is not None
-            else None
-        ),
-    ],
-}
+# The same to_dict() output regardless of origin
+{"from_label()": from_label.to_dict(), "from_field[0]": from_field.to_dict()}
 
 # %% [markdown]
 # This protocol-based uniformity is the foundation for two further
@@ -557,10 +422,10 @@ def describe_pitch(p: PitchLike) -> dict:
     if isinstance(p, SpelledPitchClassLike):
         info["step"] = p.step
         info["alter"] = p.alter
-    if isinstance(p, SpecificPitchClassLike):
+    if isinstance(p, EnharmonicPitchLike):
         info["midi"] = p.midi_number
         info["octave"] = p.octave
-    if isinstance(p, EnharmonicPitchLike):
+    if isinstance(p, SpecificPitchLike):
         info["cents"] = p.cents
     return info
 
@@ -571,7 +436,7 @@ def describe_pitch(p: PitchLike) -> dict:
 
 # %%
 # It also works for scalars extracted from fields
-{type(f).__name__: describe_pitch(f[0]) for f in [gpf, spcf, epf, spf]}
+{type(f).__name__: describe_pitch(f[0]) for f in [epf, spf]}
 
 # %% [markdown]
 # ## Parquet Round-Trip

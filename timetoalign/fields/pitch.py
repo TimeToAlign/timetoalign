@@ -235,6 +235,30 @@ class EnharmonicPitchField(PitchField):
     def from_field(cls, source, *, name: str = "midi_pitch") -> EnharmonicPitchField:
         return _from_field_impl(cls, source, name)
 
+    @classmethod
+    def from_midi_numbers(
+        cls, midi_numbers: list[int], *, name: str = "midi_pitch"
+    ) -> EnharmonicPitchField:
+        """Construct from a list of MIDI note numbers.
+
+        Args:
+            midi_numbers: MIDI note numbers (e.g. ``[60, 64, 67]``).
+            name: Field name.
+
+        Returns:
+            An ``EnharmonicPitchField``.
+
+        Examples:
+            >>> epf = EnharmonicPitchField.from_midi_numbers([60, 64, 67])
+            >>> epf[0]
+            MidiPitch(midi=60, pc=0)
+        """
+        from timetoalign.fields.schemas import EnharmonicPitchSchema
+
+        rows = [{"ep": m, "epc": m % 12} for m in midi_numbers]
+        arr = pa.array(rows, type=EnharmonicPitchSchema.schema)
+        return cls.from_field(arr, name=name)
+
     def __repr__(self) -> str:
         length = len(self) if not self.is_empty else 0
         return (
@@ -290,6 +314,38 @@ class SpecificPitchField(PitchField):
     @classmethod
     def from_field(cls, source, *, name: str = "spelled_pitch") -> SpecificPitchField:
         return _from_field_impl(cls, source, name)
+
+    @classmethod
+    def from_labels(
+        cls, labels: list[str], *, name: str = "spelled_pitch"
+    ) -> SpecificPitchField:
+        """Construct from a list of pitch label strings.
+
+        Each label is parsed via ``SpelledPitch.from_label()`` and the
+        resulting struct dicts are assembled into a PyArrow array.
+
+        Args:
+            labels: Pitch labels with octave (e.g. ``["C4", "E4", "G4"]``).
+            name: Field name.
+
+        Returns:
+            A ``SpecificPitchField``.
+
+        Examples:
+            >>> spf = SpecificPitchField.from_labels(["C4", "E4", "G4"])
+            >>> spf[0]
+            SpelledPitch(C4)
+        """
+        from timetoalign.fields.schemas import SpecificPitchSchema
+
+        rows = [SpelledPitch.from_label(lbl).to_dict() for lbl in labels]
+        # Keep only schema-level keys for the pa.array
+        schema_keys = {f.name for f in SpecificPitchSchema.schema}
+        storage_rows = [
+            {k: v for k, v in row.items() if k in schema_keys} for row in rows
+        ]
+        arr = pa.array(storage_rows, type=SpecificPitchSchema.schema)
+        return cls.from_field(arr, name=name)
 
     def __repr__(self) -> str:
         length = len(self) if not self.is_empty else 0

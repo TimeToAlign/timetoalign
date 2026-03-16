@@ -248,6 +248,35 @@ class DcmlHarmony:
             "standard": "dcml",
         }
 
+    def to_dict(self) -> dict[str, object]:
+        """Return a summary dict of all harmony properties.
+
+        Root and bass are shown both as pitch class integers and as
+        ``GenericPitch`` objects for readability.
+
+        Returns:
+            A dict with all harmony fields.
+        """
+        from .pitch import GenericPitch
+
+        root_gpc = (
+            GenericPitch(pitch_class=self.root) if self.root is not None else None
+        )
+        bass_gpc = (
+            GenericPitch(pitch_class=self.bass) if self.bass is not None else None
+        )
+        return {
+            "label": self.label,
+            "numeral": self.numeral,
+            "chord_type": self.chord_type,
+            "inversion": self.inversion,
+            "root": root_gpc,
+            "bass": bass_gpc,
+            "globalkey": self.globalkey,
+            "localkey": self.localkey,
+            "tonicized_key": self.tonicized_key,
+        }
+
     @classmethod
     def from_label(
         cls,

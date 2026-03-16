@@ -21,8 +21,8 @@ Hierarchy Overview::
     └── PitchLike                          Pitch-bearing objects
         ├── GenericPitchLike              Pitch class only
         │   └── SpelledPitchClassLike     + spelling (step, alter, fifths)
-        ├── SpecificPitchClassLike        + octave (midi_number)
-        │   └── EnharmonicPitchLike       + spelling (step, alter, fifths, cents)
+        ├── EnharmonicPitchLike           + octave (midi_number) [EP]
+        │   └── SpecificPitchLike         + spelling (step, alter, fifths, cents) [SP]
         └── (future: MicrotonalPitchLike)
 
 The ``TwelveTETPitchMixin`` is a concrete mixin (not a Protocol) that adds
@@ -230,10 +230,12 @@ class SpelledPitchClassLike(GenericPitchLike, Protocol):
 
 
 @runtime_checkable
-class SpecificPitchClassLike(PitchLike, Protocol):
-    """Full pitch with octave (no spelling).
+class EnharmonicPitchLike(PitchLike, Protocol):
+    """Enharmonic pitch: MIDI-level representation with octave.
 
-    Canonical name: ``SpecificPitchClassLike``.
+    Called "enharmonic" because it **equates** enharmonic equivalents
+    (C\u266f4 and D\u266d4 share MIDI number 61).
+
     The ``MidiPitch`` scalar (alias ``EnharmonicPitch``) satisfies this.
     """
 
@@ -254,8 +256,11 @@ class SpecificPitchClassLike(PitchLike, Protocol):
 
 
 @runtime_checkable
-class EnharmonicPitchLike(SpecificPitchClassLike, Protocol):
-    """Full pitch with spelling (C\u266f4 vs D\u266d4).
+class SpecificPitchLike(EnharmonicPitchLike, Protocol):
+    """Specific pitch: full spelling with octave (C\u266f4 \u2260 D\u266d4).
+
+    Called "specific" because it preserves the *specific* enharmonic
+    spelling.
 
     The ``SpelledPitch`` scalar (alias ``SpecificPitch``) satisfies
     this protocol.
@@ -281,6 +286,9 @@ class EnharmonicPitchLike(SpecificPitchClassLike, Protocol):
         """Cents value."""
         ...
 
+
+# Backward-compat aliases for the old protocol names
+SpecificPitchClassLike = EnharmonicPitchLike
 
 # endregion Pitch Protocols
 

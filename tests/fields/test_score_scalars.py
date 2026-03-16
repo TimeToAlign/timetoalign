@@ -9,12 +9,12 @@ import pytest
 from timetoalign.core.enums import TimeUnit
 from timetoalign.core.protocols import (
     DcmlHarmonyLike,
+    EnharmonicPitchLike,
     HarmonyLike,
     MeasureLike,
     NoteLike,
     PitchLike,
     SemanticTypeLike,
-    SpecificPitchClassLike,
 )
 from timetoalign.core.scalars.harmony import DcmlHarmony
 from timetoalign.core.scalars.measure import Measure
@@ -47,10 +47,10 @@ class TestMidiPitch:
         p = MidiPitch(midi_number=64)
         assert isinstance(p, PitchLike)
 
-    def test_specific_pitch_class_like_conformance(self) -> None:
-        """MidiPitch satisfies SpecificPitchClassLike protocol."""
+    def test_enharmonic_pitch_like_conformance(self) -> None:
+        """MidiPitch satisfies EnharmonicPitchLike protocol."""
         p = MidiPitch(midi_number=64)
-        assert isinstance(p, SpecificPitchClassLike)
+        assert isinstance(p, EnharmonicPitchLike)
 
     def test_semantic_type_like_conformance(self) -> None:
         """MidiPitch satisfies SemanticTypeLike protocol."""
