@@ -27,8 +27,11 @@ from typing import Any
 import pyarrow as pa
 
 from ..core.scalars.pitch import (
+    _STEP_TO_GPC,
+    _STEP_TO_SEMITONE,
+    EnharmonicPitch,
     GenericPitch,
-    MidiPitch,
+    GenericPitchClass,
     SpelledPitch,
     SpelledPitchClass,
 )
@@ -292,9 +295,7 @@ class PitchField(SemanticField[StructField]):
 
     def __repr__(self) -> str:
         if self._is_blueprint:
-            return (
-                f"PitchField(blueprint={self._pitch_type}:{self._blueprint_column!r})"
-            )
+            return f"PitchField({self._pitch_type}={self._blueprint_column!r}, blueprint=True)"
         length = len(self) if not self.is_empty else 0
         return f"PitchField(name={self.name!r}, type={self._pitch_type}, len={length})"
 
@@ -421,7 +422,7 @@ def _fifths_to_step_alter(fifths: int) -> tuple[str, int]:
 def _scalar_from_legacy_schema(row: dict[str, Any], pitch_type: str) -> Any:
     """Convert a legacy schema row (ep/epc, gpc_int/..., pitch_class) to scalar."""
     if pitch_type == "ep" and "ep" in row:
-        return MidiPitch.from_row(row)
+        return EnharmonicPitch.from_row(row)
     if pitch_type == "epc" and "pitch_class" in row:
         return GenericPitch.from_row(row)
     if pitch_type == "sp" and "sp" in row:
@@ -430,7 +431,7 @@ def _scalar_from_legacy_schema(row: dict[str, Any], pitch_type: str) -> Any:
         return SpelledPitchClass.from_row(row)
     # Fallback: try each scalar's from_row
     if "ep" in row:
-        return MidiPitch.from_row(row)
+        return EnharmonicPitch.from_row(row)
     if "pitch_class" in row:
         return GenericPitch.from_row(row)
     if "sp" in row:
@@ -447,7 +448,7 @@ def _scalar_from_pitch_space(row: dict[str, Any], pitch_type: str) -> Any:
 
     if pitch_type == "ep":
         midi = value if value is not None else 0
-        return MidiPitch.from_row({"ep": midi, "epc": midi % 12})
+        return EnharmonicPitch.from_row({"ep": midi, "epc": midi % 12})
     if pitch_type == "epc":
         pc = value if value is not None else 0
         return GenericPitch.from_row({"pitch_class": pc})
@@ -466,7 +467,7 @@ def _scalar_from_pitch_space(row: dict[str, Any], pitch_type: str) -> Any:
         return GenericPitch.from_row({"pitch_class": step + oct_ * 7})
     if pitch_type == "gpc":
         step = value if value is not None else 0
-        return GenericPitch.from_row({"pitch_class": step})
+        return GenericPitchClass.from_row({"pitch_class": step})
 
     raise ValueError(f"Unknown pitch type: {pitch_type!r}")
 
@@ -634,21 +635,20 @@ def _convert_single(
 
     # Cross-space: fifths -> semitones
     if src_meta["space"] == "fifths" and tgt_meta["space"] == "semitones":
-        semitones = (value * 7) % 12
+        step_name, alter = _fifths_to_step_alter(value)
+        semitones = (_STEP_TO_SEMITONE[step_name] + alter) % 12
         if tgt_meta["level"] == "specific" and octave is not None:
-            # Reconstruct MIDI number from fifths + octave
-            step = ((value + 1) * 4) % 7  # fifths to diatonic step
-            alter = (value + 1) // 7  # approximate alteration
-            midi = (octave + 1) * 12 + [0, 2, 4, 5, 7, 9, 11][step] + alter
+            midi = (octave + 1) * 12 + _STEP_TO_SEMITONE[step_name] + alter
             return {"value": midi, "octave": midi // 12 - 1}
         return {"value": semitones, "octave": None}
 
     # Cross-space: fifths -> steps
     if src_meta["space"] == "fifths" and tgt_meta["space"] == "steps":
-        step = ((value + 1) * 4) % 7  # fifths position to diatonic step
+        step_name, _alter = _fifths_to_step_alter(value)
+        diatonic_step = _STEP_TO_GPC[step_name]
         if tgt_meta["level"] == "specific" and octave is not None:
-            return {"value": step, "octave": octave}
-        return {"value": step, "octave": None}
+            return {"value": diatonic_step, "octave": octave}
+        return {"value": diatonic_step, "octave": None}
 
     # Cross-space: semitones -> steps (lossy)
     if src_meta["space"] == "semitones" and tgt_meta["space"] == "steps":

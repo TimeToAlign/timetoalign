@@ -387,9 +387,6 @@ class TSVLoader(ScoreLoader):
             tpc_val = int(row["tpc"]) if pd.notna(row.get("tpc")) else None
 
             # Attributes
-            velocity = (
-                int(row.get("velocity", 64)) if pd.notna(row.get("velocity")) else 64
-            )
             tied = int(row["tied"]) if pd.notna(row.get("tied")) else 0
             gracenote = (
                 str(row["gracenote"]) if pd.notna(row.get("gracenote")) else None
@@ -448,7 +445,6 @@ class TSVLoader(ScoreLoader):
                     "tpc": tpc_val,
                     "octave": octave_val,
                     # Attributes
-                    "velocity": velocity,
                     "tied": tied,
                     "gracenote": gracenote,
                     "chord_id": chord_id,

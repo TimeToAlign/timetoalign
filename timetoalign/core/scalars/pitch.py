@@ -35,8 +35,24 @@ _STEP_TO_SEMITONE: dict[str, int] = {
     "B": 11,
 }
 
-# Pitch-class to step name (for reverse mapping)
+# Pitch-class to step name (for reverse mapping — natural notes only)
 _PC_TO_STEP: dict[int, str] = {v: k for k, v in _STEP_TO_SEMITONE.items()}
+
+# All 12 chromatic pitch class labels (for EPC display)
+_PC_TO_LABEL: tuple[str, ...] = (
+    "C",
+    "C\u266f/D\u266d",
+    "D",
+    "D\u266f/E\u266d",
+    "E",
+    "F",
+    "F\u266f/G\u266d",
+    "G",
+    "G\u266f/A\u266d",
+    "A",
+    "A\u266f/B\u266d",
+    "B",
+)
 
 # Step-name to diatonic index (C=0, D=1, E=2, F=3, G=4, A=5, B=6)
 _STEP_TO_GPC: dict[str, int] = {
@@ -216,13 +232,90 @@ class GenericPitch(TwelveTETPitchMixin):
         return hash(self.pitch_class)
 
     def __repr__(self) -> str:
-        step = _PC_TO_STEP.get(self.pitch_class)
-        if step is not None:
-            return f"GPC({step})"
-        return f"GPC({self.pitch_class})"
+        if 0 <= self.pitch_class < 12:
+            return f"EPC({_PC_TO_LABEL[self.pitch_class]})"
+        return f"EPC({self.pitch_class})"
 
 
 # endregion GenericPitch
+
+# region GenericPitchClass
+
+_GPC_NAMES: tuple[str, ...] = ("C", "D", "E", "F", "G", "A", "B")
+
+
+@dataclass(frozen=True, slots=True)
+class GenericPitchClass(TwelveTETPitchMixin):
+    """Generic pitch class scalar -- diatonic step (0-6).
+
+    Represents a pitch class in diatonic (steps) space: C=0, D=1, ..., B=6.
+    Unlike ``GenericPitch`` (which is EPC, 0-11 chromatic), this is a 7-class
+    diatonic pitch class.
+
+    Attributes:
+        step: Diatonic step (0-6, C=0).
+    """
+
+    step: int
+
+    @property
+    def pitch_class(self) -> int:  # type: ignore[override]
+        """The diatonic step (0-6)."""
+        return self.step
+
+    @property
+    def semantic_type(self) -> str:
+        return "GenericPitchClass"
+
+    def metadata_dict(self) -> dict[str, str]:
+        return {
+            "field_type": "PitchField",
+            "pitch_type": "gpc",
+        }
+
+    def to(
+        self, target_type: type, *, format: str | None = None
+    ) -> "GenericPitchClass":
+        if target_type is GenericPitchClass or target_type is type(self):
+            return self
+        raise TypeError(
+            f"Cannot convert GenericPitchClass to {target_type.__name__} "
+            f"(spelling or octave information required)"
+        )
+
+    def get(self, *, format: str | None = None) -> str:
+        if 0 <= self.step < 7:
+            return _GPC_NAMES[self.step]
+        return str(self.step)
+
+    def to_dict(self) -> dict[str, object]:
+        return {"pitch_class": self.step}
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> GenericPitchClass | None:
+        """Construct from a PyArrow struct row dict ({pitch_class})."""
+        pc = row.get("pitch_class")
+        if pc is None:
+            return None
+        return cls(step=int(pc))
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, int):
+            return self.step == other
+        if isinstance(other, GenericPitchClass):
+            return self.step == other.step
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.step)
+
+    def __repr__(self) -> str:
+        if 0 <= self.step < 7:
+            return f"GPC({_GPC_NAMES[self.step]})"
+        return f"GPC({self.step})"
+
+
+# endregion GenericPitchClass
 
 # region SpelledPitchClass
 
@@ -484,10 +577,98 @@ class MidiPitch(TwelveTETPitchMixin):
         return f"MidiPitch(midi={self.midi_number}, pc={self.pitch_class})"
 
 
-# Alias: "enharmonic" because it equates enharmonic equivalents
-EnharmonicPitch = MidiPitch
-
 # endregion MidiPitch
+
+# region EnharmonicPitch
+
+# Note name labels for enharmonic display (pick the sharp spelling for black keys)
+_EP_LABELS: tuple[str, ...] = (
+    "C",
+    "C\u266f",
+    "D",
+    "E\u266d",
+    "E",
+    "F",
+    "F\u266f",
+    "G",
+    "A\u266d",
+    "A",
+    "B\u266d",
+    "B",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class EnharmonicPitch(TwelveTETPitchMixin):
+    """Enharmonic pitch scalar -- MIDI number with pitch-name display.
+
+    Unlike ``MidiPitch`` (reserved for the future ``MidiField``), this scalar
+    represents a pitch in semitone space and displays as a note name + octave
+    (e.g. ``EnharmonicPitch(C4)``).  Enharmonic equivalents are equal.
+
+    Attributes:
+        midi_number: MIDI note number (0-127).
+        pitch_class: Pitch class (0-11, C=0), auto-derived.
+    """
+
+    midi_number: int
+    pitch_class: int = field(init=False)  # type: ignore[override]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "pitch_class", self.midi_number % 12)
+
+    @property
+    def octave(self) -> int:
+        """Octave number (C4 = 60 -> octave 4)."""
+        return (self.midi_number // 12) - 1
+
+    @property
+    def semantic_type(self) -> str:
+        return "EnharmonicPitch"
+
+    def metadata_dict(self) -> dict[str, str]:
+        return {
+            "field_type": "EnharmonicPitchField",
+            "pitch_type": "enharmonic",
+        }
+
+    def to(
+        self, target_type: type, *, format: str | None = None
+    ) -> "TwelveTETPitchMixin":
+        if target_type is EnharmonicPitch or target_type is type(self):
+            return self
+        if target_type is GenericPitch:
+            return GenericPitch(pitch_class=self.pitch_class)
+        raise TypeError(
+            f"Cannot convert EnharmonicPitch to {target_type.__name__} "
+            f"(spelling information required for specific pitch types)"
+        )
+
+    def get(self, *, format: str | None = None) -> str:
+        if format == "midi":
+            return str(self.midi_number)
+        return f"{_EP_LABELS[self.pitch_class]}{self.octave}"
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "ep": self.midi_number,
+            "epc": self.pitch_class,
+            "octave": self.octave,
+        }
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> EnharmonicPitch | None:
+        """Construct from a PyArrow struct row dict ({ep, epc})."""
+        ep = row.get("ep")
+        if ep is None:
+            return None
+        return cls(midi_number=int(ep))
+
+    def __repr__(self) -> str:
+        return f"EnharmonicPitch({_EP_LABELS[self.pitch_class]}{self.octave})"
+
+
+# endregion EnharmonicPitch
 
 # region SpelledPitch
 

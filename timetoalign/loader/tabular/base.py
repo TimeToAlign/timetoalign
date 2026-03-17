@@ -140,6 +140,14 @@ class TabularLoader(Loader):
     #   - Dict mapping column names to types: {"midi": int, "velocity": float}
     extra_columns: ClassVar[list | bool | dict] = []
 
+    # Field specs: typed column specifications for the loader-first pipeline.
+    # Each entry can be:
+    #   1. ("name", pa_type) — raw column with explicit PyArrow type
+    #   2. ("name", DataFieldClass) — raw column wrapped in a DataField subclass
+    #   3. DataField(source="col", ...) — semantic field spec with source mapping
+    # field_specs coexists with extra_columns during migration.
+    field_specs: ClassVar[list] = []
+
     # Coordinate configuration
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
     coordinate_type: ClassVar[NumberType] = NumberType.float
@@ -168,6 +176,55 @@ class TabularLoader(Loader):
         # Extra fields for coordinate columns from CoordinateField definitions
         # These are built during _extract_column_arrays and passed to from_arrays
         self._extra_schema_fields: list[pa.Field] = []
+        # Store the original pa.Table for the loader-first pipeline.
+        # This is the faithful representation of the source file, before
+        # any field extraction or type coercion.
+        self._raw_table: pa.Table | None = None
+
+    # region Properties
+
+    @property
+    def table(self) -> pa.Table | None:
+        """The original source data as a faithful PyArrow table.
+
+        This is the raw tabular data from the source file, before any
+        field extraction, coordinate parsing, or type coercion. Returns
+        ``None`` if no source has been loaded yet.
+
+        Returns:
+            The original ``pa.Table``, or ``None``.
+        """
+        return self._raw_table
+
+    # endregion
+
+    # region Arrow Conversion
+
+    @staticmethod
+    def _dataframe_to_arrow(df: pd.DataFrame) -> pa.Table:
+        """Convert a DataFrame to a PyArrow Table safely.
+
+        Handles columns containing types that PyArrow cannot natively
+        serialize (e.g., ``Fraction`` objects from ms3) by converting
+        them to string representation.
+
+        Args:
+            df: The pandas DataFrame to convert.
+
+        Returns:
+            A ``pa.Table`` faithfully representing the source data.
+        """
+        try:
+            return pa.Table.from_pandas(df, preserve_index=False)
+        except (pa.lib.ArrowTypeError, pa.lib.ArrowInvalid):
+            # Fallback: convert problematic object columns to strings
+            df_safe = df.copy()
+            for col in df_safe.columns:
+                if df_safe[col].dtype == object:
+                    df_safe[col] = df_safe[col].astype(str)
+            return pa.Table.from_pandas(df_safe, preserve_index=False)
+
+    # endregion
 
     # region Vectorized Loading
 
@@ -204,11 +261,19 @@ class TabularLoader(Loader):
         # Step 1: Single file read (vectorized I/O)
         df = self._read_dataframe(source)
 
+        # Store the faithful original table (before any field extraction).
+        # Use a safe conversion that handles non-PyArrow-native types
+        # (e.g., Fraction objects from ms3) by converting to strings.
+        self._raw_table = self._dataframe_to_arrow(df)
+
         # Step 2: Validate required columns exist
         self._validate_columns(df, source)
 
         # Step 3: Extract column arrays (vectorized)
         columns = self._extract_column_arrays(df)
+
+        # Step 3b: Post-process columns (subclass hook)
+        self._post_process_columns(df, columns)
 
         # Step 4: Build metadata
         metadata = {
@@ -495,6 +560,18 @@ class TabularLoader(Loader):
                     columns[schema_field] = arr
 
         return columns
+
+    def _post_process_columns(self, df: pd.DataFrame, columns: dict[str, Any]) -> None:
+        """Post-process extracted columns before table construction.
+
+        Subclass hook called after ``_extract_column_arrays()``.  Override
+        to create semantic fields (e.g., pitch) from raw columns.
+
+        Args:
+            df: The original DataFrame (for accessing columns not in extras).
+            columns: The mutable column dict that will be passed to
+                ``EventData.from_arrays()``.
+        """
 
     def _resolve_column_reference(
         self,

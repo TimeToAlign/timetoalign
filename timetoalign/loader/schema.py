@@ -113,19 +113,28 @@ def struct_to_fraction(struct: dict[str, int]) -> Fraction:
     return Fraction(struct["num"], struct["den"])
 
 
-def make_coordinate_field(name: str, unit: TimeUnit, nullable: bool = True) -> pa.Field:
-    """Create a coordinate field with unit in metadata.
+def make_coordinate_field(
+    name: str,
+    unit: TimeUnit,
+    nullable: bool = True,
+    number_type: NumberType | None = None,
+) -> pa.Field:
+    """Create a coordinate field with unit and number_type in metadata.
 
     Args:
         name: The field name.
         unit: The time unit to store in metadata.
         nullable: Whether the field is nullable.
+        number_type: The number type to store in metadata.
 
     Returns:
-        A PyArrow field with struct type and unit metadata.
+        A PyArrow field with struct type and unit/number_type metadata.
     """
     coord_type = make_coordinate_type(unit)
-    return pa.field(name, coord_type, nullable=nullable, metadata={"unit": str(unit)})
+    meta: dict[str, str] = {"unit": str(unit)}
+    if number_type is not None:
+        meta["number_type"] = number_type.name
+    return pa.field(name, coord_type, nullable=nullable, metadata=meta)
 
 
 def is_coordinate_type(dtype: pa.DataType) -> bool:
@@ -221,7 +230,9 @@ TEMPORAL_TYPE_INSTANT = "instant"
 TEMPORAL_TYPE_INTERVAL = "interval"
 
 
-def make_base_schema(unit: TimeUnit) -> pa.Schema:
+def make_base_schema(
+    unit: TimeUnit, number_type: NumberType | None = None
+) -> pa.Schema:
     """Create the base event schema with coordinate columns.
 
     The base schema includes columns that are always present:
@@ -236,6 +247,7 @@ def make_base_schema(unit: TimeUnit) -> pa.Schema:
 
     Args:
         unit: The time unit for coordinate columns.
+        number_type: The number type for coordinate columns.
 
     Returns:
         A PyArrow schema with base event columns.
@@ -246,9 +258,13 @@ def make_base_schema(unit: TimeUnit) -> pa.Schema:
             pa.field("name", pa.string(), nullable=True),
             pa.field("temporal_type", pa.string(), nullable=False),
             pa.field("event_type", pa.string(), nullable=False),
-            make_coordinate_field("start", unit, nullable=True),
-            make_coordinate_field("end", unit, nullable=True),
-            make_coordinate_field("duration", unit, nullable=True),
+            make_coordinate_field(
+                "start", unit, nullable=True, number_type=number_type
+            ),
+            make_coordinate_field("end", unit, nullable=True, number_type=number_type),
+            make_coordinate_field(
+                "duration", unit, nullable=True, number_type=number_type
+            ),
         ]
     )
 

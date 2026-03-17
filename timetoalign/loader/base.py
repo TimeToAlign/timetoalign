@@ -83,6 +83,11 @@ class Loader(ABC):
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
     _event_data_class: ClassVar[type[EventData]] = EventData
 
+    # Canonical ordering for RawField columns in assembled events tables.
+    # Columns matching these names appear first (in this order), followed by
+    # non-canonical RawFields (in field_specs order), then property columns.
+    _CANONICAL_FIELD_ORDER: ClassVar[list[str]] = ["start", "end", "duration", "pitch"]
+
     def __init__(
         self,
         unit: TimeUnit | None = None,
@@ -286,6 +291,98 @@ class Loader(ABC):
             KeyError: If the key is not found in the store.
         """
         return self.store[key]
+
+    # endregion
+
+    # region Events Assembly
+
+    def get_events(self, properties: bool | tuple[str, ...] = True) -> EventData:
+        """Return an EventData assembled from loaded data.
+
+        This is the primary access method for the loader-first pipeline.
+        It assembles EventData from the loaded data, with control over
+        which property columns are included.
+
+        Args:
+            properties: Controls which non-field columns to include.
+                - ``True``: Include all property columns (default).
+                - ``False``: Only include field columns (start, end,
+                  duration, pitch, etc.) and core columns (id, name,
+                  event_type, temporal_type).
+                - Tuple of strings: Include only the named property columns.
+
+        Returns:
+            An ``EventData`` containing the assembled events.
+        """
+        return self._assemble_events_table(properties)
+
+    def _assemble_events_table(
+        self, properties: bool | tuple[str, ...] = True
+    ) -> EventData:
+        """Assemble an EventData from internal state, with column ordering.
+
+        Column ordering follows the canonical field order:
+        1. Core columns (id, name, event_type, temporal_type)
+        2. Canonical fields (start, end, duration, pitch -- in order, if present)
+        3. Non-canonical fields (in field_specs order)
+        4. Property columns (controlled by the *properties* parameter)
+
+        The default implementation returns ``self._events`` unmodified
+        when ``properties=True``.  Subclasses with ``field_specs`` can
+        override to produce filtered/reordered tables.
+
+        Args:
+            properties: Column filter (see ``get_events``).
+
+        Returns:
+            An ``EventData`` with the requested columns.
+        """
+        if properties is True:
+            return self._events
+
+        # Determine which columns to keep
+        events = self._events
+        if len(events) == 0:
+            return events
+
+        table = events._table
+        all_cols = set(table.column_names)
+
+        # Core columns always included
+        core_cols = {"id", "name", "event_type", "temporal_type"}
+
+        # Canonical field columns always included (when present)
+        field_cols = set()
+        for name in self._CANONICAL_FIELD_ORDER:
+            if name in all_cols:
+                field_cols.add(name)
+
+        # Also include any columns with timetoalign metadata (semantic fields)
+        for i in range(len(table.schema)):
+            pa_field = table.schema.field(i)
+            if pa_field.metadata and b"timetoalign" in pa_field.metadata:
+                field_cols.add(pa_field.name)
+
+        keep = core_cols | field_cols
+
+        if properties is False:
+            # Only fields + core
+            pass
+        elif isinstance(properties, tuple):
+            # Add requested property columns
+            for name in properties:
+                if name in all_cols:
+                    keep.add(name)
+
+        # Build ordered column list preserving table order
+        ordered = [c for c in table.column_names if c in keep]
+        if set(ordered) == all_cols:
+            return events
+
+        filtered_table = table.select(ordered)
+        return EventData(filtered_table, events.unit, events.number_type)
+
+    # endregion
 
     # region Loading
 

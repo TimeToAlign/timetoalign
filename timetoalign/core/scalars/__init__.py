@@ -41,6 +41,7 @@ from .note import Note
 from .pitch import (
     EnharmonicPitch,
     GenericPitch,
+    GenericPitchClass,
     MidiPitch,
     SpecificPitch,
     SpelledPitch,
@@ -50,6 +51,7 @@ from .pitch import (
 __all__ = [
     # Pitch hierarchy
     "GenericPitch",
+    "GenericPitchClass",
     "SpelledPitchClass",
     "MidiPitch",
     "SpecificPitch",

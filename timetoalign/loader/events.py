@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator
+from fractions import Fraction
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
@@ -116,7 +117,9 @@ class EventData(SemanticFieldAccessMixin):
         return self._table.schema
 
     @classmethod
-    def get_schema(cls, unit: TimeUnit) -> pa.Schema:
+    def get_schema(
+        cls, unit: TimeUnit, number_type: NumberType | None = None
+    ) -> pa.Schema:
         """Get the canonical PyArrow schema for this EventData class.
 
         This is a class-level method that returns the schema for a given unit,
@@ -125,11 +128,12 @@ class EventData(SemanticFieldAccessMixin):
 
         Args:
             unit: The time unit for coordinate columns.
+            number_type: The number type for coordinate columns.
 
         Returns:
             The complete schema including base and extra fields.
         """
-        base = make_base_schema(unit)
+        base = make_base_schema(unit, number_type=number_type)
         if cls._extra_fields:
             return extend_schema(base, cls._extra_fields)
         return base
@@ -585,7 +589,7 @@ class EventData(SemanticFieldAccessMixin):
         Returns:
             An empty EventData with the appropriate schema.
         """
-        schema = cls.get_schema(unit)
+        schema = cls.get_schema(unit, number_type=number_type)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
         table = pa.table({name: [] for name in cls.column_names()}, schema=schema)
@@ -671,7 +675,7 @@ class EventData(SemanticFieldAccessMixin):
                 processed["name"] = None
             processed_rows.append(processed)
 
-        schema = cls.get_schema(unit)
+        schema = cls.get_schema(unit, number_type=number_type)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
 
@@ -783,7 +787,7 @@ class EventData(SemanticFieldAccessMixin):
 
         # Build processed columns dict for PyArrow table
         processed: dict[str, Any] = {}
-        schema = cls.get_schema(unit)
+        schema = cls.get_schema(unit, number_type=number_type)
 
         for field in schema:
             col_name = field.name
@@ -1024,7 +1028,7 @@ class EventData(SemanticFieldAccessMixin):
             else:
                 processed[col_name] = [None] * n_rows
 
-        schema = cls.get_schema(unit)
+        schema = cls.get_schema(unit, number_type=number_type)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
 
@@ -1299,14 +1303,17 @@ class EventData(SemanticFieldAccessMixin):
         result = self._table.group_by(column).aggregate([(column, "count")])
         return {row[column]: row[f"{column}_count"] for row in result.to_pylist()}
 
-    def coordinate_range(self) -> tuple[float, float] | None:
+    def coordinate_range(self) -> tuple[float | Fraction, float | Fraction] | None:
         """Get the min and max coordinates across all events.
 
         Returns:
             Tuple of (min, max) coordinates, or None if store is empty.
+            Returns Fraction values when number_type is fraction.
         """
         if self.count == 0:
             return None
+
+        use_fraction = self._number_type == NumberType.fraction
 
         # Get min/max iteratively to avoid PyArrow chunked_array type issues
         min_val = None
@@ -1335,6 +1342,12 @@ class EventData(SemanticFieldAccessMixin):
 
         if min_val is None:
             return None
+
+        if use_fraction:
+            return (
+                Fraction(min_val).limit_denominator(10000),
+                Fraction(max_val).limit_denominator(10000),
+            )
 
         return (min_val, max_val)
 

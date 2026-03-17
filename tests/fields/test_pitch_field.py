@@ -10,6 +10,7 @@ import pytest
 
 from timetoalign.core.protocols import PitchLike, SemanticTypeLike
 from timetoalign.core.scalars.pitch import (
+    EnharmonicPitch,
     GenericPitch,
     MidiPitch,
     SpelledPitch,
@@ -399,12 +400,12 @@ class TestSpelledPitchClassFieldConstruction:
 class TestEnharmonicPitchFieldElementAccess:
     """Tests for EnharmonicPitchField.__getitem__."""
 
-    def test_getitem_returns_midi_pitch(self) -> None:
-        """Verify returns MidiPitch instance with correct values."""
+    def test_getitem_returns_enharmonic_pitch(self) -> None:
+        """Verify returns EnharmonicPitch instance with correct values."""
         arr = _make_midi_pitch_array([{"ep": 59, "epc": 11}])
         pf = EnharmonicPitchField.from_field(arr)
         pitch = pf[0]
-        assert isinstance(pitch, MidiPitch)
+        assert isinstance(pitch, EnharmonicPitch)
         assert pitch.midi_number == 59
         assert pitch.pitch_class == 11
 

@@ -16,9 +16,17 @@
 # %% [markdown]
 # # How-To: Layered EventData Access
 #
-# EventData provides three layers of data access.  Layer 0 (raw table)
-# always works on any EventData instance -- no special setup needed.
-# Layers 1 and 2 add typed field views and external library integration.
+# Time To Align! loaders follow a two-phase pattern:
+#
+# 1. **Load** -- `loader.load(file)` reads the source into a faithful table.
+# 2. **Access** -- `loader.get_events()` assembles an EventData with control
+#    over which columns are included.
+#
+# EventData then provides three layers of data access:
+#
+# - **Layer 0** -- Raw table (`events.table`, `events.get_raw("col")`)
+# - **Layer 1** -- Semantic fields (`events.get_field("start")`, blueprints)
+# - **Layer 2** -- External library integration (FlexOHR, pitchtypes)
 #
 # **Key principle:** EventData is never mutated.  `get_field()` returns
 # a cached view over existing columns -- the EventData itself is
@@ -45,12 +53,43 @@ NOTES_TSV = (
 )
 
 # %% [markdown]
-# ## Loading
+# ## Phase 1: Loading
+#
+# `TSVLoader.from_file()` reads a DCML-style notes TSV and builds
+# an internal table.  After loading, the loader holds the data ready
+# for assembly into EventData.
 
 # %%
 loader = TSVLoader.from_file(NOTES_TSV)
-events = loader.events
+loader
+
+# %% [markdown]
+# ## Phase 2: get_events() -- Controlling Columns
+#
+# `get_events()` assembles an EventData from the loaded data.
+# The `properties` parameter controls which non-field columns appear:
+#
+# - `True` (default): all columns
+# - `False`: only field columns (start, end, duration) + core (id, name, event_type, temporal_type)
+# - tuple of names: selected property columns
+
+# %%
+# All properties (default)
+events = loader.get_events()
 events
+
+# %%
+events.table.column_names
+
+# %%
+# Fields only -- no property columns like mc, mn, staff, voice
+events_fields = loader.get_events(properties=False)
+events_fields.table.column_names
+
+# %%
+# Selected properties
+events_selected = loader.get_events(properties=("mc", "mn"))
+events_selected.table.column_names
 
 # %% [markdown]
 # ## Layer 0 -- Raw Table Access
@@ -78,7 +117,7 @@ raw_start
 raw_start[0]
 
 # %% [markdown]
-# ## Default Fields -- start, end, duration
+# ## Layer 1 -- Default Fields (start, end, duration)
 #
 # Every EventData has three core temporal columns: `start`, `end`,
 # and `duration`.  `get_field()` with a column name returns the
@@ -112,12 +151,6 @@ dur[0]
 start.get_raw()
 
 # %% [markdown]
-# Convenience methods are also available:
-
-# %%
-events.get_start_field()[0], events.get_end_field()[0], events.get_duration_field()[0]
-
-# %% [markdown]
 # ## Layer 1 -- PitchField (Standalone)
 #
 # The unified `PitchField` handles all pitch types via a single
@@ -127,10 +160,16 @@ events.get_start_field()[0], events.get_end_field()[0], events.get_duration_fiel
 
 # %%
 pf = PitchField.from_raw(ep=[60, 64, 67])
+pf
+
+# %%
 pf[0], pf[1], pf[2]
 
 # %%
 pf_sp = PitchField.from_labels(["C4", "E4", "G4"])
+pf_sp
+
+# %%
 pf_sp[0], pf_sp[1], pf_sp[2]
 
 # %% [markdown]
@@ -141,15 +180,19 @@ pf_sp[0], pf_sp[1], pf_sp[2]
 # the column, constructs the live field, and caches it.
 
 # %%
-pitch = PitchField(ep="midi_pitch")
-pitch  # blueprint -- no data yet
+pitch_blueprint = PitchField(ep="midi_pitch")
+pitch_blueprint  # blueprint -- no data yet
 
 # %%
-pf_live = events.get_field(pitch)
+pf_live = events.get_field(pitch_blueprint)
 pf_live
 
+# %% [markdown]
+# The original values are EnharmonicPitch scalars, combining MIDI pitch
+# with enharmonic spelling:
+
 # %%
-pf_live[0]
+pf_live[0], pf_live[1], pf_live[2]
 
 # %% [markdown]
 # Repeated calls return the **same** cached object:
@@ -164,9 +207,15 @@ events.get_field(PitchField(ep="midi_pitch")) is pf_live
 # conversions are permitted (specific -> class, richer space ->
 # coarser space).
 
+# %% [markdown]
+# **EPC** (enharmonic pitch class) gives the chromatic pitch class (0--11):
+
 # %%
 epc = pf_live.to("epc")
 epc[0], epc[1], epc[2]
+
+# %% [markdown]
+# **GPC** (generic pitch class) gives the diatonic step name (C--B, 0--6):
 
 # %%
 gpc = pf_live.to("gpc")
@@ -179,7 +228,9 @@ gpc[0], gpc[1], gpc[2]
 # to external libraries (FlexOHR, pitchtypes).  Extract a column from
 # the table and pass it to the library's constructors.
 #
-# **Key takeaway.**  Three layers form a progressive-disclosure stack:
-# Layer 0 always works, Layer 1 adds semantic fields via `get_field()`
-# and the unified PitchField, Layer 2 lets external packages operate
-# on the same data.  EventData is never mutated.
+# **Key takeaway.**  The loader-first pipeline gives you:
+#
+# 1. `loader.get_events()` -- an EventData with column control
+# 2. Three layers of access: raw table, semantic fields, external libs
+#
+# EventData is never mutated.  Fields are cached views.

@@ -39,7 +39,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from timetoalign.core.scalars.pitch import MidiPitch
+from timetoalign.core.scalars.pitch import EnharmonicPitch
 from timetoalign.fields.harmony import DcmlLabelField
 from timetoalign.fields.pitch import EnharmonicPitchField
 from timetoalign.fields.schemas import DcmlStorageSchema
@@ -115,14 +115,14 @@ class TestChopinPitchFieldFromTSV:
         assert len(pf) >= 498
 
     def test_pitch_field_first_element(self, chopin_store) -> None:
-        """PitchField[0] returns MidiPitch(59, 11) for the first row."""
+        """PitchField[0] returns EnharmonicPitch(B3) for the first row."""
         notes_table = chopin_store.notes._table
         midi_pitch_col = notes_table.column("midi_pitch")
         midi_pitch_field = notes_table.schema.field("midi_pitch")
         pf = EnharmonicPitchField.from_field((midi_pitch_col, midi_pitch_field))
         first = pf[0]
         assert first is not None
-        assert isinstance(first, MidiPitch)
+        assert isinstance(first, EnharmonicPitch)
         assert first.midi_number == 59
         assert first.pitch_class == 11
 

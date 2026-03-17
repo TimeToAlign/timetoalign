@@ -55,10 +55,7 @@ class NoteEventData(EventData, PitchAccessMixin):
         pa.field(
             "octave", pa.int64(), nullable=True, metadata={"number_type": "int64"}
         ),
-        # Performance
-        pa.field(
-            "velocity", pa.int64(), nullable=True, metadata={"number_type": "int64"}
-        ),
+        # Attributes
         pa.field("tied", pa.int64(), nullable=True),  # -1=end, 0=none, 1=start
         pa.field("gracenote", pa.string(), nullable=True),
         pa.field("chord_id", pa.int64(), nullable=True),
