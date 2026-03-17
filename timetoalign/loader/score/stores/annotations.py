@@ -32,8 +32,6 @@ class AnnotationEventData(EventData, HarmonyAccessMixin):
     """
 
     _extra_fields: ClassVar[list[pa.Field]] = [
-        # Temporal - Derived/Float
-        pa.field("duration_float", pa.float64(), nullable=True),
         # Measure context
         pa.field("mc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("mn", pa.string(), nullable=True),
@@ -96,11 +94,9 @@ class AnnotationEventData(EventData, HarmonyAccessMixin):
                 processed["start"] = processed.pop("quarterbeats")
             if "duration_qb" in processed:
                 processed["duration"] = processed.pop("duration_qb")
-            if "duration_qb_float" in processed:
-                processed["duration_float"] = processed.pop("duration_qb_float")
-
             # Remove unused
             processed.pop("quarterbeats_float", None)
+            processed.pop("duration_qb_float", None)
 
             # Unified interval normalisation: converts coordinate fields
             # to struct format, fills missing end/duration, and infers

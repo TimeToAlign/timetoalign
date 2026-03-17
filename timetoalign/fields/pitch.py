@@ -1,24 +1,28 @@
-"""Pitch field hierarchy -- semantic columnar wrappers for pitch data.
+"""Pitch field hierarchy -- unified semantic columnar wrappers for pitch data.
 
-``PitchField(SemanticField[StructField])`` is the abstract parent for all
-pitch field types.  Concrete subclasses follow the ms3/DCML naming:
+``PitchField(SemanticField[StructField])`` is the unified pitch field that
+replaces the four separate concrete classes.  It wraps a ``StructField``
+backed by ``PitchSpaceSchema`` (``struct<value: int64, octave: int64>``)
+and uses metadata to determine the pitch type.
 
-- ``GenericPitchField`` -- GP: pitch class only ``{pitch_class: int64}``
-- ``SpelledPitchClassField`` -- SPC: spelled pitch class ``{gpc_str, acc, spc_int}``
-- ``EnharmonicPitchField`` (alias ``MidiPitchField``) -- EP: MIDI ``{ep, epc}``
-  Called "enharmonic" because it equates enharmonic equivalents (C♯ = D♭).
-- ``SpecificPitchField`` (alias ``SpelledPitchField``) -- SP: full spelling
-  ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``
-  Called "specific" because it preserves the specific spelling.
+Supported pitch types (via keyword arguments):
 
-All struct type constants are defined in ``fields.schemas`` -- the single
-source of truth for schema definitions.
+- ``sp``  -- Specific Pitch (fifths space, specific level)
+- ``spc`` -- Spelled Pitch Class (fifths space, class level)
+- ``ep``  -- Enharmonic Pitch (semitones space, specific level)
+- ``epc`` -- Enharmonic Pitch Class (semitones space, class level)
+- ``gp``  -- Generic Pitch (steps space, specific level)
+- ``gpc`` -- Generic Pitch Class (steps space, class level)
+
+Old class names (``GenericPitchField``, ``SpelledPitchClassField``,
+``EnharmonicPitchField``, ``SpecificPitchField``) are kept as deprecated
+aliases for backward compatibility.
 """
 
 from __future__ import annotations
 
 import json
-from abc import abstractmethod
+from typing import Any
 
 import pyarrow as pa
 
@@ -29,71 +33,255 @@ from ..core.scalars.pitch import (
     SpelledPitchClass,
 )
 from .base import SemanticField, StructField
+from .schemas import PitchSpaceSchema
 
 _TIMETOALIGN_KEY = b"timetoalign"
 
+# Mapping from type keyword to (space, level) metadata
+_TYPE_METADATA: dict[str, dict[str, str]] = {
+    "sp": {"space": "fifths", "level": "specific"},
+    "spc": {"space": "fifths", "level": "class"},
+    "ep": {"space": "semitones", "level": "specific"},
+    "epc": {"space": "semitones", "level": "class"},
+    "gp": {"space": "steps", "level": "specific"},
+    "gpc": {"space": "steps", "level": "class"},
+}
+
+# All valid pitch type keywords
+_PITCH_TYPES = frozenset(_TYPE_METADATA.keys())
+
 
 # ---------------------------------------------------------------------------
-# PitchField (abstract parent)
+# PitchField (unified)
 # ---------------------------------------------------------------------------
 
 
 class PitchField(SemanticField[StructField]):
-    """Abstract parent for all pitch field types.
+    """Unified pitch field wrapping PitchSpaceSchema.
 
-    Wraps a ``StructField`` and adds semantic pitch identity.
-    Concrete subclasses must implement ``semantic_type``,
-    ``metadata_dict``, ``__getitem__``, and ``from_field``.
+    Supports two modes:
 
-    Satisfies ``PitchLike`` at the columnar level.
+    **Blueprint mode** -- for deferred resolution via ``EventData.get_field()``:
+
+    .. code-block:: python
+
+        pitch = PitchField(spc="column_name")
+        events.get_field(pitch)  # resolves & caches
+
+    **Live mode** -- standalone construction with data:
+
+    .. code-block:: python
+
+        pf = PitchField.from_raw(ep=[60, 64, 67])
+        pf[0]  # -> MidiPitch(midi=60, pc=0)
 
     Args:
         raw: The inner ``StructField`` holding pitch struct data.
+        pitch_type: The pitch type keyword (``"sp"``, ``"spc"``, ``"ep"``,
+            ``"epc"``, ``"gp"``, ``"gpc"``).
+
+    For blueprint mode, pass a single keyword arg with a column name string::
+
+        PitchField(ep="midi_pitch_col")
     """
 
-    def __init__(self, raw: StructField) -> None:
-        super().__init__(raw)
+    def __init__(
+        self,
+        raw: StructField | None = None,
+        pitch_type: str | None = None,
+        **kwargs: str | pa.Array | list,
+    ) -> None:
+        # Blueprint mode: PitchField(ep="column_name")
+        if raw is None:
+            type_keys = set(kwargs.keys()) & _PITCH_TYPES
+            if len(type_keys) != 1:
+                raise ValueError(
+                    f"PitchField blueprint requires exactly one pitch type keyword "
+                    f"(sp/spc/ep/epc/gp/gpc), got: {set(kwargs.keys())}"
+                )
+            self._pitch_type = type_keys.pop()
+            self._blueprint_column = kwargs[self._pitch_type]
+            if not isinstance(self._blueprint_column, str):
+                raise TypeError(
+                    f"Blueprint mode requires a column name (str), got {type(self._blueprint_column).__name__}"
+                )
+            # Create a dummy empty StructField for the base class
+            dummy_field = pa.field(self._blueprint_column, PitchSpaceSchema.schema)
+            dummy_raw = StructField(None, dummy_field)
+            super().__init__(dummy_raw)
+            self._is_blueprint = True
+            return
 
-    # -- SemanticTypeLike properties (abstract) ------------------------------
+        # Live mode: PitchField(raw_struct_field, pitch_type="ep")
+        if pitch_type is None:
+            raise ValueError("pitch_type is required for live PitchField construction")
+        if pitch_type not in _PITCH_TYPES:
+            raise ValueError(
+                f"Invalid pitch_type {pitch_type!r}. Must be one of: {sorted(_PITCH_TYPES)}"
+            )
+        super().__init__(raw)
+        self._pitch_type = pitch_type
+        self._blueprint_column: str | None = None
+        self._is_blueprint = False
 
     @property
-    @abstractmethod
+    def pitch_type(self) -> str:
+        """The pitch type keyword (sp/spc/ep/epc/gp/gpc)."""
+        return self._pitch_type
+
+    @property
+    def space(self) -> str:
+        """The pitch space: 'fifths', 'semitones', or 'steps'."""
+        return _TYPE_METADATA[self._pitch_type]["space"]
+
+    @property
+    def level(self) -> str:
+        """The pitch level: 'specific' or 'class'."""
+        return _TYPE_METADATA[self._pitch_type]["level"]
+
+    @property
+    def is_blueprint(self) -> bool:
+        """Whether this is a blueprint (deferred) field."""
+        return self._is_blueprint
+
+    # -- SemanticTypeLike properties -----------------------------------------
+
+    @property
     def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
-        ...
+        return "Pitch"
 
-    @abstractmethod
     def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract."""
-        ...
+        return {
+            "field_type": "PitchField",
+            "pitch_type": self._pitch_type,
+            "space": self.space,
+            "level": self.level,
+        }
 
-    # -- element access (abstract) -------------------------------------------
+    # -- element access ------------------------------------------------------
 
-    @abstractmethod
-    def __getitem__(self, i: int) -> object:
-        """Return the *i*-th pitch as a pitch scalar."""
-        ...
+    def __getitem__(self, i: int) -> Any:
+        """Return the *i*-th pitch as a scalar appropriate to the pitch type."""
+        if self._is_blueprint:
+            raise TypeError(
+                "Cannot index a blueprint PitchField — resolve via EventData.get_field() first"
+            )
+        raw_dict = self._raw[i]
+        if raw_dict is None:
+            return None
+        # Detect whether this is PitchSpaceSchema or a legacy schema
+        if "value" in raw_dict:
+            return _scalar_from_pitch_space(raw_dict, self._pitch_type)
+        return _scalar_from_legacy_schema(raw_dict, self._pitch_type)
 
-    # -- construction (abstract) ---------------------------------------------
+    # -- construction --------------------------------------------------------
 
     @classmethod
-    @abstractmethod
-    def from_field(
-        cls,
-        source: (
-            pa.Array
-            | pa.ChunkedArray
-            | StructField
-            | pa.Field
-            | tuple[pa.Array | None, pa.Field]
-        ),
-        *,
-        name: str = "pitch",
-    ) -> PitchField:
-        """Construct a ``PitchField`` from various source types."""
-        ...
+    def from_raw(cls, **kwargs: list[int] | list[int | None] | pa.Array) -> PitchField:
+        """Construct a live PitchField from raw values.
 
-    # -- serialisation helpers -----------------------------------------------
+        Pass exactly one keyword argument matching a pitch type:
+
+        - ``ep=[60, 64, 67]`` — MIDI numbers (semitones, specific)
+        - ``epc=[0, 4, 7]`` — pitch class 0-11 (semitones, class)
+        - ``spc=[0, 4, -1]`` — fifths position (fifths, class)
+        - ``sp=[(0, 4), (4, 4)]`` — (fifths, octave) tuples (fifths, specific)
+        - ``gp=[(0, 4), (2, 4)]`` — (step, octave) tuples (steps, specific)
+        - ``gpc=[0, 2, 4]`` — diatonic step 0-6 (steps, class)
+
+        For specific types (sp, ep, gp), if a plain list of ints is given,
+        octave is derived automatically where possible.
+        """
+        type_keys = set(kwargs.keys()) & _PITCH_TYPES
+        if len(type_keys) != 1:
+            raise ValueError(
+                f"from_raw() requires exactly one pitch type keyword, got: {set(kwargs.keys())}"
+            )
+        pitch_type = type_keys.pop()
+        values = kwargs[pitch_type]
+
+        if isinstance(values, (pa.Array, pa.ChunkedArray)):
+            # Already a PyArrow array — wrap directly
+            if pa.types.is_struct(values.type):
+                pa_field = pa.field("pitch", values.type)
+                return cls(StructField(values, pa_field), pitch_type=pitch_type)
+
+        # Build struct arrays from Python values
+        rows = _values_to_pitch_space_rows(values, pitch_type)
+        arr = pa.array(rows, type=PitchSpaceSchema.schema)
+        pa_field = pa.field("pitch", PitchSpaceSchema.schema)
+        return cls(StructField(arr, pa_field), pitch_type=pitch_type)
+
+    @classmethod
+    def from_labels(cls, labels: list[str], *, name: str = "pitch") -> PitchField:
+        """Construct from pitch label strings (e.g. ``["C4", "E4", "G4"]``).
+
+        Parses each label via ``SpelledPitch.from_label()`` and stores
+        as SP (fifths space, specific level).
+        """
+        rows = []
+        for lbl in labels:
+            sp = SpelledPitch.from_label(lbl)
+            rows.append({"value": sp.fifths, "octave": sp.octave})
+        arr = pa.array(rows, type=PitchSpaceSchema.schema)
+        pa_field = pa.field(name, PitchSpaceSchema.schema)
+        return cls(StructField(arr, pa_field), pitch_type="sp")
+
+    @classmethod
+    def from_field(
+        cls, source: Any, *, name: str = "pitch", pitch_type: str | None = None
+    ) -> PitchField:
+        """Construct a PitchField from various source types.
+
+        Handles pa.Array, StructField, pa.Field, and (data, pa.Field) tuples.
+        For legacy schemas, automatically detects the pitch type from the
+        struct layout.
+        """
+        if isinstance(source, tuple):
+            data, pa_field = source
+            resolved_type = pitch_type or _detect_pitch_type(pa_field)
+            return cls(StructField(data, pa_field), pitch_type=resolved_type)
+
+        if isinstance(source, pa.Field):
+            resolved_type = pitch_type or _detect_pitch_type(source)
+            return cls(StructField(None, source), pitch_type=resolved_type)
+
+        if isinstance(source, StructField):
+            resolved_type = pitch_type or _detect_pitch_type(source.field)
+            return cls(source, pitch_type=resolved_type)
+
+        if isinstance(source, (pa.Array, pa.ChunkedArray)):
+            resolved_type = pitch_type or _detect_pitch_type_from_struct(source.type)
+            pa_field = pa.field(name, source.type)
+            return cls(StructField(source, pa_field), pitch_type=resolved_type)
+
+        raise TypeError(
+            f"Unsupported source type for PitchField.from_field: {type(source).__name__}"
+        )
+
+    # -- conversion ----------------------------------------------------------
+
+    def to(self, target_type: str) -> PitchField:
+        """Convert to a different pitch type.
+
+        Only information-losing conversions are permitted:
+        - sp -> spc, ep, epc, gp, gpc
+        - spc -> epc, gpc
+        - ep -> epc
+        - gp -> gpc
+        """
+        if target_type not in _PITCH_TYPES:
+            raise ValueError(f"Invalid target type {target_type!r}")
+        if target_type == self._pitch_type:
+            return self
+        if self._is_blueprint or self.is_empty:
+            raise TypeError("Cannot convert a blueprint or empty PitchField")
+        new_rows = _convert_pitch_space(self, target_type)
+        arr = pa.array(new_rows, type=PitchSpaceSchema.schema)
+        pa_field = pa.field(self.name, PitchSpaceSchema.schema)
+        return PitchField(StructField(arr, pa_field), pitch_type=target_type)
+
+    # -- serialisation -------------------------------------------------------
 
     def to_field(self) -> pa.Field:
         """Return a ``pa.Field`` with ``b"timetoalign"`` metadata injected."""
@@ -102,285 +290,380 @@ class PitchField(SemanticField[StructField]):
         merged = {**existing, _TIMETOALIGN_KEY: meta_blob}
         return self._field.with_metadata(merged)
 
+    def __repr__(self) -> str:
+        if self._is_blueprint:
+            return (
+                f"PitchField(blueprint={self._pitch_type}:{self._blueprint_column!r})"
+            )
+        length = len(self) if not self.is_empty else 0
+        return f"PitchField(name={self.name!r}, type={self._pitch_type}, len={length})"
+
 
 # ---------------------------------------------------------------------------
-# GenericPitchField (GP)
+# Deprecated aliases (backward compat)
 # ---------------------------------------------------------------------------
 
 
 class GenericPitchField(PitchField):
-    """Semantic field for generic pitch columns (pitch class only).
+    """Deprecated: use ``PitchField(epc=...)`` instead.
 
-    Wraps struct ``{pitch_class: int64}``
-    (schema: ``GenericPitchSchema.schema``).
-
-    Examples:
-        >>> import pyarrow as pa
-        >>> from timetoalign.fields.pitch import GenericPitchField
-        >>> from timetoalign.fields.schemas import GenericPitchSchema
-        >>> arr = pa.array([{"pitch_class": 0}], type=GenericPitchSchema.schema)
-        >>> gpf = GenericPitchField.from_field(arr, name="generic_pitch")
-        >>> gpf[0]
-        GenericPitch(pitch_class=0)
+    Note: old GenericPitch (0-11) is EPC, not GPC.
     """
 
     _default_column: str = "generic_pitch"
 
-    @property
-    def semantic_type(self) -> str:
-        return "GenericPitch"
-
-    def metadata_dict(self) -> dict[str, str]:
-        return {"field_type": "GenericPitchField", "pitch_type": "generic"}
-
-    def __getitem__(self, i: int) -> GenericPitch | None:
-        raw_dict = self._raw[i]
-        if raw_dict is None:
-            return None
-        return GenericPitch.from_row(raw_dict)
-
     @classmethod
-    def from_field(cls, source, *, name: str = "generic_pitch") -> GenericPitchField:
-        return _from_field_impl(cls, source, name)
-
-    def __repr__(self) -> str:
-        length = len(self) if not self.is_empty else 0
-        return f"GenericPitchField(name={self.name!r}, type=generic, len={length})"
-
-
-# ---------------------------------------------------------------------------
-# SpelledPitchClassField (SPC)
-# ---------------------------------------------------------------------------
+    def from_field(
+        cls, source: Any, *, name: str = "generic_pitch", pitch_type: str | None = None
+    ) -> GenericPitchField:
+        pf = PitchField.from_field(source, name=name, pitch_type=pitch_type or "epc")
+        pf.__class__ = cls
+        return pf  # type: ignore[return-value]
 
 
 class SpelledPitchClassField(PitchField):
-    """Semantic field for spelled pitch class columns.
-
-    Wraps struct ``{gpc_str: string, acc: int64, spc_int: int64}``
-    (schema: ``SpelledPitchClassSchema.schema``).
-
-    Examples:
-        >>> import pyarrow as pa
-        >>> from timetoalign.fields.pitch import SpelledPitchClassField
-        >>> from timetoalign.fields.schemas import SpelledPitchClassSchema
-        >>> arr = pa.array(
-        ...     [{"gpc_str": "C", "acc": 0, "spc_int": 0}],
-        ...     type=SpelledPitchClassSchema.schema,
-        ... )
-        >>> spcf = SpelledPitchClassField.from_field(arr, name="spelled_pitch_class")
-        >>> spcf[0]
-        SpelledPitchClass(C)
-    """
+    """Deprecated: use ``PitchField(spc=...)`` instead."""
 
     _default_column: str = "spelled_pitch_class"
 
-    @property
-    def semantic_type(self) -> str:
-        return "SpelledPitchClass"
-
-    def metadata_dict(self) -> dict[str, str]:
-        return {"field_type": "SpelledPitchClassField", "pitch_type": "spelled_class"}
-
-    def __getitem__(self, i: int) -> SpelledPitchClass | None:
-        raw_dict = self._raw[i]
-        if raw_dict is None:
-            return None
-        return SpelledPitchClass.from_row(raw_dict)
-
     @classmethod
     def from_field(
-        cls, source, *, name: str = "spelled_pitch_class"
+        cls,
+        source: Any,
+        *,
+        name: str = "spelled_pitch_class",
+        pitch_type: str | None = None,
     ) -> SpelledPitchClassField:
-        return _from_field_impl(cls, source, name)
-
-    def __repr__(self) -> str:
-        length = len(self) if not self.is_empty else 0
-        return f"SpelledPitchClassField(name={self.name!r}, type=SpelledPitchClass, len={length})"
-
-
-# ---------------------------------------------------------------------------
-# EnharmonicPitchField (EP = MIDI pitch)
-# ---------------------------------------------------------------------------
+        pf = PitchField.from_field(source, name=name, pitch_type=pitch_type or "spc")
+        pf.__class__ = cls
+        return pf  # type: ignore[return-value]
 
 
 class EnharmonicPitchField(PitchField):
-    """Semantic field for enharmonic (MIDI) pitch columns.
-
-    Called "enharmonic" because it **equates** enharmonic equivalents:
-    C♯4 and D♭4 both map to MIDI number 61.
-
-    Wraps struct ``{ep: int64, epc: int64}``
-    (schema: ``EnharmonicPitchSchema.schema``).
-
-    Examples:
-        >>> import pyarrow as pa
-        >>> from timetoalign.fields.pitch import EnharmonicPitchField
-        >>> from timetoalign.fields.schemas import EnharmonicPitchSchema
-        >>> arr = pa.array([{"ep": 60, "epc": 0}], type=EnharmonicPitchSchema.schema)
-        >>> pf = EnharmonicPitchField.from_field(arr, name="midi_pitch")
-        >>> pf[0]
-        MidiPitch(midi=60, pc=0)
-    """
+    """Deprecated: use ``PitchField(ep=...)`` instead."""
 
     _default_column: str = "midi_pitch"
 
-    @property
-    def semantic_type(self) -> str:
-        return "EnharmonicPitch"
-
-    def metadata_dict(self) -> dict[str, str]:
-        return {"field_type": "EnharmonicPitchField", "pitch_type": "enharmonic"}
-
-    def __getitem__(self, i: int) -> MidiPitch | None:
-        raw_dict = self._raw[i]
-        if raw_dict is None:
-            return None
-        return MidiPitch.from_row(raw_dict)
-
     @classmethod
-    def from_field(cls, source, *, name: str = "midi_pitch") -> EnharmonicPitchField:
-        return _from_field_impl(cls, source, name)
+    def from_field(
+        cls, source: Any, *, name: str = "midi_pitch", pitch_type: str | None = None
+    ) -> EnharmonicPitchField:
+        pf = PitchField.from_field(source, name=name, pitch_type=pitch_type or "ep")
+        pf.__class__ = cls
+        return pf  # type: ignore[return-value]
 
     @classmethod
     def from_midi_numbers(
         cls, midi_numbers: list[int], *, name: str = "midi_pitch"
     ) -> EnharmonicPitchField:
-        """Construct from a list of MIDI note numbers.
-
-        Args:
-            midi_numbers: MIDI note numbers (e.g. ``[60, 64, 67]``).
-            name: Field name.
-
-        Returns:
-            An ``EnharmonicPitchField``.
-
-        Examples:
-            >>> epf = EnharmonicPitchField.from_midi_numbers([60, 64, 67])
-            >>> epf[0]
-            MidiPitch(midi=60, pc=0)
-        """
-        from timetoalign.fields.schemas import EnharmonicPitchSchema
-
-        rows = [{"ep": m, "epc": m % 12} for m in midi_numbers]
-        arr = pa.array(rows, type=EnharmonicPitchSchema.schema)
-        return cls.from_field(arr, name=name)
-
-    def __repr__(self) -> str:
-        length = len(self) if not self.is_empty else 0
-        return (
-            f"EnharmonicPitchField(name={self.name!r}, type=enharmonic, len={length})"
-        )
-
-
-# Alias: MidiPitchField = EnharmonicPitchField
-MidiPitchField = EnharmonicPitchField
-
-
-# ---------------------------------------------------------------------------
-# SpecificPitchField (SP = Spelled pitch)
-# ---------------------------------------------------------------------------
+        """Construct from MIDI note numbers."""
+        pf = PitchField.from_raw(ep=midi_numbers)
+        pf.__class__ = cls
+        return pf  # type: ignore[return-value]
 
 
 class SpecificPitchField(PitchField):
-    """Semantic field for specific (spelled) pitch columns.
-
-    Called "specific" because it preserves the **specific** spelling:
-    C♯4 ≠ D♭4.
-
-    Wraps struct ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``
-    (schema: ``SpecificPitchSchema.schema``).
-
-    Examples:
-        >>> import pyarrow as pa
-        >>> from timetoalign.fields.pitch import SpecificPitchField
-        >>> from timetoalign.fields.schemas import SpecificPitchSchema
-        >>> arr = pa.array(
-        ...     [{"gpc_int": 0, "gpc_str": "C", "acc": 0, "spc_int": 0,
-        ...       "spc_str": "C", "sp": "C4", "cents": 0.0}],
-        ...     type=SpecificPitchSchema.schema,
-        ... )
-        >>> spf = SpecificPitchField.from_field(arr, name="spelled_pitch")
-        >>> spf[0]
-        SpelledPitch(C4)
-    """
+    """Deprecated: use ``PitchField(sp=...)`` instead."""
 
     _default_column: str = "spelled_pitch"
 
-    @property
-    def semantic_type(self) -> str:
-        return "SpecificPitch"
-
-    def metadata_dict(self) -> dict[str, str]:
-        return {"field_type": "SpecificPitchField", "pitch_type": "specific"}
-
-    def __getitem__(self, i: int) -> SpelledPitch | None:
-        raw_dict = self._raw[i]
-        if raw_dict is None:
-            return None
-        return SpelledPitch.from_row(raw_dict)
-
     @classmethod
-    def from_field(cls, source, *, name: str = "spelled_pitch") -> SpecificPitchField:
-        return _from_field_impl(cls, source, name)
+    def from_field(
+        cls, source: Any, *, name: str = "spelled_pitch", pitch_type: str | None = None
+    ) -> SpecificPitchField:
+        pf = PitchField.from_field(source, name=name, pitch_type=pitch_type or "sp")
+        pf.__class__ = cls
+        return pf  # type: ignore[return-value]
 
     @classmethod
     def from_labels(
         cls, labels: list[str], *, name: str = "spelled_pitch"
     ) -> SpecificPitchField:
-        """Construct from a list of pitch label strings.
-
-        Each label is parsed via ``SpelledPitch.from_label()`` and the
-        resulting struct dicts are assembled into a PyArrow array.
-
-        Args:
-            labels: Pitch labels with octave (e.g. ``["C4", "E4", "G4"]``).
-            name: Field name.
-
-        Returns:
-            A ``SpecificPitchField``.
-
-        Examples:
-            >>> spf = SpecificPitchField.from_labels(["C4", "E4", "G4"])
-            >>> spf[0]
-            SpelledPitch(C4)
-        """
-        from timetoalign.fields.schemas import SpecificPitchSchema
-
-        rows = [SpelledPitch.from_label(lbl).to_dict() for lbl in labels]
-        # Keep only schema-level keys for the pa.array
-        schema_keys = {f.name for f in SpecificPitchSchema.schema}
-        storage_rows = [
-            {k: v for k, v in row.items() if k in schema_keys} for row in rows
-        ]
-        arr = pa.array(storage_rows, type=SpecificPitchSchema.schema)
-        return cls.from_field(arr, name=name)
-
-    def __repr__(self) -> str:
-        length = len(self) if not self.is_empty else 0
-        return f"SpecificPitchField(name={self.name!r}, type=specific, len={length})"
+        """Construct from pitch label strings."""
+        pf = PitchField.from_labels(labels, name=name)
+        pf.__class__ = cls
+        return pf  # type: ignore[return-value]
 
 
-# Alias: SpelledPitchField = SpecificPitchField
+# Traditional aliases
+MidiPitchField = EnharmonicPitchField
 SpelledPitchField = SpecificPitchField
 
 
 # ---------------------------------------------------------------------------
-# Shared helpers
+# Private helpers
 # ---------------------------------------------------------------------------
 
 
-def _from_field_impl(cls, source, name: str):
-    """Shared from_field construction logic for all concrete PitchField subclasses."""
-    if isinstance(source, tuple):
-        data, pa_field = source
-        return cls(StructField(data, pa_field))
-    if isinstance(source, pa.Field):
-        return cls(StructField(None, source))
-    if isinstance(source, StructField):
-        return cls(source)
-    if isinstance(source, (pa.Array, pa.ChunkedArray)):
-        pa_field = pa.field(name, source.type)
-        return cls(StructField(source, pa_field))
-    raise TypeError(
-        f"Unsupported source type for {cls.__name__}.from_field: {type(source).__name__}"
-    )
+# Fifths position -> (step_letter, alter)
+_FIFTHS_TO_STEP_ALTER: dict[int, tuple[str, int]] = {}
+for _step, _base in {"F": -1, "C": 0, "G": 1, "D": 2, "A": 3, "E": 4, "B": 5}.items():
+    _FIFTHS_TO_STEP_ALTER[_base] = (_step, 0)
+    for _n in range(1, 8):
+        _FIFTHS_TO_STEP_ALTER[_base + 7 * _n] = (_step, _n)
+        _FIFTHS_TO_STEP_ALTER[_base - 7 * _n] = (_step, -_n)
+
+
+def _fifths_to_step_alter(fifths: int) -> tuple[str, int]:
+    """Convert a line-of-fifths position to (step, alter)."""
+    if fifths in _FIFTHS_TO_STEP_ALTER:
+        return _FIFTHS_TO_STEP_ALTER[fifths]
+    # Extended range: compute from modular arithmetic
+    # The cycle of fifths mod 7 maps to steps: F C G D A E B
+    step_order = ["F", "C", "G", "D", "A", "E", "B"]
+    base_fifths = {"F": -1, "C": 0, "G": 1, "D": 2, "A": 3, "E": 4, "B": 5}
+    idx = (fifths + 1) % 7  # +1 because F is at -1
+    step = step_order[idx]
+    alter = (fifths - base_fifths[step]) // 7
+    return step, alter
+
+
+def _scalar_from_legacy_schema(row: dict[str, Any], pitch_type: str) -> Any:
+    """Convert a legacy schema row (ep/epc, gpc_int/..., pitch_class) to scalar."""
+    if pitch_type == "ep" and "ep" in row:
+        return MidiPitch.from_row(row)
+    if pitch_type == "epc" and "pitch_class" in row:
+        return GenericPitch.from_row(row)
+    if pitch_type == "sp" and "sp" in row:
+        return SpelledPitch.from_row(row)
+    if pitch_type == "spc" and "gpc_str" in row:
+        return SpelledPitchClass.from_row(row)
+    # Fallback: try each scalar's from_row
+    if "ep" in row:
+        return MidiPitch.from_row(row)
+    if "pitch_class" in row:
+        return GenericPitch.from_row(row)
+    if "sp" in row:
+        return SpelledPitch.from_row(row)
+    if "gpc_str" in row:
+        return SpelledPitchClass.from_row(row)
+    raise ValueError(f"Cannot determine scalar for legacy row: {row!r}")
+
+
+def _scalar_from_pitch_space(row: dict[str, Any], pitch_type: str) -> Any:
+    """Convert a PitchSpaceSchema row to the appropriate scalar."""
+    value = row.get("value")
+    octave = row.get("octave")
+
+    if pitch_type == "ep":
+        midi = value if value is not None else 0
+        return MidiPitch.from_row({"ep": midi, "epc": midi % 12})
+    if pitch_type == "epc":
+        pc = value if value is not None else 0
+        return GenericPitch.from_row({"pitch_class": pc})
+    if pitch_type == "sp":
+        fifths = value if value is not None else 0
+        oct_ = octave if octave is not None else 4
+        step, alter = _fifths_to_step_alter(fifths)
+        return SpelledPitch(step=step, alter=alter, octave=oct_)
+    if pitch_type == "spc":
+        fifths = value if value is not None else 0
+        step, alter = _fifths_to_step_alter(fifths)
+        return SpelledPitchClass(step=step, alter=alter)
+    if pitch_type == "gp":
+        step = value if value is not None else 0
+        oct_ = octave if octave is not None else 4
+        return GenericPitch.from_row({"pitch_class": step + oct_ * 7})
+    if pitch_type == "gpc":
+        step = value if value is not None else 0
+        return GenericPitch.from_row({"pitch_class": step})
+
+    raise ValueError(f"Unknown pitch type: {pitch_type!r}")
+
+
+def _values_to_pitch_space_rows(
+    values: list | pa.Array, pitch_type: str
+) -> list[dict[str, int | None]]:
+    """Convert user values to PitchSpaceSchema row dicts."""
+    meta = _TYPE_METADATA[pitch_type]
+    is_specific = meta["level"] == "specific"
+    rows = []
+
+    for v in values:
+        if v is None:
+            rows.append({"value": None, "octave": None})
+            continue
+
+        if isinstance(v, (tuple, list)) and len(v) == 2:
+            rows.append({"value": int(v[0]), "octave": int(v[1])})
+            continue
+
+        val = int(v)
+        if is_specific:
+            if pitch_type == "ep":
+                # MIDI number encodes octave implicitly
+                rows.append({"value": val, "octave": val // 12 - 1})
+            else:
+                # For sp, gp with bare int: octave defaults to 4
+                rows.append({"value": val, "octave": 4})
+        else:
+            rows.append({"value": val, "octave": None})
+
+    return rows
+
+
+def _detect_pitch_type(pa_field: pa.Field) -> str:
+    """Detect pitch type from pa.Field metadata or struct layout."""
+    if pa_field.metadata:
+        if _TIMETOALIGN_KEY in pa_field.metadata:
+            blob = pa_field.metadata[_TIMETOALIGN_KEY]
+            if isinstance(blob, bytes):
+                blob = blob.decode("utf-8")
+            meta = json.loads(blob)
+            if "pitch_type" in meta:
+                pt = meta["pitch_type"]
+                # Handle legacy metadata values
+                if pt in _PITCH_TYPES:
+                    return pt
+                return _legacy_pitch_type_map.get(pt, "ep")
+
+    return _detect_pitch_type_from_struct(pa_field.type)
+
+
+def _detect_pitch_type_from_struct(struct_type: pa.DataType) -> str:
+    """Detect pitch type from struct field names."""
+    if not pa.types.is_struct(struct_type):
+        raise TypeError(f"Expected struct type, got {struct_type}")
+    field_names = {struct_type.field(i).name for i in range(struct_type.num_fields)}
+
+    # PitchSpaceSchema
+    if field_names == {"value", "octave"}:
+        return "ep"  # default; metadata should override
+
+    # Legacy schemas
+    if "pitch_class" in field_names and len(field_names) == 1:
+        return "epc"  # GenericPitchSchema (0-11 = EPC)
+    if "ep" in field_names:
+        return "ep"  # EnharmonicPitchSchema
+    if "sp" in field_names or "gpc_int" in field_names:
+        return "sp"  # SpecificPitchSchema
+    if "gpc_str" in field_names and "spc_int" in field_names:
+        return "spc"  # SpelledPitchClassSchema
+
+    return "ep"  # fallback
+
+
+_legacy_pitch_type_map: dict[str, str] = {
+    "generic": "epc",
+    "spelled_class": "spc",
+    "enharmonic": "ep",
+    "specific": "sp",
+}
+
+
+def _extract_value_octave(
+    raw: dict[str, Any], pitch_type: str
+) -> tuple[int | None, int | None]:
+    """Extract (value, octave) from a struct row, handling both schemas.
+
+    PitchSpaceSchema rows have ``{value, octave}``.  Legacy schema rows
+    have type-specific keys (``ep``, ``epc``, ``pitch_class``, ``sp``, etc.).
+    """
+    # PitchSpaceSchema
+    if "value" in raw:
+        return raw.get("value"), raw.get("octave")
+
+    # Legacy: EnharmonicPitchSchema {ep, epc}
+    if pitch_type == "ep" and "ep" in raw:
+        midi = raw["ep"]
+        return midi, (midi // 12 - 1 if midi is not None else None)
+    if pitch_type == "epc" and "epc" in raw:
+        return raw["epc"], None
+    if pitch_type == "epc" and "pitch_class" in raw:
+        return raw["pitch_class"], None
+
+    # Legacy: SpecificPitchSchema {sp, gpc_int, ...}
+    if pitch_type == "sp" and "sp" in raw:
+        return raw["sp"], raw.get("octave")
+
+    # Legacy: SpelledPitchClassSchema {spc_int, ...}
+    if pitch_type == "spc" and "spc_int" in raw:
+        return raw["spc_int"], None
+
+    # Fallback: try common legacy keys
+    if "ep" in raw:
+        midi = raw["ep"]
+        return midi, (midi // 12 - 1 if midi is not None else None)
+    if "pitch_class" in raw:
+        return raw["pitch_class"], None
+    if "sp" in raw:
+        return raw["sp"], raw.get("octave")
+
+    return None, None
+
+
+def _convert_pitch_space(
+    source: PitchField, target_type: str
+) -> list[dict[str, int | None]]:
+    """Convert pitch values from one type to another."""
+    rows = []
+    src_type = source.pitch_type
+    for i in range(len(source)):
+        raw = source._raw[i]
+        if raw is None:
+            rows.append({"value": None, "octave": None})
+            continue
+
+        value, octave = _extract_value_octave(raw, src_type)
+        converted = _convert_single(value, octave, src_type, target_type)
+        rows.append(converted)
+
+    return rows
+
+
+def _convert_single(
+    value: int | None, octave: int | None, src: str, tgt: str
+) -> dict[str, int | None]:
+    """Convert a single pitch value between types."""
+    if value is None:
+        return {"value": None, "octave": None}
+
+    src_meta = _TYPE_METADATA[src]
+    tgt_meta = _TYPE_METADATA[tgt]
+
+    # Same space, specific -> class: drop octave
+    if src_meta["space"] == tgt_meta["space"] and tgt_meta["level"] == "class":
+        if src == "ep" and tgt == "epc":
+            return {"value": value % 12, "octave": None}
+        if src == "gp" and tgt == "gpc":
+            return {"value": value % 7 if value is not None else None, "octave": None}
+        if src == "sp" and tgt == "spc":
+            return {"value": value, "octave": None}
+        # class -> class same space
+        return {"value": value, "octave": None}
+
+    # Cross-space: fifths -> semitones
+    if src_meta["space"] == "fifths" and tgt_meta["space"] == "semitones":
+        semitones = (value * 7) % 12
+        if tgt_meta["level"] == "specific" and octave is not None:
+            # Reconstruct MIDI number from fifths + octave
+            step = ((value + 1) * 4) % 7  # fifths to diatonic step
+            alter = (value + 1) // 7  # approximate alteration
+            midi = (octave + 1) * 12 + [0, 2, 4, 5, 7, 9, 11][step] + alter
+            return {"value": midi, "octave": midi // 12 - 1}
+        return {"value": semitones, "octave": None}
+
+    # Cross-space: fifths -> steps
+    if src_meta["space"] == "fifths" and tgt_meta["space"] == "steps":
+        step = ((value + 1) * 4) % 7  # fifths position to diatonic step
+        if tgt_meta["level"] == "specific" and octave is not None:
+            return {"value": step, "octave": octave}
+        return {"value": step, "octave": None}
+
+    # Cross-space: semitones -> steps (lossy)
+    if src_meta["space"] == "semitones" and tgt_meta["space"] == "steps":
+        # Approximate: chromatic to nearest diatonic step
+        step_map = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]
+        pc = value % 12
+        step = step_map[pc]
+        if tgt_meta["level"] == "specific" and octave is not None:
+            return {"value": step, "octave": octave}
+        return {"value": step, "octave": None}
+
+    # ep -> epc
+    if src == "ep" and tgt == "epc":
+        return {"value": value % 12, "octave": None}
+
+    # Fallback: just pass value through
+    tgt_octave = octave if tgt_meta["level"] == "specific" else None
+    return {"value": value, "octave": tgt_octave}

@@ -254,9 +254,7 @@ class PartituraLoader(ScoreLoader):
                             "temporal_type": "instant",
                             "event_type": "RepeatStart",
                             "quarterbeats": fraction_to_struct(qb_start),
-                            "quarterbeats_float": float(qb_start),
                             "duration_qb": None,
-                            "duration_qb_float": 0.0,
                             "mc": start_mc,
                             "mn": get_mn(start_mc, rep.start.t),
                             "mc_onset": None,
@@ -305,9 +303,7 @@ class PartituraLoader(ScoreLoader):
                                 "temporal_type": "instant",
                                 "event_type": "RepeatEnd",
                                 "quarterbeats": fraction_to_struct(qb_end),
-                                "quarterbeats_float": float(qb_end),
                                 "duration_qb": None,
-                                "duration_qb_float": 0.0,
                                 "mc": last_mc_in_repeat,
                                 "mn": get_mn(last_mc_in_repeat, rep.end.t),
                                 "mc_onset": None,
@@ -364,9 +360,7 @@ class PartituraLoader(ScoreLoader):
                         "temporal_type": "instant",
                         "event_type": type(obj).__name__,
                         "quarterbeats": fraction_to_struct(qb),
-                        "quarterbeats_float": float(qb),
                         "duration_qb": None,
-                        "duration_qb_float": 0.0,
                         "mc": marker_mc,
                         "mn": get_mn(marker_mc, obj.start.t),
                         "mc_onset": None,
@@ -457,9 +451,7 @@ class PartituraLoader(ScoreLoader):
                         "temporal_type": "interval",
                         "event_type": "Measure",
                         "quarterbeats": fraction_to_struct(qb_start),
-                        "quarterbeats_float": float(qb_start),
                         "duration_qb": fraction_to_struct(dur),
-                        "duration_qb_float": float(dur),
                         "mc": mc,
                         "mn": str(m.number),
                         "timesig": None,  # Could extract from part
@@ -551,9 +543,7 @@ class PartituraLoader(ScoreLoader):
                         "temporal_type": "interval" if dur_qb > 0 else "instant",
                         "event_type": "Rest" if is_rest else "Note",
                         "quarterbeats": fraction_to_struct(qb_start),
-                        "quarterbeats_float": float(qb_start),
                         "duration_qb": fraction_to_struct(dur_qb),
-                        "duration_qb_float": float(dur_qb),
                         "mc": mc,
                         "mn": mn,
                         "mc_onset": fraction_to_struct(mc_onset),
@@ -593,9 +583,7 @@ class PartituraLoader(ScoreLoader):
                         ),
                         "event_type": obj.__class__.__name__,
                         "quarterbeats": fraction_to_struct(qb),
-                        "quarterbeats_float": float(qb),
                         "duration_qb": None,
-                        "duration_qb_float": 0.0,
                         "mc": obj_mc,
                         "mn": get_mn(obj_mc, obj.start.t),
                         "mc_onset": None,
@@ -620,9 +608,7 @@ class PartituraLoader(ScoreLoader):
                         "temporal_type": "instant",
                         "event_type": "Text",
                         "quarterbeats": fraction_to_struct(qb),
-                        "quarterbeats_float": float(qb),
                         "duration_qb": None,
-                        "duration_qb_float": 0.0,
                         "mc": obj_mc,
                         "mn": get_mn(obj_mc, obj.start.t),
                         "mc_onset": None,
@@ -644,7 +630,14 @@ class PartituraLoader(ScoreLoader):
         # stored in the ScoreStore metadata so that any loader that needs to
         # compare raw partitura values against stored TTA coordinates can apply
         # the same correction.
-        all_onsets = [r["quarterbeats_float"] for r in note_rows]
+        all_onsets = [
+            (
+                float(Fraction(r["quarterbeats"]["num"], r["quarterbeats"]["den"]))
+                if r.get("quarterbeats")
+                else 0.0
+            )
+            for r in note_rows
+        ]
         min_qb = min(all_onsets) if all_onsets else 0.0
         offset: Fraction = (
             Fraction(-min_qb).limit_denominator(10000) if min_qb < 0 else Fraction(0)
@@ -659,7 +652,6 @@ class PartituraLoader(ScoreLoader):
                     )
                     new_qb = old_qb + offset
                     r["quarterbeats"] = fraction_to_struct(new_qb)
-                    r["quarterbeats_float"] = float(new_qb)
 
         # Build data
         notes_data = NoteEventData.from_dicts(

@@ -569,6 +569,14 @@ class SemanticField(DataField, Generic[R]):
             f"raw={type(self._raw).__name__}, len={length})"
         )
 
+    def get_raw(self) -> R:
+        """Return the underlying raw field (strips the semantic layer).
+
+        Returns:
+            The inner raw ``DataField`` subclass (e.g. ``StructField``).
+        """
+        return self._raw
+
     @classmethod
     @abstractmethod
     def from_field(cls, source: Any, **kw: Any) -> "SemanticField[R]":

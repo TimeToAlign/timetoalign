@@ -318,7 +318,7 @@ class TestPitchFieldParquetRoundtrip:
         pf2 = EnharmonicPitchField.from_field((col_back, field_back))
 
         # Verify metadata survived
-        assert pf2.semantic_type == "EnharmonicPitch"
+        assert pf2.semantic_type == "Pitch"
 
         # Verify data survived: check first note is B3 (ep=59, epc=11)
         first = pf2[0]

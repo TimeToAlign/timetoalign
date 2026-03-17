@@ -126,24 +126,32 @@ def _make_spelled_pitch_array(
 # ---------------------------------------------------------------------------
 
 
-class TestAbstractPitchField:
-    """Verify PitchField is abstract and cannot be instantiated directly."""
+class TestUnifiedPitchField:
+    """Verify PitchField is a concrete unified class."""
 
-    def test_pitchfield_is_abstract(self) -> None:
-        """PitchField cannot be instantiated directly."""
+    def test_pitchfield_is_concrete(self) -> None:
+        """PitchField can be instantiated directly with pitch_type."""
         arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
         pa_field = pa.field("test", _MIDI_PITCH_TYPE)
         sf = StructField(arr, pa_field)
-        with pytest.raises(TypeError):
-            PitchField(sf)  # type: ignore[abstract]
+        pf = PitchField(sf, pitch_type="ep")
+        assert isinstance(pf, PitchField)
 
-    def test_pitchfield_has_abstract_methods(self) -> None:
-        """PitchField declares abstract methods."""
-        abstracts = PitchField.__abstractmethods__
-        assert "semantic_type" in abstracts
-        assert "metadata_dict" in abstracts
-        assert "__getitem__" in abstracts
-        assert "from_field" in abstracts
+    def test_pitchfield_requires_pitch_type(self) -> None:
+        """PitchField raises ValueError when pitch_type is missing."""
+        arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
+        pa_field = pa.field("test", _MIDI_PITCH_TYPE)
+        sf = StructField(arr, pa_field)
+        with pytest.raises(ValueError):
+            PitchField(sf)
+
+    def test_pitchfield_rejects_invalid_pitch_type(self) -> None:
+        """PitchField raises ValueError for invalid pitch_type."""
+        arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
+        pa_field = pa.field("test", _MIDI_PITCH_TYPE)
+        sf = StructField(arr, pa_field)
+        with pytest.raises(ValueError):
+            PitchField(sf, pitch_type="invalid")
 
 
 # ---------------------------------------------------------------------------
@@ -230,10 +238,10 @@ class TestProtocolConformance:
         assert isinstance(pf, SemanticTypeLike)
 
     def test_specific_pitch_field_semantic_type(self) -> None:
-        """EnharmonicPitchField.semantic_type == 'MidiPitch'."""
+        """EnharmonicPitchField.semantic_type == 'Pitch'."""
         arr = _make_midi_pitch_array()
         pf = EnharmonicPitchField.from_field(arr)
-        assert pf.semantic_type == "EnharmonicPitch"
+        assert pf.semantic_type == "Pitch"
 
     def test_generic_pitch_field_satisfies_semantic_type_like(self) -> None:
         """isinstance(GenericPitchField(...), SemanticTypeLike) is True."""
@@ -547,60 +555,68 @@ class TestProperties:
     """Tests for pitch field properties."""
 
     def test_specific_semantic_type(self) -> None:
-        """EnharmonicPitchField.semantic_type == 'MidiPitch'."""
+        """EnharmonicPitchField.semantic_type == 'Pitch'."""
         arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
         pf = EnharmonicPitchField.from_field(arr)
-        assert pf.semantic_type == "EnharmonicPitch"
+        assert pf.semantic_type == "Pitch"
 
     def test_specific_metadata_dict(self) -> None:
         """Verify EnharmonicPitchField returns correct metadata_dict."""
         arr = _make_midi_pitch_array([{"ep": 60, "epc": 0}])
         pf = EnharmonicPitchField.from_field(arr)
         md = pf.metadata_dict()
-        assert md["field_type"] == "EnharmonicPitchField"
-        assert md["pitch_type"] == "enharmonic"
+        assert md["field_type"] == "PitchField"
+        assert md["pitch_type"] == "ep"
+        assert md["space"] == "semitones"
+        assert md["level"] == "specific"
 
     def test_generic_semantic_type(self) -> None:
-        """GenericPitchField.semantic_type == 'GenericPitch'."""
+        """GenericPitchField.semantic_type == 'Pitch'."""
         arr = _make_generic_pitch_array([{"pitch_class": 0}])
         gpf = GenericPitchField.from_field(arr)
-        assert gpf.semantic_type == "GenericPitch"
+        assert gpf.semantic_type == "Pitch"
 
     def test_generic_metadata_dict(self) -> None:
         """Verify GenericPitchField returns correct metadata_dict."""
         arr = _make_generic_pitch_array([{"pitch_class": 0}])
         gpf = GenericPitchField.from_field(arr)
         md = gpf.metadata_dict()
-        assert md["field_type"] == "GenericPitchField"
-        assert md["pitch_type"] == "generic"
+        assert md["field_type"] == "PitchField"
+        assert md["pitch_type"] == "epc"
+        assert md["space"] == "semitones"
+        assert md["level"] == "class"
 
     def test_spelled_pitch_class_semantic_type(self) -> None:
-        """SpelledPitchClassField.semantic_type == 'SpelledPitchClass'."""
+        """SpelledPitchClassField.semantic_type == 'Pitch'."""
         arr = _make_spelled_pitch_class_array()
         spcf = SpelledPitchClassField.from_field(arr)
-        assert spcf.semantic_type == "SpelledPitchClass"
+        assert spcf.semantic_type == "Pitch"
 
     def test_spelled_pitch_class_metadata_dict(self) -> None:
         """Verify SpelledPitchClassField returns correct metadata_dict."""
         arr = _make_spelled_pitch_class_array()
         spcf = SpelledPitchClassField.from_field(arr)
         md = spcf.metadata_dict()
-        assert md["field_type"] == "SpelledPitchClassField"
-        assert md["pitch_type"] == "spelled_class"
+        assert md["field_type"] == "PitchField"
+        assert md["pitch_type"] == "spc"
+        assert md["space"] == "fifths"
+        assert md["level"] == "class"
 
     def test_enharmonic_semantic_type(self) -> None:
-        """SpecificPitchField.semantic_type == 'SpelledPitch'."""
+        """SpecificPitchField.semantic_type == 'Pitch'."""
         arr = _make_spelled_pitch_array()
         epf = SpecificPitchField.from_field(arr)
-        assert epf.semantic_type == "SpecificPitch"
+        assert epf.semantic_type == "Pitch"
 
     def test_enharmonic_metadata_dict(self) -> None:
         """Verify SpecificPitchField returns correct metadata_dict."""
         arr = _make_spelled_pitch_array()
         epf = SpecificPitchField.from_field(arr)
         md = epf.metadata_dict()
-        assert md["field_type"] == "SpecificPitchField"
-        assert md["pitch_type"] == "specific"
+        assert md["field_type"] == "PitchField"
+        assert md["pitch_type"] == "sp"
+        assert md["space"] == "fifths"
+        assert md["level"] == "specific"
 
 
 # ---------------------------------------------------------------------------
@@ -621,8 +637,10 @@ class TestSerialization:
         raw_meta = pa_field.metadata
         assert b"timetoalign" in raw_meta
         blob = json.loads(raw_meta[b"timetoalign"].decode("utf-8"))
-        assert blob["field_type"] == "EnharmonicPitchField"
-        assert blob["pitch_type"] == "enharmonic"
+        assert blob["field_type"] == "PitchField"
+        assert blob["pitch_type"] == "ep"
+        assert blob["space"] == "semitones"
+        assert blob["level"] == "specific"
 
     def test_parquet_round_trip(self, tmp_path: object) -> None:
         """Write pa.Table with EnharmonicPitchField column, read back, verify data + metadata."""
@@ -657,7 +675,7 @@ class TestSerialization:
         pf2 = EnharmonicPitchField.from_field((col, field))
 
         # Verify metadata survived
-        assert pf2.semantic_type == "EnharmonicPitch"
+        assert pf2.semantic_type == "Pitch"
 
         # Verify data survived
         assert len(pf2) == 3
@@ -676,8 +694,10 @@ class TestSerialization:
         raw_meta = pa_field.metadata
         assert b"timetoalign" in raw_meta
         blob = json.loads(raw_meta[b"timetoalign"].decode("utf-8"))
-        assert blob["field_type"] == "GenericPitchField"
-        assert blob["pitch_type"] == "generic"
+        assert blob["field_type"] == "PitchField"
+        assert blob["pitch_type"] == "epc"
+        assert blob["space"] == "semitones"
+        assert blob["level"] == "class"
 
     def test_enharmonic_to_field_injects_metadata(self) -> None:
         """Verify SpecificPitchField.to_field() produces correct metadata."""
@@ -688,8 +708,10 @@ class TestSerialization:
         raw_meta = pa_field.metadata
         assert b"timetoalign" in raw_meta
         blob = json.loads(raw_meta[b"timetoalign"].decode("utf-8"))
-        assert blob["field_type"] == "SpecificPitchField"
-        assert blob["pitch_type"] == "specific"
+        assert blob["field_type"] == "PitchField"
+        assert blob["pitch_type"] == "sp"
+        assert blob["space"] == "fifths"
+        assert blob["level"] == "specific"
 
 
 # ---------------------------------------------------------------------------

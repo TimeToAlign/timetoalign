@@ -27,7 +27,6 @@ class NoteEventData(EventData, PitchAccessMixin):
     Rich temporal schema following TSV gold standard:
     - start: Continuous logical time (Fraction) - from 'quarterbeats'
     - duration: Duration (Fraction) - from 'duration_qb'
-    - duration_float: Float duration
     - mc/mn: Measure context
     - mc_onset/mn_onset: Measure-relative offsets (Fraction)
 
@@ -39,8 +38,6 @@ class NoteEventData(EventData, PitchAccessMixin):
     """
 
     _extra_fields: ClassVar[list[pa.Field]] = [
-        # Temporal - Derived/Float
-        pa.field("duration_float", pa.float64(), nullable=True),
         # Temporal - Measure context
         pa.field("mc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("mn", pa.string(), nullable=True),
@@ -205,12 +202,10 @@ class NoteEventData(EventData, PitchAccessMixin):
                 processed["start"] = processed.pop("quarterbeats")
             if "duration_qb" in processed:
                 processed["duration"] = processed.pop("duration_qb")
-            if "duration_qb_float" in processed:
-                processed["duration_float"] = processed.pop("duration_qb_float")
-
             # Remove unused/redundant fields
             for k in [
                 "quarterbeats_float",
+                "duration_qb_float",
                 "nominal_duration",
                 "scalar",
                 "timesig",

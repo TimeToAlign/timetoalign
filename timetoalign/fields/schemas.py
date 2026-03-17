@@ -45,7 +45,51 @@ from typing import ClassVar
 import pyarrow as pa
 
 # ═══════════════════════════════════════════════════════════════════════════
-# PITCH SCHEMAS
+# UNIFIED PITCH SCHEMA (PitchSpaceSchema)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class PitchSpaceSchema:
+    """Unified backing struct for all pitch and interval representations.
+
+    All pitch types (sp, spc, ep, epc, gp, gpc) and interval types
+    (si, sic, ei, eic, gi, gic) share this single struct. The
+    ``space`` and ``type`` metadata on the ``pa.Field`` determine
+    interpretation.
+
+    Storage struct::
+
+        {value: int64, octave: int64}
+
+    - ``value``: the pitch/interval value in the relevant space
+      (fifths position, MIDI number, semitones 0-11, diatonic step, etc.)
+    - ``octave``: octave number for specific types (sp, ep, gp, si, ei, gi);
+      null for class types (spc, epc, gpc, sic, eic, gic)
+
+    Metadata (stored in ``pa.Field.metadata``)::
+
+        {"space": "fifths"|"semitones"|"steps",
+         "type": "spc"|"sp"|"epc"|"ep"|"gpc"|"gp"|"sic"|"si"|"eic"|"ei"|"gic"|"gi"}
+    """
+
+    value: str = "value"
+    """The pitch/interval value in the relevant space."""
+
+    octave: str = "octave"
+    """Octave number (specific types) or null (class types)."""
+
+    schema: ClassVar[pa.StructType] = pa.struct(
+        [
+            pa.field("value", pa.int64(), nullable=True),
+            pa.field("octave", pa.int64(), nullable=True),
+        ]
+    )
+    """PyArrow struct type for unified pitch/interval storage."""
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DEPRECATED PITCH SCHEMAS (kept for backward compat during migration)
 # ═══════════════════════════════════════════════════════════════════════════
 
 # region Generic Pitch (GP)
@@ -55,13 +99,10 @@ import pyarrow as pa
 class GenericPitchSchema:
     """Schema for Generic Pitch (GP): pitch class only.
 
-    The most abstract pitch representation in 12-TET: just the pitch
-    class (chroma) as an integer 0-11 (C=0, C♯/D♭=1, ..., B=11).
-
-    This representation collapses ALL distinctions: no octave, no
-    spelling.  Useful for pitch-class set theory, chroma features,
-    and any analysis that treats all octave-equivalent pitches as
-    identical.
+    .. deprecated::
+        Use ``PitchSpaceSchema`` with ``type="epc"`` instead.
+        This schema stores chromatic pitch class 0-11, which is EPC
+        (semitones space), not true GPC (diatonic steps 0-6).
 
     Storage struct::
 
@@ -93,27 +134,12 @@ class GenericPitchSchema:
 class EnharmonicPitchSchema:
     """Schema for Enharmonic Pitch (EP): MIDI-style integer representation.
 
-    Called "enharmonic" because it **equates** enharmonic equivalents:
-    C♯4 and D♭4 both map to MIDI number 61.  This is the standard MIDI
-    representation used by virtually all audio/MIDI software.
-
-    Contains:
-    - ``ep``: the MIDI note number (0-127), encoding both pitch class
-      and octave as a single integer (C4 = 60)
-    - ``epc``: the enharmonic pitch class (0-11), redundant with
-      ``ep % 12`` but stored for efficient columnar operations
+    .. deprecated::
+        Use ``PitchSpaceSchema`` with ``type="ep"`` instead.
 
     Storage struct::
 
         {ep: int64, epc: int64}
-
-    Why "Enharmonic" and not "MIDI"?
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    The term "MIDI pitch" implies a specific technology.  "Enharmonic
-    pitch" describes the *musicological* property: this representation
-    treats enharmonically equivalent notes as identical.  The underlying
-    representation happens to coincide with MIDI note numbers, but the
-    concept is independent of MIDI.
     """
 
     ep: str = "ep"
@@ -148,34 +174,13 @@ class EnharmonicPitchSchema:
 class SpecificPitchSchema:
     """Schema for Specific Pitch (SP): spelled pitch with full identity.
 
-    Called "specific" because it preserves the **specific** spelling of
-    each note: C♯4 ≠ D♭4.  This is the most informative pitch
-    representation, carrying:
-
-    - generic pitch class (step letter + integer)
-    - accidental (alteration in semitones)
-    - spelled pitch class (position on the line of fifths)
-    - full spelled pitch string
-    - cents (for microtonal deviations or tuning info)
+    .. deprecated::
+        Use ``PitchSpaceSchema`` with ``type="sp"`` instead.
 
     Storage struct::
 
         {gpc_int: int64, gpc_str: string, acc: int64,
          spc_int: int64, spc_str: string, sp: string, cents: float64}
-
-    Why seven sub-fields?
-    ~~~~~~~~~~~~~~~~~~~~~
-    The representation is deliberately redundant to support efficient
-    columnar operations without compute:
-
-    - ``gpc_int`` + ``gpc_str``: generic pitch class in both integer
-      (for arithmetic) and string (for display) form.
-    - ``acc``: alteration in semitones (♭=-1, ♮=0, ♯=+1, 𝄪=+2, etc.).
-    - ``spc_int`` + ``spc_str``: spelled pitch class on the line of
-      fifths (for interval computation) and as string.
-    - ``sp``: full pitch string "C♯4" (for display and octave extraction).
-    - ``cents``: cents offset from 12-TET (default 0.0; non-zero for
-      microtonal data or historically informed tuning).
     """
 
     gpc_int: str = "gpc_int"
@@ -250,9 +255,8 @@ class SpecificPitchSchema:
 class SpelledPitchClassSchema:
     """Schema for Spelled Pitch Class (SPC): spelled pitch without octave.
 
-    A subset of the Specific Pitch schema that drops octave information.
-    Useful for pitch-class-level analysis that still distinguishes
-    enharmonic spellings (C♯ ≠ D♭).
+    .. deprecated::
+        Use ``PitchSpaceSchema`` with ``type="spc"`` instead.
 
     Storage struct::
 

@@ -32,29 +32,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from timetoalign.fields.pitch import (
-    EnharmonicPitchField,
-    PitchField,
-    SpecificPitchField,
-)
+from timetoalign.fields.pitch import PitchField
 from timetoalign.loader.score.tsv import TSVLoader
 
 # Path to a DCML-style notes TSV (Chopin Op. 10 No. 3)
+try:
+    TTA_DIR = Path(__file__).resolve().parents[2]
+except NameError:
+    TTA_DIR = Path(".").resolve().parents[1]
 NOTES_TSV = (
-    Path(__file__).resolve().parents[2]
-    / "tests"
-    / "data"
-    / "vienna_1x22"
-    / "ms3"
-    / "chopin_op10_no3.notes.tsv"
+    TTA_DIR / "tests" / "data" / "vienna_1x22" / "ms3" / "chopin_op10_no3.notes.tsv"
 )
 
 # %% [markdown]
-# ## Loading Real Data
-#
-# We load a DCML-style notes TSV via `TSVLoader`.  The loader parses
-# pitches, durations, and measure context from the TSV columns and
-# stores them in a PyArrow table.
+# ## Loading
 
 # %%
 loader = TSVLoader.from_file(NOTES_TSV)
@@ -64,9 +55,8 @@ events
 # %% [markdown]
 # ## Layer 0 -- Raw Table Access
 #
-# Every EventData instance wraps a PyArrow table.  You can always
-# access the underlying table and its columns directly, regardless
-# of whether any semantic fields are available.
+# Every EventData wraps a PyArrow table.  You can always access the
+# underlying table directly -- no semantic setup needed.
 
 # %%
 events.table
@@ -75,143 +65,121 @@ events.table
 events.table.column_names
 
 # %% [markdown]
-# Individual columns are accessible as PyArrow arrays.  For instance,
-# the `midi_pitch` column stores pitch data in a struct format:
+# `get_raw()` wraps a column in a lightweight raw DataField
+# (StructField, NumericField, StringField) without adding any
+# semantic identity.  This is the same data as `events.table`,
+# just wrapped for convenient field-level access.
 
 # %%
-midi_col = events.table.column("midi_pitch")
-midi_col
-
-# %% [markdown]
-# You can extract sub-fields from struct columns using PyArrow compute:
+raw_start = events.get_raw("start")
+raw_start
 
 # %%
-import pyarrow.compute as pc
-
-ep_values = pc.struct_field(midi_col, "ep")
-ep_values
+raw_start[0]
 
 # %% [markdown]
-# And convert to a pandas DataFrame for familiar tabular inspection:
-
-# %%
-events.to_pandas().head()
-
-# %% [markdown]
-# ## Layer 1 -- SemanticField Views
+# ## Default Fields -- start, end, duration
 #
-# Layer 1 provides **typed field views** over raw columns.  A field
-# wraps a raw PyArrow struct column and adds semantic identity: element
-# access returns typed scalars (e.g., `MidiPitch`), and the field
-# carries metadata about what kind of pitch it represents.
+# Every EventData has three core temporal columns: `start`, `end`,
+# and `duration`.  `get_field()` with a column name returns the
+# appropriate SemanticField: `CoordinateField` for start/end,
+# `DurationField` for duration.  Both inherit from `NumberField`
+# and wrap the coordinate struct `{value, numerator, denominator}`.
+
+# %%
+start = events.get_field("start")
+start
+
+# %%
+start[0]
+
+# %%
+end = events.get_field("end")
+end[0]
+
+# %%
+dur = events.get_field("duration")
+dur
+
+# %%
+dur[0]
+
+# %% [markdown]
+# A SemanticField always gives access to its underlying raw field
+# via `get_raw()`:
+
+# %%
+start.get_raw()
+
+# %% [markdown]
+# Convenience methods are also available:
+
+# %%
+events.get_start_field()[0], events.get_end_field()[0], events.get_duration_field()[0]
+
+# %% [markdown]
+# ## Layer 1 -- PitchField (Standalone)
 #
-# ### Creating a field externally
+# The unified `PitchField` handles all pitch types via a single
+# keyword argument: `ep` (MIDI), `spc` (spelled pitch class),
+# `sp` (spelled pitch), `epc` (pitch class 0-11), `gp` (generic
+# pitch), `gpc` (diatonic step 0-6).
+
+# %%
+pf = PitchField.from_raw(ep=[60, 64, 67])
+pf[0], pf[1], pf[2]
+
+# %%
+pf_sp = PitchField.from_labels(["C4", "E4", "G4"])
+pf_sp[0], pf_sp[1], pf_sp[2]
+
+# %% [markdown]
+# ## Layer 1 -- PitchField from EventData (Blueprint)
 #
-# You can construct a pitch field from a raw column extracted from the
-# table.  This demonstrates the `from_field()` convention: you pass
-# the raw column data and get back a semantically typed wrapper.
+# A **blueprint** PitchField is constructed with a column *name*
+# instead of data.  Pass it to `get_field()` and EventData resolves
+# the column, constructs the live field, and caches it.
 
 # %%
-epf = EnharmonicPitchField.from_field(midi_col)
-epf
+pitch = PitchField(ep="midi_pitch")
+pitch  # blueprint -- no data yet
+
+# %%
+pf_live = events.get_field(pitch)
+pf_live
+
+# %%
+pf_live[0]
 
 # %% [markdown]
-# Element access returns a typed scalar -- here, a `MidiPitch`:
+# Repeated calls return the **same** cached object:
 
 # %%
-epf[0]
-
-# %%
-pitch = epf[0]
-pitch.midi_number
+events.get_field(PitchField(ep="midi_pitch")) is pf_live
 
 # %% [markdown]
-# The field knows its `source` -- the raw column it wraps.  The
-# `source` parameter records which raw column backs this field.
-
-# %%
-epf.name
-
-# %% [markdown]
-# ### Creating a field from user data
+# ## PitchField Conversions
 #
-# More commonly, you might have a list of MIDI pitch values (e.g.,
-# from a CSV file or a MIDI parser).  The `from_midi_numbers()`
-# constructor accepts the data type users actually have:
+# `.to()` converts between pitch types.  Only information-losing
+# conversions are permitted (specific -> class, richer space ->
+# coarser space).
 
 # %%
-standalone = EnharmonicPitchField.from_midi_numbers([60, 64, 67])
-standalone[0], standalone[1], standalone[2]
-
-# %% [markdown]
-# Similarly, for spelled pitches, `from_labels()` accepts pitch
-# strings like `"C4"`, `"E4"`, `"G4"`:
+epc = pf_live.to("epc")
+epc[0], epc[1], epc[2]
 
 # %%
-spelled = SpecificPitchField.from_labels(["C4", "E4", "G4"])
-spelled[0], spelled[1], spelled[2]
-
-# %% [markdown]
-# ### Discovering fields via `get_field()`
-#
-# Rather than manually extracting columns, you can ask EventData to
-# find and construct the appropriate field automatically.  `get_field()`
-# inspects the table's columns, matches them against the requested
-# field type, constructs the field, and caches it.
-
-# %%
-events.has_field(EnharmonicPitchField)
-
-# %%
-field = events.get_field(EnharmonicPitchField)
-field
-
-# %%
-field[0]
-
-# %% [markdown]
-# ### Parent-type queries
-#
-# Requesting an abstract parent type (e.g. `PitchField`) discovers
-# the most specific available subclass:
-
-# %%
-events.has_field(PitchField)
-
-# %% [markdown]
-# ### Caching is transparent
-#
-# Repeated `get_field()` calls return the **same** object -- the field
-# is constructed once, then cached.  No user action is needed.
-
-# %%
-a = events.get_field(EnharmonicPitchField)
-b = events.get_field(EnharmonicPitchField)
-a is b
-
-# %% [markdown]
-# ### Both pitch representations
-#
-# This TSV contains both enharmonic (MIDI) and specific (spelled)
-# pitch data.  Both are accessible as fields:
-
-# %%
-events.has_field(SpecificPitchField)
-
-# %%
-spf = events.get_field(SpecificPitchField)
-spf[0]
+gpc = pf_live.to("gpc")
+gpc[0], gpc[1], gpc[2]
 
 # %% [markdown]
 # ## Layer 2 -- External Libraries
 #
-# The raw PyArrow columns that back Layer 1 fields are also accessible
-# to external libraries such as FlexOHR and pitchtypes.  Because these
-# are optional dependencies, no code example is shown here -- but the
-# principle is the same: extract a column from the table and pass it
-# to the library's own constructors.
+# The raw PyArrow columns backing Layer 1 fields are also accessible
+# to external libraries (FlexOHR, pitchtypes).  Extract a column from
+# the table and pass it to the library's constructors.
 #
-# **Key takeaway.**  The three layers form a progressive-disclosure
-# stack: Layer 0 always works, Layer 1 adds typed field views via
-# `get_field()`, and Layer 2 lets external packages operate on the
-# same underlying data.  EventData is never mutated at any layer.
+# **Key takeaway.**  Three layers form a progressive-disclosure stack:
+# Layer 0 always works, Layer 1 adds semantic fields via `get_field()`
+# and the unified PitchField, Layer 2 lets external packages operate
+# on the same data.  EventData is never mutated.

@@ -106,7 +106,6 @@ class MeasureData(EventData, MeasureAccessMixin):
             metadata={"description": "MeasureMap ID (string of count)"},
         ),
         # ===== Temporal - Derived/Explicit =====
-        pa.field("duration_float", pa.float64(), nullable=True),
         pa.field(
             "nominal_length",
             pa.float64(),
@@ -287,8 +286,7 @@ class MeasureData(EventData, MeasureAccessMixin):
                 processed["start"] = processed.pop("quarterbeats")
             if "duration_qb" in processed and "duration" not in processed:
                 processed["duration"] = processed.pop("duration_qb")
-            if "duration_qb_float" in processed:
-                processed["duration_float"] = processed.pop("duration_qb_float")
+            processed.pop("duration_qb_float", None)
             if "act_dur" in processed and "actual_length" not in processed:
                 # act_dur is typically a fraction string like "1/2"
                 processed["actual_length"] = processed.pop("act_dur")

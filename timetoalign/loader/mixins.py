@@ -1,9 +1,23 @@
 """Semantic field access mixins for EventData subclasses.
 
-Provides type-dispatched access to ``SemanticField`` columns stored in
-PyArrow tables.  The base ``SemanticFieldAccessMixin`` scans column
-metadata for ``b"timetoalign"`` JSON blobs containing ``field_type``
-entries and reconstructs the matching ``SemanticField`` subclass.
+Provides three levels of column access on ``EventData``:
+
+- **``events.table``** -- direct access to the underlying ``pa.Table``
+  (specialist use only).
+- **``events.get_raw("name")``** -- returns a raw ``DataField``
+  (``StructField``, ``NumericField``, etc.) wrapping the column.
+- **``events.get_field(...)``** -- returns a ``SemanticField`` wrapping
+  the column with semantic identity and typed scalar access.
+
+``get_field()`` accepts three argument forms:
+
+1. ``get_field("start")`` -- string column name; looks up metadata or
+   default-field mapping to determine the ``SemanticField`` subclass.
+2. ``get_field(EnharmonicPitchField)`` -- a class; scans all columns
+   for metadata matching that class (legacy API).
+3. ``get_field(PitchField(ep="midi_pitch"))`` -- a *blueprint*
+   instance; resolves the named column against the blueprint's type
+   configuration and caches the result.
 
 Domain mixins add convenience accessors with priority-based defaults
 and ``format=`` parameters for on-the-fly conversion:
@@ -15,18 +29,46 @@ and ``format=`` parameters for on-the-fly conversion:
 
 from __future__ import annotations
 
+import enum
 import json
 from typing import TYPE_CHECKING, Any
 
 import pyarrow as pa
 
-from timetoalign.fields.base import SemanticField
+from timetoalign.fields.base import (
+    DataField,
+    MapField,
+    NumericField,
+    SemanticField,
+    StringField,
+    StructField,
+    _GenericField,
+)
 
 if TYPE_CHECKING:
     from timetoalign.fields.harmony import HarmonyField
     from timetoalign.fields.pitch import PitchField
 
 _TIMETOALIGN_KEY = b"timetoalign"
+
+
+# ---------------------------------------------------------------------------
+# DefaultField -- core temporal columns present on every EventData
+# ---------------------------------------------------------------------------
+
+
+class DefaultField(enum.Enum):
+    """Core temporal columns present on every EventData table.
+
+    These map column names to the ``SemanticField`` subclass that
+    should wrap them.  ``start`` and ``end`` are ``CoordinateField``;
+    ``duration`` is ``DurationField``.
+    """
+
+    start = "start"
+    end = "end"
+    duration = "duration"
+
 
 # ---------------------------------------------------------------------------
 # Field-type string -> class mapping (lazy-loaded to avoid circular imports)
@@ -41,6 +83,7 @@ def _get_field_type_map() -> dict[str, type[SemanticField[Any]]]:
     if _FIELD_TYPE_MAP is not None:
         return _FIELD_TYPE_MAP
 
+    from timetoalign.fields.coordinate import CoordinateField, DurationField
     from timetoalign.fields.harmony import (
         DcmlLabelField,
         RomanNumeralHarmonyField,
@@ -49,25 +92,29 @@ def _get_field_type_map() -> dict[str, type[SemanticField[Any]]]:
     from timetoalign.fields.pitch import (
         EnharmonicPitchField,
         GenericPitchField,
+    )
+    from timetoalign.fields.pitch import PitchField as UnifiedPitchField
+    from timetoalign.fields.pitch import (
         SpecificPitchField,
         SpelledPitchClassField,
     )
 
     _FIELD_TYPE_MAP = {
-        # Pitch hierarchy (EP = Enharmonic = MIDI, SP = Specific = Spelled)
+        # Unified PitchField (new canonical entry)
+        "PitchField": UnifiedPitchField,
+        # Coordinate / Duration
+        "CoordinateField": CoordinateField,
+        "DurationField": DurationField,
+        # Pitch legacy aliases
         "GenericPitchField": GenericPitchField,
         "SpelledPitchClassField": SpelledPitchClassField,
         "EnharmonicPitchField": EnharmonicPitchField,
         "SpecificPitchField": SpecificPitchField,
-        # Backward-compat: old names from before the GP/EP/SP correction
-        # Old "SpecificPitchField" wrapped EP (MIDI) -> now EnharmonicPitchField
-        # Old "EnharmonicPitchField" wrapped SP (Spelled) -> now SpecificPitchField
-        "PitchField": EnharmonicPitchField,  # original PitchField was MIDI
-        "SpelledPitchField": SpecificPitchField,  # original SpelledPitchField was SP
+        # Backward-compat: old names
+        "SpelledPitchField": SpecificPitchField,
         # Harmony hierarchy
         "WesternTertianHarmonyField": WesternTertianHarmonyField,
         "RomanNumeralHarmonyField": RomanNumeralHarmonyField,
-        # DcmlLabelField stores its field_type as "HarmonyField" for backward compat
         "HarmonyField": DcmlLabelField,
         "DcmlLabelField": DcmlLabelField,
         "DcmlHarmonyField": DcmlLabelField,
@@ -182,15 +229,74 @@ def _discover_by_schema(
 
 
 # ---------------------------------------------------------------------------
+# Raw field wrapping
+# ---------------------------------------------------------------------------
+
+
+def _wrap_raw(col: pa.ChunkedArray | pa.Array, pa_field: pa.Field) -> DataField:
+    """Wrap a column in the appropriate raw ``DataField`` subclass."""
+    dt = pa_field.type
+    if pa.types.is_struct(dt):
+        return StructField(col, pa_field)
+    if pa.types.is_integer(dt) or pa.types.is_floating(dt):
+        return NumericField(col, pa_field)
+    if pa.types.is_string(dt) or pa.types.is_large_string(dt):
+        return StringField(col, pa_field)
+    if pa.types.is_map(dt):
+        return MapField(col, pa_field)
+    return _GenericField(col, pa_field)
+
+
+# ---------------------------------------------------------------------------
+# Default field resolution (start/end -> CoordinateField, duration -> DurationField)
+# ---------------------------------------------------------------------------
+
+_DEFAULT_FIELD_MAP: dict[str, str] | None = None
+
+
+def _get_default_field_map() -> dict[str, str]:
+    """Map default column names to semantic field class names."""
+    global _DEFAULT_FIELD_MAP
+    if _DEFAULT_FIELD_MAP is None:
+        _DEFAULT_FIELD_MAP = {
+            DefaultField.start.value: "CoordinateField",
+            DefaultField.end.value: "CoordinateField",
+            DefaultField.duration.value: "DurationField",
+        }
+    return _DEFAULT_FIELD_MAP
+
+
+def _resolve_default_field(
+    name: str,
+    col: pa.ChunkedArray | pa.Array,
+    pa_field: pa.Field,
+) -> SemanticField[Any] | None:
+    """Try to construct a semantic field for a default (core) column."""
+    mapping = _get_default_field_map()
+    ft_str = mapping.get(name)
+    if ft_str is None:
+        return None
+    try:
+        return _reconstruct_field(pa_field, col, ft_str)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+# ---------------------------------------------------------------------------
 # SemanticFieldAccessMixin
 # ---------------------------------------------------------------------------
 
 
 class SemanticFieldAccessMixin:
-    """Base mixin for type-dispatched field access on EventData.
+    """Base mixin for field access on EventData.
 
-    Expects the host class to provide a ``_table`` attribute of type
-    ``pa.Table``.
+    Provides three access levels:
+
+    - ``get_raw("name")`` -- raw ``DataField`` wrapper (no semantics).
+    - ``get_field("name")`` -- ``SemanticField`` wrapper (typed scalars).
+    - ``get_field(PitchField(ep="col"))`` -- blueprint resolution.
+
+    Expects the host class to provide a ``_table`` attribute.
     """
 
     _table: pa.Table  # provided by EventData
@@ -203,22 +309,70 @@ class SemanticFieldAccessMixin:
             self.__field_cache: dict[tuple[str, str], SemanticField[Any]] = {}
             return self.__field_cache
 
-    def get_field(self, field_type: type[SemanticField[Any]]) -> SemanticField[Any]:
-        """Return the first column matching *field_type*'s class hierarchy.
+    # -- get_raw() -----------------------------------------------------------
+
+    def get_raw(self, name: str) -> DataField:
+        """Return a raw ``DataField`` for the named column.
+
+        The returned field is a ``StructField``, ``NumericField``,
+        ``StringField``, or ``MapField`` -- whichever matches the
+        column's PyArrow type.  No semantic metadata is attached.
 
         Args:
-            field_type: The ``SemanticField`` subclass to search for.
+            name: Column name in the underlying table.
 
         Returns:
-            A ``SemanticField`` subclass instance.
+            A raw ``DataField`` wrapping the column data.
+
+        Raises:
+            KeyError: If *name* is not in the table.
+        """
+        if name not in self._table.column_names:
+            raise KeyError(
+                f"Column {name!r} not found. " f"Available: {self._table.column_names}"
+            )
+        col = self._table.column(name)
+        pa_field = self._table.schema.field(name)
+        return _wrap_raw(col, pa_field)
+
+    # -- get_field() ---------------------------------------------------------
+
+    def get_field(
+        self,
+        selector: str | type[SemanticField[Any]] | SemanticField[Any],
+    ) -> SemanticField[Any]:
+        """Return a semantic field, resolved from *selector*.
+
+        Three forms are supported:
+
+        1. **String** -- column name: ``get_field("start")``.  Checks
+           column metadata for ``field_type``; falls back to
+           ``DefaultField`` mapping for core temporal columns.
+        2. **Class** -- ``get_field(EnharmonicPitchField)``.  Scans all
+           columns for metadata matching the class (legacy API).
+        3. **Blueprint instance** -- ``get_field(PitchField(ep="col"))``.
+           Resolves the named column using the blueprint's pitch type.
+
+        Args:
+            selector: Column name, ``SemanticField`` subclass, or
+                blueprint instance.
+
+        Returns:
+            A ``SemanticField`` subclass instance (cached).
 
         Raises:
             KeyError: If no matching column is found.
         """
-        fields = self.get_fields(field_type)
-        if not fields:
-            raise KeyError(f"No column matching {field_type.__name__!r} found in table")
-        return fields[0]
+        if isinstance(selector, str):
+            return self._get_field_by_name(selector)
+        if isinstance(selector, type) and issubclass(selector, SemanticField):
+            return self._get_field_by_class(selector)
+        if isinstance(selector, SemanticField):
+            return self._get_field_by_blueprint(selector)
+        raise TypeError(
+            f"get_field() expects str, SemanticField class, or blueprint instance, "
+            f"got {type(selector).__name__}"
+        )
 
     def get_fields(
         self, field_type: type[SemanticField[Any]]
@@ -229,9 +383,8 @@ class SemanticFieldAccessMixin:
 
         1. **Metadata-based**: columns carrying ``b"timetoalign"`` JSON
            metadata with a ``field_type`` entry.
-        2. **Schema-based fallback**: if no metadata matches are found,
-           tries to match the requested *field_type*'s ``_default_column``
-           name against table columns with a compatible struct type.
+        2. **Schema-based fallback**: tries to match *field_type*'s
+           ``_default_column`` name against table columns.
 
         Args:
             field_type: The ``SemanticField`` subclass to search for.
@@ -273,10 +426,6 @@ class SemanticFieldAccessMixin:
     def has_field(self, field_type: type[SemanticField[Any]]) -> bool:
         """Check whether any column matches *field_type*.
 
-        Uses the same two-strategy discovery as ``get_fields()``
-        (metadata-based, then schema-based fallback) but avoids
-        constructing field objects when possible.
-
         Args:
             field_type: The ``SemanticField`` subclass to search for.
 
@@ -286,18 +435,14 @@ class SemanticFieldAccessMixin:
         registry = _get_field_type_map()
         cache = self._field_cache
 
-        # Fast path: check if any cached field already matches
         for (_, cached_ft_str), _ in cache.items():
             cls = registry.get(cached_ft_str)
             if cls is not None and issubclass(cls, field_type):
                 return True
-
-        # Check cache keys that came from schema-based discovery
         for (_, cached_ft_str), _ in cache.items():
             if cached_ft_str == field_type.__name__:
                 return True
 
-        # Metadata scan
         schema = self._table.schema
         for i in range(len(schema)):
             pa_field = schema.field(i)
@@ -310,7 +455,6 @@ class SemanticFieldAccessMixin:
             if issubclass(cls, field_type):
                 return True
 
-        # Schema-based fallback: check if _default_column exists in table
         column_names = set(self._table.column_names)
         candidates: list[type[SemanticField[Any]]] = []
         if hasattr(field_type, "_default_column"):
@@ -329,6 +473,104 @@ class SemanticFieldAccessMixin:
                     return True
 
         return False
+
+    # -- convenience accessors for default temporal fields -------------------
+
+    def get_start_field(self) -> SemanticField[Any]:
+        """Return the ``CoordinateField`` for the ``start`` column."""
+        return self.get_field("start")
+
+    def get_end_field(self) -> SemanticField[Any]:
+        """Return the ``CoordinateField`` for the ``end`` column."""
+        return self.get_field("end")
+
+    def get_duration_field(self) -> SemanticField[Any]:
+        """Return the ``DurationField`` for the ``duration`` column."""
+        return self.get_field("duration")
+
+    # -- private dispatch methods --------------------------------------------
+
+    def _get_field_by_name(self, name: str) -> SemanticField[Any]:
+        """Resolve a semantic field by column name."""
+        if name not in self._table.column_names:
+            raise KeyError(
+                f"Column {name!r} not found. " f"Available: {self._table.column_names}"
+            )
+        cache = self._field_cache
+
+        # Check cache first
+        for (cached_name, _), cached_field in cache.items():
+            if cached_name == name:
+                return cached_field
+
+        col = self._table.column(name)
+        pa_field = self._table.schema.field(name)
+
+        # Strategy 1: metadata-based
+        ft_str = _parse_field_type_metadata(pa_field)
+        if ft_str is not None:
+            field = _reconstruct_field(pa_field, col, ft_str)
+            cache[(name, ft_str)] = field
+            return field
+
+        # Strategy 2: default field mapping (start/end -> Coordinate, duration -> Duration)
+        field = _resolve_default_field(name, col, pa_field)
+        if field is not None:
+            cache[(name, type(field).__name__)] = field
+            return field
+
+        raise KeyError(
+            f"Column {name!r} has no semantic field metadata and is not "
+            f"a default field. Use get_raw({name!r}) for raw access."
+        )
+
+    def _get_field_by_class(
+        self, field_type: type[SemanticField[Any]]
+    ) -> SemanticField[Any]:
+        """Resolve a semantic field by class (legacy API)."""
+        fields = self.get_fields(field_type)
+        if not fields:
+            raise KeyError(f"No column matching {field_type.__name__!r} found in table")
+        return fields[0]
+
+    def _get_field_by_blueprint(
+        self, blueprint: SemanticField[Any]
+    ) -> SemanticField[Any]:
+        """Resolve a semantic field from a blueprint instance.
+
+        A blueprint is a ``SemanticField`` constructed with column names
+        instead of data (e.g. ``PitchField(ep="midi_pitch")``).  This
+        method extracts the column from the table and constructs the
+        live field.
+        """
+        from timetoalign.fields.pitch import PitchField as PitchFieldCls
+
+        if isinstance(blueprint, PitchFieldCls) and blueprint.is_blueprint:
+            col_name = blueprint._blueprint_column
+            pitch_type = blueprint.pitch_type
+            cache = self._field_cache
+            cache_key = (col_name, f"PitchField:{pitch_type}")
+
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return cached
+
+            if col_name not in self._table.column_names:
+                raise KeyError(
+                    f"Blueprint column {col_name!r} not found. "
+                    f"Available: {self._table.column_names}"
+                )
+
+            col = self._table.column(col_name)
+            pa_field = self._table.schema.field(col_name)
+            field = PitchFieldCls.from_field((col, pa_field), pitch_type=pitch_type)
+            cache[cache_key] = field
+            return field
+
+        raise TypeError(
+            f"Blueprint resolution not supported for {type(blueprint).__name__}. "
+            f"Only PitchField blueprints are currently supported."
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -14,7 +14,7 @@ from .base import (
     StringField,
     StructField,
 )
-from .coordinate import CoordinateField
+from .coordinate import CoordinateField, DurationField, NumberField
 from .harmony import (
     DcmlLabelField,
     HarmonyField,
@@ -30,6 +30,7 @@ from .pitch import (
     SpelledPitchClassField,
     SpelledPitchField,
 )
+from .schemas import PitchSpaceSchema
 
 # Alias for consistency with naming convention
 DcmlHarmonyField = DcmlLabelField
@@ -39,13 +40,16 @@ __all__ = [
     "DataField",
     "DcmlHarmonyField",
     "DcmlLabelField",
+    "DurationField",
     "EnharmonicPitchField",
     "GenericPitchField",
     "HarmonyField",
     "MapField",
     "MidiPitchField",
+    "NumberField",
     "NumericField",
     "PitchField",
+    "PitchSpaceSchema",
     "RomanNumeralHarmonyField",
     "SemanticField",
     "SpecificPitchField",
