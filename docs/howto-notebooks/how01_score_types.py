@@ -61,10 +61,11 @@ p
 p.midi_number, p.pitch_class
 
 # %% [markdown]
-# ## SpelledPitchField: Rich Pitch Representation
+# ## PitchField (SP): Rich Pitch Representation
 #
-# `SpelledPitchField` wraps the `spelled_pitch` struct and returns `SpelledPitch`
-# scalars with step name, accidental, octave, fifths-based spelling, and cents.
+# `PitchField` with SP (spelled pitch) wraps the `spelled_pitch` struct and
+# returns `SpelledPitch` scalars with step name, accidental, octave,
+# fifths-based spelling, and cents.
 
 # %%
 spelled = store.notes.spelled_pitch_field
@@ -177,8 +178,10 @@ meta = json.loads(loaded.schema.field(pa_field.name).metadata[b"timetoalign"])
 meta
 
 # %%
-# Reconstruct the SpecificPitchField from the loaded table
-from timetoalign.fields import SpecificPitchField
+# Reconstruct the PitchField from the loaded table
+from timetoalign.fields import PitchField
 
-loaded_pf = SpecificPitchField.from_table(loaded)
+col_name = pa_field.name
+loaded_arr = loaded.column(col_name).combine_chunks()
+loaded_pf = PitchField.from_field(loaded_arr, name=col_name)
 loaded_pf[0]

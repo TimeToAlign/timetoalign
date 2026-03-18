@@ -21,15 +21,7 @@ from .harmony import (
     RomanNumeralHarmonyField,
     WesternTertianHarmonyField,
 )
-from .pitch import (
-    EnharmonicPitchField,
-    GenericPitchField,
-    MidiPitchField,
-    PitchField,
-    SpecificPitchField,
-    SpelledPitchClassField,
-    SpelledPitchField,
-)
+from .pitch import PitchField
 from .schemas import PitchSpaceSchema
 
 # Alias for consistency with naming convention
@@ -41,20 +33,14 @@ __all__ = [
     "DcmlHarmonyField",
     "DcmlLabelField",
     "DurationField",
-    "EnharmonicPitchField",
-    "GenericPitchField",
     "HarmonyField",
     "MapField",
-    "MidiPitchField",
     "NumberField",
     "NumericField",
     "PitchField",
     "PitchSpaceSchema",
     "RomanNumeralHarmonyField",
     "SemanticField",
-    "SpecificPitchField",
-    "SpelledPitchClassField",
-    "SpelledPitchField",
     "StringField",
     "StructField",
     "WesternTertianHarmonyField",

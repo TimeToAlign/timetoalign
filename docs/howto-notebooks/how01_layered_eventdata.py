@@ -43,11 +43,11 @@ from pathlib import Path
 from timetoalign.fields.pitch import PitchField
 from timetoalign.loader.score.tsv import TSVLoader
 
-# Path to a DCML-style notes TSV (Chopin Op. 10 No. 3)
 try:
     TTA_DIR = Path(__file__).resolve().parents[2]
 except NameError:
     TTA_DIR = Path(".").resolve().parents[1]
+
 NOTES_TSV = (
     TTA_DIR / "tests" / "data" / "vienna_1x22" / "ms3" / "chopin_op10_no3.notes.tsv"
 )
@@ -79,6 +79,11 @@ events = loader.get_events()
 events
 
 # %%
+# The table schema reveals columns and their types -- much more readable
+# than the raw table repr for wide data
+events.table.schema
+
+# %%
 events.table.column_names
 
 # %%
@@ -94,54 +99,54 @@ events_selected.table.column_names
 # %% [markdown]
 # ## Layer 0 -- Raw Table Access
 #
-# Every EventData wraps a PyArrow table.  You can always access the
-# underlying table directly -- no semantic setup needed.
+# Every EventData wraps a PyArrow table.  `get_raw()` wraps a column
+# in a lightweight raw DataField without adding any semantic identity.
+# The concrete type depends on the column's PyArrow type.
 
 # %%
-events.table
-
-# %%
-events.table.column_names
-
-# %% [markdown]
-# `get_raw()` wraps a column in a lightweight raw DataField
-# (StructField, NumericField, StringField) without adding any
-# semantic identity.  This is the same data as `events.table`,
-# just wrapped for convenient field-level access.
-
-# %%
+# Struct column -> StructField (e.g. "start" stores onset coordinates)
 raw_start = events.get_raw("start")
 raw_start
 
 # %%
-raw_start[0]
+# Index 3 is G#3 -- an accidental-bearing note, more interesting than index 0
+raw_start[3]
+
+# %%
+# Numeric column -> NumericField
+raw_mc = events.get_raw("mc")
+raw_mc[3]
+
+# %%
+# String column -> StringField (note names carry accidental information)
+raw_name = events.get_raw("name")
+raw_name[3], raw_name[8], raw_name[16]
 
 # %% [markdown]
-# ## Layer 1 -- Default Fields (start, end, duration)
+# ## Layer 1 -- Temporal Fields
 #
 # Every EventData has three core temporal columns: `start`, `end`,
 # and `duration`.  `get_field()` with a column name returns the
 # appropriate SemanticField: `CoordinateField` for start/end,
-# `DurationField` for duration.  Both inherit from `NumberField`
-# and wrap the coordinate struct `{value, numerator, denominator}`.
+# `DurationField` for duration.
 
 # %%
 start = events.get_field("start")
 start
 
 # %%
-start[0]
+# Indexing returns a Coordinate scalar with .value and .unit
+# Index 8 is D#4 -- let's see where it starts
+s8 = start[8]
+s8.value, s8.unit
 
 # %%
 end = events.get_field("end")
-end[0]
+repr(end[8])
 
 # %%
 dur = events.get_field("duration")
-dur
-
-# %%
-dur[0]
+repr(dur[8])
 
 # %% [markdown]
 # A SemanticField always gives access to its underlying raw field
@@ -151,82 +156,158 @@ dur[0]
 start.get_raw()
 
 # %% [markdown]
-# ## Layer 1 -- PitchField (Standalone)
+# ## Layer 1 -- PitchField (Blueprint Pattern)
 #
-# The unified `PitchField` handles all pitch types via a single
-# keyword argument: `ep` (MIDI), `spc` (spelled pitch class),
-# `sp` (spelled pitch), `epc` (pitch class 0-11), `gp` (generic
-# pitch), `gpc` (diatonic step 0-6).
+# The Chopin data has **two** pitch columns: `midi_pitch` (EP -- enharmonic
+# pitch via MIDI numbers) and `spelled_pitch` (SP -- fully spelled pitch
+# with accidental identity).  This redundancy is the killer demonstration
+# of the blueprint pattern.
+#
+# A **blueprint** PitchField names a column but carries no data.  Pass it
+# to `get_field()` and EventData resolves the column, constructs the live
+# field, and caches it.
+
+# %% [markdown]
+# ### EP blueprint (midi_pitch)
 
 # %%
-pf = PitchField.from_raw(ep=[60, 64, 67])
-pf
+bp_ep = PitchField(ep="midi_pitch")
+bp_ep  # blueprint -- no data yet
 
 # %%
-pf[0], pf[1], pf[2]
+pf_ep = events.get_field(bp_ep)
+pf_ep
 
 # %%
-pf_sp = PitchField.from_labels(["C4", "E4", "G4"])
+# Indices with accidentals: 3=G#3, 8=D#4, 16=F#4, 29=G#4
+pf_ep[3], pf_ep[8], pf_ep[16], pf_ep[29]
+
+# %% [markdown]
+# ### SP blueprint (spelled_pitch)
+
+# %%
+bp_sp = PitchField(sp="spelled_pitch")
+bp_sp
+
+# %%
+pf_sp = events.get_field(bp_sp)
 pf_sp
 
 # %%
-pf_sp[0], pf_sp[1], pf_sp[2]
+# The SAME indices -- now with full spelling preserved
+pf_sp[3], pf_sp[8], pf_sp[16], pf_sp[29]
 
 # %% [markdown]
-# ## Layer 1 -- PitchField from EventData (Blueprint)
+# Compare the two representations of the same note -- EP loses
+# the distinction between enharmonic equivalents, while SP preserves it:
+
+# %%
+{
+    "index 3 (EP)": repr(pf_ep[3]),
+    "index 3 (SP)": repr(pf_sp[3]),
+    "index 83 (EP)": repr(pf_ep[83]),
+    "index 83 (SP)": repr(pf_sp[83]),
+}
+
+# %% [markdown]
+# ### Caching
 #
-# A **blueprint** PitchField is constructed with a column *name*
-# instead of data.  Pass it to `get_field()` and EventData resolves
-# the column, constructs the live field, and caches it.
+# Repeated calls with the same blueprint return the **same** cached object:
 
 # %%
-pitch_blueprint = PitchField(ep="midi_pitch")
-pitch_blueprint  # blueprint -- no data yet
-
-# %%
-pf_live = events.get_field(pitch_blueprint)
-pf_live
+events.get_field(PitchField(ep="midi_pitch")) is pf_ep
 
 # %% [markdown]
-# The original values are EnharmonicPitch scalars, combining MIDI pitch
-# with enharmonic spelling:
+# ### PitchField properties
+#
+# Each live PitchField exposes `pitch_type`, `space`, and `is_class`:
 
 # %%
-pf_live[0], pf_live[1], pf_live[2]
-
-# %% [markdown]
-# Repeated calls return the **same** cached object:
+pf_ep.pitch_type, pf_ep.space, pf_ep.is_class
 
 # %%
-events.get_field(PitchField(ep="midi_pitch")) is pf_live
+pf_sp.pitch_type, pf_sp.space, pf_sp.is_class
 
 # %% [markdown]
-# ## PitchField Conversions
+# ## Layer 1 -- PitchField Conversions
 #
 # `.to()` converts between pitch types.  Only information-losing
-# conversions are permitted (specific -> class, richer space ->
-# coarser space).
-
-# %% [markdown]
-# **EPC** (enharmonic pitch class) gives the chromatic pitch class (0--11):
+# conversions are permitted (richer to coarser).  Starting from the
+# SP field (the most informative), we can reach every coarser type.
 
 # %%
-epc = pf_live.to("epc")
-epc[0], epc[1], epc[2]
-
-# %% [markdown]
-# **GPC** (generic pitch class) gives the diatonic step name (C--B, 0--6):
+# SP -> SPC: drop octave, keep spelling
+pf_spc = pf_sp.to("spc")
+pf_spc[3], pf_spc[8], pf_spc[29]
 
 # %%
-gpc = pf_live.to("gpc")
-gpc[0], gpc[1], gpc[2]
+# SP -> EPC: lose spelling and octave (chromatic pitch class 0-11)
+pf_epc = pf_sp.to("epc")
+pf_epc[3], pf_epc[8], pf_epc[29]
+
+# %%
+# SP -> GPC: lose accidentals and octave (diatonic step 0-6)
+pf_gpc = pf_sp.to("gpc")
+pf_gpc[3], pf_gpc[8], pf_gpc[29]
+
+# %% [markdown]
+# The same note index through all representations -- from most
+# informative (SP) to least (GPC):
+
+# %%
+{
+    "SP": repr(pf_sp[29]),
+    "SPC": repr(pf_spc[29]),
+    "EPC": repr(pf_epc[29]),
+    "GPC": repr(pf_gpc[29]),
+}
+
+# %% [markdown]
+# ## Field Discovery
+#
+# EventData provides discovery methods for finding fields by type.
+
+# %%
+# has_field -- does this EventData have pitch columns?
+events.has_field(PitchField)
+
+# %%
+# get_fields -- find ALL matching fields (returns both midi_pitch and spelled_pitch)
+pitch_fields = events.get_fields(PitchField)
+len(pitch_fields), [repr(pf) for pf in pitch_fields]
+
+# %%
+# get_field by class -- returns first match
+pf_first = events.get_field(PitchField)
+repr(pf_first[3])
+
+# %%
+# get_pitch_field -- returns the most informative (SP > EP)
+pf_best = events.get_pitch_field()
+repr(pf_best), repr(pf_best[3])
+
+# %% [markdown]
+# The Chopin notes have both `spelled_pitch` (SP) and `midi_pitch`
+# (EP) columns.  `get_pitch_field()` returns the SP field because
+# it is the most informative.
+
+# %% [markdown]
+# ## Caching Behaviour
+#
+# All `get_field()` calls are cached.  Repeated requests for the
+# same field return the identical object.
+
+# %%
+f1 = events.get_field("start")
+f2 = events.get_field("start")
+f1 is f2
 
 # %% [markdown]
 # ## Layer 2 -- External Libraries
 #
-# The raw PyArrow columns backing Layer 1 fields are also accessible
-# to external libraries (FlexOHR, pitchtypes).  Extract a column from
-# the table and pass it to the library's constructors.
+# The raw PyArrow columns backing Layer 1 fields are accessible
+# to external libraries (FlexOHR, pitchtypes).  Extract a column
+# from the table and pass it to the library's constructors.
 #
 # **Key takeaway.**  The loader-first pipeline gives you:
 #

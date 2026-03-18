@@ -13,8 +13,8 @@ Provides three levels of column access on ``EventData``:
 
 1. ``get_field("start")`` -- string column name; looks up metadata or
    default-field mapping to determine the ``SemanticField`` subclass.
-2. ``get_field(EnharmonicPitchField)`` -- a class; scans all columns
-   for metadata matching that class (legacy API).
+2. ``get_field(PitchField)`` -- a class; scans all columns
+   for metadata matching that class.
 3. ``get_field(PitchField(ep="midi_pitch"))`` -- a *blueprint*
    instance; resolves the named column against the blueprint's type
    configuration and caches the result.
@@ -89,29 +89,21 @@ def _get_field_type_map() -> dict[str, type[SemanticField[Any]]]:
         RomanNumeralHarmonyField,
         WesternTertianHarmonyField,
     )
-    from timetoalign.fields.pitch import (
-        EnharmonicPitchField,
-        GenericPitchField,
-    )
-    from timetoalign.fields.pitch import PitchField as UnifiedPitchField
-    from timetoalign.fields.pitch import (
-        SpecificPitchField,
-        SpelledPitchClassField,
-    )
+    from timetoalign.fields.pitch import PitchField
 
     _FIELD_TYPE_MAP = {
-        # Unified PitchField (new canonical entry)
-        "PitchField": UnifiedPitchField,
+        # Unified PitchField (canonical entry)
+        "PitchField": PitchField,
         # Coordinate / Duration
         "CoordinateField": CoordinateField,
         "DurationField": DurationField,
-        # Pitch legacy aliases
-        "GenericPitchField": GenericPitchField,
-        "SpelledPitchClassField": SpelledPitchClassField,
-        "EnharmonicPitchField": EnharmonicPitchField,
-        "SpecificPitchField": SpecificPitchField,
-        # Backward-compat: old names
-        "SpelledPitchField": SpecificPitchField,
+        # Legacy pitch metadata compatibility -- all map to PitchField
+        "GenericPitchField": PitchField,
+        "SpelledPitchClassField": PitchField,
+        "EnharmonicPitchField": PitchField,
+        "SpecificPitchField": PitchField,
+        "SpelledPitchField": PitchField,
+        "MidiPitchField": PitchField,
         # Harmony hierarchy
         "WesternTertianHarmonyField": WesternTertianHarmonyField,
         "RomanNumeralHarmonyField": RomanNumeralHarmonyField,
@@ -172,9 +164,8 @@ def _discover_by_schema(
     table contains a column with a matching name and compatible struct
     type, the field is constructed via ``from_field()`` and cached.
 
-    This function also checks concrete subclasses of *field_type* (e.g.,
-    requesting ``PitchField`` will try ``SpecificPitchField``,
-    ``EnharmonicPitchField``, etc.).
+    This function also checks registered entries that are subclasses of
+    *field_type*.
 
     Args:
         table: The PyArrow table to search.
@@ -348,8 +339,8 @@ class SemanticFieldAccessMixin:
         1. **String** -- column name: ``get_field("start")``.  Checks
            column metadata for ``field_type``; falls back to
            ``DefaultField`` mapping for core temporal columns.
-        2. **Class** -- ``get_field(EnharmonicPitchField)``.  Scans all
-           columns for metadata matching the class (legacy API).
+        2. **Class** -- ``get_field(PitchField)``.  Scans all
+           columns for metadata matching the class.
         3. **Blueprint instance** -- ``get_field(PitchField(ep="col"))``.
            Resolves the named column using the blueprint's pitch type.
 
@@ -582,61 +573,54 @@ class PitchAccessMixin(SemanticFieldAccessMixin):
     """Mixin providing pitch field access with priority-based defaults.
 
     Priority order (most informative first):
-    ``SpecificPitchField`` (SP) > ``EnharmonicPitchField`` (EP)
-    > ``SpelledPitchClassField`` (SPC) > ``GenericPitchField`` (GP)
+    SP > EP > SPC > GPC (by ``pitch_type`` attribute on ``PitchField``).
     """
 
     def get_pitch_field(
         self,
-        pitch_type: type[PitchField] | None = None,
+        pitch_field_type: type[PitchField] | None = None,
         *,
         format: str | None = None,
     ) -> PitchField:
         """Return a pitch field, optionally filtered by type.
 
         This is the one-stop-shop accessor for pitch data.  If
-        *pitch_type* is ``None``, returns the most informative
+        *pitch_field_type* is ``None``, returns the most informative
         available pitch field.
 
         Args:
-            pitch_type: Specific ``PitchField`` subclass to request.
+            pitch_field_type: Should be ``PitchField``.
                 If ``None``, returns the most informative available.
             format: Format specifier for on-the-fly conversion
                 (e.g., ``"midi"``, ``"spelled"``, ``"generic"``).
                 Reserved for future conversion support.
 
         Returns:
-            A ``PitchField`` subclass instance.
+            A ``PitchField`` instance.
 
         Raises:
             KeyError: If no matching pitch column is found.
         """
-        from timetoalign.fields.pitch import (
-            EnharmonicPitchField,
-            GenericPitchField,
-        )
         from timetoalign.fields.pitch import PitchField as PitchFieldCls
-        from timetoalign.fields.pitch import (
-            SpecificPitchField,
-            SpelledPitchClassField,
-        )
 
-        if pitch_type is not None:
-            return self.get_field(pitch_type)  # type: ignore[return-value]
+        if pitch_field_type is not None:
+            result = self.get_field(pitch_field_type)  # type: ignore[return-value]
+            if result is None:
+                raise KeyError(f"No pitch field found for {pitch_field_type}")
+            return result
 
-        # Priority order: most informative first
-        # SP (Specific/Spelled) > EP (Enharmonic/MIDI) > SPC > GP
-        priority: list[type[PitchFieldCls]] = [
-            SpecificPitchField,
-            EnharmonicPitchField,
-            SpelledPitchClassField,
-            GenericPitchField,
-        ]
-        for pt in priority:
-            if self.has_field(pt):
-                return self.get_field(pt)  # type: ignore[return-value]
+        # Default: return the most informative available pitch field
+        # Priority: sp > ep > spc > gpc
+        _PRIORITY = ["sp", "ep", "spc", "gpc"]
+        all_pitch = self.get_fields(PitchFieldCls)
+        if not all_pitch:
+            raise KeyError("No pitch field found in table")
 
-        raise KeyError("No pitch field found in table")
+        for pt in _PRIORITY:
+            for pf in all_pitch:
+                if pf.pitch_type == pt:
+                    return pf  # type: ignore[return-value]
+        return all_pitch[0]  # type: ignore[return-value]  # fallback
 
 
 # ---------------------------------------------------------------------------

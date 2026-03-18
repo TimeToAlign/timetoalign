@@ -7,16 +7,13 @@ and uses metadata to determine the pitch type.
 
 Supported pitch types (via keyword arguments):
 
-- ``sp``  -- Specific Pitch (fifths space, specific level)
-- ``spc`` -- Spelled Pitch Class (fifths space, class level)
-- ``ep``  -- Enharmonic Pitch (semitones space, specific level)
-- ``epc`` -- Enharmonic Pitch Class (semitones space, class level)
-- ``gp``  -- Generic Pitch (steps space, specific level)
-- ``gpc`` -- Generic Pitch Class (steps space, class level)
+- ``sp``  -- Specific Pitch (specific space, full pitch)
+- ``spc`` -- Spelled Pitch Class (specific space, class)
+- ``ep``  -- Enharmonic Pitch (enharmonic space, full pitch)
+- ``epc`` -- Enharmonic Pitch Class (enharmonic space, class)
+- ``gp``  -- Generic Pitch (generic space, full pitch)
+- ``gpc`` -- Generic Pitch Class (generic space, class)
 
-Old class names (``GenericPitchField``, ``SpelledPitchClassField``,
-``EnharmonicPitchField``, ``SpecificPitchField``) are kept as deprecated
-aliases for backward compatibility.
 """
 
 from __future__ import annotations
@@ -30,6 +27,7 @@ from ..core.scalars.pitch import (
     _STEP_TO_GPC,
     _STEP_TO_SEMITONE,
     EnharmonicPitch,
+    EnharmonicPitchClass,
     GenericPitch,
     GenericPitchClass,
     SpelledPitch,
@@ -40,14 +38,13 @@ from .schemas import PitchSpaceSchema
 
 _TIMETOALIGN_KEY = b"timetoalign"
 
-# Mapping from type keyword to (space, level) metadata
-_TYPE_METADATA: dict[str, dict[str, str]] = {
-    "sp": {"space": "fifths", "level": "specific"},
-    "spc": {"space": "fifths", "level": "class"},
-    "ep": {"space": "semitones", "level": "specific"},
-    "epc": {"space": "semitones", "level": "class"},
-    "gp": {"space": "steps", "level": "specific"},
-    "gpc": {"space": "steps", "level": "class"},
+_TYPE_METADATA: dict[str, dict[str, object]] = {
+    "sp": {"space": "specific", "is_class": False},
+    "spc": {"space": "specific", "is_class": True},
+    "ep": {"space": "enharmonic", "is_class": False},
+    "epc": {"space": "enharmonic", "is_class": True},
+    "gp": {"space": "generic", "is_class": False},
+    "gpc": {"space": "generic", "is_class": True},
 }
 
 # All valid pitch type keywords
@@ -134,13 +131,13 @@ class PitchField(SemanticField[StructField]):
 
     @property
     def space(self) -> str:
-        """The pitch space: 'fifths', 'semitones', or 'steps'."""
-        return _TYPE_METADATA[self._pitch_type]["space"]
+        """The pitch space: 'specific', 'enharmonic', or 'generic'."""
+        return _TYPE_METADATA[self._pitch_type]["space"]  # type: ignore[return-value]
 
     @property
-    def level(self) -> str:
-        """The pitch level: 'specific' or 'class'."""
-        return _TYPE_METADATA[self._pitch_type]["level"]
+    def is_class(self) -> bool:
+        """Whether this is a pitch class (no octave) or a full pitch."""
+        return _TYPE_METADATA[self._pitch_type]["is_class"]  # type: ignore[return-value]
 
     @property
     def is_blueprint(self) -> bool:
@@ -158,7 +155,7 @@ class PitchField(SemanticField[StructField]):
             "field_type": "PitchField",
             "pitch_type": self._pitch_type,
             "space": self.space,
-            "level": self.level,
+            "is_class": str(self.is_class),
         }
 
     # -- element access ------------------------------------------------------
@@ -297,98 +294,8 @@ class PitchField(SemanticField[StructField]):
         if self._is_blueprint:
             return f"PitchField({self._pitch_type}={self._blueprint_column!r}, blueprint=True)"
         length = len(self) if not self.is_empty else 0
-        return f"PitchField(name={self.name!r}, type={self._pitch_type}, len={length})"
-
-
-# ---------------------------------------------------------------------------
-# Deprecated aliases (backward compat)
-# ---------------------------------------------------------------------------
-
-
-class GenericPitchField(PitchField):
-    """Deprecated: use ``PitchField(epc=...)`` instead.
-
-    Note: old GenericPitch (0-11) is EPC, not GPC.
-    """
-
-    _default_column: str = "generic_pitch"
-
-    @classmethod
-    def from_field(
-        cls, source: Any, *, name: str = "generic_pitch", pitch_type: str | None = None
-    ) -> GenericPitchField:
-        pf = PitchField.from_field(source, name=name, pitch_type=pitch_type or "epc")
-        pf.__class__ = cls
-        return pf  # type: ignore[return-value]
-
-
-class SpelledPitchClassField(PitchField):
-    """Deprecated: use ``PitchField(spc=...)`` instead."""
-
-    _default_column: str = "spelled_pitch_class"
-
-    @classmethod
-    def from_field(
-        cls,
-        source: Any,
-        *,
-        name: str = "spelled_pitch_class",
-        pitch_type: str | None = None,
-    ) -> SpelledPitchClassField:
-        pf = PitchField.from_field(source, name=name, pitch_type=pitch_type or "spc")
-        pf.__class__ = cls
-        return pf  # type: ignore[return-value]
-
-
-class EnharmonicPitchField(PitchField):
-    """Deprecated: use ``PitchField(ep=...)`` instead."""
-
-    _default_column: str = "midi_pitch"
-
-    @classmethod
-    def from_field(
-        cls, source: Any, *, name: str = "midi_pitch", pitch_type: str | None = None
-    ) -> EnharmonicPitchField:
-        pf = PitchField.from_field(source, name=name, pitch_type=pitch_type or "ep")
-        pf.__class__ = cls
-        return pf  # type: ignore[return-value]
-
-    @classmethod
-    def from_midi_numbers(
-        cls, midi_numbers: list[int], *, name: str = "midi_pitch"
-    ) -> EnharmonicPitchField:
-        """Construct from MIDI note numbers."""
-        pf = PitchField.from_raw(ep=midi_numbers)
-        pf.__class__ = cls
-        return pf  # type: ignore[return-value]
-
-
-class SpecificPitchField(PitchField):
-    """Deprecated: use ``PitchField(sp=...)`` instead."""
-
-    _default_column: str = "spelled_pitch"
-
-    @classmethod
-    def from_field(
-        cls, source: Any, *, name: str = "spelled_pitch", pitch_type: str | None = None
-    ) -> SpecificPitchField:
-        pf = PitchField.from_field(source, name=name, pitch_type=pitch_type or "sp")
-        pf.__class__ = cls
-        return pf  # type: ignore[return-value]
-
-    @classmethod
-    def from_labels(
-        cls, labels: list[str], *, name: str = "spelled_pitch"
-    ) -> SpecificPitchField:
-        """Construct from pitch label strings."""
-        pf = PitchField.from_labels(labels, name=name)
-        pf.__class__ = cls
-        return pf  # type: ignore[return-value]
-
-
-# Traditional aliases
-MidiPitchField = EnharmonicPitchField
-SpelledPitchField = SpecificPitchField
+        cls_str = "class" if self.is_class else "pitch"
+        return f"PitchField(name={self.name!r}, {self._pitch_type}, {self.space}, {cls_str}, len={length})"
 
 
 # ---------------------------------------------------------------------------
@@ -424,7 +331,7 @@ def _scalar_from_legacy_schema(row: dict[str, Any], pitch_type: str) -> Any:
     if pitch_type == "ep" and "ep" in row:
         return EnharmonicPitch.from_row(row)
     if pitch_type == "epc" and "pitch_class" in row:
-        return GenericPitch.from_row(row)
+        return EnharmonicPitchClass.from_row(row)
     if pitch_type == "sp" and "sp" in row:
         return SpelledPitch.from_row(row)
     if pitch_type == "spc" and "gpc_str" in row:
@@ -433,7 +340,7 @@ def _scalar_from_legacy_schema(row: dict[str, Any], pitch_type: str) -> Any:
     if "ep" in row:
         return EnharmonicPitch.from_row(row)
     if "pitch_class" in row:
-        return GenericPitch.from_row(row)
+        return EnharmonicPitchClass.from_row(row)
     if "sp" in row:
         return SpelledPitch.from_row(row)
     if "gpc_str" in row:
@@ -451,7 +358,7 @@ def _scalar_from_pitch_space(row: dict[str, Any], pitch_type: str) -> Any:
         return EnharmonicPitch.from_row({"ep": midi, "epc": midi % 12})
     if pitch_type == "epc":
         pc = value if value is not None else 0
-        return GenericPitch.from_row({"pitch_class": pc})
+        return EnharmonicPitchClass.from_row({"pitch_class": pc})
     if pitch_type == "sp":
         fifths = value if value is not None else 0
         oct_ = octave if octave is not None else 4
@@ -464,7 +371,7 @@ def _scalar_from_pitch_space(row: dict[str, Any], pitch_type: str) -> Any:
     if pitch_type == "gp":
         step = value if value is not None else 0
         oct_ = octave if octave is not None else 4
-        return GenericPitch.from_row({"pitch_class": step + oct_ * 7})
+        return GenericPitch(step=step, octave=oct_)
     if pitch_type == "gpc":
         step = value if value is not None else 0
         return GenericPitchClass.from_row({"pitch_class": step})
@@ -477,7 +384,7 @@ def _values_to_pitch_space_rows(
 ) -> list[dict[str, int | None]]:
     """Convert user values to PitchSpaceSchema row dicts."""
     meta = _TYPE_METADATA[pitch_type]
-    is_specific = meta["level"] == "specific"
+    is_specific = not meta["is_class"]
     rows = []
 
     for v in values:
@@ -552,6 +459,21 @@ _legacy_pitch_type_map: dict[str, str] = {
 }
 
 
+def _octave_from_sp_string(sp: Any) -> int | None:
+    """Extract octave from a spelled pitch string like ``"C4"`` or ``"B♭3"``."""
+    if not sp or not isinstance(sp, str):
+        return None
+    idx = len(sp)
+    while idx > 0 and (sp[idx - 1].isdigit() or sp[idx - 1] == "-"):
+        idx -= 1
+    if idx < len(sp):
+        try:
+            return int(sp[idx:])
+        except ValueError:
+            pass
+    return None
+
+
 def _extract_value_octave(
     raw: dict[str, Any], pitch_type: str
 ) -> tuple[int | None, int | None]:
@@ -573,9 +495,11 @@ def _extract_value_octave(
     if pitch_type == "epc" and "pitch_class" in raw:
         return raw["pitch_class"], None
 
-    # Legacy: SpecificPitchSchema {sp, gpc_int, ...}
-    if pitch_type == "sp" and "sp" in raw:
-        return raw["sp"], raw.get("octave")
+    # Legacy: SpecificPitchSchema {sp, gpc_int, spc_int, ...}
+    if pitch_type == "sp" and "spc_int" in raw:
+        fifths = raw["spc_int"]
+        octave = _octave_from_sp_string(raw.get("sp"))
+        return fifths, octave
 
     # Legacy: SpelledPitchClassSchema {spc_int, ...}
     if pitch_type == "spc" and "spc_int" in raw:
@@ -587,8 +511,8 @@ def _extract_value_octave(
         return midi, (midi // 12 - 1 if midi is not None else None)
     if "pitch_class" in raw:
         return raw["pitch_class"], None
-    if "sp" in raw:
-        return raw["sp"], raw.get("octave")
+    if "spc_int" in raw:
+        return raw["spc_int"], _octave_from_sp_string(raw.get("sp"))
 
     return None, None
 
@@ -623,7 +547,7 @@ def _convert_single(
     tgt_meta = _TYPE_METADATA[tgt]
 
     # Same space, specific -> class: drop octave
-    if src_meta["space"] == tgt_meta["space"] and tgt_meta["level"] == "class":
+    if src_meta["space"] == tgt_meta["space"] and tgt_meta["is_class"]:
         if src == "ep" and tgt == "epc":
             return {"value": value % 12, "octave": None}
         if src == "gp" and tgt == "gpc":
@@ -633,30 +557,30 @@ def _convert_single(
         # class -> class same space
         return {"value": value, "octave": None}
 
-    # Cross-space: fifths -> semitones
-    if src_meta["space"] == "fifths" and tgt_meta["space"] == "semitones":
+    # Cross-space: specific -> enharmonic
+    if src_meta["space"] == "specific" and tgt_meta["space"] == "enharmonic":
         step_name, alter = _fifths_to_step_alter(value)
         semitones = (_STEP_TO_SEMITONE[step_name] + alter) % 12
-        if tgt_meta["level"] == "specific" and octave is not None:
+        if not tgt_meta["is_class"] and octave is not None:
             midi = (octave + 1) * 12 + _STEP_TO_SEMITONE[step_name] + alter
             return {"value": midi, "octave": midi // 12 - 1}
         return {"value": semitones, "octave": None}
 
-    # Cross-space: fifths -> steps
-    if src_meta["space"] == "fifths" and tgt_meta["space"] == "steps":
+    # Cross-space: specific -> generic
+    if src_meta["space"] == "specific" and tgt_meta["space"] == "generic":
         step_name, _alter = _fifths_to_step_alter(value)
         diatonic_step = _STEP_TO_GPC[step_name]
-        if tgt_meta["level"] == "specific" and octave is not None:
+        if not tgt_meta["is_class"] and octave is not None:
             return {"value": diatonic_step, "octave": octave}
         return {"value": diatonic_step, "octave": None}
 
-    # Cross-space: semitones -> steps (lossy)
-    if src_meta["space"] == "semitones" and tgt_meta["space"] == "steps":
+    # Cross-space: enharmonic -> generic (lossy)
+    if src_meta["space"] == "enharmonic" and tgt_meta["space"] == "generic":
         # Approximate: chromatic to nearest diatonic step
         step_map = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6]
         pc = value % 12
         step = step_map[pc]
-        if tgt_meta["level"] == "specific" and octave is not None:
+        if not tgt_meta["is_class"] and octave is not None:
             return {"value": step, "octave": octave}
         return {"value": step, "octave": None}
 
@@ -665,5 +589,5 @@ def _convert_single(
         return {"value": value % 12, "octave": None}
 
     # Fallback: just pass value through
-    tgt_octave = octave if tgt_meta["level"] == "specific" else None
+    tgt_octave = octave if not tgt_meta["is_class"] else None
     return {"value": value, "octave": tgt_octave}

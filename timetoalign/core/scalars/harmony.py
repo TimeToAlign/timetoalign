@@ -257,13 +257,17 @@ class DcmlHarmony:
         Returns:
             A dict with all harmony fields.
         """
-        from .pitch import GenericPitch
+        from .pitch import EnharmonicPitchClass
 
         root_gpc = (
-            GenericPitch(pitch_class=self.root) if self.root is not None else None
+            EnharmonicPitchClass(pitch_class=self.root)
+            if self.root is not None
+            else None
         )
         bass_gpc = (
-            GenericPitch(pitch_class=self.bass) if self.bass is not None else None
+            EnharmonicPitchClass(pitch_class=self.bass)
+            if self.bass is not None
+            else None
         )
         return {
             "label": self.label,

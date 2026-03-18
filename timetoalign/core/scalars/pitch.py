@@ -1,8 +1,10 @@
 """Pitch scalars for the Time To Align! type hierarchy.
 
-Provides frozen dataclass scalars at four levels of pitch specificity:
+Provides frozen dataclass scalars at multiple levels of pitch specificity:
 
-- ``GenericPitch`` -- pitch class only (satisfies ``GenericPitchLike``)
+- ``EnharmonicPitchClass`` -- chromatic pitch class 0-11 (satisfies ``GenericPitchLike``)
+- ``GenericPitchClass`` -- diatonic step 0-6
+- ``GenericPitch`` -- diatonic step + octave
 - ``SpelledPitchClass`` -- pitch class with spelling (satisfies ``SpelledPitchClassLike``)
 - ``MidiPitch`` (alias ``EnharmonicPitch``) -- MIDI note (satisfies ``EnharmonicPitchLike``)
 - ``SpelledPitch`` (alias ``SpecificPitch``) -- full spelling (satisfies ``SpecificPitchLike``)
@@ -134,12 +136,14 @@ def _parse_pitch_label(label: str) -> tuple[str, int, int | None]:
     return step, alter, octave
 
 
-# region GenericPitch
+# region EnharmonicPitchClass
 
 
 @dataclass(frozen=True, slots=True)
-class GenericPitch(TwelveTETPitchMixin):
-    """Pitch class only.  Satisfies ``GenericPitchLike``.
+class EnharmonicPitchClass(TwelveTETPitchMixin):
+    """Enharmonic pitch class scalar -- chromatic pitch class (0-11).
+
+    Satisfies ``GenericPitchLike``.
 
     Attributes:
         pitch_class: Pitch class (0-11, C=0).
@@ -150,19 +154,21 @@ class GenericPitch(TwelveTETPitchMixin):
     @property
     def semantic_type(self) -> str:
         """The canonical SemanticType name."""
-        return "GenericPitch"
+        return "EnharmonicPitchClass"
 
     def metadata_dict(self) -> dict[str, str]:
         """Return metadata dict matching the Parquet storage contract."""
         return {
-            "field_type": "GenericPitchField",
-            "pitch_type": "generic",
+            "field_type": "PitchField",
+            "pitch_type": "epc",
         }
 
-    def to(self, target_type: type, *, format: str | None = None) -> "GenericPitch":
+    def to(
+        self, target_type: type, *, format: str | None = None
+    ) -> "EnharmonicPitchClass":
         """Convert to another pitch type.
 
-        ``GenericPitch`` can only convert to itself (identity).
+        ``EnharmonicPitchClass`` can only convert to itself (identity).
         Conversion to ``MidiPitch`` or ``SpelledPitch`` requires
         additional information (octave, spelling).
 
@@ -176,10 +182,10 @@ class GenericPitch(TwelveTETPitchMixin):
         Raises:
             TypeError: If conversion is not supported.
         """
-        if target_type is GenericPitch or target_type is type(self):
+        if target_type is EnharmonicPitchClass or target_type is type(self):
             return self
         raise TypeError(
-            f"Cannot convert GenericPitch to {target_type.__name__} "
+            f"Cannot convert EnharmonicPitchClass to {target_type.__name__} "
             f"(octave and/or spelling information required)"
         )
 
@@ -187,12 +193,12 @@ class GenericPitch(TwelveTETPitchMixin):
         """Return string representation.
 
         Args:
-            format: Format specifier (ignored for GenericPitch).
+            format: Format specifier (ignored for EnharmonicPitchClass).
         """
         return str(self.pitch_class)
 
     @classmethod
-    def from_row(cls, row: dict[str, Any]) -> GenericPitch | None:
+    def from_row(cls, row: dict[str, Any]) -> EnharmonicPitchClass | None:
         """Construct from a PyArrow struct row dict.
 
         Accepts the ``generic_pitch`` struct: ``{pitch_class: int64}``.
@@ -201,7 +207,7 @@ class GenericPitch(TwelveTETPitchMixin):
             row: Dict with storage field names (from PyArrow ``.as_py()``).
 
         Returns:
-            A ``GenericPitch``, or ``None`` if ``pitch_class`` is null.
+            An ``EnharmonicPitchClass``, or ``None`` if ``pitch_class`` is null.
         """
         pc = row.get("pitch_class")
         if pc is None:
@@ -217,14 +223,14 @@ class GenericPitch(TwelveTETPitchMixin):
         return {"pitch_class": self.pitch_class}
 
     def __eq__(self, other: object) -> bool:
-        """Compare to another ``GenericPitch`` or to a plain ``int``.
+        """Compare to another ``EnharmonicPitchClass`` or to a plain ``int``.
 
-        ``GPC(C) == 0`` evaluates to ``True``, enabling concise pitch-class
+        ``EPC(C) == 0`` evaluates to ``True``, enabling concise pitch-class
         arithmetic in interactive contexts.
         """
         if isinstance(other, int):
             return self.pitch_class == other
-        if isinstance(other, GenericPitch):
+        if isinstance(other, EnharmonicPitchClass):
             return self.pitch_class == other.pitch_class
         return NotImplemented
 
@@ -237,7 +243,7 @@ class GenericPitch(TwelveTETPitchMixin):
         return f"EPC({self.pitch_class})"
 
 
-# endregion GenericPitch
+# endregion EnharmonicPitchClass
 
 # region GenericPitchClass
 
@@ -249,7 +255,7 @@ class GenericPitchClass(TwelveTETPitchMixin):
     """Generic pitch class scalar -- diatonic step (0-6).
 
     Represents a pitch class in diatonic (steps) space: C=0, D=1, ..., B=6.
-    Unlike ``GenericPitch`` (which is EPC, 0-11 chromatic), this is a 7-class
+    Unlike ``EnharmonicPitchClass`` (which is EPC, 0-11 chromatic), this is a 7-class
     diatonic pitch class.
 
     Attributes:
@@ -317,6 +323,84 @@ class GenericPitchClass(TwelveTETPitchMixin):
 
 # endregion GenericPitchClass
 
+# region GenericPitch
+
+
+@dataclass(frozen=True, slots=True)
+class GenericPitch(TwelveTETPitchMixin):
+    """Generic pitch scalar -- diatonic step + octave.
+
+    Represents a pitch in generic (diatonic/steps) space with octave.
+    Step is 0-6 (C=0, D=1, ..., B=6).
+
+    Attributes:
+        step: Diatonic step (0-6, C=0).
+        octave: Octave number.
+    """
+
+    step: int
+    octave: int
+
+    @property
+    def pitch_class(self) -> int:  # type: ignore[override]
+        """The diatonic step (0-6)."""
+        return self.step
+
+    @property
+    def semantic_type(self) -> str:
+        return "GenericPitch"
+
+    def metadata_dict(self) -> dict[str, str]:
+        return {
+            "field_type": "PitchField",
+            "pitch_type": "gp",
+        }
+
+    def to(
+        self, target_type: type, *, format: str | None = None
+    ) -> "TwelveTETPitchMixin":
+        if target_type is GenericPitch or target_type is type(self):
+            return self
+        if target_type is GenericPitchClass:
+            return GenericPitchClass(step=self.step)
+        raise TypeError(
+            f"Cannot convert GenericPitch to {target_type.__name__} "
+            f"(accidental information required)"
+        )
+
+    def get(self, *, format: str | None = None) -> str:
+        if 0 <= self.step < 7:
+            return f"{_GPC_NAMES[self.step]}{self.octave}"
+        return f"step={self.step}, oct={self.octave}"
+
+    def to_dict(self) -> dict[str, object]:
+        return {"pitch_class": self.step, "octave": self.octave}
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> GenericPitch | None:
+        """Construct from a PyArrow struct row dict ({pitch_class, octave})."""
+        pc = row.get("pitch_class")
+        if pc is None:
+            return None
+        octave = row.get("octave", 4)
+        return cls(step=int(pc), octave=int(octave))
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, GenericPitch):
+            return self.step == other.step and self.octave == other.octave
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash((self.step, self.octave))
+
+    def __repr__(self) -> str:
+        if 0 <= self.step < 7:
+            return f"GP({_GPC_NAMES[self.step]}{self.octave})"
+        return f"GP(step={self.step}, oct={self.octave})"
+
+
+# endregion GenericPitch
+
 # region SpelledPitchClass
 
 
@@ -358,8 +442,8 @@ class SpelledPitchClass(TwelveTETPitchMixin):
     def metadata_dict(self) -> dict[str, str]:
         """Return metadata dict matching the Parquet storage contract."""
         return {
-            "field_type": "SpelledPitchClassField",
-            "pitch_type": "spelled_class",
+            "field_type": "PitchField",
+            "pitch_type": "spc",
         }
 
     def to(
@@ -379,8 +463,8 @@ class SpelledPitchClass(TwelveTETPitchMixin):
         """
         if target_type is SpelledPitchClass or target_type is type(self):
             return self
-        if target_type is GenericPitch:
-            return GenericPitch(pitch_class=self.pitch_class)  # type: ignore[return-value]
+        if target_type is EnharmonicPitchClass:
+            return EnharmonicPitchClass(pitch_class=self.pitch_class)  # type: ignore[return-value]
         raise TypeError(
             f"Cannot convert SpelledPitchClass to {target_type.__name__} "
             f"(octave information required)"
@@ -506,8 +590,8 @@ class MidiPitch(TwelveTETPitchMixin):
     def metadata_dict(self) -> dict[str, str]:
         """Return metadata dict matching the Parquet storage contract."""
         return {
-            "field_type": "EnharmonicPitchField",
-            "pitch_type": "midi",
+            "field_type": "PitchField",
+            "pitch_type": "ep",
         }
 
     def to(
@@ -527,8 +611,8 @@ class MidiPitch(TwelveTETPitchMixin):
         """
         if target_type is MidiPitch or target_type is type(self):
             return self
-        if target_type is GenericPitch:
-            return GenericPitch(pitch_class=self.pitch_class)
+        if target_type is EnharmonicPitchClass:
+            return EnharmonicPitchClass(pitch_class=self.pitch_class)
         raise TypeError(
             f"Cannot convert MidiPitch to {target_type.__name__} "
             f"(spelling information required for specific pitch types)"
@@ -628,8 +712,8 @@ class EnharmonicPitch(TwelveTETPitchMixin):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "EnharmonicPitchField",
-            "pitch_type": "enharmonic",
+            "field_type": "PitchField",
+            "pitch_type": "ep",
         }
 
     def to(
@@ -637,8 +721,8 @@ class EnharmonicPitch(TwelveTETPitchMixin):
     ) -> "TwelveTETPitchMixin":
         if target_type is EnharmonicPitch or target_type is type(self):
             return self
-        if target_type is GenericPitch:
-            return GenericPitch(pitch_class=self.pitch_class)
+        if target_type is EnharmonicPitchClass:
+            return EnharmonicPitchClass(pitch_class=self.pitch_class)
         raise TypeError(
             f"Cannot convert EnharmonicPitch to {target_type.__name__} "
             f"(spelling information required for specific pitch types)"
@@ -727,8 +811,8 @@ class SpelledPitch(TwelveTETPitchMixin):
     def metadata_dict(self) -> dict[str, str]:
         """Return metadata dict matching the Parquet storage contract."""
         return {
-            "field_type": "SpecificPitchField",
-            "pitch_type": "spelled",
+            "field_type": "PitchField",
+            "pitch_type": "sp",
         }
 
     def to(
@@ -750,8 +834,8 @@ class SpelledPitch(TwelveTETPitchMixin):
             return self
         if target_type is MidiPitch:
             return MidiPitch(midi_number=self.midi_number)
-        if target_type is GenericPitch:
-            return GenericPitch(pitch_class=self.pitch_class)
+        if target_type is EnharmonicPitchClass:
+            return EnharmonicPitchClass(pitch_class=self.pitch_class)
         if target_type is SpelledPitchClass:
             return SpelledPitchClass(
                 step=self.step,

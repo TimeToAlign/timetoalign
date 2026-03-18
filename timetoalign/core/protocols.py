@@ -558,7 +558,7 @@ class TwelveTETPitchMixin:
 
     Not a Protocol -- a mixin that provides ``pitch_class``, a unified
     ``.to()`` dispatch method, and a ``.get()`` method with ``format``
-    support.  Scalar pitch classes (``GenericPitch``, ``MidiPitch``,
+    support.  Scalar pitch classes (``EnharmonicPitchClass``, ``MidiPitch``,
     ``SpelledPitch``, etc.) compose this mixin.
     """
 
@@ -577,7 +577,7 @@ class TwelveTETPitchMixin:
         ``to_specific()`` methods.
 
         Args:
-            target_type: The target pitch type (e.g., ``GenericPitch``,
+            target_type: The target pitch type (e.g., ``EnharmonicPitchClass``,
                 ``MidiPitch``, ``SpelledPitch``).
             format: Optional format specifier controlling output
                 representation (e.g., for string formatting).

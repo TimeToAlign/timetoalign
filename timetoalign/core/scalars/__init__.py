@@ -8,7 +8,9 @@ contract compliance.
 Type Hierarchy:
 
 Pitch scalars (satisfy PitchLike hierarchy):
-    - ``GenericPitch`` -- pitch class only (GenericPitchLike)
+    - ``EnharmonicPitchClass`` -- chromatic pitch class 0-11 (GenericPitchLike)
+    - ``GenericPitchClass`` -- diatonic step 0-6
+    - ``GenericPitch`` -- diatonic step + octave
     - ``SpelledPitchClass`` -- pitch class with spelling (SpelledPitchClassLike)
     - ``MidiPitch`` / ``EnharmonicPitch`` -- MIDI note (EnharmonicPitchLike)
     - ``SpelledPitch`` / ``SpecificPitch`` -- full spelling (SpecificPitchLike)
@@ -40,6 +42,7 @@ from .measure import Measure
 from .note import Note
 from .pitch import (
     EnharmonicPitch,
+    EnharmonicPitchClass,
     GenericPitch,
     GenericPitchClass,
     MidiPitch,
@@ -50,6 +53,7 @@ from .pitch import (
 
 __all__ = [
     # Pitch hierarchy
+    "EnharmonicPitchClass",
     "GenericPitch",
     "GenericPitchClass",
     "SpelledPitchClass",

@@ -23,17 +23,17 @@ The naming follows the ms3/DCML convention for pitch arrays:
 
 This yields the following mapping (from most abstract to most specific):
 
-+----------------------+---------------------------+-------------------+
-| TTA Concept          | ms3/DCML Prefix           | Field Class       |
-+======================+===========================+===================+
-| GenericPitch         | GP (Generic Pitch)        | GenericPitchField |
-+----------------------+---------------------------+-------------------+
-| EnharmonicPitch      | EP (Enharmonic Pitch)     | EnharmonicPitchField |
-| (= MidiPitch)        | (integer MIDI rep.)       | (alias: MidiPitchField) |
-+----------------------+---------------------------+-------------------+
-| SpecificPitch        | SP (Specific/Spelled      | SpecificPitchField |
-| (= SpelledPitch)     |  Pitch)                   | (alias: SpelledPitchField) |
-+----------------------+---------------------------+-------------------+
++----------------------+---------------------------+----------------------------+
+| TTA Concept          | ms3/DCML Prefix           | Field                      |
++======================+===========================+============================+
+| EnharmonicPitchClass | GP (Generic Pitch)        | PitchField(pitch_type=epc) |
++----------------------+---------------------------+----------------------------+
+| EnharmonicPitch      | EP (Enharmonic Pitch)     | PitchField(pitch_type=ep)  |
+| (= MidiPitch)        | (integer MIDI rep.)       |                            |
++----------------------+---------------------------+----------------------------+
+| SpecificPitch        | SP (Specific/Spelled      | PitchField(pitch_type=sp)  |
+| (= SpelledPitch)     |  Pitch)                   |                            |
++----------------------+---------------------------+----------------------------+
 """
 
 from __future__ import annotations
@@ -101,8 +101,9 @@ class GenericPitchSchema:
 
     .. deprecated::
         Use ``PitchSpaceSchema`` with ``type="epc"`` instead.
-        This schema stores chromatic pitch class 0-11, which is EPC
-        (semitones space), not true GPC (diatonic steps 0-6).
+        This schema stores chromatic pitch class 0-11, which is
+        ``EnharmonicPitchClass`` (semitones space), not true GPC
+        (diatonic steps 0-6).
 
     Storage struct::
 

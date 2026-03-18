@@ -47,6 +47,7 @@ from timetoalign.core.scalars.harmony import (
     HarmonyLabel,
 )
 from timetoalign.core.scalars.pitch import (
+    EnharmonicPitchClass,
     GenericPitch,
     MidiPitch,
     SpelledPitch,
@@ -56,10 +57,7 @@ from timetoalign.fields.harmony import (
     DcmlLabelField,
     WesternTertianHarmonyField,
 )
-from timetoalign.fields.pitch import (
-    EnharmonicPitchField,
-    SpecificPitchField,
-)
+from timetoalign.fields.pitch import PitchField
 from timetoalign.fields.schemas import (
     DcmlStorageSchema,
     WesternTertianSchema,
@@ -73,8 +71,8 @@ from timetoalign.fields.schemas import (
 # | Layer | Role | Example |
 # |-------|------|---------|
 # | **Protocol** | Structural contract (`isinstance`-checkable) | `GenericPitchLike` |
-# | **Scalar** | Frozen dataclass for single values | `GenericPitch(pitch_class=0)` |
-# | **Field** | Columnar wrapper over a PyArrow struct array | `GenericPitchField` |
+# | **Scalar** | Frozen dataclass for single values | `EnharmonicPitchClass(pitch_class=0)` |
+# | **Field** | Columnar wrapper over a PyArrow struct array | `PitchField(epc=...)` |
 #
 # Scalars satisfy their corresponding protocol.  Fields wrap PyArrow arrays
 # and return scalars on element access.  Protocols enable generic dispatch
@@ -83,17 +81,24 @@ from timetoalign.fields.schemas import (
 # %% [markdown]
 # ## Pitch Scalars
 #
-# Three main categories of pitch representation, from least to most
-# information:
+# Pitch representations are organised across three spaces and two
+# levels (pitch vs pitch class):
 #
-# | Category | Scalar | Key property | Protocol |
-# |----------|--------|-------------|----------|
-# | **Generic (GP)** | `GenericPitch` | `pitch_class` (0--11) | `GenericPitchLike` |
-# | **Enharmonic (EP)** | `EnharmonicPitch` (alias: `MidiPitch`) | `midi_number` + octave | `EnharmonicPitchLike` |
-# | **Specific (SP)** | `SpecificPitch` (alias: `SpelledPitch`) | spelling + octave + cents | `SpecificPitchLike` |
+# | Space | Pitch (with octave) | Pitch Class (octave-free) |
+# |-------|---------------------|---------------------------|
+# | **Specific (fifths)** | `SpelledPitch` | `SpelledPitchClass` |
+# | **Enharmonic (semitones)** | `MidiPitch` / `EnharmonicPitch` | `EnharmonicPitchClass` |
+# | **Generic (steps)** | `GenericPitch` | `GenericPitchClass` |
 #
-# Additionally, `SpelledPitchClass` is an octave-free variant of the
-# Specific category -- it carries spelling but no octave information.
+# Additionally, each scalar satisfies a corresponding protocol:
+#
+# | Scalar | Protocol |
+# |--------|----------|
+# | `SpelledPitch` | `SpecificPitchLike` |
+# | `SpelledPitchClass` | `SpelledPitchClassLike` |
+# | `MidiPitch` | `EnharmonicPitchLike` |
+# | `EnharmonicPitchClass` | `GenericPitchLike` |
+# | `GenericPitch` | `GenericPitchLike` |
 #
 # The ms3/DCML naming convention calls the MIDI level "enharmonic"
 # (because it *equates* enharmonic equivalents) and the spelled level
@@ -102,22 +107,40 @@ from timetoalign.fields.schemas import (
 # reflect this convention.
 
 # %% [markdown]
-# ### Generic Pitch (GP): pitch class only
+# ### Enharmonic Pitch Class (EPC): chromatic pitch class only
 
 # %%
-gp_c = GenericPitch(pitch_class=0)
-gp_c
+epc_c = EnharmonicPitchClass(pitch_class=0)
+epc_c
 
 # %%
-# GenericPitch compares directly with integers (pitch class 0-11, C=0)
-{"GPC(C) == 0": gp_c == 0, "GPC(C) == 2": gp_c == 2}
+# EnharmonicPitchClass compares directly with integers (pitch class 0-11, C=0)
+{"EPC(C) == 0": epc_c == 0, "EPC(C) == 2": epc_c == 2}
 
 # %%
-gp_d = GenericPitch(pitch_class=2)
-gp_d
+epc_d = EnharmonicPitchClass(pitch_class=2)
+epc_d
 
 # %%
-gp_c.to_dict()
+epc_c.to_dict()
+
+# %% [markdown]
+# ### Generic Pitch (GP): diatonic step + octave
+#
+# `GenericPitch` represents a pitch in diatonic (steps) space with octave.
+# Step is 0-6 (C=0, D=1, ..., B=6).  Unlike `EnharmonicPitchClass`
+# (chromatic, 0-11), this is a 7-step diatonic pitch with octave.
+
+# %%
+gp_c4 = GenericPitch(step=0, octave=4)
+gp_c4
+
+# %%
+gp_e4 = GenericPitch(step=2, octave=4)
+gp_e4
+
+# %%
+gp_c4.to_dict()
 
 # %% [markdown]
 # ### Spelled Pitch Class (SPC): spelling without octave
@@ -171,14 +194,17 @@ sp.to_dict()
 
 # %%
 {
-    "GenericPitch -> GenericPitchLike": isinstance(gp_c, GenericPitchLike),
+    "EnharmonicPitchClass -> GenericPitchLike": isinstance(epc_c, GenericPitchLike),
+    "GenericPitch -> GenericPitchLike": isinstance(gp_c4, GenericPitchLike),
     "SpelledPitchClass -> SpelledPitchClassLike": isinstance(
         spc, SpelledPitchClassLike
     ),
     "MidiPitch -> EnharmonicPitchLike": isinstance(mp, EnharmonicPitchLike),
     "SpelledPitch -> SpecificPitchLike": isinstance(sp, SpecificPitchLike),
     "SpelledPitch -> EnharmonicPitchLike": isinstance(sp, EnharmonicPitchLike),
-    "all are PitchLike": all(isinstance(p, PitchLike) for p in [gp_c, spc, mp, sp]),
+    "all are PitchLike": all(
+        isinstance(p, PitchLike) for p in [epc_c, gp_c4, spc, mp, sp]
+    ),
 }
 
 # %% [markdown]
@@ -186,13 +212,13 @@ sp.to_dict()
 #
 # `SpelledPitch`, being the most informative, can convert down to
 # any less-specific type.  Conversions that would require missing
-# information (e.g., `GenericPitch` to `MidiPitch`) raise `TypeError`.
+# information (e.g., `EnharmonicPitchClass` to `MidiPitch`) raise `TypeError`.
 
 # %%
 {
     "SpelledPitch -> MidiPitch": sp.to(MidiPitch),
-    "SpelledPitch -> GenericPitch": sp.to(GenericPitch),
     "SpelledPitch -> SpelledPitchClass": sp.to(SpelledPitchClass),
+    "SpelledPitch -> EnharmonicPitchClass": sp.to(EnharmonicPitchClass),
 }
 
 # %% [markdown]
@@ -204,12 +230,12 @@ sp.to_dict()
 # classmethods.
 
 # %% [markdown]
-# ### EnharmonicPitchField (MIDI)
+# ### PitchField (EP -- Enharmonic Pitch)
 #
 # Wraps the EP schema and returns `MidiPitch` scalars.
 
 # %%
-epf = EnharmonicPitchField.from_midi_numbers([60, 64, 67])
+epf = PitchField.from_raw(ep=[60, 64, 67])
 epf
 
 # %%
@@ -219,13 +245,13 @@ epf
 epf[0].to_dict()
 
 # %% [markdown]
-# ### SpecificPitchField (Spelled)
+# ### PitchField (SP -- Spelled Pitch)
 #
 # Wraps the SP schema and returns `SpelledPitch` scalars with full
 # enharmonic identity.
 
 # %%
-spf = SpecificPitchField.from_labels(["C4", "E4", "G4"])
+spf = PitchField.from_labels(["C4", "E4", "G4"])
 spf
 
 # %%
@@ -267,7 +293,7 @@ dh = DcmlHarmony.from_label("V65", globalkey="C")
 dh
 
 # %%
-# to_dict() displays root and bass as GenericPitch objects
+# to_dict() displays root and bass as pitch class integers
 dh.to_dict()
 
 # %%
@@ -432,7 +458,7 @@ def describe_pitch(p: PitchLike) -> dict:
 
 # %%
 # The same function works for every pitch type
-{type(p).__name__: describe_pitch(p) for p in [gp_c, spc, mp, sp]}
+{type(p).__name__: describe_pitch(p) for p in [epc_c, gp_c4, spc, mp, sp]}
 
 # %%
 # It also works for scalars extracted from fields
@@ -463,7 +489,7 @@ meta
 # %%
 # Reconstruct the field from the loaded table
 loaded_arr = loaded.column(col_name).combine_chunks()
-loaded_spf = SpecificPitchField.from_field(loaded_arr, name=col_name)
+loaded_spf = PitchField.from_field(loaded_arr, name=col_name)
 loaded_spf[0]
 
 # %%
@@ -485,12 +511,12 @@ loaded_dlf = DcmlLabelField.from_field(ha_arr, name=ha_field.name)
 loaded_dlf[0]
 
 # %% [markdown]
-# > **Key takeaway.** Time To Align! organises pitch data into three
-# > categories -- Generic (GP), Enharmonic/MIDI (EP), and
-# > Specific/Spelled (SP) -- each expressible as a frozen scalar, a
-# > runtime-checkable protocol, and a columnar PyArrow field.  Harmony
-# > data follows the same three-layer pattern with five levels of
-# > specificity.  The `DcmlHarmony.from_label()` factory and the
-# > `DcmlLabelField` element accessor share the `DcmlHarmonyLike`
-# > protocol, laying the foundation for FlexOHR export and cross-standard
-# > harmony conversion.
+# > **Key takeaway.** Time To Align! organises pitch data across three
+# > spaces -- Specific/Spelled (fifths), Enharmonic/MIDI (semitones),
+# > and Generic (steps) -- at two levels (pitch and pitch class).
+# > Each is expressible as a frozen scalar, a runtime-checkable protocol,
+# > and a columnar PyArrow field.  Harmony data follows the same
+# > three-layer pattern with five levels of specificity.  The
+# > `DcmlHarmony.from_label()` factory and the `DcmlLabelField` element
+# > accessor share the `DcmlHarmonyLike` protocol, laying the foundation
+# > for FlexOHR export and cross-standard harmony conversion.

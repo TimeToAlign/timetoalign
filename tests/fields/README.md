@@ -11,12 +11,12 @@ the three-layer architecture: **Protocol -> Scalar -> Field**.
 |------|------:|-------------------|
 | `test_fields_base.py` | 26 | Raw DataField classes (`NumericField`, `StringField`, `StructField`, `MapField`), `SemanticField[R]` composition, protocol conformance |
 | `test_coordinate_field.py` | 29 | `CoordinateField` -- the reference `SemanticField[StructField]` implementation |
-| `test_pitch_field.py` | 54 | Pitch field hierarchy: abstract `PitchField`, `GenericPitchField`, `SpelledPitchClassField`, `SpecificPitchField`, `EnharmonicPitchField`, aliases |
+| `test_pitch_field.py` | 50 | Unified `PitchField` with pitch_type variants (ep, epc, sp, spc, gp, gpc) |
 | `test_harmony_field.py` | 36 | Harmony field hierarchy: abstract `HarmonyField`, `WesternTertianHarmonyField`, `RomanNumeralHarmonyField`, `DcmlLabelField` |
-| `test_mixins.py` | 28 | `SemanticFieldAccessMixin` dispatch, `PitchAccessMixin`, `HarmonyAccessMixin`, `MeasureAccessMixin`, EventData composition |
+| `test_mixins.py` | 27 | `SemanticFieldAccessMixin` dispatch, `PitchAccessMixin`, `HarmonyAccessMixin`, `MeasureAccessMixin`, EventData composition |
 | `test_score_scalars.py` | 40 | Frozen dataclass scalars: `MidiPitch`, `SpelledPitch`, `Note`, `Measure`, `DcmlHarmony` |
 | `test_real_data_score.py` | 19 | End-to-end validation with real Chopin and Beethoven specimens |
-| **Total** | **232** | |
+| **Total** | **225** | |
 
 ## Detailed Test Categories
 
@@ -53,41 +53,40 @@ core architectural decision that must be verified.
 subclasses. Its patterns (construction, delegation, serialization) are replicated
 across all other semantic fields.
 
-### `test_pitch_field.py` (54 tests)
+### `test_pitch_field.py` (50 tests)
 
 **What we validate:**
 
 | Test Class | Tests | Purpose |
 |---|---|---|
-| `TestAbstractPitchField` | 2 | `PitchField` cannot be instantiated; has abstract methods |
-| `TestHierarchy` | 4 | `isinstance(field, PitchField)` for all 4 concrete subclasses |
-| `TestAliases` | 4 | `MidiPitchField is SpecificPitchField`; `SpelledPitchField is EnharmonicPitchField` |
+| `TestUnifiedPitchField` | 3 | `PitchField` is concrete, requires pitch_type, rejects invalid pitch_type |
+| `TestHierarchy` | 4 | `isinstance(field, PitchField)` for all pitch_type variants |
 | `TestProtocolConformance` | 6 | Each field and scalar satisfies `SemanticTypeLike`, `PitchLike` |
-| `TestSpecificPitchFieldConstruction` | 4 | `SpecificPitchField` from array/struct/schema/tuple |
-| `TestGenericPitchFieldConstruction` | 4 | `GenericPitchField` from array/struct/schema/tuple |
-| `TestSpelledPitchClassFieldConstruction` | 3 | `SpelledPitchClassField` from array/struct/schema |
-| `TestSpecificPitchFieldElementAccess` | 3 | `__getitem__` returns `MidiPitch` with exact values |
-| `TestGenericPitchFieldElementAccess` | 3 | `__getitem__` returns `GenericPitch` with exact values |
-| `TestSpelledPitchClassFieldElementAccess` | 2 | `__getitem__` returns `SpelledPitchClass` |
-| `TestEnharmonicPitchFieldElementAccess` | 2 | `__getitem__` returns `SpelledPitch` |
-| `TestProperties` | 8 | `semantic_type` and `metadata_dict` for all 4 concrete types |
+| `TestEPPitchFieldConstruction` | 4 | `PitchField(ep=...)` from array/struct/schema/tuple |
+| `TestEPCPitchFieldConstruction` | 4 | `PitchField(epc=...)` from array/struct/schema/tuple |
+| `TestSPCPitchFieldConstruction` | 3 | `PitchField(spc=...)` from array/struct/schema |
+| `TestEPPitchFieldElementAccess` | 3 | `__getitem__` returns `EnharmonicPitch` with exact values |
+| `TestEPCPitchFieldElementAccess` | 3 | `__getitem__` returns `EnharmonicPitchClass` with exact values |
+| `TestSPCPitchFieldElementAccess` | 2 | `__getitem__` returns `SpelledPitchClass` |
+| `TestSPPitchFieldElementAccess` | 2 | `__getitem__` returns `SpelledPitch` |
+| `TestProperties` | 8 | `semantic_type` and `metadata_dict` for all pitch_type variants |
 | `TestSerialization` | 4 | `to_field()` metadata injection; Parquet round-trip |
 | `TestDelegation` | 5 | `value`, `len`, `is_empty`, `name`, `field_names` delegation |
 
 **Why this matters:**
-The pitch field hierarchy is the largest in the system (4 concrete subclasses
-from one abstract parent). The abstract parent enforces that all subclasses share
-a common interface while allowing each to wrap a different struct schema and
-return a different scalar type from `__getitem__`.
+`PitchField` is the ONE unified pitch field class. The `pitch_type` attribute
+(ep, epc, sp, spc, gp, gpc) determines the pitch space and whether it is a
+full pitch or pitch class. Each pitch_type wraps a different struct schema and
+returns a different scalar type from `__getitem__`.
 
 **Pitch field struct schemas:**
 
-| Field Class | Struct Schema | Scalar |
+| pitch_type | Struct Schema | Scalar |
 |---|---|---|
-| `GenericPitchField` | `{pitch_class: int64}` | `GenericPitch` |
-| `SpelledPitchClassField` | `{gpc_str: string, acc: int64, spc_int: int64}` | `SpelledPitchClass` |
-| `SpecificPitchField` | `{ep: int64, epc: int64}` | `MidiPitch` |
-| `EnharmonicPitchField` | `{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}` | `SpelledPitch` |
+| `epc` | `{pitch_class: int64}` | `EnharmonicPitchClass` |
+| `spc` | `{gpc_str: string, acc: int64, spc_int: int64}` | `SpelledPitchClass` |
+| `ep` | `{ep: int64, epc: int64}` | `EnharmonicPitch` |
+| `sp` | `{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}` | `SpelledPitch` |
 
 ### `test_harmony_field.py` (36 tests)
 
@@ -123,14 +122,14 @@ but NOT a `WesternTertianHarmonyField` (parallel branch, not linear chain).
 | `RomanNumeralHarmonyField` | `numeral, key_context` | `RomanNumeralHarmony` |
 | `DcmlLabelField` | `globalkey, localkey, form, figbass, relativeroot, pedal` | `DcmlHarmony` |
 
-### `test_mixins.py` (28 tests)
+### `test_mixins.py` (27 tests)
 
 **What we validate:**
 
 | Test Class | Tests | Purpose |
 |---|---|---|
-| `TestSemanticFieldAccessMixin` | 12 | `get_field()` dispatch via column metadata; parent-type matching (`PitchField` matches `SpecificPitchField`); `get_fields()` returns all matches; `has_field()` presence checks; data access through reconstructed fields |
-| `TestPitchAccessMixin` | 5 | `get_pitch_field()` with explicit type; default priority (EnharmonicPitchField > SpecificPitchField > GenericPitchField); raises when no pitch columns exist |
+| `TestSemanticFieldAccessMixin` | 11 | `get_field()` dispatch via column metadata; `PitchField` matching; `get_fields()` returns all matches; `has_field()` presence checks; data access through reconstructed fields |
+| `TestPitchAccessMixin` | 5 | `get_pitch_field()` with explicit type; default priority (sp > ep > spc > gpc by pitch_type); raises when no pitch columns exist |
 | `TestHarmonyAccessMixin` | 5 | `get_harmony_field()` with explicit type; default priority (DcmlLabelField > RomanNumeralHarmonyField > WesternTertianHarmonyField); data access |
 | `TestMeasureAccessMixin` | 1 | Placeholder raises `NotImplementedError` |
 | `TestEventDataComposition` | 5 | `NoteEventData` has `PitchAccessMixin`; `MeasureData` has `MeasureAccessMixin`; `AnnotationEventData` has `HarmonyAccessMixin`; backward compat of `pitch_field`/`spelled_pitch_field` properties |
@@ -221,8 +220,8 @@ python -m pytest tests/fields/ --cov=timetoalign.fields --cov=timetoalign.loader
    `NotImplementedError`. This will be addressed when the BeatGrid integration
    work defines the `MeasureField` type.
 
-2. **No `SpelledPitchClassField` construction from tuple.** The `from_tuple`
-   constructor is not yet implemented for `SpelledPitchClassField` because the
+2. **No SPC PitchField construction from tuple.** The `from_tuple`
+   constructor is not yet implemented for `PitchField(spc=...)` because the
    struct schema has not stabilized. Construction from `pa.Array` and
    `StructField` is fully supported.
 

@@ -13,10 +13,7 @@ from timetoalign.loader.mixins import PitchAccessMixin
 from timetoalign.loader.schema import make_fraction_field
 
 if TYPE_CHECKING:
-    from timetoalign.fields.pitch import (
-        EnharmonicPitchField,
-        SpecificPitchField,
-    )
+    from timetoalign.fields.pitch import PitchField
 
 from timetoalign.fields.schemas import EnharmonicPitchSchema, SpecificPitchSchema
 
@@ -89,55 +86,57 @@ class NoteEventData(EventData, PitchAccessMixin):
         return self._has_rests
 
     @property
-    def enharmonic_pitch_field(self) -> EnharmonicPitchField:
-        """Extract the ``midi_pitch`` column as an ``EnharmonicPitchField``.
+    def enharmonic_pitch_field(self) -> PitchField:
+        """Extract the ``midi_pitch`` column as a ``PitchField`` (ep).
 
-        Convenience property.  Equivalent to
-        ``get_pitch_field(EnharmonicPitchField)``.
+        Convenience property.
 
         Returns:
-            An ``EnharmonicPitchField`` wrapping the ``midi_pitch`` column.
+            A ``PitchField`` wrapping the ``midi_pitch`` column.
 
         Raises:
             KeyError: If the table has no ``midi_pitch`` column.
         """
-        from timetoalign.fields.pitch import EnharmonicPitchField
+        from timetoalign.fields.pitch import PitchField as PitchFieldCls
 
         try:
-            return self.get_pitch_field(EnharmonicPitchField)  # type: ignore[return-value]
+            result = self.get_pitch_field(PitchFieldCls)
+            if result.pitch_type == "ep":
+                return result
         except KeyError:
             pass
 
         col = self._table.column("midi_pitch")
         pa_field = self._table.schema.field("midi_pitch")
-        return EnharmonicPitchField.from_field((col, pa_field))
+        return PitchFieldCls.from_field((col, pa_field), pitch_type="ep")
 
     # Backward-compat alias
     pitch_field = enharmonic_pitch_field
 
     @property
-    def specific_pitch_field(self) -> SpecificPitchField:
-        """Extract the ``spelled_pitch`` column as a ``SpecificPitchField``.
+    def specific_pitch_field(self) -> PitchField:
+        """Extract the ``spelled_pitch`` column as a ``PitchField`` (sp).
 
-        Convenience property.  Equivalent to
-        ``get_pitch_field(SpecificPitchField)``.
+        Convenience property.
 
         Returns:
-            A ``SpecificPitchField`` wrapping the ``spelled_pitch`` column.
+            A ``PitchField`` wrapping the ``spelled_pitch`` column.
 
         Raises:
             KeyError: If the table has no ``spelled_pitch`` column.
         """
-        from timetoalign.fields.pitch import SpecificPitchField as SpField
+        from timetoalign.fields.pitch import PitchField as PitchFieldCls
 
         try:
-            return self.get_pitch_field(SpField)  # type: ignore[return-value]
+            result = self.get_pitch_field(PitchFieldCls)
+            if result.pitch_type == "sp":
+                return result
         except KeyError:
             pass
 
         col = self._table.column("spelled_pitch")
         pa_field = self._table.schema.field("spelled_pitch")
-        return SpField.from_field((col, pa_field))
+        return PitchFieldCls.from_field((col, pa_field), pitch_type="sp")
 
     # Backward-compat alias
     spelled_pitch_field = specific_pitch_field

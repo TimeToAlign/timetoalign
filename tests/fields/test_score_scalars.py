@@ -66,8 +66,8 @@ class TestMidiPitch:
         """metadata_dict returns correct keys/values."""
         p = MidiPitch(midi_number=59)
         md = p.metadata_dict()
-        assert md["field_type"] == "EnharmonicPitchField"
-        assert md["pitch_type"] == "midi"
+        assert md["field_type"] == "PitchField"
+        assert md["pitch_type"] == "ep"
 
     def test_frozen_immutable(self) -> None:
         """MidiPitch is frozen (immutable)."""

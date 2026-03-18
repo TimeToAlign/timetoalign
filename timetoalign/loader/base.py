@@ -86,7 +86,7 @@ class Loader(ABC):
     # Canonical ordering for RawField columns in assembled events tables.
     # Columns matching these names appear first (in this order), followed by
     # non-canonical RawFields (in field_specs order), then property columns.
-    _CANONICAL_FIELD_ORDER: ClassVar[list[str]] = ["start", "end", "duration", "pitch"]
+    _CANONICAL_FIELD_ORDER: ClassVar[list[str]] = ["start", "end", "duration"]
 
     def __init__(
         self,

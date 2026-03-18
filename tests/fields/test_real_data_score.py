@@ -41,7 +41,7 @@ import pytest
 
 from timetoalign.core.scalars.pitch import EnharmonicPitch
 from timetoalign.fields.harmony import DcmlLabelField
-from timetoalign.fields.pitch import EnharmonicPitchField
+from timetoalign.fields.pitch import PitchField
 from timetoalign.fields.schemas import DcmlStorageSchema
 from timetoalign.loader.score.tsv import TSVLoader
 
@@ -110,7 +110,7 @@ class TestChopinPitchFieldFromTSV:
         notes_table = chopin_store.notes._table
         midi_pitch_col = notes_table.column("midi_pitch")
         midi_pitch_field = notes_table.schema.field("midi_pitch")
-        pf = EnharmonicPitchField.from_field((midi_pitch_col, midi_pitch_field))
+        pf = PitchField.from_field((midi_pitch_col, midi_pitch_field))
         # Total rows include rests (which have null pitch), so len >= 498
         assert len(pf) >= 498
 
@@ -119,7 +119,7 @@ class TestChopinPitchFieldFromTSV:
         notes_table = chopin_store.notes._table
         midi_pitch_col = notes_table.column("midi_pitch")
         midi_pitch_field = notes_table.schema.field("midi_pitch")
-        pf = EnharmonicPitchField.from_field((midi_pitch_col, midi_pitch_field))
+        pf = PitchField.from_field((midi_pitch_col, midi_pitch_field))
         first = pf[0]
         assert first is not None
         assert isinstance(first, EnharmonicPitch)
@@ -299,7 +299,7 @@ class TestPitchFieldParquetRoundtrip:
         midi_pitch_field = notes_table.schema.field("midi_pitch")
 
         # Build PitchField from real data
-        pf = EnharmonicPitchField.from_field((midi_pitch_col, midi_pitch_field))
+        pf = PitchField.from_field((midi_pitch_col, midi_pitch_field))
         enriched_field = pf.to_field()
 
         # Build a table with just the pitch column
@@ -315,7 +315,7 @@ class TestPitchFieldParquetRoundtrip:
         # Reconstruct PitchField from read-back
         col_back = table_back.column("midi_pitch")
         field_back = table_back.schema.field("midi_pitch")
-        pf2 = EnharmonicPitchField.from_field((col_back, field_back))
+        pf2 = PitchField.from_field((col_back, field_back))
 
         # Verify metadata survived
         assert pf2.semantic_type == "Pitch"
