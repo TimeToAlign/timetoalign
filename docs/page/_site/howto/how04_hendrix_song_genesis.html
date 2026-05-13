@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.31">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -10,6 +10,9 @@
 
 <title>How to Encode Song Genesis (Hendrix) – TimeToAlign!</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -59,7 +62,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="../site_libs/quarto-nav/headroom.min.js"></script>
 <script src="../site_libs/clipboard/clipboard.min.js"></script>
 <script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
@@ -72,10 +75,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <link href="../site_libs/quarto-contrib/glossary/glossary.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
@@ -104,7 +107,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
@@ -365,7 +368,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="how-to-encode-song-genesis-relationships-hendrix" class="level1">
 <h1>How to Encode Song Genesis Relationships (Hendrix)</h1>
-<p>This notebook demonstrates how to encode <strong>conceptual and temporal relationships</strong> between multiple versions of a work using <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button> objects, <button class="glossary" title="">MatchGraph</button> structures, and the <strong>NOMATCH</strong> sentinel.</p>
+<p>This notebook demonstrates how to encode <strong>conceptual and temporal relationships</strong> between multiple versions of a work using <button class="glossary" title="">MatchClaim</button> objects, <button class="glossary" title="An auxiliary structure formed by extending MatchClaims through shared coordinates; may be viewed as a hyperedge connecting multiple coordinates from different timelines. Connected components yield MatchStamps. Each Match box M1–M15 in the Hendrix figure is a MatchGraph.">MatchGraph</button> structures, and the <strong>NOMATCH</strong> sentinel.</p>
 <p>The use case comes from a genesis study of Jimi Hendrix’s <em>1983… (A Merman I Should Turn to Be)</em>, comparing three versions:</p>
 <ul>
 <li><strong>Studio</strong> – the studio recording from <em>Electric Ladyland</em> (CPT1)</li>
@@ -377,17 +380,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="key-concepts-demonstrated">Key Concepts Demonstrated</h2>
 <ul>
 <li>Loading TiLiA JSON files via <code>TiliaJsonLoader</code></li>
-<li>Creating an <button class="glossary" title="">AlignmentBundle</button> from independent timelines</li>
+<li>Creating an <button class="glossary" title="A collection of TimelineGroups with inter-group MatchClaim connections; provides coordinate transfer via offset arithmetic, interpolation, and WarpMaps.">AlignmentBundle</button> from independent timelines</li>
 <li>Parsing a match table with <strong>synchronous</strong> and <strong>NOMATCH</strong> columns</li>
-<li>Creating synchronous vs.&nbsp;conceptual <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button> objects</li>
+<li>Creating synchronous vs.&nbsp;conceptual <button class="glossary" title="">MatchClaim</button> objects</li>
 <li>Using <code>MatchClaim.nomatch()</code> for explicit structural absence</li>
 <li>Querying events by name on hierarchy timelines</li>
 </ul>
 </section>
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
-<div id="5541ea40d41df278" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:46.470469Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:46.470052Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.102381Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.099591Z&quot;}}" data-execution_count="1">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<div id="a6a73dc6" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:34:40.741734Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:34:40.741734Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:34:45.187932Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:34:45.184795Z&quot;}}" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
@@ -401,26 +404,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">NameError</span>:</span>
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    _notebook_dir <span class="op">=</span> Path(<span class="st">"."</span>).resolve()</span>
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>DATA_DIR <span class="op">=</span> _notebook_dir.parent.parent <span class="op">/</span> <span class="st">"tests"</span> <span class="op">/</span> <span class="st">"data"</span> <span class="op">/</span> <span class="st">"hendrix"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>/home/laser/miniconda3/envs/timetoalign/lib/python3.11/site-packages/partitura/__init__.py:9: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
-  import pkg_resources</code></pre>
-</div>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>DATA_DIR <span class="op">=</span> _notebook_dir.parent.parent <span class="op">/</span> <span class="st">"tests"</span> <span class="op">/</span> <span class="st">"data"</span> <span class="op">/</span> <span class="st">"hendrix"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="load-the-three-versions" class="level2">
 <h2 class="anchored" data-anchor-id="load-the-three-versions">1. Load the Three Versions</h2>
 <p>Each version of the song has been annotated in TiLiA, producing a JSON file with hierarchy timelines encoding the form analysis. We load each file and extract the first hierarchy timeline (<code>HIERARCHY_TIMELINE_0</code>), which contains the section-level annotations (Intro, Verse, Bridge, etc.).</p>
-<div id="368b2cb18c47f634" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.108269Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.107405Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.238139Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.235049Z&quot;}}" data-execution_count="2">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>names <span class="op">=</span> [<span class="st">"Studio"</span>, <span class="st">"Demo2"</span>, <span class="st">"Demo1"</span>]</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>timelines <span class="op">=</span> {}</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name <span class="kw">in</span> names:</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    loader <span class="op">=</span> TiliaJsonLoader.from_file(DATA_DIR <span class="op">/</span> <span class="ss">f"Hendrix_Merman_</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">.json"</span>)</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    tl <span class="op">=</span> loader.create_timeline(<span class="st">"HIERARCHY_TIMELINE_0"</span>)</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    timelines[name] <span class="op">=</span> tl</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>timelines</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="2045a09f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:34:45.195806Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:34:45.194805Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:34:45.493724Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:34:45.492709Z&quot;}}" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>names <span class="op">=</span> [<span class="st">"Studio"</span>, <span class="st">"Demo2"</span>, <span class="st">"Demo1"</span>]</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>timelines <span class="op">=</span> {}</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name <span class="kw">in</span> names:</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    loader <span class="op">=</span> TiliaJsonLoader.from_file(DATA_DIR <span class="op">/</span> <span class="ss">f"Hendrix_Merman_</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">.json"</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    tl <span class="op">=</span> loader.create_timeline(<span class="st">"HIERARCHY_TIMELINE_0"</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    timelines[name] <span class="op">=</span> tl</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>timelines</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="2">
 <pre><code>{'Studio': ContinuousPhysicalTimeline(id='HIERARCHY_TIMELINE_0', length=820.0, unit=seconds, events=49, children=0),
  'Demo2': ContinuousPhysicalTimeline(id='HIERARCHY_TIMELINE_0', length=622.0, unit=seconds, events=33, children=0),
@@ -430,20 +429,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="load-the-match-data" class="level2">
 <h2 class="anchored" data-anchor-id="load-the-match-data">2. Load the Match Data</h2>
-<p>The file <code>match_data.csv</code> is a tab-separated table recording which sections correspond across the three versions. Each row represents a <button class="glossary" title="">MatchGraph</button> (M1–M15).</p>
+<p>The file <code>match_data.csv</code> is a tab-separated table recording which sections correspond across the three versions. Each row represents a <button class="glossary" title="An auxiliary structure formed by extending MatchClaims through shared coordinates; may be viewed as a hyperedge connecting multiple coordinates from different timelines. Connected components yield MatchStamps. Each Match box M1–M15 in the Hendrix figure is a MatchGraph.">MatchGraph</button> (M1–M15).</p>
 <ul>
 <li>Cells contain the <strong>event name</strong> (section label) on the respective timeline.</li>
 <li>The value <code>NOMATCH</code> explicitly records that a section has no equivalent in that version.</li>
 <li>The <code>synchronous</code> column indicates whether the correspondence is temporal (<code>TRUE</code>) or merely conceptual (<code>FALSE</code>).</li>
 </ul>
-<div id="ffe3cff6f066b7ff" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.247823Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.246909Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.282763Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.279170Z&quot;}}" data-execution_count="3">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(DATA_DIR <span class="op">/</span> <span class="st">"match_data.csv"</span>, sep<span class="op">=</span><span class="st">"</span><span class="ch">\t</span><span class="st">"</span>)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>df</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="cea78ede" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:34:45.502733Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:34:45.501731Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:34:45.545860Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:34:45.543845Z&quot;}}" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(DATA_DIR <span class="op">/</span> <span class="st">"match_data.csv"</span>, sep<span class="op">=</span><span class="st">"</span><span class="ch">\t</span><span class="st">"</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="3">
 <div>
 
 
-<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
 <thead>
 <tr class="header">
 <th data-quarto-table-cell-role="th"></th>
@@ -456,7 +455,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </thead>
 <tbody>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">0</td>
+<th data-quarto-table-cell-role="th">0</th>
 <td>M1</td>
 <td>Intro</td>
 <td>Intro</td>
@@ -464,7 +463,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>False</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">1</td>
+<th data-quarto-table-cell-role="th">1</th>
 <td>M3</td>
 <td>A: Verse</td>
 <td>A: Verse</td>
@@ -472,7 +471,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>True</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">2</td>
+<th data-quarto-table-cell-role="th">2</th>
 <td>M4</td>
 <td>A: Verse (rep.)</td>
 <td>A: Verse (rep.)</td>
@@ -480,7 +479,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>True</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">3</td>
+<th data-quarto-table-cell-role="th">3</th>
 <td>M5</td>
 <td>B: Bridge</td>
 <td>B: Bridge</td>
@@ -488,7 +487,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>False</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">4</td>
+<th data-quarto-table-cell-role="th">4</th>
 <td>M6</td>
 <td>1</td>
 <td>1</td>
@@ -496,7 +495,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>True</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">5</td>
+<th data-quarto-table-cell-role="th">5</th>
 <td>M7</td>
 <td>2</td>
 <td>2</td>
@@ -504,7 +503,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>True</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">6</td>
+<th data-quarto-table-cell-role="th">6</th>
 <td>M8</td>
 <td>3</td>
 <td>3</td>
@@ -512,7 +511,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>True</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">7</td>
+<th data-quarto-table-cell-role="th">7</th>
 <td>M9</td>
 <td>4</td>
 <td>4</td>
@@ -520,7 +519,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>True</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">8</td>
+<th data-quarto-table-cell-role="th">8</th>
 <td>M10</td>
 <td>A’: Verse</td>
 <td>NOMATCH</td>
@@ -528,7 +527,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>False</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">9</td>
+<th data-quarto-table-cell-role="th">9</th>
 <td>M11</td>
 <td>NOMATCH</td>
 <td>Verse 3</td>
@@ -536,7 +535,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>True</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">10</td>
+<th data-quarto-table-cell-role="th">10</th>
 <td>M12</td>
 <td>NOMATCH</td>
 <td>Riff 4</td>
@@ -544,7 +543,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>True</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">11</td>
+<th data-quarto-table-cell-role="th">11</th>
 <td>M13</td>
 <td>Intrumental Part: Free Soli / Soundscape</td>
 <td>Part 2: Free Soli / Soundscape</td>
@@ -552,7 +551,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>False</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">12</td>
+<th data-quarto-table-cell-role="th">12</th>
 <td>M14</td>
 <td>Dissolving</td>
 <td>Dissolving</td>
@@ -560,7 +559,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>False</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">13</td>
+<th data-quarto-table-cell-role="th">13</th>
 <td>M15</td>
 <td>Clean Guitar Solo</td>
 <td>Clean Guitar Solo</td>
@@ -576,13 +575,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="create-the-alignmentbundle" class="level2">
 <h2 class="anchored" data-anchor-id="create-the-alignmentbundle">3. Create the AlignmentBundle</h2>
-<p>We add each hierarchy timeline to a single <button class="glossary" title="">AlignmentBundle</button>, assigning human-readable IDs that match the column names in <code>match_data.csv</code>.</p>
-<div id="80b70586407bf695" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.287850Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.287315Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.309566Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.304331Z&quot;}}" data-execution_count="4">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>bundle <span class="op">=</span> AlignmentBundle(name<span class="op">=</span><span class="st">"Hendrix Song Genesis"</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, tl <span class="kw">in</span> timelines.items():</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    bundle.add_timeline(tl, uid<span class="op">=</span>name)</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>bundle</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>We add each hierarchy timeline to a single <button class="glossary" title="A collection of TimelineGroups with inter-group MatchClaim connections; provides coordinate transfer via offset arithmetic, interpolation, and WarpMaps.">AlignmentBundle</button>, assigning human-readable IDs that match the column names in <code>match_data.csv</code>.</p>
+<div id="ba3677f7" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:34:45.551856Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:34:45.551856Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:34:45.572931Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:34:45.569867Z&quot;}}" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>bundle <span class="op">=</span> AlignmentBundle(name<span class="op">=</span><span class="st">"Hendrix Song Genesis"</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, tl <span class="kw">in</span> timelines.items():</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    bundle.add_timeline(tl, uid<span class="op">=</span>name)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>bundle</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="4">
 <pre style="font-family: monospace; line-height: 1.2;">AlignmentBundle[bundle:AlignmentBundle_1]
 
@@ -604,81 +603,81 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>For the remaining timelines with events present, create <strong>pairwise MatchClaims</strong> – synchronous or conceptual according to the <code>synchronous</code> column.</li>
 </ol>
 <p>The pairwise strategy fans out from the first available timeline to each of the others (a “star” topology).</p>
-<div id="ef2ad7347b660ddf" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.316759Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.315902Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.456437Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.454346Z&quot;}}" data-execution_count="5">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>metadata <span class="op">=</span> MatchMetadata(agent<span class="op">=</span><span class="st">"user"</span>, decision_criteria<span class="op">=</span><span class="st">"match_data.csv"</span>)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>tl_columns <span class="op">=</span> [c <span class="cf">for</span> c <span class="kw">in</span> df.columns <span class="cf">if</span> c <span class="kw">not</span> <span class="kw">in</span> (<span class="st">"match"</span>, <span class="st">"synchronous"</span>)]</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>sync_claims <span class="op">=</span> []</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>conceptual_claims <span class="op">=</span> []</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>nomatch_claims <span class="op">=</span> []</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _, row <span class="kw">in</span> df.iterrows():</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    match_id <span class="op">=</span> row[<span class="st">"match"</span>]</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    is_synchronous <span class="op">=</span> <span class="bu">str</span>(row[<span class="st">"synchronous"</span>]).strip().upper() <span class="op">==</span> <span class="st">"TRUE"</span></span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Collect events and detect NOMATCH sentinels</span></span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    present <span class="op">=</span> []  <span class="co"># (timeline_name, event_dict)</span></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> tl_name <span class="kw">in</span> tl_columns:</span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>        val <span class="op">=</span> <span class="bu">str</span>(row[tl_name]).strip()</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> val.upper() <span class="op">==</span> <span class="st">"NOMATCH"</span>:</span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Create a NOMATCH sentinel for every other timeline</span></span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> other_name <span class="kw">in</span> tl_columns:</span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> other_name <span class="op">==</span> tl_name:</span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">continue</span></span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>                sentinel <span class="op">=</span> MatchClaim.nomatch(</span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>                    event<span class="op">=</span>{},</span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>                    source_tl_id<span class="op">=</span>tl_name,</span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>                    target_tl_id<span class="op">=</span>other_name,</span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>                    metadata<span class="op">=</span>metadata,</span>
-<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>                )</span>
-<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>                nomatch_claims.append(sentinel)</span>
-<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
-<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Look up the event by name</span></span>
-<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>        tl <span class="op">=</span> timelines[tl_name]</span>
-<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>        evs <span class="op">=</span> tl.get_events(name<span class="op">=</span>val)</span>
-<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="bu">len</span>(evs) <span class="op">!=</span> <span class="dv">1</span>:</span>
-<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
-<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>        event_id <span class="op">=</span> <span class="bu">str</span>(evs.table[<span class="dv">0</span>][<span class="dv">0</span>])</span>
-<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>        event <span class="op">=</span> tl.get_event(event_id)</span>
-<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>        present.append((tl_name, event))</span>
-<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Create pairwise claims from the first present timeline to the others</span></span>
-<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(present) <span class="op">&lt;</span> <span class="dv">2</span>:</span>
-<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">continue</span></span>
-<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>    tl_a_name, ev_a <span class="op">=</span> present[<span class="dv">0</span>]</span>
-<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> tl_b_name, ev_b <span class="kw">in</span> present[<span class="dv">1</span>:]:</span>
-<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> is_synchronous:</span>
-<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>            claim <span class="op">=</span> MatchClaim.from_events(</span>
-<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>                event_a<span class="op">=</span>ev_a,</span>
-<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>                tl_a_id<span class="op">=</span>tl_a_name,</span>
-<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>                event_b<span class="op">=</span>ev_b,</span>
-<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>                tl_b_id<span class="op">=</span>tl_b_name,</span>
-<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>                end_coord_key<span class="op">=</span><span class="st">"end"</span>,</span>
-<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>                is_synchronous<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>                metadata<span class="op">=</span>metadata,</span>
-<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>            )</span>
-<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>            sync_claims.append(claim)</span>
-<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
-<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>            claim <span class="op">=</span> MatchClaim(</span>
-<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>                timeline_a_id<span class="op">=</span>tl_a_name,</span>
-<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>                timeline_b_id<span class="op">=</span>tl_b_name,</span>
-<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>                is_synchronous<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>                metadata<span class="op">=</span>metadata,</span>
-<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>            )</span>
-<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a>            conceptual_claims.append(claim)</span>
-<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a>all_claims <span class="op">=</span> sync_claims <span class="op">+</span> conceptual_claims <span class="op">+</span> nomatch_claims</span>
-<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>bundle.add_match_claims(all_claims)</span>
-<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a>    <span class="st">"synchronous"</span>: <span class="bu">len</span>(sync_claims),</span>
-<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a>    <span class="st">"conceptual"</span>: <span class="bu">len</span>(conceptual_claims),</span>
-<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a>    <span class="st">"nomatch"</span>: <span class="bu">len</span>(nomatch_claims),</span>
-<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>    <span class="st">"total"</span>: <span class="bu">len</span>(all_claims),</span>
-<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="bcfe3f68" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:34:45.579248Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:34:45.579248Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:34:45.760559Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:34:45.759028Z&quot;}}" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>metadata <span class="op">=</span> MatchMetadata(agent<span class="op">=</span><span class="st">"user"</span>, decision_criteria<span class="op">=</span><span class="st">"match_data.csv"</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>tl_columns <span class="op">=</span> [c <span class="cf">for</span> c <span class="kw">in</span> df.columns <span class="cf">if</span> c <span class="kw">not</span> <span class="kw">in</span> (<span class="st">"match"</span>, <span class="st">"synchronous"</span>)]</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>sync_claims <span class="op">=</span> []</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>conceptual_claims <span class="op">=</span> []</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>nomatch_claims <span class="op">=</span> []</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _, row <span class="kw">in</span> df.iterrows():</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    match_id <span class="op">=</span> row[<span class="st">"match"</span>]</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    is_synchronous <span class="op">=</span> <span class="bu">str</span>(row[<span class="st">"synchronous"</span>]).strip().upper() <span class="op">==</span> <span class="st">"TRUE"</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Collect events and detect NOMATCH sentinels</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    present <span class="op">=</span> []  <span class="co"># (timeline_name, event_dict)</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> tl_name <span class="kw">in</span> tl_columns:</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>        val <span class="op">=</span> <span class="bu">str</span>(row[tl_name]).strip()</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> val.upper() <span class="op">==</span> <span class="st">"NOMATCH"</span>:</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Create a NOMATCH sentinel for every other timeline</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> other_name <span class="kw">in</span> tl_columns:</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> other_name <span class="op">==</span> tl_name:</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">continue</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>                sentinel <span class="op">=</span> MatchClaim.nomatch(</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>                    event<span class="op">=</span>{},</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>                    source_tl_id<span class="op">=</span>tl_name,</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>                    target_tl_id<span class="op">=</span>other_name,</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>                    metadata<span class="op">=</span>metadata,</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>                )</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>                nomatch_claims.append(sentinel)</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Look up the event by name</span></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>        tl <span class="op">=</span> timelines[tl_name]</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>        evs <span class="op">=</span> tl.get_events(name<span class="op">=</span>val)</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="bu">len</span>(evs) <span class="op">!=</span> <span class="dv">1</span>:</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>            <span class="cf">continue</span></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>        event_id <span class="op">=</span> <span class="bu">str</span>(evs.table[<span class="dv">0</span>][<span class="dv">0</span>])</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>        event <span class="op">=</span> tl.get_event(event_id)</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>        present.append((tl_name, event))</span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Create pairwise claims from the first present timeline to the others</span></span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(present) <span class="op">&lt;</span> <span class="dv">2</span>:</span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">continue</span></span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>    tl_a_name, ev_a <span class="op">=</span> present[<span class="dv">0</span>]</span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> tl_b_name, ev_b <span class="kw">in</span> present[<span class="dv">1</span>:]:</span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> is_synchronous:</span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>            claim <span class="op">=</span> MatchClaim.from_events(</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>                event_a<span class="op">=</span>ev_a,</span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a>                tl_a_id<span class="op">=</span>tl_a_name,</span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>                event_b<span class="op">=</span>ev_b,</span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>                tl_b_id<span class="op">=</span>tl_b_name,</span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>                end_coord_key<span class="op">=</span><span class="st">"end"</span>,</span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>                is_synchronous<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>                metadata<span class="op">=</span>metadata,</span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a>            sync_claims.append(claim)</span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a>            claim <span class="op">=</span> MatchClaim(</span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a>                timeline_a_id<span class="op">=</span>tl_a_name,</span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a>                timeline_b_id<span class="op">=</span>tl_b_name,</span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a>                is_synchronous<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a>                metadata<span class="op">=</span>metadata,</span>
+<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a>            conceptual_claims.append(claim)</span>
+<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a>all_claims <span class="op">=</span> sync_claims <span class="op">+</span> conceptual_claims <span class="op">+</span> nomatch_claims</span>
+<span id="cb6-67"><a href="#cb6-67" aria-hidden="true" tabindex="-1"></a>bundle.add_match_claims(all_claims)</span>
+<span id="cb6-68"><a href="#cb6-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-69"><a href="#cb6-69" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a>    <span class="st">"synchronous"</span>: <span class="bu">len</span>(sync_claims),</span>
+<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a>    <span class="st">"conceptual"</span>: <span class="bu">len</span>(conceptual_claims),</span>
+<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a>    <span class="st">"nomatch"</span>: <span class="bu">len</span>(nomatch_claims),</span>
+<span id="cb6-73"><a href="#cb6-73" aria-hidden="true" tabindex="-1"></a>    <span class="st">"total"</span>: <span class="bu">len</span>(all_claims),</span>
+<span id="cb6-74"><a href="#cb6-74" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="5">
 <pre><code>{'synchronous': 13, 'conceptual': 6, 'nomatch': 12, 'total': 31}</code></pre>
 </div>
@@ -690,12 +689,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="synchronous-claims-with-alignmentanchors">Synchronous claims (with AlignmentAnchors)</h3>
 <p>These claims carry coordinate pairs (start and end) that enable temporal alignment between versions. Each interval match corresponds to a pair of section boundaries in seconds.</p>
 <p>The MatchClaim’s rich display shows timelines, coordinates, events, and metadata — no need to compile info-dicts manually.</p>
-<div id="ea4ae8ee" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.461971Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.461493Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.469331Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.467574Z&quot;}}" data-execution_count="6">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Display an example synchronous claim (shows timeline IDs, coordinates, events)</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>sync_claims[<span class="dv">0</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="65811bf5" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:34:45.772683Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:34:45.771681Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:34:45.782146Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:34:45.780499Z&quot;}}" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Display an example synchronous claim (shows timeline IDs, coordinates, events)</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>sync_claims[<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="6">
 <div style="font-family: monospace;"><strong>MatchClaim</strong> <span style="background: #e3f2fd; padding: 0 4px; border-radius: 3px; font-size: 0.8em;">synchronous, interval</span>
-<table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<table class="caption-top table table-sm table-striped small">
 <tbody>
 <tr class="odd">
 <td>Timeline A</td>
@@ -726,12 +725,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<div id="a5d57434" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.473887Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.473359Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.483400Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.481331Z&quot;}}" data-execution_count="7">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Summary of all synchronous claims</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"synchronous_claims"</span>: <span class="bu">len</span>(sync_claims),</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"is_interval"</span>: <span class="bu">all</span>(c.is_interval <span class="cf">for</span> c <span class="kw">in</span> sync_claims),</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="e59ded1e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:34:45.789132Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:34:45.789132Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:34:45.799591Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:34:45.798573Z&quot;}}" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Summary of all synchronous claims</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"synchronous_claims"</span>: <span class="bu">len</span>(sync_claims),</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"is_interval"</span>: <span class="bu">all</span>(c.is_interval <span class="cf">for</span> c <span class="kw">in</span> sync_claims),</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="7">
 <pre><code>{'synchronous_claims': 13, 'is_interval': True}</code></pre>
 </div>
@@ -740,12 +739,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="conceptual-claims-no-anchors" class="level3">
 <h3 class="anchored" data-anchor-id="conceptual-claims-no-anchors">Conceptual claims (no anchors)</h3>
 <p>These record structural equivalence without temporal commitment — for instance, “both versions have an Intro” without asserting that the intros can be aligned beat-by-beat.</p>
-<div id="723a593c" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.488555Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.488130Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.495932Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.494353Z&quot;}}" data-execution_count="8">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Display an example conceptual claim (no coordinates, just timeline connection)</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>conceptual_claims[<span class="dv">0</span>] <span class="cf">if</span> conceptual_claims <span class="cf">else</span> <span class="st">"No conceptual claims"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="053bc1e3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:34:45.803601Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:34:45.803601Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:34:45.812793Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:34:45.811759Z&quot;}}" data-execution_count="8">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Display an example conceptual claim (no coordinates, just timeline connection)</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>conceptual_claims[<span class="dv">0</span>] <span class="cf">if</span> conceptual_claims <span class="cf">else</span> <span class="st">"No conceptual claims"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="8">
 <div style="font-family: monospace;"><strong>MatchClaim</strong> <span style="background: #ffcdd2; padding: 0 4px; border-radius: 3px; font-size: 0.8em;">NOMATCH</span>
-<table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<table class="caption-top table table-sm table-striped small">
 <tbody>
 <tr class="odd">
 <td>Timeline A</td>
@@ -766,8 +765,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<div id="d00cf44f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.501025Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.500680Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.509078Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.506577Z&quot;}}" data-execution_count="9">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>{<span class="st">"conceptual_claims"</span>: <span class="bu">len</span>(conceptual_claims)}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="f10d701a" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:34:45.817782Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:34:45.817782Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:34:45.827978Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:34:45.825954Z&quot;}}" data-execution_count="9">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>{<span class="st">"conceptual_claims"</span>: <span class="bu">len</span>(conceptual_claims)}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="9">
 <pre><code>{'conceptual_claims': 6}</code></pre>
 </div>
@@ -776,12 +775,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="nomatch-sentinels" class="level3">
 <h3 class="anchored" data-anchor-id="nomatch-sentinels">NOMATCH sentinels</h3>
 <p>These explicitly record that a section has no equivalent in the target version — a positive assertion of absence, not a mere gap in the data. For instance, the “Instrumental Part” in the studio recording has no equivalent in Demo1.</p>
-<div id="c0d2dfc3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.513771Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.513227Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.522532Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.520381Z&quot;}}" data-execution_count="10">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Display an example NOMATCH claim</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>nomatch_claims[<span class="dv">0</span>] <span class="cf">if</span> nomatch_claims <span class="cf">else</span> <span class="st">"No NOMATCH claims"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="6d9bc647" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:34:45.836072Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:34:45.833970Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:34:45.846112Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:34:45.844964Z&quot;}}" data-execution_count="10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Display an example NOMATCH claim</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>nomatch_claims[<span class="dv">0</span>] <span class="cf">if</span> nomatch_claims <span class="cf">else</span> <span class="st">"No NOMATCH claims"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="10">
 <div style="font-family: monospace;"><strong>MatchClaim</strong> <span style="background: #ffcdd2; padding: 0 4px; border-radius: 3px; font-size: 0.8em;">NOMATCH</span>
-<table class="caption-top table table-sm table-striped small" data-quarto-postprocess="true">
+<table class="caption-top table table-sm table-striped small">
 <tbody>
 <tr class="odd">
 <td>Timeline A</td>
@@ -802,8 +801,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<div id="0b1bafba" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-28T20:09:52.527039Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-28T20:09:52.526559Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-28T20:09:52.537458Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-28T20:09:52.535513Z&quot;}}" data-execution_count="11">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>{<span class="st">"nomatch_sentinels"</span>: <span class="bu">len</span>(nomatch_claims)}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="ae916a52" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:34:45.851973Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:34:45.850974Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:34:45.861495Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:34:45.859973Z&quot;}}" data-execution_count="11">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>{<span class="st">"nomatch_sentinels"</span>: <span class="bu">len</span>(nomatch_claims)}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="11">
 <pre><code>{'nomatch_sentinels': 12}</code></pre>
 </div>
@@ -908,13 +907,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy

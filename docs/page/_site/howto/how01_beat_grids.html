@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.31">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -10,6 +10,9 @@
 
 <title>How to Build Beat Grids – TimeToAlign!</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -59,7 +62,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="../site_libs/quarto-nav/headroom.min.js"></script>
 <script src="../site_libs/clipboard/clipboard.min.js"></script>
 <script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
@@ -72,10 +75,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -103,7 +106,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
@@ -396,8 +399,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>“I have an audio file. I know the tempo and when the first beat occurs. I want to export the beat times for Audacity.”</p>
 </blockquote>
 <p><strong>The TimeToAlign! Solution:</strong></p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> BeatGrid.from_tempo(tempo_bpm<span class="op">=</span><span class="dv">120</span>, length_seconds<span class="op">=</span><span class="dv">180</span>, start_seconds<span class="op">=</span><span class="fl">0.5</span>)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>grid.export_to_csv(<span class="st">"beats.txt"</span>, <span class="bu">format</span><span class="op">=</span><span class="st">"sonic_visualiser"</span>)  <span class="co"># Done!</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> BeatGrid.from_tempo(tempo_bpm<span class="op">=</span><span class="dv">120</span>, length_seconds<span class="op">=</span><span class="dv">180</span>, start_seconds<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>grid.export_to_csv(<span class="st">"beats.txt"</span>, <span class="bu">format</span><span class="op">=</span><span class="st">"sonic_visualiser"</span>)  <span class="co"># Done!</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Learning Objectives:</strong></p>
 <ol type="1">
 <li>Create a BeatGrid from tempo + first-beat offset</li>
@@ -409,8 +412,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><strong>Prerequisites:</strong> - how01_coordinate_math.ipynb (Timelines, Coordinates) - No prerequisites for Part 1 (the simple case)</p>
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
-<div id="0f6b8887" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:38.389785Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:38.389577Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:38.908844Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:38.908175Z&quot;}}" data-execution_count="1">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<div id="115be261" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:33.559166Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:33.558271Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:34.852771Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:34.852771Z&quot;}}" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fractions <span class="im">import</span> Fraction</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
@@ -422,15 +425,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Path to test audio files (relative to notebook directory)</span></span>
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>_notebook_dir <span class="op">=</span> Path(<span class="st">"."</span>).resolve()</span>
 <span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>AUDIO_DIR <span class="op">=</span> _notebook_dir.parent.parent <span class="op">/</span> <span class="st">"tests"</span> <span class="op">/</span> <span class="st">"data"</span> <span class="op">/</span> <span class="st">"audio"</span> <span class="op">/</span> <span class="st">"hard_techno"</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> AUDIO_DIR.is_dir(), <span class="ss">f"Audio directory not found: </span><span class="sc">{</span>AUDIO_DIR<span class="sc">}</span><span class="ss">"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> AUDIO_DIR.is_dir(), <span class="ss">f"Audio directory not found: </span><span class="sc">{</span>AUDIO_DIR<span class="sc">}</span><span class="ss">"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <hr>
 </section>
 <section id="tldr-three-lines-to-beatgrid-your-audio" class="level2">
 <h2 class="anchored" data-anchor-id="tldr-three-lines-to-beatgrid-your-audio">TL;DR: Three Lines to Beatgrid Your Audio</h2>
 <p>If you already know what you’re doing, here’s the pattern:</p>
-<div id="eb03b22c" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:38.910849Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:38.910591Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:38.920491Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:38.919778Z&quot;}}" data-execution_count="2">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a></span>
+<div id="89cc71f1" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:34.855956Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:34.855956Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:34.872207Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:34.871191Z&quot;}}" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Create beatgrid: 120 BPM, 4/4, 3-minute track, first beat at 0.5 seconds</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> BeatGrid.from_tempo(tempo_bpm<span class="op">=</span><span class="dv">120</span>, length_seconds<span class="op">=</span><span class="dv">180</span>, start_seconds<span class="op">=</span><span class="fl">0.5</span>)</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
@@ -443,7 +446,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Total measures"</span>: grid.n_measures,</span>
 <span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"First 4 beats (seconds)"</span>: <span class="bu">list</span>(beat_times[:<span class="dv">4</span>].<span class="bu">round</span>(<span class="dv">3</span>)),</span>
 <span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"First 4 measures (seconds)"</span>: <span class="bu">list</span>(grid.measure_seconds()[:<span class="dv">4</span>].<span class="bu">round</span>(<span class="dv">3</span>)),</span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="2">
 <pre><code>{'Total beats': 359,
  'Total measures': 89,
@@ -459,8 +462,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="the-use-case" class="level3">
 <h3 class="anchored" data-anchor-id="the-use-case">1.1 The Use Case</h3>
 <p>Let’s work with three techno tracks that all have: - <strong>Tempo</strong>: 160 BPM (constant throughout) - <strong>Time Signature</strong>: 4/4 - <strong>Known first-beat offset</strong> (measured by ear or beat detection)</p>
-<div id="setup" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:38.922383Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:38.922175Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.006849Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.006071Z&quot;}}" data-execution_count="3">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Our test tracks - tempo is constant 160 BPM</span></span>
+<div id="4488d9f7" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:34.876205Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:34.875233Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.193144Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.190615Z&quot;}}" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Our test tracks - tempo is constant 160 BPM</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>TEMPO_BPM <span class="op">=</span> <span class="fl">160.0</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>BEATS_PER_MEASURE <span class="op">=</span> <span class="dv">4</span></span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
@@ -481,7 +484,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">"duration"</span>: loader.duration_seconds,</span>
 <span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">"first_beat"</span>: info[<span class="st">"first_beat"</span>],</span>
 <span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>loader<span class="sc">.</span>duration_seconds<span class="sc">:.3f}</span><span class="ss">s (</span><span class="sc">{</span>loader<span class="sc">.</span><span class="bu">format</span><span class="sc">}</span><span class="ss">)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>loader<span class="sc">.</span>duration_seconds<span class="sc">:.3f}</span><span class="ss">s (</span><span class="sc">{</span>loader<span class="sc">.</span><span class="bu">format</span><span class="sc">}</span><span class="ss">)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Ao Céu: 279.382s (M4A)
 Bye Bye: 294.266s (M4A)
@@ -492,8 +495,8 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <section id="creating-the-beatgrid" class="level3">
 <h3 class="anchored" data-anchor-id="creating-the-beatgrid">1.2 Creating the BeatGrid</h3>
 <p>The <code>BeatGrid.from_tempo()</code> factory method does all the work:</p>
-<div id="basic-beatgrid" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.008834Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.008662Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.014887Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.014365Z&quot;}}" data-execution_count="4">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a beatgrid for "Ao Céu"</span></span>
+<div id="30d48b74" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.199268Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.199268Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.212720Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.212208Z&quot;}}" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a beatgrid for "Ao Céu"</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>ao_ceu <span class="op">=</span> TRACKS[<span class="st">"Ao Céu"</span>]</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> BeatGrid.from_tempo(</span>
 <span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    tempo_bpm<span class="op">=</span>TEMPO_BPM,</span>
@@ -508,7 +511,7 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"First beat at"</span>: <span class="ss">f'</span><span class="sc">{</span>ao_ceu[<span class="st">"first_beat"</span>]<span class="sc">}</span><span class="ss"> seconds'</span>,</span>
 <span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Total measures"</span>: grid.n_measures,</span>
 <span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Total beats"</span>: grid.n_beats,</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="4">
 <pre><code>{'Track': 'Ao Céu',
  'Duration': '279.382 seconds',
@@ -521,15 +524,15 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <section id="getting-beat-times" class="level3">
 <h3 class="anchored" data-anchor-id="getting-beat-times">1.3 Getting Beat Times</h3>
 <p>The <code>beat_seconds()</code> method returns a numpy array of ALL beat times.</p>
-<div id="metrical-queries" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.016689Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.016532Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.020523Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.019878Z&quot;}}" data-execution_count="5">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get all beat times</span></span>
+<div id="e9ebb5f2" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.218853Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.217839Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.228740Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.227674Z&quot;}}" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get all beat times</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>beats <span class="op">=</span> grid.beat_seconds()</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Array shape"</span>: beats.shape,</span>
 <span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"First 8 beats (seconds)"</span>: <span class="bu">list</span>(beats[:<span class="dv">8</span>].<span class="bu">round</span>(<span class="dv">3</span>)),</span>
 <span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Last 4 beats (seconds)"</span>: <span class="bu">list</span>(beats[<span class="op">-</span><span class="dv">4</span>:].<span class="bu">round</span>(<span class="dv">3</span>)),</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="5">
 <pre><code>{'Array shape': (744,),
  'First 8 beats (seconds)': [0.092,
@@ -547,15 +550,15 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <section id="getting-measure-downbeat-times" class="level3">
 <h3 class="anchored" data-anchor-id="getting-measure-downbeat-times">1.4 Getting Measure (Downbeat) Times</h3>
 <p>Use <code>measure_seconds()</code> for downbeat times only:</p>
-<div id="reverse-lookup-code" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.022518Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.022308Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.026817Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.026190Z&quot;}}" data-execution_count="6">
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get all measure start times (downbeats)</span></span>
+<div id="03ce5561" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.233802Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.232798Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.243838Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.242823Z&quot;}}" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get all measure start times (downbeats)</span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>measures <span class="op">=</span> grid.measure_seconds()</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Total measures"</span>: <span class="bu">len</span>(measures),</span>
 <span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"First 4 measures (seconds)"</span>: <span class="bu">list</span>(measures[:<span class="dv">4</span>].<span class="bu">round</span>(<span class="dv">3</span>)),</span>
 <span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Last 4 measures (seconds)"</span>: <span class="bu">list</span>(measures[<span class="op">-</span><span class="dv">4</span>:].<span class="bu">round</span>(<span class="dv">3</span>)),</span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="6">
 <pre><code>{'Total measures': 186,
  'First 4 measures (seconds)': [0.092, 1.592, 3.092, 4.592],
@@ -567,8 +570,8 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <h3 class="anchored" data-anchor-id="verifying-the-math">1.5 Verifying the Math</h3>
 <p>At 160 BPM: - One beat = 60/160 = 0.375 seconds - One measure (4 beats) = 1.5 seconds</p>
 <p>Let’s verify the beat spacing is constant:</p>
-<div id="tempo-conversion-code" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.028608Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.028449Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.032681Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.032109Z&quot;}}" data-execution_count="7">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check beat intervals</span></span>
+<div id="41c91c17" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.248839Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.248839Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.260381Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.259265Z&quot;}}" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check beat intervals</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>intervals <span class="op">=</span> np.diff(beats)</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>expected_interval <span class="op">=</span> <span class="fl">60.0</span> <span class="op">/</span> TEMPO_BPM  <span class="co"># 0.375 seconds</span></span>
 <span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
@@ -576,7 +579,7 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Expected beat interval"</span>: <span class="ss">f"</span><span class="sc">{</span>expected_interval<span class="sc">}</span><span class="ss"> seconds"</span>,</span>
 <span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Actual intervals (first 8)"</span>: <span class="bu">list</span>(intervals[:<span class="dv">8</span>].<span class="bu">round</span>(<span class="dv">4</span>)),</span>
 <span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"All intervals equal?"</span>: np.allclose(intervals, expected_interval),</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="7">
 <pre><code>{'Expected beat interval': '0.375 seconds',
  'Actual intervals (first 8)': [0.375,
@@ -619,8 +622,8 @@ Bass Kick: 231.079s (MP3)</code></pre>
 </table>
 <section id="export-formats" class="level3">
 <h3 class="anchored" data-anchor-id="export-formats">2.1 Export Formats</h3>
-<div id="4f277001aad1f430" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.034395Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.034237Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.044113Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.043417Z&quot;}}" data-execution_count="8">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Preview: Sonic Visualiser format (TIME, LABEL)</span></span>
+<div id="2cace912" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.265382Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.264279Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.284743Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.283720Z&quot;}}" data-execution_count="8">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Preview: Sonic Visualiser format (TIME, LABEL)</span></span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>times <span class="op">=</span> grid.beat_seconds()[:<span class="dv">8</span>]</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>measures <span class="op">=</span> np.repeat(np.arange(<span class="dv">1</span>, <span class="dv">3</span>), grid.beats_per_measure)</span>
 <span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>beats <span class="op">=</span> np.tile(np.arange(<span class="dv">1</span>, grid.beats_per_measure <span class="op">+</span> <span class="dv">1</span>), <span class="dv">2</span>)</span>
@@ -630,12 +633,12 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">"TIME"</span>: np.<span class="bu">round</span>(times, <span class="dv">6</span>),</span>
 <span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">"LABEL"</span>: [<span class="ss">f"M</span><span class="sc">{</span>m<span class="sc">}</span><span class="ss">B</span><span class="sc">{</span>b<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> m, b <span class="kw">in</span> <span class="bu">zip</span>(measures, beats)],</span>
 <span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="8">
 <div>
 
 
-<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
 <thead>
 <tr class="header">
 <th data-quarto-table-cell-role="th"></th>
@@ -645,42 +648,42 @@ Bass Kick: 231.079s (MP3)</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">0</td>
+<th data-quarto-table-cell-role="th">0</th>
 <td>0.092</td>
 <td>M1B1</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">1</td>
+<th data-quarto-table-cell-role="th">1</th>
 <td>0.467</td>
 <td>M1B2</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">2</td>
+<th data-quarto-table-cell-role="th">2</th>
 <td>0.842</td>
 <td>M1B3</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">3</td>
+<th data-quarto-table-cell-role="th">3</th>
 <td>1.217</td>
 <td>M1B4</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">4</td>
+<th data-quarto-table-cell-role="th">4</th>
 <td>1.592</td>
 <td>M2B1</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">5</td>
+<th data-quarto-table-cell-role="th">5</th>
 <td>1.967</td>
 <td>M2B2</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">6</td>
+<th data-quarto-table-cell-role="th">6</th>
 <td>2.342</td>
 <td>M2B3</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">7</td>
+<th data-quarto-table-cell-role="th">7</th>
 <td>2.717</td>
 <td>M2B4</td>
 </tr>
@@ -690,8 +693,8 @@ Bass Kick: 231.079s (MP3)</code></pre>
 </div>
 </div>
 </div>
-<div id="f20e806a" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.045801Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.045637Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.053025Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.052388Z&quot;}}" data-execution_count="9">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Preview: Tilia format (time, measure, beat, is_first_in_measure)</span></span>
+<div id="2198b91c" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.288732Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.288732Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.303557Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.302545Z&quot;}}" data-execution_count="9">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Preview: Tilia format (time, measure, beat, is_first_in_measure)</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    {</span>
 <span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">"time"</span>: np.<span class="bu">round</span>(times, <span class="dv">6</span>),</span>
@@ -699,12 +702,12 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">"beat"</span>: beats,</span>
 <span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"is_first_in_measure"</span>: beats <span class="op">==</span> <span class="dv">1</span>,</span>
 <span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="9">
 <div>
 
 
-<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
 <thead>
 <tr class="header">
 <th data-quarto-table-cell-role="th"></th>
@@ -716,56 +719,56 @@ Bass Kick: 231.079s (MP3)</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">0</td>
+<th data-quarto-table-cell-role="th">0</th>
 <td>0.092</td>
 <td>1</td>
 <td>1</td>
 <td>True</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">1</td>
+<th data-quarto-table-cell-role="th">1</th>
 <td>0.467</td>
 <td>1</td>
 <td>2</td>
 <td>False</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">2</td>
+<th data-quarto-table-cell-role="th">2</th>
 <td>0.842</td>
 <td>1</td>
 <td>3</td>
 <td>False</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">3</td>
+<th data-quarto-table-cell-role="th">3</th>
 <td>1.217</td>
 <td>1</td>
 <td>4</td>
 <td>False</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">4</td>
+<th data-quarto-table-cell-role="th">4</th>
 <td>1.592</td>
 <td>2</td>
 <td>1</td>
 <td>True</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">5</td>
+<th data-quarto-table-cell-role="th">5</th>
 <td>1.967</td>
 <td>2</td>
 <td>2</td>
 <td>False</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">6</td>
+<th data-quarto-table-cell-role="th">6</th>
 <td>2.342</td>
 <td>2</td>
 <td>3</td>
 <td>False</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">7</td>
+<th data-quarto-table-cell-role="th">7</th>
 <td>2.717</td>
 <td>2</td>
 <td>4</td>
@@ -780,8 +783,8 @@ Bass Kick: 231.079s (MP3)</code></pre>
 </section>
 <section id="batch-export-to-multiple-formats" class="level3">
 <h3 class="anchored" data-anchor-id="batch-export-to-multiple-formats">2.2 Batch Export to Multiple Formats</h3>
-<div id="e45874b6" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.055092Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.054894Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.082344Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.081547Z&quot;}}" data-execution_count="10">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create outputs directory</span></span>
+<div id="711b20b3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.307672Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.307672Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.363772Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.362749Z&quot;}}" data-execution_count="10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create outputs directory</span></span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>os.makedirs(<span class="st">"outputs"</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Process all three tracks and export to both formats</span></span>
@@ -813,12 +816,12 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>        }</span>
 <span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(results)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(results)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="10">
 <div>
 
 
-<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
 <thead>
 <tr class="header">
 <th data-quarto-table-cell-role="th"></th>
@@ -831,7 +834,7 @@ Bass Kick: 231.079s (MP3)</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">0</td>
+<th data-quarto-table-cell-role="th">0</th>
 <td>Ao Céu</td>
 <td>186</td>
 <td>744</td>
@@ -839,7 +842,7 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <td>outputs/ao_céu_beats_tilia.csv</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">1</td>
+<th data-quarto-table-cell-role="th">1</th>
 <td>Bye Bye</td>
 <td>196</td>
 <td>784</td>
@@ -847,7 +850,7 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <td>outputs/bye_bye_beats_tilia.csv</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">2</td>
+<th data-quarto-table-cell-role="th">2</th>
 <td>Bass Kick</td>
 <td>154</td>
 <td>616</td>
@@ -868,8 +871,8 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <p>Sometimes you need to ask: “What measure/beat is this time position?”</p>
 <section id="query-by-time-seconds" class="level3">
 <h3 class="anchored" data-anchor-id="query-by-time-seconds">3.1 Query by Time (Seconds)</h3>
-<div id="rotationmap-demo" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.084005Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.083850Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.093948Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.093254Z&quot;}}" data-execution_count="11">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create grid for "Ao Céu" using loaded audio duration</span></span>
+<div id="d4a3e5e9" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.366802Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.365882Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.380617Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.380617Z&quot;}}" data-execution_count="11">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create grid for "Ao Céu" using loaded audio duration</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>ao_ceu <span class="op">=</span> TRACKS[<span class="st">"Ao Céu"</span>]</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> BeatGrid.from_tempo(</span>
 <span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    tempo_bpm<span class="op">=</span>TEMPO_BPM,</span>
@@ -891,12 +894,12 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>        }</span>
 <span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(queries)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(queries)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="11">
 <div>
 
 
-<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
 <thead>
 <tr class="header">
 <th data-quarto-table-cell-role="th"></th>
@@ -907,31 +910,31 @@ Bass Kick: 231.079s (MP3)</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">0</td>
+<th data-quarto-table-cell-role="th">0</th>
 <td>0.092</td>
 <td>1</td>
 <td>1</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">1</td>
+<th data-quarto-table-cell-role="th">1</th>
 <td>1.000</td>
 <td>1</td>
 <td>3</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">2</td>
+<th data-quarto-table-cell-role="th">2</th>
 <td>60.000</td>
 <td>40</td>
 <td>4</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">3</td>
+<th data-quarto-table-cell-role="th">3</th>
 <td>120.000</td>
 <td>80</td>
 <td>4</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">4</td>
+<th data-quarto-table-cell-role="th">4</th>
 <td>200.000</td>
 <td>134</td>
 <td>2</td>
@@ -946,8 +949,8 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <section id="query-by-quarter-note-position" class="level3">
 <h3 class="anchored" data-anchor-id="query-by-quarter-note-position">3.2 Query by Quarter-Note Position</h3>
 <p>If you’re working with MIDI or score data, you may have coordinates in quarter notes. BeatGrid handles these directly:</p>
-<div id="rotationmap-invertible" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.095557Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.095391Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.103948Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.103312Z&quot;}}" data-execution_count="12">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Query positions in quarters</span></span>
+<div id="6f6a3022" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.385217Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.385217Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.396162Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.395152Z&quot;}}" data-execution_count="12">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Query positions in quarters</span></span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>test_quarters <span class="op">=</span> [<span class="dv">0</span>, <span class="dv">4</span>, <span class="dv">100</span>, <span class="dv">400</span>]</span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>queries <span class="op">=</span> []</span>
@@ -962,12 +965,12 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>        }</span>
 <span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(queries)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(queries)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="12">
 <div>
 
 
-<table class="dataframe caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
 <thead>
 <tr class="header">
 <th data-quarto-table-cell-role="th"></th>
@@ -979,28 +982,28 @@ Bass Kick: 231.079s (MP3)</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">0</td>
+<th data-quarto-table-cell-role="th">0</th>
 <td>0</td>
 <td>1</td>
 <td>1</td>
 <td>1</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">1</td>
+<th data-quarto-table-cell-role="th">1</th>
 <td>4</td>
 <td>2</td>
 <td>1</td>
 <td>2</td>
 </tr>
 <tr class="odd">
-<td data-quarto-table-cell-role="th">2</td>
+<th data-quarto-table-cell-role="th">2</th>
 <td>100</td>
 <td>26</td>
 <td>1</td>
 <td>26</td>
 </tr>
 <tr class="even">
-<td data-quarto-table-cell-role="th">3</td>
+<th data-quarto-table-cell-role="th">3</th>
 <td>400</td>
 <td>101</td>
 <td>1</td>
@@ -1020,8 +1023,8 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <p>BeatGrid supports any time signature via <code>beats_per_measure</code> and <code>beat_unit</code>.</p>
 <section id="waltz-34-time" class="level3">
 <h3 class="anchored" data-anchor-id="waltz-34-time">4.1 Waltz (3/4 Time)</h3>
-<div id="combinationmap-demo" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.106665Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.106452Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.113937Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.113187Z&quot;}}" data-execution_count="13">
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># A waltz at 90 BPM, 5 minutes long</span></span>
+<div id="0bf60e73" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.399160Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.399160Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.407319Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.406185Z&quot;}}" data-execution_count="13">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># A waltz at 90 BPM, 5 minutes long</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>waltz <span class="op">=</span> BeatGrid.from_tempo(</span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    tempo_bpm<span class="op">=</span><span class="fl">90.0</span>,</span>
 <span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    beats_per_measure<span class="op">=</span><span class="dv">3</span>,  <span class="co"># 3 beats per measure</span></span>
@@ -1036,7 +1039,7 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Total measures"</span>: waltz.n_measures,</span>
 <span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Total beats"</span>: waltz.n_beats,</span>
 <span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Seconds per measure"</span>: <span class="ss">f"</span><span class="sc">{</span><span class="dv">60</span><span class="op">/</span><span class="dv">90</span> <span class="op">*</span> <span class="dv">3</span><span class="sc">:.2f}</span><span class="ss">"</span>,</span>
-<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="13">
 <pre><code>{'Time signature': '3/4',
  'Tempo': '90 BPM',
@@ -1050,8 +1053,8 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <section id="compound-meter-68-time" class="level3">
 <h3 class="anchored" data-anchor-id="compound-meter-68-time">4.2 Compound Meter (6/8 Time)</h3>
 <p>For 6/8, you have 6 eighth-note beats per measure. Use <code>beat_unit=Fraction(1, 8)</code> to indicate eighth-note beats:</p>
-<div id="time-signatures" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.115702Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.115523Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.122209Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.121421Z&quot;}}" data-execution_count="14">
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 6/8 time at 120 BPM (where the beat is an eighth note)</span></span>
+<div id="b4c20a29" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.410897Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.409897Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.421231Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.421231Z&quot;}}" data-execution_count="14">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 6/8 time at 120 BPM (where the beat is an eighth note)</span></span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>compound <span class="op">=</span> BeatGrid.from_tempo(</span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    tempo_bpm<span class="op">=</span><span class="fl">120.0</span>,</span>
 <span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    beats_per_measure<span class="op">=</span><span class="dv">6</span>,</span>
@@ -1067,7 +1070,7 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Quarters per beat"</span>: <span class="bu">float</span>(compound.quarters_per_beat),</span>
 <span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Total measures"</span>: compound.n_measures,</span>
 <span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"First 6 beats (seconds)"</span>: <span class="bu">list</span>(compound.beat_seconds()[:<span class="dv">6</span>].<span class="bu">round</span>(<span class="dv">3</span>)),</span>
-<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="14">
 <pre><code>{'Time signature': '6/8',
  'Beat unit': 'eighth note',
@@ -1088,8 +1091,8 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <p>Consider Beethoven’s String Quartet Op. 18 No.&nbsp;4, 4th movement: - Has <strong>repeat structures</strong> (needs unfolding for audio alignment) - <strong>Pickup measure</strong> (anacrusis) - <strong>2/2 time signature</strong> throughout</p>
 <p>We have a recording: <code>StringQuartetEEP_I_Normal_mono.mp3</code></p>
 <p>The score data is available in TSV format with: - Measure coordinates in quarterbeats - Flow control information (repeats, voltas) - Unfolded versions for performance alignment</p>
-<div id="cross-domain" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.124500Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.124254Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.127726Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.127173Z&quot;}}" data-execution_count="15">
-<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This is the score data structure we're working with</span></span>
+<div id="4ad44411" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.425247Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.425247Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.430563Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.429552Z&quot;}}" data-execution_count="15">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># This is the score data structure we're working with</span></span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="co"># (From: tests/data/score/beethoven_op18-4iv_multimodal/ABC/)</span></span>
 <span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>BEETHOVEN_MEASURES <span class="op">=</span> <span class="st">"""</span></span>
@@ -1104,14 +1107,14 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a><span class="co"># The unfolded version has ~291 measures (with repeats expanded)</span></span>
 <span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>UNFOLDED_TOTAL_QUARTERS <span class="op">=</span> <span class="dv">1116</span></span>
-<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>UNFOLDED_MEASURES <span class="op">=</span> <span class="dv">291</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>UNFOLDED_MEASURES <span class="op">=</span> <span class="dv">291</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="creating-beatgrid-from-score-api-draft" class="level3">
 <h3 class="anchored" data-anchor-id="creating-beatgrid-from-score-api-draft">5.2 Creating BeatGrid from Score (API Draft)</h3>
 <p><strong>Note</strong>: This API is a draft for future implementation. The pattern shows how TimeToAlign! will support creating BeatGrids from rich score metadata.</p>
-<div id="cross-domain-reverse" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.129542Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.129345Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.135945Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.135202Z&quot;}}" data-execution_count="16">
-<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co"># API DRAFT: Creating BeatGrid from score measures</span></span>
+<div id="ff8aa1d2" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.434574Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.433576Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.443088Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.442558Z&quot;}}" data-execution_count="16">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co"># API DRAFT: Creating BeatGrid from score measures</span></span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="co"># This functionality is planned for the Score Integration milestone.</span></span>
 <span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="co"># The code below shows the intended API design.</span></span>
@@ -1154,7 +1157,7 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Approximate measures"</span>: approx_grid.n_measures,</span>
 <span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Approximate beats"</span>: approx_grid.n_beats,</span>
 <span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Note"</span>: <span class="st">"Use MeasureMapLoader for exact score structure"</span>,</span>
-<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="16">
 <pre><code>{'Track': 'StringQuartetEEP_I_Normal_mono.mp3',
  'Approximate measures': 269,
@@ -1269,7 +1272,7 @@ Bass Kick: 231.079s (MP3)</code></pre>
 </tbody>
 </table>
 <p><strong>Common Patterns:</strong></p>
-<div class="sourceCode" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Pattern 1: Simple audio beatgrid</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Pattern 1: Simple audio beatgrid</span></span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> BeatGrid.from_tempo(tempo_bpm<span class="op">=</span><span class="dv">120</span>, length_seconds<span class="op">=</span><span class="dv">180</span>, start_seconds<span class="op">=</span><span class="fl">0.5</span>)</span>
 <span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>beats <span class="op">=</span> grid.beat_seconds()</span>
 <span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a></span>
@@ -1279,7 +1282,7 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Pattern 3: Different time signatures</span></span>
 <span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>grid_3_4 <span class="op">=</span> BeatGrid.from_tempo(tempo_bpm<span class="op">=</span><span class="dv">90</span>, beats_per_measure<span class="op">=</span><span class="dv">3</span>, ...)</span>
 <span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>grid_6_8 <span class="op">=</span> BeatGrid.from_tempo(tempo_bpm<span class="op">=</span><span class="dv">120</span>, beats_per_measure<span class="op">=</span><span class="dv">6</span>,</span>
-<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>                                beat_unit<span class="op">=</span>Fraction(<span class="dv">1</span>, <span class="dv">8</span>), ...)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>                                beat_unit<span class="op">=</span>Fraction(<span class="dv">1</span>, <span class="dv">8</span>), ...)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
 <section id="exercises" class="level2">
@@ -1287,36 +1290,36 @@ Bass Kick: 231.079s (MP3)</code></pre>
 <section id="exercise-1-your-own-track" class="level3">
 <h3 class="anchored" data-anchor-id="exercise-1-your-own-track">Exercise 1: Your Own Track</h3>
 <p>Pick an audio track you know the tempo of. Create a BeatGrid and export the first 32 beats to an Audacity-compatible format.</p>
-<div id="materialize-beats" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.137872Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.137686Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.140769Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.139898Z&quot;}}" data-execution_count="17">
-<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Your solution here:</span></span>
+<div id="dc210b8b" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.447108Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.446123Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.451601Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.450583Z&quot;}}" data-execution_count="17">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Your solution here:</span></span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="co"># my_grid = BeatGrid.from_tempo(</span></span>
 <span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="co">#     tempo_bpm=...,</span></span>
 <span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="co">#     length_seconds=...,</span></span>
 <span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="co">#     start_seconds=...,</span></span>
 <span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="co"># )</span></span>
-<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a><span class="co"># ...</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a><span class="co"># ...</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exercise-2-tempo-change-workaround" class="level3">
 <h3 class="anchored" data-anchor-id="exercise-2-tempo-change-workaround">Exercise 2: Tempo Change Workaround</h3>
 <p>For a track that changes tempo at 60 seconds (from 120 to 140 BPM), create two BeatGrids and concatenate their beat arrays.</p>
 <p>Hint: Use <code>np.concatenate()</code> on the beat_seconds() arrays.</p>
-<div id="materialize-measures" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.142466Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.142289Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.144827Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.144147Z&quot;}}" data-execution_count="18">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Your solution here:</span></span>
+<div id="1294abad" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.455597Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.455597Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.460858Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.459832Z&quot;}}" data-execution_count="18">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Your solution here:</span></span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="co"># grid1 = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=60, start_seconds=0)</span></span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="co"># grid2 = BeatGrid.from_tempo(tempo_bpm=140, length_seconds=120, start_seconds=60)</span></span>
 <span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="co"># all_beats = np.concatenate([grid1.beat_seconds(), grid2.beat_seconds()])</span></span>
-<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="co"># ...</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="co"># ...</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exercise-3-custom-labels" class="level3">
 <h3 class="anchored" data-anchor-id="exercise-3-custom-labels">Exercise 3: Custom Labels</h3>
 <p>Use <code>grid.beat_seconds()</code> and <code>grid.measure_at_seconds()</code> to create a custom export with time signature in the labels (e.g., “M1 (4/4)”).</p>
-<div id="supra-grid" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:39.146757Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:39.146541Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:39.149089Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:39.148503Z&quot;}}" data-execution_count="19">
-<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Your solution here:</span></span>
+<div id="575d1f89" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:32:35.463857Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:32:35.462861Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:32:35.466857Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:32:35.466857Z&quot;}}" data-execution_count="19">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Your solution here:</span></span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="co"># times = grid.measure_seconds()</span></span>
 <span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="co"># labels = [f"M{i} (4/4)" for i in range(1, len(times) + 1)]</span></span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="co"># ...</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="co"># ...</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <hr>
 </section>
@@ -1385,13 +1388,14 @@ Bass Kick: 231.079s (MP3)</code></pre>
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy

@@ -2,13 +2,16 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.31">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
 <title>alignmentbundle – TimeToAlign!</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -71,10 +74,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -555,7 +558,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.AlignmentBundle" class="level1">
 <h1>AlignmentBundle</h1>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle(</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">''</span>,</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    timelines<span class="op">=</span><span class="bu">dict</span>(),</span>
@@ -569,7 +572,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    _matchline_cache<span class="op">=</span><span class="bu">dict</span>(),</span>
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    _matchgraph_cache<span class="op">=</span><span class="bu">dict</span>(),</span>
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    _cache_claims_hash<span class="op">=</span><span class="dv">0</span>,</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The primary entry point for all alignment workflows.</p>
 <p>An AlignmentBundle manages timelines and their alignment relationships. Within a group, coordinate transfer uses linear interpolation (<code>TimelineGroup.convert()</code>). Across groups, transfer is mediated by the <code>MatchClaim</code> → <code>MatchLine</code> → <code>WarpMap</code> pipeline.</p>
 <p>The bundle provides:</p>
@@ -712,7 +715,7 @@ Cross-group transfer via MatchClaims:
 </table>
 <section id="timetoalign.AlignmentBundle.add_group" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.add_group">add_group</h3>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.add_group(group, <span class="op">*</span>, uid_map<span class="op">=</span><span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.add_group(group, <span class="op">*</span>, uid_map<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Add a pre-built TimelineGroup with all its timelines at once.</p>
 <p>This is the bulk-registration counterpart of <code>add_timeline(..., as_group=...)</code>. It registers the group and every timeline it already contains into the bundle’s bookkeeping (UID mapping, timeline registry, group registry).</p>
 <p>Args: group: A <code>TimelineGroup</code> that already contains timelines. uid_map: Optional mapping from timeline.id to desired bundle UID. If not provided, each timeline’s <code>id</code> is used as its bundle UID.</p>
@@ -728,7 +731,7 @@ With custom UIDs:
 </section>
 <section id="timetoalign.AlignmentBundle.add_match_claims" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.add_match_claims">add_match_claims</h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.add_match_claims(claims)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.add_match_claims(claims)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Add MatchClaims connecting timelines across different groups.</p>
 <p>MatchClaims encode coordinate correspondences between timelines in different groups (e.g., EEP recording notes matched to ABC score notes). They enable cross-group coordinate transfer via <code>MatchLine</code> → <code>WarpMap</code>.</p>
 <p>WarpMaps are built lazily on first <code>transfer()</code> or <code>get_timestamp_at()</code> call, so adding claims is cheap.</p>
@@ -737,7 +740,7 @@ With custom UIDs:
 </section>
 <section id="timetoalign.AlignmentBundle.add_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.add_timeline">add_timeline</h3>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.add_timeline(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.add_timeline(</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    timeline,</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
 <span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    uid<span class="op">=</span><span class="va">None</span>,</span>
@@ -745,7 +748,7 @@ With custom UIDs:
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    as_group<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    start<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    end<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Add a timeline, optionally aligned to an existing timeline.</p>
 <p>This is the primary method for adding timelines to the bundle. Timelines can be standalone or aligned to existing timelines.</p>
 <p>Args: timeline: The Timeline to add. uid: Optional explicit ID. If None, uses timeline.id. aligned_to: ID of existing timeline to align with. If provided, both timelines become part of the same group. If the target timeline is not yet in a group, a new group is created with the target as reference. as_group: Name for the group if creating a new one. start: Where this timeline’s 0-origin starts in the group. - IdCoordinate: Coordinate with explicit timeline_id (preferred) - (coord, timeline_id): Legacy tuple form - float: Coordinate in the aligned_to timeline - None: Use group’s current start (default for linear alignment) end: Where this timeline’s end (length) aligns in the group. - Same options as start - None: Use group’s current end (default for linear alignment)</p>
@@ -769,7 +772,7 @@ Partial alignment (SUPRA piano roll) using IdCoordinate:
 </section>
 <section id="timetoalign.AlignmentBundle.are_commensurable" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.are_commensurable">are_commensurable</h3>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.are_commensurable(timeline_a, timeline_b)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.are_commensurable(timeline_a, timeline_b)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Check if two timelines can be connected via transfer.</p>
 <p>Two timelines are commensurable if they share the same group or if a cross-group path exists via MatchClaims.</p>
 <p>Args: timeline_a: First timeline ID (bundle UID). timeline_b: Second timeline ID (bundle UID).</p>
@@ -777,13 +780,13 @@ Partial alignment (SUPRA piano roll) using IdCoordinate:
 </section>
 <section id="timetoalign.AlignmentBundle.create_match_claims" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.create_match_claims">create_match_claims</h3>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.create_match_claims(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.create_match_claims(</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    event_pairs,</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
 <span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    synchronous<span class="op">=</span><span class="va">True</span>,</span>
 <span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    agent<span class="op">=</span><span class="st">'user'</span>,</span>
 <span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    decision_criteria<span class="op">=</span><span class="st">'manual'</span>,</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create MatchClaims from a list of event pairs.</p>
 <p>Convenience factory for creating multiple MatchClaims from paired events. Each tuple specifies two events and their timeline IDs.</p>
 <p>Args: event_pairs: List of tuples, each containing: <code>(event_a, timeline_a_id, event_b, timeline_b_id)</code>. Events must have at least a <code>start</code> key with a coordinate. If both events also have an <code>end</code> key, the resulting <code>MatchClaim</code> will be an interval match (with both <code>start_anchor</code> and <code>end_anchor</code>). synchronous: Whether the matches are temporally synchronous. agent: Name of the agent creating the claims (for provenance). decision_criteria: How the match was determined (e.g., “manual”, “dynamic_time_warping”, “segment_correspondence”).</p>
@@ -793,13 +796,13 @@ Partial alignment (SUPRA piano roll) using IdCoordinate:
 </section>
 <section id="timetoalign.AlignmentBundle.diagram" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.diagram">diagram</h3>
-<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.diagram(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.diagram(</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="dv">80</span>,</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    show_children<span class="op">=</span><span class="va">True</span>,</span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    max_children<span class="op">=</span><span class="dv">6</span>,</span>
 <span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    max_standalone<span class="op">=</span><span class="dv">6</span>,</span>
 <span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">unicode</span><span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Generate ASCII diagram for this bundle.</p>
 <p>Args: width: Total width of the diagram in characters. show_children: Whether to expand child timelines. max_children: Maximum children per timeline. max_standalone: Maximum standalone timelines to display before truncating with an ellipsis. unicode: Use Unicode characters (True) or ASCII fallback (False).</p>
 <p>Returns: Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).</p>
@@ -815,7 +818,7 @@ Partial alignment (SUPRA piano roll) using IdCoordinate:
 </section>
 <section id="timetoalign.AlignmentBundle.get_group" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.get_group">get_group</h3>
-<div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_group(uid)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_group(uid)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a group by ID.</p>
 <p>Supports partial string and regex matching: 1. Exact match: If <code>uid</code> matches an ID exactly, returns it. 2. Substring match: If <code>uid</code> is a substring of exactly one ID, returns that group. If multiple match, returns the first and warns. 3. Regex match: If <code>uid</code> is a valid regex, matches via <code>re.search()</code>. Same first-match logic with warning.</p>
 <p>Args: uid: The group’s unique identifier, or a partial/regex pattern.</p>
@@ -825,14 +828,14 @@ Partial alignment (SUPRA piano roll) using IdCoordinate:
 </section>
 <section id="timetoalign.AlignmentBundle.get_group_for_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.get_group_for_timeline">get_group_for_timeline</h3>
-<div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_group_for_timeline(timeline_id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_group_for_timeline(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the group containing a timeline.</p>
 <p>Args: timeline_id: The timeline’s unique identifier.</p>
 <p>Returns: The TimelineGroup containing the timeline, or None if standalone.</p>
 </section>
 <section id="timetoalign.AlignmentBundle.get_match_claims" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.get_match_claims">get_match_claims</h3>
-<div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_match_claims(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_match_claims(</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    timeline_ids<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    id_pattern<span class="op">=</span><span class="va">None</span>,</span>
@@ -841,7 +844,7 @@ Partial alignment (SUPRA piano roll) using IdCoordinate:
 <span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    nomatch_only<span class="op">=</span><span class="va">False</span>,</span>
 <span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    include_domains<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    include_units<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Query MatchClaims connecting timelines across groups.</p>
 <p>This is the primary interface for accessing alignment information. All parameters are optional; when none are provided, returns all claims.</p>
 <p>Filters are combined with AND logic: a claim must satisfy every non-None criterion. Uses the Unified Filter API.</p>
@@ -861,7 +864,7 @@ Get NOMATCH claims for a specific pair::
 </section>
 <section id="timetoalign.AlignmentBundle.get_matchstamp_at" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.get_matchstamp_at">get_matchstamp_at</h3>
-<div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_matchstamp_at(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_matchstamp_at(</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    coordinate,</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    timeline_id,</span>
 <span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
@@ -870,7 +873,7 @@ Get NOMATCH claims for a specific pair::
 <span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    id_pattern<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    include_domains<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    include_units<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a cross-group MatchStamp at a coordinate on a timeline.</p>
 <p>This is the primary interface for cross-domain coordinate transfer. Given a coordinate on one timeline, returns coordinates on ALL connected timelines across ALL groups.</p>
 <p>The method: 1. Builds (or retrieves from cache) the MatchGraph for this coordinate’s connected component. 2. Returns the graph’s MatchStamp.</p>
@@ -881,7 +884,7 @@ Get NOMATCH claims for a specific pair::
 </section>
 <section id="timetoalign.AlignmentBundle.get_matchstamp_table" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.get_matchstamp_table">get_matchstamp_table</h3>
-<div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_matchstamp_table(claims<span class="op">=</span><span class="va">None</span>, <span class="op">*</span>, timeline_filter<span class="op">=</span><span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_matchstamp_table(claims<span class="op">=</span><span class="va">None</span>, <span class="op">*</span>, timeline_filter<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a PyArrow table of MatchStamps for alignment queries.</p>
 <p>Analogous to <code>get_timestamp_table()</code> but for cross-group alignment. Each row represents one MatchClaim/coordinate; columns are timeline IDs with their coordinate values.</p>
 <p>Args: claims: List of MatchClaims to tabulate. If None, uses all cross_group_claims. timeline_filter: Only include these timeline columns.</p>
@@ -890,7 +893,7 @@ Get NOMATCH claims for a specific pair::
 </section>
 <section id="timetoalign.AlignmentBundle.get_matchstamps" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.get_matchstamps">get_matchstamps</h3>
-<div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_matchstamps(claims<span class="op">=</span><span class="va">None</span>, <span class="op">*</span>, from_graph<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_matchstamps(claims<span class="op">=</span><span class="va">None</span>, <span class="op">*</span>, from_graph<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get MatchStamps for a list of MatchClaims.</p>
 <p>Convenience method for retrieving MatchStamps for multiple claims at once. Uses the bundle’s caching mechanism for efficient retrieval.</p>
 <p>Args: claims: List of MatchClaims to get stamps for. If None, uses all cross_group_claims. from_graph: If True (default), return full MatchStamps from the MatchGraph (all connected timelines). If False, return reduced 2-timeline stamps.</p>
@@ -899,7 +902,7 @@ Get NOMATCH claims for a specific pair::
 </section>
 <section id="timetoalign.AlignmentBundle.get_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.get_timeline">get_timeline</h3>
-<div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_timeline(uid)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_timeline(uid)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a timeline by ID.</p>
 <p>Supports partial string and regex matching: 1. Exact match: If <code>uid</code> matches an ID exactly, returns it. 2. Substring match: If <code>uid</code> is a substring of exactly one ID, returns that timeline. If multiple match, returns the first and warns. 3. Regex match: If <code>uid</code> is a valid regex, matches via <code>re.search()</code>. Same first-match logic with warning.</p>
 <p>Args: uid: The timeline’s unique identifier, or a partial/regex pattern.</p>
@@ -909,7 +912,7 @@ Get NOMATCH claims for a specific pair::
 </section>
 <section id="timetoalign.AlignmentBundle.get_timelines" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.get_timelines">get_timelines</h3>
-<div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_timelines(ids)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_timelines(ids)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get multiple timelines by their IDs.</p>
 <p>Convenience method for retrieving several timelines at once. Each ID supports partial string and regex matching (via <code>get_timeline()</code>).</p>
 <p>Args: ids: List of timeline IDs (or partial/regex patterns).</p>
@@ -919,7 +922,7 @@ Get NOMATCH claims for a specific pair::
 </section>
 <section id="timetoalign.AlignmentBundle.get_timestamp_at" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.get_timestamp_at">get_timestamp_at</h3>
-<div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_timestamp_at(coordinate, timeline_id, <span class="op">*</span>, <span class="bu">format</span><span class="op">=</span><span class="st">'prefix'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.get_timestamp_at(coordinate, timeline_id, <span class="op">*</span>, <span class="bu">format</span><span class="op">=</span><span class="st">'prefix'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a cross-group timestamp at a coordinate on a given timeline.</p>
 <p>This is the primary method for cross-domain coordinate transfer. Given a coordinate on one timeline, it returns the corresponding coordinates on ALL connected timelines across ALL groups.</p>
 <p>The method:</p>
@@ -940,14 +943,14 @@ Get NOMATCH claims for a specific pair::
 </section>
 <section id="timetoalign.AlignmentBundle.summary" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.summary">summary</h3>
-<div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.summary()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a summary of the bundle contents.</p>
 <p>Returns a deterministic representation suitable for comparison. Keys and timeline lists are sorted for order-independence.</p>
 <p>Returns: Dictionary with bundle information.</p>
 </section>
 <section id="timetoalign.AlignmentBundle.transfer" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.transfer">transfer</h3>
-<div class="sourceCode" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.transfer(coord, from_timeline, to_timeline)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.transfer(coord, from_timeline, to_timeline)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Transfer a coordinate from one timeline to another.</p>
 <p>Automatically determines the conversion path:</p>
 <ol type="1">
@@ -962,7 +965,7 @@ Get NOMATCH claims for a specific pair::
 </section>
 <section id="timetoalign.AlignmentBundle.transfer_interval" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.AlignmentBundle.transfer_interval">transfer_interval</h3>
-<div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.transfer_interval(start, end, from_timeline, to_timeline)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>AlignmentBundle.transfer_interval(start, end, from_timeline, to_timeline)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Transfer an interval from one timeline to another.</p>
 <p>Args: start: Start coordinate in source timeline. end: End coordinate in source timeline. from_timeline: ID of the source timeline. to_timeline: ID of the target timeline.</p>
 <p>Returns: Tuple of (start, end) in target timeline, or None if no path.</p>
@@ -1024,13 +1027,14 @@ Get NOMATCH claims for a specific pair::
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy
