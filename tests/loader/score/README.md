@@ -414,7 +414,7 @@ python tests/loader/score/profile.py
 
 ## Validation Policy
 
-Per the **ZERO TOLERANCE VALIDATION POLICY** (AGENTS.md):
+Per the **ZERO TOLERANCE VALIDATION POLICY**:
 
 1. **EXACT COUNTS REQUIRED**: All assertions use exact expected values
 2. **NO TOLERANCE WITHOUT ROOT CAUSE**: Any tolerance must be documented

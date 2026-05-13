@@ -9,7 +9,7 @@ This test suite validates the slice-based unfolding pipeline:
 
 See README_unfolding.md for full testing strategy documentation.
 
-Validation Criteria (ZERO TOLERANCE per AGENTS.md §3.6):
+Validation Criteria (ZERO TOLERANCE):
 - EXACT row count match
 - EXACT mc_playthrough sequence
 - EXACT mn_playthrough values with suffixes
@@ -803,7 +803,7 @@ ALL_SPECIMENS = list(SPECIMEN_PATHS.keys())
 class TestUnfoldingGoldStandard:
     """End-to-end validation of unfolded timelines against ms3 gold standard.
 
-    ZERO TOLERANCE: Exact match on all columns per AGENTS.md §3.6.
+    ZERO TOLERANCE: Exact match on all columns.
 
     Each specimen is loaded from its folded measures TSV, unfolded via the
     new slicing-based pipeline, and compared row-by-row against the gold

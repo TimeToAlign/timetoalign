@@ -5,7 +5,7 @@ loading MusicXML/MIDI files through EventStores to Timeline creation.
 
 ## Validation Policy
 
-**Per AGENTS.md Section 3.6: ZERO TOLERANCE VALIDATION POLICY**
+**ZERO TOLERANCE VALIDATION POLICY**
 
 1. **EXACT COUNTS REQUIRED**: All test assertions use exact expected values
 2. **GOLD STANDARD IS AUTHORITATIVE**: MS3 TSV files are the ground truth

@@ -4,8 +4,6 @@ These tests verify mathematical invariants that must hold for all valid inputs:
 - Invertibility: inverse(forward(x)) == x
 - Composition: (f >> g)(x) == g(f(x))
 - Identity: identity(x) == x
-
-Per AGENTS.md Section 3.5: Use hypothesis for mathematical conversions.
 """
 
 from __future__ import annotations

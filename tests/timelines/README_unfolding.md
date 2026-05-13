@@ -128,7 +128,7 @@ ms3-generated `*_unfolded.measures.tsv` files.
 3. Call `create_unfolded_timeline(source, flow, controller)`
 4. Compare result against gold standard unfolded TSV
 
-**Validation criteria (ZERO TOLERANCE per AGENTS.md §3.6):**
+**Validation criteria (ZERO TOLERANCE):**
 - **EXACT** row count match
 - **EXACT** `mc_playthrough` sequence (monotonic 1, 2, 3, …)
 - **EXACT** `mn_playthrough` values including suffixes (a, b, c, …)

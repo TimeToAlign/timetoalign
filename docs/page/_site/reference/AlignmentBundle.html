@@ -844,7 +844,7 @@ Partial alignment (SUPRA piano roll) using IdCoordinate:
 <span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Query MatchClaims connecting timelines across groups.</p>
 <p>This is the primary interface for accessing alignment information. All parameters are optional; when none are provided, returns all claims.</p>
-<p>Filters are combined with AND logic: a claim must satisfy every non-None criterion. Uses the Unified Filter API (AGENTS.md Section 1.9).</p>
+<p>Filters are combined with AND logic: a claim must satisfy every non-None criterion. Uses the Unified Filter API.</p>
 <p>Args: timeline_id: Return claims involving this timeline. timeline_ids: Return claims involving any of these timelines. id_pattern: Regex pattern matched against timeline IDs via <code>re.search()</code>. Example: <code>r"^perf:"</code> matches all performance timelines. between: Return claims connecting exactly these two timelines (order-independent). synchronous_only: Exclude non-synchronous (NOMATCH) claims. nomatch_only: Return only non-synchronous (NOMATCH) claims. include_domains: Only timelines in these domains. include_units: Only timelines with these units.</p>
 <p>Returns: Filtered list of MatchClaims.</p>
 <p>Examples: Get all synchronous claims for a performer::</p>
