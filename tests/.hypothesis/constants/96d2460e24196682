@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/timelines/__init__.py
-# hypothesis_version: 6.151.2
-
-['AtomicSection', 'BeatGrid', 'CompleteMeasure', 'CompleteMeasureGroup', 'Flow', 'FlowController', 'FlowMap', 'FlowMode', 'GraphicalTimeline', 'IncompleteGroup', 'IncompleteMeasure', 'IncompletePosition', 'LogicalTimeline', 'MeasureGroup', 'MeasureUnit', 'OverlengthGroup', 'OverlengthMeasure', 'PhysicalTimeline', 'PlaythroughSection', 'Region', 'SegmentLine', 'SplitMeasure', 'Timeline', 'TypedMeasure', 'VoltaGroup', 'create_timeline', 'get_timeline_class', 'load_valid_flows']

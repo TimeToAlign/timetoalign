@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/loader/physical/audio.py
-# hypothesis_version: 6.151.2
-
-['.', '.aac', '.flac', '.m4a', '.mp3', '.ogg', '.opus', '.wav', '.wave', 'AAC', 'AudioLoader', 'DOUBLE', 'FLAC', 'FLOAT', 'M4A', 'MP3', 'OGG', 'OPUS', 'PCM_16', 'PCM_24', 'PCM_32', 'PCM_S8', 'PCM_U8', 'SamplesToSeconds', 'WAV', 'bitrate', 'bits_per_sample', 'channels', 'codec', 'duration_seconds', 'format', 'length', 'rb', 'sample_rate', 'sections', 'seekable', 'source_path', 'subtype']

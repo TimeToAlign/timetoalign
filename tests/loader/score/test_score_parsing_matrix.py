@@ -38,7 +38,7 @@ Known Deviations (Documented):
 2. **c11n08_Rondeau**: music21 ignores D.S., produces different flow
 3. **flow_only**: ms3 diverges from canonical due to ambiguous encoding, music21 fails
 
-Per ZERO TOLERANCE VALIDATION POLICY (from AGENTS.md):
+ZERO TOLERANCE VALIDATION POLICY:
 - EXACT counts required (no tolerances)
 - Every mismatch must be investigated
 - Gold standard (TSV from ms3) is authoritative for DEFAULT flow

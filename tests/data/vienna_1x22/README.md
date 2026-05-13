@@ -119,7 +119,7 @@ onset and offset are identical, giving a zero-duration interval.
 ## Exact Counts (Gold Standard)
 
 These counts are authoritative. All tests MUST use exact values per the Zero Tolerance
-Validation Policy (see `AGENTS.md §3.6`).
+Validation Policy.
 
 ### Score (from MusicXML via PartituraLoader / from ms3 TSV)
 

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import pyarrow as pa
 from typing_extensions import Self
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.loader.events import EventData
 from timetoalign.loader.schema import make_fraction_field
 
@@ -133,6 +133,8 @@ class NoteEventData(EventData):
         unit: TimeUnit = TimeUnit.quarters,
         number_type: NumberType = NumberType.fraction,
         has_rests: bool = False,
+        *,
+        interval_policy: IntervalPolicy = IntervalPolicy.warn,
     ) -> Self:
         """Create from dicts with has_rests metadata.
 
@@ -141,10 +143,7 @@ class NoteEventData(EventData):
         if not rows:
             return cls.empty(unit, number_type, has_rests)
 
-        from timetoalign.loader.schema import (
-            coordinate_to_struct,
-            make_table_metadata,
-        )
+        from timetoalign.loader.schema import make_table_metadata
 
         schema = cls.get_schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
@@ -162,22 +161,6 @@ class NoteEventData(EventData):
                 type_counters.setdefault(etype, 0)
                 type_counters[etype] += 1
                 processed["id"] = f"{etype}:{type_counters[etype]:06d}"
-
-            # Infer temporal_type if missing
-            if "temporal_type" not in processed or processed["temporal_type"] is None:
-                has_end = processed.get("end") is not None
-                has_duration = (
-                    processed.get("duration") is not None
-                    or processed.get("duration_qb") is not None
-                )
-                has_start = (
-                    processed.get("start") is not None
-                    or processed.get("quarterbeats") is not None
-                )
-                if has_start and (has_end or has_duration):
-                    processed["temporal_type"] = "interval"
-                else:
-                    processed["temporal_type"] = "instant"
 
             # Ensure name column exists
             if "name" not in processed:
@@ -201,61 +184,11 @@ class NoteEventData(EventData):
             ]:
                 processed.pop(k, None)
 
-            # Convert temporal columns to coordinate struct format.
-            # Loaders may pass fraction-format dicts ({num, den}) or raw
-            # Fraction/float values; normalise everything to the coordinate
-            # struct that the base schema expects ({value, numerator,
-            # denominator}).
-            for col in ["start", "duration"]:
-                val = processed.get(col)
-                if val is not None:
-                    if isinstance(val, dict):
-                        if "num" in val and "value" not in val:
-                            # fraction_to_struct format -> coordinate format
-                            from fractions import Fraction
+            # Unified interval normalisation: converts coordinate fields
+            # to struct format, fills missing end/duration, and infers
+            # temporal_type.  Delegates to the base EventData method.
+            EventData._normalize_intervals_row(processed, policy=interval_policy)
 
-                            frac = Fraction(val["num"], val["den"])
-                            processed[col] = coordinate_to_struct(frac)
-                        # else: already coordinate struct format, leave as-is
-                    else:
-                        processed[col] = coordinate_to_struct(val)
-
-            # Compute 'end' from start + duration when not explicitly set.
-            if processed.get("end") is None:
-                s = processed.get("start")
-                d = processed.get("duration")
-                if (
-                    s is not None
-                    and d is not None
-                    and isinstance(s, dict)
-                    and isinstance(d, dict)
-                    and s.get("value") is not None
-                    and d.get("value") is not None
-                ):
-                    end_val = s["value"] + d["value"]
-                    end_num = None
-                    end_den = None
-                    if (
-                        s.get("numerator") is not None
-                        and d.get("numerator") is not None
-                    ):
-                        from fractions import Fraction
-
-                        s_frac = Fraction(s["numerator"], s["denominator"])
-                        d_frac = Fraction(d["numerator"], d["denominator"])
-                        e_frac = s_frac + d_frac
-                        end_num = e_frac.numerator
-                        end_den = e_frac.denominator
-                    processed["end"] = {
-                        "value": end_val,
-                        "numerator": end_num,
-                        "denominator": end_den,
-                    }
-
-            # Base columns need defaults
-            for col in ["start", "end", "duration"]:
-                if col not in processed:
-                    processed[col] = None
             processed_rows.append(processed)
 
         table = pa.Table.from_pylist(processed_rows, schema=schema)

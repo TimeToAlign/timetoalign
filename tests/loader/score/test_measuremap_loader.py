@@ -6,7 +6,7 @@ This module tests the MeasureMapLoader implementation, including:
 3. Cross-validation against TSVLoader (measures.tsv gold standard)
 4. Traversal computation
 
-Per ZERO TOLERANCE VALIDATION POLICY (from AGENTS.md):
+ZERO TOLERANCE VALIDATION POLICY:
 - EXACT counts required (no tolerances)
 - Every mismatch must be investigated
 - Gold standard is authoritative

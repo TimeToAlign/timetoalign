@@ -82,9 +82,11 @@ class MeasureMapLoader(ScoreLoader):
 
     _default_unit = TimeUnit.quarters
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         """Initialize MeasureMapLoader."""
-        super().__init__(unit=TimeUnit.quarters, number_type=NumberType.fraction)
+        super().__init__(
+            unit=TimeUnit.quarters, number_type=NumberType.fraction, **kwargs
+        )
         self._expanded_data: list[dict[str, Any]] = []
 
     @property

@@ -279,6 +279,38 @@ class EventType(FancyStrEnum):
     intv = interval
 
 
+class IntervalPolicy(FancyStrEnum):
+    """Policy for normalising interval events (end/duration consistency).
+
+    When loading events, interval events may carry ``end``, ``duration``,
+    or both.  This enum controls how the loader fills in missing values
+    and what happens when both are present but inconsistent.
+
+    Members:
+        warn: (default) Prefer ``end``; compute ``duration = end - start``.
+            If both are present and inconsistent, log a warning and
+            recompute ``duration`` from ``end``.
+        prefer_end: Silently prefer ``end``; recompute ``duration`` from
+            ``end - start``, ignoring any supplied ``duration``.
+        prefer_duration: Silently prefer ``duration``; recompute ``end``
+            from ``start + duration``, ignoring any supplied ``end``.
+        strict: Raise ``ValueError`` if both are present and inconsistent.
+            Otherwise behave like ``warn`` (fill whichever is missing).
+    """
+
+    warn = auto()
+    """Prefer end; warn on inconsistency."""
+
+    prefer_end = auto()
+    """Silently prefer end; always recompute duration."""
+
+    prefer_duration = auto()
+    """Silently prefer duration; always recompute end."""
+
+    strict = auto()
+    """Raise ValueError on inconsistency."""
+
+
 class ColumnNaming(FancyStrEnum):
     """How to name columns in timestamp DataFrames.
 

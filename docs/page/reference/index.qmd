@@ -82,8 +82,8 @@ Data ingestion from various file formats.
 | [DictStore](DictStore.qmd#timetoalign.DictStore) | Generic EventStore with arbitrary named EventData tables. |
 | [AudioLoader](AudioLoader.qmd#timetoalign.AudioLoader) | Load audio file metadata for creating physical timelines. |
 | [AudioInfo](AudioInfo.qmd#timetoalign.AudioInfo) | Metadata for an audio file. |
-| [RepoVizzLoader](RepoVizzLoader.qmd#timetoalign.RepoVizzLoader) | Load RepoVizz 2-line CSV sensor data metadata for creating physical timelines. |
-| [RepoVizzInfo](RepoVizzInfo.qmd#timetoalign.RepoVizzInfo) | Parsed metadata from a RepoVizz CSV file. |
+| [RepoVizzLoader](RepoVizzLoader.qmd#timetoalign.RepoVizzLoader) | Load RepoVizz XML manifests or single CSV files for creating physical timelines. |
+| [RepoVizzInfo](RepoVizzInfo.qmd#timetoalign.RepoVizzInfo) | Parsed metadata from a RepoVizz CSV file (legacy mode). |
 | [EepNotesLoader](EepNotesLoader.qmd#timetoalign.EepNotesLoader) | Loader for EEP ``.notes`` alignment files. |
 | [MatchfileLoader](MatchfileLoader.qmd#timetoalign.loader.alignment.matchfile.MatchfileLoader) | Load Vienna Match (.match) alignment files via partitura. |
 | [TiliaJsonLoader](TiliaJsonLoader.qmd#timetoalign.loader.alignment.tilia.TiliaJsonLoader) | Loader for TiLiA JSON annotation exports. |

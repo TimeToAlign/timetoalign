@@ -228,7 +228,6 @@ class IdGenerator:
 
 
 # Mapping from timeline class name to type-based prefix.
-# See AGENTS.md section 1.10 for the canonical scheme.
 _TIMELINE_TYPE_PREFIXES: dict[str, str] = {
     "ContinuousLogicalTimeline": "clt",
     "DiscreteLogicalTimeline": "dlt",

@@ -27,7 +27,7 @@ import numpy as np
 import pyarrow as pa
 from typing_extensions import Self
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 
 from .events import EventData
 
@@ -87,15 +87,22 @@ class Loader(ABC):
         self,
         unit: TimeUnit | None = None,
         number_type: NumberType = NumberType.float,
+        interval_policy: IntervalPolicy | str = IntervalPolicy.warn,
     ) -> None:
         """Initialize the Loader.
 
         Args:
             unit: The time unit for coordinates. Defaults to class's _default_unit.
             number_type: The number type for coordinates.
+            interval_policy: How to handle end/duration inconsistencies in
+                interval events.  Accepts an `IntervalPolicy` enum member or
+                a string (``"warn"``, ``"prefer_end"``, ``"prefer_duration"``,
+                ``"strict"``).  Default: ``"warn"`` -- prefer ``end``, warn
+                on discrepancies.
         """
         self._unit = unit or self._default_unit
         self._number_type = number_type
+        self._interval_policy = IntervalPolicy(interval_policy)
         self._sources: list[Path] = []
         self._source_metadata: list[dict[str, Any]] = []
         self._events: EventData = self._event_data_class.empty(
@@ -329,6 +336,7 @@ class Loader(ABC):
                         self._unit,
                         self._number_type,
                         extra_fields=extra_fields,
+                        interval_policy=self._interval_policy,
                     )
                 else:
                     # LEGACY MODE: event_data is list of row dicts
@@ -339,7 +347,10 @@ class Loader(ABC):
                     )
                     row_dicts: list[dict[str, Any]] = event_data
                     new_data = self._event_data_class.from_dicts(
-                        row_dicts, self._unit, self._number_type
+                        row_dicts,
+                        self._unit,
+                        self._number_type,
+                        interval_policy=self._interval_policy,
                     )
 
                 # For the first source with events, replace the empty _events

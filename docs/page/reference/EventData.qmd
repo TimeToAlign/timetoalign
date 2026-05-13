@@ -92,7 +92,8 @@ EventData.concat(*others)
 Concatenate with other EventData, returning a new EventData.
 
 Args:
-    *others: Other EventData to concatenate.
+    *others: Other EventData to concatenate (extra columns are
+        allowed and will be merged using schema promotion).
 
 Returns:
     A new EventData containing all events.
@@ -184,7 +185,8 @@ EventData.extend(other)
 Extend this data with events from another EventData (in-place).
 
 Args:
-    other: Another EventData with compatible schema.
+    other: Another EventData with compatible schema (extra columns
+        are allowed and will be merged using schema promotion).
 
 Raises:
     ValueError: If units don't match.

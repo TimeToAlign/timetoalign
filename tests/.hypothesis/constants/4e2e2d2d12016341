@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/loader/table_schema.py
-# hypothesis_version: 6.151.2
-
-[0.0, 1.0, ':', 'Event', 'SEPARATE', 'TableSchema', '_', 'agent', 'bidirectional', 'certainty', 'cmap_columns', 'cmaps', 'column_reference', 'columns', 'coordinates', 'decision_criteria', 'default_event_type', 'duration', 'end', 'event_type', 'event_type_column', 'float', 'id', 'id_column', 'id_prefix', 'instant', 'interpolation', 'interval', 'is_synchronous', 'linear', 'map_type', 'matches', 'mode', 'name', 'name_column', 'number_type', 'partitions', 'regions', 'seconds', 'start', 'table', 'table_schema', 'target_timeline', 'target_unit', 'temporal_type', 'timeline', 'timelines', 'tl', 'unit', '{value}']

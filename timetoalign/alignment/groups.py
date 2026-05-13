@@ -36,7 +36,11 @@ import pyarrow as pa
 
 from timetoalign.core import CoordinateSpec, IdCoordinate, IdGenerator, resolve_id
 from timetoalign.core.enums import NumberType
-from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
+from timetoalign.core.timestamp import (
+    TimeIntervalStamp,
+    TimeStamp,
+    _format_coordinate_value,
+)
 from timetoalign.maps.interpolation import InterpolationMap
 
 if TYPE_CHECKING:
@@ -45,6 +49,7 @@ if TYPE_CHECKING:
     from timetoalign.core.enums import ColumnNaming, TimeUnit
     from timetoalign.display.ascii import Diagram
     from timetoalign.timelines import Timeline
+    from timetoalign.timelines.flow import Flow, FlowControllerBase
 
 # Type alias for flexible conversion_maps parameter (same as Timeline)
 # Accepts: True (all), single cmap/str, or iterable of cmaps/strs
@@ -149,13 +154,15 @@ class GroupTimestamp:
         rows = []
         for tid, val in self.coordinates.items():
             unit = self.units.get(tid, "")
-            unit_display = f" ({unit})" if unit else ""
             if val is not None:
+                # Use proper formatting that avoids scientific notation
+                formatted = _format_coordinate_value(val, unit)
                 rows.append(
-                    f"<tr><td>{html.escape(tid)}{unit_display}</td>"
-                    f"<td style='text-align: right;'>{val:.6g}</td></tr>"
+                    f"<tr><td>{html.escape(tid)}</td>"
+                    f"<td style='text-align: right;'>{formatted}</td></tr>"
                 )
             else:
+                unit_display = f" ({unit})" if unit else ""
                 rows.append(
                     f"<tr><td style='color: #999;'>{html.escape(tid)}{unit_display}</td>"
                     f"<td style='text-align: right; color: #999;'>-</td></tr>"
@@ -2050,6 +2057,157 @@ class TimelineGroup:
             "is_locked": self._is_locked,
             "meta": self.meta,
         }
+
+    # endregion
+
+    # region Unfolding
+
+    def unfold(
+        self,
+        flow: "Flow",
+        flow_controller: "FlowControllerBase",
+        reference_timeline_id: str,
+        *,
+        include_children: bool = True,
+        as_segment_lines: bool = False,
+        name: str | None = None,
+    ) -> "TimelineGroup":
+        """Unfold ALL timelines in this group via a single flow.
+
+        Uses the flow controller's repeat structure to compute section
+        boundaries in the reference timeline's coordinate space, then
+        resolves those boundaries into every other timeline's coordinates
+        via the group's interpolation maps.  Each timeline is sliced at
+        the corresponding coordinates and the slices are assembled into
+        contiguous ``SegmentLine`` objects (or flattened into plain
+        timelines).
+
+        This is the group-level equivalent of
+        `timetoalign.timelines.flow.create_unfolded_timeline`, but
+        applied to every member at once.
+
+        Args:
+            flow: The computed ``Flow`` (from ``controller.compute_flow()``).
+            flow_controller: The ``FlowControllerBase`` that produced the flow.
+                Required to convert flow sections to quarter-beat coordinates.
+            reference_timeline_id: ID of the timeline whose coordinate space
+                the flow is defined in (typically the score CLT).  Section
+                boundaries are resolved here first, then mapped to all other
+                timelines.
+            include_children: Whether to recursively slice child timelines
+                within each section.
+            as_segment_lines: If True, each unfolded timeline is a
+                ``SegmentLine`` (one segment per section).  If False (default),
+                events are flattened into a single timeline of the source's
+                concrete type.
+            name: Name for the returned group.  Defaults to
+                ``f"{self.name} (unfolded)"``.
+
+        Returns:
+            A new ``TimelineGroup`` containing the unfolded timelines.
+            Each timeline retains its original ID.
+
+        Raises:
+            KeyError: If ``reference_timeline_id`` is not in the group.
+            ValueError: If the flow controller cannot compute QB sections.
+
+        Examples:
+            >>> loader = TSVLoader.from_file("notes.tsv", "measures.tsv")
+            >>> controller = loader.create_flow_controller()
+            >>> flow = controller.compute_flow(FlowMode.DEFAULT)
+            >>> score_group = TimelineGroup(
+            ...     id="score", timelines=[clt1, dgt1, openscore]
+            ... )
+            >>> unfolded = score_group.unfold(flow, controller, "clt1")
+        """
+        from timetoalign.timelines.flow import (
+            FlowMap,
+            _flatten_segment_line_onto,
+            compute_qb_sections,
+        )
+        from timetoalign.timelines.types import SegmentLine
+
+        if reference_timeline_id not in self._timelines:
+            raise KeyError(
+                f"Reference timeline '{reference_timeline_id}' not in group. "
+                f"Available: {self.timeline_ids}"
+            )
+
+        # 1. Compute section boundaries in QB space
+        qb_sections = compute_qb_sections(flow, flow_controller)
+
+        # 2. Build a FlowMap for the reference timeline
+        forward_map = FlowMap.from_qb_sections(flow, qb_sections)
+
+        # 3. Create empty SegmentLines for each timeline
+        timelines = {tl_id: tl for tl_id, tl in self._timelines.items()}
+        unfolded_sls: dict[str, SegmentLine] = {}
+        for tl_id, tl in timelines.items():
+            unfolded_sls[tl_id] = SegmentLine(
+                segment_type=type(tl),
+                length=0,
+                unit=tl.unit,
+                number_type=tl.number_type,
+            )
+
+        # 4. Iterate section-wise: resolve boundaries via group timestamps
+        for i, (qb_start, qb_end) in enumerate(qb_sections):
+            start_ts = self.get_timestamp_at(float(qb_start), reference_timeline_id)
+            end_ts = self.get_timestamp_at(float(qb_end), reference_timeline_id)
+
+            for tl_id, tl in timelines.items():
+                coord_start = start_ts[tl_id]
+                coord_end = end_ts[tl_id]
+                if coord_start is None or coord_end is None:
+                    raise ValueError(
+                        f"Section {i}: cannot resolve boundaries for "
+                        f"timeline '{tl_id}' from reference "
+                        f"'{reference_timeline_id}' "
+                        f"(start={coord_start}, end={coord_end})"
+                    )
+
+                seg = tl.get_slice(
+                    coord_start,
+                    coord_end,
+                    truncate_events=True,
+                    include_children=include_children,
+                )
+                unfolded_sls[tl_id].append_segment(seg, name=f"section_{i}")
+
+        # 5. If not as_segment_lines, flatten each SegmentLine
+        result_timelines = []
+        for tl_id, sl in unfolded_sls.items():
+            source_tl = timelines[tl_id]
+            if as_segment_lines:
+                sl._id = tl_id
+                result_timelines.append(sl)
+            else:
+                target_cls = type(source_tl)
+                flat = target_cls(
+                    length=float(sl.length.value),
+                    unit=sl.unit,
+                    number_type=sl.number_type,
+                    uid=tl_id,
+                    name=f"{source_tl.name}_unfolded" if source_tl.name else None,
+                )
+                _flatten_segment_line_onto(sl, flat, include_children)
+                result_timelines.append(flat)
+
+        # 6. Add FlowMaps to the reference timeline
+        reverse_map = forward_map.inverse()
+        for tl in result_timelines:
+            if tl.id == reference_timeline_id:
+                tl.add_flow_map(reverse_map, id="source")
+                tl.add_flow_map(forward_map, id=f"forward_{flow.id}")
+                break
+
+        # 7. Assemble the new group
+        group_name = name if name is not None else f"{self.name} (unfolded)"
+        return TimelineGroup(
+            id=f"{self.id}_unfolded" if self.id else None,
+            name=group_name,
+            timelines=result_timelines,
+        )
 
     # endregion
 

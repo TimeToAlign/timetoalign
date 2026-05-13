@@ -3,7 +3,7 @@
 This module validates that the vectorized loader produces EXACT results
 matching the gold standard data from specimens.
 
-ZERO TOLERANCE POLICY (AGENTS.md Section 3.6):
+ZERO TOLERANCE POLICY:
 - Exact counts required, no approximations
 - Exact coordinate values, no tolerances unless mathematically justified
 - Every mismatch must be investigated and fixed

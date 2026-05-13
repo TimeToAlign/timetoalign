@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/maps/table.py
-# hypothesis_version: 6.151.2
-
-[0.0, 60.0, 480, 'extrapolate', 'id', 'kind', 'left', 'linear', 'nan', 'right', 'seconds', 'source_unit', 'target_unit', 'ticks', 'x_values', 'y_values']

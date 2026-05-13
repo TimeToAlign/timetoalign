@@ -3,7 +3,7 @@
 This module tests the complete pipeline from loading MusicXML/MIDI files
 through EventStores to Timeline creation.
 
-VALIDATION POLICY (per AGENTS.md Section 3.6):
+VALIDATION POLICY (ZERO TOLERANCE):
 - All counts are EXACT, not ranges or minimums
 - Gold standard data is authoritative
 - No tolerance without documented root cause
@@ -284,8 +284,8 @@ class TestMidiLoaderToTimeline:
 class TestCrossLoaderConsistency:
     """Verify timeline structure consistency across loaders.
 
-    Per AGENTS.md Section 3.6: If two loaders parse the same file,
-    they MUST produce identical core event counts.
+    Loader parity: if two loaders parse the same file, they MUST produce
+    identical core event counts.
     """
 
     @pytest.fixture

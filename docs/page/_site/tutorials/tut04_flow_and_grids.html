@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.31">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -10,6 +10,9 @@
 
 <title>Flow Control and Grids – TimeToAlign!</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -59,7 +62,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="../site_libs/quarto-nav/headroom.min.js"></script>
 <script src="../site_libs/clipboard/clipboard.min.js"></script>
 <script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
@@ -72,10 +75,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -103,7 +106,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
 
 <script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
 
@@ -309,22 +312,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="flow-control-and-grids" class="level1">
 <h1>Flow Control and Grids</h1>
 <p>Musical timelines are not always linear — repeat signs, <em>Da Capo</em>, and multiple endings introduce jumps. This tutorial shows <code>BeatGrid</code> for rapid measure/beat querying and how loaders handle flow structures.</p>
-<div id="b7bd480f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:22.687126Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:22.686900Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:23.215939Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:23.215145Z&quot;}}" data-execution_count="1">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fractions <span class="im">import</span> Fraction</span>
+<div id="e54e7b19" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:31:14.956922Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:31:14.956922Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:31:16.371057Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:31:16.371057Z&quot;}}" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fractions <span class="im">import</span> Fraction</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> timetoalign <span class="im">import</span> BeatGrid</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> timetoalign <span class="im">import</span> BeatGrid</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="beatgrid-from-tempo" class="level2">
 <h2 class="anchored" data-anchor-id="beatgrid-from-tempo">BeatGrid from Tempo</h2>
 <p>Given a constant tempo and duration, <code>BeatGrid.from_tempo()</code> builds a metrical timeline with vectorised beat/measure accessors.</p>
-<div id="48adf5a6" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:23.218010Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:23.217740Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:23.235069Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:23.234241Z&quot;}}" data-execution_count="2">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> BeatGrid.from_tempo(</span>
+<div id="a95ef8ef" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:31:16.377131Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:31:16.377131Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:31:16.427381Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:31:16.427381Z&quot;}}" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> BeatGrid.from_tempo(</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    tempo_bpm<span class="op">=</span><span class="fl">120.0</span>,</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    beats_per_measure<span class="op">=</span><span class="dv">4</span>,</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    length_seconds<span class="op">=</span><span class="fl">30.0</span>,</span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    uid<span class="op">=</span><span class="st">"demo_grid"</span>,</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>grid</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>grid</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="2">
 <pre style="font-family: monospace; line-height: 1.2;">BeatGrid[demo_grid] (4 cmaps)
                       0 __________________________________ 60 quarters</pre>
@@ -333,20 +336,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="querying-measure-and-beat" class="level2">
 <h2 class="anchored" data-anchor-id="querying-measure-and-beat">Querying Measure and Beat</h2>
-<div id="3ef11ec6" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:23.237042Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:23.236835Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:23.241571Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:23.240660Z&quot;}}" data-execution_count="3">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># At quarter-note position 6.0 --- which measure and beat?</span></span>
+<div id="ae79280e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:31:16.431432Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:31:16.430400Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:31:16.435905Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:31:16.435397Z&quot;}}" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># At quarter-note position 6.0 --- which measure and beat?</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"quarters"</span>: <span class="fl">6.0</span>,</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"measure"</span>: grid.measure_at(<span class="fl">6.0</span>),</span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"beat"</span>: grid.beat_at(<span class="fl">6.0</span>),</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="3">
 <pre><code>{'quarters': 6.0, 'measure': 2, 'beat': Fraction(3, 1)}</code></pre>
 </div>
 </div>
-<div id="c2a15f8b" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:23.243500Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:23.243281Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:23.247670Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:23.246896Z&quot;}}" data-execution_count="4">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Reverse: measure 3, beat 1 --- what quarter-note position?</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>grid.quarter_at(measure<span class="op">=</span><span class="dv">3</span>, beat<span class="op">=</span>Fraction(<span class="dv">1</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="6ff976d8" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:31:16.438955Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:31:16.438020Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:31:16.442763Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:31:16.442763Z&quot;}}" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Reverse: measure 3, beat 1 --- what quarter-note position?</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>grid.quarter_at(measure<span class="op">=</span><span class="dv">3</span>, beat<span class="op">=</span>Fraction(<span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="4">
 <pre><code>Fraction(8, 1)</code></pre>
 </div>
@@ -355,14 +358,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="vectorised-accessors" class="level2">
 <h2 class="anchored" data-anchor-id="vectorised-accessors">Vectorised Accessors</h2>
 <p>Beat and measure times as numpy arrays, useful for exporting to Sonic Visualiser or Audacity.</p>
-<div id="5511deef" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:23.249546Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:23.249333Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:23.253582Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:23.252732Z&quot;}}" data-execution_count="5">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>grid.beat_seconds()[:<span class="dv">12</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="a4992ef2" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:31:16.445778Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:31:16.445778Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:31:16.450210Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:31:16.450210Z&quot;}}" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>grid.beat_seconds()[:<span class="dv">12</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="5">
 <pre><code>array([0. , 0.5, 1. , 1.5, 2. , 2.5, 3. , 3.5, 4. , 4.5, 5. , 5.5])</code></pre>
 </div>
 </div>
-<div id="11109b37" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:23.255805Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:23.255591Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:23.259976Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:23.259148Z&quot;}}" data-execution_count="6">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>grid.measure_seconds()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="7391b22c" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:31:16.455259Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:31:16.454272Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:31:16.459733Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:31:16.459224Z&quot;}}" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>grid.measure_seconds()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="6">
 <pre><code>array([ 0.,  2.,  4.,  6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.,
        26., 28.])</code></pre>
@@ -371,8 +374,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="export-to-csv" class="level2">
 <h2 class="anchored" data-anchor-id="export-to-csv">Export to CSV</h2>
-<div id="9e61404e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-02-27T02:57:23.261853Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-02-27T02:57:23.261656Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-02-27T02:57:23.264611Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-02-27T02:57:23.263818Z&quot;}}" data-execution_count="7">
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># grid.export_to_csv("beats.csv", format="sonic_visualiser")</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="10aa27b2" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-13T10:31:16.461746Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-13T10:31:16.461746Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-13T10:31:16.465883Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-13T10:31:16.465883Z&quot;}}" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># grid.export_to_csv("beats.csv", format="sonic_visualiser")</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="loading-scores-with-flow" class="level2">
@@ -436,13 +439,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy

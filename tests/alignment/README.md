@@ -686,7 +686,7 @@ python -m pytest tests/alignment/ -v
 
 ### ClaimFilter Tests (`test_filters.py`)
 
-Tests for the `ClaimFilter` dataclass — the Unified Filter API (AGENTS.md Section 1.9). Covers all filter parameters individually and in combination:
+Tests for the `ClaimFilter` dataclass — the Unified Filter API. Covers all filter parameters individually and in combination:
 
 | Class | Tests | Purpose |
 |-------|-------|---------|
@@ -718,7 +718,7 @@ Tests for the Unified Stamp & Query API, using a star-topology bundle (1 score +
 
 ### TimelineIdGenerator Tests (`../core/test_ids.py`)
 
-Tests for the `TimelineIdGenerator` class that generates systematic timeline IDs based on type (AGENTS.md Section 1.10). 12 tests covering:
+Tests for the `TimelineIdGenerator` class that generates systematic timeline IDs based on type. 12 tests covering:
 
 | Area | Tests | Purpose |
 |------|-------|---------|

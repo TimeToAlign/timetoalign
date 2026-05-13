@@ -755,7 +755,7 @@ The gold standard CSV was updated to include all 7 section occurrences in playth
 
 **Validity Rationale:**
 
-Following AGENTS.md Section 3.6 (ZERO TOLERANCE), all tests use **exact value comparisons**:
+Following the project's ZERO TOLERANCE validation policy, all tests use **exact value comparisons**:
 - EXACT section counts (no ranges or minimums)
 - EXACT MC ranges: `(mc_start, mc_end)` pairs must match exactly (right-open)
 - EXACT section order (positional comparison)
@@ -871,5 +871,5 @@ All tests follow these principles:
 5. **Roundtrip Tests**: Verify serialization preserves data
 
 Each test class includes a docstring explaining its validity rationale,
-linking back to specific requirements from the TTA manuscript and
-AGENTS.md engineering standards.
+linking back to specific requirements from the TTA manuscript and the
+project's engineering standards.

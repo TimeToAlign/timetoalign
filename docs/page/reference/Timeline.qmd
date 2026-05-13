@@ -99,10 +99,11 @@ Examples:
 | [add_child](#timetoalign.Timeline.add_child) | Embed a child timeline at the specified offset. |
 | [add_conversion_map](#timetoalign.Timeline.add_conversion_map) | Add a ConversionMap to this timeline. |
 | [add_events](#timetoalign.Timeline.add_events) | Add events to the timeline. |
+| [add_flow_map](#timetoalign.Timeline.add_flow_map) | Add a FlowMap to this timeline. |
 | [add_jump](#timetoalign.Timeline.add_jump) | Add a Jump (non-linear contiguity) between coordinates. |
 | [add_match](#timetoalign.Timeline.add_match) | Add an alignment Match to this timeline. |
 | [add_region](#timetoalign.Timeline.add_region) | Add or create a named Region on this timeline. |
-| [attach_flow_map](#timetoalign.Timeline.attach_flow_map) | Attach a FlowMap to this timeline. |
+| [attach_flow_map](#timetoalign.Timeline.attach_flow_map) | Deprecated alias for `add_flow_map`. |
 | [convert_to](#timetoalign.Timeline.convert_to) | Convert coordinates to another unit using attached C-Maps. |
 | [create_child](#timetoalign.Timeline.create_child) | Create a new child timeline and embed it at the specified offset. |
 | [create_child_from_region](#timetoalign.Timeline.create_child_from_region) | Create a child timeline from a named region (partitioning). |
@@ -280,6 +281,34 @@ Examples:
     ...     {"event_type": "Note", "start": 0.0, "end": 0.5},
     ... ])
 
+### add_flow_map { #timetoalign.Timeline.add_flow_map }
+
+```python
+Timeline.add_flow_map(flow_map, id=None)
+```
+
+Add a FlowMap to this timeline.
+
+FlowMaps enable coordinate transformation for timelines with flow
+control (repeats, jumps, D.S., D.C., etc.). They are created by
+`timetoalign.ScoreFlowController` and added to the timeline for
+later use.
+
+Design Decision: Timelines store FlowMaps, NOT FlowControllers.
+FlowControllers are factories that produce FlowMaps.
+
+Args:
+    flow_map: The FlowMap to add.
+    id: Identifier for this FlowMap. If None, uses flow_map.id.
+        Common values: "default", "atomic", "single".
+
+Examples:
+    >>> controller = ScoreFlowController(measure_data)
+    >>> flow_map = controller.create_flow_map()
+    >>> timeline.add_flow_map(flow_map)
+    >>> timeline.get_flow_map("default")  # Retrieve later
+    FlowMap(default: 5 sections)
+
 ### add_jump { #timetoalign.Timeline.add_jump }
 
 ```python
@@ -353,26 +382,11 @@ Examples:
 Timeline.attach_flow_map(flow_map, id=None)
 ```
 
-Attach a FlowMap to this timeline.
+Deprecated alias for `add_flow_map`.
 
-FlowMaps enable coordinate transformation for timelines with flow
-control (repeats, jumps, D.S., D.C., etc.). They are created by
-FlowController and attached to the timeline for later use.
-
-Design Decision: Timelines store FlowMaps, NOT FlowControllers.
-FlowControllers are factories that produce FlowMaps.
-
-Args:
-    flow_map: The FlowMap to attach.
-    id: Identifier for this FlowMap. If None, uses flow_map.id.
-        Common values: "default", "atomic", "single".
-
-Examples:
-    >>> controller = ScoreFlowController(measure_data)
-    >>> flow_map = controller.create_flow_map()
-    >>> timeline.attach_flow_map(flow_map)
-    >>> timeline.get_flow_map("default")  # Retrieve later
-    FlowMap(default: 5 sections)
+.. deprecated::
+    Use :meth:`add_flow_map` instead. This alias will be removed
+    in a future version.
 
 ### convert_to { #timetoalign.Timeline.convert_to }
 
