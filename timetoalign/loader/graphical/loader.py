@@ -39,6 +39,8 @@ class GraphicalLoader:
         >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=100, name="system_1")
         >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=200, name="system_2")
         >>> store = loader.store
+        >>> isinstance(store, GraphicalStore)
+        True
 
         >>> # From PDF
         >>> import pymupdf
@@ -273,7 +275,7 @@ class GraphicalLoader:
         return len(self._segments)
 
     @property
-    def bundle(self) -> GraphicalStore:
+    def store(self) -> GraphicalStore:
         """Build and return the GraphicalStore.
 
         Returns:
@@ -284,14 +286,6 @@ class GraphicalLoader:
             segments=list(self._segments),
             metadata=dict(self._metadata),
         )
-
-    def build(self) -> GraphicalStore:
-        """Alias for bundle property (explicit build method).
-
-        Returns:
-            GraphicalStore containing all sources and segments.
-        """
-        return self.bundle
 
     def clear(self) -> None:
         """Clear all sources and segments."""

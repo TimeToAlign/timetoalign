@@ -732,7 +732,7 @@ if repovizz_files:
 #
 # Factory class for building graphical timelines from image sources and
 # path segments. Uses a builder pattern: `.add_image()`, `.add_horizontal_segment()`,
-# then `.build()` to produce a `GraphicalStore`.
+# then `.store` to produce a `GraphicalStore`.
 
 # %%
 from timetoalign.loader.graphical.loader import GraphicalLoader
@@ -750,7 +750,7 @@ if thoresen_images:
 
 # %%
 if thoresen_images:
-    graphical_store = graphical_loader.build()
+    graphical_store = graphical_loader.store
     graphical_store
 
 

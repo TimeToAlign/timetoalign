@@ -124,8 +124,8 @@ loader2 = GraphicalLoader(metadata={"source": "Multi-page Analysis"})
 #     idx = loader2.add_image(img_path)
 #     loader2.add_horizontal_segment(idx, x0=x0, x1=x1, y=y, name=f"page_{idx+1}")
 
-# bundle2 = loader2.bundle
-# print(f"Multi-page bundle: {bundle2.n_sources} sources, {bundle2.total_length:.0f} total pixels")
+# store2 = loader2.store
+# print(f"Multi-page store: {store2.n_sources} sources, {store2.total_length:.0f} total pixels")
 
 # %% [markdown]
 # ## Example 4: Creating a Timeline
