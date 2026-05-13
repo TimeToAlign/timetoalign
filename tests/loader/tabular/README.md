@@ -89,7 +89,7 @@ No manual `os.unlink()` or `tempfile.NamedTemporaryFile(delete=False)` patterns 
 
 ### ZERO TOLERANCE Validation Policy
 
-Per AGENTS.md Section 3.6, all tests use **EXACT** assertions:
+Per the ZERO TOLERANCE validation policy, all tests use **EXACT** assertions:
 
 ```python
 # CORRECT
@@ -178,7 +178,7 @@ See `PROFILING_REPORT.md` for full details.
 
 ## Test Coverage Requirements
 
-Per AGENTS.md, each loader class requires **15+ tests** covering:
+Each loader class requires **15+ tests** covering:
 
 1. **Unit Tests (5+):** Happy path, empty input, single element, nulls, invalid format
 2. **Integration Tests (3+):** Real specimen loading with EXACT counts

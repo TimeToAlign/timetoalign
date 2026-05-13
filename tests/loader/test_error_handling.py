@@ -3,8 +3,6 @@
 These tests verify that loaders handle corrupt, malformed, and invalid input
 gracefully by raising appropriate exceptions with helpful messages.
 
-Per AGENTS.md Section 3.2: Use ValueError for invalid arguments.
-
 IMPORTANT: These tests ensure research pipelines don't silently produce
 incorrect results from corrupt data.
 """

@@ -3,7 +3,7 @@
 This module validates that all score loaders extract flow control information
 consistently from the same musical work.
 
-Per ZERO TOLERANCE VALIDATION POLICY (from AGENTS.md):
+ZERO TOLERANCE VALIDATION POLICY:
 - EXACT counts required (no tolerances)
 - Every mismatch must be investigated
 - Gold standard (TSV) is authoritative

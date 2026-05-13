@@ -14,9 +14,6 @@ The canonical filter parameters are:
 - ``nomatch_only``: Return only non-synchronous (NOMATCH) claims.
 - ``include_domains``: Only timelines in these domains.
 - ``include_units``: Only timelines with these units.
-
-See Also:
-    AGENTS.md Section 1.9 (Unified Filter API).
 """
 
 from __future__ import annotations

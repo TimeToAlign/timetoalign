@@ -834,8 +834,7 @@ class AlignmentBundle:
         claims.
 
         Filters are combined with AND logic: a claim must satisfy every
-        non-None criterion. Uses the Unified Filter API (AGENTS.md Section
-        1.9).
+        non-None criterion. Uses the Unified Filter API.
 
         Args:
             timeline_id: Return claims involving this timeline.

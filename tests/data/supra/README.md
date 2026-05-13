@@ -153,7 +153,7 @@ For the single-group scenario, these start/end pairs form the perfect alignment:
 
 ### ZERO TOLERANCE Policy
 
-Per `AGENTS.md`, all test assertions MUST use exact expected values:
+All test assertions MUST use exact expected values:
 
 ```python
 # CORRECT
