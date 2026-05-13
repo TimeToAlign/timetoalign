@@ -67,11 +67,13 @@ class TestScoreLoaderToTimeline:
 
         # Verify parent structure
         assert timeline.id == "chopin"
-        assert timeline.n_children == 3  # notes, measures, controls
+        assert timeline.n_children == 4  # notes, measures, controls, annotations
 
         # Verify children exist
         assert "notes" in timeline
         assert "measures" in timeline
+        assert "controls" in timeline
+        assert "annotations" in timeline
 
         # Verify offset 0
         assert timeline.get_child_offset("notes").value == 0
@@ -399,7 +401,7 @@ class TestCreateTimelineFunction:
         timeline = create_timeline(loader, uid="from_loader")
 
         assert timeline.id == "from_loader"
-        assert timeline.n_children == 3  # notes, measures, controls
+        assert timeline.n_children == 4  # notes, measures, controls, annotations
 
     def test_create_timeline_from_store(self, chopin_musicxml: Path):
         """create_timeline works with EventStore."""
@@ -411,7 +413,7 @@ class TestCreateTimelineFunction:
         timeline = create_timeline(loader.store, uid="from_store")
 
         assert timeline.id == "from_store"
-        assert timeline.n_children == 3  # notes, measures, controls
+        assert timeline.n_children == 4  # notes, measures, controls, annotations
 
     def test_create_timeline_with_filters(self, chopin_musicxml: Path):
         """create_timeline applies include_stores correctly.
