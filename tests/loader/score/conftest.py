@@ -14,6 +14,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
+from timetoalign.testdata import ensure_data
+
+ensure_data("score", "target_flows", "vienna_1x22", "midi")
+
 # region Path Constants
 
 TESTS_DATA_DIR = Path(__file__).parents[2] / "data"

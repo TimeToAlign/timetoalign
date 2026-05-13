@@ -49,17 +49,14 @@
 # %%
 import os
 from fractions import Fraction
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from timetoalign import AudioLoader, BeatGrid
+from timetoalign.testdata import ensure_data
 
-# Path to test audio files (relative to notebook directory)
-_notebook_dir = Path(".").resolve()
-AUDIO_DIR = _notebook_dir.parent.parent / "tests" / "data" / "audio" / "hard_techno"
-assert AUDIO_DIR.is_dir(), f"Audio directory not found: {AUDIO_DIR}"
+AUDIO_DIR = ensure_data("audio") / "hard_techno"
 
 # %% [markdown]
 # ---

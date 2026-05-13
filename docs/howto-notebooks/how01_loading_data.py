@@ -52,18 +52,14 @@
 # ## Setup
 
 # %%
-from pathlib import Path
-
 import pandas as pd
 
 from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.tsv import TSVLoader
+from timetoalign.testdata import ensure_data
 
-_notebook_dir = Path(".").resolve()
-# Data directory - relative to notebook location
-DATA_DIR = _notebook_dir.parent.parent / "tests" / "data" / "vienna_1x22"
-assert DATA_DIR.is_dir(), f"Data directory not found: {DATA_DIR}"
+DATA_DIR = ensure_data("vienna_1x22")
 
 # Our test piece: Chopin Etude Op.10 No.3
 CHOPIN_XML = DATA_DIR / "Chopin_op10_no3.musicxml"

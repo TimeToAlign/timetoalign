@@ -17,3 +17,8 @@ __pycache__
 # Ignore coverage files
 .coverage
 .coverage.*
+
+# Test-data corpora are fetched on demand via timetoalign.testdata (pooch).
+# Keep only the README, never the actual corpora.
+tests/data/*
+!tests/data/README.md

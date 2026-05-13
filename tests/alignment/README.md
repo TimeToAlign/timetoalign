@@ -617,7 +617,7 @@ The graphical loader creates `GraphicalBundle` objects from images, mapping 2D p
 
 ### Test Data
 
-Test images are in `tests/alignment/data/thoresen/`:
+Test images are in `tests/data/thoresen/` (fetched via `pooch`; see `tests/data/README.md`):
 
 | File | Description |
 |------|-------------|

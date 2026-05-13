@@ -66,7 +66,6 @@
 # ## Setup
 
 # %%
-from pathlib import Path
 
 from timetoalign import IdCoordinate, TimeUnit
 from timetoalign.alignment import TimelineGroup
@@ -76,11 +75,10 @@ from timetoalign.loader.midi import PerformanceMidiLoader
 from timetoalign.loader.physical import AudioLoader
 from timetoalign.loader.score import TSVLoader
 from timetoalign.maps import ScalarMap
+from timetoalign.testdata import ensure_data
 from timetoalign.timelines import ContinuousPhysicalTimeline
 
-_notebook_dir = Path(".").resolve()
-DATA_DIR = _notebook_dir.parent.parent / "tests" / "data" / "supra"
-assert DATA_DIR.is_dir(), f"SUPRA data directory not found: {DATA_DIR}"
+DATA_DIR = ensure_data("supra")
 
 ATON_FILE = DATA_DIR / "image" / "fd660zf8362_analysis.txt"
 MIDI_RAW_PATH = DATA_DIR / "midi" / "fd660zf8362_raw.mid"

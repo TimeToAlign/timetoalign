@@ -46,13 +46,10 @@
 # ## Setup
 
 # %%
-from pathlib import Path
+from timetoalign.testdata import ensure_data
 
-# Data directories - relative to the notebook's location
-_notebook_dir = Path(".").resolve()
-_test_root = _notebook_dir.parent.parent / "tests"
-BEETHOVEN = _test_root / "data" / "score" / "beethoven_woo71"
-THORESEN = _test_root / "alignment" / "data" / "thoresen"
+BEETHOVEN = ensure_data("score") / "beethoven_woo71"
+THORESEN = ensure_data("thoresen")
 
 # Available files
 {

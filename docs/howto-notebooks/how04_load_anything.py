@@ -31,15 +31,9 @@
 # ## Setup
 
 # %%
-from pathlib import Path
+from timetoalign.testdata import DATA_DIR, ensure_data
 
-# Support both notebook and script execution
-try:
-    _notebook_dir = Path(__file__).parent.resolve()
-except NameError:
-    _notebook_dir = Path(".").resolve()
-DATA_DIR = _notebook_dir.parent.parent / "tests" / "data"
-assert DATA_DIR.is_dir(), f"Data directory not found: {DATA_DIR}"
+ensure_data("score", "midi", "vienna_1x22", "supra", "tabular", "thoresen")
 
 SCORE_DIR = DATA_DIR / "score"
 MIDI_DIR = DATA_DIR / "midi"
@@ -743,16 +737,8 @@ if repovizz_files:
 # %%
 from timetoalign.loader.graphical.loader import GraphicalLoader
 
-thoresen_dir = DATA_DIR.parent / "tests" / "alignment" / "data" / "thoresen"
-# Fall back to the regular test data path
-if not thoresen_dir.is_dir():
-    thoresen_dir = (
-        Path(_notebook_dir).parent.parent / "tests" / "alignment" / "data" / "thoresen"
-    )
-
-thoresen_images = (
-    sorted(thoresen_dir.glob("*.jpeg"))[:2] if thoresen_dir.is_dir() else []
-)
+thoresen_dir = DATA_DIR / "thoresen"
+thoresen_images = sorted(thoresen_dir.glob("*.jpeg"))[:2]
 [img.name for img in thoresen_images] if thoresen_images else "NO IMAGES FOUND"
 
 # %%

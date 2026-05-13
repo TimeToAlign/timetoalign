@@ -50,14 +50,11 @@
 # ## Setup
 
 # %%
-from pathlib import Path
-
 from timetoalign import MatchfileLoader
 from timetoalign.alignment import MatchGraph
+from timetoalign.testdata import ensure_data
 
-_notebook_dir = Path(".").resolve()
-DATA_DIR = _notebook_dir.parent.parent / "tests" / "data" / "vienna_1x22"
-assert DATA_DIR.is_dir(), f"Data directory not found: {DATA_DIR}"
+DATA_DIR = ensure_data("vienna_1x22")
 
 match_files = sorted(DATA_DIR.glob("*.match"))
 len(match_files)

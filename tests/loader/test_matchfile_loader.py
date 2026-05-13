@@ -25,10 +25,13 @@ from timetoalign.alignment.groups import _reset_group_ids
 from timetoalign.core import TimeUnit
 from timetoalign.loader.alignment.matchfile import MatchfileLoader
 from timetoalign.maps.linear import ScalarMap, ShiftMap
+from timetoalign.testdata import ensure_data
 from timetoalign.timelines.types import (
     ContinuousLogicalTimeline,
     DiscreteLogicalTimeline,
 )
+
+ensure_data("vienna_1x22", "score")
 
 # region Test Data
 

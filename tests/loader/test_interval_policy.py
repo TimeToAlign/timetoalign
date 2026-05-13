@@ -19,6 +19,9 @@ from timetoalign.core import TimeUnit
 from timetoalign.core.enums import IntervalPolicy
 from timetoalign.loader import EventData
 from timetoalign.loader.schema import coordinate_to_struct
+from timetoalign.testdata import ensure_data
+
+ensure_data("tabular")
 
 # ---------------------------------------------------------------------------
 # Helpers

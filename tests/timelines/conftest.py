@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
+from timetoalign.testdata import ensure_data
 from timetoalign.timelines import (
     ContinuousGraphicalTimeline,
     ContinuousLogicalTimeline,
@@ -25,6 +26,8 @@ from timetoalign.timelines import (
     DiscretePhysicalTimeline,
     Timeline,
 )
+
+ensure_data("midi", "vienna_1x22", "score")
 
 # region Path Constants
 

@@ -43,7 +43,6 @@
 # ## 1. Setup
 
 # %%
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -72,17 +71,11 @@ from timetoalign.alignment.matching import (
     prepare_eep_notes_for_matching,
 )
 from timetoalign.loader.score import TSVLoader
+from timetoalign.testdata import ensure_data
 from timetoalign.timelines.flow import FlowMode, create_unfolded_timeline
 from timetoalign.timelines.types import SegmentLine
 
-_notebook_dir = Path(".").resolve()
-DATA_DIR = (
-    _notebook_dir.parent.parent
-    / "tests"
-    / "data"
-    / "score"
-    / "beethoven_op18-4iv_multimodal"
-)
+DATA_DIR = ensure_data("score") / "beethoven_op18-4iv_multimodal"
 
 # XML manifest paths — the loader reads metadata from these files
 NORMAL_XML = DATA_DIR / "StringQuartetEEP_I_Normal" / "StringQuartetEEP_I_Normal.xml"

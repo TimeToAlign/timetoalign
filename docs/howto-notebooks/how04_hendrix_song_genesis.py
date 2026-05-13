@@ -47,21 +47,15 @@
 # ## Setup
 
 # %%
-from pathlib import Path
 
 import pandas as pd
 
 from timetoalign import AlignmentBundle
 from timetoalign.alignment.anchors import MatchClaim, MatchMetadata
 from timetoalign.loader.alignment import TiliaJsonLoader
+from timetoalign.testdata import ensure_data  # noqa: E402
 
-# Resolve data paths (works both as script and as notebook)
-try:
-    _notebook_dir = Path(__file__).parent.resolve()
-except NameError:
-    _notebook_dir = Path(".").resolve()
-
-DATA_DIR = _notebook_dir.parent.parent / "tests" / "data" / "hendrix"
+DATA_DIR = ensure_data("hendrix")
 
 # %% [markdown]
 # ## 1. Load the Three Versions

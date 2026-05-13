@@ -5,7 +5,7 @@ This module provides pytest fixtures for alignment testing, including:
 - Thoresen graphical timeline bundles (DGT1, DGT2)
 - Thoresen test data constants
 
-Test data is in tests/alignment/data/thoresen/ and comes from the manuscript.
+Test data is in tests/data/thoresen/ and comes from the manuscript.
 """
 
 from __future__ import annotations
@@ -18,15 +18,18 @@ from timetoalign.alignment import AlignmentAnchor, MatchClaim, MatchMetadata
 from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.bundle import _reset_bundle_ids
 from timetoalign.alignment.groups import _reset_group_ids
+from timetoalign.testdata import ensure_data
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
 )
 
+ensure_data("thoresen", "supra", "vienna_1x22", "score")
+
 # region Test Data Paths
 
-# Base path for test data
-TEST_DATA_DIR = Path(__file__).parent / "data"
+# Base path for test data (fetched on demand via pooch — see tests/_testdata.py)
+TEST_DATA_DIR = Path(__file__).parents[1] / "data"
 THORESEN_DATA_DIR = TEST_DATA_DIR / "thoresen"
 
 # DGT1 (2009) - Single image with 5 horizontal systems

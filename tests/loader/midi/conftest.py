@@ -4,6 +4,10 @@ from pathlib import Path
 
 import pytest
 
+from timetoalign.testdata import ensure_data
+
+ensure_data("midi", "vienna_1x22")
+
 DATA_DIR = Path(__file__).parents[2] / "data" / "midi"
 VIENNA_DIR = Path(__file__).parents[2] / "data" / "vienna_1x22"
 

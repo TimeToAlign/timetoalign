@@ -42,7 +42,6 @@
 
 # %%
 import tempfile
-from pathlib import Path
 
 import pandas as pd
 
@@ -55,15 +54,9 @@ from timetoalign.alignment.matching import (
 )
 from timetoalign.loader.physical.eep_notes import EepNotesLoader
 from timetoalign.loader.score import TSVLoader
+from timetoalign.testdata import ensure_data
 
-_notebook_dir = Path(".").resolve()
-DATA_DIR = (
-    _notebook_dir.parent.parent
-    / "tests"
-    / "data"
-    / "score"
-    / "beethoven_op18-4iv_multimodal"
-)
+DATA_DIR = ensure_data("score") / "beethoven_op18-4iv_multimodal"
 NORMAL_DIR = DATA_DIR / "StringQuartetEEP_I_Normal"
 ABC_DIR = DATA_DIR / "ABC"
 

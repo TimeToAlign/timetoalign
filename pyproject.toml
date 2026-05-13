@@ -48,6 +48,7 @@ graphical = ["pymupdf>=1.24", "pillow>=10.0"] # PDF/image loading & drawing
 plot = ["matplotlib>=3.5"]                    # Visualisation (WP1 plotting)
 delta = ["deltalake>=0.15.0"]                 # Delta Lake columnar storage (future)
 rdf = ["rdflib>=7.0"]                         # RDF / linked-data export (future)
+examples = ["pooch>=1.8"]                     # On-demand fetching of bundled corpora (timetoalign.testdata)
 
 # ---------------------------------------------------------------------------
 # Composite extras — convenience bundles
@@ -59,7 +60,7 @@ loaders = [                                   # Every loader dependency
     "timetoalign[midi,scores,audio,graphical]",
 ]
 tutorial = [                                  # Everything needed for the tutorial notebooks
-    "timetoalign[loaders,plot]",
+    "timetoalign[loaders,plot,examples]",
     "jupytext>=1.16",
     "jupyter>=1.0",
 ]
@@ -72,7 +73,7 @@ all = [                                       # All runtime features
     "timetoalign[tutorial,delta,rdf]",
 ]
 testing = [                                   # Test-suite execution (used by `tox -e py3xx`)
-    "timetoalign[all]",
+    "timetoalign[all,examples]",
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "pytest-xdist>=3.5",

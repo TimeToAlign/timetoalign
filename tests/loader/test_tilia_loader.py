@@ -23,6 +23,9 @@ import pyarrow as pa
 import pytest
 
 from timetoalign.loader.alignment.tilia import TiliaDictStore, TiliaJsonLoader
+from timetoalign.testdata import ensure_data
+
+ensure_data("score")
 
 # region Test data paths
 

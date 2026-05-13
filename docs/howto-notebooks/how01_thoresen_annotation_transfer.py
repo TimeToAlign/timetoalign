@@ -47,7 +47,6 @@
 
 # %%
 import json
-from pathlib import Path
 
 import pandas as pd
 
@@ -60,16 +59,10 @@ from timetoalign import (
     MatchMetadata,
     ScalarMap,
 )
+from timetoalign.testdata import ensure_data  # noqa: E402
 from timetoalign.timelines import SegmentLine
 
-# Resolve data paths (works both as script and as notebook)
-try:
-    _notebook_dir = Path(__file__).parent.resolve()
-except NameError:
-    _notebook_dir = Path(".").resolve()
-
-DATA_DIR = _notebook_dir.parent.parent / "tests" / "data" / "thoresen"
-assert DATA_DIR.is_dir(), f"Data directory not found: {DATA_DIR}"
+DATA_DIR = ensure_data("thoresen")
 
 # %% [markdown]
 # ## 1. Load the Annotation Data

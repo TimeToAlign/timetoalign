@@ -13,6 +13,10 @@ from pathlib import Path
 
 import pytest
 
+from timetoalign.testdata import ensure_data
+
+ensure_data("fixtures")
+
 # Test data paths
 CORRUPT_DIR = Path(__file__).parents[1] / "data" / "fixtures" / "corrupt"
 
