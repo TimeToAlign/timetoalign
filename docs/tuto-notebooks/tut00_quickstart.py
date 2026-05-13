@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.0
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -35,20 +35,42 @@ from pathlib import Path
 from timetoalign import BeatGrid, MatchfileLoader, TimelineGroup
 from timetoalign.loader.midi.performance import PerformanceMidiLoader
 from timetoalign.loader.score.partitura import PartituraLoader
+from timetoalign.loader.score.tsv import TSVLoader
 from timetoalign.maps import TicksToQuarters
 
 DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data"
 
 # %% [markdown]
+# ## Same content, different formats
+#
+# Before the tour, a quick demonstration of what Time To Align! is for. We
+# load Chopin's Etude Op. 10 No. 3 from both MusicXML and a TSV note list,
+# and check that both loaders see the same musical content.
+
+# %%
+pt_loader = PartituraLoader()
+pt_loader.load(DATA_DIR / "vienna_1x22" / "Chopin_op10_no3.musicxml")
+tsv_loader = TSVLoader.from_file(
+    DATA_DIR / "vienna_1x22" / "ms3" / "chopin_op10_no3.notes.tsv"
+)
+
+{
+    "Partitura (MusicXML)": len(pt_loader.store.notes),
+    "TSV (MS3 export)": len(tsv_loader.store.notes),
+}
+
+# %% [markdown]
+# Both loaders find **498 notes** --- different formats, same musical content.
+# From here on we use the Partitura loader as the source for the tour.
+
+# %% [markdown]
 # ## 1. Timelines & Events
 #
-# Load a score and create a timeline with nested children.
+# Promote the loaded score into a timeline with nested children.
 # ([Full tutorial](tut01a_timelines_events_maps.ipynb))
 
 # %%
-loader = PartituraLoader()
-loader.load(DATA_DIR / "vienna_1x22" / "Chopin_op10_no3.musicxml")
-score = loader.create_timeline(uid="score")
+score = pt_loader.create_timeline(uid="score")
 score
 
 # %% [markdown]
