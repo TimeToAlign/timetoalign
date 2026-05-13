@@ -2,13 +2,16 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.31">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
 <title>beatgrid – TimeToAlign!</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -71,10 +74,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -554,7 +557,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.BeatGrid" class="level1">
 <h1>BeatGrid</h1>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>BeatGrid(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>BeatGrid(</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    length,</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    beats_per_measure<span class="op">=</span><span class="dv">4</span>,</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    beat_unit<span class="op">=</span>Fraction(<span class="dv">1</span>, <span class="dv">4</span>),</span>
@@ -563,7 +566,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    anacrusis_quarters<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    uid<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>A metrical grid as a ContinuousLogicalTimeline in quarters.</p>
 <p>A BeatGrid represents metrical structure: measures, beats, and their numbering. It is designed to be added as a child to any parent timeline (physical, logical, or graphical).</p>
 <p>The coordinate system uses quarter notes (Fractions) for exact rhythmic representation. Built-in C-Maps automatically convert quarters to measure numbers and beat positions.</p>
@@ -706,21 +709,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.BeatGrid.beat_at" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.beat_at">beat_at</h3>
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.beat_at(quarters)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.beat_at(quarters)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the beat position within the measure at a given quarter-note position.</p>
 <p>Args: quarters: Position in quarter notes.</p>
 <p>Returns: The beat position as Fraction (1-indexed, e.g., Fraction(3, 2) for beat 1.5).</p>
 </section>
 <section id="timetoalign.BeatGrid.beat_at_float" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.beat_at_float">beat_at_float</h3>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.beat_at_float(quarters)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.beat_at_float(quarters)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the beat position as a float (for backward compatibility).</p>
 <p>Args: quarters: Position in quarter notes.</p>
 <p>Returns: The beat position (1-indexed, may be fractional).</p>
 </section>
 <section id="timetoalign.BeatGrid.beat_at_seconds" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.beat_at_seconds">beat_at_seconds</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.beat_at_seconds(seconds)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.beat_at_seconds(seconds)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the beat number within the measure at a given time in seconds.</p>
 <p>Args: seconds: Time position in seconds.</p>
 <p>Returns: Beat number (1-indexed).</p>
@@ -728,14 +731,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.BeatGrid.beat_quarters" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.beat_quarters">beat_quarters</h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.beat_quarters()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.beat_quarters()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>All beat positions in quarters. Vectorized O(1).</p>
 <p>Returns: numpy array of beat positions in quarter notes.</p>
 <p>Examples: &gt;&gt;&gt; grid = BeatGrid(length=16, beats_per_measure=4) &gt;&gt;&gt; grid.beat_quarters() array([ 0., 1., 2., 3., 4., 5., …])</p>
 </section>
 <section id="timetoalign.BeatGrid.beat_seconds" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.beat_seconds">beat_seconds</h3>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.beat_seconds()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.beat_seconds()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>All beat times in seconds. Vectorized O(1).</p>
 <p>Requires the grid to have been created with from_tempo() and start_seconds, or to have a tempo_map attached.</p>
 <p>Returns: numpy array of beat times in seconds.</p>
@@ -744,12 +747,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.BeatGrid.downbeat_seconds" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.downbeat_seconds">downbeat_seconds</h3>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.downbeat_seconds()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.downbeat_seconds()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Alias for measure_seconds(). All downbeat times in seconds.</p>
 </section>
 <section id="timetoalign.BeatGrid.export_to_csv" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.export_to_csv">export_to_csv</h3>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.export_to_csv(filepath, <span class="op">*</span>, <span class="bu">format</span><span class="op">=</span><span class="st">'default'</span>, labels<span class="op">=</span><span class="st">'beats'</span>, <span class="op">**</span>kwargs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.export_to_csv(filepath, <span class="op">*</span>, <span class="bu">format</span><span class="op">=</span><span class="st">'default'</span>, labels<span class="op">=</span><span class="st">'beats'</span>, <span class="op">**</span>kwargs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Export BeatGrid data to a CSV file.</p>
 <p>Extends the base Timeline.export_to_csv() with special formats for audio annotation tools.</p>
 <p>Args: filepath: Output CSV file path. format: Output format. Options: - “default”: Standard timestamp table (inherited behavior). - “sonic_visualiser”: Sonic Visualiser / Audacity label track. Two columns (TIME, LABEL) with header row. - “tilia”: Tilia beat track format. Four columns (time, measure, beat, is_first_in_measure). labels: What to export when using “sonic_visualiser” format: - “beats”: All beat positions with labels like “M1B1”, “M1B2”. - “measures”: Measure start positions with labels like “M1”, “M2”. - “both”: Both beats and measures. **kwargs: Additional arguments passed to base export_to_csv() when using “default” format.</p>
@@ -770,7 +773,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.BeatGrid.from_tempo" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.from_tempo">from_tempo</h3>
-<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.from_tempo(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.from_tempo(</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    tempo_bpm,</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    beats_per_measure<span class="op">=</span><span class="dv">4</span>,</span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    beat_unit<span class="op">=</span>Fraction(<span class="dv">1</span>, <span class="dv">4</span>),</span>
@@ -782,7 +785,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    anacrusis_quarters<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    uid<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a BeatGrid from tempo information.</p>
 <p>You must provide either length_seconds or length_quarters.</p>
 <p>Args: tempo_bpm: Tempo in beats per minute. beats_per_measure: Number of beats per measure. Default 4. beat_unit: Note value of one beat. Default 1/4 (quarter note). length_seconds: Duration in seconds (converted using tempo). If start_seconds &gt; 0, this should be the TOTAL audio duration; the grid will span from start_seconds to length_seconds. length_quarters: Duration in quarter notes. start_seconds: Offset in seconds where the first beat occurs. Default 0.0. Used by beat_seconds() and measure_seconds(). start_measure: MC of the first measure. Default 1. start_mn: MN label of the first measure. Default: same as start_measure. anacrusis_quarters: If set, first measure is shorter (pickup). uid: Explicit unique identifier. name: Human-readable name.</p>
@@ -792,28 +795,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.BeatGrid.materialize_beats" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.materialize_beats">materialize_beats</h3>
-<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.materialize_beats(include_downbeats_only<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.materialize_beats(include_downbeats_only<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Add Beat events to this timeline at each beat position.</p>
 <p>Args: include_downbeats_only: If True, only create events for beat 1 (downbeats).</p>
 <p>Returns: Number of beat events created.</p>
 </section>
 <section id="timetoalign.BeatGrid.materialize_measures" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.materialize_measures">materialize_measures</h3>
-<div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.materialize_measures()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.materialize_measures()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Add Measure events to this timeline at each measure boundary.</p>
 <p>Creates IntervalEvents for each complete measure.</p>
 <p>Returns: Number of measure events created.</p>
 </section>
 <section id="timetoalign.BeatGrid.measure_at" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.measure_at">measure_at</h3>
-<div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.measure_at(quarters)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.measure_at(quarters)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the measure count (MC) at a given quarter-note position.</p>
 <p>Args: quarters: Position in quarter notes.</p>
 <p>Returns: The measure count (integer, 1-indexed by default).</p>
 </section>
 <section id="timetoalign.BeatGrid.measure_at_seconds" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.measure_at_seconds">measure_at_seconds</h3>
-<div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.measure_at_seconds(seconds)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.measure_at_seconds(seconds)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the measure number at a given time in seconds.</p>
 <p>Args: seconds: Time position in seconds.</p>
 <p>Returns: Measure count (MC, 1-indexed by default).</p>
@@ -821,14 +824,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.BeatGrid.measure_quarters" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.measure_quarters">measure_quarters</h3>
-<div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.measure_quarters()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.measure_quarters()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>All measure start positions in quarters. Vectorized O(1).</p>
 <p>Returns: numpy array of measure start positions in quarter notes.</p>
 <p>Examples: &gt;&gt;&gt; grid = BeatGrid(length=16, beats_per_measure=4) &gt;&gt;&gt; grid.measure_quarters() array([ 0., 4., 8., 12.])</p>
 </section>
 <section id="timetoalign.BeatGrid.measure_seconds" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.measure_seconds">measure_seconds</h3>
-<div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.measure_seconds()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.measure_seconds()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>All measure start times in seconds. Vectorized O(1).</p>
 <p>Requires the grid to have been created with from_tempo() and start_seconds, or to have a tempo_map attached.</p>
 <p>Returns: numpy array of measure start times in seconds.</p>
@@ -837,21 +840,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.BeatGrid.metrical_position" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.metrical_position">metrical_position</h3>
-<div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.metrical_position(quarters)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.metrical_position(quarters)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the full metrical position (mc and beat) at a given quarter position.</p>
 <p>Args: quarters: Position in quarter notes.</p>
 <p>Returns: Dictionary with ‘mc’ (int), ‘beat’ (Fraction), and ‘mn’ (str) keys.</p>
 </section>
 <section id="timetoalign.BeatGrid.mn_at" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.mn_at">mn_at</h3>
-<div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.mn_at(quarters)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.mn_at(quarters)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the measure number label (MN) at a given quarter-note position.</p>
 <p>Args: quarters: Position in quarter notes.</p>
 <p>Returns: The measure number label (string like “1”, “0”, “1a”).</p>
 </section>
 <section id="timetoalign.BeatGrid.quarter_at" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.BeatGrid.quarter_at">quarter_at</h3>
-<div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.quarter_at(measure, beat<span class="op">=</span>Fraction(<span class="dv">1</span>, <span class="dv">1</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>BeatGrid.quarter_at(measure, beat<span class="op">=</span>Fraction(<span class="dv">1</span>, <span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the quarter-note position for a given measure and beat.</p>
 <p>Args: measure: Measure count (MC, uses start_measure as reference). beat: Beat within the measure (1-indexed). Default Fraction(1, 1).</p>
 <p>Returns: Position in quarter notes.</p>
@@ -914,13 +917,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy

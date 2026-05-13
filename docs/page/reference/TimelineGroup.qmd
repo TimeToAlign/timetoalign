@@ -67,8 +67,8 @@ Examples:
 | [get_range](#timetoalign.TimelineGroup.get_range) | Get the coordinate range for a timeline in the group. |
 | [get_timeline](#timetoalign.TimelineGroup.get_timeline) | Get a timeline by ID. |
 | [get_timestamp](#timetoalign.TimelineGroup.get_timestamp) | Get a specific timestamp by index. |
-| [get_timestamp_at](#timetoalign.TimelineGroup.get_timestamp_at) | Get a GroupTimestamp at a specific coordinate. |
-| [get_timestamp_of](#timetoalign.TimelineGroup.get_timestamp_of) | Get the GroupTimestamp for a specific event by its ID. |
+| [get_timestamp_at](#timetoalign.TimelineGroup.get_timestamp_at) | Get a TimeStamp at a specific coordinate. |
+| [get_timestamp_of](#timetoalign.TimelineGroup.get_timestamp_of) | Get the TimeStamp for a specific event by its ID. |
 | [get_timestamp_table](#timetoalign.TimelineGroup.get_timestamp_table) | Get the timestamp table (or a filtered subset). |
 | [get_timestamps_at](#timetoalign.TimelineGroup.get_timestamps_at) | Get timestamps at multiple coordinates - the batch version of get_timestamp_at. |
 | [get_timestamps_df](#timetoalign.TimelineGroup.get_timestamps_df) | Convenience wrapper returning pandas DataFrame with units in column names. |
@@ -79,6 +79,7 @@ Examples:
 | [remove_timeline](#timetoalign.TimelineGroup.remove_timeline) | Remove a timeline from the group. |
 | [summary](#timetoalign.TimelineGroup.summary) | Get a summary of the group. |
 | [to_dataframe](#timetoalign.TimelineGroup.to_dataframe) | Generate timestamps as a pandas DataFrame with formatted column names. |
+| [unfold](#timetoalign.TimelineGroup.unfold) | Unfold ALL timelines in this group via a single flow. |
 | [unlock](#timetoalign.TimelineGroup.unlock) | Unlock the group to allow extension. |
 
 ### add_timeline { #timetoalign.TimelineGroup.add_timeline }
@@ -326,48 +327,59 @@ Raises:
 ```python
 TimelineGroup.get_timestamp_at(
     coordinate,
-    timeline_id,
+    timeline_id=None,
     *,
     relative_to='group',
     conversion_maps=True,
 )
 ```
 
-Get a GroupTimestamp at a specific coordinate.
+Get a TimeStamp at a specific coordinate.
 
-Interpolates between boundary timestamps to get all timeline
-coordinates at the specified point.
+This is the primary coordinate resolution API for TimelineGroup.
+Returns a proper TimeStamp object (same as Timeline.get_timestamp).
 
 Args:
-    coordinate: The query coordinate.
+    coordinate: The query coordinate. Can be:
+        - int/float/Fraction: Raw value, timeline_id required
+        - Coordinate: Value with unit, timeline_id required
+        - IdCoordinate: Value with unit AND timeline_id (timeline_id param optional)
     timeline_id: Which timeline the coordinate refers to.
+        Required unless coordinate is an IdCoordinate.
     relative_to:
         "group" - coordinate is relative to timeline's 0-origin IN THIS GROUP
                  (default; e.g., "3 seconds into this group")
         "original" - coordinate is relative to timeline's ORIGINAL origin
                     (e.g., "50 seconds in the original timeline")
                     NOTE: Currently not implemented, reserved for future use.
-    conversion_maps: Whether to include C-Map values from member timelines.
-        - True (default): Include all attached C-Maps
+    conversion_maps: Whether to include C-Map values in timestamp.
+        - True (default): C-Maps accessible via ts.get_unit() and ts["unit_name"]
         - False/None: Only timeline coordinates
 
 Returns:
-    GroupTimestamp with interpolated coordinates for all timelines,
-    plus C-Map values if conversion_maps=True.
-    Timelines not commensurable at this point have None.
+    TimeStamp with axis set to the input coordinate and source_id set to
+    the timeline. Access other timelines via ts["other_id"] or ts.get().
+    Access C-Maps via ts.get_unit() or ts["unit_name"].
 
 Raises:
     KeyError: If timeline_id is not in the group.
     ValueError: If coordinate is outside the timeline's range in the group.
+    ValueError: If timeline_id is None and coordinate is not IdCoordinate.
 
 Examples:
     >>> ts = group.get_timestamp_at(75.0, "audio:1")
+    >>> ts.axis
+    75.0
     >>> ts["dgt1:1"]
     2437.5
-    >>> ts["score:1"]
-    33.33...
-    >>> ts["pixels_to_inches"]  # C-Map value (if conversion_maps=True)
-    0.25
+    >>> ts.get_unit(TimeUnit.seconds)  # C-Map conversion
+    75.0
+
+    >>> # Using IdCoordinate (timeline_id extracted automatically)
+    >>> coord = IdCoordinate(75.0, TimeUnit.seconds, "audio:1")
+    >>> ts = group.get_timestamp_at(coord)
+    >>> ts.axis
+    75.0
 
 ### get_timestamp_of { #timetoalign.TimelineGroup.get_timestamp_of }
 
@@ -375,17 +387,17 @@ Examples:
 TimelineGroup.get_timestamp_of(event_id)
 ```
 
-Get the GroupTimestamp for a specific event by its ID.
+Get the TimeStamp for a specific event by its ID.
 
 Searches all timelines in the group for the event and returns
-the corresponding group timestamp (coordinates on all timelines).
+the corresponding TimeStamp (same structure as Timeline.get_timestamp).
 
 Args:
     event_id: The event's unique identifier.
 
 Returns:
-    GroupTimestamp at the event's coordinate, with coordinates
-    on all timelines in the group.
+    TimeStamp at the event's coordinate, with access to all
+    timelines via ts["timeline_id"] and C-Maps via ts.get_unit().
 
 Raises:
     KeyError: If the event is not found in any timeline.
@@ -393,6 +405,8 @@ Raises:
 Examples:
     >>> ts = group.get_timestamp_of("note:000001")
     >>> ts["audio"]  # Get coordinate on audio timeline
+    45.5
+    >>> ts.get_unit(TimeUnit.seconds)  # C-Map conversion
     45.5
 
 ### get_timestamp_table { #timetoalign.TimelineGroup.get_timestamp_table }
@@ -482,7 +496,7 @@ TimelineGroup.get_timestamps_of(event_ids)
 Get timestamps for multiple events.
 
 Searches all timelines in the group for each event and returns
-a DataFrame with group timestamps.
+a DataFrame with coordinates on all timelines.
 
 Args:
     event_ids: List of event IDs to look up.
@@ -534,13 +548,7 @@ Get a unified TimeStamp at a specific coordinate.
 
 .. deprecated::
     This method is deprecated. Use ``get_timestamp_at(coordinate, timeline_id)``
-    instead, which returns a ``GroupTimestamp`` with full group-level expansion.
-
-This is the new unified API that returns a TimeStamp object
-compatible with Timeline.get_timestamp(). It provides the same
-interface as Timeline and enables consistent traversal.
-
-Uses InterpolationMaps for O(log n) coordinate conversion.
+    instead, which provides the same functionality.
 
 Args:
     coordinate: The query coordinate.
@@ -645,6 +653,68 @@ Examples:
     >>> df = group.to_dataframe(units=False)
     >>> df.columns
     Index(['audio', 'dgt1', 'pixels_to_beats'])
+
+### unfold { #timetoalign.TimelineGroup.unfold }
+
+```python
+TimelineGroup.unfold(
+    flow,
+    flow_controller,
+    reference_timeline_id,
+    *,
+    include_children=True,
+    as_segment_lines=False,
+    name=None,
+)
+```
+
+Unfold ALL timelines in this group via a single flow.
+
+Uses the flow controller's repeat structure to compute section
+boundaries in the reference timeline's coordinate space, then
+resolves those boundaries into every other timeline's coordinates
+via the group's interpolation maps.  Each timeline is sliced at
+the corresponding coordinates and the slices are assembled into
+contiguous ``SegmentLine`` objects (or flattened into plain
+timelines).
+
+This is the group-level equivalent of
+`timetoalign.timelines.flow.create_unfolded_timeline`, but
+applied to every member at once.
+
+Args:
+    flow: The computed ``Flow`` (from ``controller.compute_flow()``).
+    flow_controller: The ``FlowControllerBase`` that produced the flow.
+        Required to convert flow sections to quarter-beat coordinates.
+    reference_timeline_id: ID of the timeline whose coordinate space
+        the flow is defined in (typically the score CLT).  Section
+        boundaries are resolved here first, then mapped to all other
+        timelines.
+    include_children: Whether to recursively slice child timelines
+        within each section.
+    as_segment_lines: If True, each unfolded timeline is a
+        ``SegmentLine`` (one segment per section).  If False (default),
+        events are flattened into a single timeline of the source's
+        concrete type.
+    name: Name for the returned group.  Defaults to
+        ``f"{self.name} (unfolded)"``.
+
+Returns:
+    A new ``TimelineGroup`` containing the unfolded timelines.
+    Each timeline retains its original ID.
+
+Raises:
+    KeyError: If ``reference_timeline_id`` is not in the group.
+    ValueError: If the flow controller cannot compute QB sections.
+
+Examples:
+    >>> loader = TSVLoader.from_file("notes.tsv", "measures.tsv")
+    >>> controller = loader.create_flow_controller()
+    >>> flow = controller.compute_flow(FlowMode.DEFAULT)
+    >>> score_group = TimelineGroup(
+    ...     id="score", timelines=[clt1, dgt1, openscore]
+    ... )
+    >>> unfolded = score_group.unfold(flow, controller, "clt1")
 
 ### unlock { #timetoalign.TimelineGroup.unlock }
 

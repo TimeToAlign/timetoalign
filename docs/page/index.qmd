@@ -21,10 +21,10 @@ TimeToAlign! addresses this by providing:
    alignment primitives.
 
 The model represents coordinate systems as nodes in a graph, connected by
-{{< glossary ConversionMap >}}s within a timeline and {{< glossary Match >}}
-objects across timelines. This structure enables coordinate transfer,
-annotation propagation, and alignment queries across arbitrarily many
-representations of the same musical content.
+{{< glossary ConversionMap >}}s within a timeline and
+{{< glossary MatchClaim >}} objects across timelines. This structure enables
+coordinate transfer, annotation propagation, and alignment queries across
+arbitrarily many representations of the same musical content.
 
 
 ## Documentation Structure
@@ -54,6 +54,7 @@ This documentation follows the
     [How to Load Data](howto/how01_loading_data.ipynb) ·
     [How to Load Tabular Data](howto/how01_tabular_loaders.ipynb) ·
     [How to Work with Graphical Timelines](howto/how01_graphical_timelines.ipynb) ·
+    [How to Transfer Annotations Between Graphical Analyses](howto/how01_thoresen_annotation_transfer.ipynb) ·
     [How to Build Beat Grids](howto/how01_beat_grids.ipynb)
 
     *TimelineGroups* ---
@@ -63,6 +64,9 @@ This documentation follows the
     [How to Create a Note Alignment](howto/how03_create_note_alignment.ipynb) ·
     [How to Align Multimodal Data (Beethoven)](howto/how03_beethoven_multimodal.ipynb) ·
     [How to Load the Vienna 4x22 Corpus](howto/how03_loading_vienna_corpus.ipynb)
+
+    *In-depth Topics* ---
+    [How to Encode Song Genesis (Hendrix)](howto/how04_hendrix_song_genesis.ipynb)
 
 [**Conceptual Model**](concepts.qmd)
 :   The full specification of TimeToAlign!'s cross-domain timeline model:

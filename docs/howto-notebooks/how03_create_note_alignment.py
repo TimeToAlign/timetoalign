@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.2
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -155,6 +155,10 @@ bundle.add_group(score_group)
 bundle.add_match_claims(match_result.match_claims)
 
 bundle
+
+# %%
+# Display an example MatchClaim (shows event IDs, timelines, coordinates)
+match_result.match_claims[0]
 
 # %% [markdown]
 # ## 5. Query Coordinates via MatchStamp

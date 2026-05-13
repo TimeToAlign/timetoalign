@@ -29,7 +29,7 @@ PyArrow tables from nested JSON structures.
 
 **Key Validations:**
 
-- Exact row counts (ZERO TOLERANCE per AGENTS.md Section 3.6)
+- Exact row counts (ZERO TOLERANCE)
 - Foreign-key resolution: `image_id` resolves via `images` table, `category_id`
   resolves via `categories` table (y->ies pluralisation)
 - Parent context propagation in nested search (audio item scalars appear on hotCuePoints rows)

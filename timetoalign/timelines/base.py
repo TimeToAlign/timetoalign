@@ -4796,32 +4796,47 @@ class Timeline:
 
     # region FlowMaps
 
-    def attach_flow_map(self, flow_map: "FlowMap", id: str | None = None) -> None:
-        """Attach a FlowMap to this timeline.
+    def add_flow_map(self, flow_map: "FlowMap", id: str | None = None) -> None:
+        """Add a FlowMap to this timeline.
 
         FlowMaps enable coordinate transformation for timelines with flow
         control (repeats, jumps, D.S., D.C., etc.). They are created by
-        FlowController and attached to the timeline for later use.
+        `timetoalign.ScoreFlowController` and added to the timeline for
+        later use.
 
         Design Decision: Timelines store FlowMaps, NOT FlowControllers.
         FlowControllers are factories that produce FlowMaps.
 
         Args:
-            flow_map: The FlowMap to attach.
+            flow_map: The FlowMap to add.
             id: Identifier for this FlowMap. If None, uses flow_map.id.
                 Common values: "default", "atomic", "single".
 
         Examples:
             >>> controller = ScoreFlowController(measure_data)
             >>> flow_map = controller.create_flow_map()
-            >>> timeline.attach_flow_map(flow_map)
+            >>> timeline.add_flow_map(flow_map)
             >>> timeline.get_flow_map("default")  # Retrieve later
             FlowMap(default: 5 sections)
         """
         if id is None:
             id = flow_map.id
         self._flow_maps[id] = flow_map
-        self._logger.debug(f"Attached FlowMap '{id}'")
+        self._logger.debug(f"Added FlowMap '{id}'")
+
+    def attach_flow_map(self, flow_map: "FlowMap", id: str | None = None) -> None:
+        """Deprecated alias for `add_flow_map`.
+
+        .. deprecated::
+            Use :meth:`add_flow_map` instead. This alias will be removed
+            in a future version.
+        """
+        warnings.warn(
+            "attach_flow_map() is deprecated; use add_flow_map() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.add_flow_map(flow_map, id=id)
 
     def get_flow_map(self, id: str = "default") -> "FlowMap | None":
         """Get an attached FlowMap by id.

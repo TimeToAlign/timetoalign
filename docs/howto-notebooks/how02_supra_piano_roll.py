@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.2
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -578,7 +578,7 @@ audio_100s
 
 # %%
 # Query at 50,000 pixels in the holes region
-holes_50k = group.get_timestamp_at(50000.0, "dgt_holes")
+holes_50k = group.get_timestamp_at(50000, "dgt_holes")
 holes_50k
 
 # %% [markdown]
@@ -589,13 +589,13 @@ holes_50k
 
 # %%
 # Start of music (coordinate 0 in dgt_holes)
-start_ts = group.get_timestamp_at(0.0, "dgt_holes")
-{"Start of music": start_ts}
+start_ts = group.get_timestamp_at(0, "dgt_holes")
+start_ts
 
 # %%
 # End of music
-end_ts = group.get_timestamp_at(float(aton_loader.musical_length.value), "dgt_holes")
-{"End of music": end_ts}
+end_ts = group.get_timestamp_at(int(aton_loader.musical_length.value), "dgt_holes")
+end_ts
 
 # %% [markdown]
 # ### I.3: Round-Trip Verification
@@ -604,33 +604,30 @@ end_ts = group.get_timestamp_at(float(aton_loader.musical_length.value), "dgt_ho
 # at each step so you can see all coordinates involved.
 
 # %%
-test_coord = 100000.0  # pixels in holes region
+test_coord = 100000  # pixels in holes region
 
 # Step 1: Get timestamp at our test coordinate
 ts1 = group.get_timestamp_at(test_coord, "dgt_holes")
-{"Step 1 - Original timestamp at 100,000 px": ts1}
+ts1
 
 # %%
 # Step 2: Transfer to audio, then back to holes
 ts2 = group.get_timestamp_at(ts1["dpt1_audio"], "dpt1_audio")
-{"Step 2 - Round-trip via audio": ts2}
+ts2
 
 # %%
 # Step 3: Transfer to score, then back to holes
 ts3 = group.get_timestamp_at(ts1["clt1_score"], "clt1_score")
-{"Step 3 - Round-trip via score": ts3}
+ts3
 
 # %%
-# Verify round-trip precision (timestamps contain the proof!)
-{
-    "Round-trip verification": {
-        "original_px": test_coord,
-        "via_audio_px": ts2["dgt_holes"],
-        "via_score_px": ts3["dgt_holes"],
-        "audio_match": abs(ts2["dgt_holes"] - test_coord) < 0.001,
-        "score_match": abs(ts3["dgt_holes"] - test_coord) < 0.001,
-    }
-}
+# Verify round-trip precision by examining coordinates from each timestamp
+print("Round-trip verification:")
+print(f"  Original:   {test_coord} pixels")
+print(f"  Via audio:  {ts2['dgt_holes']} pixels")
+print(f"  Via score:  {ts3['dgt_holes']} pixels")
+print(f"  Audio diff: {abs(ts2['dgt_holes'] - test_coord):.6f}")
+print(f"  Score diff: {abs(ts3['dgt_holes'] - test_coord):.6f}")
 
 # %% [markdown]
 # ---

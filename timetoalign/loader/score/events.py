@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import pyarrow as pa
 from typing_extensions import Self
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.loader.events import EventData
 
 if TYPE_CHECKING:
@@ -152,6 +152,8 @@ class ScoreEventData(EventData):
         unit: TimeUnit,
         number_type: NumberType = NumberType.fraction,
         has_rests: bool | None = None,
+        *,
+        interval_policy: IntervalPolicy = IntervalPolicy.warn,
     ) -> Self:
         """Create from dicts with has_rests metadata and type sanitization."""
         # Sanitize common string fields to prevent PyArrow coercion errors
@@ -211,7 +213,9 @@ class ScoreEventData(EventData):
                 else:
                     sp["cents"] = 0.0
 
-        store = super().from_dicts(rows, unit, number_type)
+        store = super().from_dicts(
+            rows, unit, number_type, interval_policy=interval_policy
+        )
         store._has_rests = has_rests
         return store
 

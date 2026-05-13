@@ -2,13 +2,16 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.31">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
 <title>matchgraph – TimeToAlign!</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -71,10 +74,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -550,7 +553,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.MatchGraph" class="level1">
 <h1>MatchGraph</h1>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>MatchGraph(claims<span class="op">=</span><span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>MatchGraph(claims<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>A graph of MatchClaims connecting events across timelines/groups.</p>
 <p>The MatchGraph builds a networkx graph where: - Nodes: (timeline_id, coordinate) tuples - Edges: synchronous AlignmentAnchors (explicit or implicit)</p>
 <p>Only synchronous claims produce graph edges. Non-synchronous claims (conceptual matches, NOMATCH) are stored in <code>_claims</code> but do not create nodes or edges.</p>
@@ -676,7 +679,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.MatchGraph.extend_to_groups" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.extend_to_groups">extend_to_groups</h3>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.extend_to_groups(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.extend_to_groups(</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    groups,</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    timeline_to_group,</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    include_inferred<span class="op">=</span><span class="va">True</span>,</span>
@@ -686,7 +689,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    exclude_timelines<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    include_domains<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    include_units<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Extend anchors to full group timestamps via implicit claims.</p>
 <p>For each coordinate in the graph, if it belongs to a Group, computes the equivalent coordinate for every other member of that Group and adds an implicit <code>MatchClaim</code> (case d) plus the corresponding edge. Filters control which timelines receive implicit claims.</p>
 <p>Args: groups: Dict of group_id -&gt; TimelineGroup. timeline_to_group: Dict of timeline_id -&gt; group_id. include_inferred: Whether to add inferred edges. timelines: Optional dict of timeline_id -&gt; Timeline for resolving domain/unit filters. Required if <code>include_domains</code> or <code>include_units</code> are set. include_timelines: Only extend to these timeline IDs. exclude_timelines: Do not extend to these timeline IDs. include_domains: Only extend to timelines in these domains. Requires <code>timelines</code> parameter. include_units: Only extend to timelines with these units. Requires <code>timelines</code> parameter.</p>
@@ -694,7 +697,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.MatchGraph.filter" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.filter">filter</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.<span class="bu">filter</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.<span class="bu">filter</span>(</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    synchronous_only<span class="op">=</span><span class="va">False</span>,</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    explicit_only<span class="op">=</span><span class="va">False</span>,</span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    include_timelines<span class="op">=</span><span class="va">None</span>,</span>
@@ -703,47 +706,47 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    include_units<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
 <span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    timelines<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create filtered view of the graph.</p>
 <p>Args: synchronous_only: Include only synchronous edges. explicit_only: Include only explicit edges (no inferred). include_timelines: Only include these timeline IDs. exclude_timelines: Exclude these timeline IDs. include_domains: Only include timelines in these domains. Requires <code>timelines</code> parameter. include_units: Only include timelines with these units. Requires <code>timelines</code> parameter. timelines: Dict of timeline_id -&gt; Timeline for resolving domain/unit filters.</p>
 <p>Returns: New MatchGraph with filtered edges/nodes.</p>
 </section>
 <section id="timetoalign.MatchGraph.from_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.from_dict">from_dict</h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.from_dict(data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Deserialize from dictionary.</p>
 </section>
 <section id="timetoalign.MatchGraph.get_all_stamps" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.get_all_stamps">get_all_stamps</h3>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_all_stamps()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_all_stamps()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get all unique MatchStamps from the graph.</p>
 <p>.. deprecated:: Use <code>get_stamps()</code> instead. This is an alias retained for backward compatibility.</p>
 <p>Returns: List of MatchStamps, one per connected component.</p>
 </section>
 <section id="timetoalign.MatchGraph.get_connected_nodes" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.get_connected_nodes">get_connected_nodes</h3>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_connected_nodes(node)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_connected_nodes(node)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get all nodes connected to a given node.</p>
 <p>Args: node: The (timeline_id, coordinate) node.</p>
 <p>Returns: List of connected nodes.</p>
 </section>
 <section id="timetoalign.MatchGraph.get_connected_timelines" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.get_connected_timelines">get_connected_timelines</h3>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_connected_timelines(timeline_id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_connected_timelines(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get all timelines connected to a given timeline.</p>
 <p>Args: timeline_id: The timeline to check.</p>
 <p>Returns: Set of connected timeline IDs.</p>
 </section>
 <section id="timetoalign.MatchGraph.get_coordinates_for_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.get_coordinates_for_timeline">get_coordinates_for_timeline</h3>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_coordinates_for_timeline(timeline_id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_coordinates_for_timeline(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get all coordinates for a specific timeline.</p>
 <p>Args: timeline_id: The timeline to get coordinates for.</p>
 <p>Returns: List of coordinates, sorted.</p>
 </section>
 <section id="timetoalign.MatchGraph.get_match_stamps" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.get_match_stamps">get_match_stamps</h3>
-<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_match_stamps()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_match_stamps()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Extract MatchStamps from the graph.</p>
 <p>.. deprecated:: Use <code>get_stamps()</code> for all MatchStamps by connected component. This method is retained for backward compatibility.</p>
 <p>Returns: (start_stamp, end_stamp) - end_stamp is None for instant matches.</p>
@@ -751,7 +754,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.MatchGraph.get_matchstamp" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.get_matchstamp">get_matchstamp</h3>
-<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_matchstamp()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_matchstamp()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the single MatchStamp for this graph.</p>
 <p>One MatchGraph = one MatchStamp. The MatchStamp is the union of all coordinates reachable through the graph’s edges.</p>
 <p>If the graph contains multiple disconnected components, this method raises <code>ValueError</code> – each component should be its own MatchGraph. Use <code>split_components()</code> to separate them first, or use the legacy <code>get_stamps()</code> method.</p>
@@ -761,14 +764,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.MatchGraph.get_nodes_for_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.get_nodes_for_timeline">get_nodes_for_timeline</h3>
-<div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_nodes_for_timeline(timeline_id)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_nodes_for_timeline(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get all nodes for a specific timeline.</p>
 <p>Args: timeline_id: The timeline to get nodes for.</p>
 <p>Returns: List of (timeline_id, coordinate) nodes.</p>
 </section>
 <section id="timetoalign.MatchGraph.get_stamps" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.get_stamps">get_stamps</h3>
-<div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_stamps(expand_groups<span class="op">=</span><span class="va">False</span>, expand_cmaps<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.get_stamps(expand_groups<span class="op">=</span><span class="va">False</span>, expand_cmaps<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get all MatchStamps from the graph.</p>
 <p>Returns one MatchStamp per connected component, each containing all coordinates reachable from that component.</p>
 <p>Args: expand_groups: If True, for each coordinate in a stamp that belongs to a Group, add within-group coordinates for all other members. (Requires <code>extend_to_groups()</code> to have been called first, or group information to be present in the graph.) expand_cmaps: If True, add C-map conversion results to the stamp. (Reserved for future use.)</p>
@@ -776,14 +779,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.MatchGraph.split_components" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.split_components">split_components</h3>
-<div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.split_components()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.split_components()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Split this graph into one MatchGraph per connected component.</p>
 <p>Each returned MatchGraph represents a single connected component and can be queried with <code>get_matchstamp()</code>.</p>
 <p>Returns: List of MatchGraph objects, one per connected component. Empty list if the graph has no synchronous claims.</p>
 </section>
 <section id="timetoalign.MatchGraph.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.MatchGraph.to_dict">to_dict</h3>
-<div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.to_dict()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>MatchGraph.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Serialize to dictionary.</p>
 <p>Note: This serializes the claims, not the full graph. The graph can be rebuilt from claims.</p>
 
@@ -844,13 +847,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy

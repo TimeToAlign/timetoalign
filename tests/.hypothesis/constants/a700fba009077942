@@ -1,4 +1,0 @@
-# file: /home/laser/git/tta/timetoalign/timetoalign/loader/tabular/__init__.py
-# hypothesis_version: 6.151.2
-
-['CsvLoader', 'LabLoader', 'Ms3Loader', 'TabularLoader', 'TsvLoader']

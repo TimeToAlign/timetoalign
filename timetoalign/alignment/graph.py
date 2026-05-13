@@ -210,10 +210,15 @@ class MatchStamp:
             return lines[0]
 
         def _fmt(v: float) -> str:
-            """Format a coordinate value, using integer repr when exact."""
+            """Format a coordinate value - never use scientific notation."""
             if v == int(v) and abs(v) < 1e15:
                 return str(int(v))
-            return f"{v:g}"
+            elif abs(v) >= 1e6:
+                return str(int(round(v)))
+            elif abs(v) >= 1:
+                return f"{v:.6f}".rstrip("0").rstrip(".")
+            else:
+                return f"{v:.6f}".rstrip("0").rstrip(".")
 
         # Classify each timeline by edge type
         anchor_tls = set()
@@ -254,6 +259,17 @@ class MatchStamp:
         """
         import html as html_mod
 
+        def _fmt_html(v: float) -> str:
+            """Format coordinate without scientific notation."""
+            if v == int(v) and abs(v) < 1e15:
+                return str(int(v))
+            elif abs(v) >= 1e6:
+                return str(int(round(v)))
+            elif abs(v) >= 1:
+                return f"{v:.6f}".rstrip("0").rstrip(".")
+            else:
+                return f"{v:.6f}".rstrip("0").rstrip(".")
+
         n_edges = self.n_explicit_edges + self.n_inferred_edges
 
         # Classify timelines
@@ -269,24 +285,25 @@ class MatchStamp:
         rows = []
         for tl_id, coord in self.coordinates.items():
             esc_id = html_mod.escape(tl_id)
+            formatted = _fmt_html(coord)
             if tl_id in anchor_tls:
                 tag = "<em>anchor</em>"
                 rows.append(
                     f"<tr><td><strong>{esc_id}</strong></td>"
-                    f"<td style='text-align: right;'>{coord:.6g}</td>"
+                    f"<td style='text-align: right;'>{formatted}</td>"
                     f"<td>{tag}</td></tr>"
                 )
             elif tl_id in inferred_tls:
                 tag = "<em style='color: #666;'>inferred</em>"
                 rows.append(
                     f"<tr><td style='color: #666;'>{esc_id}</td>"
-                    f"<td style='text-align: right;'>{coord:.6g}</td>"
+                    f"<td style='text-align: right;'>{formatted}</td>"
                     f"<td>{tag}</td></tr>"
                 )
             else:
                 rows.append(
                     f"<tr><td>{esc_id}</td>"
-                    f"<td style='text-align: right;'>{coord:.6g}</td>"
+                    f"<td style='text-align: right;'>{formatted}</td>"
                     f"<td></td></tr>"
                 )
 

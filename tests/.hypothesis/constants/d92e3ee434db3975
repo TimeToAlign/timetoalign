@@ -1,4 +1,0 @@
-# file: /usr/share/pycharm/plugins/python-ce/helpers/pycharm/_jb_utils.py
-# hypothesis_version: 6.151.2
-
-['##[jetbrains{0}', '*', '.', 'Ilya.Kazakevich', 'No changes recorded', '^([^\\s)(]+)(\\(.+\\))$', 'utf-8']

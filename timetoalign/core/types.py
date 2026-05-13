@@ -20,6 +20,12 @@ from .enums import Domain, NumberType, TimeUnit
 # Type alias for coordinate values
 CoordinateValue = Union[int, float, Fraction]
 
+# Discrete units MUST be displayed as integers, never as floats or scientific notation.
+# These are units where fractional values are semantically meaningless.
+DISCRETE_UNITS = frozenset(
+    {"ticks", "pulses", "divs", "samples", "pixels", "px", "frames"}
+)
+
 # Type alias for optional coordinates (common pattern)
 OptionalCoordinate = Union["Coordinate", None]
 
@@ -265,7 +271,28 @@ class Coordinate:
         return f"Coordinate({self.value!r}, {self.unit})"
 
     def __str__(self) -> str:
-        return f"{self.value} {self.unit}"
+        """Format coordinate without scientific notation.
+
+        Discrete units (ticks, samples, pixels, frames) are shown as integers.
+        Continuous units use fixed-point notation.
+        """
+        unit_name = self.unit.value if hasattr(self.unit, "value") else str(self.unit)
+        unit_lower = unit_name.lower()
+        v = self.value
+
+        # For discrete units OR exact integers, format as plain integer
+        if unit_lower in DISCRETE_UNITS or (v == int(v) and abs(v) < 1e15):
+            return f"{int(v)} {self.unit}"
+
+        # For continuous units, use fixed-point notation (never scientific)
+        if abs(v) >= 1e6:
+            return f"{int(round(v))} {self.unit}"
+        elif abs(v) >= 1:
+            return f"{v:.6f}".rstrip("0").rstrip(".") + f" {self.unit}"
+        elif v == 0:
+            return f"0 {self.unit}"
+        else:
+            return f"{v:.6f}".rstrip("0").rstrip(".") + f" {self.unit}"
 
     def is_zero(self) -> bool:
         """Check if this coordinate represents the origin."""
@@ -425,7 +452,30 @@ class IdCoordinate(Coordinate):
         return f"IdCoordinate({self.value!r}, {self.unit}, {self.timeline_id!r})"
 
     def __str__(self) -> str:
-        return f"{self.value} {self.unit} @{self.timeline_id}"
+        """Format coordinate without scientific notation.
+
+        Discrete units (ticks, samples, pixels, frames) are shown as integers.
+        Continuous units use fixed-point notation.
+        """
+        unit_name = self.unit.value if hasattr(self.unit, "value") else str(self.unit)
+        unit_lower = unit_name.lower()
+        v = self.value
+
+        # For discrete units OR exact integers, format as plain integer
+        if unit_lower in DISCRETE_UNITS or (v == int(v) and abs(v) < 1e15):
+            return f"{int(v)} {self.unit} @{self.timeline_id}"
+
+        # For continuous units, use fixed-point notation (never scientific)
+        if abs(v) >= 1e6:
+            return f"{int(round(v))} {self.unit} @{self.timeline_id}"
+        elif abs(v) >= 1:
+            formatted = f"{v:.6f}".rstrip("0").rstrip(".")
+            return f"{formatted} {self.unit} @{self.timeline_id}"
+        elif v == 0:
+            return f"0 {self.unit} @{self.timeline_id}"
+        else:
+            formatted = f"{v:.6f}".rstrip("0").rstrip(".")
+            return f"{formatted} {self.unit} @{self.timeline_id}"
 
 
 # Type aliases for flexible coordinate specification (layered API)

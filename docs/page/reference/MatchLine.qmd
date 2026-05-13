@@ -44,6 +44,7 @@ See Also:
 | [from_dict](#timetoalign.MatchLine.from_dict) | Deserialize from dictionary. |
 | [from_graphs](#timetoalign.MatchLine.from_graphs) | Build a MatchLine from multiple MatchGraphs. |
 | [get_coordinate_pairs](#timetoalign.MatchLine.get_coordinate_pairs) | Extract (source_coord, target_coord) pairs for a target timeline. |
+| [save_as](#timetoalign.MatchLine.save_as) | Export this MatchLine to a file. |
 | [target_timeline_ids](#timetoalign.MatchLine.target_timeline_ids) | All target timelines appearing in at least 2 stamps. |
 | [to_dict](#timetoalign.MatchLine.to_dict) | Serialize to dictionary for storage. |
 
@@ -147,6 +148,32 @@ Returns:
 Raises:
     ValueError: If ``target_timeline_id`` equals
         ``source_timeline_id``.
+
+### save_as { #timetoalign.MatchLine.save_as }
+
+```python
+MatchLine.save_as(filepath, *, format='match', context=None)
+```
+
+Export this MatchLine to a file.
+
+Args:
+    filepath: Output file path.  If the extension matches a known
+        format, the format is inferred (e.g. ``.match``).
+    format: Export format.  Currently supported: ``"match"``.
+    context: Supplementary data for format-specific fields.
+        Required for full ``.match`` export; if ``None``, a minimal
+        file with coordinate-only placeholder data is produced.
+
+Returns:
+    The resolved output path.
+
+Raises:
+    ValueError: If the format is not supported.
+
+Examples:
+    >>> line.save_as("output.match")  # minimal placeholder export
+    >>> line.save_as("output.match", context=ctx)  # rich export
 
 ### target_timeline_ids { #timetoalign.MatchLine.target_timeline_ids }
 

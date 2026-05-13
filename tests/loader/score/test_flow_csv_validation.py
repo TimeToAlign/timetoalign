@@ -14,7 +14,7 @@ Tests that overlap with test_score_parsing_matrix.py have been removed.
 See that file for: CSV existence/mode checks, folded/unfolded counts,
 loader measure counts, and TSV→FlowController flow reproduction.
 
-Per ZERO TOLERANCE VALIDATION POLICY (from AGENTS.md):
+ZERO TOLERANCE VALIDATION POLICY:
 - EXACT counts required (no tolerances)
 - mc_end is RIGHT-OPEN (aligns with TTA manuscript TimeInterval definition)
 - Every mismatch must be investigated

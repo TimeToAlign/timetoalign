@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.1
+#       jupytext_version: 1.19.2
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -396,6 +396,10 @@ print(f"Created {len(claims)} MatchClaims")
 # %%
 # Add claims to the bundle
 bundle.add_match_claims(claims)
+
+# %%
+# Display an example claim (shows event ID, timelines, coordinates)
+claims[0]
 
 # %% [markdown]
 # ## 6. Query MatchStamps

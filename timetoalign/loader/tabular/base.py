@@ -163,7 +163,7 @@ class TabularLoader(Loader):
         if number_type is None:
             number_type = self.coordinate_type
 
-        super().__init__(unit=unit, number_type=number_type)
+        super().__init__(unit=unit, number_type=number_type, **kwargs)
         self._logger = module_logger.getChild(self.__class__.__name__)
         # Extra fields for coordinate columns from CoordinateField definitions
         # These are built during _extract_column_arrays and passed to from_arrays

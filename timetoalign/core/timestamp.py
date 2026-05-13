@@ -39,6 +39,53 @@ if TYPE_CHECKING:
 module_logger = logging.getLogger(__name__)
 
 
+# region Coordinate Formatting
+
+# Discrete units MUST be displayed as integers, never as floats or scientific notation.
+DISCRETE_UNITS = frozenset(
+    {"ticks", "pulses", "divs", "samples", "pixels", "px", "frames"}
+)
+
+
+def _format_coordinate_value(value: float, unit_str: str = "") -> str:
+    """Format a coordinate value, avoiding scientific notation.
+
+    Rules:
+    - Discrete units (ticks, samples, pixels, frames): Always integer
+    - Continuous units: Fixed-point notation, no scientific notation
+    - Exact integers: Show as integer (no decimal point)
+
+    Args:
+        value: The numeric coordinate value.
+        unit_str: The unit name (used to detect discrete vs continuous).
+
+    Returns:
+        Formatted string, never in scientific notation.
+    """
+    suffix = f" {unit_str}" if unit_str else ""
+    unit_lower = unit_str.lower().strip()
+
+    # For discrete units OR exact integers, format as plain integer
+    if unit_lower in DISCRETE_UNITS or (value == int(value) and abs(value) < 1e15):
+        return f"{int(value)}{suffix}"
+
+    # For continuous units, use fixed-point notation (no scientific notation)
+    if abs(value) >= 1e6:
+        # Large values: show as integer
+        return f"{int(round(value))}{suffix}"
+    elif abs(value) >= 1:
+        # Normal range: up to 6 decimal places, strip trailing zeros
+        return f"{value:.6f}".rstrip("0").rstrip(".") + suffix
+    elif value == 0:
+        return f"0{suffix}"
+    else:
+        # Small values (< 1): up to 6 decimal places
+        return f"{value:.6f}".rstrip("0").rstrip(".") + suffix
+
+
+# endregion
+
+
 # region TimeStampSource Protocol
 
 
@@ -230,7 +277,10 @@ class TimeStamp:
         ``InterpolationMap`` (for ``TableMap``), or analytical
         ``ConversionMap`` subclasses (``ScalarMap``, ``LinearMap``, ...).
 
-        For TimelineGroup sources, looks up the C-Map on the source_id timeline.
+        For TimelineGroup sources, searches ALL member timelines for the C-Map,
+        first trying the source timeline, then others. This ensures that
+        timestamps always show C-Map conversions regardless of which timeline
+        is queried.
 
         Args:
             unit: The target unit for conversion.
@@ -238,11 +288,32 @@ class TimeStamp:
         Returns:
             Converted coordinate, or None if no C-Map available.
         """
-        # For TimelineGroup: use source_id to find the right timeline's C-map
         _get_unit_for_tl = getattr(self.source, "_get_unit_map_for_timeline", None)
+
         if _get_unit_for_tl is not None:
+            # TimelineGroup: search all timelines for the C-map
+            # First try the source timeline
             umap = _get_unit_for_tl(self.source_id, unit)
+            if umap is not None:
+                if hasattr(umap, "forward"):
+                    return float(umap.forward(self.axis))
+                return float(umap(self.axis))
+
+            # Not found on source, search other timelines
+            for tid in self.source._get_related_timeline_ids():
+                if tid == self.source_id:
+                    continue
+                umap = _get_unit_for_tl(tid, unit)
+                if umap is not None:
+                    # Get coordinate on this timeline first
+                    coord = self.get(tid)
+                    if coord is not None:
+                        if hasattr(umap, "forward"):
+                            return float(umap.forward(coord))
+                        return float(umap(coord))
+            return None
         else:
+            # Single timeline: use its own C-map
             umap = self.source._get_unit_map(unit)
 
         if umap is None:
@@ -405,34 +476,31 @@ class TimeStamp:
 
         # Header: axis value with unit
         axis_unit = self.source._get_unit_for_timeline(self.source_id)
-        unit_str = f" {axis_unit.value}" if axis_unit else ""
-        lines.append(f"TimeStamp @{self.axis:g}{unit_str}")
-
-        def _fmt(v: float, u: str = "") -> str:
-            """Format a coordinate value, using integer repr when exact."""
-            suffix = f" {u}" if u else ""
-            if v == int(v) and abs(v) < 1e15:
-                return f"{int(v)}{suffix}"
-            return f"{v:g}{suffix}"
+        unit_str = axis_unit.value if axis_unit else ""
+        lines.append(f"TimeStamp @{_format_coordinate_value(self.axis, unit_str)}")
 
         # Collect all entries: (label, value_str)
         entries: list[tuple[str, str]] = []
 
         # Source timeline
-        entries.append((self.source_id, _fmt(self.axis, unit_str.strip())))
+        entries.append((self.source_id, _format_coordinate_value(self.axis, unit_str)))
 
-        # Children / related timelines
+        # Children / related timelines (skip source_id to avoid duplicate)
         for tid in self.source._get_related_timeline_ids():
+            if tid == self.source_id:
+                continue  # Already added above
             val = self.get(tid)
             if val is not None:
                 t_unit = self.source._get_unit_for_timeline(tid)
-                entries.append((tid, _fmt(val, t_unit.value if t_unit else "")))
+                entries.append(
+                    (tid, _format_coordinate_value(val, t_unit.value if t_unit else ""))
+                )
 
         # C-Map conversions
         for unit in self.source._get_available_units():
             val = self.get_unit(unit)
             if val is not None:
-                entries.append((unit.value, _fmt(val)))
+                entries.append((unit.value, _format_coordinate_value(val, unit.value)))
 
         # Align columns
         if entries:
@@ -450,26 +518,32 @@ class TimeStamp:
         """
         import html
 
+        def _fmt_html(value: float, unit_name: str = "") -> str:
+            """Format for HTML display, keeping unit separate."""
+            return _format_coordinate_value(value, unit_name)
+
         rows = []
 
         # Add axis coordinate
         axis_unit = self.source._get_unit_for_timeline(self.source_id)
-        axis_unit_str = f" ({axis_unit.value})" if axis_unit else ""
+        axis_unit_name = axis_unit.value if axis_unit else ""
         rows.append(
             f"<tr><td><strong>{html.escape(self.source_id)}</strong></td>"
-            f"<td style='text-align: right;'>{self.axis:.6g}{axis_unit_str}</td>"
+            f"<td style='text-align: right;'>{_fmt_html(self.axis, axis_unit_name)}</td>"
             f"<td><em>axis</em></td></tr>"
         )
 
-        # Add related timeline coordinates (children)
+        # Add related timeline coordinates (children) - skip source_id to avoid duplicate
         for tid in self.source._get_related_timeline_ids():
+            if tid == self.source_id:
+                continue  # Already added above
             val = self.get(tid)
             if val is not None:
                 unit = self.source._get_unit_for_timeline(tid)
-                unit_str = f" ({unit.value})" if unit else ""
+                unit_name = unit.value if unit else ""
                 rows.append(
                     f"<tr><td>{html.escape(tid)}</td>"
-                    f"<td style='text-align: right;'>{val:.6g}{unit_str}</td>"
+                    f"<td style='text-align: right;'>{_fmt_html(val, unit_name)}</td>"
                     f"<td><em>child</em></td></tr>"
                 )
 
@@ -479,7 +553,7 @@ class TimeStamp:
             if val is not None:
                 rows.append(
                     f"<tr><td style='color: #666;'>{html.escape(unit.value)}</td>"
-                    f"<td style='text-align: right;'>{val:.6g}</td>"
+                    f"<td style='text-align: right;'>{_fmt_html(val, unit.value)}</td>"
                     f"<td style='color: #666;'><em>cmap</em></td></tr>"
                 )
 
@@ -697,21 +771,33 @@ class TimeIntervalStamp:
               samples    384000 576000
         """
 
-        def _fmt(v: float | None) -> str:
+        def _fmt(v: float | None, unit_name: str = "") -> str:
             """Format a coordinate value; ``None`` becomes ``-``."""
             if v is None:
                 return "-"
-            if v == int(v) and abs(v) < 1e15:
-                return str(int(v))
-            return f"{v:g}"
+            # Use the module-level formatter but strip unit suffix (we add it separately)
+            formatted = _format_coordinate_value(v, unit_name)
+            # Remove the unit suffix since we display it at the end of the row
+            if unit_name and formatted.endswith(f" {unit_name}"):
+                formatted = formatted[: -(len(unit_name) + 1)]
+            return formatted
 
         axis_unit = self.source._get_unit_for_timeline(self.source_id)
         unit_str = f" {axis_unit.value}" if axis_unit else ""
+        unit_name = axis_unit.value if axis_unit else ""
+
+        # Header - format axis values properly
+        start_fmt = _format_coordinate_value(self.start.axis, unit_name)
+        end_fmt = _format_coordinate_value(self.end.axis, unit_name)
+        # Strip unit from these since we show it at end
+        if unit_name:
+            if start_fmt.endswith(f" {unit_name}"):
+                start_fmt = start_fmt[: -(len(unit_name) + 1)]
+            if end_fmt.endswith(f" {unit_name}"):
+                end_fmt = end_fmt[: -(len(unit_name) + 1)]
 
         # Header
-        lines: list[str] = [
-            f"TimeIntervalStamp [{self.start.axis:g}, {self.end.axis:g}){unit_str}"
-        ]
+        lines: list[str] = [f"TimeIntervalStamp [{start_fmt}, {end_fmt}){unit_str}"]
 
         # Collect rows: (label, start_str, end_str, suffix)
         rows: list[tuple[str, str, str, str]] = []
@@ -720,8 +806,8 @@ class TimeIntervalStamp:
         rows.append(
             (
                 self.source_id,
-                _fmt(self.start.axis),
-                _fmt(self.end.axis),
+                _fmt(self.start.axis, unit_name),
+                _fmt(self.end.axis, unit_name),
                 unit_str.strip(),
             )
         )
@@ -734,7 +820,7 @@ class TimeIntervalStamp:
                 continue
             t_unit = self.source._get_unit_for_timeline(tid)
             suffix = t_unit.value if t_unit else ""
-            rows.append((tid, _fmt(s), _fmt(e), suffix))
+            rows.append((tid, _fmt(s, suffix), _fmt(e, suffix), suffix))
 
         # C-Map units
         for cmap_unit in self.source._get_available_units():
@@ -742,7 +828,14 @@ class TimeIntervalStamp:
             e = self.end.get_unit(cmap_unit)
             if s is None and e is None:
                 continue
-            rows.append((cmap_unit.value, _fmt(s), _fmt(e), ""))
+            rows.append(
+                (
+                    cmap_unit.value,
+                    _fmt(s, cmap_unit.value),
+                    _fmt(e, cmap_unit.value),
+                    "",
+                )
+            )
 
         # Align columns
         if rows:

@@ -3503,10 +3503,10 @@ def create_unfolded_timeline(
         )
         _flatten_segment_line_onto(segment_line, result, include_children)
 
-    # --- 6. Attach FlowMaps ---
+    # --- 6. Add FlowMaps ---
     reverse_map = forward_map.inverse()
-    result.attach_flow_map(reverse_map, id="source")
-    result.attach_flow_map(forward_map, id=f"forward_{flow.id}")
+    result.add_flow_map(reverse_map, id="source")
+    result.add_flow_map(forward_map, id=f"forward_{flow.id}")
 
     return result
 

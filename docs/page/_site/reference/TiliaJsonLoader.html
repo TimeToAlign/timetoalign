@@ -2,13 +2,16 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.31">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
 <title>tiliajsonloader – TimeToAlign!</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -71,10 +74,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -542,7 +545,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.loader.alignment.tilia.TiliaJsonLoader" class="level1">
 <h1>TiliaJsonLoader</h1>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader(media_unit<span class="op">=</span>TimeUnit.seconds)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader(media_unit<span class="op">=</span>TimeUnit.seconds)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Loader for TiLiA JSON annotation exports.</p>
 <p>Parses a TiLiA <code>.tla</code> or <code>.json</code> file and produces one <code>ContinuousPhysicalTimeline</code> (seconds) per annotated timeline in the file. The primary output is a <code>timetoalign.alignment.groups.TimelineGroup</code> containing all timelines, accessible via <code>create_group()</code>.</p>
 <p>Internally, the <code>"timelines"</code> array is parsed so that each element (which has its own <code>"kind"</code> and <code>"components"</code>) becomes a separate <code>pa.Table</code> keyed by a generated identifier (<code>"{kind}_{index}"</code>). The underlying <code>JsonLoader</code> machinery is used for normalising each timeline’s components into a flat table.</p>
@@ -623,12 +626,12 @@ loader.store.beat       # all beat tables concatenated</code></pre>
 </table>
 <section id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.clear" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.clear">clear</h3>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.clear()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.clear()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Clear all loaded data, including timeline specs and cache.</p>
 </section>
 <section id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_alignment_bundle" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_alignment_bundle">create_alignment_bundle</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_alignment_bundle()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_alignment_bundle()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create an <code>AlignmentBundle</code> wrapping all timelines in one group.</p>
 <p>This is a convenience method. The bundle contains a single <code>TimelineGroup</code> with no cross-group <code>MatchClaim</code> objects.</p>
 <p>Returns: An <code>AlignmentBundle</code> with one group and no claims.</p>
@@ -636,7 +639,7 @@ loader.store.beat       # all beat tables concatenated</code></pre>
 </section>
 <section id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group">create_group</h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_group(ids<span class="op">=</span><span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_group(ids<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a <code>TimelineGroup</code> containing all (or selected) timelines.</p>
 <p>This is the primary output method for TiliaJsonLoader. The group is built with all member timelines mapped to the same physical time axis (seconds).</p>
 <p>Args: ids: Timeline identifiers to include. <code>None</code> (default) means all.</p>
@@ -645,7 +648,7 @@ loader.store.beat       # all beat tables concatenated</code></pre>
 </section>
 <section id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline">create_timeline</h3>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_timeline(<span class="bu">id</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_timeline(<span class="bu">id</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a single <code>ContinuousPhysicalTimeline</code> by id.</p>
 <p>The <em>id</em> is the timeline identifier from <code>timeline_ids</code> (e.g.&nbsp;<code>"BEAT_TIMELINE_3"</code>). Alternatively, pass an integer index (as string or int) to select by position.</p>
 <p>Args: id: Timeline identifier or integer index.</p>
@@ -654,7 +657,7 @@ loader.store.beat       # all beat tables concatenated</code></pre>
 </section>
 <section id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines">create_timelines</h3>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_timelines(ids<span class="op">=</span><span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_timelines(ids<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create multiple timelines.</p>
 <p>Args: ids: List of timeline identifiers to create. If <code>None</code> (the default), all timelines are created.</p>
 <p>Returns: List of <code>ContinuousPhysicalTimeline</code> objects.</p>
@@ -716,13 +719,14 @@ loader.store.beat       # all beat tables concatenated</code></pre>
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy

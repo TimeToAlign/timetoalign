@@ -26,13 +26,12 @@ Key concepts (from MeasureMap paper):
 from __future__ import annotations
 
 import logging
-from fractions import Fraction
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import pyarrow as pa
 from typing_extensions import Self
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.loader.events import EventData
 
 if TYPE_CHECKING:
@@ -202,6 +201,8 @@ class MeasureData(EventData):
         rows: list[dict[str, Any]],
         unit: TimeUnit = TimeUnit.quarters,
         number_type: NumberType = NumberType.fraction,
+        *,
+        interval_policy: IntervalPolicy = IntervalPolicy.warn,
     ) -> Self:
         """Create from dicts.
 
@@ -211,6 +212,7 @@ class MeasureData(EventData):
             rows: List of measure dictionaries.
             unit: Time unit (default: quarters).
             number_type: Number type for coordinates.
+            interval_policy: How to handle end/duration inconsistencies.
 
         Returns:
             MeasureData instance.
@@ -218,7 +220,7 @@ class MeasureData(EventData):
         if not rows:
             return cls.empty(unit, number_type)
 
-        from timetoalign.loader.schema import coordinate_to_struct, make_table_metadata
+        from timetoalign.loader.schema import make_table_metadata
 
         schema = cls.get_schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
@@ -235,23 +237,6 @@ class MeasureData(EventData):
                 type_counters.setdefault(etype, 0)
                 type_counters[etype] += 1
                 processed["id"] = f"{etype}:{type_counters[etype]:06d}"
-
-            # Infer temporal_type if missing
-            if "temporal_type" not in processed or processed["temporal_type"] is None:
-                has_end = processed.get("end") is not None
-                has_duration = (
-                    processed.get("duration") is not None
-                    or processed.get("duration_qb") is not None
-                )
-                has_start = (
-                    processed.get("start") is not None
-                    or processed.get("quarterbeats") is not None
-                    or processed.get("qstamp") is not None
-                )
-                if has_start and (has_end or has_duration):
-                    processed["temporal_type"] = "interval"
-                else:
-                    processed["temporal_type"] = "instant"
 
             # ===== Map MeasureMap JSON fields to schema =====
             # MeasureMap uses "count" for MC, "number" for MN as int
@@ -315,54 +300,10 @@ class MeasureData(EventData):
             # Keep 'name' field - it's part of the base schema and should be preserved
             # (e.g., "M1", "M2" for measure labels)
 
-            # ===== Convert temporal columns to struct format =====
-            # The schema expects coordinate structs ({value, numerator,
-            # denominator}).  Loaders may pass fraction-format dicts
-            # ({num, den}) via fraction_to_struct(), raw Fraction/float
-            # values, or coordinate-format dicts (already correct).
-            for coord_col in ["start", "end", "duration"]:
-                if coord_col in processed and processed[coord_col] is not None:
-                    val = processed[coord_col]
-                    if isinstance(val, dict):
-                        if "num" in val and "value" not in val:
-                            # fraction_to_struct format -> coordinate format
-                            frac = Fraction(val["num"], val["den"])
-                            processed[coord_col] = coordinate_to_struct(frac)
-                        # else: already coordinate struct format
-                    else:
-                        processed[coord_col] = coordinate_to_struct(val)
-                else:
-                    processed[coord_col] = None
-
-            # Compute 'end' from start + duration when not explicitly set.
-            if processed.get("end") is None:
-                s = processed.get("start")
-                d = processed.get("duration")
-                if (
-                    s is not None
-                    and d is not None
-                    and isinstance(s, dict)
-                    and isinstance(d, dict)
-                    and s.get("value") is not None
-                    and d.get("value") is not None
-                ):
-                    end_val = s["value"] + d["value"]
-                    end_num = None
-                    end_den = None
-                    if (
-                        s.get("numerator") is not None
-                        and d.get("numerator") is not None
-                    ):
-                        s_frac = Fraction(s["numerator"], s["denominator"])
-                        d_frac = Fraction(d["numerator"], d["denominator"])
-                        e_frac = s_frac + d_frac
-                        end_num = e_frac.numerator
-                        end_den = e_frac.denominator
-                    processed["end"] = {
-                        "value": end_val,
-                        "numerator": end_num,
-                        "denominator": end_den,
-                    }
+            # Unified interval normalisation: converts coordinate fields
+            # to struct format, fills missing end/duration, and infers
+            # temporal_type.
+            EventData._normalize_intervals_row(processed, policy=interval_policy)
 
             processed_rows.append(processed)
 
