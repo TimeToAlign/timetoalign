@@ -71,20 +71,24 @@ docs = [                                      # Documentation site building
 all = [                                       # All runtime features
     "timetoalign[tutorial,delta,rdf]",
 ]
-dev = [                                       # All + development / CI tooling
-    "timetoalign[all,docs]",
-    "pre-commit>=2.20",
+testing = [                                   # Test-suite execution (used by `tox -e py3xx`)
+    "timetoalign[all]",
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "pytest-xdist>=3.5",
     "pytest-benchmark>=4.0",
     "hypothesis>=6.100",
+]
+dev = [                                       # Testing + docs + lint/format tooling
+    "timetoalign[testing,docs]",
+    "pre-commit>=2.20",
     "ruff>=0.1",
+    "tox>=4.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/timetoalign/timetoalign"
-Documentation = "https://github.com/timetoalign/dashboard"
+Documentation = "https://timetoalign.github.io/"
 
 [build-system]
 requires = ["hatchling"]
