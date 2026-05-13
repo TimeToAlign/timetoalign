@@ -935,6 +935,17 @@ class AlignmentBundle:
         # this coordinate
         mg = MatchGraph(claims=relevant_claims)
 
+        # Interval claims add both their start- and end-anchor edges,
+        # which usually live on separate connected components. Restrict
+        # to the component containing the queried node so that
+        # ``get_matchstamp()`` returns a single, well-defined stamp.
+        components = mg.split_components()
+        target = (timeline_id, coordinate)
+        for component in components:
+            if target in component._graph.nodes():
+                mg = component
+                break
+
         # Cache keyed by ALL nodes in the graph
         for node in mg._graph.nodes():
             node_tl, node_coord = node
@@ -987,7 +998,8 @@ class AlignmentBundle:
             23  # score + 22 performers
         """
         if timeline_id not in self.timelines:
-            raise KeyError(f"Timeline '{timeline_id}' not in bundle")
+            if timeline_id not in self._timeline_id_to_uid:
+                raise KeyError(f"Timeline '{timeline_id}' not in bundle")
 
         mg = self._get_or_build_matchgraph(timeline_id, coordinate)
         stamp = mg.get_matchstamp()
