@@ -2,13 +2,16 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.31">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
 <title>Conceptual Model – TimeToAlign!</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -36,10 +39,10 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <link href="site_libs/quarto-contrib/glossary/glossary.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
@@ -322,7 +325,7 @@ Table&nbsp;1: The six timeline types and their typical measuring units.
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-On “temporal” in the graphical domain
+<span class="screen-reader-only">Note</span>On “temporal” in the graphical domain
 </div>
 </div>
 <div class="callout-body-container callout-body">
@@ -736,16 +739,16 @@ Figure&nbsp;5: A timeline’s internal data structures. The instants table recor
 <dl>
 <dt><strong>FlowMap</strong></dt>
 <dd>
-<p>A sequence of <button class="glossary" title="Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive [s, e). The EndInstant’s coordinate must be >= the StartInstant’s.">TimeInterval</button>s (often corresponding to previously defined <button class="glossary" title="">Region</button>s) specifying a particular path through the timeline’s control structure (repeats, jumps). A <button class="glossary" title="A sequence of TimeIntervals specifying a particular path through a score’s control structure (repeats, jumps); not itself a timeline. Used for unfolding a score into performance order.">FlowMap</button> is computed from flow-control events (<button class="glossary" title="A control event that voids contiguity at its Instant. TimeIntervals cannot span a Break, and Breaks cannot be inserted into existing TimeIntervals.">Break</button>s and <button class="glossary" title="A control event with JumpFrom and JumpTo Instants. When active, makes events at JumpTo contiguous with those ending at JumpFrom (e.g., repeats, dal segno).">Jump</button>s) or assembled manually. Its intervals can be partitioned and concatenated, yielding a new <button class="glossary" title="">SegmentLine</button> reflecting the traversal—i.e., <strong>unfolding</strong> the score into performance order.</p>
-<p>For example, a score with a repeat and a <em>dal segno al coda</em> has a FlowMap like [A, B, A, B, C, D] where some regions appear more than once. The resulting SegmentLine is a new timeline in performance order.</p>
+A sequence of <button class="glossary" title="Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive [s, e). The EndInstant’s coordinate must be >= the StartInstant’s.">TimeInterval</button>s (often corresponding to previously defined <button class="glossary" title="">Region</button>s) specifying a particular path through the timeline’s control structure (repeats, jumps). A <button class="glossary" title="A sequence of TimeIntervals specifying a particular path through a score’s control structure (repeats, jumps); not itself a timeline. Used for unfolding a score into performance order.">FlowMap</button> is computed from flow-control events (<button class="glossary" title="A control event that voids contiguity at its Instant. TimeIntervals cannot span a Break, and Breaks cannot be inserted into existing TimeIntervals.">Break</button>s and <button class="glossary" title="A control event with JumpFrom and JumpTo Instants. When active, makes events at JumpTo contiguous with those ending at JumpFrom (e.g., repeats, dal segno).">Jump</button>s) or assembled manually. Its intervals can be partitioned and concatenated, yielding a new <button class="glossary" title="A parent timeline containing only contiguous Segments. Enables cumulative coordinate conversion across all segments.">SegmentLine</button> reflecting the traversal—i.e., <strong>unfolding</strong> the score into performance order.
+For example, a score with a repeat and a <em>dal segno al coda</em> has a FlowMap like [A, B, A, B, C, D] where some regions appear more than once. The resulting SegmentLine is a new timeline in performance order.
 </dd>
 <dt><strong>Converted timeline</strong></dt>
 <dd>
-A timeline whose coordinates have been transformed to another unit via a <button class="glossary" title="">ConversionMap</button> or <button class="glossary" title="">ChainMap</button>, potentially after applying a <button class="glossary" title="A sequence of TimeIntervals specifying a particular path through a score’s control structure (repeats, jumps); not itself a timeline. Used for unfolding a score into performance order.">FlowMap</button>.
+A timeline whose coordinates have been transformed to another unit via a <button class="glossary" title="A typed function attached to a timeline that maps each coordinate to exactly one value (coordinate, label, or filename); also permits inverse conversion back to the timeline’s own unit. Also called C-map.">ConversionMap</button> or <button class="glossary" title="A MultiMap that applies multiple ConversionMaps in sequence, creating a conversion path from source to target unit.">ChainMap</button>, potentially after applying a <button class="glossary" title="A sequence of TimeIntervals specifying a particular path through a score’s control structure (repeats, jumps); not itself a timeline. Used for unfolding a score into performance order.">FlowMap</button>.
 </dd>
 <dt><strong>WarpMap</strong></dt>
 <dd>
-A derived timeline where coordinates have been re-adjusted to align with those of another timeline on the basis of <button class="glossary" title="">AlignmentAnchor</button>s. See <a href="#alignment">Alignment</a> for the full definition of WarpMap and the pipeline that produces it.
+A derived timeline where coordinates have been re-adjusted to align with those of another timeline on the basis of <button class="glossary" title="A coordinate pair associating one coordinate on timeline A with one on timeline B; a neutral record with no claim semantics. Provenance and interpretation are carried by the enclosing MatchClaim. Only synchronous MatchClaims produce AlignmentAnchors.">AlignmentAnchor</button>s. See <a href="#alignment">Alignment</a> for the full definition of WarpMap and the pipeline that produces it.
 </dd>
 </dl>
 </section>
@@ -759,7 +762,7 @@ A derived timeline where coordinates have been re-adjusted to align with those o
 <div class="definition-header">
 <p>Definition: MatchClaim</p>
 </div>
-<p>A <strong>MatchClaim</strong> is a claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). A MatchClaim may be <strong>synchronous</strong> (producing <button class="glossary" title="">AlignmentAnchor</button>s) or <strong>conceptual</strong> (structural equivalence without temporal commitment). It may include special <strong>sentinel values</strong> (<button class="glossary" title="A sentinel value in a MatchClaim explicitly encoding the absence of a corresponding event on the other timeline. The MatchClaim records both timeline IDs but has no AlignmentAnchors; is_synchronous is always False.">NOMATCH</button>) explicitly encoding the absence of a corresponding event on the other timeline.</p>
+<p>A <strong>MatchClaim</strong> is a claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). A MatchClaim may be <strong>synchronous</strong> (producing <button class="glossary" title="A coordinate pair associating one coordinate on timeline A with one on timeline B; a neutral record with no claim semantics. Provenance and interpretation are carried by the enclosing MatchClaim. Only synchronous MatchClaims produce AlignmentAnchors.">AlignmentAnchor</button>s) or <strong>conceptual</strong> (structural equivalence without temporal commitment). It may include special <strong>sentinel values</strong> (<button class="glossary" title="A sentinel value in a MatchClaim explicitly encoding the absence of a corresponding event on the other timeline. The MatchClaim records both timeline IDs but has no AlignmentAnchors; is_synchronous is always False.">NOMATCH</button>) explicitly encoding the absence of a corresponding event on the other timeline.</p>
 </div>
 <p>A MatchClaim takes the form of named references (IDs) of claimed-equivalent events, combined with metadata on genesis:</p>
 <ul>
@@ -782,7 +785,7 @@ A derived timeline where coordinates have been re-adjusted to align with those o
 </div>
 <p>An <strong>AlignmentAnchor</strong> is a pure coordinate pair associating one coordinate on timeline A with one coordinate on timeline B. It is a neutral record with no claim semantics—provenance and interpretation are carried by the enclosing <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button>. Only synchronous MatchClaims produce AlignmentAnchors.</p>
 </div>
-<p>From a <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button> that associates <button class="glossary" title="An event with duration, defined by a TimeInterval (start and end coordinates). Contrast with InstantEvent which has zero duration.">TimeIntervalEvent</button>s, two anchors are derived: a <strong>StartAnchor</strong> and an <strong>EndAnchor</strong>. Based on the units present in the aligned timelines, <button class="glossary" title="">WarpMap</button>s can be constructed.</p>
+<p>From a <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button> that associates <button class="glossary" title="An event with duration, defined by a TimeInterval (start and end coordinates). Contrast with InstantEvent which has zero duration.">TimeIntervalEvent</button>s, two anchors are derived: a <strong>StartAnchor</strong> and an <strong>EndAnchor</strong>. Based on the units present in the aligned timelines, <button class="glossary" title="An interpolation-based coordinate mapping derived from a MatchLine; enables non-linear coordinate transfer between TimelineGroups.">WarpMap</button>s can be constructed.</p>
 <div class="visualisation">
 <div class="vis-header">
 <p>Visualisation: AlignmentAnchor</p>
@@ -791,7 +794,7 @@ A derived timeline where coordinates have been re-adjusted to align with those o
 </div>
 <section id="matchclaim-cases" class="level4">
 <h4 class="anchored" data-anchor-id="matchclaim-cases">MatchClaim cases</h4>
-<p>A MatchClaim always knows which pair of timelines it connects. It contains 0–2 <button class="glossary" title="">AlignmentAnchor</button>s (only if synchronous), synchrony and explicitness flags, and optional metadata (agent, decision criteria, certainty). Four cases are distinguished:</p>
+<p>A MatchClaim always knows which pair of timelines it connects. It contains 0–2 <button class="glossary" title="A coordinate pair associating one coordinate on timeline A with one on timeline B; a neutral record with no claim semantics. Provenance and interpretation are carried by the enclosing MatchClaim. Only synchronous MatchClaims produce AlignmentAnchors.">AlignmentAnchor</button>s (only if synchronous), synchrony and explicitness flags, and optional metadata (agent, decision criteria, certainty). Four cases are distinguished:</p>
 <ol type="1">
 <li><strong>Event-to-event</strong> (case a): two timed things on different timelines correspond—the core alignment operation.</li>
 <li><strong>Projection</strong> (case b): an event is projected onto a timeline with no matching event—useful for transferring annotations.</li>
@@ -802,18 +805,18 @@ A derived timeline where coordinates have been re-adjusted to align with those o
 </section>
 <section id="matchgraph-and-matchstamp" class="level3">
 <h3 class="anchored" data-anchor-id="matchgraph-and-matchstamp">MatchGraph and MatchStamp</h3>
-<p>A <strong>MatchGraph</strong> is an on-demand analytical structure built from MatchClaims. Nodes are <code>(timeline_id, coordinate)</code> tuples; edges derive from the <button class="glossary" title="">AlignmentAnchor</button>s of synchronous claims. Each connected component yields a <strong>MatchStamp</strong>—a synchronised instant across multiple timelines. A MatchGraph can be extended with implicit claims based on <button class="glossary" title="A container for timelines claimed to be commensurable; placing timelines in a group asserts commensurability regardless of underlying units. Coordinates transfer via interpolation.">TimelineGroup</button> membership. In the Hendrix example, each Match box M1–M15 is a MatchGraph, not a single MatchClaim.</p>
+<p>A <strong>MatchGraph</strong> is an on-demand analytical structure built from MatchClaims. Nodes are <code>(timeline_id, coordinate)</code> tuples; edges derive from the <button class="glossary" title="A coordinate pair associating one coordinate on timeline A with one on timeline B; a neutral record with no claim semantics. Provenance and interpretation are carried by the enclosing MatchClaim. Only synchronous MatchClaims produce AlignmentAnchors.">AlignmentAnchor</button>s of synchronous claims. Each connected component yields a <strong>MatchStamp</strong>—a synchronised instant across multiple timelines. A MatchGraph can be extended with implicit claims based on <button class="glossary" title="A container for timelines claimed to be commensurable; placing timelines in a group asserts commensurability regardless of underlying units. Coordinates transfer via interpolation.">TimelineGroup</button> membership. In the Hendrix example, each Match box M1–M15 is a MatchGraph, not a single MatchClaim.</p>
 <div class="definition">
 <div class="definition-header">
 <p>Definition: MatchStamp</p>
 </div>
-<p>A <strong>MatchStamp</strong> is the union of <button class="glossary" title="A cross-section through a timeline or group at a given coordinate, capturing positions in all connected systems plus values converted by all attached C-maps.">TimeStamp</button>s from groups synchronously connected by a <button class="glossary" title="An auxiliary structure formed by extending MatchClaims through shared coordinates; may be viewed as a hyperedge connecting multiple coordinates from different timelines. Connected components yield MatchStamps. Each Match box M1–M15 in the Hendrix figure is a MatchGraph.">MatchGraph</button>. It contains one coordinate per participating timeline and, with <code>conversion_maps=True</code> (the default), the results of all <button class="glossary" title="">ConversionMap</button>s associated with those timelines.</p>
+<p>A <strong>MatchStamp</strong> is the union of <button class="glossary" title="A cross-section through a timeline or group at a given coordinate, capturing positions in all connected systems plus values converted by all attached C-maps.">TimeStamp</button>s from groups synchronously connected by a <button class="glossary" title="An auxiliary structure formed by extending MatchClaims through shared coordinates; may be viewed as a hyperedge connecting multiple coordinates from different timelines. Connected components yield MatchStamps. Each Match box M1–M15 in the Hendrix figure is a MatchGraph.">MatchGraph</button>. It contains one coordinate per participating timeline and, with <code>conversion_maps=True</code> (the default), the results of all <button class="glossary" title="A typed function attached to a timeline that maps each coordinate to exactly one value (coordinate, label, or filename); also permits inverse conversion back to the timeline’s own unit. Also called C-map.">ConversionMap</button>s associated with those timelines.</p>
 </div>
-<p>A MatchStamp from a single <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button> contains the TimeStamps for the claim’s <button class="glossary" title="">AlignmentAnchor</button>. A MatchStamp from a MatchGraph contains <em>all</em> TimeStamps that the graph connects through its connected components. Like a <button class="glossary" title="A cross-section through a timeline or group at a given coordinate, capturing positions in all connected systems plus values converted by all attached C-maps.">TimeStamp</button>, it can be expanded with within-group coordinates (delegating to <button class="glossary" title="A container for timelines claimed to be commensurable; placing timelines in a group asserts commensurability regardless of underlying units. Coordinates transfer via interpolation.">TimelineGroup</button>) and C-map conversions.</p>
+<p>A MatchStamp from a single <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button> contains the TimeStamps for the claim’s <button class="glossary" title="A coordinate pair associating one coordinate on timeline A with one on timeline B; a neutral record with no claim semantics. Provenance and interpretation are carried by the enclosing MatchClaim. Only synchronous MatchClaims produce AlignmentAnchors.">AlignmentAnchor</button>. A MatchStamp from a MatchGraph contains <em>all</em> TimeStamps that the graph connects through its connected components. Like a <button class="glossary" title="A cross-section through a timeline or group at a given coordinate, capturing positions in all connected systems plus values converted by all attached C-maps.">TimeStamp</button>, it can be expanded with within-group coordinates (delegating to <button class="glossary" title="A container for timelines claimed to be commensurable; placing timelines in a group asserts commensurability regardless of underlying units. Coordinates transfer via interpolation.">TimelineGroup</button>) and C-map conversions.</p>
 </section>
 <section id="the-matchline" class="level3">
 <h3 class="anchored" data-anchor-id="the-matchline">The MatchLine</h3>
-<p>The <strong>MatchLine</strong> is an ordered sequence of <button class="glossary" title="">AlignmentAnchor</button>s derived from <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button>s, sorted by coordinate on a source timeline. It serves as input for <button class="glossary" title="">WarpMap</button> generation.</p>
+<p>The <strong>MatchLine</strong> is an ordered sequence of <button class="glossary" title="A coordinate pair associating one coordinate on timeline A with one on timeline B; a neutral record with no claim semantics. Provenance and interpretation are carried by the enclosing MatchClaim. Only synchronous MatchClaims produce AlignmentAnchors.">AlignmentAnchor</button>s derived from <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button>s, sorted by coordinate on a source timeline. It serves as input for <button class="glossary" title="An interpolation-based coordinate mapping derived from a MatchLine; enables non-linear coordinate transfer between TimelineGroups.">WarpMap</button> generation.</p>
 </section>
 <section id="warpmap" class="level3">
 <h3 class="anchored" data-anchor-id="warpmap">WarpMap</h3>
@@ -831,12 +834,12 @@ A derived timeline where coordinates have been re-adjusted to align with those o
 <div class="definition-header">
 <p>Definition: AlignmentBundle</p>
 </div>
-<p>The <strong>AlignmentBundle</strong> is a collection of <button class="glossary" title="A container for timelines claimed to be commensurable; placing timelines in a group asserts commensurability regardless of underlying units. Coordinates transfer via interpolation.">TimelineGroup</button>s with inter-group <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button> connections; it provides coordinate transfer via offset arithmetic, interpolation, and <button class="glossary" title="">WarpMap</button>s.</p>
+<p>The <strong>AlignmentBundle</strong> is a collection of <button class="glossary" title="A container for timelines claimed to be commensurable; placing timelines in a group asserts commensurability regardless of underlying units. Coordinates transfer via interpolation.">TimelineGroup</button>s with inter-group <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button> connections; it provides coordinate transfer via offset arithmetic, interpolation, and <button class="glossary" title="An interpolation-based coordinate mapping derived from a MatchLine; enables non-linear coordinate transfer between TimelineGroups.">WarpMap</button>s.</p>
 </div>
 <p>The AlignmentBundle provides coordinate transfer at two levels:</p>
 <ul>
 <li><strong>Within a group</strong>: delegates to <code>TimelineGroup.get_timestamp_at()</code>, which uses pairwise interpolation.</li>
-<li><strong>Across groups</strong>: constructs a <button class="glossary" title="An ordered sequence of AlignmentAnchors derived from MatchClaims, sorted by coordinate on a source timeline; input for WarpMap generation.">MatchLine</button> from the cross-group claims, generates <button class="glossary" title="">WarpMap</button>s on demand, and uses those WarpMaps for coordinate transfer.</li>
+<li><strong>Across groups</strong>: constructs a <button class="glossary" title="An ordered sequence of AlignmentAnchors derived from MatchClaims, sorted by coordinate on a source timeline; input for WarpMap generation.">MatchLine</button> from the cross-group claims, generates <button class="glossary" title="An interpolation-based coordinate mapping derived from a MatchLine; enables non-linear coordinate transfer between TimelineGroups.">WarpMap</button>s on demand, and uses those WarpMaps for coordinate transfer.</li>
 </ul>
 <p>The canonical user-facing query is <code>bundle.get_matchstamp_at(coord, tl_id)</code>, which returns a <button class="glossary" title="The union of TimeStamps from groups synchronously connected by a MatchGraph. Contains one coordinate per participating timeline and, with conversion_maps=True (the default), C-map conversion values.">MatchStamp</button> spanning all groups connected to the queried timeline.</p>
 <p>The full alignment object hierarchy, from atomic to composite, is:</p>
@@ -860,7 +863,7 @@ WarpMap              (materialised timeline copy)</code></pre>
 <li><strong>Interpolation</strong> within <button class="glossary" title="A container for timelines claimed to be commensurable; placing timelines in a group asserts commensurability regardless of underlying units. Coordinates transfer via interpolation.">TimelineGroup</button>s: timelines of potentially different units (e.g., seconds and samples) are connected via pairwise linear interpolation.</li>
 <li><strong>WarpMap</strong> for cross-group alignment: derived from a <button class="glossary" title="An ordered sequence of AlignmentAnchors derived from MatchClaims, sorted by coordinate on a source timeline; input for WarpMap generation.">MatchLine</button>, a WarpMap materialises a complete copy of a source timeline warped to a target timeline’s coordinates.</li>
 </ol>
-<p>Two timelines are <strong>commensurable</strong> if connected by a chain of C-maps, membership in the same <button class="glossary" title="A container for timelines claimed to be commensurable; placing timelines in a group asserts commensurability regardless of underlying units. Coordinates transfer via interpolation.">TimelineGroup</button>, or cross-group <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button>s. <button class="glossary" title="">Commensurability</button> is the precondition for coordinate transfer.</p>
+<p>Two timelines are <strong>commensurable</strong> if connected by a chain of C-maps, membership in the same <button class="glossary" title="A container for timelines claimed to be commensurable; placing timelines in a group asserts commensurability regardless of underlying units. Coordinates transfer via interpolation.">TimelineGroup</button>, or cross-group <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (agent, method, certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension).">MatchClaim</button>s. <button class="glossary" title="Two timelines are commensurable if connected by a chain of C-maps, membership in the same TimelineGroup, or cross-group MatchClaims, enabling coordinate translation between them.">Commensurability</button> is the precondition for coordinate transfer.</p>
 <p>This layered architecture is what enables TimeToAlign! to propagate annotations, transfer coordinates, and answer queries across arbitrarily many representations of the same musical content—the central promise of the model.</p>
 </section>
 </section>
@@ -981,13 +984,14 @@ Table&nbsp;4: The five demonstration scenarios from the TISMIR manuscript.
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy

@@ -2,13 +2,16 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.31">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
 <title>eventdata – TimeToAlign!</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -71,10 +74,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-b19b0682875de1fcdf5bbf8c7a337c24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -559,7 +562,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.EventData" class="level1">
 <h1>EventData</h1>
-<div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>EventData(table, unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>EventData(table, unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>PyArrow-based storage for timeline events.</p>
 <p>EventData wraps a PyArrow table containing events. Events are rows in the table, not Python wrapper objects. The primary API is bulk operations:</p>
 <ul>
@@ -706,13 +709,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.EventData.column_names" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.column_names">column_names</h3>
-<div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>EventData.column_names()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>EventData.column_names()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the list of column names for this EventData class.</p>
 <p>Returns: List of all column names (base + extra).</p>
 </section>
 <section id="timetoalign.EventData.concat" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.concat">concat</h3>
-<div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>EventData.concat(<span class="op">*</span>others)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>EventData.concat(<span class="op">*</span>others)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Concatenate with other EventData, returning a new EventData.</p>
 <p>Args: *others: Other EventData to concatenate (extra columns are allowed and will be merged using schema promotion).</p>
 <p>Returns: A new EventData containing all events.</p>
@@ -720,20 +723,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.EventData.coordinate_range" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.coordinate_range">coordinate_range</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>EventData.coordinate_range()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>EventData.coordinate_range()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the min and max coordinates across all events.</p>
 <p>Returns: Tuple of (min, max) coordinates, or None if store is empty.</p>
 </section>
 <section id="timetoalign.EventData.count_by" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.count_by">count_by</h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>EventData.count_by(column)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>EventData.count_by(column)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Count events grouped by a column’s values.</p>
 <p>Args: column: The column to group by.</p>
 <p>Returns: Dict mapping column values to counts.</p>
 </section>
 <section id="timetoalign.EventData.create_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.create_timeline">create_timeline</h3>
-<div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>EventData.create_timeline(uid<span class="op">=</span><span class="va">None</span>, filters<span class="op">=</span><span class="va">None</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>EventData.create_timeline(uid<span class="op">=</span><span class="va">None</span>, filters<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a Timeline from this EventData.</p>
 <p>This is a convenience method that creates a timeline with the data’s events directly. The timeline class and number_type are inferred from the data’s unit (e.g., ticks -&gt; DiscreteLogicalTimeline with int).</p>
 <p>Args: uid: Unique ID for the timeline. Auto-generated if None. filters: Filter kwargs to apply before timeline creation. Example: {“event_type”: “Note”} to exclude rests.</p>
@@ -742,33 +745,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.EventData.empty" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.empty">empty</h3>
-<div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>EventData.empty(unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>EventData.empty(unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create an empty EventData.</p>
 <p>Args: unit: The time unit for coordinates. number_type: The number type for coordinates.</p>
 <p>Returns: An empty EventData with the appropriate schema.</p>
 </section>
 <section id="timetoalign.EventData.event_types" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.event_types">event_types</h3>
-<div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>EventData.event_types()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>EventData.event_types()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the list of unique event types.</p>
 <p>Returns: List of event type names.</p>
 </section>
 <section id="timetoalign.EventData.extend" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.extend">extend</h3>
-<div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>EventData.extend(other)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>EventData.extend(other)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Extend this data with events from another EventData (in-place).</p>
 <p>Args: other: Another EventData with compatible schema (extra columns are allowed and will be merged using schema promotion).</p>
 <p>Raises: ValueError: If units don’t match.</p>
 </section>
 <section id="timetoalign.EventData.filter" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.filter">filter</h3>
-<div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>EventData.<span class="bu">filter</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>EventData.<span class="bu">filter</span>(</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    temporal_type<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    event_type<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    min_coord<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    max_coord<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">**</span>kwargs,</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Filter events by criteria, returning a new EventData.</p>
 <p>All criteria are AND-ed together.</p>
 <p>Args: temporal_type: Filter by “instant” or “interval”. event_type: Filter by event type name. min_coord: Minimum coordinate (inclusive). max_coord: Maximum coordinate (exclusive). **kwargs: Exact match filters for other columns (e.g.&nbsp;event_category=“note”).</p>
@@ -776,14 +779,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.EventData.from_arrays" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.from_arrays">from_arrays</h3>
-<div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>EventData.from_arrays(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>EventData.from_arrays(</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    columns,</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    unit,</span>
 <span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    number_type<span class="op">=</span>NumberType.<span class="bu">float</span>,</span>
 <span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
 <span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    validate<span class="op">=</span><span class="va">True</span>,</span>
 <span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    extra_fields<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create EventData from column-oriented arrays (VECTORIZED).</p>
 <p>This is the PRIMARY construction method for loaders. All operations are vectorized - NO row iteration occurs.</p>
 <p>Args: columns: Dict mapping column names to arrays. Supports: - np.ndarray: NumPy arrays - pa.Array: PyArrow arrays (including StructArray for coords) - list: Python lists (converted to numpy)</p>
@@ -805,7 +808,7 @@ extra_fields: Optional list of PyArrow fields for extra columns.
 </section>
 <section id="timetoalign.EventData.from_arrays_legacy" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.from_arrays_legacy">from_arrays_legacy</h3>
-<div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>EventData.from_arrays_legacy(columns, unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>EventData.from_arrays_legacy(columns, unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Legacy from_arrays using row-based coordinate_to_struct.</p>
 <p>DEPRECATED: Use from_arrays() instead for vectorized operations.</p>
 <p>Args: columns: Dict mapping column names to lists of values. unit: The time unit for coordinates. number_type: The number type for coordinates.</p>
@@ -813,14 +816,14 @@ extra_fields: Optional list of PyArrow fields for extra columns.
 </section>
 <section id="timetoalign.EventData.from_dataframe" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.from_dataframe">from_dataframe</h3>
-<div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>EventData.from_dataframe(df, unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>EventData.from_dataframe(df, unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create EventData from a pandas DataFrame.</p>
 <p>Args: df: DataFrame with event data. Column names should match the schema. unit: The time unit for coordinates. number_type: The number type for coordinates.</p>
 <p>Returns: A new EventData containing the events.</p>
 </section>
 <section id="timetoalign.EventData.from_dicts" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.from_dicts">from_dicts</h3>
-<div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>EventData.from_dicts(rows, unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>EventData.from_dicts(rows, unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create EventData from a list of row dictionaries.</p>
 <p>Coordinate values (instant, start, end, duration) are automatically converted to the internal struct format. Convenience defaults are applied so that callers can omit boilerplate fields:</p>
 <ul>
@@ -833,7 +836,7 @@ extra_fields: Optional list of PyArrow fields for extra columns.
 </section>
 <section id="timetoalign.EventData.from_parquet" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.from_parquet">from_parquet</h3>
-<div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>EventData.from_parquet(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>EventData.from_parquet(path)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Load EventData from a Parquet file.</p>
 <p>Args: path: Path to the Parquet file.</p>
 <p>Returns: An EventData loaded from the file.</p>
@@ -841,7 +844,7 @@ extra_fields: Optional list of PyArrow fields for extra columns.
 </section>
 <section id="timetoalign.EventData.get_schema" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.get_schema">get_schema</h3>
-<div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>EventData.get_schema(unit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>EventData.get_schema(unit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the canonical PyArrow schema for this EventData class.</p>
 <p>This is a class-level method that returns the schema for a given unit, independent of any specific instance. Useful for constructing empty tables or validating incoming data.</p>
 <p>Args: unit: The time unit for coordinate columns.</p>
@@ -849,7 +852,7 @@ extra_fields: Optional list of PyArrow fields for extra columns.
 </section>
 <section id="timetoalign.EventData.prefix_ids" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.prefix_ids">prefix_ids</h3>
-<div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>EventData.prefix_ids(prefix)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>EventData.prefix_ids(prefix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return a new EventData with all event IDs prefixed.</p>
 <p>Prepends <code>prefix:</code> to every event ID. Used when events are placed onto a timeline so that IDs become globally unique and informative, e.g.&nbsp;<code>clt1:note:000001</code>.</p>
 <p>If the IDs already start with the prefix, they are left unchanged.</p>
@@ -858,20 +861,20 @@ extra_fields: Optional list of PyArrow fields for extra columns.
 </section>
 <section id="timetoalign.EventData.select" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.select">select</h3>
-<div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>EventData.select(columns)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>EventData.select(columns)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Select specific columns from the table.</p>
 <p>Args: columns: List of column names to select.</p>
 <p>Returns: A PyArrow table with only the selected columns.</p>
 </section>
 <section id="timetoalign.EventData.summary" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.summary">summary</h3>
-<div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>EventData.summary()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>EventData.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a comprehensive summary of the store.</p>
 <p>Returns: Dict with count, temporal type counts, event type counts, coordinate range, unit, and number type.</p>
 </section>
 <section id="timetoalign.EventData.to_dataframe" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.to_dataframe">to_dataframe</h3>
-<div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>EventData.to_dataframe(<span class="bu">format</span><span class="op">=</span><span class="st">'pandas'</span>, <span class="op">*</span>, raw<span class="op">=</span><span class="va">False</span>, coordinates<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>EventData.to_dataframe(<span class="bu">format</span><span class="op">=</span><span class="st">'pandas'</span>, <span class="op">*</span>, raw<span class="op">=</span><span class="va">False</span>, coordinates<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Convert to a DataFrame in the specified format.</p>
 <p>Higher-level method that dispatches to format-specific implementations. Currently supports pandas; polars support can be added later.</p>
 <p>Args: format: DataFrame format (“pandas”). Default “pandas”. raw: If True, return raw conversion with struct dicts for coordinates. coordinates: If True, wrap values in Coordinate objects with unit info.</p>
@@ -881,7 +884,7 @@ extra_fields: Optional list of PyArrow fields for extra columns.
 </section>
 <section id="timetoalign.EventData.to_pandas" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.to_pandas">to_pandas</h3>
-<div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>EventData.to_pandas(raw<span class="op">=</span><span class="va">False</span>, coordinates<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>EventData.to_pandas(raw<span class="op">=</span><span class="va">False</span>, coordinates<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Convert to a pandas DataFrame.</p>
 <p>By default, coordinate columns (start, end, duration) are converted from the internal struct representation to the appropriate Python number type: - Fraction if numerator/denominator are present - float otherwise</p>
 <p>Args: raw: If True, return the raw PyArrow-to-pandas conversion with struct dicts for coordinate columns. Default False shows cleaned numbers. coordinates: If True, wrap coordinate values in Coordinate objects that include unit information. Only effective when raw=False.</p>
@@ -897,13 +900,13 @@ extra_fields: Optional list of PyArrow fields for extra columns.
 </section>
 <section id="timetoalign.EventData.to_parquet" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.to_parquet">to_parquet</h3>
-<div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>EventData.to_parquet(path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>EventData.to_parquet(path)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Save the EventData to a Parquet file.</p>
 <p>Args: path: Path to write the Parquet file.</p>
 </section>
 <section id="timetoalign.EventData.where" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.where">where</h3>
-<div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>EventData.where(expression)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>EventData.where(expression)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Filter with a custom PyArrow compute expression.</p>
 <p>Args: expression: A PyArrow compute expression.</p>
 <p>Returns: A new EventData with filtered events.</p>
@@ -965,13 +968,14 @@ extra_fields: Optional list of PyArrow fields for extra columns.
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy
