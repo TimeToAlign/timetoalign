@@ -95,6 +95,8 @@ website:
     - title: "API Reference"
       contents:
         - reference.qmd
+        - text: "Developers' Reference"
+          href: contributing.qmd
         - auto: reference
 
 metadata-files:
