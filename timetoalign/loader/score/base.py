@@ -112,7 +112,7 @@ class ScoreLoader(Loader):
         Examples:
             >>> loader = TSVLoader.from_file("notes.tsv", "measures.tsv")
             >>> controller = loader.create_flow_controller()
-            >>> flow = controller.compute_flow(FlowMode.DEFAULT)
+            >>> flow = controller.compute_flow(FlowMode.default)
         """
         from timetoalign.timelines.flow import ScoreFlowController
 

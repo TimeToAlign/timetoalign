@@ -19,10 +19,10 @@ from typing import TYPE_CHECKING, Any, Generic, Sequence, TypeVar
 import numpy as np
 from numpy.typing import NDArray
 
-from timetoalign.core.enums import TimeUnit
+from timetoalign.core.enums import ExtrapolationPolicy, InterpolationKind, TimeUnit
 from timetoalign.core.types import CoordinateValue
 from timetoalign.maps.base import ConversionMap
-from timetoalign.maps.table import ExtrapolationPolicy, InterpolationKind, TableMap
+from timetoalign.maps.table import TableMap
 
 if TYPE_CHECKING:
     from typing_extensions import Self

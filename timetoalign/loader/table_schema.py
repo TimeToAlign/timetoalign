@@ -45,7 +45,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from enum import Enum, auto
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import numpy as np
@@ -53,6 +52,7 @@ import pandas as pd
 import pyarrow as pa
 
 from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core.enums import ColumnRole, PartitionMode
 
 # Import from specific submodules to avoid circular imports
 # (timetoalign/__init__.py imports loader, which imports table_schema)
@@ -69,56 +69,6 @@ module_logger = logging.getLogger(__name__)
 
 
 # region Enums
-
-
-class ColumnRole(Enum):
-    """Semantic role of a column in the table.
-
-    Used for automatic role inference when columns are not explicitly specified.
-    """
-
-    # Core event identity
-    ID = auto()
-    NAME = auto()
-    EVENT_TYPE = auto()
-
-    # Coordinates (primary timeline)
-    START = auto()
-    END = auto()
-    DURATION = auto()
-    INSTANT = auto()
-
-    # Conversion (C-Map target)
-    CMAP_TARGET = auto()
-
-    # Structure
-    PARTITION = auto()
-    PARENT_ID = auto()
-    CHILD_ID = auto()
-    SEGMENT_NAME = auto()
-    REGION = auto()
-
-    # Alignment
-    MATCH_REF = auto()
-
-    # Generic data
-    EXTRA = auto()
-
-
-class PartitionMode(Enum):
-    """How partition columns create timelines.
-
-    SEPARATE: Each unique value creates an independent timeline with its own
-              coordinate system. Coordinates are NOT comparable across partitions.
-              Use for: Different recordings, different performers.
-
-    CHILDREN: Each unique value creates a child timeline that shares the parent's
-              coordinate system. Coordinates ARE comparable (offset by parent position).
-              Use for: Voices, instruments, staves within a score.
-    """
-
-    SEPARATE = auto()  # Disparate coordinate systems
-    CHILDREN = auto()  # Same coordinate system, parent-child relationship
 
 
 # endregion
@@ -358,12 +308,12 @@ class PartitionSpec:
 
     Examples:
         >>> # Separate timeline per voice (independent coordinate systems)
-        >>> PartitionSpec(columns=["voice"], mode=PartitionMode.SEPARATE)
+        >>> PartitionSpec(columns=["voice"], mode=PartitionMode.separate)
 
         >>> # Child timelines per staff (shared coordinates)
         >>> PartitionSpec(
         ...     columns=["staff"],
-        ...     mode=PartitionMode.CHILDREN,
+        ...     mode=PartitionMode.children,
         ...     parent_timeline="score",
         ... )
 
@@ -372,7 +322,7 @@ class PartitionSpec:
     """
 
     columns: list[str] = field(default_factory=list)
-    mode: PartitionMode = PartitionMode.SEPARATE
+    mode: PartitionMode = PartitionMode.separate
     parent_timeline: str | None = None
     include_null: bool = False
     timeline_name_template: str = "{value}"
@@ -628,48 +578,48 @@ class TableSchema:
         """
         # Identity
         if column == self.id_column:
-            return ColumnRole.ID
+            return ColumnRole.id
         if column == self.name_column:
-            return ColumnRole.NAME
+            return ColumnRole.name
         if column == self.event_type_column:
-            return ColumnRole.EVENT_TYPE
+            return ColumnRole.event_type
 
         # Coordinates
         if column == self.coordinates.start:
-            return ColumnRole.START
+            return ColumnRole.start
         if column == self.coordinates.end:
-            return ColumnRole.END
+            return ColumnRole.end
         if column == self.coordinates.duration:
-            return ColumnRole.DURATION
+            return ColumnRole.duration
         if column == self.coordinates.instant:
-            return ColumnRole.INSTANT
+            return ColumnRole.instant
 
         # C-Maps
         if column in self.coordinates.cmap_columns:
-            return ColumnRole.CMAP_TARGET
+            return ColumnRole.cmap_target
 
         # Partitions
         if self.partitions and column in self.partitions.columns:
-            return ColumnRole.PARTITION
+            return ColumnRole.partition
 
         # Hierarchy
         if self.hierarchy:
             if column == self.hierarchy.parent_id_column:
-                return ColumnRole.PARENT_ID
+                return ColumnRole.parent_id
             if column == self.hierarchy.child_id_column:
-                return ColumnRole.CHILD_ID
+                return ColumnRole.child_id
             if column == self.hierarchy.segment_name_column:
-                return ColumnRole.SEGMENT_NAME
+                return ColumnRole.segment_name
 
         # Regions
         if self.regions and column in self.regions.columns:
-            return ColumnRole.REGION
+            return ColumnRole.region
 
         # Matches
         if self.matches and column in self.matches.columns:
-            return ColumnRole.MATCH_REF
+            return ColumnRole.match_ref
 
-        return ColumnRole.EXTRA
+        return ColumnRole.extra
 
     # endregion
 
@@ -755,7 +705,7 @@ class TableSchema:
             result["matches"].extend(matches)
 
         # Step 5: Handle hierarchy (CHILDREN mode partitions or explicit hierarchy)
-        if self.partitions and self.partitions.mode == PartitionMode.CHILDREN:
+        if self.partitions and self.partitions.mode == PartitionMode.children:
             self._apply_partition_hierarchy(result["timelines"], self.partitions)
 
         if self.hierarchy:
@@ -1225,7 +1175,7 @@ class TableSchema:
             timelines: Created timelines (modified in-place).
             partition_spec: The partition specification.
         """
-        if partition_spec.mode != PartitionMode.CHILDREN:
+        if partition_spec.mode != PartitionMode.children:
             return
 
         # Create or get parent timeline

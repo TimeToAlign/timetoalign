@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import pyarrow as pa
 
+from timetoalign.core.enums import FlowMode
 from timetoalign.display.ascii import (
     BOX_CHARS,
     BOX_CHARS_ASCII,
@@ -39,7 +40,7 @@ from timetoalign.display.ascii import (
     group_diagram,
     timeline_diagram,
 )
-from timetoalign.timelines import FlowController, FlowMode
+from timetoalign.timelines import FlowController
 from timetoalign.timelines.types import (
     ContinuousGraphicalTimeline,
     ContinuousLogicalTimeline,
@@ -1177,7 +1178,7 @@ class TestFlowDiagram:
     def test_header_content(self) -> None:
         """Header contains mode, folded/unfolded counts, ratio."""
         ctrl = _make_simple_controller()
-        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_obj = ctrl.compute_flow(FlowMode.default)
         result = flow_diagram(flow_obj)
 
         assert "Flow(default)" in result
@@ -1188,7 +1189,7 @@ class TestFlowDiagram:
     def test_section_rows_present(self) -> None:
         """Section rows show MC ranges and section IDs."""
         ctrl = _make_simple_controller()
-        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_obj = ctrl.compute_flow(FlowMode.default)
         result = flow_diagram(flow_obj)
 
         # Should have numbered rows
@@ -1200,7 +1201,7 @@ class TestFlowDiagram:
     def test_atomic_sequence_footer(self) -> None:
         """Footer shows complete atomic section sequence."""
         ctrl = _make_simple_controller()
-        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_obj = ctrl.compute_flow(FlowMode.default)
         result = flow_diagram(flow_obj)
 
         assert "Sequence:" in result
@@ -1210,7 +1211,7 @@ class TestFlowDiagram:
     def test_reasons_column(self) -> None:
         """Reason column shows why each section starts."""
         ctrl = _make_simple_controller()
-        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_obj = ctrl.compute_flow(FlowMode.default)
         result = flow_diagram(flow_obj, show_reasons=True)
 
         assert "Reason" in result
@@ -1219,7 +1220,7 @@ class TestFlowDiagram:
     def test_show_reasons_false(self) -> None:
         """show_reasons=False hides reasons column."""
         ctrl = _make_simple_controller()
-        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_obj = ctrl.compute_flow(FlowMode.default)
         result = flow_diagram(flow_obj, show_reasons=False)
 
         assert "Reason" not in result
@@ -1227,7 +1228,7 @@ class TestFlowDiagram:
     def test_show_mcs_expands(self) -> None:
         """show_mcs=True shows MC sequences for each section."""
         ctrl = _make_simple_controller()
-        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_obj = ctrl.compute_flow(FlowMode.default)
         result = flow_diagram(flow_obj, show_mcs=True)
 
         assert "MCs:" in result
@@ -1239,7 +1240,7 @@ class TestFlowDiagramMethod:
     def test_diagram_delegates_correctly(self) -> None:
         """Flow.diagram() produces same as function."""
         ctrl = _make_simple_controller()
-        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_obj = ctrl.compute_flow(FlowMode.default)
 
         method_result = flow_obj.diagram()
         func_result = flow_diagram(flow_obj)
@@ -1249,13 +1250,13 @@ class TestFlowDiagramMethod:
     def test_str_returns_diagram(self) -> None:
         """str(flow) returns the diagram."""
         ctrl = _make_simple_controller()
-        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_obj = ctrl.compute_flow(FlowMode.default)
         assert str(flow_obj) == flow_obj.diagram()
 
     def test_repr_unchanged(self) -> None:
         """__repr__ returns compact one-liner, NOT diagram."""
         ctrl = _make_simple_controller()
-        flow_obj = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_obj = ctrl.compute_flow(FlowMode.default)
         repr_str = repr(flow_obj)
 
         assert repr_str.startswith("Flow(")
@@ -1274,8 +1275,8 @@ class TestFlowComparisonDiagram:
     def test_identical_flows_all_match(self) -> None:
         """Identical flows show all '=' markers."""
         ctrl = _make_simple_controller()
-        flow_a = ctrl.compute_flow(FlowMode.DEFAULT)
-        flow_b = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_a = ctrl.compute_flow(FlowMode.default)
+        flow_b = ctrl.compute_flow(FlowMode.default)
         result = flow_comparison_diagram(flow_a, flow_b)
 
         assert "Flow comparison:" in result
@@ -1290,8 +1291,8 @@ class TestFlowComparisonDiagram:
     def test_divergent_flows_show_mismatch(self) -> None:
         """Different flows show mismatch markers with explanations."""
         ctrl = _make_simple_controller()
-        flow_a = ctrl.compute_flow(FlowMode.DEFAULT)
-        flow_b = ctrl.compute_flow(FlowMode.PRINTED)
+        flow_a = ctrl.compute_flow(FlowMode.default)
+        flow_b = ctrl.compute_flow(FlowMode.printed)
         result = flow_comparison_diagram(flow_a, flow_b)
 
         assert "Flow comparison:" in result
@@ -1301,8 +1302,8 @@ class TestFlowComparisonDiagram:
     def test_summary_footer(self) -> None:
         """Summary footer shows section counts and match ratio."""
         ctrl = _make_simple_controller()
-        flow_a = ctrl.compute_flow(FlowMode.DEFAULT)
-        flow_b = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_a = ctrl.compute_flow(FlowMode.default)
+        flow_b = ctrl.compute_flow(FlowMode.default)
         result = flow_comparison_diagram(flow_a, flow_b)
 
         assert "sections" in result
@@ -1312,8 +1313,8 @@ class TestFlowComparisonDiagram:
     def test_ascii_mode(self) -> None:
         """ASCII mode uses ASCII characters."""
         ctrl = _make_simple_controller()
-        flow_a = ctrl.compute_flow(FlowMode.DEFAULT)
-        flow_b = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_a = ctrl.compute_flow(FlowMode.default)
+        flow_b = ctrl.compute_flow(FlowMode.default)
         result = flow_comparison_diagram(flow_a, flow_b, unicode=False)
 
         assert FLOW_CHARS_ASCII["match"] in result
@@ -1325,8 +1326,8 @@ class TestDiffDiagramMethod:
     def test_diff_diagram_delegates_correctly(self) -> None:
         """flow.diff_diagram(other) produces same as function."""
         ctrl = _make_simple_controller()
-        flow_a = ctrl.compute_flow(FlowMode.DEFAULT)
-        flow_b = ctrl.compute_flow(FlowMode.DEFAULT)
+        flow_a = ctrl.compute_flow(FlowMode.default)
+        flow_b = ctrl.compute_flow(FlowMode.default)
 
         method_result = flow_a.diff_diagram(flow_b)
         func_result = flow_comparison_diagram(flow_a, flow_b)

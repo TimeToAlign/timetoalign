@@ -34,9 +34,10 @@ import weakref
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
-from enum import Enum
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Iterator
+
+from timetoalign.core.enums import FlowMode, IncompletePosition
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -53,38 +54,6 @@ module_logger = logging.getLogger(__name__)
 
 
 # region FlowMode
-
-
-class FlowMode(Enum):
-    """Flow computation modes.
-
-    Different contexts require different unfoldings:
-
-    Deterministic modes (must be identical across all loaders):
-    - ATOMIC: True atomic sections from FlowController (= mode=None)
-    - PRINTED: All bars as printed (no unfolding)
-    - SINGLE_PASS: Single playthrough (last volta only)
-
-    Contingent modes (may have alternatives if divergent):
-    - DEFAULT: Most complete flow (all repeats taken), equivalent to MS3
-    - MUSIC21: music21's expandRepeats() - only if diverges from DEFAULT
-    - PARTITURA_MAXIMAL: partitura's unfold_part_maximal() - only if diverges from DEFAULT
-    - PARTITURA_MINIMAL: partitura's atomic segments - only if diverges from ATOMIC
-
-    Other modes:
-    - MS3: From ms3's *_unfolded.measures.tsv (gold standard for DEFAULT)
-    - CUSTOM: User-provided flow sequence
-    """
-
-    ATOMIC = "atomic"
-    DEFAULT = "default"
-    MS3 = "ms3"
-    PARTITURA_MINIMAL = "partitura_minimal"
-    PARTITURA_MAXIMAL = "partitura_maximal"
-    MUSIC21 = "music21"
-    PRINTED = "printed"
-    SINGLE_PASS = "single"
-    CUSTOM = "custom"
 
 
 # endregion
@@ -246,24 +215,6 @@ class MeasureUnit:
 # region Typed MeasureUnit Subclasses
 
 
-class IncompletePosition(Enum):
-    """Position of an incomplete measure within the score.
-
-    Used by IncompleteMeasure to classify why a measure is incomplete:
-    - ANACRUSIS: Pickup measure at the start of the piece
-    - FINAL: Final incomplete measure (often pairs with anacrusis)
-    - SPLIT_FIRST: First part of a split measure
-    - SPLIT_SECOND: Second part of a split measure
-    - UNKNOWN: Position not yet determined
-    """
-
-    ANACRUSIS = "anacrusis"
-    FINAL = "final"
-    SPLIT_FIRST = "split_first"
-    SPLIT_SECOND = "split_second"
-    UNKNOWN = "unknown"
-
-
 @dataclass(frozen=True)
 class IncompleteMeasure(MeasureUnit):
     """A MeasureUnit that does not metrically complete on its own.
@@ -287,7 +238,7 @@ class IncompleteMeasure(MeasureUnit):
         position: Classification of why this measure is incomplete.
     """
 
-    position: IncompletePosition = IncompletePosition.UNKNOWN
+    position: IncompletePosition = IncompletePosition.unknown
 
 
 @dataclass(frozen=True)
@@ -753,7 +704,7 @@ class Flow:
     """
 
     sections: list[PlaythroughSection] = field(default_factory=list)
-    mode: FlowMode = FlowMode.DEFAULT
+    mode: FlowMode = FlowMode.default
     folded_length: int = 0
     id: str = ""
     source_metadata: dict[str, Any] = field(default_factory=dict)
@@ -1063,7 +1014,7 @@ class Flow:
             ...     PlaythroughSection(1, 17, ("A", "B")),
             ...     PlaythroughSection(17, 32, ("C",)),
             ...     PlaythroughSection(6, 17, ("B",)),
-            ... ], FlowMode.DEFAULT)
+            ... ], FlowMode.default)
             >>> flow.to_atomic_sequence()
             ['A', 'B', 'C', 'B']
         """
@@ -1190,7 +1141,7 @@ def load_valid_flows(csv_path: "Path | str") -> dict[FlowMode, "Flow"]:
 
     Examples:
         >>> flows = load_valid_flows(Path("tests/data/target_flows/specimen.flow.csv"))
-        >>> default_flow = flows[FlowMode.DEFAULT]
+        >>> default_flow = flows[FlowMode.default]
         >>> for mode, flow in flows.items():
         ...     print(f"{mode.value}: {len(flow.sections)} sections")
     """
@@ -1581,7 +1532,7 @@ class FlowControllerBase(ABC):
             FlowMap for coordinate transformation.
         """
         if flow is None:
-            flow = self.compute_flow(FlowMode.DEFAULT)
+            flow = self.compute_flow(FlowMode.default)
         # Use QB-space if controller has MeasureUnit data
         try:
             qb_sections = compute_qb_sections(flow, self)
@@ -1625,7 +1576,7 @@ class ScoreFlowController(FlowControllerBase):
         ...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
 
         >>> # Get playthrough sections for DEFAULT mode
-        >>> for sec in controller.get_sections(FlowMode.DEFAULT):
+        >>> for sec in controller.get_sections(FlowMode.default):
         ...     print(f"MC [{sec.mc_start},{sec.mc_end})")
 
         >>> # Iterate over MeasureUnits
@@ -2129,21 +2080,21 @@ class ScoreFlowController(FlowControllerBase):
             IncompletePosition classification.
         """
         if not self._units:
-            return IncompletePosition.UNKNOWN
+            return IncompletePosition.unknown
 
         # Find index of this unit
         idx = next((i for i, u in enumerate(self._units) if u.mc == unit.mc), -1)
         if idx == -1:
-            return IncompletePosition.UNKNOWN
+            return IncompletePosition.unknown
 
         if idx == 0:
-            return IncompletePosition.ANACRUSIS
+            return IncompletePosition.anacrusis
         elif idx == len(self._units) - 1:
-            return IncompletePosition.FINAL
+            return IncompletePosition.final
         else:
             # Check if this might be part of a split measure
             # For now, classify as SPLIT_FIRST (Phase 2 will refine)
-            return IncompletePosition.SPLIT_FIRST
+            return IncompletePosition.split_first
 
     # ========================================================================
     # Phase 2: Grouping methods
@@ -2620,7 +2571,7 @@ class ScoreFlowController(FlowControllerBase):
             ...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
 
             >>> # Get playthrough sections for DEFAULT mode (unfolded)
-            >>> for sec in controller.get_sections(FlowMode.DEFAULT):
+            >>> for sec in controller.get_sections(FlowMode.default):
             ...     print(f"MC [{sec.mc_start},{sec.mc_end})")
         """
         if mode is None:
@@ -2647,7 +2598,7 @@ class ScoreFlowController(FlowControllerBase):
             ...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
 
             >>> # Iterate over playthrough sections (unfolded traversal)
-            >>> for sec in controller.iter_sections(FlowMode.DEFAULT):
+            >>> for sec in controller.iter_sections(FlowMode.default):
             ...     print(f"MC [{sec.mc_start},{sec.mc_end})")
         """
         if mode is None:
@@ -2858,22 +2809,22 @@ class ScoreFlowController(FlowControllerBase):
         """
         # mode=None is equivalent to ATOMIC (the default for AtomicSections)
         if mode is None:
-            mode = FlowMode.ATOMIC
+            mode = FlowMode.atomic
 
-        if mode == FlowMode.ATOMIC:
+        if mode == FlowMode.atomic:
             return self._compute_atomic_flow()
-        elif mode == FlowMode.PRINTED:
+        elif mode == FlowMode.printed:
             return self._compute_printed_flow()
-        elif mode == FlowMode.SINGLE_PASS:
+        elif mode == FlowMode.single:
             return self._compute_single_pass_flow()
-        elif mode in (FlowMode.DEFAULT, FlowMode.MS3):
+        elif mode in (FlowMode.default, FlowMode.ms3):
             return self._compute_default_flow(mode)
         else:
             # TODO: Implement other modes (MUSIC21, etc.)
             module_logger.warning(
                 f"FlowMode.{mode.name} not yet implemented, using DEFAULT"
             )
-            return self._compute_default_flow(FlowMode.DEFAULT)
+            return self._compute_default_flow(FlowMode.default)
 
     def _compute_printed_flow(self) -> Flow:
         """Compute flow for printed score (no unfolding).
@@ -2889,7 +2840,7 @@ class ScoreFlowController(FlowControllerBase):
 
         return Flow(
             sections=sections,
-            mode=FlowMode.PRINTED,
+            mode=FlowMode.printed,
             folded_length=len(sorted_mcs),
             _controller_ref=weakref.ref(self),
         )
@@ -2933,7 +2884,7 @@ class ScoreFlowController(FlowControllerBase):
 
         return Flow(
             sections=sections,
-            mode=FlowMode.SINGLE_PASS,
+            mode=FlowMode.single,
             folded_length=len(self._measure_lookup),
             _controller_ref=weakref.ref(self),
         )
@@ -2963,7 +2914,7 @@ class ScoreFlowController(FlowControllerBase):
 
         return Flow(
             sections=sections,
-            mode=FlowMode.ATOMIC,
+            mode=FlowMode.atomic,
             folded_length=len(self._measure_lookup),
             _controller_ref=weakref.ref(self),
         )
@@ -3057,8 +3008,8 @@ class ScoreFlowController(FlowControllerBase):
         """
         # For now, just return default and printed
         return [
-            self.compute_flow(FlowMode.DEFAULT),
-            self.compute_flow(FlowMode.PRINTED),
+            self.compute_flow(FlowMode.default),
+            self.compute_flow(FlowMode.printed),
         ]
 
     def create_flow_map(self, flow: Flow | None = None) -> FlowMap:
@@ -3074,11 +3025,11 @@ class ScoreFlowController(FlowControllerBase):
             FlowMap with QB-space source coordinates.
         """
         if flow is None:
-            flow = self.compute_flow(FlowMode.DEFAULT)
+            flow = self.compute_flow(FlowMode.default)
         qb_sections = compute_qb_sections(flow, self)
         return FlowMap.from_qb_sections(flow, qb_sections, id=flow.id)
 
-    def create_flow_map_for_mode(self, mode: FlowMode = FlowMode.DEFAULT) -> FlowMap:
+    def create_flow_map_for_mode(self, mode: FlowMode = FlowMode.default) -> FlowMap:
         """Convenience method to create a FlowMap for a specific mode.
 
         Args:
@@ -3159,7 +3110,7 @@ class ScoreFlowController(FlowControllerBase):
 
         Args:
             flow: A ``Flow`` computed from this controller (e.g. via
-                ``compute_flow(FlowMode.DEFAULT)``).  If given, unfolded
+                ``compute_flow(FlowMode.default)``).  If given, unfolded
                 coordinates are returned.
 
         Returns:
@@ -3173,7 +3124,7 @@ class ScoreFlowController(FlowControllerBase):
             >>> controller = ScoreFlowController(measures)
             >>> controller.get_atomic_section_coordinates()
             {'A': Fraction(0, 1), 'B': Fraction(32, 1), ...}
-            >>> flow = controller.compute_flow(FlowMode.DEFAULT)
+            >>> flow = controller.compute_flow(FlowMode.default)
             >>> controller.get_atomic_section_coordinates(flow=flow)
             {'A': Fraction(0, 1), 'B': Fraction(64, 1), ...}
         """
@@ -3312,7 +3263,7 @@ def compute_qb_sections(
 
     Examples:
         >>> controller = ScoreFlowController(measure_data)
-        >>> flow = controller.compute_flow(FlowMode.DEFAULT)
+        >>> flow = controller.compute_flow(FlowMode.default)
         >>> qb_sections = compute_qb_sections(flow, controller)
         >>> # Each section gives QB boundaries in the folded score
         >>> for qb_start, qb_end in qb_sections:
@@ -3436,7 +3387,7 @@ def create_unfolded_timeline(
 
     Examples:
         >>> controller = ScoreFlowController(measure_data)
-        >>> flow = controller.compute_flow(FlowMode.DEFAULT)
+        >>> flow = controller.compute_flow(FlowMode.default)
         >>> unfolded = create_unfolded_timeline(source_tl, flow, controller)
         >>> type(unfolded).__name__  # preserves source type
         'ContinuousLogicalTimeline'

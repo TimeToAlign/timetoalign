@@ -299,8 +299,9 @@ class TestMusic21LoaderMusicXML:
         except ImportError:
             pytest.skip("Music21Loader not available")
 
+        from timetoalign.core.enums import FlowMode
         from timetoalign.timelines import FlowController
-        from timetoalign.timelines.flow import FlowMode, load_valid_flows
+        from timetoalign.timelines.flow import load_valid_flows
 
         # Load valid flows from ground truth
         valid_flows = load_valid_flows(csv_path)
@@ -309,7 +310,7 @@ class TestMusic21LoaderMusicXML:
         loader = Music21Loader()
         loader.load(xml_path)
         controller = FlowController(loader.store.measures)
-        computed = controller.compute_flow(FlowMode.DEFAULT)
+        computed = controller.compute_flow(FlowMode.default)
 
         # Check if computed matches any valid flow
         matches = [
@@ -412,8 +413,8 @@ class TestMusic21LoaderMEI:
         except ImportError:
             pytest.skip("Music21Loader not available")
 
+        from timetoalign.core.enums import FlowMode
         from timetoalign.timelines import FlowController
-        from timetoalign.timelines.flow import FlowMode
 
         # Load both formats
         mei_loader = Music21Loader()
@@ -436,8 +437,8 @@ class TestMusic21LoaderMEI:
         mei_ctrl = FlowController(mei_loader.store.measures)
         xml_ctrl = FlowController(xml_loader.store.measures)
 
-        mei_flow = mei_ctrl.compute_flow(FlowMode.DEFAULT)
-        xml_flow = xml_ctrl.compute_flow(FlowMode.DEFAULT)
+        mei_flow = mei_ctrl.compute_flow(FlowMode.default)
+        xml_flow = xml_ctrl.compute_flow(FlowMode.default)
 
         # Compare
         assert mei_flow.is_equivalent(xml_flow), (
@@ -517,8 +518,9 @@ class TestPartituraLoaderMusicXML:
         except ImportError:
             pytest.skip("PartituraLoader not available")
 
+        from timetoalign.core.enums import FlowMode
         from timetoalign.timelines import FlowController
-        from timetoalign.timelines.flow import FlowMode, load_valid_flows
+        from timetoalign.timelines.flow import load_valid_flows
 
         # Load valid flows from ground truth
         valid_flows = load_valid_flows(csv_path)
@@ -527,7 +529,7 @@ class TestPartituraLoaderMusicXML:
         loader = PartituraLoader()
         loader.load(xml_path)
         controller = FlowController(loader.store.measures)
-        computed = controller.compute_flow(FlowMode.DEFAULT)
+        computed = controller.compute_flow(FlowMode.default)
 
         # Check if computed matches any valid flow
         matches = [
@@ -618,9 +620,10 @@ class TestFlowControllerReproducesTargetFlows:
         if not csv_path.exists():
             pytest.skip(f"Flow CSV not found for {specimen_name}")
 
+        from timetoalign.core.enums import FlowMode
         from timetoalign.loader.score import TSVLoader
         from timetoalign.timelines import FlowController
-        from timetoalign.timelines.flow import FlowMode, load_valid_flows
+        from timetoalign.timelines.flow import load_valid_flows
 
         # Load all valid flows
         valid_flows = load_valid_flows(csv_path)
@@ -631,7 +634,7 @@ class TestFlowControllerReproducesTargetFlows:
         loader = TSVLoader()
         loader.load(tsv_path)
         controller = FlowController(loader.store.measures)
-        computed = controller.compute_flow(FlowMode.DEFAULT)
+        computed = controller.compute_flow(FlowMode.default)
 
         # Check if computed matches ANY valid flow
         matches = [
@@ -657,7 +660,7 @@ class TestFlowControllerReproducesTargetFlows:
 
         # Document which flow mode matched
         matched_mode = matches[0][0]
-        if matched_mode != FlowMode.DEFAULT:
+        if matched_mode != FlowMode.default:
             # Log that we matched a divergent mode
             pass  # This is expected for flow_only (matches ms3)
 
@@ -673,16 +676,17 @@ class TestFlowControllerReproducesTargetFlows:
         if not csv_path.exists():
             pytest.skip(f"Flow CSV not found for {specimen_name}")
 
+        from timetoalign.core.enums import FlowMode
         from timetoalign.loader.score import TSVLoader
         from timetoalign.timelines import FlowController
-        from timetoalign.timelines.flow import FlowMode, load_valid_flows
+        from timetoalign.timelines.flow import load_valid_flows
 
         # Load gold standard
         valid_flows = load_valid_flows(csv_path)
-        if FlowMode.ATOMIC not in valid_flows:
+        if FlowMode.atomic not in valid_flows:
             pytest.skip(f"No ATOMIC flow in {csv_path}")
 
-        target = valid_flows[FlowMode.ATOMIC]
+        target = valid_flows[FlowMode.atomic]
 
         # Load and compute
         loader = TSVLoader()

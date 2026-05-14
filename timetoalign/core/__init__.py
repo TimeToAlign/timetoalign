@@ -13,12 +13,20 @@ These types have no dependencies on other TTA modules.
 from __future__ import annotations
 
 from .enums import (
+    ActivationCondition,
     ColumnNaming,
+    ColumnRole,
     Domain,
     EventType,
+    ExtrapolationPolicy,
+    FancyStrEnum,
     FlowControlType,
+    FlowMode,
+    IncompletePosition,
+    InterpolationKind,
     IntervalPolicy,
     NumberType,
+    PartitionMode,
     TimeUnit,
 )
 from .ids import IdGenerator, ScopedId, TimelineIdGenerator, resolve_id, resolve_ids
@@ -38,13 +46,21 @@ from .types import (
 
 __all__ = [
     # Enums
+    "FancyStrEnum",
+    "ActivationCondition",
     "ColumnNaming",
+    "ColumnRole",
     "Domain",
-    "IntervalPolicy",
-    "TimeUnit",
-    "NumberType",
     "EventType",
+    "ExtrapolationPolicy",
     "FlowControlType",
+    "FlowMode",
+    "IncompletePosition",
+    "InterpolationKind",
+    "IntervalPolicy",
+    "NumberType",
+    "PartitionMode",
+    "TimeUnit",
     # Types
     "Coordinate",
     "IdCoordinate",

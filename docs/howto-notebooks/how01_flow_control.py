@@ -46,11 +46,11 @@ from fractions import Fraction
 import pandas as pd
 
 from timetoalign import Coordinate, TimeUnit
-from timetoalign.core.enums import FlowControlType
+from timetoalign.core.enums import ActivationCondition, FlowControlType, FlowMode
 from timetoalign.loader.score import TSVLoader
 from timetoalign.testdata import ensure_data
-from timetoalign.timelines.flow import FlowMap, FlowMode, compute_qb_sections
-from timetoalign.timelines.flowcontrol import ActivationCondition, Break, Jump
+from timetoalign.timelines.flow import FlowMap, compute_qb_sections
+from timetoalign.timelines.flowcontrol import Break, Jump
 
 DATA_DIR = ensure_data("score") / "beethoven_woo71"
 NOTES_TSV = DATA_DIR / "WoO71.notes.tsv"
@@ -78,7 +78,7 @@ MEASURES_TSV = DATA_DIR / "WoO71.measures.tsv"
 section_end = Break(
     coordinate=Coordinate(Fraction(20), TimeUnit.quarters),
     control_type=FlowControlType.section_break,
-    condition=ActivationCondition.ALWAYS,
+    condition=ActivationCondition.always,
     label="||",
 )
 section_end
@@ -103,7 +103,7 @@ repeat = Jump(
     from_coordinate=Coordinate(Fraction(20), TimeUnit.quarters),
     to_coordinate=Coordinate(Fraction(8), TimeUnit.quarters),
     control_type=FlowControlType.repeat_end,
-    condition=ActivationCondition.FIRST_N,
+    condition=ActivationCondition.first_n,
     repeat_count=1,
 )
 {
@@ -121,7 +121,7 @@ dc = Jump(
     from_coordinate=Coordinate(Fraction(100), TimeUnit.quarters),
     to_coordinate=Coordinate(Fraction(0), TimeUnit.quarters),
     control_type=FlowControlType.da_capo,
-    condition=ActivationCondition.AFTER_FIRST,
+    condition=ActivationCondition.after_first,
 )
 {
     "type": dc.control_type.value,
@@ -243,8 +243,8 @@ pd.DataFrame(rows)
 
 # %%
 # DEFAULT vs PRINTED: the clearest contrast
-flow_default = controller.compute_flow(FlowMode.DEFAULT)
-flow_printed = controller.compute_flow(FlowMode.PRINTED)
+flow_default = controller.compute_flow(FlowMode.default)
+flow_printed = controller.compute_flow(FlowMode.printed)
 
 {
     "default_unfolded_qb": flow_default.unfolded_length,
@@ -367,7 +367,7 @@ if len(positions) > 1:
 
 # %%
 # Attach additional FlowMaps for other modes — no data duplication
-for mode in [FlowMode.PRINTED, FlowMode.SINGLE_PASS, FlowMode.ATOMIC]:
+for mode in [FlowMode.printed, FlowMode.single, FlowMode.atomic]:
     fm = controller_full.create_flow_map_for_mode(mode)
     score_tl.add_flow_map(fm, id=mode.value)
 
@@ -408,7 +408,7 @@ pd.DataFrame(
 
 # %%
 # Inspect the QB section boundaries that `create_flow_map()` would use
-flow_base = controller_full.compute_flow(FlowMode.DEFAULT)
+flow_base = controller_full.compute_flow(FlowMode.default)
 default_qb_sections = compute_qb_sections(flow_base, controller_full)
 
 pd.DataFrame(
@@ -441,7 +441,7 @@ from timetoalign.timelines.flow import Flow
 extra_pass_qb = [default_qb_sections[0]] + list(default_qb_sections)
 extra_pass_flow = Flow.from_sections(
     sections=[flow_base.sections[0]] + list(flow_base.sections),
-    mode=FlowMode.CUSTOM,
+    mode=FlowMode.custom,
     folded_length=flow_base.folded_length,
 )
 

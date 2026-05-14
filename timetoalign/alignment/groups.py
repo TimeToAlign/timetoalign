@@ -2114,7 +2114,7 @@ class TimelineGroup:
         Examples:
             >>> loader = TSVLoader.from_file("notes.tsv", "measures.tsv")
             >>> controller = loader.create_flow_controller()
-            >>> flow = controller.compute_flow(FlowMode.DEFAULT)
+            >>> flow = controller.compute_flow(FlowMode.default)
             >>> score_group = TimelineGroup(
             ...     id="score", timelines=[clt1, dgt1, openscore]
             ... )

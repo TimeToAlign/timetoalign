@@ -27,8 +27,9 @@ from pathlib import Path
 
 import pytest
 
+from timetoalign.core.enums import FlowMode, IncompletePosition
 from timetoalign.loader.score import TSVLoader
-from timetoalign.timelines import Flow, FlowController, FlowMap, FlowMode, MeasureUnit
+from timetoalign.timelines import Flow, FlowController, FlowMap, MeasureUnit
 from timetoalign.timelines.flow import (
     AtomicSection,
     PlaythroughSection,
@@ -289,7 +290,7 @@ class TestTypedMeasures:
 
     def test_incomplete_measure_creation(self) -> None:
         """IncompleteMeasure can be created with position field."""
-        from timetoalign.timelines import IncompleteMeasure, IncompletePosition
+        from timetoalign.timelines import IncompleteMeasure
 
         unit = IncompleteMeasure(
             mc=1,
@@ -298,23 +299,24 @@ class TestTypedMeasures:
             next=(2,),
             timesig="4/4",
             timesig_duration_qb=Fraction(4),  # Expected 4 quarterbeats
-            position=IncompletePosition.ANACRUSIS,
+            position=IncompletePosition.anacrusis,
         )
         assert unit.mc == 1
         assert unit.duration_qb == Fraction(1)
         assert unit.timesig_duration_qb == Fraction(4)
-        assert unit.position == IncompletePosition.ANACRUSIS
+        assert unit.position == IncompletePosition.anacrusis
 
     def test_incomplete_measure_is_measureunit(self) -> None:
         """IncompleteMeasure is a MeasureUnit subclass."""
-        from timetoalign.timelines import IncompleteMeasure, IncompletePosition
+        from timetoalign.core.enums import IncompletePosition
+        from timetoalign.timelines import IncompleteMeasure
 
         unit = IncompleteMeasure(
             mc=1,
             mn="0",
             duration_qb=Fraction(1),
             next=(2,),
-            position=IncompletePosition.ANACRUSIS,
+            position=IncompletePosition.anacrusis,
         )
         assert isinstance(unit, MeasureUnit)
 
@@ -376,7 +378,8 @@ class TestTypedMeasures:
 
     def test_typed_measures_preserve_flowcontrol(self) -> None:
         """Typed measures inherit all FlowControlType fields."""
-        from timetoalign.timelines import IncompleteMeasure, IncompletePosition
+        from timetoalign.core.enums import IncompletePosition
+        from timetoalign.timelines import IncompleteMeasure
 
         unit = IncompleteMeasure(
             mc=1,
@@ -387,7 +390,7 @@ class TestTypedMeasures:
             segno="segno",
             jump_to=True,
             flow_control_types=("repeat_start", "segno", "jump_to"),
-            position=IncompletePosition.ANACRUSIS,
+            position=IncompletePosition.anacrusis,
         )
         assert unit.start_repeat is True
         assert unit.segno == "segno"
@@ -396,13 +399,13 @@ class TestTypedMeasures:
 
     def test_incomplete_position_enum_values(self) -> None:
         """IncompletePosition enum has expected values."""
-        from timetoalign.timelines import IncompletePosition
+        from timetoalign.core.enums import IncompletePosition
 
-        assert IncompletePosition.ANACRUSIS.value == "anacrusis"
-        assert IncompletePosition.FINAL.value == "final"
-        assert IncompletePosition.SPLIT_FIRST.value == "split_first"
-        assert IncompletePosition.SPLIT_SECOND.value == "split_second"
-        assert IncompletePosition.UNKNOWN.value == "unknown"
+        assert IncompletePosition.anacrusis.value == "anacrusis"
+        assert IncompletePosition.final.value == "final"
+        assert IncompletePosition.split_first.value == "split_first"
+        assert IncompletePosition.split_second.value == "split_second"
+        assert IncompletePosition.unknown.value == "unknown"
 
 
 # endregion
@@ -439,11 +442,8 @@ class TestAtomicSectionTypedMeasures:
 
     def test_atomic_section_to_dict_includes_typed_counts(self) -> None:
         """AtomicSection to_dict includes typed measure counts."""
-        from timetoalign.timelines import (
-            CompleteMeasure,
-            IncompleteMeasure,
-            IncompletePosition,
-        )
+        from timetoalign.core.enums import IncompletePosition
+        from timetoalign.timelines import CompleteMeasure, IncompleteMeasure
 
         typed = (
             IncompleteMeasure(
@@ -451,7 +451,7 @@ class TestAtomicSectionTypedMeasures:
                 mn="0",
                 duration_qb=Fraction(1),
                 next=(2,),
-                position=IncompletePosition.ANACRUSIS,
+                position=IncompletePosition.anacrusis,
             ),
             CompleteMeasure(mc=2, mn="1", duration_qb=Fraction(4), next=(3,)),
             CompleteMeasure(mc=3, mn="2", duration_qb=Fraction(4), next=(4,)),
@@ -562,11 +562,8 @@ class TestMeasureGroup:
 
     def test_split_measure_creation(self) -> None:
         """SplitMeasure groups IncompleteMeasures that together complete."""
-        from timetoalign.timelines import (
-            IncompleteMeasure,
-            IncompletePosition,
-            SplitMeasure,
-        )
+        from timetoalign.core.enums import IncompletePosition
+        from timetoalign.timelines import IncompleteMeasure, SplitMeasure
 
         anacrusis = IncompleteMeasure(
             mc=1,
@@ -575,7 +572,7 @@ class TestMeasureGroup:
             next=(2,),
             timesig="4/4",
             timesig_duration_qb=Fraction(4),
-            position=IncompletePosition.ANACRUSIS,
+            position=IncompletePosition.anacrusis,
         )
         final = IncompleteMeasure(
             mc=58,
@@ -584,7 +581,7 @@ class TestMeasureGroup:
             next=(-1,),
             timesig="4/4",
             timesig_duration_qb=Fraction(4),
-            position=IncompletePosition.FINAL,
+            position=IncompletePosition.final,
         )
         split = SplitMeasure(members=(anacrusis, final))
 
@@ -602,18 +599,15 @@ class TestMeasureGroup:
 
     def test_incomplete_group_creation(self) -> None:
         """IncompleteGroup wraps isolated IncompleteMeasures."""
-        from timetoalign.timelines import (
-            IncompleteGroup,
-            IncompleteMeasure,
-            IncompletePosition,
-        )
+        from timetoalign.core.enums import IncompletePosition
+        from timetoalign.timelines import IncompleteGroup, IncompleteMeasure
 
         anacrusis = IncompleteMeasure(
             mc=1,
             mn="0",
             duration_qb=Fraction(1),
             next=(2,),
-            position=IncompletePosition.ANACRUSIS,
+            position=IncompletePosition.anacrusis,
         )
         group = IncompleteGroup(members=(anacrusis,))
 
@@ -645,18 +639,15 @@ class TestMeasureGroup:
 
     def test_complete_measure_group_non_complete_raises(self) -> None:
         """CompleteMeasureGroup raises if member is not CompleteMeasure."""
-        from timetoalign.timelines import (
-            CompleteMeasureGroup,
-            IncompleteMeasure,
-            IncompletePosition,
-        )
+        from timetoalign.core.enums import IncompletePosition
+        from timetoalign.timelines import CompleteMeasureGroup, IncompleteMeasure
 
         m = IncompleteMeasure(
             mc=1,
             mn="0",
             duration_qb=Fraction(1),
             next=(2,),
-            position=IncompletePosition.ANACRUSIS,
+            position=IncompletePosition.anacrusis,
         )
         with pytest.raises(TypeError, match="must be CompleteMeasure"):
             CompleteMeasureGroup(members=(m,))
@@ -965,7 +956,7 @@ class TestFlow:
 
     def test_empty_flow(self) -> None:
         """Empty flow has correct properties."""
-        flow = Flow(sections=[], mode=FlowMode.DEFAULT, folded_length=0)
+        flow = Flow(sections=[], mode=FlowMode.default, folded_length=0)
         assert flow.unfolded_length == 0
         assert flow.total_quarterbeats == Fraction(0)
         assert flow.has_repeats is False
@@ -977,7 +968,7 @@ class TestFlow:
         sections = [
             PlaythroughSection(mc_start=1, mc_end=4, atomic_section_ids=("A",)),
         ]
-        flow = Flow.from_sections(sections, FlowMode.DEFAULT, folded_length=3)
+        flow = Flow.from_sections(sections, FlowMode.default, folded_length=3)
 
         assert flow.unfolded_length == 3
         assert flow.folded_length == 3
@@ -993,7 +984,7 @@ class TestFlow:
             PlaythroughSection(mc_start=1, mc_end=3, atomic_section_ids=("A",)),
             PlaythroughSection(mc_start=1, mc_end=3, atomic_section_ids=("A",)),
         ]
-        flow = Flow.from_sections(sections, FlowMode.DEFAULT, folded_length=2)
+        flow = Flow.from_sections(sections, FlowMode.default, folded_length=2)
 
         assert flow.unfolded_length == 4
         assert flow.folded_length == 2
@@ -1007,7 +998,7 @@ class TestFlow:
             PlaythroughSection(mc_start=1, mc_end=3, atomic_section_ids=("A",)),
             PlaythroughSection(mc_start=3, mc_end=5, atomic_section_ids=("B",)),
         ]
-        flow = Flow.from_sections(sections, FlowMode.DEFAULT)
+        flow = Flow.from_sections(sections, FlowMode.default)
 
         df = flow.to_dataframe()
         assert len(df) == 2
@@ -1026,10 +1017,10 @@ class TestFlowSegmentBased:
             PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
             PlaythroughSection(mc_start=5, mc_end=9, atomic_section_ids=("B",)),
         ]
-        flow = Flow.from_sections(segments, FlowMode.DEFAULT)
+        flow = Flow.from_sections(segments, FlowMode.default)
 
         assert len(flow.sections) == 2
-        assert flow.mode == FlowMode.DEFAULT
+        assert flow.mode == FlowMode.default
         assert flow.sections[0].mc_start == 1
         assert flow.sections[1].mc_end == 9
 
@@ -1040,7 +1031,7 @@ class TestFlowSegmentBased:
             {"mc_start": 1, "mc_end": 5, "atomic_segments": "A"},
             {"mc_start": 5, "mc_end": 9, "atomic_segments": "B"},
         ]
-        flow = Flow.from_records(records, FlowMode.DEFAULT)
+        flow = Flow.from_records(records, FlowMode.default)
 
         assert len(flow.sections) == 2
         assert flow.sections[0].atomic_section_ids == ("A",)
@@ -1052,7 +1043,7 @@ class TestFlowSegmentBased:
         records = [
             {"mc_start": 1, "mc_end": 9, "atomic_segments": "A;B"},
         ]
-        flow = Flow.from_records(records, FlowMode.DEFAULT)
+        flow = Flow.from_records(records, FlowMode.default)
 
         assert flow.sections[0].atomic_section_ids == ("A", "B")
 
@@ -1063,7 +1054,7 @@ class TestFlowSegmentBased:
             PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
             PlaythroughSection(mc_start=5, mc_end=9, atomic_section_ids=("B",)),
         ]
-        flow = Flow.from_sections(segments, FlowMode.DEFAULT)
+        flow = Flow.from_sections(segments, FlowMode.default)
 
         records = flow.to_records()
         assert len(records) == 2
@@ -1077,7 +1068,7 @@ class TestFlowSegmentBased:
         segments = [
             PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
         ]
-        flow = Flow.from_sections(segments, FlowMode.DEFAULT)
+        flow = Flow.from_sections(segments, FlowMode.default)
 
         rows = flow.to_csv_rows("test.tsv", "test v1.0")
         assert len(rows) == 1
@@ -1095,14 +1086,14 @@ class TestFlowSegmentBased:
                 {"mc_start": 1, "mc_end": 5, "atomic_segments": "A"},
                 {"mc_start": 5, "mc_end": 9, "atomic_segments": "B"},
             ],
-            FlowMode.DEFAULT,
+            FlowMode.default,
         )
         flow2 = Flow.from_records(
             [
                 {"mc_start": 1, "mc_end": 5, "atomic_segments": "X"},  # Different ID
                 {"mc_start": 5, "mc_end": 9, "atomic_segments": "Y"},  # Different ID
             ],
-            FlowMode.PARTITURA_MINIMAL,  # Different mode
+            FlowMode.partitura_minimal,  # Different mode
         )
         # is_equivalent only compares MC ranges, not IDs or modes
         assert flow1.is_equivalent(flow2)
@@ -1112,14 +1103,14 @@ class TestFlowSegmentBased:
         # Right-open: mc_end=9 means MCs 1-8
         flow1 = Flow.from_records(
             [{"mc_start": 1, "mc_end": 9, "atomic_segments": "A"}],
-            FlowMode.DEFAULT,
+            FlowMode.default,
         )
         flow2 = Flow.from_records(
             [
                 {"mc_start": 1, "mc_end": 5, "atomic_segments": "A"},
                 {"mc_start": 5, "mc_end": 9, "atomic_segments": "B"},
             ],
-            FlowMode.DEFAULT,
+            FlowMode.default,
         )
         assert not flow1.is_equivalent(flow2)
 
@@ -1128,11 +1119,11 @@ class TestFlowSegmentBased:
         # Right-open: mc_end=5 means MCs 1-4, mc_end=6 means MCs 1-5
         flow1 = Flow.from_records(
             [{"mc_start": 1, "mc_end": 5, "atomic_segments": "A"}],
-            FlowMode.DEFAULT,
+            FlowMode.default,
         )
         flow2 = Flow.from_records(
             [{"mc_start": 1, "mc_end": 6, "atomic_segments": "A"}],  # Different end
-            FlowMode.DEFAULT,
+            FlowMode.default,
         )
         assert not flow1.is_equivalent(flow2)
 
@@ -1143,7 +1134,7 @@ class TestFlowSegmentBased:
             PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
             PlaythroughSection(mc_start=5, mc_end=9, atomic_section_ids=("B",)),
         ]
-        flow = Flow.from_sections(segments, FlowMode.DEFAULT)
+        flow = Flow.from_sections(segments, FlowMode.default)
 
         assert flow.to_mc_sequence() == [1, 2, 3, 4, 5, 6, 7, 8]
 
@@ -1157,14 +1148,14 @@ class TestFlowSegmentBased:
             PlaythroughSection(mc_start=17, mc_end=32, atomic_section_ids=("C",)),
             PlaythroughSection(mc_start=6, mc_end=17, atomic_section_ids=("B",)),
         ]
-        flow = Flow.from_sections(segments, FlowMode.DEFAULT)
+        flow = Flow.from_sections(segments, FlowMode.default)
 
         expected = ["A", "B", "A", "B", "C", "C", "B"]
         assert flow.to_atomic_sequence() == expected
 
     def test_to_atomic_sequence_empty(self) -> None:
         """Flow.to_atomic_sequence handles empty flows."""
-        flow = Flow(sections=[], mode=FlowMode.DEFAULT)
+        flow = Flow(sections=[], mode=FlowMode.default)
         assert flow.to_atomic_sequence() == []
 
     def test_diff_flows(self) -> None:
@@ -1175,7 +1166,7 @@ class TestFlowSegmentBased:
                 PlaythroughSection(mc_start=5, mc_end=9, atomic_section_ids=("B",)),
                 PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
             ],
-            FlowMode.DEFAULT,
+            FlowMode.default,
         )
         flow2 = Flow.from_sections(
             [
@@ -1183,7 +1174,7 @@ class TestFlowSegmentBased:
                 PlaythroughSection(mc_start=1, mc_end=5, atomic_section_ids=("A",)),
                 PlaythroughSection(mc_start=5, mc_end=9, atomic_section_ids=("B",)),
             ],
-            FlowMode.DEFAULT,
+            FlowMode.default,
         )
         # diff_flows should show the swapped A and B
         diff = flow1.diff_flows(flow2)
@@ -1199,7 +1190,7 @@ class TestFlowSegmentBased:
                 mc_start=1, mc_end=5, atomic_section_ids=("A",)
             ),  # Repeat
         ]
-        flow = Flow.from_sections(segments, FlowMode.DEFAULT)
+        flow = Flow.from_sections(segments, FlowMode.default)
 
         # 4 + 4 = 8 total MC visitations
         assert flow.unfolded_length == 8
@@ -1214,9 +1205,9 @@ class TestFlowCSVLoading:
         if not csv_path.exists():
             pytest.skip(f"Test data not found: {csv_path}")
 
-        flow = Flow.from_csv(csv_path, FlowMode.ATOMIC)
+        flow = Flow.from_csv(csv_path, FlowMode.atomic)
 
-        assert flow.mode == FlowMode.ATOMIC
+        assert flow.mode == FlowMode.atomic
         assert len(flow.sections) == 4  # A, B, C, D
         assert flow.sections[0].mc_start == 1
         # Right-open: mc_end=6 means MCs 1-5 (5 measures)
@@ -1230,7 +1221,7 @@ class TestFlowCSVLoading:
 
         # MUSIC21 mode is not in the CSV, so this should raise
         with pytest.raises(ValueError, match="No entries for flow_mode"):
-            Flow.from_csv(csv_path, FlowMode.MUSIC21)
+            Flow.from_csv(csv_path, FlowMode.music21)
 
     def test_load_valid_flows(self, target_flows_dir: Path) -> None:
         """load_valid_flows loads all modes from CSV."""
@@ -1241,8 +1232,8 @@ class TestFlowCSVLoading:
         flows = load_valid_flows(csv_path)
 
         assert len(flows) == 3  # ATOMIC, DEFAULT, SINGLE_PASS
-        assert FlowMode.ATOMIC in flows
-        assert len(flows[FlowMode.ATOMIC].sections) == 4
+        assert FlowMode.atomic in flows
+        assert len(flows[FlowMode.atomic].sections) == 4
 
 
 # endregion
@@ -1255,15 +1246,15 @@ class TestFlowMode:
 
     def test_all_modes_exist(self) -> None:
         """All expected flow modes exist."""
-        assert FlowMode.ATOMIC.value == "atomic"
-        assert FlowMode.DEFAULT.value == "default"
-        assert FlowMode.MS3.value == "ms3"
-        assert FlowMode.PARTITURA_MINIMAL.value == "partitura_minimal"
-        assert FlowMode.PARTITURA_MAXIMAL.value == "partitura_maximal"
-        assert FlowMode.MUSIC21.value == "music21"
-        assert FlowMode.PRINTED.value == "printed"
-        assert FlowMode.SINGLE_PASS.value == "single"
-        assert FlowMode.CUSTOM.value == "custom"
+        assert FlowMode.atomic.value == "atomic"
+        assert FlowMode.default.value == "default"
+        assert FlowMode.ms3.value == "ms3"
+        assert FlowMode.partitura_minimal.value == "partitura_minimal"
+        assert FlowMode.partitura_maximal.value == "partitura_maximal"
+        assert FlowMode.music21.value == "music21"
+        assert FlowMode.printed.value == "printed"
+        assert FlowMode.single.value == "single"
+        assert FlowMode.custom.value == "custom"
 
 
 # endregion
@@ -1313,7 +1304,7 @@ class TestFlowController:
         loader.load(rachmaninoff_measures_tsv)
 
         controller = FlowController(loader.store.measures)
-        sections = controller.get_sections(FlowMode.DEFAULT)
+        sections = controller.get_sections(FlowMode.default)
 
         # Should return PlaythroughSection objects
         assert len(sections) == 1
@@ -1339,7 +1330,7 @@ class TestFlowController:
         loader.load(rachmaninoff_measures_tsv)
 
         controller = FlowController(loader.store.measures)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
 
         # Flow should have sections and correct unfolded length
         assert flow.unfolded_length == 374
@@ -1382,7 +1373,7 @@ class TestExample1Rachmaninoff:
         loader.load(rachmaninoff_measures_tsv)
 
         controller = FlowController(loader.store.measures)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
 
         assert flow.folded_length == 374
         assert flow.unfolded_length == 374
@@ -1401,7 +1392,7 @@ class TestExample1Rachmaninoff:
         loader = TSVLoader()
         loader.load(rachmaninoff_measures_tsv)
         controller = FlowController(loader.store.measures)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
 
         # Load unfolded gold standard
         import pandas as pd
@@ -1469,7 +1460,7 @@ class TestExample3CouperinMusete:
         loader.load(musete_measures_tsv)
 
         controller = FlowController(loader.store.measures)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
 
         assert flow.folded_length == 58
         # The unfolded count is 138 (from gold standard)
@@ -1488,7 +1479,7 @@ class TestExample3CouperinMusete:
         loader = TSVLoader()
         loader.load(musete_measures_tsv)
         controller = FlowController(loader.store.measures)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
 
         # Load unfolded gold standard
         import pandas as pd
@@ -1541,9 +1532,9 @@ class TestPrintedMode:
         loader.load(rachmaninoff_measures_tsv)
 
         controller = FlowController(loader.store.measures)
-        flow = controller.compute_flow(FlowMode.PRINTED)
+        flow = controller.compute_flow(FlowMode.printed)
 
-        assert flow.mode == FlowMode.PRINTED
+        assert flow.mode == FlowMode.printed
         assert flow.folded_length == 374
         assert flow.unfolded_length == 374
         assert flow.has_repeats is False

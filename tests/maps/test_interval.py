@@ -5,13 +5,13 @@ from fractions import Fraction
 import numpy as np
 import pytest
 
+from timetoalign.core.enums import InterpolationKind
 from timetoalign.maps.interval import (
     IntervalToConstantMap,
     QuartersToFloatingMeasures,
     QuartersToMeasureNumber,
 )
 from timetoalign.maps.meter import MetricMap
-from timetoalign.maps.table import InterpolationKind
 
 
 class TestIntervalToConstantMap:

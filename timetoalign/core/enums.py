@@ -587,3 +587,157 @@ class FlowControlType(FancyStrEnum):
             FlowControlType.first_measure,
             FlowControlType.last_measure,
         }
+
+
+class InterpolationKind(FancyStrEnum):
+    """Interpolation methods for TableMap.
+
+    Attributes:
+        linear: Linear interpolation between points.
+        nearest: Nearest-neighbor interpolation.
+        previous: Use the previous point's value (step function, left).
+        next: Use the next point's value (step function, right).
+    """
+
+    linear = auto()
+    nearest = auto()
+    previous = auto()
+    next = auto()
+
+
+class ExtrapolationPolicy(FancyStrEnum):
+    """How to handle values outside the table bounds.
+
+    Attributes:
+        error: Raise an error for out-of-bounds values.
+        extrapolate: Extend the interpolation beyond bounds.
+        constant: Use the boundary value (clamp).
+        nan: Return NaN for out-of-bounds values.
+    """
+
+    error = auto()
+    extrapolate = auto()
+    constant = auto()
+    nan = auto()
+
+
+class ActivationCondition(FancyStrEnum):
+    """When a flow control event becomes active.
+
+    This determines on which traversal pass the event takes effect.
+    """
+
+    always = auto()
+    """Always active (e.g., section end)."""
+
+    first_n = auto()
+    """Active on first N passes (e.g., repeat 2x)."""
+
+    after_first = auto()
+    """Active after first pass (e.g., second ending)."""
+
+    after_dc_ds = auto()
+    """Active after Da Capo or Dal Segno."""
+
+
+class ColumnRole(FancyStrEnum):
+    """Semantic role of a column in the table.
+
+    Used for automatic role inference when columns are not explicitly specified.
+    """
+
+    # Core event identity
+    id = auto()
+    name = auto()
+    event_type = auto()
+
+    # Coordinates (primary timeline)
+    start = auto()
+    end = auto()
+    duration = auto()
+    instant = auto()
+
+    # Conversion (C-Map target)
+    cmap_target = auto()
+
+    # Structure
+    partition = auto()
+    parent_id = auto()
+    child_id = auto()
+    segment_name = auto()
+    region = auto()
+
+    # Alignment
+    match_ref = auto()
+
+    # Generic data
+    extra = auto()
+
+
+class PartitionMode(FancyStrEnum):
+    """How partition columns create timelines.
+
+    separate: Each unique value creates an independent timeline with its own
+              coordinate system. Coordinates are NOT comparable across partitions.
+              Use for: Different recordings, different performers.
+
+    children: Each unique value creates a child timeline that shares the parent's
+              coordinate system. Coordinates ARE comparable (offset by parent position).
+              Use for: Voices, instruments, staves within a score.
+    """
+
+    separate = auto()
+    """Disparate coordinate systems."""
+
+    children = auto()
+    """Same coordinate system, parent-child relationship."""
+
+
+class FlowMode(FancyStrEnum):
+    """Flow computation modes.
+
+    Different contexts require different unfoldings:
+
+    Deterministic modes (must be identical across all loaders):
+    - atomic: True atomic sections from FlowController (= mode=None)
+    - printed: All bars as printed (no unfolding)
+    - single: Single playthrough (last volta only)
+
+    Contingent modes (may have alternatives if divergent):
+    - default: Most complete flow (all repeats taken), equivalent to MS3
+    - music21: music21's expandRepeats() - only if diverges from default
+    - partitura_maximal: partitura's unfold_part_maximal() - only if diverges from default
+    - partitura_minimal: partitura's atomic segments - only if diverges from atomic
+
+    Other modes:
+    - ms3: From ms3's *_unfolded.measures.tsv (gold standard for default)
+    - custom: User-provided flow sequence
+    """
+
+    atomic = auto()
+    default = auto()
+    ms3 = auto()
+    partitura_minimal = auto()
+    partitura_maximal = auto()
+    music21 = auto()
+    printed = auto()
+    single = auto()
+    custom = auto()
+
+
+class IncompletePosition(FancyStrEnum):
+    """Position of an incomplete measure within the score.
+
+    Used by IncompleteMeasure to classify why a measure is incomplete:
+    - anacrusis: Pickup measure at the start of the piece
+    - final: Final incomplete measure (often pairs with anacrusis)
+    - split_first: First part of a split measure
+    - split_second: Second part of a split measure
+    - unknown: Position not yet determined
+    """
+
+    anacrusis = auto()
+    final = auto()
+    split_first = auto()
+    split_second = auto()
+    unknown = auto()

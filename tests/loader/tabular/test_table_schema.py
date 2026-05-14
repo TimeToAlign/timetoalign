@@ -16,11 +16,10 @@ import pandas as pd
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core.enums import ColumnRole, PartitionMode
 from timetoalign.loader.table_schema import (
     CMapColumn,
-    ColumnRole,
     CoordinateSpec,
-    PartitionMode,
     PartitionSpec,
     RegionSpec,
     TableSchema,
@@ -179,19 +178,19 @@ class TestPartitionSpec:
         """Test separate partition mode (disparate coordinates)."""
         spec = PartitionSpec(
             columns=["voice"],
-            mode=PartitionMode.SEPARATE,
+            mode=PartitionMode.separate,
         )
         assert spec.columns == ["voice"]
-        assert spec.mode == PartitionMode.SEPARATE
+        assert spec.mode == PartitionMode.separate
 
     def test_children_mode(self) -> None:
         """Test children partition mode (shared coordinates)."""
         spec = PartitionSpec(
             columns=["staff"],
-            mode=PartitionMode.CHILDREN,
+            mode=PartitionMode.children,
             parent_timeline="score",
         )
-        assert spec.mode == PartitionMode.CHILDREN
+        assert spec.mode == PartitionMode.children
         assert spec.parent_timeline == "score"
 
     def test_composite_key(self) -> None:
@@ -254,11 +253,11 @@ class TestTableSchemaBasics:
             partitions=PartitionSpec(columns=["voice"]),
             regions=RegionSpec(columns=["section"]),
         )
-        assert schema.get_column_role("onset") == ColumnRole.START
-        assert schema.get_column_role("beat") == ColumnRole.CMAP_TARGET
-        assert schema.get_column_role("voice") == ColumnRole.PARTITION
-        assert schema.get_column_role("section") == ColumnRole.REGION
-        assert schema.get_column_role("other") == ColumnRole.EXTRA
+        assert schema.get_column_role("onset") == ColumnRole.start
+        assert schema.get_column_role("beat") == ColumnRole.cmap_target
+        assert schema.get_column_role("voice") == ColumnRole.partition
+        assert schema.get_column_role("section") == ColumnRole.region
+        assert schema.get_column_role("other") == ColumnRole.extra
 
 
 # endregion
@@ -290,7 +289,7 @@ class TestTimelineCreation:
         schema = TableSchema(
             timeline=TimelineDefaults(unit=TimeUnit.seconds),
             coordinates=CoordinateSpec(start="onset", end="offset"),
-            partitions=PartitionSpec(columns=["voice"], mode=PartitionMode.SEPARATE),
+            partitions=PartitionSpec(columns=["voice"], mode=PartitionMode.separate),
         )
         result = schema.create_timelines(partitioned_df)
 

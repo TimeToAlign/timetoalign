@@ -19,13 +19,11 @@ Structural components:
 - Region: Named TimeInterval (not a timeline itself)
 
 Flow API (Phase 3.7 + Phase 10 MeasureUnit Architecture):
-- FlowMode: Enum for flow computation modes
 - MeasureUnit: Fundamental building block (one per MeasureData row)
 - Typed MeasureUnit subclasses (Phase 10.2a):
   - IncompleteMeasure: Measure shorter than expected (anacrusis, final, split)
   - CompleteMeasure: Measure matching expected duration
   - OverlengthMeasure: Measure exceeding expected duration (fermata, cadenza)
-  - IncompletePosition: Enum for IncompleteMeasure position classification
   - TypedMeasure: Type alias for any typed measure
 - MeasureGroup hierarchy (Phase 10.2b):
   - MeasureGroup: Base class for groupings of typed measures
@@ -72,10 +70,8 @@ from .flow import (
     FlowControllerBase,
     FlowMap,
     FlowMapSection,
-    FlowMode,
     IncompleteGroup,
     IncompleteMeasure,
-    IncompletePosition,
     MeasureGroup,
     MeasureUnit,
     OverlengthGroup,
@@ -126,13 +122,11 @@ __all__ = [
     # Structural components
     "Region",
     # Flow API (Phase 3.7 + Phase 10)
-    "FlowMode",
     "MeasureUnit",
     # Typed MeasureUnit subclasses (Phase 10.2a)
     "IncompleteMeasure",
     "CompleteMeasure",
     "OverlengthMeasure",
-    "IncompletePosition",
     "TypedMeasure",
     # MeasureGroup hierarchy (Phase 10.2b)
     "MeasureGroup",

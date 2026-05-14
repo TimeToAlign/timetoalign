@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from timetoalign.maps.table import ExtrapolationPolicy, InterpolationKind, TableMap
+from timetoalign.core.enums import ExtrapolationPolicy, InterpolationKind
+from timetoalign.maps.table import TableMap
 
 
 class TestTableMap:

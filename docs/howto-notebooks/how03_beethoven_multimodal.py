@@ -70,9 +70,10 @@ from timetoalign.alignment.matching import (
     prepare_abc_notes_for_matching,
     prepare_eep_notes_for_matching,
 )
+from timetoalign.core.enums import FlowMode
 from timetoalign.loader.score import TSVLoader
 from timetoalign.testdata import ensure_data
-from timetoalign.timelines.flow import FlowMode, create_unfolded_timeline
+from timetoalign.timelines.flow import create_unfolded_timeline
 from timetoalign.timelines.types import SegmentLine
 
 DATA_DIR = ensure_data("score") / "beethoven_op18-4iv_multimodal"
@@ -269,7 +270,7 @@ clt1
 
 # %%
 abc_controller = abc_loader.create_flow_controller()
-abc_flow = abc_controller.compute_flow(FlowMode.DEFAULT)
+abc_flow = abc_controller.compute_flow(FlowMode.default)
 abc_flow
 
 # %% [markdown]
@@ -614,11 +615,11 @@ rec_controller
 # (no repeats, last volta only) for comparison:
 
 # %%
-default_flow = rec_controller.compute_flow(FlowMode.DEFAULT)
+default_flow = rec_controller.compute_flow(FlowMode.default)
 default_flow
 
 # %%
-single_flow = rec_controller.compute_flow(FlowMode.SINGLE_PASS)
+single_flow = rec_controller.compute_flow(FlowMode.single)
 single_flow
 
 # %% [markdown]

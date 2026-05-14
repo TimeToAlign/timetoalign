@@ -213,7 +213,8 @@ class TestConversionMapErrorHandling:
 
     def test_table_map_extrapolation_error_policy(self):
         """TableMap with error extrapolation raises on out-of-bounds."""
-        from timetoalign.maps.table import ExtrapolationPolicy, TableMap
+        from timetoalign.core.enums import ExtrapolationPolicy
+        from timetoalign.maps.table import TableMap
 
         m = TableMap(
             x_values=[0, 10], y_values=[0, 20], extrapolate=ExtrapolationPolicy.error

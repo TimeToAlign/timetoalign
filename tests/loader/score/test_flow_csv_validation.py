@@ -247,14 +247,15 @@ class TestFlowSerialization:
 
     def test_flow_from_csv_round_trip(self) -> None:
         """Flow can be loaded from CSV and exported back."""
-        from timetoalign.timelines.flow import Flow, FlowMode
+        from timetoalign.core.enums import FlowMode
+        from timetoalign.timelines.flow import Flow
 
         csv_path = TARGET_FLOWS_DIR / "c05n05_musete.flow.csv"
         if not csv_path.exists():
             pytest.skip(f"Flow CSV not found: {csv_path}")
 
         # Load
-        flow = Flow.from_csv(csv_path, FlowMode.ATOMIC)
+        flow = Flow.from_csv(csv_path, FlowMode.atomic)
 
         # Export
         rows = flow.to_csv_rows("test.musicxml", "test v1.0")
@@ -265,5 +266,5 @@ class TestFlowSerialization:
         assert all("mc_start" in r and "mc_end" in r for r in rows)
 
         # Reconstruct and compare
-        reconstructed = Flow.from_records(rows, FlowMode.ATOMIC)
+        reconstructed = Flow.from_records(rows, FlowMode.atomic)
         assert flow.is_equivalent(reconstructed)

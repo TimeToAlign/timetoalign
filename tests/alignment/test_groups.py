@@ -1148,8 +1148,9 @@ class TestTimelineGroupUnfold:
         """Build score group + flow data for unfolding tests."""
         from pathlib import Path
 
+        from timetoalign.core.enums import FlowMode
         from timetoalign.loader.score import TSVLoader
-        from timetoalign.timelines.flow import FlowMode, ScoreFlowController
+        from timetoalign.timelines.flow import ScoreFlowController
 
         data_dir = (
             Path(__file__).parent.parent
@@ -1194,7 +1195,7 @@ class TestTimelineGroupUnfold:
 
         # Flow
         controller = abc_loader.create_flow_controller()
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
 
         return {
             "group": group,
@@ -1371,10 +1372,10 @@ class TestScoreLoaderCreateFlowController:
 
     def test_controller_can_compute_flow(self, abc_loader):
         """The returned controller can compute a flow."""
-        from timetoalign.timelines.flow import FlowMode
+        from timetoalign.core.enums import FlowMode
 
         controller = abc_loader.create_flow_controller()
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
         assert len(flow.sections) == 11
 
     def test_raises_without_measures(self):
@@ -1387,15 +1388,16 @@ class TestScoreLoaderCreateFlowController:
 
     def test_equivalent_to_manual_construction(self, abc_loader):
         """Produces the same result as manual ScoreFlowController()."""
-        from timetoalign.timelines.flow import FlowMode, ScoreFlowController
+        from timetoalign.core.enums import FlowMode
+        from timetoalign.timelines.flow import ScoreFlowController
 
         # API way
         ctrl_api = abc_loader.create_flow_controller()
-        flow_api = ctrl_api.compute_flow(FlowMode.DEFAULT)
+        flow_api = ctrl_api.compute_flow(FlowMode.default)
 
         # Manual way
         ctrl_manual = ScoreFlowController(abc_loader.store.measures)
-        flow_manual = ctrl_manual.compute_flow(FlowMode.DEFAULT)
+        flow_manual = ctrl_manual.compute_flow(FlowMode.default)
 
         assert len(flow_api.sections) == len(flow_manual.sections)
 

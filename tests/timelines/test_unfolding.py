@@ -27,6 +27,7 @@ import pandas as pd
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core.enums import FlowMode
 from timetoalign.loader.score import TSVLoader
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
@@ -36,7 +37,6 @@ from timetoalign.timelines import (
 )
 from timetoalign.timelines.flow import (
     FlowController,
-    FlowMode,
     ScoreFlowController,
     compute_qb_sections,
     create_unfolded_timeline,
@@ -480,7 +480,7 @@ class TestComputeQBSections:
             pytest.skip(f"Test data not found: {tsv_path}")
 
         controller = _load_controller(tsv_path)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
         qb_sections = compute_qb_sections(flow, controller)
 
         # Rachmaninoff has no repeats -> should have same section structure as flow
@@ -497,7 +497,7 @@ class TestComputeQBSections:
             pytest.skip(f"Test data not found: {tsv_path}")
 
         controller = _load_controller(tsv_path)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
         qb_sections = compute_qb_sections(flow, controller)
 
         # Total unfolded QB should be 384
@@ -511,7 +511,7 @@ class TestComputeQBSections:
             pytest.skip(f"Test data not found: {tsv_path}")
 
         controller = _load_controller(tsv_path)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
         qb_sections = compute_qb_sections(flow, controller)
 
         # Total unfolded QB should be 195
@@ -525,7 +525,7 @@ class TestComputeQBSections:
             pytest.skip(f"Test data not found: {tsv_path}")
 
         controller = _load_controller(tsv_path)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
         qb_sections = compute_qb_sections(flow, controller)
 
         # Total unfolded QB should be 1116
@@ -539,7 +539,7 @@ class TestComputeQBSections:
             pytest.skip(f"Test data not found: {tsv_path}")
 
         controller = _load_controller(tsv_path)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
         qb_sections = compute_qb_sections(flow, controller)
 
         # Total unfolded QB should be 1078
@@ -553,7 +553,7 @@ class TestComputeQBSections:
             pytest.skip(f"Test data not found: {tsv_path}")
 
         controller = _load_controller(tsv_path)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
         qb_sections = compute_qb_sections(flow, controller)
 
         # Total unfolded QB should be 75
@@ -579,7 +579,7 @@ class TestComputeQBSections:
             mc_to_qb[mc] = qb
 
         controller = _load_controller(tsv_path)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
         qb_sections = compute_qb_sections(flow, controller)
 
         # Each section's qb_start must match the folded TSV's quarterbeats for mc_start
@@ -599,7 +599,7 @@ class TestComputeQBSections:
                 continue
 
             controller = _load_controller(tsv_path)
-            flow = controller.compute_flow(FlowMode.DEFAULT)
+            flow = controller.compute_flow(FlowMode.default)
             qb_sections = compute_qb_sections(flow, controller)
 
             for i, (start, end) in enumerate(qb_sections):
@@ -831,7 +831,7 @@ class TestUnfoldingGoldStandard:
             pytest.skip(f"Unfolded TSV not found: {unfolded_path}")
 
         controller = _load_controller(folded_path)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
         gold_df = _load_gold_standard(unfolded_path)
 
         return controller, flow, gold_df
@@ -938,7 +938,7 @@ class TestUnfoldingGoldStandard:
             pytest.skip(f"Folded TSV not found: {folded_path}")
 
         controller = _load_controller(folded_path)
-        flow = controller.compute_flow(FlowMode.DEFAULT)
+        flow = controller.compute_flow(FlowMode.default)
         qb_sections = compute_qb_sections(flow, controller)
 
         expected_total = Fraction(GOLD_STANDARD[specimen][6])
@@ -1124,7 +1124,7 @@ def beethoven_score_group() -> dict[str, Any]:
 
     # Flow from ABC measures
     controller = ScoreFlowController(abc_loader.store.measures)
-    flow = controller.compute_flow(FlowMode.DEFAULT)
+    flow = controller.compute_flow(FlowMode.default)
     qb_sections = compute_qb_sections(flow, controller)
 
     return {

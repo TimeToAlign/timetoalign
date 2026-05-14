@@ -6,51 +6,18 @@ with interpolation for values between them.
 
 from __future__ import annotations
 
-from enum import StrEnum, auto
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
 
-from ..core.enums import TimeUnit
+from ..core.enums import ExtrapolationPolicy, InterpolationKind, TimeUnit
 from ..core.types import CoordinateValue
 from .base import ConversionMap
 
 if TYPE_CHECKING:
     from typing_extensions import Self
-
-
-class InterpolationKind(StrEnum):
-    """Interpolation methods for TableMap.
-
-    Attributes:
-        linear: Linear interpolation between points.
-        nearest: Nearest-neighbor interpolation.
-        previous: Use the previous point's value (step function, left).
-        next: Use the next point's value (step function, right).
-    """
-
-    linear = auto()
-    nearest = auto()
-    previous = auto()
-    next = auto()
-
-
-class ExtrapolationPolicy(StrEnum):
-    """How to handle values outside the table bounds.
-
-    Attributes:
-        error: Raise an error for out-of-bounds values.
-        extrapolate: Extend the interpolation beyond bounds.
-        constant: Use the boundary value (clamp).
-        nan: Return NaN for out-of-bounds values.
-    """
-
-    error = auto()
-    extrapolate = auto()
-    constant = auto()
-    nan = auto()
 
 
 class TableMap(ConversionMap[CoordinateValue]):

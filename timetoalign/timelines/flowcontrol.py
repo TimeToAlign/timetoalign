@@ -31,28 +31,15 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from enum import Enum, auto
 from fractions import Fraction
 from typing import Any
 
 from timetoalign.core import Coordinate, TimeUnit
-from timetoalign.core.enums import FlowControlType
+from timetoalign.core.enums import ActivationCondition, FlowControlType
 
 module_logger = logging.getLogger(__name__)
 
 # region Enums
-
-
-class ActivationCondition(Enum):
-    """When a flow control event becomes active.
-
-    This determines on which traversal pass the event takes effect.
-    """
-
-    ALWAYS = auto()  # Always active (e.g., section end)
-    FIRST_N = auto()  # Active on first N passes (e.g., repeat 2x)
-    AFTER_FIRST = auto()  # Active after first pass (e.g., second ending)
-    AFTER_DC_DS = auto()  # Active after Da Capo or Dal Segno
 
 
 # endregion
@@ -100,14 +87,14 @@ class Break:
         >>> fine = Break(
         ...     coordinate=Coordinate(200.0, TimeUnit.quarters),
         ...     control_type=FlowControlType.fine,
-        ...     condition=ActivationCondition.AFTER_DC_DS,
+        ...     condition=ActivationCondition.after_dc_ds,
         ...     name="fine",  # Default name, can be customized
         ... )
     """
 
     coordinate: Coordinate
     control_type: FlowControlType = FlowControlType.section_break
-    condition: ActivationCondition = ActivationCondition.ALWAYS
+    condition: ActivationCondition = ActivationCondition.always
     repeat_count: int = 1
     label: str | None = None
     name: str | None = None  # Instance name for target markers
@@ -141,13 +128,13 @@ class Break:
         Returns:
             True if the break should void contiguity on this pass.
         """
-        if self.condition == ActivationCondition.ALWAYS:
+        if self.condition == ActivationCondition.always:
             return True
-        elif self.condition == ActivationCondition.FIRST_N:
+        elif self.condition == ActivationCondition.first_n:
             return pass_number <= self.repeat_count
-        elif self.condition == ActivationCondition.AFTER_FIRST:
+        elif self.condition == ActivationCondition.after_first:
             return pass_number > 1
-        elif self.condition == ActivationCondition.AFTER_DC_DS:
+        elif self.condition == ActivationCondition.after_dc_ds:
             return after_dc_ds
         return False
 
@@ -218,7 +205,7 @@ class Jump:
     from_coordinate: Coordinate
     to_coordinate: Coordinate
     control_type: FlowControlType = FlowControlType.repeat_end
-    condition: ActivationCondition = ActivationCondition.FIRST_N
+    condition: ActivationCondition = ActivationCondition.first_n
     repeat_count: int = 1
     target_name: str | None = None  # Name of target marker to resolve
     label: str | None = None
@@ -273,13 +260,13 @@ class Jump:
         Returns:
             True if the jump should be taken on this pass.
         """
-        if self.condition == ActivationCondition.ALWAYS:
+        if self.condition == ActivationCondition.always:
             return True
-        elif self.condition == ActivationCondition.FIRST_N:
+        elif self.condition == ActivationCondition.first_n:
             return pass_number <= self.repeat_count
-        elif self.condition == ActivationCondition.AFTER_FIRST:
+        elif self.condition == ActivationCondition.after_first:
             return pass_number > 1
-        elif self.condition == ActivationCondition.AFTER_DC_DS:
+        elif self.condition == ActivationCondition.after_dc_ds:
             return after_dc_ds
         return False
 
@@ -292,9 +279,9 @@ class Jump:
         Returns:
             Number of remaining activations (0 if no longer active).
         """
-        if self.condition == ActivationCondition.FIRST_N:
+        if self.condition == ActivationCondition.first_n:
             return max(0, self.repeat_count - pass_number + 1)
-        elif self.condition == ActivationCondition.ALWAYS:
+        elif self.condition == ActivationCondition.always:
             return float("inf")  # type: ignore
         return 0
 

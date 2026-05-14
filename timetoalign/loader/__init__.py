@@ -78,13 +78,11 @@ from .schema import (
 from .store import AlignmentStore, DictStore, EventStore, MatchData, SingleStore
 from .table_schema import (
     CMapColumn,
-    ColumnRole,
     CoordinateSpec,
     ExtraColumn,
     HierarchySpec,
     MatchColumn,
     MatchSpec,
-    PartitionMode,
     PartitionSpec,
     RegionSpec,
     TableSchema,
@@ -120,14 +118,12 @@ __all__ = [
     "TimelineDefaults",
     "CoordinateSpec",
     "PartitionSpec",
-    "PartitionMode",
     "HierarchySpec",
     "RegionSpec",
     "MatchSpec",
     "CMapColumn",
     "MatchColumn",
     "ExtraColumn",
-    "ColumnRole",
     # Legacy basic schema
     "BasicTableSchema",
     "ConvertedField",
