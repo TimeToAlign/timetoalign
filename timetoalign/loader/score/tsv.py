@@ -601,6 +601,19 @@ class TSVLoader(ScoreLoader):
                 str(row.get("breaks", "")) if pd.notna(row.get("breaks")) else None
             )
 
+            # ms3 jump/marker columns: markers, jump_bwd, jump_fwd, play_until
+            def _str_or_none(name: str) -> str | None:
+                val = row.get(name)
+                if val is None or not pd.notna(val):
+                    return None
+                s = str(val).strip()
+                return s or None
+
+            markers_val = _str_or_none("markers")
+            jump_bwd_val = _str_or_none("jump_bwd")
+            jump_fwd_val = _str_or_none("jump_fwd")
+            play_until_val = _str_or_none("play_until")
+
             # dont_count
             dont_count = (
                 bool(row.get("dont_count")) if pd.notna(row.get("dont_count")) else None
@@ -659,6 +672,10 @@ class TSVLoader(ScoreLoader):
                     "volta": volta,
                     "repeats": repeats_val,
                     "breaks": breaks_val,
+                    "markers": markers_val,
+                    "jump_bwd": jump_bwd_val,
+                    "jump_fwd": jump_fwd_val,
+                    "play_until": play_until_val,
                     "dont_count": dont_count,
                     "numbering_offset": numbering_offset,
                     # Context

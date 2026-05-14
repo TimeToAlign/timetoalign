@@ -175,6 +175,34 @@ class MeasureData(EventData):
             metadata={"description": "Section boundary marker"},
         ),
         pa.field(
+            "markers",
+            pa.string(),
+            nullable=True,
+            metadata={"description": "Target marker name (segno, coda, codab, ...)"},
+        ),
+        pa.field(
+            "jump_bwd",
+            pa.string(),
+            nullable=True,
+            metadata={"description": "Backward jump target name (segno, start, ...)"},
+        ),
+        pa.field(
+            "jump_fwd",
+            pa.string(),
+            nullable=True,
+            metadata={
+                "description": "Forward jump target name (coda, codab, fine, ...)"
+            },
+        ),
+        pa.field(
+            "play_until",
+            pa.string(),
+            nullable=True,
+            metadata={
+                "description": "Play-until target name on after-DC/DS pass (coda, fine, ...)"
+            },
+        ),
+        pa.field(
             "dont_count",
             pa.bool_(),
             nullable=True,

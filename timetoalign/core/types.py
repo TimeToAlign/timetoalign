@@ -279,20 +279,22 @@ class Coordinate:
         unit_name = self.unit.value if hasattr(self.unit, "value") else str(self.unit)
         unit_lower = unit_name.lower()
         v = self.value
+        # Float-format paths below need a float; Fractions don't accept {:.6f}.
+        v_f = float(v)
 
         # For discrete units OR exact integers, format as plain integer
-        if unit_lower in DISCRETE_UNITS or (v == int(v) and abs(v) < 1e15):
-            return f"{int(v)} {self.unit}"
+        if unit_lower in DISCRETE_UNITS or (v == int(v_f) and abs(v_f) < 1e15):
+            return f"{int(v_f)} {self.unit}"
 
         # For continuous units, use fixed-point notation (never scientific)
-        if abs(v) >= 1e6:
-            return f"{int(round(v))} {self.unit}"
-        elif abs(v) >= 1:
-            return f"{v:.6f}".rstrip("0").rstrip(".") + f" {self.unit}"
-        elif v == 0:
+        if abs(v_f) >= 1e6:
+            return f"{int(round(v_f))} {self.unit}"
+        elif abs(v_f) >= 1:
+            return f"{v_f:.6f}".rstrip("0").rstrip(".") + f" {self.unit}"
+        elif v_f == 0:
             return f"0 {self.unit}"
         else:
-            return f"{v:.6f}".rstrip("0").rstrip(".") + f" {self.unit}"
+            return f"{v_f:.6f}".rstrip("0").rstrip(".") + f" {self.unit}"
 
     def is_zero(self) -> bool:
         """Check if this coordinate represents the origin."""

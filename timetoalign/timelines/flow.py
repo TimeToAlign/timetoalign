@@ -44,10 +44,11 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
-    from timetoalign.core import TimeUnit
+    from timetoalign.core import Coordinate, TimeUnit
     from timetoalign.display.ascii import Diagram
     from timetoalign.loader.score.stores.measures import MeasureData
     from timetoalign.timelines.base import Timeline
+    from timetoalign.timelines.flowcontrol import Break, FlowControlRegistry, Jump
     from timetoalign.timelines.types import SegmentLine
 
 module_logger = logging.getLogger(__name__)
@@ -86,6 +87,10 @@ class MeasureUnit:
         fine: True if Fine marker present.
         section_break: True if section break at this MC.
         flow_control_types: Tuple of FlowControlType.value strings for serialization.
+        jump_bwd: Name of backward-jump target (e.g., "segno", "start") or None.
+        jump_fwd: Name of forward-jump target (e.g., "coda", "codab", "fine") or None.
+        play_until: Name of play-until target on after-DC/DS pass
+            (e.g., "coda", "fine") or None.
 
     Examples:
         >>> unit = MeasureUnit(
@@ -116,6 +121,10 @@ class MeasureUnit:
     fine: bool = False
     section_break: bool = False
     flow_control_types: tuple[str, ...] = ()
+    # Raw ms3 jump-instruction fields (target NAMES, may be None)
+    jump_bwd: str | None = None
+    jump_fwd: str | None = None
+    play_until: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for DataFrame serialization.
@@ -143,6 +152,9 @@ class MeasureUnit:
             "fine": self.fine,
             "section_break": self.section_break,
             "flow_control_types": ";".join(self.flow_control_types),
+            "jump_bwd": self.jump_bwd,
+            "jump_fwd": self.jump_fwd,
+            "play_until": self.play_until,
         }
 
     @classmethod
@@ -203,6 +215,9 @@ class MeasureUnit:
             fine=bool(d.get("fine")),
             section_break=bool(d.get("section_break")),
             flow_control_types=flow_control_types,
+            jump_bwd=d.get("jump_bwd"),
+            jump_fwd=d.get("jump_fwd"),
+            play_until=d.get("play_until"),
         )
 
     def __repr__(self) -> str:
@@ -569,16 +584,64 @@ class AtomicSection:
         return result
 
     def __repr__(self) -> str:
-        typed_info = ""
-        if self.typed_measures is not None:
-            typed_info = f", {len(self.typed_measures)} typed"
-        groups_info = ""
-        if self.groups is not None:
-            groups_info = f", {len(self.groups)} groups"
+        n = self.mc_count
+        measure_word = "measure" if n == 1 else "measures"
+        bits = [f"{n} {measure_word}", f"to=[{', '.join(self.to)}]"]
+        if self.await_to:
+            bits.append(f"await=[{', '.join(self.await_to)}]")
+        descriptor = self._flow_control_descriptor()
+        if descriptor:
+            bits.append(descriptor)
         return (
             f"AtomicSection({self.id}: MC [{self.mc_start},{self.mc_end}), "
-            f"{self.section_type}{typed_info}{groups_info})"
+            f"{', '.join(bits)})"
         )
+
+    def _flow_control_descriptor(self) -> str:
+        """One-liner describing this section's flow-control role.
+
+        Lists the marker(s) that begin a leap_start section and the
+        instruction(s) that close a leap_end section, using short labels:
+        DSaC / DSaF / DCaC / DCaF / DS / DC / →coda / repeat_end / fine.
+        Multi-target sections with no named marker are described as
+        "ends with branching".
+        """
+        if not self.typed_measures:
+            return ""
+        first = self.typed_measures[0]
+        last = self.typed_measures[-1]
+        parts: list[str] = []
+
+        if self.section_type == "leap_start":
+            if first.coda:
+                parts.append(f"target {first.coda}")
+            elif first.segno:
+                parts.append(f"target {first.segno}")
+            else:
+                parts.append("leap target")
+
+        end_parts: list[str] = []
+        if last.end_repeat:
+            end_parts.append("repeat_end")
+        fct = last.flow_control_types
+        for short, fc_type in (
+            ("DSaC", "dal_segno_al_coda"),
+            ("DSaF", "dal_segno_al_fine"),
+            ("DCaC", "da_capo_al_coda"),
+            ("DCaF", "da_capo_al_fine"),
+            ("DS", "dal_segno"),
+            ("DC", "da_capo"),
+            ("→coda", "to_coda"),
+        ):
+            if fc_type in fct:
+                end_parts.append(short)
+        if last.fine:
+            end_parts.append("fine")
+        if end_parts:
+            parts.append(f"ends with {'+'.join(end_parts)}")
+        elif self.section_type == "leap_end":
+            parts.append("ends with branching")
+        return ", ".join(parts)
 
 
 # endregion
@@ -659,14 +722,13 @@ class PlaythroughSection:
         return list(range(self.mc_start, self.mc_end))
 
     def __repr__(self) -> str:
-        secs = ";".join(self.atomic_section_ids) if self.atomic_section_ids else "?"
-        typed_info = ""
-        if self.typed_measures is not None:
-            typed_info = f", {len(self.typed_measures)} typed"
-        groups_info = ""
-        if self.groups is not None:
-            groups_info = f", {len(self.groups)} groups"
-        return f"PlaythroughSection(MC [{self.mc_start},{self.mc_end}) [{secs}]{typed_info}{groups_info})"
+        secs = ", ".join(self.atomic_section_ids) if self.atomic_section_ids else "?"
+        n = self.mc_count
+        measure_word = "measure" if n == 1 else "measures"
+        return (
+            f"PlaythroughSection(MC [{self.mc_start},{self.mc_end}), "
+            f"{n} {measure_word}, atomic=[{secs}])"
+        )
 
 
 # endregion
@@ -1704,6 +1766,11 @@ class ScoreFlowController(FlowControllerBase):
         segno_col = _get_column_safe("segno")
         coda_col = _get_column_safe("coda")
         fine_col = _get_column_safe("fine", False)
+        # ms3 columns carrying marker name and jump targets per measure
+        markers_col = _get_column_safe("markers")
+        jump_bwd_col = _get_column_safe("jump_bwd")
+        jump_fwd_col = _get_column_safe("jump_fwd")
+        play_until_col = _get_column_safe("play_until")
         # section_break: check 'section_break' column first, then 'breaks' column
         if "section_break" in table.column_names:
             section_break_col = _get_column_safe("section_break", False)
@@ -1755,6 +1822,32 @@ class ScoreFlowController(FlowControllerBase):
             else:
                 next_list = [-1]
 
+            # Resolve marker name and jump targets — prefer dedicated
+            # segno/coda/fine columns when present, fall back to ms3
+            # markers/jump_fwd/play_until columns.
+            marker = markers_col[i] if markers_col[i] else None
+            jump_bwd = jump_bwd_col[i] if jump_bwd_col[i] else None
+            jump_fwd = jump_fwd_col[i] if jump_fwd_col[i] else None
+            play_until = play_until_col[i] if play_until_col[i] else None
+
+            segno_name = segno_col[i] if segno_col[i] else None
+            coda_name = coda_col[i] if coda_col[i] else None
+            if marker is not None:
+                # ms3 'markers' column carries the target marker NAME.
+                if marker.startswith("segno"):
+                    segno_name = segno_name or marker
+                elif marker.startswith("coda"):
+                    # both 'coda' and 'codab' are coda-type markers
+                    coda_name = coda_name or marker
+                elif marker == "fine":
+                    # fine marker can also appear in markers column
+                    fine_col[i] = True
+
+            # 'fine' marker location is signalled by an explicit marker or by
+            # jump_fwd='fine'. play_until='fine' is the D.S./D.C.-al-fine
+            # *instruction*, which lives elsewhere — not a fine marker.
+            fine_flag = bool(fine_col[i]) or jump_fwd == "fine" or marker == "fine"
+
             self._measure_lookup[mc] = {
                 "mc": mc,
                 "mn": str(mn_col[i]) if mn_col[i] is not None else str(mc),
@@ -1766,10 +1859,15 @@ class ScoreFlowController(FlowControllerBase):
                 "timesig": timesig_col[i],
                 "start_repeat": bool(start_repeat_col[i]),
                 "end_repeat": bool(end_repeat_col[i]),
-                "segno": segno_col[i] if segno_col[i] else None,
-                "coda": coda_col[i] if coda_col[i] else None,
-                "fine": bool(fine_col[i]),
+                "segno": segno_name,
+                "coda": coda_name,
+                "fine": fine_flag,
                 "section_break": bool(section_break_col[i]),
+                # Raw ms3 jump-instruction fields (kept for downstream inference)
+                "marker": marker,
+                "jump_bwd": jump_bwd,
+                "jump_fwd": jump_fwd,
+                "play_until": play_until,
             }
 
     def _build_units(self) -> None:
@@ -1824,6 +1922,9 @@ class ScoreFlowController(FlowControllerBase):
                 fine=bool(info.get("fine")),
                 section_break=bool(info.get("section_break")),
                 flow_control_types=flow_control_types,
+                jump_bwd=info.get("jump_bwd"),
+                jump_fwd=info.get("jump_fwd"),
+                play_until=info.get("play_until"),
             )
             self._units.append(unit)
 
@@ -1935,6 +2036,10 @@ class ScoreFlowController(FlowControllerBase):
         """Extract FlowControlType values from measure info.
 
         Builds a tuple of FlowControlType.value strings for serialization.
+        Recognises ms3 jump-instruction columns (``jump_bwd``, ``jump_fwd``,
+        ``play_until``) and folds them into the canonical FlowControlType
+        vocabulary (``dal_segno``, ``dal_segno_al_coda``, ``dal_segno_al_fine``,
+        ``da_capo``, ``da_capo_al_coda``, ``da_capo_al_fine``, ``to_coda``).
 
         Args:
             info: Measure info dict.
@@ -1958,6 +2063,33 @@ class ScoreFlowController(FlowControllerBase):
             types.append("fine")
         if info.get("section_break"):
             types.append("section_break")
+
+        # Derive jump instruction type from ms3 columns
+        jump_bwd = info.get("jump_bwd")
+        jump_fwd = info.get("jump_fwd")
+        play_until = info.get("play_until")
+        # 'start' as backward target means D.C. (jump to beginning); a named
+        # marker (typically 'segno') means D.S.
+        bwd_is_dc = jump_bwd in ("start", "firstMeasure")
+        bwd_is_ds = jump_bwd is not None and not bwd_is_dc
+        if bwd_is_ds:
+            if play_until == "coda":
+                types.append("dal_segno_al_coda")
+            elif play_until == "fine":
+                types.append("dal_segno_al_fine")
+            else:
+                types.append("dal_segno")
+        elif bwd_is_dc:
+            if play_until == "coda":
+                types.append("da_capo_al_coda")
+            elif play_until == "fine":
+                types.append("da_capo_al_fine")
+            else:
+                types.append("da_capo")
+        elif jump_fwd is not None and jump_fwd != "fine":
+            # Forward-only jump (e.g., 'to coda') with no preceding D.S./D.C.
+            types.append("to_coda")
+
         if is_jump_from:
             types.append("jump_from")
         if is_jump_to:
@@ -1983,87 +2115,40 @@ class ScoreFlowController(FlowControllerBase):
         Returns:
             IncompleteMeasure, CompleteMeasure, or OverlengthMeasure.
         """
+        base_kwargs = {
+            "mc": unit.mc,
+            "mn": unit.mn,
+            "duration_qb": unit.duration_qb,
+            "next": unit.next,
+            "volta": unit.volta,
+            "timesig": unit.timesig,
+            "timesig_duration_qb": unit.timesig_duration_qb,
+            "start_repeat": unit.start_repeat,
+            "end_repeat": unit.end_repeat,
+            "jump_from": unit.jump_from,
+            "jump_to": unit.jump_to,
+            "segno": unit.segno,
+            "coda": unit.coda,
+            "fine": unit.fine,
+            "section_break": unit.section_break,
+            "flow_control_types": unit.flow_control_types,
+            "jump_bwd": unit.jump_bwd,
+            "jump_fwd": unit.jump_fwd,
+            "play_until": unit.play_until,
+        }
+
         # If no time signature info, default to CompleteMeasure
         if unit.timesig_duration_qb is None:
-            return CompleteMeasure(
-                mc=unit.mc,
-                mn=unit.mn,
-                duration_qb=unit.duration_qb,
-                next=unit.next,
-                volta=unit.volta,
-                timesig=unit.timesig,
-                timesig_duration_qb=unit.timesig_duration_qb,
-                start_repeat=unit.start_repeat,
-                end_repeat=unit.end_repeat,
-                jump_from=unit.jump_from,
-                jump_to=unit.jump_to,
-                segno=unit.segno,
-                coda=unit.coda,
-                fine=unit.fine,
-                section_break=unit.section_break,
-                flow_control_types=unit.flow_control_types,
-            )
+            return CompleteMeasure(**base_kwargs)
 
         # Compare durations
         if unit.duration_qb < unit.timesig_duration_qb:
             position = self._determine_incomplete_position(unit)
-            return IncompleteMeasure(
-                mc=unit.mc,
-                mn=unit.mn,
-                duration_qb=unit.duration_qb,
-                next=unit.next,
-                volta=unit.volta,
-                timesig=unit.timesig,
-                timesig_duration_qb=unit.timesig_duration_qb,
-                start_repeat=unit.start_repeat,
-                end_repeat=unit.end_repeat,
-                jump_from=unit.jump_from,
-                jump_to=unit.jump_to,
-                segno=unit.segno,
-                coda=unit.coda,
-                fine=unit.fine,
-                section_break=unit.section_break,
-                flow_control_types=unit.flow_control_types,
-                position=position,
-            )
+            return IncompleteMeasure(**base_kwargs, position=position)
         elif unit.duration_qb > unit.timesig_duration_qb:
-            return OverlengthMeasure(
-                mc=unit.mc,
-                mn=unit.mn,
-                duration_qb=unit.duration_qb,
-                next=unit.next,
-                volta=unit.volta,
-                timesig=unit.timesig,
-                timesig_duration_qb=unit.timesig_duration_qb,
-                start_repeat=unit.start_repeat,
-                end_repeat=unit.end_repeat,
-                jump_from=unit.jump_from,
-                jump_to=unit.jump_to,
-                segno=unit.segno,
-                coda=unit.coda,
-                fine=unit.fine,
-                section_break=unit.section_break,
-                flow_control_types=unit.flow_control_types,
-            )
+            return OverlengthMeasure(**base_kwargs)
         else:
-            return CompleteMeasure(
-                mc=unit.mc,
-                mn=unit.mn,
-                duration_qb=unit.duration_qb,
-                next=unit.next,
-                volta=unit.volta,
-                timesig=unit.timesig,
-                timesig_duration_qb=unit.timesig_duration_qb,
-                start_repeat=unit.start_repeat,
-                end_repeat=unit.end_repeat,
-                jump_from=unit.jump_from,
-                jump_to=unit.jump_to,
-                segno=unit.segno,
-                coda=unit.coda,
-                fine=unit.fine,
-                section_break=unit.section_break,
-                flow_control_types=unit.flow_control_types,
-            )
+            return CompleteMeasure(**base_kwargs)
 
     def _determine_incomplete_position(self, unit: MeasureUnit) -> IncompletePosition:
         """Determine the position of an incomplete measure.
@@ -2362,6 +2447,232 @@ class ScoreFlowController(FlowControllerBase):
         """
         yield from self._units
 
+    # region Flow control object accessors
+
+    def _qb_at_mc(self, mc: int) -> Fraction:
+        """Quarterbeat coordinate at the start of an MC, as a Fraction."""
+        info = self._measure_lookup.get(mc, {})
+        qb = info.get("quarterbeats", Fraction(0))
+        return qb if isinstance(qb, Fraction) else Fraction(qb)
+
+    def _qb_at_mc_end(self, mc: int) -> Fraction:
+        """Quarterbeat coordinate at the END of an MC (start + duration)."""
+        info = self._measure_lookup.get(mc, {})
+        qb = info.get("quarterbeats", Fraction(0))
+        dur = info.get("duration_qb", Fraction(0))
+        if not isinstance(qb, Fraction):
+            qb = Fraction(qb)
+        if not isinstance(dur, Fraction):
+            dur = Fraction(dur)
+        return qb + dur
+
+    def get_breaks(self) -> list["Break"]:
+        """Return all `Break` events derived from the score's flow control.
+
+        Currently emits one `Break` per measure flagged as a section break.
+        Each `Break` is positioned at the START coordinate of its MC and
+        carries a label indicating the source MC.
+
+        Returns:
+            List of `timetoalign.timelines.flowcontrol.Break` objects, sorted
+            by coordinate.
+        """
+        from timetoalign.core import Coordinate, TimeUnit
+        from timetoalign.core.enums import ActivationCondition, FlowControlType
+        from timetoalign.timelines.flowcontrol import Break
+
+        breaks: list[Break] = []
+        for unit in self._units:
+            if unit.section_break:
+                breaks.append(
+                    Break(
+                        coordinate=Coordinate(
+                            self._qb_at_mc_end(unit.mc), TimeUnit.quarters
+                        ),
+                        control_type=FlowControlType.section_break,
+                        condition=ActivationCondition.always,
+                        label=f"section break after MC {unit.mc}",
+                    )
+                )
+            if unit.fine:
+                breaks.append(
+                    Break(
+                        coordinate=Coordinate(
+                            self._qb_at_mc_end(unit.mc), TimeUnit.quarters
+                        ),
+                        control_type=FlowControlType.fine,
+                        condition=ActivationCondition.after_dc_ds,
+                        name="fine",
+                        label=f"fine at MC {unit.mc}",
+                    )
+                )
+        return breaks
+
+    def get_jumps(self) -> list["Jump"]:
+        """Return all `Jump` events derived from the score's flow control.
+
+        Emits one `Jump` per repeat-end, plus one per D.S./D.C./to-coda
+        instruction (including the ``_al_coda`` and ``_al_fine`` variants).
+        Each jump's `from_coordinate` is the END of the originating MC and
+        its `to_coordinate` is the START of the destination MC.
+
+        Returns:
+            List of `timetoalign.timelines.flowcontrol.Jump` objects, sorted
+            by their from-coordinate.
+        """
+        from timetoalign.core import Coordinate, TimeUnit
+        from timetoalign.core.enums import ActivationCondition, FlowControlType
+        from timetoalign.timelines.flowcontrol import Jump
+
+        jumps: list[Jump] = []
+        unit_lookup = {u.mc: u for u in self._units}
+
+        # Find the MC of any named target marker (segno, coda, codab, fine)
+        marker_mc: dict[str, int] = {}
+        for unit in self._units:
+            if unit.segno:
+                marker_mc.setdefault(unit.segno, unit.mc)
+            if unit.coda:
+                marker_mc.setdefault(unit.coda, unit.mc)
+            if unit.fine:
+                marker_mc.setdefault("fine", unit.mc)
+
+        sorted_mcs = sorted(self._measure_lookup.keys())
+
+        for unit in self._units:
+            from_qb = self._qb_at_mc_end(unit.mc)
+            from_coord = Coordinate(from_qb, TimeUnit.quarters)
+
+            # Repeat: end_repeat marker triggers a backward jump to the
+            # most recent repeat_start (or section start).
+            if unit.end_repeat:
+                target_mc: int | None = None
+                for cand in reversed(sorted_mcs):
+                    if cand >= unit.mc:
+                        continue
+                    if unit_lookup.get(cand) and unit_lookup[cand].start_repeat:
+                        target_mc = cand
+                        break
+                if target_mc is None:
+                    target_mc = sorted_mcs[0]
+                jumps.append(
+                    Jump(
+                        from_coordinate=from_coord,
+                        to_coordinate=Coordinate(
+                            self._qb_at_mc(target_mc), TimeUnit.quarters
+                        ),
+                        control_type=FlowControlType.repeat_end,
+                        condition=ActivationCondition.first_n,
+                        repeat_count=1,
+                        label=f"MC {unit.mc} → MC {target_mc}",
+                    )
+                )
+
+            # D.S./D.C. (and -al-coda/-al-fine) — fire after the first pass.
+            fct = unit.flow_control_types
+            jump_type: FlowControlType | None = None
+            target_name: str | None = None
+            for cand in (
+                FlowControlType.dal_segno_al_coda,
+                FlowControlType.dal_segno_al_fine,
+                FlowControlType.da_capo_al_coda,
+                FlowControlType.da_capo_al_fine,
+                FlowControlType.dal_segno,
+                FlowControlType.da_capo,
+                FlowControlType.to_coda,
+            ):
+                if cand.value in fct:
+                    jump_type = cand
+                    break
+            if jump_type is None:
+                continue
+
+            if jump_type in (
+                FlowControlType.da_capo,
+                FlowControlType.da_capo_al_coda,
+                FlowControlType.da_capo_al_fine,
+            ):
+                to_mc = sorted_mcs[0]
+                target_name = "start"
+            elif jump_type == FlowControlType.to_coda:
+                target_name = unit.jump_fwd or "coda"
+                to_mc = marker_mc.get(target_name)
+            else:
+                # dal_segno / dal_segno_al_coda / dal_segno_al_fine
+                target_name = unit.jump_bwd or "segno"
+                to_mc = marker_mc.get(target_name)
+
+            if to_mc is None:
+                continue
+
+            jumps.append(
+                Jump(
+                    from_coordinate=from_coord,
+                    to_coordinate=Coordinate(self._qb_at_mc(to_mc), TimeUnit.quarters),
+                    control_type=jump_type,
+                    condition=ActivationCondition.after_first,
+                    target_name=target_name,
+                    label=f"MC {unit.mc} → {target_name} (MC {to_mc})",
+                )
+            )
+
+        return jumps
+
+    def get_markers(self) -> list[tuple[str, int, "Coordinate"]]:
+        """Return all named target markers (segno / coda / fine instances).
+
+        Returns:
+            List of ``(name, mc, coordinate)`` tuples, in MC order. ``name``
+            is the marker instance name (e.g., ``"segno"``, ``"coda"``,
+            ``"codab"``, ``"fine"``); ``coordinate`` is the start of the MC.
+        """
+        from timetoalign.core import Coordinate, TimeUnit
+
+        markers: list[tuple[str, int, Coordinate]] = []
+        for unit in self._units:
+            coord = Coordinate(self._qb_at_mc(unit.mc), TimeUnit.quarters)
+            if unit.segno:
+                markers.append((unit.segno, unit.mc, coord))
+            if unit.coda:
+                markers.append((unit.coda, unit.mc, coord))
+            if unit.fine:
+                markers.append(("fine", unit.mc, coord))
+        return markers
+
+    def get_flow_control_registry(self) -> "FlowControlRegistry":
+        """Return a `FlowControlRegistry` populated from this controller.
+
+        Bundles the breaks, jumps, and named markers into a single object,
+        which is the canonical registry shape used elsewhere in the library.
+        """
+        from timetoalign.timelines.flowcontrol import FlowControlRegistry
+
+        registry = FlowControlRegistry()
+        for brk in self.get_breaks():
+            registry.add_break(brk)
+        for jump in self.get_jumps():
+            registry.add_jump(jump)
+        for name, _mc, coord in self.get_markers():
+            registry.add_marker(name, coord)
+        return registry
+
+    @property
+    def breaks(self) -> list["Break"]:
+        """All `Break` events derived from the score (see `get_breaks()`)."""
+        return self.get_breaks()
+
+    @property
+    def jumps(self) -> list["Jump"]:
+        """All `Jump` events derived from the score (see `get_jumps()`)."""
+        return self.get_jumps()
+
+    @property
+    def markers(self) -> list[tuple[str, int, "Coordinate"]]:
+        """All named target markers (see `get_markers()`)."""
+        return self.get_markers()
+
+    # endregion
+
     def _build_atomic_sections(self) -> None:
         """Derive atomic sections from next[] arrays.
 
@@ -2503,21 +2814,37 @@ class ScoreFlowController(FlowControllerBase):
                         break
 
             # Build to[] array
+            #
+            # next=-1 in ms3 means "stop here", but a `fine` only stops the
+            # piece on the after-DC/DS pass. On the first pass, a fine
+            # measure followed by more music continues sequentially. So if
+            # next contains -1 and the section's end MC is NOT the absolute
+            # last MC of the score, treat -1 as "continue to the next
+            # sequential MC" for the purposes of the to[] list.
+            end_mc_idx = sorted_mcs.index(end_mc)
+            is_absolute_end = end_mc_idx == len(sorted_mcs) - 1
+
+            def _section_letter_for_mc(target_mc: int) -> str | None:
+                for j, bnd in enumerate(boundaries_list):
+                    if j + 1 < len(boundaries_list):
+                        if bnd <= target_mc < boundaries_list[j + 1]:
+                            return chr(ord("A") + j)
+                    else:
+                        if bnd <= target_mc:
+                            return chr(ord("A") + j)
+                return None
+
             to_sections: list[str] = []
-            if next_list and next_list != [-1]:
-                for next_mc in next_list:
-                    if next_mc == -1:
+            for next_mc in next_list or ():
+                if next_mc == -1:
+                    if is_absolute_end:
+                        # Genuine end of piece — no successor.
                         continue
-                    # Find which section contains next_mc
-                    for j, bnd in enumerate(boundaries_list):
-                        if j + 1 < len(boundaries_list):
-                            if bnd <= next_mc < boundaries_list[j + 1]:
-                                to_sections.append(chr(ord("A") + j))
-                                break
-                        else:
-                            if bnd <= next_mc:
-                                to_sections.append(chr(ord("A") + j))
-                                break
+                    # First-pass continuation past a fine marker.
+                    next_mc = sorted_mcs[end_mc_idx + 1]
+                letter = _section_letter_for_mc(next_mc)
+                if letter is not None and letter not in to_sections:
+                    to_sections.append(letter)
 
             # Build typed_measures for this section (Phase 1 typing)
             # Collect MeasureUnits in the range [start_mc, end_mc+1) (right-open)
