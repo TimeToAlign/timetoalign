@@ -1224,22 +1224,45 @@ def _render_full_ruler(
     if has_volta:
         lines.append("".join(volta_row).rstrip())
 
-    # Jump markers row
-    jump_row = [" "] * (3 + total_ruler_width)
-    has_jumps = False
+    # Marker / jump-instruction row.
+    #
+    # LEFT-anchored MARKERS (segno §, coda ⊕, fine) mark a point on the
+    # timeline. RIGHT-anchored JUMP labels (DSaC, DSaF, ...) fire at the
+    # end of their measure. We merge both onto one row when they fit, and
+    # split into two rows if any column has a collision.
+    left_entries: list[tuple[int, str]] = []
+    right_entries: list[tuple[int, str]] = []
+    collision = False
     for unit in units:
         col = mc_to_col.get(unit.mc, 0)
-        marker = _get_jump_marker(unit, sections, fc)
-        if not marker and unit.fine:
-            marker = "fine"
-        if marker:
-            has_jumps = True
-            for ci, ch in enumerate(marker):
-                if col + ci < len(jump_row):
-                    jump_row[col + ci] = ch
+        ltext = _marker_glyph_text(unit, fc)
+        rtext = _get_jump_marker(unit, sections, fc) or ""
+        if ltext:
+            left_entries.append((col, ltext))
+        if rtext:
+            right_entries.append((col + col_width - len(rtext), rtext))
+        if ltext and rtext and len(ltext) + len(rtext) > col_width:
+            collision = True
 
-    if has_jumps:
-        lines.append("".join(jump_row).rstrip())
+    def _draw_full(entries: list[tuple[int, str]]) -> str:
+        if not entries:
+            return ""
+        row = [" "] * (3 + total_ruler_width)
+        for start, text in entries:
+            for ci, ch in enumerate(text):
+                pos = start + ci
+                if 0 <= pos < len(row):
+                    row[pos] = ch
+        return "".join(row).rstrip()
+
+    if collision:
+        for row_str in (_draw_full(left_entries), _draw_full(right_entries)):
+            if row_str.strip():
+                lines.append(row_str)
+    else:
+        row_str = _draw_full(left_entries + right_entries)
+        if row_str.strip():
+            lines.append(row_str)
 
 
 def _render_sections_ruler(
@@ -1273,17 +1296,25 @@ def _render_sections_ruler(
 
     total_w = prefix_w + n_secs * col_width
 
-    # Look up the volta number per section (if any of its MCs has one).
+    # Volta prefix is shown only for sections that are *entirely* a volta —
+    # every MC in the section shares the same non-None volta value. Sections
+    # whose final MC happens to be tagged with a volta (e.g. the closing
+    # measure of a repeat that sits inside the first ending) do NOT inherit
+    # the prefix; the volta belongs to the next, voltaed section.
     sec_volta: dict[str, int] = {}
     for sec in sections:
-        for unit in units:
-            if sec.mc_start <= unit.mc < sec.mc_end and unit.volta is not None:
-                sec_volta[sec.id] = unit.volta
-                break
+        mcs_in_sec = [u for u in units if sec.mc_start <= u.mc < sec.mc_end]
+        if not mcs_in_sec:
+            continue
+        voltas = {u.volta for u in mcs_in_sec}
+        if len(voltas) == 1:
+            (only,) = voltas
+            if only is not None:
+                sec_volta[sec.id] = only
 
-    # Row 1: Section IDs with span bars (volta-tagged sections get a "┌N─"
-    # prefix so the volta bracket lives next to its section label rather
-    # than colliding with jump markers below).
+    # Row 1: Section IDs with span bars. Volta-tagged sections get a "┌N─"
+    # prefix anchored to the LEFT of their column (like a real volta
+    # bracket), with the section ID staying centred in the column.
     id_row = [" "] * total_w
     for sec in sections:
         col = sec_to_col[sec.id]
@@ -1293,14 +1324,21 @@ def _render_sections_ruler(
             if sec.id in sec_volta
             else ""
         )
-        label = volta_prefix + sec.id
         if mc_count == 1:
-            # Single-MC section: just the ID centered
+            # Single-MC section: ID centred in the column, volta bracket
+            # left of it (within the same column).
             mid = col + col_width // 2
-            for ci, ch in enumerate(label):
-                pos = mid - len(label) // 2 + ci
+            id_start = mid - len(sec.id) // 2
+            for ci, ch in enumerate(sec.id):
+                pos = id_start + ci
                 if 0 <= pos < total_w:
                     id_row[pos] = ch
+            if volta_prefix:
+                prefix_start = max(col, id_start - len(volta_prefix))
+                for ci, ch in enumerate(volta_prefix):
+                    pos = prefix_start + ci
+                    if 0 <= pos < id_start:
+                        id_row[pos] = ch
         else:
             # Multi-MC section: ├──ID──┤
             end_col = col + col_width - 1
@@ -1310,15 +1348,19 @@ def _render_sections_ruler(
                 id_row[end_col] = "\u2524" if unicode else "|"
             span = end_col - col - 1
             if span > 0:
-                if len(label) > span:
-                    label = label[:span]
-                pad_left = (span - len(label)) // 2
-                pad_right = span - len(label) - pad_left
-                fill = h * pad_left + label + h * pad_right
+                centred_label = sec.id[:span] if len(sec.id) > span else sec.id
+                pad_left = (span - len(centred_label)) // 2
+                pad_right = span - len(centred_label) - pad_left
+                fill = h * pad_left + centred_label + h * pad_right
                 for ci, ch in enumerate(fill):
                     pos = col + 1 + ci
                     if pos < total_w:
                         id_row[pos] = ch
+                if volta_prefix:
+                    for ci, ch in enumerate(volta_prefix):
+                        pos = col + 1 + ci
+                        if pos < end_col:
+                            id_row[pos] = ch
 
     lines.append("".join(id_row).rstrip())
 
@@ -1375,27 +1417,55 @@ def _render_sections_ruler(
     if has_fc:
         lines.append("".join(fc_row).rstrip())
 
-    # Row 4: Jump-instruction markers (DSaC, DSaF, ...) and fine markers.
-    # Volta brackets live on Row 1 to avoid colliding with these labels.
-    marker_row = [" "] * total_w
-    has_markers = False
-
+    # Row 4: marker / jump-instruction row.
+    #
+    # Two kinds of glyphs live here:
+    #   - LEFT-anchored MARKERS — segno (§), coda (⊕), fine — these mark a
+    #     point on the timeline where something *is* (a destination, a Fine
+    #     marker), so they sit at the section's leftmost column.
+    #   - RIGHT-anchored JUMP labels — DSaC, DSaF, DCaC, DCaF, DS, DC, →Coda
+    #     — these are instructions that fire at the *end* of the section,
+    #     so they sit right-aligned within the section's column.
+    #
+    # We try to merge both onto a single row. If any section has both a
+    # LEFT marker and a RIGHT label that would overlap, we split into two
+    # rows (markers above, jumps below).
+    left_entries: list[tuple[int, str]] = []  # (col_start, text)
+    right_entries: list[tuple[int, str]] = []  # (end_pos,   text)
+    collision = False
     for unit in units:
         sec_id = mc_to_sec.get(unit.mc)
         if sec_id is None:
             continue
         col = sec_to_col.get(sec_id, 0)
-        marker = _get_jump_marker(unit, sections, fc)
-        if not marker and unit.fine:
-            marker = "fine"
-        if marker:
-            has_markers = True
-            for ci, ch in enumerate(marker):
-                if col + ci < total_w:
-                    marker_row[col + ci] = ch
+        ltext = _marker_glyph_text(unit, fc)
+        rtext = _get_jump_marker(unit, sections, fc) or ""
+        if ltext:
+            left_entries.append((col, ltext))
+        if rtext:
+            right_entries.append((col + col_width - len(rtext), rtext))
+        if ltext and rtext and len(ltext) + len(rtext) > col_width:
+            collision = True
 
-    if has_markers:
-        lines.append("".join(marker_row).rstrip())
+    def _draw(entries: list[tuple[int, str]]) -> str:
+        if not entries:
+            return ""
+        row = [" "] * total_w
+        for start, text in entries:
+            for ci, ch in enumerate(text):
+                pos = start + ci
+                if 0 <= pos < total_w:
+                    row[pos] = ch
+        return "".join(row).rstrip()
+
+    if collision:
+        for row_str in (_draw(left_entries), _draw(right_entries)):
+            if row_str.strip():
+                lines.append(row_str)
+    else:
+        row_str = _draw(left_entries + right_entries)
+        if row_str.strip():
+            lines.append(row_str)
 
 
 def _render_table(
@@ -1464,6 +1534,23 @@ def _get_jump_marker(
     if not unit.jump_from:
         return ""
     return _jump_label(unit.flow_control_types, short=True) or ""
+
+
+def _marker_glyph_text(unit: Any, fc: dict[str, str]) -> str:
+    """Return LEFT-anchored marker glyphs for a unit: segno (§), coda (⊕), fine.
+
+    These mark a *point* on the timeline (a destination, a Fine marker) and
+    are drawn at the section's leftmost column, distinct from RIGHT-anchored
+    jump instructions like DSaC.
+    """
+    parts: list[str] = []
+    if unit.segno:
+        parts.append(fc["segno"])
+    if unit.coda:
+        parts.append(fc["coda"])
+    if unit.fine:
+        parts.append("fine")
+    return "".join(parts)
 
 
 _JUMP_LABELS_LONG: tuple[tuple[str, str], ...] = (

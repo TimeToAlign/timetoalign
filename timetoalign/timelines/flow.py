@@ -3247,21 +3247,42 @@ class ScoreFlowController(FlowControllerBase):
         )
 
     def _compute_default_flow(self, mode: FlowMode) -> Flow:
-        """Compute default flow following 'next' field.
+        """Compute the default flow purely from flow-control elements.
 
-        The algorithm:
-        1. Start at MC 1
-        2. Follow 'next' field, using visit count to choose branch
-        3. Build MC sequence
-        4. Convert to PlaythroughSections
+        Simulates a state machine over the MCs in score order, driven
+        entirely by each MeasureUnit's flow-control annotations and the
+        raw marker names recorded in the measure lookup:
 
-        Args:
-            mode: FlowMode (DEFAULT or MS3).
+        - ``start_repeat`` / ``end_repeat`` delimit a repeat block. The
+          natural pass count is 2 (the standard sheet-music convention);
+          higher voltas (volta 3, 4, ...) are *alternative* endings
+          reached only by al-Fine / al-Coda passes.
+        - ``volta`` marks an ending. On pass *k* through the block, the
+          ``target_volta`` is *k* — MCs marked with a different volta are
+          skipped. When al-Fine is armed and the block contains a volta
+          whose number exceeds the natural limit and that holds the
+          ``fine`` marker, the algorithm jumps directly to that volta
+          instead of cycling through earlier ones.
+        - ``jump_from`` with ``jump_bwd=segno`` resets the segno's
+          enclosing-block pass count so the post-jump pass plays fresh;
+          ``jump_bwd=start`` does not reset anything (the natural pass's
+          counters persist and naturally suppress already-exhausted
+          repeats).
+        - ``play_until=X`` arms a generic "play until trigger" mode. The
+          trigger fires when an MC is visited whose marker name (segno,
+          coda, fine, or raw ms3 ``markers`` value) matches X. For
+          ``play_until="coda"`` in a score that lacks an explicit
+          ``coda`` marker, the trigger falls back to the next
+          atomic-section boundary (per the convention that a "to coda"
+          point is always a section boundary). ``jump_fwd`` resolves to
+          the MC carrying that marker; an empty ``jump_fwd`` terminates
+          the traversal when the trigger fires.
 
-        Returns:
-            Computed Flow.
+        This algorithm does NOT consult the ms3 ``next`` field — that
+        field is one observable to compare against, not the source of
+        truth.
         """
-        if not self._measure_lookup:
+        if not self._units:
             return Flow(
                 sections=[],
                 mode=mode,
@@ -3269,33 +3290,164 @@ class ScoreFlowController(FlowControllerBase):
                 _controller_ref=weakref.ref(self),
             )
 
+        sorted_units = sorted(self._units, key=lambda u: u.mc)
+        sorted_mcs = [u.mc for u in sorted_units]
+        unit_by_mc: dict[int, MeasureUnit] = {u.mc: u for u in sorted_units}
+        first_mc = sorted_mcs[0]
+        mc_index = {mc: i for i, mc in enumerate(sorted_mcs)}
+
+        # Marker name -> MC (raw ms3 `markers` value, plus segno/coda
+        # destinations parsed onto the unit).
+        marker_mc_by_name: dict[str, int] = {}
+        for mc, bar in self._measure_lookup.items():
+            raw = bar.get("marker")
+            if raw and raw not in marker_mc_by_name:
+                marker_mc_by_name[raw] = mc
+        for u in sorted_units:
+            if u.segno and u.segno not in marker_mc_by_name:
+                marker_mc_by_name[u.segno] = u.mc
+            if u.coda and u.coda not in marker_mc_by_name:
+                marker_mc_by_name[u.coda] = u.mc
+
+        segno_mc = next((u.mc for u in sorted_units if u.segno), first_mc)
+
+        # Enclosing repeat-block start for every MC. A new block opens at
+        # every `start_repeat`. A coda marker also opens an implicit block
+        # — a "coda" subsection without a preceding `start_repeat` still
+        # has voltas whose end-repeats should loop back to the coda marker
+        # rather than the surrounding block's start_repeat.
+        enclosing_start: dict[int, int] = {}
+        current_block_start = first_mc
+        for u in sorted_units:
+            if u.start_repeat or u.coda is not None:
+                current_block_start = u.mc
+            enclosing_start[u.mc] = current_block_start
+
+        # Volta-containing-fine per block (used to route the al-Fine pass
+        # through alternative endings beyond the natural 2-pass limit).
+        fine_volta_per_block: dict[int, int] = {}
+        for u in sorted_units:
+            if u.fine and u.volta is not None:
+                blk = enclosing_start[u.mc]
+                cur = fine_volta_per_block.get(blk)
+                if cur is None or u.volta > cur:
+                    fine_volta_per_block[blk] = u.volta
+
+        section_end_mcs: set[int] = {sec.mc_end - 1 for sec in self._atomic_sections}
+
+        natural_limit = 2  # Standard "play once, repeat once" convention.
+
+        def _trigger_fires(unit: MeasureUnit, kind: str, mc: int) -> bool:
+            """Does this MC satisfy a 'play until' trigger?"""
+            if kind == "fine":
+                return unit.fine
+            if unit.segno == kind or unit.coda == kind:
+                return True
+            raw = self._measure_lookup.get(mc, {}).get("marker")
+            if raw == kind:
+                return True
+            # Fallback for play_until="coda" in scores that don't carry
+            # an explicit "coda" marker: fire at the next atomic-section
+            # boundary (a "to coda" point is always a section boundary).
+            if (
+                kind == "coda"
+                and "coda" not in marker_mc_by_name
+                and mc in section_end_mcs
+            ):
+                return True
+            return False
+
         mc_sequence: list[int] = []
-        mc_visit_count: dict[int, int] = defaultdict(int)
-
-        # Start at MC 1 (or minimum MC)
-        current_mc = min(self._measure_lookup.keys())
-
-        # Safety limit
-        max_iterations = len(self._measure_lookup) * 20
+        pass_count: dict[int, int] = defaultdict(int)
+        play_until_kind: str | None = None
+        play_until_dest: int | None = None
+        pc: int | None = first_mc
+        max_iterations = len(sorted_units) * 30
 
         for _ in range(max_iterations):
-            if current_mc == -1 or current_mc not in self._measure_lookup:
+            if pc is None or pc not in unit_by_mc:
                 break
+            unit = unit_by_mc[pc]
 
-            bar = self._measure_lookup[current_mc]
-            mc_visit_count[current_mc] += 1
-            visit_count = mc_visit_count[current_mc]
+            # Volta-mismatch skip.
+            if unit.volta is not None:
+                blk = enclosing_start[pc]
+                # On the al-Fine pass, route directly to a volta beyond
+                # the natural limit that carries the fine marker.
+                fv = fine_volta_per_block.get(blk)
+                if play_until_kind == "fine" and fv is not None and fv > natural_limit:
+                    target_volta = fv
+                else:
+                    target_volta = pass_count[blk] + 1
+                if unit.volta != target_volta:
+                    skip_to: int | None = None
+                    for j in range(mc_index[pc] + 1, len(sorted_mcs)):
+                        other = unit_by_mc[sorted_mcs[j]]
+                        if enclosing_start[other.mc] != blk:
+                            skip_to = other.mc
+                            break
+                        if other.volta is None or other.volta == target_volta:
+                            skip_to = other.mc
+                            break
+                    pc = skip_to
+                    continue
 
-            mc_sequence.append(current_mc)
+            mc_sequence.append(pc)
 
-            # Choose next MC based on visit count
-            next_options = bar["next"]
-            idx = min(visit_count - 1, len(next_options) - 1)
-            current_mc = next_options[idx]
+            # play_until trigger fires before end_repeat: a triggered
+            # jump supersedes any pending repeat-back.
+            if play_until_kind is not None and _trigger_fires(
+                unit, play_until_kind, pc
+            ):
+                dest = play_until_dest
+                play_until_kind = None
+                play_until_dest = None
+                if dest is None:
+                    break
+                pc = dest
+                continue
 
-        # Convert MC sequence to sections
+            if unit.end_repeat:
+                blk = enclosing_start[pc]
+                pass_count[blk] += 1
+                if pass_count[blk] < natural_limit:
+                    pc = blk
+                    continue
+
+            if unit.jump_from:
+                target: int | None = None
+                if unit.jump_bwd == "segno":
+                    target = segno_mc
+                elif unit.jump_bwd == "start":
+                    target = first_mc
+                elif unit.jump_fwd:
+                    target = marker_mc_by_name.get(unit.jump_fwd)
+                if target is not None:
+                    if unit.play_until:
+                        play_until_kind = unit.play_until
+                        play_until_dest = (
+                            marker_mc_by_name.get(unit.jump_fwd)
+                            if unit.jump_fwd
+                            else None
+                        )
+                    # A jump_bwd=segno restarts the segno-home-block's
+                    # pass count so the post-jump pass plays it fresh.
+                    # A jump_bwd=start (D.C.) leaves counts intact: any
+                    # blocks the post-jump pass crosses inherit whatever
+                    # pass count the natural traversal left.
+                    if unit.jump_bwd == "segno":
+                        seg_blk = enclosing_start.get(segno_mc)
+                        if seg_blk is not None:
+                            pass_count[seg_blk] = 0
+                    pc = target
+                    continue
+
+            i = mc_index[pc]
+            if i + 1 >= len(sorted_mcs):
+                break
+            pc = sorted_mcs[i + 1]
+
         sections = self._compute_playthrough_sections(mc_sequence)
-
         return Flow(
             sections=sections,
             mode=mode,
