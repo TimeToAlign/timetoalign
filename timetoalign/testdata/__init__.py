@@ -58,11 +58,14 @@ below to point at the new release.
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import tarfile
 import threading
 from pathlib import Path
+
+_LOG = logging.getLogger(__name__)
 
 try:
     import pooch
@@ -232,23 +235,49 @@ def _ensure_one(name: str) -> Path:
 
 
 def _looks_ready(target_dir: Path, marker: Path, expected_digest: str) -> bool:
-    """Return True if ``target_dir`` should be trusted without re-extracting.
+    """Return True iff ``target_dir`` should be trusted without re-extracting.
 
-    A directory is trusted if:
+    A directory is trusted in one of two cases:
 
-    * the sentinel file matches the expected digest (canonical case — we
-      extracted this exact version), OR
-    * the sentinel file is missing but the directory exists and is
-      non-empty (developer checkout / migration window — assume the user
-      placed correct data here on purpose).
+    * **Sentinel match (canonical case)** — the sentinel file
+      ``marker`` exists and matches ``expected_digest``, *and* the
+      directory contains at least one non-marker child.  The non-marker
+      child check guards against partial-extraction states where the
+      sentinel got written but the actual data files were never written
+      (or were deleted afterwards): without the guard, downstream
+      ``open()`` would fail with ``FileNotFoundError``.
+    * **Developer-checkout fallback** — the sentinel is missing but the
+      directory exists and contains at least one non-marker file
+      (developer checkout / migration window — assume the user placed
+      correct data here on purpose).  This path emits a single
+      ``logging.WARNING`` (channel ``timetoalign.testdata``) advising
+      the caller that contents are not verified against the release
+      digest.
 
-    Deleting ``target_dir`` is the way to force a re-fetch.
+    Returns ``False`` when ``target_dir`` does not exist, is empty, or
+    holds only the sentinel file with no payload data.  Deleting
+    ``target_dir`` is the way to force a re-fetch.
     """
     if not target_dir.is_dir():
         return False
+
+    has_payload = any(p for p in target_dir.iterdir() if p.name != marker.name)
+
     if marker.is_file():
-        return marker.read_text(encoding="utf-8").strip() == expected_digest
-    return any(p for p in target_dir.iterdir() if p.name != marker.name)
+        if marker.read_text(encoding="utf-8").strip() != expected_digest:
+            return False
+        # Sentinel matches AND payload is present
+        return has_payload
+
+    if not has_payload:
+        return False
+
+    _LOG.warning(
+        "%s has no .tta_testdata_hash sentinel — trusting existing contents; "
+        "rerun ensure_data() after deleting the directory if you suspect drift",
+        target_dir,
+    )
+    return True
 
 
 def _safe_extractall(tar: tarfile.TarFile, dest: Path) -> None:
