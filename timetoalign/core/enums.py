@@ -329,7 +329,7 @@ class ColumnNaming(FancyStrEnum):
     """Use unique identifier."""
 
 
-class FlowControlType(FancyStrEnum):
+class FlowControlElement(FancyStrEnum):
     """Canonical taxonomy of flow control markers in musical scores.
 
     This enum provides a unified vocabulary for flow control across all loaders
@@ -386,7 +386,7 @@ class FlowControlType(FancyStrEnum):
 
     **Loader Mappings**:
 
-    | FlowControlType | MeasureMap | ms3/TSV | partitura | music21 |
+    | FlowControlElement | MeasureMap | ms3/TSV | partitura | music21 |
     |-----------------|------------|---------|-----------|---------|
     | repeat_start | start_repeat=true | repeats="start" | Repeat.start | leftBarline.type="heavy-light" |
     | repeat_end | end_repeat=true | repeats="end" | Repeat.end | rightBarline.type="light-heavy" |
@@ -479,14 +479,14 @@ class FlowControlType(FancyStrEnum):
     """Last measure of piece (ms3 convention)"""
 
     @classmethod
-    def from_ms3_repeats(cls, value: str | None) -> "FlowControlType | None":
-        """Convert ms3 'repeats' column value to FlowControlType.
+    def from_ms3_repeats(cls, value: str | None) -> "FlowControlElement | None":
+        """Convert ms3 'repeats' column value to FlowControlElement.
 
         Args:
             value: Value from ms3 repeats column ("start", "end", "firstMeasure", etc.)
 
         Returns:
-            Corresponding FlowControlType or None.
+            Corresponding FlowControlElement or None.
         """
         if not value:
             return None
@@ -499,14 +499,14 @@ class FlowControlType(FancyStrEnum):
         return mapping.get(value)
 
     @classmethod
-    def from_ms3_breaks(cls, value: str | None) -> "FlowControlType | None":
-        """Convert ms3 'breaks' column value to FlowControlType.
+    def from_ms3_breaks(cls, value: str | None) -> "FlowControlElement | None":
+        """Convert ms3 'breaks' column value to FlowControlElement.
 
         Args:
             value: Value from ms3 breaks column ("section", "double", etc.)
 
         Returns:
-            Corresponding FlowControlType or None.
+            Corresponding FlowControlElement or None.
         """
         if not value:
             return None
@@ -519,15 +519,15 @@ class FlowControlType(FancyStrEnum):
     @classmethod
     def from_measuremap(
         cls, start_repeat: bool = False, end_repeat: bool = False
-    ) -> list["FlowControlType"]:
-        """Convert MeasureMap flow control fields to FlowControlType list.
+    ) -> list["FlowControlElement"]:
+        """Convert MeasureMap flow control fields to FlowControlElement list.
 
         Args:
             start_repeat: Whether start_repeat is true in MeasureMap.
             end_repeat: Whether end_repeat is true in MeasureMap.
 
         Returns:
-            List of corresponding FlowControlTypes.
+            List of corresponding FlowControlElements.
         """
         result = []
         if start_repeat:
@@ -540,14 +540,14 @@ class FlowControlType(FancyStrEnum):
     def is_jump(self) -> bool:
         """Whether this marker triggers a jump to another location."""
         return self in {
-            FlowControlType.repeat_end,
-            FlowControlType.da_capo,
-            FlowControlType.dal_segno,
-            FlowControlType.dal_segno_al_coda,
-            FlowControlType.dal_segno_al_fine,
-            FlowControlType.da_capo_al_coda,
-            FlowControlType.da_capo_al_fine,
-            FlowControlType.to_coda,
+            FlowControlElement.repeat_end,
+            FlowControlElement.da_capo,
+            FlowControlElement.dal_segno,
+            FlowControlElement.dal_segno_al_coda,
+            FlowControlElement.dal_segno_al_fine,
+            FlowControlElement.da_capo_al_coda,
+            FlowControlElement.da_capo_al_fine,
+            FlowControlElement.to_coda,
         }
 
     @property
@@ -559,9 +559,9 @@ class FlowControlType(FancyStrEnum):
         "coda" and "codab") are differentiated by name.
         """
         return self in {
-            FlowControlType.repeat_start,
-            FlowControlType.segno,
-            FlowControlType.coda,
+            FlowControlElement.repeat_start,
+            FlowControlElement.segno,
+            FlowControlElement.coda,
         }
 
     @property
@@ -573,19 +573,19 @@ class FlowControlType(FancyStrEnum):
         intrinsic to the type.
         """
         return self in {
-            FlowControlType.fine,
-            FlowControlType.section_break,
+            FlowControlElement.fine,
+            FlowControlElement.section_break,
         }
 
     @property
     def is_structural_marker(self) -> bool:
         """Whether this is a structural marker that does NOT void contiguity."""
         return self in {
-            FlowControlType.repeat_start,
-            FlowControlType.double_barline,
-            FlowControlType.final_barline,
-            FlowControlType.first_measure,
-            FlowControlType.last_measure,
+            FlowControlElement.repeat_start,
+            FlowControlElement.double_barline,
+            FlowControlElement.final_barline,
+            FlowControlElement.first_measure,
+            FlowControlElement.last_measure,
         }
 
 

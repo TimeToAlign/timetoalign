@@ -86,7 +86,7 @@ class MeasureUnit:
         coda: Coda marker name if present (e.g., "coda", "codab").
         fine: True if Fine marker present.
         section_break: True if section break at this MC.
-        flow_control_types: Tuple of FlowControlType.value strings for serialization.
+        flow_control_types: Tuple of FlowControlElement.value strings for serialization.
         jump_bwd: Name of backward-jump target (e.g., "segno", "start") or None.
         jump_fwd: Name of forward-jump target (e.g., "coda", "codab", "fine") or None.
         play_until: Name of play-until target on after-DC/DS pass
@@ -238,7 +238,7 @@ class IncompleteMeasure(MeasureUnit):
     Phase 1 (Typing) of the two-phase algorithm.
 
     IncompleteMeasure inherits all MeasureUnit properties including
-    FlowControlTypes, enabling serialization round-trip.
+    FlowControlElements, enabling serialization round-trip.
 
     Examples:
         - Anacrusis (pickup): First measure shorter than time signature
@@ -266,7 +266,7 @@ class CompleteMeasure(MeasureUnit):
     The simple, default case: duration_qb == timesig_duration_qb.
 
     CompleteMeasure inherits all MeasureUnit properties including
-    FlowControlTypes, enabling serialization round-trip.
+    FlowControlElements, enabling serialization round-trip.
     """
 
     pass
@@ -280,7 +280,7 @@ class OverlengthMeasure(MeasureUnit):
     Phase 1 (Typing) of the two-phase algorithm.
 
     OverlengthMeasure inherits all MeasureUnit properties including
-    FlowControlTypes, enabling serialization round-trip.
+    FlowControlElements, enabling serialization round-trip.
 
     Examples:
         - Fermata: Written duration > time signature
@@ -1874,7 +1874,7 @@ class ScoreFlowController(FlowControllerBase):
         """Create MeasureUnits from the measure lookup.
 
         MeasureUnits represent the folded score skeleton - one per MeasureData row.
-        Populates all FlowControlType fields including computed values:
+        Populates all FlowControlElement fields including computed values:
         - jump_from, jump_to derived from next[] patterns
         - timesig_duration_qb computed from timesig string
         - flow_control_types tuple for serialization
@@ -2033,11 +2033,11 @@ class ScoreFlowController(FlowControllerBase):
     def _extract_flow_control_types(
         self, info: dict[str, Any], is_jump_from: bool, is_jump_to: bool
     ) -> tuple[str, ...]:
-        """Extract FlowControlType values from measure info.
+        """Extract FlowControlElement values from measure info.
 
-        Builds a tuple of FlowControlType.value strings for serialization.
+        Builds a tuple of FlowControlElement.value strings for serialization.
         Recognises ms3 jump-instruction columns (``jump_bwd``, ``jump_fwd``,
-        ``play_until``) and folds them into the canonical FlowControlType
+        ``play_until``) and folds them into the canonical FlowControlElement
         vocabulary (``dal_segno``, ``dal_segno_al_coda``, ``dal_segno_al_fine``,
         ``da_capo``, ``da_capo_al_coda``, ``da_capo_al_fine``, ``to_coda``).
 
@@ -2047,7 +2047,7 @@ class ScoreFlowController(FlowControllerBase):
             is_jump_to: Whether this MC is a jump target.
 
         Returns:
-            Tuple of FlowControlType value strings.
+            Tuple of FlowControlElement value strings.
         """
         types: list[str] = []
 
@@ -2107,7 +2107,7 @@ class ScoreFlowController(FlowControllerBase):
         - OverlengthMeasure: actual > expected (fermata, cadenza)
 
         The typed copy inherits all properties from the generating MeasureUnit,
-        including FlowControlTypes.
+        including FlowControlElements.
 
         Args:
             unit: The MeasureUnit to type.
@@ -2478,7 +2478,7 @@ class ScoreFlowController(FlowControllerBase):
             by coordinate.
         """
         from timetoalign.core import Coordinate, TimeUnit
-        from timetoalign.core.enums import ActivationCondition, FlowControlType
+        from timetoalign.core.enums import ActivationCondition, FlowControlElement
         from timetoalign.timelines.flowcontrol import Break
 
         breaks: list[Break] = []
@@ -2489,7 +2489,7 @@ class ScoreFlowController(FlowControllerBase):
                         coordinate=Coordinate(
                             self._qb_at_mc_end(unit.mc), TimeUnit.quarters
                         ),
-                        control_type=FlowControlType.section_break,
+                        control_type=FlowControlElement.section_break,
                         condition=ActivationCondition.always,
                         label=f"section break after MC {unit.mc}",
                     )
@@ -2500,7 +2500,7 @@ class ScoreFlowController(FlowControllerBase):
                         coordinate=Coordinate(
                             self._qb_at_mc_end(unit.mc), TimeUnit.quarters
                         ),
-                        control_type=FlowControlType.fine,
+                        control_type=FlowControlElement.fine,
                         condition=ActivationCondition.after_dc_ds,
                         name="fine",
                         label=f"fine at MC {unit.mc}",
@@ -2521,7 +2521,7 @@ class ScoreFlowController(FlowControllerBase):
             by their from-coordinate.
         """
         from timetoalign.core import Coordinate, TimeUnit
-        from timetoalign.core.enums import ActivationCondition, FlowControlType
+        from timetoalign.core.enums import ActivationCondition, FlowControlElement
         from timetoalign.timelines.flowcontrol import Jump
 
         jumps: list[Jump] = []
@@ -2561,7 +2561,7 @@ class ScoreFlowController(FlowControllerBase):
                         to_coordinate=Coordinate(
                             self._qb_at_mc(target_mc), TimeUnit.quarters
                         ),
-                        control_type=FlowControlType.repeat_end,
+                        control_type=FlowControlElement.repeat_end,
                         condition=ActivationCondition.first_n,
                         repeat_count=1,
                         label=f"MC {unit.mc} → MC {target_mc}",
@@ -2570,16 +2570,16 @@ class ScoreFlowController(FlowControllerBase):
 
             # D.S./D.C. (and -al-coda/-al-fine) — fire after the first pass.
             fct = unit.flow_control_types
-            jump_type: FlowControlType | None = None
+            jump_type: FlowControlElement | None = None
             target_name: str | None = None
             for cand in (
-                FlowControlType.dal_segno_al_coda,
-                FlowControlType.dal_segno_al_fine,
-                FlowControlType.da_capo_al_coda,
-                FlowControlType.da_capo_al_fine,
-                FlowControlType.dal_segno,
-                FlowControlType.da_capo,
-                FlowControlType.to_coda,
+                FlowControlElement.dal_segno_al_coda,
+                FlowControlElement.dal_segno_al_fine,
+                FlowControlElement.da_capo_al_coda,
+                FlowControlElement.da_capo_al_fine,
+                FlowControlElement.dal_segno,
+                FlowControlElement.da_capo,
+                FlowControlElement.to_coda,
             ):
                 if cand.value in fct:
                     jump_type = cand
@@ -2588,13 +2588,13 @@ class ScoreFlowController(FlowControllerBase):
                 continue
 
             if jump_type in (
-                FlowControlType.da_capo,
-                FlowControlType.da_capo_al_coda,
-                FlowControlType.da_capo_al_fine,
+                FlowControlElement.da_capo,
+                FlowControlElement.da_capo_al_coda,
+                FlowControlElement.da_capo_al_fine,
             ):
                 to_mc = sorted_mcs[0]
                 target_name = "start"
-            elif jump_type == FlowControlType.to_coda:
+            elif jump_type == FlowControlElement.to_coda:
                 target_name = unit.jump_fwd or "coda"
                 to_mc = marker_mc.get(target_name)
             else:
@@ -2705,7 +2705,7 @@ class ScoreFlowController(FlowControllerBase):
         #    - This includes repeat_start when repeat_end jumps back to it
         # 3. MCs after jump sources (when next[] indicates non-sequential continuation)
         # 4. After explicit section_break markers
-        # Note: Uses derived flow info (next column). When principal FlowControlTypes
+        # Note: Uses derived flow info (next column). When principal FlowControlElements
         # are available, they should be preferred for boundary detection.
         boundaries: set[int] = {sorted_mcs[0]}  # Start of first segment
         volta_endings: set[int] = set()  # Track volta ending MCs

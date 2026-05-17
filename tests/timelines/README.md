@@ -633,21 +633,21 @@ creates a fresh `TSVLoader` instance, ensuring no shared state between tests.
 
 **Architecture (Feb 2026 Redesign → Phase 10 MVP + Cleanup):**
 
-The Flow API uses a **MeasureUnit-based architecture** with FlowControlType integration:
+The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement integration:
 
 | Class | Purpose |
 |-------|---------|
-| `MeasureUnit` | Fundamental building block with FlowControlType fields |
+| `MeasureUnit` | Fundamental building block with FlowControlElement fields |
 | `AtomicSection` | Smallest traversal unit (future: `typed_measures`, `groups`) |
 | `PlaythroughSection` | Contiguous atomics in traversal (future: `typed_measures`, `groups`) |
 | `Flow` | Sequence of PlaythroughSections, delegates iteration to controller |
 
-**MeasureUnit FlowControlType Fields (Phase 10 MVP Cleanup):**
+**MeasureUnit FlowControlElement Fields (Phase 10 MVP Cleanup):**
 - `timesig_duration_qb`: Expected duration from time signature
 - `jump_from`: True if MC is a jump origin (D.C., D.S., multiple next)
 - `jump_to`: True if MC is a jump target (segno, coda, non-adjacent next target)
 - `segno`, `coda`, `fine`, `section_break`: Marker fields
-- `flow_control_types`: Tuple of FlowControlType.value strings for serialization
+- `flow_control_types`: Tuple of FlowControlElement.value strings for serialization
 - `to_dict()` / `from_dict()`: Round-trip serialization support
 
 **Naming Rationale**: Named "Section" (not "Segment") to avoid confusion with TTA manuscript's `Segment` concept (a child timeline contiguous with siblings). These are flow control concepts, not timeline children.
@@ -672,7 +672,7 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlType inte
 
 **Phase 10 MVP Cleanup (Feb 2026): COMPLETE**
 
-- Added FlowControlType fields to `MeasureUnit` (jump_from, jump_to, segno, coda, fine, etc.)
+- Added FlowControlElement fields to `MeasureUnit` (jump_from, jump_to, segno, coda, fine, etc.)
 - Added `MeasureUnit.from_dict()` for DataFrame round-trip serialization
 - Deprecated old `get_atomic_sections()` with DeprecationWarning
 - Removed `iter_mcs()` (unnecessary, derive from sections)
@@ -685,7 +685,7 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlType inte
 **Test Categories:**
 
 1. **Dataclass Tests** (22 tests)
-   - `TestMeasureUnit`: Creation, immutability, `to_dict()`, `from_dict()`, round-trip, FlowControlType fields
+   - `TestMeasureUnit`: Creation, immutability, `to_dict()`, `from_dict()`, round-trip, FlowControlElement fields
    - `TestAtomicSection`: Creation, `mc_range`, `mc_count`, frozen, validation
    - `TestPlaythroughSection`: Creation, `mc_range`, `mc_count`, frozen, `to_mc_sequence()`
 
@@ -694,7 +694,7 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlType inte
      - `IncompleteMeasure`: Creation with `position` field, is MeasureUnit subclass
      - `CompleteMeasure`: Creation, is MeasureUnit subclass
      - `OverlengthMeasure`: Creation, is MeasureUnit subclass
-     - FlowControlType field preservation in typed measures
+     - FlowControlElement field preservation in typed measures
      - `IncompletePosition` enum values
    - `TestAtomicSectionTypedMeasures`: `typed_measures` field on AtomicSection
    - `TestPlaythroughSectionTypedMeasures`: `typed_measures` field on PlaythroughSection

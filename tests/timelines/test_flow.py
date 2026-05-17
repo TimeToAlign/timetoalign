@@ -174,7 +174,7 @@ class TestMeasureUnit:
         assert d["volta"] == 1
 
     def test_flowcontrol_fields(self) -> None:
-        """MeasureUnit supports all FlowControlType fields."""
+        """MeasureUnit supports all FlowControlElement fields."""
         unit = MeasureUnit(
             mc=5,
             mn="5",
@@ -203,7 +203,7 @@ class TestMeasureUnit:
         assert unit.flow_control_types == ("repeat_start", "segno", "jump_from")
 
     def test_to_dict_with_flowcontrol(self) -> None:
-        """MeasureUnit.to_dict() includes FlowControlType fields."""
+        """MeasureUnit.to_dict() includes FlowControlElement fields."""
         unit = MeasureUnit(
             mc=5,
             mn="5",
@@ -377,7 +377,7 @@ class TestTypedMeasures:
         assert isinstance(unit, MeasureUnit)
 
     def test_typed_measures_preserve_flowcontrol(self) -> None:
-        """Typed measures inherit all FlowControlType fields."""
+        """Typed measures inherit all FlowControlElement fields."""
         from timetoalign.core.enums import IncompletePosition
         from timetoalign.timelines import IncompleteMeasure
 

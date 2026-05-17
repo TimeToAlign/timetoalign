@@ -48,7 +48,7 @@ from fractions import Fraction
 import pandas as pd
 
 from timetoalign import Coordinate, TimeUnit
-from timetoalign.core.enums import ActivationCondition, FlowControlType, FlowMode
+from timetoalign.core.enums import ActivationCondition, FlowControlElement, FlowMode
 from timetoalign.loader.score import TSVLoader
 from timetoalign.testdata import ensure_data
 from timetoalign.timelines.flow import FlowMap, compute_qb_sections
@@ -79,7 +79,7 @@ MEASURES_TSV = DATA_DIR / "WoO71.measures.tsv"
 # A Break at QB 20: ends a section, nothing can span across it
 section_end = Break(
     coordinate=Coordinate(Fraction(20), TimeUnit.quarters),
-    control_type=FlowControlType.section_break,
+    control_type=FlowControlElement.section_break,
     condition=ActivationCondition.always,
     label="||",
 )
@@ -89,8 +89,8 @@ section_end
 {
     "position": float(section_end.position),
     "unit": str(section_end.unit),
-    "is_break": FlowControlType.section_break.is_break,
-    "is_jump": FlowControlType.section_break.is_jump,
+    "is_break": FlowControlElement.section_break.is_break,
+    "is_jump": FlowControlElement.section_break.is_jump,
 }
 
 # %% [markdown]
@@ -104,7 +104,7 @@ section_end
 repeat = Jump(
     from_coordinate=Coordinate(Fraction(20), TimeUnit.quarters),
     to_coordinate=Coordinate(Fraction(8), TimeUnit.quarters),
-    control_type=FlowControlType.repeat_end,
+    control_type=FlowControlElement.repeat_end,
     condition=ActivationCondition.first_n,
     repeat_count=1,
 )
@@ -122,17 +122,17 @@ repeat = Jump(
 dc = Jump(
     from_coordinate=Coordinate(Fraction(100), TimeUnit.quarters),
     to_coordinate=Coordinate(Fraction(0), TimeUnit.quarters),
-    control_type=FlowControlType.da_capo,
+    control_type=FlowControlElement.da_capo,
     condition=ActivationCondition.after_first,
 )
 {
     "type": dc.control_type.value,
-    "is_jump": FlowControlType.da_capo.is_jump,
-    "is_target": FlowControlType.da_capo.is_target,
+    "is_jump": FlowControlElement.da_capo.is_jump,
+    "is_target": FlowControlElement.da_capo.is_target,
 }
 
 # %% [markdown]
-# The full `FlowControlType` vocabulary:
+# The full `FlowControlElement` vocabulary:
 #
 # | Type | Category | Semantics |
 # |------|----------|-----------|
@@ -161,13 +161,13 @@ pd.DataFrame(
             "is_target": ct.is_target,
         }
         for ct in [
-            FlowControlType.repeat_end,
-            FlowControlType.da_capo,
-            FlowControlType.dal_segno,
-            FlowControlType.to_coda,
-            FlowControlType.section_break,
-            FlowControlType.segno,
-            FlowControlType.fine,
+            FlowControlElement.repeat_end,
+            FlowControlElement.da_capo,
+            FlowControlElement.dal_segno,
+            FlowControlElement.to_coda,
+            FlowControlElement.section_break,
+            FlowControlElement.segno,
+            FlowControlElement.fine,
         ]
     ]
 )

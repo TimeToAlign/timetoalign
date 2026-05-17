@@ -35,7 +35,7 @@ from fractions import Fraction
 from typing import Any
 
 from timetoalign.core import Coordinate, TimeUnit
-from timetoalign.core.enums import ActivationCondition, FlowControlType
+from timetoalign.core.enums import ActivationCondition, FlowControlElement
 
 module_logger = logging.getLogger(__name__)
 
@@ -80,20 +80,20 @@ class Break:
         >>> # Section break
         >>> brk = Break(
         ...     coordinate=Coordinate(100.0, TimeUnit.quarters),
-        ...     control_type=FlowControlType.section_break,
+        ...     control_type=FlowControlElement.section_break,
         ... )
 
         >>> # Fine marker (conditional break after DC/DS)
         >>> fine = Break(
         ...     coordinate=Coordinate(200.0, TimeUnit.quarters),
-        ...     control_type=FlowControlType.fine,
+        ...     control_type=FlowControlElement.fine,
         ...     condition=ActivationCondition.after_dc_ds,
         ...     name="fine",  # Default name, can be customized
         ... )
     """
 
     coordinate: Coordinate
-    control_type: FlowControlType = FlowControlType.section_break
+    control_type: FlowControlElement = FlowControlElement.section_break
     condition: ActivationCondition = ActivationCondition.always
     repeat_count: int = 1
     label: str | None = None
@@ -182,7 +182,7 @@ class Jump:
         >>> repeat_jump = Jump(
         ...     from_coordinate=Coordinate(64.0, TimeUnit.quarters),
         ...     to_coordinate=Coordinate(16.0, TimeUnit.quarters),
-        ...     control_type=FlowControlType.repeat_end,
+        ...     control_type=FlowControlElement.repeat_end,
         ...     repeat_count=1,  # Take jump once (play section twice)
         ... )
 
@@ -190,21 +190,21 @@ class Jump:
         >>> dc_jump = Jump(
         ...     from_coordinate=Coordinate(200.0, TimeUnit.quarters),
         ...     to_coordinate=Coordinate(0.0, TimeUnit.quarters),
-        ...     control_type=FlowControlType.da_capo,
+        ...     control_type=FlowControlElement.da_capo,
         ... )
 
         >>> # Dal Segno to custom-named marker
         >>> ds_jump = Jump(
         ...     from_coordinate=Coordinate(300.0, TimeUnit.quarters),
         ...     to_coordinate=Coordinate(50.0, TimeUnit.quarters),
-        ...     control_type=FlowControlType.dal_segno,
+        ...     control_type=FlowControlElement.dal_segno,
         ...     target_name="segno2",  # Resolve to marker named "segno2"
         ... )
     """
 
     from_coordinate: Coordinate
     to_coordinate: Coordinate
-    control_type: FlowControlType = FlowControlType.repeat_end
+    control_type: FlowControlElement = FlowControlElement.repeat_end
     condition: ActivationCondition = ActivationCondition.first_n
     repeat_count: int = 1
     target_name: str | None = None  # Name of target marker to resolve
@@ -406,17 +406,17 @@ class FlowControlRegistry:
     @property
     def has_repeats(self) -> bool:
         """Check if there are any repeat jumps."""
-        return any(j.control_type == FlowControlType.repeat_end for j in self.jumps)
+        return any(j.control_type == FlowControlElement.repeat_end for j in self.jumps)
 
     @property
     def has_da_capo(self) -> bool:
         """Check if there's a Da Capo jump."""
-        return any(j.control_type == FlowControlType.da_capo for j in self.jumps)
+        return any(j.control_type == FlowControlElement.da_capo for j in self.jumps)
 
     @property
     def has_dal_segno(self) -> bool:
         """Check if there's a Dal Segno jump."""
-        return any(j.control_type == FlowControlType.dal_segno for j in self.jumps)
+        return any(j.control_type == FlowControlElement.dal_segno for j in self.jumps)
 
     def clear(self) -> None:
         """Clear all flow control events."""

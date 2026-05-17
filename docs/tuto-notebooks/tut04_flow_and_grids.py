@@ -77,7 +77,7 @@ grid.measure_seconds()
 # ## Loading Scores with Flow
 #
 # Loaders such as `Music21Loader` parse repeat signs and jumps from
-# MusicXML or MEI. The resulting timeline includes `FlowControlType`
+# MusicXML or MEI. The resulting timeline includes `FlowControlElement`
 # events. See the How-To notebooks for worked examples with real scores
 # containing repeats and *D.S.* markings.
 
