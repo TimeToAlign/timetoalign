@@ -600,11 +600,14 @@ class AtomicSection:
     def _flow_control_descriptor(self) -> str:
         """One-liner describing this section's flow-control role.
 
-        Lists the marker(s) that begin a leap_start section and the
+        Lists the marker that begins a leap_start section and the
         instruction(s) that close a leap_end section, using short labels:
         DSaC / DSaF / DCaC / DCaF / DS / DC / →coda / repeat_end / fine.
-        Multi-target sections with no named marker are described as
-        "ends with branching".
+        The internal branching mechanic — a leap_end with multiple
+        ``next`` targets but no recognised jump instruction on its
+        boundary measures — surfaces musicologically as alternative
+        endings, so it is rendered as "ends with alternative endings"
+        rather than as the implementation-level term "branching".
         """
         if not self.typed_measures:
             return ""
@@ -614,16 +617,28 @@ class AtomicSection:
 
         if self.section_type == "leap_start":
             if first.coda:
-                parts.append(f"target {first.coda}")
+                parts.append(f"target '{first.coda}'")
             elif first.segno:
-                parts.append(f"target {first.segno}")
+                parts.append(f"target '{first.segno}'")
             else:
                 parts.append("leap target")
 
         end_parts: list[str] = []
         if last.end_repeat:
             end_parts.append("repeat_end")
-        fct = last.flow_control_types
+        # Scan every measure in the section so an instruction sitting on a
+        # non-final measure (a "to coda" mid-section, for instance) still
+        # surfaces in the descriptor.
+        section_fct: set[str] = set()
+        for m in self.typed_measures:
+            fct = m.flow_control_types
+            section_fct.update(fct)
+            # First-coda marker — a coda marker co-located with a jump
+            # origin — is the implicit "to coda" trigger in loaders that
+            # encode the jump via the marker name rather than emitting a
+            # dedicated to_coda instruction.
+            if "coda" in fct and "jump_from" in fct:
+                section_fct.add("to_coda")
         for short, fc_type in (
             ("DSaC", "dal_segno_al_coda"),
             ("DSaF", "dal_segno_al_fine"),
@@ -633,14 +648,14 @@ class AtomicSection:
             ("DC", "da_capo"),
             ("→coda", "to_coda"),
         ):
-            if fc_type in fct:
+            if fc_type in section_fct:
                 end_parts.append(short)
         if last.fine:
             end_parts.append("fine")
         if end_parts:
             parts.append(f"ends with {'+'.join(end_parts)}")
         elif self.section_type == "leap_end":
-            parts.append("ends with branching")
+            parts.append("ends with alternative endings")
         return ", ".join(parts)
 
 
