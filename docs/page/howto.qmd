@@ -31,6 +31,8 @@ documentation:
 
 ### Timelines, Events & Maps
 
+- [How to Access Layered EventData](howto/how01_layered_eventdata.ipynb) ---
+  Three-layer architecture, raw table, SemanticField views, PitchField.
 - [How to Do Coordinate Math](howto/how01_coordinate_math.ipynb) ---
   Domains, TimeUnits, NumberType, and Coordinate arithmetic.
 - [How to Use Advanced Conversion Maps](howto/how01_advanced_cmaps.ipynb) ---

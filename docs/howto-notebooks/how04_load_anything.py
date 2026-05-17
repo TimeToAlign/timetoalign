@@ -531,7 +531,10 @@ csv_loader.load(csv_file)
 csv_loader
 
 # %%
-csv_loader.events
+csv_loader.events.to_dataframe()
+
+# %%
+csv_loader.events.table.to_pandas()
 
 # %%
 csv_loader.events.schema

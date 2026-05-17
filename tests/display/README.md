@@ -152,8 +152,7 @@ ensure the convenience methods are correctly wired to the underlying implementat
 
 ## Flow Visualization Tests (Phase 3.7.1) -- IMPLEMENTED
 
-All flow visualization tests are now implemented. See `.agent/prompts/flow_visualization.md`
-for the full specification.
+All flow visualization tests are now implemented (42 tests, Phase 3.7.1 complete).
 
 ### Step 1: Regions in `timeline_diagram()`
 

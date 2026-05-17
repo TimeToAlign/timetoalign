@@ -767,9 +767,7 @@ Following the project's ZERO TOLERANCE validation policy, all tests use **exact 
 **Purpose:** Validates the slice-based unfolding pipeline that replaces the buggy MC-space
 FlowMap approach with structural slicing in QB-space.
 
-**See also:** `README_unfolding.md` for detailed testing strategy and gold standard data inventory.
-
-**78 tests** across 4 test classes:
+**88 tests** (78 single-timeline + 10 group unfolding) across 5 test classes:
 
 | Class | Tests | Purpose |
 |-------|-------|---------|
@@ -777,12 +775,31 @@ FlowMap approach with structural slicing in QB-space.
 | `TestComputeQBSections` | 8 | QB boundary computation from Flow + FlowController |
 | `TestSegmentLineAssembly` | 5 | Integration: slice + concatenate into SegmentLine |
 | `TestUnfoldingGoldStandard` | 49 | End-to-end validation against 7 ms3 gold standard specimens |
+| `TestGroupUnfolding` | 10 | Cross-domain unfolding via GroupTimestamp interpolation |
+
+**Testing Pyramid:**
+
+```
+    ┌─────────────────────────────────┐
+    │  Group Unfolding Tests          │  ← 3 timelines × 1 FlowMap,
+    │  (TestGroupUnfolding)           │     cross-domain (Logical+Graphical)
+    ├─────────────────────────────────┤
+    │  Gold Standard Tests            │  ← 7 specimens, EXACT match
+    │  (TestUnfoldingGoldStandard)    │     against ms3 TSV files
+    ├─────────────────────────────────┤
+    │  Integration Tests              │  ← SegmentLine assembly from
+    │  (TestSegmentLineAssembly)      │     slices, contiguity, length
+    ├─────────────────────────────────┤
+    │  Unit Tests                     │  ← get_slice() primitive
+    │  (TestGetSlice +                │     compute_qb_sections() helper
+    │   TestComputeQBSections)        │
+    └─────────────────────────────────┘
+```
 
 **Test Categories:**
 
 1. **get_slice() Unit Tests** (16 tests)
-   - Basic slicing with coordinate shifting
-   - Left-inclusive, right-exclusive boundary semantics
+   - Basic slicing with coordinate shifting (`[start, end)` semantics)
    - Interval event truncation (`truncate_events=True/False`)
    - Child timeline recursive slicing
    - Number type preservation (Fraction stays Fraction)
@@ -805,58 +822,40 @@ FlowMap approach with structural slicing in QB-space.
    - Repeated section assembly (same range played twice)
 
 4. **Gold Standard End-to-End Tests** (49 tests, parametrized × 7 specimens)
-   - EXACT row count match
-   - EXACT MC sequence (may repeat for flow control)
-   - EXACT mc_playthrough monotonic sequence
-   - EXACT mn_playthrough values with suffixes (a, b, c, ...)
-   - EXACT quarterbeats as Fraction (not float)
-   - EXACT total unfolded length
-   - EXACT compute_qb_sections total per specimen
+   - EXACT row count, MC sequence, mc_playthrough, mn_playthrough with suffixes
+   - EXACT quarterbeats as Fraction (not float), total unfolded length
+
+5. **Group Unfolding Tests** (10 tests)
+   - Uses Beethoven Op.18 No.4 iv multimodal score group (CLT1 + DGT1 + OpenScore)
+   - Validates that one FlowMap unfolds ALL timelines regardless of domain
+   - Resolves section boundaries through GroupTimestamps
+   - Tests: segment counts (11), contiguity, type preservation, length consistency
 
 **Gold Standard Exact Values:**
 
-| Specimen | Folded | Unfolded | Total QB |
-|----------|--------|----------|----------|
-| rachmaninoff | 374 | 374 | 2997/2 |
-| polyrhythm_only | 14 | 14 | 45 |
-| musete | 58 | 138 | 384 |
-| rondeau | 60 | 138 | 195 |
-| op18_no4_mov4 | 226 | 291 | 1116 |
-| woo71 | 397 | 505 | 1078 |
-| flow_only | 15 | 30 | 75 |
+| Specimen | Folded | Unfolded | Total QB | Challenge |
+|----------|--------|----------|----------|-----------|
+| rachmaninoff | 374 | 374 | 2997/2 | No flow control (baseline) |
+| polyrhythm_only | 14 | 14 | 45 | Line breaks only |
+| musete | 58 | 138 | 384 | D.S. al Fine, anacrusis, 6/8 |
+| rondeau | 60 | 138 | 195 | Rondeau form (D.S.) |
+| op18_no4_mov4 | 226 | 291 | 1116 | Repeats + volta brackets |
+| woo71 | 397 | 505 | 1078 | Complex split bars |
+| flow_only | 15 | 30 | 75 | D.S./D.C. + voltas |
 
-**Test Status: 78 passed** (Feb 2026 - Phase 3.10 Steps 1-2)
+**Known Edge Cases:**
+- **Anacrusis** (Musete): Incomplete first measure (1.5 QB instead of 3.0). Repeated instance preserves short duration.
+- **Split bars** (WoO71): Single notated measure divided into two MCs. Preserved exactly through unfolding.
+- **Volta brackets** (Op.18): Different MCs played on different passes. Correct volta selected per pass.
+- **Rondeau form** (c11n08): ABACADA return pattern via D.S.-like mechanism.
 
-**Key Discovery:** EventData stores instant events under `start` (struct dict with
-`value`, `numerator`, `denominator`), not `instant`. The `instant` key is only an
-input convenience for `add_events()`. All coordinate reading code must use
-`event["start"]["value"]`.
+**Bug Fixes Applied:**
+- `TSVLoader._resolve_quarterbeats()`: Prefers `quarterbeats_all_endings` over `quarterbeats` (fixes 10.5q error for volta first-endings).
+- `SegmentLine.get_slice()`: Override creates with `length=0` and sets final length after children, fixing contiguity validation.
 
----
-
-### Critical Coordinate Handling Requirements (Feb 2026)
-
-**The `create_unfolded_timeline()` function was fixed for a critical type preservation bug.**
-
-When working with coordinates in TimeToAlign!:
-
-| Requirement | Reason |
-|-------------|--------|
-| **Preserve number types** | Musical data uses `Fraction` for exact rhythmic representation |
-| **Use `struct_to_coordinate()`** | EventData stores coords as `{value, numerator, denominator}` structs |
-| **Never cast to `float` unnecessarily** | Loses Fraction precision, corrupts musical data |
-| **Let `add_events()` handle conversion** | It calls `coordinate_to_struct()` internally |
-
-```python
-# WRONG - loses precision:
-coord = float(event["start"]["value"])
-new_event["instant"] = float(unfolded_coord)
-
-# CORRECT - preserves type:
-from timetoalign.loader.schema import struct_to_coordinate
-coord = struct_to_coordinate(event["start"], number_type)
-new_event["instant"] = unfolded_coord  # Fraction, add_events handles it
-```
+**Coordinate Handling:** EventData stores instant events under `start` (struct dict),
+not `instant`. Use `struct_to_coordinate()` for reading; never cast to `float`
+unnecessarily (loses Fraction precision).
 
 ---
 
