@@ -8,15 +8,18 @@ Provides frozen dataclass scalars at multiple levels of pitch specificity:
 - ``SpelledPitchClass`` -- pitch class with spelling (satisfies ``SpelledPitchClassLike``)
 - ``EnharmonicPitch`` -- pitch in semitone space displayed as note-name + octave,
   used by ``PitchField`` when ``pitch_type="ep"`` (satisfies ``EnharmonicPitchLike``)
-- ``MidiPitch`` -- **distinct** MIDI-keyboard pitch reserved for the planned
-  ``MidiField`` (velocity/channel/program context); satisfies ``EnharmonicPitchLike``
+- ``MidiPitch`` -- display alias of ``EnharmonicPitch`` (same data, raw-MIDI
+  display) reserved as the default scalar for the planned ``MidiField``
 - ``SpelledPitch`` -- full spelling with octave (satisfies ``SpecificPitchLike``).
   ``SpecificPitch`` is a re-export of the same class under its protocol name.
 
-``MidiPitch`` and ``EnharmonicPitch`` are **distinct types**, not aliases.
-``EnharmonicPitch`` is the canonical scalar for the ``ep`` storage column on
-score-level pitch data; ``MidiPitch`` is reserved for MIDI-keyboard data with
-velocity/channel/program context (see the planned ``MidiField``).
+``MidiPitch`` is a thin subclass of ``EnharmonicPitch``: identical data and
+storage struct, differing only in ``__repr__`` and the ``semantic_type``
+string. ``EnharmonicPitch`` is the canonical scalar for ``ep`` columns on
+score-level pitch data; ``MidiPitch`` exists so that ``MidiField`` rows
+display as ``MidiPitch(60)`` instead of ``EnharmonicPitch(C4)`` —
+keyboard/MIDI context such as velocity/channel/program lives on the field,
+not on the scalar.
 
 All 12-TET scalars compose ``TwelveTETPitchMixin`` which provides the
 unified ``.to()`` dispatch method and ``.get(format=)`` formatting.
@@ -559,119 +562,6 @@ class SpelledPitchClass(TwelveTETPitchMixin):
 
 # endregion SpelledPitchClass
 
-# region MidiPitch
-
-
-@dataclass(frozen=True, slots=True)
-class MidiPitch(TwelveTETPitchMixin):
-    """MIDI-keyboard pitch scalar.  Satisfies ``EnharmonicPitchLike``.
-
-    ``MidiPitch`` is **distinct** from ``EnharmonicPitch`` (they are not
-    aliases).  This scalar is reserved for the planned ``MidiField``, which
-    represents a MIDI-keyboard pitch carrying velocity / channel / program
-    context.  For score-level pitch data with ``pitch_type="ep"``, use
-    ``EnharmonicPitch`` instead — that is what ``PitchField`` constructs.
-
-    The "MIDI" qualifier here denotes the keyboard / device sense
-    (note-on/note-off events with velocity), not merely a MIDI note number.
-
-    Attributes:
-        midi_number: MIDI note number (0-127).
-        pitch_class: Pitch class (0-11, C=0), auto-derived from ``midi_number``.
-    """
-
-    midi_number: int
-    pitch_class: int = field(init=False)  # type: ignore[override]
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "pitch_class", self.midi_number % 12)
-
-    @property
-    def octave(self) -> int:
-        """Octave number (C4 = 60 -> octave 4)."""
-        return (self.midi_number // 12) - 1
-
-    @property
-    def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
-        return "MidiPitch"
-
-    def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract."""
-        return {
-            "field_type": "PitchField",
-            "pitch_type": "ep",
-        }
-
-    def to(
-        self, target_type: type, *, format: str | None = None
-    ) -> "TwelveTETPitchMixin":
-        """Convert to another pitch type.
-
-        Args:
-            target_type: Target pitch type.
-            format: Optional format specifier.
-
-        Returns:
-            A pitch scalar of the target type.
-
-        Raises:
-            TypeError: If conversion is not supported.
-        """
-        if target_type is MidiPitch or target_type is type(self):
-            return self
-        if target_type is EnharmonicPitchClass:
-            return EnharmonicPitchClass(pitch_class=self.pitch_class)
-        raise TypeError(
-            f"Cannot convert MidiPitch to {target_type.__name__} "
-            f"(spelling information required for specific pitch types)"
-        )
-
-    def get(self, *, format: str | None = None) -> str:
-        """Return string representation.
-
-        Args:
-            format: ``"midi"`` (default) returns MIDI number as string.
-        """
-        return str(self.midi_number)
-
-    def to_dict(self) -> dict[str, object]:
-        """Return a dict mirroring the EP storage struct.
-
-        Returns:
-            A dict with ``ep`` (MIDI number) and ``epc`` (pitch class)
-            storage fields, plus derived ``octave``.
-        """
-        return {
-            "ep": self.midi_number,
-            "epc": self.pitch_class,
-            "octave": self.octave,
-        }
-
-    @classmethod
-    def from_row(cls, row: dict[str, Any]) -> MidiPitch | None:
-        """Construct from a PyArrow struct row dict.
-
-        Accepts the ``midi_pitch`` (EP) struct: ``{ep: int64, epc: int64}``.
-        Only ``ep`` is required; ``epc`` is ignored (derived from ``ep``).
-
-        Args:
-            row: Dict with storage field names.
-
-        Returns:
-            A ``MidiPitch``, or ``None`` if ``ep`` is null.
-        """
-        ep = row.get("ep")
-        if ep is None:
-            return None
-        return cls(midi_number=int(ep))
-
-    def __repr__(self) -> str:
-        return f"MidiPitch(midi={self.midi_number}, pc={self.pitch_class})"
-
-
-# endregion MidiPitch
-
 # region EnharmonicPitch
 
 # Note name labels for enharmonic display (pick the sharp spelling for black keys)
@@ -695,9 +585,12 @@ _EP_LABELS: tuple[str, ...] = (
 class EnharmonicPitch(TwelveTETPitchMixin):
     """Enharmonic pitch scalar -- MIDI number with pitch-name display.
 
-    Unlike ``MidiPitch`` (reserved for the future ``MidiField``), this scalar
-    represents a pitch in semitone space and displays as a note name + octave
-    (e.g. ``EnharmonicPitch(C4)``).  Enharmonic equivalents are equal.
+    Represents a pitch in semitone space and displays as a note name +
+    octave (e.g. ``EnharmonicPitch(C4)``). Enharmonic equivalents are equal.
+
+    ``EnharmonicPitch`` is the canonical scalar for the ``ep`` storage
+    column on score-level pitch data; ``MidiField`` will use the
+    :class:`MidiPitch` subclass (same data, raw-MIDI-number display).
 
     Attributes:
         midi_number: MIDI note number (0-127).
@@ -730,10 +623,12 @@ class EnharmonicPitch(TwelveTETPitchMixin):
     ) -> "TwelveTETPitchMixin":
         if target_type is EnharmonicPitch or target_type is type(self):
             return self
+        if target_type is MidiPitch:
+            return MidiPitch(midi_number=self.midi_number)
         if target_type is EnharmonicPitchClass:
             return EnharmonicPitchClass(pitch_class=self.pitch_class)
         raise TypeError(
-            f"Cannot convert EnharmonicPitch to {target_type.__name__} "
+            f"Cannot convert {type(self).__name__} to {target_type.__name__} "
             f"(spelling information required for specific pitch types)"
         )
 
@@ -762,6 +657,47 @@ class EnharmonicPitch(TwelveTETPitchMixin):
 
 
 # endregion EnharmonicPitch
+
+# region MidiPitch
+
+
+@dataclass(frozen=True, slots=True)
+class MidiPitch(EnharmonicPitch):
+    """Display alias of :class:`EnharmonicPitch` reserved for ``MidiField``.
+
+    ``MidiPitch`` is a thin subclass of ``EnharmonicPitch`` with identical
+    data, storage struct (``{ep, epc}``), conversions, and protocol
+    conformance. The only differences are:
+
+    * ``__repr__`` shows the bare MIDI number — ``MidiPitch(60)``
+    * ``semantic_type`` advertises the alias name — ``"MidiPitch"``
+    * ``get()`` defaults to the MIDI-number format
+
+    ``MidiPitch`` is the default scalar for the planned ``MidiField``
+    (``tta-guide`` §2.2b / A5.2). MIDI-keyboard context — velocity,
+    channel, program — lives on the *field*, not on this scalar; the
+    distinction here is purely presentational, so that a MidiField row
+    displays as ``MidiPitch(60)`` rather than ``EnharmonicPitch(C4)``.
+
+    For score-level pitch data (``pitch_type="ep"``), ``PitchField``
+    keeps returning ``EnharmonicPitch`` — note-name display is more
+    useful in that context.
+    """
+
+    @property
+    def semantic_type(self) -> str:
+        return "MidiPitch"
+
+    def get(self, *, format: str | None = None) -> str:
+        if format is None or format == "midi":
+            return str(self.midi_number)
+        return super().get(format=format)
+
+    def __repr__(self) -> str:
+        return f"MidiPitch({self.midi_number})"
+
+
+# endregion MidiPitch
 
 # region SpelledPitch
 

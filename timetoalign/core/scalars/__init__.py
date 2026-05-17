@@ -14,9 +14,9 @@ Pitch scalars (satisfy PitchLike hierarchy):
     - ``SpelledPitchClass`` -- pitch class with spelling (SpelledPitchClassLike)
     - ``EnharmonicPitch`` -- pitch in semitone space with note-name display;
       used by ``PitchField`` for ``pitch_type="ep"`` (EnharmonicPitchLike)
-    - ``MidiPitch`` -- **distinct** MIDI-keyboard pitch (velocity / channel /
-      program context); reserved for the planned ``MidiField``
-      (EnharmonicPitchLike)
+    - ``MidiPitch`` -- display alias of ``EnharmonicPitch`` (same data,
+      raw-MIDI-number ``__repr__``); reserved as the default scalar for
+      the planned ``MidiField`` (EnharmonicPitchLike)
     - ``SpelledPitch`` / ``SpecificPitch`` -- full spelling (SpecificPitchLike).
       ``SpecificPitch`` is a protocol-name re-export of the same class.
 
