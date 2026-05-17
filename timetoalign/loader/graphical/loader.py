@@ -39,8 +39,6 @@ class GraphicalLoader:
         >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=100, name="system_1")
         >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=200, name="system_2")
         >>> store = loader.store
-        >>> isinstance(store, GraphicalStore)
-        True
 
         >>> # From PDF
         >>> import pymupdf
@@ -276,16 +274,28 @@ class GraphicalLoader:
 
     @property
     def store(self) -> GraphicalStore:
-        """Build and return the GraphicalStore.
+        """Build and return a new ``GraphicalStore``.
+
+        Each call creates an independent copy so that stores obtained
+        at different points in the loader's state do not share mutable
+        references.
 
         Returns:
-            GraphicalStore containing all sources and segments.
+            GraphicalStore containing copies of all sources and segments.
         """
         return GraphicalStore(
             sources=list(self._sources),
             segments=list(self._segments),
             metadata=dict(self._metadata),
         )
+
+    def build(self) -> GraphicalStore:
+        """Alias for :pyattr:`store`.
+
+        Returns:
+            GraphicalStore containing all sources and segments.
+        """
+        return self.store
 
     def clear(self) -> None:
         """Clear all sources and segments."""

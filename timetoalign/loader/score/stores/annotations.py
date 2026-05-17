@@ -9,13 +9,14 @@ from typing_extensions import Self
 
 from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.loader.events import EventData
+from timetoalign.loader.mixins import HarmonyAccessMixin
 from timetoalign.loader.schema import make_fraction_field
 
 if TYPE_CHECKING:
     pass
 
 
-class AnnotationEventData(EventData):
+class AnnotationEventData(EventData, HarmonyAccessMixin):
     """EventData for text annotations.
 
     Subtypes include:
@@ -31,8 +32,6 @@ class AnnotationEventData(EventData):
     """
 
     _extra_fields: ClassVar[list[pa.Field]] = [
-        # Temporal - Derived/Float
-        pa.field("duration_float", pa.float64(), nullable=True),
         # Measure context
         pa.field("mc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("mn", pa.string(), nullable=True),
@@ -95,11 +94,9 @@ class AnnotationEventData(EventData):
                 processed["start"] = processed.pop("quarterbeats")
             if "duration_qb" in processed:
                 processed["duration"] = processed.pop("duration_qb")
-            if "duration_qb_float" in processed:
-                processed["duration_float"] = processed.pop("duration_qb_float")
-
             # Remove unused
             processed.pop("quarterbeats_float", None)
+            processed.pop("duration_qb_float", None)
 
             # Unified interval normalisation: converts coordinate fields
             # to struct format, fills missing end/duration, and infers

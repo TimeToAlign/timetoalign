@@ -321,10 +321,8 @@ class TSVLoader(ScoreLoader):
         for _, row in df.iterrows():
             # Temporal - Primary (with quarterbeats_all_endings fallback)
             qb = self._resolve_quarterbeats(row)
-            qb_float = float(qb) if qb else 0.0
 
             dur_qb = self._parse_fraction(row.get("duration_qb", 0))
-            dur_qb_float = float(dur_qb) if dur_qb else 0.0
 
             # Temporal - Measure context
             mc = int(row["mc"]) if pd.notna(row.get("mc")) else None
@@ -389,9 +387,6 @@ class TSVLoader(ScoreLoader):
             tpc_val = int(row["tpc"]) if pd.notna(row.get("tpc")) else None
 
             # Attributes
-            velocity = (
-                int(row.get("velocity", 64)) if pd.notna(row.get("velocity")) else 64
-            )
             tied = int(row["tied"]) if pd.notna(row.get("tied")) else 0
             gracenote = (
                 str(row["gracenote"]) if pd.notna(row.get("gracenote")) else None
@@ -409,7 +404,9 @@ class TSVLoader(ScoreLoader):
             note_rows.append(
                 {
                     "name": str(row.get("name", "")),
-                    "temporal_type": "interval" if dur_qb_float > 0 else "instant",
+                    "temporal_type": (
+                        "interval" if (dur_qb and dur_qb > 0) else "instant"
+                    ),
                     "event_type": "Note" if midi_pitch else "Rest",
                     # Temporal - core coordinates use coordinate_to_struct
                     # (value/numerator/denominator format for EventData)
@@ -418,11 +415,9 @@ class TSVLoader(ScoreLoader):
                         if qb is not None
                         else coordinate_to_struct(0)
                     ),
-                    "quarterbeats_float": qb_float,
                     "duration_qb": (
                         coordinate_to_struct(dur_qb) if dur_qb is not None else None
                     ),
-                    "duration_qb_float": dur_qb_float,
                     "mc": mc,
                     "mn": mn,
                     # Extra fraction fields use fraction_to_struct (num/den format)
@@ -450,7 +445,6 @@ class TSVLoader(ScoreLoader):
                     "tpc": tpc_val,
                     "octave": octave_val,
                     # Attributes
-                    "velocity": velocity,
                     "tied": tied,
                     "gracenote": gracenote,
                     "chord_id": chord_id,
@@ -654,7 +648,6 @@ class TSVLoader(ScoreLoader):
                     "start": qb_float,
                     "duration": dur_qb_float,
                     "end": qb_float + dur_qb_float,
-                    "duration_float": dur_qb_float,
                     "nominal_length": nominal_length,
                     "actual_length": actual_length,
                     "mc_offset": mc_offset,
@@ -732,11 +725,9 @@ class TSVLoader(ScoreLoader):
         for idx, row in df.iterrows():
             # Temporal (with quarterbeats_all_endings fallback)
             qb = self._resolve_quarterbeats(row)
-            qb_float = float(qb) if qb else 0.0
 
             # Duration (if available)
             dur_qb = self._parse_fraction(row.get("duration_qb"))
-            dur_qb_float = float(dur_qb) if dur_qb else None
 
             # Measure context
             mc = int(row["mc"]) if pd.notna(row.get("mc")) else None
@@ -766,7 +757,7 @@ class TSVLoader(ScoreLoader):
                 {
                     # ID auto-generated from event_type (subtype is used as event_type)
                     "name": label,
-                    "temporal_type": "interval" if dur_qb_float else "instant",
+                    "temporal_type": "interval" if dur_qb else "instant",
                     "event_type": subtype,  # Use subtype (e.g., "Harmony") as event_type
                     "subtype": subtype,
                     "text": label,
@@ -776,11 +767,9 @@ class TSVLoader(ScoreLoader):
                         if qb is not None
                         else coordinate_to_struct(0)
                     ),
-                    "quarterbeats_float": qb_float,
                     "duration_qb": (
                         coordinate_to_struct(dur_qb) if dur_qb is not None else None
                     ),
-                    "duration_float": dur_qb_float,
                     # Measure context
                     "mc": mc,
                     "mn": mn,
@@ -844,11 +833,9 @@ class TSVLoader(ScoreLoader):
         for idx, row in df.iterrows():
             # Temporal (with quarterbeats_all_endings fallback)
             qb = self._resolve_quarterbeats(row)
-            qb_float = float(qb) if qb else 0.0
 
             # Duration (if available)
             dur_qb = self._parse_fraction(row.get("duration_qb"))
-            dur_qb_float = float(dur_qb) if dur_qb else None
 
             # Measure context
             mc = int(row["mc"]) if pd.notna(row.get("mc")) else None
@@ -879,7 +866,7 @@ class TSVLoader(ScoreLoader):
                 {
                     # ID auto-generated from event_type (subtype is used as event_type)
                     "name": label,
-                    "temporal_type": "interval" if dur_qb_float else "instant",
+                    "temporal_type": "interval" if dur_qb else "instant",
                     "event_type": subtype,  # Use subtype (e.g., "Chord") as event_type
                     "subtype": subtype,
                     "text": label,
@@ -890,11 +877,9 @@ class TSVLoader(ScoreLoader):
                         if qb is not None
                         else coordinate_to_struct(0)
                     ),
-                    "quarterbeats_float": qb_float,
                     "duration_qb": (
                         coordinate_to_struct(dur_qb) if dur_qb is not None else None
                     ),
-                    "duration_float": dur_qb_float,
                     # Measure context
                     "mc": mc,
                     "mn": mn,

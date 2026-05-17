@@ -256,9 +256,7 @@ class Music21Loader(ScoreLoader):
                         "temporal_type": "interval",
                         "event_type": "Measure",
                         "quarterbeats": fraction_to_struct(info["qb"]),
-                        "quarterbeats_float": float(info["qb"]),
                         "duration_qb": fraction_to_struct(info["dur"]),
-                        "duration_qb_float": float(info["dur"]),
                         "mc": info["mc"],
                         "mn": info["mn"],
                         "timesig": None,
@@ -339,9 +337,7 @@ class Music21Loader(ScoreLoader):
                             "temporal_type": "instant",
                             "event_type": obj.__class__.__name__,
                             "quarterbeats": fraction_to_struct(qb),
-                            "quarterbeats_float": float(qb),
                             "duration_qb": None,
-                            "duration_qb_float": 0.0,
                             "mc": mc,
                             "mn": mn,
                             "mc_onset": (
@@ -374,9 +370,7 @@ class Music21Loader(ScoreLoader):
                             "temporal_type": "instant",
                             "event_type": "TextExpression",
                             "quarterbeats": fraction_to_struct(qb),
-                            "quarterbeats_float": float(qb),
                             "duration_qb": None,
-                            "duration_qb_float": 0.0,
                             "mc": mc,
                             "mn": mn,
                             "mc_onset": (
@@ -403,7 +397,14 @@ class Music21Loader(ScoreLoader):
         # uniformly to notes, measures, controls, and annotations and its value
         # is exposed via self.anacrusis_offset and stored in the ScoreStore
         # metadata so downstream consumers can apply the same correction.
-        all_onsets = [r["quarterbeats_float"] for r in note_rows]
+        all_onsets = [
+            (
+                float(Fraction(r["quarterbeats"]["num"], r["quarterbeats"]["den"]))
+                if r.get("quarterbeats")
+                else 0.0
+            )
+            for r in note_rows
+        ]
         min_qb = min(all_onsets) if all_onsets else 0.0
         m21_offset: Fraction = (
             Fraction(-min_qb).limit_denominator(10000) if min_qb < 0 else Fraction(0)
@@ -418,7 +419,6 @@ class Music21Loader(ScoreLoader):
                     )
                     new_qb = old_qb + m21_offset
                     r["quarterbeats"] = fraction_to_struct(new_qb)
-                    r["quarterbeats_float"] = float(new_qb)
 
         # Build data
         notes_data = NoteEventData.from_dicts(
@@ -534,9 +534,7 @@ class Music21Loader(ScoreLoader):
             "temporal_type": "interval" if dur_qb > 0 else "instant",
             "event_type": "Rest" if is_rest else "Note",
             "quarterbeats": fraction_to_struct(qb),
-            "quarterbeats_float": float(qb),
             "duration_qb": fraction_to_struct(dur_qb),
-            "duration_qb_float": float(dur_qb),
             "mc": mc,
             "mn": mn,
             "mc_onset": fraction_to_struct(mc_onset),

@@ -9,43 +9,21 @@ from typing_extensions import Self
 
 from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.loader.events import EventData
+from timetoalign.loader.mixins import PitchAccessMixin
 from timetoalign.loader.schema import make_fraction_field
 
 if TYPE_CHECKING:
-    pass
+    from timetoalign.fields.pitch import PitchField
+
+from timetoalign.fields.schemas import EnharmonicPitchSchema, SpecificPitchSchema
 
 
-def _make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
-    """Create MIDI and Spelled pitch struct types."""
-    midi_pitch = pa.struct(
-        [
-            pa.field("ep", pa.int64(), nullable=True),
-            pa.field("epc", pa.int64(), nullable=True),
-        ]
-    )
-
-    spelled_pitch = pa.struct(
-        [
-            pa.field("gpc_int", pa.int64(), nullable=True, metadata={"unit": "steps"}),
-            pa.field("gpc_str", pa.string(), nullable=True),
-            pa.field("acc", pa.int64(), nullable=True, metadata={"unit": "alter"}),
-            pa.field("spc_int", pa.int64(), nullable=True, metadata={"unit": "fifths"}),
-            pa.field("spc_str", pa.string(), nullable=True),
-            pa.field("sp", pa.string(), nullable=True),
-            pa.field("cents", pa.float64(), nullable=False, metadata={"unit": "cents"}),
-        ]
-    )
-
-    return midi_pitch, spelled_pitch
-
-
-class NoteEventData(EventData):
+class NoteEventData(EventData, PitchAccessMixin):
     """EventData for note, rest, and chord events.
 
     Rich temporal schema following TSV gold standard:
     - start: Continuous logical time (Fraction) - from 'quarterbeats'
     - duration: Duration (Fraction) - from 'duration_qb'
-    - duration_float: Float duration
     - mc/mn: Measure context
     - mc_onset/mn_onset: Measure-relative offsets (Fraction)
 
@@ -56,19 +34,15 @@ class NoteEventData(EventData):
     - octave: Octave number
     """
 
-    _midi_type, _spelled_type = _make_pitch_types()
-
     _extra_fields: ClassVar[list[pa.Field]] = [
-        # Temporal - Derived/Float
-        pa.field("duration_float", pa.float64(), nullable=True),
         # Temporal - Measure context
         pa.field("mc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("mn", pa.string(), nullable=True),
         make_fraction_field("mc_onset", nullable=True),
         make_fraction_field("mn_onset", nullable=True),
-        # Pitch
-        pa.field("midi_pitch", _midi_type, nullable=True),
-        pa.field("spelled_pitch", _spelled_type, nullable=True),
+        # Pitch -- struct types from schema dataclasses (single source of truth)
+        pa.field("midi_pitch", EnharmonicPitchSchema.schema, nullable=True),
+        pa.field("spelled_pitch", SpecificPitchSchema.schema, nullable=True),
         pa.field(
             "tpc",
             pa.int64(),
@@ -78,10 +52,7 @@ class NoteEventData(EventData):
         pa.field(
             "octave", pa.int64(), nullable=True, metadata={"number_type": "int64"}
         ),
-        # Performance
-        pa.field(
-            "velocity", pa.int64(), nullable=True, metadata={"number_type": "int64"}
-        ),
+        # Attributes
         pa.field("tied", pa.int64(), nullable=True),  # -1=end, 0=none, 1=start
         pa.field("gracenote", pa.string(), nullable=True),
         pa.field("chord_id", pa.int64(), nullable=True),
@@ -113,6 +84,62 @@ class NoteEventData(EventData):
     def has_rests(self) -> bool:
         """Return whether the store explicitly contains rests."""
         return self._has_rests
+
+    @property
+    def enharmonic_pitch_field(self) -> PitchField:
+        """Extract the ``midi_pitch`` column as a ``PitchField`` (ep).
+
+        Convenience property.
+
+        Returns:
+            A ``PitchField`` wrapping the ``midi_pitch`` column.
+
+        Raises:
+            KeyError: If the table has no ``midi_pitch`` column.
+        """
+        from timetoalign.fields.pitch import PitchField as PitchFieldCls
+
+        try:
+            result = self.get_pitch_field(PitchFieldCls)
+            if result.pitch_type == "ep":
+                return result
+        except KeyError:
+            pass
+
+        col = self._table.column("midi_pitch")
+        pa_field = self._table.schema.field("midi_pitch")
+        return PitchFieldCls.from_field((col, pa_field), pitch_type="ep")
+
+    # Backward-compat alias
+    pitch_field = enharmonic_pitch_field
+
+    @property
+    def specific_pitch_field(self) -> PitchField:
+        """Extract the ``spelled_pitch`` column as a ``PitchField`` (sp).
+
+        Convenience property.
+
+        Returns:
+            A ``PitchField`` wrapping the ``spelled_pitch`` column.
+
+        Raises:
+            KeyError: If the table has no ``spelled_pitch`` column.
+        """
+        from timetoalign.fields.pitch import PitchField as PitchFieldCls
+
+        try:
+            result = self.get_pitch_field(PitchFieldCls)
+            if result.pitch_type == "sp":
+                return result
+        except KeyError:
+            pass
+
+        col = self._table.column("spelled_pitch")
+        pa_field = self._table.schema.field("spelled_pitch")
+        return PitchFieldCls.from_field((col, pa_field), pitch_type="sp")
+
+    # Backward-compat alias
+    spelled_pitch_field = specific_pitch_field
 
     @classmethod
     def empty(
@@ -171,12 +198,10 @@ class NoteEventData(EventData):
                 processed["start"] = processed.pop("quarterbeats")
             if "duration_qb" in processed:
                 processed["duration"] = processed.pop("duration_qb")
-            if "duration_qb_float" in processed:
-                processed["duration_float"] = processed.pop("duration_qb_float")
-
             # Remove unused/redundant fields
             for k in [
                 "quarterbeats_float",
+                "duration_qb_float",
                 "nominal_duration",
                 "scalar",
                 "timesig",
