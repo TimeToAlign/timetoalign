@@ -200,6 +200,20 @@ class Coordinate:
         """Return the domain this coordinate belongs to (via its unit)."""
         return self.unit.domain
 
+    @property
+    def semantic_type(self) -> str:
+        """The canonical SemanticType name."""
+        return "Coordinate"
+
+    def metadata_dict(self) -> dict[str, str]:
+        """Return metadata dict matching the Parquet storage contract."""
+        return {
+            "field_type": "CoordinateField",
+            "unit": self.unit.value,
+            "domain": self.domain.value,
+            "number_type": self.number_type.name,
+        }
+
     # --- Arithmetic operations ---
 
     def _check_compatible(self, other: object, operation: str) -> Coordinate:
