@@ -58,8 +58,11 @@ class Diagram:
 
         escaped = html.escape(self._text)
         return (
-            f'<pre style="font-family: monospace; line-height: 1.2;">'
-            f"{escaped}</pre>"
+            '<pre style="'
+            "font-family: 'JetBrains Mono', Menlo, Consolas, "
+            "'DejaVu Sans Mono', 'Liberation Mono', monospace; "
+            "line-height: 1.2; white-space: pre;"
+            f'">{escaped}</pre>'
         )
 
     # Allow concatenation / equality with plain strings
@@ -1226,22 +1229,24 @@ def _render_full_ruler(
 
     # Marker / jump-instruction row.
     #
-    # LEFT-anchored MARKERS (segno §, coda ⊕, fine) mark a point on the
-    # timeline. RIGHT-anchored JUMP labels (DSaC, DSaF, ...) fire at the
-    # end of their measure. We merge both onto one row when they fit, and
-    # split into two rows if any column has a collision.
+    # LEFT-anchored MARKERS (segno §, coda destination ⊕) mark a point on
+    # the timeline. RIGHT-anchored JUMP/BREAK labels (fine, to⊕, DSaC,
+    # DSaF, ...) fire at the end of their measure and get two columns of
+    # trailing padding so they sit clearly inside the section and don't
+    # touch the next column's left-anchored content. We merge both onto
+    # one row when they fit, and split into two rows on collision.
+    right_pad = 2 if col_width >= 4 else 1
     left_entries: list[tuple[int, str]] = []
     right_entries: list[tuple[int, str]] = []
     collision = False
     for unit in units:
         col = mc_to_col.get(unit.mc, 0)
-        ltext = _marker_glyph_text(unit, fc)
-        rtext = _get_jump_marker(unit, sections, fc) or ""
+        ltext, rtext = _glyphs_for_unit(unit, fc)
         if ltext:
             left_entries.append((col, ltext))
         if rtext:
-            right_entries.append((col + col_width - len(rtext), rtext))
-        if ltext and rtext and len(ltext) + len(rtext) > col_width:
+            right_entries.append((col + col_width - right_pad - len(rtext), rtext))
+        if ltext and rtext and len(ltext) + len(rtext) + right_pad > col_width:
             collision = True
 
     def _draw_full(entries: list[tuple[int, str]]) -> str:
@@ -1265,6 +1270,112 @@ def _render_full_ruler(
             lines.append(row_str)
 
 
+def _build_section_slot(
+    sec: Any,
+    units_in_sec: list[Any],
+    sec_volta: int | None,
+    col_width: int,
+    fc: dict[str, str],
+    tree: dict[str, str],
+    unicode: bool,
+) -> tuple[str, str, str, str, str]:
+    """Return per-section slot strings for the four ruler rows.
+
+    Returns ``(id_line, range_line, repeat_line, ltext, rtext)``. The
+    first three are exactly ``col_width`` chars wide; the last two are
+    the raw left- and right-anchored marker glyph strings, which the
+    caller composes into either one merged marker row or two split rows.
+
+    All alignment inside the slot is done with ``str.ljust``,
+    ``str.rjust`` and ``str.center`` against ``col_width``. No absolute
+    column offsets exist here, by design — that is what makes vertical
+    misalignment between the four rows structurally impossible.
+    """
+    h = tree["horizontal"]
+    branch = tree["branch"]
+    right_branch = "┤" if unicode else "|"
+    mc_count = sec.mc_end - sec.mc_start
+
+    def _center(s: str, w: int, fill: str = " ") -> str:
+        # Centre `s` in width `w` with any extra padding on the RIGHT,
+        # matching the pre-refactor pad arithmetic. (Python's str.center
+        # puts extras on the LEFT, which would shift columns by one for
+        # odd-length labels.)
+        pad_left = (w - len(s)) // 2
+        pad_right = w - len(s) - pad_left
+        return fill * pad_left + s + fill * pad_right
+
+    # --- id_line ---
+    if mc_count == 1:
+        id_line = _center(sec.id, col_width)
+    else:
+        inner_w = col_width - 2
+        if inner_w <= 0:
+            id_line = (branch + sec.id + right_branch)[:col_width].ljust(col_width)
+        else:
+            id_line = branch + _center(sec.id, inner_w, h) + right_branch
+    if sec_volta is not None:
+        volta_prefix = f"{fc['volta_corner']}{sec_volta}{fc['volta_top']}"
+        vp_len = len(volta_prefix)
+        if mc_count == 1:
+            # Splice the volta bracket at the slot's left edge.
+            id_line = (volta_prefix + id_line[vp_len:])[:col_width].ljust(col_width)
+        else:
+            # Splice after the leading branch char, preserving trailing ┤.
+            head, rest = id_line[0], id_line[1:]
+            id_line = (head + volta_prefix + rest[vp_len:])[:col_width].ljust(col_width)
+
+    # --- range_line ---
+    if mc_count == 1:
+        label = str(sec.mc_start)
+    else:
+        label = f"{sec.mc_start}-{sec.mc_end - 1}"
+    if len(label) > col_width - 1:
+        label = label[: col_width - 1]
+    range_line = _center(label, col_width)
+
+    # --- repeat_line ---
+    has_start = any(u.start_repeat for u in units_in_sec)
+    has_end = any(u.end_repeat for u in units_in_sec)
+    rs = fc["repeat_start"]
+    re_ = fc["repeat_end"]
+    if has_start and has_end:
+        gap = max(0, col_width - len(rs) - len(re_))
+        repeat_line = (rs + " " * gap + re_)[:col_width].ljust(col_width)
+    elif has_start:
+        repeat_line = rs[:col_width].ljust(col_width)
+    elif has_end:
+        repeat_line = re_[:col_width].rjust(col_width)
+    else:
+        repeat_line = " " * col_width
+
+    # --- marker glyphs (left + right) ---
+    ltexts: list[str] = []
+    rtexts: list[str] = []
+    for u in units_in_sec:
+        lt, rt = _glyphs_for_unit(u, fc)
+        if lt:
+            ltexts.append(lt)
+        if rt:
+            rtexts.append(rt)
+    ltext = " ".join(ltexts)
+    rtext = " ".join(rtexts)
+
+    return id_line, range_line, repeat_line, ltext, rtext
+
+
+def _compose_marker_slot(ltext: str, rtext: str, col_width: int) -> str:
+    """Compose one section's marker slot from its left and right glyphs."""
+    if ltext and rtext:
+        gap = max(0, col_width - len(ltext) - len(rtext))
+        return (ltext + " " * gap + rtext)[:col_width].ljust(col_width)
+    if ltext:
+        return ltext[:col_width].ljust(col_width)
+    if rtext:
+        return rtext[:col_width].rjust(col_width)
+    return " " * col_width
+
+
 def _render_sections_ruler(
     lines: list[str],
     units: list[Any],
@@ -1275,35 +1386,39 @@ def _render_sections_ruler(
 ) -> None:
     """Render per-section ruler (compact mode for large scores).
 
-    Each AtomicSection gets one column. The section ID is centered above
-    its MC range label. Flow control markers attach to sections.
+    Each AtomicSection contributes a fixed-width slot to every row; the
+    rows are produced by concatenating per-section slot strings (plus a
+    leading prefix). Vertical alignment is structural — every row's
+    column positions are a direct consequence of the same per-section
+    slot widths — so the marker row cannot drift out of alignment with
+    the section columns above it.
     """
     if not sections:
         return
 
     n_secs = len(sections)
     tree = TREE_CHARS if unicode else TREE_CHARS_ASCII
-    h = tree["horizontal"]
 
-    # Compute column width — distribute width across sections
     prefix_w = 4  # "    " indent
     col_width = max(6, (width - prefix_w) // n_secs)
+    prefix = " " * prefix_w
 
-    # Build section -> column position lookup
-    sec_to_col: dict[str, int] = {}
-    for idx, sec in enumerate(sections):
-        sec_to_col[sec.id] = prefix_w + idx * col_width
+    mc_to_sec: dict[int, str] = {}
+    for sec in sections:
+        for mc in range(sec.mc_start, sec.mc_end):
+            mc_to_sec[mc] = sec.id
 
-    total_w = prefix_w + n_secs * col_width
+    units_by_sec: dict[str, list[Any]] = {sec.id: [] for sec in sections}
+    for u in units:
+        sec_id = mc_to_sec.get(u.mc)
+        if sec_id is not None:
+            units_by_sec[sec_id].append(u)
 
     # Volta prefix is shown only for sections that are *entirely* a volta —
-    # every MC in the section shares the same non-None volta value. Sections
-    # whose final MC happens to be tagged with a volta (e.g. the closing
-    # measure of a repeat that sits inside the first ending) do NOT inherit
-    # the prefix; the volta belongs to the next, voltaed section.
+    # every MC in the section shares the same non-None volta value.
     sec_volta: dict[str, int] = {}
     for sec in sections:
-        mcs_in_sec = [u for u in units if sec.mc_start <= u.mc < sec.mc_end]
+        mcs_in_sec = units_by_sec.get(sec.id, [])
         if not mcs_in_sec:
             continue
         voltas = {u.volta for u in mcs_in_sec}
@@ -1312,160 +1427,50 @@ def _render_sections_ruler(
             if only is not None:
                 sec_volta[sec.id] = only
 
-    # Row 1: Section IDs with span bars. Volta-tagged sections get a "┌N─"
-    # prefix anchored to the LEFT of their column (like a real volta
-    # bracket), with the section ID staying centred in the column.
-    id_row = [" "] * total_w
-    for sec in sections:
-        col = sec_to_col[sec.id]
-        mc_count = sec.mc_end - sec.mc_start
-        volta_prefix = (
-            f"{fc['volta_corner']}{sec_volta[sec.id]}{fc['volta_top']}"
-            if sec.id in sec_volta
-            else ""
+    slots = [
+        _build_section_slot(
+            sec,
+            units_by_sec[sec.id],
+            sec_volta.get(sec.id),
+            col_width,
+            fc,
+            tree,
+            unicode,
         )
-        if mc_count == 1:
-            # Single-MC section: ID centred in the column, volta bracket
-            # left of it (within the same column).
-            mid = col + col_width // 2
-            id_start = mid - len(sec.id) // 2
-            for ci, ch in enumerate(sec.id):
-                pos = id_start + ci
-                if 0 <= pos < total_w:
-                    id_row[pos] = ch
-            if volta_prefix:
-                prefix_start = max(col, id_start - len(volta_prefix))
-                for ci, ch in enumerate(volta_prefix):
-                    pos = prefix_start + ci
-                    if 0 <= pos < id_start:
-                        id_row[pos] = ch
-        else:
-            # Multi-MC section: ├──ID──┤
-            end_col = col + col_width - 1
-            if col < total_w:
-                id_row[col] = tree["branch"]
-            if end_col < total_w:
-                id_row[end_col] = "\u2524" if unicode else "|"
-            span = end_col - col - 1
-            if span > 0:
-                centred_label = sec.id[:span] if len(sec.id) > span else sec.id
-                pad_left = (span - len(centred_label)) // 2
-                pad_right = span - len(centred_label) - pad_left
-                fill = h * pad_left + centred_label + h * pad_right
-                for ci, ch in enumerate(fill):
-                    pos = col + 1 + ci
-                    if pos < total_w:
-                        id_row[pos] = ch
-                if volta_prefix:
-                    for ci, ch in enumerate(volta_prefix):
-                        pos = col + 1 + ci
-                        if pos < end_col:
-                            id_row[pos] = ch
+        for sec in sections
+    ]
 
-    lines.append("".join(id_row).rstrip())
+    id_row = prefix + "".join(s[0] for s in slots)
+    range_row = prefix + "".join(s[1] for s in slots)
+    repeat_row = prefix + "".join(s[2] for s in slots)
 
-    # Row 2: MC range labels below each section
-    range_row = [" "] * total_w
-    for sec in sections:
-        col = sec_to_col[sec.id]
-        label = f"{sec.mc_start}-{sec.mc_end - 1}"
-        if sec.mc_end - sec.mc_start == 1:
-            label = str(sec.mc_start)
-        # Truncate if too wide
-        if len(label) > col_width - 1:
-            label = label[: col_width - 1]
-        # Center the label
-        pad = (col_width - len(label)) // 2
-        for ci, ch in enumerate(label):
-            pos = col + pad + ci
-            if pos < total_w:
-                range_row[pos] = ch
+    lines.append(id_row.rstrip())
+    lines.append(range_row.rstrip())
+    if repeat_row.strip():
+        lines.append(repeat_row.rstrip())
 
-    lines.append("".join(range_row).rstrip())
-
-    # Row 3: Flow control markers (repeats, jumps, volta annotations)
-    fc_row = [" "] * total_w
-    has_fc = False
-
-    # Build mc -> section lookup
-    mc_to_sec: dict[int, str] = {}
-    for sec in sections:
-        for mc in range(sec.mc_start, sec.mc_end):
-            mc_to_sec[mc] = sec.id
-
-    for unit in units:
-        sec_id = mc_to_sec.get(unit.mc)
-        if sec_id is None:
-            continue
-        col = sec_to_col.get(sec_id, 0)
-
-        if unit.start_repeat:
-            marker = fc["repeat_start"]
-            has_fc = True
-            for ci, ch in enumerate(marker):
-                if col + ci < total_w:
-                    fc_row[col + ci] = ch
-
-        if unit.end_repeat:
-            marker = fc["repeat_end"]
-            has_fc = True
-            end_pos = col + col_width - len(marker)
-            for ci, ch in enumerate(marker):
-                if 0 <= end_pos + ci < total_w:
-                    fc_row[end_pos + ci] = ch
-
-    if has_fc:
-        lines.append("".join(fc_row).rstrip())
-
-    # Row 4: marker / jump-instruction row.
-    #
-    # Two kinds of glyphs live here:
-    #   - LEFT-anchored MARKERS — segno (§), coda (⊕), fine — these mark a
-    #     point on the timeline where something *is* (a destination, a Fine
-    #     marker), so they sit at the section's leftmost column.
-    #   - RIGHT-anchored JUMP labels — DSaC, DSaF, DCaC, DCaF, DS, DC, →Coda
-    #     — these are instructions that fire at the *end* of the section,
-    #     so they sit right-aligned within the section's column.
-    #
-    # We try to merge both onto a single row. If any section has both a
-    # LEFT marker and a RIGHT label that would overlap, we split into two
-    # rows (markers above, jumps below).
-    left_entries: list[tuple[int, str]] = []  # (col_start, text)
-    right_entries: list[tuple[int, str]] = []  # (end_pos,   text)
-    collision = False
-    for unit in units:
-        sec_id = mc_to_sec.get(unit.mc)
-        if sec_id is None:
-            continue
-        col = sec_to_col.get(sec_id, 0)
-        ltext = _marker_glyph_text(unit, fc)
-        rtext = _get_jump_marker(unit, sections, fc) or ""
-        if ltext:
-            left_entries.append((col, ltext))
-        if rtext:
-            right_entries.append((col + col_width - len(rtext), rtext))
-        if ltext and rtext and len(ltext) + len(rtext) > col_width:
-            collision = True
-
-    def _draw(entries: list[tuple[int, str]]) -> str:
-        if not entries:
-            return ""
-        row = [" "] * total_w
-        for start, text in entries:
-            for ci, ch in enumerate(text):
-                pos = start + ci
-                if 0 <= pos < total_w:
-                    row[pos] = ch
-        return "".join(row).rstrip()
-
+    # Marker row(s). If any section has both a left and a right marker
+    # that cannot fit with at least one column of gap between them,
+    # split into a left-only row above and a right-only row below.
+    collision = any(
+        s[3] and s[4] and len(s[3]) + len(s[4]) + 1 > col_width for s in slots
+    )
     if collision:
-        for row_str in (_draw(left_entries), _draw(right_entries)):
-            if row_str.strip():
-                lines.append(row_str)
+        left_row = prefix + "".join(
+            (s[3].ljust(col_width) if s[3] else " " * col_width) for s in slots
+        )
+        right_row = prefix + "".join(
+            (s[4].rjust(col_width) if s[4] else " " * col_width) for s in slots
+        )
+        for row in (left_row, right_row):
+            if row.strip():
+                lines.append(row.rstrip())
     else:
-        row_str = _draw(left_entries + right_entries)
-        if row_str.strip():
-            lines.append(row_str)
+        marker_row = prefix + "".join(
+            _compose_marker_slot(s[3], s[4], col_width) for s in slots
+        )
+        if marker_row.strip():
+            lines.append(marker_row.rstrip())
 
 
 def _render_table(
@@ -1537,20 +1542,59 @@ def _get_jump_marker(
 
 
 def _marker_glyph_text(unit: Any, fc: dict[str, str]) -> str:
-    """Return LEFT-anchored marker glyphs for a unit: segno (§), coda (⊕), fine.
+    """Return LEFT-anchored marker glyphs for a unit: segno (§), coda (⊕).
 
-    These mark a *point* on the timeline (a destination, a Fine marker) and
-    are drawn at the section's leftmost column, distinct from RIGHT-anchored
-    jump instructions like DSaC.
+    These mark a *destination* on the timeline and are drawn at the section's
+    leftmost column. ``fine`` and "to coda" markers are RIGHT-anchored
+    (handled by `_glyphs_for_unit`) because they fire at the end of a section.
+    A coda marker that is *also* a jump source is a "to coda" instruction and
+    is therefore excluded here.
     """
     parts: list[str] = []
     if unit.segno:
         parts.append(fc["segno"])
-    if unit.coda:
+    if (
+        unit.coda
+        and not unit.jump_from
+        and "to_coda" not in (unit.flow_control_types or ())
+    ):
         parts.append(fc["coda"])
-    if unit.fine:
-        parts.append("fine")
     return "".join(parts)
+
+
+def _glyphs_for_unit(unit: Any, fc: dict[str, str]) -> tuple[str, str]:
+    """Split a unit's flow-control glyphs into ``(left, right)`` strings.
+
+    LEFT-anchored glyphs sit at the section's leftmost column and mark a
+    *point* on the timeline (segno destination, coda destination).
+
+    RIGHT-anchored glyphs sit at the section's right edge (with one column of
+    trailing padding handled by the caller) and represent instructions that
+    fire at the *end* of the section:
+
+    - ``fine`` — Break that closes the section
+    - ``"to "`` + coda glyph — a coda marker acting as a jump source, or an
+      explicit ``to_coda`` flow-control type
+    - ``DSaC`` / ``DSaF`` / ``DCaC`` / ``DCaF`` / ``DS`` / ``DC`` jump labels
+    """
+    ltext = _marker_glyph_text(unit, fc)
+    rparts: list[str] = []
+
+    types = unit.flow_control_types or ()
+    is_to_coda = (unit.coda and unit.jump_from) or "to_coda" in types
+    if is_to_coda:
+        rparts.append(f"to{fc['coda']}")
+
+    if unit.fine:
+        rparts.append("fine")
+
+    if unit.jump_from:
+        label = _jump_label(types, short=True)
+        # to_coda is rendered as "to ⊕" above; suppress the generic label.
+        if label is not None and "to_coda" not in types:
+            rparts.append(label)
+
+    return ltext, " ".join(rparts)
 
 
 _JUMP_LABELS_LONG: tuple[tuple[str, str], ...] = (
