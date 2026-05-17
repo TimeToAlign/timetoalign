@@ -32,12 +32,14 @@
 # ## Loading Score Data
 
 # %%
-from pathlib import Path
-
 from timetoalign.loader.score import TSVLoader
+from timetoalign.testdata import ensure_data
 
-CHOPIN_NOTES = Path("tests/data/vienna_1x22/ms3/chopin_op10_no3.notes.tsv")
-CHOPIN_MEASURES = Path("tests/data/vienna_1x22/ms3/chopin_op10_no3.measures.tsv")
+VIENNA = ensure_data("vienna_1x22")
+SCORE = ensure_data("score")
+
+CHOPIN_NOTES = VIENNA / "ms3" / "chopin_op10_no3.notes.tsv"
+CHOPIN_MEASURES = VIENNA / "ms3" / "chopin_op10_no3.measures.tsv"
 
 loader = TSVLoader.from_file(CHOPIN_NOTES, CHOPIN_MEASURES)
 store = loader.store
@@ -112,8 +114,8 @@ measure.mc, measure.mn, measure.onset, measure.time_signature, measure.key_signa
 # `HarmonyField` wraps these columns and returns `Harmony` scalars.
 
 # %%
-BEETHOVEN_HARMONIES = Path(
-    "tests/data/score/beethoven_op18-4iv_multimodal/ABC/n04op18-4_04.harmonies.tsv"
+BEETHOVEN_HARMONIES = (
+    SCORE / "beethoven_op18-4iv_multimodal" / "ABC" / "n04op18-4_04.harmonies.tsv"
 )
 harm_loader = TSVLoader.from_file(BEETHOVEN_HARMONIES)
 harm_store = harm_loader.store
