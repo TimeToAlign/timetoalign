@@ -593,3 +593,27 @@ class SemanticField(DataField, Generic[R]):
             A new SemanticField instance.
         """
         ...
+
+    @classmethod
+    def matches_pa_field(cls, pa_field: pa.Field) -> bool:
+        """Return True iff *pa_field* is a column this class can wrap.
+
+        The base implementation returns ``False``: by default, columns are
+        discoverable only via explicit ``b"timetoalign"`` JSON metadata (the
+        Parquet round-trip contract).  Subclasses that can recognise their
+        own columns by structural signature (e.g. ``PitchField`` matching
+        any of the documented pitch struct schemas) MAY override this to
+        return ``True`` for shape-matching columns.
+
+        This is used by ``SemanticFieldAccessMixin.get_fields()`` as a
+        third discovery strategy, after metadata-based and
+        ``_default_column``-based lookup both fail.
+
+        Args:
+            pa_field: A ``pa.Field`` from the underlying table schema.
+
+        Returns:
+            ``True`` if this class can wrap the column described by
+            *pa_field*; ``False`` otherwise.
+        """
+        return False

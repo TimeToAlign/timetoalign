@@ -259,6 +259,44 @@ class PitchField(SemanticField[StructField]):
             f"Unsupported source type for PitchField.from_field: {type(source).__name__}"
         )
 
+    @classmethod
+    def matches_pa_field(cls, pa_field: pa.Field) -> bool:
+        """Return True iff *pa_field* is a struct column shaped like a pitch.
+
+        Recognises any column whose ``b"timetoalign"`` metadata declares
+        ``field_type="PitchField"`` (the canonical Parquet contract), and
+        additionally any struct column matching one of the documented pitch
+        schemas (``PitchSpaceSchema``, ``EnharmonicPitchSchema``,
+        ``SpecificPitchSchema``, ``SpelledPitchClassSchema``,
+        ``GenericPitchSchema``) — even when the column carries no
+        ``b"timetoalign"`` metadata.
+
+        Generic structs (e.g. ``{value, numerator, denominator}`` for
+        ``CoordinateField`` or ``{num, den}`` for fraction columns) do NOT
+        match.
+
+        This shape-based matching enables ``events.get_field(PitchField)``
+        to discover pitch columns on loader output even when the loader
+        does not (yet) inject metadata — see how-to notebook
+        ``how01_layered_eventdata`` for the canonical user workflow.
+        """
+        # Metadata-based identification (round-trip contract)
+        if pa_field.metadata is not None and _TIMETOALIGN_KEY in pa_field.metadata:
+            blob = pa_field.metadata[_TIMETOALIGN_KEY]
+            try:
+                if isinstance(blob, bytes):
+                    blob = blob.decode("utf-8")
+                meta = json.loads(blob)
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                meta = {}
+            if meta.get("field_type") == cls.__name__:
+                return True
+
+        # Structural identification — strict schema match
+        if not pa.types.is_struct(pa_field.type):
+            return False
+        return _detect_pitch_type_from_struct_strict(pa_field.type) is not None
+
     # -- conversion ----------------------------------------------------------
 
     def to(self, target_type: str) -> PitchField:
@@ -432,11 +470,30 @@ def _detect_pitch_type_from_struct(struct_type: pa.DataType) -> str:
     """Detect pitch type from struct field names."""
     if not pa.types.is_struct(struct_type):
         raise TypeError(f"Expected struct type, got {struct_type}")
+    strict = _detect_pitch_type_from_struct_strict(struct_type)
+    if strict is not None:
+        return strict
+    return "ep"  # fallback (lenient — used by from_field for permissive input)
+
+
+def _detect_pitch_type_from_struct_strict(struct_type: pa.DataType) -> str | None:
+    """Strict variant of :func:`_detect_pitch_type_from_struct`.
+
+    Returns the pitch-type keyword iff *struct_type* matches one of the
+    documented pitch schemas; returns ``None`` otherwise.
+
+    Use this when discovery requires a positive identification (e.g. when
+    scanning all struct columns to find ``PitchField``-compatible ones —
+    a generic struct like ``{value, numerator, denominator}`` must NOT
+    match).
+    """
+    if not pa.types.is_struct(struct_type):
+        return None
     field_names = {struct_type.field(i).name for i in range(struct_type.num_fields)}
 
     # PitchSpaceSchema
     if field_names == {"value", "octave"}:
-        return "ep"  # default; metadata should override
+        return "ep"
 
     # Legacy schemas
     if "pitch_class" in field_names and len(field_names) == 1:
@@ -448,7 +505,7 @@ def _detect_pitch_type_from_struct(struct_type: pa.DataType) -> str:
     if "gpc_str" in field_names and "spc_int" in field_names:
         return "spc"  # SpelledPitchClassSchema
 
-    return "ep"  # fallback
+    return None
 
 
 _legacy_pitch_type_map: dict[str, str] = {

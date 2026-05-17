@@ -219,6 +219,55 @@ def _discover_by_schema(
     return result
 
 
+def _discover_by_shape(
+    table: pa.Table,
+    field_type: type[SemanticField[Any]],
+    cache: dict[tuple[str, str], SemanticField[Any]],
+) -> list[SemanticField[Any]]:
+    """Discover columns by delegating to ``field_type.matches_pa_field()``.
+
+    Iterates the table schema in column order.  For each ``pa.Field`` that
+    *field_type* (or one of its subclasses in the registry) claims via
+    :py:meth:`SemanticField.matches_pa_field`, constructs the field via
+    ``from_field()`` and caches it.
+
+    This is the third-line discovery strategy used by
+    :py:meth:`SemanticFieldAccessMixin.get_fields`, after metadata-based
+    and ``_default_column``-based lookup both yield nothing.  It catches
+    columns produced by loaders that have not (yet) injected
+    ``b"timetoalign"`` metadata onto raw struct columns
+    (e.g. ``midi_pitch`` / ``spelled_pitch`` on TSV-loaded score notes).
+
+    Args:
+        table: The PyArrow table to search.
+        field_type: The ``SemanticField`` subclass to match.
+        cache: The field cache dict to populate.
+
+    Returns:
+        A list of discovered fields, ordered by their column position in
+        the table schema.  Empty list if nothing matches.
+    """
+    result: list[SemanticField[Any]] = []
+    schema = table.schema
+    for i in range(len(schema)):
+        pa_field = schema.field(i)
+        if not field_type.matches_pa_field(pa_field):
+            continue
+        cache_key = (pa_field.name, field_type.__name__)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            result.append(cached)
+            continue
+        col = table.column(i)
+        try:
+            field = field_type.from_field((col, pa_field))
+        except (TypeError, KeyError, ValueError):
+            continue
+        cache[cache_key] = field
+        result.append(field)
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Raw field wrapping
 # ---------------------------------------------------------------------------
@@ -370,18 +419,31 @@ class SemanticFieldAccessMixin:
     ) -> list[SemanticField[Any]]:
         """Return ALL columns matching *field_type*'s class hierarchy.
 
-        Discovery uses two strategies:
+        Discovery uses three strategies, applied in order:
 
         1. **Metadata-based**: columns carrying ``b"timetoalign"`` JSON
            metadata with a ``field_type`` entry.
-        2. **Schema-based fallback**: tries to match *field_type*'s
+        2. **Default-column fallback**: tries to match *field_type*'s
            ``_default_column`` name against table columns.
+        3. **Shape-based fallback**: scans all columns and constructs the
+           field via ``cls.matches_pa_field()`` and ``cls.from_field()``.
+           This catches loader output that has not (yet) injected
+           ``b"timetoalign"`` metadata — e.g. raw ``midi_pitch`` /
+           ``spelled_pitch`` struct columns from the TSV loader.
+
+        Returns the first non-empty result; never falls through to a
+        later strategy once an earlier strategy finds anything.  Order
+        matches column order in the table (with structural-match
+        columns ordered by the table schema, returning the first
+        match for the "first match" convention used by
+        ``_get_field_by_class``).
 
         Args:
             field_type: The ``SemanticField`` subclass to search for.
 
         Returns:
-            A list of matching ``SemanticField`` subclass instances.
+            A list of matching ``SemanticField`` subclass instances
+            (may be empty if nothing matches).
         """
         registry = _get_field_type_map()
         cache = self._field_cache
@@ -410,8 +472,13 @@ class SemanticFieldAccessMixin:
         if result:
             return result
 
-        # Fallback: schema-based discovery via _default_column
+        # Strategy 2: schema-based discovery via _default_column
         result = _discover_by_schema(self._table, field_type, cache, registry)
+        if result:
+            return result
+
+        # Strategy 3: structural discovery via cls.matches_pa_field()
+        result = _discover_by_shape(self._table, field_type, cache)
         return result
 
     def has_field(self, field_type: type[SemanticField[Any]]) -> bool:
@@ -462,6 +529,11 @@ class SemanticFieldAccessMixin:
                 pa_field = self._table.schema.field(col_name)
                 if pa.types.is_struct(pa_field.type):
                     return True
+
+        # Strategy 3: structural match via field_type.matches_pa_field()
+        for i in range(len(schema)):
+            if field_type.matches_pa_field(schema.field(i)):
+                return True
 
         return False
 
