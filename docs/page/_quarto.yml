@@ -50,6 +50,8 @@ website:
         - howto.qmd
         - section: "Timelines, Events & Maps"
           contents:
+            - text: "How to Access Layered EventData"
+              href: howto/how01_layered_eventdata.ipynb
             - text: "How to Do Coordinate Math"
               href: howto/how01_coordinate_math.ipynb
             - text: "How to Use Advanced Conversion Maps"

@@ -236,12 +236,15 @@ def _raw_min_onset_partitura(xml_path: Path) -> float:
         return min_onset if min_onset != float("inf") else 0.0
 
 
-def _first_note_quarterbeats_float_partitura(store: ScoreStore) -> float | None:
-    """Return the duration_float of the first note row (proxy for coord presence)."""
+def _first_note_duration_float_partitura(store: ScoreStore) -> float | None:
+    """Return the duration float value of the first note row (proxy for coord presence)."""
     first = list(store.notes)[0] if store.notes else None
     if first is None:
         return None
-    return first.get("duration_float")
+    dur = first.get("duration")
+    if dur is None:
+        return None
+    return dur.get("value") if isinstance(dur, dict) else None
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
