@@ -12,8 +12,13 @@ Pitch scalars (satisfy PitchLike hierarchy):
     - ``GenericPitchClass`` -- diatonic step 0-6
     - ``GenericPitch`` -- diatonic step + octave
     - ``SpelledPitchClass`` -- pitch class with spelling (SpelledPitchClassLike)
-    - ``MidiPitch`` / ``EnharmonicPitch`` -- MIDI note (EnharmonicPitchLike)
-    - ``SpelledPitch`` / ``SpecificPitch`` -- full spelling (SpecificPitchLike)
+    - ``EnharmonicPitch`` -- pitch in semitone space with note-name display;
+      used by ``PitchField`` for ``pitch_type="ep"`` (EnharmonicPitchLike)
+    - ``MidiPitch`` -- **distinct** MIDI-keyboard pitch (velocity / channel /
+      program context); reserved for the planned ``MidiField``
+      (EnharmonicPitchLike)
+    - ``SpelledPitch`` / ``SpecificPitch`` -- full spelling (SpecificPitchLike).
+      ``SpecificPitch`` is a protocol-name re-export of the same class.
 
 Harmony scalars (satisfy HarmonyLabelLike hierarchy):
     - ``HarmonyLabel`` / ``Harmony`` -- label + standard + temporal (HarmonyLabelLike)

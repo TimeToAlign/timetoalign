@@ -6,8 +6,17 @@ Provides frozen dataclass scalars at multiple levels of pitch specificity:
 - ``GenericPitchClass`` -- diatonic step 0-6
 - ``GenericPitch`` -- diatonic step + octave
 - ``SpelledPitchClass`` -- pitch class with spelling (satisfies ``SpelledPitchClassLike``)
-- ``MidiPitch`` (alias ``EnharmonicPitch``) -- MIDI note (satisfies ``EnharmonicPitchLike``)
-- ``SpelledPitch`` (alias ``SpecificPitch``) -- full spelling (satisfies ``SpecificPitchLike``)
+- ``EnharmonicPitch`` -- pitch in semitone space displayed as note-name + octave,
+  used by ``PitchField`` when ``pitch_type="ep"`` (satisfies ``EnharmonicPitchLike``)
+- ``MidiPitch`` -- **distinct** MIDI-keyboard pitch reserved for the planned
+  ``MidiField`` (velocity/channel/program context); satisfies ``EnharmonicPitchLike``
+- ``SpelledPitch`` -- full spelling with octave (satisfies ``SpecificPitchLike``).
+  ``SpecificPitch`` is a re-export of the same class under its protocol name.
+
+``MidiPitch`` and ``EnharmonicPitch`` are **distinct types**, not aliases.
+``EnharmonicPitch`` is the canonical scalar for the ``ep`` storage column on
+score-level pitch data; ``MidiPitch`` is reserved for MIDI-keyboard data with
+velocity/channel/program context (see the planned ``MidiField``).
 
 All 12-TET scalars compose ``TwelveTETPitchMixin`` which provides the
 unified ``.to()`` dispatch method and ``.get(format=)`` formatting.
@@ -555,19 +564,19 @@ class SpelledPitchClass(TwelveTETPitchMixin):
 
 @dataclass(frozen=True, slots=True)
 class MidiPitch(TwelveTETPitchMixin):
-    """MIDI pitch scalar.  Satisfies ``EnharmonicPitchLike``.
+    """MIDI-keyboard pitch scalar.  Satisfies ``EnharmonicPitchLike``.
 
-    Alias: ``EnharmonicPitch``.
+    ``MidiPitch`` is **distinct** from ``EnharmonicPitch`` (they are not
+    aliases).  This scalar is reserved for the planned ``MidiField``, which
+    represents a MIDI-keyboard pitch carrying velocity / channel / program
+    context.  For score-level pitch data with ``pitch_type="ep"``, use
+    ``EnharmonicPitch`` instead — that is what ``PitchField`` constructs.
 
-    Called "enharmonic" at the schema/field level because it **equates**
-    enharmonic equivalents (C♯ and D♭ both map to MIDI 61).
-
-    Wraps the ``midi_pitch`` struct ``{ep, epc}`` from ``NoteEventData``
-    where ``ep`` is the MIDI note number and ``epc`` is the pitch class.
-    ``pitch_class`` is automatically derived from ``midi_number``.
+    The "MIDI" qualifier here denotes the keyboard / device sense
+    (note-on/note-off events with velocity), not merely a MIDI note number.
 
     Attributes:
-        midi_number: MIDI note number (0-127), stored as ``ep`` in schema.
+        midi_number: MIDI note number (0-127).
         pitch_class: Pitch class (0-11, C=0), auto-derived from ``midi_number``.
     """
 
@@ -761,7 +770,8 @@ class EnharmonicPitch(TwelveTETPitchMixin):
 class SpelledPitch(TwelveTETPitchMixin):
     """Spelled pitch scalar with full enharmonic identity.
 
-    Satisfies ``SpecificPitchLike``.  Alias: ``SpecificPitch``.
+    Satisfies ``SpecificPitchLike``.  Re-exported as ``SpecificPitch`` (the
+    protocol-name form); both names refer to this same class.
 
     Called "specific" at the schema/field level because it preserves the
     *specific* enharmonic spelling (C♯4 ≠ D♭4).
@@ -956,7 +966,8 @@ def _parse_octave_from_sp(sp: str | None, step: str) -> int:
     return 4
 
 
-# Alias: "specific" because it preserves the specific enharmonic spelling
+# Protocol-name re-export: ``SpecificPitch`` is the same class as ``SpelledPitch``.
+# "Specific" because it preserves the specific enharmonic spelling (C♯4 ≠ D♭4).
 SpecificPitch = SpelledPitch
 
 # endregion SpelledPitch
