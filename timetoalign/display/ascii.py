@@ -1306,24 +1306,20 @@ def _build_section_slot(
         return fill * pad_left + s + fill * pad_right
 
     # --- id_line ---
-    if mc_count == 1:
-        id_line = _center(sec.id, col_width)
-    else:
-        inner_w = col_width - 2
-        if inner_w <= 0:
-            id_line = (branch + sec.id + right_branch)[:col_width].ljust(col_width)
-        else:
-            id_line = branch + _center(sec.id, inner_w, h) + right_branch
+    # Two slot shapes, both filling col_width with `─` (never spaces):
+    #   regular: ├──ID──┤   (LEFT = branch,             RIGHT = right_branch)
+    #   volta:   ┌N─ID──    (LEFT = volta_corner + N,   RIGHT = "")
+    # The leading `─` after the volta number is the first character of the
+    # centered middle, so both shapes share `inner_w = col_width - 2`.
+    inner_w = max(0, col_width - 2)
+    middle = _center(sec.id, inner_w, h)
     if sec_volta is not None:
-        volta_prefix = f"{fc['volta_corner']}{sec_volta}{fc['volta_top']}"
-        vp_len = len(volta_prefix)
-        if mc_count == 1:
-            # Splice the volta bracket at the slot's left edge.
-            id_line = (volta_prefix + id_line[vp_len:])[:col_width].ljust(col_width)
-        else:
-            # Splice after the leading branch char, preserving trailing ┤.
-            head, rest = id_line[0], id_line[1:]
-            id_line = (head + volta_prefix + rest[vp_len:])[:col_width].ljust(col_width)
+        left = f"{fc['volta_corner']}{sec_volta}"
+        right = ""
+    else:
+        left = branch
+        right = right_branch
+    id_line = (left + middle + right)[:col_width].ljust(col_width, h)
 
     # --- range_line ---
     if mc_count == 1:
