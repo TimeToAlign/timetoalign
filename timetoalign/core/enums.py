@@ -384,6 +384,14 @@ class FlowControlElement(FancyStrEnum):
     - first_measure: First measure of piece (ms3 convention)
     - last_measure: Last measure of piece (ms3 convention)
 
+    **Abstract Jump Roles** (super-categories carried alongside concrete types):
+    - jump_from: Abstract origin of any jump (super-category of repeat_end,
+      da_capo, dal_segno, to_coda, ...). Emitted by loaders into
+      `flow_control_types` so consumers can filter jump-origin positions
+      without enumerating every concrete instruction type.
+    - jump_to: Abstract destination of any jump (super-category of repeat_start,
+      segno, coda). Symmetric counterpart of `jump_from`.
+
     **Loader Mappings**:
 
     | FlowControlElement | MeasureMap | ms3/TSV | partitura | music21 |
@@ -399,6 +407,8 @@ class FlowControlElement(FancyStrEnum):
     | section_break | - | breaks="section" | - | - |
     | double_barline | - | breaks="double" | - | barline.type="double" |
     | final_barline | - | - | - | barline.type="final" |
+    | jump_from | derived | derived | derived | derived |
+    | jump_to | derived | derived | derived | derived |
     """
 
     # Repeat markers
@@ -478,6 +488,23 @@ class FlowControlElement(FancyStrEnum):
     last_measure = auto()
     """Last measure of piece (ms3 convention)"""
 
+    # Abstract jump roles (super-categories of the concrete jump/target types)
+    jump_from = auto()
+    """Abstract origin role: this position is the source of some jump.
+
+    Emitted by loaders alongside the concrete instruction type (da_capo,
+    dal_segno, to_coda, repeat_end, ...) so that downstream consumers can
+    filter all jump origins without enumerating every concrete subtype.
+    """
+
+    jump_to = auto()
+    """Abstract destination role: this position is the target of some jump.
+
+    Emitted by loaders alongside the concrete target type (repeat_start,
+    segno, coda) so that downstream consumers can filter all jump
+    destinations without enumerating every concrete subtype.
+    """
+
     @classmethod
     def from_ms3_repeats(cls, value: str | None) -> "FlowControlElement | None":
         """Convert ms3 'repeats' column value to FlowControlElement.
@@ -538,7 +565,11 @@ class FlowControlElement(FancyStrEnum):
 
     @property
     def is_jump(self) -> bool:
-        """Whether this marker triggers a jump to another location."""
+        """Whether this marker triggers a jump to another location.
+
+        True for every concrete jump instruction AND for the abstract
+        ``jump_from`` role.
+        """
         return self in {
             FlowControlElement.repeat_end,
             FlowControlElement.da_capo,
@@ -548,11 +579,15 @@ class FlowControlElement(FancyStrEnum):
             FlowControlElement.da_capo_al_coda,
             FlowControlElement.da_capo_al_fine,
             FlowControlElement.to_coda,
+            FlowControlElement.jump_from,
         }
 
     @property
     def is_target(self) -> bool:
         """Whether this marker TYPE is a jump destination.
+
+        True for every concrete target marker AND for the abstract
+        ``jump_to`` role.
 
         Note: Actual target resolution uses instance NAMES, not just types.
         Multiple markers of the same type (e.g., two coda markers named
@@ -562,6 +597,7 @@ class FlowControlElement(FancyStrEnum):
             FlowControlElement.repeat_start,
             FlowControlElement.segno,
             FlowControlElement.coda,
+            FlowControlElement.jump_to,
         }
 
     @property

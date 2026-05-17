@@ -132,26 +132,25 @@ dc = Jump(
 }
 
 # %% [markdown]
-# The full `FlowControlElement` vocabulary:
+# The full `FlowControlElement` vocabulary groups into six categories:
 #
-# | Type | Category | Semantics |
-# |------|----------|-----------|
-# | `repeat_start` | Structural | Open repeat barline (jump target) |
-# | `repeat_end` | Jump | Close repeat barline → jump back |
-# | `da_capo` / `dc` | Jump | Jump to beginning |
-# | `dal_segno` / `ds` | Jump | Jump to segno marker |
-# | `dal_segno_al_coda` / `dsac` | Jump | D.S., play to coda, jump to coda |
-# | `dal_segno_al_fine` / `dsaf` | Jump | D.S., play to fine |
-# | `da_capo_al_coda` / `dcac` | Jump | D.C., play to coda, jump to coda |
-# | `da_capo_al_fine` / `dcaf` | Jump | D.C., play to fine |
-# | `to_coda` | Jump | Jump to coda marker |
-# | `segno` | Target | Destination for `dal_segno` |
-# | `coda` | Target | Destination for `to_coda` |
-# | `fine` | Target | End marker (conditional) |
-# | `section_break` | Break | Voids {{< glossary Contiguity >}} |
+# - **Jump instructions** — `repeat_end`, `da_capo` (`dc`), `dal_segno` (`ds`),
+#   `dal_segno_al_coda` (`dsac`), `dal_segno_al_fine` (`dsaf`),
+#   `da_capo_al_coda` (`dcac`), `da_capo_al_fine` (`dcaf`), `to_coda`
+# - **Target markers** — `repeat_start`, `segno`, `coda`
+# - **Breaks** (void {{< glossary Contiguity >}}) — `section_break`, `fine`
+# - **Structural markers** (do not void contiguity) — `double_barline`,
+#   `final_barline`
+# - **Boundary markers** — `first_measure`, `last_measure`
+# - **Abstract roles** — `jump_from`, `jump_to` (super-categories emitted by
+#   loaders alongside concrete types so consumers can filter jump origins or
+#   destinations without enumerating every subtype)
+#
+# `FancyStrEnum` is iterable, so we can read the full taxonomy off the enum
+# itself rather than restating it.
 
 # %%
-# is_jump / is_break / is_target at a glance
+# is_jump / is_break / is_target / is_structural_marker at a glance
 pd.DataFrame(
     [
         {
@@ -159,16 +158,9 @@ pd.DataFrame(
             "is_jump": ct.is_jump,
             "is_break": ct.is_break,
             "is_target": ct.is_target,
+            "is_structural": ct.is_structural_marker,
         }
-        for ct in [
-            FlowControlElement.repeat_end,
-            FlowControlElement.da_capo,
-            FlowControlElement.dal_segno,
-            FlowControlElement.to_coda,
-            FlowControlElement.section_break,
-            FlowControlElement.segno,
-            FlowControlElement.fine,
-        ]
+        for ct in FlowControlElement
     ]
 )
 
