@@ -47,7 +47,8 @@ This documentation follows the
 :   Task-oriented recipes grouped by topic.
 
     *Timelines, Events & Maps* ---
-    [How to Access Layered EventData](howto/how01_layered_eventdata.ipynb) ·
+    [How to Work with DataFields and Layered EventData](howto/how01_datafields_and_eventdata.ipynb) ·
+    [How to Work with Pitch and Harmony Types](howto/how01_pitch_and_harmony_types.ipynb) ·
     [How to Do Coordinate Math](howto/how01_coordinate_math.ipynb) ·
     [How to Use Advanced Conversion Maps](howto/how01_advanced_cmaps.ipynb) ·
     [How to Query Timestamps](howto/how01_advanced_timestamps.ipynb) ·

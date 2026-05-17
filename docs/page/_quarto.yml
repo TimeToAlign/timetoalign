@@ -50,8 +50,10 @@ website:
         - howto.qmd
         - section: "Timelines, Events & Maps"
           contents:
-            - text: "How to Access Layered EventData"
-              href: howto/how01_layered_eventdata.ipynb
+            - text: "How to Work with DataFields and Layered EventData"
+              href: howto/how01_datafields_and_eventdata.ipynb
+            - text: "How to Work with Pitch and Harmony Types"
+              href: howto/how01_pitch_and_harmony_types.ipynb
             - text: "How to Do Coordinate Math"
               href: howto/how01_coordinate_math.ipynb
             - text: "How to Use Advanced Conversion Maps"
