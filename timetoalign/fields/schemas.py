@@ -17,7 +17,7 @@ The naming follows the ms3/DCML convention for pitch arrays:
 - **EP** (Enharmonic Pitch): integer MIDI representation that collapses
   enharmonic distinctions (C♯4 == D♭4 == 61).  Stored as ``{ep: int64, epc: int64}``.
   Called "enharmonic" because it *equates* enharmonic equivalents.
-- **SP** (Specific Pitch): spelled pitch with full enharmonic identity
+- **SP** (Specific Pitch): pitch with full enharmonic identity
   (C♯4 ≠ D♭4).  Stored as ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``.
   Called "specific" because it preserves the *specific* spelling.
 
@@ -31,8 +31,7 @@ This yields the following mapping (from most abstract to most specific):
 | EnharmonicPitch      | EP (Enharmonic Pitch)     | PitchField(pitch_type=ep)  |
 | (= MidiPitch)        | (integer MIDI rep.)       |                            |
 +----------------------+---------------------------+----------------------------+
-| SpecificPitch        | SP (Specific/Spelled      | PitchField(pitch_type=sp)  |
-| (= SpelledPitch)     |  Pitch)                   |                            |
+| SpecificPitch        | SP (Specific Pitch)       | PitchField(pitch_type=sp)  |
 +----------------------+---------------------------+----------------------------+
 """
 
@@ -168,12 +167,12 @@ class EnharmonicPitchSchema:
 
 # endregion Enharmonic Pitch
 
-# region Specific Pitch (SP = Spelled Pitch)
+# region Specific Pitch (SP)
 
 
 @dataclass(frozen=True)
 class SpecificPitchSchema:
-    """Schema for Specific Pitch (SP): spelled pitch with full identity.
+    """Schema for Specific Pitch (SP): pitch with full enharmonic identity.
 
     .. deprecated::
         Use ``PitchSpaceSchema`` with ``type="sp"`` instead.
@@ -205,22 +204,22 @@ class SpecificPitchSchema:
     """
 
     spc_int: str = "spc_int"
-    """Spelled pitch class as position on the line of fifths.
+    """Specific pitch class as position on the line of fifths.
 
     ..., -2=B♭, -1=F, 0=C, 1=G, 2=D, 3=A, 4=E, 5=B, 6=F♯, ...
     Essential for correct interval computation in tonal music.
-    Named ``spc_int`` (Spelled Pitch Class, integer) per ms3 convention.
+    Named ``spc_int`` (Specific Pitch Class, integer) per ms3 convention.
     Maps to our semantic name ``fifths``.
     """
 
     spc_str: str = "spc_str"
-    """Spelled pitch class as string (e.g., "C", "F♯", "B♭").
+    """Specific pitch class as string (e.g., "C", "F♯", "B♭").
 
     Redundant with ``spc_int`` but avoids reverse lookup for display.
     """
 
     sp: str = "sp"
-    """Full spelled pitch string including octave (e.g., "C♯4", "D♭3").
+    """Full specific pitch string including octave (e.g., "C♯4", "D♭3").
 
     Encodes step + accidental + octave in human-readable form.
     Octave can be extracted as the trailing integer.
@@ -244,17 +243,17 @@ class SpecificPitchSchema:
             pa.field("cents", pa.float64(), nullable=False, metadata={"unit": "cents"}),
         ]
     )
-    """PyArrow struct type for Specific Pitch (SP / Spelled Pitch)."""
+    """PyArrow struct type for Specific Pitch (SP)."""
 
 
 # endregion Specific Pitch
 
-# region Spelled Pitch Class (SPC — octave-free spelled pitch)
+# region Specific Pitch Class (SPC — octave-free specific pitch)
 
 
 @dataclass(frozen=True)
-class SpelledPitchClassSchema:
-    """Schema for Spelled Pitch Class (SPC): spelled pitch without octave.
+class SpecificPitchClassSchema:
+    """Schema for Specific Pitch Class (SPC): specific pitch without octave.
 
     .. deprecated::
         Use ``PitchSpaceSchema`` with ``type="spc"`` instead.
@@ -271,7 +270,7 @@ class SpelledPitchClassSchema:
     """Accidental as integer semitones."""
 
     spc_int: str = "spc_int"
-    """Spelled pitch class on the line of fifths."""
+    """Specific pitch class on the line of fifths."""
 
     schema: ClassVar[pa.StructType] = pa.struct(
         [
@@ -280,10 +279,10 @@ class SpelledPitchClassSchema:
             pa.field("spc_int", pa.int64(), nullable=True, metadata={"unit": "fifths"}),
         ]
     )
-    """PyArrow struct type for Spelled Pitch Class (SPC)."""
+    """PyArrow struct type for Specific Pitch Class (SPC)."""
 
 
-# endregion Spelled Pitch Class
+# endregion Specific Pitch Class
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -11,13 +11,13 @@ Pitch scalars (satisfy PitchLike hierarchy):
     - ``EnharmonicPitchClass`` -- chromatic pitch class 0-11 (GenericPitchLike)
     - ``GenericPitchClass`` -- diatonic step 0-6
     - ``GenericPitch`` -- diatonic step + octave
-    - ``SpelledPitchClass`` -- pitch class with spelling (SpelledPitchClassLike)
+    - ``SpecificPitchClass`` -- pitch class with spelling (SpecificPitchClassLike)
     - ``EnharmonicPitch`` -- pitch in semitone space with note-name display;
       used by ``PitchField`` for ``pitch_type="ep"`` (EnharmonicPitchLike)
     - ``MidiPitch`` -- display alias of ``EnharmonicPitch`` (same data,
       raw-MIDI-number ``__repr__``); reserved as the default scalar for
       the planned ``MidiField`` (EnharmonicPitchLike)
-    - ``SpelledPitch`` / ``SpecificPitch`` -- full spelling (SpecificPitchLike).
+    - ``SpecificPitch`` / ``SpecificPitch`` -- full spelling (SpecificPitchLike).
       ``SpecificPitch`` is a protocol-name re-export of the same class.
 
 Harmony scalars (satisfy HarmonyLabelLike hierarchy):
@@ -52,8 +52,7 @@ from .pitch import (
     GenericPitchClass,
     MidiPitch,
     SpecificPitch,
-    SpelledPitch,
-    SpelledPitchClass,
+    SpecificPitchClass,
 )
 
 __all__ = [
@@ -61,10 +60,10 @@ __all__ = [
     "EnharmonicPitchClass",
     "GenericPitch",
     "GenericPitchClass",
-    "SpelledPitchClass",
+    "SpecificPitchClass",
     "MidiPitch",
     "SpecificPitch",
-    "SpelledPitch",
+    "SpecificPitch",
     "EnharmonicPitch",
     # Harmony hierarchy
     "HarmonyLabel",

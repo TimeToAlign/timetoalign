@@ -68,7 +68,7 @@ class TestTSVLoader:
         assert mp is not None
         assert "ep" in mp and mp["ep"] == 59  # B3
 
-        sp = first.get("spelled_pitch")
+        sp = first.get("specific_pitch")
         assert sp is not None
         assert sp.get("gpc_str") == "B"
 

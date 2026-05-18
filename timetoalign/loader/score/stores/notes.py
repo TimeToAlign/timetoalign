@@ -29,7 +29,7 @@ class NoteEventData(EventData, PitchAccessMixin):
 
     Pitch fields:
     - midi_pitch: {ep, epc}
-    - spelled_pitch: {gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}
+    - specific_pitch: {gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}
     - tpc: Tonal Pitch Class (fifths)
     - octave: Octave number
     """
@@ -42,7 +42,7 @@ class NoteEventData(EventData, PitchAccessMixin):
         make_fraction_field("mn_onset", nullable=True),
         # Pitch -- struct types from schema dataclasses (single source of truth)
         pa.field("midi_pitch", EnharmonicPitchSchema.schema, nullable=True),
-        pa.field("spelled_pitch", SpecificPitchSchema.schema, nullable=True),
+        pa.field("specific_pitch", SpecificPitchSchema.schema, nullable=True),
         pa.field(
             "tpc",
             pa.int64(),
@@ -115,15 +115,15 @@ class NoteEventData(EventData, PitchAccessMixin):
 
     @property
     def specific_pitch_field(self) -> PitchField:
-        """Extract the ``spelled_pitch`` column as a ``PitchField`` (sp).
+        """Extract the ``specific_pitch`` column as a ``PitchField`` (sp).
 
         Convenience property.
 
         Returns:
-            A ``PitchField`` wrapping the ``spelled_pitch`` column.
+            A ``PitchField`` wrapping the ``specific_pitch`` column.
 
         Raises:
-            KeyError: If the table has no ``spelled_pitch`` column.
+            KeyError: If the table has no ``specific_pitch`` column.
         """
         from timetoalign.fields.pitch import PitchField as PitchFieldCls
 
@@ -134,12 +134,12 @@ class NoteEventData(EventData, PitchAccessMixin):
         except KeyError:
             pass
 
-        col = self._table.column("spelled_pitch")
-        pa_field = self._table.schema.field("spelled_pitch")
+        col = self._table.column("specific_pitch")
+        pa_field = self._table.schema.field("specific_pitch")
         return PitchFieldCls.from_field((col, pa_field), pitch_type="sp")
 
     # Backward-compat alias
-    spelled_pitch_field = specific_pitch_field
+    specific_pitch_field = specific_pitch_field
 
     @classmethod
     def empty(

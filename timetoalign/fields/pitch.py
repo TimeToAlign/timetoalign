@@ -8,7 +8,7 @@ and uses metadata to determine the pitch type.
 Supported pitch types (via keyword arguments):
 
 - ``sp``  -- Specific Pitch (specific space, full pitch)
-- ``spc`` -- Spelled Pitch Class (specific space, class)
+- ``spc`` -- Specific Pitch Class (specific space, class)
 - ``ep``  -- Enharmonic Pitch (enharmonic space, full pitch)
 - ``epc`` -- Enharmonic Pitch Class (enharmonic space, class)
 - ``gp``  -- Generic Pitch (generic space, full pitch)
@@ -30,8 +30,8 @@ from ..core.scalars.pitch import (
     EnharmonicPitchClass,
     GenericPitch,
     GenericPitchClass,
-    SpelledPitch,
-    SpelledPitchClass,
+    SpecificPitch,
+    SpecificPitchClass,
 )
 from .base import SemanticField, StructField
 from .schemas import PitchSpaceSchema
@@ -216,12 +216,12 @@ class PitchField(SemanticField[StructField]):
     def from_labels(cls, labels: list[str], *, name: str = "pitch") -> PitchField:
         """Construct from pitch label strings (e.g. ``["C4", "E4", "G4"]``).
 
-        Parses each label via ``SpelledPitch.from_label()`` and stores
+        Parses each label via ``SpecificPitch.from_label()`` and stores
         as SP (fifths space, specific level).
         """
         rows = []
         for lbl in labels:
-            sp = SpelledPitch.from_label(lbl)
+            sp = SpecificPitch.from_label(lbl)
             rows.append({"value": sp.fifths, "octave": sp.octave})
         arr = pa.array(rows, type=PitchSpaceSchema.schema)
         pa_field = pa.field(name, PitchSpaceSchema.schema)
@@ -267,7 +267,7 @@ class PitchField(SemanticField[StructField]):
         ``field_type="PitchField"`` (the canonical Parquet contract), and
         additionally any struct column matching one of the documented pitch
         schemas (``PitchSpaceSchema``, ``EnharmonicPitchSchema``,
-        ``SpecificPitchSchema``, ``SpelledPitchClassSchema``,
+        ``SpecificPitchSchema``, ``SpecificPitchClassSchema``,
         ``GenericPitchSchema``) — even when the column carries no
         ``b"timetoalign"`` metadata.
 
@@ -371,18 +371,18 @@ def _scalar_from_legacy_schema(row: dict[str, Any], pitch_type: str) -> Any:
     if pitch_type == "epc" and "pitch_class" in row:
         return EnharmonicPitchClass.from_row(row)
     if pitch_type == "sp" and "sp" in row:
-        return SpelledPitch.from_row(row)
+        return SpecificPitch.from_row(row)
     if pitch_type == "spc" and "gpc_str" in row:
-        return SpelledPitchClass.from_row(row)
+        return SpecificPitchClass.from_row(row)
     # Fallback: try each scalar's from_row
     if "ep" in row:
         return EnharmonicPitch.from_row(row)
     if "pitch_class" in row:
         return EnharmonicPitchClass.from_row(row)
     if "sp" in row:
-        return SpelledPitch.from_row(row)
+        return SpecificPitch.from_row(row)
     if "gpc_str" in row:
-        return SpelledPitchClass.from_row(row)
+        return SpecificPitchClass.from_row(row)
     raise ValueError(f"Cannot determine scalar for legacy row: {row!r}")
 
 
@@ -401,11 +401,11 @@ def _scalar_from_pitch_space(row: dict[str, Any], pitch_type: str) -> Any:
         fifths = value if value is not None else 0
         oct_ = octave if octave is not None else 4
         step, alter = _fifths_to_step_alter(fifths)
-        return SpelledPitch(step=step, alter=alter, octave=oct_)
+        return SpecificPitch(step=step, alter=alter, octave=oct_)
     if pitch_type == "spc":
         fifths = value if value is not None else 0
         step, alter = _fifths_to_step_alter(fifths)
-        return SpelledPitchClass(step=step, alter=alter)
+        return SpecificPitchClass(step=step, alter=alter)
     if pitch_type == "gp":
         step = value if value is not None else 0
         oct_ = octave if octave is not None else 4
@@ -503,21 +503,20 @@ def _detect_pitch_type_from_struct_strict(struct_type: pa.DataType) -> str | Non
     if "sp" in field_names or "gpc_int" in field_names:
         return "sp"  # SpecificPitchSchema
     if "gpc_str" in field_names and "spc_int" in field_names:
-        return "spc"  # SpelledPitchClassSchema
+        return "spc"  # SpecificPitchClassSchema
 
     return None
 
 
 _legacy_pitch_type_map: dict[str, str] = {
     "generic": "epc",
-    "spelled_class": "spc",
     "enharmonic": "ep",
     "specific": "sp",
 }
 
 
 def _octave_from_sp_string(sp: Any) -> int | None:
-    """Extract octave from a spelled pitch string like ``"C4"`` or ``"B♭3"``."""
+    """Extract octave from a specific-pitch string like ``"C4"`` or ``"B♭3"``."""
     if not sp or not isinstance(sp, str):
         return None
     idx = len(sp)
@@ -558,7 +557,7 @@ def _extract_value_octave(
         octave = _octave_from_sp_string(raw.get("sp"))
         return fifths, octave
 
-    # Legacy: SpelledPitchClassSchema {spc_int, ...}
+    # Legacy: SpecificPitchClassSchema {spc_int, ...}
     if pitch_type == "spc" and "spc_int" in raw:
         return raw["spc_int"], None
 

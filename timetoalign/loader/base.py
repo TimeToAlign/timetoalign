@@ -2,8 +2,7 @@
 
 This module provides the loader hierarchy for TimeToAlign!:
 
-- **Loader (ABC)**: Base class for all loaders
-- **EventLoader (ABC)**: Returns EventStore (events only)
+- **Loader (ABC)**: Returns EventStore (events only)
 - **ManifestLoader (ABC)**: Returns ManifestData (dimensions/metadata only)
 - **AlignmentLoader (ABC)**: Returns AlignmentStore (events + C-maps + Matches)
 
@@ -802,11 +801,6 @@ class Loader(ABC):
         return loader
 
     # endregion
-
-
-# Alias for backwards compatibility and clarity
-EventLoader = Loader
-"""EventLoader is an alias for Loader - the base class for loaders that return EventStore."""
 
 
 # region ManifestData

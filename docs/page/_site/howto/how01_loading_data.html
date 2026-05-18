@@ -585,7 +585,7 @@ Name: note_count, dtype: int64</code></pre>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">13</th>
-<td>spelled_pitch</td>
+<td>specific_pitch</td>
 <td>struct&lt;gpc_int: int64, gpc_str</td>
 <td></td>
 </tr>
@@ -690,7 +690,7 @@ Name: note_count, dtype: int64</code></pre>
 <td>MIDI pitch number (0-127)</td>
 </tr>
 <tr class="even">
-<td><code>spelled_pitch</code></td>
+<td><code>specific_pitch</code></td>
 <td>Pitch spelling information</td>
 </tr>
 </tbody>
@@ -846,7 +846,7 @@ Name: note_count, dtype: int64</code></pre>
 </section>
 <section id="pitch-information" class="level2">
 <h2 class="anchored" data-anchor-id="pitch-information">Pitch Information</h2>
-<p>The <code>spelled_pitch</code> column contains rich pitch information as a struct. This preserves the enharmonic spelling (e.g., G# vs Ab) which is lost when using only MIDI pitch numbers.</p>
+<p>The <code>specific_pitch</code> column contains rich pitch information as a struct. This preserves the enharmonic spelling (e.g., G# vs Ab) which is lost when using only MIDI pitch numbers.</p>
 <div id="f761cb18" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-05-14T10:40:42.323865Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-05-14T10:40:42.323642Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-05-14T10:40:42.330095Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-05-14T10:40:42.328923Z&quot;}}" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract spelled pitch information for the first note</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>first_note <span class="op">=</span> tsv_df.iloc[<span class="dv">0</span>]</span>
@@ -855,13 +855,13 @@ Name: note_count, dtype: int64</code></pre>
 <span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"name"</span>: first_note[<span class="st">"name"</span>],</span>
 <span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"midi_pitch"</span>: first_note[<span class="st">"midi_pitch"</span>],</span>
 <span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"octave"</span>: first_note[<span class="st">"octave"</span>],</span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"spelled_pitch"</span>: first_note[<span class="st">"spelled_pitch"</span>],</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"specific_pitch"</span>: first_note[<span class="st">"specific_pitch"</span>],</span>
 <span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="7">
 <pre><code>{'name': 'B3',
  'midi_pitch': {'ep': 59, 'epc': 11},
  'octave': 3,
- 'spelled_pitch': {'gpc_int': 6,
+ 'specific_pitch': {'gpc_int': 6,
   'gpc_str': 'B',
   'acc': 0,
   'spc_int': 5,

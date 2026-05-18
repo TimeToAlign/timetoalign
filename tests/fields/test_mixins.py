@@ -53,9 +53,9 @@ def _make_midi_pitch_table() -> pa.Table:
     return pa.table({"midi_pitch": arr}, schema=pa.schema([col_field]))
 
 
-def _make_spelled_pitch_table() -> pa.Table:
-    """Build a table with a spelled_pitch column carrying PitchField metadata."""
-    spelled_type = pa.struct(
+def _make_specific_pitch_table() -> pa.Table:
+    """Build a table with a specific_pitch column carrying PitchField metadata."""
+    specific_type = pa.struct(
         [
             pa.field("gpc_int", pa.int64()),
             pa.field("gpc_str", pa.string()),
@@ -78,18 +78,18 @@ def _make_spelled_pitch_table() -> pa.Table:
                 "cents": 0.0,
             }
         ],
-        type=spelled_type,
+        type=specific_type,
     )
     col_field = _inject_metadata(
-        pa.field("spelled_pitch", spelled_type),
+        pa.field("specific_pitch", specific_type),
         "PitchField",
         pitch_type="sp",
     )
-    return pa.table({"spelled_pitch": arr}, schema=pa.schema([col_field]))
+    return pa.table({"specific_pitch": arr}, schema=pa.schema([col_field]))
 
 
 def _make_both_pitch_table() -> pa.Table:
-    """Build a table with both midi_pitch and spelled_pitch columns."""
+    """Build a table with both midi_pitch and specific_pitch columns."""
     midi_type = pa.struct([pa.field("ep", pa.int64()), pa.field("epc", pa.int64())])
     midi_arr = pa.array([{"ep": 60, "epc": 0}], type=midi_type)
     midi_field = _inject_metadata(
@@ -98,7 +98,7 @@ def _make_both_pitch_table() -> pa.Table:
         pitch_type="ep",
     )
 
-    spelled_type = pa.struct(
+    specific_type = pa.struct(
         [
             pa.field("gpc_int", pa.int64()),
             pa.field("gpc_str", pa.string()),
@@ -109,7 +109,7 @@ def _make_both_pitch_table() -> pa.Table:
             pa.field("cents", pa.float64()),
         ]
     )
-    spelled_arr = pa.array(
+    specific_arr = pa.array(
         [
             {
                 "gpc_int": 0,
@@ -121,17 +121,17 @@ def _make_both_pitch_table() -> pa.Table:
                 "cents": 0.0,
             }
         ],
-        type=spelled_type,
+        type=specific_type,
     )
-    spelled_field = _inject_metadata(
-        pa.field("spelled_pitch", spelled_type),
+    specific_field = _inject_metadata(
+        pa.field("specific_pitch", specific_type),
         "PitchField",
         pitch_type="sp",
     )
 
-    schema = pa.schema([midi_field, spelled_field])
+    schema = pa.schema([midi_field, specific_field])
     return pa.table(
-        {"midi_pitch": midi_arr, "spelled_pitch": spelled_arr}, schema=schema
+        {"midi_pitch": midi_arr, "specific_pitch": specific_arr}, schema=schema
     )
 
 
@@ -215,7 +215,7 @@ class TestSemanticFieldAccessMixin:
         assert result.pitch_type == "ep"
 
     def test_get_field_returns_sp_pitch(self) -> None:
-        table = _make_spelled_pitch_table()
+        table = _make_specific_pitch_table()
         host = _MixinHost(table)
         result = host.get_field(PitchField)
         assert isinstance(result, PitchField)
@@ -300,7 +300,7 @@ class TestPitchAccessMixin:
         assert isinstance(result, PitchField)
 
     def test_get_pitch_field_default_priority_sp(self) -> None:
-        """When both midi and spelled are present, default picks SP (most informative)."""
+        """When both midi and specific are present, default picks SP (most informative)."""
         table = _make_both_pitch_table()
         host = _PitchHost(table)
         result = host.get_pitch_field()
@@ -315,9 +315,9 @@ class TestPitchAccessMixin:
         assert isinstance(result, PitchField)
         assert result.pitch_type == "ep"
 
-    def test_get_pitch_field_default_only_spelled(self) -> None:
-        """When only spelled is present, default picks SP."""
-        table = _make_spelled_pitch_table()
+    def test_get_pitch_field_default_only_specific(self) -> None:
+        """When only specific is present, default picks SP."""
+        table = _make_specific_pitch_table()
         host = _PitchHost(table)
         result = host.get_pitch_field()
         assert isinstance(result, PitchField)
@@ -445,8 +445,8 @@ class TestEventDataComposition:
         assert pf[0] is not None
         assert pf[0].midi_number == 60
 
-    def test_note_event_data_spelled_pitch_field_backward_compat(self) -> None:
-        """NoteEventData.spelled_pitch_field property should still work via fallback."""
+    def test_note_event_data_specific_pitch_field_backward_compat(self) -> None:
+        """NoteEventData.specific_pitch_field property should still work via fallback."""
         from timetoalign.loader.score.stores.notes import NoteEventData
 
         store = NoteEventData.from_dicts(
@@ -455,7 +455,7 @@ class TestEventDataComposition:
                     "event_type": "Note",
                     "start": 0.0,
                     "duration": 1.0,
-                    "spelled_pitch": {
+                    "specific_pitch": {
                         "gpc_int": 0,
                         "gpc_str": "C",
                         "acc": 0,
@@ -467,7 +467,7 @@ class TestEventDataComposition:
                 }
             ],
         )
-        spf = store.spelled_pitch_field
+        spf = store.specific_pitch_field
         assert isinstance(spf, PitchField)
         assert spf[0] is not None
 

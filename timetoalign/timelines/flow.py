@@ -1467,18 +1467,6 @@ class FlowMap:
         """Number of sections in this FlowMap."""
         return len(self._sections)
 
-    # Backwards-compatible aliases
-    def folded_to_unfolded(self, qb: Fraction | float) -> list[Fraction]:
-        """Alias for unfold() - backwards compatibility."""
-        return self.unfold(qb)
-
-    def unfolded_to_folded(self, qb: Fraction | float) -> Fraction:
-        """Alias for fold() - backwards compatibility."""
-        return self.fold(qb)
-
-    # Additional alias for new naming
-    total_unfolded_length = total_target_length
-
     @classmethod
     def from_qb_sections(
         cls,
@@ -3907,7 +3895,7 @@ def create_unfolded_timeline(
 
     # --- 2. Build the QB-space FlowMap ---
     forward_map = FlowMap.from_qb_sections(flow, qb_sections, id=flow.id)
-    unfolded_length = forward_map.total_unfolded_length
+    unfolded_length = forward_map.total_target_length
 
     # --- 3. Resolve the concrete class ---
     number_type = source_timeline.number_type

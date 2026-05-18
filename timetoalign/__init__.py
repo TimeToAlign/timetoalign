@@ -108,7 +108,6 @@ from timetoalign.alignment import (
     MatchMetadata,
     MatchStamp,
     NoteRecord,
-    PerfectAlignment,
     SnoteRecord,
     TimelineGroup,
     WarpMap,
@@ -242,7 +241,6 @@ __all__ = [
     "ChainMap",
     # Alignment
     "AlignmentBundle",
-    "PerfectAlignment",
     "TimelineGroup",
     "AlignmentAnchor",
     "ClaimFilter",

@@ -186,7 +186,7 @@ class TestGroupManagement:
         group = bundle.default_group
         assert group is not None
         # Groups use actual timeline.id, not bundle UIDs
-        assert group.reference_timeline_id == simple_timeline.id
+        assert simple_timeline.id in group.timeline_ids
 
     def test_add_timeline_to_nonexistent_raises(
         self, simple_timeline: Timeline
@@ -205,7 +205,7 @@ class TestGroupManagement:
         assert "my_group" in bundle.group_ids
         group = bundle.get_group("my_group")
         # Groups use actual timeline.id, not bundle UIDs
-        assert group.reference_timeline_id == simple_timeline.id
+        assert simple_timeline.id in group.timeline_ids
 
     def test_get_group_for_timeline(
         self, simple_timeline: Timeline, second_timeline: Timeline
@@ -320,9 +320,9 @@ class TestCoordinateTransfer:
 class TestCustomAlignment:
     """Tests for custom alignment specifications.
 
-    NOTE: PerfectAlignment is deprecated. Partial alignment is now specified
-    via start/end parameters on TimelineGroup.add_timeline(). The
-    AlignmentBundle currently only supports linear (full-extent) alignment.
+    Partial alignment is specified via start/end parameters on
+    TimelineGroup.add_timeline(). The AlignmentBundle currently only
+    supports linear (full-extent) alignment.
     """
 
     def test_partial_alignment_via_group(

@@ -741,32 +741,11 @@ class TestGroupIntegration:
 # endregion
 
 
-# region Backward Compatibility Tests
+# region Summary Test
 
 
-class TestBackwardCompatibility:
-    """Tests for deprecated APIs and backward compatibility."""
-
-    def test_from_reference_deprecated(
-        self,
-        dgt_timeline: DiscreteGraphicalTimeline,
-    ) -> None:
-        """Test from_reference() still works but emits warning."""
-        with pytest.warns(DeprecationWarning, match="from_reference"):
-            group = TimelineGroup.from_reference(dgt_timeline, name="TestGroup")
-
-        assert group.n_timelines == 1
-        assert "dgt1" in group
-
-    def test_reference_property(
-        self,
-        dgt_timeline: DiscreteGraphicalTimeline,
-    ) -> None:
-        """Test reference property for compatibility."""
-        group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
-
-        assert group.reference is dgt_timeline
-        assert group.reference_timeline_id == "dgt1"
+class TestTimelineGroupSummary:
+    """Tests for TimelineGroup.summary()."""
 
     def test_summary(
         self,
@@ -796,42 +775,42 @@ class TestBackwardCompatibility:
 # region Unified Timestamp API Tests
 
 
-class TestTimelineGroupUnifiedTimestamp:
-    """Tests for unified TimeStamp API."""
+class TestTimelineGroupTimestampAt:
+    """Tests for the unified TimeStamp API via get_timestamp_at()."""
 
-    def test_get_unified_timestamp_basic(
+    def test_get_timestamp_at_basic(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
     ) -> None:
-        """Test basic unified timestamp creation."""
+        """Test basic timestamp creation."""
         from timetoalign.core import TimeStamp
 
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
-        ts = group.get_unified_timestamp(75.0, "audio")
+        ts = group.get_timestamp_at(75.0, "audio")
         assert isinstance(ts, TimeStamp)
         assert ts.axis == 75.0
         assert ts.source_id == "audio"
 
-    def test_get_unified_timestamp_coordinate_conversion(
+    def test_get_timestamp_at_coordinate_conversion(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
     ) -> None:
-        """Test coordinate conversion via unified timestamp."""
+        """Test coordinate conversion via timestamp."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
         # audio: 0 -> 150, dgt: 0 -> 4875
         # At audio=75 (half), dgt should be 4875/2 = 2437.5 -> rounded to 2438
-        ts = group.get_unified_timestamp(75.0, "audio")
+        ts = group.get_timestamp_at(75.0, "audio")
 
         dgt_coord = ts["dgt1"]
         assert dgt_coord is not None
         # Discrete timelines are rounded to nearest integer
         assert dgt_coord == 2438
 
-    def test_get_unified_timestamp_bidirectional(
+    def test_get_timestamp_at_bidirectional(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
@@ -840,12 +819,12 @@ class TestTimelineGroupUnifiedTimestamp:
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
         # From dgt to audio
-        ts = group.get_unified_timestamp(2437.5, "dgt1")
+        ts = group.get_timestamp_at(2437.5, "dgt1")
         audio_coord = ts["audio"]
         assert audio_coord is not None
         assert audio_coord == pytest.approx(75.0)
 
-    def test_get_unified_timestamp_unknown_timeline_raises(
+    def test_get_timestamp_at_unknown_timeline_raises(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,
     ) -> None:
@@ -853,27 +832,30 @@ class TestTimelineGroupUnifiedTimestamp:
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
 
         with pytest.raises(KeyError, match="nonexistent"):
-            group.get_unified_timestamp(50.0, "nonexistent")
+            group.get_timestamp_at(50.0, "nonexistent")
 
-    def test_get_unified_timestamp_empty_group_raises(self) -> None:
+    def test_get_timestamp_at_empty_group_raises(self) -> None:
         """Test that empty group raises KeyError (no timelines)."""
         group = TimelineGroup(id="empty_group")
 
         # Empty group has no timelines, so KeyError is raised first
         with pytest.raises(KeyError, match="not in group"):
-            group.get_unified_timestamp(50.0, "any_timeline")
+            group.get_timestamp_at(50.0, "any_timeline")
 
-    def test_get_unified_interval_stamp(
+    def test_interval_stamp_from_get_timestamp_at(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
     ) -> None:
-        """Test unified interval stamp creation."""
+        """Compose a TimeIntervalStamp from two get_timestamp_at() calls."""
         from timetoalign.core import TimeIntervalStamp
 
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
-        interval = group.get_unified_interval_stamp(0.0, 100.0, "audio")
+        interval = TimeIntervalStamp(
+            start=group.get_timestamp_at(0.0, "audio"),
+            end=group.get_timestamp_at(100.0, "audio"),
+        )
 
         assert isinstance(interval, TimeIntervalStamp)
         assert interval.duration == 100.0
@@ -886,7 +868,7 @@ class TestTimelineGroupUnifiedTimestamp:
         assert dgt_interval[0] == pytest.approx(0.0)
         assert dgt_interval[1] == pytest.approx(3250.0)
 
-    def test_unified_timestamp_with_three_timelines(
+    def test_timestamp_with_three_timelines(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
@@ -903,14 +885,14 @@ class TestTimelineGroupUnifiedTimestamp:
         # - dgt should be 2437.5 -> rounded to 2438 (discrete timeline)
         # - score should be 50.0 (midpoint of 0-100)
 
-        ts = group.get_unified_timestamp(75.0, "audio")
+        ts = group.get_timestamp_at(75.0, "audio")
 
         # Discrete timelines are rounded to nearest integer
         assert ts["dgt1"] == 2438
         assert ts["score"] == pytest.approx(50.0)
         assert ts["audio"] == pytest.approx(75.0)
 
-    def test_unified_timestamp_same_timeline_returns_axis(
+    def test_timestamp_same_timeline_returns_axis(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
@@ -918,7 +900,7 @@ class TestTimelineGroupUnifiedTimestamp:
         """Test that getting the same timeline returns axis value."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
-        ts = group.get_unified_timestamp(75.0, "audio")
+        ts = group.get_timestamp_at(75.0, "audio")
 
         # Getting the source timeline should return axis
         assert ts["audio"] == 75.0

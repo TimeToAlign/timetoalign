@@ -6,7 +6,7 @@ and storing events in efficient PyArrow tables.
 Loader Taxonomy:
     The package contains three categories of loaders:
 
-    **EventLoader (Loader)** - Returns EventStore (events only):
+    **Loader** - Returns EventStore (events only):
         - ScoreLoader subclasses: Music21Loader, PartituraLoader, Ms3Loader
         - MidiLoader subclasses: ScoreMidiLoader, PerformanceMidiLoader
         - TabularLoader subclasses: CsvLoader, TsvLoader
@@ -27,7 +27,7 @@ Classes:
     AlignmentStore: Container for aligned multimodal data.
     MatchData: Container for alignment matches.
     ManifestData: Container for manifest/metadata.
-    Loader/EventLoader: Abstract base class for event-based loaders.
+    Loader: Abstract base class for event-based loaders.
     ManifestLoader: Abstract base class for manifest loaders.
     AlignmentLoader: Abstract base class for alignment loaders.
     AudioLoader: Manifest loader for audio files.
@@ -44,7 +44,7 @@ structures and table metadata.
 
 from __future__ import annotations
 
-from .base import AlignmentLoader, EventLoader, Loader, ManifestData, ManifestLoader
+from .base import AlignmentLoader, Loader, ManifestData, ManifestLoader
 from .events import EventData
 from .physical import (
     AudioInfo,
@@ -100,7 +100,6 @@ __all__ = [
     "ManifestData",
     # Loader ABCs
     "Loader",
-    "EventLoader",
     "ManifestLoader",
     "AlignmentLoader",
     # Alignment loaders

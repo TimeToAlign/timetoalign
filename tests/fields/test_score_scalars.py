@@ -1,4 +1,4 @@
-"""Tests for Circle 1 score scalars: MidiPitch, SpelledPitch, Note, Measure, DcmlHarmony."""
+"""Tests for Circle 1 score scalars: MidiPitch, SpecificPitch, Note, Measure, DcmlHarmony."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from timetoalign.core.protocols import (
 from timetoalign.core.scalars.harmony import DcmlHarmony
 from timetoalign.core.scalars.measure import Measure
 from timetoalign.core.scalars.note import Note
-from timetoalign.core.scalars.pitch import MidiPitch, SpelledPitch
+from timetoalign.core.scalars.pitch import MidiPitch, SpecificPitch
 from timetoalign.core.types import Coordinate
 
 # ---------------------------------------------------------------------------
@@ -82,16 +82,16 @@ class TestMidiPitch:
 
 
 # ---------------------------------------------------------------------------
-# SpelledPitch
+# SpecificPitch
 # ---------------------------------------------------------------------------
 
 
-class TestSpelledPitch:
-    """Tests for SpelledPitch scalar construction and protocol conformance."""
+class TestSpecificPitch:
+    """Tests for SpecificPitch scalar construction and protocol conformance."""
 
     def test_construction_basic(self) -> None:
-        """Construct SpelledPitch for C4 (fifths auto-derived)."""
-        p = SpelledPitch(step="C", alter=0, octave=4)
+        """Construct SpecificPitch for C4 (fifths auto-derived)."""
+        p = SpecificPitch(step="C", alter=0, octave=4)
         assert p.step == "C"
         assert p.alter == 0
         assert p.octave == 4
@@ -99,51 +99,51 @@ class TestSpelledPitch:
         assert p.cents == 0.0  # default
 
     def test_construction_gsharp(self) -> None:
-        """Construct SpelledPitch for G#3 (fifths auto-derived)."""
-        p = SpelledPitch(step="G", alter=1, octave=3)
+        """Construct SpecificPitch for G#3 (fifths auto-derived)."""
+        p = SpecificPitch(step="G", alter=1, octave=3)
         assert p.step == "G"
         assert p.alter == 1
         assert p.octave == 3
         assert p.fifths == 8  # auto-derived: G=1 + 7*1=8
 
     def test_pitchlike_conformance(self) -> None:
-        """SpelledPitch satisfies PitchLike protocol."""
-        p = SpelledPitch(step="C", alter=0, octave=4)
+        """SpecificPitch satisfies PitchLike protocol."""
+        p = SpecificPitch(step="C", alter=0, octave=4)
         assert isinstance(p, PitchLike)
 
     def test_midi_number_computation_c4(self) -> None:
-        """SpelledPitch for C4 computes midi_number == 60."""
-        p = SpelledPitch(step="C", alter=0, octave=4)
+        """SpecificPitch for C4 computes midi_number == 60."""
+        p = SpecificPitch(step="C", alter=0, octave=4)
         assert p.midi_number == 60
 
     def test_midi_number_computation_b3(self) -> None:
-        """SpelledPitch for B3 computes midi_number == 59."""
-        p = SpelledPitch(step="B", alter=0, octave=3)
+        """SpecificPitch for B3 computes midi_number == 59."""
+        p = SpecificPitch(step="B", alter=0, octave=3)
         assert p.midi_number == 59
 
     def test_midi_number_computation_gsharp3(self) -> None:
-        """SpelledPitch for G#3 computes midi_number == 56."""
-        p = SpelledPitch(step="G", alter=1, octave=3)
+        """SpecificPitch for G#3 computes midi_number == 56."""
+        p = SpecificPitch(step="G", alter=1, octave=3)
         assert p.midi_number == 56
 
     def test_pitch_class_computation_c(self) -> None:
-        """SpelledPitch for C4 has pitch_class == 0."""
-        p = SpelledPitch(step="C", alter=0, octave=4)
+        """SpecificPitch for C4 has pitch_class == 0."""
+        p = SpecificPitch(step="C", alter=0, octave=4)
         assert p.pitch_class == 0
 
     def test_pitch_class_computation_b(self) -> None:
-        """SpelledPitch for B3 has pitch_class == 11."""
-        p = SpelledPitch(step="B", alter=0, octave=3)
+        """SpecificPitch for B3 has pitch_class == 11."""
+        p = SpecificPitch(step="B", alter=0, octave=3)
         assert p.pitch_class == 11
 
     def test_semantic_type(self) -> None:
-        """SpelledPitch.semantic_type == 'SpelledPitch'."""
-        p = SpelledPitch(step="C", alter=0, octave=4)
-        assert p.semantic_type == "SpelledPitch"
+        """SpecificPitch.semantic_type == 'SpecificPitch'."""
+        p = SpecificPitch(step="C", alter=0, octave=4)
+        assert p.semantic_type == "SpecificPitch"
 
     def test_frozen_immutable(self) -> None:
-        """SpelledPitch is frozen (immutable)."""
-        p = SpelledPitch(step="C", alter=0, octave=4)
+        """SpecificPitch is frozen (immutable)."""
+        p = SpecificPitch(step="C", alter=0, octave=4)
         with pytest.raises(AttributeError):
             p.step = "D"  # type: ignore[misc]
 

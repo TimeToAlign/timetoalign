@@ -8,8 +8,8 @@ Tests the full SUPRA piano roll alignment workflow using:
 Per ZERO TOLERANCE policy, all assertions use exact expected values.
 
 NOTE: These tests use the TimelineGroup timestamp-based architecture.
-The old PerfectAlignment class is deprecated. Partial alignment is
-achieved via the start/end parameters in AlignmentBundle.add_timeline().
+Partial alignment is achieved via the start/end parameters in
+AlignmentBundle.add_timeline().
 """
 
 from __future__ import annotations
@@ -135,7 +135,7 @@ class TestSUPRAAlignmentBundle:
     """Tests for SUPRA workflow using AlignmentBundle with partial alignment.
 
     Uses the timestamp-based API where partial alignment is specified via
-    start/end parameters in add_timeline(), rather than PerfectAlignment objects.
+    start/end parameters in add_timeline().
     """
 
     def test_create_supra_bundle(

@@ -13,8 +13,8 @@ from timetoalign.core.scalars.pitch import (
     EnharmonicPitch,
     EnharmonicPitchClass,
     MidiPitch,
-    SpelledPitch,
-    SpelledPitchClass,
+    SpecificPitch,
+    SpecificPitchClass,
 )
 from timetoalign.fields.base import StructField
 from timetoalign.fields.pitch import PitchField
@@ -36,7 +36,7 @@ _GENERIC_PITCH_TYPE = pa.struct(
     ]
 )
 
-_SPELLED_PITCH_CLASS_TYPE = pa.struct(
+_specific_pitch_CLASS_TYPE = pa.struct(
     [
         pa.field("gpc_str", pa.string(), nullable=True),
         pa.field("acc", pa.int64(), nullable=True),
@@ -44,7 +44,7 @@ _SPELLED_PITCH_CLASS_TYPE = pa.struct(
     ]
 )
 
-_SPELLED_PITCH_TYPE = pa.struct(
+_specific_pitch_TYPE = pa.struct(
     [
         pa.field("gpc_int", pa.int64()),
         pa.field("gpc_str", pa.string()),
@@ -83,22 +83,22 @@ def _make_generic_pitch_array(
     return pa.array(values, type=_GENERIC_PITCH_TYPE)
 
 
-def _make_spelled_pitch_class_array(
+def _make_specific_pitch_class_array(
     values: list[dict[str, object]] | None = None,
 ) -> pa.Array:
-    """Build a spelled_pitch_class struct array from simple dicts."""
+    """Build a specific_pitch_class struct array from simple dicts."""
     if values is None:
         values = [
             {"gpc_str": "C", "acc": 0, "spc_int": 0},
             {"gpc_str": "F", "acc": 1, "spc_int": 6},
         ]
-    return pa.array(values, type=_SPELLED_PITCH_CLASS_TYPE)
+    return pa.array(values, type=_specific_pitch_CLASS_TYPE)
 
 
-def _make_spelled_pitch_array(
+def _make_specific_pitch_array(
     values: list[dict[str, object]] | None = None,
 ) -> pa.Array:
-    """Build a spelled_pitch struct array from simple dicts."""
+    """Build a specific_pitch struct array from simple dicts."""
     if values is None:
         values = [
             {
@@ -111,7 +111,7 @@ def _make_spelled_pitch_array(
                 "cents": 0.0,
             },
         ]
-    return pa.array(values, type=_SPELLED_PITCH_TYPE)
+    return pa.array(values, type=_specific_pitch_TYPE)
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +163,7 @@ class TestHierarchy:
 
     def test_sp_pitch_field_is_pitch_field(self) -> None:
         """PitchField from SP struct is a PitchField."""
-        arr = _make_spelled_pitch_array()
+        arr = _make_specific_pitch_array()
         pf = PitchField.from_field(arr, pitch_type="sp")
         assert isinstance(pf, PitchField)
 
@@ -175,7 +175,7 @@ class TestHierarchy:
 
     def test_spc_pitch_field_is_pitch_field(self) -> None:
         """PitchField from SPC struct is a PitchField."""
-        arr = _make_spelled_pitch_class_array()
+        arr = _make_specific_pitch_class_array()
         pf = PitchField.from_field(arr, pitch_type="spc")
         assert isinstance(pf, PitchField)
 
@@ -213,13 +213,13 @@ class TestProtocolConformance:
 
     def test_spc_pitch_field_satisfies_semantic_type_like(self) -> None:
         """isinstance(PitchField(spc=...), SemanticTypeLike) is True."""
-        arr = _make_spelled_pitch_class_array()
+        arr = _make_specific_pitch_class_array()
         pf = PitchField.from_field(arr, pitch_type="spc")
         assert isinstance(pf, SemanticTypeLike)
 
     def test_sp_pitch_field_satisfies_semantic_type_like(self) -> None:
         """isinstance(PitchField(sp=...), SemanticTypeLike) is True."""
-        arr = _make_spelled_pitch_array()
+        arr = _make_specific_pitch_array()
         pf = PitchField.from_field(arr, pitch_type="sp")
         assert isinstance(pf, SemanticTypeLike)
 
@@ -320,11 +320,11 @@ class TestEPCPitchFieldConstruction:
 
 
 class TestSPCPitchFieldConstruction:
-    """Tests for PitchField.from_field() with SPC (spelled pitch class) sources."""
+    """Tests for PitchField.from_field() with SPC (specific pitch class) sources."""
 
     def test_from_pa_array(self) -> None:
         """Construct from pa.Array (struct array)."""
-        arr = _make_spelled_pitch_class_array(
+        arr = _make_specific_pitch_class_array(
             [{"gpc_str": "D", "acc": 0, "spc_int": 2}]
         )
         pf = PitchField.from_field(arr, pitch_type="spc")
@@ -332,8 +332,8 @@ class TestSPCPitchFieldConstruction:
 
     def test_from_struct_field(self) -> None:
         """Construct from an existing StructField."""
-        arr = _make_spelled_pitch_class_array()
-        pa_field = pa.field("spelled_pitch_class", _SPELLED_PITCH_CLASS_TYPE)
+        arr = _make_specific_pitch_class_array()
+        pa_field = pa.field("specific_pitch_class", _specific_pitch_CLASS_TYPE)
         sf = StructField(arr, pa_field)
         pf = PitchField.from_field(sf, pitch_type="spc")
         assert len(pf) == 2
@@ -345,8 +345,8 @@ class TestSPCPitchFieldConstruction:
             "pitch_type": "spc",
         }
         pa_field = pa.field(
-            "spelled_pitch_class",
-            _SPELLED_PITCH_CLASS_TYPE,
+            "specific_pitch_class",
+            _specific_pitch_CLASS_TYPE,
             metadata={b"timetoalign": json.dumps(meta_dict).encode()},
         )
         pf = PitchField.from_field(pa_field)
@@ -443,14 +443,14 @@ class TestEPCPitchFieldElementAccess:
 class TestSPCPitchFieldElementAccess:
     """Tests for PitchField(spc=...).__getitem__."""
 
-    def test_getitem_returns_spelled_pitch_class(self) -> None:
-        """Verify returns SpelledPitchClass instance with correct values."""
-        arr = _make_spelled_pitch_class_array(
+    def test_getitem_returns_specific_pitch_class(self) -> None:
+        """Verify returns SpecificPitchClass instance with correct values."""
+        arr = _make_specific_pitch_class_array(
             [{"gpc_str": "C", "acc": 1, "spc_int": 7}]
         )
         pf = PitchField.from_field(arr, pitch_type="spc")
         pitch = pf[0]
-        assert isinstance(pitch, SpelledPitchClass)
+        assert isinstance(pitch, SpecificPitchClass)
         assert pitch.step == "C"
         assert pitch.alter == 1
         assert pitch.fifths == 7
@@ -459,7 +459,7 @@ class TestSPCPitchFieldElementAccess:
         """Verify None for null struct entries."""
         arr = pa.array(
             [{"gpc_str": "C", "acc": 0, "spc_int": 0}, None],
-            type=_SPELLED_PITCH_CLASS_TYPE,
+            type=_specific_pitch_CLASS_TYPE,
         )
         pf = PitchField.from_field(arr, pitch_type="spc")
         assert pf[0] is not None
@@ -474,12 +474,12 @@ class TestSPCPitchFieldElementAccess:
 class TestSPPitchFieldElementAccess:
     """Tests for PitchField(sp=...).__getitem__."""
 
-    def test_getitem_returns_spelled_pitch(self) -> None:
-        """Verify returns SpelledPitch instance with correct values."""
-        arr = _make_spelled_pitch_array()
+    def test_getitem_returns_specific_pitch(self) -> None:
+        """Verify returns SpecificPitch instance with correct values."""
+        arr = _make_specific_pitch_array()
         pf = PitchField.from_field(arr, pitch_type="sp")
         pitch = pf[0]
-        assert isinstance(pitch, SpelledPitch)
+        assert isinstance(pitch, SpecificPitch)
         assert pitch.step == "C"
         assert pitch.alter == 0
         assert pitch.octave == 4
@@ -501,7 +501,7 @@ class TestSPPitchFieldElementAccess:
                 },
                 None,
             ],
-            type=_SPELLED_PITCH_TYPE,
+            type=_specific_pitch_TYPE,
         )
         pf = PitchField.from_field(arr, pitch_type="sp")
         assert pf[0] is not None
@@ -550,13 +550,13 @@ class TestProperties:
 
     def test_spc_semantic_type(self) -> None:
         """PitchField(spc=...).semantic_type == 'Pitch'."""
-        arr = _make_spelled_pitch_class_array()
+        arr = _make_specific_pitch_class_array()
         pf = PitchField.from_field(arr, pitch_type="spc")
         assert pf.semantic_type == "Pitch"
 
     def test_spc_metadata_dict(self) -> None:
         """Verify PitchField(spc=...) returns correct metadata_dict."""
-        arr = _make_spelled_pitch_class_array()
+        arr = _make_specific_pitch_class_array()
         pf = PitchField.from_field(arr, pitch_type="spc")
         md = pf.metadata_dict()
         assert md["field_type"] == "PitchField"
@@ -566,13 +566,13 @@ class TestProperties:
 
     def test_sp_semantic_type(self) -> None:
         """PitchField(sp=...).semantic_type == 'Pitch'."""
-        arr = _make_spelled_pitch_array()
+        arr = _make_specific_pitch_array()
         pf = PitchField.from_field(arr, pitch_type="sp")
         assert pf.semantic_type == "Pitch"
 
     def test_sp_metadata_dict(self) -> None:
         """Verify PitchField(sp=...) returns correct metadata_dict."""
-        arr = _make_spelled_pitch_array()
+        arr = _make_specific_pitch_array()
         pf = PitchField.from_field(arr, pitch_type="sp")
         md = pf.metadata_dict()
         assert md["field_type"] == "PitchField"
@@ -664,7 +664,7 @@ class TestSerialization:
 
     def test_sp_to_field_injects_metadata(self) -> None:
         """Verify PitchField(sp=...).to_field() produces correct metadata."""
-        arr = _make_spelled_pitch_array()
+        arr = _make_specific_pitch_array()
         pf = PitchField.from_field(arr, pitch_type="sp")
         pa_field = pf.to_field()
 

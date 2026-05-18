@@ -99,10 +99,10 @@ def _get_field_type_map() -> dict[str, type[SemanticField[Any]]]:
         "DurationField": DurationField,
         # Legacy pitch metadata compatibility -- all map to PitchField
         "GenericPitchField": PitchField,
-        "SpelledPitchClassField": PitchField,
+        "SpecificPitchClassField": PitchField,
         "EnharmonicPitchField": PitchField,
         "SpecificPitchField": PitchField,
-        "SpelledPitchField": PitchField,
+        "SpecificPitchField": PitchField,
         "MidiPitchField": PitchField,
         # Harmony hierarchy
         "WesternTertianHarmonyField": WesternTertianHarmonyField,
@@ -236,7 +236,7 @@ def _discover_by_shape(
     and ``_default_column``-based lookup both yield nothing.  It catches
     columns produced by loaders that have not (yet) injected
     ``b"timetoalign"`` metadata onto raw struct columns
-    (e.g. ``midi_pitch`` / ``spelled_pitch`` on TSV-loaded score notes).
+    (e.g. ``midi_pitch`` / ``specific_pitch`` on TSV-loaded score notes).
 
     Args:
         table: The PyArrow table to search.
@@ -429,7 +429,7 @@ class SemanticFieldAccessMixin:
            field via ``cls.matches_pa_field()`` and ``cls.from_field()``.
            This catches loader output that has not (yet) injected
            ``b"timetoalign"`` metadata — e.g. raw ``midi_pitch`` /
-           ``spelled_pitch`` struct columns from the TSV loader.
+           ``specific_pitch`` struct columns from the TSV loader.
 
         Returns the first non-empty result; never falls through to a
         later strategy once an earlier strategy finds anything.  Order
@@ -664,7 +664,7 @@ class PitchAccessMixin(SemanticFieldAccessMixin):
             pitch_field_type: Should be ``PitchField``.
                 If ``None``, returns the most informative available.
             format: Format specifier for on-the-fly conversion
-                (e.g., ``"midi"``, ``"spelled"``, ``"generic"``).
+                (e.g., ``"midi"``, ``"specific"``, ``"generic"``).
                 Reserved for future conversion support.
 
         Returns:

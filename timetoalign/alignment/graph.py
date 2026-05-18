@@ -359,9 +359,6 @@ class MatchGraph:
 
         >>> # Get synchronized timestamps
         >>> stamps = graph.get_stamps()
-
-        >>> # Legacy API (deprecated)
-        >>> start_stamp, end_stamp = graph.get_match_stamps()
     """
 
     def __init__(self, claims: list[MatchClaim] | None = None):
@@ -832,64 +829,6 @@ class MatchGraph:
     def n_components(self) -> int:
         """Number of connected components in the graph."""
         return nx.number_connected_components(self._graph)
-
-    def get_match_stamps(self) -> tuple["MatchStamp", "MatchStamp | None"]:
-        """Extract MatchStamps from the graph.
-
-        .. deprecated::
-            Use ``get_stamps()`` for all MatchStamps by connected component.
-            This method is retained for backward compatibility.
-
-        Returns:
-            (start_stamp, end_stamp) - end_stamp is None for instant matches.
-
-        Note:
-            For a graph built from multiple interval claims, this returns
-            stamps for the first synchronous claim's coordinates. Use
-            get_stamps() for all unique timestamps.
-        """
-        if not self._claims:
-            return MatchStamp(), None
-
-        # Find the first synchronous claim with anchors
-        claim = None
-        for c in self._claims:
-            if c.is_synchronous and c.start_anchor is not None:
-                claim = c
-                break
-
-        if claim is None:
-            return MatchStamp(), None
-
-        # Build start stamp
-        start_node: GraphNode = (
-            claim.start_anchor.timeline_a_id,
-            claim.start_anchor.coordinate_a,
-        )
-        start_stamp = self._build_stamp_from_node(start_node)
-
-        # Build end stamp if interval
-        end_stamp = None
-        if claim.end_anchor:
-            end_node: GraphNode = (
-                claim.end_anchor.timeline_a_id,
-                claim.end_anchor.coordinate_a,
-            )
-            end_stamp = self._build_stamp_from_node(end_node)
-
-        return start_stamp, end_stamp
-
-    def get_all_stamps(self) -> list["MatchStamp"]:
-        """Get all unique MatchStamps from the graph.
-
-        .. deprecated::
-            Use ``get_stamps()`` instead. This is an alias retained for
-            backward compatibility.
-
-        Returns:
-            List of MatchStamps, one per connected component.
-        """
-        return self.get_stamps()
 
     def _build_stamp_from_node(self, start_node: GraphNode) -> "MatchStamp":
         """Build a MatchStamp from a starting node.

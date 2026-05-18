@@ -50,10 +50,10 @@ class ScoreEventType:
 
 
 def make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
-    """Create MIDI and Spelled pitch struct types.
+    """Create MIDI and Specific pitch struct types.
 
     Returns:
-        Tuple of (midi_pitch_type, spelled_pitch_type).
+        Tuple of (midi_pitch_type, specific_pitch_type).
     """
     midi_pitch = pa.struct(
         [
@@ -62,7 +62,7 @@ def make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
         ]
     )
 
-    spelled_pitch = pa.struct(
+    specific_pitch = pa.struct(
         [
             pa.field("gpc_int", pa.int64(), nullable=True),
             pa.field("gpc_str", pa.string(), nullable=True),
@@ -74,7 +74,7 @@ def make_pitch_types() -> tuple[pa.StructType, pa.StructType]:
         ]
     )
 
-    return midi_pitch, spelled_pitch
+    return midi_pitch, specific_pitch
 
 
 class ScoreEventData(EventData):
@@ -85,7 +85,7 @@ class ScoreEventData(EventData):
     Schema Extras:
     - octave (int64): Octave number.
     - midi_pitch (struct): {ep, epc}
-    - spelled_pitch (struct): {gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}
+    - specific_pitch (struct): {gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}
     - mn (string): Measure Number label ("1", "1a")
     - mc (int64): Measure Count (monotonic index)
     - event_category (string): "measure", "note", "control", "annotation"
@@ -95,12 +95,12 @@ class ScoreEventData(EventData):
     - part_id (string): Part identifier
     """
 
-    _midi_type, _spelled_type = make_pitch_types()
+    _midi_type, _specific_type = make_pitch_types()
 
     _extra_fields: ClassVar[list[pa.Field]] = [
         pa.field("octave", pa.int64(), nullable=True),
         pa.field("midi_pitch", _midi_type, nullable=True),
-        pa.field("spelled_pitch", _spelled_type, nullable=True),
+        pa.field("specific_pitch", _specific_type, nullable=True),
         pa.field("mn", pa.string(), nullable=True),
         pa.field("mc", pa.int64(), nullable=True),
         pa.field("event_category", pa.string(), nullable=False),
@@ -179,7 +179,7 @@ class ScoreEventData(EventData):
                         row[field] = None
 
             # Sanitize structs logic would go here if needed, but loaders should produce minimal dicts
-            # We trust loaders to produce correct nested dicts for midi_pitch and spelled_pitch
+            # We trust loaders to produce correct nested dicts for midi_pitch and specific_pitch
             # Or we can add safety here.
 
             mp = row.get("midi_pitch")
@@ -191,7 +191,7 @@ class ScoreEventData(EventData):
                         except Exception:
                             mp[f] = None
 
-            sp = row.get("spelled_pitch")
+            sp = row.get("specific_pitch")
             if isinstance(sp, dict):
                 # Strings
                 for f in ["gpc_str", "spc_str", "sp"]:

@@ -7,7 +7,7 @@ DEBUG: PartituraLoader loaded from: /home/laser/git/tta/timetoalign/timetoalign/
 Loading Music21...
 
 --- Comparing Partitura vs TSV (Gold) ---
-Columns: ['_sort_duration', '_sort_start', 'duration', 'end', 'event_category', 'event_type', 'instant', 'mc', 'midi_pitch', 'mn', 'octave', 'spelled_pitch', 'start', 'temporal_type', 'velocity']
+Columns: ['_sort_duration', '_sort_start', 'duration', 'end', 'event_category', 'event_type', 'instant', 'mc', 'midi_pitch', 'mn', 'octave', 'specific_pitch', 'start', 'temporal_type', 'velocity']
 Notes check: Gold=498, Target=498
 
 --- HEAD COMPARISON (First 10) ---
@@ -40,7 +40,7 @@ TARGET (Partitura):
 SUCCESS: 100% Match on Notes for Partitura!
 
 --- Comparing Music21 vs TSV (Gold) ---
-Columns: ['_sort_duration', '_sort_start', 'duration', 'end', 'event_category', 'event_type', 'instant', 'mc', 'midi_pitch', 'mn', 'octave', 'spelled_pitch', 'start', 'temporal_type', 'velocity']
+Columns: ['_sort_duration', '_sort_start', 'duration', 'end', 'event_category', 'event_type', 'instant', 'mc', 'midi_pitch', 'mn', 'octave', 'specific_pitch', 'start', 'temporal_type', 'velocity']
 Notes check: Gold=498, Target=498
 
 --- HEAD COMPARISON (First 10) ---

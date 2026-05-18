@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..types import Coordinate
-from .pitch import MidiPitch, SpelledPitch
+from .pitch import MidiPitch, SpecificPitch
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,7 +22,7 @@ class Note:
         start: Temporal position as a ``Coordinate`` (StartInstant).
         end: End position as a ``Coordinate``, or ``None`` (EndInstant).
         duration: Duration as a ``Coordinate``, or ``None``.
-        pitch: ``MidiPitch`` or ``SpelledPitch`` for pitched notes,
+        pitch: ``MidiPitch`` or ``SpecificPitch`` for pitched notes,
             ``None`` for rests.
         voice: Voice number, or ``None``.
         staff: Staff number, or ``None``.
@@ -33,7 +33,7 @@ class Note:
     start: Coordinate
     end: Coordinate | None
     duration: Coordinate | None
-    pitch: MidiPitch | SpelledPitch | None
+    pitch: MidiPitch | SpecificPitch | None
     voice: int | None
     staff: int | None
     velocity: int | None

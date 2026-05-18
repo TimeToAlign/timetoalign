@@ -6,7 +6,7 @@ These tests pin the class-based discovery contract surfaced in the
 - ``events.get_field(PitchField)`` MUST succeed on raw TSV-loader output
   even when the loader did not (yet) inject ``b"timetoalign"`` JSON
   metadata onto the pitch column.  Discovery falls through to a
-  structural match (the column is a ``midi_pitch`` / ``spelled_pitch``
+  structural match (the column is a ``midi_pitch`` / ``specific_pitch``
   struct) and constructs the field via ``PitchField.from_field()``.
 - ``events.get_field(PitchField)`` MUST raise ``KeyError`` when no
   matching column exists, preserving the existing contract for
@@ -32,7 +32,7 @@ def test_get_field_by_class_returns_first_match() -> None:
     """``events.get_field(PitchField)`` discovers the first pitch column.
 
     The Chopin Op. 10 No. 3 notes TSV produces a NoteEventData table whose
-    ``midi_pitch`` (struct ``{ep, epc}``) and ``spelled_pitch``
+    ``midi_pitch`` (struct ``{ep, epc}``) and ``specific_pitch``
     (struct ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``)
     columns carry no ``b"timetoalign"`` metadata.  Class-based discovery
     must still find them — first match wins, matching column order in
@@ -44,18 +44,18 @@ def test_get_field_by_class_returns_first_match() -> None:
 
     pf = events.get_field(PitchField)
     assert isinstance(pf, PitchField)
-    # Per loader.score.tsv column order, midi_pitch precedes spelled_pitch.
+    # Per loader.score.tsv column order, midi_pitch precedes specific_pitch.
     assert pf.name == "midi_pitch"
     # Subscripting must succeed on a non-blueprint field.
     scalar = pf[3]
     assert scalar is not None
 
 
-def test_get_field_by_class_finds_spelled_and_midi_pitch() -> None:
+def test_get_field_by_class_finds_specific_and_midi_pitch() -> None:
     """``get_fields(PitchField)`` returns both raw struct columns.
 
     Discovery is by struct shape, so both the ``midi_pitch`` and
-    ``spelled_pitch`` columns are recognised as ``PitchField``-shaped.
+    ``specific_pitch`` columns are recognised as ``PitchField``-shaped.
     """
     vienna = ensure_data("vienna_1x22")
     loader = TSVLoader().load(vienna / "ms3" / "chopin_op10_no3.notes.tsv")
@@ -63,7 +63,7 @@ def test_get_field_by_class_finds_spelled_and_midi_pitch() -> None:
 
     fields = events.get_fields(PitchField)
     names = [f.name for f in fields]
-    assert names == ["midi_pitch", "spelled_pitch"]
+    assert names == ["midi_pitch", "specific_pitch"]
 
 
 def test_get_field_by_class_raises_when_no_match() -> None:

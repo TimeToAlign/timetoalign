@@ -14,6 +14,14 @@
 # ---
 
 # %% [markdown]
+# ---
+# ## 1. TSVLoader (ms3-style score TSV)
+#
+# Loads `.notes.tsv`, `.measures.tsv`, `.chords.tsv`, `.harmonies.tsv` files
+# produced by the ms3 library.  The `auto_discover=True` flag picks up companion
+# facets automatically.
+
+# %% [markdown]
 # # How to Load Anything
 #
 # This notebook demonstrates the unified Loader API in the Time To Align! library.
@@ -38,14 +46,6 @@ ensure_data("score", "midi", "vienna_1x22", "supra", "tabular", "thoresen")
 SCORE_DIR = DATA_DIR / "score"
 MIDI_DIR = DATA_DIR / "midi"
 VIENNA_DIR = DATA_DIR / "vienna_1x22"
-
-# %% [markdown]
-# ---
-# ## 1. TSVLoader (ms3-style score TSV)
-#
-# Loads `.notes.tsv`, `.measures.tsv`, `.chords.tsv`, `.harmonies.tsv` files
-# produced by the ms3 library.  The `auto_discover=True` flag picks up companion
-# facets automatically.
 
 # %%
 from timetoalign.loader.score.tsv import TSVLoader
@@ -699,7 +699,7 @@ eep_tl.get_timestamp_table()
 # A `ManifestLoader` for 2-line CSV files from the RepoVizz platform
 # (MoCap/sensor data).  Returns metadata (frame rate, samples), not events.
 #
-# **Note:** `RepoVizzLoader` is a `ManifestLoader`, not an `EventLoader`.
+# **Note:** `RepoVizzLoader` is a `ManifestLoader`, not a `Loader`.
 # It has no `.store` or `.events` -- only `.create_timeline()`.
 
 # %%

@@ -44,8 +44,8 @@ from timetoalign.core.protocols import (
     HarmonyLabelLike,
     PitchLike,
     RomanNumeralHarmonyLike,
+    SpecificPitchClassLike,
     SpecificPitchLike,
-    SpelledPitchClassLike,
     WesternTertianHarmonyLike,
 )
 from timetoalign.core.scalars.harmony import DcmlHarmony, HarmonyLabel
@@ -53,8 +53,8 @@ from timetoalign.core.scalars.pitch import (
     EnharmonicPitchClass,
     GenericPitch,
     MidiPitch,
-    SpelledPitch,
-    SpelledPitchClass,
+    SpecificPitch,
+    SpecificPitchClass,
 )
 from timetoalign.fields.harmony import DcmlLabelField, WesternTertianHarmonyField
 from timetoalign.fields.pitch import PitchField
@@ -93,7 +93,7 @@ CHOPIN_NOTES = VIENNA / "ms3" / "chopin_op10_no3.notes.tsv"
 #
 # | Space | Pitch (with octave) | Pitch Class (octave-free) |
 # |-------|---------------------|---------------------------|
-# | **Specific (fifths)** | `SpelledPitch` | `SpelledPitchClass` |
+# | **Specific (fifths)** | `SpecificPitch` | `SpecificPitchClass` |
 # | **Enharmonic (semitones)** | `EnharmonicPitch` (alias `MidiPitch`) | `EnharmonicPitchClass` |
 # | **Generic (steps)** | `GenericPitch` | `GenericPitchClass` |
 #
@@ -132,13 +132,13 @@ GenericPitch(step=2, octave=4)
 gp_c4.to_dict()
 
 # %% [markdown]
-# ### SpelledPitchClass (SPC): spelling without octave
+# ### SpecificPitchClass (SPC): spelling without octave
 #
 # Distinguishes C♯ from D♭ but carries no octave.  `fifths` is derived
 # from `step` and `alter`.
 
 # %%
-spc = SpelledPitchClass.from_label("C#")
+spc = SpecificPitchClass.from_label("C#")
 spc
 
 # %%
@@ -158,13 +158,13 @@ mp
 mp.to_dict()
 
 # %% [markdown]
-# ### SpelledPitch (SP): full spelling with octave
+# ### SpecificPitch (SP): full spelling with octave
 #
 # The most informative level — preserves enharmonic identity, octave,
 # and optional cents deviation.  `from_label()` parses a pitch string.
 
 # %%
-sp = SpelledPitch.from_label("C#4")
+sp = SpecificPitch.from_label("C#4")
 sp
 
 # %%
@@ -179,10 +179,12 @@ sp.to_dict()
 {
     "EnharmonicPitchClass → GenericPitchLike": isinstance(epc_c, GenericPitchLike),
     "GenericPitch → GenericPitchLike": isinstance(gp_c4, GenericPitchLike),
-    "SpelledPitchClass → SpelledPitchClassLike": isinstance(spc, SpelledPitchClassLike),
+    "SpecificPitchClass → SpecificPitchClassLike": isinstance(
+        spc, SpecificPitchClassLike
+    ),
     "MidiPitch → EnharmonicPitchLike": isinstance(mp, EnharmonicPitchLike),
-    "SpelledPitch → SpecificPitchLike": isinstance(sp, SpecificPitchLike),
-    "SpelledPitch → EnharmonicPitchLike": isinstance(sp, EnharmonicPitchLike),
+    "SpecificPitch → SpecificPitchLike": isinstance(sp, SpecificPitchLike),
+    "SpecificPitch → EnharmonicPitchLike": isinstance(sp, EnharmonicPitchLike),
     "all are PitchLike": all(
         isinstance(p, PitchLike) for p in [epc_c, gp_c4, spc, mp, sp]
     ),
@@ -191,15 +193,15 @@ sp.to_dict()
 # %% [markdown]
 # ### Conversion with `.to()`
 #
-# `SpelledPitch`, being the most informative, converts down to every
+# `SpecificPitch`, being the most informative, converts down to every
 # coarser type.  Conversions that would require missing information
 # (e.g. EPC → MidiPitch) raise `TypeError`.
 
 # %%
 {
-    "SpelledPitch → MidiPitch": sp.to(MidiPitch),
-    "SpelledPitch → SpelledPitchClass": sp.to(SpelledPitchClass),
-    "SpelledPitch → EnharmonicPitchClass": sp.to(EnharmonicPitchClass),
+    "SpecificPitch → MidiPitch": sp.to(MidiPitch),
+    "SpecificPitch → SpecificPitchClass": sp.to(SpecificPitchClass),
+    "SpecificPitch → EnharmonicPitchClass": sp.to(EnharmonicPitchClass),
 }
 
 # %% [markdown]
@@ -225,7 +227,7 @@ epf
 # ### From labels — `PitchField.from_labels(...)`
 #
 # Parses pitch strings into the SP storage struct; returns
-# `SpelledPitch` scalars.
+# `SpecificPitch` scalars.
 
 # %%
 spf = PitchField.from_labels(["C4", "E4", "G4"])
@@ -238,7 +240,7 @@ spf
 # ### From a loader — real Chopin data
 #
 # The Chopin Op. 10 No. 3 notes table carries both `midi_pitch` (EP) and
-# `spelled_pitch` (SP) columns.  The loader produces typed `PitchField`
+# `specific_pitch` (SP) columns.  The loader produces typed `PitchField`
 # views over each one.
 
 # %%
@@ -424,7 +426,7 @@ def describe_pitch(p: PitchLike) -> dict:
     info: dict[str, object] = {"type": p.semantic_type}
     if isinstance(p, GenericPitchLike):
         info["pitch_class"] = p.pitch_class
-    if isinstance(p, SpelledPitchClassLike):
+    if isinstance(p, SpecificPitchClassLike):
         info["step"] = p.step
         info["alter"] = p.alter
     if isinstance(p, EnharmonicPitchLike):
@@ -467,7 +469,7 @@ PitchField.from_field(loaded_arr, name=pa_field.name)[0]
 
 # %% [markdown]
 # > **Key takeaway.**  Time To Align! models pitch across three spaces
-# > (Specific/Spelled, Enharmonic/MIDI, Generic) at two levels (pitch and
+# > (Specific, Enharmonic/MIDI, Generic) at two levels (pitch and
 # > pitch class).  Each is expressed as a Protocol (structural
 # > contract), a Scalar (frozen value), and a Field (columnar wrapper).
 # > Harmony follows the same three-level pattern, with five degrees of

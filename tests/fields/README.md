@@ -14,7 +14,7 @@ the three-layer architecture: **Protocol -> Scalar -> Field**.
 | `test_pitch_field.py` | 50 | Unified `PitchField` with pitch_type variants (ep, epc, sp, spc, gp, gpc) |
 | `test_harmony_field.py` | 36 | Harmony field hierarchy: abstract `HarmonyField`, `WesternTertianHarmonyField`, `RomanNumeralHarmonyField`, `DcmlLabelField` |
 | `test_mixins.py` | 27 | `SemanticFieldAccessMixin` dispatch, `PitchAccessMixin`, `HarmonyAccessMixin`, `MeasureAccessMixin`, EventData composition |
-| `test_score_scalars.py` | 40 | Frozen dataclass scalars: `MidiPitch`, `SpelledPitch`, `Note`, `Measure`, `DcmlHarmony` |
+| `test_score_scalars.py` | 40 | Frozen dataclass scalars: `MidiPitch`, `SpecificPitch`, `Note`, `Measure`, `DcmlHarmony` |
 | `test_real_data_score.py` | 19 | End-to-end validation with real Chopin and Beethoven specimens |
 | **Total** | **225** | |
 
@@ -67,8 +67,8 @@ across all other semantic fields.
 | `TestSPCPitchFieldConstruction` | 3 | `PitchField(spc=...)` from array/struct/schema |
 | `TestEPPitchFieldElementAccess` | 3 | `__getitem__` returns `EnharmonicPitch` with exact values |
 | `TestEPCPitchFieldElementAccess` | 3 | `__getitem__` returns `EnharmonicPitchClass` with exact values |
-| `TestSPCPitchFieldElementAccess` | 2 | `__getitem__` returns `SpelledPitchClass` |
-| `TestSPPitchFieldElementAccess` | 2 | `__getitem__` returns `SpelledPitch` |
+| `TestSPCPitchFieldElementAccess` | 2 | `__getitem__` returns `SpecificPitchClass` |
+| `TestSPPitchFieldElementAccess` | 2 | `__getitem__` returns `SpecificPitch` |
 | `TestProperties` | 8 | `semantic_type` and `metadata_dict` for all pitch_type variants |
 | `TestSerialization` | 4 | `to_field()` metadata injection; Parquet round-trip |
 | `TestDelegation` | 5 | `value`, `len`, `is_empty`, `name`, `field_names` delegation |
@@ -84,9 +84,9 @@ returns a different scalar type from `__getitem__`.
 | pitch_type | Struct Schema | Scalar |
 |---|---|---|
 | `epc` | `{pitch_class: int64}` | `EnharmonicPitchClass` |
-| `spc` | `{gpc_str: string, acc: int64, spc_int: int64}` | `SpelledPitchClass` |
+| `spc` | `{gpc_str: string, acc: int64, spc_int: int64}` | `SpecificPitchClass` |
 | `ep` | `{ep: int64, epc: int64}` | `EnharmonicPitch` |
-| `sp` | `{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}` | `SpelledPitch` |
+| `sp` | `{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}` | `SpecificPitch` |
 
 ### `test_harmony_field.py` (36 tests)
 
@@ -132,10 +132,10 @@ but NOT a `WesternTertianHarmonyField` (parallel branch, not linear chain).
 | `TestPitchAccessMixin` | 5 | `get_pitch_field()` with explicit type; default priority (sp > ep > spc > gpc by pitch_type); raises when no pitch columns exist |
 | `TestHarmonyAccessMixin` | 5 | `get_harmony_field()` with explicit type; default priority (DcmlLabelField > RomanNumeralHarmonyField > WesternTertianHarmonyField); data access |
 | `TestMeasureAccessMixin` | 1 | Placeholder raises `NotImplementedError` |
-| `TestEventDataComposition` | 5 | `NoteEventData` has `PitchAccessMixin`; `MeasureData` has `MeasureAccessMixin`; `AnnotationEventData` has `HarmonyAccessMixin`; backward compat of `pitch_field`/`spelled_pitch_field` properties |
+| `TestEventDataComposition` | 5 | `NoteEventData` has `PitchAccessMixin`; `MeasureData` has `MeasureAccessMixin`; `AnnotationEventData` has `HarmonyAccessMixin`; backward compat of `pitch_field`/`specific_pitch_field` properties |
 
 **Why this matters:**
-The mixin dispatch system replaces hardcoded `pitch_field`/`spelled_pitch_field`
+The mixin dispatch system replaces hardcoded `pitch_field`/`specific_pitch_field`
 properties with type-dispatched `get_field(type)` access. This is the bridge
 between the field hierarchy and the EventData stores. The dispatch scans column
 metadata (`b"timetoalign"` JSON blobs) to reconstruct the appropriate
@@ -148,7 +148,7 @@ metadata (`b"timetoalign"` JSON blobs) to reconstruct the appropriate
 | Test Class | Tests | Purpose |
 |---|---|---|
 | `TestMidiPitch` | 9 | Construction, `PitchLike`/`SpecificPitchClassLike` conformance, `semantic_type`, `metadata_dict`, immutability, `octave` property |
-| `TestSpelledPitch` | 9 | Construction, `PitchLike` conformance, `midi_number` computation (C4=60, B3=59, G#3=56), `pitch_class` computation, immutability |
+| `TestSpecificPitch` | 9 | Construction, `PitchLike` conformance, `midi_number` computation (C4=60, B3=59, G#3=56), `pitch_class` computation, immutability |
 | `TestNote` | 7 | Construction with pitch and as rest, `NoteLike` conformance, `instrument` field, immutability |
 | `TestMeasure` | 7 | Construction, anacrusis, `MeasureLike` conformance, time signature tuple, flow control defaults, immutability |
 | `TestDcmlHarmony` | 8 | Construction, dominant seventh, `HarmonyLabelLike`/`DcmlLabelLike` conformance, `semantic_type`, `metadata_dict`, immutability |
@@ -164,11 +164,11 @@ the standard MIDI specification.
 | Scalar | Property | Value |
 |---|---|---|
 | `MidiPitch(60, 0)` | `octave` | `4` |
-| `SpelledPitch("C", 0, 4, -1, 0.0)` | `midi_number` | `60` |
-| `SpelledPitch("B", 0, 3, 5, 0.0)` | `midi_number` | `59` |
-| `SpelledPitch("G", 1, 3, 8, 0.0)` | `midi_number` | `56` |
-| `SpelledPitch("C", 0, ...)` | `pitch_class` | `0` |
-| `SpelledPitch("B", 0, ...)` | `pitch_class` | `11` |
+| `SpecificPitch("C", 0, 4, -1, 0.0)` | `midi_number` | `60` |
+| `SpecificPitch("B", 0, 3, 5, 0.0)` | `midi_number` | `59` |
+| `SpecificPitch("G", 1, 3, 8, 0.0)` | `midi_number` | `56` |
+| `SpecificPitch("C", 0, ...)` | `pitch_class` | `0` |
+| `SpecificPitch("B", 0, ...)` | `pitch_class` | `11` |
 
 ### `test_real_data_score.py` (19 tests)
 

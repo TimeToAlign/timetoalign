@@ -1622,7 +1622,6 @@ class AlignmentBundle:
             grp = self.groups[grp_id]
             group_info[grp_id] = {
                 "name": grp.name,
-                "reference": grp.reference_timeline_id,
                 "n_timelines": grp.n_timelines,
                 "timeline_ids": sorted(grp.timeline_ids),
             }

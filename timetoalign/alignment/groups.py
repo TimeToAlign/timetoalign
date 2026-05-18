@@ -7,16 +7,13 @@ This module implements the timestamp-based group architecture:
 - Coordinate conversion via linear interpolation between timestamps
 - Locking semantics like Timeline (is_locked, allow_extension)
 
-The PerfectAlignment class is DEPRECATED - groups no longer need per-timeline
-alignment objects. Boundary information is stored directly in the timestamp table.
-
 IMPORTANT CONCEPTUAL DISTINCTION:
 - Perfect Alignment: Bijective coordinate mapping (linear interpolation).
   Does NOT imply the alignment is musically/temporally correct.
 - Correct Alignment: A special case where mapping corresponds to reality.
 
 UNIFIED TIMESTAMP ARCHITECTURE:
-TimelineGroup now implements the TimeStampSource protocol and uses the same
+TimelineGroup implements the TimeStampSource protocol and uses the same
 TimeStamp/TimeIntervalStamp classes as Timeline. This enables:
 - Consistent API across Timeline and TimelineGroup
 - O(log n) coordinate conversion via InterpolationMaps
@@ -26,7 +23,6 @@ TimeStamp/TimeIntervalStamp classes as Timeline. This enables:
 from __future__ import annotations
 
 import logging
-import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Iterator, Literal, Sequence
 
@@ -37,7 +33,6 @@ import pyarrow as pa
 from timetoalign.core import CoordinateSpec, IdCoordinate, IdGenerator, resolve_id
 from timetoalign.core.enums import NumberType
 from timetoalign.core.timestamp import (
-    TimeIntervalStamp,
     TimeStamp,
     _format_coordinate_value,
 )
@@ -77,11 +72,6 @@ class GroupTimestamp:
     This is a view object created from a row in the group's timestamp table.
     Not stored directly - the table is the source of truth.
 
-    .. note::
-        Consider using ``TimelineGroup.get_unified_timestamp()`` instead, which
-        returns a ``TimeStamp`` object compatible with ``Timeline.get_timestamp()``.
-        This provides a consistent API across both Timeline and TimelineGroup.
-
     Attributes:
         coordinates: Dictionary mapping timeline/cmap IDs to coordinates.
             None values indicate the timeline is not present at this instant.
@@ -98,7 +88,6 @@ class GroupTimestamp:
         ['dgt1:1', 'audio:1']
 
     See Also:
-        TimelineGroup.get_unified_timestamp: Returns unified TimeStamp object.
         TimeStamp: The unified timestamp class from ``timetoalign.core``.
     """
 
@@ -187,113 +176,6 @@ class GroupTimestamp:
             f"<tbody>{''.join(rows)}</tbody>"
             f"</table></div>"
         )
-
-
-# endregion
-
-
-# region PerfectAlignment (DEPRECATED)
-
-
-@dataclass(frozen=True)
-class PerfectAlignment:
-    """DEPRECATED: TimelineGroup no longer uses per-timeline alignment objects.
-
-    This class is maintained for backward compatibility only.
-    Use TimelineGroup.add_timeline() with start/end parameters instead.
-
-    Attributes:
-        source_start: Start coordinate in the source timeline (default: 0).
-        source_end: End coordinate in the source timeline.
-        ref_start: Start coordinate in reference timeline (default: 0).
-        ref_end: End coordinate in reference timeline.
-    """
-
-    source_start: float = 0.0
-    source_end: float | None = None
-    ref_start: float = 0.0
-    ref_end: float | None = None
-
-    def __post_init__(self) -> None:
-        """Emit deprecation warning on instantiation."""
-        warnings.warn(
-            "PerfectAlignment is deprecated and will be removed in a future version. "
-            "Use TimelineGroup.add_timeline() with start/end parameters instead.",
-            DeprecationWarning,
-            stacklevel=3,
-        )
-
-    def resolve(
-        self,
-        source_length: float,
-        ref_length: float,
-    ) -> tuple[float, float, float, float]:
-        """Resolve None values to actual coordinates.
-
-        Args:
-            source_length: Length of the source timeline.
-            ref_length: Length of the reference timeline.
-
-        Returns:
-            Tuple of (source_start, source_end, ref_start, ref_end).
-        """
-        src_end = self.source_end if self.source_end is not None else source_length
-        r_end = self.ref_end if self.ref_end is not None else ref_length
-        return (self.source_start, src_end, self.ref_start, r_end)
-
-    def to_reference(
-        self,
-        coord: float,
-        source_length: float,
-        ref_length: float,
-    ) -> float:
-        """Convert source coordinate to reference coordinate.
-
-        Args:
-            coord: Coordinate in the source timeline.
-            source_length: Length of the source timeline.
-            ref_length: Length of the reference timeline.
-
-        Returns:
-            Corresponding coordinate in the reference timeline.
-        """
-        src_start, src_end, r_start, r_end = self.resolve(source_length, ref_length)
-
-        if src_end == src_start:
-            raise ValueError(
-                f"Cannot convert: source range is zero-length "
-                f"(start={src_start}, end={src_end})"
-            )
-
-        ratio = (coord - src_start) / (src_end - src_start)
-        return r_start + ratio * (r_end - r_start)
-
-    def from_reference(
-        self,
-        coord: float,
-        source_length: float,
-        ref_length: float,
-    ) -> float:
-        """Convert reference coordinate to source coordinate.
-
-        Args:
-            coord: Coordinate in the reference timeline.
-            source_length: Length of the source timeline.
-            ref_length: Length of the reference timeline.
-
-        Returns:
-            Corresponding coordinate in the source timeline.
-        """
-        src_start, src_end, r_start, r_end = self.resolve(source_length, ref_length)
-
-        if r_end == r_start:
-            raise ValueError(
-                f"Cannot convert: reference range is zero-length "
-                f"(start={r_start}, end={r_end})"
-            )
-
-        ratio = (coord - r_start) / (r_end - r_start)
-        return src_start + ratio * (src_end - src_start)
 
 
 # endregion
@@ -1445,80 +1327,6 @@ class TimelineGroup:
         # Both bounds must have values for interpolation to work
         return low_target is not None and high_target is not None
 
-    def get_unified_timestamp(
-        self,
-        coordinate: float,
-        timeline_id: str,
-    ) -> TimeStamp:
-        """Get a unified TimeStamp at a specific coordinate.
-
-        .. deprecated::
-            This method is deprecated. Use ``get_timestamp_at(coordinate, timeline_id)``
-            instead, which provides the same functionality.
-
-        Args:
-            coordinate: The query coordinate.
-            timeline_id: Which timeline the coordinate refers to.
-
-        Returns:
-            TimeStamp with the axis coordinate and source set to this group.
-
-        Raises:
-            KeyError: If timeline_id is not in the group.
-            ValueError: If group has no timestamps.
-
-        Examples:
-            >>> ts = group.get_unified_timestamp(75.0, "audio:1")
-            >>> ts.axis  # The resolved coordinate
-            75.0
-            >>> ts["dgt1:1"]  # Get coordinate on another timeline
-            2437.5
-        """
-        warnings.warn(
-            "get_unified_timestamp() is deprecated. Use get_timestamp_at() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.get_timestamp_at(coordinate, timeline_id)
-
-    def get_unified_interval_stamp(
-        self,
-        start: float,
-        end: float,
-        timeline_id: str,
-    ) -> TimeIntervalStamp:
-        """Get a unified TimeIntervalStamp for a coordinate range.
-
-        .. deprecated::
-            This method is deprecated. Use ``get_timestamp_at()`` for start and end
-            coordinates separately, then combine into a ``TimeIntervalStamp`` if needed.
-
-        Args:
-            start: Start coordinate.
-            end: End coordinate.
-            timeline_id: Which timeline the coordinates refer to.
-
-        Returns:
-            TimeIntervalStamp with start and end TimeStamps.
-
-        Examples:
-            >>> interval = group.get_unified_interval_stamp(0.0, 100.0, "audio:1")
-            >>> interval.duration
-            100.0
-            >>> interval["dgt1:1"]  # Get (start, end) tuple
-            (0.0, 3250.0)
-        """
-        warnings.warn(
-            "get_unified_interval_stamp() is deprecated. Use get_timestamp_at() "
-            "for start and end coordinates separately.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return TimeIntervalStamp(
-            start=self.get_timestamp_at(start, timeline_id),
-            end=self.get_timestamp_at(end, timeline_id),
-        )
-
     def _build_interpolation_maps(self) -> None:
         """Build InterpolationMaps from the timestamp table.
 
@@ -1992,55 +1800,6 @@ class TimelineGroup:
         return self.diagram()._repr_html_()
 
     # endregion
-
-    # region Compatibility Methods (Deprecated)
-
-    @classmethod
-    def from_reference(
-        cls,
-        reference: "Timeline",
-        uid: str | None = None,
-        name: str | None = None,
-    ) -> "TimelineGroup":
-        """Create a new group with a reference timeline.
-
-        DEPRECATED: Use TimelineGroup(id=..., timelines=[reference]) instead.
-
-        Args:
-            reference: The timeline to use as reference.
-            uid: Optional explicit ID.
-            name: Optional human-readable name.
-
-        Returns:
-            A new TimelineGroup containing only the reference timeline.
-        """
-        warnings.warn(
-            "TimelineGroup.from_reference() is deprecated. "
-            "Use TimelineGroup(id=..., timelines=[timeline]) instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return cls(id=uid, name=name, timelines=[reference])
-
-    @property
-    def reference_timeline_id(self) -> str | None:
-        """ID of the first timeline added (for compatibility).
-
-        DEPRECATED: The new architecture does not have a reference timeline concept.
-        """
-        if self._timelines:
-            return next(iter(self._timelines.keys()))
-        return None
-
-    @property
-    def reference(self) -> "Timeline | None":
-        """The first timeline added (for compatibility).
-
-        DEPRECATED: The new architecture does not have a reference timeline concept.
-        """
-        if self._timelines:
-            return next(iter(self._timelines.values()))
-        return None
 
     def summary(self) -> dict[str, Any]:
         """Get a summary of the group.

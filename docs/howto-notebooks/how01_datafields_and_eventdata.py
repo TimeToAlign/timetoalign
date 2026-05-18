@@ -238,7 +238,7 @@ start.get_raw()
 # **two** pitch columns:
 #
 # - `midi_pitch` — EP, enharmonic pitch via MIDI numbers
-# - `spelled_pitch` — SP, fully spelled pitch with accidental identity
+# - `specific_pitch` — SP, fully specific pitch with accidental identity
 #
 # A **blueprint** is a `PitchField` (or any SemanticField) that names a
 # column but carries no data.  Passing it to `get_field()` resolves the
@@ -260,10 +260,10 @@ pf_ep
 pf_ep[3], pf_ep[8], pf_ep[16], pf_ep[29]
 
 # %% [markdown]
-# ### SP blueprint (spelled_pitch)
+# ### SP blueprint (specific_pitch)
 
 # %%
-bp_sp = PitchField(sp="spelled_pitch")
+bp_sp = PitchField(sp="specific_pitch")
 pf_sp = events.get_field(bp_sp)
 pf_sp[3], pf_sp[8], pf_sp[16], pf_sp[29]
 
@@ -298,7 +298,7 @@ events.get_field(PitchField(ep="midi_pitch")) is pf_ep
 events.has_field(PitchField)
 
 # %%
-# get_fields -- ALL matching fields (returns both midi_pitch and spelled_pitch)
+# get_fields -- ALL matching fields (returns both midi_pitch and specific_pitch)
 pitch_fields = events.get_fields(PitchField)
 len(pitch_fields), [repr(pf) for pf in pitch_fields]
 

@@ -495,7 +495,7 @@ class PartituraLoader(ScoreLoader):
 
                 # Pitch
                 midi_pitch = None
-                spelled_pitch = None
+                specific_pitch = None
                 octave = None
                 tpc = None
 
@@ -519,7 +519,7 @@ class PartituraLoader(ScoreLoader):
                         spc_int = _BASE_FIFTHS.get(step, 0) + (7 * alter)
                         tpc = spc_int
 
-                        spelled_pitch = {
+                        specific_pitch = {
                             "gpc_int": gpc_int,
                             "gpc_str": step,
                             "acc": alter,
@@ -529,10 +529,10 @@ class PartituraLoader(ScoreLoader):
                             "cents": 0.0,
                         }
 
-                # Compute name from spelled pitch if available
+                # Compute name from specific pitch if available
                 note_name = ""
-                if spelled_pitch and "sp" in spelled_pitch:
-                    note_name = spelled_pitch["sp"]
+                if specific_pitch and "sp" in specific_pitch:
+                    note_name = specific_pitch["sp"]
                 elif midi_pitch and "ep" in midi_pitch:
                     note_name = f"MIDI {midi_pitch['ep']}"
 
@@ -555,7 +555,7 @@ class PartituraLoader(ScoreLoader):
                         "nominal_duration": None,
                         "scalar": None,
                         "midi_pitch": midi_pitch,
-                        "spelled_pitch": spelled_pitch,
+                        "specific_pitch": specific_pitch,
                         "tpc": tpc,
                         "octave": octave,
                         "velocity": 64,

@@ -169,7 +169,7 @@ pd.DataFrame(schema_info)
 # | `duration_float` | Duration as a float for quick queries |
 # | `mc`, `mn` | Measure count and measure number |
 # | `midi_pitch` | MIDI pitch number (0-127) |
-# | `spelled_pitch` | Pitch spelling information |
+# | `specific_pitch` | Pitch spelling information |
 
 # %%
 # Show selected columns for the first few notes
@@ -188,19 +188,19 @@ tsv_df[display_cols].head(10)
 # %% [markdown]
 # ## Pitch Information
 #
-# The `spelled_pitch` column contains rich pitch information as a struct.
+# The `specific_pitch` column contains rich pitch information as a struct.
 # This preserves the enharmonic spelling (e.g., G# vs Ab) which is lost
 # when using only MIDI pitch numbers.
 
 # %%
-# Extract spelled pitch information for the first note
+# Extract specific_pitch pitch information for the first note
 first_note = tsv_df.iloc[0]
 
 {
     "name": first_note["name"],
     "midi_pitch": first_note["midi_pitch"],
     "octave": first_note["octave"],
-    "spelled_pitch": first_note["spelled_pitch"],
+    "specific_pitch": first_note["specific_pitch"],
 }
 
 # %% [markdown]

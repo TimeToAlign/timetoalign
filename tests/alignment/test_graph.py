@@ -332,24 +332,23 @@ class TestMatchGraphStamps:
     ) -> None:
         """Instant claim yields one MatchStamp."""
         graph = MatchGraph([simple_instant_claim])
-        start_stamp, end_stamp = graph.get_match_stamps()
+        stamps = graph.get_stamps()
 
-        assert start_stamp is not None
-        assert end_stamp is None  # Instant = no end stamp
-
-        assert start_stamp.get_coordinate("tl_a") == 100.0
-        assert start_stamp.get_coordinate("tl_b") == 50.0
-        assert len(start_stamp.anchor_edges) == 1
+        assert len(stamps) == 1
+        stamp = stamps[0]
+        assert stamp.get_coordinate("tl_a") == 100.0
+        assert stamp.get_coordinate("tl_b") == 50.0
+        assert len(stamp.anchor_edges) == 1
 
     def test_interval_claim_yields_two_stamps(
         self, simple_interval_claim: MatchClaim
     ) -> None:
         """Interval claim yields two MatchStamps."""
         graph = MatchGraph([simple_interval_claim])
-        start_stamp, end_stamp = graph.get_match_stamps()
+        stamps = sorted(graph.get_stamps(), key=lambda s: s.get_coordinate("tl_a"))
 
-        assert start_stamp is not None
-        assert end_stamp is not None
+        assert len(stamps) == 2
+        start_stamp, end_stamp = stamps
 
         # Start stamp
         assert start_stamp.get_coordinate("tl_a") == 0.0
@@ -359,11 +358,13 @@ class TestMatchGraphStamps:
         assert end_stamp.get_coordinate("tl_a") == 100.0
         assert end_stamp.get_coordinate("tl_b") == 50.0
 
-    def test_get_all_stamps(self, three_timeline_claims: list[MatchClaim]) -> None:
+    def test_get_stamps_three_timeline_chain(
+        self, three_timeline_claims: list[MatchClaim]
+    ) -> None:
         """Get all stamps from graph with multiple connected components."""
         # These claims create a single connected component (A-B-C chain)
         graph = MatchGraph(three_timeline_claims)
-        stamps = graph.get_all_stamps()
+        stamps = graph.get_stamps()
 
         # Should be 1 stamp since all nodes are connected
         assert len(stamps) == 1
@@ -395,7 +396,7 @@ class TestMatchGraphStamps:
             ),  # Disconnected
         ]
         graph = MatchGraph(claims)
-        stamps = graph.get_all_stamps()
+        stamps = graph.get_stamps()
 
         assert len(stamps) == 2
         # Each stamp has 2 timelines
@@ -465,7 +466,9 @@ class TestMatchGraphGroupExtension:
 
         # Get stamp and check audio coordinate
         # 500px in dgt1 (0-1000) should be 50s in audio (0-100)
-        stamp, _ = extended.get_match_stamps()
+        stamps = extended.get_stamps()
+        assert len(stamps) == 1
+        stamp = stamps[0]
         assert stamp.get_coordinate("audio") == pytest.approx(50.0)
 
     def test_extend_marks_inferred_edges(
@@ -489,7 +492,9 @@ class TestMatchGraphGroupExtension:
         timeline_to_group = {"dgt1": "group1", "audio": "group1"}
 
         extended = graph.extend_to_groups(groups, timeline_to_group)
-        stamp, _ = extended.get_match_stamps()
+        stamps = extended.get_stamps()
+        assert len(stamps) == 1
+        stamp = stamps[0]
 
         # Should have 1 explicit edge (dgt1-external)
         # and 1 inferred edge (dgt1-audio or audio-external)
@@ -766,16 +771,14 @@ class TestMatchGraphThoresenIntegration:
         """MatchStamps align at segment boundaries."""
         graph = MatchGraph(thoresen_segment_claims)
 
-        # Get stamps from first claim (segment 1)
-        start_stamp, end_stamp = graph.get_match_stamps()
-
-        # Segment 1 starts at 0 in both
-        assert start_stamp.get_coordinate("dgt1") == 0.0
-        assert start_stamp.get_coordinate("dgt2") == 0.0
-
-        # Segment 1 ends at 967 in DGT1, 866 in DGT2
-        assert end_stamp.get_coordinate("dgt1") == 967.0
-        assert end_stamp.get_coordinate("dgt2") == 866.0
+        # Stamps are one per connected component; find segment-1's start (0,0)
+        # and end (967,866) boundary stamps.
+        stamps = graph.get_stamps()
+        coord_pairs = {
+            (s.get_coordinate("dgt1"), s.get_coordinate("dgt2")) for s in stamps
+        }
+        assert (0.0, 0.0) in coord_pairs
+        assert (967.0, 866.0) in coord_pairs
 
 
 # endregion
@@ -918,17 +921,6 @@ class TestMatchGraphGetStamps:
         graph = MatchGraph()
         stamps = graph.get_stamps()
         assert stamps == []
-
-    def test_get_all_stamps_is_alias(self, simple_instant_claim: MatchClaim) -> None:
-        """get_all_stamps() is an alias for get_stamps()."""
-        graph = MatchGraph([simple_instant_claim])
-        stamps = graph.get_stamps()
-        all_stamps = graph.get_all_stamps()
-
-        assert len(stamps) == len(all_stamps)
-        # Same coordinates
-        for s, a in zip(stamps, all_stamps):
-            assert s.coordinates == a.coordinates
 
 
 class TestMatchGraphExtendToGroupsImplicitClaims:

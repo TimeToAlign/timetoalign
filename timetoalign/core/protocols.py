@@ -20,7 +20,7 @@ Hierarchy Overview::
     │               └── DcmlHarmonyLike
     └── PitchLike                          Pitch-bearing objects
         ├── GenericPitchLike              Pitch class only
-        │   └── SpelledPitchClassLike     + spelling (step, alter, fifths)
+        │   └── SpecificPitchClassLike     + spelling (step, alter, fifths)
         ├── EnharmonicPitchLike           + octave (midi_number) [EP]
         │   └── SpecificPitchLike         + spelling (step, alter, fifths, cents) [SP]
         └── (future: MicrotonalPitchLike)
@@ -207,7 +207,7 @@ class GenericPitchLike(PitchLike, Protocol):
 
 
 @runtime_checkable
-class SpelledPitchClassLike(GenericPitchLike, Protocol):
+class SpecificPitchClassLike(GenericPitchLike, Protocol):
     """Pitch class with spelling (e.g., C\u266f vs D\u266d).
 
     Adds enharmonic identity to the generic pitch class.
@@ -262,7 +262,7 @@ class SpecificPitchLike(EnharmonicPitchLike, Protocol):
     Called "specific" because it preserves the *specific* enharmonic
     spelling.
 
-    The ``SpelledPitch`` scalar (alias ``SpecificPitch``) satisfies
+    The ``SpecificPitch`` scalar (alias ``SpecificPitch``) satisfies
     this protocol.
     """
 
@@ -286,9 +286,6 @@ class SpecificPitchLike(EnharmonicPitchLike, Protocol):
         """Cents value."""
         ...
 
-
-# Backward-compat aliases for the old protocol names
-SpecificPitchClassLike = EnharmonicPitchLike
 
 # endregion Pitch Protocols
 
@@ -452,10 +449,6 @@ class HarmonyLabelLike(SemanticTypeLike, Protocol):
         ...
 
 
-# Backward-compat alias
-HarmonyLike = HarmonyLabelLike
-
-
 @runtime_checkable
 class PitchBasedHarmonyLike(HarmonyLabelLike, Protocol):
     """Harmony grounded in pitch, modelled after OHR.
@@ -559,7 +552,7 @@ class TwelveTETPitchMixin:
     Not a Protocol -- a mixin that provides ``pitch_class``, a unified
     ``.to()`` dispatch method, and a ``.get()`` method with ``format``
     support.  Scalar pitch classes (``EnharmonicPitchClass``, ``MidiPitch``,
-    ``SpelledPitch``, etc.) compose this mixin.
+    ``SpecificPitch``, etc.) compose this mixin.
     """
 
     @property
@@ -578,7 +571,7 @@ class TwelveTETPitchMixin:
 
         Args:
             target_type: The target pitch type (e.g., ``EnharmonicPitchClass``,
-                ``MidiPitch``, ``SpelledPitch``).
+                ``MidiPitch``, ``SpecificPitch``).
             format: Optional format specifier controlling output
                 representation (e.g., for string formatting).
 
@@ -597,7 +590,7 @@ class TwelveTETPitchMixin:
         """Return a string representation of this pitch.
 
         Args:
-            format: Format specifier (e.g., ``"midi"``, ``"spelled"``,
+            format: Format specifier (e.g., ``"midi"``, ``"specific"``,
                 ``"lily"``, ``"kern"``, ``"abc"``).  Default uses the
                 most natural format for this pitch type.
 

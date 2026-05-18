@@ -163,13 +163,13 @@ class TestThoresenGroupSetup:
     def test_dgt1_group_structure(self, dgt1_group: TimelineGroup) -> None:
         """DGT1 group has reference + audio timelines."""
         assert dgt1_group.n_timelines == 2
-        assert dgt1_group.reference_timeline_id == "dgt1"
+        assert "dgt1" in dgt1_group
         assert "audio" in dgt1_group
 
     def test_dgt2_group_structure(self, dgt2_group: TimelineGroup) -> None:
         """DGT2 group has reference timeline."""
         assert dgt2_group.n_timelines == 1
-        assert dgt2_group.reference_timeline_id == "dgt2"
+        assert "dgt2" in dgt2_group
 
     def test_pixel_to_second_conversion(self, dgt1_group: TimelineGroup) -> None:
         """DGT1 pixels convert correctly to seconds."""

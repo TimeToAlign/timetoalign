@@ -127,7 +127,7 @@ def event_to_coords(event_id: str) -> dict:
     raise ValueError(f"Event {event_id} not found")
 
 
-# Event H (rect_h2) - kept for backward compatibility
+# Event H (rect_h2) constants used by test_graphical_loader
 EVENT_H_SEGMENT_INDEX = 1
 EVENT_H_START_LOCAL = 378  # 385 - 7
 EVENT_H_END_LOCAL = 517  # 378 + 139

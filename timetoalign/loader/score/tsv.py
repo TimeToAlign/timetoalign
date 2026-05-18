@@ -344,8 +344,8 @@ class TSVLoader(ScoreLoader):
                 ep = int(row["midi"])
                 midi_pitch = {"ep": ep, "epc": ep % 12}
 
-            # Pitch - Spelled
-            spelled_pitch = None
+            # Pitch - Specific
+            specific_pitch = None
             if pd.notna(row.get("name")):
                 name = str(row["name"])
                 step = name[0] if name else "C"
@@ -373,7 +373,7 @@ class TSVLoader(ScoreLoader):
                     else base_fifths.get(step, 0) + (7 * alter)
                 )
 
-                spelled_pitch = {
+                specific_pitch = {
                     "gpc_int": gpc_int,
                     "gpc_str": step,
                     "acc": alter,
@@ -441,7 +441,7 @@ class TSVLoader(ScoreLoader):
                     ),
                     # Pitch
                     "midi_pitch": midi_pitch,
-                    "spelled_pitch": spelled_pitch,
+                    "specific_pitch": specific_pitch,
                     "tpc": tpc_val,
                     "octave": octave_val,
                     # Attributes

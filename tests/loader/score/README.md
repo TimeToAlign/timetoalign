@@ -218,7 +218,7 @@ We load *Chopin Op. 10 No. 3* using three loaders and verify consistency:
 
 1. **Note Count Consistency**: All loaders return 498 Notes (rests tracked separately)
 2. **Temporal Schema**: `quarterbeats` stored as Fraction structs `{num, den}`
-3. **Pitch Schema**: `midi_pitch` and `spelled_pitch` fully populated
+3. **Pitch Schema**: `midi_pitch` and `specific_pitch` fully populated
 4. **Measure Context**: `mc`, `mn`, `mc_onset` correctly computed
 
 ## MeasureMapLoader Tests

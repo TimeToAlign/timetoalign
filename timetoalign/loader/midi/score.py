@@ -23,7 +23,7 @@ class ScoreMidiLoader(MidiLoader):
     """Load score MIDI files using partitura.
 
     This loader uses partitura's sophisticated MIDI parsing to extract structural
-    information like voices, parts, and spelled pitches (optional). It is ideal
+    information like voices, parts, and specific pitches (optional). It is ideal
     for quantized MIDI files representing scores.
     """
 

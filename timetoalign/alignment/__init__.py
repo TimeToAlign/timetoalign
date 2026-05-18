@@ -7,7 +7,6 @@ Public API:
 - AlignmentBundle: Primary entry point for alignment workflows
 - TimelineGroup: Container for commensurable timelines (timestamp-based)
 - GroupTimestamp: A synchronized instant across all timelines in a group
-- PerfectAlignment: DEPRECATED - Use TimelineGroup.add_timeline() instead
 - AlignmentAnchor: Atomic coordinate pair claim
 - MatchClaim: Low-level match between two events
 - MatchMetadata: Provenance information for matches
@@ -23,7 +22,7 @@ from .anchors import AlignmentAnchor, MatchClaim, MatchMetadata
 from .bundle import AlignmentBundle
 from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
-from .groups import GroupTimestamp, PerfectAlignment, TimelineGroup
+from .groups import GroupTimestamp, TimelineGroup
 from .match_format import MatchFileContext, NoteRecord, SnoteRecord
 from .matching import (
     MatchResult,
@@ -40,8 +39,6 @@ __all__ = [
     # Groups
     "TimelineGroup",
     "GroupTimestamp",
-    # DEPRECATED - kept for backward compatibility
-    "PerfectAlignment",
     # Anchors and Claims
     "AlignmentAnchor",
     "MatchClaim",
