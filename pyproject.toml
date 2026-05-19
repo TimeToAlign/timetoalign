@@ -29,7 +29,8 @@ dependencies = [
     "pyarrow>=14.0",
     "pandas>=2.0",
     "networkx>=3.0",
-    "typing_extensions>=4.0"
+    "typing_extensions>=4.0",
+    "pydantic>=2.7,<3",
 ]
 
 [project.optional-dependencies]

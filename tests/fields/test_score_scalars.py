@@ -10,7 +10,7 @@ from timetoalign.core.enums import TimeUnit
 from timetoalign.core.protocols import (
     DcmlHarmonyLike,
     EnharmonicPitchLike,
-    HarmonyLike,
+    HarmonyLabelLike,
     MeasureLike,
     NoteLike,
     PitchLike,
@@ -90,13 +90,18 @@ class TestSpecificPitch:
     """Tests for SpecificPitch scalar construction and protocol conformance."""
 
     def test_construction_basic(self) -> None:
-        """Construct SpecificPitch for C4 (fifths auto-derived)."""
+        """Construct SpecificPitch for C4 (fifths auto-derived).
+
+        Post-WP2 pilot: ``cents`` defaults to ``None`` (the field is
+        ``float | None = None``) instead of ``0.0``.  The pa.Schema
+        treats ``cents`` as a nullable float64 column.
+        """
         p = SpecificPitch(step="C", alter=0, octave=4)
         assert p.step == "C"
         assert p.alter == 0
         assert p.octave == 4
         assert p.fifths == 0  # auto-derived: C=0
-        assert p.cents == 0.0  # default
+        assert p.cents is None  # new default — see WP2 schema lock
 
     def test_construction_gsharp(self) -> None:
         """Construct SpecificPitch for G#3 (fifths auto-derived)."""
@@ -142,10 +147,18 @@ class TestSpecificPitch:
         assert p.semantic_type == "SpecificPitch"
 
     def test_frozen_immutable(self) -> None:
-        """SpecificPitch is frozen (immutable)."""
+        """SpecificPitch is frozen (immutable).
+
+        Post-WP2 pilot migration to pydantic v2 BaseModel: assignment
+        on a frozen instance raises ``ValidationError`` (not the
+        dataclass ``AttributeError``).
+        """
         p = SpecificPitch(step="C", alter=0, octave=4)
-        with pytest.raises(AttributeError):
+        with pytest.raises(Exception) as exc_info:
             p.step = "D"  # type: ignore[misc]
+        assert "frozen" in str(exc_info.value).lower() or isinstance(
+            exc_info.value, AttributeError
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -412,8 +425,8 @@ class TestDcmlHarmony:
         assert h.inversion == 1
         assert h.chord_type == "Mm7"
 
-    def test_harmonylike_conformance(self) -> None:
-        """DcmlHarmony satisfies HarmonyLike protocol."""
+    def test_harmonylabellike_conformance(self) -> None:
+        """DcmlHarmony satisfies HarmonyLabelLike protocol."""
         h = DcmlHarmony(
             label="i",
             globalkey="c",
@@ -423,7 +436,7 @@ class TestDcmlHarmony:
             root=0,
             bass=0,
         )
-        assert isinstance(h, HarmonyLike)
+        assert isinstance(h, HarmonyLabelLike)
 
     def test_dcmllabellike_conformance(self) -> None:
         """DcmlHarmony satisfies DcmlHarmonyLike protocol."""

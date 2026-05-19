@@ -33,10 +33,14 @@ from ..core.scalars.pitch import (
     SpecificPitch,
     SpecificPitchClass,
 )
+from ..core.schemas import (
+    TIMETOALIGN_METADATA_KEY,
+    metadata_blob_from_dict,
+)
 from .base import SemanticField, StructField
 from .schemas import PitchSpaceSchema
 
-_TIMETOALIGN_KEY = b"timetoalign"
+_TIMETOALIGN_KEY = TIMETOALIGN_METADATA_KEY  # backward-compat alias for grep paths
 
 _TYPE_METADATA: dict[str, dict[str, object]] = {
     "sp": {"space": "specific", "is_class": False},
@@ -217,13 +221,27 @@ class PitchField(SemanticField[StructField]):
         """Construct from pitch label strings (e.g. ``["C4", "E4", "G4"]``).
 
         Parses each label via ``SpecificPitch.from_label()`` and stores
-        as SP (fifths space, specific level).
+        as SP in the unified ``PitchSpaceSchema`` (``{value, octave}``).
+
+        Construction proceeds in two regimes:
+
+        * ``SpecificPitch.from_label(...)`` is the **trust boundary**:
+          full pydantic validation on each parsed label.
+        * The pa.Array assembly that follows is **bulk construction** —
+          column-builder pattern, pulling ``fifths`` and ``octave``
+          attribute-wise from the validated scalar list.  ``model_dump``
+          row-wise is forbidden by the WP2 plan.
         """
-        rows = []
-        for lbl in labels:
-            sp = SpecificPitch.from_label(lbl)
-            rows.append({"value": sp.fifths, "octave": sp.octave})
-        arr = pa.array(rows, type=PitchSpaceSchema.schema)
+        # regime: trust boundary — model_validate via SpecificPitch.from_label.
+        scalars = [SpecificPitch.from_label(lbl) for lbl in labels]
+        # regime: bulk construction — column-builder pulls attributes
+        # column-wise (NOT through model_dump row-wise).
+        values_arr = pa.array([sp.fifths for sp in scalars], type=pa.int64())
+        octaves_arr = pa.array([sp.octave for sp in scalars], type=pa.int64())
+        arr = pa.StructArray.from_arrays(
+            [values_arr, octaves_arr],
+            fields=list(PitchSpaceSchema.schema),
+        )
         pa_field = pa.field(name, PitchSpaceSchema.schema)
         return cls(StructField(arr, pa_field), pitch_type="sp")
 
@@ -322,8 +340,17 @@ class PitchField(SemanticField[StructField]):
     # -- serialisation -------------------------------------------------------
 
     def to_field(self) -> pa.Field:
-        """Return a ``pa.Field`` with ``b"timetoalign"`` metadata injected."""
-        meta_blob = json.dumps(self.metadata_dict()).encode("utf-8")
+        """Return a ``pa.Field`` with ``b"timetoalign"`` metadata injected.
+
+        Routes through
+        :func:`timetoalign.core.schemas.metadata_blob_from_dict` — same
+        unified path used by :class:`CoordinateField` and the harmony
+        fields.  Pitch scalars are not yet pydantic-migrated, so the
+        payload remains the existing ``{field_type, pitch_type, …}``
+        shape (per the WP2 plan, payload shape is preserved for
+        not-yet-migrated scalars).
+        """
+        meta_blob = metadata_blob_from_dict(self.metadata_dict())
         existing = self._field.metadata or {}
         merged = {**existing, _TIMETOALIGN_KEY: meta_blob}
         return self._field.with_metadata(merged)

@@ -53,8 +53,13 @@ class TestCoordinateCreation:
     def test_coordinate_is_frozen(self) -> None:
         """Coordinate is immutable."""
         c = Coordinate(120, TimeUnit.ticks)
-        with pytest.raises(AttributeError):
+        # Pydantic v2 BaseModel with ``frozen=True`` raises ValidationError
+        # on attribute assignment (not the dataclass AttributeError).
+        with pytest.raises(Exception) as exc_info:
             c.value = 240  # type: ignore[misc]
+        assert "frozen" in str(exc_info.value).lower() or isinstance(
+            exc_info.value, (AttributeError, ValueError)
+        )
 
     def test_coordinate_is_hashable(self) -> None:
         """Coordinate can be used in sets and as dict keys."""
@@ -138,12 +143,14 @@ class TestCoordinateProperties:
         assert c.number_type == NumberType.fraction
 
     def test_number_type_bool_raises(self) -> None:
-        """Boolean values are rejected in number_type property."""
-        # Note: bool is subclass of int, so it passes __post_init__
-        # but number_type should reject it
-        c = Coordinate(True, TimeUnit.ticks)  # type: ignore[arg-type]
-        with pytest.raises(TypeError, match="Boolean values"):
-            _ = c.number_type
+        """Boolean values are rejected at Coordinate construction.
+
+        Post-WP2 pilot migration to pydantic v2 BaseModel: the validator
+        rejects bool eagerly at construction (a stricter and earlier
+        rejection than the pre-migration ``number_type``-only check).
+        """
+        with pytest.raises(Exception, match="Boolean values"):
+            Coordinate(True, TimeUnit.ticks)  # type: ignore[arg-type]
 
     def test_domain_physical(self) -> None:
         """domain property returns PHYSICAL for physical units."""

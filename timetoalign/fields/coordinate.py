@@ -19,11 +19,15 @@ from abc import abstractmethod
 import pyarrow as pa
 
 from ..core.enums import Domain, NumberType, TimeUnit
+from ..core.schemas import (
+    TIMETOALIGN_METADATA_KEY,
+    metadata_blob_from_dict,
+)
 from ..core.types import Coordinate
 from ..loader.schema import struct_to_coordinate
 from .base import SemanticField, StructField
 
-_TIMETOALIGN_KEY = b"timetoalign"
+_TIMETOALIGN_KEY = TIMETOALIGN_METADATA_KEY  # backward-compat alias for grep paths
 
 
 # ---------------------------------------------------------------------------
@@ -75,8 +79,17 @@ class NumberField(SemanticField[StructField]):
     # -- serialisation helpers -----------------------------------------------
 
     def to_field(self) -> pa.Field:
-        """Return a ``pa.Field`` with ``b"timetoalign"`` metadata injected."""
-        meta_blob = json.dumps(self.metadata_dict()).encode("utf-8")
+        """Return a ``pa.Field`` with ``b"timetoalign"`` metadata injected.
+
+        Routes the blob construction through
+        :mod:`timetoalign.core.schemas.parquet_metadata`.  This call site
+        uses :func:`metadata_blob_from_dict` to preserve the existing
+        per-instance payload shape ``{field_type, unit, domain,
+        number_type}``; switching to the full pydantic JSONSchema blob
+        is a separate refactor that must also migrate Coordinate's
+        per-instance unit handling.
+        """
+        meta_blob = metadata_blob_from_dict(self.metadata_dict())
         existing = self._field.metadata or {}
         merged = {**existing, _TIMETOALIGN_KEY: meta_blob}
         return self._field.with_metadata(merged)
