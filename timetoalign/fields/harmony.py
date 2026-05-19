@@ -21,7 +21,6 @@ in ``fields.schemas`` -- the single source of truth for schema definitions.
 
 from __future__ import annotations
 
-import json
 from abc import abstractmethod
 
 import pyarrow as pa
@@ -32,9 +31,13 @@ from ..core.scalars.harmony import (
     RomanNumeralHarmony,
     WesternTertianHarmony,
 )
+from ..core.schemas import (
+    TIMETOALIGN_METADATA_KEY,
+    metadata_blob_from_dict,
+)
 from .base import SemanticField, StructField
 
-_TIMETOALIGN_KEY = b"timetoalign"
+_TIMETOALIGN_KEY = TIMETOALIGN_METADATA_KEY  # backward-compat alias for grep paths
 
 
 # ---------------------------------------------------------------------------
@@ -150,10 +153,16 @@ class HarmonyField(SemanticField[StructField]):
     def to_field(self) -> pa.Field:
         """Return a ``pa.Field`` with ``b"timetoalign"`` metadata injected.
 
+        Routes through
+        :func:`timetoalign.core.schemas.metadata_blob_from_dict` — same
+        unified path used by :class:`CoordinateField` and the pitch
+        fields.  Harmony scalars are not yet pydantic-migrated, so the
+        payload retains the existing per-field-type shape.
+
         Returns:
             A ``pa.Field`` with enriched metadata.
         """
-        meta_blob = json.dumps(self.metadata_dict()).encode("utf-8")
+        meta_blob = metadata_blob_from_dict(self.metadata_dict())
         existing = self._field.metadata or {}
         merged = {**existing, _TIMETOALIGN_KEY: meta_blob}
         return self._field.with_metadata(merged)

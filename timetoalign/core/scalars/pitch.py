@@ -34,7 +34,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 from ..protocols import TwelveTETPitchMixin
 
@@ -702,49 +704,76 @@ class MidiPitch(EnharmonicPitch):
 # region SpecificPitch
 
 
-@dataclass(frozen=True, slots=True)
-class SpecificPitch(TwelveTETPitchMixin):
+_SPECIFIC_PITCH_STEPS = ("C", "D", "E", "F", "G", "A", "B")
+_StepLiteral = Literal["C", "D", "E", "F", "G", "A", "B"]
+
+
+class SpecificPitch(BaseModel, TwelveTETPitchMixin):
     """Specific pitch scalar with full enharmonic identity.
 
     Satisfies ``SpecificPitchLike``.
 
-    Called "specific" at the schema/field level because it preserves the
-    *specific* enharmonic spelling (C♯4 ≠ D♭4).
+    Called "specific" because it preserves the *specific* enharmonic
+    spelling (C♯4 ≠ D♭4).
 
-    Wraps the ``specific_pitch`` struct from ``NoteEventData``:
-    ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``.
-
-    ``fifths`` is automatically derived from ``step`` and ``alter``.
+    WP2 pilot scalar: defined as a pydantic v2 ``BaseModel``.  The
+    PyArrow storage shape derived from this model is
+    ``{step: string, alter: int64, octave: int64, cents: float64 nullable}`` —
+    the minimal set of fields that affords every derivative
+    representation.  ``fifths``, ``midi_number``, and ``pitch_class``
+    are ``@computed_field`` properties; they are NOT in the pa.Schema
+    and NOT in the Arrow column, per the WP2 locked decision.
 
     Attributes:
-        step: Generic pitch class as string (from ``gpc_str``).
-        alter: Accidental in semitones (from ``acc``).
-        octave: Octave number (derived from ``sp``).
-        fifths: Specific pitch class in fifths (auto-derived).
-        cents: Cents deviation from 12-TET.
+        step: Generic pitch class as letter (``"C"``, ``"D"``, ``"E"``,
+            ``"F"``, ``"G"``, ``"A"``, ``"B"``).
+        alter: Accidental in semitones (``-1=flat``, ``0=natural``,
+            ``+1=sharp``).  Defaults to 0.
+        octave: Octave number (C4 = MIDI 60 → octave 4).
+        cents: Cents deviation from 12-TET, or ``None`` if not measured.
     """
 
-    step: str
-    alter: int
-    octave: int
-    fifths: int = field(init=False)
-    cents: float = 0.0
+    model_config = ConfigDict(frozen=True)
 
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "fifths", _step_alter_to_fifths(self.step, self.alter))
+    step: _StepLiteral
+    alter: int = 0
+    octave: int
+    cents: float | None = None
+
+    # --- Validators --------------------------------------------------------
+
+    @field_validator("step", mode="before")
+    @classmethod
+    def _normalise_step(cls, v: object) -> str:
+        if not isinstance(v, str):
+            raise TypeError(f"step must be a string, got {type(v).__name__}")
+        upper = v.upper()
+        if upper not in _SPECIFIC_PITCH_STEPS:
+            raise ValueError(f"step must be one of {_SPECIFIC_PITCH_STEPS}, got {v!r}")
+        return upper
+
+    # --- Computed fields (NOT stored in pa.Schema) -------------------------
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def fifths(self) -> int:
+        """Position on the line of fifths.
+
+        Computed field — derived from ``step + alter``.  NOT stored in
+        the pa.Schema and NOT in the Arrow column.  Materialises on
+        access.
+        """
+        return _step_alter_to_fifths(self.step, self.alter)
 
     @property
     def midi_number(self) -> int:
-        """Compute MIDI note number from step, alter, and octave.
-
-        Uses the standard MIDI mapping: C4 = 60.
-        """
+        """MIDI note number computed from step, alter, octave (C4 = 60)."""
         base = _STEP_TO_SEMITONE.get(self.step, 0)
         return (self.octave + 1) * 12 + base + self.alter
 
     @property
     def pitch_class(self) -> int:  # type: ignore[override]
-        """Compute pitch class (0-11) from step and alter."""
+        """Pitch class (0-11) derived from step and alter."""
         base = _STEP_TO_SEMITONE.get(self.step, 0)
         return (base + self.alter) % 12
 
@@ -804,13 +833,24 @@ class SpecificPitch(TwelveTETPitchMixin):
             alter_str = "\u266d" * abs(self.alter)
         return f"{self.step}{alter_str}{self.octave}"
 
-    def to_dict(self) -> dict[str, object]:
-        """Return a dict mirroring the SP storage struct.
+    # --- Legacy storage struct mapping ------------------------------------
+    #
+    # The "legacy SP storage struct" referenced below is
+    # ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}`` — the
+    # over-specified shape used in NoteEventData _before_ the WP2 pilot.
+    # ``to_dict()`` and ``from_row()`` are the two-way mapping between
+    # that legacy struct and the new minimal pydantic model; they keep
+    # existing PitchField round-trips working during the bulk migration.
+    # Tutorials / docs MUST use ``from_*()`` constructors (CLAUDE.md §9);
+    # ``from_row`` / ``to_dict`` are internal.
 
-        Returns:
-            A dict with ``gpc_int``, ``gpc_str``, ``acc``, ``spc_int``,
-            ``spc_str``, ``sp``, ``cents`` storage fields, plus derived
-            ``midi_number`` and ``pitch_class``.
+    def to_dict(self) -> dict[str, object]:
+        """Return a dict mirroring the legacy SP storage struct.
+
+        Internal use only — preserves backward compatibility with the
+        existing ``SpecificPitchSchema`` Parquet round-trip during the
+        bulk migration.  Bulk SemanticField construction uses the
+        column-builder pattern over ``model_fields``, NOT this method.
         """
         return {
             "gpc_int": _STEP_TO_GPC[self.step],
@@ -819,7 +859,7 @@ class SpecificPitch(TwelveTETPitchMixin):
             "spc_int": self.fifths,
             "spc_str": self.get().rstrip("0123456789-"),
             "sp": self.get(),
-            "cents": self.cents,
+            "cents": self.cents if self.cents is not None else 0.0,
             "midi_number": self.midi_number,
             "pitch_class": self.pitch_class,
         }
@@ -855,14 +895,20 @@ class SpecificPitch(TwelveTETPitchMixin):
         return cls(step=step, alter=alter, octave=octave)
 
     @classmethod
-    def from_row(cls, row: dict[str, Any]) -> SpecificPitch | None:
-        """Construct from a PyArrow struct row dict.
+    def from_row(cls, row: dict[str, Any]) -> "SpecificPitch | None":
+        """Construct from a PyArrow struct row dict (trust-boundary regime).
 
-        Accepts the ``specific_pitch`` (SP) struct:
+        Accepts the legacy SP storage struct
         ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``.
 
+        Regime: **trust boundary** — per-row construction via the
+        pydantic model's validators.  Invalid input raises
+        ``ValidationError``.  Bulk reads of TTA-written Parquet using
+        the new minimal schema should go through
+        ``cls.model_construct(...)`` instead.
+
         Args:
-            row: Dict with storage field names.
+            row: Dict with legacy SP storage field names.
 
         Returns:
             A ``SpecificPitch``, or ``None`` if ``gpc_str`` is null.
@@ -871,10 +917,11 @@ class SpecificPitch(TwelveTETPitchMixin):
         if step is None:
             return None
         alter = int(row.get("acc", 0) or 0)
-        cents = float(row.get("cents", 0.0) or 0.0)
-        # Extract octave from 'sp' string (e.g. "C4" -> 4)
+        cents_raw = row.get("cents")
+        cents = float(cents_raw) if cents_raw is not None else None
         sp = row.get("sp", "")
         octave = _parse_octave_from_sp(sp, str(step))
+        # regime: trust boundary — full validators run on construction.
         return cls(
             step=str(step),
             alter=alter,
@@ -900,9 +947,5 @@ def _parse_octave_from_sp(sp: str | None, step: str) -> int:
         pass
     return 4
 
-
-# Protocol-name re-export: ``SpecificPitch`` is the same class as ``SpecificPitch``.
-# "Specific" because it preserves the specific enharmonic spelling (C♯4 ≠ D♭4).
-SpecificPitch = SpecificPitch
 
 # endregion SpecificPitch

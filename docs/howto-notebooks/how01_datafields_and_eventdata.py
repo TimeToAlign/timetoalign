@@ -372,6 +372,119 @@ loaded_cf = CoordinateField.from_table(loaded)
 loaded_cf[8]
 
 # %% [markdown]
+# ## Schema Introspection — Pydantic to JSONSchema to Frictionless
+#
+# Each scalar's schema is owned by a pydantic v2 model.  That model is
+# the single source of truth: the PyArrow struct that backs a column,
+# the metadata blob that travels with Parquet, and the JSONSchema that
+# external tools consume are all derived from it.  The model is also
+# the project's **edge validator** at trust boundaries (external
+# Parquet, untrusted CSV, `.jsonl` ingest); on internal round-trips the
+# pa.Schema is trusted instead.
+#
+# `model_json_schema()` is the cross-language interop artifact —
+# nothing TTA-specific, just standard JSONSchema.  The same payload
+# is what lives inside `b"timetoalign"` on every emitted column.
+
+# %%
+from timetoalign.core.scalars.pitch import SpecificPitch
+from timetoalign.core.types import Coordinate
+
+# %% [markdown]
+# `Coordinate.model_json_schema()` — value + unit, the minimal pair
+# every coordinate needs.  The PyArrow projection denormalises `value`
+# into `{value, numerator, denominator}` so rational precision survives
+# a round-trip, but the *schema* exposes the user-facing pair.
+
+# %%
+print(json.dumps(Coordinate.model_json_schema(), indent=2))
+
+# %% [markdown]
+# `SpecificPitch.model_json_schema()` — required `step` + `octave`,
+# optional `alter` and `cents`.  Computed fields (`fifths`,
+# `midi_number`, `pitch_class`) are derived on access and absent
+# from the schema by design.
+
+# %%
+print(json.dumps(SpecificPitch.model_json_schema(), indent=2))
+
+# %% [markdown]
+# ### Round-Trip to a Frictionless Data Resource
+#
+# A JSONSchema produced by pydantic maps cleanly onto a [Frictionless
+# Data Resource](https://specs.frictionlessdata.io/data-resource/)
+# descriptor: each property becomes a field on the resource's schema,
+# carrying its type and constraints.  This is the interchange surface
+# for tabular consumers — DCML, MEI exports, statistical pipelines —
+# that do not speak Arrow natively.
+
+
+# %%
+def jsonschema_to_frictionless(
+    model_cls: type, *, resource_name: str
+) -> dict[str, object]:
+    """Project a pydantic model's JSONSchema onto a Frictionless descriptor.
+
+    Minimal helper used here purely to illustrate the round-trip: it
+    maps the JSONSchema property types onto Frictionless field types
+    and preserves the ``required`` list.  Real-world projects should
+    consider :func:`frictionless.Schema.from_jsonschema` (the
+    ``frictionless`` package) for a complete implementation.
+    """
+    schema = model_cls.model_json_schema()
+    type_map = {
+        "string": "string",
+        "integer": "integer",
+        "number": "number",
+        "boolean": "boolean",
+    }
+    required = set(schema.get("required", []))
+    fields = []
+    for name, prop in schema.get("properties", {}).items():
+        prop_type = prop.get("type")
+        # Pydantic emits ``anyOf`` for Optional[T]; flatten by taking the
+        # first non-null type.
+        if prop_type is None and "anyOf" in prop:
+            non_null = [a.get("type") for a in prop["anyOf"] if a.get("type") != "null"]
+            prop_type = non_null[0] if non_null else "string"
+        fields.append(
+            {
+                "name": name,
+                "type": type_map.get(prop_type, "any"),
+                "constraints": {"required": name in required},
+            }
+        )
+    return {
+        "name": resource_name,
+        "schema": {"fields": fields},
+    }
+
+
+# %%
+coordinate_resource = jsonschema_to_frictionless(Coordinate, resource_name="coordinate")
+coordinate_resource
+
+# %%
+specific_pitch_resource = jsonschema_to_frictionless(
+    SpecificPitch, resource_name="specific_pitch"
+)
+specific_pitch_resource
+
+# %% [markdown]
+# **Three validation regimes — one schema source.**  The same pydantic
+# model drives all three:
+#
+# - **Trust boundary** — `Model.model_validate(...)` on each incoming
+#   record (untrusted CSV column, `.jsonl` import, foreign Parquet).
+# - **Internal round-trip** — `Model.model_construct(**dict)` on dicts
+#   that came back from a TTA-written pa.Array.  The pa.Schema is the
+#   trusted artifact; validators do not re-run.
+# - **Bulk construction** — column-builder pattern over `model_fields`
+#   (one `pa.array` per field name) when assembling a SemanticField
+#   from many already-validated scalars.  Row-wise `model_dump` is
+#   never used in this regime.
+
+# %% [markdown]
 # > **Key takeaway.**  An `EventData` exposes its contents along the
 # > data-access axis: Layer 0 (raw Fields, including nested structs),
 # > Layer 1 (semantic Fields with typed scalars), Layer 2 (external
