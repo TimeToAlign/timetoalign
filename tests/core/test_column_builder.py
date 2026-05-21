@@ -12,13 +12,13 @@ import pyarrow as pa
 import pytest
 
 from timetoalign.core.enums import NumberType, TimeUnit
-from timetoalign.core.scalars.pitch import SpecificPitch
-from timetoalign.core.schemas import (
+from timetoalign.core.events import SpecificPitch
+from timetoalign.core.fields import (
     build_coordinate_struct_array,
     build_struct_array,
     derive_arrow_struct,
 )
-from timetoalign.core.types import Coordinate
+from timetoalign.core.time import Coordinate
 from timetoalign.loader.schema import struct_to_coordinate
 
 

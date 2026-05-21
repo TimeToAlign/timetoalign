@@ -630,7 +630,7 @@ class TimelineGroup:
         # Extract coordinate value and timeline_id from IdCoordinate if needed
         from fractions import Fraction
 
-        from timetoalign.core.types import Coordinate
+        from timetoalign.core.time import Coordinate
 
         if isinstance(coordinate, IdCoordinate):
             if timeline_id is None:

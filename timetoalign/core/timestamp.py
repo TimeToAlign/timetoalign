@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     import pyarrow as pa
 
     from ..core.enums import ColumnNaming, TimeUnit
-    from ..core.types import Coordinate
+    from ..core.time import Coordinate
     from ..maps.interpolation import InterpolationMap
 
 module_logger = logging.getLogger(__name__)
@@ -343,7 +343,7 @@ class TimeStamp:
             >>> coord.unit
             <TimeUnit.seconds: 'seconds'>
         """
-        from ..core.types import Coordinate
+        from ..core.time import Coordinate
 
         value = self.get(timeline_id)
         if value is None:
@@ -370,7 +370,7 @@ class TimeStamp:
             >>> ts.axis_coordinate
             Coordinate(50.0, seconds)
         """
-        from ..core.types import Coordinate
+        from ..core.time import Coordinate
 
         unit = self.source._get_unit_for_timeline(self.source_id)
         # source_id should always be valid, so unit should never be None

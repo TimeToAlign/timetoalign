@@ -1591,7 +1591,7 @@ class EventData(SemanticFieldAccessMixin):
         if struct is None:
             return None
 
-        from timetoalign.core.types import Coordinate
+        from timetoalign.core.time import Coordinate
 
         value = self._struct_to_number(struct)
         return Coordinate(value=value, unit=unit)

@@ -10,10 +10,9 @@ import pyarrow.parquet as pq
 import pytest
 
 from timetoalign.core.enums import Domain, NumberType, TimeUnit
+from timetoalign.core.fields import StructField
 from timetoalign.core.protocols import CoordinateLike, SemanticTypeLike
-from timetoalign.core.types import Coordinate
-from timetoalign.fields.base import StructField
-from timetoalign.fields.coordinate import CoordinateField
+from timetoalign.core.time import Coordinate, CoordinateField
 from timetoalign.loader.schema import coordinate_to_struct, make_coordinate_type
 
 # ---------------------------------------------------------------------------

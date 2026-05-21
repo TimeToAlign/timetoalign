@@ -14,14 +14,12 @@ import pandas as pd
 import pyarrow as pa
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.core.scalars.pitch import (
+from timetoalign.core.events import (
     _BASE_FIFTHS,
     _STEP_TO_SEMITONE,
+    SpecificPitchField,
     _parse_pitch_label,
 )
-from timetoalign.fields.base import StructField
-from timetoalign.fields.pitch import PitchField
-from timetoalign.fields.schemas import PitchSpaceSchema
 
 from .base import TabularLoader
 
@@ -228,51 +226,70 @@ class Ms3Loader(TabularLoader):
         if not has_pitch_columns:
             return
 
-        # Parse pitch labels from the "name" column → SP (fifths + octave)
+        # Parse pitch labels from the "name" column → SP (step, alter, octave)
         n = len(name_arr)
-        values = np.zeros(n, dtype=np.int64)
+        steps: list[str] = []
+        alters = np.zeros(n, dtype=np.int64)
         octaves = np.zeros(n, dtype=np.int64)
+        fifths_values = np.zeros(n, dtype=np.int64)
         null_mask = np.zeros(n, dtype=bool)
 
         for i in range(n):
             label = name_arr[i]
             if label is None or (isinstance(label, str) and label == "nan"):
                 null_mask[i] = True
+                steps.append("C")
                 continue
             try:
                 step, alter, octave = _parse_pitch_label(str(label))
-                values[i] = _BASE_FIFTHS.get(step, 0) + 7 * alter
+                steps.append(step)
+                alters[i] = alter
                 octaves[i] = octave if octave is not None else 4
+                fifths_values[i] = _BASE_FIFTHS.get(step, 0) + 7 * alter
             except (ValueError, KeyError):
                 null_mask[i] = True
+                steps.append("C")
 
-        # Build PitchSpaceSchema struct array
-        value_pa = pa.array(values.tolist(), type=pa.int64())
+        # Build the pydantic-derived SpecificPitch struct array:
+        # {step, alter, octave, cents}
+        sp_struct_type = SpecificPitchField.pa_schema
+        step_pa = pa.array(steps, type=pa.string())
+        alter_pa = pa.array(alters.tolist(), type=pa.int64())
         octave_pa = pa.array(octaves.tolist(), type=pa.int64())
+        cents_pa = pa.array([0.0] * n, type=pa.float64())
 
         if null_mask.any():
             pitch_arr = pa.StructArray.from_arrays(
-                [value_pa, octave_pa],
-                fields=list(PitchSpaceSchema.schema),
+                [step_pa, alter_pa, octave_pa, cents_pa],
+                fields=list(sp_struct_type),
                 mask=pa.array(null_mask.tolist()),
             )
         else:
             pitch_arr = pa.StructArray.from_arrays(
-                [value_pa, octave_pa],
-                fields=list(PitchSpaceSchema.schema),
+                [step_pa, alter_pa, octave_pa, cents_pa],
+                fields=list(sp_struct_type),
             )
 
         columns["pitch"] = pitch_arr
 
-        # Create pa.Field with PitchField metadata for the schema
-        pf = PitchField(
-            StructField(pitch_arr, pa.field("pitch", PitchSpaceSchema.schema)),
-            pitch_type="sp",
+        # Decorate the column with paired-class metadata.
+        pf = SpecificPitchField.from_field(
+            (pitch_arr, pa.field("pitch", sp_struct_type))
         )
-        self._extra_schema_fields.append(pf.to_field())
+        # SemanticField.to_field() (inherited from DataField) returns the
+        # bare pa.Field; inject the b"timetoalign" metadata explicitly so
+        # discovery still works.
+        from timetoalign.core.fields import (
+            TIMETOALIGN_METADATA_KEY,
+            metadata_blob_from_dict,
+        )
+
+        meta = metadata_blob_from_dict({"field_type": "SpecificPitchField"})
+        decorated = pf.field.with_metadata({TIMETOALIGN_METADATA_KEY: meta})
+        self._extra_schema_fields.append(decorated)
 
         # Validate against tpc and midi from the original DataFrame
-        self._validate_pitch_against_tpc(df, values, null_mask)
+        self._validate_pitch_against_tpc(df, fifths_values, null_mask)
         self._validate_pitch_against_midi(df, name_arr, null_mask)
 
     def _validate_pitch_against_tpc(

@@ -14,9 +14,8 @@ import pyarrow as pa
 import pytest
 from pydantic import BaseModel, ConfigDict
 
-from timetoalign.core.scalars import (
+from timetoalign.core.events import (
     DcmlHarmony,
-    Duration,
     EnharmonicPitch,
     EnharmonicPitchClass,
     GenericPitch,
@@ -29,7 +28,8 @@ from timetoalign.core.scalars import (
     SpecificPitchClass,
     WesternTertianHarmony,
 )
-from timetoalign.core.schemas import derive_arrow_struct
+from timetoalign.core.fields import derive_arrow_struct
+from timetoalign.core.time import Duration
 
 
 class TestNestedBaseModel:
@@ -178,7 +178,7 @@ class TestCacheInvalidationAfterRegister:
     """``register_value_projector`` invalidates the cache (already covered, regression pin)."""
 
     def test_cache_clears_on_register(self) -> None:
-        from timetoalign.core.schemas import register_value_projector
+        from timetoalign.core.fields import register_value_projector
 
         class M(BaseModel):
             model_config = ConfigDict(frozen=True)

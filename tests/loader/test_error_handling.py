@@ -236,13 +236,15 @@ class TestCoordinateErrorHandling:
 
     def test_coordinate_incompatible_unit_arithmetic(self):
         """Arithmetic between incompatible units raises."""
-        from timetoalign.core import Coordinate, TimeUnit
+        from timetoalign.core import Coordinate, Duration, TimeUnit
 
-        c1 = Coordinate(10, TimeUnit.ticks)
-        c2 = Coordinate(5, TimeUnit.seconds)
+        # Coordinate + Coordinate is no longer legal at all; demonstrate the
+        # "incompatible unit" path via Coordinate + Duration instead.
+        c = Coordinate(10, TimeUnit.ticks)
+        d = Duration(5, TimeUnit.seconds)
 
         with pytest.raises((TypeError, ValueError)):
-            _ = c1 + c2
+            _ = c + d
 
     def test_coordinate_incompatible_unit_comparison(self):
         """Comparison between incompatible units raises."""
