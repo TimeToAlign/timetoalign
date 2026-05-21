@@ -686,6 +686,130 @@ cf_sample = CoordinateField.from_field(
 cf_sample[0], cf_sample[1], cf_sample[2]
 
 # %% [markdown]
+# ### One machinery, fifteen scalars
+#
+# The pilot proved the pattern on `Coordinate` and `SpecificPitch`.  The
+# bulk migration (WP2, 2026-05-21) extends the translator and
+# column-builder so the same `derive_arrow_schema(T)` /
+# `build_struct_array(T, [...])` pair drives every scalar in the type
+# inventory.  The translator now handles:
+#
+# - nested `BaseModel` fields → `pa.struct(...)` recursively,
+# - variable-length tuples (`tuple[T, ...]`) → `pa.list_(T)`,
+# - fixed-length tuples (`tuple[int, int]`) → positional structs,
+# - unions of `BaseModel` subclasses → rejected by default; columnar
+#   separation at the EventData level is the canonical resolution.
+#
+# Behaviour and storage shape are derived from the model — the schema
+# machinery contains no per-scalar special cases.
+
+# %%
+from timetoalign.core.scalars import (
+    Duration,
+    HarmonyLabel,
+    Measure,
+    Note,
+)
+from timetoalign.core.schemas import build_struct_array
+
+# %% [markdown]
+# **Atomic-shaped scalar** — `HarmonyLabel(label, standard)`.  Two flat
+# `pa.string()` fields.
+
+# %%
+derive_arrow_schema(HarmonyLabel)
+
+# %% [markdown]
+# **Scalar with computed fields** — `SpecificPitch` revisited.  `fifths`,
+# `midi_number`, `pitch_class` are `@computed_field` properties; they
+# derive on access and never appear in the storage shape.
+
+# %%
+derive_arrow_schema(SpecificPitch)
+
+# %% [markdown]
+# **Nested scalar** — `Measure` carries `start`, `end`, `duration` as
+# nested `Coordinate` / `Duration`.  The translator recurses; each nested
+# scalar becomes a nested struct child.  `next_ids: tuple[str, ...]`
+# becomes `pa.list_(string)`; `time_signature: tuple[int, int]` becomes a
+# positional struct.
+
+# %%
+derive_arrow_schema(Measure)
+
+# %% [markdown]
+# **`Note.pitch` — polymorphism resolved by columnar separation.**  The
+# Python annotation `EnharmonicPitch | SpecificPitch | None` is legal at
+# the scalar level (the materialised `Note` may carry either spelling),
+# but the derived pa.Schema DROPS the `pitch` field via an explicit
+# projector.  Note pitches live in separate columns on the parent
+# `NoteEventData`; Arrow `dense_union` is structurally forbidden.
+
+# %%
+derive_arrow_schema(Note)
+
+# %% [markdown]
+# **One bulk path for scalars with no projector** — `build_struct_array(T, objects)`
+# applies the column-builder uniformly across atomic, computed-field, and
+# nested-scalar shapes.  Below, the same call assembles 1 000 instances of
+# `HarmonyLabel` and `SpecificPitch`.
+
+# %%
+N = 1_000
+labels = [HarmonyLabel(label=f"V{i % 12}", standard="dcml") for i in range(N)]
+pitches = [SpecificPitch(step="C", alter=(i % 5) - 2, octave=i % 8) for i in range(N)]
+
+(
+    ("HarmonyLabel", len(build_struct_array(HarmonyLabel, labels))),
+    ("SpecificPitch", len(build_struct_array(SpecificPitch, pitches))),
+)
+
+# %% [markdown]
+# **Dedicated path for projector-expanded scalars** — `Coordinate` and
+# `Duration` denormalise their `value: int | float | Fraction` field into
+# three storage columns to preserve rational precision.  Bulk construction
+# at the *top* level for these scalars goes through
+# `build_coordinate_struct_array` (the same routine the column-builder
+# uses internally when it encounters a nested `Coordinate` or `Duration`
+# slot, as in `Measure.duration`).
+
+# %%
+durations = [
+    Duration(value=Fraction(1, (i % 7) + 1), unit=TimeUnit.quarters) for i in range(N)
+]
+build_coordinate_struct_array(durations).type, len(durations)
+
+# %% [markdown]
+# **Three regimes carry across every scalar.**  Trust boundary
+# (`model_validate`), internal round-trip (`model_construct`), and bulk
+# (`build_struct_array`) all derive their behaviour from `T`'s pydantic
+# model — no per-scalar branching inside the schema layer.
+
+# %%
+# Trust boundary — validators reject malformed input.
+try:
+    SpecificPitch.model_validate({"step": "Z", "alter": 0, "octave": 4})
+    invalid = "accepted (unexpected)"
+except Exception as e:
+    invalid = repr(e).splitlines()[0][:120]
+invalid
+
+# %%
+# Internal round-trip — bypasses validators on already-validated data.
+SpecificPitch.model_construct(step="C", alter=1, octave=4)
+
+# %% [markdown]
+# **The data-shaped audit.**  WP2 classified every scalar method as
+# either **data-shaped** (a `pa.compute` mirror is wanted at field
+# level — the user would want this operation to run on a million
+# instances at once) or **behavior-shaped** (only runs on a single
+# materialised scalar at a system edge).  The classification — 37
+# data-shaped, 42 behavior-shaped across the 15 migrated scalars — lives
+# at `benchmarks/scalar_method_audit.md` and feeds WP3, which writes the
+# paired field subclasses `ObjectField(SemanticField[Object])` and
+# attaches `pa.compute` mirrors for every data-shaped scalar method.
+
+# %% [markdown]
 # **Three validation regimes — one schema source.**  The same pydantic
 # model drives all three:
 #
