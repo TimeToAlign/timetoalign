@@ -1,17 +1,22 @@
 """Harmony scalars for the Time To Align! type hierarchy.
 
-Provides frozen dataclass scalars at five levels of harmonic specificity,
-using our internal model names (not DCML field names):
+Provides pydantic v2 frozen ``BaseModel`` scalars at five levels of
+harmonic specificity, using TTA's internal model names:
 
-- ``HarmonyLabel`` -- root: label + standard (satisfies ``HarmonyLabelLike``)
-- ``PitchBasedHarmony`` -- adds root/bass (satisfies ``PitchBasedHarmonyLike``)
-- ``WesternTertianHarmony`` -- adds chord_type/inversion (satisfies ``WesternTertianHarmonyLike``)
-- ``RomanNumeralHarmony`` -- adds numeral/localkey/globalkey (satisfies ``RomanNumeralHarmonyLike``)
-- ``DcmlHarmony`` -- DCML codec specifics (satisfies ``DcmlHarmonyLike``)
+- ``HarmonyLabel`` -- label + standard (satisfies ``HarmonyLabelLike``)
+- ``PitchBasedHarmony`` -- adds root/bass (``PitchBasedHarmonyLike``)
+- ``WesternTertianHarmony`` -- adds chord_type/inversion
+- ``RomanNumeralHarmony`` -- adds numeral/localkey/globalkey
+- ``DcmlHarmony`` -- DCML codec specifics (``DcmlHarmonyLike``)
 
 Harmony scalars represent *harmonic content only* -- they do NOT carry
 temporal fields (``start``, ``end``, ``duration``).  Temporal placement
 belongs to the EventData row that contains the harmony scalar.
+
+Each scalar is a ``BaseModel`` with ``model_config = ConfigDict(frozen=True)``.
+WP2 migrates this file in bulk away from the previous frozen dataclasses.
+Storage shapes are unchanged from the inventory in
+``tta-architecture/references/type_inventory.md``.
 
 Internal model name mapping from DCML:
 - DCML ``chord_type`` -> our ``chord_type`` (same)
@@ -23,57 +28,63 @@ Internal model name mapping from DCML:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict
 
 # region HarmonyLabel (root)
 
 
-@dataclass(frozen=True, slots=True)
-class HarmonyLabel:
+class HarmonyLabel(BaseModel):
     """Root harmony scalar.  Satisfies ``HarmonyLabelLike``.
 
-    Minimal: label + standard.  Describes harmonic content without
-    temporal placement (time belongs to the EventData row).
+    Pydantic v2 ``BaseModel``, frozen.  Minimal: label + standard.
 
     Attributes:
         label: The full harmony label string (e.g. ``"V65/IV"``).
-        standard: Codec identifier (e.g., ``"dcml"``, ``"chord_symbol"``).
+        standard: Codec identifier (e.g. ``"dcml"``, ``"chord_symbol"``).
     """
+
+    model_config = ConfigDict(frozen=True)
 
     label: str
     standard: str
 
     @property
     def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
         return "HarmonyLabel"
 
     def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract."""
         return {
             "field_type": "HarmonyField",
             "standard": self.standard,
         }
 
+    def to_dict(self) -> dict[str, object]:
+        """Return a dict mirroring the storage struct."""
+        return {"label": self.label, "standard": self.standard}
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> HarmonyLabel | None:
+        """Construct from a ``{label, standard}`` struct row."""
+        label = row.get("label")
+        if label is None:
+            return None
+        return cls(label=str(label), standard=str(row.get("standard") or ""))
+
     def __repr__(self) -> str:
         return f"HarmonyLabel(label={self.label!r}, standard={self.standard!r})"
 
-
-# Backward-compat alias
-Harmony = HarmonyLabel
 
 # endregion HarmonyLabel
 
 # region PitchBasedHarmony
 
 
-@dataclass(frozen=True, slots=True)
-class PitchBasedHarmony:
+class PitchBasedHarmony(BaseModel):
     """Harmony with root and bass (OHR model).  Satisfies ``PitchBasedHarmonyLike``.
 
-    Modelled after OHR: root is the reference component, bass is
-    the reference OHR (may differ from root in inversions).
+    Pydantic v2 ``BaseModel``, frozen.
 
     Attributes:
         label: The full harmony label string.
@@ -82,6 +93,8 @@ class PitchBasedHarmony:
         bass: Bass note pitch class (0-11), or ``None``.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     label: str
     standard: str
     root: int | None = None
@@ -89,15 +102,35 @@ class PitchBasedHarmony:
 
     @property
     def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
         return "PitchBasedHarmony"
 
     def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract."""
         return {
             "field_type": "HarmonyField",
             "standard": self.standard,
         }
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "label": self.label,
+            "standard": self.standard,
+            "root": self.root,
+            "bass": self.bass,
+        }
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> PitchBasedHarmony | None:
+        label = row.get("label")
+        if label is None:
+            return None
+        root_raw = row.get("root")
+        bass_raw = row.get("bass", row.get("bass_note"))
+        return cls(
+            label=str(label),
+            standard=str(row.get("standard") or ""),
+            root=int(root_raw) if root_raw is not None else None,
+            bass=int(bass_raw) if bass_raw is not None else None,
+        )
 
     def __repr__(self) -> str:
         return f"PitchBasedHarmony(label={self.label!r}, root={self.root})"
@@ -108,19 +141,22 @@ class PitchBasedHarmony:
 # region WesternTertianHarmony
 
 
-@dataclass(frozen=True, slots=True)
-class WesternTertianHarmony:
+class WesternTertianHarmony(BaseModel):
     """Western tertian chord.  Satisfies ``WesternTertianHarmonyLike``.
+
+    Pydantic v2 ``BaseModel``, frozen.
 
     Attributes:
         label: The full harmony label string.
         standard: Codec identifier.
         root: Root pitch class (0-11), or ``None``.
         bass: Bass note pitch class (0-11), or ``None``.
-        chord_type: Chord type (``"M"``, ``"m"``, ``"o"``, ``"+"``, ``"Mm7"``, etc.).
-        inversion: Inversion number, or ``None``.
-            Maps from DCML ``figbass`` on import; ``figbass`` is export-only.
+        chord_type: Chord type (``"M"``, ``"m"``, ``"o"``, …).
+        inversion: Inversion number, or ``None``.  Maps from DCML
+            ``figbass`` on import.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     label: str
     standard: str
@@ -131,15 +167,45 @@ class WesternTertianHarmony:
 
     @property
     def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
         return "WesternTertianHarmony"
 
     def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract."""
         return {
             "field_type": "WesternTertianHarmonyField",
             "standard": self.standard,
         }
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "label": self.label,
+            "standard": self.standard,
+            "root": self.root,
+            "bass": self.bass,
+            "chord_type": self.chord_type,
+            "inversion": self.inversion,
+        }
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> WesternTertianHarmony | None:
+        from timetoalign.fields.schemas import figbass_to_inversion
+
+        label = row.get("label")
+        if label is None:
+            return None
+        root_raw = row.get("root")
+        bass_raw = row.get("bass", row.get("bass_note"))
+        inversion_raw = row.get("inversion")
+        if inversion_raw is None and "figbass" in row:
+            inv = figbass_to_inversion(str(row.get("figbass") or ""))
+            inversion_raw = int(inv) if inv is not None else None
+        return cls(
+            label=str(label),
+            standard=str(row.get("standard") or ""),
+            root=int(root_raw) if root_raw is not None else None,
+            bass=int(bass_raw) if bass_raw is not None else None,
+            chord_type=str(row.get("chord_type") or ""),
+            inversion=int(inversion_raw) if inversion_raw is not None else None,
+        )
 
     def __repr__(self) -> str:
         return (
@@ -153,21 +219,20 @@ class WesternTertianHarmony:
 # region RomanNumeralHarmony
 
 
-@dataclass(frozen=True, slots=True)
-class RomanNumeralHarmony:
+class RomanNumeralHarmony(BaseModel):
     """Roman-numeral analysis.  Satisfies ``RomanNumeralHarmonyLike``.
 
+    Pydantic v2 ``BaseModel``, frozen.
+
     Attributes:
-        label: The full harmony label string.
-        standard: Codec identifier.
-        root: Root pitch class (0-11), or ``None``.
-        bass: Bass note pitch class (0-11), or ``None``.
-        chord_type: Chord type.
-        inversion: Inversion number, or ``None``.
-        numeral: Roman numeral (``"I"``, ``"ii"``, ``"V"``, etc.).
-        localkey: Local key at this position (e.g., ``"IV"``).
-        globalkey: Global key of the piece (e.g., ``"C"``).
+        label, standard, root, bass, chord_type, inversion: see
+            ``WesternTertianHarmony``.
+        numeral: Roman numeral (``"I"``, ``"ii"``, ``"V"``, …).
+        localkey: Local key at this position (e.g. ``"IV"``).
+        globalkey: Global key of the piece (e.g. ``"C"``).
     """
+
+    model_config = ConfigDict(frozen=True)
 
     label: str
     standard: str
@@ -181,15 +246,51 @@ class RomanNumeralHarmony:
 
     @property
     def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
         return "RomanNumeralHarmony"
 
     def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract."""
         return {
             "field_type": "RomanNumeralHarmonyField",
             "standard": self.standard,
         }
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "label": self.label,
+            "standard": self.standard,
+            "root": self.root,
+            "bass": self.bass,
+            "chord_type": self.chord_type,
+            "inversion": self.inversion,
+            "numeral": self.numeral,
+            "localkey": self.localkey,
+            "globalkey": self.globalkey,
+        }
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> RomanNumeralHarmony | None:
+        from timetoalign.fields.schemas import figbass_to_inversion
+
+        label = row.get("label")
+        if label is None:
+            return None
+        root_raw = row.get("root")
+        bass_raw = row.get("bass", row.get("bass_note"))
+        inversion_raw = row.get("inversion")
+        if inversion_raw is None and "figbass" in row:
+            inv = figbass_to_inversion(str(row.get("figbass") or ""))
+            inversion_raw = int(inv) if inv is not None else None
+        return cls(
+            label=str(label),
+            standard=str(row.get("standard") or ""),
+            root=int(root_raw) if root_raw is not None else None,
+            bass=int(bass_raw) if bass_raw is not None else None,
+            chord_type=str(row.get("chord_type") or ""),
+            inversion=int(inversion_raw) if inversion_raw is not None else None,
+            numeral=str(row.get("numeral") or ""),
+            localkey=str(row.get("localkey") or ""),
+            globalkey=str(row.get("globalkey") or ""),
+        )
 
     def __repr__(self) -> str:
         return (
@@ -203,12 +304,11 @@ class RomanNumeralHarmony:
 # region DcmlHarmony
 
 
-@dataclass(frozen=True, slots=True)
-class DcmlHarmony:
+class DcmlHarmony(BaseModel):
     """DCML harmony annotation.  Satisfies ``DcmlHarmonyLike``.
 
-    DCML-specific fields beyond the roman-numeral base:
-    ``tonicized_key`` (DCML ``relativeroot``) and ``pedal``.
+    Pydantic v2 ``BaseModel``, frozen.  ``standard`` is a ``Literal["dcml"]``
+    pinned at the class level.
 
     Attributes:
         label: The full DCML label string (e.g. ``"V65/IV"``).
@@ -224,8 +324,10 @@ class DcmlHarmony:
         pedal: Pedal tone, or ``None``.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     label: str
-    standard: str = "dcml"
+    standard: Literal["dcml"] = "dcml"
     root: int | None = None
     bass: int | None = None
     chord_type: str = ""
@@ -238,11 +340,9 @@ class DcmlHarmony:
 
     @property
     def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
         return "DcmlHarmony"
 
     def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract."""
         return {
             "field_type": "DcmlHarmonyField",
             "standard": "dcml",
@@ -252,10 +352,7 @@ class DcmlHarmony:
         """Return a summary dict of all harmony properties.
 
         Root and bass are shown both as pitch class integers and as
-        ``GenericPitch`` objects for readability.
-
-        Returns:
-            A dict with all harmony fields.
+        ``EnharmonicPitchClass`` objects for readability.
         """
         from .pitch import EnharmonicPitchClass
 
@@ -289,30 +386,7 @@ class DcmlHarmony:
         globalkey: str = "C",
         localkey: str = "I",
     ) -> DcmlHarmony:
-        """Construct a fully populated ``DcmlHarmony`` from a DCML label string.
-
-        Parses the label using the ``ms3`` DCML regex and derives
-        ``numeral``, ``figbass``, ``chord_type``, ``inversion``,
-        ``root``, ``bass``, and ``tonicized_key`` automatically.
-
-        Args:
-            label: A DCML harmony label (e.g. ``"V65/IV"``, ``"viio7"``, ``"I"``).
-            globalkey: Global key of the piece (default ``"C"``).
-            localkey: Local key at this position (default ``"I"``).
-
-        Returns:
-            A fully populated ``DcmlHarmony``.
-
-        Raises:
-            ValueError: If the label cannot be parsed by the DCML regex.
-
-        Examples:
-            >>> DcmlHarmony.from_label("V65/IV", globalkey="C")
-            DcmlHarmony(label='V65/IV', key=C:I)
-            >>> h = DcmlHarmony.from_label("I")
-            >>> h.chord_type
-            'M'
-        """
+        """Construct a fully populated ``DcmlHarmony`` from a DCML label string."""
         from ms3.expand_dcml import features2type
         from ms3.utils import fifths2pc, roman_numeral2fifths
         from ms3.utils.constants import DCML_REGEX
@@ -330,20 +404,15 @@ class DcmlHarmony:
         relativeroot = parts.get("relativeroot")
         pedal = parts.get("pedal")
 
-        # Chord type from numeral + form + figbass
         chord_type = features2type(numeral, form, figbass) if numeral else ""
-
-        # Inversion from figbass
         inv = figbass_to_inversion(figbass or "")
         inversion = int(inv) if inv is not None else None
 
-        # Root pitch class: numeral offset relative to globalkey
         root: int | None = None
         bass: int | None = None
         if numeral:
             root_tpc = roman_numeral2fifths(numeral)
             root = fifths2pc(root_tpc)
-            # Bass: for inverted chords, use chord2tpcs from ms3
             try:
                 from ms3 import chord2tpcs
 
@@ -374,14 +443,7 @@ class DcmlHarmony:
         Maps DCML storage field names to internal model names:
         - ``bass_note`` -> ``bass``
         - ``figbass`` -> ``inversion`` (via ``figbass_to_inversion()``)
-        - ``chord_type`` -> ``chord_type`` (same)
         - ``relativeroot`` -> ``tonicized_key``
-
-        Args:
-            row: Dict with DCML storage field names (from PyArrow ``.as_py()``).
-
-        Returns:
-            A ``DcmlHarmony``, or ``None`` if ``label`` is null.
         """
         from timetoalign.fields.schemas import figbass_to_inversion
 
@@ -422,8 +484,5 @@ class DcmlHarmony:
             f"DcmlHarmony(label={self.label!r}, key={self.globalkey}:{self.localkey})"
         )
 
-
-# Backward-compat alias
-DcmlLabel = DcmlHarmony
 
 # endregion DcmlHarmony

@@ -31,12 +31,9 @@ The ``TwelveTETPitchMixin`` is a concrete mixin (not a Protocol) that adds
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, TypeVar, runtime_checkable
+from typing import Protocol, TypeVar, runtime_checkable
 
 from .enums import Domain, NumberType, TimeUnit
-
-if TYPE_CHECKING:
-    from .ids import ScopedId
 
 V = TypeVar("V", covariant=True)
 
@@ -365,7 +362,9 @@ class MeasureLike(IntervalEventLike, Protocol):
         actual_length: Real duration (may differ for anacrusis).
         start_repeat: Whether this bar has a repeat start marker.
         end_repeat: Whether this bar has a repeat end marker.
-        next_ids: Possible successor identifiers (``ScopedId``), or ``None``.
+        next_ids: Possible successor identifiers, or ``None``.  Stored as
+            stringified ``ScopedId`` values (the canonical ``scope:local``
+            form) for faithful round-tripping through pa.list_(string).
         volta: Ending number (1, 2, ...), or ``None``.
     """
 
@@ -410,8 +409,8 @@ class MeasureLike(IntervalEventLike, Protocol):
         ...
 
     @property
-    def next_ids(self) -> tuple[ScopedId, ...] | None:
-        """Possible successor identifiers, or ``None``."""
+    def next_ids(self) -> tuple[str, ...] | None:
+        """Possible successor identifiers as stringified ``ScopedId``, or ``None``."""
         ...
 
     @property
@@ -538,9 +537,6 @@ class DcmlHarmonyLike(RomanNumeralHarmonyLike, Protocol):
         ...
 
 
-# Backward-compat alias
-DcmlLabelLike = DcmlHarmonyLike
-
 # endregion Harmony Protocols
 
 # region Pitch Mixin
@@ -549,16 +545,21 @@ DcmlLabelLike = DcmlHarmonyLike
 class TwelveTETPitchMixin:
     """Concrete mixin adding 12-TET pitch methods.
 
-    Not a Protocol -- a mixin that provides ``pitch_class``, a unified
-    ``.to()`` dispatch method, and a ``.get()`` method with ``format``
-    support.  Scalar pitch classes (``EnharmonicPitchClass``, ``MidiPitch``,
-    ``SpecificPitch``, etc.) compose this mixin.
-    """
+    Not a Protocol -- a mixin that provides a unified ``.to()`` dispatch
+    method and a ``.get()`` method with ``format`` support.  Scalar pitch
+    classes (``EnharmonicPitchClass``, ``MidiPitch``, ``SpecificPitch``,
+    etc.) compose this mixin alongside ``pydantic.BaseModel``.
 
-    @property
-    def pitch_class(self) -> int:
-        """Pitch class (0-11, C=0)."""
-        raise NotImplementedError
+    Note on ``pitch_class``: the mixin intentionally does NOT declare
+    ``pitch_class`` as a property here.  Concrete scalar classes own the
+    attribute — either as a pydantic field (``EnharmonicPitchClass``,
+    ``GenericPitchClass``) or as a ``@property`` (``EnharmonicPitch``,
+    ``SpecificPitch``, …).  Declaring it on the mixin as a raising
+    property would conflict with pydantic's field-descriptor handling on
+    subclasses that name a same-name field (V2 emits a "field shadows
+    attribute in parent" warning and uses the parent property's
+    descriptor, breaking the field).
+    """
 
     def to(
         self, target_type: type, *, format: str | None = None

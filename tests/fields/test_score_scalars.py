@@ -70,10 +70,18 @@ class TestMidiPitch:
         assert md["pitch_type"] == "ep"
 
     def test_frozen_immutable(self) -> None:
-        """MidiPitch is frozen (immutable)."""
+        """MidiPitch is frozen (immutable).
+
+        Post-WP2 bulk migration to pydantic v2 BaseModel: assignment
+        on a frozen instance raises ``ValidationError`` (not the
+        dataclass ``AttributeError``).
+        """
         p = MidiPitch(midi_number=60)
-        with pytest.raises(AttributeError):
+        with pytest.raises(Exception) as exc_info:
             p.midi_number = 61  # type: ignore[misc]
+        assert "frozen" in str(exc_info.value).lower() or isinstance(
+            exc_info.value, AttributeError
+        )
 
     def test_octave_property(self) -> None:
         """MidiPitch.octave computes correctly."""
@@ -244,8 +252,11 @@ class TestNote:
             staff=1,
             velocity=None,
         )
-        with pytest.raises(AttributeError):
+        with pytest.raises(Exception) as exc_info:
             note.duration = Coordinate(1.0, TimeUnit.quarters)  # type: ignore[misc]
+        assert "frozen" in str(exc_info.value).lower() or isinstance(
+            exc_info.value, AttributeError
+        )
 
     def test_instrument_field(self) -> None:
         """Note supports optional instrument field."""
@@ -368,8 +379,11 @@ class TestMeasure:
             time_signature=(2, 4),
             key_signature="E",
         )
-        with pytest.raises(AttributeError):
+        with pytest.raises(Exception) as exc_info:
             m.id = 2  # type: ignore[misc]
+        assert "frozen" in str(exc_info.value).lower() or isinstance(
+            exc_info.value, AttributeError
+        )
 
     def test_flow_control_defaults(self) -> None:
         """Flow control fields default to False/None."""
@@ -464,7 +478,15 @@ class TestDcmlHarmony:
         assert md["standard"] == "dcml"
 
     def test_frozen_immutable(self) -> None:
-        """DcmlHarmony is frozen (immutable)."""
+        """DcmlHarmony is frozen (immutable).
+
+        Post-WP2 bulk migration to pydantic v2 BaseModel: assignment
+        on a frozen instance raises ``ValidationError`` (not the
+        dataclass ``AttributeError``).
+        """
         h = DcmlHarmony(label="V")
-        with pytest.raises(AttributeError):
+        with pytest.raises(Exception) as exc_info:
             h.label = "i"  # type: ignore[misc]
+        assert "frozen" in str(exc_info.value).lower() or isinstance(
+            exc_info.value, AttributeError
+        )

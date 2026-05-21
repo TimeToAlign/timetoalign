@@ -392,7 +392,16 @@ def _fifths_to_step_alter(fifths: int) -> tuple[str, int]:
 
 
 def _scalar_from_legacy_schema(row: dict[str, Any], pitch_type: str) -> Any:
-    """Convert a legacy schema row (ep/epc, gpc_int/..., pitch_class) to scalar."""
+    """Convert a legacy schema row (ep/epc, gpc_int/..., pitch_class) to scalar.
+
+    regime: internal round-trip — the calling pa.Array originated from a
+    TTA-written schema (legacy or new) whose contract is already trusted;
+    each scalar's ``from_row`` performs only the minimal coercion needed
+    to bridge struct field names.  The downstream pydantic models still
+    run their validators because ``from_row`` cannot bypass them without
+    a separate ``model_construct`` path; the WP3 alias rollout migrates
+    callers to ``model_construct`` for the bulk fast-path.
+    """
     if pitch_type == "ep" and "ep" in row:
         return EnharmonicPitch.from_row(row)
     if pitch_type == "epc" and "pitch_class" in row:

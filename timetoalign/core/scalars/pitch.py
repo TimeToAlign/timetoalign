@@ -1,39 +1,43 @@
 """Pitch scalars for the Time To Align! type hierarchy.
 
-Provides frozen dataclass scalars at multiple levels of pitch specificity:
+Provides pydantic v2 frozen ``BaseModel`` scalars at multiple levels of
+pitch specificity:
 
 - ``EnharmonicPitchClass`` -- chromatic pitch class 0-11 (satisfies ``GenericPitchLike``)
 - ``GenericPitchClass`` -- diatonic step 0-6
 - ``GenericPitch`` -- diatonic step + octave
 - ``SpecificPitchClass`` -- pitch class with spelling (satisfies ``SpecificPitchClassLike``)
-- ``EnharmonicPitch`` -- pitch in semitone space displayed as note-name + octave,
-  used by ``PitchField`` when ``pitch_type="ep"`` (satisfies ``EnharmonicPitchLike``)
-- ``MidiPitch`` -- display alias of ``EnharmonicPitch`` (same data, raw-MIDI
-  display) reserved as the default scalar for the planned ``MidiField``
-- ``SpecificPitch`` -- full spelling with octave (satisfies ``SpecificPitchLike``).
-  ``SpecificPitch`` is a re-export of the same class under its protocol name.
+- ``EnharmonicPitch`` -- pitch in semitone space displayed as note-name + octave
+  (satisfies ``EnharmonicPitchLike``)
+- ``MidiPitch`` -- display subclass of ``EnharmonicPitch`` (same data,
+  raw-MIDI display) reserved as the default scalar for ``MidiField``
+- ``SpecificPitch`` -- full spelling with octave (satisfies ``SpecificPitchLike``)
 
 ``MidiPitch`` is a thin subclass of ``EnharmonicPitch``: identical data and
 storage struct, differing only in ``__repr__`` and the ``semantic_type``
 string. ``EnharmonicPitch`` is the canonical scalar for ``ep`` columns on
 score-level pitch data; ``MidiPitch`` exists so that ``MidiField`` rows
 display as ``MidiPitch(60)`` instead of ``EnharmonicPitch(C4)`` —
-keyboard/MIDI context such as velocity/channel/program lives on the field,
-not on the scalar.
+keyboard/MIDI context such as velocity/channel/program lives on the field
+(or on the WP7 ``MidiEvent`` scalar), not on these pitch scalars.
 
 All 12-TET scalars compose ``TwelveTETPitchMixin`` which provides the
-unified ``.to()`` dispatch method and ``.get(format=)`` formatting.
+unified ``.to()`` dispatch method and ``.get(format=)`` formatting.  The
+mixin coexists with ``BaseModel`` via plain multiple inheritance.
 
-Scalar field names are canonical semantic names; the mapping to storage
-struct names (``ep``, ``epc``, ``gpc_int``, ``gpc_str``, ``acc``,
-``spc_int``, ``spc_str``, ``sp``, ``cents``) is handled by the Field
-classes and loaders.
+Each scalar is a ``BaseModel`` with ``model_config = ConfigDict(frozen=True)``.
+WP2 migrates this file in bulk away from the previous ``@dataclass(frozen=True,
+slots=True)`` implementation; per-scalar storage shapes collapse to the
+minimal field set (per CLAUDE.md §9).  ``from_row()`` / ``to_dict()`` survive
+as internal storage shims so existing PitchField round-trips keep working
+during WP3.  Bulk SemanticField construction uses the column-builder pattern
+over ``T.model_fields`` (per WP2's locked decision); see
+:mod:`timetoalign.core.schemas.column_builder`.
 """
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
@@ -57,16 +61,16 @@ _PC_TO_STEP: dict[int, str] = {v: k for k, v in _STEP_TO_SEMITONE.items()}
 # All 12 chromatic pitch class labels (for EPC display)
 _PC_TO_LABEL: tuple[str, ...] = (
     "C",
-    "C\u266f/D\u266d",
+    "C♯/D♭",
     "D",
-    "D\u266f/E\u266d",
+    "D♯/E♭",
     "E",
     "F",
-    "F\u266f/G\u266d",
+    "F♯/G♭",
     "G",
-    "G\u266f/A\u266d",
+    "G♯/A♭",
     "A",
-    "A\u266f/B\u266d",
+    "A♯/B♭",
     "B",
 )
 
@@ -99,6 +103,9 @@ _PITCH_LABEL_RE = re.compile(
     r"(-?\d+)?$"  # optional octave
 )
 
+_SPECIFIC_PITCH_STEPS = ("C", "D", "E", "F", "G", "A", "B")
+_StepLiteral = Literal["C", "D", "E", "F", "G", "A", "B"]
+
 
 def _step_alter_to_fifths(step: str, alter: int) -> int:
     """Compute line-of-fifths position from step and alter.
@@ -120,16 +127,6 @@ def _parse_pitch_label(label: str) -> tuple[str, int, int | None]:
 
     Accepts labels like ``"C#4"``, ``"Bb3"``, ``"D♯5"``, ``"F♭-1"``,
     ``"C♯"`` (no octave).
-
-    Args:
-        label: A pitch label string.
-
-    Returns:
-        A tuple ``(step, alter, octave)`` where ``octave`` is ``None``
-        if not present in the label.
-
-    Raises:
-        ValueError: If the label cannot be parsed.
     """
     m = _PITCH_LABEL_RE.match(label.strip())
     if m is None:
@@ -138,10 +135,9 @@ def _parse_pitch_label(label: str) -> tuple[str, int, int | None]:
     acc_str = m.group(2)
     octave_str = m.group(3)
 
-    # Count accidentals
     if not acc_str:
         alter = 0
-    elif acc_str[0] in ("#", "\u266f"):
+    elif acc_str[0] in ("#", "♯"):
         alter = len(acc_str)
     else:
         alter = -len(acc_str)
@@ -150,28 +146,58 @@ def _parse_pitch_label(label: str) -> tuple[str, int, int | None]:
     return step, alter, octave
 
 
+def _parse_octave_from_sp(sp: str | None, step: str) -> int:
+    """Extract octave number from a specific-pitch string like ``"C4"``."""
+    if not sp:
+        return 4
+    try:
+        idx = len(sp)
+        while idx > 0 and (sp[idx - 1].isdigit() or sp[idx - 1] == "-"):
+            idx -= 1
+        if idx < len(sp):
+            return int(sp[idx:])
+    except (ValueError, IndexError):
+        pass
+    return 4
+
+
 # region EnharmonicPitchClass
 
 
-@dataclass(frozen=True, slots=True)
-class EnharmonicPitchClass(TwelveTETPitchMixin):
+class EnharmonicPitchClass(BaseModel, TwelveTETPitchMixin):
     """Enharmonic pitch class scalar -- chromatic pitch class (0-11).
 
-    Satisfies ``GenericPitchLike``.
+    Satisfies ``GenericPitchLike``.  Pydantic v2 ``BaseModel``, frozen.
+    Storage struct (derived): ``{pitch_class: int64}``.
 
     Attributes:
         pitch_class: Pitch class (0-11, C=0).
     """
 
-    pitch_class: int  # type: ignore[override]
+    model_config = ConfigDict(frozen=True)
+
+    pitch_class: int
+
+    def __init__(
+        self,
+        pitch_class: int | None = None,
+        /,
+        **data: Any,
+    ) -> None:
+        if pitch_class is not None:
+            if "pitch_class" in data:
+                raise TypeError(
+                    "EnharmonicPitchClass received conflicting positional and "
+                    "keyword arguments"
+                )
+            data = {"pitch_class": pitch_class, **data}
+        super().__init__(**data)
 
     @property
     def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
         return "EnharmonicPitchClass"
 
     def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract."""
         return {
             "field_type": "PitchField",
             "pitch_type": "epc",
@@ -180,22 +206,6 @@ class EnharmonicPitchClass(TwelveTETPitchMixin):
     def to(
         self, target_type: type, *, format: str | None = None
     ) -> "EnharmonicPitchClass":
-        """Convert to another pitch type.
-
-        ``EnharmonicPitchClass`` can only convert to itself (identity).
-        Conversion to ``MidiPitch`` or ``SpecificPitch`` requires
-        additional information (octave, spelling).
-
-        Args:
-            target_type: Target pitch type.
-            format: Optional format specifier.
-
-        Returns:
-            A pitch scalar of the target type.
-
-        Raises:
-            TypeError: If conversion is not supported.
-        """
         if target_type is EnharmonicPitchClass or target_type is type(self):
             return self
         raise TypeError(
@@ -204,44 +214,20 @@ class EnharmonicPitchClass(TwelveTETPitchMixin):
         )
 
     def get(self, *, format: str | None = None) -> str:
-        """Return string representation.
-
-        Args:
-            format: Format specifier (ignored for EnharmonicPitchClass).
-        """
         return str(self.pitch_class)
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> EnharmonicPitchClass | None:
-        """Construct from a PyArrow struct row dict.
-
-        Accepts the ``generic_pitch`` struct: ``{pitch_class: int64}``.
-
-        Args:
-            row: Dict with storage field names (from PyArrow ``.as_py()``).
-
-        Returns:
-            An ``EnharmonicPitchClass``, or ``None`` if ``pitch_class`` is null.
-        """
+        """Construct from a PyArrow struct row dict ``{pitch_class}``."""
         pc = row.get("pitch_class")
         if pc is None:
             return None
         return cls(pitch_class=int(pc))
 
     def to_dict(self) -> dict[str, object]:
-        """Return a dict mirroring the storage struct.
-
-        Returns:
-            A dict with the ``pitch_class`` storage field.
-        """
         return {"pitch_class": self.pitch_class}
 
     def __eq__(self, other: object) -> bool:
-        """Compare to another ``EnharmonicPitchClass`` or to a plain ``int``.
-
-        ``EPC(C) == 0`` evaluates to ``True``, enabling concise pitch-class
-        arithmetic in interactive contexts.
-        """
         if isinstance(other, int):
             return self.pitch_class == other
         if isinstance(other, EnharmonicPitchClass):
@@ -249,7 +235,7 @@ class EnharmonicPitchClass(TwelveTETPitchMixin):
         return NotImplemented
 
     def __hash__(self) -> int:
-        return hash(self.pitch_class)
+        return hash(("EnharmonicPitchClass", self.pitch_class))
 
     def __repr__(self) -> str:
         if 0 <= self.pitch_class < 12:
@@ -264,23 +250,37 @@ class EnharmonicPitchClass(TwelveTETPitchMixin):
 _GPC_NAMES: tuple[str, ...] = ("C", "D", "E", "F", "G", "A", "B")
 
 
-@dataclass(frozen=True, slots=True)
-class GenericPitchClass(TwelveTETPitchMixin):
+class GenericPitchClass(BaseModel, TwelveTETPitchMixin):
     """Generic pitch class scalar -- diatonic step (0-6).
 
-    Represents a pitch class in diatonic (steps) space: C=0, D=1, ..., B=6.
-    Unlike ``EnharmonicPitchClass`` (which is EPC, 0-11 chromatic), this is a 7-class
-    diatonic pitch class.
+    Pydantic v2 ``BaseModel``, frozen.  Storage struct (derived):
+    ``{step: int64}``.
 
     Attributes:
         step: Diatonic step (0-6, C=0).
     """
 
+    model_config = ConfigDict(frozen=True)
+
     step: int
+
+    def __init__(
+        self,
+        step: int | None = None,
+        /,
+        **data: Any,
+    ) -> None:
+        if step is not None:
+            if "step" in data:
+                raise TypeError(
+                    "GenericPitchClass received conflicting positional and "
+                    "keyword arguments"
+                )
+            data = {"step": step, **data}
+        super().__init__(**data)
 
     @property
     def pitch_class(self) -> int:  # type: ignore[override]
-        """The diatonic step (0-6)."""
         return self.step
 
     @property
@@ -313,7 +313,6 @@ class GenericPitchClass(TwelveTETPitchMixin):
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> GenericPitchClass | None:
-        """Construct from a PyArrow struct row dict ({pitch_class})."""
         pc = row.get("pitch_class")
         if pc is None:
             return None
@@ -327,7 +326,7 @@ class GenericPitchClass(TwelveTETPitchMixin):
         return NotImplemented
 
     def __hash__(self) -> int:
-        return hash(self.step)
+        return hash(("GenericPitchClass", self.step))
 
     def __repr__(self) -> str:
         if 0 <= self.step < 7:
@@ -340,24 +339,41 @@ class GenericPitchClass(TwelveTETPitchMixin):
 # region GenericPitch
 
 
-@dataclass(frozen=True, slots=True)
-class GenericPitch(TwelveTETPitchMixin):
+class GenericPitch(BaseModel, TwelveTETPitchMixin):
     """Generic pitch scalar -- diatonic step + octave.
 
-    Represents a pitch in generic (diatonic/steps) space with octave.
-    Step is 0-6 (C=0, D=1, ..., B=6).
+    Pydantic v2 ``BaseModel``, frozen.  Storage struct (derived):
+    ``{step: int64, octave: int64}``.
 
     Attributes:
         step: Diatonic step (0-6, C=0).
         octave: Octave number.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     step: int
     octave: int
 
+    def __init__(
+        self,
+        step: int | None = None,
+        octave: int | None = None,
+        /,
+        **data: Any,
+    ) -> None:
+        positional = {
+            k: v for k, v in (("step", step), ("octave", octave)) if v is not None
+        }
+        if positional and any(k in data for k in positional):
+            raise TypeError(
+                "GenericPitch received conflicting positional and keyword arguments"
+            )
+        data = {**positional, **data}
+        super().__init__(**data)
+
     @property
     def pitch_class(self) -> int:  # type: ignore[override]
-        """The diatonic step (0-6)."""
         return self.step
 
     @property
@@ -392,7 +408,6 @@ class GenericPitch(TwelveTETPitchMixin):
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> GenericPitch | None:
-        """Construct from a PyArrow struct row dict ({pitch_class, octave})."""
         pc = row.get("pitch_class")
         if pc is None:
             return None
@@ -405,7 +420,7 @@ class GenericPitch(TwelveTETPitchMixin):
         return NotImplemented
 
     def __hash__(self) -> int:
-        return hash((self.step, self.octave))
+        return hash(("GenericPitch", self.step, self.octave))
 
     def __repr__(self) -> str:
         if 0 <= self.step < 7:
@@ -418,43 +433,68 @@ class GenericPitch(TwelveTETPitchMixin):
 # region SpecificPitchClass
 
 
-@dataclass(frozen=True, slots=True)
-class SpecificPitchClass(TwelveTETPitchMixin):
+class SpecificPitchClass(BaseModel, TwelveTETPitchMixin):
     """Pitch class with spelling.  Satisfies ``SpecificPitchClassLike``.
 
-    ``fifths`` is automatically derived from ``step`` and ``alter``
-    via the line-of-fifths formula.  You need only supply ``step``
-    and ``alter``; ``fifths`` is computed in ``__post_init__``.
+    Pydantic v2 ``BaseModel``, frozen.  Storage struct (derived):
+    ``{step: string, alter: int64}``.  ``fifths`` and ``pitch_class`` are
+    ``@computed_field`` properties — derived from ``step`` + ``alter``,
+    not stored in the pa.Schema.
 
     Attributes:
-        step: Generic pitch class as string (``"C"``, ``"D"``, etc.).
-            Stored as ``gpc_str`` in the schema.
+        step: Generic pitch class as letter (``"C"``..``"B"``).
         alter: Accidental in semitones (-1=flat, 0=natural, +1=sharp).
-            Stored as ``acc`` in the schema.
-        fifths: Specific pitch class in fifths (auto-derived).
-            Stored as ``spc_int`` in the schema.
     """
 
-    step: str
-    alter: int = 0
-    fifths: int = field(init=False)
+    model_config = ConfigDict(frozen=True)
 
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "fifths", _step_alter_to_fifths(self.step, self.alter))
+    step: _StepLiteral
+    alter: int = 0
+
+    def __init__(
+        self,
+        step: str | None = None,
+        alter: int | None = None,
+        /,
+        **data: Any,
+    ) -> None:
+        positional = {
+            k: v for k, v in (("step", step), ("alter", alter)) if v is not None
+        }
+        if positional and any(k in data for k in positional):
+            raise TypeError(
+                "SpecificPitchClass received conflicting positional and "
+                "keyword arguments"
+            )
+        data = {**positional, **data}
+        super().__init__(**data)
+
+    @field_validator("step", mode="before")
+    @classmethod
+    def _normalise_step(cls, v: object) -> str:
+        if not isinstance(v, str):
+            raise TypeError(f"step must be a string, got {type(v).__name__}")
+        upper = v.upper()
+        if upper not in _SPECIFIC_PITCH_STEPS:
+            raise ValueError(f"step must be one of {_SPECIFIC_PITCH_STEPS}, got {v!r}")
+        return upper
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def fifths(self) -> int:
+        """Position on the line of fifths (derived from step + alter)."""
+        return _step_alter_to_fifths(self.step, self.alter)
 
     @property
     def pitch_class(self) -> int:  # type: ignore[override]
-        """Compute pitch class (0-11) from step and alter."""
         base = _STEP_TO_SEMITONE.get(self.step, 0)
         return (base + self.alter) % 12
 
     @property
     def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
         return "SpecificPitchClass"
 
     def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract."""
         return {
             "field_type": "PitchField",
             "pitch_type": "spc",
@@ -462,47 +502,29 @@ class SpecificPitchClass(TwelveTETPitchMixin):
 
     def to(
         self, target_type: type, *, format: str | None = None
-    ) -> "SpecificPitchClass":
-        """Convert to another pitch type.
-
-        Args:
-            target_type: Target pitch type.
-            format: Optional format specifier.
-
-        Returns:
-            A pitch scalar of the target type.
-
-        Raises:
-            TypeError: If conversion is not supported.
-        """
+    ) -> "SpecificPitchClass | EnharmonicPitchClass":
         if target_type is SpecificPitchClass or target_type is type(self):
             return self
         if target_type is EnharmonicPitchClass:
-            return EnharmonicPitchClass(pitch_class=self.pitch_class)  # type: ignore[return-value]
+            return EnharmonicPitchClass(pitch_class=self.pitch_class)
         raise TypeError(
             f"Cannot convert SpecificPitchClass to {target_type.__name__} "
             f"(octave information required)"
         )
 
     def get(self, *, format: str | None = None) -> str:
-        """Return string representation.
-
-        Args:
-            format: Format specifier (ignored for SpecificPitchClass).
-        """
         alter_str = ""
         if self.alter > 0:
-            alter_str = "\u266f" * self.alter
+            alter_str = "♯" * self.alter
         elif self.alter < 0:
-            alter_str = "\u266d" * abs(self.alter)
+            alter_str = "♭" * abs(self.alter)
         return f"{self.step}{alter_str}"
 
     def to_dict(self) -> dict[str, object]:
-        """Return a dict mirroring the SPC storage struct.
+        """Return a dict mirroring the legacy SPC storage struct.
 
-        Returns:
-            A dict with ``gpc_str``, ``acc``, ``spc_int`` storage fields,
-            plus derived ``pitch_class`` and ``label``.
+        Includes derived ``pitch_class`` and ``label`` for backward
+        compatibility with the legacy ``SpecificPitchClassSchema`` shape.
         """
         return {
             "gpc_str": self.step,
@@ -514,42 +536,13 @@ class SpecificPitchClass(TwelveTETPitchMixin):
 
     @classmethod
     def from_label(cls, label: str) -> SpecificPitchClass:
-        """Construct from a pitch label string.
-
-        Parses labels like ``"C#"``, ``"Bb"``, ``"D♯"``, ``"F♭"``.
-        Any octave portion is ignored.
-
-        Args:
-            label: A pitch label string.
-
-        Returns:
-            A ``SpecificPitchClass``.
-
-        Raises:
-            ValueError: If the label cannot be parsed.
-
-        Examples:
-            >>> SpecificPitchClass.from_label("C#")
-            SpecificPitchClass(C♯)
-            >>> SpecificPitchClass.from_label("Bb")
-            SpecificPitchClass(B♭)
-        """
+        """Construct from a pitch label string."""
         step, alter, _ = _parse_pitch_label(label)
         return cls(step=step, alter=alter)
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> SpecificPitchClass | None:
-        """Construct from a PyArrow struct row dict.
-
-        Accepts the ``specific_pitch_class`` struct:
-        ``{gpc_str: string, acc: int64, spc_int: int64}``.
-
-        Args:
-            row: Dict with storage field names.
-
-        Returns:
-            A ``SpecificPitchClass``, or ``None`` if ``gpc_str`` is null.
-        """
+        """Construct from the legacy ``specific_pitch_class`` struct."""
         step = row.get("gpc_str")
         if step is None:
             return None
@@ -569,41 +562,58 @@ class SpecificPitchClass(TwelveTETPitchMixin):
 # Note name labels for enharmonic display (pick the sharp spelling for black keys)
 _EP_LABELS: tuple[str, ...] = (
     "C",
-    "C\u266f",
+    "C♯",
     "D",
-    "E\u266d",
+    "E♭",
     "E",
     "F",
-    "F\u266f",
+    "F♯",
     "G",
-    "A\u266d",
+    "A♭",
     "A",
-    "B\u266d",
+    "B♭",
     "B",
 )
 
 
-@dataclass(frozen=True, slots=True)
-class EnharmonicPitch(TwelveTETPitchMixin):
+class EnharmonicPitch(BaseModel, TwelveTETPitchMixin):
     """Enharmonic pitch scalar -- MIDI number with pitch-name display.
 
-    Represents a pitch in semitone space and displays as a note name +
-    octave (e.g. ``EnharmonicPitch(C4)``). Enharmonic equivalents are equal.
+    Pydantic v2 ``BaseModel``, frozen.  Storage collapses to a single
+    ``midi_number: int64`` column (per WP1 inventory item #3): the
+    previous ``{ep, epc}`` struct stored ``epc`` redundantly with
+    ``ep % 12``; the bulk migration removes the redundancy.  ``pitch_class``
+    and ``octave`` are ``@property`` (not stored, not in the pa.Schema).
 
     ``EnharmonicPitch`` is the canonical scalar for the ``ep`` storage
-    column on score-level pitch data; ``MidiField`` will use the
-    :class:`MidiPitch` subclass (same data, raw-MIDI-number display).
+    column on score-level pitch data.
 
     Attributes:
         midi_number: MIDI note number (0-127).
-        pitch_class: Pitch class (0-11, C=0), auto-derived.
     """
 
-    midi_number: int
-    pitch_class: int = field(init=False)  # type: ignore[override]
+    model_config = ConfigDict(frozen=True)
 
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "pitch_class", self.midi_number % 12)
+    midi_number: int
+
+    def __init__(
+        self,
+        midi_number: int | None = None,
+        /,
+        **data: Any,
+    ) -> None:
+        if midi_number is not None:
+            if "midi_number" in data:
+                raise TypeError(
+                    f"{type(self).__name__} received conflicting positional and "
+                    "keyword arguments"
+                )
+            data = {"midi_number": midi_number, **data}
+        super().__init__(**data)
+
+    @property
+    def pitch_class(self) -> int:  # type: ignore[override]
+        return self.midi_number % 12
 
     @property
     def octave(self) -> int:
@@ -640,6 +650,13 @@ class EnharmonicPitch(TwelveTETPitchMixin):
         return f"{_EP_LABELS[self.pitch_class]}{self.octave}"
 
     def to_dict(self) -> dict[str, object]:
+        """Return a dict mirroring the legacy ``{ep, epc, octave}`` storage.
+
+        Internal use only — preserves backward compatibility with the
+        legacy ``EnharmonicPitchSchema`` Parquet round-trip during the
+        WP3 alias rollout.  Bulk SemanticField construction uses the
+        column-builder pattern over ``model_fields`` instead.
+        """
         return {
             "ep": self.midi_number,
             "epc": self.pitch_class,
@@ -648,11 +665,29 @@ class EnharmonicPitch(TwelveTETPitchMixin):
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> EnharmonicPitch | None:
-        """Construct from a PyArrow struct row dict ({ep, epc})."""
+        """Construct from a PyArrow struct row dict.
+
+        Accepts either the legacy ``{ep, epc}`` struct or the new
+        single-field ``{midi_number}`` struct.
+        """
+        # Prefer the new minimal field; fall back to the legacy struct.
+        if "midi_number" in row and row.get("midi_number") is not None:
+            return cls(midi_number=int(row["midi_number"]))
         ep = row.get("ep")
         if ep is None:
             return None
         return cls(midi_number=int(ep))
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, EnharmonicPitch):
+            return self.midi_number == other.midi_number
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        # Include the concrete class in the hash so EnharmonicPitch(60) and
+        # MidiPitch(60) hash distinctly even though they compare equal under
+        # ``__eq__``.
+        return hash((type(self).__name__, self.midi_number))
 
     def __repr__(self) -> str:
         return f"EnharmonicPitch({_EP_LABELS[self.pitch_class]}{self.octave})"
@@ -663,27 +698,15 @@ class EnharmonicPitch(TwelveTETPitchMixin):
 # region MidiPitch
 
 
-@dataclass(frozen=True, slots=True)
 class MidiPitch(EnharmonicPitch):
     """Display alias of :class:`EnharmonicPitch` reserved for ``MidiField``.
 
-    ``MidiPitch`` is a thin subclass of ``EnharmonicPitch`` with identical
-    data, storage struct (``{ep, epc}``), conversions, and protocol
-    conformance. The only differences are:
-
-    * ``__repr__`` shows the bare MIDI number — ``MidiPitch(60)``
-    * ``semantic_type`` advertises the alias name — ``"MidiPitch"``
-    * ``get()`` defaults to the MIDI-number format
-
-    ``MidiPitch`` is the default scalar for the planned ``MidiField``
-    (``tta-guide`` §2.2b / A5.2). MIDI-keyboard context — velocity,
-    channel, program — lives on the *field*, not on this scalar; the
-    distinction here is purely presentational, so that a MidiField row
-    displays as ``MidiPitch(60)`` rather than ``EnharmonicPitch(C4)``.
-
-    For score-level pitch data (``pitch_type="ep"``), ``PitchField``
-    keeps returning ``EnharmonicPitch`` — note-name display is more
-    useful in that context.
+    Pydantic v2 ``BaseModel`` subclass of ``EnharmonicPitch`` — identical
+    data, storage struct, conversions, and protocol conformance.  Differs
+    only in ``__repr__``, ``semantic_type``, and the default ``get()``
+    format.  MIDI-keyboard context (velocity, channel, program) lives on
+    the field / WP7 ``MidiEvent`` scalar, not here; the distinction is
+    purely presentational.
     """
 
     @property
@@ -704,10 +727,6 @@ class MidiPitch(EnharmonicPitch):
 # region SpecificPitch
 
 
-_SPECIFIC_PITCH_STEPS = ("C", "D", "E", "F", "G", "A", "B")
-_StepLiteral = Literal["C", "D", "E", "F", "G", "A", "B"]
-
-
 class SpecificPitch(BaseModel, TwelveTETPitchMixin):
     """Specific pitch scalar with full enharmonic identity.
 
@@ -716,21 +735,18 @@ class SpecificPitch(BaseModel, TwelveTETPitchMixin):
     Called "specific" because it preserves the *specific* enharmonic
     spelling (C♯4 ≠ D♭4).
 
-    WP2 pilot scalar: defined as a pydantic v2 ``BaseModel``.  The
-    PyArrow storage shape derived from this model is
-    ``{step: string, alter: int64, octave: int64, cents: float64 nullable}`` —
-    the minimal set of fields that affords every derivative
-    representation.  ``fifths``, ``midi_number``, and ``pitch_class``
-    are ``@computed_field`` properties; they are NOT in the pa.Schema
-    and NOT in the Arrow column, per the WP2 locked decision.
+    WP2 pilot scalar.  The PyArrow storage shape derived from this
+    pydantic model is ``{step: string, alter: int64, octave: int64, cents:
+    float64?}`` — the minimal set of fields that affords every derivative
+    representation.  ``fifths``, ``midi_number``, and ``pitch_class`` are
+    derived (``@computed_field`` / ``@property``); they are NOT in the
+    pa.Schema and NOT in the Arrow column.
 
     Attributes:
-        step: Generic pitch class as letter (``"C"``, ``"D"``, ``"E"``,
-            ``"F"``, ``"G"``, ``"A"``, ``"B"``).
-        alter: Accidental in semitones (``-1=flat``, ``0=natural``,
-            ``+1=sharp``).  Defaults to 0.
+        step: Generic pitch class as letter.
+        alter: Accidental in semitones.
         octave: Octave number (C4 = MIDI 60 → octave 4).
-        cents: Cents deviation from 12-TET, or ``None`` if not measured.
+        cents: Cents deviation from 12-TET, or ``None`` if unmeasured.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -739,8 +755,6 @@ class SpecificPitch(BaseModel, TwelveTETPitchMixin):
     alter: int = 0
     octave: int
     cents: float | None = None
-
-    # --- Validators --------------------------------------------------------
 
     @field_validator("step", mode="before")
     @classmethod
@@ -752,38 +766,28 @@ class SpecificPitch(BaseModel, TwelveTETPitchMixin):
             raise ValueError(f"step must be one of {_SPECIFIC_PITCH_STEPS}, got {v!r}")
         return upper
 
-    # --- Computed fields (NOT stored in pa.Schema) -------------------------
+    # --- Computed / derived (NOT in pa.Schema) ----------------------------
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def fifths(self) -> int:
-        """Position on the line of fifths.
-
-        Computed field — derived from ``step + alter``.  NOT stored in
-        the pa.Schema and NOT in the Arrow column.  Materialises on
-        access.
-        """
         return _step_alter_to_fifths(self.step, self.alter)
 
     @property
     def midi_number(self) -> int:
-        """MIDI note number computed from step, alter, octave (C4 = 60)."""
         base = _STEP_TO_SEMITONE.get(self.step, 0)
         return (self.octave + 1) * 12 + base + self.alter
 
     @property
     def pitch_class(self) -> int:  # type: ignore[override]
-        """Pitch class (0-11) derived from step and alter."""
         base = _STEP_TO_SEMITONE.get(self.step, 0)
         return (base + self.alter) % 12
 
     @property
     def semantic_type(self) -> str:
-        """The canonical SemanticType name."""
         return "SpecificPitch"
 
     def metadata_dict(self) -> dict[str, str]:
-        """Return metadata dict matching the Parquet storage contract."""
         return {
             "field_type": "PitchField",
             "pitch_type": "sp",
@@ -792,18 +796,6 @@ class SpecificPitch(BaseModel, TwelveTETPitchMixin):
     def to(
         self, target_type: type, *, format: str | None = None
     ) -> "TwelveTETPitchMixin":
-        """Convert to another pitch type.
-
-        Args:
-            target_type: Target pitch type.
-            format: Optional format specifier.
-
-        Returns:
-            A pitch scalar of the target type.
-
-        Raises:
-            TypeError: If conversion is not supported.
-        """
         if target_type is SpecificPitch or target_type is type(self):
             return self
         if target_type is MidiPitch:
@@ -811,45 +803,25 @@ class SpecificPitch(BaseModel, TwelveTETPitchMixin):
         if target_type is EnharmonicPitchClass:
             return EnharmonicPitchClass(pitch_class=self.pitch_class)
         if target_type is SpecificPitchClass:
-            return SpecificPitchClass(
-                step=self.step,
-                alter=self.alter,
-            )
+            return SpecificPitchClass(step=self.step, alter=self.alter)
         raise TypeError(f"Cannot convert SpecificPitch to {target_type.__name__}")
 
     def get(self, *, format: str | None = None) -> str:
-        """Return string representation.
-
-        Args:
-            format: ``"specific"`` (default) returns e.g. ``"C♯4"``.
-                ``"midi"`` returns the MIDI number.
-        """
         if format == "midi":
             return str(self.midi_number)
         alter_str = ""
         if self.alter > 0:
-            alter_str = "\u266f" * self.alter
+            alter_str = "♯" * self.alter
         elif self.alter < 0:
-            alter_str = "\u266d" * abs(self.alter)
+            alter_str = "♭" * abs(self.alter)
         return f"{self.step}{alter_str}{self.octave}"
-
-    # --- Legacy storage struct mapping ------------------------------------
-    #
-    # The "legacy SP storage struct" referenced below is
-    # ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}`` — the
-    # over-specified shape used in NoteEventData _before_ the WP2 pilot.
-    # ``to_dict()`` and ``from_row()`` are the two-way mapping between
-    # that legacy struct and the new minimal pydantic model; they keep
-    # existing PitchField round-trips working during the bulk migration.
-    # Tutorials / docs MUST use ``from_*()`` constructors (CLAUDE.md §9);
-    # ``from_row`` / ``to_dict`` are internal.
 
     def to_dict(self) -> dict[str, object]:
         """Return a dict mirroring the legacy SP storage struct.
 
         Internal use only — preserves backward compatibility with the
         existing ``SpecificPitchSchema`` Parquet round-trip during the
-        bulk migration.  Bulk SemanticField construction uses the
+        WP3 alias rollout.  Bulk SemanticField construction uses the
         column-builder pattern over ``model_fields``, NOT this method.
         """
         return {
@@ -866,26 +838,6 @@ class SpecificPitch(BaseModel, TwelveTETPitchMixin):
 
     @classmethod
     def from_label(cls, label: str) -> SpecificPitch:
-        """Construct from a pitch label string.
-
-        Parses labels like ``"C#4"``, ``"Bb3"``, ``"D♯5"``.
-        Octave is **required**.
-
-        Args:
-            label: A pitch label string with octave (e.g. ``"C#4"``).
-
-        Returns:
-            A ``SpecificPitch``.
-
-        Raises:
-            ValueError: If the label cannot be parsed or has no octave.
-
-        Examples:
-            >>> SpecificPitch.from_label("C#4")
-            SpecificPitch(C♯4)
-            >>> SpecificPitch.from_label("Bb3")
-            SpecificPitch(B♭3)
-        """
         step, alter, octave = _parse_pitch_label(label)
         if octave is None:
             raise ValueError(
@@ -899,20 +851,25 @@ class SpecificPitch(BaseModel, TwelveTETPitchMixin):
         """Construct from a PyArrow struct row dict (trust-boundary regime).
 
         Accepts the legacy SP storage struct
-        ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}``.
+        ``{gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}`` OR the
+        new minimal struct ``{step, alter, octave, cents}``.
 
         Regime: **trust boundary** — per-row construction via the
         pydantic model's validators.  Invalid input raises
         ``ValidationError``.  Bulk reads of TTA-written Parquet using
-        the new minimal schema should go through
-        ``cls.model_construct(...)`` instead.
-
-        Args:
-            row: Dict with legacy SP storage field names.
-
-        Returns:
-            A ``SpecificPitch``, or ``None`` if ``gpc_str`` is null.
+        the new minimal schema go through ``cls.model_construct(...)``.
         """
+        # Minimal schema wins if present.
+        if "step" in row and row.get("step") is not None:
+            cents_raw = row.get("cents")
+            cents = float(cents_raw) if cents_raw is not None else None
+            # regime: trust boundary — full validators run on construction.
+            return cls(
+                step=str(row["step"]),
+                alter=int(row.get("alter", 0) or 0),
+                octave=int(row["octave"]),
+                cents=cents,
+            )
         step = row.get("gpc_str")
         if step is None:
             return None
@@ -931,21 +888,6 @@ class SpecificPitch(BaseModel, TwelveTETPitchMixin):
 
     def __repr__(self) -> str:
         return f"SpecificPitch({self.get()})"
-
-
-def _parse_octave_from_sp(sp: str | None, step: str) -> int:
-    """Extract octave number from a specific-pitch string like ``"C4"``."""
-    if not sp:
-        return 4
-    try:
-        idx = len(sp)
-        while idx > 0 and (sp[idx - 1].isdigit() or sp[idx - 1] == "-"):
-            idx -= 1
-        if idx < len(sp):
-            return int(sp[idx:])
-    except (ValueError, IndexError):
-        pass
-    return 4
 
 
 # endregion SpecificPitch

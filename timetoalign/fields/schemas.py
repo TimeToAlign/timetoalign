@@ -98,11 +98,11 @@ class PitchSpaceSchema:
 class GenericPitchSchema:
     """Schema for Generic Pitch (GP): pitch class only.
 
-    .. deprecated::
-        Use ``PitchSpaceSchema`` with ``type="epc"`` instead.
-        This schema stores chromatic pitch class 0-11, which is
-        ``EnharmonicPitchClass`` (semitones space), not true GPC
-        (diatonic steps 0-6).
+    Legacy bridge schema retained until WP3 retires ``PitchField``.  Not
+    for new code; ``PitchSpaceSchema`` with ``type="epc"`` is the
+    replacement.  Misnamed: this schema stores chromatic pitch class
+    0-11, which is ``EnharmonicPitchClass`` (semitones space), not true
+    GPC (diatonic steps 0-6).
 
     Storage struct::
 
@@ -134,12 +134,20 @@ class GenericPitchSchema:
 class EnharmonicPitchSchema:
     """Schema for Enharmonic Pitch (EP): MIDI-style integer representation.
 
-    .. deprecated::
-        Use ``PitchSpaceSchema`` with ``type="ep"`` instead.
+    Legacy bridge schema retained until WP3 retires ``PitchField``.  Not
+    for new code.  ``EnharmonicPitch`` (the scalar) is now a pydantic v2
+    ``BaseModel`` with a single ``midi_number`` field; the derived
+    pa.Schema collapses to ``{midi_number: int64}``.
 
     Storage struct::
 
         {ep: int64, epc: int64}
+
+    Blocks deletion: (a) ``NoteEventData._extra_fields`` still declares
+    ``midi_pitch`` as ``EnharmonicPitchSchema.schema`` and (b) ``PitchField``
+    still routes legacy ``{ep, epc}`` payloads through here for
+    round-tripping older Parquet.  Both cleanups land in WP3 alongside
+    the ``SemanticField[T]`` alias rollout that retires ``PitchField``.
     """
 
     ep: str = "ep"
@@ -174,13 +182,20 @@ class EnharmonicPitchSchema:
 class SpecificPitchSchema:
     """Schema for Specific Pitch (SP): pitch with full enharmonic identity.
 
-    .. deprecated::
-        Use ``PitchSpaceSchema`` with ``type="sp"`` instead.
+    Legacy bridge schema retained until WP3 retires ``PitchField``.  Not
+    for new code.  ``SpecificPitch`` (the scalar) is now a pydantic v2
+    ``BaseModel``; the derived pa.Schema collapses to ``{step, alter,
+    octave, cents}``.
 
     Storage struct::
 
         {gpc_int: int64, gpc_str: string, acc: int64,
          spc_int: int64, spc_str: string, sp: string, cents: float64}
+
+    Blocks deletion: ``NoteEventData._extra_fields`` still declares
+    ``specific_pitch`` with this shape and ``PitchField`` round-trips
+    older Parquet through it.  Both cleanups land in WP3 alongside the
+    ``SemanticField[T]`` alias rollout that retires ``PitchField``.
     """
 
     gpc_int: str = "gpc_int"
@@ -255,8 +270,9 @@ class SpecificPitchSchema:
 class SpecificPitchClassSchema:
     """Schema for Specific Pitch Class (SPC): specific pitch without octave.
 
-    .. deprecated::
-        Use ``PitchSpaceSchema`` with ``type="spc"`` instead.
+    Legacy bridge schema retained until WP3 retires ``PitchField``.  Not
+    for new code; ``PitchSpaceSchema`` with ``type="spc"`` is the
+    replacement.
 
     Storage struct::
 
