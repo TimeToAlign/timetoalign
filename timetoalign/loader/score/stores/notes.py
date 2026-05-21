@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 
 import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
+from timetoalign.core.events import EnharmonicPitchField, SpecificPitchField
 from timetoalign.loader.events import EventData
 from timetoalign.loader.mixins import PitchAccessMixin
 from timetoalign.loader.schema import make_fraction_field
-
-if TYPE_CHECKING:
-    from timetoalign.fields.pitch import PitchField
-
-from timetoalign.fields.schemas import EnharmonicPitchSchema, SpecificPitchSchema
 
 
 class NoteEventData(EventData, PitchAccessMixin):
@@ -27,9 +23,9 @@ class NoteEventData(EventData, PitchAccessMixin):
     - mc/mn: Measure context
     - mc_onset/mn_onset: Measure-relative offsets (Fraction)
 
-    Pitch fields:
-    - midi_pitch: {ep, epc}
-    - specific_pitch: {gpc_int, gpc_str, acc, spc_int, spc_str, sp, cents}
+    Pitch fields (canonical pydantic-derived struct shapes):
+    - midi_pitch: {midi_number}                  (EnharmonicPitchField)
+    - specific_pitch: {step, alter, octave, cents} (SpecificPitchField)
     - tpc: Tonal Pitch Class (fifths)
     - octave: Octave number
     """
@@ -40,9 +36,10 @@ class NoteEventData(EventData, PitchAccessMixin):
         pa.field("mn", pa.string(), nullable=True),
         make_fraction_field("mc_onset", nullable=True),
         make_fraction_field("mn_onset", nullable=True),
-        # Pitch -- struct types from schema dataclasses (single source of truth)
-        pa.field("midi_pitch", EnharmonicPitchSchema.schema, nullable=True),
-        pa.field("specific_pitch", SpecificPitchSchema.schema, nullable=True),
+        # Pitch struct columns — schemas derived from the paired Fields'
+        # pydantic models (see core/events.py).
+        pa.field("midi_pitch", EnharmonicPitchField.pa_schema, nullable=True),
+        pa.field("specific_pitch", SpecificPitchField.pa_schema, nullable=True),
         pa.field(
             "tpc",
             pa.int64(),
@@ -86,60 +83,49 @@ class NoteEventData(EventData, PitchAccessMixin):
         return self._has_rests
 
     @property
-    def enharmonic_pitch_field(self) -> PitchField:
-        """Extract the ``midi_pitch`` column as a ``PitchField`` (ep).
-
-        Convenience property.
+    def enharmonic_pitch_field(self) -> EnharmonicPitchField:
+        """Extract the ``midi_pitch`` column as an ``EnharmonicPitchField``.
 
         Returns:
-            A ``PitchField`` wrapping the ``midi_pitch`` column.
+            An ``EnharmonicPitchField`` wrapping the ``midi_pitch`` column.
 
         Raises:
             KeyError: If the table has no ``midi_pitch`` column.
         """
-        from timetoalign.fields.pitch import PitchField as PitchFieldCls
-
         try:
-            result = self.get_pitch_field(PitchFieldCls)
-            if result.pitch_type == "ep":
+            result = self.get_pitch_field(EnharmonicPitchField)
+            if isinstance(result, EnharmonicPitchField):
                 return result
         except KeyError:
             pass
 
         col = self._table.column("midi_pitch")
         pa_field = self._table.schema.field("midi_pitch")
-        return PitchFieldCls.from_field((col, pa_field), pitch_type="ep")
+        return EnharmonicPitchField.from_field((col, pa_field))
 
     # Backward-compat alias
     pitch_field = enharmonic_pitch_field
 
     @property
-    def specific_pitch_field(self) -> PitchField:
-        """Extract the ``specific_pitch`` column as a ``PitchField`` (sp).
-
-        Convenience property.
+    def specific_pitch_field(self) -> SpecificPitchField:
+        """Extract the ``specific_pitch`` column as a ``SpecificPitchField``.
 
         Returns:
-            A ``PitchField`` wrapping the ``specific_pitch`` column.
+            A ``SpecificPitchField`` wrapping the ``specific_pitch`` column.
 
         Raises:
             KeyError: If the table has no ``specific_pitch`` column.
         """
-        from timetoalign.fields.pitch import PitchField as PitchFieldCls
-
         try:
-            result = self.get_pitch_field(PitchFieldCls)
-            if result.pitch_type == "sp":
+            result = self.get_pitch_field(SpecificPitchField)
+            if isinstance(result, SpecificPitchField):
                 return result
         except KeyError:
             pass
 
         col = self._table.column("specific_pitch")
         pa_field = self._table.schema.field("specific_pitch")
-        return PitchFieldCls.from_field((col, pa_field), pitch_type="sp")
-
-    # Backward-compat alias
-    specific_pitch_field = specific_pitch_field
+        return SpecificPitchField.from_field((col, pa_field))
 
     @classmethod
     def empty(

@@ -13,11 +13,10 @@ Provides three levels of column access on ``EventData``:
 
 1. ``get_field("start")`` -- string column name; looks up metadata or
    default-field mapping to determine the ``SemanticField`` subclass.
-2. ``get_field(PitchField)`` -- a class; scans all columns
-   for metadata matching that class.
-3. ``get_field(PitchField(ep="midi_pitch"))`` -- a *blueprint*
-   instance; resolves the named column against the blueprint's type
-   configuration and caches the result.
+2. ``get_field(EnharmonicPitchField)`` -- a class; scans all columns
+   for metadata or shape matching that class.
+3. ``get_field(EnharmonicPitchField(column="midi_pitch"))`` -- a
+   *blueprint* instance; resolves the named column and caches the result.
 
 Domain mixins add convenience accessors with priority-based defaults
 and ``format=`` parameters for on-the-fly conversion:
@@ -31,11 +30,11 @@ from __future__ import annotations
 
 import enum
 import json
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pyarrow as pa
 
-from timetoalign.fields.base import (
+from timetoalign.core.fields import (
     DataField,
     MapField,
     NumericField,
@@ -44,10 +43,6 @@ from timetoalign.fields.base import (
     StructField,
     _GenericField,
 )
-
-if TYPE_CHECKING:
-    from timetoalign.fields.harmony import HarmonyField
-    from timetoalign.fields.pitch import PitchField
 
 _TIMETOALIGN_KEY = b"timetoalign"
 
@@ -78,38 +73,54 @@ _FIELD_TYPE_MAP: dict[str, type[SemanticField[Any]]] | None = None
 
 
 def _get_field_type_map() -> dict[str, type[SemanticField[Any]]]:
-    """Return the field_type string -> class mapping, building it on first call."""
+    """Return the field_type string -> class mapping, building it on first call.
+
+    Each paired ``XField(SemanticField[X])`` owns exactly one entry here.
+    No umbrella classes, no legacy aliases.
+    """
     global _FIELD_TYPE_MAP
     if _FIELD_TYPE_MAP is not None:
         return _FIELD_TYPE_MAP
 
-    from timetoalign.fields.coordinate import CoordinateField, DurationField
-    from timetoalign.fields.harmony import (
-        DcmlLabelField,
+    from timetoalign.core.events import (
+        DcmlHarmonyField,
+        EnharmonicPitchClassField,
+        EnharmonicPitchField,
+        GenericPitchClassField,
+        GenericPitchField,
+        HarmonyLabelField,
+        MeasureField,
+        MidiPitchField,
+        NoteField,
+        PitchBasedHarmonyField,
         RomanNumeralHarmonyField,
+        SpecificPitchClassField,
+        SpecificPitchField,
         WesternTertianHarmonyField,
     )
-    from timetoalign.fields.pitch import PitchField
+    from timetoalign.core.time import CoordinateField, DurationField
 
     _FIELD_TYPE_MAP = {
-        # Unified PitchField (canonical entry)
-        "PitchField": PitchField,
         # Coordinate / Duration
         "CoordinateField": CoordinateField,
         "DurationField": DurationField,
-        # Legacy pitch metadata compatibility -- all map to PitchField
-        "GenericPitchField": PitchField,
-        "SpecificPitchClassField": PitchField,
-        "EnharmonicPitchField": PitchField,
-        "SpecificPitchField": PitchField,
-        "SpecificPitchField": PitchField,
-        "MidiPitchField": PitchField,
-        # Harmony hierarchy
-        "WesternTertianHarmonyField": WesternTertianHarmonyField,
+        # Pitch — paired classes only
+        "EnharmonicPitchField": EnharmonicPitchField,
+        "EnharmonicPitchClassField": EnharmonicPitchClassField,
+        "GenericPitchField": GenericPitchField,
+        "GenericPitchClassField": GenericPitchClassField,
+        "MidiPitchField": MidiPitchField,
+        "SpecificPitchField": SpecificPitchField,
+        "SpecificPitchClassField": SpecificPitchClassField,
+        # Harmony — paired classes only
+        "DcmlHarmonyField": DcmlHarmonyField,
+        "HarmonyLabelField": HarmonyLabelField,
+        "PitchBasedHarmonyField": PitchBasedHarmonyField,
         "RomanNumeralHarmonyField": RomanNumeralHarmonyField,
-        "HarmonyField": DcmlLabelField,
-        "DcmlLabelField": DcmlLabelField,
-        "DcmlHarmonyField": DcmlLabelField,
+        "WesternTertianHarmonyField": WesternTertianHarmonyField,
+        # Event scalars
+        "MeasureField": MeasureField,
+        "NoteField": NoteField,
     }
     return _FIELD_TYPE_MAP
 
@@ -601,39 +612,40 @@ class SemanticFieldAccessMixin:
     ) -> SemanticField[Any]:
         """Resolve a semantic field from a blueprint instance.
 
-        A blueprint is a ``SemanticField`` constructed with column names
-        instead of data (e.g. ``PitchField(ep="midi_pitch")``).  This
-        method extracts the column from the table and constructs the
-        live field.
+        A blueprint is a paired ``SemanticField`` constructed with a
+        column name only (e.g. ``EnharmonicPitchField(column="midi_pitch")``).
+        This method extracts the column from the table and constructs the
+        live field via the paired class's ``from_field``.
         """
-        from timetoalign.fields.pitch import PitchField as PitchFieldCls
+        if not getattr(blueprint, "is_blueprint", False):
+            raise TypeError(
+                f"Blueprint resolution requires a blueprint-mode SemanticField, "
+                f"got {type(blueprint).__name__}"
+            )
 
-        if isinstance(blueprint, PitchFieldCls) and blueprint.is_blueprint:
-            col_name = blueprint._blueprint_column
-            pitch_type = blueprint.pitch_type
-            cache = self._field_cache
-            cache_key = (col_name, f"PitchField:{pitch_type}")
+        col_name = blueprint._blueprint_column
+        if col_name is None:
+            raise TypeError(
+                f"{type(blueprint).__name__} blueprint has no column attached"
+            )
 
-            cached = cache.get(cache_key)
-            if cached is not None:
-                return cached
+        cache = self._field_cache
+        cache_key = (col_name, type(blueprint).__name__)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
 
-            if col_name not in self._table.column_names:
-                raise KeyError(
-                    f"Blueprint column {col_name!r} not found. "
-                    f"Available: {self._table.column_names}"
-                )
+        if col_name not in self._table.column_names:
+            raise KeyError(
+                f"Blueprint column {col_name!r} not found. "
+                f"Available: {self._table.column_names}"
+            )
 
-            col = self._table.column(col_name)
-            pa_field = self._table.schema.field(col_name)
-            field = PitchFieldCls.from_field((col, pa_field), pitch_type=pitch_type)
-            cache[cache_key] = field
-            return field
-
-        raise TypeError(
-            f"Blueprint resolution not supported for {type(blueprint).__name__}. "
-            f"Only PitchField blueprints are currently supported."
-        )
+        col = self._table.column(col_name)
+        pa_field = self._table.schema.field(col_name)
+        field = type(blueprint).from_field((col, pa_field))
+        cache[cache_key] = field
+        return field
 
 
 # ---------------------------------------------------------------------------
@@ -645,54 +657,54 @@ class PitchAccessMixin(SemanticFieldAccessMixin):
     """Mixin providing pitch field access with priority-based defaults.
 
     Priority order (most informative first):
-    SP > EP > SPC > GPC (by ``pitch_type`` attribute on ``PitchField``).
+    ``SpecificPitchField`` > ``EnharmonicPitchField`` >
+    ``SpecificPitchClassField`` > ``GenericPitchClassField``.
     """
 
     def get_pitch_field(
         self,
-        pitch_field_type: type[PitchField] | None = None,
+        pitch_field_type: type[SemanticField[Any]] | None = None,
         *,
         format: str | None = None,
-    ) -> PitchField:
-        """Return a pitch field, optionally filtered by type.
-
-        This is the one-stop-shop accessor for pitch data.  If
-        *pitch_field_type* is ``None``, returns the most informative
-        available pitch field.
+    ) -> SemanticField[Any]:
+        """Return a pitch field, optionally filtered by class.
 
         Args:
-            pitch_field_type: Should be ``PitchField``.
-                If ``None``, returns the most informative available.
-            format: Format specifier for on-the-fly conversion
-                (e.g., ``"midi"``, ``"specific"``, ``"generic"``).
+            pitch_field_type: A specific paired ``XField`` class (e.g.
+                ``EnharmonicPitchField``).  If ``None``, returns the most
+                informative available pitch field from the priority list.
+            format: Format specifier for on-the-fly conversion.
                 Reserved for future conversion support.
-
-        Returns:
-            A ``PitchField`` instance.
 
         Raises:
             KeyError: If no matching pitch column is found.
         """
-        from timetoalign.fields.pitch import PitchField as PitchFieldCls
+        from timetoalign.core.events import (
+            EnharmonicPitchField,
+            GenericPitchClassField,
+            SpecificPitchClassField,
+            SpecificPitchField,
+        )
 
         if pitch_field_type is not None:
-            result = self.get_field(pitch_field_type)  # type: ignore[return-value]
-            if result is None:
-                raise KeyError(f"No pitch field found for {pitch_field_type}")
-            return result
+            return self.get_field(pitch_field_type)
 
-        # Default: return the most informative available pitch field
-        # Priority: sp > ep > spc > gpc
-        _PRIORITY = ["sp", "ep", "spc", "gpc"]
-        all_pitch = self.get_fields(PitchFieldCls)
-        if not all_pitch:
-            raise KeyError("No pitch field found in table")
+        # Priority: SP > EP > SPC > GPC
+        priority: list[type[SemanticField[Any]]] = [
+            SpecificPitchField,
+            EnharmonicPitchField,
+            SpecificPitchClassField,
+            GenericPitchClassField,
+        ]
+        for cls in priority:
+            try:
+                fields = self.get_fields(cls)
+            except KeyError:
+                fields = []
+            if fields:
+                return fields[0]
 
-        for pt in _PRIORITY:
-            for pf in all_pitch:
-                if pf.pitch_type == pt:
-                    return pf  # type: ignore[return-value]
-        return all_pitch[0]  # type: ignore[return-value]  # fallback
+        raise KeyError("No pitch field found in table")
 
 
 # ---------------------------------------------------------------------------
@@ -704,51 +716,49 @@ class HarmonyAccessMixin(SemanticFieldAccessMixin):
     """Mixin providing harmony field access with priority-based defaults.
 
     Priority order (most specific first):
-    ``DcmlLabelField`` > ``RomanNumeralHarmonyField`` > ``WesternTertianHarmonyField``
+    ``DcmlHarmonyField`` > ``RomanNumeralHarmonyField`` >
+    ``WesternTertianHarmonyField`` > ``PitchBasedHarmonyField`` >
+    ``HarmonyLabelField``.
     """
 
     def get_harmony_field(
         self,
-        harmony_type: type[HarmonyField] | None = None,
+        harmony_type: type[SemanticField[Any]] | None = None,
         *,
         format: str | None = None,
-    ) -> HarmonyField:
-        """Return a harmony field, optionally filtered by type.
-
-        This is the one-stop-shop accessor for harmony data.
+    ) -> SemanticField[Any]:
+        """Return a harmony field, optionally filtered by class.
 
         Args:
-            harmony_type: Specific ``HarmonyField`` subclass to request.
+            harmony_type: A specific paired harmony class to request.
                 If ``None``, returns the most specific available.
             format: Format specifier for on-the-fly conversion.
                 Reserved for future conversion support.
 
-        Returns:
-            A ``HarmonyField`` subclass instance.
-
         Raises:
             KeyError: If no matching harmony column is found.
         """
-        from timetoalign.fields.harmony import (
-            DcmlLabelField,
-        )
-        from timetoalign.fields.harmony import HarmonyField as HarmonyFieldCls
-        from timetoalign.fields.harmony import (
+        from timetoalign.core.events import (
+            DcmlHarmonyField,
+            HarmonyLabelField,
+            PitchBasedHarmonyField,
             RomanNumeralHarmonyField,
             WesternTertianHarmonyField,
         )
 
         if harmony_type is not None:
-            return self.get_field(harmony_type)  # type: ignore[return-value]
+            return self.get_field(harmony_type)
 
-        priority: list[type[HarmonyFieldCls]] = [
-            DcmlLabelField,
+        priority: list[type[SemanticField[Any]]] = [
+            DcmlHarmonyField,
             RomanNumeralHarmonyField,
             WesternTertianHarmonyField,
+            PitchBasedHarmonyField,
+            HarmonyLabelField,
         ]
         for ht in priority:
             if self.has_field(ht):
-                return self.get_field(ht)  # type: ignore[return-value]
+                return self.get_field(ht)
 
         raise KeyError("No harmony field found in table")
 

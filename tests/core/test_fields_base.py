@@ -8,15 +8,15 @@ import pyarrow as pa
 import pytest
 
 from timetoalign.core.enums import TimeUnit
-from timetoalign.core.protocols import CoordinateLike, SemanticTypeLike
-from timetoalign.core.types import Coordinate
-from timetoalign.fields.base import (
+from timetoalign.core.fields import (
     MapField,
     NumericField,
     SemanticField,
     StringField,
     StructField,
 )
+from timetoalign.core.protocols import CoordinateLike, SemanticTypeLike
+from timetoalign.core.time import Coordinate
 
 # ---------------------------------------------------------------------------
 # Protocol Conformance

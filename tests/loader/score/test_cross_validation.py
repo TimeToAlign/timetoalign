@@ -64,14 +64,14 @@ def extract_notes_df(store: ScoreStore, loader_name: str) -> pd.DataFrame:
                 )
             )
 
-    # Flatten pitch structs
+    # Flatten pitch structs — WP2.5 storage shape is {midi_number}.
     if "midi_pitch" in df.columns:
-        df["ep"] = df["midi_pitch"].apply(
-            lambda x: x["ep"] if isinstance(x, dict) else None
+        df["midi_number"] = df["midi_pitch"].apply(
+            lambda x: x["midi_number"] if isinstance(x, dict) else None
         )
 
     # Sort deterministically by (quarterbeats, pitch)
-    sort_cols = ["quarterbeats_float", "ep"]
+    sort_cols = ["quarterbeats_float", "midi_number"]
     df = df.sort_values(by=[c for c in sort_cols if c in df.columns]).reset_index(
         drop=True
     )
@@ -124,7 +124,7 @@ class TestMidiPitchExact:
 
     def test_partitura_pitch(self, gold_df, partitura_df):
         """Partitura MIDI pitch matches TSV gold exactly."""
-        mismatches = gold_df["ep"] != partitura_df["ep"]
+        mismatches = gold_df["midi_number"] != partitura_df["midi_number"]
 
         if mismatches.any():
             first_idx = mismatches.idxmax()
@@ -136,7 +136,7 @@ class TestMidiPitchExact:
 
     def test_music21_pitch(self, gold_df, music21_df):
         """Music21 MIDI pitch matches TSV gold exactly."""
-        mismatches = gold_df["ep"] != music21_df["ep"]
+        mismatches = gold_df["midi_number"] != music21_df["midi_number"]
 
         if mismatches.any():
             first_idx = mismatches.idxmax()

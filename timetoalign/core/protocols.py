@@ -55,7 +55,7 @@ class SemanticTypeLike(Protocol):
             (e.g., ``"Coordinate"``).
 
     Examples:
-        >>> from timetoalign.core.types import Coordinate
+        >>> from timetoalign.core.time import Coordinate
         >>> from timetoalign.core.enums import TimeUnit
         >>> coord = Coordinate(1.5, TimeUnit.seconds)
         >>> isinstance(coord, SemanticTypeLike)

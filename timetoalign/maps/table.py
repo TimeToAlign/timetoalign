@@ -13,7 +13,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ..core.enums import ExtrapolationPolicy, InterpolationKind, TimeUnit
-from ..core.types import CoordinateValue
+from ..core.time import CoordinateValue
 from .base import ConversionMap
 
 if TYPE_CHECKING:

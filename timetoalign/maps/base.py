@@ -15,7 +15,7 @@ from numpy.typing import NDArray
 
 from ..core.enums import TimeUnit
 from ..core.ids import IdGenerator
-from ..core.types import Coordinate, CoordinateValue
+from ..core.time import Coordinate, CoordinateValue
 
 if TYPE_CHECKING:
     from typing_extensions import Self

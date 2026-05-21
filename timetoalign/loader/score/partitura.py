@@ -499,16 +499,15 @@ class PartituraLoader(ScoreLoader):
                 octave = None
                 tpc = None
 
+                _sp_label = ""
                 if not is_rest and hasattr(obj, "midi_pitch"):
                     ep = obj.midi_pitch
-                    midi_pitch = {"ep": int(ep), "epc": int(ep) % 12}
+                    midi_pitch = {"midi_number": int(ep)}
 
                     if hasattr(obj, "step"):
                         step = obj.step
                         alter = int(getattr(obj, "alter", 0) or 0)
                         octave = int(getattr(obj, "octave", 4) or 4)
-
-                        gpc_int = _GPC_MAP.get(step, 0)
 
                         acc_str = ""
                         if alter > 0:
@@ -516,25 +515,22 @@ class PartituraLoader(ScoreLoader):
                         elif alter < 0:
                             acc_str = "\u266d" * abs(alter)
 
-                        spc_int = _BASE_FIFTHS.get(step, 0) + (7 * alter)
-                        tpc = spc_int
+                        tpc = _BASE_FIFTHS.get(step, 0) + (7 * alter)
 
                         specific_pitch = {
-                            "gpc_int": gpc_int,
-                            "gpc_str": step,
-                            "acc": alter,
-                            "spc_int": spc_int,
-                            "spc_str": f"{step}{acc_str}",
-                            "sp": f"{step}{acc_str}{octave}",
+                            "step": step,
+                            "alter": alter,
+                            "octave": octave,
                             "cents": 0.0,
                         }
+                        _sp_label = f"{step}{acc_str}{octave}"
 
                 # Compute name from specific pitch if available
                 note_name = ""
-                if specific_pitch and "sp" in specific_pitch:
-                    note_name = specific_pitch["sp"]
-                elif midi_pitch and "ep" in midi_pitch:
-                    note_name = f"MIDI {midi_pitch['ep']}"
+                if _sp_label:
+                    note_name = _sp_label
+                elif midi_pitch and "midi_number" in midi_pitch:
+                    note_name = f"MIDI {midi_pitch['midi_number']}"
 
                 note_rows.append(
                     {

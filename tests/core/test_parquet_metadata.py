@@ -7,15 +7,15 @@ from __future__ import annotations
 
 import json
 
-from timetoalign.core.scalars.pitch import SpecificPitch
-from timetoalign.core.schemas import (
+from timetoalign.core.events import SpecificPitch
+from timetoalign.core.fields import (
     TIMETOALIGN_METADATA_KEY,
     metadata_blob_for_model,
     metadata_blob_from_dict,
     parquet_metadata_for_model,
+    parse_metadata_blob,
 )
-from timetoalign.core.schemas.parquet_metadata import parse_metadata_blob
-from timetoalign.core.types import Coordinate
+from timetoalign.core.time import Coordinate
 
 
 class TestMetadataBlobForModel:
