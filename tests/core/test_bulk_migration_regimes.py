@@ -22,9 +22,8 @@ from fractions import Fraction
 import pytest
 
 from timetoalign.core.enums import TimeUnit
-from timetoalign.core.scalars import (
+from timetoalign.core.events import (
     DcmlHarmony,
-    Duration,
     EnharmonicPitch,
     EnharmonicPitchClass,
     GenericPitch,
@@ -39,8 +38,8 @@ from timetoalign.core.scalars import (
     SpecificPitchClass,
     WesternTertianHarmony,
 )
-from timetoalign.core.schemas import build_struct_array
-from timetoalign.core.types import Coordinate
+from timetoalign.core.fields import build_struct_array
+from timetoalign.core.time import Coordinate, Duration
 
 # ---------------------------------------------------------------------------
 # Atomic-shape scalars: column-builder works through build_struct_array.
@@ -342,30 +341,30 @@ class TestDurationRegimes:
         assert d.value == 0.5
         assert d.unit is TimeUnit.quarters
 
-    def test_negative_value_rejected(self) -> None:
-        from pydantic import ValidationError
-
-        with pytest.raises(ValidationError, match="non-negative"):
-            Duration(-1.0, TimeUnit.quarters)
+    def test_negative_value_allowed(self) -> None:
+        """Duration accepts negative values (produced by Coordinate - Coordinate)."""
+        d = Duration(-1.0, TimeUnit.quarters)
+        assert d.value == -1.0
+        assert d.is_negative() is True
 
     def test_fraction_value(self) -> None:
         d = Duration(Fraction(1, 4), TimeUnit.quarters)
         assert d.value == Fraction(1, 4)
 
     def test_model_construct(self) -> None:
-        # regime: internal round-trip — bypasses non-negative check too.
+        # regime: internal round-trip — bypasses validators.
         d = Duration.model_construct(value=0.0, unit=TimeUnit.quarters)
         assert d.value == 0.0
 
     def test_model_validate(self) -> None:
-        # regime: trust boundary — full validators including non-negative.
+        # regime: trust boundary — runs the full validator stack.
         d = Duration.model_validate({"value": 0.5, "unit": "quarters"})
         assert d.value == 0.5
 
     def test_bulk_via_coordinate_struct_array(self) -> None:
         # regime: bulk construction — Duration shares Coordinate's storage
         # struct and routes through ``build_coordinate_struct_array``.
-        from timetoalign.core.schemas import build_coordinate_struct_array
+        from timetoalign.core.fields import build_coordinate_struct_array
 
         arr = build_coordinate_struct_array(
             [Duration(0.5, TimeUnit.quarters), Duration(1.0, TimeUnit.quarters), None]
@@ -538,7 +537,7 @@ class TestSchemaFieldNameCoverage:
     )
     def test_pa_fields_subset_of_model_fields(self, cls: type) -> None:
         """The pa.Schema must not introduce fields the scalar doesn't declare."""
-        from timetoalign.core.schemas import derive_arrow_struct
+        from timetoalign.core.fields import derive_arrow_struct
 
         struct = derive_arrow_struct(cls)
         pa_names = {struct.field(i).name for i in range(struct.num_fields)}

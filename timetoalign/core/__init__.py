@@ -1,13 +1,21 @@
-"""Core primitives for the TimeToAlign library.
+"""Core primitives for the Time To Align! library.
 
-This module provides the fundamental building blocks:
-- Enumerations (Domain, TimeUnit, NumberType, EventType)
-- Coordinate and IdCoordinate dataclasses for timeline positions
-- ScopedId and IdGenerator for identity management
-- TimeStamp and TimeIntervalStamp for unified coordinate resolution
-- Type alias CoordinateSpec for flexible coordinate specification
+Flat module layout (no sub-packages):
 
-These types have no dependencies on other TTA modules.
+* :mod:`timetoalign.core.time` — ``TimeScalar`` base, ``Coordinate`` /
+  ``Duration`` and their Id-variants (``IdCoordinate``, ``IdDuration``),
+  plus the paired ``CoordinateField`` / ``IdCoordinateField`` /
+  ``DurationField`` / ``IdDurationField`` columnar wrappers.
+* :mod:`timetoalign.core.events` — pitch / harmony / Note / Measure
+  scalars and their paired Fields.
+* :mod:`timetoalign.core.fields` — ``DataField`` / ``SemanticField`` /
+  ``NumberField`` hierarchy, the pydantic → PyArrow translator, the
+  column-builder, and Parquet metadata.
+* :mod:`timetoalign.core.enums` — ``Domain``, ``TimeUnit``, ``NumberType``,
+  …
+* :mod:`timetoalign.core.ids` — ``ScopedId``, ``IdGenerator``.
+* :mod:`timetoalign.core.protocols` — ``PitchLike``, ``HarmonyLike``, …
+* :mod:`timetoalign.core.timestamp` — ``TimeStamp``, ``TimeIntervalStamp``.
 """
 
 from __future__ import annotations
@@ -29,30 +37,99 @@ from .enums import (
     PartitionMode,
     TimeUnit,
 )
+from .events import (
+    FIGBASS_TO_INVERSION,
+    DcmlHarmony,
+    DcmlHarmonyField,
+    DcmlStorageSchema,
+    EnharmonicPitch,
+    EnharmonicPitchClass,
+    EnharmonicPitchClassField,
+    EnharmonicPitchField,
+    GenericPitch,
+    GenericPitchClass,
+    GenericPitchClassField,
+    GenericPitchField,
+    HarmonyBaseSchema,
+    HarmonyLabel,
+    HarmonyLabelField,
+    Inversion,
+    Measure,
+    MeasureField,
+    MidiPitch,
+    MidiPitchField,
+    Note,
+    NoteField,
+    PitchBasedHarmony,
+    PitchBasedHarmonyField,
+    RomanNumeralHarmony,
+    RomanNumeralHarmonyField,
+    RomanNumeralSchema,
+    SpecificPitch,
+    SpecificPitchClass,
+    SpecificPitchClassField,
+    SpecificPitchField,
+    WesternTertianHarmony,
+    WesternTertianHarmonyField,
+    WesternTertianSchema,
+    figbass_to_inversion,
+)
+from .fields import (
+    TIMETOALIGN_METADATA_KEY,
+    DataField,
+    MapField,
+    NumberField,
+    NumericField,
+    SemanticField,
+    StringField,
+    StructField,
+    build_coordinate_struct_array,
+    build_struct_array,
+    derive_arrow_schema,
+    derive_arrow_struct,
+    metadata_blob_for_model,
+    metadata_blob_from_dict,
+    parquet_metadata_for_model,
+    parse_metadata_blob,
+    register_value_projector,
+)
 from .ids import IdGenerator, ScopedId, TimelineIdGenerator, resolve_id, resolve_ids
+from .time import (
+    DISCRETE_UNITS,
+    Coordinate,
+    CoordinateField,
+    CoordinateSpec,
+    CoordinateValue,
+    CoordinateWithTimeline,
+    Duration,
+    DurationField,
+    DurationValue,
+    IdCoordinate,
+    IdCoordinateField,
+    IdDuration,
+    IdDurationField,
+    IdTimeScalar,
+    OptionalCoordinate,
+    TimeScalar,
+    TimeScalarField,
+    TimeScalarValue,
+)
 from .timestamp import (
     TimeIntervalStamp,
     TimeStamp,
     TimeStampSource,
     timestamp_table_to_dataframe,
 )
-from .types import (
-    Coordinate,
-    CoordinateSpec,
-    CoordinateValue,
-    IdCoordinate,
-    OptionalCoordinate,
-)
 
 __all__ = [
     # Enums
-    "FancyStrEnum",
     "ActivationCondition",
     "ColumnNaming",
     "ColumnRole",
     "Domain",
     "EventType",
     "ExtrapolationPolicy",
+    "FancyStrEnum",
     "FlowControlElement",
     "FlowMode",
     "IncompletePosition",
@@ -61,12 +138,81 @@ __all__ = [
     "NumberType",
     "PartitionMode",
     "TimeUnit",
-    # Types
+    # Time scalars + paired Fields
     "Coordinate",
-    "IdCoordinate",
-    "CoordinateValue",
+    "CoordinateField",
     "CoordinateSpec",
+    "CoordinateValue",
+    "CoordinateWithTimeline",
+    "DISCRETE_UNITS",
+    "Duration",
+    "DurationField",
+    "DurationValue",
+    "IdCoordinate",
+    "IdCoordinateField",
+    "IdDuration",
+    "IdDurationField",
+    "IdTimeScalar",
     "OptionalCoordinate",
+    "TimeScalar",
+    "TimeScalarField",
+    "TimeScalarValue",
+    # DataField hierarchy / schema mechanism
+    "DataField",
+    "MapField",
+    "NumberField",
+    "NumericField",
+    "SemanticField",
+    "StringField",
+    "StructField",
+    "TIMETOALIGN_METADATA_KEY",
+    "build_coordinate_struct_array",
+    "build_struct_array",
+    "derive_arrow_schema",
+    "derive_arrow_struct",
+    "metadata_blob_for_model",
+    "metadata_blob_from_dict",
+    "parquet_metadata_for_model",
+    "parse_metadata_blob",
+    "register_value_projector",
+    # Pitch scalars + paired Fields
+    "EnharmonicPitch",
+    "EnharmonicPitchClass",
+    "EnharmonicPitchClassField",
+    "EnharmonicPitchField",
+    "GenericPitch",
+    "GenericPitchClass",
+    "GenericPitchClassField",
+    "GenericPitchField",
+    "MidiPitch",
+    "MidiPitchField",
+    "SpecificPitch",
+    "SpecificPitchClass",
+    "SpecificPitchClassField",
+    "SpecificPitchField",
+    # Harmony scalars + paired Fields
+    "DcmlHarmony",
+    "DcmlHarmonyField",
+    "DcmlStorageSchema",
+    "FIGBASS_TO_INVERSION",
+    "HarmonyBaseSchema",
+    "HarmonyLabel",
+    "HarmonyLabelField",
+    "Inversion",
+    "PitchBasedHarmony",
+    "PitchBasedHarmonyField",
+    "RomanNumeralHarmony",
+    "RomanNumeralHarmonyField",
+    "RomanNumeralSchema",
+    "WesternTertianHarmony",
+    "WesternTertianHarmonyField",
+    "WesternTertianSchema",
+    "figbass_to_inversion",
+    # Event scalars + paired Fields
+    "Measure",
+    "MeasureField",
+    "Note",
+    "NoteField",
     # Timestamps
     "TimeStamp",
     "TimeIntervalStamp",

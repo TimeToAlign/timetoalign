@@ -490,16 +490,14 @@ class Music21Loader(ScoreLoader):
         octave = None
         tpc = None
 
+        _sp_label = ""
         if not is_rest and hasattr(obj, "pitch"):
             ep = int(obj.pitch.midi)
-            midi_pitch = {"ep": ep, "epc": ep % 12}
+            midi_pitch = {"midi_number": ep}
 
             step = obj.pitch.step
             alter = int(obj.pitch.alter or 0)
             octave = obj.pitch.octave or 4
-
-            gpc_map = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6}
-            gpc_int = gpc_map.get(step, 0)
 
             acc_str = ""
             if alter > 0:
@@ -508,25 +506,22 @@ class Music21Loader(ScoreLoader):
                 acc_str = "♭" * abs(alter)
 
             base_fifths = {"F": -1, "C": 0, "G": 1, "D": 2, "A": 3, "E": 4, "B": 5}
-            spc_int = base_fifths.get(step, 0) + (7 * alter)
-            tpc = spc_int
+            tpc = base_fifths.get(step, 0) + (7 * alter)
 
             specific_pitch = {
-                "gpc_int": gpc_int,
-                "gpc_str": step,
-                "acc": alter,
-                "spc_int": spc_int,
-                "spc_str": f"{step}{acc_str}",
-                "sp": f"{step}{acc_str}{octave}",
+                "step": step,
+                "alter": alter,
+                "octave": octave,
                 "cents": 0.0,
             }
+            _sp_label = f"{step}{acc_str}{octave}"
 
         # Compute name from specific pitch if available
         note_name = ""
-        if specific_pitch and "sp" in specific_pitch:
-            note_name = specific_pitch["sp"]
-        elif midi_pitch and "ep" in midi_pitch:
-            note_name = f"MIDI {midi_pitch['ep']}"
+        if _sp_label:
+            note_name = _sp_label
+        elif midi_pitch and "midi_number" in midi_pitch:
+            note_name = f"MIDI {midi_pitch['midi_number']}"
 
         return {
             # ID auto-generated from event_type (Note or Rest)

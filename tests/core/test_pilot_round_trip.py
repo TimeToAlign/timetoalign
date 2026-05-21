@@ -20,15 +20,15 @@ import pytest
 from pydantic import ValidationError
 
 from timetoalign.core.enums import NumberType, TimeUnit
-from timetoalign.core.scalars.pitch import SpecificPitch
-from timetoalign.core.schemas import (
+from timetoalign.core.events import SpecificPitch
+from timetoalign.core.fields import (
     TIMETOALIGN_METADATA_KEY,
     build_coordinate_struct_array,
     build_struct_array,
     derive_arrow_struct,
     parquet_metadata_for_model,
 )
-from timetoalign.core.types import Coordinate
+from timetoalign.core.time import Coordinate
 from timetoalign.loader.schema import struct_to_coordinate
 
 
@@ -143,13 +143,15 @@ class TestValidationRegimes:
         assert sp.step == "X"
 
     def test_from_row_trust_boundary_rejects_invalid(self) -> None:
-        """§6: from_row uses validators -> trust-boundary rejection."""
+        """§6: from_row uses validators -> trust-boundary rejection.
+
+        WP2.5: the canonical row shape is ``{step, alter, octave, cents}``;
+        invalid ``step`` triggers the Literal validator.
+        """
         bad_row = {
-            "gpc_str": "X",  # invalid step
-            "acc": 0,
-            "spc_int": 0,
-            "spc_str": "X",
-            "sp": "X4",
+            "step": "X",  # invalid step
+            "alter": 0,
+            "octave": 4,
             "cents": 0.0,
         }
         with pytest.raises(ValidationError):

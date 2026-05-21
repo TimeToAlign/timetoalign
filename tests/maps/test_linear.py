@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from timetoalign.core.enums import TimeUnit
-from timetoalign.core.types import Coordinate
+from timetoalign.core.time import Coordinate
 from timetoalign.maps.linear import LinearMap, ScalarMap, ShiftMap
 
 

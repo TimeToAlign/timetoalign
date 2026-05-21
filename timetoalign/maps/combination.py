@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 from numpy.typing import NDArray
 
 from ..core.enums import TimeUnit
-from ..core.types import CoordinateValue
+from ..core.time import CoordinateValue
 from .base import ConversionMap
 
 if TYPE_CHECKING:

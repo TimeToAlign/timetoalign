@@ -338,17 +338,17 @@ class TSVLoader(ScoreLoader):
             nominal_duration = self._parse_fraction(row.get("nominal_duration"))
             scalar = self._parse_fraction(row.get("scalar"))
 
-            # Pitch - MIDI
+            # Pitch - MIDI (canonical pydantic-derived shape)
             midi_pitch = None
             if pd.notna(row.get("midi")):
                 ep = int(row["midi"])
-                midi_pitch = {"ep": ep, "epc": ep % 12}
+                midi_pitch = {"midi_number": ep}
 
-            # Pitch - Specific
+            # Pitch - Specific (canonical pydantic-derived shape)
             specific_pitch = None
             if pd.notna(row.get("name")):
                 name = str(row["name"])
-                step = name[0] if name else "C"
+                step = name[0].upper() if name else "C"
                 alter = 0
                 if len(name) > 1:
                     alter = (
@@ -357,29 +357,10 @@ class TSVLoader(ScoreLoader):
 
                 octave = int(row["octave"]) if pd.notna(row.get("octave")) else 4
 
-                gpc_map = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6}
-                gpc_int = gpc_map.get(step, 0)
-
-                acc_str = ""
-                if alter > 0:
-                    acc_str = "♯" * alter
-                elif alter < 0:
-                    acc_str = "♭" * abs(alter)
-
-                base_fifths = {"F": -1, "C": 0, "G": 1, "D": 2, "A": 3, "E": 4, "B": 5}
-                spc_int = (
-                    int(row["tpc"])
-                    if pd.notna(row.get("tpc"))
-                    else base_fifths.get(step, 0) + (7 * alter)
-                )
-
                 specific_pitch = {
-                    "gpc_int": gpc_int,
-                    "gpc_str": step,
-                    "acc": alter,
-                    "spc_int": spc_int,
-                    "spc_str": f"{step}{acc_str}",
-                    "sp": f"{step}{acc_str}{octave}",
+                    "step": step,
+                    "alter": alter,
+                    "octave": octave,
                     "cents": 0.0,
                 }
 

@@ -7,6 +7,7 @@ from fractions import Fraction
 import pytest
 
 from timetoalign.core.enums import TimeUnit
+from timetoalign.core.events import DcmlHarmony, Measure, MidiPitch, Note, SpecificPitch
 from timetoalign.core.protocols import (
     DcmlHarmonyLike,
     EnharmonicPitchLike,
@@ -16,11 +17,7 @@ from timetoalign.core.protocols import (
     PitchLike,
     SemanticTypeLike,
 )
-from timetoalign.core.scalars.harmony import DcmlHarmony
-from timetoalign.core.scalars.measure import Measure
-from timetoalign.core.scalars.note import Note
-from timetoalign.core.scalars.pitch import MidiPitch, SpecificPitch
-from timetoalign.core.types import Coordinate
+from timetoalign.core.time import Coordinate
 
 # ---------------------------------------------------------------------------
 # MidiPitch
@@ -66,7 +63,7 @@ class TestMidiPitch:
         """metadata_dict returns correct keys/values."""
         p = MidiPitch(midi_number=59)
         md = p.metadata_dict()
-        assert md["field_type"] == "PitchField"
+        assert md["field_type"] == "MidiPitchField"
         assert md["pitch_type"] == "ep"
 
     def test_frozen_immutable(self) -> None:

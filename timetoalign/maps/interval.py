@@ -20,7 +20,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from timetoalign.core.enums import ExtrapolationPolicy, InterpolationKind, TimeUnit
-from timetoalign.core.types import CoordinateValue
+from timetoalign.core.time import CoordinateValue
 from timetoalign.maps.base import ConversionMap
 from timetoalign.maps.table import TableMap
 

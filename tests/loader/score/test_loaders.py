@@ -64,13 +64,15 @@ class TestTSVLoader:
         store = loader.store
         first = list(store.notes)[0]
 
+        # WP2.5: midi_pitch struct shape {midi_number}, specific_pitch
+        # shape {step, alter, octave, cents}.
         mp = first.get("midi_pitch")
         assert mp is not None
-        assert "ep" in mp and mp["ep"] == 59  # B3
+        assert "midi_number" in mp and mp["midi_number"] == 59  # B3
 
         sp = first.get("specific_pitch")
         assert sp is not None
-        assert sp.get("gpc_str") == "B"
+        assert sp.get("step") == "B"
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")

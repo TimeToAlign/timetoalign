@@ -14,12 +14,12 @@ import pytest
 from pydantic import BaseModel, ConfigDict, computed_field
 
 from timetoalign.core.enums import TimeUnit
-from timetoalign.core.scalars.pitch import SpecificPitch
-from timetoalign.core.schemas import (
+from timetoalign.core.events import SpecificPitch
+from timetoalign.core.fields import (
     derive_arrow_struct,
     register_value_projector,
 )
-from timetoalign.core.types import Coordinate
+from timetoalign.core.time import Coordinate
 from timetoalign.loader.schema import make_coordinate_type
 
 
@@ -100,7 +100,7 @@ class TestTranslatorCaching:
         # identity is guaranteed by lru_cache on the underlying field tuple.
         assert a.equals(b)
         # Verify the cache is hit (fields tuple identity preserved).
-        from timetoalign.core.schemas.from_pydantic import _derive_arrow_fields
+        from timetoalign.core.fields import _derive_arrow_fields
 
         f1 = _derive_arrow_fields(SpecificPitch)
         f2 = _derive_arrow_fields(SpecificPitch)

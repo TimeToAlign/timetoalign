@@ -5,7 +5,7 @@ from fractions import Fraction
 import pytest
 
 from timetoalign.core.enums import Domain, NumberType, TimeUnit
-from timetoalign.core.types import Coordinate
+from timetoalign.core.time import Coordinate, Duration, IdCoordinate, IdDuration
 
 
 class TestCoordinateCreation:
@@ -169,34 +169,44 @@ class TestCoordinateProperties:
 
 
 class TestCoordinateArithmetic:
-    """Tests for Coordinate arithmetic operations."""
+    """Tests for Coordinate arithmetic operations (post-TimeScalar unification).
 
-    def test_add_same_unit(self) -> None:
-        """Addition works with same unit."""
+    Under the unified semantics:
+
+    * ``Coordinate + Coordinate`` → ``TypeError`` (subtract for a Duration)
+    * ``Coordinate + Duration`` / ``Coordinate - Duration`` → ``Coordinate``
+    * ``Coordinate - Coordinate`` → ``Duration``
+    * ``Coordinate ± number`` → ``Coordinate``
+    """
+
+    def test_add_two_coordinates_raises(self) -> None:
+        """Coordinate + Coordinate is no longer legal — subtract for a Duration."""
         c1 = Coordinate(100, TimeUnit.ticks)
         c2 = Coordinate(50, TimeUnit.ticks)
-        result = c1 + c2
+        with pytest.raises(TypeError, match="add two Coordinates"):
+            c1 + c2
+
+    def test_add_coordinate_and_duration_different_units_raises(self) -> None:
+        """Adding scalars with different units raises TypeError."""
+        c = Coordinate(100, TimeUnit.ticks)
+        d = Duration(1.5, TimeUnit.seconds)
+        with pytest.raises(TypeError, match="different units"):
+            c + d
+
+    def test_add_number(self) -> None:
+        """Coordinate + number returns a Coordinate with the offset value."""
+        c = Coordinate(100, TimeUnit.ticks)
+        result = c + 50
+        assert isinstance(result, Coordinate)
         assert result.value == 150
         assert result.unit == TimeUnit.ticks
 
-    def test_add_different_units_raises(self) -> None:
-        """Addition with different units raises TypeError."""
-        c1 = Coordinate(100, TimeUnit.ticks)
-        c2 = Coordinate(1.5, TimeUnit.seconds)
-        with pytest.raises(TypeError, match="different units"):
-            c1 + c2
-
-    def test_add_non_coordinate_raises(self) -> None:
-        """Addition with non-Coordinate raises TypeError."""
-        c = Coordinate(100, TimeUnit.ticks)
-        with pytest.raises(TypeError, match="Cannot add"):
-            c + 50  # type: ignore[operator]
-
-    def test_sub_same_unit(self) -> None:
-        """Subtraction works with same unit."""
+    def test_sub_two_coordinates_returns_duration(self) -> None:
+        """Coordinate - Coordinate returns a Duration."""
         c1 = Coordinate(100, TimeUnit.ticks)
         c2 = Coordinate(30, TimeUnit.ticks)
         result = c1 - c2
+        assert isinstance(result, Duration)
         assert result.value == 70
         assert result.unit == TimeUnit.ticks
 
@@ -207,11 +217,13 @@ class TestCoordinateArithmetic:
         with pytest.raises(TypeError, match="different units"):
             c1 - c2
 
-    def test_sub_non_coordinate_raises(self) -> None:
-        """Subtraction with non-Coordinate raises TypeError."""
+    def test_sub_number(self) -> None:
+        """Coordinate - number returns a Coordinate with the offset value."""
         c = Coordinate(100, TimeUnit.ticks)
-        with pytest.raises(TypeError, match="Cannot subtract"):
-            c - 50  # type: ignore[operator]
+        result = c - 50
+        assert isinstance(result, Coordinate)
+        assert result.value == 50
+        assert result.unit == TimeUnit.ticks
 
     def test_mul_scalar_int(self) -> None:
         """Multiplication with int scalar."""
@@ -280,6 +292,154 @@ class TestCoordinateArithmetic:
         with pytest.raises(TypeError, match="Cannot floor-divide"):
             c // "bad"  # type: ignore[operator]
 
+    def test_mul_two_timescalars_raises(self) -> None:
+        """Multiplying two TimeScalars together raises TypeError."""
+        c1 = Coordinate(100, TimeUnit.ticks)
+        c2 = Coordinate(2, TimeUnit.ticks)
+        with pytest.raises(TypeError, match="multiply two TimeScalars"):
+            c1 * c2  # type: ignore[operator]
+
+    def test_truediv_two_timescalars_raises(self) -> None:
+        """Dividing two TimeScalars raises TypeError."""
+        c = Coordinate(100, TimeUnit.ticks)
+        d = Duration(2, TimeUnit.ticks)
+        with pytest.raises(TypeError, match="divide two TimeScalars"):
+            c / d  # type: ignore[operator]
+
+
+class TestCoordinateDurationArithmetic:
+    """Arithmetic that crosses the Coordinate / Duration boundary."""
+
+    def test_coord_plus_duration(self) -> None:
+        """Coordinate + Duration returns a Coordinate."""
+        c = Coordinate(100, TimeUnit.ticks)
+        d = Duration(25, TimeUnit.ticks)
+        result = c + d
+        assert isinstance(result, Coordinate)
+        assert result.value == 125
+        assert result.unit == TimeUnit.ticks
+
+    def test_coord_minus_duration(self) -> None:
+        """Coordinate - Duration returns a Coordinate."""
+        c = Coordinate(100, TimeUnit.ticks)
+        d = Duration(30, TimeUnit.ticks)
+        result = c - d
+        assert isinstance(result, Coordinate)
+        assert result.value == 70
+
+    def test_duration_plus_duration(self) -> None:
+        """Duration + Duration returns a Duration."""
+        d1 = Duration(10, TimeUnit.ticks)
+        d2 = Duration(5, TimeUnit.ticks)
+        result = d1 + d2
+        assert isinstance(result, Duration)
+        assert result.value == 15
+
+    def test_duration_minus_duration_negative(self) -> None:
+        """Duration - Duration may be negative."""
+        d1 = Duration(5, TimeUnit.ticks)
+        d2 = Duration(10, TimeUnit.ticks)
+        result = d1 - d2
+        assert isinstance(result, Duration)
+        assert result.value == -5
+        assert result.is_negative() is True
+
+    def test_duration_plus_coordinate_raises(self) -> None:
+        """Duration + Coordinate raises TypeError (operand order matters)."""
+        d = Duration(10, TimeUnit.ticks)
+        c = Coordinate(100, TimeUnit.ticks)
+        with pytest.raises(TypeError, match="Cannot add a Coordinate"):
+            d + c
+
+    def test_duration_minus_coordinate_raises(self) -> None:
+        """Duration - Coordinate raises TypeError."""
+        d = Duration(10, TimeUnit.ticks)
+        c = Coordinate(100, TimeUnit.ticks)
+        with pytest.raises(TypeError, match="subtract a Coordinate"):
+            d - c
+
+    def test_duration_mul_scalar(self) -> None:
+        """Duration * number returns a Duration."""
+        d = Duration(5, TimeUnit.ticks)
+        result = d * 2
+        assert isinstance(result, Duration)
+        assert result.value == 10
+
+    def test_duration_truediv_scalar(self) -> None:
+        """Duration / number returns a Duration."""
+        d = Duration(10, TimeUnit.ticks)
+        result = d / 2
+        assert isinstance(result, Duration)
+        assert result.value == 5.0
+
+    def test_duration_floordiv_scalar(self) -> None:
+        """Duration // number returns a Duration."""
+        d = Duration(10, TimeUnit.ticks)
+        result = d // 3
+        assert isinstance(result, Duration)
+        assert result.value == 3
+
+    def test_duration_mul_timescalar_raises(self) -> None:
+        """Duration * TimeScalar raises TypeError."""
+        d = Duration(5, TimeUnit.ticks)
+        c = Coordinate(2, TimeUnit.ticks)
+        with pytest.raises(TypeError, match="multiply two TimeScalars"):
+            d * c  # type: ignore[operator]
+
+
+class TestIdCoordinateArithmetic:
+    """Arithmetic involving IdCoordinate / IdDuration (timeline-id propagation)."""
+
+    def test_idcoord_minus_idcoord_same_id(self) -> None:
+        """IdCoordinate - IdCoordinate returns IdDuration (id preserved)."""
+        a = IdCoordinate(120, TimeUnit.ticks, "tl1")
+        b = IdCoordinate(80, TimeUnit.ticks, "tl1")
+        result = a - b
+        assert isinstance(result, IdDuration)
+        assert result.value == 40
+        assert result.timeline_id == "tl1"
+
+    def test_idcoord_minus_idcoord_mismatched_id_raises(self) -> None:
+        """IdCoordinate - IdCoordinate with mismatched ids raises TypeError."""
+        a = IdCoordinate(120, TimeUnit.ticks, "tl1")
+        b = IdCoordinate(80, TimeUnit.ticks, "tl2")
+        with pytest.raises(TypeError, match="mismatched timeline_id"):
+            a - b
+
+    def test_idcoord_plus_duration(self) -> None:
+        """IdCoordinate + Duration returns IdCoordinate (id preserved)."""
+        a = IdCoordinate(120, TimeUnit.ticks, "tl1")
+        d = Duration(40, TimeUnit.ticks)
+        result = a + d
+        assert isinstance(result, IdCoordinate)
+        assert result.value == 160
+        assert result.timeline_id == "tl1"
+
+    def test_coord_minus_idcoord(self) -> None:
+        """Coordinate - IdCoordinate returns IdDuration (picks up the id)."""
+        a = Coordinate(120, TimeUnit.ticks)
+        b = IdCoordinate(80, TimeUnit.ticks, "tl1")
+        result = a - b
+        assert isinstance(result, IdDuration)
+        assert result.value == 40
+        assert result.timeline_id == "tl1"
+
+    def test_coord_plus_idduration(self) -> None:
+        """Coordinate + IdDuration returns IdCoordinate (picks up the id)."""
+        c = Coordinate(50, TimeUnit.ticks)
+        d = IdDuration(10, TimeUnit.ticks, "tl1")
+        result = c + d
+        assert isinstance(result, IdCoordinate)
+        assert result.value == 60
+        assert result.timeline_id == "tl1"
+
+    def test_idcoord_plus_idcoord_raises(self) -> None:
+        """IdCoordinate + IdCoordinate is still rejected (two Coordinates)."""
+        a = IdCoordinate(120, TimeUnit.ticks, "tl1")
+        b = IdCoordinate(80, TimeUnit.ticks, "tl1")
+        with pytest.raises(TypeError, match="add two Coordinates"):
+            a + b
+
 
 class TestCoordinateComparison:
     """Tests for Coordinate comparison operations."""
@@ -325,11 +485,21 @@ class TestCoordinateComparison:
         with pytest.raises(TypeError, match="different units"):
             c1 < c2
 
-    def test_comparison_non_coordinate_raises(self) -> None:
-        """Comparison with non-Coordinate raises TypeError."""
+    def test_comparison_with_number(self) -> None:
+        """Comparison with a raw number compares against ``self.value``."""
+        c = Coordinate(100, TimeUnit.ticks)
+        assert c < 200
+        assert c <= 100
+        assert c > 50
+        assert c >= 100
+        assert not c < 100
+        assert not c > 100
+
+    def test_comparison_with_bad_type_raises(self) -> None:
+        """Comparison against a non-numeric, non-TimeScalar value raises TypeError."""
         c = Coordinate(100, TimeUnit.ticks)
         with pytest.raises(TypeError, match="Cannot compare"):
-            c < 100  # type: ignore[operator]
+            c < "bad"  # type: ignore[operator]
 
 
 class TestCoordinateUtilities:
