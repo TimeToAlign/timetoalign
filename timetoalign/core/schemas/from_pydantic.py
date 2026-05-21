@@ -13,34 +13,38 @@ Why hand-rolled (not the external ``pydantic-to-pyarrow`` package):
   precision.  The external translator has no hook for this projection;
   this module exposes :func:`register_value_projector` so each pilot
   scalar can register its own field-expansion rule.
-* Future workshop scalars (``MidiEvent`` in WP7) will need nested
-  ``BaseModel`` fields — the projector registry is the extension point.
+* Workshop scalars (``Note``, ``Measure``, ``MidiEvent`` in WP7) need
+  nested ``BaseModel`` fields — the projector registry is the
+  extension point.
 
-**Supported field shapes (WP2 pilot):**
+**Supported field shapes:**
 
 * ``str``                       → ``pa.string()`` (not dictionary-encoded)
 * ``int``                       → ``pa.int64()``
 * ``float``                     → ``pa.float64()``
-* ``Optional[float]`` /
-  ``float | None``              → ``pa.float64()`` (nullable)
+* ``bool``                      → ``pa.bool_()``
+* ``Optional[T]`` /
+  ``T | None``                  → nullable variant of ``T``'s mapping
 * ``Literal[str, ...]``         → ``pa.string()`` (NOT dictionary)
-* Registered value projectors   → multi-field struct expansion
+* ``Literal[int, ...]``         → ``pa.int64()``
+* Nested ``BaseModel``          → ``pa.struct(_derive_arrow_fields(inner))``
+* ``tuple[T, ...]`` (variadic)  → ``pa.list_(atomic_T)``
+* ``tuple[T1, T2, ...]`` (fixed)→ ``pa.struct({_0, _1, …})`` (positional names)
+* Registered value projectors   → multi-field struct expansion / drop
 * ``computed_field`` properties → omitted (NOT in pa.Schema)
 
-**NOT yet supported (WP2 bulk migration must extend):**
+**NOT yet supported — extend this module rather than reaching outside:**
 
-* Nested ``BaseModel`` fields (workshop ``MidiEvent`` will need this).
-* ``Literal[int, ...]`` (no current scalar uses it; would map cleanly to
-  ``pa.int64()``).
 * ``datetime``, ``Decimal``, ``UUID``, ``bytes``.
-* Generic container types (``list[T]``, ``dict[K, V]``).
-* Discriminated unions — **explicitly forbidden** by the WP2 plan;
-  resolve polymorphism via columnar separation at the EventData level.
+* Discriminated unions across ``BaseModel`` subclasses — explicitly
+  forbidden by the WP2 plan.  Use a value-projector returning ``[]`` to
+  drop the field from the pa.Schema (columnar separation at the
+  EventData level handles polymorphism).
+* Generic ``list[T]`` / ``dict[K, V]`` outside the variadic-tuple
+  shortcut.
 
-When the bulk migration in a follow-up WP encounters any of the
-unsupported shapes above, extend this module rather than reaching for
-``pydantic-to-pyarrow``: the per-pilot value-projector hook generalises
-cleanly to nested-model expansion.
+The per-pilot value-projector hook generalises cleanly when a new
+unsupported shape appears.
 """
 
 from __future__ import annotations
@@ -61,7 +65,9 @@ from pydantic.fields import FieldInfo
 # ``pa.Field`` entries that will replace the field in the derived struct.
 # Used by ``Coordinate``: the scalar's single ``value: int|float|Fraction``
 # field expands to three storage fields ``{value, numerator, denominator}``
-# inside the Arrow struct.
+# inside the Arrow struct.  An empty list drops the field entirely
+# (used to keep e.g. ``Note.pitch`` out of the pa.Schema while preserving
+# the Python annotation).
 #
 # Registry key: (scalar_model_cls, field_name)
 # Registry value: callable returning a list[pa.Field] (the replacement
@@ -82,7 +88,8 @@ def register_value_projector(
     returns a list of ``pa.Field`` entries that replace the single
     pydantic field in the derived pa.Schema.  Used for denormalised
     storage projections that the type alone cannot express (e.g.
-    ``Coordinate.value`` → ``{value, numerator, denominator}``).
+    ``Coordinate.value`` → ``{value, numerator, denominator}``) and for
+    columnar-separation drops (e.g. ``Note.pitch`` → ``[]``).
 
     Registration is idempotent on the (cls, field_name) pair — later
     registrations override earlier ones.  Calling this also invalidates
@@ -103,8 +110,16 @@ def register_value_projector(
 # ---------------------------------------------------------------------------
 
 
+def _is_tuple_type(py_type: Any) -> bool:
+    origin = get_origin(py_type)
+    return origin is tuple
+
+
 def _atomic_arrow_type(py_type: Any) -> pa.DataType:
-    """Map a pydantic atomic type annotation to a ``pa.DataType``.
+    """Map a pydantic atomic / structural type annotation to a ``pa.DataType``.
+
+    Handles atomic primitives, ``Literal``, nested ``BaseModel``, and
+    ``tuple[...]`` shapes.
 
     Args:
         py_type: The (possibly-Optional-unwrapped) Python type.
@@ -113,7 +128,7 @@ def _atomic_arrow_type(py_type: Any) -> pa.DataType:
         The corresponding PyArrow data type.
 
     Raises:
-        TypeError: If *py_type* is not a supported atomic type.
+        TypeError: If *py_type* is not a supported atomic/structural type.
     """
     if py_type is str:
         return pa.string()
@@ -123,7 +138,9 @@ def _atomic_arrow_type(py_type: Any) -> pa.DataType:
         return pa.float64()
     if py_type is bool:
         return pa.bool_()
+
     origin = get_origin(py_type)
+
     if origin is Literal:
         args = get_args(py_type)
         if all(isinstance(a, str) for a in args):
@@ -134,18 +151,46 @@ def _atomic_arrow_type(py_type: Any) -> pa.DataType:
         raise TypeError(
             f"Mixed-type Literal not supported in pa.Schema derivation: {py_type!r}"
         )
+
+    # Nested pydantic model -> pa.struct of its derived fields.
+    if isinstance(py_type, type) and issubclass(py_type, BaseModel):
+        return pa.struct(_derive_arrow_fields(py_type))
+
+    # tuple[T, ...] (variable length) -> pa.list_(T).
+    # tuple[T1, T2, ...] (fixed)       -> pa.struct({_0, _1, ...}).
+    if _is_tuple_type(py_type):
+        args = get_args(py_type)
+        if len(args) == 2 and args[1] is Ellipsis:
+            inner_pa = _atomic_arrow_type(args[0])
+            return pa.list_(inner_pa)
+        if len(args) >= 1 and Ellipsis not in args:
+            children = [
+                pa.field(f"_{i}", _atomic_arrow_type(a), nullable=True)
+                for i, a in enumerate(args)
+            ]
+            return pa.struct(children)
+        raise TypeError(
+            f"Unsupported tuple annotation {py_type!r}; use tuple[T, ...] "
+            "for variadic or tuple[T1, T2, ...] for fixed-length."
+        )
+
     raise TypeError(
-        f"Cannot derive PyArrow type for {py_type!r}: not a supported atomic type. "
-        "Supported: str, int, float, bool, Literal[str, ...], Literal[int, ...]. "
-        "Nested models and container types need to be added when the bulk "
-        "migration encounters them — extend timetoalign.core.schemas.from_pydantic."
+        f"Cannot derive PyArrow type for {py_type!r}: not a supported type. "
+        "Supported: str, int, float, bool, Literal[str|int, ...], nested "
+        "BaseModel, tuple[T, ...] (variadic), tuple[T1, T2, ...] (fixed). "
+        "Nested unsupported shapes need to be added when the bulk migration "
+        "encounters them — extend timetoalign.core.schemas.from_pydantic."
     )
 
 
 def _unwrap_optional(py_type: Any) -> tuple[Any, bool]:
     """Return (inner_type, nullable) for ``T | None`` / ``Optional[T]``.
 
-    For non-optional annotations, returns ``(py_type, False)``.
+    For non-optional annotations, returns ``(py_type, False)``.  Unions
+    of more than one non-None arm raise: discriminated unions of
+    ``BaseModel`` subclasses are explicitly forbidden under the WP2
+    plan (resolve via columnar separation + a value-projector
+    returning ``[]``).
 
     Args:
         py_type: A pydantic field's annotation.
@@ -158,12 +203,24 @@ def _unwrap_optional(py_type: Any) -> tuple[Any, bool]:
     # typing.Union.  Both expose args through ``get_args``.
     union_type = getattr(sys.modules.get("types"), "UnionType", None)
     is_union = origin is union_type or (
-        origin is not None and origin.__name__ == "Union"  # type: ignore[attr-defined]
+        origin is not None and getattr(origin, "__name__", None) == "Union"
     )
     if not is_union:
         return py_type, False
     args = [a for a in get_args(py_type) if a is not type(None)]
     if len(args) != 1:
+        # Detect the forbidden case (union of BaseModels) and emit a
+        # pointer to the columnar-separation rule.
+        basemodel_arms = [
+            a for a in args if isinstance(a, type) and issubclass(a, BaseModel)
+        ]
+        if len(basemodel_arms) >= 2:
+            raise TypeError(
+                f"Union of BaseModel subclasses is forbidden by the WP2 plan "
+                f"(columnar separation required): {py_type!r}. Drop the field "
+                f"from the pa.Schema via register_value_projector(cls, name, "
+                f"lambda *_: [])."
+            )
         raise TypeError(
             f"Only Optional[T] / T | None unions are supported, got {py_type!r}"
         )
@@ -190,7 +247,8 @@ def _derive_arrow_fields(model_cls: type[BaseModel]) -> tuple[pa.Field, ...]:
     """
     out: list[pa.Field] = []
     for name, info in model_cls.model_fields.items():
-        # Value-projector hook (e.g. Coordinate.value -> 3 storage fields)
+        # Value-projector hook (e.g. Coordinate.value -> 3 storage fields,
+        # Note.pitch -> [] to drop the field).
         proj = _VALUE_PROJECTORS.get((model_cls, name))
         if proj is not None:
             out.extend(proj(model_cls, name, info))

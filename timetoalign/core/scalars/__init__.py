@@ -1,9 +1,9 @@
 """Scalar types for score/symbolic data in Time To Align!
 
-This package provides frozen dataclass scalars that satisfy the
-corresponding protocols defined in ``core.protocols``.  Each scalar
-carries ``semantic_type`` and ``metadata_dict()`` for Parquet storage
-contract compliance.
+This package provides pydantic v2 ``BaseModel`` scalars (all frozen) that
+satisfy the corresponding protocols defined in ``core.protocols``.  Each
+scalar carries ``semantic_type`` and ``metadata_dict()`` for Parquet
+storage contract compliance.
 
 Type Hierarchy:
 
@@ -12,32 +12,31 @@ Pitch scalars (satisfy PitchLike hierarchy):
     - ``GenericPitchClass`` -- diatonic step 0-6
     - ``GenericPitch`` -- diatonic step + octave
     - ``SpecificPitchClass`` -- pitch class with spelling (SpecificPitchClassLike)
-    - ``EnharmonicPitch`` -- pitch in semitone space with note-name display;
-      used by ``PitchField`` for ``pitch_type="ep"`` (EnharmonicPitchLike)
-    - ``MidiPitch`` -- display alias of ``EnharmonicPitch`` (same data,
-      raw-MIDI-number ``__repr__``); reserved as the default scalar for
-      the planned ``MidiField`` (EnharmonicPitchLike)
-    - ``SpecificPitch`` / ``SpecificPitch`` -- full spelling (SpecificPitchLike).
-      ``SpecificPitch`` is a protocol-name re-export of the same class.
+    - ``EnharmonicPitch`` -- pitch in semitone space with note-name display
+    - ``MidiPitch`` -- display subclass of ``EnharmonicPitch`` (raw-MIDI repr)
+    - ``SpecificPitch`` -- full spelling (SpecificPitchLike)
 
 Harmony scalars (satisfy HarmonyLabelLike hierarchy):
-    - ``HarmonyLabel`` / ``Harmony`` -- label + standard + temporal (HarmonyLabelLike)
+    - ``HarmonyLabel`` -- label + standard (HarmonyLabelLike)
     - ``PitchBasedHarmony`` -- + root/bass (PitchBasedHarmonyLike)
-    - ``WesternTertianHarmony`` -- + chord_type/inversion (WesternTertianHarmonyLike)
-    - ``RomanNumeralHarmony`` -- + numeral/localkey/globalkey (RomanNumeralHarmonyLike)
-    - ``DcmlHarmony`` / ``DcmlLabel`` -- DCML codec specifics (DcmlHarmonyLike)
+    - ``WesternTertianHarmony`` -- + chord_type/inversion
+    - ``RomanNumeralHarmony`` -- + numeral/localkey/globalkey
+    - ``DcmlHarmony`` -- DCML codec specifics (DcmlHarmonyLike)
 
 Event scalars (satisfy IntervalEventLike):
     - ``Note`` -- note/rest event (NoteLike)
     - ``Measure`` -- measure boundary event (MeasureLike)
+
+Duration:
+    - ``Duration`` -- non-negative elapsed extent (WP2 new scalar; same
+      physical storage as Coordinate)
 """
 
 from __future__ import annotations
 
+from .duration import Duration
 from .harmony import (
     DcmlHarmony,
-    DcmlLabel,
-    Harmony,
     HarmonyLabel,
     PitchBasedHarmony,
     RomanNumeralHarmony,
@@ -63,17 +62,16 @@ __all__ = [
     "SpecificPitchClass",
     "MidiPitch",
     "SpecificPitch",
-    "SpecificPitch",
     "EnharmonicPitch",
     # Harmony hierarchy
     "HarmonyLabel",
-    "Harmony",
     "PitchBasedHarmony",
     "WesternTertianHarmony",
     "RomanNumeralHarmony",
     "DcmlHarmony",
-    "DcmlLabel",
     # Event scalars
     "Note",
     "Measure",
+    # Duration
+    "Duration",
 ]
