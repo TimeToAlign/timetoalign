@@ -191,7 +191,7 @@ class TestSpecificPitchField:
 
 class TestBlueprintMode:
     def test_blueprint_construction(self) -> None:
-        bp = EnharmonicPitchField(column="midi_pitch")
+        bp = EnharmonicPitchField(source_fields="midi_pitch")
         assert bp.is_blueprint is True
         assert bp._blueprint_column == "midi_pitch"
 
