@@ -36,6 +36,7 @@ from typing import (
     Generic,
     Iterable,
     Literal,
+    Optional,
     Sequence,
     TypeVar,
     get_args,
@@ -45,6 +46,8 @@ from typing import (
 import pyarrow as pa
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
+
+from .enums import TimeUnit
 
 T = TypeVar("T", bound=BaseModel)
 """The pydantic scalar a ``SemanticField`` is paired with."""
@@ -1595,15 +1598,13 @@ class RationalField(NumberField):
         return cls(data, field)
 
 
-def _coerce_time_unit(unit: Any) -> Any:
+def _coerce_time_unit(unit: Any) -> TimeUnit:
     """Coerce a unit value to a ``TimeUnit`` enum (lazy import to avoid cycles)."""
     if unit is None:
         return None
     from .enums import TimeUnit
 
-    if isinstance(unit, str):
-        return TimeUnit(unit)
-    return unit
+    return TimeUnit(unit)
 
 
 class DenominateNumberField(RationalField):
@@ -1628,15 +1629,15 @@ class DenominateNumberField(RationalField):
         data: pa.Array | pa.ChunkedArray | None,
         field: pa.Field,
         *,
-        unit: Any = None,
-    ) -> None:
+        unit: Optional[TimeUnit | str] = None,
+    ):
         super().__init__(data, field)
-        self._unit = self._resolve_unit(field, unit)
+        self._unit: Optional[TimeUnit] = self._resolve_unit(field, unit)
 
     # -- properties ----------------------------------------------------------
 
     @property
-    def unit(self) -> Any:
+    def unit(self) -> Optional[TimeUnit]:
         """The single unit bound to this field, or ``None`` if unresolved."""
         return self._unit
 
@@ -1648,7 +1649,7 @@ class DenominateNumberField(RationalField):
     # -- helpers -------------------------------------------------------------
 
     @staticmethod
-    def _resolve_unit(pa_field: pa.Field, override: Any) -> Any:
+    def _resolve_unit(pa_field: pa.Field, override: Any) -> Optional[TimeUnit]:
         """Resolve the unit from a kwarg override, then from field metadata."""
         if override is not None:
             return _coerce_time_unit(override)
