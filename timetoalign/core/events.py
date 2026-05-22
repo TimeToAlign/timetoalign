@@ -50,6 +50,8 @@ def _pc_mod(arr: pa.Array, n: int) -> pa.Array:
 
     Implemented as: ``r + n*(r < 0)`` via ``pc.add`` + ``pc.if_else``.
     """
+    # TODO(pyarrow): replace with pc.mod once it lands — tracked upstream at
+    # https://github.com/apache/arrow/issues/46901 (open as of pyarrow v23).
     quot = pc.divide(arr, n)
     r = pc.subtract(arr, pc.multiply(quot, n))
     # Adjust to non-negative when r is negative.
