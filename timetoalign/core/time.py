@@ -62,7 +62,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from .enums import Domain, NumberType, TimeUnit
 from .fields import (
     TIMETOALIGN_METADATA_KEY,
-    NumberField,
+    DenominateNumberField,
     StructField,
     register_value_projector,
 )
@@ -823,7 +823,7 @@ OptionalCoordinate = Union[Coordinate, None]
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-class TimeScalarField(NumberField):
+class TimeScalarField(DenominateNumberField):
     """Abstract parent for ``Coordinate`` / ``Duration`` (+ Id) semantic fields.
 
     Consolidates the shared ``from_field`` / ``from_table`` / ``__repr__``
