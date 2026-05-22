@@ -77,8 +77,8 @@ from .events import (
 from .fields import (
     TIMETOALIGN_METADATA_KEY,
     DataField,
+    DenominateNumberField,
     MapField,
-    NumberField,
     NumericField,
     SemanticField,
     StringField,
@@ -160,7 +160,7 @@ __all__ = [
     # DataField hierarchy / schema mechanism
     "DataField",
     "MapField",
-    "NumberField",
+    "DenominateNumberField",
     "NumericField",
     "SemanticField",
     "StringField",

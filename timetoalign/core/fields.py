@@ -1241,7 +1241,7 @@ def parse_metadata_blob(blob: bytes | str | None) -> dict[str, Any]:
 # the shared TimeScalarField parent) live in core/time.py.
 
 
-class NumberField(SemanticField[StructField]):
+class DenominateNumberField(SemanticField[StructField]):
     """Abstract parent for numeric struct fields (coordinates, durations).
 
     Wraps a ``StructField`` and adds unit/number_type semantics plus
