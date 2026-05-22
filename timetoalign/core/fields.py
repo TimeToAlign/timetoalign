@@ -53,6 +53,73 @@ T = TypeVar("T", bound=BaseModel)
 """The pydantic scalar a ``SemanticField`` is paired with."""
 
 
+def data_shaped(fn: Any) -> Any:
+    """Mark a scalar method as needing a vectorized field mirror.
+
+    A scalar method (regular function, ``@property``, or
+    ``@computed_field`` wrapping a function) tagged ``@data_shaped``
+    MUST appear (by the same name) on the paired :class:`SemanticField`
+    subclass — otherwise :meth:`SemanticField.__init_subclass__` raises
+    :class:`TypeError` at import time.
+
+    The marker is purely a metadata flag (``__data_shaped__ = True``)
+    on the underlying function.  Behavior-shaped methods (per the WP2
+    audit) are NOT decorated — they only run on a single materialised
+    scalar at a system edge and have no vectorized dual.
+
+    Stacking notes:
+
+    * For plain methods, decorate normally::
+
+          @data_shaped
+          def foo(self) -> ...:
+
+    * For properties, the marker goes on the underlying function so
+      that order with ``@property`` does not matter::
+
+          @property
+          @data_shaped
+          def pitch_class(self) -> int: ...
+
+      and the corresponding pydantic ``@computed_field``::
+
+          @computed_field
+          @property
+          @data_shaped
+          def fifths(self) -> int: ...
+    """
+    fn.__data_shaped__ = True
+    return fn
+
+
+def _is_data_shaped(member: Any) -> bool:
+    """Return True if *member* is (or wraps) a data-shaped function.
+
+    Detects the marker on:
+
+    * plain functions / methods (``fn.__data_shaped__``);
+    * properties (``property.fget.__data_shaped__``);
+    * pydantic ``@computed_field`` decorators (``ComputedFieldInfo``
+      exposes the underlying function via ``.wrapped_property.fget``
+      or ``.fn``; we probe defensively).
+    """
+    if getattr(member, "__data_shaped__", False):
+        return True
+    fget = getattr(member, "fget", None)
+    if fget is not None and getattr(fget, "__data_shaped__", False):
+        return True
+    # pydantic v2 ComputedFieldInfo / wrapped descriptor — best effort.
+    wrapped = getattr(member, "wrapped_property", None)
+    if wrapped is not None:
+        wrapped_fget = getattr(wrapped, "fget", None)
+        if wrapped_fget is not None and getattr(wrapped_fget, "__data_shaped__", False):
+            return True
+    inner = getattr(member, "fn", None)
+    if inner is not None and getattr(inner, "__data_shaped__", False):
+        return True
+    return False
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. DATAFIELD HIERARCHY
 # ═══════════════════════════════════════════════════════════════════════════
@@ -497,11 +564,43 @@ class SemanticField(DataField, Generic[T]):
         own_scalar = cls.__dict__.get("scalar_cls")
         if isinstance(own_scalar, type) and issubclass(own_scalar, BaseModel):
             cls.pa_schema = derive_arrow_struct(own_scalar)
+        else:
+            scalar = _resolve_scalar_cls(cls)
+            if scalar is not None:
+                cls.scalar_cls = scalar
+                cls.pa_schema = derive_arrow_struct(scalar)
+
+        # Parity check: every @data_shaped method on the paired scalar
+        # MUST be mirrored (by name) on this Field subclass or any of
+        # its ancestors in the SemanticField hierarchy.  Behavior-shaped
+        # methods are NOT mirrored.
+        scalar_cls = cls.scalar_cls
+        if scalar_cls is None:
             return
-        scalar = _resolve_scalar_cls(cls)
-        if scalar is not None:
-            cls.scalar_cls = scalar
-            cls.pa_schema = derive_arrow_struct(scalar)
+        required: set[str] = set()
+        for klass in scalar_cls.__mro__:
+            for name, member in vars(klass).items():
+                if _is_data_shaped(member):
+                    required.add(name)
+        if not required:
+            return
+        # Names defined on cls itself.
+        provided: set[str] = set(vars(cls))
+        # Names inherited from a parent SemanticField subclass — a mirror
+        # implemented at a higher field-class layer (e.g. TimeScalarField
+        # for the Coord/Dur hierarchy) satisfies the parity check for
+        # every descendant.
+        for base in cls.__mro__[1:]:
+            if base is object:
+                continue
+            provided.update(vars(base))
+        missing = required - provided
+        if missing:
+            raise TypeError(
+                f"{cls.__name__} is missing vectorized mirrors for "
+                f"@data_shaped methods on {scalar_cls.__name__}: "
+                f"{sorted(missing)}"
+            )
 
     def __init__(
         self,

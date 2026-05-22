@@ -122,6 +122,31 @@ class CoordinateLike(SemanticTypeLike, Protocol[V]):
 
 # endregion Coordinate Protocol
 
+# region TimeScalar Protocol
+
+
+@runtime_checkable
+class TimeScalarLike(SemanticTypeLike, Protocol):
+    """Protocol satisfied by ``Coordinate``, ``Duration``, and their Id-variants.
+
+    Structural typing — any object exposing a ``unit`` of type
+    :class:`TimeUnit` and the inherited ``semantic_type`` /
+    ``metadata_dict`` from :class:`SemanticTypeLike` satisfies the
+    protocol.  This is the grouping protocol used by
+    ``get_fields_satisfying(TimeScalarLike)`` to discover ALL time-like
+    columns on an EventData regardless of which sibling scalar
+    (``Coordinate``, ``Duration``, ``IdCoordinate``, ``IdDuration``)
+    they hold.
+    """
+
+    @property
+    def unit(self) -> TimeUnit:
+        """The time unit of this scalar."""
+        ...
+
+
+# endregion TimeScalar Protocol
+
 # region Temporal Protocols
 
 

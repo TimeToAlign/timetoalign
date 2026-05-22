@@ -9,13 +9,17 @@ Provides three levels of field access on ``EventData``:
 - **``events.get_field(...)``** -- returns a ``SemanticField`` wrapping
   the field with semantic identity and typed scalar access.
 
-``get_field()`` accepts three argument forms:
+``get_field()`` accepts four argument forms:
 
 1. ``get_field("start")`` -- string field name; looks up metadata or
    default-field mapping to determine the ``SemanticField`` subclass.
-2. ``get_field(EnharmonicPitchField)`` -- a class; scans all fields
-   for metadata or shape matching that class.
-3. ``get_field(EnharmonicPitchField(source_fields="midi_pitch"))`` --
+2. ``get_field(EnharmonicPitchField)`` -- a paired ``SemanticField``
+   class; scans all fields for metadata or shape matching that class.
+3. ``get_field(EnharmonicPitch)`` -- a **pydantic scalar class**;
+   resolves to the matching paired ``SemanticField`` and dispatches via
+   form (2).  ``get_field(ScalarClass, name="col")`` disambiguates when
+   more than one column holds that scalar.
+4. ``get_field(EnharmonicPitchField(source_fields="midi_pitch"))`` --
    a *blueprint* instance; resolves the named source field on the
    table (or a dict-shaped spec for multi-field blueprints) and caches
    the result.
@@ -35,6 +39,7 @@ import json
 from typing import Any
 
 import pyarrow as pa
+from pydantic import BaseModel
 
 from timetoalign.core.fields import (
     DataField,
@@ -45,6 +50,16 @@ from timetoalign.core.fields import (
     StructField,
     _GenericField,
 )
+
+
+class MultipleFieldsError(KeyError):
+    """Raised when ``get_field(ScalarClass)`` matches more than one column.
+
+    Carries the offending scalar class name and the list of matching
+    column names in the message; the caller can resolve the ambiguity
+    by passing ``name="<col>"`` to ``get_field``.
+    """
+
 
 _TIMETOALIGN_KEY = b"timetoalign"
 
@@ -100,12 +115,19 @@ def _get_field_type_map() -> dict[str, type[SemanticField[Any]]]:
         SpecificPitchField,
         WesternTertianHarmonyField,
     )
-    from timetoalign.core.time import CoordinateField, DurationField
+    from timetoalign.core.time import (
+        CoordinateField,
+        DurationField,
+        IdCoordinateField,
+        IdDurationField,
+    )
 
     _FIELD_TYPE_MAP = {
-        # Coordinate / Duration
+        # Coordinate / Duration (plus Id-variants)
         "CoordinateField": CoordinateField,
         "DurationField": DurationField,
+        "IdCoordinateField": IdCoordinateField,
+        "IdDurationField": IdDurationField,
         # Pitch — paired classes only
         "EnharmonicPitchField": EnharmonicPitchField,
         "EnharmonicPitchClassField": EnharmonicPitchClassField,
@@ -125,6 +147,108 @@ def _get_field_type_map() -> dict[str, type[SemanticField[Any]]]:
         "NoteField": NoteField,
     }
     return _FIELD_TYPE_MAP
+
+
+_SCALAR_TO_FIELD_MAP: dict[type[BaseModel], type[SemanticField[Any]]] | None = None
+
+
+def _get_scalar_to_field_map() -> dict[type[BaseModel], type[SemanticField[Any]]]:
+    """Return the pydantic-scalar-class → paired Field-class mapping.
+
+    Derived from :func:`_get_field_type_map` on first call.  Each entry
+    is ``scalar_cls`` (the pydantic ``BaseModel`` subclass) → its paired
+    ``XField`` class.
+    """
+    global _SCALAR_TO_FIELD_MAP
+    if _SCALAR_TO_FIELD_MAP is not None:
+        return _SCALAR_TO_FIELD_MAP
+    mapping: dict[type[BaseModel], type[SemanticField[Any]]] = {}
+    for field_cls in _get_field_type_map().values():
+        scalar = field_cls.scalar_cls
+        if scalar is None:
+            continue
+        # First registration wins; later entries (for shared scalars)
+        # do not overwrite.  Coordinate / IdCoordinate are distinct
+        # scalars so no collision occurs there.
+        mapping.setdefault(scalar, field_cls)
+    # Manually wire the TimeScalar pair (CoordinateField / DurationField
+    # ship via core.time and are already in the field-type map).  Also
+    # wire IdCoordinate / IdDuration, which carry distinct scalar_cls
+    # but share a struct shape with their non-Id parents.
+    from timetoalign.core.time import (
+        CoordinateField,
+        DurationField,
+        IdCoordinate,
+        IdCoordinateField,
+        IdDuration,
+        IdDurationField,
+    )
+
+    mapping[IdCoordinate] = IdCoordinateField
+    mapping[IdDuration] = IdDurationField
+    # CoordinateField / DurationField already registered via the
+    # _get_field_type_map path.  Confirm presence (defensive).
+    mapping.setdefault(CoordinateField.scalar_cls, CoordinateField)
+    mapping.setdefault(DurationField.scalar_cls, DurationField)
+    _SCALAR_TO_FIELD_MAP = mapping
+    return mapping
+
+
+def _scalar_satisfies_protocol(scalar_cls: type[BaseModel], protocol: type) -> bool:
+    """Return True iff *scalar_cls* satisfies the runtime-checkable *protocol*.
+
+    Pydantic scalars cannot be probed via ``issubclass`` against
+    Protocols carrying properties — Python rejects such checks at
+    runtime (``"Protocols with non-method members don't support
+    issubclass()"``).  Instead, instantiate a sample scalar via
+    ``model_construct`` (bypasses validation) populated with field
+    defaults / zero values, then run ``isinstance`` against the
+    Protocol — which IS supported for runtime_checkable Protocols.
+    """
+    try:
+        # Build a sample scalar using zero/empty defaults for each
+        # pydantic field.  ``model_construct`` bypasses validation, so
+        # any placeholder value is acceptable.
+        sample_kwargs: dict[str, Any] = {}
+        for name, info in scalar_cls.model_fields.items():
+            if info.is_required():
+                sample_kwargs[name] = _zero_for_annotation(info.annotation)
+        sample = scalar_cls.model_construct(**sample_kwargs)
+    except (TypeError, ValueError):
+        return False
+    try:
+        return isinstance(sample, protocol)
+    except TypeError:
+        return False
+
+
+def _zero_for_annotation(annotation: Any) -> Any:
+    """Return a zero-shaped placeholder consistent with *annotation*."""
+    if annotation is int:
+        return 0
+    if annotation is float:
+        return 0.0
+    if annotation is bool:
+        return False
+    if annotation is str:
+        return ""
+    # Fall back to None — model_construct accepts it without checking
+    # the annotation.
+    return None
+
+
+def _get_field_class_for_scalar(
+    scalar_cls: type[BaseModel],
+) -> type[SemanticField[Any]]:
+    """Return the paired ``XField`` class for a pydantic scalar class."""
+    mapping = _get_scalar_to_field_map()
+    field_cls = mapping.get(scalar_cls)
+    if field_cls is not None:
+        return field_cls
+    raise KeyError(
+        f"No paired SemanticField registered for scalar {scalar_cls.__name__!r}. "
+        f"Known scalars: {sorted(c.__name__ for c in mapping)}"
+    )
 
 
 def _parse_field_type_metadata(pa_field: pa.Field) -> str | None:
@@ -392,43 +516,72 @@ class SemanticFieldAccessMixin:
 
     def get_field(
         self,
-        selector: str | type[SemanticField[Any]] | SemanticField[Any],
+        selector: str | type[SemanticField[Any]] | type[BaseModel] | SemanticField[Any],
+        *,
+        name: str | None = None,
     ) -> SemanticField[Any]:
         """Return a semantic field, resolved from *selector*.
 
-        Three forms are supported:
+        Four forms are supported:
 
         1. **String** -- field name: ``get_field("start")``.  Checks
            field metadata for ``field_type``; falls back to
            ``DefaultField`` mapping for core temporal fields.
-        2. **Class** -- ``get_field(PitchField)``.  Scans all
-           fields for metadata matching the class.
-        3. **Blueprint instance** -- ``get_field(PitchField(ep="col"))``.
-           Resolves the named field using the blueprint's pitch type.
+        2. **SemanticField class** -- ``get_field(EnharmonicPitchField)``.
+           Scans all columns for metadata or shape matching the class.
+        3. **Pydantic scalar class** -- ``get_field(EnharmonicPitch)``.
+           Looks up the paired ``EnharmonicPitchField`` via the
+           scalar→field registry, then delegates to form (2).  Pass
+           ``name="col"`` to disambiguate when more than one column
+           holds the same scalar.
+        4. **Blueprint instance** -- ``get_field(EnharmonicPitchField(source_fields="midi_pitch"))``.
+           Resolves the named field using the blueprint.
 
         Args:
-            selector: Field name, ``SemanticField`` subclass, or
-                blueprint instance.
+            selector: Field name, paired ``SemanticField`` class, pydantic
+                scalar class, or blueprint instance.
+            name: Column name used to disambiguate when *selector* is a
+                scalar class that matches more than one column.
 
         Returns:
             A ``SemanticField`` subclass instance (cached).
 
         Raises:
             KeyError: If no matching field is found.
+            MultipleFieldsError: If ``selector`` is a scalar class with
+                no ``name=`` and more than one column matches.
         """
         if isinstance(selector, str):
+            if name is not None:
+                raise TypeError(
+                    "name= is only meaningful when selector is a scalar class"
+                )
             return self._get_field_by_name(selector)
         if isinstance(selector, type) and issubclass(selector, SemanticField):
+            if name is not None:
+                return self._get_field_by_class_and_name(selector, name)
             return self._get_field_by_class(selector)
+        if isinstance(selector, type) and issubclass(selector, BaseModel):
+            field_cls = _get_field_class_for_scalar(selector)
+            if name is not None:
+                return self._get_field_by_class_and_name(field_cls, name)
+            return self._get_field_by_class(field_cls)
         if isinstance(selector, SemanticField):
+            if name is not None:
+                raise TypeError(
+                    "name= is only meaningful when selector is a scalar class"
+                )
             return self._get_field_by_blueprint(selector)
         raise TypeError(
-            f"get_field() expects str, SemanticField class, or blueprint instance, "
-            f"got {type(selector).__name__}"
+            f"get_field() expects str, SemanticField class, pydantic scalar class, "
+            f"or blueprint instance, got {type(selector).__name__}"
         )
 
     def get_fields(
-        self, field_type: type[SemanticField[Any]]
+        self,
+        field_type: type[SemanticField[Any]],
+        *,
+        strict: bool = False,
     ) -> list[SemanticField[Any]]:
         """Return ALL fields matching *field_type*'s class hierarchy.
 
@@ -453,6 +606,11 @@ class SemanticFieldAccessMixin:
 
         Args:
             field_type: The ``SemanticField`` subclass to search for.
+            strict: If True, only return fields whose ``field_type``
+                metadata equals ``field_type.__name__`` exactly — never
+                a subclass.  Used by scalar-class and Field-class
+                dispatch to discriminate sibling leaves (``CoordinateField``
+                vs ``IdCoordinateField``) that share a struct shape.
 
         Returns:
             A list of matching ``SemanticField`` subclass instances
@@ -471,16 +629,23 @@ class SemanticFieldAccessMixin:
             cls = registry.get(ft_str)
             if cls is None:
                 continue
-            if issubclass(cls, field_type):
-                cache_key = (pa_field.name, ft_str)
-                cached = cache.get(cache_key)
-                if cached is not None:
-                    result.append(cached)
-                else:
-                    arr = self._table.column(i)
-                    field = _reconstruct_field(pa_field, arr, ft_str)
-                    cache[cache_key] = field
-                    result.append(field)
+            if strict:
+                # Exact-class metadata match only.  Sibling leaves that
+                # share a struct shape (Id-variants) are excluded.
+                if cls is not field_type:
+                    continue
+            else:
+                if not issubclass(cls, field_type):
+                    continue
+            cache_key = (pa_field.name, ft_str)
+            cached = cache.get(cache_key)
+            if cached is not None:
+                result.append(cached)
+            else:
+                arr = self._table.column(i)
+                field = _reconstruct_field(pa_field, arr, ft_str)
+                cache[cache_key] = field
+                result.append(field)
 
         if result:
             return result
@@ -493,6 +658,47 @@ class SemanticFieldAccessMixin:
         # Strategy 3: structural discovery via cls.matches_pa_field()
         result = _discover_by_shape(self._table, field_type, cache)
         return result
+
+    def get_fields_satisfying(self, protocol: type) -> list[SemanticField[Any]]:
+        """Return all fields whose ``scalar_cls`` satisfies *protocol*.
+
+        Discovery walks every column on the underlying table and, for
+        each one that maps to a known paired ``XField``, checks whether
+        ``XField.scalar_cls`` structurally satisfies *protocol*.  Uses
+        :func:`isinstance` against ``runtime_checkable`` ``Protocol``
+        types (attribute presence is the criterion — types are not
+        enforced).
+
+        Order of results: as encountered in the table schema.
+        Deduplication: each ``(name, field_cls)`` pair appears at most
+        once.
+
+        Args:
+            protocol: A ``runtime_checkable`` Protocol (e.g.
+                ``PitchLike``, ``TimeScalarLike``).
+
+        Returns:
+            A list of paired ``SemanticField`` instances (may be empty).
+        """
+        registry = _get_field_type_map()
+        matching_field_classes: list[type[SemanticField[Any]]] = []
+        for field_cls in registry.values():
+            scalar_cls = field_cls.scalar_cls
+            if scalar_cls is None:
+                continue
+            if _scalar_satisfies_protocol(scalar_cls, protocol):
+                matching_field_classes.append(field_cls)
+
+        out: list[SemanticField[Any]] = []
+        seen: set[tuple[str, str]] = set()
+        for field_cls in matching_field_classes:
+            for field in self.get_fields(field_cls):
+                key = (field.name, type(field).__name__)
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(field)
+        return out
 
     def has_field(self, field_type: type[SemanticField[Any]]) -> bool:
         """Check whether any field matches *field_type*.
@@ -603,11 +809,53 @@ class SemanticFieldAccessMixin:
     def _get_field_by_class(
         self, field_type: type[SemanticField[Any]]
     ) -> SemanticField[Any]:
-        """Resolve a semantic field by class (legacy API)."""
-        fields = self.get_fields(field_type)
+        """Resolve a semantic field by class (strict — exact-class match).
+
+        Raises :class:`MultipleFieldsError` when *field_type* matches more
+        than one column.  Callers that expect ambiguity should pass
+        ``name="<col>"`` to ``get_field`` (which routes through
+        :meth:`_get_field_by_class_and_name`).
+        """
+        fields = self.get_fields(field_type, strict=True)
         if not fields:
             raise KeyError(f"No field matching {field_type.__name__!r} found in table")
+        if len(fields) > 1:
+            names = [f.name for f in fields]
+            scalar_name = (
+                field_type.scalar_cls.__name__
+                if field_type.scalar_cls is not None
+                else field_type.__name__
+            )
+            raise MultipleFieldsError(
+                f"{scalar_name} matches multiple columns {names}; "
+                f"pass name=<col> to disambiguate (one of: {names})."
+            )
         return fields[0]
+
+    def _get_field_by_class_and_name(
+        self,
+        field_type: type[SemanticField[Any]],
+        name: str,
+    ) -> SemanticField[Any]:
+        """Resolve a semantic field by class restricted to a specific column.
+
+        Raises plain :class:`KeyError` when no column named *name* holds
+        the requested scalar type.
+        """
+        candidates = self.get_fields(field_type, strict=True)
+        for field in candidates:
+            if field.name == name:
+                return field
+        scalar_name = (
+            field_type.scalar_cls.__name__
+            if field_type.scalar_cls is not None
+            else field_type.__name__
+        )
+        raise KeyError(
+            f"No column named {name!r} holds {scalar_name}. "
+            f"Available columns for this scalar: "
+            f"{[f.name for f in candidates]}"
+        )
 
     def _get_field_by_blueprint(
         self, blueprint: SemanticField[Any]
@@ -707,11 +955,19 @@ class PitchAccessMixin(SemanticFieldAccessMixin):
             SpecificPitchClassField,
             SpecificPitchField,
         )
+        from timetoalign.core.protocols import PitchLike
 
         if pitch_field_type is not None:
             return self.get_field(pitch_field_type)
 
-        # Priority: SP > EP > SPC > GPC
+        # Discover all pitch-like fields, then pick the most informative
+        # via the priority list (SP > EP > SPC > GPC).  Other pitch
+        # scalar fields not in the priority list fall back after the
+        # priority sweep.
+        all_pitch_fields = self.get_fields_satisfying(PitchLike)
+        if not all_pitch_fields:
+            raise KeyError("No pitch field found in table")
+
         priority: list[type[SemanticField[Any]]] = [
             SpecificPitchField,
             EnharmonicPitchField,
@@ -719,14 +975,11 @@ class PitchAccessMixin(SemanticFieldAccessMixin):
             GenericPitchClassField,
         ]
         for cls in priority:
-            try:
-                fields = self.get_fields(cls)
-            except KeyError:
-                fields = []
-            if fields:
-                return fields[0]
-
-        raise KeyError("No pitch field found in table")
+            for field in all_pitch_fields:
+                if isinstance(field, cls):
+                    return field
+        # No priority match — return the first discovered pitch field.
+        return all_pitch_fields[0]
 
 
 # ---------------------------------------------------------------------------
@@ -767,9 +1020,14 @@ class HarmonyAccessMixin(SemanticFieldAccessMixin):
             RomanNumeralHarmonyField,
             WesternTertianHarmonyField,
         )
+        from timetoalign.core.protocols import HarmonyLabelLike
 
         if harmony_type is not None:
             return self.get_field(harmony_type)
+
+        all_harmony_fields = self.get_fields_satisfying(HarmonyLabelLike)
+        if not all_harmony_fields:
+            raise KeyError("No harmony field found in table")
 
         priority: list[type[SemanticField[Any]]] = [
             DcmlHarmonyField,
@@ -779,10 +1037,10 @@ class HarmonyAccessMixin(SemanticFieldAccessMixin):
             HarmonyLabelField,
         ]
         for ht in priority:
-            if self.has_field(ht):
-                return self.get_field(ht)
-
-        raise KeyError("No harmony field found in table")
+            for field in all_harmony_fields:
+                if isinstance(field, ht):
+                    return field
+        return all_harmony_fields[0]
 
 
 # ---------------------------------------------------------------------------
