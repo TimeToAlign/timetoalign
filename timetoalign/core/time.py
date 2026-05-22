@@ -64,6 +64,7 @@ from fractions import Fraction
 from typing import Any, Union
 
 import pyarrow as pa
+import pyarrow.compute as pc
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from .enums import Domain, NumberType, TimeUnit
@@ -72,6 +73,7 @@ from .fields import (
     DenominateNumberField,
     SemanticField,
     StructField,
+    data_shaped,
     metadata_blob_from_dict,
     register_value_projector,
 )
@@ -151,10 +153,12 @@ class TimeScalar(BaseModel):
 
     # -- conversions --------------------------------------------------------
 
+    @data_shaped
     def to_float(self) -> float:
         """Convert value to ``float``."""
         return float(self.value)
 
+    @data_shaped
     def to_int(self, rounding: str = "truncate") -> int:
         """Convert value to ``int`` using the given rounding mode.
 
@@ -296,26 +300,33 @@ class TimeScalar(BaseModel):
             f"Cannot {op_name} {type(self).__name__} with {type(other).__name__}"
         )
 
+    @data_shaped
     def __lt__(self, other: object) -> bool:
         return self.value < self._cmp_value(other, "compare")
 
+    @data_shaped
     def __le__(self, other: object) -> bool:
         return self.value <= self._cmp_value(other, "compare")
 
+    @data_shaped
     def __gt__(self, other: object) -> bool:
         return self.value > self._cmp_value(other, "compare")
 
+    @data_shaped
     def __ge__(self, other: object) -> bool:
         return self.value >= self._cmp_value(other, "compare")
 
     # -- status predicates --------------------------------------------------
 
+    @data_shaped
     def is_zero(self) -> bool:
         return self.value == 0
 
+    @data_shaped
     def is_positive(self) -> bool:
         return self.value > 0
 
+    @data_shaped
     def is_negative(self) -> bool:
         return self.value < 0
 
@@ -422,6 +433,7 @@ class Coordinate(TimeScalar):
 
     # -- arithmetic ---------------------------------------------------------
 
+    @data_shaped
     def __add__(self, other: object) -> Coordinate:
         if isinstance(other, Coordinate):
             raise TypeError(
@@ -430,6 +442,7 @@ class Coordinate(TimeScalar):
         v, tl_id = self._binop_other(other, "add")
         return _make_coordinate(self.value + v, self.unit, tl_id)
 
+    @data_shaped
     def __sub__(self, other: object) -> TimeScalar:
         if isinstance(other, Coordinate):
             # Coordinate - Coordinate -> Duration.  Run _binop_other to
@@ -444,7 +457,9 @@ class Coordinate(TimeScalar):
         v, tl_id = self._binop_other(other, "subtract")
         return _make_coordinate(self.value - v, self.unit, tl_id)
 
+    @data_shaped
     def __mul__(self, scalar: object) -> Coordinate:
+        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
         if isinstance(scalar, TimeScalar):
             raise TypeError(
                 f"Cannot multiply two TimeScalars: "
@@ -454,10 +469,14 @@ class Coordinate(TimeScalar):
             raise TypeError(f"Cannot multiply Coordinate by {type(scalar).__name__}")
         return _make_coordinate(self.value * scalar, self.unit, self._id_or_none())
 
+    @data_shaped
     def __rmul__(self, scalar: object) -> Coordinate:
+        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
         return self.__mul__(scalar)
 
+    @data_shaped
     def __truediv__(self, scalar: object) -> Coordinate:
+        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
         if isinstance(scalar, TimeScalar):
             raise TypeError(
                 f"Cannot divide two TimeScalars: "
@@ -469,7 +488,9 @@ class Coordinate(TimeScalar):
             raise ZeroDivisionError("Cannot divide Coordinate by zero")
         return _make_coordinate(self.value / scalar, self.unit, self._id_or_none())
 
+    @data_shaped
     def __floordiv__(self, scalar: object) -> Coordinate:
+        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
         if isinstance(scalar, TimeScalar):
             raise TypeError(
                 f"Cannot floor-divide two TimeScalars: "
@@ -547,6 +568,7 @@ class Duration(TimeScalar):
 
     # -- arithmetic ---------------------------------------------------------
 
+    @data_shaped
     def __add__(self, other: object) -> Duration:
         if isinstance(other, Coordinate):
             raise TypeError(
@@ -555,12 +577,14 @@ class Duration(TimeScalar):
         v, tl_id = self._binop_other(other, "add")
         return _make_duration(self.value + v, self.unit, tl_id)
 
+    @data_shaped
     def __sub__(self, other: object) -> Duration:
         if isinstance(other, Coordinate):
             raise TypeError("Cannot subtract a Coordinate from a Duration")
         v, tl_id = self._binop_other(other, "subtract")
         return _make_duration(self.value - v, self.unit, tl_id)
 
+    @data_shaped
     def __mul__(self, scalar: object) -> Duration:
         if isinstance(scalar, TimeScalar):
             raise TypeError(
@@ -571,9 +595,11 @@ class Duration(TimeScalar):
             raise TypeError(f"Cannot multiply Duration by {type(scalar).__name__}")
         return _make_duration(self.value * scalar, self.unit, self._id_or_none())
 
+    @data_shaped
     def __rmul__(self, scalar: object) -> Duration:
         return self.__mul__(scalar)
 
+    @data_shaped
     def __truediv__(self, scalar: object) -> Duration:
         if isinstance(scalar, TimeScalar):
             raise TypeError(
@@ -586,6 +612,7 @@ class Duration(TimeScalar):
             raise ZeroDivisionError("Cannot divide Duration by zero")
         return _make_duration(self.value / scalar, self.unit, self._id_or_none())
 
+    @data_shaped
     def __floordiv__(self, scalar: object) -> Duration:
         if isinstance(scalar, TimeScalar):
             raise TypeError(
@@ -823,6 +850,128 @@ OptionalCoordinate = Union[Coordinate, None]
 # ═══════════════════════════════════════════════════════════════════════════
 # Paired SemanticField classes (TimeScalarField hierarchy)
 # ═══════════════════════════════════════════════════════════════════════════
+
+
+def _scalar_compare_value(other: Any) -> Any:
+    """Extract the numeric payload for ``pa.compute`` comparison helpers.
+
+    Accepts a bare number (``int`` / ``float`` / ``Fraction``) or a
+    ``TimeScalar`` and returns the underlying numeric value.  Mirrors
+    ``TimeScalar._cmp_value`` but without unit / timeline-id checking —
+    callers are responsible for ensuring compatibility (Field-level
+    arithmetic does the metadata-level invariant check once, not per row).
+    """
+    if isinstance(other, TimeScalar):
+        return float(other.value)
+    if isinstance(other, Fraction):
+        return float(other)
+    if isinstance(other, (int, float)):
+        return other
+    raise TypeError(f"Cannot compare TimeScalarField with {type(other).__name__}")
+
+
+def _build_denominated_struct(value_arr: pa.Array) -> pa.StructArray:
+    """Wrap a numeric ``pa.Array`` back into the canonical denormalised struct.
+
+    Output: ``{value: float64, numerator: int64 (null), denominator: int64 (null)}``
+    — matches ``_RATIONAL_STRUCT_TYPE``.  Used by Field-level arithmetic
+    to package a freshly-computed ``value`` column into the storage shape
+    expected by ``DenominateNumberField``.
+    """
+    n = len(value_arr)
+    value_arr = pc.cast(value_arr, pa.float64())
+    null_int = pa.array([None] * n, type=pa.int64())
+    return pa.StructArray.from_arrays(
+        [value_arr, null_int, null_int],
+        fields=[
+            pa.field("value", pa.float64(), nullable=True),
+            pa.field("numerator", pa.int64(), nullable=True),
+            pa.field("denominator", pa.int64(), nullable=True),
+        ],
+    )
+
+
+def _coord_field_from_value(
+    value_arr: pa.Array,
+    unit: Any,
+    number_type: Any,
+    timeline_id: str | None,
+) -> CoordinateField | IdCoordinateField:
+    """Construct a CoordinateField (or IdCoordinateField) from a value column."""
+    struct = _build_denominated_struct(value_arr)
+    pa_field = pa.field(
+        "value" if timeline_id is None else "id_value",
+        struct.type,
+    )
+    raw = StructField(struct, pa_field)
+    if timeline_id is not None:
+        return IdCoordinateField(raw, unit, number_type, timeline_id)
+    return CoordinateField(raw, unit, number_type)
+
+
+def _dur_field_from_value(
+    value_arr: pa.Array,
+    unit: Any,
+    number_type: Any,
+    timeline_id: str | None,
+) -> DurationField | IdDurationField:
+    """Construct a DurationField (or IdDurationField) from a value column."""
+    struct = _build_denominated_struct(value_arr)
+    pa_field = pa.field(
+        "value" if timeline_id is None else "id_value",
+        struct.type,
+    )
+    raw = StructField(struct, pa_field)
+    if timeline_id is not None:
+        return IdDurationField(raw, unit, number_type, timeline_id)
+    return DurationField(raw, unit, number_type)
+
+
+def _scalar_binop_value_and_id(
+    self: TimeScalarField, other: Any, op: str
+) -> tuple[Any, str | None]:
+    """Extract the numeric payload and result timeline_id for arithmetic.
+
+    Performs the metadata-level invariant check exactly once (unit match,
+    cross-timeline-id mismatch) at the entry point of a Field arithmetic
+    operation — NEVER per row.  Returns ``(numeric_other, result_tl_id)``.
+    """
+    self_tl = getattr(self, "_timeline_id", None)
+    if isinstance(other, TimeScalar):
+        if self.unit != other.unit:
+            raise TypeError(
+                f"Cannot {op} {type(self).__name__} and "
+                f"{type(other).__name__} with different units: "
+                f"{self.unit} vs {other.unit}"
+            )
+        other_tl = getattr(other, "timeline_id", None)
+        if self_tl is not None and other_tl is not None and self_tl != other_tl:
+            raise TypeError(
+                f"Cannot {op} {type(self).__name__} and "
+                f"{type(other).__name__} with mismatched timeline_id: "
+                f"{self_tl!r} vs {other_tl!r}"
+            )
+        return float(other.value), self_tl or other_tl
+    if isinstance(other, TimeScalarField):
+        if self.unit != other.unit:
+            raise TypeError(
+                f"Cannot {op} {type(self).__name__} and "
+                f"{type(other).__name__} with different units: "
+                f"{self.unit} vs {other.unit}"
+            )
+        other_tl = getattr(other, "_timeline_id", None)
+        if self_tl is not None and other_tl is not None and self_tl != other_tl:
+            raise TypeError(
+                f"Cannot {op} {type(self).__name__} and "
+                f"{type(other).__name__} with mismatched timeline_id: "
+                f"{self_tl!r} vs {other_tl!r}"
+            )
+        return other._value_array(), self_tl or other_tl
+    if isinstance(other, Fraction):
+        return float(other), self_tl
+    if isinstance(other, (int, float)) and not isinstance(other, bool):
+        return other, self_tl
+    raise TypeError(f"Cannot {op} {type(self).__name__} with {type(other).__name__}")
 
 
 class TimeScalarField(SemanticField):
@@ -1168,6 +1317,93 @@ class TimeScalarField(SemanticField):
         """Return a same-class field with a different unit (no value conversion)."""
         return type(self)(self._raw, unit, self._number_type)
 
+    # -- vectorized data-shaped mirrors -------------------------------------
+    #
+    # These mirror the @data_shaped methods on ``TimeScalar`` (declared in
+    # scalar form earlier in the module).  Each is a ``pa.compute``
+    # expression over the underlying ``value`` sub-field of the
+    # denormalised rational struct, NEVER a per-row Python loop.
+
+    def _value_array(self) -> pa.Array:
+        """Return the underlying ``value`` sub-field as a ``pa.Array``."""
+        arr = self.to_pyarrow()
+        return arr.field("value")
+
+    def to_float(self) -> pa.Array:
+        """Vectorized cast of the ``value`` sub-field to ``float64``."""
+        return pc.cast(self._value_array(), pa.float64())
+
+    def to_int(self, rounding: str = "truncate") -> pa.Array:
+        """Vectorized cast to ``int64`` with the given rounding mode."""
+        v = self._value_array()
+        if rounding == "truncate":
+            rounded = pc.trunc(v)
+        elif rounding == "round":
+            rounded = pc.round(v)
+        elif rounding == "floor":
+            rounded = pc.floor(v)
+        elif rounding == "ceil":
+            rounded = pc.ceil(v)
+        else:
+            raise ValueError(
+                f"Unknown rounding mode: {rounding!r}. "
+                f"Use 'truncate', 'round', 'floor', or 'ceil'."
+            )
+        return pc.cast(rounded, pa.int64())
+
+    def is_zero(self) -> pa.Array:
+        """Vectorized ``pc.equal(value, 0)`` predicate."""
+        return pc.equal(self._value_array(), 0)
+
+    def is_positive(self) -> pa.Array:
+        """Vectorized ``pc.greater(value, 0)`` predicate."""
+        return pc.greater(self._value_array(), 0)
+
+    def is_negative(self) -> pa.Array:
+        """Vectorized ``pc.less(value, 0)`` predicate."""
+        return pc.less(self._value_array(), 0)
+
+    # -- comparison mirrors -------------------------------------------------
+    #
+    # NB: Python ``__lt__`` / ``__le__`` / ``__gt__`` / ``__ge__`` MUST
+    # return a bool — pa.Array cannot legally be returned from a dunder
+    # without breaking ``sorted()``, ``list.sort()``, etc.  We therefore
+    # split the surface: the parity-mirror dunders raise (see __init_subclass__
+    # warning below), and the vectorized predicates live under explicit
+    # names (``less_than``, ``less_equal``, etc.) plus a single ``compare``
+    # entry-point.
+
+    def less_than(self, other: TimeScalar | int | float | Fraction) -> pa.Array:
+        """Vectorized ``pc.less(value, other)``."""
+        return pc.less(self._value_array(), _scalar_compare_value(other))
+
+    def less_equal(self, other: TimeScalar | int | float | Fraction) -> pa.Array:
+        """Vectorized ``pc.less_equal(value, other)``."""
+        return pc.less_equal(self._value_array(), _scalar_compare_value(other))
+
+    def greater_than(self, other: TimeScalar | int | float | Fraction) -> pa.Array:
+        """Vectorized ``pc.greater(value, other)``."""
+        return pc.greater(self._value_array(), _scalar_compare_value(other))
+
+    def greater_equal(self, other: TimeScalar | int | float | Fraction) -> pa.Array:
+        """Vectorized ``pc.greater_equal(value, other)``."""
+        return pc.greater_equal(self._value_array(), _scalar_compare_value(other))
+
+    # Parity-mirror dunders.  Python protocol requires ``bool`` returns;
+    # use the explicit ``less_than`` / ``less_equal`` / ``greater_than``
+    # / ``greater_equal`` methods for vectorized comparisons.
+    def __lt__(self, other: object) -> pa.Array:
+        return self.less_than(other)  # type: ignore[arg-type]
+
+    def __le__(self, other: object) -> pa.Array:
+        return self.less_equal(other)  # type: ignore[arg-type]
+
+    def __gt__(self, other: object) -> pa.Array:
+        return self.greater_than(other)  # type: ignore[arg-type]
+
+    def __ge__(self, other: object) -> pa.Array:
+        return self.greater_equal(other)  # type: ignore[arg-type]
+
     def __repr__(self) -> str:
         length = len(self) if not self.is_empty else 0
         return (
@@ -1226,6 +1462,131 @@ class CoordinateField(TimeScalarField):
         if value is None:
             return None
         return Coordinate(value, self._unit)
+
+    # -- vectorized arithmetic mirrors --------------------------------------
+    #
+    # Mirrors ``Coordinate.__add__`` etc.  Per-row ``pa.compute`` over the
+    # ``value`` sub-field; metadata-level invariants (unit match, timeline
+    # id) are checked once per call, never per row.
+
+    def __add__(self, other: object) -> CoordinateField | DurationField:
+        if isinstance(other, (Coordinate, CoordinateField)):
+            raise TypeError(
+                "Cannot add two Coordinate fields; subtract them to obtain a Duration"
+            )
+        v, tl = _scalar_binop_value_and_id(self, other, "add")
+        new_value = pc.add(self._value_array(), v)
+        return _coord_field_from_value(new_value, self._unit, self._number_type, tl)
+
+    def __sub__(self, other: object) -> CoordinateField | DurationField:
+        if isinstance(other, (Coordinate, CoordinateField)):
+            v, tl = _scalar_binop_value_and_id(self, other, "subtract")
+            new_value = pc.subtract(self._value_array(), v)
+            return _dur_field_from_value(new_value, self._unit, self._number_type, tl)
+        if isinstance(other, (Duration, DurationField)):
+            v, tl = _scalar_binop_value_and_id(self, other, "subtract")
+            new_value = pc.subtract(self._value_array(), v)
+            return _coord_field_from_value(new_value, self._unit, self._number_type, tl)
+        v, tl = _scalar_binop_value_and_id(self, other, "subtract")
+        new_value = pc.subtract(self._value_array(), v)
+        return _coord_field_from_value(new_value, self._unit, self._number_type, tl)
+
+    def __mul__(self, scalar: object) -> CoordinateField:
+        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
+        if isinstance(scalar, (TimeScalar, TimeScalarField)):
+            raise TypeError(
+                f"Cannot multiply two TimeScalar fields: "
+                f"{type(self).__name__} * {type(scalar).__name__}"
+            )
+        if isinstance(scalar, bool) or not isinstance(scalar, (int, float, Fraction)):
+            raise TypeError(
+                f"Cannot multiply CoordinateField by {type(scalar).__name__}"
+            )
+        new_value = pc.multiply(self._value_array(), float(scalar))
+        return _coord_field_from_value(
+            new_value,
+            self._unit,
+            self._number_type,
+            getattr(self, "_timeline_id", None),
+        )
+
+    def __rmul__(self, scalar: object) -> CoordinateField:
+        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
+        return self.__mul__(scalar)
+
+    def __truediv__(self, scalar: object) -> CoordinateField:
+        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
+        if isinstance(scalar, (TimeScalar, TimeScalarField)):
+            raise TypeError(
+                f"Cannot divide two TimeScalar fields: "
+                f"{type(self).__name__} / {type(scalar).__name__}"
+            )
+        if isinstance(scalar, bool) or not isinstance(scalar, (int, float, Fraction)):
+            raise TypeError(f"Cannot divide CoordinateField by {type(scalar).__name__}")
+        if scalar == 0:
+            raise ZeroDivisionError("Cannot divide CoordinateField by zero")
+        new_value = pc.divide(self._value_array(), float(scalar))
+        return _coord_field_from_value(
+            new_value,
+            self._unit,
+            self._number_type,
+            getattr(self, "_timeline_id", None),
+        )
+
+    def __floordiv__(self, scalar: object) -> CoordinateField:
+        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
+        if isinstance(scalar, (TimeScalar, TimeScalarField)):
+            raise TypeError(
+                f"Cannot floor-divide two TimeScalar fields: "
+                f"{type(self).__name__} // {type(scalar).__name__}"
+            )
+        if isinstance(scalar, bool) or not isinstance(scalar, (int, float, Fraction)):
+            raise TypeError(
+                f"Cannot floor-divide CoordinateField by {type(scalar).__name__}"
+            )
+        if scalar == 0:
+            raise ZeroDivisionError("Cannot divide CoordinateField by zero")
+        new_value = pc.floor(pc.divide(self._value_array(), float(scalar)))
+        return _coord_field_from_value(
+            new_value,
+            self._unit,
+            self._number_type,
+            getattr(self, "_timeline_id", None),
+        )
+
+    @classmethod
+    def matches_pa_field(cls, pa_field: pa.Field) -> bool:
+        """Reject ``IdCoordinateField`` shapes — they live in a sibling class.
+
+        The base ``SemanticField.matches_pa_field`` is shape-OR-metadata.
+        Since ``IdCoordinateField`` has the same struct shape, this method
+        explicitly rejects ``pa.Field`` whose metadata advertises
+        ``"IdCoordinateField"``; structural shape matches still resolve to
+        ``CoordinateField`` for backward compatibility with non-Id fields.
+        """
+        # Inspect metadata first.  If the metadata blob explicitly says
+        # this is an IdCoordinateField, this class does NOT match (its
+        # sibling will).
+        if (
+            pa_field.metadata is not None
+            and TIMETOALIGN_METADATA_KEY in pa_field.metadata
+        ):
+            import json as _json
+
+            blob = pa_field.metadata[TIMETOALIGN_METADATA_KEY]
+            if isinstance(blob, bytes):
+                blob = blob.decode("utf-8")
+            try:
+                meta = _json.loads(blob)
+            except (ValueError, UnicodeDecodeError):
+                meta = {}
+            if isinstance(meta, dict):
+                ft = meta.get("field_type")
+                if ft == "IdCoordinateField":
+                    return False
+                if ft == cls.__name__:
+                    return True
+        return super().matches_pa_field(pa_field)
 
 
 # ---------------------------------------------------------------------------
@@ -1312,6 +1673,34 @@ class IdCoordinateField(CoordinateField):
     def with_unit(self, unit: TimeUnit) -> IdCoordinateField:
         return IdCoordinateField(self._raw, unit, self._number_type, self._timeline_id)
 
+    @classmethod
+    def matches_pa_field(cls, pa_field: pa.Field) -> bool:
+        """Require ``field_type == "IdCoordinateField"`` in the metadata blob.
+
+        Id-variants share their struct shape with their non-Id parent, so
+        pure structural matching cannot distinguish them.  The
+        ``b"timetoalign"`` JSON blob's ``field_type`` key is the
+        authoritative discriminator (already injected by ``metadata_dict``
+        at the SemanticField boundary).
+        """
+        if (
+            pa_field.metadata is None
+            or TIMETOALIGN_METADATA_KEY not in pa_field.metadata
+        ):
+            return False
+        import json as _json
+
+        blob = pa_field.metadata[TIMETOALIGN_METADATA_KEY]
+        if isinstance(blob, bytes):
+            blob = blob.decode("utf-8")
+        try:
+            meta = _json.loads(blob)
+        except (ValueError, UnicodeDecodeError):
+            return False
+        if not isinstance(meta, dict):
+            return False
+        return meta.get("field_type") == "IdCoordinateField"
+
 
 # ---------------------------------------------------------------------------
 # DurationField
@@ -1345,6 +1734,106 @@ class DurationField(TimeScalarField):
         if value is None:
             return None
         return Duration(value, self._unit)
+
+    # -- vectorized arithmetic mirrors --------------------------------------
+
+    def __add__(self, other: object) -> DurationField:
+        if isinstance(other, (Coordinate, CoordinateField)):
+            raise TypeError(
+                "Cannot add a Coordinate to a Duration field; "
+                "use 'coord + dur' instead"
+            )
+        v, tl = _scalar_binop_value_and_id(self, other, "add")
+        new_value = pc.add(self._value_array(), v)
+        return _dur_field_from_value(new_value, self._unit, self._number_type, tl)
+
+    def __sub__(self, other: object) -> DurationField:
+        if isinstance(other, (Coordinate, CoordinateField)):
+            raise TypeError("Cannot subtract a Coordinate from a Duration field")
+        v, tl = _scalar_binop_value_and_id(self, other, "subtract")
+        new_value = pc.subtract(self._value_array(), v)
+        return _dur_field_from_value(new_value, self._unit, self._number_type, tl)
+
+    def __mul__(self, scalar: object) -> DurationField:
+        if isinstance(scalar, (TimeScalar, TimeScalarField)):
+            raise TypeError(
+                f"Cannot multiply two TimeScalar fields: "
+                f"{type(self).__name__} * {type(scalar).__name__}"
+            )
+        if isinstance(scalar, bool) or not isinstance(scalar, (int, float, Fraction)):
+            raise TypeError(f"Cannot multiply DurationField by {type(scalar).__name__}")
+        new_value = pc.multiply(self._value_array(), float(scalar))
+        return _dur_field_from_value(
+            new_value,
+            self._unit,
+            self._number_type,
+            getattr(self, "_timeline_id", None),
+        )
+
+    def __rmul__(self, scalar: object) -> DurationField:
+        return self.__mul__(scalar)
+
+    def __truediv__(self, scalar: object) -> DurationField:
+        if isinstance(scalar, (TimeScalar, TimeScalarField)):
+            raise TypeError(
+                f"Cannot divide two TimeScalar fields: "
+                f"{type(self).__name__} / {type(scalar).__name__}"
+            )
+        if isinstance(scalar, bool) or not isinstance(scalar, (int, float, Fraction)):
+            raise TypeError(f"Cannot divide DurationField by {type(scalar).__name__}")
+        if scalar == 0:
+            raise ZeroDivisionError("Cannot divide DurationField by zero")
+        new_value = pc.divide(self._value_array(), float(scalar))
+        return _dur_field_from_value(
+            new_value,
+            self._unit,
+            self._number_type,
+            getattr(self, "_timeline_id", None),
+        )
+
+    def __floordiv__(self, scalar: object) -> DurationField:
+        if isinstance(scalar, (TimeScalar, TimeScalarField)):
+            raise TypeError(
+                f"Cannot floor-divide two TimeScalar fields: "
+                f"{type(self).__name__} // {type(scalar).__name__}"
+            )
+        if isinstance(scalar, bool) or not isinstance(scalar, (int, float, Fraction)):
+            raise TypeError(
+                f"Cannot floor-divide DurationField by {type(scalar).__name__}"
+            )
+        if scalar == 0:
+            raise ZeroDivisionError("Cannot divide DurationField by zero")
+        new_value = pc.floor(pc.divide(self._value_array(), float(scalar)))
+        return _dur_field_from_value(
+            new_value,
+            self._unit,
+            self._number_type,
+            getattr(self, "_timeline_id", None),
+        )
+
+    @classmethod
+    def matches_pa_field(cls, pa_field: pa.Field) -> bool:
+        """Reject ``IdDurationField`` shapes; otherwise defer to the base."""
+        if (
+            pa_field.metadata is not None
+            and TIMETOALIGN_METADATA_KEY in pa_field.metadata
+        ):
+            import json as _json
+
+            blob = pa_field.metadata[TIMETOALIGN_METADATA_KEY]
+            if isinstance(blob, bytes):
+                blob = blob.decode("utf-8")
+            try:
+                meta = _json.loads(blob)
+            except (ValueError, UnicodeDecodeError):
+                meta = {}
+            if isinstance(meta, dict):
+                ft = meta.get("field_type")
+                if ft == "IdDurationField":
+                    return False
+                if ft == cls.__name__:
+                    return True
+        return super().matches_pa_field(pa_field)
 
 
 # ---------------------------------------------------------------------------
@@ -1429,6 +1918,27 @@ class IdDurationField(DurationField):
 
     def with_unit(self, unit: TimeUnit) -> IdDurationField:
         return IdDurationField(self._raw, unit, self._number_type, self._timeline_id)
+
+    @classmethod
+    def matches_pa_field(cls, pa_field: pa.Field) -> bool:
+        """Require ``field_type == "IdDurationField"`` in the metadata blob."""
+        if (
+            pa_field.metadata is None
+            or TIMETOALIGN_METADATA_KEY not in pa_field.metadata
+        ):
+            return False
+        import json as _json
+
+        blob = pa_field.metadata[TIMETOALIGN_METADATA_KEY]
+        if isinstance(blob, bytes):
+            blob = blob.decode("utf-8")
+        try:
+            meta = _json.loads(blob)
+        except (ValueError, UnicodeDecodeError):
+            return False
+        if not isinstance(meta, dict):
+            return False
+        return meta.get("field_type") == "IdDurationField"
 
 
 # ---------------------------------------------------------------------------
