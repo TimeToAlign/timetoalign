@@ -203,7 +203,7 @@ The ID system ensures:
 
 **Validity Rationale:**
 
-The unified TimeStamp architecture (Phase 6.5) enables:
+The unified TimeStamp architecture enables:
 - Identical coordinate resolution for Timeline and TimelineGroup
 - O(log n) lookup via InterpolationMaps (no table scans)
 - Seamless unit conversion through attached C-Maps

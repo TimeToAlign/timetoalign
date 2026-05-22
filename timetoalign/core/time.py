@@ -2,7 +2,7 @@
 
 This module is the single home for the four scalar pydantic models that
 represent positions and elapsed extents on a timeline, together with
-their paired ``SemanticField`` columnar wrappers.
+their paired ``SemanticField`` field wrappers.
 
 Class hierarchy (diamond MRO for the Id-variants)::
 
@@ -42,13 +42,20 @@ JSON blob), NOT in the struct.
 
 Paired-field hierarchy::
 
-    NumberField (SemanticField[StructField])
-    └── TimeScalarField  (abstract; consolidates the from_field /
-                          from_table / metadata-resolve / repr plumbing)
-        ├── CoordinateField   (scalar_cls=Coordinate)
-        │   └── IdCoordinateField (scalar_cls=IdCoordinate, carries timeline_id)
-        └── DurationField     (scalar_cls=Duration)
-            └── IdDurationField   (scalar_cls=IdDuration, carries timeline_id)
+    SemanticField (Generic[T])
+    └── TimeScalarField  (abstract; _raw_cls = DenominateNumberField;
+                          consolidates the from_field / from_table /
+                          metadata-resolve / repr plumbing)
+        ├── CoordinateField   (scalar_cls = Coordinate)
+        │   └── IdCoordinateField (scalar_cls = IdCoordinate, carries timeline_id)
+        └── DurationField     (scalar_cls = Duration)
+            └── IdDurationField   (scalar_cls = IdDuration, carries timeline_id)
+
+The inner raw field is a ``DenominateNumberField`` (a ``RationalField``
+with a single bound ``unit``) carrying the denormalised
+``{value, numerator, denominator}`` struct.  ``unit`` lives in the
+field's ``b"timetoalign"`` metadata blob; ``timeline_id`` lives there
+too for the Id-variants.
 """
 
 from __future__ import annotations
@@ -63,7 +70,9 @@ from .enums import Domain, NumberType, TimeUnit
 from .fields import (
     TIMETOALIGN_METADATA_KEY,
     DenominateNumberField,
+    SemanticField,
     StructField,
+    metadata_blob_from_dict,
     register_value_projector,
 )
 
@@ -770,7 +779,7 @@ def _make_duration(
 
 # ---------------------------------------------------------------------------
 # Value projectors — denormalise ``value`` into 3 Arrow fields, drop ``unit``
-# and ``timeline_id`` (they live in column metadata).
+# and ``timeline_id`` (they live in field metadata).
 # ---------------------------------------------------------------------------
 
 
@@ -788,7 +797,7 @@ def _time_value_projector(
 def _drop_field_projector(
     _model_cls: type[BaseModel], _name: str, _info: object
 ) -> list[pa.Field]:
-    """Drop a pydantic field from the Arrow column — lives in metadata."""
+    """Drop a pydantic field from the Arrow representation — lives in metadata."""
     return []
 
 
@@ -823,7 +832,7 @@ OptionalCoordinate = Union[Coordinate, None]
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-class TimeScalarField(DenominateNumberField):
+class TimeScalarField(SemanticField):
     """Abstract parent for ``Coordinate`` / ``Duration`` (+ Id) semantic fields.
 
     Consolidates the shared ``from_field`` / ``from_table`` / ``__repr__``
@@ -833,15 +842,102 @@ class TimeScalarField(DenominateNumberField):
     ``SemanticField.__init_subclass__``), then optionally override
     ``semantic_type``, ``metadata_dict``, and ``__getitem__``.
 
+    The inner raw field is a :class:`DenominateNumberField` (a
+    ``RationalField`` with a single bound unit).  Construction accepts
+    either a bare :class:`StructField` (promoted internally to a
+    ``DenominateNumberField`` using the supplied ``unit``) or a fully
+    formed ``DenominateNumberField``.
+
     Args:
-        raw: The inner ``StructField`` holding the denormalised
+        raw: A ``StructField`` (will be promoted) or a
+            ``DenominateNumberField`` holding the denormalised
             ``{value, numerator, denominator}`` struct.
-        unit: The time unit for this column.
-        number_type: The numeric representation used for scalar access.
+        unit: The time unit bound to this field.  Required when *raw*
+            is a bare ``StructField`` or its unit cannot be inferred
+            from metadata.
+        number_type: The numeric representation used when materialising
+            individual scalars (``NumberType.float`` /
+            ``NumberType.fraction`` / ``NumberType.int``).
     """
+
+    # Inner raw field type is fixed for the whole TimeScalarField branch.
+    _raw_cls = DenominateNumberField  # type: ignore[assignment]
 
     # ``scalar_cls`` is intentionally left as ``None`` here — concrete
     # leaves set it.
+
+    def __init__(
+        self,
+        raw: StructField | DenominateNumberField | None = None,
+        unit: TimeUnit | str | None = None,
+        number_type: NumberType | str | None = None,
+        *,
+        source_fields: "str | dict[str, Any] | None" = None,
+    ) -> None:
+        if raw is None and source_fields is None:
+            raise TypeError(
+                f"{type(self).__name__} requires either a raw field (live) or "
+                "source_fields= (blueprint)"
+            )
+
+        if raw is not None:
+            # Promote a bare StructField to a DenominateNumberField; if
+            # already a DenominateNumberField, optionally override unit.
+            if not isinstance(raw, DenominateNumberField):
+                if not isinstance(raw, StructField):
+                    raise TypeError(
+                        f"{type(self).__name__} requires StructField or "
+                        f"DenominateNumberField, got {type(raw).__name__}"
+                    )
+                resolved_unit = self._require_unit(unit, type(self).__name__)
+                raw = DenominateNumberField(raw.data, raw.field, unit=resolved_unit)
+            elif unit is not None:
+                # Override: rebuild with the supplied unit.
+                raw = DenominateNumberField(
+                    raw.data,
+                    raw.field,
+                    unit=TimeUnit(unit) if isinstance(unit, str) else unit,
+                )
+
+        super().__init__(raw, source_fields=source_fields)
+
+        # Resolve number_type: explicit override > metadata > NumberType.float.
+        if number_type is None and raw is not None:
+            _, number_type = self._resolve_metadata(raw.field, None, None)
+        elif number_type is None:
+            number_type = NumberType.float
+        self._number_type = (
+            NumberType(number_type) if isinstance(number_type, str) else number_type
+        )
+
+    # -- forwarded properties from the raw layer ----------------------------
+
+    @property
+    def unit(self) -> Any:
+        """The time unit bound to this field (via the inner ``DenominateNumberField``)."""
+        return None if self._raw is None else self._raw.unit
+
+    @property
+    def _unit(self) -> Any:
+        """Back-compat alias for :attr:`unit`.
+
+        Older callers (subclass methods, tests, serialisation helpers)
+        reach into ``self._unit`` directly; keep the name available so
+        we do not have to rewrite every reference at once.
+        """
+        return self.unit
+
+    @property
+    def domain(self) -> Any:
+        """The temporal domain implied by the unit."""
+        return None if self._raw is None else self._raw.domain
+
+    @property
+    def number_type(self) -> Any:
+        """The numeric representation used for scalar access."""
+        return self._number_type
+
+    # -- abstract semantic contract ----------------------------------------
 
     @property
     def semantic_type(self) -> str:
@@ -851,10 +947,19 @@ class TimeScalarField(DenominateNumberField):
     def metadata_dict(self) -> dict[str, str]:
         return {
             "field_type": type(self).__name__,
-            "unit": self._unit.value,
+            "unit": self.unit.value,
             "domain": self.domain.value,
             "number_type": self._number_type.name,
         }
+
+    def to_field(self) -> pa.Field:
+        """Return a ``pa.Field`` with the ``b"timetoalign"`` metadata blob injected."""
+        meta_blob = metadata_blob_from_dict(self.metadata_dict())
+        existing = self._field.metadata or {}
+        merged = {**existing, TIMETOALIGN_METADATA_KEY: meta_blob}
+        return self._field.with_metadata(merged)
+
+    # -- materialisation ----------------------------------------------------
 
     def _materialise_value(self, i: int) -> TimeScalarValue | None:
         """Extract the i-th element's numeric value, honouring NumberType."""
@@ -869,7 +974,7 @@ class TimeScalarField(DenominateNumberField):
         """Materialise the i-th scalar instance.
 
         Default implementation builds ``cls.scalar_cls(value, unit)``.
-        Id-variants override to thread the column's ``_timeline_id``
+        Id-variants override to thread the field's ``_timeline_id``
         into the result.
         """
         value = self._materialise_value(i)
@@ -880,7 +985,76 @@ class TimeScalarField(DenominateNumberField):
             raise TypeError(
                 f"{type(self).__name__} has no scalar_cls; cannot materialise scalar"
             )
-        return cls(value, self._unit)
+        return cls(value, self.unit)
+
+    # -- unit / number_type resolution helpers ------------------------------
+
+    @staticmethod
+    def _require_unit(unit: Any, cls_name: str = "TimeScalarField") -> Any:
+        if unit is None:
+            raise ValueError(
+                f"'unit' is required when constructing {cls_name} from a bare "
+                "array or StructField"
+            )
+        return TimeUnit(unit) if isinstance(unit, str) else unit
+
+    @staticmethod
+    def _require_number_type(
+        number_type: Any, cls_name: str = "TimeScalarField"
+    ) -> Any:
+        if number_type is None:
+            raise ValueError(
+                f"'number_type' is required when constructing {cls_name} from a "
+                "bare array or StructField"
+            )
+        return NumberType(number_type) if isinstance(number_type, str) else number_type
+
+    @staticmethod
+    def _resolve_metadata(
+        pa_field: pa.Field,
+        unit_override: Any,
+        nt_override: Any,
+    ) -> tuple[Any, Any]:
+        """Extract unit and number_type from a ``pa.Field``'s metadata."""
+        import json
+
+        meta: dict[str, str] = {}
+        raw_meta = pa_field.metadata
+        if raw_meta:
+            if TIMETOALIGN_METADATA_KEY in raw_meta:
+                blob = raw_meta[TIMETOALIGN_METADATA_KEY]
+                if isinstance(blob, bytes):
+                    blob = blob.decode("utf-8")
+                meta = json.loads(blob)
+            else:
+                meta = {
+                    (k.decode("utf-8") if isinstance(k, bytes) else k): (
+                        v.decode("utf-8") if isinstance(v, bytes) else v
+                    )
+                    for k, v in raw_meta.items()
+                }
+
+        if unit_override is not None:
+            resolved_unit = (
+                TimeUnit(unit_override)
+                if isinstance(unit_override, str)
+                else unit_override
+            )
+        elif "unit" in meta:
+            resolved_unit = TimeUnit(meta["unit"])
+        else:
+            resolved_unit = None  # caller decides if this is fatal
+
+        if nt_override is not None:
+            resolved_nt = (
+                NumberType(nt_override) if isinstance(nt_override, str) else nt_override
+            )
+        elif "number_type" in meta:
+            resolved_nt = NumberType(meta["number_type"])
+        else:
+            resolved_nt = NumberType.float
+
+        return resolved_unit, resolved_nt
 
     # -- factories ----------------------------------------------------------
 
@@ -906,6 +1080,11 @@ class TimeScalarField(DenominateNumberField):
             resolved_unit, resolved_nt = cls._resolve_metadata(
                 pa_field, unit, number_type
             )
+            if resolved_unit is None:
+                raise ValueError(
+                    f"Cannot determine unit for field {pa_field.name!r}: no "
+                    "'unit' in metadata and no override supplied"
+                )
             struct_field = StructField(data, pa_field)
             return cls(struct_field, resolved_unit, resolved_nt, **extra_resolved)
 
@@ -913,6 +1092,11 @@ class TimeScalarField(DenominateNumberField):
             resolved_unit, resolved_nt = cls._resolve_metadata(
                 source, unit, number_type
             )
+            if resolved_unit is None:
+                raise ValueError(
+                    f"Cannot determine unit for field {source.name!r}: no "
+                    "'unit' in metadata and no override supplied"
+                )
             struct_field = StructField(None, source)
             return cls(struct_field, resolved_unit, resolved_nt, **extra_resolved)
 
@@ -958,12 +1142,12 @@ class TimeScalarField(DenominateNumberField):
     def from_table(
         cls,
         table: pa.Table,
-        column: str | None = None,
+        field: str | None = None,
         *,
         unit: TimeUnit | str | None = None,
         number_type: NumberType | str | None = None,
     ) -> TimeScalarField:
-        if column is None:
+        if field is None:
             candidates = [
                 f.name
                 for f in table.schema
@@ -972,19 +1156,19 @@ class TimeScalarField(DenominateNumberField):
                 and TIMETOALIGN_METADATA_KEY in f.metadata
             ]
             if len(candidates) == 1:
-                column = candidates[0]
+                field = candidates[0]
             elif len(candidates) == 0:
                 raise ValueError(
-                    "No struct column with b'timetoalign' metadata found in table; "
-                    "pass column= explicitly"
+                    "No struct field with b'timetoalign' metadata found in table; "
+                    "pass field= explicitly"
                 )
             else:
                 raise ValueError(
-                    f"Multiple candidate columns found: {candidates}; "
-                    "pass column= explicitly"
+                    f"Multiple candidate fields found: {candidates}; "
+                    "pass field= explicitly"
                 )
-        pa_field = table.schema.field(column)
-        data = table.column(column)
+        pa_field = table.schema.field(field)
+        data = table.column(field)
         return cls.from_field((data, pa_field), unit=unit, number_type=number_type)
 
     def with_unit(self, unit: TimeUnit) -> TimeScalarField:
@@ -1005,7 +1189,7 @@ class TimeScalarField(DenominateNumberField):
 
 
 class CoordinateField(TimeScalarField):
-    """Semantic field for coordinate columns.
+    """Semantic field for coordinate fields.
 
     Wraps a ``StructField`` containing the coordinate struct
     ``{value: float64, numerator: int64, denominator: int64}`` and adds
@@ -1057,10 +1241,10 @@ class CoordinateField(TimeScalarField):
 
 
 class IdCoordinateField(CoordinateField):
-    """Coordinate column annotated with a ``timeline_id``.
+    """Coordinate field annotated with a ``timeline_id``.
 
     On-disk struct shape is identical to :class:`CoordinateField`; the
-    timeline id lives in column metadata (the ``b"timetoalign"`` blob)
+    timeline id lives in field metadata (the ``b"timetoalign"`` blob)
     and on the live instance.  Materialised scalars are
     :class:`IdCoordinate`.
     """
@@ -1142,7 +1326,7 @@ class IdCoordinateField(CoordinateField):
 
 
 class DurationField(TimeScalarField):
-    """Semantic field for duration columns.
+    """Semantic field for duration fields.
 
     Uses the same coordinate struct ``{value, numerator, denominator}``
     as :class:`CoordinateField`; the distinction is semantic.
@@ -1176,10 +1360,10 @@ class DurationField(TimeScalarField):
 
 
 class IdDurationField(DurationField):
-    """Duration column annotated with a ``timeline_id``.
+    """Duration field annotated with a ``timeline_id``.
 
     On-disk struct shape is identical to :class:`DurationField`; the
-    timeline id lives in column metadata.  Materialised scalars are
+    timeline id lives in field metadata.  Materialised scalars are
     :class:`IdDuration`.
     """
 
@@ -1260,7 +1444,7 @@ class IdDurationField(DurationField):
 
 
 def _resolve_timeline_id(source: Any, override: str | None) -> str:
-    """Resolve ``timeline_id`` from a kwarg override or column metadata."""
+    """Resolve ``timeline_id`` from a kwarg override or field metadata."""
     if override is not None:
         if not isinstance(override, str) or not override:
             raise ValueError(
@@ -1293,5 +1477,5 @@ def _resolve_timeline_id(source: Any, override: str | None) -> str:
 
     raise ValueError(
         "timeline_id is required for Id-variant fields; pass it explicitly "
-        "or store it in the column's b'timetoalign' metadata blob."
+        "or store it in the field's b'timetoalign' metadata blob."
     )

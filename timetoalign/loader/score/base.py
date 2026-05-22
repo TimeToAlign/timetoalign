@@ -49,15 +49,15 @@ class ScoreLoader(Loader):
         return self._store.notes
 
     def get_events(self, properties: bool | tuple[str, ...] = True) -> ScoreEventData:
-        """Return note events with column control.
+        """Return note events with field control.
 
         Overrides the base ``Loader.get_events`` because ``ScoreLoader``
         stores events in a ``ScoreStore``, not in ``self._events``.
 
         Args:
-            properties: Controls which non-field columns to include.
-                ``True``: all columns.  ``False``: field + core columns only.
-                Tuple of strings: named property columns only.
+            properties: Controls which non-field-spec fields to include.
+                ``True``: all fields.  ``False``: spec + core fields only.
+                Tuple of strings: named property fields only.
         """
         self._events = self._store.notes
         return self._assemble_events_table(properties)

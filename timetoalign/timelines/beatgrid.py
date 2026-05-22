@@ -700,9 +700,9 @@ class BeatGrid(ContinuousLogicalTimeline):
             format: Output format. Options:
                 - "default": Standard timestamp table (inherited behavior).
                 - "sonic_visualiser": Sonic Visualiser / Audacity label track.
-                  Two columns (TIME, LABEL) with header row.
+                  Two fields (TIME, LABEL) with header row.
                 - "tilia": Tilia beat track format.
-                  Four columns (time, measure, beat, is_first_in_measure).
+                  Four fields (time, measure, beat, is_first_in_measure).
             labels: What to export when using "sonic_visualiser" format:
                 - "beats": All beat positions with labels like "M1B1", "M1B2".
                 - "measures": Measure start positions with labels like "M1", "M2".
@@ -755,7 +755,7 @@ class BeatGrid(ContinuousLogicalTimeline):
         return self._export_sonic_visualiser(filepath, labels)
 
     def _export_sonic_visualiser(self, filepath: str, labels: str) -> int:
-        """Export in Sonic Visualiser format (TIME, LABEL columns with header)."""
+        """Export in Sonic Visualiser format (TIME, LABEL fields with header)."""
         import pandas as pd
 
         dfs = []

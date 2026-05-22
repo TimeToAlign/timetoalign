@@ -1,13 +1,13 @@
-"""Tests for the new TableSchema semantic column specification system.
+"""Tests for the new TableSchema semantic field specification system.
 
 This module tests the comprehensive TableSchema that supports:
 1. Timeline creation defaults
 2. Coordinate specifications (start, end, duration, instant)
-3. C-Map columns for coordinate conversion
-4. Partition columns for multiple timelines
-5. Hierarchy columns for parent-child relationships
-6. Region columns for named TimeIntervals
-7. Match columns for alignment references
+3. C-Map fields for coordinate conversion
+4. Partition fields for multiple timelines
+5. Hierarchy fields for parent-child relationships
+6. Region fields for named TimeIntervals
+7. Match fields for alignment references
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import pytest
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.core.enums import ColumnRole, PartitionMode
 from timetoalign.loader.table_schema import (
-    CMapColumn,
+    CMapField,
     CoordinateSpec,
     PartitionSpec,
     RegionSpec,
@@ -147,20 +147,20 @@ class TestCoordinateSpec:
         assert spec.instant == "timestamp"
         assert spec.start is None
 
-    def test_with_cmap_columns(self) -> None:
-        """Test spec with C-Map columns."""
+    def test_with_cmap_fields(self) -> None:
+        """Test spec with C-Map fields."""
         spec = CoordinateSpec(
             start="onset_sec",
             end="offset_sec",
-            cmap_columns={
-                "onset_beat": CMapColumn(target_unit=TimeUnit.quarters),
+            cmap_fields={
+                "onset_beat": CMapField(target_unit=TimeUnit.quarters),
             },
         )
-        assert "onset_beat" in spec.cmap_columns
-        assert spec.cmap_columns["onset_beat"].target_unit == TimeUnit.quarters
+        assert "onset_beat" in spec.cmap_fields
+        assert spec.cmap_fields["onset_beat"].target_unit == TimeUnit.quarters
 
     def test_validation_requires_coordinate(self) -> None:
-        """Test that at least one coordinate column is required."""
+        """Test that at least one coordinate field is required."""
         with pytest.raises(ValueError, match="at least one of"):
             CoordinateSpec(start=None, instant=None)
 
@@ -177,16 +177,16 @@ class TestPartitionSpec:
     def test_separate_mode(self) -> None:
         """Test separate partition mode (disparate coordinates)."""
         spec = PartitionSpec(
-            columns=["voice"],
+            fields=["voice"],
             mode=PartitionMode.separate,
         )
-        assert spec.columns == ["voice"]
+        assert spec.fields == ["voice"]
         assert spec.mode == PartitionMode.separate
 
     def test_children_mode(self) -> None:
         """Test children partition mode (shared coordinates)."""
         spec = PartitionSpec(
-            columns=["staff"],
+            fields=["staff"],
             mode=PartitionMode.children,
             parent_timeline="score",
         )
@@ -195,8 +195,8 @@ class TestPartitionSpec:
 
     def test_composite_key(self) -> None:
         """Test composite partition key."""
-        spec = PartitionSpec(columns=["piece", "movement", "voice"])
-        assert len(spec.columns) == 3
+        spec = PartitionSpec(fields=["piece", "movement", "voice"])
+        assert len(spec.fields) == 3
 
 
 # endregion
@@ -219,11 +219,11 @@ class TestTableSchemaBasics:
         schema = TableSchema(
             timeline=TimelineDefaults(unit=TimeUnit.quarters),
             coordinates=CoordinateSpec(start="onset", end="offset"),
-            id_column="event_id",
+            id_field="event_id",
         )
         assert schema.timeline.unit == TimeUnit.quarters
         assert schema.coordinates.start == "onset"
-        assert schema.id_column == "event_id"
+        assert schema.id_field == "event_id"
 
     def test_reserved_columns(self) -> None:
         """Test that reserved columns are correctly identified."""
@@ -231,33 +231,33 @@ class TestTableSchemaBasics:
             coordinates=CoordinateSpec(
                 start="onset",
                 end="offset",
-                cmap_columns={"beat": CMapColumn(TimeUnit.quarters)},
+                cmap_fields={"beat": CMapField(TimeUnit.quarters)},
             ),
-            partitions=PartitionSpec(columns=["voice"]),
-            regions=RegionSpec(columns=["section"]),
+            partitions=PartitionSpec(fields=["voice"]),
+            regions=RegionSpec(fields=["section"]),
         )
-        reserved = schema.get_reserved_columns()
+        reserved = schema.get_reserved_fields()
         assert "onset" in reserved
         assert "offset" in reserved
         assert "beat" in reserved
         assert "voice" in reserved
         assert "section" in reserved
 
-    def test_column_role_detection(self) -> None:
-        """Test semantic role detection for columns."""
+    def test_field_role_detection(self) -> None:
+        """Test semantic role detection for source columns."""
         schema = TableSchema(
             coordinates=CoordinateSpec(
                 start="onset",
-                cmap_columns={"beat": CMapColumn(TimeUnit.quarters)},
+                cmap_fields={"beat": CMapField(TimeUnit.quarters)},
             ),
-            partitions=PartitionSpec(columns=["voice"]),
-            regions=RegionSpec(columns=["section"]),
+            partitions=PartitionSpec(fields=["voice"]),
+            regions=RegionSpec(fields=["section"]),
         )
-        assert schema.get_column_role("onset") == ColumnRole.start
-        assert schema.get_column_role("beat") == ColumnRole.cmap_target
-        assert schema.get_column_role("voice") == ColumnRole.partition
-        assert schema.get_column_role("section") == ColumnRole.region
-        assert schema.get_column_role("other") == ColumnRole.extra
+        assert schema.get_field_role("onset") == ColumnRole.start
+        assert schema.get_field_role("beat") == ColumnRole.cmap_target
+        assert schema.get_field_role("voice") == ColumnRole.partition
+        assert schema.get_field_role("section") == ColumnRole.region
+        assert schema.get_field_role("other") == ColumnRole.extra
 
 
 # endregion
@@ -289,7 +289,7 @@ class TestTimelineCreation:
         schema = TableSchema(
             timeline=TimelineDefaults(unit=TimeUnit.seconds),
             coordinates=CoordinateSpec(start="onset", end="offset"),
-            partitions=PartitionSpec(columns=["voice"], mode=PartitionMode.separate),
+            partitions=PartitionSpec(fields=["voice"], mode=PartitionMode.separate),
         )
         result = schema.create_timelines(partitioned_df)
 
@@ -304,11 +304,11 @@ class TestTimelineCreation:
                 assert timeline.n_events == 1
 
     def test_region_extraction(self, region_df: pd.DataFrame) -> None:
-        """Test extracting regions from region columns."""
+        """Test extracting regions from region fields."""
         schema = TableSchema(
             timeline=TimelineDefaults(unit=TimeUnit.seconds),
             coordinates=CoordinateSpec(start="onset", end="offset"),
-            regions=RegionSpec(columns=["section"]),
+            regions=RegionSpec(fields=["section"]),
         )
         result = schema.create_timelines(region_df)
 
@@ -325,14 +325,14 @@ class TestTimelineCreation:
         assert "Chorus" in region_names
 
     def test_cmap_creation(self, multiunit_df: pd.DataFrame) -> None:
-        """Test creating C-Maps from multi-unit columns."""
+        """Test creating C-Maps from multi-unit fields."""
         schema = TableSchema(
             timeline=TimelineDefaults(unit=TimeUnit.seconds),
             coordinates=CoordinateSpec(
                 start="onset_sec",
                 end="offset_sec",
-                cmap_columns={
-                    "onset_beat": CMapColumn(
+                cmap_fields={
+                    "onset_beat": CMapField(
                         target_unit=TimeUnit.quarters,
                         bidirectional=True,
                     ),
@@ -390,12 +390,12 @@ class TestSerialization:
             coordinates=CoordinateSpec(
                 start="onset",
                 end="offset",
-                cmap_columns={
-                    "beat": CMapColumn(target_unit=TimeUnit.measures),
+                cmap_fields={
+                    "beat": CMapField(target_unit=TimeUnit.measures),
                 },
             ),
-            partitions=PartitionSpec(columns=["voice"]),
-            regions=RegionSpec(columns=["section"]),
+            partitions=PartitionSpec(fields=["voice"]),
+            regions=RegionSpec(fields=["section"]),
         )
 
         # Serialize and deserialize
@@ -406,16 +406,16 @@ class TestSerialization:
         assert restored.timeline.unit == TimeUnit.quarters
         assert restored.coordinates.start == "onset"
         assert restored.coordinates.end == "offset"
-        assert "beat" in restored.coordinates.cmap_columns
+        assert "beat" in restored.coordinates.cmap_fields
         assert restored.partitions is not None
-        assert restored.partitions.columns == ["voice"]
+        assert restored.partitions.fields == ["voice"]
 
     def test_repr(self) -> None:
         """Test string representation."""
         schema = TableSchema(
             timeline=TimelineDefaults(unit=TimeUnit.seconds),
-            partitions=PartitionSpec(columns=["voice"]),
-            regions=RegionSpec(columns=["section"]),
+            partitions=PartitionSpec(fields=["voice"]),
+            regions=RegionSpec(fields=["section"]),
         )
         repr_str = repr(schema)
         assert "seconds" in repr_str
@@ -465,7 +465,7 @@ class TestEdgeCases:
         )
         schema = TableSchema(
             coordinates=CoordinateSpec(start="onset"),
-            partitions=PartitionSpec(columns=["voice"], include_null=False),
+            partitions=PartitionSpec(fields=["voice"], include_null=False),
         )
         result = schema.create_timelines(df)
 
@@ -473,7 +473,7 @@ class TestEdgeCases:
         assert len(result["timelines"]) == 2
 
     def test_duration_to_end_computation(self) -> None:
-        """Test that end is computed from duration when duration_column is set."""
+        """Test that end is computed from duration when duration_field is set."""
         df = pd.DataFrame(
             {
                 "id": ["e1", "e2"],

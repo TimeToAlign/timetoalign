@@ -1089,16 +1089,16 @@ class AlignmentBundle:
         """Get a PyArrow table of MatchStamps for alignment queries.
 
         Analogous to ``get_timestamp_table()`` but for cross-group alignment.
-        Each row represents one MatchClaim/coordinate; columns are timeline IDs
+        Each row represents one MatchClaim/coordinate; fields are timeline IDs
         with their coordinate values.
 
         Args:
             claims: List of MatchClaims to tabulate. If None, uses all
                 cross_group_claims.
-            timeline_filter: Only include these timeline columns.
+            timeline_filter: Only include these timeline fields.
 
         Returns:
-            PyArrow Table with one row per synchronous claim, one column
+            PyArrow Table with one row per synchronous claim, one field
             per timeline. Non-synchronous claims are excluded.
 
         Examples:
@@ -1137,15 +1137,15 @@ class AlignmentBundle:
         if timeline_filter is not None:
             all_tl_ids = all_tl_ids & timeline_filter
 
-        # Build table with consistent columns
+        # Build table with consistent fields
         sorted_ids = sorted(all_tl_ids)
-        columns: dict[str, list[float | None]] = {tl: [] for tl in sorted_ids}
+        field_lists: dict[str, list[float | None]] = {tl: [] for tl in sorted_ids}
 
         for row in rows:
             for tl_id in sorted_ids:
-                columns[tl_id].append(row.get(tl_id))
+                field_lists[tl_id].append(row.get(tl_id))
 
-        return pa.table(columns)
+        return pa.table(field_lists)
 
     def _invalidate_warp_cache(self) -> None:
         """Clear the WarpMap, MatchLine, and MatchGraph caches, forcing rebuild on next access."""

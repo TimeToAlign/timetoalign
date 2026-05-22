@@ -1032,13 +1032,13 @@ class TestTimelineGroupUnitMetadata:
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
     ) -> None:
-        """Test that get_timestamp_table includes unit metadata on columns."""
+        """Test that get_timestamp_table includes unit metadata on fields."""
         # Creating group with two timelines auto-creates boundaries
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
         table = group.get_timestamp_table()
 
-        # Check each timeline column has correct unit metadata
+        # Check each timeline field has correct unit metadata
         dgt_field = table.schema.field("dgt1")
         assert dgt_field.metadata is not None
         assert dgt_field.metadata[b"unit"] == b"pixels"
@@ -1084,7 +1084,7 @@ class TestTimelineGroupUnitMetadata:
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
     ) -> None:
-        """Test that adding a timeline creates column with correct metadata."""
+        """Test that adding a timeline creates field with correct metadata."""
         # Start with one timeline
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
 
@@ -1096,7 +1096,7 @@ class TestTimelineGroupUnitMetadata:
 
         table_after = group.get_timestamp_table()
 
-        # New column should have metadata
+        # New field should have metadata
         audio_field = table_after.schema.field("audio")
         assert audio_field.metadata is not None
         assert audio_field.metadata[b"unit"] == b"seconds"

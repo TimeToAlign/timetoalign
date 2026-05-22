@@ -100,11 +100,11 @@ def _create_grouped_timeline(
     effective_number_type: NumberType,
     uid: str | None = None,
 ) -> "Timeline":
-    """Create a timeline with children grouped by a column value.
+    """Create a timeline with children grouped by a field value.
 
     Args:
         data_to_use: List of (name, EventData) tuples.
-        group_by: Column name to group by.
+        group_by: Field name to group by.
         timeline_class: The Timeline class to use.
         effective_number_type: The number type for the timeline.
         uid: Optional parent timeline ID.
@@ -117,18 +117,18 @@ def _create_grouped_timeline(
     for _, data in data_to_use[1:]:
         merged_data = merged_data.concat(data)
 
-    # Check that group_by column exists
+    # Check that group_by field exists
     table = merged_data._table
-    available_columns = table.column_names
-    if group_by not in available_columns:
+    available_names = table.column_names
+    if group_by not in available_names:
         raise ValueError(
-            f"group_by column '{group_by}' not found. "
-            f"Available columns: {available_columns}"
+            f"group_by field '{group_by}' not found. "
+            f"Available fields: {available_names}"
         )
 
-    # Get unique values in the group_by column
-    group_column = table.column(group_by)
-    unique_values = group_column.unique().to_pylist()
+    # Get unique values in the group_by field
+    group_arr = table.column(group_by)
+    unique_values = group_arr.unique().to_pylist()
 
     # Sort unique values for consistent ordering
     try:
@@ -163,11 +163,11 @@ def _create_grouped_timeline(
         if group_value is None:
             child_name = "_none_"
             # Filter for null values
-            mask = pc.is_null(group_column)
+            mask = pc.is_null(group_arr)
         else:
             child_name = str(group_value)
             # Filter for exact match
-            mask = pc.equal(group_column, group_value)
+            mask = pc.equal(group_arr, group_value)
 
         # Apply filter to table
         filtered_table = table.filter(mask)
@@ -219,7 +219,7 @@ def create_timeline_from_bundle(
     - **Multiple data sources**: Each data becomes a child timeline at
       offset 0. This is used by ScoreStore, MidiStore, etc.
     - **flatten=True**: Always merge all events into a single timeline.
-    - **group_by**: Group events by a column value, creating child timelines
+    - **group_by**: Group events by a field value, creating child timelines
       for each unique value. This overrides the default behavior.
 
     Args:
@@ -231,7 +231,7 @@ def create_timeline_from_bundle(
         exclude_stores: Exclude these data.
         flatten: If True, merge all events into timeline (no children).
             If False (default), multiple data become children at offset 0.
-        group_by: Column name to group events by. Each unique value becomes
+        group_by: Field name to group events by. Each unique value becomes
             a child timeline. Useful for grouping by image_filename, page, etc.
 
     Returns:
@@ -272,7 +272,7 @@ def create_timeline_from_bundle(
         first_data.unit, first_data.number_type
     )
 
-    # Handle group_by: create children from unique column values
+    # Handle group_by: create children from unique field values
     if group_by is not None:
         return _create_grouped_timeline(
             data_to_use,
@@ -367,7 +367,7 @@ def create_timeline(
       directly on the timeline. No child timelines are created.
     - **Multiple data sources** (ScoreStore, MidiStore): Each data becomes
       a child timeline at offset 0, maintaining its own coordinate system.
-    - **group_by**: Groups events by a column value, creating child timelines
+    - **group_by**: Groups events by a field value, creating child timelines
       for each unique value. Overrides default single/multi behavior.
 
     Args:
@@ -379,7 +379,7 @@ def create_timeline(
         exclude_stores: Exclude these data from the timeline.
         flatten: If True, merge all events into a single timeline (no children).
             If False (default), multiple data sources become children.
-        group_by: Column name to group events by. Each unique value becomes
+        group_by: Field name to group events by. Each unique value becomes
             a child timeline. Useful for grouping by image_filename, page, etc.
 
     Returns:
@@ -414,7 +414,7 @@ def create_timeline(
         >>> # Flattened (merge multiple stores into one timeline)
         >>> timeline = create_timeline(loader, flatten=True)
 
-        >>> # Grouped by column (e.g., image_filename)
+        >>> # Grouped by field (e.g., image_filename)
         >>> timeline = create_timeline(loader, group_by="image_filename")
         >>> # Creates children: page1.png, page2.png, etc.
     """

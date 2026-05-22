@@ -13,12 +13,12 @@ See ``CLAUDE.md`` "Test Data Provisioning" for the binding contract and
 
 | File | What it validates |
 |------|-------------------|
-| `test_looks_ready.py` | The private ``_looks_ready()`` trust gate.  Pins the post-INC-5 contract: a sentinel match alone is insufficient (we additionally require at least one non-marker child); developer checkouts (sentinel missing, but data present) are trusted with a single ``logging.WARNING``; an empty or missing directory always returns ``False``. |
+| `test_looks_ready.py` | The private ``_looks_ready()`` trust gate.  Pins the current contract: a sentinel match alone is insufficient (we additionally require at least one non-marker child); developer checkouts (sentinel missing, but data present) are trusted with a single ``logging.WARNING``; an empty or missing directory always returns ``False``. |
 
 ## Why these tests
 
-Two failure modes observed during phase A1 of the
-``type_hierarchy_landing`` work package (2026-05-17) motivated INC-5:
+Two failure modes observed during earlier type-hierarchy work
+motivated this contract:
 
 * **Sentinel without content** — ``.tta_testdata_hash`` matched the
   expected digest but the directory had been emptied of data files;
@@ -28,7 +28,7 @@ Two failure modes observed during phase A1 of the
 * **Partial developer checkout** — non-empty directory, no sentinel,
   trusted unconditionally; same downstream symptom.
 
-The post-INC-5 contract verified by these tests:
+The contract verified by these tests:
 
 1. ``_looks_ready(dir, marker, digest)`` returns ``True`` ONLY if the
    sentinel matches AND a non-marker child exists.

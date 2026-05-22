@@ -1,6 +1,6 @@
 """Tests for ``timetoalign.testdata._looks_ready`` (private trust gate).
 
-These tests pin the post-INC-5 contract documented in
+These tests pin the contract documented in
 ``tests/testdata/README.md``.  ``_looks_ready`` is the gate guarding
 ``ensure_data()``'s "skip re-extract" path: a false positive surfaces
 much later as ``FileNotFoundError`` on the first downstream ``open()``

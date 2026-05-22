@@ -273,7 +273,7 @@ class TestArrayValidatorBasic:
     """Test basic array validation."""
 
     def test_validate_valid_column_dict(self):
-        """Validate a valid column dictionary."""
+        """Validate a valid field dictionary."""
         coord_type = pa.struct(
             [
                 pa.field("value", pa.float64()),
@@ -309,10 +309,10 @@ class TestArrayValidatorBasic:
         }
 
         # Should not raise
-        ArrayValidator.validate_column_dict(columns, schema)
+        ArrayValidator.validate_field_dict(columns, schema)
 
     def test_validate_length_mismatch(self):
-        """Test error on column length mismatch."""
+        """Test error on field length mismatch."""
         schema = pa.schema([pa.field("id", pa.string())])
 
         columns = {
@@ -322,11 +322,11 @@ class TestArrayValidatorBasic:
             ),  # Wrong length
         }
 
-        with pytest.raises(ValueError, match="Column length mismatch"):
-            ArrayValidator.validate_column_dict(columns, schema)
+        with pytest.raises(ValueError, match="Field length mismatch"):
+            ArrayValidator.validate_field_dict(columns, schema)
 
     def test_validate_missing_required_columns(self):
-        """Test error on missing required columns."""
+        """Test error on missing required fields."""
         schema = pa.schema([pa.field("id", pa.string())])
 
         columns = {
@@ -334,8 +334,8 @@ class TestArrayValidatorBasic:
             # Missing: temporal_type, event_type, start
         }
 
-        with pytest.raises(ValueError, match="Missing required columns"):
-            ArrayValidator.validate_column_dict(columns, schema)
+        with pytest.raises(ValueError, match="Missing required fields"):
+            ArrayValidator.validate_field_dict(columns, schema)
 
     def test_validate_duplicate_ids(self):
         """Test error on duplicate IDs."""
@@ -365,7 +365,7 @@ class TestArrayValidatorBasic:
         }
 
         with pytest.raises(ValueError, match="Duplicate IDs found"):
-            ArrayValidator.validate_column_dict(columns, schema)
+            ArrayValidator.validate_field_dict(columns, schema)
 
 
 class TestArrayValidatorTemporalConsistency:
@@ -419,7 +419,7 @@ class TestArrayValidatorTemporalConsistency:
         }
 
         # Should not raise
-        ArrayValidator.validate_column_dict(columns, schema)
+        ArrayValidator.validate_field_dict(columns, schema)
 
     def test_validate_instant_with_end_error(self):
         """Test error when instant events have end coordinate."""
@@ -462,7 +462,7 @@ class TestArrayValidatorTemporalConsistency:
         }
 
         with pytest.raises(ValueError, match="Instant events cannot have 'end'"):
-            ArrayValidator.validate_column_dict(columns, schema)
+            ArrayValidator.validate_field_dict(columns, schema)
 
     def test_validate_interval_without_end_error(self):
         """Test error when interval events missing end coordinate."""
@@ -489,11 +489,11 @@ class TestArrayValidatorTemporalConsistency:
             "temporal_type": np.array(["interval", "interval"]),
             "event_type": np.array(["Note", "Note"]),
             "start": CoordinateParser.parse([0, 1], NumberType.int, TimeUnit.ticks),
-            # Missing 'end' column
+            # Missing 'end' field
         }
 
         with pytest.raises(ValueError, match="Interval events require 'end'"):
-            ArrayValidator.validate_column_dict(columns, schema)
+            ArrayValidator.validate_field_dict(columns, schema)
 
     def test_validate_invalid_temporal_type(self):
         """Test error on invalid temporal_type values."""
@@ -523,7 +523,7 @@ class TestArrayValidatorTemporalConsistency:
         }
 
         with pytest.raises(ValueError, match="Invalid temporal_type values"):
-            ArrayValidator.validate_column_dict(columns, schema)
+            ArrayValidator.validate_field_dict(columns, schema)
 
 
 class TestArrayValidatorHelpers:

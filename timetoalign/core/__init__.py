@@ -5,12 +5,13 @@ Flat module layout (no sub-packages):
 * :mod:`timetoalign.core.time` — ``TimeScalar`` base, ``Coordinate`` /
   ``Duration`` and their Id-variants (``IdCoordinate``, ``IdDuration``),
   plus the paired ``CoordinateField`` / ``IdCoordinateField`` /
-  ``DurationField`` / ``IdDurationField`` columnar wrappers.
+  ``DurationField`` / ``IdDurationField`` field wrappers.
 * :mod:`timetoalign.core.events` — pitch / harmony / Note / Measure
   scalars and their paired Fields.
-* :mod:`timetoalign.core.fields` — ``DataField`` / ``SemanticField`` /
-  ``NumberField`` hierarchy, the pydantic → PyArrow translator, the
-  column-builder, and Parquet metadata.
+* :mod:`timetoalign.core.fields` — ``DataField`` / ``SemanticField``
+  hierarchy (including the raw ``NumberField`` / ``RationalField`` /
+  ``DenominateNumberField`` branch), the pydantic → PyArrow translator,
+  the store builder, and Parquet metadata.
 * :mod:`timetoalign.core.enums` — ``Domain``, ``TimeUnit``, ``NumberType``,
   …
 * :mod:`timetoalign.core.ids` — ``ScopedId``, ``IdGenerator``.
@@ -79,9 +80,12 @@ from .fields import (
     DataField,
     DenominateNumberField,
     MapField,
+    NumberField,
     NumericField,
+    RationalField,
     SemanticField,
     StringField,
+    StructArrayBuilder,
     StructField,
     build_coordinate_struct_array,
     build_struct_array,
@@ -92,6 +96,7 @@ from .fields import (
     parquet_metadata_for_model,
     parse_metadata_blob,
     register_value_projector,
+    resolve_source_fields,
 )
 from .ids import IdGenerator, ScopedId, TimelineIdGenerator, resolve_id, resolve_ids
 from .time import (
@@ -160,11 +165,16 @@ __all__ = [
     # DataField hierarchy / schema mechanism
     "DataField",
     "MapField",
-    "DenominateNumberField",
     "NumericField",
-    "SemanticField",
     "StringField",
     "StructField",
+    # Raw numeric struct branch
+    "NumberField",
+    "RationalField",
+    "DenominateNumberField",
+    # Semantic bridge + store builder + translator helpers
+    "SemanticField",
+    "StructArrayBuilder",
     "TIMETOALIGN_METADATA_KEY",
     "build_coordinate_struct_array",
     "build_struct_array",
@@ -175,6 +185,7 @@ __all__ = [
     "parquet_metadata_for_model",
     "parse_metadata_blob",
     "register_value_projector",
+    "resolve_source_fields",
     # Pitch scalars + paired Fields
     "EnharmonicPitch",
     "EnharmonicPitchClass",

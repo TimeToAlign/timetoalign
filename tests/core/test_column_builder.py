@@ -1,4 +1,4 @@
-"""Tests for the column-builder pattern (WP2 bulk construction).
+"""Tests for the store-builder pattern (canonical bulk construction).
 
 See README.md "test_column_builder.py" for the gold-standard plan.
 """
@@ -23,13 +23,13 @@ from timetoalign.loader.schema import struct_to_coordinate
 
 
 class TestBuildStructArraySpecificPitch:
-    """§1, §2, §3: generic column-builder on SpecificPitch."""
+    """§1, §2, §3: generic store-builder on SpecificPitch."""
 
     def test_byte_equivalent_to_model_dump_row_wise(self) -> None:
-        """§1: column-builder matches row-wise pa.array(model_dump) field-by-field.
+        """§1: store-builder matches row-wise pa.array(model_dump) field-by-field.
 
         ``model_dump`` row-wise is the LEGACY/forbidden path; this test
-        proves the column-builder produces the same on-disk bytes for
+        proves the store-builder produces the same on-disk bytes for
         valid input.
         """
         scalars = [
@@ -38,7 +38,7 @@ class TestBuildStructArraySpecificPitch:
             SpecificPitch(step="B", alter=-1, octave=5),
         ]
         struct = derive_arrow_struct(SpecificPitch)
-        column_builder_arr = build_struct_array(SpecificPitch, scalars)
+        store_builder_arr = build_struct_array(SpecificPitch, scalars)
 
         # Legacy / forbidden path, for parity comparison only.
         rows = [
@@ -49,7 +49,7 @@ class TestBuildStructArraySpecificPitch:
 
         # Field-by-field equality (struct-level .equals may diff on
         # internal layout but pylist equality is the durable contract).
-        assert column_builder_arr.to_pylist() == legacy_arr.to_pylist()
+        assert store_builder_arr.to_pylist() == legacy_arr.to_pylist()
 
     def test_handles_none_entries(self) -> None:
         """§2: a None entry produces a null struct row."""
@@ -64,7 +64,7 @@ class TestBuildStructArraySpecificPitch:
         assert arr[1].as_py() is None
 
     def test_computed_fields_omitted(self) -> None:
-        """§3: result has no 'fifths' column (it's a computed_field)."""
+        """§3: result has no 'fifths' field (it's a computed_field)."""
         scalars = [SpecificPitch(step="C", alter=0, octave=4)]
         arr = build_struct_array(SpecificPitch, scalars)
         field_names = {arr.type.field(i).name for i in range(arr.type.num_fields)}
@@ -79,7 +79,7 @@ class TestBuildStructArraySpecificPitch:
 
 
 class TestBuildCoordinateStructArray:
-    """§4, §5: Coordinate-specific column-builder."""
+    """§4, §5: Coordinate-specific store-builder."""
 
     def test_fraction_preserved(self) -> None:
         """§4: Fraction round-trips via numerator/denominator."""
@@ -124,13 +124,13 @@ class TestBuildCoordinateStructArray:
 
 
 class TestColumnBuilderPerformance:
-    """§6: column-builder is faster than model_dump row-wise (smoke).
+    """§6: store-builder is faster than model_dump row-wise (smoke).
 
     The authoritative performance gate is the 100k microbenchmark under
     ``timetoalign/benchmarks/pydantic_pilot.py``; this in-suite smoke
-    only checks that the column-builder does not catastrophically
+    only checks that the store-builder does not catastrophically
     regress.  Small-N timing is too noisy to gate against a tight
-    multiplier in CI, so we only require the column-builder to be
+    multiplier in CI, so we only require the store-builder to be
     faster on average over multiple warmed runs.
     """
 

@@ -46,7 +46,7 @@ music21 = ["music21>=9.0"]                    # Score parsing via music21 (Music
 ms3 = ["ms3>=2.6.0"]                          # DCML TSV score parsing (TSVLoader)
 audio = ["soundfile>=0.12", "mutagen>=1.47"]  # Audio file loading + MP3/M4A metadata
 graphical = ["pymupdf>=1.24", "pillow>=10.0"] # PDF/image loading & drawing
-plot = ["matplotlib>=3.5"]                    # Visualisation (WP1 plotting)
+plot = ["matplotlib>=3.5"]                    # Visualisation
 delta = ["deltalake>=0.15.0"]                 # Delta Lake columnar storage (future)
 rdf = ["rdflib>=7.0"]                         # RDF / linked-data export (future)
 examples = ["pooch>=1.8"]                     # On-demand fetching of bundled corpora (timetoalign.testdata)

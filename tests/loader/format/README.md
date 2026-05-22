@@ -63,7 +63,7 @@ Tests for `XmlLoader`, a generic XML-to-flat-table loader using `xml.etree.Eleme
 - Ancestor attribute propagation (parent attributes appear on child rows)
 - Principal tag filtering (extract only specified element types)
 - Auto-detection of principal tags from XML structure
-- Text content extraction as `_text` column
+- Text content extraction as `_text` field
 - Error handling for malformed XML
 
 ---

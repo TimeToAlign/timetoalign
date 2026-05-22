@@ -38,7 +38,7 @@ Each atomic extra adds support for a single loader backend or feature.
 | `ms3` | `ms3` | DCML TSV score parsing (`TSVLoader`) |
 | `audio` | `soundfile`, `mutagen` | Audio file loading + MP3/M4A metadata |
 | `graphical` | `pymupdf`, `pillow` | PDF/image loading & drawing |
-| `plot` | `matplotlib` | Visualisation (WP1 plotting) |
+| `plot` | `matplotlib` | Visualisation |
 | `delta` | `deltalake` | Delta Lake columnar storage (future) |
 | `rdf` | `rdflib` | RDF / linked-data export (future) |
 

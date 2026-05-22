@@ -89,11 +89,11 @@ class ControlEventData(EventData):
                 type_counters[etype] += 1
                 processed["id"] = f"{etype}:{type_counters[etype]:06d}"
 
-            # Ensure name column exists
+            # Ensure name field exists
             if "name" not in processed:
                 processed["name"] = None
 
-            # Map legacy temporal columns to base
+            # Map legacy temporal fields to base
             if "quarterbeats" in processed:
                 processed["start"] = processed.pop("quarterbeats")
             if "duration_qb" in processed:

@@ -431,7 +431,7 @@ Per the **ZERO TOLERANCE VALIDATION POLICY**:
 Located in `tests/data/`:
 
 - `vienna_1x22/`: Chopin Op. 10 No. 3 (MusicXML + TSV + ms3 ground truth)
-- `score/`: All specimens (see `.agent/skills/co-create-groundtruth/references/specimens.md`)
+- `score/`: All specimens
 - `target_flows/`: Ground truth `.flow.csv` files
 
 ---
@@ -726,5 +726,3 @@ MC 8 has an end-repeat barline but no preceding start-repeat. In conventional no
 The following specimens require collaborative ground truth creation:
 
 1. **WoO71** - Beethoven WoO71 12 Variations (Complex split bars)
-
-See `.agent/skills/co-create-groundtruth/` for the audit workflow.

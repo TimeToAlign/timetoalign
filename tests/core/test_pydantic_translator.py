@@ -1,4 +1,4 @@
-"""Tests for the pydantic v2 → PyArrow translator (WP2 pilot).
+"""Tests for the pydantic v2 → PyArrow translator.
 
 See README.md in this directory for the test plan and gold-standard
 expectations.  Each test maps to a numbered point under

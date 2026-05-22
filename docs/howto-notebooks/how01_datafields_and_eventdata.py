@@ -16,7 +16,7 @@
 # %% [markdown]
 # # How to Work with DataFields and Layered EventData
 #
-# Typed columnar wrappers, the composition pattern, and the three-layer
+# Typed field wrappers, the composition pattern, and the three-layer
 # data-access API on top of a loaded `EventData`.
 #
 # This notebook covers the **data-access axis**: how to get hold of data
@@ -77,8 +77,8 @@ sf_str[0], sf_str[2]
 # %% [markdown]
 # ### StructField — the nested case
 #
-# Struct arrays group multiple sub-fields into a single column.  This is
-# the key reason "raw Field" means more than "raw column": a `StructField`
+# Struct arrays group multiple sub-fields into a single field.  This is
+# the key reason "raw Field" means more than "raw field": a `StructField`
 # is itself a small typed tree.  Sub-fields are accessible by name and
 # come back as typed `DataField` objects in their own right.
 
@@ -122,7 +122,7 @@ sub_x[0], sub_x[1]
 #
 # 1. **Load** — `loader.load(file)` reads the source into a faithful table.
 # 2. **Access** — `loader.get_events()` assembles an `EventData` with
-#    explicit control over which columns appear.
+#    explicit control over which fields appear.
 #
 # `from_file()` is a convenience that combines both phases.
 
@@ -131,11 +131,11 @@ loader = TSVLoader.from_file(CHOPIN_NOTES)
 loader
 
 # %% [markdown]
-# `get_events(properties=)` controls which non-field columns are included:
+# `get_events(properties=)` controls which non-field-spec fields are included:
 #
-# - `True` (default): every property column from the source
+# - `True` (default): every property field from the source
 # - `False`: fields only (`start`, `end`, `duration`, plus core identity)
-# - tuple: selected property columns
+# - tuple: selected property fields
 
 # %%
 events = loader.get_events()
@@ -157,24 +157,24 @@ events_selected.table.column_names
 #
 # | Layer | What | API |
 # |-------|------|-----|
-# | **0** | Raw Fields — every column as a typed `DataField`, nested structs included | `events.get_raw(col)` |
+# | **0** | Raw Fields — every field as a typed `DataField`, nested structs included | `events.get_raw(name)` |
 # | **1** | Semantic Fields — typed views with domain methods, returning scalars on access | `events.get_field(...)` |
 # | **2** | External libraries — FlexOHR, pitchtypes | (planned) |
 #
 # **EventData is never mutated.**  `get_field()` returns a cached view
-# over existing columns; the EventData itself stays untouched.
+# over existing fields; the EventData itself stays untouched.
 
 # %% [markdown]
 # ## Layer 0 — Raw Fields
 #
-# `get_raw()` wraps a column in the appropriate raw `DataField` subclass
+# `get_raw()` wraps a field in the appropriate raw `DataField` subclass
 # **without** adding any semantic identity.  "Raw" here is about the
-# absence of semantics, not about the absence of nesting: a struct column
+# absence of semantics, not about the absence of nesting: a struct field
 # like `start` still surfaces with full sub-field access, just without
 # the `unit` / `domain` annotations that the Layer 1 view would add.
 
 # %%
-# Struct column -> StructField (nested!).  start stores onset coordinates
+# Struct field -> StructField (nested!).  start stores onset coordinates
 # as {value, numerator, denominator}.
 raw_start = events.get_raw("start")
 raw_start
@@ -188,20 +188,20 @@ raw_start[3]
 raw_start.field_names
 
 # %%
-# Numeric column -> NumericField
+# Numeric field -> NumericField
 raw_mc = events.get_raw("mc")
 raw_mc[3]
 
 # %%
-# String column -> StringField
+# String field -> StringField
 raw_name = events.get_raw("name")
 raw_name[3], raw_name[8], raw_name[16]
 
 # %% [markdown]
 # ## Layer 1 — Semantic Fields by Column Name
 #
-# Every `EventData` has three core temporal columns: `start`, `end`, and
-# `duration`.  `get_field()` with a column name returns the appropriate
+# Every `EventData` has three core temporal fields: `start`, `end`, and
+# `duration`.  `get_field()` with a field name returns the appropriate
 # SemanticField — `CoordinateField` for `start`/`end`, `DurationField`
 # for `duration` — and indexing returns the matching scalar.
 
@@ -233,16 +233,16 @@ start.get_raw()
 # %% [markdown]
 # ## Layer 1 — Semantic Fields via Blueprint
 #
-# Real-world tables routinely carry several columns that mean the same
+# Real-world tables routinely carry several fields that mean the same
 # kind of thing in different representations.  Chopin's notes table has
-# **two** pitch columns:
+# **two** pitch fields:
 #
 # - `midi_pitch` — EP, enharmonic pitch via MIDI numbers
 # - `specific_pitch` — SP, fully specific pitch with accidental identity
 #
 # A **blueprint** is a `PitchField` (or any SemanticField) that names a
-# column but carries no data.  Passing it to `get_field()` resolves the
-# column, constructs the live field, and caches it.
+# field but carries no data.  Passing it to `get_field()` resolves the
+# field, constructs the live field, and caches it.
 
 # %% [markdown]
 # ### EP blueprint (midi_pitch)
@@ -291,7 +291,7 @@ events.get_field(PitchField(ep="midi_pitch")) is pf_ep
 # %% [markdown]
 # ### Field Discovery
 #
-# When you don't know which columns are there, the discovery API finds
+# When you don't know which fields are there, the discovery API finds
 # fields by class.
 
 # %%
@@ -338,7 +338,7 @@ pf_gpc[3], pf_gpc[8], pf_gpc[29]
 # %% [markdown]
 # ## Layer 2 — External Libraries (planned)
 #
-# The raw PyArrow columns backing Layer 1 are accessible to external
+# The raw PyArrow fields backing Layer 1 are accessible to external
 # libraries (FlexOHR, pitchtypes); the integration glue is queued.
 
 # %% [markdown]
@@ -375,7 +375,7 @@ loaded_cf[8]
 # ## Schema Mechanism — Pydantic → pa.Schema → pa.StructArray → Scalars
 #
 # Each scalar's schema is owned by a pydantic v2 model.  That model is the
-# single source of truth: the `pa.Schema` that backs an Arrow column, the
+# single source of truth: the `pa.Schema` that backs an Arrow field, the
 # metadata blob that travels with Parquet, and the JSONSchema that external
 # tools consume are all derived from it.  The model is also the project's
 # **edge validator** at trust boundaries (external Parquet, untrusted CSV,
@@ -408,7 +408,7 @@ from timetoalign.loader.schema import struct_to_coordinate
 #
 # `model_json_schema()` is the cross-language interop artifact — nothing
 # TTA-specific, just standard JSONSchema.  The same payload is what lives
-# inside `b"timetoalign"` on every emitted column.
+# inside `b"timetoalign"` on every emitted field.
 #
 # `Coordinate.model_json_schema()` — value + unit, the minimal pair every
 # coordinate needs.  The PyArrow projection denormalises `value` into
@@ -430,16 +430,16 @@ print(json.dumps(SpecificPitch.model_json_schema(), indent=2))
 # %% [markdown]
 # ### Pydantic → pa.Schema
 #
-# `derive_arrow_schema(Coordinate)` returns the `pa.Schema` whose columns
+# `derive_arrow_schema(Coordinate)` returns the `pa.Schema` whose fields
 # mirror the model.  `value` is denormalised into
 # `{value: float64, numerator: int64, denominator: int64}` so rational
 # precision survives Parquet; `unit` lives in `pa.Field` metadata, NOT in
-# the column itself.  This denormalisation is registered via
+# the field itself.  This denormalisation is registered via
 # `register_value_projector` (see `core/types.py:548-549`); computed
 # fields are excluded by design.
 #
 # The projector registry currently customises the *schema* only — the
-# column-wise materialisation of Coordinate's three storage fields lives
+# field-wise materialisation of Coordinate's three storage fields lives
 # in the dedicated `build_coordinate_struct_array`.
 
 # %%
@@ -476,7 +476,7 @@ coords_large = [
 t_construct_ms = (time.perf_counter() - t0) * 1000
 
 # %%
-# Bulk into pa.StructArray via the column-builder.
+# Bulk into pa.StructArray via the store-builder.
 t0 = time.perf_counter()
 arr_large = build_coordinate_struct_array(coords_large)
 t_build_ms = (time.perf_counter() - t0) * 1000
@@ -489,7 +489,7 @@ t0 = time.perf_counter()
 shifted_value = pc.add(arr_large.field("value"), 8.0)
 t_compute_ms = (time.perf_counter() - t0) * 1000
 
-# Reassemble the StructArray with the shifted value column; numerator /
+# Reassemble the StructArray with the shifted value field; numerator /
 # denominator stay aligned only for fraction-typed entries (we'll filter
 # to floats below so this is fine for the demo).
 arr_shifted = pa.StructArray.from_arrays(
@@ -536,7 +536,7 @@ t_materialise_ms = (time.perf_counter() - t0) * 1000
 #
 # Starting from raw dict input (representing a post-parse / pre-Arrow
 # stage), measure three paths to a `pa.StructArray`: row-wise with
-# `model_validate`, row-wise with `model_construct`, and column-wise via
+# `model_validate`, row-wise with `model_construct`, and field-wise via
 # `build_coordinate_struct_array`.
 
 # %%
@@ -623,7 +623,7 @@ def _path_rowwise_construct(dicts):
 
 
 def _path_column_wise(dicts):
-    # Canonical path: validate once at the boundary, then column-builder.
+    # Canonical path: validate once at the boundary, then store-builder.
     coords = [Coordinate.model_validate(d) for d in dicts]
     return build_coordinate_struct_array(coords)
 
@@ -636,9 +636,9 @@ t_column = _runs(_path_column_wise, scalar_dicts)
     "N": N_FWD,
     "row-wise + model_validate (ms)": round(t_validate_rowwise, 1),
     "row-wise + model_construct (ms)": round(t_construct_rowwise, 1),
-    "column-wise (canonical, ms)": round(t_column, 1),
-    "column-wise speedup vs row-wise+validate": round(t_validate_rowwise / t_column, 2),
-    "column-wise speedup vs row-wise+construct": round(
+    "field-wise (canonical, ms)": round(t_column, 1),
+    "field-wise speedup vs row-wise+validate": round(t_validate_rowwise / t_column, 2),
+    "field-wise speedup vs row-wise+construct": round(
         t_construct_rowwise / t_column, 2
     ),
 }
@@ -646,15 +646,15 @@ t_column = _runs(_path_column_wise, scalar_dicts)
 # %% [markdown]
 # Validation is the dominant cost when present and unavoidable at the
 # trust boundary, but choosing the *array-assembly* path is the
-# architect's lever — the column-builder lifts the assembly out of
+# architect's lever — the store-builder lifts the assembly out of
 # Python's per-row hot loop, even when validation runs identically in
 # front of it.
 
 # %% [markdown]
 # The canonical microbenchmark (`benchmarks/pydantic_pilot.py`, 100 000
-# Coordinates × 5 runs, pydantic 2.12, Python 3.11) reports column-builder
+# Coordinates × 5 runs, pydantic 2.12, Python 3.11) reports store-builder
 # at 59.4 ± 3.9 ms vs row-wise `model_dump` at 259.3 ± 3.9 ms — **4.37×
-# faster**.  The WP2 gate (≥ 2× required) passes.  See
+# faster**.  The store-builder performance gate (≥ 2× required) passes.  See
 # `benchmarks/pydantic_pilot_results.md` for the full log, including the
 # `model_construct` vs `model_validate` reconstruction measurement.
 
@@ -689,8 +689,8 @@ cf_sample[0], cf_sample[1], cf_sample[2]
 # ### One machinery, fifteen scalars
 #
 # The pilot proved the pattern on `Coordinate` and `SpecificPitch`.  The
-# bulk migration (WP2, 2026-05-21) extends the translator and
-# column-builder so the same `derive_arrow_schema(T)` /
+# subsequent rollout to every scalar extends the translator and
+# store-builder so the same `derive_arrow_schema(T)` /
 # `build_struct_array(T, [...])` pair drives every scalar in the type
 # inventory.  The translator now handles:
 #
@@ -799,15 +799,15 @@ invalid
 SpecificPitch.model_construct(step="C", alter=1, octave=4)
 
 # %% [markdown]
-# **The data-shaped audit.**  WP2 classified every scalar method as
+# **The data-shaped audit.**  Every scalar method has been classified as
 # either **data-shaped** (a `pa.compute` mirror is wanted at field
 # level — the user would want this operation to run on a million
 # instances at once) or **behavior-shaped** (only runs on a single
 # materialised scalar at a system edge).  The classification — 37
 # data-shaped, 42 behavior-shaped across the 15 migrated scalars — lives
-# at `benchmarks/scalar_method_audit.md` and feeds WP3, which writes the
-# paired field subclasses `ObjectField(SemanticField[Object])` and
-# attaches `pa.compute` mirrors for every data-shaped scalar method.
+# at `benchmarks/scalar_method_audit.md` and informs the paired field
+# subclasses `ObjectField(SemanticField[Object])`, which attach
+# `pa.compute` mirrors for every data-shaped scalar method.
 
 # %% [markdown]
 # **Three validation regimes — one schema source.**  The same pydantic

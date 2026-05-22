@@ -1,7 +1,5 @@
 """Score Parsing Test Matrix: Comprehensive validation of all loader/format combinations.
 
-This module implements the test matrix defined in .agent/prompts/score_parsing_test_matrix.md.
-
 TOP-MOST GOAL: FlowController must reproduce ALL target flows from .flow.csv from ANY
 loader/format combination. Each success is a HUGE WIN, each failure must be documented.
 

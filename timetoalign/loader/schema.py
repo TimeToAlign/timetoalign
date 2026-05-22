@@ -2,12 +2,12 @@
 
 This module defines PyArrow schemas for event storage, including:
 - Coordinate struct types (with float + optional Fraction representation)
-- Base event schema columns
+- Base event schema fields
 - Schema construction utilities
 
 The coordinate storage strategy preserves original precision (Fraction numerator/denominator)
 while providing a float64 representation for fast queries. Unit metadata is stored at
-the column level, not per-row.
+the field level, not per-row.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ def make_coordinate_type(unit: TimeUnit) -> pa.StructType:
     )
 
 
-# Fraction struct for temporal columns (quarterbeats, duration, etc.)
+# Fraction struct for temporal fields (quarterbeats, duration, etc.)
 FRACTION_TYPE = pa.struct(
     [
         pa.field("num", pa.int64(), nullable=False),
@@ -141,7 +141,7 @@ def is_coordinate_type(dtype: pa.DataType) -> bool:
     """Check if a PyArrow type is a coordinate struct type.
 
     Coordinate structs have three specific fields: value, numerator, denominator.
-    This is used to detect coordinate columns regardless of where they appear
+    This is used to detect coordinate fields regardless of where they appear
     in the schema.
 
     Args:
@@ -233,9 +233,9 @@ TEMPORAL_TYPE_INTERVAL = "interval"
 def make_base_schema(
     unit: TimeUnit, number_type: NumberType | None = None
 ) -> pa.Schema:
-    """Create the base event schema with coordinate columns.
+    """Create the base event schema with coordinate fields.
 
-    The base schema includes columns that are always present:
+    The base schema includes fields that are always present:
     - id: unique identifier (required)
     - name: human-readable label (optional)
     - temporal_type: "instant" or "interval"
@@ -246,11 +246,11 @@ def make_base_schema(
     - duration: computed duration for IntervalEvents (nullable)
 
     Args:
-        unit: The time unit for coordinate columns.
-        number_type: The number type for coordinate columns.
+        unit: The time unit for coordinate fields.
+        number_type: The number type for coordinate fields.
 
     Returns:
-        A PyArrow schema with base event columns.
+        A PyArrow schema with base event fields.
     """
     return pa.schema(
         [
@@ -269,11 +269,11 @@ def make_base_schema(
     )
 
 
-def get_base_column_names() -> list[str]:
-    """Return the list of base column names.
+def get_base_field_names() -> list[str]:
+    """Return the list of base field names.
 
     Returns:
-        List of column names in the base schema.
+        List of field names in the base schema.
     """
     return [
         "id",
@@ -302,10 +302,10 @@ def extend_schema(base: pa.Schema, extra_fields: list[pa.Field]) -> pa.Schema:
 
 
 def get_unit_from_schema(schema: pa.Schema) -> TimeUnit | None:
-    """Extract the time unit from a schema's coordinate column metadata.
+    """Extract the time unit from a schema's coordinate field metadata.
 
     Args:
-        schema: A PyArrow schema with coordinate columns.
+        schema: A PyArrow schema with coordinate fields.
 
     Returns:
         The TimeUnit if found, None otherwise.
@@ -409,7 +409,7 @@ _TYPE_MAP: dict[str | type, pa.DataType] = {
 class Field:
     """Reference to a struct field for coordinate access.
 
-    Field provides a way to specify nested struct column access in TabularLoader
+    Field provides a way to specify nested struct field access in TabularLoader
     configurations. It supports multiple input formats:
 
     - Tuple: ("rect_coords", "x")
@@ -858,7 +858,7 @@ class CoordinateField:
     - denominator: int64 (for Fraction, nullable)
 
     Attributes:
-        name: Output column name in the schema.
+        name: Output field name in the EventData schema.
         source: Source column name in the data (defaults to name).
         unit: The TimeUnit for these coordinates.
         number_type: How to parse values (float, int, fraction).
@@ -867,7 +867,7 @@ class CoordinateField:
         >>> from timetoalign.loader import CoordinateField
         >>> from timetoalign.core import TimeUnit, NumberType
 
-        >>> # Basic usage: seconds column from x_seconds
+        >>> # Basic usage: seconds field from x_seconds column
         >>> CoordinateField("x_seconds", unit=TimeUnit.seconds)
 
         >>> # Different source column name
@@ -902,7 +902,7 @@ class CoordinateField:
         """Initialize CoordinateField.
 
         Args:
-            name: Output column name in the schema.
+            name: Output field name in the EventData schema.
             source: Source column name. Defaults to name if not specified.
             unit: The TimeUnit for these coordinates (required).
             number_type: How to parse coordinate values. Defaults to float.
@@ -918,7 +918,7 @@ class CoordinateField:
         return make_coordinate_type(self.unit)
 
     def to_field(self) -> pa.Field:
-        """Create a PyArrow Field for this coordinate column.
+        """Create a PyArrow Field for this coordinate field.
 
         Returns:
             PyArrow Field with coordinate struct type and unit metadata.
@@ -1059,37 +1059,37 @@ class TableSchema:
     """Flexible schema configuration for event tables.
 
     TableSchema wraps PyArrow schema creation with a user-friendly API that
-    supports multiple ways of defining extra columns:
+    supports multiple ways of defining extra fields:
 
     1. **Existing schema**: Pass a pa.Schema to use as-is or extend
-    2. **Column names**: Pass strings to auto-infer types from source data
+    2. **Field names**: Pass strings to auto-infer types from source data
     3. **Type specifications**: Pass {name: type} dict or name=type kwargs
     4. **Field objects**: Pass ConvertedField for full control over conversion
 
-    The schema always includes the base event columns (id, name, temporal_type,
-    event_type, start, end, duration). Extra columns are appended.
+    The schema always includes the base event fields (id, name, temporal_type,
+    event_type, start, end, duration). Extra fields are appended.
 
     Attributes:
-        unit: The time unit for coordinate columns.
-        base_schema: The base schema with event columns.
+        unit: The time unit for coordinate fields.
+        base_schema: The base schema with event fields.
         extra_fields: List of ConvertedField specifications.
-        infer_remaining: Whether to infer types for columns not explicitly specified.
+        infer_remaining: Whether to infer types for fields not explicitly specified.
 
     Examples:
-        >>> # Auto-infer all extra columns from source data
+        >>> # Auto-infer all extra fields from source data
         >>> schema = TableSchema(unit=TimeUnit.quarters, infer_remaining=True)
 
-        >>> # Specify some columns, infer rest
+        >>> # Specify some fields, infer rest
         >>> schema = TableSchema(
         ...     TimeUnit.quarters,
         ...     midi=int, velocity=int,  # kwargs
         ...     infer_remaining=True
         ... )
 
-        >>> # Explicit columns only (no inference)
+        >>> # Explicit fields only (no inference)
         >>> schema = TableSchema(
         ...     TimeUnit.quarters,
-        ...     "midi", "velocity", "channel",  # Simple column names
+        ...     "midi", "velocity", "channel",  # Simple field names
         ...     ConvertedField("pitch", int, source="midi_note"),  # Rename + type
         ... )
 
@@ -1097,10 +1097,10 @@ class TableSchema:
         >>> schema = TableSchema(
         ...     TimeUnit.quarters,
         ...     base=existing_schema,
-        ...     extra_column="infer_this_one"
+        ...     extra_field="infer_this_one"
         ... )
 
-        >>> # Specify which columns to include from remaining
+        >>> # Specify which fields to include from remaining
         >>> schema = TableSchema(
         ...     TimeUnit.quarters,
         ...     include_columns=["midi", "velocity", "name"],
@@ -1120,19 +1120,19 @@ class TableSchema:
         """Initialize LoaderSchema.
 
         Args:
-            unit: Time unit for coordinate columns.
+            unit: Time unit for coordinate fields.
             *args: Extra field specifications. Can be:
-                - str: Column name (type inferred from data)
+                - str: Field name (type inferred from data)
                 - ConvertedField: Full field specification
                 - dict: Mapping of {name: type} pairs
                 - pa.Schema: Use as base schema
             base: Base schema to use instead of default event schema.
-            infer_remaining: If True, auto-add columns from source data
+            infer_remaining: If True, auto-add fields from source data
                 that aren't explicitly specified.
             include_columns: When infer_remaining=True, only include these
-                columns from the remaining unspecified ones.
+                fields from the remaining unspecified ones.
             exclude_columns: When infer_remaining=True, exclude these
-                columns from the remaining unspecified ones.
+                fields from the remaining unspecified ones.
             **kwargs: Extra fields as name=type pairs.
         """
         self.unit = unit
@@ -1179,7 +1179,7 @@ class TableSchema:
 
     @property
     def base_schema(self) -> pa.Schema:
-        """The base schema with event columns."""
+        """The base schema with event fields."""
         return self._base_schema
 
     @property
@@ -1217,22 +1217,22 @@ class TableSchema:
         # Add inferred remaining fields
         if self.infer_remaining:
             base_names = set(self._base_schema.names)
-            for col_name, col_type in source_columns.items():
+            for name, dtype in source_columns.items():
                 # Skip if already in base schema or explicitly specified
-                if col_name in base_names:
+                if name in base_names:
                     continue
-                if col_name in self._explicit_names:
+                if name in self._explicit_names:
                     continue
                 # Skip if source column for an explicit field
-                if any(f.source == col_name for f in self._extra_fields):
+                if any(f.source == name for f in self._extra_fields):
                     continue
                 # Apply include/exclude filters
-                if self.include_columns and col_name not in self.include_columns:
+                if self.include_columns and name not in self.include_columns:
                     continue
-                if col_name in self.exclude_columns:
+                if name in self.exclude_columns:
                     continue
 
-                extra_pa_fields.append(pa.field(col_name, col_type, nullable=True))
+                extra_pa_fields.append(pa.field(name, dtype, nullable=True))
 
         # Extend base schema
         if extra_pa_fields:

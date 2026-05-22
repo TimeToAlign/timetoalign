@@ -355,7 +355,7 @@ def _build_child_row(
         parent_length: Total length of parent timeline.
         bar_width: Width of the bar area in characters.
         name_width: Max width for child name.
-        coord_width: Width for coordinate columns.
+        coord_width: Width for coordinate fields.
         is_last: True if this is the last child (use └ instead of ├).
         tree_chars: Tree drawing character set.
         n_events: Number of events in the child timeline.
@@ -423,7 +423,7 @@ def _build_region_row(
         parent_length: Total length of parent timeline.
         bar_width: Width of the bar area in characters.
         name_width: Max width for region name.
-        coord_width: Width for coordinate columns.
+        coord_width: Width for coordinate fields.
         region_chars: Region character set (REGION_CHARS or REGION_CHARS_ASCII).
 
     Returns:
@@ -511,7 +511,7 @@ def _build_cmap_row(
         cmap: A ConversionMap instance.
         bar_width: Width of the bar area in characters.
         name_width: Max width for the map name.
-        coord_width: Width for coordinate columns.
+        coord_width: Width for coordinate fields.
         use_unicode: Whether to use Unicode characters.
         cmap_chars: C-Map character set (CMAP_CHARS or CMAP_CHARS_ASCII).
 
@@ -1041,10 +1041,10 @@ def flow_control_diagram(
 
     Three rendering modes are available:
 
-    - ``"full"``: One column per MC — detailed but wide. Best for small
+    - ``"full"``: One slot per MC — detailed but wide. Best for small
       scores (< ~20 MCs). Shows repeat markers and volta brackets
       aligned to individual MC positions.
-    - ``"sections"``: One column per AtomicSection — compact overview.
+    - ``"sections"``: One slot per AtomicSection — compact overview.
       Each section shows its ID centered over its MC range. Flow control
       markers attach to sections. Works well for any size score.
     - ``"table"``: Vertical table listing each section on its own row
@@ -1137,7 +1137,7 @@ def _render_full_ruler(
         ruler_parts.append(f"{mc:>{col_width}}")
     lines.append("".join(ruler_parts))
 
-    # Build MC -> column position lookup
+    # Build MC -> slot position lookup
     mc_to_col: dict[int, int] = {}
     for idx, mc in enumerate(mc_numbers):
         mc_to_col[mc] = 3 + idx * col_width
@@ -1231,9 +1231,9 @@ def _render_full_ruler(
     #
     # LEFT-anchored MARKERS (segno §, coda destination ⊕) mark a point on
     # the timeline. RIGHT-anchored JUMP/BREAK labels (fine, to⊕, DSaC,
-    # DSaF, ...) fire at the end of their measure and get two columns of
+    # DSaF, ...) fire at the end of their measure and get two slots of
     # trailing padding so they sit clearly inside the section and don't
-    # touch the next column's left-anchored content. We merge both onto
+    # touch the next slot's left-anchored content. We merge both onto
     # one row when they fit, and split into two rows on collision.
     right_pad = 2 if col_width >= 4 else 1
     left_entries: list[tuple[int, str]] = []
@@ -1288,7 +1288,7 @@ def _build_section_slot(
 
     All alignment inside the slot is done with ``str.ljust``,
     ``str.rjust`` and ``str.center`` against ``col_width``. No absolute
-    column offsets exist here, by design — that is what makes vertical
+    slot offsets exist here, by design — that is what makes vertical
     misalignment between the four rows structurally impossible.
     """
     h = tree["horizontal"]
@@ -1299,7 +1299,7 @@ def _build_section_slot(
     def _center(s: str, w: int, fill: str = " ") -> str:
         # Centre `s` in width `w` with any extra padding on the RIGHT,
         # matching the pre-refactor pad arithmetic. (Python's str.center
-        # puts extras on the LEFT, which would shift columns by one for
+        # puts extras on the LEFT, which would shift slots by one for
         # odd-length labels.)
         pad_left = (w - len(s)) // 2
         pad_right = w - len(s) - pad_left
@@ -1385,9 +1385,9 @@ def _render_sections_ruler(
     Each AtomicSection contributes a fixed-width slot to every row; the
     rows are produced by concatenating per-section slot strings (plus a
     leading prefix). Vertical alignment is structural — every row's
-    column positions are a direct consequence of the same per-section
+    slot positions are a direct consequence of the same per-section
     slot widths — so the marker row cannot drift out of alignment with
-    the section columns above it.
+    the section slots above it.
     """
     if not sections:
         return
@@ -1446,7 +1446,7 @@ def _render_sections_ruler(
         lines.append(repeat_row.rstrip())
 
     # Marker row(s). If any section has both a left and a right marker
-    # that cannot fit with at least one column of gap between them,
+    # that cannot fit with at least one slot of gap between them,
     # split into a left-only row above and a right-only row below.
     collision = any(
         s[3] and s[4] and len(s[3]) + len(s[4]) + 1 > col_width for s in slots
@@ -1526,10 +1526,10 @@ def _get_jump_marker(
     sections: list[Any],
     fc: dict[str, str],
 ) -> str:
-    """Return the short jump-instruction label drawn under a unit's MC column.
+    """Return the short jump-instruction label drawn under a unit's MC slot.
 
     Uses the abbreviated DSaC / DSaF / DCaC / DCaF / DS / DC / →Coda
-    labels so they fit in a single column. Does NOT include `fine`
+    labels so they fit in a single slot. Does NOT include `fine`
     markers — those are surfaced separately by the row drawing code.
     """
     if not unit.jump_from:
@@ -1541,7 +1541,7 @@ def _marker_glyph_text(unit: Any, fc: dict[str, str]) -> str:
     """Return LEFT-anchored marker glyphs for a unit: segno (§), coda (⊕).
 
     These mark a *destination* on the timeline and are drawn at the section's
-    leftmost column. ``fine`` and "to coda" markers are RIGHT-anchored
+    leftmost slot. ``fine`` and "to coda" markers are RIGHT-anchored
     (handled by `_glyphs_for_unit`) because they fire at the end of a section.
     A coda marker that is *also* a jump source is a "to coda" instruction and
     is therefore excluded here.
@@ -1561,10 +1561,10 @@ def _marker_glyph_text(unit: Any, fc: dict[str, str]) -> str:
 def _glyphs_for_unit(unit: Any, fc: dict[str, str]) -> tuple[str, str]:
     """Split a unit's flow-control glyphs into ``(left, right)`` strings.
 
-    LEFT-anchored glyphs sit at the section's leftmost column and mark a
+    LEFT-anchored glyphs sit at the section's leftmost slot and mark a
     *point* on the timeline (segno destination, coda destination).
 
-    RIGHT-anchored glyphs sit at the section's right edge (with one column of
+    RIGHT-anchored glyphs sit at the section's right edge (with one slot of
     trailing padding handled by the caller) and represent instructions that
     fire at the *end* of the section:
 

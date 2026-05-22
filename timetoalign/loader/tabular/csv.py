@@ -132,7 +132,7 @@ class Ms3Loader(TabularLoader):
         1   0   0             0                         1.0          ...
         1   0   1/2           1/2                       0.5          ...
 
-    Column Mapping:
+    Field mapping:
         - start: "quarterbeats" (fraction format: "0", "1/2", "3/4")
         - duration: "duration" (fraction strings like "1/4")
         - name: "name" (note name like "A4", "C#5")
@@ -201,7 +201,7 @@ class Ms3Loader(TabularLoader):
     # The CoordinateParser handles fraction strings ("3/4") natively, so
     # no pre-conversion is needed. This list is informational and can be
     # used by subclasses for dtype inference if needed.
-    _FRACTION_COLUMNS: ClassVar[tuple[str, ...]] = (
+    _FRACTION_FIELDS: ClassVar[tuple[str, ...]] = (
         "quarterbeats",
         "quarterbeats_all_endings",
         "duration_qb",
@@ -384,7 +384,7 @@ class LabLoader(TabularLoader):
     # Lab files have fixed columns: start, end, label
     id_column: ClassVar[str | None] = None  # Auto-generate
     name_column: ClassVar[str | None] = None
-    start_column: ClassVar[str] = "0"  # Column index as string when no header
+    start_column: ClassVar[str] = "0"  # Field index as string when no header
     end_column: ClassVar[str | None] = "1"
     event_type_column: ClassVar[str | None] = None
     default_event_type: ClassVar[str] = "Region"
@@ -405,7 +405,7 @@ class LabLoader(TabularLoader):
         )
         return df
 
-    # Override column names to match the names we assigned
+    # Override field names to match the names we assigned
     start_column: ClassVar[str] = "start"
     end_column: ClassVar[str | None] = "end"
 

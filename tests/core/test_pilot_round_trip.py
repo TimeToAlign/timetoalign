@@ -1,4 +1,4 @@
-"""End-to-end Parquet round-trip tests for the WP2 pilot scalars.
+"""End-to-end Parquet round-trip tests for the pilot pydantic scalars.
 
 See README.md "test_pilot_round_trip.py" for the gold-standard plan.
 
@@ -145,7 +145,7 @@ class TestValidationRegimes:
     def test_from_row_trust_boundary_rejects_invalid(self) -> None:
         """§6: from_row uses validators -> trust-boundary rejection.
 
-        WP2.5: the canonical row shape is ``{step, alter, octave, cents}``;
+        The canonical row shape is ``{step, alter, octave, cents}``;
         invalid ``step`` triggers the Literal validator.
         """
         bad_row = {

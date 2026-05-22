@@ -150,9 +150,9 @@ DiscreteGraphicalTimeline[page] (3 children)
 Users interact with the `.diagram()` method, not the module functions. These tests
 ensure the convenience methods are correctly wired to the underlying implementation.
 
-## Flow Visualization Tests (Phase 3.7.1) -- IMPLEMENTED
+## Flow Visualization Tests -- IMPLEMENTED
 
-All flow visualization tests are now implemented (42 tests, Phase 3.7.1 complete).
+All flow visualization tests are implemented (42 tests).
 
 ### Step 1: Regions in `timeline_diagram()`
 

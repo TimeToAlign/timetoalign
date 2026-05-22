@@ -30,7 +30,7 @@ module_logger = logging.getLogger(__name__)
 
 
 class CoordinateParser:
-    """Vectorized coordinate parsing for PyArrow struct columns.
+    """Vectorized coordinate parsing for PyArrow struct fields.
 
     Converts arrays of coordinates (float, int, Fraction, or string-encoded)
     into PyArrow struct arrays with {value, numerator, denominator} fields.
@@ -449,53 +449,53 @@ class ArrayValidator:
 
     Validates:
     - Array lengths match
-    - Required columns present
+    - Required fields present
     - Temporal type consistency (instant vs interval)
     - ID uniqueness
 
     All checks use vectorized operations - NO row iteration.
 
     Examples:
-        >>> columns = {
+        >>> fields = {
         ...     "id": np.array(["e1", "e2"]),
         ...     "temporal_type": np.array(["instant", "interval"]),
         ...     "event_type": np.array(["Beat", "Note"]),
         ...     "start": pa.array([...]),  # StructArray
         ...     "end": pa.array([None, ...]),  # StructArray with nulls
         ... }
-        >>> ArrayValidator.validate_column_dict(columns, schema)
+        >>> ArrayValidator.validate_field_dict(fields, schema)
     """
 
     @staticmethod
-    def validate_column_dict(
-        columns: dict[str, np.ndarray | pd.Series | list | pa.Array],
+    def validate_field_dict(
+        fields: dict[str, np.ndarray | pd.Series | list | pa.Array],
         schema: pa.Schema,
     ) -> None:
-        """Validate column dictionary before table creation (vectorized).
+        """Validate field dictionary before table creation (vectorized).
 
         Args:
-            columns: Dict of {column_name: array_values}.
+            fields: Dict of {field_name: array_values}.
             schema: Expected PyArrow schema.
 
         Raises:
             ValueError: If validation fails.
         """
         # Check 1: All arrays have same length (vectorized check)
-        lengths = {name: len(arr) for name, arr in columns.items()}
+        lengths = {name: len(arr) for name, arr in fields.items()}
         unique_lengths = set(lengths.values())
 
         if len(unique_lengths) > 1:
-            raise ValueError(f"Column length mismatch: {lengths}")
+            raise ValueError(f"Field length mismatch: {lengths}")
 
-        # Check 2: Required columns present
+        # Check 2: Required fields present
         required = {"id", "temporal_type", "event_type", "start"}
-        missing = required - set(columns.keys())
+        missing = required - set(fields.keys())
 
         if missing:
-            raise ValueError(f"Missing required columns: {missing}")
+            raise ValueError(f"Missing required fields: {missing}")
 
         # Check 3: ID uniqueness (vectorized)
-        id_arr = ArrayValidator._to_numpy(columns["id"])
+        id_arr = ArrayValidator._to_numpy(fields["id"])
         unique_ids = np.unique(id_arr)
 
         if len(unique_ids) != len(id_arr):
@@ -505,11 +505,11 @@ class ArrayValidator:
             )
 
         # Check 4: Temporal type consistency (vectorized)
-        ArrayValidator._validate_temporal_consistency(columns)
+        ArrayValidator._validate_temporal_consistency(fields)
 
     @staticmethod
     def _validate_temporal_consistency(
-        columns: dict[str, np.ndarray | pd.Series | list | pa.Array],
+        fields: dict[str, np.ndarray | pd.Series | list | pa.Array],
     ) -> None:
         """Validate instant vs interval consistency (vectorized).
 
@@ -519,12 +519,12 @@ class ArrayValidator:
         - Use pandas boolean indexing for vectorized checks
 
         Args:
-            columns: Column dictionary.
+            fields: Field dictionary.
 
         Raises:
             ValueError: If temporal consistency is violated.
         """
-        temporal_type = pd.Series(ArrayValidator._to_numpy(columns["temporal_type"]))
+        temporal_type = pd.Series(ArrayValidator._to_numpy(fields["temporal_type"]))
 
         # Get masks for instant/interval events (vectorized)
         is_instant = temporal_type == "instant"
@@ -539,16 +539,16 @@ class ArrayValidator:
             )
 
         # Validate instant events have no end coordinate (vectorized check)
-        if "end" in columns:
+        if "end" in fields:
             # Handle both PyArrow StructArray and numpy array
-            end_col = columns["end"]
-            if isinstance(end_col, pa.StructArray):
-                end_is_null = end_col.is_null().to_numpy(zero_copy_only=False)
-            elif isinstance(end_col, pa.ChunkedArray):
-                end_is_null = end_col.is_null().to_numpy(zero_copy_only=False)
+            end_arr = fields["end"]
+            if isinstance(end_arr, pa.StructArray):
+                end_is_null = end_arr.is_null().to_numpy(zero_copy_only=False)
+            elif isinstance(end_arr, pa.ChunkedArray):
+                end_is_null = end_arr.is_null().to_numpy(zero_copy_only=False)
             else:
-                end_arr = pd.Series(ArrayValidator._to_numpy(end_col))
-                end_is_null = end_arr.isna().to_numpy()
+                end_series = pd.Series(ArrayValidator._to_numpy(end_arr))
+                end_is_null = end_series.isna().to_numpy()
 
             instant_with_end = is_instant.to_numpy() & ~end_is_null
 
@@ -559,7 +559,7 @@ class ArrayValidator:
                 )
 
         # Validate interval events have end coordinate (vectorized check)
-        if "end" not in columns:
+        if "end" not in fields:
             if is_interval.any():
                 raise ValueError(
                     f"Interval events require 'end' coordinate: "
@@ -567,14 +567,14 @@ class ArrayValidator:
                 )
         else:
             # Check that interval events have non-null end
-            end_col = columns["end"]
-            if isinstance(end_col, pa.StructArray):
-                end_is_null = end_col.is_null().to_numpy(zero_copy_only=False)
-            elif isinstance(end_col, pa.ChunkedArray):
-                end_is_null = end_col.is_null().to_numpy(zero_copy_only=False)
+            end_arr = fields["end"]
+            if isinstance(end_arr, pa.StructArray):
+                end_is_null = end_arr.is_null().to_numpy(zero_copy_only=False)
+            elif isinstance(end_arr, pa.ChunkedArray):
+                end_is_null = end_arr.is_null().to_numpy(zero_copy_only=False)
             else:
-                end_arr = pd.Series(ArrayValidator._to_numpy(end_col))
-                end_is_null = end_arr.isna().to_numpy()
+                end_series = pd.Series(ArrayValidator._to_numpy(end_arr))
+                end_is_null = end_series.isna().to_numpy()
 
             interval_no_end = is_interval.to_numpy() & end_is_null
 

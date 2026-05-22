@@ -1,4 +1,4 @@
-"""TableSchema: Semantic column specifications for TimeToAlign! data loading.
+"""TableSchema: Semantic field specifications for TimeToAlign! data loading.
 
 This module provides a comprehensive schema system for interpreting tabular data
 as TimeToAlign! objects (Timelines, Events, Regions, C-Maps, MatchClaims).
@@ -30,12 +30,12 @@ Usage:
     ...     timeline=TimelineDefaults(unit=TimeUnit.seconds),
     ...     coordinates=CoordinateSpec(
     ...         start="onset_sec",
-    ...         cmap_columns={"onset_beat": CMapColumn(target_unit=TimeUnit.quarters)},
+    ...         cmap_fields={"onset_beat": CMapField(target_unit=TimeUnit.quarters)},
     ...     ),
-    ...     partitions=PartitionSpec(columns=["voice"]),
-    ...     regions=RegionSpec(columns=["region"]),
-    ...     matches=MatchSpec(columns={"matched_score_id": MatchColumn(
-    ...         target_timeline="score", target_event_column="id"
+    ...     partitions=PartitionSpec(fields=["voice"]),
+    ...     regions=RegionSpec(fields=["region"]),
+    ...     matches=MatchSpec(fields={"matched_score_id": MatchField(
+    ...         target_timeline="score", target_event_field="id"
     ...     )}),
     ... )
     >>> results = schema.create_timelines(df)  # Returns dict[str, Timeline]
@@ -74,21 +74,21 @@ module_logger = logging.getLogger(__name__)
 # endregion
 
 
-# region Column Specifications
+# region Field Specifications
 
 
 @dataclass(frozen=True)
-class CMapColumn:
-    """Specification for a column that defines a ConversionMap target.
+class CMapField:
+    """Specification for a field that defines a ConversionMap target.
 
-    A C-Map column contains coordinates in a different unit than the primary
-    timeline. Loading this column creates a C-Map (or TableMap) converting
+    A C-Map field contains coordinates in a different unit than the primary
+    timeline. Loading this field creates a C-Map (or TableMap) converting
     from the primary unit to the target unit.
 
     Attributes:
-        target_unit: The TimeUnit of coordinates in this column.
-        source_column: The primary coordinate column this maps from.
-            Defaults to the start_column if not specified.
+        target_unit: The TimeUnit of coordinates in this field.
+        source_field: The primary coordinate field this maps from.
+            Defaults to the start field if not specified.
         map_type: Type of C-Map to create:
             - "table": TableMap from explicit coordinate pairs (default).
             - "linear": LinearMap fit from coordinate pairs.
@@ -96,24 +96,24 @@ class CMapColumn:
         bidirectional: If True, also create the inverse map.
 
     Examples:
-        >>> # Column with beat positions -> creates TableMap(seconds -> beats)
-        >>> CMapColumn(target_unit=TimeUnit.quarters)
+        >>> # Field with beat positions -> creates TableMap(seconds -> beats)
+        >>> CMapField(target_unit=TimeUnit.quarters)
 
-        >>> # Column with measure numbers
-        >>> CMapColumn(target_unit=TimeUnit.measures)
+        >>> # Field with measure numbers
+        >>> CMapField(target_unit=TimeUnit.measures)
     """
 
     target_unit: TimeUnit
-    source_column: str | None = None
+    source_field: str | None = None
     map_type: Literal["table", "linear", "interpolation"] = "table"
     bidirectional: bool = True
 
 
 @dataclass(frozen=True)
-class MatchColumn:
-    """Specification for a column that references events on another timeline.
+class MatchField:
+    """Specification for a field that references events on another timeline.
 
-    A Match column contains identifiers of events on a different timeline,
+    A Match field contains identifiers of events on a different timeline,
     creating MatchClaims when the data is loaded.
 
     Attributes:
@@ -122,39 +122,39 @@ class MatchColumn:
             - Explicit ID: "score:1"
             - Partition value: References another partition's timeline
             - External: Name of an externally-provided timeline
-        target_event_column: Column in target timeline's data containing event IDs.
+        target_event_field: Field in target timeline's data containing event IDs.
             If not specified, assumes the target uses the same ID scheme.
         is_synchronous: Whether matches represent temporal synchrony (True)
             or conceptual correspondence (False, e.g., structural alignment).
         match_metadata: Default metadata for generated MatchClaims.
 
     Examples:
-        >>> # Column referencing score events by ID
-        >>> MatchColumn(target_timeline="score", target_event_column="note_id")
+        >>> # Field referencing score events by ID
+        >>> MatchField(target_timeline="score", target_event_field="note_id")
 
         >>> # Conceptual match (same structural position, not same time)
-        >>> MatchColumn(
+        >>> MatchField(
         ...     target_timeline="analysis_v2",
         ...     is_synchronous=False,
         ... )
     """
 
     target_timeline: str
-    target_event_column: str | None = None
+    target_event_field: str | None = None
     is_synchronous: bool = True
     match_metadata: dict[str, Any] | None = None
 
 
 @dataclass
-class ExtraColumn:
-    """Specification for an extra data column.
+class ExtraField:
+    """Specification for an extra data field.
 
     This is a simplified version of the existing ConvertedField for the new schema.
 
     Attributes:
-        name: Output column name in the EventData.
+        name: Output field name in the EventData.
         dtype: PyArrow data type (or type hint for inference).
-        source: Source column name if different from name.
+        source: Source field name if different from name.
         converter: Optional transformation function.
         nullable: Whether nulls are allowed.
     """
@@ -210,22 +210,22 @@ _UNSET = object()
 
 @dataclass
 class CoordinateSpec:
-    """Specification for coordinate columns.
+    """Specification for coordinate fields.
 
-    Defines which columns hold temporal coordinates and how to interpret them.
+    Defines which fields hold temporal coordinates and how to interpret them.
 
     Attributes:
-        start: Column for start coordinates (required for interval events).
-        end: Column for end coordinates (optional, None for instant events).
+        start: Field for start coordinates (required for interval events).
+        end: Field for end coordinates (optional, None for instant events).
         duration: Alternative to end - compute end as start + duration.
-        instant: Column for instant event coordinates (alternative to start).
-        cmap_columns: Columns containing coordinates in other units.
+        instant: Field for instant event coordinates (alternative to start).
+        cmap_fields: Fields containing coordinates in other units.
             Each creates a ConversionMap.
 
     Invariants:
         - Must have at least one of: start, instant
         - If end is None and duration is None, events are instants
-        - cmap_columns are in ADDITION to the primary coordinate column
+        - cmap_fields are in ADDITION to the primary coordinate field
 
     Examples:
         >>> # Interval events with explicit end
@@ -241,7 +241,7 @@ class CoordinateSpec:
         >>> CoordinateSpec(
         ...     start="onset_sec",
         ...     end="offset_sec",
-        ...     cmap_columns={"onset_beat": CMapColumn(TimeUnit.quarters)},
+        ...     cmap_fields={"onset_beat": CMapField(TimeUnit.quarters)},
         ... )
 
     Raises:
@@ -252,7 +252,7 @@ class CoordinateSpec:
     end: str | None = None
     duration: str | None = None
     instant: str | None | object = field(default=_UNSET)
-    cmap_columns: dict[str, CMapColumn] = field(default_factory=dict)
+    cmap_fields: dict[str, CMapField] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate coordinate specification.
@@ -269,7 +269,7 @@ class CoordinateSpec:
         # If both are explicitly None, that's an error
         if start_is_explicit_none and instant_is_explicit_none:
             raise ValueError(
-                "CoordinateSpec requires at least one of 'start' or 'instant' columns. "
+                "CoordinateSpec requires at least one of 'start' or 'instant' fields. "
                 "Both cannot be explicitly set to None."
             )
 
@@ -289,14 +289,14 @@ class CoordinateSpec:
 class PartitionSpec:
     """Specification for partitioning a table into multiple timelines.
 
-    A partition column groups rows such that each unique value (or combination
+    A partition field groups rows such that each unique value (or combination
     of values) creates a separate timeline. The mode determines whether these
     timelines have independent coordinate systems (SEPARATE) or share a parent
     coordinate system (CHILDREN).
 
     Attributes:
-        columns: Column names that define the partition key.
-            Multiple columns create a composite key.
+        fields: Field names that define the partition key.
+            Multiple fields create a composite key.
         mode: How to handle partitioned timelines:
             - SEPARATE: Independent timelines with disparate coordinates.
             - CHILDREN: Child timelines sharing parent's coordinates.
@@ -304,24 +304,24 @@ class PartitionSpec:
             If None, creates a new parent timeline.
         include_null: Whether to create a timeline for rows with null partition values.
         timeline_name_template: Template for naming partitioned timelines.
-            Use {column_name} for substitution.
+            Use {field_name} for substitution.
 
     Examples:
         >>> # Separate timeline per voice (independent coordinate systems)
-        >>> PartitionSpec(columns=["voice"], mode=PartitionMode.separate)
+        >>> PartitionSpec(fields=["voice"], mode=PartitionMode.separate)
 
         >>> # Child timelines per staff (shared coordinates)
         >>> PartitionSpec(
-        ...     columns=["staff"],
+        ...     fields=["staff"],
         ...     mode=PartitionMode.children,
         ...     parent_timeline="score",
         ... )
 
         >>> # Composite partition key
-        >>> PartitionSpec(columns=["piece_id", "movement"])
+        >>> PartitionSpec(fields=["piece_id", "movement"])
     """
 
-    columns: list[str] = field(default_factory=list)
+    fields: list[str] = field(default_factory=list)
     mode: PartitionMode = PartitionMode.separate
     parent_timeline: str | None = None
     include_null: bool = False
@@ -336,10 +336,10 @@ class HierarchySpec:
     (which create sibling timelines), hierarchy creates nested timelines.
 
     Attributes:
-        parent_id_column: Column containing parent event/timeline IDs.
-        child_id_column: Column containing child event/timeline IDs.
-        segment_name_column: Column containing segment names.
-        offset_column: Column containing child offsets relative to parent.
+        parent_id_field: Field containing parent event/timeline IDs.
+        child_id_field: Field containing child event/timeline IDs.
+        segment_name_field: Field containing segment names.
+        offset_field: Field containing child offsets relative to parent.
             If None, children start at their first event's coordinate.
 
     Note: This is for explicit hierarchy in the DATA. Partition-based hierarchy
@@ -348,78 +348,78 @@ class HierarchySpec:
     Examples:
         >>> # Measure -> beat hierarchy
         >>> HierarchySpec(
-        ...     parent_id_column="measure_id",
-        ...     child_id_column="beat_id",
+        ...     parent_id_field="measure_id",
+        ...     child_id_field="beat_id",
         ... )
 
         >>> # Named segments
-        >>> HierarchySpec(segment_name_column="section_name")
+        >>> HierarchySpec(segment_name_field="section_name")
     """
 
-    parent_id_column: str | None = None
-    child_id_column: str | None = None
-    segment_name_column: str | None = None
-    offset_column: str | None = None
+    parent_id_field: str | None = None
+    child_id_field: str | None = None
+    segment_name_field: str | None = None
+    offset_field: str | None = None
 
 
 @dataclass
 class RegionSpec:
-    """Specification for region (named TimeInterval) columns.
+    """Specification for region (named TimeInterval) fields.
 
-    Region columns contain identifiers that group events into named TimeIntervals.
+    Region fields contain identifiers that group events into named TimeIntervals.
     Unlike partitions (which create separate timelines) or hierarchy (which creates
     nested timelines), regions are just named spans on the SAME timeline.
 
     Attributes:
-        columns: Column names containing region identifiers.
-        start_column: Column for region start (default: derive from first event).
-        end_column: Column for region end (default: derive from last event).
+        fields: Field names containing region identifiers.
+        start_field: Field for region start (default: derive from first event).
+        end_field: Field for region end (default: derive from last event).
         allow_overlap: Whether regions can overlap.
 
     From TTA manuscript: "A Region is a named part of a timeline defined by a
     TimeInterval. Regions are NOT timelines - they cannot hold events or C-maps."
 
     Examples:
-        >>> # Simple region column
-        >>> RegionSpec(columns=["section"])
+        >>> # Simple region field
+        >>> RegionSpec(fields=["section"])
 
         >>> # Explicit region boundaries
         >>> RegionSpec(
-        ...     columns=["section"],
-        ...     start_column="section_start",
-        ...     end_column="section_end",
+        ...     fields=["section"],
+        ...     start_field="section_start",
+        ...     end_field="section_end",
         ... )
     """
 
-    columns: list[str] = field(default_factory=list)
-    start_column: str | None = None
-    end_column: str | None = None
+    fields: list[str] = field(default_factory=list)
+    start_field: str | None = None
+    end_field: str | None = None
     allow_overlap: bool = True
 
 
 @dataclass
 class MatchSpec:
-    """Specification for match (alignment) columns.
+    """Specification for match (alignment) fields.
 
-    Match columns reference events on other timelines, creating MatchClaims
+    Match fields reference events on other timelines, creating MatchClaims
     when the data is loaded.
 
     Attributes:
-        columns: Mapping of column names to MatchColumn specifications.
+        fields: Mapping of field names to MatchField specifications.
         default_metadata: Default metadata for all matches from this table.
-        allow_nomatch: Whether null values in match columns are allowed
+        allow_nomatch: Whether null values in match fields are allowed
             (representing NOMATCH sentinel per TTA manuscript).
 
     Examples:
-        >>> MatchSpec(columns={
-        ...     "aligned_score_id": MatchColumn(
+        >>> MatchSpec(fields={
+        ...     "aligned_score_id": MatchField(
         ...         target_timeline="score",
-        ...         target_event_column="id",
+        ...         target_event_field="id",
         ...     ),
         ... })
     """
 
-    columns: dict[str, MatchColumn] = field(default_factory=dict)
+    fields: dict[str, MatchField] = field(default_factory=dict)
     default_metadata: dict[str, Any] | None = None
     allow_nomatch: bool = True
 
@@ -437,7 +437,7 @@ class TableSchema:
     TableSchema provides a declarative specification for how to interpret
     tabular data (CSV, TSV, DataFrame) as TimeToAlign! objects:
     - Timelines with events
-    - ConversionMaps (from C-Map columns)
+    - ConversionMaps (from C-Map fields)
     - Regions (named TimeIntervals)
     - MatchClaims (alignment references)
 
@@ -446,16 +446,16 @@ class TableSchema:
 
     Attributes:
         timeline: Default parameters for timeline creation.
-        coordinates: Coordinate column specifications.
+        coordinates: Coordinate field specifications.
         partitions: Partition specifications (multiple timelines).
         hierarchy: Hierarchy specifications (nested timelines).
         regions: Region specifications (named TimeIntervals).
         matches: Match specifications (alignment references).
-        id_column: Column for event IDs.
-        name_column: Column for event names.
-        event_type_column: Column for event types.
-        extra_columns: Additional data columns to include.
-        infer_remaining: Whether to auto-include unspecified columns.
+        id_field: Field for event IDs.
+        name_field: Field for event names.
+        event_type_field: Field for event types.
+        extra_fields: Additional data fields to include.
+        infer_remaining: Whether to auto-include unspecified fields.
 
     Examples:
         >>> # Simple schema for second-based events
@@ -470,12 +470,12 @@ class TableSchema:
         ...     coordinates=CoordinateSpec(
         ...         start="onset_sec",
         ...         end="offset_sec",
-        ...         cmap_columns={"beat": CMapColumn(TimeUnit.quarters)},
+        ...         cmap_fields={"beat": CMapField(TimeUnit.quarters)},
         ...     ),
-        ...     partitions=PartitionSpec(columns=["voice"]),
-        ...     regions=RegionSpec(columns=["section"]),
-        ...     matches=MatchSpec(columns={
-        ...         "score_id": MatchColumn(target_timeline="score"),
+        ...     partitions=PartitionSpec(fields=["voice"]),
+        ...     regions=RegionSpec(fields=["section"]),
+        ...     matches=MatchSpec(fields={
+        ...         "score_id": MatchField(target_timeline="score"),
         ...     }),
         ... )
 
@@ -493,39 +493,39 @@ class TableSchema:
     regions: RegionSpec | None = None
     matches: MatchSpec | None = None
 
-    # Identity columns
-    id_column: str | None = "id"
-    name_column: str | None = "name"
-    event_type_column: str | None = None
+    # Identity fields
+    id_field: str | None = "id"
+    name_field: str | None = "name"
+    event_type_field: str | None = None
 
-    # Extra columns
-    extra_columns: list[ExtraColumn | str] = field(default_factory=list)
+    # Extra fields
+    extra_fields: list[ExtraField | str] = field(default_factory=list)
     infer_remaining: bool = False
-    exclude_columns: set[str] = field(default_factory=set)
+    exclude_fields: set[str] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         """Validate schema configuration."""
         self._logger = module_logger.getChild("TableSchema")
 
-    # region Column Analysis
+    # region Field Analysis
 
-    def get_reserved_columns(self) -> set[str]:
-        """Get all column names that have special semantic roles.
+    def get_reserved_fields(self) -> set[str]:
+        """Get all field names that have special semantic roles.
 
         Returns:
-            Set of column names used for coordinates, partitions, etc.
+            Set of field names used for coordinates, partitions, etc.
         """
         reserved = set()
 
-        # Identity columns
-        if self.id_column:
-            reserved.add(self.id_column)
-        if self.name_column:
-            reserved.add(self.name_column)
-        if self.event_type_column:
-            reserved.add(self.event_type_column)
+        # Identity fields
+        if self.id_field:
+            reserved.add(self.id_field)
+        if self.name_field:
+            reserved.add(self.name_field)
+        if self.event_type_field:
+            reserved.add(self.event_type_field)
 
-        # Coordinate columns
+        # Coordinate fields
         if self.coordinates.start:
             reserved.add(self.coordinates.start)
         if self.coordinates.end:
@@ -535,88 +535,88 @@ class TableSchema:
         if self.coordinates.instant:
             reserved.add(self.coordinates.instant)
 
-        # C-Map columns
-        reserved.update(self.coordinates.cmap_columns.keys())
+        # C-Map fields
+        reserved.update(self.coordinates.cmap_fields.keys())
 
-        # Partition columns
+        # Partition fields
         if self.partitions:
-            reserved.update(self.partitions.columns)
+            reserved.update(self.partitions.fields)
 
-        # Hierarchy columns
+        # Hierarchy fields
         if self.hierarchy:
-            if self.hierarchy.parent_id_column:
-                reserved.add(self.hierarchy.parent_id_column)
-            if self.hierarchy.child_id_column:
-                reserved.add(self.hierarchy.child_id_column)
-            if self.hierarchy.segment_name_column:
-                reserved.add(self.hierarchy.segment_name_column)
-            if self.hierarchy.offset_column:
-                reserved.add(self.hierarchy.offset_column)
+            if self.hierarchy.parent_id_field:
+                reserved.add(self.hierarchy.parent_id_field)
+            if self.hierarchy.child_id_field:
+                reserved.add(self.hierarchy.child_id_field)
+            if self.hierarchy.segment_name_field:
+                reserved.add(self.hierarchy.segment_name_field)
+            if self.hierarchy.offset_field:
+                reserved.add(self.hierarchy.offset_field)
 
-        # Region columns
+        # Region fields
         if self.regions:
-            reserved.update(self.regions.columns)
-            if self.regions.start_column:
-                reserved.add(self.regions.start_column)
-            if self.regions.end_column:
-                reserved.add(self.regions.end_column)
+            reserved.update(self.regions.fields)
+            if self.regions.start_field:
+                reserved.add(self.regions.start_field)
+            if self.regions.end_field:
+                reserved.add(self.regions.end_field)
 
-        # Match columns
+        # Match fields
         if self.matches:
-            reserved.update(self.matches.columns.keys())
+            reserved.update(self.matches.fields.keys())
 
         return reserved
 
-    def get_column_role(self, column: str) -> ColumnRole:
-        """Determine the semantic role of a column.
+    def get_field_role(self, field_name: str) -> ColumnRole:
+        """Determine the semantic role of a field.
 
         Args:
-            column: Column name to analyze.
+            field_name: Field name to analyze.
 
         Returns:
-            The ColumnRole for this column.
+            The ColumnRole for this field.
         """
         # Identity
-        if column == self.id_column:
+        if field_name == self.id_field:
             return ColumnRole.id
-        if column == self.name_column:
+        if field_name == self.name_field:
             return ColumnRole.name
-        if column == self.event_type_column:
+        if field_name == self.event_type_field:
             return ColumnRole.event_type
 
         # Coordinates
-        if column == self.coordinates.start:
+        if field_name == self.coordinates.start:
             return ColumnRole.start
-        if column == self.coordinates.end:
+        if field_name == self.coordinates.end:
             return ColumnRole.end
-        if column == self.coordinates.duration:
+        if field_name == self.coordinates.duration:
             return ColumnRole.duration
-        if column == self.coordinates.instant:
+        if field_name == self.coordinates.instant:
             return ColumnRole.instant
 
         # C-Maps
-        if column in self.coordinates.cmap_columns:
+        if field_name in self.coordinates.cmap_fields:
             return ColumnRole.cmap_target
 
         # Partitions
-        if self.partitions and column in self.partitions.columns:
+        if self.partitions and field_name in self.partitions.fields:
             return ColumnRole.partition
 
         # Hierarchy
         if self.hierarchy:
-            if column == self.hierarchy.parent_id_column:
+            if field_name == self.hierarchy.parent_id_field:
                 return ColumnRole.parent_id
-            if column == self.hierarchy.child_id_column:
+            if field_name == self.hierarchy.child_id_field:
                 return ColumnRole.child_id
-            if column == self.hierarchy.segment_name_column:
+            if field_name == self.hierarchy.segment_name_field:
                 return ColumnRole.segment_name
 
         # Regions
-        if self.regions and column in self.regions.columns:
+        if self.regions and field_name in self.regions.fields:
             return ColumnRole.region
 
         # Matches
-        if self.matches and column in self.matches.columns:
+        if self.matches and field_name in self.matches.fields:
             return ColumnRole.match_ref
 
         return ColumnRole.extra
@@ -638,7 +638,7 @@ class TableSchema:
         Args:
             data: The source data (DataFrame or PyArrow Table).
             external_timelines: Externally-provided timelines referenced by
-                MatchSpec columns. Keys are timeline IDs.
+                MatchSpec fields. Keys are timeline IDs.
 
         Returns:
             Dictionary with:
@@ -648,7 +648,7 @@ class TableSchema:
             - "matches": list[MatchClaim] - Created match claims
 
         Raises:
-            ValueError: If required columns are missing.
+            ValueError: If required fields are missing.
             TypeError: If data types are incompatible.
 
         Examples:
@@ -663,7 +663,7 @@ class TableSchema:
         else:
             df = data
 
-        self._validate_columns(df)
+        self._validate_fields(df)
 
         result: dict[str, Any] = {
             "timelines": {},
@@ -673,7 +673,7 @@ class TableSchema:
         }
 
         # Step 1: Determine partitions
-        if self.partitions and self.partitions.columns:
+        if self.partitions and self.partitions.fields:
             partition_groups = self._compute_partitions(df)
         else:
             partition_groups = {None: df}  # Single timeline
@@ -687,18 +687,18 @@ class TableSchema:
             result["timelines"][timeline_id] = timeline
 
             # Extract regions for this timeline
-            if self.regions and self.regions.columns:
+            if self.regions and self.regions.fields:
                 regions = self._extract_regions(partition_df, timeline)
                 if regions:
                     result["regions"][timeline_id] = regions
 
-        # Step 3: Build C-Maps from cmap_columns
-        if self.coordinates.cmap_columns:
+        # Step 3: Build C-Maps from cmap_fields
+        if self.coordinates.cmap_fields:
             cmaps = self._build_cmaps(df, result["timelines"])
             result["cmaps"].extend(cmaps)
 
         # Step 4: Build MatchClaims
-        if self.matches and self.matches.columns:
+        if self.matches and self.matches.fields:
             matches = self._build_matches(
                 df, result["timelines"], external_timelines or {}
             )
@@ -713,29 +713,29 @@ class TableSchema:
 
         return result
 
-    def _validate_columns(self, df: pd.DataFrame) -> None:
-        """Validate that required columns exist in the data.
+    def _validate_fields(self, df: pd.DataFrame) -> None:
+        """Validate that required source columns exist in the data.
 
         Args:
             df: The source DataFrame.
 
         Raises:
-            ValueError: If required columns are missing.
+            ValueError: If required source columns are missing.
         """
         required = []
 
-        # At least one coordinate column
+        # At least one coordinate source field
         if self.coordinates.start:
             required.append(self.coordinates.start)
         elif self.coordinates.instant:
             required.append(self.coordinates.instant)
 
-        # Partition columns
+        # Partition source fields
         if self.partitions:
-            required.extend(self.partitions.columns)
+            required.extend(self.partitions.fields)
 
-        # Check all required columns exist
-        missing = [col for col in required if col not in df.columns]
+        # Check all required source columns exist in the DataFrame
+        missing = [name for name in required if name not in df.columns]
         if missing:
             raise ValueError(
                 f"Required columns missing from data: {missing}. "
@@ -745,7 +745,7 @@ class TableSchema:
     def _compute_partitions(
         self, df: pd.DataFrame
     ) -> dict[tuple[Any, ...] | None, pd.DataFrame]:
-        """Group data by partition columns.
+        """Group data by partition fields.
 
         Args:
             df: The source DataFrame.
@@ -753,12 +753,12 @@ class TableSchema:
         Returns:
             Dictionary mapping partition key tuples to DataFrames.
         """
-        if not self.partitions or not self.partitions.columns:
+        if not self.partitions or not self.partitions.fields:
             return {None: df}
 
         result = {}
         for key, group in df.groupby(
-            self.partitions.columns, dropna=not self.partitions.include_null
+            self.partitions.fields, dropna=not self.partitions.include_null
         ):
             # Normalize key to tuple
             if not isinstance(key, tuple):
@@ -841,21 +841,21 @@ class TableSchema:
         n = len(df)
 
         # Generate IDs if needed
-        if self.id_column and self.id_column in df.columns:
-            ids = df[self.id_column].astype(str).tolist()
+        if self.id_field and self.id_field in df.columns:
+            ids = df[self.id_field].astype(str).tolist()
         else:
             ids = [f"e{i:06d}" for i in range(n)]
 
         # Get names
         names = [None] * n
-        if self.name_column and self.name_column in df.columns:
-            names = df[self.name_column].tolist()
+        if self.name_field and self.name_field in df.columns:
+            names = df[self.name_field].tolist()
 
         # Get event types
         event_types = [self.timeline.default_event_type] * n
-        if self.event_type_column and self.event_type_column in df.columns:
+        if self.event_type_field and self.event_type_field in df.columns:
             event_types = (
-                df[self.event_type_column]
+                df[self.event_type_field]
                 .fillna(self.timeline.default_event_type)
                 .tolist()
             )
@@ -914,14 +914,14 @@ class TableSchema:
             else:
                 continue  # Skip rows without coordinates
 
-            # Add extra columns
-            for extra in self.extra_columns:
+            # Add extra fields
+            for extra in self.extra_fields:
                 if isinstance(extra, str):
                     if extra in df.columns:
                         val = df[extra].iloc[i]
                         if val is not None and not pd.isna(val):
                             event[extra] = val
-                elif isinstance(extra, ExtraColumn):
+                elif isinstance(extra, ExtraField):
                     source = extra.source or extra.name
                     if source in df.columns:
                         val = df[source].iloc[i]
@@ -937,7 +937,7 @@ class TableSchema:
     def _extract_regions(
         self, df: pd.DataFrame, timeline: Any
     ) -> list[Any]:  # Returns list[Region]
-        """Extract Region objects from region columns.
+        """Extract Region objects from region fields.
 
         Args:
             df: Source DataFrame.
@@ -949,38 +949,35 @@ class TableSchema:
         from timetoalign.core import Coordinate
         from timetoalign.timelines.regions import Region
 
-        if not self.regions or not self.regions.columns:
+        if not self.regions or not self.regions.fields:
             return []
 
         regions = []
-        start_col = self.coordinates.start or self.coordinates.instant
+        start_field = self.coordinates.start or self.coordinates.instant
 
-        for region_col in self.regions.columns:
-            if region_col not in df.columns:
+        for region_field in self.regions.fields:
+            if region_field not in df.columns:
                 continue
 
             # Group by region value
-            for region_name, group in df.groupby(region_col, dropna=True):
+            for region_name, group in df.groupby(region_field, dropna=True):
                 if pd.isna(region_name):
                     continue
 
                 # Determine region bounds
-                if (
-                    self.regions.start_column
-                    and self.regions.start_column in df.columns
-                ):
-                    start = group[self.regions.start_column].min()
-                elif start_col and start_col in df.columns:
-                    start = group[start_col].min()
+                if self.regions.start_field and self.regions.start_field in df.columns:
+                    start = group[self.regions.start_field].min()
+                elif start_field and start_field in df.columns:
+                    start = group[start_field].min()
                 else:
                     continue
 
-                if self.regions.end_column and self.regions.end_column in df.columns:
-                    end = group[self.regions.end_column].max()
+                if self.regions.end_field and self.regions.end_field in df.columns:
+                    end = group[self.regions.end_field].max()
                 elif self.coordinates.end and self.coordinates.end in df.columns:
                     end = group[self.coordinates.end].max()
-                elif start_col and start_col in df.columns:
-                    end = group[start_col].max()
+                elif start_field and start_field in df.columns:
+                    end = group[start_field].max()
                 else:
                     end = start
 
@@ -999,7 +996,7 @@ class TableSchema:
     def _build_cmaps(
         self, df: pd.DataFrame, timelines: dict[str, Any]
     ) -> list[Any]:  # Returns list[ConversionMap]
-        """Build ConversionMaps from cmap_columns.
+        """Build ConversionMaps from cmap_fields.
 
         Args:
             df: Source DataFrame.
@@ -1011,28 +1008,28 @@ class TableSchema:
         from timetoalign.maps import TableMap
 
         cmaps = []
-        start_col = self.coordinates.start or self.coordinates.instant
+        start_field = self.coordinates.start or self.coordinates.instant
 
-        for col_name, cmap_spec in self.coordinates.cmap_columns.items():
-            if col_name not in df.columns:
-                self._logger.warning(f"C-Map column '{col_name}' not found in data")
+        for field_name, cmap_spec in self.coordinates.cmap_fields.items():
+            if field_name not in df.columns:
+                self._logger.warning(f"C-Map field '{field_name}' not found in data")
                 continue
 
-            source_col = cmap_spec.source_column or start_col
-            if source_col not in df.columns:
+            source_field = cmap_spec.source_field or start_field
+            if source_field not in df.columns:
                 self._logger.warning(
-                    f"Source column '{source_col}' not found for C-Map"
+                    f"Source field '{source_field}' not found for C-Map"
                 )
                 continue
 
             # Extract coordinate pairs
-            mask = df[source_col].notna() & df[col_name].notna()
-            source_coords = df.loc[mask, source_col].astype(float).values
-            target_coords = df.loc[mask, col_name].astype(float).values
+            mask = df[source_field].notna() & df[field_name].notna()
+            source_coords = df.loc[mask, source_field].astype(float).values
+            target_coords = df.loc[mask, field_name].astype(float).values
 
             if len(source_coords) < 2:
                 self._logger.warning(
-                    f"Not enough valid pairs for C-Map from '{source_col}' to '{col_name}'"
+                    f"Not enough valid pairs for C-Map from '{source_field}' to '{field_name}'"
                 )
                 continue
 
@@ -1067,7 +1064,7 @@ class TableSchema:
         timelines: dict[str, Any],
         external_timelines: dict[str, Any],
     ) -> list[Any]:  # Returns list[MatchClaim]
-        """Build MatchClaims from match columns.
+        """Build MatchClaims from match fields.
 
         Args:
             df: Source DataFrame.
@@ -1088,14 +1085,14 @@ class TableSchema:
         )
 
         matches = []
-        start_col = self.coordinates.start or self.coordinates.instant
+        start_field = self.coordinates.start or self.coordinates.instant
 
         # Get source timeline (first one if multiple)
         source_timeline_id = next(iter(timelines.keys()))
 
-        for col_name, match_spec in self.matches.columns.items():
-            if col_name not in df.columns:
-                self._logger.warning(f"Match column '{col_name}' not found in data")
+        for field_name, match_spec in self.matches.fields.items():
+            if field_name not in df.columns:
+                self._logger.warning(f"Match field '{field_name}' not found in data")
                 continue
 
             # Find target timeline
@@ -1113,29 +1110,29 @@ class TableSchema:
                 metadata = MatchMetadata(
                     agent=meta_dict.get("agent", "table_schema"),
                     decision_criteria=meta_dict.get(
-                        "decision_criteria", "column_reference"
+                        "decision_criteria", "field_reference"
                     ),
                     certainty=meta_dict.get("certainty", 1.0),
                 )
 
             # Create matches for each row with a valid reference
             for idx, row in df.iterrows():
-                target_event_id = row.get(col_name)
+                target_event_id = row.get(field_name)
                 if pd.isna(target_event_id):
                     if self.matches.allow_nomatch:
                         continue  # NOMATCH sentinel
                     else:
                         raise ValueError(
-                            f"Null value in match column '{col_name}' at row {idx}"
+                            f"Null value in match field '{field_name}' at row {idx}"
                         )
 
                 # Get source coordinate
-                source_coord = row.get(start_col)
+                source_coord = row.get(start_field)
                 if pd.isna(source_coord):
                     continue
 
                 # source_event_id = (
-                #     row.get(self.id_column) if self.id_column else f"e{idx}"
+                #     row.get(self.id_field) if self.id_field else f"e{idx}"
                 # )
 
                 # For now, create instant matches (coordinate-based)
@@ -1216,7 +1213,7 @@ class TableSchema:
         if not self.hierarchy:
             return
 
-        # Implementation would handle parent_id_column, child_id_column, etc.
+        # Implementation would handle parent_id_field, child_id_field, etc.
         # This is a placeholder for the full implementation
         pass
 
@@ -1245,39 +1242,39 @@ class TableSchema:
             },
         }
 
-        if self.coordinates.cmap_columns:
-            result["coordinates"]["cmap_columns"] = {
-                col: {
+        if self.coordinates.cmap_fields:
+            result["coordinates"]["cmap_fields"] = {
+                name: {
                     "target_unit": spec.target_unit.name,
                     "map_type": spec.map_type,
                     "bidirectional": spec.bidirectional,
                 }
-                for col, spec in self.coordinates.cmap_columns.items()
+                for name, spec in self.coordinates.cmap_fields.items()
             }
 
         if self.partitions:
             result["partitions"] = {
-                "columns": self.partitions.columns,
+                "fields": self.partitions.fields,
                 "mode": self.partitions.mode.name,
             }
 
         if self.regions:
-            result["regions"] = {"columns": self.regions.columns}
+            result["regions"] = {"fields": self.regions.fields}
 
         if self.matches:
             result["matches"] = {
-                "columns": {
-                    col: {
+                "fields": {
+                    name: {
                         "target_timeline": spec.target_timeline,
                         "is_synchronous": spec.is_synchronous,
                     }
-                    for col, spec in self.matches.columns.items()
+                    for name, spec in self.matches.fields.items()
                 }
             }
 
-        result["id_column"] = self.id_column
-        result["name_column"] = self.name_column
-        result["event_type_column"] = self.event_type_column
+        result["id_field"] = self.id_field
+        result["name_field"] = self.name_field
+        result["event_type_field"] = self.event_type_field
 
         return result
 
@@ -1302,10 +1299,10 @@ class TableSchema:
 
         # Parse coordinates
         coord_data = data.get("coordinates", {})
-        cmap_columns = {}
-        if "cmap_columns" in coord_data:
-            for col, spec in coord_data["cmap_columns"].items():
-                cmap_columns[col] = CMapColumn(
+        cmap_fields = {}
+        if "cmap_fields" in coord_data:
+            for name, spec in coord_data["cmap_fields"].items():
+                cmap_fields[name] = CMapField(
                     target_unit=TimeUnit(spec["target_unit"]),
                     map_type=spec.get("map_type", "table"),
                     bidirectional=spec.get("bidirectional", True),
@@ -1316,7 +1313,7 @@ class TableSchema:
             end=coord_data.get("end"),
             duration=coord_data.get("duration"),
             instant=coord_data.get("instant"),
-            cmap_columns=cmap_columns,
+            cmap_fields=cmap_fields,
         )
 
         # Parse partitions
@@ -1324,7 +1321,7 @@ class TableSchema:
         if "partitions" in data:
             part_data = data["partitions"]
             partitions = PartitionSpec(
-                columns=part_data.get("columns", []),
+                fields=part_data.get("fields", []),
                 mode=PartitionMode[part_data.get("mode", "SEPARATE")],
             )
 
@@ -1332,19 +1329,19 @@ class TableSchema:
         regions = None
         if "regions" in data:
             reg_data = data["regions"]
-            regions = RegionSpec(columns=reg_data.get("columns", []))
+            regions = RegionSpec(fields=reg_data.get("fields", []))
 
         # Parse matches
         matches = None
         if "matches" in data:
             match_data = data["matches"]
-            match_columns = {}
-            for col, spec in match_data.get("columns", {}).items():
-                match_columns[col] = MatchColumn(
+            match_fields = {}
+            for name, spec in match_data.get("fields", {}).items():
+                match_fields[name] = MatchField(
                     target_timeline=spec["target_timeline"],
                     is_synchronous=spec.get("is_synchronous", True),
                 )
-            matches = MatchSpec(columns=match_columns)
+            matches = MatchSpec(fields=match_fields)
 
         return cls(
             timeline=timeline,
@@ -1352,23 +1349,23 @@ class TableSchema:
             partitions=partitions,
             regions=regions,
             matches=matches,
-            id_column=data.get("id_column"),
-            name_column=data.get("name_column"),
-            event_type_column=data.get("event_type_column"),
+            id_field=data.get("id_field"),
+            name_field=data.get("name_field"),
+            event_type_field=data.get("event_type_field"),
         )
 
     # endregion
 
     def __repr__(self) -> str:
         parts = [f"unit={self.timeline.unit.value}"]
-        if self.partitions and self.partitions.columns:
-            parts.append(f"partitions={self.partitions.columns}")
-        if self.coordinates.cmap_columns:
-            parts.append(f"cmaps={list(self.coordinates.cmap_columns.keys())}")
-        if self.regions and self.regions.columns:
-            parts.append(f"regions={self.regions.columns}")
-        if self.matches and self.matches.columns:
-            parts.append(f"matches={list(self.matches.columns.keys())}")
+        if self.partitions and self.partitions.fields:
+            parts.append(f"partitions={self.partitions.fields}")
+        if self.coordinates.cmap_fields:
+            parts.append(f"cmaps={list(self.coordinates.cmap_fields.keys())}")
+        if self.regions and self.regions.fields:
+            parts.append(f"regions={self.regions.fields}")
+        if self.matches and self.matches.fields:
+            parts.append(f"matches={list(self.matches.fields.keys())}")
         return f"TableSchema({', '.join(parts)})"
 
 

@@ -57,14 +57,14 @@ class TabularLoader(Loader):
     Configuration Attributes:
         delimiter: Field delimiter character (default: ",").
         header_row: Row index containing column headers (default: 0).
-        id_column: Column name for event IDs (auto-generated if None).
-        name_column: Column name for event names (optional).
-        start_column: Column name for start coordinate (required).
-        end_column: Column name for end coordinate (None for instant events).
-        duration_column: Column name for duration (alternative to end_column).
-        event_type_column: Column name for event type (optional).
-        default_event_type: Default event type if column not specified.
-        extra_columns: List of extra columns to include. Can be:
+        id_column: Source column name for event IDs (auto-generated if None).
+        name_column: Source column name for event names (optional).
+        start_column: Source column name for start coordinate (required).
+        end_column: Source column name for end coordinate (None for instant events).
+        duration_column: Source column name for duration (alternative to end_column).
+        event_type_column: Source column name for event type (optional).
+        default_event_type: Default event type if no column provides one.
+        extra_columns: List of extra source columns to include. Can be:
             - Column names as strings: ["midi", "velocity"]
             - ConvertedField objects for type/converter control
         coordinate_unit: TimeUnit for coordinate values.
@@ -188,7 +188,7 @@ class TabularLoader(Loader):
         """The original source data as a faithful PyArrow table.
 
         This is the raw tabular data from the source file, before any
-        field extraction, coordinate parsing, or type coercion. Returns
+        column extraction, coordinate parsing, or type coercion. Returns
         ``None`` if no source has been loaded yet.
 
         Returns:
@@ -219,9 +219,9 @@ class TabularLoader(Loader):
         except (pa.lib.ArrowTypeError, pa.lib.ArrowInvalid):
             # Fallback: convert problematic object columns to strings
             df_safe = df.copy()
-            for col in df_safe.columns:
-                if df_safe[col].dtype == object:
-                    df_safe[col] = df_safe[col].astype(str)
+            for name in df_safe.columns:
+                if df_safe[name].dtype == object:
+                    df_safe[name] = df_safe[name].astype(str)
             return pa.Table.from_pandas(df_safe, preserve_index=False)
 
     # endregion
@@ -325,7 +325,7 @@ class TabularLoader(Loader):
         # For Field, validate the parent column exists
         if isinstance(start_col, Field):
             if start_col.column not in df.columns:
-                # Check if it's a struct field from extra_columns
+                # Check if it's a struct column from extra_columns
                 struct_sources = self._get_struct_source_columns()
                 if start_col.column not in struct_sources:
                     raise ValueError(
@@ -367,9 +367,9 @@ class TabularLoader(Loader):
             return {}
 
         result = {}
-        for col_spec in self.extra_columns:
-            if isinstance(col_spec, ConvertedField) and col_spec.is_struct:
-                result[col_spec.name] = col_spec
+        for spec in self.extra_columns:
+            if isinstance(spec, ConvertedField) and spec.is_struct:
+                result[spec.name] = spec
         return result
 
     def _normalize_extra_columns(self, df: pd.DataFrame) -> list[str | ConvertedField]:
@@ -391,7 +391,7 @@ class TabularLoader(Loader):
 
         if self.extra_columns is True:
             # Auto-include all columns not already used by core fields
-            core_columns = {
+            core_names = {
                 self.id_column,
                 self.name_column,
                 self.event_type_column,
@@ -399,15 +399,15 @@ class TabularLoader(Loader):
             }
             # Handle start_column (could be str, tuple, or Field)
             if isinstance(self.start_column, str):
-                core_columns.add(self.start_column)
+                core_names.add(self.start_column)
             if self._fallback_start_column:
-                core_columns.add(self._fallback_start_column)
+                core_names.add(self._fallback_start_column)
             # Handle end_column
             if isinstance(self.end_column, str):
-                core_columns.add(self.end_column)
+                core_names.add(self.end_column)
 
             # Return all columns not in core set
-            return [col for col in df.columns if col not in core_columns]
+            return [name for name in df.columns if name not in core_names]
 
         if isinstance(self.extra_columns, dict):
             # Dict format: {"col_name": type, ...}
@@ -441,28 +441,28 @@ class TabularLoader(Loader):
         columns: dict[str, Any] = {}
 
         # Normalize extra_columns to a list (handles True, dict, and list forms)
-        extra_cols = self._normalize_extra_columns(df)
+        extras = self._normalize_extra_columns(df)
 
         # Step 1: Parse struct columns (JSON -> struct) FIRST
         # This builds a temporary table we can use for Field/ComputedField resolution
-        struct_columns: dict[str, pa.Array] = {}
-        for col_spec in extra_cols:
-            if isinstance(col_spec, ConvertedField) and col_spec.is_struct:
-                source_col = col_spec.source
-                if source_col in df.columns:
+        struct_arrs: dict[str, pa.Array] = {}
+        for spec in extras:
+            if isinstance(spec, ConvertedField) and spec.is_struct:
+                source_name = spec.source
+                if source_name in df.columns:
                     struct_arr = parse_json_to_struct(
-                        df[source_col],
-                        struct_schema=col_spec.struct_schema,
+                        df[source_name],
+                        struct_schema=spec.struct_schema,
                     )
-                    struct_columns[col_spec.name] = struct_arr
-                    columns[col_spec.name] = struct_arr
+                    struct_arrs[spec.name] = struct_arr
+                    columns[spec.name] = struct_arr
 
         # Step 2: Build a temporary PyArrow table for Field/ComputedField resolution
         # Include DataFrame columns + parsed struct columns
         temp_arrays = {}
-        for col_name in df.columns:
-            temp_arrays[col_name] = pa.array(df[col_name])
-        temp_arrays.update(struct_columns)
+        for name in df.columns:
+            temp_arrays[name] = pa.array(df[name])
+        temp_arrays.update(struct_arrs)
         temp_table = pa.table(temp_arrays)
 
         # Step 3: Extract basic columns
@@ -517,47 +517,43 @@ class TabularLoader(Loader):
         # Reset extra schema fields for this load
         self._extra_schema_fields = []
 
-        for col_spec in extra_cols:
-            if isinstance(col_spec, str):
+        for spec in extras:
+            if isinstance(spec, str):
                 # Simple case: column name, same in source and output
-                if col_spec in df.columns:
-                    columns[col_spec] = df[col_spec].to_numpy()
-            elif isinstance(col_spec, CoordinateField):
+                if spec in df.columns:
+                    columns[spec] = df[spec].to_numpy()
+            elif isinstance(spec, CoordinateField):
                 # CoordinateField: parse as coordinate struct using CoordinateParser
                 # Source can be a string column name or a Field for nested access
-                source_col = col_spec.source
+                source_name = spec.source
                 parsed = None
-                if isinstance(source_col, (Field, tuple, ComputedField)):
+                if isinstance(source_name, (Field, tuple, ComputedField)):
                     # Resolve Field/tuple/ComputedField to get values
                     values = self._resolve_column_reference(
-                        source_col, df, temp_table, col_spec.name
+                        source_name, df, temp_table, spec.name
                     )
-                    parsed = CoordinateParser.parse(
-                        values, col_spec.number_type, col_spec.unit
-                    )
-                elif isinstance(source_col, str) and source_col in df.columns:
-                    values = df[source_col].to_numpy()
-                    parsed = CoordinateParser.parse(
-                        values, col_spec.number_type, col_spec.unit
-                    )
+                    parsed = CoordinateParser.parse(values, spec.number_type, spec.unit)
+                elif isinstance(source_name, str) and source_name in df.columns:
+                    values = df[source_name].to_numpy()
+                    parsed = CoordinateParser.parse(values, spec.number_type, spec.unit)
 
                 if parsed is not None:
-                    columns[col_spec.name] = parsed
+                    columns[spec.name] = parsed
                     # Store the field with proper metadata (unit from CoordinateField)
-                    self._extra_schema_fields.append(col_spec.to_field())
+                    self._extra_schema_fields.append(spec.to_field())
 
-            elif isinstance(col_spec, ConvertedField):
-                # Skip struct fields (already processed)
-                if col_spec.is_struct:
+            elif isinstance(spec, ConvertedField):
+                # Skip struct columns (already processed)
+                if spec.is_struct:
                     continue
                 # ConvertedField case: may have different source name, type, converter
-                schema_field = col_spec.name
-                source_col = col_spec.source
-                if source_col in df.columns:
-                    arr = df[source_col].to_numpy()
-                    if col_spec.converter:
-                        arr = col_spec.converter(arr)
-                    columns[schema_field] = arr
+                schema_name = spec.name
+                source_name = spec.source
+                if source_name in df.columns:
+                    arr = df[source_name].to_numpy()
+                    if spec.converter:
+                        arr = spec.converter(arr)
+                    columns[schema_name] = arr
 
         return columns
 
@@ -667,10 +663,10 @@ class TabularLoader(Loader):
 
         # Case 3: Direct column name
         if isinstance(end_col_ref, str) and end_col_ref in df.columns:
-            end_col = df[end_col_ref]
-            has_end_values = end_col.notna()
+            end_series = df[end_col_ref]
+            has_end_values = end_series.notna()
             if bool(has_end_values.any()):
-                end_values = end_col.to_numpy()
+                end_values = end_series.to_numpy()
                 valid_mask = ~pd.isna(end_values)
                 if valid_mask.all():
                     return CoordinateParser.parse(
@@ -708,13 +704,13 @@ class TabularLoader(Loader):
         Returns:
             PyArrow array for the end column.
         """
-        dur_col = df[self.duration_column]
-        has_dur_values = dur_col.notna()
+        dur_series = df[self.duration_column]
+        has_dur_values = dur_series.notna()
 
         if not bool(has_dur_values.any()):
             return pa.nulls(n, type=columns["start"].type)
 
-        dur_values = dur_col.to_numpy()
+        dur_values = dur_series.to_numpy()
 
         # Compute valid masks (vectorized)
         start_is_null = columns["start"].is_null().to_numpy(zero_copy_only=False)
