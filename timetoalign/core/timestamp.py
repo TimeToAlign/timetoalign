@@ -502,7 +502,7 @@ class TimeStamp:
             if val is not None:
                 entries.append((unit.value, _format_coordinate_value(val, unit.value)))
 
-        # Align columns
+        # Align fields
         if entries:
             max_label = max(len(e[0]) for e in entries)
             for label, value_str in entries:
@@ -837,7 +837,7 @@ class TimeIntervalStamp:
                 )
             )
 
-        # Align columns
+        # Align fields
         if rows:
             max_label = max(len(r[0]) for r in rows)
             max_start = max(len(r[1]) for r in rows)
@@ -866,34 +866,34 @@ class TimeIntervalStamp:
 
 def timestamp_table_to_dataframe(
     table: "pa.Table",
-    columns: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
+    fields: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
     units: bool = True,
     format: str = "pandas",
 ) -> "pd.DataFrame":
     """Convert a PyArrow timestamp table to a pandas DataFrame with proper formatting.
 
     This utility function processes timestamp tables (from Timeline.get_timestamp_table()
-    or TimelineGroup.get_timestamp_table()) and applies column naming and type conversions.
+    or TimelineGroup.get_timestamp_table()) and applies field naming and type conversions.
 
     Args:
         table: PyArrow table with field-level metadata including 'unit' and
             'timeline_id' or 'cmap_id'.
-        columns: How to name the columns. Options:
+        fields: How to name the DataFrame fields. Options:
             - None or ColumnNaming.name (default): Use timeline/cmap name property,
               falling back to id if name is not available.
             - ColumnNaming.id: Use timeline/cmap id.
-            - Callable[[str, dict], str]: Function taking (column_name, metadata_dict)
-              and returning the new column name.
-            - list[str]: Explicit list of column names (must match table length).
-        units: If True (default), append units to column names like "name (unit)".
+            - Callable[[str, dict], str]: Function taking (field_name, metadata_dict)
+              and returning the new field name.
+            - list[str]: Explicit list of field names (must match table length).
+        units: If True (default), append units to field names like "name (unit)".
         format: Output format. Currently only "pandas" is supported.
 
     Returns:
         pandas DataFrame with:
-        - Columns named according to the `columns` parameter
-        - Units appended if `units=True`
-        - Integer columns using pandas nullable Int64 dtype
-        - Float columns as float64
+        - Fields named according to the ``fields`` parameter
+        - Units appended if ``units=True``
+        - Integer fields using pandas nullable Int64 dtype
+        - Float fields as float64
 
     Examples:
         >>> table = timeline.get_timestamp_table()
@@ -903,12 +903,12 @@ def timestamp_table_to_dataframe(
 
         >>> # Use IDs instead of names
         >>> from timetoalign import ColumnNaming
-        >>> df = timestamp_table_to_dataframe(table, columns=ColumnNaming.id)
+        >>> df = timestamp_table_to_dataframe(table, fields=ColumnNaming.id)
 
-        >>> # Custom column naming
+        >>> # Custom field naming
         >>> df = timestamp_table_to_dataframe(
         ...     table,
-        ...     columns=lambda name, meta: meta.get('timeline_id', name)
+        ...     fields=lambda name, meta: meta.get('timeline_id', name)
         ... )
     """
     import pandas as pd
@@ -922,17 +922,11 @@ def timestamp_table_to_dataframe(
     if table.num_rows == 0:
         return pd.DataFrame()
 
-    # Resolve columns parameter to ColumnNaming enum if needed
-    # Use string lookup to avoid conflict with StrEnum's .name property
-    # use_name_mode = columns is None or (
-    #     isinstance(columns, ColumnNaming) and columns == ColumnNaming("name")
-    # )
-
-    # Build column name mapping
-    new_column_names: list[str] = []
+    # Build field name mapping
+    new_field_names: list[str] = []
 
     for i, data_field in enumerate(table.schema):
-        col_name = data_field.name
+        field_name = data_field.name
         metadata = data_field.metadata or {}
 
         # Decode metadata bytes to strings for easier access
@@ -944,22 +938,22 @@ def timestamp_table_to_dataframe(
         }
 
         # Determine base name
-        if isinstance(columns, list):
-            if i < len(columns):
-                base_name = columns[i]
+        if isinstance(fields, list):
+            if i < len(fields):
+                base_name = fields[i]
             else:
-                base_name = col_name
-        elif callable(columns) and not isinstance(columns, ColumnNaming):
-            base_name = columns(col_name, meta_dict)
-        elif isinstance(columns, ColumnNaming) and str(columns) == "id":
+                base_name = field_name
+        elif callable(fields) and not isinstance(fields, ColumnNaming):
+            base_name = fields(field_name, meta_dict)
+        elif isinstance(fields, ColumnNaming) and str(fields) == "id":
             # Use timeline_id or cmap_id from metadata
             base_name = (
-                meta_dict.get("timeline_id") or meta_dict.get("cmap_id") or col_name
+                meta_dict.get("timeline_id") or meta_dict.get("cmap_id") or field_name
             )
         else:  # ColumnNaming.name, None, or default
-            # For now, use column name directly (names are already set by Timeline)
+            # For now, use field name directly (names are already set by Timeline)
             # In future, could look up timeline.name property
-            base_name = col_name
+            base_name = field_name
 
         # Append unit if requested
         if units:
@@ -971,20 +965,20 @@ def timestamp_table_to_dataframe(
         else:
             final_name = base_name
 
-        new_column_names.append(str(final_name))
+        new_field_names.append(str(final_name))
 
     # Convert to pandas with appropriate dtypes
     df = table.to_pandas()
-    df.columns = new_column_names
+    df.columns = new_field_names
 
-    # Convert integer columns to nullable Int64
+    # Convert integer fields to nullable Int64
     for i, data_field in enumerate(table.schema):
-        col_name = new_column_names[i]
+        field_name = new_field_names[i]
         if pa.types.is_integer(data_field.type):
             # Convert to nullable integer
-            df[col_name] = df[col_name].astype("Int64")
+            df[field_name] = df[field_name].astype("Int64")
         elif pa.types.is_int64(data_field.type):
-            df[col_name] = df[col_name].astype("Int64")
+            df[field_name] = df[field_name].astype("Int64")
 
     return df
 

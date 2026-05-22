@@ -1,8 +1,8 @@
-"""Three-regimes tests for each WP2 bulk-migrated scalar.
+"""Three-regimes tests for each pydantic-migrated scalar.
 
 Each migrated scalar must demonstrate, at minimum:
 
-1. **Column-builder bulk construction** — the canonical WP2 path
+1. **Column-builder bulk construction** — the canonical bulk path
    (per ``T.model_fields``, no ``model_dump`` row-wise).
 2. **Internal round-trip** — ``T.model_construct(**fields)`` reconstructs
    without re-validating.

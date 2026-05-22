@@ -5,7 +5,7 @@ multiple C-Maps applied to the same input.
 
 From the TTA manuscript:
 "A CombinationMap is a means to yield outputs from multiple C-maps at once,
-such as (x, y) coordinate pairs (and resulting two-column matrices)."
+such as (x, y) coordinate pairs (and resulting two-field matrices)."
 """
 
 from __future__ import annotations

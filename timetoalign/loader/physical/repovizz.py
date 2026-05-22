@@ -547,7 +547,7 @@ class RepoVizzLoader(ManifestLoader):
         # Store combined notes
         combined_notes = loader.events
 
-        # Group by instrument (staff column maps to instrument)
+        # Group by instrument (staff field maps to instrument)
         # staff 1=vln1, 2=vln2, 3=vla, 4=cello
         staff_to_instrument = {1: "vln1", 2: "vln2", 3: "vla", 4: "cello"}
         notes_by_instrument: dict[str, EventData] = {}

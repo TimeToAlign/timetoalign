@@ -358,7 +358,7 @@ class MeasureMapLoader(ScoreLoader):
                 "mn": bar["name"],
                 "mn_int": bar["number"],
                 "mm_id": bar["ID"],
-                # Temporal - use coordinate_to_struct for base columns
+                # Temporal - use coordinate_to_struct for base fields
                 "start": coordinate_to_struct(qstamp),
                 "duration": coordinate_to_struct(actual_length),
                 "end": coordinate_to_struct(end_qstamp),

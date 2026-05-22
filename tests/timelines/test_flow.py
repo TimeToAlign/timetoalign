@@ -1,4 +1,4 @@
-"""Tests for Flow API (Phase 3.7).
+"""Tests for Flow API.
 
 This test suite validates the Flow API against ms3 gold standard unfolded
 TSV files. Tests are organized by complexity, starting with the simplest
@@ -280,9 +280,10 @@ class TestMeasureUnit:
 
 
 class TestTypedMeasures:
-    """Test typed MeasureUnit subclasses (Phase 10.2a).
+    """Test typed MeasureUnit subclasses.
 
-    These classes represent Phase 1 (Typing) of the two-phase algorithm:
+    These classes represent the Typing step of the two-step typing/grouping
+    algorithm:
     - IncompleteMeasure: duration < expected
     - CompleteMeasure: duration == expected
     - OverlengthMeasure: duration > expected
@@ -414,7 +415,7 @@ class TestTypedMeasures:
 
 
 class TestAtomicSectionTypedMeasures:
-    """Test AtomicSection with typed_measures field (Phase 10.2a)."""
+    """Test AtomicSection with typed_measures field."""
 
     def test_atomic_section_typed_measures_field(self) -> None:
         """AtomicSection has typed_measures field."""
@@ -469,7 +470,7 @@ class TestAtomicSectionTypedMeasures:
 
 
 class TestPlaythroughSectionTypedMeasures:
-    """Test PlaythroughSection with typed_measures field (Phase 10.2a)."""
+    """Test PlaythroughSection with typed_measures field."""
 
     def test_playthrough_section_typed_measures_field(self) -> None:
         """PlaythroughSection has typed_measures field."""
@@ -496,13 +497,14 @@ class TestPlaythroughSectionTypedMeasures:
 
 # endregion
 
-# region Unit Tests: MeasureGroup (Phase 10.2b)
+# region Unit Tests: MeasureGroup
 
 
 class TestMeasureGroup:
-    """Test MeasureGroup base class and subclasses (Phase 10.2b).
+    """Test MeasureGroup base class and subclasses.
 
-    MeasureGroup represents Phase 2 (Grouping) of the two-phase algorithm:
+    MeasureGroup represents the Grouping step of the two-step typing/grouping
+    algorithm:
     - VoltaGroup: measures under same volta bracket
     - SplitMeasure: IncompleteMeasures that together complete
     - IncompleteGroup: isolated IncompleteMeasures

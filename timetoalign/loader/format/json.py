@@ -9,7 +9,7 @@ PyArrow throughout for efficient columnar storage.  The user (or a subclass)
 specifies one or more *principal keys* -- JSON object keys whose values are
 arrays of objects.  Each such array is flattened into its own ``pa.Table``
 with one row per element.  Nested sub-objects are flattened with
-dot-separated column names; nested arrays become list-typed columns.
+dot-separated field names; nested arrays become list-typed fields.
 
 When no principal keys are specified, the loader auto-detects all top-level
 keys whose values are arrays of objects.
@@ -98,7 +98,7 @@ def _normalise_array(
     """Normalise a list of (possibly nested) dicts into a ``pa.Table``.
 
     Each dict is flattened via :func:`_flatten_dict`, then the union of
-    all keys across rows forms the column set.  PyArrow infers types
+    all keys across rows forms the field set.  PyArrow infers types
     automatically.
 
     Args:
@@ -113,7 +113,7 @@ def _normalise_array(
 
     flat_rows = [_flatten_dict(row, sep=sep) for row in rows]
 
-    # Collect all column names in insertion order
+    # Collect all field names in insertion order
     all_keys: list[str] = []
     seen: set[str] = set()
     for row in flat_rows:
@@ -122,15 +122,15 @@ def _normalise_array(
                 all_keys.append(k)
                 seen.add(k)
 
-    # Build column arrays
-    columns: dict[str, list[Any]] = {k: [] for k in all_keys}
+    # Build field arrays
+    field_lists: dict[str, list[Any]] = {k: [] for k in all_keys}
     for row in flat_rows:
         for k in all_keys:
-            columns[k].append(row.get(k))
+            field_lists[k].append(row.get(k))
 
     # Let PyArrow infer types from the Python lists
     arrays: dict[str, pa.Array] = {}
-    for k, vals in columns.items():
+    for k, vals in field_lists.items():
         try:
             arrays[k] = pa.array(vals)
         except (pa.ArrowInvalid, pa.ArrowTypeError):
@@ -229,15 +229,15 @@ def _resolve_lookups(
     *,
     suffix: str = "_id",
 ) -> pa.Table:
-    """Replace ``*_id`` foreign-key columns with resolved values from lookup tables.
+    """Replace ``*_id`` foreign-key fields with resolved values from lookup tables.
 
-    For each column whose name ends with *suffix* (e.g. ``image_id``),
+    For each field whose name ends with *suffix* (e.g. ``image_id``),
     look for a matching lookup table (``images``) in *lookup_tables*.
-    If found and the lookup table has an ``id`` column, perform a left
-    join so that the foreign-key column is augmented with the lookup's
-    other columns (prefixed by the lookup name).
+    If found and the lookup table has an ``id`` field, perform a left
+    join so that the foreign-key field is augmented with the lookup's
+    other fields (prefixed by the lookup name).
 
-    This is a best-effort convenience; unresolvable columns are left
+    This is a best-effort convenience; unresolvable fields are left
     untouched.
 
     Args:
@@ -247,13 +247,13 @@ def _resolve_lookups(
         suffix: The foreign-key suffix to detect.
 
     Returns:
-        A new table with resolved columns appended.
+        A new table with resolved fields appended.
     """
-    for col_name in table.column_names:
-        if not col_name.endswith(suffix):
+    for field_name in table.column_names:
+        if not field_name.endswith(suffix):
             continue
         # Derive the lookup key name: image_id -> images, category_id -> categories
-        base = col_name[: -len(suffix)]
+        base = field_name[: -len(suffix)]
         # Try plural forms (including y -> ies)
         candidates = [base + "s", base + "es", base]
         if base.endswith("y"):
@@ -263,26 +263,24 @@ def _resolve_lookups(
                 lut = lookup_tables[candidate]
                 if "id" not in lut.column_names:
                     continue
-                # Perform the join: bring in all non-id columns from the LUT
+                # Perform the join: bring in all non-id fields from the LUT
                 # prefixed with the base name
-                lut_cols = [c for c in lut.column_names if c != "id"]
-                if not lut_cols:
+                lut_names = [c for c in lut.column_names if c != "id"]
+                if not lut_names:
                     continue
                 # Build a Python dict lookup for efficiency
                 lut_dict: dict[Any, dict[str, Any]] = {}
                 for row in lut.to_pylist():
-                    lut_dict[row["id"]] = {f"{base}.{c}": row[c] for c in lut_cols}
+                    lut_dict[row["id"]] = {f"{base}.{c}": row[c] for c in lut_names}
                 # Resolve each foreign key
-                fk_values = table.column(col_name).to_pylist()
-                resolved_columns: dict[str, list[Any]] = {
-                    f"{base}.{c}": [] for c in lut_cols
-                }
+                fk_values = table.column(field_name).to_pylist()
+                resolved: dict[str, list[Any]] = {f"{base}.{c}": [] for c in lut_names}
                 for fk in fk_values:
                     match = lut_dict.get(fk)
-                    for rc in resolved_columns:
-                        resolved_columns[rc].append(match[rc] if match else None)
-                # Append resolved columns to the table
-                for rc, vals in resolved_columns.items():
+                    for rc in resolved:
+                        resolved[rc].append(match[rc] if match else None)
+                # Append resolved fields to the table
+                for rc, vals in resolved.items():
                     try:
                         table = table.append_column(rc, pa.array(vals))
                     except (pa.ArrowInvalid, pa.ArrowTypeError):
@@ -290,7 +288,7 @@ def _resolve_lookups(
                             rc,
                             pa.array([str(v) if v is not None else None for v in vals]),
                         )
-                break  # resolved this column
+                break  # resolved this field
     return table
 
 
@@ -316,7 +314,7 @@ class JsonLoader(Loader):
       whose value is a list of dicts is auto-detected and normalised.
 
     Non-principal top-level keys whose values are lists of dicts are kept
-    as *lookup tables* and used to resolve foreign-key columns (columns
+    as *lookup tables* and used to resolve foreign-key fields (fields
     ending in ``_id``) automatically.  For example, if ``annotations``
     rows contain ``image_id`` and there is a top-level ``images`` array,
     the loader appends ``image.file_name``, ``image.width``, etc. to the

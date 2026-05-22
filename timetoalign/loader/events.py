@@ -12,7 +12,7 @@ Design principles:
 - Bulk operations are the primary API (from_dicts, from_arrays, from_dataframe)
 - Schema is fixed per class, with extension points for subclasses
 - Coordinates stored with both original precision and float representation
-- Unit metadata at column level (all events share same unit)
+- Unit metadata at the field level (all events share same unit)
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ from .parsing import ArrayValidator, CoordinateParser
 from .schema import (
     coordinate_to_struct,
     extend_schema,
-    get_base_column_names,
+    get_base_field_names,
     make_base_schema,
     make_table_metadata,
     parse_table_metadata,
@@ -56,11 +56,11 @@ class EventData(SemanticFieldAccessMixin):
     table, not Python wrapper objects. The primary API is bulk operations:
 
     - from_dicts(): Create from list of row dictionaries
-    - from_arrays(): Create from column-oriented arrays
+    - from_arrays(): Create from field-oriented arrays
     - from_dataframe(): Create from pandas DataFrame
 
     The schema is fixed at class definition time but can be extended by
-    subclasses to add domain-specific columns (e.g., pitch, velocity for notes).
+    subclasses to add domain-specific fields (e.g., pitch, velocity for notes).
 
     NOTE: This class was renamed from EventStore to EventData in the 2026-01 API
     refactoring. EventStore now refers to the container class (formerly EventBundle)
@@ -127,8 +127,8 @@ class EventData(SemanticFieldAccessMixin):
         tables or validating incoming data.
 
         Args:
-            unit: The time unit for coordinate columns.
-            number_type: The number type for coordinate columns.
+            unit: The time unit for coordinate fields.
+            number_type: The number type for coordinate fields.
 
         Returns:
             The complete schema including base and extra fields.
@@ -139,13 +139,13 @@ class EventData(SemanticFieldAccessMixin):
         return base
 
     @classmethod
-    def column_names(cls) -> list[str]:
-        """Get the list of column names for this EventData class.
+    def field_names(cls) -> list[str]:
+        """Get the list of field names for this EventData class.
 
         Returns:
-            List of all column names (base + extra).
+            List of all field names (base + extra).
         """
-        base_names = get_base_column_names()
+        base_names = get_base_field_names()
         extra_names = [f.name for f in cls._extra_fields]
         return base_names + extra_names
 
@@ -158,11 +158,11 @@ class EventData(SemanticFieldAccessMixin):
         processed: dict[str, Any],
         policy: IntervalPolicy = IntervalPolicy.warn,
     ) -> dict[str, Any]:
-        """Normalise interval events in a column dict (FULLY VECTORIZED).
+        """Normalise interval events in a field dict (FULLY VECTORIZED).
 
         Ensures that every interval event has both ``end`` and ``duration``
         populated, every instant event has both null, and that the
-        ``temporal_type`` column is consistent.  Also handles the case
+        ``temporal_type`` field is consistent.  Also handles the case
         where start/end/duration arrays are raw numeric (not yet parsed)
         by operating purely on the float ``value`` field of coordinate
         struct arrays.
@@ -172,7 +172,7 @@ class EventData(SemanticFieldAccessMixin):
         (``end - start != duration``).
 
         Args:
-            processed: Mutable column dict (modified **in-place**).
+            processed: Mutable field dict (modified **in-place**).
                 Must already contain ``"start"`` as a ``pa.StructArray``.
                 ``"end"`` and ``"duration"`` may be ``pa.StructArray``,
                 ``pa.NullArray``, or absent.
@@ -187,41 +187,41 @@ class EventData(SemanticFieldAccessMixin):
                 detected.
         """
 
-        start_col = processed.get("start")
-        if start_col is None or not isinstance(start_col, pa.StructArray):
+        start_arr = processed.get("start")
+        if start_arr is None or not isinstance(start_arr, pa.StructArray):
             return processed
 
-        n = len(start_col)
-        start_is_null = start_col.is_null().to_numpy(zero_copy_only=False)
-        start_val = start_col.field("value").to_numpy(zero_copy_only=False)
-        start_num = start_col.field("numerator").to_numpy(zero_copy_only=False)
-        start_den = start_col.field("denominator").to_numpy(zero_copy_only=False)
+        n = len(start_arr)
+        start_is_null = start_arr.is_null().to_numpy(zero_copy_only=False)
+        start_val = start_arr.field("value").to_numpy(zero_copy_only=False)
+        start_num = start_arr.field("numerator").to_numpy(zero_copy_only=False)
+        start_den = start_arr.field("denominator").to_numpy(zero_copy_only=False)
 
-        # Determine which columns are present and non-null
-        end_col = processed.get("end")
-        dur_col = processed.get("duration")
+        # Determine which fields are present and non-null
+        end_arr = processed.get("end")
+        dur_arr = processed.get("duration")
 
-        def _is_real(col: Any) -> bool:
-            """True when the column is a StructArray with at least one non-null."""
-            if col is None:
+        def _is_real(arr: Any) -> bool:
+            """True when the array is a StructArray with at least one non-null."""
+            if arr is None:
                 return False
-            if isinstance(col, pa.StructArray):
-                return col.null_count < len(col)
-            if isinstance(col, pa.ChunkedArray):
-                return col.null_count < len(col)
+            if isinstance(arr, pa.StructArray):
+                return arr.null_count < len(arr)
+            if isinstance(arr, pa.ChunkedArray):
+                return arr.null_count < len(arr)
             return False
 
-        has_end_data = _is_real(end_col)
-        has_dur_data = _is_real(dur_col)
+        has_end_data = _is_real(end_arr)
+        has_dur_data = _is_real(dur_arr)
 
         # Extract end arrays (if present)
         if has_end_data:
-            if isinstance(end_col, pa.ChunkedArray):
-                end_col = end_col.combine_chunks()
-            end_is_null = end_col.is_null().to_numpy(zero_copy_only=False)
-            end_val = end_col.field("value").to_numpy(zero_copy_only=False)
-            end_num = end_col.field("numerator").to_numpy(zero_copy_only=False)
-            end_den = end_col.field("denominator").to_numpy(zero_copy_only=False)
+            if isinstance(end_arr, pa.ChunkedArray):
+                end_arr = end_arr.combine_chunks()
+            end_is_null = end_arr.is_null().to_numpy(zero_copy_only=False)
+            end_val = end_arr.field("value").to_numpy(zero_copy_only=False)
+            end_num = end_arr.field("numerator").to_numpy(zero_copy_only=False)
+            end_den = end_arr.field("denominator").to_numpy(zero_copy_only=False)
         else:
             end_is_null = np.ones(n, dtype=bool)
             end_val = np.full(n, np.nan, dtype=np.float64)
@@ -230,12 +230,12 @@ class EventData(SemanticFieldAccessMixin):
 
         # Extract duration arrays (if present)
         if has_dur_data:
-            if isinstance(dur_col, pa.ChunkedArray):
-                dur_col = dur_col.combine_chunks()
-            dur_is_null = dur_col.is_null().to_numpy(zero_copy_only=False)
-            dur_val = dur_col.field("value").to_numpy(zero_copy_only=False)
-            dur_num = dur_col.field("numerator").to_numpy(zero_copy_only=False)
-            dur_den = dur_col.field("denominator").to_numpy(zero_copy_only=False)
+            if isinstance(dur_arr, pa.ChunkedArray):
+                dur_arr = dur_arr.combine_chunks()
+            dur_is_null = dur_arr.is_null().to_numpy(zero_copy_only=False)
+            dur_val = dur_arr.field("value").to_numpy(zero_copy_only=False)
+            dur_num = dur_arr.field("numerator").to_numpy(zero_copy_only=False)
+            dur_den = dur_arr.field("denominator").to_numpy(zero_copy_only=False)
         else:
             dur_is_null = np.ones(n, dtype=bool)
             dur_val = np.full(n, np.nan, dtype=np.float64)
@@ -592,7 +592,7 @@ class EventData(SemanticFieldAccessMixin):
         schema = cls.get_schema(unit, number_type=number_type)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
-        table = pa.table({name: [] for name in cls.column_names()}, schema=schema)
+        table = pa.table({name: [] for name in cls.field_names()}, schema=schema)
         return cls(table, unit, number_type)
 
     @classmethod
@@ -670,7 +670,7 @@ class EventData(SemanticFieldAccessMixin):
             # temporal_type, and checks consistency per policy.
             cls._normalize_intervals_row(processed, policy=interval_policy)
 
-            # Ensure name column exists
+            # Ensure name field exists
             if "name" not in processed:
                 processed["name"] = None
             processed_rows.append(processed)
@@ -679,34 +679,34 @@ class EventData(SemanticFieldAccessMixin):
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
 
-        # Collect extra columns not in the base schema and add them dynamically
-        base_col_names = set(schema.names)
-        extra_col_names: set[str] = set()
+        # Collect extra fields not in the base schema and add them dynamically
+        base_field_names = set(schema.names)
+        extra_field_names: set[str] = set()
         for row in processed_rows:
             for key in row.keys():
-                if key not in base_col_names:
-                    extra_col_names.add(key)
+                if key not in base_field_names:
+                    extra_field_names.add(key)
 
-        # Add extra columns to schema (as nullable strings for flexibility)
-        if extra_col_names:
+        # Add extra fields to schema (as nullable strings for flexibility)
+        if extra_field_names:
             new_fields = list(schema)
-            for col_name in sorted(extra_col_names):
-                new_fields.append(pa.field(col_name, pa.string(), nullable=True))
+            for name in sorted(extra_field_names):
+                new_fields.append(pa.field(name, pa.string(), nullable=True))
             schema = pa.schema(new_fields, metadata=schema.metadata)
-            # Convert extra column values to strings for storage
+            # Convert extra field values to strings for storage
             for row in processed_rows:
-                for col_name in extra_col_names:
-                    if col_name in row and row[col_name] is not None:
+                for name in extra_field_names:
+                    if name in row and row[name] is not None:
                         # Convert non-string values to JSON strings for complex types
-                        val = row[col_name]
+                        val = row[name]
                         if isinstance(val, (dict, list)):
                             import json
 
-                            row[col_name] = json.dumps(val)
+                            row[name] = json.dumps(val)
                         elif not isinstance(val, str):
-                            row[col_name] = str(val)
-                    elif col_name not in row:
-                        row[col_name] = None
+                            row[name] = str(val)
+                    elif name not in row:
+                        row[name] = None
 
         table = pa.Table.from_pylist(processed_rows, schema=schema)
         return cls(table, unit, number_type)
@@ -714,7 +714,7 @@ class EventData(SemanticFieldAccessMixin):
     @classmethod
     def from_arrays(
         cls,
-        columns: dict[str, np.ndarray | pa.Array | list[Any]],
+        fields: dict[str, np.ndarray | pa.Array | list[Any]],
         unit: TimeUnit,
         number_type: NumberType = NumberType.float,
         *,
@@ -722,7 +722,7 @@ class EventData(SemanticFieldAccessMixin):
         extra_fields: list[pa.Field] | None = None,
         interval_policy: IntervalPolicy = IntervalPolicy.warn,
     ) -> Self:
-        """Create EventData from column-oriented arrays (VECTORIZED).
+        """Create EventData from field-oriented arrays (VECTORIZED).
 
         This is the PRIMARY construction method for loaders. All operations
         are vectorized - NO row iteration occurs.
@@ -733,19 +733,19 @@ class EventData(SemanticFieldAccessMixin):
         inconsistent is controlled by *interval_policy*.
 
         Args:
-            columns: Dict mapping column names to arrays. Supports:
+            fields: Dict mapping field names to arrays. Supports:
                 - np.ndarray: NumPy arrays
                 - pa.Array: PyArrow arrays (including StructArray for coords)
                 - list: Python lists (converted to numpy)
 
-                For coordinate columns (start, end, duration):
+                For coordinate fields (start, end, duration):
                 - If pa.StructArray: used directly
                 - If numeric/string array: parsed via CoordinateParser
 
             unit: The time unit for coordinates.
             number_type: The number type for coordinates.
             validate: Whether to validate arrays before table construction.
-            extra_fields: Optional list of PyArrow fields for extra columns.
+            extra_fields: Optional list of PyArrow fields for extra data.
                 These fields include metadata (e.g., unit for CoordinateFields).
                 If not provided, fields are inferred from the data arrays.
             interval_policy: How to handle end/duration inconsistencies.
@@ -755,7 +755,7 @@ class EventData(SemanticFieldAccessMixin):
             A new EventData containing the events.
 
         Raises:
-            ValueError: If validation fails (missing columns, length mismatch, etc.)
+            ValueError: If validation fails (missing fields, length mismatch, etc.)
 
         Examples:
             >>> # Vectorized construction from arrays
@@ -767,46 +767,46 @@ class EventData(SemanticFieldAccessMixin):
             ... }, unit=TimeUnit.ticks)
 
             >>> # Direct from loader output (StructArrays already parsed)
-            >>> data = EventData.from_arrays(loader_columns, unit=TimeUnit.quarters)
+            >>> data = EventData.from_arrays(loader_fields, unit=TimeUnit.quarters)
         """
-        if not columns:
+        if not fields:
             return cls.empty(unit, number_type)
 
-        # Check if any column has data
-        first_col = next(iter(columns.values()), None)
-        if first_col is None or len(first_col) == 0:
+        # Check if any field has data
+        first_arr = next(iter(fields.values()), None)
+        if first_arr is None or len(first_arr) == 0:
             return cls.empty(unit, number_type)
 
-        n_rows = len(first_col)
+        n_rows = len(first_arr)
 
-        # Helper to get column or mapped name
-        def get_col(name: str) -> Any:
-            if name == "start" and "start" not in columns and "instant" in columns:
-                return columns["instant"]
-            return columns.get(name)
+        # Helper to get field array (with instant->start mapping)
+        def get_arr(name: str) -> Any:
+            if name == "start" and "start" not in fields and "instant" in fields:
+                return fields["instant"]
+            return fields.get(name)
 
-        # Build processed columns dict for PyArrow table
+        # Build processed dict for PyArrow table
         processed: dict[str, Any] = {}
         schema = cls.get_schema(unit, number_type=number_type)
 
-        for field in schema:
-            col_name = field.name
-            col_data = get_col(col_name)
+        for pa_field in schema:
+            field_name = pa_field.name
+            arr_data = get_arr(field_name)
 
-            if col_name in ("start", "end", "duration"):
-                # Coordinate columns - may be StructArray or need parsing
-                if col_data is None:
+            if field_name in ("start", "end", "duration"):
+                # Coordinate fields - may be StructArray or need parsing
+                if arr_data is None:
                     # Create null struct array (vectorized)
-                    processed[col_name] = pa.nulls(n_rows, type=field.type)
-                elif isinstance(col_data, pa.StructArray):
+                    processed[field_name] = pa.nulls(n_rows, type=pa_field.type)
+                elif isinstance(arr_data, pa.StructArray):
                     # Already a StructArray (from CoordinateParser)
-                    processed[col_name] = col_data
-                elif isinstance(col_data, pa.ChunkedArray):
+                    processed[field_name] = arr_data
+                elif isinstance(arr_data, pa.ChunkedArray):
                     # Combine chunks into single array
-                    processed[col_name] = col_data.combine_chunks()
+                    processed[field_name] = arr_data.combine_chunks()
                 else:
                     # Need to parse via CoordinateParser (vectorized)
-                    arr = CoordinateParser._to_numpy(col_data)
+                    arr = CoordinateParser._to_numpy(arr_data)
                     # Handle None/NaN values (create mask)
                     if arr.dtype == object:
                         # Check for None values
@@ -836,7 +836,7 @@ class EventData(SemanticFieldAccessMixin):
                                 full_dens[valid_indices] = parsed_dens
 
                                 # Convert to PyArrow with proper nulls
-                                processed[col_name] = pa.StructArray.from_arrays(
+                                processed[field_name] = pa.StructArray.from_arrays(
                                     [
                                         pa.array(full_values),
                                         pa.array(
@@ -850,29 +850,31 @@ class EventData(SemanticFieldAccessMixin):
                                     mask=mask,
                                 )
                             else:
-                                processed[col_name] = pa.nulls(n_rows, type=field.type)
+                                processed[field_name] = pa.nulls(
+                                    n_rows, type=pa_field.type
+                                )
                         else:
-                            processed[col_name] = CoordinateParser.parse(
+                            processed[field_name] = CoordinateParser.parse(
                                 arr, number_type, unit
                             )
                     else:
-                        processed[col_name] = CoordinateParser.parse(
+                        processed[field_name] = CoordinateParser.parse(
                             arr, number_type, unit
                         )
-            elif col_name == "id":
-                if col_data is not None:
+            elif field_name == "id":
+                if arr_data is not None:
                     # Ensure string type (vectorized)
-                    if isinstance(col_data, np.ndarray):
-                        processed[col_name] = pa.array(col_data.astype(str))
-                    elif isinstance(col_data, pa.Array):
-                        processed[col_name] = col_data.cast(pa.string())
+                    if isinstance(arr_data, np.ndarray):
+                        processed[field_name] = pa.array(arr_data.astype(str))
+                    elif isinstance(arr_data, pa.Array):
+                        processed[field_name] = arr_data.cast(pa.string())
                     else:
-                        processed[col_name] = pa.array(
-                            [str(x) for x in col_data], type=pa.string()
+                        processed[field_name] = pa.array(
+                            [str(x) for x in arr_data], type=pa.string()
                         )
                 else:
                     # Auto-generate IDs using event_type prefix if available
-                    event_types = get_col("event_type")
+                    event_types = get_arr("event_type")
                     if event_types is not None:
                         # Use per-type counters for informative IDs
                         type_counters: dict[str, int] = {}
@@ -888,21 +890,21 @@ class EventData(SemanticFieldAccessMixin):
                             type_counters.setdefault(etype, 0)
                             type_counters[etype] += 1
                             id_list.append(f"{etype}:{type_counters[etype]:06d}")
-                        processed[col_name] = pa.array(id_list, type=pa.string())
+                        processed[field_name] = pa.array(id_list, type=pa.string())
                     else:
                         ids = np.array([f"event:{i + 1:06d}" for i in range(n_rows)])
-                        processed[col_name] = pa.array(ids)
-            elif col_data is not None:
-                # Regular column - convert to PyArrow array
-                if isinstance(col_data, (pa.Array, pa.ChunkedArray)):
-                    processed[col_name] = col_data
-                elif isinstance(col_data, np.ndarray):
-                    processed[col_name] = pa.array(col_data)
+                        processed[field_name] = pa.array(ids)
+            elif arr_data is not None:
+                # Regular field - convert to PyArrow array
+                if isinstance(arr_data, (pa.Array, pa.ChunkedArray)):
+                    processed[field_name] = arr_data
+                elif isinstance(arr_data, np.ndarray):
+                    processed[field_name] = pa.array(arr_data)
                 else:
-                    processed[col_name] = pa.array(col_data)
+                    processed[field_name] = pa.array(arr_data)
             else:
-                # Column not provided - fill with nulls
-                processed[col_name] = pa.nulls(n_rows, type=field.type)
+                # Field not provided - fill with nulls
+                processed[field_name] = pa.nulls(n_rows, type=pa_field.type)
 
         # Unified interval normalisation: compute missing end/duration,
         # check consistency, and infer temporal_type -- all vectorized.
@@ -910,15 +912,15 @@ class EventData(SemanticFieldAccessMixin):
 
         # Infer event_type if not provided or all null (vectorized)
         if "event_type" in processed:
-            et_col = processed["event_type"]
-            if isinstance(et_col, pa.Array) and et_col.null_count == len(et_col):
+            et_arr = processed["event_type"]
+            if isinstance(et_arr, pa.Array) and et_arr.null_count == len(et_arr):
                 # All null - use default
                 processed["event_type"] = pa.array(["Event"] * n_rows)
 
-        # Handle extra columns not in base schema
-        # These are columns passed by loaders via extra_columns configuration
-        base_col_names = set(schema.names)
-        extra_col_names = set(columns.keys()) - base_col_names - {"instant"}
+        # Handle extra fields not in base schema
+        # These are fields passed by loaders via extra_fields configuration
+        base_field_names = set(schema.names)
+        extra_field_names = set(fields.keys()) - base_field_names - {"instant"}
 
         # Build lookup for provided extra_fields (has proper metadata)
         provided_fields: dict[str, pa.Field] = {}
@@ -927,43 +929,43 @@ class EventData(SemanticFieldAccessMixin):
                 provided_fields[f.name] = f
 
         inferred_fields = []
-        for col_name in extra_col_names:
-            col_data = columns[col_name]
-            if col_data is None:
+        for name in extra_field_names:
+            data = fields[name]
+            if data is None:
                 continue
 
             # Infer PyArrow type from the data
-            if isinstance(col_data, (pa.Array, pa.ChunkedArray)):
-                arr = col_data
+            if isinstance(data, (pa.Array, pa.ChunkedArray)):
+                arr = data
                 if isinstance(arr, pa.ChunkedArray):
                     arr = arr.combine_chunks()
-            elif isinstance(col_data, np.ndarray):
-                arr = pa.array(col_data)
+            elif isinstance(data, np.ndarray):
+                arr = pa.array(data)
             else:
-                arr = pa.array(col_data)
+                arr = pa.array(data)
 
-            processed[col_name] = arr
+            processed[name] = arr
 
             # Use provided field if available (has metadata from CoordinateField etc.)
-            if col_name in provided_fields:
-                inferred_fields.append(provided_fields[col_name])
+            if name in provided_fields:
+                inferred_fields.append(provided_fields[name])
             else:
-                # For coordinate struct columns, add unit metadata
+                # For coordinate struct fields, add unit metadata
                 # This enables to_pandas() to properly convert them
                 from timetoalign.loader.schema import is_coordinate_type
 
                 if is_coordinate_type(arr.type):
-                    # Coordinate column - add unit metadata (use default unit)
+                    # Coordinate field - add unit metadata (use default unit)
                     inferred_fields.append(
                         pa.field(
-                            col_name,
+                            name,
                             arr.type,
                             nullable=True,
                             metadata={"unit": str(unit)},
                         )
                     )
                 else:
-                    inferred_fields.append(pa.field(col_name, arr.type, nullable=True))
+                    inferred_fields.append(pa.field(name, arr.type, nullable=True))
 
         # Extend schema with extra fields
         if inferred_fields:
@@ -971,7 +973,7 @@ class EventData(SemanticFieldAccessMixin):
 
         # Validate arrays if requested (vectorized validation)
         if validate:
-            ArrayValidator.validate_column_dict(processed, schema)
+            ArrayValidator.validate_field_dict(processed, schema)
 
         # Build table in single operation
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
@@ -981,9 +983,9 @@ class EventData(SemanticFieldAccessMixin):
         return cls(table, unit, number_type)
 
     @classmethod
-    def from_arrays_legacy(
+    def from_fields(
         cls,
-        columns: dict[str, list[Any]],
+        fields: dict[str, list[Any]],
         unit: TimeUnit,
         number_type: NumberType = NumberType.float,
     ) -> Self:
@@ -992,41 +994,41 @@ class EventData(SemanticFieldAccessMixin):
         DEPRECATED: Use from_arrays() instead for vectorized operations.
 
         Args:
-            columns: Dict mapping column names to lists of values.
+            fields: Dict mapping field names to lists of values.
             unit: The time unit for coordinates.
             number_type: The number type for coordinates.
 
         Returns:
             A new EventData containing the events.
         """
-        if not columns or not columns.get("id"):
+        if not fields or not fields.get("id"):
             return cls.empty(unit, number_type)
 
-        # Convert coordinate columns to struct format
-        n_rows = len(columns["id"])
+        # Convert coordinate fields to struct format
+        n_rows = len(fields["id"])
         processed = {}
 
-        # Helper to access columns including mapped ones
-        def get_col(name):
-            if name == "start" and "start" not in columns and "instant" in columns:
-                return columns["instant"]
-            return columns.get(name)
+        # Helper to access fields including mapped ones
+        def get_arr(name):
+            if name == "start" and "start" not in fields and "instant" in fields:
+                return fields["instant"]
+            return fields.get(name)
 
-        for col_name in cls.column_names():
-            if col_name in ("start", "end", "duration"):
-                vals = get_col(col_name)
+        for field_name in cls.field_names():
+            if field_name in ("start", "end", "duration"):
+                vals = get_arr(field_name)
                 if vals:
-                    processed[col_name] = [
+                    processed[field_name] = [
                         coordinate_to_struct(v) if v is not None else None for v in vals
                     ]
                 else:
-                    processed[col_name] = [None] * n_rows
-            elif col_name in columns:
-                processed[col_name] = columns[col_name]
-            elif col_name == "name":
-                processed[col_name] = [None] * n_rows
+                    processed[field_name] = [None] * n_rows
+            elif field_name in fields:
+                processed[field_name] = fields[field_name]
+            elif field_name == "name":
+                processed[field_name] = [None] * n_rows
             else:
-                processed[col_name] = [None] * n_rows
+                processed[field_name] = [None] * n_rows
 
         schema = cls.get_schema(unit, number_type=number_type)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
@@ -1045,7 +1047,7 @@ class EventData(SemanticFieldAccessMixin):
         """Create EventData from a pandas DataFrame.
 
         Args:
-            df: DataFrame with event data. Column names should match the schema.
+            df: DataFrame with event data. Field names should match the schema.
             unit: The time unit for coordinates.
             number_type: The number type for coordinates.
 
@@ -1134,7 +1136,7 @@ class EventData(SemanticFieldAccessMixin):
         """Extend this data with events from another EventData (in-place).
 
         Args:
-            other: Another EventData with compatible schema (extra columns
+            other: Another EventData with compatible schema (extra fields
                 are allowed and will be merged using schema promotion).
 
         Raises:
@@ -1144,7 +1146,7 @@ class EventData(SemanticFieldAccessMixin):
             raise ValueError(f"Unit mismatch: {self.unit} vs {other.unit}")
 
         # Use promote_options="default" to handle schema differences
-        # (e.g., extra columns from JSON loaders). Missing columns are
+        # (e.g., extra fields from JSON loaders). Missing fields are
         # filled with nulls.
         self._table = pa.concat_tables(
             [self._table, other._table], promote_options="default"
@@ -1154,7 +1156,7 @@ class EventData(SemanticFieldAccessMixin):
         """Concatenate with other EventData, returning a new EventData.
 
         Args:
-            *others: Other EventData to concatenate (extra columns are
+            *others: Other EventData to concatenate (extra fields are
                 allowed and will be merged using schema promotion).
 
         Returns:
@@ -1188,12 +1190,12 @@ class EventData(SemanticFieldAccessMixin):
         Returns:
             A new EventData with prefixed IDs.
         """
-        id_col = self._table.column("id")
+        id_arr = self._table.column("id")
         prefix_str = f"{prefix}:"
         new_ids = pa.array(
             [
                 f"{prefix_str}{v}" if not v.startswith(prefix_str) else v
-                for v in id_col.to_pylist()
+                for v in id_arr.to_pylist()
             ],
             type=pa.string(),
         )
@@ -1223,7 +1225,7 @@ class EventData(SemanticFieldAccessMixin):
             event_type: Filter by event type name.
             min_coord: Minimum coordinate (inclusive).
             max_coord: Maximum coordinate (exclusive).
-            **kwargs: Exact match filters for other columns (e.g. event_category="note").
+            **kwargs: Exact match filters for other fields (e.g. event_category="note").
 
         Returns:
             A new EventData with filtered events.
@@ -1252,10 +1254,10 @@ class EventData(SemanticFieldAccessMixin):
                 mask = expr if mask is None else (mask & expr)
 
         # Generic kwargs filtering
-        for col, val in kwargs.items():
-            # Only if column exists in schema
-            if col in self.column_names():
-                expr = pc.equal(pc.field(col), val)
+        for name, val in kwargs.items():
+            # Only if field exists in schema
+            if name in self.field_names():
+                expr = pc.equal(pc.field(name), val)
                 mask = expr if mask is None else (mask & expr)
 
         if mask is None:
@@ -1264,16 +1266,16 @@ class EventData(SemanticFieldAccessMixin):
         filtered = self._table.filter(mask)
         return self.__class__(filtered, self.unit, self.number_type)
 
-    def select(self, columns: list[str]) -> pa.Table:
-        """Select specific columns from the table.
+    def select(self, fields: list[str]) -> pa.Table:
+        """Select specific fields from the table.
 
         Args:
-            columns: List of column names to select.
+            fields: List of field names to select.
 
         Returns:
-            A PyArrow table with only the selected columns.
+            A PyArrow table with only the selected fields.
         """
-        return self._table.select(columns)
+        return self._table.select(fields)
 
     def where(self, expression: pc.Expression) -> "EventData":
         """Filter with a custom PyArrow compute expression.
@@ -1291,17 +1293,17 @@ class EventData(SemanticFieldAccessMixin):
 
     # region Stats/Overview
 
-    def count_by(self, column: str) -> dict[str, int]:
-        """Count events grouped by a column's values.
+    def count_by(self, field: str) -> dict[str, int]:
+        """Count events grouped by a field's values.
 
         Args:
-            column: The column to group by.
+            field: The field to group by.
 
         Returns:
-            Dict mapping column values to counts.
+            Dict mapping field values to counts.
         """
-        result = self._table.group_by(column).aggregate([(column, "count")])
-        return {row[column]: row[f"{column}_count"] for row in result.to_pylist()}
+        result = self._table.group_by(field).aggregate([(field, "count")])
+        return {row[field]: row[f"{field}_count"] for row in result.to_pylist()}
 
     def coordinate_range(self) -> tuple[float | Fraction, float | Fraction] | None:
         """Get the min and max coordinates across all events.
@@ -1319,14 +1321,14 @@ class EventData(SemanticFieldAccessMixin):
         min_val = None
         max_val = None
 
-        for col_name in ["start", "end"]:
+        for field_name in ["start", "end"]:
             try:
-                col = self._table.column(col_name)
-                # Check for null column
-                if col.null_count == len(col):
+                arr = self._table.column(field_name)
+                # Check for null field
+                if arr.null_count == len(arr):
                     continue
 
-                vals = pc.struct_field(col, "value")
+                vals = pc.struct_field(arr, "value")
                 vals = pc.drop_null(vals)
 
                 if len(vals) > 0:
@@ -1441,14 +1443,14 @@ class EventData(SemanticFieldAccessMixin):
     ) -> pd.DataFrame:
         """Convert to a pandas DataFrame.
 
-        By default, coordinate columns (start, end, duration) are converted from
+        By default, coordinate fields (start, end, duration) are converted from
         the internal struct representation to the appropriate Python number type:
         - Fraction if numerator/denominator are present
         - float otherwise
 
         Args:
             raw: If True, return the raw PyArrow-to-pandas conversion with struct
-                dicts for coordinate columns. Default False shows cleaned numbers.
+                dicts for coordinate fields. Default False shows cleaned numbers.
             coordinates: If True, wrap coordinate values in Coordinate objects that
                 include unit information. Only effective when raw=False.
 
@@ -1473,21 +1475,21 @@ class EventData(SemanticFieldAccessMixin):
         if raw:
             return df
 
-        # Detect coordinate columns from schema (struct with value/num/den fields)
-        # This handles both core columns (start, end, duration) and extra
-        # CoordinateField columns
+        # Detect coordinate fields from schema (struct with value/num/den fields)
+        # This handles both core fields (start, end, duration) and extra
+        # CoordinateField fields
         from timetoalign.loader.schema import is_coordinate_type
 
-        for field in self._table.schema:
-            col_name = field.name
-            if col_name not in df.columns:
+        for pa_field in self._table.schema:
+            field_name = pa_field.name
+            if field_name not in df.columns:
                 continue
 
-            if is_coordinate_type(field.type):
+            if is_coordinate_type(pa_field.type):
                 # Get unit from field metadata, fall back to EventData unit
                 unit = self._unit
-                if field.metadata:
-                    unit_str = field.metadata.get(b"unit")
+                if pa_field.metadata:
+                    unit_str = pa_field.metadata.get(b"unit")
                     if unit_str:
                         try:
                             unit = TimeUnit(unit_str.decode("utf-8"))
@@ -1496,12 +1498,12 @@ class EventData(SemanticFieldAccessMixin):
 
                 if coordinates:
                     # Capture unit in closure for lambda
-                    col_unit = unit
-                    df[col_name] = df[col_name].apply(
-                        lambda s, u=col_unit: self._struct_to_coordinate(s, u)
+                    field_unit = unit
+                    df[field_name] = df[field_name].apply(
+                        lambda s, u=field_unit: self._struct_to_coordinate(s, u)
                     )
                 else:
-                    df[col_name] = df[col_name].apply(self._struct_to_number)
+                    df[field_name] = df[field_name].apply(self._struct_to_number)
 
         return df
 

@@ -65,7 +65,7 @@ from .schema import TableSchema as BasicTableSchema  # Legacy simple schema
 from .schema import (
     coordinate_to_struct,
     extend_schema,
-    get_base_column_names,
+    get_base_field_names,
     get_unit_from_schema,
     make_base_schema,
     make_coordinate_field,
@@ -77,11 +77,11 @@ from .schema import (
 )
 from .store import AlignmentStore, DictStore, EventStore, MatchData, SingleStore
 from .table_schema import (
-    CMapColumn,
+    CMapField,
     CoordinateSpec,
-    ExtraColumn,
+    ExtraField,
     HierarchySpec,
-    MatchColumn,
+    MatchField,
     MatchSpec,
     PartitionSpec,
     RegionSpec,
@@ -112,7 +112,7 @@ __all__ = [
     "RepoVizzLoader",
     "RepoVizzInfo",
     "EepNotesLoader",
-    # TableSchema - Semantic column specifications (NEW)
+    # TableSchema - Semantic field specifications (NEW)
     "TableSchema",
     "TimelineDefaults",
     "CoordinateSpec",
@@ -120,9 +120,9 @@ __all__ = [
     "HierarchySpec",
     "RegionSpec",
     "MatchSpec",
-    "CMapColumn",
-    "MatchColumn",
-    "ExtraColumn",
+    "CMapField",
+    "MatchField",
+    "ExtraField",
     # Legacy basic schema
     "BasicTableSchema",
     "ConvertedField",
@@ -136,7 +136,7 @@ __all__ = [
     "coordinate_to_struct",
     "struct_to_coordinate",
     "make_base_schema",
-    "get_base_column_names",
+    "get_base_field_names",
     "extend_schema",
     "get_unit_from_schema",
     "make_table_metadata",

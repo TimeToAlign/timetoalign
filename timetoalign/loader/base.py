@@ -32,7 +32,7 @@ from .events import EventData
 
 # Type alias for _load_source return: supports both vectorized and legacy modes
 LoadSourceResult = Union[
-    tuple[dict[str, Any], dict[str, np.ndarray | pa.Array]],  # Vectorized: column dict
+    tuple[dict[str, Any], dict[str, np.ndarray | pa.Array]],  # Vectorized: field dict
     tuple[dict[str, Any], list[dict[str, Any]]],  # Legacy: row dicts
 ]
 
@@ -82,9 +82,9 @@ class Loader(ABC):
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
     _event_data_class: ClassVar[type[EventData]] = EventData
 
-    # Canonical ordering for RawField columns in assembled events tables.
-    # Columns matching these names appear first (in this order), followed by
-    # non-canonical RawFields (in field_specs order), then property columns.
+    # Canonical ordering for RawField fields in assembled events tables.
+    # Fields matching these names appear first (in this order), followed by
+    # non-canonical RawFields (in field_specs order), then property fields.
     _CANONICAL_FIELD_ORDER: ClassVar[list[str]] = ["start", "end", "duration"]
 
     def __init__(
@@ -122,8 +122,8 @@ class Loader(ABC):
         Subclasses implement this to parse their specific format.
 
         VECTORIZED API (preferred):
-            Return (metadata_dict, column_dict) where column_dict contains
-            numpy/pyarrow arrays for each column. This enables zero-iteration
+            Return (metadata_dict, field_dict) where field_dict contains
+            numpy/pyarrow arrays for each field. This enables zero-iteration
             table construction.
 
         LEGACY API (deprecated):
@@ -137,8 +137,8 @@ class Loader(ABC):
         Returns:
             A tuple of (metadata_dict, event_data):
             - metadata_dict: File-specific metadata (format, duration, etc.)
-            - event_data: Either:
-                - dict[str, np.ndarray | pa.Array]: Column arrays (vectorized)
+            -             event_data: Either:
+                - dict[str, np.ndarray | pa.Array]: Field arrays (vectorized)
                 - list[dict[str, Any]]: Row dicts (legacy, deprecated)
 
         Raises:
@@ -300,15 +300,15 @@ class Loader(ABC):
 
         This is the primary access method for the loader-first pipeline.
         It assembles EventData from the loaded data, with control over
-        which property columns are included.
+        which property fields are included.
 
         Args:
-            properties: Controls which non-field columns to include.
-                - ``True``: Include all property columns (default).
-                - ``False``: Only include field columns (start, end,
-                  duration, pitch, etc.) and core columns (id, name,
+            properties: Controls which non-field-spec data fields to include.
+                - ``True``: Include all property fields (default).
+                - ``False``: Only include semantic-field fields (start, end,
+                  duration, pitch, etc.) and core fields (id, name,
                   event_type, temporal_type).
-                - Tuple of strings: Include only the named property columns.
+                - Tuple of strings: Include only the named property fields.
 
         Returns:
             An ``EventData`` containing the assembled events.
@@ -318,64 +318,64 @@ class Loader(ABC):
     def _assemble_events_table(
         self, properties: bool | tuple[str, ...] = True
     ) -> EventData:
-        """Assemble an EventData from internal state, with column ordering.
+        """Assemble an EventData from internal state, with field ordering.
 
-        Column ordering follows the canonical field order:
-        1. Core columns (id, name, event_type, temporal_type)
+        Field ordering follows the canonical field order:
+        1. Core fields (id, name, event_type, temporal_type)
         2. Canonical fields (start, end, duration, pitch -- in order, if present)
         3. Non-canonical fields (in field_specs order)
-        4. Property columns (controlled by the *properties* parameter)
+        4. Property fields (controlled by the *properties* parameter)
 
         The default implementation returns ``self._events`` unmodified
         when ``properties=True``.  Subclasses with ``field_specs`` can
         override to produce filtered/reordered tables.
 
         Args:
-            properties: Column filter (see ``get_events``).
+            properties: Field filter (see ``get_events``).
 
         Returns:
-            An ``EventData`` with the requested columns.
+            An ``EventData`` with the requested fields.
         """
         if properties is True:
             return self._events
 
-        # Determine which columns to keep
+        # Determine which fields to keep
         events = self._events
         if len(events) == 0:
             return events
 
         table = events._table
-        all_cols = set(table.column_names)
+        all_names = set(table.column_names)
 
-        # Core columns always included
-        core_cols = {"id", "name", "event_type", "temporal_type"}
+        # Core fields always included
+        core_names = {"id", "name", "event_type", "temporal_type"}
 
-        # Canonical field columns always included (when present)
-        field_cols = set()
+        # Canonical-spec fields always included (when present)
+        spec_names = set()
         for name in self._CANONICAL_FIELD_ORDER:
-            if name in all_cols:
-                field_cols.add(name)
+            if name in all_names:
+                spec_names.add(name)
 
-        # Also include any columns with timetoalign metadata (semantic fields)
+        # Also include any fields with timetoalign metadata (semantic fields)
         for i in range(len(table.schema)):
             pa_field = table.schema.field(i)
             if pa_field.metadata and b"timetoalign" in pa_field.metadata:
-                field_cols.add(pa_field.name)
+                spec_names.add(pa_field.name)
 
-        keep = core_cols | field_cols
+        keep = core_names | spec_names
 
         if properties is False:
             # Only fields + core
             pass
         elif isinstance(properties, tuple):
-            # Add requested property columns
+            # Add requested property fields
             for name in properties:
-                if name in all_cols:
+                if name in all_names:
                     keep.add(name)
 
-        # Build ordered column list preserving table order
+        # Build ordered field list preserving table order
         ordered = [c for c in table.column_names if c in keep]
-        if set(ordered) == all_cols:
+        if set(ordered) == all_names:
             return events
 
         filtered_table = table.select(ordered)
@@ -391,7 +391,7 @@ class Loader(ABC):
         Events from all sources are aggregated into the EventData.
         Metadata for each source is recorded separately.
 
-        Supports both vectorized (column dict) and legacy (row dicts) modes:
+        Supports both vectorized (field dict) and legacy (row dicts) modes:
         - Vectorized: _load_source returns dict[str, np.ndarray | pa.Array]
         - Legacy: _load_source returns list[dict[str, Any]]
 
@@ -422,13 +422,13 @@ class Loader(ABC):
             # Add events - detect vectorized vs legacy mode
             if event_data:
                 if isinstance(event_data, dict):
-                    # VECTORIZED MODE: event_data is column dict
+                    # VECTORIZED MODE: event_data is field dict
                     # Use from_arrays for zero-iteration construction
-                    column_dict: dict[str, Any] = event_data
+                    field_dict: dict[str, Any] = event_data
                     # Check for extra schema fields (e.g., from CoordinateField)
                     extra_fields = getattr(self, "_extra_schema_fields", None)
                     new_data = self._event_data_class.from_arrays(
-                        column_dict,
+                        field_dict,
                         self._unit,
                         self._number_type,
                         extra_fields=extra_fields,
@@ -450,7 +450,7 @@ class Loader(ABC):
                     )
 
                 # For the first source with events, replace the empty _events
-                # This handles cases where extra columns create a different schema
+                # This handles cases where extra fields create a different schema
                 if len(self._events) == 0:
                     self._events = new_data
                 else:
@@ -517,23 +517,23 @@ class Loader(ABC):
 
     def create_cmap(
         self,
-        source_column: str,
-        target_column: str,
+        source_field: str,
+        target_field: str,
         *,
         map_type: type | None = None,
         **kwargs: Any,
     ) -> Any:
-        """Create a ConversionMap from two coordinate columns.
+        """Create a ConversionMap from two coordinate fields.
 
         This method creates a C-Map from loaded coordinate data, enabling
         conversion between different coordinate systems (e.g., seconds to pixels).
 
-        Both columns must contain coordinate data (either core coordinates like
-        'start'/'end', or CoordinateField extra columns).
+        Both fields must contain coordinate data (either core coordinates like
+        'start'/'end', or CoordinateField extra fields).
 
         Args:
-            source_column: Name of the source coordinate column.
-            target_column: Name of the target coordinate column.
+            source_field: Name of the source coordinate field.
+            target_field: Name of the target coordinate field.
             map_type: The map class to create. Defaults to TableMap.
                 Supported: TableMap, LinearMap, ScalarMap.
             **kwargs: Additional arguments passed to the map constructor.
@@ -544,7 +544,7 @@ class Loader(ABC):
             A ConversionMap instance.
 
         Raises:
-            ValueError: If columns don't exist or aren't coordinate columns.
+            ValueError: If fields don't exist or aren't coordinate fields.
             ValueError: If insufficient data points for the map type.
 
         Examples:
@@ -566,14 +566,14 @@ class Loader(ABC):
         if map_type is None:
             map_type = TableMap
 
-        # Extract coordinate values from columns
-        source_values = self._extract_coordinate_values(source_column)
-        target_values = self._extract_coordinate_values(target_column)
+        # Extract coordinate values from fields
+        source_values = self._extract_coordinate_values(source_field)
+        target_values = self._extract_coordinate_values(target_field)
 
         if len(source_values) != len(target_values):
             raise ValueError(
-                f"Column length mismatch: {source_column} has {len(source_values)} "
-                f"values, {target_column} has {len(target_values)}"
+                f"Field length mismatch: {source_field} has {len(source_values)} "
+                f"values, {target_field} has {len(target_values)}"
             )
 
         if len(source_values) < 2:
@@ -581,9 +581,9 @@ class Loader(ABC):
                 f"Need at least 2 data points to create a C-Map, got {len(source_values)}"
             )
 
-        # Get units from column metadata
-        source_unit = self._get_column_unit(source_column)
-        target_unit = self._get_column_unit(target_column)
+        # Get units from field metadata
+        source_unit = self._get_field_unit(source_field)
+        target_unit = self._get_field_unit(target_field)
 
         # Create the appropriate map type
         if map_type is TableMap:
@@ -626,55 +626,54 @@ class Loader(ABC):
                 f"Supported: TableMap, LinearMap, ScalarMap"
             )
 
-    def _extract_coordinate_values(self, column_name: str) -> list[float]:
-        """Extract float values from a coordinate column.
+    def _extract_coordinate_values(self, field_name: str) -> list[float]:
+        """Extract float values from a coordinate field.
 
         Args:
-            column_name: The column name to extract.
+            field_name: The field name to extract.
 
         Returns:
             List of float coordinate values.
 
         Raises:
-            ValueError: If column doesn't exist or isn't a coordinate column.
+            ValueError: If field doesn't exist or isn't a coordinate field.
         """
         import pyarrow.compute as pc
 
         table = self._events._table
 
-        if column_name not in table.column_names:
+        if field_name not in table.column_names:
             raise ValueError(
-                f"Column '{column_name}' not found. " f"Available: {table.column_names}"
+                f"Field '{field_name}' not found. " f"Available: {table.column_names}"
             )
 
-        column = table.column(column_name)
+        arr = table.column(field_name)
 
         # Check if it's a coordinate struct (has 'value' field)
-        if pa.types.is_struct(column.type):
-            field_names = [f.name for f in column.type]
-            if "value" in field_names:
+        if pa.types.is_struct(arr.type):
+            inner_names = [f.name for f in arr.type]
+            if "value" in inner_names:
                 # Extract the 'value' field from the struct
-                values = pc.struct_field(column, "value")
+                values = pc.struct_field(arr, "value")
                 return values.to_pylist()
             else:
                 raise ValueError(
-                    f"Column '{column_name}' is a struct but doesn't have a 'value' "
-                    f"field. Fields: {field_names}"
+                    f"Field '{field_name}' is a struct but doesn't have a 'value' "
+                    f"field. Inner fields: {inner_names}"
                 )
-        elif pa.types.is_floating(column.type) or pa.types.is_integer(column.type):
-            # Plain numeric column
-            return [float(v) for v in column.to_pylist() if v is not None]
+        elif pa.types.is_floating(arr.type) or pa.types.is_integer(arr.type):
+            # Plain numeric field
+            return [float(v) for v in arr.to_pylist() if v is not None]
         else:
             raise ValueError(
-                f"Column '{column_name}' is not a coordinate column. "
-                f"Type: {column.type}"
+                f"Field '{field_name}' is not a coordinate field. " f"Type: {arr.type}"
             )
 
-    def _get_column_unit(self, column_name: str) -> str | None:
-        """Get the unit metadata from a coordinate column.
+    def _get_field_unit(self, field_name: str) -> str | None:
+        """Get the unit metadata from a coordinate field.
 
         Args:
-            column_name: The column name.
+            field_name: The field name.
 
         Returns:
             The unit string, or None if not specified.
@@ -682,18 +681,18 @@ class Loader(ABC):
         table = self._events._table
         schema = table.schema
 
-        field_idx = schema.get_field_index(column_name)
+        field_idx = schema.get_field_index(field_name)
         if field_idx < 0:
             return None
 
-        field = schema.field(field_idx)
-        if field.metadata:
-            unit = field.metadata.get(b"unit")
+        pa_field = schema.field(field_idx)
+        if pa_field.metadata:
+            unit = pa_field.metadata.get(b"unit")
             if unit:
                 return unit.decode("utf-8")
 
-        # For core coordinate columns (start, end, duration), use loader's unit
-        if column_name in ("start", "end", "duration"):
+        # For core coordinate fields (start, end, duration), use loader's unit
+        if field_name in ("start", "end", "duration"):
             return str(self._unit.value) if self._unit else None
 
         return None

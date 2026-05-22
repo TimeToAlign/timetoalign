@@ -3,8 +3,9 @@
 This is the catch-all module for TTA scalar types that are not the
 fundamental Coordinate / Duration pair.  Each scalar is followed
 immediately by its ``XField(SemanticField[X])`` class in the same file
-— per the WP2.5 layout decision, Object + ObjectField is the unit of
-code organisation, never split across files.
+— the paired Object + ObjectField is the unit of code organisation
+and is never split across files (see Contributing → §2.4
+Architectural decision log).
 
 Sections (in file order):
 
@@ -1378,10 +1379,12 @@ class Note(BaseModel):
 
     ``Note.pitch`` is annotated ``EnharmonicPitch | SpecificPitch | None``
     for materialised scalars — both are legitimate pitch representations
-    on a note.  Per the WP2 plan's locked decision, this union MUST NOT
-    translate to Arrow ``dense_union``; instead, the field is dropped
-    from the pa.Schema and ``NoteEventData`` stores pitch in separate
-    columns (``midi_pitch``, ``specific_pitch``).
+    on a note.  This union MUST NOT translate to Arrow ``dense_union``;
+    instead, the field is dropped from the pa.Schema and
+    ``NoteEventData`` stores pitch in separate fields
+    (``midi_pitch``, ``specific_pitch``).  See Contributing → §2.4
+    Architectural decision log (union-of-BaseModels rejected; columnar
+    separation).
     """
 
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
@@ -1421,7 +1424,7 @@ class Note(BaseModel):
     def to_dict(self) -> dict[str, object]:
         """Return a dict mirroring the storage struct.
 
-        Pitch is intentionally absent — it is stored in a separate column
+        Pitch is intentionally absent — it is stored in a separate field
         on ``NoteEventData`` (columnar separation).
         """
         d: dict[str, object] = {
@@ -1517,12 +1520,14 @@ def _drop_field(_model_cls: type[BaseModel], _name: str, _info: object) -> list[
     return []
 
 
-# Columnar-separation rule (WP2 locked): drop ``Note.pitch`` from pa.Schema.
+# Columnar-separation rule: drop ``Note.pitch`` from pa.Schema so that
+# ``midi_pitch`` and ``specific_pitch`` live in their own fields
+# (see Contributing → §2.4 Architectural decision log).
 register_value_projector(Note, "pitch", _drop_field)
 
 
 class NoteField(SemanticField[Note]):
-    """Columnar wrapper for ``Note`` (paired Field)."""
+    """Field wrapper for ``Note`` (paired Field)."""
 
 
 # ---------------------------------------------------------------------------

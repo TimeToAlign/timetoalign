@@ -23,7 +23,7 @@
 # `how01_datafields_and_eventdata`: where that one is about *getting
 # data out of* a loaded EventData (Layer 0 / 1 / 2), this one is about
 # *how each music concept is modelled* — at the level of a structural
-# Protocol, a frozen Scalar value, and a columnar Field.
+# Protocol, a frozen Scalar value, and a fielded paired Field.
 
 # %% [markdown]
 # ## Setup
@@ -97,7 +97,7 @@ CHOPIN_NOTES = VIENNA / "ms3" / "chopin_op10_no3.notes.tsv"
 # | **Enharmonic (semitones)** | `EnharmonicPitch` (alias `MidiPitch`) | `EnharmonicPitchClass` |
 # | **Generic (steps)** | `GenericPitch` | `GenericPitchClass` |
 #
-# `EnharmonicPitch` is canonical for the `ep` storage column on
+# `EnharmonicPitch` is canonical for the `ep` storage field on
 # score-level data; `MidiPitch` is a thin display-alias reserved as the
 # default scalar for the planned `MidiField` (so MidiField rows display
 # as `MidiPitch(60)` rather than `EnharmonicPitch(C4)`).
@@ -207,7 +207,7 @@ sp.to_dict()
 # %% [markdown]
 # ## Pitch Fields
 #
-# Each scalar level has a columnar counterpart that wraps a PyArrow
+# Each scalar level has a paired field counterpart that wraps a PyArrow
 # struct array and returns scalars on element access.  Fields are
 # constructed via `from_*()` factories — never by hand-building structs.
 
@@ -240,7 +240,7 @@ spf
 # ### From a loader — real Chopin data
 #
 # The Chopin Op. 10 No. 3 notes table carries both `midi_pitch` (EP) and
-# `specific_pitch` (SP) columns.  The loader produces typed `PitchField`
+# `specific_pitch` (SP) fields.  The loader produces typed `PitchField`
 # views over each one.
 
 # %%
@@ -299,10 +299,10 @@ dh.to_dict()
 # %% [markdown]
 # ## Harmony Fields
 #
-# Each harmony scalar has a corresponding columnar field type.  The
-# TSVLoader pipeline does not yet produce typed harmony columns
-# automatically (queued in `tta-guide` §2.2 / A5.1), so the examples
-# below build the storage arrays directly via the schema dataclasses.
+# Each harmony scalar has a corresponding paired field type.  The
+# TSVLoader pipeline does not yet produce typed harmony fields
+# automatically, so the examples below build the storage arrays
+# directly via the schema dataclasses.
 
 # %% [markdown]
 # ### WesternTertianHarmonyField
@@ -378,7 +378,7 @@ dlf[0].to_dict()
 # Both `DcmlLabelField` element access and direct `DcmlHarmony` objects
 # satisfy the same `DcmlHarmonyLike` protocol.  Any function that
 # accepts `DcmlHarmonyLike` works identically whether the harmony was
-# loaded from a field column or built via `from_label()`.
+# loaded from a field or built via `from_label()`.
 
 # %%
 from_label = DcmlHarmony.from_label("V65", globalkey="C")
@@ -471,7 +471,7 @@ PitchField.from_field(loaded_arr, name=pa_field.name)[0]
 # > **Key takeaway.**  Time To Align! models pitch across three spaces
 # > (Specific, Enharmonic/MIDI, Generic) at two levels (pitch and
 # > pitch class).  Each is expressed as a Protocol (structural
-# > contract), a Scalar (frozen value), and a Field (columnar wrapper).
+# > contract), a Scalar (frozen value), and a Field (paired wrapper).
 # > Harmony follows the same three-level pattern, with five degrees of
 # > specificity culminating in `DcmlHarmony`.  Shared protocols make
 # > `from_label()` and `Field[i]` interchangeable consumers downstream.

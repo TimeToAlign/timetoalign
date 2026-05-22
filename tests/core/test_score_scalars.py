@@ -69,9 +69,9 @@ class TestMidiPitch:
     def test_frozen_immutable(self) -> None:
         """MidiPitch is frozen (immutable).
 
-        Post-WP2 bulk migration to pydantic v2 BaseModel: assignment
-        on a frozen instance raises ``ValidationError`` (not the
-        dataclass ``AttributeError``).
+        With the pydantic v2 BaseModel implementation, assignment on a
+        frozen instance raises ``ValidationError`` (not the dataclass
+        ``AttributeError``).
         """
         p = MidiPitch(midi_number=60)
         with pytest.raises(Exception) as exc_info:
@@ -97,7 +97,7 @@ class TestSpecificPitch:
     def test_construction_basic(self) -> None:
         """Construct SpecificPitch for C4 (fifths auto-derived).
 
-        Post-WP2 pilot: ``cents`` defaults to ``None`` (the field is
+        ``cents`` defaults to ``None`` (the field is
         ``float | None = None``) instead of ``0.0``.  The pa.Schema
         treats ``cents`` as a nullable float64 column.
         """
@@ -106,7 +106,7 @@ class TestSpecificPitch:
         assert p.alter == 0
         assert p.octave == 4
         assert p.fifths == 0  # auto-derived: C=0
-        assert p.cents is None  # new default — see WP2 schema lock
+        assert p.cents is None  # canonical default for the SpecificPitch schema
 
     def test_construction_gsharp(self) -> None:
         """Construct SpecificPitch for G#3 (fifths auto-derived)."""
@@ -154,9 +154,9 @@ class TestSpecificPitch:
     def test_frozen_immutable(self) -> None:
         """SpecificPitch is frozen (immutable).
 
-        Post-WP2 pilot migration to pydantic v2 BaseModel: assignment
-        on a frozen instance raises ``ValidationError`` (not the
-        dataclass ``AttributeError``).
+        With the pydantic v2 BaseModel implementation, assignment on a
+        frozen instance raises ``ValidationError`` (not the dataclass
+        ``AttributeError``).
         """
         p = SpecificPitch(step="C", alter=0, octave=4)
         with pytest.raises(Exception) as exc_info:
@@ -477,9 +477,9 @@ class TestDcmlHarmony:
     def test_frozen_immutable(self) -> None:
         """DcmlHarmony is frozen (immutable).
 
-        Post-WP2 bulk migration to pydantic v2 BaseModel: assignment
-        on a frozen instance raises ``ValidationError`` (not the
-        dataclass ``AttributeError``).
+        With the pydantic v2 BaseModel implementation, assignment on a
+        frozen instance raises ``ValidationError`` (not the dataclass
+        ``AttributeError``).
         """
         h = DcmlHarmony(label="V")
         with pytest.raises(Exception) as exc_info:

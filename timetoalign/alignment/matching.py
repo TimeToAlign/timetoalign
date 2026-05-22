@@ -169,15 +169,15 @@ def match_notes_by_attributes(
         {'matched': 3742, 'unmatched_source': 14, 'unmatched_target': 8}
     """
     # Validate columns exist
-    for col in match_columns:
-        if col not in source_df.columns:
+    for name in match_columns:
+        if name not in source_df.columns:
             raise ValueError(
-                f"Match column '{col}' not found in source_df. "
+                f"Match column '{name}' not found in source_df. "
                 f"Available: {list(source_df.columns)}"
             )
-        if col not in target_df.columns:
+        if name not in target_df.columns:
             raise ValueError(
-                f"Match column '{col}' not found in target_df. "
+                f"Match column '{name}' not found in target_df. "
                 f"Available: {list(target_df.columns)}"
             )
 
@@ -205,7 +205,8 @@ def match_notes_by_attributes(
         for i, target_record in enumerate(target_records):
             # Check if all match columns agree
             if all(
-                source_dict.get(col) == target_record.get(col) for col in match_columns
+                source_dict.get(name) == target_record.get(name)
+                for name in match_columns
             ):
                 # Match found — pop the target record
                 matched_target = target_records.pop(i)
@@ -220,8 +221,8 @@ def match_notes_by_attributes(
                     ),
                 }
                 # Include match columns for reference
-                for col in match_columns:
-                    match_record[col] = source_dict[col]
+                for name in match_columns:
+                    match_record[name] = source_dict[name]
                 # Include full source row with "source_" prefix
                 for k, v in source_dict.items():
                     match_record[f"source_{k}"] = v

@@ -20,7 +20,7 @@ bundles, error handling).
 | `test_schema.py` | `TableSchema` and field-spec resolution |
 | `test_store.py` | `EventStore` low-level operations |
 | `test_tilia_loader.py` | `TiliaJsonLoader` round-trip |
-| `test_get_field_by_class.py` | `EventData.get_field(<SemanticField subclass>)` class-based discovery — regression test for INC-3 (`type_hierarchy_landing` work package). Ensures that `events.get_field(PitchField)` discovers struct columns even when the loader has not injected `b"timetoalign"` metadata onto the column. |
+| `test_get_field_by_class.py` | `EventData.get_field(<SemanticField subclass>)` class-based discovery — regression test ensuring that `events.get_field(PitchField)` discovers struct fields even when the loader has not injected `b"timetoalign"` metadata onto the field. |
 | `tabular/` | CSV / TSV / Parquet loader specifics |
 | `score/` | Music-notation loaders (Ms3, music21, Partitura) |
 | `midi/` | Score and performance MIDI loaders |

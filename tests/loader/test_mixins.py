@@ -1,8 +1,8 @@
 """Tests for ``SemanticFieldAccessMixin`` and domain mixins.
 
-WP2.5 replaced the umbrella pitch / harmony Field classes with one paired
-``XField(SemanticField[X])`` per scalar.  These tests verify the mixin
-dispatch on the paired classes.
+The paired-Object/ObjectField redesign replaced the earlier umbrella
+pitch / harmony Field classes with one paired ``XField(SemanticField[X])``
+per scalar.  These tests verify the mixin dispatch on the paired classes.
 """
 
 from __future__ import annotations
@@ -168,7 +168,7 @@ class TestSemanticFieldAccessMixin:
     def test_get_field_raises_on_no_match(self) -> None:
         table = pa.table({"x": pa.array([1, 2, 3])})
         host = _MixinHost(table)
-        with pytest.raises(KeyError, match="No column matching"):
+        with pytest.raises(KeyError, match="No field matching"):
             host.get_field(EnharmonicPitchField)
 
     def test_get_fields_returns_all_matches(self) -> None:

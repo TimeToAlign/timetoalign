@@ -388,7 +388,7 @@ class TestFromTable:
 
     def test_from_table_no_candidate_raises(self) -> None:
         table = pa.table({"x": [1, 2, 3]})
-        with pytest.raises(ValueError, match="No struct column"):
+        with pytest.raises(ValueError, match="No struct field"):
             CoordinateField.from_table(table)
 
     def test_from_table_multiple_candidates_raises(self) -> None:

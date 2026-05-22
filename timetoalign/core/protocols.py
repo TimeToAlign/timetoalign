@@ -1,7 +1,7 @@
 """Protocols for semantic type classification in Time To Align!
 
 This module defines the structural typing contracts (Protocols) that unify
-scalar-level types (e.g., Coordinate) and columnar-level types (e.g.,
+scalar-level types (e.g., Coordinate) and field-level types (e.g.,
 CoordinateField) under a single interface.
 
 Hierarchy Overview::
@@ -48,7 +48,7 @@ class SemanticTypeLike(Protocol):
     Any object with a ``semantic_type`` property and a
     ``metadata_dict()`` method satisfies this protocol.  This is the
     root contract shared by both scalar types (``Coordinate``) and
-    columnar types (future ``SemanticField`` subclasses).
+    field types (future ``SemanticField`` subclasses).
 
     Attributes:
         semantic_type: Canonical name of the semantic type
@@ -87,13 +87,13 @@ class CoordinateLike(SemanticTypeLike, Protocol[V]):
     coordinate's value, unit, domain, and numeric representation.
     The type parameter ``V`` is covariant and unbound -- it may be a
     ``CoordinateValue`` (for scalars) or a ``StructField`` (for
-    columnar fields).
+    field-level wrappers).
 
     The existing ``Coordinate`` frozen dataclass satisfies this
     protocol structurally with no modifications.
 
     Attributes:
-        value: The underlying value (scalar or columnar).
+        value: The underlying value (scalar or field-level).
         unit: The time unit of this coordinate.
         domain: The temporal domain (logical, physical, graphical).
         number_type: The numeric representation (int, float, fraction).
@@ -131,7 +131,7 @@ class TimedObjectLike(SemanticTypeLike, Protocol):
 
     Uses the canonical TTA model names: ``start`` (StartInstant)
     and ``end`` (EndInstant), matching the storage schema in
-    ``EventData`` (columns ``start``, ``end``, ``duration``).
+    ``EventData`` (fields ``start``, ``end``, ``duration``).
     """
 
     @property

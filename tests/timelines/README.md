@@ -449,13 +449,13 @@ relationship concepts.
    - Validates sorted, non-negative boundaries
 
 5. **Phase A — create_regions_by_grouping()** (6 tests)
-   - Groups adjacent events by column value
+   - Groups adjacent events by field value
    - Auto-disambiguates recurring group values (e.g., 4/4 → 3/4 → 4/4)
    - Supports custom `name_format` with `{value}` and `{run}` placeholders
-   - Raises ValueError for missing column
+   - Raises ValueError for missing field
 
 6. **Phase A — create_regions_by_splitting()** (5 tests)
-   - Splits at events matching a predicate (column name or dict filter)
+   - Splits at events matching a predicate (field name or dict filter)
    - Supports `include_before_first` and `include_after_last`
    - Deduplicates split points at timeline boundaries
 
@@ -605,9 +605,9 @@ Wagner's Walküre Act III (measures.tsv loaded via TSVLoader).
 **Fixture Strategy:**
 
 The `wagner_timeline` fixture uses `MeasureData.create_timeline()` which directly
-assigns the MeasureData as the timeline's event store. This preserves all 32 columns
+assigns the MeasureData as the timeline's event store. This preserves all 32 fields
 (including `timesig`, `breaks`, `keysig`) that the base `EventData.from_dicts()`
-would discard (it only keeps the 7 base schema columns). Each test invocation
+would discard (it only keeps the 7 base schema fields). Each test invocation
 creates a fresh `TSVLoader` instance, ensuring no shared state between tests.
 
 **Gold Standard Counts (all EXACT, no approximations):**
@@ -615,7 +615,7 @@ creates a fresh `TSVLoader` instance, ensuring no shared state between tests.
 | Test | Assertion | Value | Derivation |
 |------|-----------|-------|------------|
 | `test_event_count` | `n_events` | 1733 | TSV row count |
-| `test_create_regions_by_grouping_timesig` | region count | 22 | Adjacent-run counting on timesig column |
+| `test_create_regions_by_grouping_timesig` | region count | 22 | Adjacent-run counting on timesig field |
 | `test_create_regions_by_splitting_breaks` | region count | 406 | 405 unique split points + 1 |
 | `test_create_regions_by_splitting_page_breaks_only` | region count | 59 | 58 unique page break coords + 1 |
 | `test_create_regions_by_splitting_section_breaks` | region count | 1 | 0 section breaks → 1 region (whole timeline) |
@@ -627,11 +627,11 @@ creates a fresh `TSVLoader` instance, ensuring no shared state between tests.
 
 ---
 
-### `test_flow.py` - Flow Control and Unfolding (Phase 3.7)
+### `test_flow.py` - Flow Control and Unfolding
 
 **Purpose:** Validates the Flow API that computes unfolded measure sequences from flow control data (repeats, voltas, D.S., D.C., etc.).
 
-**Architecture (Feb 2026 Redesign → Phase 10 MVP + Cleanup):**
+**Architecture (Feb 2026 redesign):**
 
 The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement integration:
 
@@ -642,7 +642,7 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement i
 | `PlaythroughSection` | Contiguous atomics in traversal (future: `typed_measures`, `groups`) |
 | `Flow` | Sequence of PlaythroughSections, delegates iteration to controller |
 
-**MeasureUnit FlowControlElement Fields (Phase 10 MVP Cleanup):**
+**MeasureUnit FlowControlElement Fields:**
 - `timesig_duration_qb`: Expected duration from time signature
 - `jump_from`: True if MC is a jump origin (D.C., D.S., multiple next)
 - `jump_to`: True if MC is a jump target (segno, coda, non-adjacent next target)
@@ -662,25 +662,23 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement i
 | `mc_start=1, mc_end=5` | `mc_start=1, mc_end=6` | MCs 1,2,3,4,5 (5 MCs) |
 | `mc_count = end - start + 1` | `mc_count = end - start` | Direct subtraction |
 
-**Phase 10 MVP Status (Feb 2026): COMPLETE**
+**Current state (Feb 2026):**
 
 - `MeasureUnit` replaces `FlowStep` as the fundamental building block
 - `FlowController.iter_units()` iterates over MeasureUnits
 - `FlowController.iter_sections(mode=None)` defaults to AtomicSections
 - `Flow._controller_ref` links Flow to its controller for `iter_units()` access
 - `Flow.steps` removed entirely (section-based only)
-
-**Phase 10 MVP Cleanup (Feb 2026): COMPLETE**
-
-- Added FlowControlElement fields to `MeasureUnit` (jump_from, jump_to, segno, coda, fine, etc.)
-- Added `MeasureUnit.from_dict()` for DataFrame round-trip serialization
-- Deprecated old `get_atomic_sections()` with DeprecationWarning
-- Removed `iter_mcs()` (unnecessary, derive from sections)
-- Updated `_build_units()` with helper methods for FlowControl detection
-
-**Phase 10.2a Complete**: Typed subclasses implemented (`IncompleteMeasure`, `CompleteMeasure`, `OverlengthMeasure`)
-
-**Phase 10.2b Complete**: MeasureGroup hierarchy (`MeasureGroup`, `SplitMeasure`, `VoltaGroup`, `CompleteMeasureGroup`, `IncompleteGroup`, `OverlengthGroup`)
+- FlowControlElement fields on `MeasureUnit` (jump_from, jump_to, segno, coda, fine, etc.)
+- `MeasureUnit.from_dict()` for DataFrame round-trip serialization
+- Old `get_atomic_sections()` deprecated with DeprecationWarning
+- `iter_mcs()` removed (derive from sections instead)
+- `_build_units()` uses helper methods for FlowControl detection
+- Typed subclasses (`IncompleteMeasure`, `CompleteMeasure`, `OverlengthMeasure`)
+  produced by the Typing step
+- MeasureGroup hierarchy (`MeasureGroup`, `SplitMeasure`, `VoltaGroup`,
+  `CompleteMeasureGroup`, `IncompleteGroup`, `OverlengthGroup`) produced by the
+  Grouping step
 
 **Test Categories:**
 
@@ -689,7 +687,7 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement i
    - `TestAtomicSection`: Creation, `mc_range`, `mc_count`, frozen, validation
    - `TestPlaythroughSection`: Creation, `mc_range`, `mc_count`, frozen, `to_mc_sequence()`
 
-2. **Typed Measure Tests** (13 tests) - Phase 10.2a
+2. **Typed Measure Tests** (13 tests)
    - `TestTypedMeasures`: Creation and inheritance of typed subclasses
      - `IncompleteMeasure`: Creation with `position` field, is MeasureUnit subclass
      - `CompleteMeasure`: Creation, is MeasureUnit subclass
@@ -699,7 +697,7 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement i
    - `TestAtomicSectionTypedMeasures`: `typed_measures` field on AtomicSection
    - `TestPlaythroughSectionTypedMeasures`: `typed_measures` field on PlaythroughSection
 
-3. **MeasureGroup Tests** (16 tests) - Phase 10.2b
+3. **MeasureGroup Tests** (16 tests)
    - `TestMeasureGroup`: MeasureGroup base class and subclasses (12 tests)
      - `MeasureGroup`: Base frozen dataclass with `members`, `mc_start`, `mc_end`, `total_duration_qb`
      - `SplitMeasure`: IncompleteMeasures that sum to time signature
@@ -708,7 +706,7 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement i
      - `CompleteMeasureGroup`: Adjacent CompleteMeasures
      - `OverlengthGroup`: OverlengthMeasures grouped together
    - `TestBuildGroups`: FlowController grouping algorithm (4 tests)
-     - `_build_groups()`: Phase 2 grouping algorithm
+      - `_build_groups()`: Grouping-step algorithm
      - `_group_voltas()`, `_group_splits()`, `_group_incompletes()`
      - `_group_overlengths()`, `_group_completes()`
      - `groups` field on AtomicSection and PlaythroughSection
@@ -719,8 +717,8 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement i
    - `TestFlowCSVLoading`: `Flow.from_csv()`, invalid mode raises, `load_valid_flows()`
 
 5. **FlowController Tests** (6 tests)
-   - `iter_units()`: Iterate over MeasureUnits (Phase 10 MVP)
-   - `iter_sections(mode=None)`: AtomicSections by default (Phase 10 MVP)
+   - `iter_units()`: Iterate over MeasureUnits
+   - `iter_sections(mode=None)`: AtomicSections by default
    - `get_sections()`: Unified API (replaces get_atomic_sections)
    - `get_sections(mode)`: Returns PlaythroughSections for specified mode
    - `from_atomic_sections()` class method
@@ -732,7 +730,7 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement i
    - `TestFlowMap`: FlowMap creation
    - `TestPrintedMode`: PRINTED mode returns folded count
 
-**Test Status: 84 passed** (Feb 2026 - Phase 10.2b)
+**Test Status: 84 passed** (Feb 2026)
 
 **New Methods (Feb 2026):**
 
@@ -762,7 +760,7 @@ Following the project's ZERO TOLERANCE validation policy, all tests use **exact 
 
 ---
 
-### `test_unfolding.py` - Unfolding via Slicing (Phase 3.10)
+### `test_unfolding.py` - Unfolding via Slicing
 
 **Purpose:** Validates the slice-based unfolding pipeline that replaces the buggy MC-space
 FlowMap approach with structural slicing in QB-space.

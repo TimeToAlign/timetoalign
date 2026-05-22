@@ -13,7 +13,7 @@ AlignmentAnchor (atomic) -> MatchClaim (low) -> MatchGraph (mid) -> MatchLine (h
    start/end params         TimelineGroup (timestamp table)
 ```
 
-**NOTE (Phase 7.4):** The `PerfectAlignment` class is **deprecated**. TimelineGroup now uses a timestamp-based architecture where alignment is specified via `start`/`end` parameters to `add_timeline()`. See `test_groups.py` for the new API.
+**NOTE:** The `PerfectAlignment` class is **deprecated**. TimelineGroup now uses a timestamp-based architecture where alignment is specified via `start`/`end` parameters to `add_timeline()`. See `test_groups.py` for the new API.
 
 Each test validates a **specific claim** from the manuscript specification. Tests are not exploratory--they verify exact behaviors required by the model.
 
@@ -54,7 +54,7 @@ Previously, `dgt1_timeline`, `dgt2_timeline`, `audio_timeline`, `thoresen_segmen
 
 ---
 
-## TimelineGroup Architecture (Phase 7.4)
+## TimelineGroup Architecture
 
 ### Timestamp Table Design
 
@@ -73,11 +73,11 @@ Between any two adjacent rows, ALL non-null timelines have bijective linear mapp
 
 ### Key Changes from PerfectAlignment
 
-| Before (deprecated) | After (Phase 7.4) |
+| Before (deprecated) | After |
 |---------------------|-------------------|
 | `PerfectAlignment(source_start=0, source_end=277776, ref_start=15343, ref_end=293119)` | `group.add_timeline(holes, start=(15343.0, "dgt1"), end=(293119.0, "dgt1"))` |
-| Per-timeline alignment objects | Timestamp table with one column per timeline |
-| `group.reference_timeline_id` | Reference timeline is first column in table |
+| Per-timeline alignment objects | Timestamp table with one field per timeline |
+| `group.reference_timeline_id` | Reference timeline is first field in table |
 
 ---
 
@@ -87,7 +87,7 @@ Between any two adjacent rows, ALL non-null timelines have bijective linear mapp
 
 The manuscript states Groups contain timelines with "perfect alignment"--any coordinate in one timeline maps to exactly one coordinate in every other timeline.
 
-### Key Test Classes (Phase 7.4)
+### Key Test Classes
 
 | Class | Tests |
 |-------|-------|
@@ -99,7 +99,7 @@ The manuscript states Groups contain timelines with "perfect alignment"--any coo
 | `TestTimelineGroupConversion` | `convert()` method, same-timeline identity, cross-timeline mapping |
 | `TestTimelineGroupLocking` | Lock/unlock, `allow_extension` parameter |
 | `TestBackwardCompatibility` | Deprecated `from_reference()` and `iter_timelines()` methods |
-| `TestTimelineGroupUnifiedTimestamp` | Unified TimeStamp API (Phase 6.5), InterpolationMap-based coordinate resolution |
+| `TestTimelineGroupUnifiedTimestamp` | Unified TimeStamp API, InterpolationMap-based coordinate resolution |
 
 ### Key Evidence
 
@@ -132,7 +132,7 @@ This test validates that the source timeline's coordinate is stored exactly, not
 
 ### What We're Validating
 
-Phase 6.5 introduced a unified `TimeStamp` architecture where both `Timeline` (with children) and `TimelineGroup` (with member timelines) use the same coordinate resolution mechanism via `InterpolationMap`. This enables O(log n) coordinate conversion without table scans.
+The unified `TimeStamp` architecture has both `Timeline` (with children) and `TimelineGroup` (with member timelines) using the same coordinate resolution mechanism via `InterpolationMap`. This enables O(log n) coordinate conversion without table scans.
 
 ### Key API
 
@@ -204,7 +204,7 @@ Both implement the `TimeStampSource` protocol, enabling code reuse.
 
 ### What We're Validating
 
-**Phase 6.2 redesign:** AlignmentAnchor is now a **pure coordinate pair** — a neutral record associating one coordinate on timeline A with one coordinate on timeline B. It contains no claim semantics (`is_synchronous`, `is_explicit`, `id` fields were removed). Claim semantics live exclusively on `MatchClaim`.
+**Design:** AlignmentAnchor is a **pure coordinate pair** — a neutral record associating one coordinate on timeline A with one coordinate on timeline B. It contains no claim semantics (`is_synchronous`, `is_explicit`, `id` fields were removed). Claim semantics live exclusively on `MatchClaim`.
 
 ### Key Evidence
 
@@ -232,7 +232,7 @@ Anchors are value objects — identified entirely by their coordinates. Immutabi
 
 ### What We're Validating
 
-**Phase 6.2/6.3 redesign:** MatchClaim now has `timeline_a_id` and `timeline_b_id` as **top-level fields** (not derived from anchors). Anchors are `Optional` — only synchronous claims have them. Four case-specific constructors:
+**Design:** MatchClaim has `timeline_a_id` and `timeline_b_id` as **top-level fields** (not derived from anchors). Anchors are `Optional` — only synchronous claims have them. Four case-specific constructors:
 
 | Constructor | Case | Synchronous | Anchors |
 |-------------|------|-------------|---------|
@@ -241,7 +241,7 @@ Anchors are value objects — identified entirely by their coordinates. Immutabi
 | `nomatch()` | Event has no equivalent | No | None |
 | `implicit()` | Generated by MatchGraph extension | Yes | From given coordinates |
 
-**Phase 6.8:** Legacy constructors `instant()` and `interval()` were removed. All 72 call sites across 6 test files and `table_schema.py` were migrated to direct `MatchClaim()` construction with explicit `AlignmentAnchor` objects.
+**Constructor history:** Legacy constructors `instant()` and `interval()` were removed. All 72 call sites across 6 test files and `table_schema.py` were migrated to direct `MatchClaim()` construction with explicit `AlignmentAnchor` objects.
 
 ### Key Evidence
 
@@ -293,7 +293,7 @@ The manuscript requires matches to include "the agent/author, decision criteria,
 
 ### What We're Validating
 
-The SUPRA (Stanford University Piano Roll Archive) tests validate the **partial alignment** feature using real-world data from piano roll digitization. This is the canonical use case for the new Phase 7.4 API.
+The SUPRA (Stanford University Piano Roll Archive) tests validate the **partial alignment** feature using real-world data from piano roll digitization. This is the canonical use case for the timestamp-table TimelineGroup API.
 
 ### Data Source
 
@@ -388,7 +388,7 @@ This test validates that MatchClaims can represent the segment-to-segment corres
 
 ### What We're Validating
 
-**Phase 6.1:** Parent–child coordinate transfer uses exact offset arithmetic (`child_coord = parent_coord - offset`) instead of InterpolationMap. This eliminates floating-point drift that was conceptually wrong and numerically unnecessary.
+**Design:** Parent–child coordinate transfer uses exact offset arithmetic (`child_coord = parent_coord - offset`) instead of InterpolationMap. This eliminates floating-point drift that was conceptually wrong and numerically unnecessary.
 
 ### Key Evidence
 
@@ -410,13 +410,13 @@ The `Timeline._get_interpolation_map()` method (part of the `TimeStampSource` pr
 
 ---
 
-## MatchGraph Phase 6.4 Tests (`test_graph.py`)
+## MatchGraph Tests (`test_graph.py`)
 
 ### What We're Validating
 
-Phase 6.4 overhauled the MatchGraph to enforce the design principle that only synchronous claims produce graph edges, while non-synchronous claims are stored as metadata. The `extend_to_groups()` method now creates proper `MatchClaim.implicit()` objects with `source_claim_id` traceability, and filtering supports domain/unit/timeline constraints.
+The MatchGraph enforces the design principle that only synchronous claims produce graph edges, while non-synchronous claims are stored as metadata. The `extend_to_groups()` method creates `MatchClaim.implicit()` objects with `source_claim_id` traceability, and filtering supports domain/unit/timeline constraints.
 
-### New Test Classes (Phase 6.4)
+### Key Test Classes
 
 | Class | Tests | Purpose |
 |-------|-------|---------|
@@ -424,7 +424,7 @@ Phase 6.4 overhauled the MatchGraph to enforce the design principle that only sy
 | `TestMatchGraphGetStamps` | 4 | `get_stamps()` returns one stamp per connected component |
 | `TestMatchGraphExtendToGroupsImplicitClaims` | 5 | Implicit claims created with correct coordinates and traceability |
 | `TestMatchGraphExtendToGroupsFilters` | 4 | `include_timelines`, `exclude_timelines`, `include_domains`, `include_units` |
-| `TestMatchGraphFilterPhase64` | 3 | `filter()` preserves non-synchronous claims for remaining timelines |
+| `TestMatchGraphFilter` | 3 | `filter()` preserves non-synchronous claims for remaining timelines |
 | `TestMatchStampGetGroupCoordinates` | 2 | Fixed `get_group_coordinates()` using `timeline_ids` (was broken) |
 
 ### Key Evidence
@@ -457,15 +457,15 @@ def test_two_groups_full_connectivity(self):
     assert len(stamps[0].coordinates) == 5  # All timelines present
 ```
 
-This is the core Phase 6.4 test: it verifies that group extension creates implicit claims with coordinates derived from `TimelineGroup.convert()`, producing a fully connected component from a single explicit claim.
+This is the core group-extension test: it verifies that group extension creates implicit claims with coordinates derived from `TimelineGroup.convert()`, producing a fully connected component from a single explicit claim.
 
 ---
 
-## MatchLine Phase 6.5 Tests (`test_matchline.py`)
+## MatchLine Tests (`test_matchline.py`)
 
 ### What We're Validating
 
-Phase 6.5 introduced `MatchLine`, an ordered sequence of `MatchStamp` objects for a given source timeline. It is the bridge between `MatchGraph` (Phase 6.4) and `WarpMap` (Phase 6.6). A MatchLine collects stamps, sorts them by source coordinate, and exposes `get_coordinate_pairs()` for WarpMap construction.
+`MatchLine` is an ordered sequence of `MatchStamp` objects for a given source timeline. It is the bridge between `MatchGraph` and `WarpMap`. A MatchLine collects stamps, sorts them by source coordinate, and exposes `get_coordinate_pairs()` for WarpMap construction.
 
 ### Test Classes
 
@@ -510,13 +510,13 @@ This validates the Hendrix M6-M9 use case from the conceptual model: multiple Ma
 
 ---
 
-## AlignmentBundle Phase 6.7 Tests (`test_bundle.py`)
+## AlignmentBundle Tests (`test_bundle.py`)
 
 ### What We're Validating
 
-Phase 6.7 replaced the ad-hoc `TableMap`-based WarpMap dictionary in `AlignmentBundle` with the new `MatchLine` → `WarpMap` pipeline. The bundle now lazily builds `WarpMap` objects on first cross-group `transfer()` call and caches them, invalidating the cache when `add_match_claims()` is called.
+`AlignmentBundle` uses the `MatchLine` → `WarpMap` pipeline (replacing the earlier ad-hoc `TableMap`-based WarpMap dictionary). The bundle lazily builds `WarpMap` objects on first cross-group `transfer()` call and caches them, invalidating the cache when `add_match_claims()` is called.
 
-### New Test Classes (Phase 6.7)
+### Key Test Classes
 
 | Class | Tests | Purpose |
 |-------|-------|---------|
@@ -561,11 +561,11 @@ The cache is keyed by `(source_group_id, target_group_id)` and invalidated whene
 
 ---
 
-## WarpMap Phase 6.6 Tests (`test_warpmap.py`)
+## WarpMap Tests (`test_warpmap.py`)
 
 ### What We're Validating
 
-Phase 6.6 introduced `WarpMap`, a standalone class that materialises warped timeline copies from alignment data. It wraps an `InterpolationMap` internally for O(log n) coordinate conversion and bridges the gap between `MatchLine` (Phase 6.5) and `AlignmentBundle` (Phase 6.7).
+`WarpMap` is a standalone class that materialises warped timeline copies from alignment data. It wraps an `InterpolationMap` internally for O(log n) coordinate conversion and bridges the gap between `MatchLine` and `AlignmentBundle`.
 
 ### Test Classes
 
@@ -669,16 +669,16 @@ python -m pytest tests/alignment/ -v
 |------|-------|-------------|
 | `conftest.py` | — | Shared fixtures and constants: Thoresen timeline fixtures (`dgt1_timeline`, `dgt2_timeline`, `audio_timeline`, `thoresen_segment_claims`), DGT1/DGT2 coordinate constants, `autouse` ID reset fixture, graphical bundle fixtures |
 | `test_groups.py` | 58 | TimelineGroup, GroupTimestamp, and unified TimeStamp API |
-| `test_bundle.py` | 61 | AlignmentBundle: 30 original (linear/partial alignment) + 31 new (Phase 6.7: cross-group transfer, timestamps, commensurability, caching, edge cases) |
-| `test_anchors.py` | ~55 | AlignmentAnchor (Phase 6.2), MatchClaim (Phase 6.3), MatchMetadata |
-| `test_graph.py` | 54 | MatchGraph operations (Phase 6.4: +19 tests for implicit claims, filtering, stamps); imports Thoresen fixtures from conftest |
-| `test_matchline.py` | 33 | MatchLine construction, from_claims, from_graphs, coordinate pairs, serialization (Phase 6.5); imports Thoresen fixtures from conftest |
-| `test_warpmap.py` | 36 | WarpMap construction, forward/inverse, materialise (events, children, regions, type conversion), serialization, end-to-end pipeline (Phase 6.6) |
+| `test_bundle.py` | 61 | AlignmentBundle: linear/partial alignment, cross-group transfer, timestamps, commensurability, caching, edge cases |
+| `test_anchors.py` | ~55 | AlignmentAnchor, MatchClaim, MatchMetadata |
+| `test_graph.py` | 54 | MatchGraph operations (implicit claims, filtering, stamps); imports Thoresen fixtures from conftest |
+| `test_matchline.py` | 33 | MatchLine construction, from_claims, from_graphs, coordinate pairs, serialization; imports Thoresen fixtures from conftest |
+| `test_warpmap.py` | 36 | WarpMap construction, forward/inverse, materialise (events, children, regions, type conversion), serialization, end-to-end pipeline |
 | `test_filters.py` | 27 | `ClaimFilter` dataclass: exact ID, set-of-IDs, regex, between, synchronous/nomatch, combined filters, timeline-level filtering |
 | `test_stamp_query_api.py` | 52 | Unified Stamp & Query API: `get_match_claims()`, `get_matchstamp_at()`, `MatchGraph.get_matchstamp()`/`split_components()`, `MatchClaim.get_matchstamp()`, MatchGraph cache, display methods (`__str__`/`_repr_html_`), `transfer()` docstring fix, top-level exports |
 | `test_supra_integration.py` | 13 | SUPRA piano roll workflow (partial alignment) |
 | `test_thoresen_poc.py` | 35 | Thoresen graphical analysis workflow; imports Thoresen fixtures from conftest |
-| `../timelines/test_offset_arithmetic.py` | 11 | Parent–child offset arithmetic (Phase 6.1) |
+| `../timelines/test_offset_arithmetic.py` | 11 | Parent–child offset arithmetic |
 
 ---
 

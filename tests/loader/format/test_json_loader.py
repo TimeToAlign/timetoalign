@@ -183,7 +183,7 @@ class TestCocoAnnotations:
         assert table.num_rows == 6345
 
     def test_image_id_resolved(self, annotations_loader: JsonLoader) -> None:
-        """image_id column should be resolved -> image.file_name exists."""
+        """image_id field should be resolved -> image.file_name exists."""
         table = annotations_loader.get_table("annotations")
         col_names = table.column_names
         assert (
@@ -191,7 +191,7 @@ class TestCocoAnnotations:
         ), f"Expected 'image.file_name' from lookup resolution in: {col_names}"
 
     def test_category_id_resolved(self, annotations_loader: JsonLoader) -> None:
-        """category_id column should be resolved -> category.name exists."""
+        """category_id field should be resolved -> category.name exists."""
         table = annotations_loader.get_table("annotations")
         col_names = table.column_names
         assert (
@@ -326,11 +326,11 @@ class TestJsonLoaderEdgeCases:
         assert isinstance(meta, dict)
 
     def test_resolve_lookups_disabled(self) -> None:
-        """When resolve_lookups=False, no *_id columns are resolved."""
+        """When resolve_lookups=False, no *_id fields are resolved."""
         loader = JsonLoader(principal_keys=["annotations"], resolve_lookups=False)
         loader.load(ANNOTATIONS_PATH)
         table = loader.get_table("annotations")
-        # Should NOT have resolved columns
+        # Should NOT have resolved fields
         assert "image.file_name" not in table.column_names
 
 

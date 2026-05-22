@@ -180,15 +180,15 @@ class TestEventDataSchema:
         assert "id" in data.schema.names
         assert "start" in data.schema.names
 
-    def test_column_names(self) -> None:
-        """column_names() returns list of column names.
+    def test_field_names(self) -> None:
+        """field_names() returns the list of base EventData field names.
 
-        Note: Base columns are: id, name, temporal_type, event_type, start, end, duration.
+        Note: Base fields are: id, name, temporal_type, event_type, start, end, duration.
         """
-        names = EventData.column_names()
+        names = EventData.field_names()
         assert isinstance(names, list)
         assert "id" in names
-        assert len(names) == 7  # Base columns only
+        assert len(names) == 7  # Base fields only
 
 
 class TestEventDataProperties:
@@ -453,5 +453,5 @@ class TestEventDataSubclass:
         assert "pitch" in schema.names
         assert "velocity" in schema.names
 
-        names = NoteEventData.column_names()
+        names = NoteEventData.field_names()
         assert "pitch" in names

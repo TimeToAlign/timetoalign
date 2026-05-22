@@ -361,29 +361,29 @@ class MeasureData(EventData, MeasureAccessMixin):
 
         # Count repeat starts
         if "start_repeat" in self._table.column_names:
-            start_col = self._table.column("start_repeat")
-            true_count = sum(1 for v in start_col.to_pylist() if v is True)
+            start_repeat_arr = self._table.column("start_repeat")
+            true_count = sum(1 for v in start_repeat_arr.to_pylist() if v is True)
             summary["repeat_starts"] = true_count
             summary["has_repeats"] = true_count > 0
 
         # Count repeat ends
         if "end_repeat" in self._table.column_names:
-            end_col = self._table.column("end_repeat")
-            true_count = sum(1 for v in end_col.to_pylist() if v is True)
+            end_repeat_arr = self._table.column("end_repeat")
+            true_count = sum(1 for v in end_repeat_arr.to_pylist() if v is True)
             summary["repeat_ends"] = true_count
             summary["has_repeats"] = summary["has_repeats"] or true_count > 0
 
         # Count voltas
         if "volta" in self._table.column_names:
-            volta_col = self._table.column("volta")
-            unique_voltas = set(volta_col.to_pylist())
+            volta_arr = self._table.column("volta")
+            unique_voltas = set(volta_arr.to_pylist())
             summary["voltas"] = {v for v in unique_voltas if v is not None}
             summary["has_voltas"] = len(summary["voltas"]) > 0
 
         # Count breaks
         if "breaks" in self._table.column_names:
-            breaks_col = self._table.column("breaks")
-            unique_breaks = set(breaks_col.to_pylist())
+            breaks_arr = self._table.column("breaks")
+            unique_breaks = set(breaks_arr.to_pylist())
             summary["breaks"] = {b for b in unique_breaks if b is not None}
             summary["has_breaks"] = len(summary["breaks"]) > 0
 

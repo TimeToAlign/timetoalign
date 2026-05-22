@@ -455,7 +455,7 @@ class Timeline:
         """Human-readable name for display.
 
         Returns the explicit name if set, otherwise falls back to the ID.
-        Use this for user-facing displays (e.g., timestamp column headers).
+        Use this for user-facing displays (e.g., timestamp field headers).
         """
         return self._name if self._name is not None else self._id
 
@@ -875,7 +875,7 @@ class Timeline:
         include_children: bool = True,
         min_coord: float | Coordinate | None = None,
         max_coord: float | Coordinate | None = None,
-        **column_filters: Any,
+        **field_filters: Any,
     ) -> EventData:
         """Filter and retrieve events.
 
@@ -894,8 +894,8 @@ class Timeline:
                 (converted via inverse C-Map).
             max_coord: Maximum coordinate (exclusive). Same conversion
                 rules as min_coord.
-            **column_filters: Additional column equality filters. Each
-                kwarg name is a column name, and the value is the
+            **field_filters: Additional field equality filters. Each
+                kwarg name is a field name, and the value is the
                 required value (or a list of values for OR logic).
 
         Returns:
@@ -910,7 +910,7 @@ class Timeline:
             >>> coord = Coordinate(5.0, TimeUnit.seconds)
             >>> events = tl.get_events(min_coord=coord)
 
-            >>> # Arbitrary column filters
+            >>> # Arbitrary field filters
             >>> events = tl.get_events(pitch=60)  # Only middle C
             >>> events = tl.get_events(pitch=[60, 62, 64])  # C, D, E
         """
@@ -991,9 +991,9 @@ class Timeline:
         if min_coord_float is not None or max_coord_float is not None:
             result = result.filter(min_coord=min_coord_float, max_coord=max_coord_float)
 
-        # Apply arbitrary column filters
-        if column_filters:
-            result = result.filter(**column_filters)
+        # Apply arbitrary field filters
+        if field_filters:
+            result = result.filter(**field_filters)
 
         return result
 
@@ -2419,14 +2419,14 @@ class Timeline:
     ) -> pd.DataFrame:
         """Get timestamps for multiple events, returned as a DataFrame.
 
-        For each event, includes columns for start coordinate, end coordinate
+        For each event, includes fields for start coordinate, end coordinate
         (if interval), event type, and temporal type.
 
         Args:
             event_ids: Sequence of event identifiers to look up.
 
         Returns:
-            DataFrame indexed by event_id with columns:
+            DataFrame indexed by event_id with fields:
             - ``start``: Start coordinate value
             - ``end``: End coordinate value (NaN for instant events)
             - ``event_type``: The event type name
@@ -2526,12 +2526,12 @@ class Timeline:
 
         # Extract start coordinates (all events have start)
         # struct_field returns ChunkedArray
-        start_col = table.column("start")
-        start_vals = pc.struct_field(start_col, "value")
+        start_arr = table.column("start")
+        start_vals = pc.struct_field(start_arr, "value")
 
         # Extract end coordinates (intervals only, filter nulls)
-        end_col = table.column("end")
-        end_vals = pc.struct_field(end_col, "value")
+        end_arr = table.column("end")
+        end_vals = pc.struct_field(end_arr, "value")
         end_vals = pc.drop_null(end_vals)
 
         # Combine chunks from both ChunkedArrays
@@ -2768,23 +2768,23 @@ class Timeline:
 
         Constructs a PyArrow table with:
         - axis: Root coordinate values
-        - One column per timeline (root + children) with local coordinates
-        - One column per C-Map with converted values
+        - One field per timeline (root + children) with local coordinates
+        - One field per C-Map with converted values
 
-        Each column includes field metadata:
-        - unit: The TimeUnit for this column's coordinates
-        - timeline_id: The timeline ID (for timeline columns)
-        - cmap_id: The C-Map ID (for C-Map columns)
+        Each field includes metadata:
+        - unit: The TimeUnit for this field's coordinates
+        - timeline_id: The timeline ID (for timeline fields)
+        - cmap_id: The C-Map ID (for C-Map fields)
 
         Args:
             axis: Array of root-relative coordinates (the timestamp axis).
-            conversion_maps: Optional list of C-Maps to include as columns.
+            conversion_maps: Optional list of C-Maps to include as fields.
             recursion_limit: Maximum depth for child traversal. None = unlimited.
 
         Returns:
             PyArrow table with timestamp data and field-level unit metadata.
         """
-        columns: dict[str, pa.Array] = {}
+        field_arrs: dict[str, pa.Array] = {}
         fields: list[pa.Field] = []
 
         # Helper to get PyArrow type from NumberType
@@ -2792,9 +2792,9 @@ class Timeline:
             """Map NumberType to PyArrow type: int -> int64, else float64."""
             return pa.int64() if number_type == NumberType.int else pa.float64()
 
-        # Add axis column (root timeline coordinate)
+        # Add axis field (root timeline coordinate)
         axis_pa_type = _get_pa_type(self._number_type)
-        columns["axis"] = axis
+        field_arrs["axis"] = axis
         fields.append(
             pa.field(
                 "axis",
@@ -2806,8 +2806,8 @@ class Timeline:
             )
         )
 
-        # Add root timeline column (offset=0)
-        columns[self._id] = self._compute_local_coordinates(axis, offset=0.0)
+        # Add root timeline field (offset=0)
+        field_arrs[self._id] = self._compute_local_coordinates(axis, offset=0.0)
         fields.append(
             pa.field(
                 self._id,
@@ -2819,13 +2819,13 @@ class Timeline:
             )
         )
 
-        # Add child columns recursively
+        # Add child fields recursively
         for child_offset, child in self.iter_children(
             recursion_limit=recursion_limit,
             include_self=False,
         ):
             child_pa_type = _get_pa_type(child._number_type)
-            columns[child.id] = child._compute_local_coordinates(
+            field_arrs[child.id] = child._compute_local_coordinates(
                 axis, offset=float(child_offset.value)
             )
             fields.append(
@@ -2839,18 +2839,17 @@ class Timeline:
                 )
             )
 
-        # Add C-Map columns
-        # C-Maps work on NumPy arrays; we convert PyArrow <-> NumPy at the boundary
-        # See: .agent/skills/tta-guide/references/cmap_pyarrow_integration.md
+        # Add C-Map fields
+        # C-Maps work on NumPy arrays; we convert PyArrow <-> NumPy at the boundary.
         if conversion_maps:
             # Allow copy for arrays with nulls (zero_copy_only=False)
             axis_np = axis.to_numpy(zero_copy_only=False)
             for cmap in conversion_maps:
                 converted = cmap.convert_array(axis_np)
-                # Use map's name property for human-readable column header
+                # Use map's name property for human-readable field header
                 col_name = cmap.name
-                columns[col_name] = pa.array(converted)
-                # C-Map columns include target unit from the C-Map
+                field_arrs[col_name] = pa.array(converted)
+                # C-Map fields include target unit from the C-Map
                 target_unit = getattr(cmap, "target_unit", None)
                 unit_value = target_unit.value if target_unit else "unknown"
                 fields.append(
@@ -2866,7 +2865,7 @@ class Timeline:
 
         # Build table with explicit schema to preserve metadata
         schema = pa.schema(fields)
-        return pa.table(columns, schema=schema)
+        return pa.table(field_arrs, schema=schema)
 
     def _resolve_coordinate_spec(
         self,
@@ -2962,7 +2961,7 @@ class Timeline:
                 coordinates are extracted from events (and optionally boundaries).
                 Accepts IdCoordinate objects - if timeline_id matches a child,
                 the offset is automatically applied.
-            conversion_maps: C-Maps to include as columns. Flexible input:
+            conversion_maps: C-Maps to include as fields. Flexible input:
                 - True: Include all attached conversion maps
                 - str: Map ID or target unit name (e.g., "inches", "seconds")
                 - TimeUnit: Find map by target unit enum
@@ -2981,8 +2980,8 @@ class Timeline:
 
             Each field includes metadata:
                 - unit: TimeUnit.value string (e.g., "seconds", "pixels")
-                - timeline_id: Timeline ID (for timeline columns)
-                - cmap_id: C-Map ID (for C-Map columns)
+                - timeline_id: Timeline ID (for timeline fields)
+                - cmap_id: C-Map ID (for C-Map fields)
 
             Access metadata via: ``table.schema.field(col_name).metadata``
 
@@ -3049,7 +3048,7 @@ class Timeline:
         include_ids: bool = True,
         as_fractions: bool | None = None,
     ) -> pd.DataFrame:
-        """Generate timestamps as a pandas DataFrame with units in column names.
+        """Generate timestamps as a pandas DataFrame with units in field names.
 
         Convenience wrapper around get_timestamp_table() for users who
         prefer working with pandas.
@@ -3064,7 +3063,7 @@ class Timeline:
         Args:
             coordinates: CoordinateSpec or sequence of CoordinateSpec. Accepts
                 IdCoordinate - if timeline_id matches a child, offset is auto-applied.
-            conversion_maps: C-Maps to include as columns. Flexible input:
+            conversion_maps: C-Maps to include as fields. Flexible input:
                 - True: Include all attached conversion maps
                 - str: Map ID or target unit name (e.g., "inches", "seconds")
                 - TimeUnit: Find map by target unit enum
@@ -3074,7 +3073,7 @@ class Timeline:
             recursion_limit: Maximum depth for child traversal.
             include_events: If True and coordinates is None, extract from events.
             include_boundaries: If True, include timeline boundary coordinates.
-            units: If True (default), append units to column names like "name (unit)".
+            units: If True (default), append units to field names like "name (unit)".
             include_ids: If True (default), add event IDs as the DataFrame
                 index. Each coordinate is matched to the nearest event at that
                 coordinate, showing what each timestamp row corresponds to.
@@ -3083,9 +3082,9 @@ class Timeline:
                 based on the timeline's number_type.
 
         Returns:
-            pandas DataFrame with units in column names (if units=True)
+            pandas DataFrame with units in field names (if units=True)
             and event IDs as the index (if include_ids=True). For fraction
-            number-type timelines with as_fractions=True, coordinate columns
+            number-type timelines with as_fractions=True, coordinate fields
             contain Fraction objects instead of floats.
 
         Examples:
@@ -3113,14 +3112,14 @@ class Timeline:
             use_fractions = self._number_type == NumberType.fraction
 
         if use_fractions:
-            # Convert float columns back to Fraction objects for fraction-type columns
+            # Convert float fields back to Fraction objects for fraction-type fields
             # This is slow but provides exact representation for display
-            for col in df.columns:
-                # Skip non-numeric columns
-                if df[col].dtype not in (float, "float64", "Float64"):
+            for name in df.columns:
+                # Skip non-numeric fields
+                if df[name].dtype not in (float, "float64", "Float64"):
                     continue
                 # Convert to Fraction with reasonable denominator limit
-                df[col] = df[col].apply(
+                df[name] = df[name].apply(
                     lambda x: (
                         Fraction(x).limit_denominator(10000) if pd.notna(x) else None
                     )
@@ -3143,9 +3142,9 @@ class Timeline:
                         coord_to_ids[coord_val] = event_id
 
             # Map each row's axis coordinate to an event ID
-            axis_col = df.columns[0]  # First column is always axis
+            axis_name = df.columns[0]  # First field is always axis
             ids = []
-            for val in df[axis_col]:
+            for val in df[axis_name]:
                 fval = float(val) if val is not None else None
                 ids.append(coord_to_ids.get(fval, ""))
             df.index = ids
@@ -3161,41 +3160,41 @@ class Timeline:
         include_events: bool = True,
         include_boundaries: bool = False,
         *,
-        columns: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
+        fields: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
         units: bool = True,
         format: str = "pandas",
     ) -> pd.DataFrame:
-        """Generate timestamps as a pandas DataFrame with formatted column names.
+        """Generate timestamps as a pandas DataFrame with formatted field names.
 
         This is the recommended high-level method for getting timestamp data.
-        It builds on get_timestamp_table() and applies column formatting.
+        It builds on get_timestamp_table() and applies field formatting.
 
         Args:
             coordinates: Explicit coordinates to use as the axis.
-            conversion_maps: C-Maps to include as columns. Defaults to True (all).
+            conversion_maps: C-Maps to include as additional fields. Defaults to True (all).
             recursion_limit: Maximum depth for child traversal.
             include_events: If True and coordinates is None, extract from events.
             include_boundaries: If True, include timeline boundary coordinates.
-            columns: How to name the columns. Options:
+            fields: How to name the DataFrame fields. Options:
                 - None or ColumnNaming.name (default): Use timeline/cmap name
                 - ColumnNaming.id: Use timeline/cmap id
                 - Callable: Function taking (name, metadata_dict) -> new_name
-                - list[str]: Explicit column names
-            units: If True (default), append units to column names like "name (unit)".
+                - list[str]: Explicit field names
+            units: If True (default), append units to field names like "name (unit)".
             format: Output format. Currently only "pandas" is supported.
 
         Returns:
             pandas DataFrame with:
-            - Columns named according to the `columns` parameter
-            - Units appended if `units=True`
-            - Integer columns using pandas nullable Int64 dtype
+            - Fields named according to the ``fields`` parameter
+            - Units appended if ``units=True``
+            - Integer fields using pandas nullable Int64 dtype
 
         Examples:
             >>> df = timeline.to_dataframe()
             >>> df.columns
             Index(['axis (pixels)', 'dgt1 (pixels)', 'pixels_to_inches (inches)'])
 
-            >>> # Without units in column names
+            >>> # Without units in field names
             >>> df = timeline.to_dataframe(units=False)
             >>> df.columns
             Index(['axis', 'dgt1', 'pixels_to_inches'])
@@ -3211,7 +3210,7 @@ class Timeline:
         )
         return timestamp_table_to_dataframe(
             table=table,
-            columns=columns,
+            fields=fields,
             units=units,
             format=format,
         )
@@ -3227,7 +3226,7 @@ class Timeline:
         coordinates for this timeline and all children.
 
         Args:
-            conversion_maps: C-Maps to include as columns (see get_timestamp_table).
+            conversion_maps: C-Maps to include as fields (see get_timestamp_table).
             recursion_limit: Maximum depth for child traversal.
 
         Returns:
@@ -3264,7 +3263,7 @@ class Timeline:
         .. deprecated::
             This method is deprecated. Use ``get_events(**filters)`` combined
             with ``get_timestamp_table()`` instead. The ``get_events()`` method
-            now supports arbitrary column filters via ``**kwargs``.
+            now supports arbitrary field filters via ``**kwargs``.
 
         Applies an event filter before extracting coordinates from EventData.
         This enables efficient timestamp generation for subsets of events
@@ -3280,7 +3279,7 @@ class Timeline:
                   Example: {"event_type": "Note"} or {"temporal_type": "interval"}
                 - pc.Expression: Passed to EventData.where() for complex filters.
                   Example: pc.greater(pc.struct_field(pc.field("start"), "value"), 10.0)
-            conversion_maps: C-Maps to include as columns (see get_timestamp_table).
+            conversion_maps: C-Maps to include as fields (see get_timestamp_table).
             recursion_limit: Maximum depth for child traversal.
             include_boundaries: If True, also include timeline boundary coordinates.
 
@@ -3362,14 +3361,14 @@ class Timeline:
         .. deprecated::
             This method is deprecated. Use ``get_events(**filters)`` combined
             with ``get_timestamps()`` instead. The ``get_events()`` method
-            now supports arbitrary column filters via ``**kwargs``.
+            now supports arbitrary field filters via ``**kwargs``.
 
         Convenience wrapper around get_timestamp_table_filtered() for users
         who prefer working with pandas.
 
         Args:
             event_filter: Filter to apply (dict for simple, pc.Expression for complex).
-            conversion_maps: C-Maps to include as columns (see get_timestamp_table).
+            conversion_maps: C-Maps to include as fields (see get_timestamp_table).
             recursion_limit: Maximum depth for child traversal.
             include_boundaries: If True, include timeline boundary coordinates.
 
@@ -3403,7 +3402,7 @@ class Timeline:
         include_events: bool = True,
         include_boundaries: bool = False,
         *,
-        columns: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
+        fields: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
         units: bool = True,
         sep: str = ",",
         header: bool = True,
@@ -3418,14 +3417,14 @@ class Timeline:
         Args:
             filepath: Output CSV file path.
             coordinates: Explicit coordinates to use as the axis.
-            conversion_maps: C-Maps to include as columns. Defaults to True (all).
+            conversion_maps: C-Maps to include as additional fields. Defaults to True (all).
             recursion_limit: Maximum depth for child traversal.
             include_events: If True and coordinates is None, extract from events.
             include_boundaries: If True, include timeline boundary coordinates.
-            columns: How to name the columns (see to_dataframe).
-            units: If True (default), append units to column names.
+            fields: How to name the DataFrame fields (see to_dataframe).
+            units: If True (default), append units to field names.
             sep: Field separator. Default "," (comma).
-            header: If True (default), write column headers.
+            header: If True (default), write field headers.
             index: If True, write row indices. Default False.
 
         Returns:
@@ -3445,7 +3444,7 @@ class Timeline:
             recursion_limit=recursion_limit,
             include_events=include_events,
             include_boundaries=include_boundaries,
-            columns=columns,
+            fields=fields,
             units=units,
         )
         df.to_csv(filepath, sep=sep, header=header, index=index)
@@ -3667,14 +3666,14 @@ class Timeline:
 
     def create_regions_by_grouping(
         self,
-        column: str,
+        field: str,
         *,
         name_format: str = "{value}",
     ) -> list[Region]:
-        """Create regions by grouping *adjacent* events on a column value.
+        """Create regions by grouping *adjacent* events on a field value.
 
         For each *run* of consecutive events that share the same value in the
-        specified column, creates a region spanning the run's coordinate extent
+        specified field, creates a region spanning the run's coordinate extent
         ``[min_start, max_end)``. Only adjacent events with the same value are
         grouped — non-adjacent occurrences of the same value produce separate
         regions.
@@ -3684,7 +3683,7 @@ class Timeline:
         and each occurrence should be its own region.
 
         Args:
-            column: Event column name to group by.
+            field: Event field name to group by.
             name_format: Format string. Placeholders: {value}, {i} (0-based),
                 {n} (1-based), {run} (1-based run index for this value).
 
@@ -3692,7 +3691,7 @@ class Timeline:
             List of Region objects ordered by start coordinate.
 
         Raises:
-            ValueError: If column does not exist in events.
+            ValueError: If field does not exist in events.
             RuntimeError: If timeline is locked.
 
         Examples:
@@ -3707,12 +3706,12 @@ class Timeline:
         if not events_sorted:
             return []
 
-        # Check column exists
+        # Check field exists
         first_event = events_sorted[0]
-        if column not in first_event:
+        if field not in first_event:
             raise ValueError(
-                f"Column '{column}' not found in events. "
-                f"Available columns: {list(first_event.keys())}"
+                f"Field '{field}' not found in events. "
+                f"Available fields: {list(first_event.keys())}"
             )
 
         # Build runs of adjacent equal values
@@ -3724,7 +3723,7 @@ class Timeline:
         run_end = 0.0
 
         for event in events_sorted:
-            val = event.get(column)
+            val = event.get(field)
             # Normalize struct values
             if isinstance(val, dict) and "value" in val:
                 val = val["value"]
@@ -3789,18 +3788,18 @@ class Timeline:
         points, creates contiguous regions between consecutive split points.
 
         The predicate can be:
-        - A string: column name. Events where this column is truthy (non-null,
+        - A string: field name. Events where this field is truthy (non-null,
           non-empty, non-zero) are split points.
         - A dict: keyword filters in the same style as ``EventData.filter()``.
           For example ``{"breaks": "section"}`` selects events whose ``breaks``
-          column equals ``"section"``.
+          field equals ``"section"``.
         - A callable: receives event dict, returns True for split points.
 
         For each matching event the split coordinate is the event's ``end``
         (interval events) or ``start``/``instant`` (instant events).
 
         Args:
-            predicate: Column name, filter dict, or callable identifying
+            predicate: Field name, filter dict, or callable identifying
                 split-point events.
             names: Explicit region names.
             name_format: Format string. Placeholders: {prefix}, {i}, {n}.
@@ -3887,7 +3886,7 @@ class Timeline:
         """Convert a predicate specification to a callable.
 
         Supports three forms:
-        - str: column name — truthy test on that column's value.
+        - str: field name — truthy test on that field's value.
         - dict: keyword filters (same semantics as ``EventData.filter``).
         - callable: used directly.
 
@@ -3901,10 +3900,10 @@ class Timeline:
             return predicate
 
         if isinstance(predicate, str):
-            col = predicate
+            name = predicate
 
             def _match_truthy(event: dict) -> bool:
-                val = event.get(col)
+                val = event.get(name)
                 if val is None:
                     return False
                 if isinstance(val, dict) and "value" in val:
@@ -4608,12 +4607,12 @@ class Timeline:
 
     def create_segment_line_by_grouping(
         self,
-        column: str,
+        field: str,
         *,
         copy_events: bool = True,
         name_format: str = "{value}",
     ) -> "SegmentLine":
-        """Create a SegmentLine by grouping adjacent events on a column value.
+        """Create a SegmentLine by grouping adjacent events on a field value.
 
         Groups must form contiguous, non-overlapping spans. This is validated
         and raises if not satisfied.
@@ -4621,7 +4620,7 @@ class Timeline:
         Does NOT modify self. Does NOT add intermediate regions to self.
 
         Args:
-            column: Event column to group by.
+            field: Event field to group by.
             copy_events: Copy events into segments.
             name_format: Format string for segment names.
 
@@ -4640,10 +4639,10 @@ class Timeline:
             raise ValueError("No events to group")
 
         first_event = events_sorted[0]
-        if column not in first_event:
+        if field not in first_event:
             raise ValueError(
-                f"Column '{column}' not found in events. "
-                f"Available columns: {list(first_event.keys())}"
+                f"Field '{field}' not found in events. "
+                f"Available fields: {list(first_event.keys())}"
             )
 
         runs: list[tuple[Any, float, float]] = []
@@ -4654,7 +4653,7 @@ class Timeline:
         run_end = 0.0
 
         for event in events_sorted:
-            val = event.get(column)
+            val = event.get(field)
             if isinstance(val, dict) and "value" in val:
                 val = val["value"]
 

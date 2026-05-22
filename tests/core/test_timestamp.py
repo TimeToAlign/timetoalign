@@ -566,23 +566,23 @@ class TestTimestampTableMetadata:
     """Tests for unit metadata in timestamp tables."""
 
     def test_timestamp_table_has_unit_metadata(self):
-        """get_timestamp_table includes unit metadata on columns."""
+        """get_timestamp_table includes unit metadata on fields."""
         tl = Timeline(length=100, unit=TimeUnit.seconds, uid="test:1")
         table = tl.get_timestamp_table(coordinates=[0.0, 50.0, 100.0])
 
-        # Check axis column metadata
+        # Check axis field metadata
         axis_field = table.schema.field("axis")
         assert axis_field.metadata is not None
         assert axis_field.metadata[b"unit"] == b"seconds"
         assert axis_field.metadata[b"timeline_id"] == b"test:1"
 
-        # Check timeline column metadata
+        # Check timeline field metadata
         tl_field = table.schema.field("test:1")
         assert tl_field.metadata is not None
         assert tl_field.metadata[b"unit"] == b"seconds"
 
     def test_timestamp_table_child_metadata(self):
-        """Child columns have unit metadata (same as parent per TTA model)."""
+        """Child fields have unit metadata (same as parent per TTA model)."""
         # Children must share parent's unit (TTA model constraint)
         parent = Timeline(length=100, unit=TimeUnit.seconds, uid="parent:1")
         child = Timeline(length=40, unit=TimeUnit.seconds, uid="child:1")
@@ -591,14 +591,14 @@ class TestTimestampTableMetadata:
 
         table = parent.get_timestamp_table(coordinates=[30.0, 50.0])
 
-        # Check child column has its unit metadata
+        # Check child field has its unit metadata
         child_field = table.schema.field("child:1")
         assert child_field.metadata is not None
         assert child_field.metadata[b"unit"] == b"seconds"  # Same as parent
         assert child_field.metadata[b"timeline_id"] == b"child:1"
 
     def test_timestamp_table_cmap_metadata(self):
-        """C-Map columns have target unit metadata."""
+        """C-Map fields have target unit metadata."""
         tl = Timeline(length=960, unit=TimeUnit.ticks, uid="test:1")
 
         tempo_map = TableMap(
@@ -613,7 +613,7 @@ class TestTimestampTableMetadata:
             coordinates=[0.0, 480.0, 960.0], conversion_maps=[tempo_map]
         )
 
-        # Find the C-Map column by name (column names use cmap.name, not cmap.id)
+        # Find the C-Map field by name (field names use cmap.name, not cmap.id)
         cmap_field = table.schema.field(tempo_map.name)
         assert cmap_field.metadata is not None
         assert cmap_field.metadata[b"unit"] == b"seconds"  # Target unit

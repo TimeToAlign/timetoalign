@@ -70,7 +70,7 @@ class LinearMap(ConversionMap[CoordinateValue]):
             source_unit: The unit of input coordinates.
             target_unit: The unit of output coordinates.
             uid: Optional explicit ID.
-            name: Human-readable name for this map. Used as column header in
+            name: Human-readable name for this map. Used as field header in
                 timestamp tables. Defaults to "source_to_target".
 
         Raises:
@@ -228,7 +228,7 @@ class ScalarMap(ConversionMap[CoordinateValue]):
             source_unit: The unit of input coordinates.
             target_unit: The unit of output coordinates.
             uid: Optional explicit ID.
-            name: Human-readable name for this map. Used as column header in
+            name: Human-readable name for this map. Used as field header in
                 timestamp tables. Defaults to "source_to_target" (e.g.,
                 "pixels_to_inches").
 
@@ -337,7 +337,7 @@ class ShiftMap(ConversionMap[CoordinateValue]):
             source_unit: The unit of input coordinates.
             target_unit: The unit of output coordinates (typically same as source).
             uid: Optional explicit ID.
-            name: Human-readable name for this map. Used as column header in
+            name: Human-readable name for this map. Used as field header in
                 timestamp tables. Defaults to "source_to_target".
         """
         super().__init__(

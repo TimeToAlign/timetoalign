@@ -64,7 +64,7 @@ def extract_notes_df(store: ScoreStore, loader_name: str) -> pd.DataFrame:
                 )
             )
 
-    # Flatten pitch structs — WP2.5 storage shape is {midi_number}.
+    # Flatten pitch structs — canonical storage shape is {midi_number}.
     if "midi_pitch" in df.columns:
         df["midi_number"] = df["midi_pitch"].apply(
             lambda x: x["midi_number"] if isinstance(x, dict) else None

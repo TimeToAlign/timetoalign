@@ -145,7 +145,7 @@ class TestCoordinateProperties:
     def test_number_type_bool_raises(self) -> None:
         """Boolean values are rejected at Coordinate construction.
 
-        Post-WP2 pilot migration to pydantic v2 BaseModel: the validator
+        With the pydantic v2 BaseModel implementation, the validator
         rejects bool eagerly at construction (a stricter and earlier
         rejection than the pre-migration ``number_type``-only check).
         """

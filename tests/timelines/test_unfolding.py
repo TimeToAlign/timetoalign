@@ -1,4 +1,4 @@
-"""Tests for Unfolding via Slicing (Phase 3.10).
+"""Tests for Unfolding via Slicing.
 
 This test suite validates the slice-based unfolding pipeline:
 1. Timeline.get_slice() primitive (unit tests)

@@ -36,7 +36,7 @@ class NoteEventData(EventData, PitchAccessMixin):
         pa.field("mn", pa.string(), nullable=True),
         make_fraction_field("mc_onset", nullable=True),
         make_fraction_field("mn_onset", nullable=True),
-        # Pitch struct columns — schemas derived from the paired Fields'
+        # Pitch struct fields — schemas derived from the paired Fields'
         # pydantic models (see core/events.py).
         pa.field("midi_pitch", EnharmonicPitchField.pa_schema, nullable=True),
         pa.field("specific_pitch", SpecificPitchField.pa_schema, nullable=True),
@@ -84,13 +84,13 @@ class NoteEventData(EventData, PitchAccessMixin):
 
     @property
     def enharmonic_pitch_field(self) -> EnharmonicPitchField:
-        """Extract the ``midi_pitch`` column as an ``EnharmonicPitchField``.
+        """Extract the ``midi_pitch`` field as an ``EnharmonicPitchField``.
 
         Returns:
-            An ``EnharmonicPitchField`` wrapping the ``midi_pitch`` column.
+            An ``EnharmonicPitchField`` wrapping the ``midi_pitch`` field.
 
         Raises:
-            KeyError: If the table has no ``midi_pitch`` column.
+            KeyError: If the table has no ``midi_pitch`` field.
         """
         try:
             result = self.get_pitch_field(EnharmonicPitchField)
@@ -108,13 +108,13 @@ class NoteEventData(EventData, PitchAccessMixin):
 
     @property
     def specific_pitch_field(self) -> SpecificPitchField:
-        """Extract the ``specific_pitch`` column as a ``SpecificPitchField``.
+        """Extract the ``specific_pitch`` field as a ``SpecificPitchField``.
 
         Returns:
-            A ``SpecificPitchField`` wrapping the ``specific_pitch`` column.
+            A ``SpecificPitchField`` wrapping the ``specific_pitch`` field.
 
         Raises:
-            KeyError: If the table has no ``specific_pitch`` column.
+            KeyError: If the table has no ``specific_pitch`` field.
         """
         try:
             result = self.get_pitch_field(SpecificPitchField)
@@ -162,7 +162,7 @@ class NoteEventData(EventData, PitchAccessMixin):
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
 
-        # Ensure all required columns exist with proper defaults
+        # Ensure all required fields exist with proper defaults
         processed_rows = []
         type_counters: dict[str, int] = {}
         for row in rows:
@@ -175,11 +175,11 @@ class NoteEventData(EventData, PitchAccessMixin):
                 type_counters[etype] += 1
                 processed["id"] = f"{etype}:{type_counters[etype]:06d}"
 
-            # Ensure name column exists
+            # Ensure name field exists
             if "name" not in processed:
                 processed["name"] = None
 
-            # Map legacy temporal columns to base
+            # Map legacy temporal fields to base
             if "quarterbeats" in processed:
                 processed["start"] = processed.pop("quarterbeats")
             if "duration_qb" in processed:
