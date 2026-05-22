@@ -47,7 +47,7 @@ Install with ``pip install -e ".[<extra>]"`` from the repository root.
 +---------------+--------------------------------------+----------------------------------------------+
 | ``graphical`` | ``pymupdf``, ``pillow``              | PDF/image loading & drawing                  |
 +---------------+--------------------------------------+----------------------------------------------+
-| ``plot``      | ``matplotlib``                       | Visualisation (WP1 plotting)                 |
+| ``plot``      | ``matplotlib``                       | Visualisation                                |
 +---------------+--------------------------------------+----------------------------------------------+
 | ``delta``     | ``deltalake``                        | Delta Lake columnar storage (future)         |
 +---------------+--------------------------------------+----------------------------------------------+
@@ -114,6 +114,7 @@ from timetoalign.alignment import (
 )
 from timetoalign.core import (
     ColumnNaming,
+    ColumnRole,
     Coordinate,
     CoordinateSpec,
     CoordinateValue,
@@ -179,6 +180,7 @@ __all__ = [
     "__version__",
     # Enums
     "ColumnNaming",
+    "ColumnRole",
     "Domain",
     "TimeUnit",
     "NumberType",

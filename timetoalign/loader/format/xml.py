@@ -8,7 +8,7 @@ The design mirrors ``JsonLoader`` but for XML: the user (or a subclass)
 specifies one or more *principal tags* -- XML element tags whose instances
 form arrays of objects.  Each such collection is flattened into its own
 ``pa.Table`` with one row per element.  Nested child elements are flattened
-with dot-separated column names; element attributes become columns.
+with dot-separated field names; element attributes become fields.
 
 When no principal tags are specified, the loader auto-detects all element
 tags that appear multiple times as children of any parent.
@@ -78,7 +78,7 @@ def _element_to_dict(
     Args:
         elem: The XML element to convert.
         sep: Separator for nested key names.
-        include_text: Whether to include element text as a column.
+        include_text: Whether to include element text as a field.
         text_key: Key name for element text content.
 
     Returns:
@@ -173,7 +173,7 @@ def _collect_elements_by_tag(
         tag: The element tag to collect.
         parent_context: Inherited attributes from parent elements.
         sep: Separator for nested key names.
-        include_text: Whether to include element text as a column.
+        include_text: Whether to include element text as a field.
         text_key: Key name for element text content.
 
     Returns:
@@ -212,7 +212,7 @@ def _normalise_elements(
 ) -> pa.Table:
     """Normalise a list of element dicts into a ``pa.Table``.
 
-    Union of all keys across rows forms the column set.  PyArrow infers
+    Union of all keys across rows forms the field set.  PyArrow infers
     types automatically.
 
     Args:
@@ -224,7 +224,7 @@ def _normalise_elements(
     if not rows:
         return pa.table({})
 
-    # Collect all column names in insertion order
+    # Collect all field names in insertion order
     all_keys: list[str] = []
     seen: set[str] = set()
     for row in rows:
@@ -233,15 +233,15 @@ def _normalise_elements(
                 all_keys.append(k)
                 seen.add(k)
 
-    # Build column arrays
-    columns: dict[str, list[Any]] = {k: [] for k in all_keys}
+    # Build field arrays
+    field_lists: dict[str, list[Any]] = {k: [] for k in all_keys}
     for row in rows:
         for k in all_keys:
-            columns[k].append(row.get(k))
+            field_lists[k].append(row.get(k))
 
     # Let PyArrow infer types from the Python lists
     arrays: dict[str, pa.Array] = {}
-    for k, vals in columns.items():
+    for k, vals in field_lists.items():
         try:
             arrays[k] = pa.array(vals)
         except (pa.ArrowInvalid, pa.ArrowTypeError):
@@ -300,8 +300,8 @@ class XmlLoader(Loader):
     - If *principal_tags* is ``None`` (the default), tags appearing at
       least twice in the document are auto-detected as principal.
 
-    Each element's attributes become columns.  Nested child elements are
-    flattened with dot-separated column names.  Ancestor attributes are
+    Each element's attributes become fields.  Nested child elements are
+    flattened with dot-separated field names.  Ancestor attributes are
     propagated downward with ``parent_<tag>_<attr>`` prefixes.
 
     Follows the standard two-phase pattern:
@@ -313,7 +313,7 @@ class XmlLoader(Loader):
         principal_tags: List of element tags to normalise.  ``None`` for
             auto-detect.
         sep: Separator for flattened nested key names.  Default ``"."``.
-        include_text: Whether to include element text as ``_text`` column.
+        include_text: Whether to include element text as ``_text`` field.
             Default ``True``.
         propagate_ancestors: Whether to propagate ancestor attributes.
             Default ``True``.

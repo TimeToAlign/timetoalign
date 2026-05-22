@@ -236,11 +236,11 @@ The `TableSchema` system (`timetoalign.loader.table_schema`) provides a declarat
 |-------|---------|
 | `TableSchema` | Main schema container with all specifications |
 | `TimelineDefaults` | Default timeline creation parameters (unit, number_type) |
-| `CoordinateSpec` | Specifies start/end/duration/instant columns with CMapColumn support |
+| `CoordinateSpec` | Specifies start/end/duration/instant fields with CMapField support |
 | `PartitionSpec` | Groups rows into separate timelines (SEPARATE or CHILDREN mode) |
-| `RegionSpec` | Extracts named TimeIntervals from columns |
-| `MatchSpec` | Specifies columns referencing events on other timelines |
-| `CMapColumn` | Declares a column as C-Map target (different unit than primary) |
+| `RegionSpec` | Extracts named TimeIntervals from fields |
+| `MatchSpec` | Specifies fields referencing events on other timelines |
+| `CMapField` | Declares a field as C-Map target (different unit than primary) |
 | `Field` | Accesses nested struct/JSON fields (auto-parses JSON) |
 | `ComputedField` | Computes derived columns via formula or callable |
 | `ConvertedField` | Explicit type conversion/transformation for columns |
@@ -248,14 +248,14 @@ The `TableSchema` system (`timetoalign.loader.table_schema`) provides a declarat
 ### Example Usage
 
 ```python
-from timetoalign.loader import TableSchema, CoordinateSpec, CMapColumn
+from timetoalign.loader import TableSchema, CoordinateSpec, CMapField
 from timetoalign.core import TimeUnit
 
 schema = TableSchema(
     coordinates=CoordinateSpec(
         start="onset_sec",
         duration="duration_sec",
-        cmap_columns={"onset_beat": CMapColumn(target_unit=TimeUnit.quarters)},
+        cmap_fields={"onset_beat": CMapField(target_unit=TimeUnit.quarters)},
     ),
 )
 results = schema.create_timelines(df)
@@ -264,9 +264,9 @@ results = schema.create_timelines(df)
 ### Test Coverage (test_table_schema.py)
 
 - `TestTimelineDefaults`: Default values and custom configuration
-- `TestCoordinateSpec`: Interval, duration, instant, and CMap column specs
+- `TestCoordinateSpec`: Interval, duration, instant, and CMap field specs
 - `TestPartitionSpec`: SEPARATE and CHILDREN modes, composite keys
-- `TestTableSchemaBasics`: Minimal schema, reserved columns, role detection
+- `TestTableSchemaBasics`: Minimal schema, reserved fields, role detection
 - `TestTimelineCreation`: Timeline, region, CMap, and instant event creation
 - `TestSerialization`: Dict round-trip and repr output
-- `TestEdgeCases`: Missing columns, empty DataFrames, null handling
+- `TestEdgeCases`: Missing source columns, empty DataFrames, null handling

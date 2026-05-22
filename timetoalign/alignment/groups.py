@@ -1,7 +1,7 @@
 """TimelineGroup: Container for commensurable timelines.
 
 This module implements the timestamp-based group architecture:
-- Groups store timestamps in a PyArrow table (one row per boundary, one column per timeline)
+- Groups store timestamps in a PyArrow table (one row per boundary, one field per timeline)
 - GroupTimestamp is a lightweight view object, created on retrieval
 - Unified add_timeline() logic whether group is empty or has timelines
 - Coordinate conversion via linear interpolation between timestamps
@@ -374,7 +374,7 @@ class TimelineGroup:
     def remove_timeline(self, timeline_id: str) -> "Timeline":
         """Remove a timeline from the group.
 
-        Updates timestamp table to remove the timeline's column.
+        Updates timestamp table to remove the timeline's field.
         Rows where all remaining timelines have null are removed.
 
         Args:
@@ -390,7 +390,7 @@ class TimelineGroup:
             raise KeyError(f"Timeline '{timeline_id}' not in group '{self.id}'")
 
         timeline = self._timelines.pop(timeline_id)
-        self._remove_timeline_column(timeline_id)
+        self._remove_timeline_field(timeline_id)
 
         # Rebuild interpolation maps
         self._build_interpolation_maps()
@@ -470,7 +470,7 @@ class TimelineGroup:
 
         Collects events from all member timelines (or a specific one) and
         concatenates them into a single DataFrame. Each row includes a
-        ``timeline_id`` column identifying the source timeline.
+        ``timeline_id`` field identifying the source timeline.
 
         Args:
             timeline_id: If provided, only return events from this timeline.
@@ -480,7 +480,7 @@ class TimelineGroup:
 
         Returns:
             DataFrame with events from all (or specified) timelines. Includes
-            a ``timeline_id`` column and standard event columns (``start``,
+            a ``timeline_id`` field and standard event fields (``start``,
             ``end``, ``event_type``, etc.).
 
         Examples:
@@ -664,12 +664,12 @@ class TimelineGroup:
             pass
 
         # Find the row index (exact match) or verify coordinate is in range
-        col = self._timestamp_table.column(timeline_id).to_pylist()
+        coords = self._timestamp_table.column(timeline_id).to_pylist()
 
         # Find bounding rows
         low_idx = None
         high_idx = None
-        for i, val in enumerate(col):
+        for i, val in enumerate(coords):
             if val is not None:
                 if val <= coord_value:
                     low_idx = i
@@ -709,18 +709,18 @@ class TimelineGroup:
         """Get timestamps at multiple coordinates - the batch version of get_timestamp_at.
 
         This is the DEAD-SIMPLE API for batch coordinate transfer: pass a sequence of
-        coordinates and get back a DataFrame with all timeline columns and C-Maps.
+        coordinates and get back a DataFrame with one field per timeline and per C-Map.
 
         Args:
             coordinates: Sequence of CoordinateSpec to query.
             timeline_id: Which timeline the coordinates refer to.
-            conversion_maps: Whether to include C-Map columns from member timelines.
+            conversion_maps: Whether to include C-Map fields from member timelines.
                 - True (default): Include all attached C-Maps
                 - False/None: Only timeline coordinates
-            units: If True (default), append units to column names.
+            units: If True (default), append units to field names.
 
         Returns:
-            DataFrame with one row per coordinate, columns for all timelines and C-Maps.
+            DataFrame with one row per coordinate, one field per timeline and C-Map.
 
         Examples:
             >>> # Get timestamps at multiple score positions
@@ -763,17 +763,17 @@ class TimelineGroup:
         # Build DataFrame
         df = pd.DataFrame(timestamp_dicts)
 
-        # Add units to column names if requested
+        # Add units to field names if requested
         if units:
-            new_columns = {}
-            for col in df.columns:
-                # Try to get unit for this column (timeline ID or C-map unit)
-                unit = self._get_unit_for_timeline(col)
+            new_names = {}
+            for name in df.columns:
+                # Try to get unit for this field (timeline ID or C-map unit)
+                unit = self._get_unit_for_timeline(name)
                 if unit is not None:
-                    new_columns[col] = f"{col} ({unit.value})"
+                    new_names[name] = f"{name} ({unit.value})"
                 else:
-                    new_columns[col] = col
-            df = df.rename(columns=new_columns)
+                    new_names[name] = name
+            df = df.rename(columns=new_names)
 
         return df
 
@@ -821,14 +821,14 @@ class TimelineGroup:
         """Get the timestamp table (or a filtered subset).
 
         Args:
-            timeline_filter: Only include these timeline columns.
-            conversion_maps: Whether to include C-Map columns from member timelines.
+            timeline_filter: Only include these timeline fields.
+            conversion_maps: Whether to include C-Map fields from member timelines.
                 - True (default): Include all attached C-Maps from all timelines
-                - False/None: No C-Map columns
+                - False/None: No C-Map fields
 
         Returns:
-            pa.Table with one row per timestamp, one column per timeline,
-            plus C-Map columns if conversion_maps=True.
+            pa.Table with one row per timestamp, one field per timeline,
+            plus C-Map fields if conversion_maps=True.
             Returns empty table if group has no timestamps.
         """
         if self._timestamp_table is None:
@@ -836,29 +836,29 @@ class TimelineGroup:
 
         table = self._timestamp_table
 
-        # Filter timeline columns if requested
+        # Filter timeline fields if requested
         if timeline_filter is not None:
-            cols = [c for c in table.column_names if c in timeline_filter]
-            table = table.select(cols)
+            keep = [c for c in table.column_names if c in timeline_filter]
+            table = table.select(keep)
 
-        # Add C-Map columns from member timelines
+        # Add C-Map fields from member timelines
         if conversion_maps:
-            table = self._add_cmap_columns(table)
+            table = self._add_cmap_fields(table)
 
         return table
 
-    def _add_cmap_columns(self, table: pa.Table) -> pa.Table:
-        """Add C-Map columns from member timelines to a timestamp table.
+    def _add_cmap_fields(self, table: pa.Table) -> pa.Table:
+        """Add C-Map fields from member timelines to a timestamp table.
 
         For each timeline in the group that has attached C-Maps, applies
-        those C-Maps to the timeline's column and adds the results as
-        new columns.
+        those C-Maps to the timeline's coordinate field and adds the
+        results as new fields.
 
         Args:
             table: The timestamp table to augment.
 
         Returns:
-            Table with additional C-Map columns.
+            Table with additional C-Map fields.
         """
         if table.num_rows == 0:
             return table
@@ -869,8 +869,8 @@ class TimelineGroup:
                 continue
 
             # Get coordinate values for this timeline
-            coord_col = table.column(timeline_id)
-            coord_np = coord_col.to_numpy(zero_copy_only=False)
+            coord_arr = table.column(timeline_id)
+            coord_np = coord_arr.to_numpy(zero_copy_only=False)
 
             # Apply each of the timeline's C-Maps
             for cmap in timeline._conversion_maps.values():
@@ -881,15 +881,15 @@ class TimelineGroup:
                     # Skip C-Maps that fail (e.g., out of bounds)
                     continue
 
-                # Column name uses C-Map's name property
-                col_name = cmap.name
+                # Field name uses C-Map's name property
+                field_name = cmap.name
 
                 # Add field with metadata
                 target_unit = getattr(cmap, "target_unit", None)
                 unit_value = target_unit.value if target_unit else "unknown"
 
                 new_field = pa.field(
-                    col_name,
+                    field_name,
                     pa.float64(),
                     metadata={
                         b"unit": unit_value.encode("utf-8"),
@@ -908,18 +908,18 @@ class TimelineGroup:
         *,
         units: bool = True,
     ) -> pd.DataFrame:
-        """Convenience wrapper returning pandas DataFrame with units in column names.
+        """Convenience wrapper returning pandas DataFrame with units in field names.
 
         Args:
-            timeline_filter: Only include these timeline columns.
-            conversion_maps: Whether to include C-Map columns from member timelines.
+            timeline_filter: Only include these timelines as fields.
+            conversion_maps: Whether to include C-Map fields from member timelines.
                 - True (default): Include all attached C-Maps
-                - False/None: No C-Map columns
-            units: If True (default), append units to column names like "name (unit)".
+                - False/None: No C-Map fields
+            units: If True (default), append units to field names like "name (unit)".
 
         Returns:
-            pandas DataFrame with timestamp data and units in column names,
-            including C-Map columns if conversion_maps=True.
+            pandas DataFrame with timestamp data and units in field names,
+            including C-Map fields if conversion_maps=True.
         """
         from timetoalign.core.timestamp import timestamp_table_to_dataframe
 
@@ -934,40 +934,40 @@ class TimelineGroup:
         timeline_filter: set[str] | None = None,
         conversion_maps: ConversionMapsSpec = True,
         *,
-        columns: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
+        fields: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
         units: bool = True,
         format: str = "pandas",
     ) -> pd.DataFrame:
-        """Generate timestamps as a pandas DataFrame with formatted column names.
+        """Generate timestamps as a pandas DataFrame with formatted field names.
 
         This is the recommended high-level method for getting timestamp data.
-        It builds on get_timestamp_table() and applies column formatting.
+        It builds on get_timestamp_table() and applies field formatting.
 
         Args:
-            timeline_filter: Only include these timeline columns.
-            conversion_maps: Whether to include C-Map columns from member timelines.
+            timeline_filter: Only include these timelines as fields.
+            conversion_maps: Whether to include C-Map fields from member timelines.
                 - True (default): Include all attached C-Maps
-                - False/None: No C-Map columns
-            columns: How to name the columns. Options:
+                - False/None: No C-Map fields
+            fields: How to name the DataFrame fields. Options:
                 - None or ColumnNaming.name (default): Use timeline/cmap name
                 - ColumnNaming.id: Use timeline/cmap id
                 - Callable: Function taking (name, metadata_dict) -> new_name
-                - list[str]: Explicit column names
-            units: If True (default), append units to column names like "name (unit)".
+                - list[str]: Explicit field names
+            units: If True (default), append units to field names like "name (unit)".
             format: Output format. Currently only "pandas" is supported.
 
         Returns:
             pandas DataFrame with:
-            - Columns named according to the `columns` parameter
-            - Units appended if `units=True`
-            - Integer columns using pandas nullable Int64 dtype
+            - Fields named according to the ``fields`` parameter
+            - Units appended if ``units=True``
+            - Integer fields using pandas nullable Int64 dtype
 
         Examples:
             >>> df = group.to_dataframe()
             >>> df.columns
             Index(['audio (seconds)', 'dgt1 (pixels)', 'pixels_to_beats (beats)'])
 
-            >>> # Without units in column names
+            >>> # Without units in field names
             >>> df = group.to_dataframe(units=False)
             >>> df.columns
             Index(['audio', 'dgt1', 'pixels_to_beats'])
@@ -980,7 +980,7 @@ class TimelineGroup:
         )
         return timestamp_table_to_dataframe(
             table=table,
-            columns=columns,
+            fields=fields,
             units=units,
             format=format,
         )
@@ -1002,15 +1002,15 @@ class TimelineGroup:
         units: dict[str, str] = {}
 
         for data_field in self._timestamp_table.schema:
-            col_name = data_field.name
-            val = row.column(col_name)[0].as_py()
-            coords[col_name] = val  # None if null
+            field_name = data_field.name
+            val = row.column(field_name)[0].as_py()
+            coords[field_name] = val  # None if null
 
             # Extract unit from field metadata
             if data_field.metadata:
                 unit_bytes = data_field.metadata.get(b"unit")
                 if unit_bytes:
-                    units[col_name] = unit_bytes.decode("utf-8")
+                    units[field_name] = unit_bytes.decode("utf-8")
 
         return GroupTimestamp(coordinates=coords, units=units, row_index=index)
 
@@ -1078,12 +1078,12 @@ class TimelineGroup:
         if self._timestamp_table is None:
             return None
 
-        col = self._timestamp_table.column(timeline_id).to_pylist()
+        coords = self._timestamp_table.column(timeline_id).to_pylist()
 
         # Find first and last non-null values
         start_val = None
         end_val = None
-        for val in col:
+        for val in coords:
             if val is not None:
                 if start_val is None:
                     start_val = val
@@ -1141,7 +1141,7 @@ class TimelineGroup:
 
         Returns:
             DataFrame with one row per event, indexed by event_id.
-            Columns are timeline IDs with their coordinates.
+            Fields are timeline IDs with their coordinates.
             Events not found have NaN values.
 
         Examples:
@@ -1299,17 +1299,17 @@ class TimelineGroup:
         # If we don't know the source_id, we can't check properly
         if source_id is None:
             # Fall back to checking if the timeline has any values
-            target_col = self._timestamp_table.column(timeline_id).to_pylist()
-            return any(v is not None for v in target_col)
+            target_vals = self._timestamp_table.column(timeline_id).to_pylist()
+            return any(v is not None for v in target_vals)
 
-        # Get the source column to find bounding rows
-        source_col = self._timestamp_table.column(source_id).to_pylist()
-        target_col = self._timestamp_table.column(timeline_id).to_pylist()
+        # Get the source field to find bounding rows
+        source_vals = self._timestamp_table.column(source_id).to_pylist()
+        target_vals = self._timestamp_table.column(timeline_id).to_pylist()
 
         # Find bounding rows for the axis coordinate on source
         low_idx = None
         high_idx = None
-        for i, val in enumerate(source_col):
+        for i, val in enumerate(source_vals):
             if val is not None:
                 if val <= axis:
                     low_idx = i
@@ -1321,8 +1321,8 @@ class TimelineGroup:
             return False
 
         # Check if target timeline has non-None values in the bounding rows
-        low_target = target_col[low_idx] if low_idx < len(target_col) else None
-        high_target = target_col[high_idx] if high_idx < len(target_col) else None
+        low_target = target_vals[low_idx] if low_idx < len(target_vals) else None
+        high_target = target_vals[high_idx] if high_idx < len(target_vals) else None
 
         # Both bounds must have values for interpolation to work
         return low_target is not None and high_target is not None
@@ -1342,19 +1342,19 @@ class TimelineGroup:
         new_maps: dict[str, InterpolationMap] = {}
 
         for i, source_id in enumerate(timeline_ids):
-            source_col = self._timestamp_table.column(source_id).to_pylist()
+            source_coords = self._timestamp_table.column(source_id).to_pylist()
 
             for j, target_id in enumerate(timeline_ids):
                 if i == j:
                     continue
 
-                target_col = self._timestamp_table.column(target_id).to_pylist()
+                target_coords = self._timestamp_table.column(target_id).to_pylist()
 
                 # Extract pairs where both have values
                 source_vals: list[float] = []
                 target_vals: list[float] = []
 
-                for s, t in zip(source_col, target_col):
+                for s, t in zip(source_coords, target_coords):
                     if s is not None and t is not None:
                         source_vals.append(s)
                         target_vals.append(t)
@@ -1491,8 +1491,8 @@ class TimelineGroup:
             raise ValueError("Cannot find timestamp in empty group")
 
         # Check if coordinate matches an existing timestamp exactly
-        col = self._timestamp_table.column(timeline_id).to_pylist()
-        for i, val in enumerate(col):
+        coords = self._timestamp_table.column(timeline_id).to_pylist()
+        for i, val in enumerate(coords):
             if val is not None and abs(val - coord) < 1e-10:  # Exact match tolerance
                 new_coord = 0.0 if is_start else float(new_timeline.length.value)
                 return {
@@ -1505,7 +1505,7 @@ class TimelineGroup:
         # Find bounding rows
         low_idx = None
         high_idx = None
-        for i, val in enumerate(col):
+        for i, val in enumerate(coords):
             if val is not None:
                 if val <= coord:
                     low_idx = i
@@ -1519,28 +1519,28 @@ class TimelineGroup:
             )
 
         # Interpolate to get coordinates for all existing timelines
-        ratio = (coord - col[low_idx]) / (col[high_idx] - col[low_idx])
+        ratio = (coord - coords[low_idx]) / (coords[high_idx] - coords[low_idx])
 
         new_row_coords: dict[str, float | None] = {}
-        for col_name in self._timestamp_table.column_names:
-            col_data = self._timestamp_table.column(col_name).to_pylist()
-            low_val = col_data[low_idx]
-            high_val = col_data[high_idx]
+        for field_name in self._timestamp_table.column_names:
+            field_vals = self._timestamp_table.column(field_name).to_pylist()
+            low_val = field_vals[low_idx]
+            high_val = field_vals[high_idx]
 
             if low_val is not None and high_val is not None:
-                if col_name == timeline_id:
+                if field_name == timeline_id:
                     # Use the exact specified coordinate for the source timeline
                     # to avoid floating-point errors from interpolation round-trip
-                    new_row_coords[col_name] = coord
+                    new_row_coords[field_name] = coord
                 else:
                     val = low_val + ratio * (high_val - low_val)
                     # Round to integer for discrete timelines (samples, pixels, …)
-                    tl = self._timelines.get(col_name)
+                    tl = self._timelines.get(field_name)
                     if tl is not None and tl.number_type == NumberType.int:
                         val = round(val)
-                    new_row_coords[col_name] = val
+                    new_row_coords[field_name] = val
             else:
-                new_row_coords[col_name] = None
+                new_row_coords[field_name] = None
 
         new_coord = 0.0 if is_start else float(new_timeline.length.value)
 
@@ -1641,26 +1641,26 @@ class TimelineGroup:
         start_idx = start_spec["row_index"]
         end_idx = end_spec["row_index"]
 
-        # Build new column with interpolated values
+        # Build new field with interpolated values
         n_rows = self.n_timestamps
-        new_col: list[float | None] = []
+        new_values: list[float | None] = []
 
         for i in range(n_rows):
             if i < start_idx or i > end_idx:
-                new_col.append(None)
+                new_values.append(None)
             elif i == start_idx:
-                new_col.append(start_spec["new_timeline_coord"])
+                new_values.append(start_spec["new_timeline_coord"])
             elif i == end_idx:
-                new_col.append(end_spec["new_timeline_coord"])
+                new_values.append(end_spec["new_timeline_coord"])
             else:
                 # Interpolate
                 ratio = (i - start_idx) / (end_idx - start_idx)
                 coord = start_spec["new_timeline_coord"] + ratio * (
                     end_spec["new_timeline_coord"] - start_spec["new_timeline_coord"]
                 )
-                new_col.append(coord)
+                new_values.append(coord)
 
-        # Add column with unit metadata
+        # Add field with unit metadata
         new_field = pa.field(
             timeline.id,
             pa.float64(),
@@ -1670,7 +1670,7 @@ class TimelineGroup:
             },
         )
         self._timestamp_table = self._timestamp_table.append_column(
-            new_field, pa.array(new_col, type=pa.float64())
+            new_field, pa.array(new_values, type=pa.float64())
         )
 
     def _insert_timestamp_row(
@@ -1690,8 +1690,8 @@ class TimelineGroup:
         # Build a single-row table for the new timestamp
         # Preserve the existing schema with metadata
         new_row_data: dict[str, list[float | None]] = {}
-        for col_name in self._timestamp_table.column_names:
-            new_row_data[col_name] = [coordinates.get(col_name)]
+        for field_name in self._timestamp_table.column_names:
+            new_row_data[field_name] = [coordinates.get(field_name)]
 
         # Create arrays and use existing schema to preserve metadata
         arrays = [
@@ -1709,29 +1709,27 @@ class TimelineGroup:
 
         self._timestamp_table = pa.concat_tables([before, new_row_table, after])
 
-    def _remove_timeline_column(self, timeline_id: str) -> None:
-        """Remove a timeline's column from the timestamp table.
+    def _remove_timeline_field(self, timeline_id: str) -> None:
+        """Remove a timeline's field from the timestamp table.
 
         Also removes any rows that become all-null after removal.
 
         Args:
-            timeline_id: The timeline ID (column name) to remove.
+            timeline_id: The timeline ID (field name) to remove.
         """
         if self._timestamp_table is None:
             return
 
-        # Get column names except the one to remove
-        remaining_cols = [
-            c for c in self._timestamp_table.column_names if c != timeline_id
-        ]
+        # Get field names except the one to remove
+        remaining = [c for c in self._timestamp_table.column_names if c != timeline_id]
 
-        if not remaining_cols:
-            # No columns left
+        if not remaining:
+            # No fields left
             self._timestamp_table = None
             return
 
-        # Select remaining columns
-        self._timestamp_table = self._timestamp_table.select(remaining_cols)
+        # Select remaining fields
+        self._timestamp_table = self._timestamp_table.select(remaining)
 
         # Remove rows where all values are null
         self._remove_all_null_rows()
@@ -1746,8 +1744,8 @@ class TimelineGroup:
         for i in range(self._timestamp_table.num_rows):
             row = self._timestamp_table.slice(i, 1)
             has_value = False
-            for col_name in row.column_names:
-                val = row.column(col_name)[0].as_py()
+            for field_name in row.column_names:
+                val = row.column(field_name)[0].as_py()
                 if val is not None:
                     has_value = True
                     break

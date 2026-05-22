@@ -172,7 +172,7 @@ pd.DataFrame(schema_info)
 # | `specific_pitch` | Pitch spelling information |
 
 # %%
-# Show selected columns for the first few notes
+# Show selected fields for the first few notes
 display_cols = [
     "id",
     "name",
@@ -188,7 +188,7 @@ tsv_df[display_cols].head(10)
 # %% [markdown]
 # ## Pitch Information
 #
-# The `specific_pitch` column contains rich pitch information as a struct.
+# The `specific_pitch` field contains rich pitch information as a struct.
 # This preserves the enharmonic spelling (e.g., G# vs Ab) which is lost
 # when using only MIDI pitch numbers.
 
@@ -219,7 +219,7 @@ tsv_df["duration_float"].describe()
 # %% [markdown]
 # ## Navigating by Measure
 #
-# The `mc` (measure count) and `mn` (measure number) columns allow easy
+# The `mc` (measure count) and `mn` (measure number) fields allow easy
 # navigation through the score. Note that `mn` is stored as a string
 # (to support labels like "1a", "1b"), so we convert to int for proper sorting:
 
@@ -263,7 +263,7 @@ pd.DataFrame(
 # This ensures coordinates are always interpreted correctly:
 
 # %%
-# Extract unit metadata for temporal columns
+# Extract unit metadata for temporal fields
 temporal_cols = ["start", "end", "duration"]
 {
     field.name: field.metadata.get(b"unit", b"(unknown)").decode()
@@ -289,7 +289,7 @@ tsv_df.groupby(["staff", "voice"]).size().unstack(fill_value=0)
 # 1. **The Loader Pattern**: Create -> Load -> Access Bundle
 # 2. **Three Score Loaders**: TSVLoader, PartituraLoader, Music21Loader
 # 3. **EventStore**: PyArrow-backed, high-performance event storage
-# 4. **Harmonized Schema**: Consistent columns across all loaders
+# 4. **Harmonized Schema**: Consistent fields across all loaders
 # 5. **Cross-Validation**: Same piece from different sources yields same note count
 #
 # **Key Takeaway:**

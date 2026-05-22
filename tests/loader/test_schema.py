@@ -12,7 +12,7 @@ from timetoalign.loader import (
     TEMPORAL_TYPE_INTERVAL,
     coordinate_to_struct,
     extend_schema,
-    get_base_column_names,
+    get_base_field_names,
     get_unit_from_schema,
     make_base_schema,
     make_coordinate_field,
@@ -141,9 +141,9 @@ class TestMakeBaseSchema:
         assert isinstance(schema, pa.Schema)
 
     def test_has_required_columns(self) -> None:
-        """Schema has all base columns.
+        """Schema has all base fields.
 
-        Note: The schema no longer has a separate 'instant' column.
+        Note: The schema no longer has a separate 'instant' field.
         InstantEvents use 'start' with 'end' being null or equal to 'start'.
         IntervalEvents use 'start' and 'end' with 'duration' computed.
         """
@@ -169,21 +169,21 @@ class TestMakeBaseSchema:
 
 
 class TestGetBaseColumnNames:
-    """Tests for get_base_column_names."""
+    """Tests for get_base_field_names."""
 
     def test_returns_list(self) -> None:
         """Returns a list of strings."""
-        names = get_base_column_names()
+        names = get_base_field_names()
         assert isinstance(names, list)
         assert all(isinstance(n, str) for n in names)
 
     def test_has_all_columns(self) -> None:
-        """Returns all 7 base columns.
+        """Returns all 7 base fields.
 
-        Note: The schema no longer has a separate 'instant' column.
-        Base columns are: id, name, temporal_type, event_type, start, end, duration.
+        Note: The schema no longer has a separate 'instant' field.
+        Base fields are: id, name, temporal_type, event_type, start, end, duration.
         """
-        names = get_base_column_names()
+        names = get_base_field_names()
         assert len(names) == 7
         assert "id" in names
         assert "start" in names
@@ -212,7 +212,7 @@ class TestGetUnitFromSchema:
         assert unit == TimeUnit.seconds
 
     def test_returns_none_for_no_metadata(self) -> None:
-        """Returns None if no coordinate columns exist."""
+        """Returns None if no coordinate fields exist."""
         schema = pa.schema([pa.field("id", pa.string())])
         unit = get_unit_from_schema(schema)
         assert unit is None

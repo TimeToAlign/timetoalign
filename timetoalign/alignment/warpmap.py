@@ -365,16 +365,16 @@ class WarpMap:
 
             warped = dict(event)
 
-            # Warp coordinate columns
-            for col in ("instant", "start", "end"):
-                val = warped.get(col)
+            # Warp coordinate fields
+            for name in ("instant", "start", "end"):
+                val = warped.get(name)
                 if val is None:
                     continue
                 if isinstance(val, dict) and "value" in val:
                     raw = float(val["value"])
                 else:
                     raw = float(val)
-                warped[col] = float(self.forward(raw))
+                warped[name] = float(self.forward(raw))
 
             # Warp duration: forward(start + duration) - forward(start)
             # This correctly handles non-linear warping.

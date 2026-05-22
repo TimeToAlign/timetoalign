@@ -375,19 +375,19 @@ class TestGetTimestampTable:
         assert isinstance(table, pa.Table)
 
     def test_has_axis_column(self, simple_timeline: Timeline) -> None:
-        """Table has 'axis' column."""
+        """Table has 'axis' field."""
         table = simple_timeline.get_timestamp_table()
         assert "axis" in table.column_names
 
     def test_has_timeline_id_column(self, simple_timeline: Timeline) -> None:
-        """Table has column for the timeline's ID."""
+        """Table has field for the timeline's ID."""
         table = simple_timeline.get_timestamp_table()
         assert "simple" in table.column_names
 
     def test_includes_child_columns(
         self, nested_timeline: tuple[Timeline, Timeline, Timeline]
     ) -> None:
-        """Table includes columns for all children."""
+        """Table includes fields for all children."""
         parent, child1, child2 = nested_timeline
         table = parent.get_timestamp_table()
 
@@ -428,10 +428,10 @@ class TestGetTimestampTable:
         """recursion_limit controls how many levels of children appear."""
         parent, _, _ = nested_timeline
 
-        # With limit=0, should only have parent column
+        # With limit=0, should only have parent field
         table = parent.get_timestamp_table(recursion_limit=0)
         assert "parent" in table.column_names
-        # Children should still appear in columns (they're iterated separately)
+        # Children should still appear in fields (they're iterated separately)
         # but their coordinates won't be in the axis
 
     def test_empty_timeline_returns_empty_table(self, empty_timeline: Timeline) -> None:
@@ -667,12 +667,12 @@ class TestGetTimestampTableFiltered:
             conversion_maps=[cmap],
         )
 
-        # Should have C-Map column (uses cmap.name, not cmap.id)
+        # Should have C-Map field (uses cmap.name, not cmap.id)
         assert cmap.name in table.column_names
 
         # Verify conversion is correct
         df = table.to_pandas()
-        # axis values should be doubled in the C-Map column
+        # axis values should be doubled in the C-Map field
         for _, row in df.iterrows():
             assert row[cmap.name] == row["axis"] * 2.0
 

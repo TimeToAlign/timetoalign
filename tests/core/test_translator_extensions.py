@@ -1,7 +1,7 @@
-"""Tests for the WP2 bulk-migration translator extensions.
+"""Tests for the bulk translator extensions.
 
 The pilot translator handled atomic types + ``Literal`` + the projector
-registry.  The bulk migration extends it with nested ``BaseModel``,
+registry.  The full translator extends it with nested ``BaseModel``,
 variable-length ``tuple[T, ...]``, fixed-length ``tuple[T1, T2, ...]``,
 and a strict error on unions of ``BaseModel`` subclasses (which would
 otherwise translate to forbidden Arrow ``dense_union``).  This module
@@ -95,10 +95,10 @@ class TestVariadicTuple:
 class TestFixedLengthTuple:
     """``tuple[T1, T2, ...]`` translates to a positional ``pa.struct``.
 
-    The positional struct shape (``{_0, _1, ...}``) is the round-trip
-    choice locked by WP2: storing as ``pa.list_`` of 2 elements is
-    lossless but indistinguishable from variadic lists; the struct shape
-    keeps the fixed-length semantics in the pa.Schema itself.
+    The positional struct shape (``{_0, _1, ...}``) is the canonical
+    round-trip choice: storing as ``pa.list_`` of 2 elements is lossless
+    but indistinguishable from variadic lists; the struct shape keeps
+    the fixed-length semantics in the pa.Schema itself.
     """
 
     def test_time_signature_pair(self) -> None:
@@ -155,7 +155,7 @@ class TestLiteralStringWithDefault:
 
 
 class TestForbiddenBaseModelUnion:
-    """Union of ``BaseModel`` subclasses is forbidden — columnar separation."""
+    """Union of ``BaseModel`` subclasses is rejected — distinct scalars live in distinct fields."""
 
     def test_union_of_basemodels_rejected(self) -> None:
         class A(BaseModel):
@@ -170,7 +170,7 @@ class TestForbiddenBaseModelUnion:
             model_config = ConfigDict(frozen=True)
             polymorphic: A | B
 
-        with pytest.raises(TypeError, match="columnar separation"):
+        with pytest.raises(TypeError, match="distinct fields"):
             derive_arrow_struct(M)
 
 

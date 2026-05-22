@@ -1,25 +1,25 @@
 """DataField hierarchy + pydantic → PyArrow translator + Parquet metadata.
 
-This module is the foundation of TTA's columnar storage layer.  It pulls
-together three closely-related concerns that previously lived in separate
-sub-packages (``fields/base.py``, ``core/schemas/from_pydantic.py``,
-``core/schemas/column_builder.py``, ``core/schemas/parquet_metadata.py``):
+This module is the foundation of Time To Align!'s fielded storage
+layer.  It bundles four closely-related concerns:
 
-* The **DataField hierarchy** wraps ``pa.Array`` / ``pa.ChunkedArray`` with
-  typed accessors.  ``SemanticField[T]`` is the strictly-typed bridge
-  between a pydantic scalar ``T`` and a PyArrow column.
+* The **DataField hierarchy** wraps ``pa.Array`` / ``pa.ChunkedArray``
+  with typed accessors.  ``SemanticField[T]`` is the strictly-typed
+  bridge between a pydantic scalar ``T`` and the underlying raw field.
 * The **pydantic → PyArrow translator** derives a ``pa.Schema`` (and
   individual ``pa.Field`` entries) from a pydantic ``BaseModel`` once at
   class-definition time.  Value projectors handle denormalised storage
   (``Coordinate.value`` → ``{value, numerator, denominator}``) and
-  columnar separation (``Note.pitch`` → dropped from the pa.Schema).
-* The **column-builder** assembles a ``pa.StructArray`` from many
-  validated scalar instances column-wise (NEVER ``model_dump`` row-wise).
+  selective drops (``Note.pitch`` → removed from the pa.Schema so that
+  pitch lives in its own field).
+* The **store builder** assembles a ``pa.StructArray`` from many
+  validated scalar instances by traversing each scalar once and
+  accumulating the per-sub-field arrays (NEVER ``model_dump`` row-wise).
 * The **Parquet-metadata** helpers produce the ``b"timetoalign"`` JSON
-  blob that travels with every TTA-written ``pa.Field``.
+  blob that travels with every Time To Align!-written ``pa.Field``.
 
-Layout convention: four labelled sections, ordered base hierarchy →
-translator → builder → metadata.
+Layout convention: five labelled sections — base hierarchy → translator
+→ store builder → parquet metadata → DenominateNumberField hierarchy.
 """
 
 from __future__ import annotations
@@ -46,8 +46,8 @@ import pyarrow as pa
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
-R = TypeVar("R", bound="DataField")
 T = TypeVar("T", bound=BaseModel)
+"""The pydantic scalar a ``SemanticField`` is paired with."""
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -56,14 +56,14 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class DataField(ABC):
-    """Abstract base class for typed PyArrow column wrappers.
+    """Abstract base class for typed PyArrow field wrappers.
 
     A DataField pairs a ``pa.Array`` (or ``pa.ChunkedArray``) with its
     ``pa.Field`` schema descriptor, providing convenient access to data,
     metadata, and type information.
 
     Args:
-        data: The PyArrow array holding column values, or ``None`` for
+        data: The PyArrow array holding field values, or ``None`` for
             schema-only (empty) fields.
         field: The PyArrow field descriptor carrying name, type, and
             metadata.
@@ -192,7 +192,7 @@ class DataField(ABC):
         """Construct a DataField from a source.
 
         Subclasses define what *source* means (e.g., a ``pa.Table``
-        column, a ``pa.Field`` + ``pa.Array`` pair, etc.).
+        field, a ``pa.Field`` + ``pa.Array`` pair, etc.).
 
         Args:
             source: The data source.
@@ -415,33 +415,45 @@ class _GenericField(DataField):
         return cls(data, field)
 
 
-class SemanticField(DataField, Generic[R]):
+class SemanticField(DataField, Generic[T]):
     """A DataField that wraps a raw field and adds semantic identity.
 
-    ``SemanticField`` implements parameterised composition: it stores a
-    raw field (``R``, a ``DataField`` subclass) and delegates attribute
-    access to it via ``__getattr__``.  The ``value`` property exposes
-    the raw field directly, giving callers full access to the raw
-    field's schema and methods.
+    ``SemanticField[T]`` is the strictly-typed bridge between a pydantic
+    scalar ``T`` and a struct-shaped ``DataField``.  The class is
+    parametrised on the scalar (``T``, a ``BaseModel`` subclass), not on
+    the inner field — the inner field is pinned via the
+    :attr:`_raw_cls` class variable, which defaults to :class:`StructField`
+    and may be refined by subclasses (e.g. ``TimeScalarField`` sets it to
+    ``DenominateNumberField``).  Storing the inner field via a ClassVar
+    keeps the call-site signature ``XField(SemanticField[X])`` tidy
+    while letting subclasses lock down the underlying storage shape when
+    it matters.
 
-    Paired-class contract (WP2.5).  Every concrete subclass is paired with
-    a pydantic scalar ``T`` via ``XField(SemanticField[T])``.  At subclass
-    declaration time, ``__init_subclass__`` derives ``cls.pa_schema`` (the
-    ``pa.StructType`` for ``T``) and caches it on the subclass.  Callers
-    use ``XField.pa_schema`` whenever they need the struct layout for an
-    on-disk column without instantiating a live field.
+    Composition contract.  Every concrete subclass is paired with a
+    pydantic scalar ``T`` via ``XField(SemanticField[T])``.  At subclass
+    declaration time, ``__init_subclass__`` derives ``cls.pa_schema``
+    (the ``pa.StructType`` for ``T``, with value-projector expansions
+    applied) and caches it on the subclass.  Callers use
+    ``XField.pa_schema`` whenever they need the struct layout for an
+    on-disk field without instantiating a live one.
 
     Subclasses are expected to:
+
     - Override ``__getitem__`` to return semantic scalar objects.
     - Implement ``from_field`` for construction from external sources.
     - Implement ``SemanticTypeLike`` properties (``semantic_type``,
       ``metadata_dict``).
 
     Args:
-        raw: The wrapped raw DataField.
+        raw: The wrapped raw DataField (an instance of ``_raw_cls`` or
+            a compatible subclass).  ``None`` triggers blueprint mode.
+        source_fields: Deferred-resolution specification when ``raw`` is
+            ``None`` — see :meth:`__init__`.
 
     Attributes:
         _raw: The inner raw field instance.
+        _is_blueprint: ``True`` when constructed in blueprint mode.
+        _blueprint_source_fields: The unresolved ``source_fields`` spec.
     """
 
     # The pydantic scalar class this SemanticField is paired with.
@@ -453,6 +465,11 @@ class SemanticField(DataField, Generic[R]):
     # ``None`` on the abstract base; populated for every concrete subclass.
     pa_schema: ClassVar[pa.StructType | None] = None
 
+    # The DataField subclass used as the inner raw field.  Defaults to
+    # the plain ``StructField``; subclasses refine it when the inner
+    # storage is more specific (e.g. ``DenominateNumberField``).
+    _raw_cls: ClassVar[type["StructField"]] = StructField
+
     def __init_subclass__(cls, **kw: Any) -> None:
         """Resolve ``cls.scalar_cls`` and cache ``cls.pa_schema``.
 
@@ -460,17 +477,18 @@ class SemanticField(DataField, Generic[R]):
 
         1. If the subclass declares ``scalar_cls`` in its own ``__dict__``
            (concrete override), use that directly.  This is the escape
-           hatch for ``CoordinateField`` / ``DurationField`` which
-           inherit through ``NumberField(SemanticField[StructField])``
-           and can't pick up ``Coordinate`` / ``Duration`` from
-           ``Generic[T]`` parametrisation.
+           hatch for paired fields that inherit through a non-parametrised
+           intermediate (e.g. ``CoordinateField`` inherits through
+           ``TimeScalarField`` and supplies ``scalar_cls = Coordinate``
+           directly).
         2. Otherwise walk ``__orig_bases__`` for a parametrised
            ``SemanticField[T]`` whose ``T`` is a pydantic ``BaseModel``.
            This is the common path used by every paired ``XField``.
 
-        Intermediate abstract classes (e.g. ``NumberField`` parametrised
-        on ``StructField``) leave ``scalar_cls`` / ``pa_schema`` as
-        ``None``; their concrete children resolve normally.
+        Intermediate abstract classes that do not pin ``T`` (e.g.
+        ``TimeScalarField`` extends ``SemanticField`` unparametrised)
+        leave ``scalar_cls`` / ``pa_schema`` as ``None``; their concrete
+        children resolve normally.
         """
         super().__init_subclass__(**kw)
         own_scalar = cls.__dict__.get("scalar_cls")
@@ -483,30 +501,49 @@ class SemanticField(DataField, Generic[R]):
             cls.pa_schema = derive_arrow_struct(scalar)
 
     def __init__(
-        self, raw: R | None = None, *, source_fields: str | None = None
+        self,
+        raw: "StructField | None" = None,
+        *,
+        source_fields: "str | dict[str, Any] | None" = None,
     ) -> None:
         """Construct a SemanticField.
 
         Two construction modes:
 
-        * **Live mode:** pass a non-``None`` ``raw`` ``DataField``.  The
-          SemanticField wraps it as usual.
-        * **Blueprint mode:** pass only ``column=<name>``.  The
+        * **Live mode:** pass a non-``None`` raw ``StructField`` (or any
+          subclass of :attr:`_raw_cls`).  The SemanticField wraps it as
+          usual.
+        * **Blueprint mode:** pass only ``source_fields=<spec>``.  The
           SemanticField acts as a deferred specification of "find me
-          this column on an EventData table".  ``is_blueprint`` is
-          ``True``; ``_blueprint_column`` holds the column name.
-          Materialise via ``EventData.get_field(blueprint)``.
+          this raw field (or this combination of raw fields) on an
+          EventData table".  :attr:`is_blueprint` becomes ``True``;
+          :attr:`_blueprint_source_fields` holds the spec.  Materialise
+          via ``EventData.get_field(blueprint)``.
+
+        The ``source_fields`` spec accepts:
+
+        * a ``str`` naming a single source field exposed by the
+          EventData (matched against existing DataField instances first,
+          then against raw ``pa.Field`` entries in the underlying
+          ``pa.Table``);
+        * a ``dict`` mapping this class's :attr:`pa_schema` sub-field
+          names to source field specifications.  Each value is itself
+          either a ``str`` (resolved like a top-level string) or a
+          ``dict`` continuing the recursion down a nested struct
+          sub-schema.  The dict must be congruent with :attr:`pa_schema`
+          — see :func:`resolve_source_fields`.
 
         Args:
             raw: The wrapped raw DataField (live mode), or ``None`` for
                 blueprint mode.
-            source_fields: Column name to resolve later (blueprint mode).
+            source_fields: Either a name (string) or a nested mapping of
+                schema-sub-field → source spec (blueprint mode).
         """
         if raw is None:
             if source_fields is None:
                 raise TypeError(
-                    f"{type(self).__name__} requires either a raw DataField (live) "
-                    "or column= (blueprint)"
+                    f"{type(self).__name__} requires either a live raw DataField "
+                    "or source_fields= (blueprint)"
                 )
             schema = type(self).pa_schema
             if schema is None:
@@ -514,16 +551,22 @@ class SemanticField(DataField, Generic[R]):
                     f"{type(self).__name__} cannot be a blueprint without a derived "
                     "pa_schema; check Generic parametrisation"
                 )
-            dummy_field = pa.field(source_fields, schema)
-            raw = StructField(None, dummy_field)
+            # Validate congruence (and normalise) up front so misshapen
+            # dicts are rejected before reaching the table resolver.
+            normalised = resolve_source_fields(source_fields, schema)
+            dummy_name = (
+                source_fields if isinstance(source_fields, str) else type(self).__name__
+            )
+            dummy_field = pa.field(dummy_name, schema)
+            raw = type(self)._raw_cls(None, dummy_field)
             self._is_blueprint = True
-            self._blueprint_column: str | None = source_fields
+            self._blueprint_source_fields: "str | dict[str, Any] | None" = normalised
         else:
             self._is_blueprint = False
-            self._blueprint_column = None
+            self._blueprint_source_fields = None
 
         super().__init__(raw.data, raw.field)
-        self._raw: R = raw
+        self._raw: "StructField" = raw
 
     @property
     def is_blueprint(self) -> bool:
@@ -531,8 +574,16 @@ class SemanticField(DataField, Generic[R]):
         return self._is_blueprint
 
     @property
-    def value(self) -> R:
-        """The inner raw field, providing access to its schema and methods."""
+    def value(self) -> "StructField":
+        """The inner raw field, providing access to its schema and methods.
+
+        Statically typed as :class:`StructField` (the upper bound of the
+        :attr:`_raw_cls` ClassVar).  Subclasses that pin a more specific
+        ``_raw_cls`` (e.g. ``TimeScalarField`` uses
+        :class:`DenominateNumberField`) MAY override this property's
+        annotation in their own body to expose the refined type to
+        callers.
+        """
         return self._raw
 
     def __getattr__(self, name: str) -> Any:
@@ -546,7 +597,7 @@ class SemanticField(DataField, Generic[R]):
             f"raw={type(self._raw).__name__}, len={length})"
         )
 
-    def get_raw(self) -> R:
+    def get_raw(self) -> "StructField":
         """Return the underlying raw field (strips the semantic layer)."""
         return self._raw
 
@@ -563,7 +614,7 @@ class SemanticField(DataField, Generic[R]):
 
         Subclasses that need a richer materialisation override this
         method (e.g. ``CoordinateField`` carries a ``unit`` that is not
-        in the column, so its ``__getitem__`` injects the unit).
+        in the field's data, so its ``__getitem__`` injects the unit).
         """
         raw = self._raw[i]
         cls = type(self)
@@ -574,15 +625,15 @@ class SemanticField(DataField, Generic[R]):
         return raw
 
     @classmethod
-    def from_field(cls, source: Any, **kw: Any) -> "SemanticField[R]":
+    def from_field(cls, source: Any, **kw: Any) -> "SemanticField[T]":
         """Construct a SemanticField from a source.
 
         Default implementation accepts the four common source shapes
         (``pa.Array``, ``pa.ChunkedArray``, ``StructField``, ``pa.Field``,
-        or a ``(data, pa.Field)`` tuple) and wraps each in a
-        ``StructField`` for storage.  Subclasses that need additional
-        semantic state (e.g. ``CoordinateField`` carrying a ``unit``)
-        override this method.
+        or a ``(data, pa.Field)`` tuple) and wraps each in an instance
+        of :attr:`_raw_cls` (defaults to :class:`StructField`).
+        Subclasses that need additional semantic state (e.g.
+        ``TimeScalarField`` carrying a ``unit``) override this method.
 
         Args:
             source: One of the accepted source shapes.
@@ -595,23 +646,24 @@ class SemanticField(DataField, Generic[R]):
             TypeError: If *source* is not a recognised shape.
         """
         name = kw.pop("name", cls.__name__.removesuffix("Field").lower() or "value")
+        raw_cls = cls._raw_cls
 
         if isinstance(source, tuple):
             data, pa_field = source
-            struct_field = StructField(data, pa_field)
-            return cls(struct_field)
+            raw = raw_cls(data, pa_field)
+            return cls(raw)
 
         if isinstance(source, pa.Field):
-            struct_field = StructField(None, source)
-            return cls(struct_field)
+            raw = raw_cls(None, source)
+            return cls(raw)
 
         if isinstance(source, StructField):
             return cls(source)
 
         if isinstance(source, (pa.Array, pa.ChunkedArray)):
             pa_field = pa.field(name, source.type)
-            struct_field = StructField(source, pa_field)
-            return cls(struct_field)
+            raw = raw_cls(source, pa_field)
+            return cls(raw)
 
         raise TypeError(
             f"Unsupported source type for {cls.__name__}.from_field: {type(source).__name__}"
@@ -619,18 +671,18 @@ class SemanticField(DataField, Generic[R]):
 
     @classmethod
     def matches_pa_field(cls, pa_field: pa.Field) -> bool:
-        """Return True iff *pa_field* is a column this class can wrap.
+        """Return True iff *pa_field* is a field this class can wrap.
 
         Two checks, applied in order:
 
         1. **Metadata-based identification (round-trip contract).** If
            ``pa_field`` carries the ``b"timetoalign"`` JSON blob with a
-           ``field_type`` matching ``cls.__name__``, the column is
+           ``field_type`` matching ``cls.__name__``, the field is
            definitively claimed.
         2. **Structural identification.** If ``cls.pa_schema`` is
            populated (every concrete subclass) and ``pa_field.type``
            matches it exactly (struct with identical sub-field names
-           and types), the column is claimed.
+           and types), the field is claimed.
 
         Subclasses MAY override to relax or tighten these checks.
 
@@ -638,7 +690,7 @@ class SemanticField(DataField, Generic[R]):
             pa_field: A ``pa.Field`` from the underlying table schema.
 
         Returns:
-            ``True`` if this class can wrap the column described by
+            ``True`` if this class can wrap the field described by
             *pa_field*; ``False`` otherwise.
         """
         # Metadata-based identification
@@ -670,8 +722,9 @@ def _resolve_scalar_cls(cls: type) -> type[BaseModel] | None:
 
     Returns the pydantic ``BaseModel`` subclass ``T`` when found, or
     ``None`` when the class is an intermediate abstract subclass that
-    does not pin ``T`` (e.g. ``NumberField`` does not provide a concrete
-    ``T``; its children ``CoordinateField`` and ``DurationField`` do).
+    does not pin ``T`` (e.g. ``TimeScalarField`` extends ``SemanticField``
+    without a concrete parametrisation; its children ``CoordinateField``
+    and ``DurationField`` set ``scalar_cls`` in their bodies).
     """
     for base in getattr(cls, "__orig_bases__", ()) or ():
         origin = get_origin(base)
@@ -702,6 +755,88 @@ def _struct_types_match(actual: pa.DataType, expected: pa.StructType) -> bool:
         if not a.type.equals(e.type):
             return False
     return True
+
+
+def resolve_source_fields(
+    source: "str | dict[str, Any]",
+    target_schema: pa.StructType,
+) -> "str | dict[str, Any]":
+    """Validate and normalise a ``source_fields`` blueprint specification.
+
+    The blueprint can be either a single name or a mapping of
+    *target-schema-sub-field-name* → spec.  This helper enforces
+    structural congruence between the dict shape and ``target_schema``;
+    actual lookup against an EventData / table happens later, in the
+    resolver that owns the table context.
+
+    Accepted specs:
+
+    * ``str``: a name (of a DataField on the EventData, or a top-level
+      field on its ``pa.Table``).  Returned unchanged.  Top-level
+      strings imply "this name carries a struct already congruent with
+      ``target_schema``" — the resolver will validate that downstream.
+    * ``dict[str, str | dict]``: keys MUST match the names of the
+      sub-fields in ``target_schema`` exactly (same set, no extras, no
+      gaps).  Each value is recursively resolved:
+
+        - if the corresponding target sub-field is itself a struct, the
+          value may again be a dict (recursion) or a string (resolver
+          will look the name up at the EventData / table level);
+        - if the target sub-field is atomic, the value MUST be a
+          string.
+
+    Args:
+        source: The user-supplied spec.
+        target_schema: The ``pa.StructType`` the SemanticField pins.
+
+    Returns:
+        The same spec (after recursive validation), suitable for
+        downstream resolvers.
+
+    Raises:
+        TypeError: If *source* is neither a string nor a mapping, or if
+            an inner value has the wrong shape.
+        ValueError: If a dict's key set is not congruent with the target
+            schema's sub-field names.
+    """
+    if isinstance(source, str):
+        if not source:
+            raise ValueError("source_fields string must be non-empty")
+        return source
+
+    if not isinstance(source, dict):
+        raise TypeError(
+            "source_fields must be a string or a dict mapping target "
+            f"sub-field names to sub-specs, got {type(source).__name__}"
+        )
+
+    expected_names = {
+        target_schema.field(i).name for i in range(target_schema.num_fields)
+    }
+    got_names = set(source.keys())
+    if got_names != expected_names:
+        missing = sorted(expected_names - got_names)
+        extra = sorted(got_names - expected_names)
+        raise ValueError(
+            "source_fields dict is not congruent with the target schema. "
+            f"Expected keys: {sorted(expected_names)}; "
+            f"missing: {missing}; unexpected: {extra}."
+        )
+
+    normalised: dict[str, Any] = {}
+    for i in range(target_schema.num_fields):
+        sub_field = target_schema.field(i)
+        sub_spec = source[sub_field.name]
+        if pa.types.is_struct(sub_field.type):
+            normalised[sub_field.name] = resolve_source_fields(sub_spec, sub_field.type)
+        else:
+            if not isinstance(sub_spec, str) or not sub_spec:
+                raise TypeError(
+                    f"source_fields[{sub_field.name!r}] expects a non-empty "
+                    f"string (atomic sub-field), got {sub_spec!r}"
+                )
+            normalised[sub_field.name] = sub_spec
+    return normalised
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -797,13 +932,43 @@ def _atomic_arrow_type(py_type: Any) -> pa.DataType:
         f"Cannot derive PyArrow type for {py_type!r}: not a supported type. "
         "Supported: str, int, float, bool, Literal[str|int, ...], nested "
         "BaseModel, tuple[T, ...] (variadic), tuple[T1, T2, ...] (fixed). "
-        "Nested unsupported shapes need to be added when the bulk migration "
-        "encounters them — extend timetoalign.core.fields."
+        "Nested unsupported shapes need to be added when a future scalar "
+        "migration encounters them — extend timetoalign.core.fields."
     )
 
 
 def _unwrap_optional(py_type: Any) -> tuple[Any, bool]:
-    """Return (inner_type, nullable) for ``T | None`` / ``Optional[T]``."""
+    """Strip an ``Optional`` wrapper, returning ``(inner_type, was_optional)``.
+
+    Accepts any of the spellings ``T | None``, ``Optional[T]``, and
+    ``Union[T, None]`` (the latter coming via ``typing.Union``).  Returns
+    the inner type ``T`` together with a flag indicating whether the
+    annotation was wrapped (``True``) or already bare (``False``).
+    Non-union types pass through unchanged with the flag ``False``.
+
+    Rejected shapes — these are intentionally not normalised because the
+    pydantic → PyArrow translator has no principled way to emit them:
+
+    * A union of two or more pydantic ``BaseModel`` subclasses.  Storing
+      such a union as a single field would defeat the rule that distinct
+      scalar types live in distinct fields; the calling site should
+      drop the offending field from the derived ``pa.Schema`` via
+      :func:`register_value_projector` returning ``[]``.
+    * Any other multi-arm union (e.g. ``str | int``).  Such cases must
+      be split into separate fields or modelled with a tagged-union
+      schema by the caller.
+
+    Args:
+        py_type: A type annotation harvested from ``BaseModel.model_fields``.
+
+    Returns:
+        ``(inner_type, was_optional)``.  When the annotation is already
+        bare, ``inner_type is py_type`` and ``was_optional is False``.
+
+    Raises:
+        TypeError: When the annotation is a union shape this helper
+            refuses to normalise (see "Rejected shapes" above).
+    """
     origin = get_origin(py_type)
     union_type = getattr(sys.modules.get("types"), "UnionType", None)
     is_union = origin is union_type or (
@@ -818,10 +983,10 @@ def _unwrap_optional(py_type: Any) -> tuple[Any, bool]:
         ]
         if len(basemodel_arms) >= 2:
             raise TypeError(
-                f"Union of BaseModel subclasses is forbidden by the WP2 plan "
-                f"(columnar separation required): {py_type!r}. Drop the field "
-                f"from the pa.Schema via register_value_projector(cls, name, "
-                f"lambda *_: [])."
+                "Union of BaseModel subclasses is not supported: distinct "
+                f"scalar types must live in distinct fields. Got {py_type!r}. "
+                "Drop the offending field from the pa.Schema via "
+                "register_value_projector(cls, name, lambda *_: [])."
             )
         raise TypeError(
             f"Only Optional[T] / T | None unions are supported, got {py_type!r}"
@@ -834,13 +999,14 @@ def _derive_arrow_fields(model_cls: type[BaseModel]) -> tuple[pa.Field, ...]:
     """Translate a pydantic model class into a tuple of ``pa.Field``.
 
     Cached per class — derivation runs exactly once per scalar.  Computed
-    fields (``@computed_field``) are NOT included: per WP2's locked
-    decision, they derive on access and are absent from both pa.Schema
-    and the underlying Arrow column.
+    fields (``@computed_field``) are NOT included: they derive on access
+    and are intentionally absent from both ``pa.Schema`` and the
+    underlying Arrow data.
 
-    All derived fields are marked ``nullable=True``.  Pydantic ``required``
-    describes what a single scalar instance must contain; the pa.Schema
-    describes a columnar storage where nulls are first-class.
+    All derived fields are marked ``nullable=True``.  Pydantic
+    ``required`` describes what a single scalar instance must contain;
+    the ``pa.Schema`` describes fielded storage where nulls are
+    first-class.
     """
     out: list[pa.Field] = []
     for name, info in model_cls.model_fields.items():
@@ -877,7 +1043,7 @@ def derive_arrow_struct(model_cls: type[BaseModel]) -> pa.StructType:
 
 
 def derive_arrow_schema(model_cls: type[BaseModel]) -> pa.Schema:
-    """Return a ``pa.Schema`` whose columns mirror a pydantic scalar's fields.
+    """Return a ``pa.Schema`` whose fields mirror a pydantic scalar's fields.
 
     Convenience for callers that want a top-level schema (rather than a
     nested struct).  The schema is **not** decorated with the
@@ -889,7 +1055,7 @@ def derive_arrow_schema(model_cls: type[BaseModel]) -> pa.Schema:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 3. COLUMN-BUILDER
+# 3. STORE BUILDER — pa.StructArray from a sequence of validated scalars
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -899,14 +1065,14 @@ def build_struct_array(
 ) -> pa.StructArray:
     """Construct a ``pa.StructArray`` from a sequence of pydantic instances.
 
-    Implements the column-builder pattern: for each pydantic field name,
-    materialise one ``pa.Array`` by pulling that attribute column-wise,
-    then assemble the per-field arrays into a single struct array.  This
-    is the WP2 canonical bulk-construction path.
+    Implements the bulk-build pattern: for each pydantic field name,
+    materialise one ``pa.Array`` by pulling that attribute from every
+    scalar, then assemble the per-field arrays into a single struct
+    array.  This is the canonical bulk-construction path.
 
     **Nested ``BaseModel`` fields** (e.g. ``Note.start: Coordinate``,
-    ``Measure.duration: Duration``) are recursed into — the column is
-    built by recursive ``build_struct_array`` (or
+    ``Measure.duration: Duration``) are recursed into — the inner field
+    is built by recursive ``build_struct_array`` (or
     ``build_coordinate_struct_array`` for ``Coordinate`` / ``Duration``)
     so that the result is a nested ``pa.StructArray`` matching the
     derived storage shape.
@@ -916,9 +1082,13 @@ def build_struct_array(
 
     ``None`` entries in *objects* are represented as null struct entries.
 
+    This function is a thin facade over :class:`StructArrayBuilder` —
+    the class is the unified store-builder; the function preserves the
+    historical name.
+
     Args:
         model_cls: The pydantic ``BaseModel`` subclass whose fields drive
-            the column build.
+            the build.
         objects: A sequence of *model_cls* instances (or ``None`` for null
             rows).
 
@@ -928,51 +1098,157 @@ def build_struct_array(
     Raises:
         TypeError: If a non-``None`` entry is not an instance of *model_cls*.
     """
-    arrow_struct = derive_arrow_struct(model_cls)
-    null_mask: list[bool] = []
-    for obj in objects:
-        if obj is None:
-            null_mask.append(True)
-            continue
-        if not isinstance(obj, model_cls):
-            raise TypeError(
-                f"Expected {model_cls.__name__} (or None), got {type(obj).__name__}"
-            )
-        null_mask.append(False)
+    return StructArrayBuilder.from_model(model_cls).build(objects)
 
-    field_arrays: list[pa.Array] = []
-    pa_fields: list[pa.Field] = list(arrow_struct)
-    sub_blocks = _group_pa_fields_by_pydantic_field(model_cls, pa_fields)
 
-    for py_field_name, pa_block in sub_blocks.items():
-        if py_field_name is None:
-            raise TypeError(
-                "pa.Schema field cannot be mapped back to a pydantic field; "
-                "extend the column-builder for this projector shape."
-            )
+class StructArrayBuilder:
+    """Traverse a sequence of scalars once; emit a ``pa.StructArray``.
 
-        py_field_info = model_cls.model_fields[py_field_name]
-        values: list[Any] = []
-        for i, obj in enumerate(objects):
+    The builder generalises the bulk-build pattern: given a target
+    ``pa.StructType`` and a strategy for extracting per-sub-field values
+    from each scalar, it walks every object exactly once, accumulating
+    Python lists of per-sub-field values, then materialises each list
+    into a ``pa.Array`` and composes the result into a ``pa.StructArray``.
+
+    Two construction paths cover the cases the library needs today:
+
+    * :meth:`from_model` — for pydantic ``BaseModel`` subclasses.  The
+      target schema is derived (with value-projector expansions
+      applied), and per-sub-field extraction uses pydantic attribute
+      access plus recursion into nested ``BaseModel`` fields.  The
+      ``Coordinate`` / ``Duration`` denormalisation is dispatched to
+      :func:`build_coordinate_struct_array` for the relevant nested
+      attributes; once a registered rational-denormalisation hook is in
+      place, that branch will collapse into the generic path.
+    * :meth:`from_schema_and_extractors` — for raw shapes that are not
+      driven by a pydantic model.  Used by
+      :func:`build_coordinate_struct_array` to extract
+      ``{value, numerator, denominator}`` directly from objects that
+      merely expose a ``.value`` attribute.
+
+    Why the builder is a class rather than a procedure: it lets callers
+    cache the derived schema and sub-block map, and gives a single
+    obvious extension point (a new ``from_*`` classmethod) when a new
+    extraction strategy is required.
+    """
+
+    def __init__(
+        self,
+        *,
+        target_schema: pa.StructType,
+        pa_fields: list[pa.Field],
+        validate_obj: "Callable[[Any], None] | None",
+        emit_sub_arrays: "Callable[[Sequence[Any | None]], list[pa.Array]]",
+    ) -> None:
+        self._target_schema = target_schema
+        self._pa_fields = pa_fields
+        self._validate_obj = validate_obj
+        self._emit_sub_arrays = emit_sub_arrays
+
+    # -- public construction paths -----------------------------------------
+
+    @classmethod
+    def from_model(cls, model_cls: type[BaseModel]) -> "StructArrayBuilder":
+        """Build a builder driven by a pydantic ``BaseModel`` subclass."""
+        target_schema = derive_arrow_struct(model_cls)
+        pa_fields: list[pa.Field] = list(target_schema)
+        sub_blocks = _group_pa_fields_by_pydantic_field(model_cls, pa_fields)
+
+        def _validate(obj: Any) -> None:
             if obj is None:
-                values.append(None)
-            else:
-                values.append(getattr(obj, py_field_name))
+                return
+            if not isinstance(obj, model_cls):
+                raise TypeError(
+                    f"Expected {model_cls.__name__} (or None), got "
+                    f"{type(obj).__name__}"
+                )
 
-        emitted = _build_field_arrays(
-            model_cls=model_cls,
-            field_name=py_field_name,
-            field_info=py_field_info,
-            pa_subfields=pa_block,
-            values=values,
+        def _emit(objects: Sequence[Any | None]) -> list[pa.Array]:
+            arrays: list[pa.Array] = []
+            for py_field_name, pa_block in sub_blocks.items():
+                if py_field_name is None:
+                    raise TypeError(
+                        "pa.Schema field cannot be mapped back to a pydantic "
+                        "field; extend the store builder for this projector shape."
+                    )
+                py_field_info = model_cls.model_fields[py_field_name]
+                values: list[Any] = [
+                    None if obj is None else getattr(obj, py_field_name)
+                    for obj in objects
+                ]
+                arrays.extend(
+                    _build_field_arrays(
+                        model_cls=model_cls,
+                        field_name=py_field_name,
+                        field_info=py_field_info,
+                        pa_subfields=pa_block,
+                        values=values,
+                    )
+                )
+            return arrays
+
+        return cls(
+            target_schema=target_schema,
+            pa_fields=pa_fields,
+            validate_obj=_validate,
+            emit_sub_arrays=_emit,
         )
-        field_arrays.extend(emitted)
 
-    return pa.StructArray.from_arrays(
-        field_arrays,
-        fields=pa_fields,
-        mask=pa.array(null_mask) if any(null_mask) else None,
-    )
+    @classmethod
+    def from_schema_and_extractors(
+        cls,
+        target_schema: pa.StructType,
+        extractors: "dict[str, Callable[[Sequence[Any | None]], pa.Array]]",
+    ) -> "StructArrayBuilder":
+        """Build a builder driven by an explicit schema and per-sub-field extractors.
+
+        Each key in ``extractors`` MUST match a sub-field name in
+        ``target_schema``.  The extractor receives the full object
+        sequence (with ``None`` for null rows) and returns a single
+        ``pa.Array`` whose type matches the sub-field.
+        """
+        pa_fields: list[pa.Field] = list(target_schema)
+        expected = {f.name for f in pa_fields}
+        if set(extractors.keys()) != expected:
+            missing = sorted(expected - set(extractors.keys()))
+            extra = sorted(set(extractors.keys()) - expected)
+            raise ValueError(
+                "Extractors are not congruent with target_schema. "
+                f"Expected: {sorted(expected)}; missing: {missing}; "
+                f"unexpected: {extra}."
+            )
+
+        def _emit(objects: Sequence[Any | None]) -> list[pa.Array]:
+            return [extractors[f.name](objects) for f in pa_fields]
+
+        return cls(
+            target_schema=target_schema,
+            pa_fields=pa_fields,
+            validate_obj=None,
+            emit_sub_arrays=_emit,
+        )
+
+    # -- build --------------------------------------------------------------
+
+    def build(self, objects: Sequence[Any | None]) -> pa.StructArray:
+        """Walk *objects* once and assemble the ``pa.StructArray``."""
+        objects = list(objects)
+        null_mask: list[bool] = []
+        validate = self._validate_obj
+        for obj in objects:
+            if obj is None:
+                null_mask.append(True)
+                continue
+            if validate is not None:
+                validate(obj)
+            null_mask.append(False)
+
+        sub_arrays = self._emit_sub_arrays(objects)
+        return pa.StructArray.from_arrays(
+            sub_arrays,
+            fields=self._pa_fields,
+            mask=pa.array(null_mask) if any(null_mask) else None,
+        )
 
 
 def _group_pa_fields_by_pydantic_field(
@@ -1078,7 +1354,7 @@ def _is_coordinate_like(tp: type) -> bool:
     """Detect ``Coordinate`` / ``Duration`` (and Id-variants) without a hard import.
 
     The TimeScalar value-projector denormalises ``value`` into three
-    columns and drops ``unit`` (and ``timeline_id`` for the Id-variants);
+    fields and drops ``unit`` (and ``timeline_id`` for the Id-variants);
     this helper is the signal that the nested-field builder must route
     through :func:`build_coordinate_struct_array` rather than the generic
     recursion.
@@ -1094,65 +1370,86 @@ def _is_coordinate_like(tp: type) -> bool:
     return False
 
 
-def build_coordinate_struct_array(
-    objects: Iterable[Any],
-) -> pa.StructArray:
-    """Build the coordinate storage struct from a sequence of Coordinates.
-
-    Coordinate's pydantic model exposes ``(value, unit)`` to users, but
-    the on-disk Arrow column denormalises ``value`` into
-    ``{value: float64, numerator: int64, denominator: int64}`` so that
-    rational precision survives a Parquet round-trip.  This function is
-    the column-builder for that denormalised projection.
-
-    ``unit`` is NOT stored in the column — it lives in ``pa.Field``
-    metadata (the SemanticField carries it).
-
-    Args:
-        objects: An iterable of ``Coordinate`` (or ``Duration``)
-            instances, or ``None``.
-
-    Returns:
-        A ``pa.StructArray`` with the canonical coordinate storage type.
-    """
-    values: list[float] = []
-    numerators: list[int | None] = []
-    denominators: list[int | None] = []
-    null_mask: list[bool] = []
-    for obj in objects:
-        if obj is None:
-            null_mask.append(True)
-            values.append(0.0)
-            numerators.append(None)
-            denominators.append(None)
-            continue
-        null_mask.append(False)
-        v = obj.value
-        values.append(float(v))
-        if isinstance(v, Fraction):
-            numerators.append(v.numerator)
-            denominators.append(v.denominator)
-        elif isinstance(v, int) and not isinstance(v, bool):
-            numerators.append(v)
-            denominators.append(1)
-        else:
-            numerators.append(None)
-            denominators.append(None)
-    fields = [
+_RATIONAL_STRUCT_TYPE: pa.StructType = pa.struct(
+    [
         pa.field("value", pa.float64(), nullable=True),
         pa.field("numerator", pa.int64(), nullable=True),
         pa.field("denominator", pa.int64(), nullable=True),
     ]
-    arrs = [
-        pa.array(values, type=pa.float64()),
-        pa.array(numerators, type=pa.int64()),
-        pa.array(denominators, type=pa.int64()),
+)
+"""Canonical denormalised storage shape for a rational number."""
+
+
+def _rational_components(value: Any) -> tuple[float, int | None, int | None]:
+    """Decompose a numeric ``.value`` payload into ``(float, num, den)``.
+
+    Used by the rational-denormalisation extractors; ``None`` outputs
+    for ``numerator`` / ``denominator`` mean "no exact fraction
+    available, fall back to the float on read-back".
+    """
+    if isinstance(value, Fraction):
+        return float(value), value.numerator, value.denominator
+    if isinstance(value, int) and not isinstance(value, bool):
+        return float(value), value, 1
+    return float(value), None, None
+
+
+def build_coordinate_struct_array(
+    objects: Iterable[Any],
+) -> pa.StructArray:
+    """Build the canonical rational storage struct from a sequence of scalars.
+
+    Coordinate (and Duration, IdCoordinate, IdDuration) expose
+    ``(value, unit)`` to users, but the on-disk Arrow data denormalises
+    ``value`` into ``{value: float64, numerator: int64, denominator: int64}``
+    so that rational precision survives a Parquet round-trip.  This
+    function is the bulk-builder for that denormalised projection.
+
+    ``unit`` is NOT stored in the data — it lives in ``pa.Field``
+    metadata (the SemanticField carries it).
+
+    Implementation note: this is a thin facade over
+    :class:`StructArrayBuilder` using a fixed three-extractor mapping.
+    The function name is preserved for backwards compatibility.
+
+    Args:
+        objects: An iterable of objects exposing a ``.value`` attribute
+            (``Coordinate``, ``Duration``, ``IdCoordinate``,
+            ``IdDuration`` — and any future rational-valued scalar),
+            or ``None`` for null rows.
+
+    Returns:
+        A ``pa.StructArray`` with the canonical rational storage type.
+    """
+    objects_list = list(objects)
+    components: list[tuple[float, int | None, int | None] | None] = [
+        None if obj is None else _rational_components(obj.value) for obj in objects_list
     ]
-    return pa.StructArray.from_arrays(
-        arrs,
-        fields=fields,
-        mask=pa.array(null_mask) if any(null_mask) else None,
+
+    def _value_extractor(_: Sequence[Any | None]) -> pa.Array:
+        return pa.array(
+            [0.0 if c is None else c[0] for c in components], type=pa.float64()
+        )
+
+    def _numerator_extractor(_: Sequence[Any | None]) -> pa.Array:
+        return pa.array(
+            [None if c is None else c[1] for c in components], type=pa.int64()
+        )
+
+    def _denominator_extractor(_: Sequence[Any | None]) -> pa.Array:
+        return pa.array(
+            [None if c is None else c[2] for c in components], type=pa.int64()
+        )
+
+    builder = StructArrayBuilder.from_schema_and_extractors(
+        _RATIONAL_STRUCT_TYPE,
+        {
+            "value": _value_extractor,
+            "numerator": _numerator_extractor,
+            "denominator": _denominator_extractor,
+        },
     )
+    return builder.build(objects_list)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1233,138 +1530,149 @@ def parse_metadata_blob(blob: bytes | str | None) -> dict[str, Any]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 5. NumberField — shared parent for CoordinateField & DurationField
+# 5. RAW NUMBER FIELDS — NumberField / RationalField / DenominateNumberField
 # ═══════════════════════════════════════════════════════════════════════════
 #
-# Lives at the bottom because it depends on the SemanticField machinery
-# above; the concrete CoordinateField / DurationField subclasses (and
-# the shared TimeScalarField parent) live in core/time.py.
+# These three classes form the raw DataField branch for struct-shaped
+# numeric storage.  They do NOT inherit from SemanticField — they are
+# the storage primitives.  Semantic wrappers (e.g. TimeScalarField in
+# core/time.py) compose them via ``SemanticField._raw_cls``.
 
 
-class DenominateNumberField(SemanticField[StructField]):
-    """Abstract parent for numeric struct fields (coordinates, durations).
+class NumberField(StructField):
+    """Abstract: a struct-shaped DataField holding a (composite) number.
 
-    Wraps a ``StructField`` and adds unit/number_type semantics plus
-    shared serialisation logic.  Concrete subclasses (CoordinateField,
-    DurationField) supply ``semantic_type``, ``metadata_dict``, and
-    ``__getitem__``.
+    Concrete subclasses pin the inner sub-schema.  Today the only
+    descendant is :class:`RationalField`; future shapes (e.g. complex
+    numbers, intervals) would be siblings.
 
-    Args:
-        raw: The inner ``StructField`` holding numeric struct data.
-        unit: The time unit.
-        number_type: The numeric representation used for scalar access.
+    The class does not impose validation beyond the underlying
+    :class:`StructField` invariants ("must be a struct"); schema
+    specifics belong to the leaves.
     """
 
-    def __init__(self, raw: StructField, unit: Any, number_type: Any) -> None:
-        # NumberField is always live (Coordinate/Duration columns need
-        # explicit unit + number_type semantics).  We bypass the
-        # SemanticField blueprint plumbing and store directly.
-        DataField.__init__(self, raw.data, raw.field)
-        self._raw = raw
-        self._is_blueprint = False
-        self._blueprint_column = None
-        # Late imports avoid pulling enums into the base module.
-        from .enums import NumberType, TimeUnit
 
-        self._unit = TimeUnit(unit) if isinstance(unit, str) else unit
-        self._number_type = (
-            NumberType(number_type) if isinstance(number_type, str) else number_type
-        )
+class RationalField(NumberField):
+    """Raw field for the canonical rational struct shape.
+
+    Sub-schema (fixed)::
+
+        {value: float64, numerator: int64, denominator: int64}
+
+    The struct stores a rational number redundantly so that exact
+    fractional precision (``numerator`` / ``denominator``) survives a
+    Parquet round-trip while a float64 best-effort value remains
+    immediately consumable by analytics.
+
+    .. todo::
+       The dual representation (float + Fraction) raises a non-trivial
+       arithmetic-consistency concern: addition, subtraction, scaling
+       and comparison should honour fractional precision when both
+       operands carry it and degrade gracefully to float otherwise.
+       A self-contained refactor will introduce a small operations
+       layer over ``RationalField`` to make those guarantees explicit.
+       Until then, callers should treat the float and rational sides
+       as independent views of the same storage.
+    """
+
+    PA_SCHEMA: ClassVar[pa.StructType] = _RATIONAL_STRUCT_TYPE
+
+    def __init__(
+        self, data: pa.Array | pa.ChunkedArray | None, field: pa.Field
+    ) -> None:
+        if not _struct_types_match(field.type, type(self).PA_SCHEMA):
+            raise TypeError(
+                f"{type(self).__name__} requires the rational struct schema "
+                f"{type(self).PA_SCHEMA}; got {field.type}"
+            )
+        super().__init__(data, field)
+
+    @classmethod
+    def from_field(
+        cls, source: tuple[pa.Array | pa.ChunkedArray | None, pa.Field], **kw: Any
+    ) -> "RationalField":
+        data, field = source
+        return cls(data, field)
+
+
+def _coerce_time_unit(unit: Any) -> Any:
+    """Coerce a unit value to a ``TimeUnit`` enum (lazy import to avoid cycles)."""
+    if unit is None:
+        return None
+    from .enums import TimeUnit
+
+    if isinstance(unit, str):
+        return TimeUnit(unit)
+    return unit
+
+
+class DenominateNumberField(RationalField):
+    """A :class:`RationalField` bound to a single unit per field.
+
+    The unit is per-field, NOT per-row: every row in a
+    DenominateNumberField is interpreted in the SAME unit, recorded
+    once in the field's ``b"timetoalign"`` metadata blob.
+
+    Args:
+        data: The underlying rational struct array, or ``None`` for
+            schema-only / blueprint use.
+        field: The ``pa.Field`` descriptor.
+        unit: The unit bound to this field.  May be ``None`` for
+            unresolved blueprints; the metadata blob on *field* is
+            consulted as a fallback.  Required (one way or the other)
+            before the field is serialised.
+    """
+
+    def __init__(
+        self,
+        data: pa.Array | pa.ChunkedArray | None,
+        field: pa.Field,
+        *,
+        unit: Any = None,
+    ) -> None:
+        super().__init__(data, field)
+        self._unit = self._resolve_unit(field, unit)
+
+    # -- properties ----------------------------------------------------------
 
     @property
     def unit(self) -> Any:
-        """The time unit of this field."""
+        """The single unit bound to this field, or ``None`` if unresolved."""
         return self._unit
 
     @property
     def domain(self) -> Any:
-        """The temporal domain, derived from the unit."""
-        return self._unit.domain
+        """The temporal domain implied by the unit, or ``None`` if unresolved."""
+        return None if self._unit is None else self._unit.domain
 
-    @property
-    def number_type(self) -> Any:
-        """The numeric representation used for scalar access."""
-        return self._number_type
-
-    @property
-    @abstractmethod
-    def semantic_type(self) -> str: ...
-
-    @abstractmethod
-    def metadata_dict(self) -> dict[str, str]: ...
-
-    def to_field(self) -> pa.Field:
-        """Return a ``pa.Field`` with ``b"timetoalign"`` metadata injected."""
-        meta_blob = metadata_blob_from_dict(self.metadata_dict())
-        existing = self._field.metadata or {}
-        merged = {**existing, TIMETOALIGN_METADATA_KEY: meta_blob}
-        return self._field.with_metadata(merged)
+    # -- helpers -------------------------------------------------------------
 
     @staticmethod
-    def _require_unit(unit: Any, cls_name: str = "NumberField") -> Any:
-        from .enums import TimeUnit
-
-        if unit is None:
-            raise ValueError(
-                f"'unit' is required when constructing {cls_name} from a bare array or StructField"
-            )
-        return TimeUnit(unit) if isinstance(unit, str) else unit
-
-    @staticmethod
-    def _require_number_type(number_type: Any, cls_name: str = "NumberField") -> Any:
-        from .enums import NumberType
-
-        if number_type is None:
-            raise ValueError(
-                f"'number_type' is required when constructing {cls_name} from a bare array or StructField"
-            )
-        return NumberType(number_type) if isinstance(number_type, str) else number_type
-
-    @staticmethod
-    def _resolve_metadata(
-        pa_field: pa.Field,
-        unit_override: Any,
-        nt_override: Any,
-    ) -> tuple[Any, Any]:
-        """Extract unit and number_type from a ``pa.Field``'s metadata."""
-        from .enums import NumberType, TimeUnit
-
-        meta: dict[str, str] = {}
+    def _resolve_unit(pa_field: pa.Field, override: Any) -> Any:
+        """Resolve the unit from a kwarg override, then from field metadata."""
+        if override is not None:
+            return _coerce_time_unit(override)
         raw_meta = pa_field.metadata
-        if raw_meta:
-            if TIMETOALIGN_METADATA_KEY in raw_meta:
-                blob = raw_meta[TIMETOALIGN_METADATA_KEY]
+        if raw_meta and TIMETOALIGN_METADATA_KEY in raw_meta:
+            blob = raw_meta[TIMETOALIGN_METADATA_KEY]
+            try:
                 if isinstance(blob, bytes):
                     blob = blob.decode("utf-8")
-                meta = json.loads(blob)
-            else:
-                meta = {
-                    (k.decode("utf-8") if isinstance(k, bytes) else k): (
-                        v.decode("utf-8") if isinstance(v, bytes) else v
-                    )
-                    for k, v in raw_meta.items()
-                }
+                payload = json.loads(blob)
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                payload = {}
+            unit = payload.get("unit") if isinstance(payload, dict) else None
+            if unit is not None:
+                return _coerce_time_unit(unit)
+        return None
 
-        if unit_override is not None:
-            resolved_unit = (
-                TimeUnit(unit_override)
-                if isinstance(unit_override, str)
-                else unit_override
-            )
-        elif "unit" in meta:
-            resolved_unit = TimeUnit(meta["unit"])
-        else:
-            raise ValueError(
-                f"Cannot determine unit for field {pa_field.name!r}: no 'unit' in metadata and no override"
-            )
-
-        if nt_override is not None:
-            resolved_nt = (
-                NumberType(nt_override) if isinstance(nt_override, str) else nt_override
-            )
-        elif "number_type" in meta:
-            resolved_nt = NumberType(meta["number_type"])
-        else:
-            resolved_nt = NumberType.float
-
-        return resolved_unit, resolved_nt
+    @classmethod
+    def from_field(
+        cls,
+        source: tuple[pa.Array | pa.ChunkedArray | None, pa.Field],
+        *,
+        unit: Any = None,
+        **kw: Any,
+    ) -> "DenominateNumberField":
+        data, field = source
+        return cls(data, field, unit=unit)

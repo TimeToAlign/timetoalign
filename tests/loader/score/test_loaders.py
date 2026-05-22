@@ -64,8 +64,8 @@ class TestTSVLoader:
         store = loader.store
         first = list(store.notes)[0]
 
-        # WP2.5: midi_pitch struct shape {midi_number}, specific_pitch
-        # shape {step, alter, octave, cents}.
+        # Canonical storage shapes: midi_pitch is {midi_number} and
+        # specific_pitch is {step, alter, octave, cents}.
         mp = first.get("midi_pitch")
         assert mp is not None
         assert "midi_number" in mp and mp["midi_number"] == 59  # B3

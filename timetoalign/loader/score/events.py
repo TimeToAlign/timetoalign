@@ -222,13 +222,13 @@ class ScoreEventData(EventData):
     @classmethod
     def from_arrays(
         cls,
-        columns: dict[str, list[Any]],
+        fields: dict[str, list[Any]],
         unit: TimeUnit,
         number_type: NumberType = NumberType.float,
         has_rests: bool | None = None,
     ) -> Self:
         """Create from arrays with has_rests metadata."""
-        store = super().from_arrays(columns, unit, number_type)
+        store = super().from_arrays(fields, unit, number_type)
         store._has_rests = has_rests
         return store
 

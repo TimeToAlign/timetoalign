@@ -1,9 +1,8 @@
 """Flow API: Compute unfolded measure sequences from flow control data.
 
-This module implements Phase 3.7 of the TimeToAlign! implementation roadmap.
-It provides classes for computing and representing "flows" - the sequence of
-measure visitations that results from following flow control instructions
-(repeats, voltas, D.S., D.C., etc.).
+This module provides classes for computing and representing "flows" — the
+sequence of measure visitations that results from following flow control
+instructions (repeats, voltas, D.S., D.C., etc.).
 
 From the design spec (measure_handling_design.md Part 14):
 
@@ -234,8 +233,8 @@ class MeasureUnit:
 class IncompleteMeasure(MeasureUnit):
     """A MeasureUnit that does not metrically complete on its own.
 
-    NOT a group - this is a typed copy of a MeasureUnit created during
-    Phase 1 (Typing) of the two-phase algorithm.
+    NOT a group — this is a typed copy of a MeasureUnit created during
+    the Typing step of the two-step typing/grouping algorithm.
 
     IncompleteMeasure inherits all MeasureUnit properties including
     FlowControlElements, enabling serialization round-trip.
@@ -260,8 +259,8 @@ class IncompleteMeasure(MeasureUnit):
 class CompleteMeasure(MeasureUnit):
     """A MeasureUnit that metrically completes on its own.
 
-    NOT a group - this is a typed copy of a MeasureUnit created during
-    Phase 1 (Typing) of the two-phase algorithm.
+    NOT a group — this is a typed copy of a MeasureUnit created during
+    the Typing step of the two-step typing/grouping algorithm.
 
     The simple, default case: duration_qb == timesig_duration_qb.
 
@@ -276,8 +275,8 @@ class CompleteMeasure(MeasureUnit):
 class OverlengthMeasure(MeasureUnit):
     """A MeasureUnit that exceeds the expected metrical length.
 
-    NOT a group - this is a typed copy of a MeasureUnit created during
-    Phase 1 (Typing) of the two-phase algorithm.
+    NOT a group — this is a typed copy of a MeasureUnit created during
+    the Typing step of the two-step typing/grouping algorithm.
 
     OverlengthMeasure inherits all MeasureUnit properties including
     FlowControlElements, enabling serialization round-trip.
@@ -303,8 +302,9 @@ TypedMeasure = IncompleteMeasure | CompleteMeasure | OverlengthMeasure
 class MeasureGroup:
     """Base class for groupings of typed MeasureUnits.
 
-    Groups are constructed in Phase 2 (Grouping), AFTER MeasureUnits have been
-    typed as IncompleteMeasure/CompleteMeasure/OverlengthMeasure in Phase 1.
+    Groups are constructed in the Grouping step, AFTER MeasureUnits have been
+    typed as IncompleteMeasure/CompleteMeasure/OverlengthMeasure in the
+    Typing step.
 
     MeasureGroup is an abstract base - use SplitMeasure, IncompleteGroup,
     Volta, or CompleteMeasureGroup for concrete groupings.
@@ -535,8 +535,8 @@ class AtomicSection:
     to: tuple[str, ...] = ()
     await_to: tuple[str, ...] = ()
     section_type: str = "default"  # "default" | "leap_end" | "leap_start"
-    typed_measures: tuple["TypedMeasure", ...] | None = None  # Phase 1 output
-    groups: tuple["MeasureGroup", ...] | None = None  # Phase 2 output
+    typed_measures: tuple["TypedMeasure", ...] | None = None  # Typing-step output
+    groups: tuple["MeasureGroup", ...] | None = None  # Grouping-step output
 
     def __post_init__(self) -> None:
         """Validate section configuration."""
@@ -693,8 +693,8 @@ class PlaythroughSection:
     mc_start: int
     mc_end: int
     atomic_section_ids: tuple[str, ...] = ()
-    typed_measures: tuple["TypedMeasure", ...] | None = None  # Phase 1 output
-    groups: tuple["MeasureGroup", ...] | None = None  # Phase 2 output
+    typed_measures: tuple["TypedMeasure", ...] | None = None  # Typing-step output
+    groups: tuple["MeasureGroup", ...] | None = None  # Grouping-step output
 
     def __post_init__(self) -> None:
         """Validate section configuration."""
@@ -900,13 +900,13 @@ class Flow:
 
     @classmethod
     def from_dataframe(cls, df: "pd.DataFrame", mode: FlowMode) -> "Flow":
-        """Create Flow from DataFrame with mc_start, mc_end, atomic_sections columns.
+        """Create Flow from DataFrame with mc_start, mc_end, atomic_sections fields.
 
         Note:
             MC ranges use right-open interval convention [mc_start, mc_end).
 
         Args:
-            df: DataFrame with columns: mc_start, mc_end, atomic_sections.
+            df: DataFrame with fields: mc_start, mc_end, atomic_sections.
                 (also accepts "atomic_segments" for backwards compatibility)
             mode: The FlowMode for this flow.
 
@@ -974,7 +974,7 @@ class Flow:
         """Export as DataFrame (section-based).
 
         Returns:
-            DataFrame with columns: mc_start, mc_end, atomic_sections.
+            DataFrame with fields: mc_start, mc_end, atomic_sections.
         """
         import pandas as pd
 
@@ -1130,7 +1130,7 @@ class Flow:
         """Convert to pandas DataFrame with section information.
 
         Returns:
-            DataFrame with columns: mc_start, mc_end, atomic_sections
+            DataFrame with fields: mc_start, mc_end, atomic_sections
             for each PlaythroughSection.
 
         Note:
@@ -1548,7 +1548,7 @@ class FlowControllerBase(ABC):
     - ScoreFlowController: Works with MeasureData (mc, mn, next[], volta, etc.)
     - Future: AudioFlowController, VideoFlowController for other media types.
 
-    Design Decisions (from Phase 3.9):
+    Design Decisions:
     - FlowController is a factory, NOT stored on Timeline
     - Sparse sections ARE allowed (atomic sections need not cover entire timeline)
     - Unit independence: Flows are sequences of TimeIntervals in ANY unit
@@ -1695,7 +1695,7 @@ class ScoreFlowController(FlowControllerBase):
     def _build_lookup(self) -> None:
         """Build MC -> measure dict lookup from MeasureData.
 
-        Extracts all available columns including FlowControl markers:
+        Extracts all available fields including FlowControl markers:
         - Basic: mc, mn, duration, next, quarterbeats
         - FlowControl: volta, timesig, start_repeat, end_repeat, segno, coda, fine
         """
@@ -1704,20 +1704,20 @@ class ScoreFlowController(FlowControllerBase):
 
         table = self._measures._table
 
-        # Get column data
-        mc_col = table.column("mc").to_pylist()
-        mn_col = (
+        # Get field data
+        mc_vals = table.column("mc").to_pylist()
+        mn_vals = (
             table.column("mn").to_pylist()
             if "mn" in table.column_names
-            else [str(mc) for mc in mc_col]
+            else [str(mc) for mc in mc_vals]
         )
 
         # Get duration - handle struct type
         if "duration" in table.column_names:
-            dur_col = table.column("duration").to_pylist()
+            dur_vals = table.column("duration").to_pylist()
             # Duration is a struct with 'value' field
             duration_values = []
-            for d in dur_col:
+            for d in dur_vals:
                 if d is None:
                     duration_values.append(Fraction(4))
                 elif isinstance(d, dict):
@@ -1727,23 +1727,23 @@ class ScoreFlowController(FlowControllerBase):
                 else:
                     duration_values.append(Fraction(d))
         elif "actual_length" in table.column_names:
-            al_col = table.column("actual_length").to_pylist()
-            duration_values = [Fraction(d) if d else Fraction(4) for d in al_col]
+            al_vals = table.column("actual_length").to_pylist()
+            duration_values = [Fraction(d) if d else Fraction(4) for d in al_vals]
         else:
-            duration_values = [Fraction(4)] * len(mc_col)
+            duration_values = [Fraction(4)] * len(mc_vals)
 
         # Get 'next' field
-        next_col = (
+        next_vals = (
             table.column("next").to_pylist()
             if "next" in table.column_names
-            else [None] * len(mc_col)
+            else [None] * len(mc_vals)
         )
 
         # Get 'start' (quarterbeats) - handle struct type
         if "start" in table.column_names:
-            start_col = table.column("start").to_pylist()
+            start_vals = table.column("start").to_pylist()
             qb_values = []
-            for s in start_col:
+            for s in start_vals:
                 if s is None:
                     qb_values.append(Fraction(0))
                 elif isinstance(s, dict):
@@ -1753,47 +1753,47 @@ class ScoreFlowController(FlowControllerBase):
                 else:
                     qb_values.append(Fraction(s))
         else:
-            qb_values = [Fraction(0)] * len(mc_col)
+            qb_values = [Fraction(0)] * len(mc_vals)
 
         # Get FlowControl fields (with safe defaults)
-        def _get_column_safe(name: str, default: Any = None) -> list:
-            """Get column values or return list of defaults."""
+        def _get_field_safe(name: str, default: Any = None) -> list:
+            """Get field values or return list of defaults."""
             if name in table.column_names:
                 return table.column(name).to_pylist()
-            return [default] * len(mc_col)
+            return [default] * len(mc_vals)
 
-        volta_col = _get_column_safe("volta")
-        timesig_col = _get_column_safe("timesig")
-        start_repeat_col = _get_column_safe("start_repeat", False)
-        end_repeat_col = _get_column_safe("end_repeat", False)
-        segno_col = _get_column_safe("segno")
-        coda_col = _get_column_safe("coda")
-        fine_col = _get_column_safe("fine", False)
-        # ms3 columns carrying marker name and jump targets per measure
-        markers_col = _get_column_safe("markers")
-        jump_bwd_col = _get_column_safe("jump_bwd")
-        jump_fwd_col = _get_column_safe("jump_fwd")
-        play_until_col = _get_column_safe("play_until")
-        # section_break: check 'section_break' column first, then 'breaks' column
+        volta_vals = _get_field_safe("volta")
+        timesig_vals = _get_field_safe("timesig")
+        start_repeat_vals = _get_field_safe("start_repeat", False)
+        end_repeat_vals = _get_field_safe("end_repeat", False)
+        segno_vals = _get_field_safe("segno")
+        coda_vals = _get_field_safe("coda")
+        fine_vals = _get_field_safe("fine", False)
+        # ms3 fields carrying marker name and jump targets per measure
+        markers_vals = _get_field_safe("markers")
+        jump_bwd_vals = _get_field_safe("jump_bwd")
+        jump_fwd_vals = _get_field_safe("jump_fwd")
+        play_until_vals = _get_field_safe("play_until")
+        # section_break: check 'section_break' field first, then 'breaks' field
         if "section_break" in table.column_names:
-            section_break_col = _get_column_safe("section_break", False)
+            section_break_vals = _get_field_safe("section_break", False)
         elif "breaks" in table.column_names:
-            # The breaks column may contain compound values like
+            # The breaks field may contain compound values like
             # "page & section" or "section & page"; check for substring.
-            breaks_col = table.column("breaks").to_pylist()
-            section_break_col = [
-                "section" in str(b) if b else False for b in breaks_col
+            breaks_vals = table.column("breaks").to_pylist()
+            section_break_vals = [
+                "section" in str(b) if b else False for b in breaks_vals
             ]
         else:
-            section_break_col = [False] * len(mc_col)
+            section_break_vals = [False] * len(mc_vals)
 
-        for i, mc in enumerate(mc_col):
+        for i, mc in enumerate(mc_vals):
             # Parse 'next' field
-            next_val = next_col[i]
+            next_val = next_vals[i]
             if next_val is None or next_val == "":
                 # Default: next MC or -1 for last
-                if i < len(mc_col) - 1:
-                    next_list = [mc_col[i + 1]]
+                if i < len(mc_vals) - 1:
+                    next_list = [mc_vals[i + 1]]
                 else:
                     next_list = [-1]
             elif isinstance(next_val, str):
@@ -1816,8 +1816,8 @@ class ScoreFlowController(FlowControllerBase):
                             pass
                 if not next_list:
                     # If we couldn't parse anything, default to next MC or -1
-                    if i < len(mc_col) - 1:
-                        next_list = [mc_col[i + 1]]
+                    if i < len(mc_vals) - 1:
+                        next_list = [mc_vals[i + 1]]
                     else:
                         next_list = [-1]
             elif isinstance(next_val, list):
@@ -1828,13 +1828,13 @@ class ScoreFlowController(FlowControllerBase):
             # Resolve marker name and jump targets — prefer dedicated
             # segno/coda/fine columns when present, fall back to ms3
             # markers/jump_fwd/play_until columns.
-            marker = markers_col[i] if markers_col[i] else None
-            jump_bwd = jump_bwd_col[i] if jump_bwd_col[i] else None
-            jump_fwd = jump_fwd_col[i] if jump_fwd_col[i] else None
-            play_until = play_until_col[i] if play_until_col[i] else None
+            marker = markers_vals[i] if markers_vals[i] else None
+            jump_bwd = jump_bwd_vals[i] if jump_bwd_vals[i] else None
+            jump_fwd = jump_fwd_vals[i] if jump_fwd_vals[i] else None
+            play_until = play_until_vals[i] if play_until_vals[i] else None
 
-            segno_name = segno_col[i] if segno_col[i] else None
-            coda_name = coda_col[i] if coda_col[i] else None
+            segno_name = segno_vals[i] if segno_vals[i] else None
+            coda_name = coda_vals[i] if coda_vals[i] else None
             if marker is not None:
                 # ms3 'markers' column carries the target marker NAME.
                 if marker.startswith("segno"):
@@ -1844,28 +1844,28 @@ class ScoreFlowController(FlowControllerBase):
                     coda_name = coda_name or marker
                 elif marker == "fine":
                     # fine marker can also appear in markers column
-                    fine_col[i] = True
+                    fine_vals[i] = True
 
             # 'fine' marker location is signalled by an explicit marker or by
             # jump_fwd='fine'. play_until='fine' is the D.S./D.C.-al-fine
             # *instruction*, which lives elsewhere — not a fine marker.
-            fine_flag = bool(fine_col[i]) or jump_fwd == "fine" or marker == "fine"
+            fine_flag = bool(fine_vals[i]) or jump_fwd == "fine" or marker == "fine"
 
             self._measure_lookup[mc] = {
                 "mc": mc,
-                "mn": str(mn_col[i]) if mn_col[i] is not None else str(mc),
+                "mn": str(mn_vals[i]) if mn_vals[i] is not None else str(mc),
                 "duration_qb": duration_values[i],
                 "quarterbeats": qb_values[i],
                 "next": next_list,
                 # FlowControl fields
-                "volta": volta_col[i],
-                "timesig": timesig_col[i],
-                "start_repeat": bool(start_repeat_col[i]),
-                "end_repeat": bool(end_repeat_col[i]),
+                "volta": volta_vals[i],
+                "timesig": timesig_vals[i],
+                "start_repeat": bool(start_repeat_vals[i]),
+                "end_repeat": bool(end_repeat_vals[i]),
                 "segno": segno_name,
                 "coda": coda_name,
                 "fine": fine_flag,
-                "section_break": bool(section_break_col[i]),
+                "section_break": bool(section_break_vals[i]),
                 # Raw ms3 jump-instruction fields (kept for downstream inference)
                 "marker": marker,
                 "jump_bwd": jump_bwd,
@@ -2101,7 +2101,7 @@ class ScoreFlowController(FlowControllerBase):
         return tuple(types)
 
     def _type_measure(self, unit: MeasureUnit) -> TypedMeasure:
-        """Create a typed copy of a MeasureUnit (Phase 1 of two-phase algorithm).
+        """Create a typed copy of a MeasureUnit (Typing step of the two-step algorithm).
 
         Compares the measure's actual duration with the expected duration from
         the time signature to classify measures as:
@@ -2159,7 +2159,7 @@ class ScoreFlowController(FlowControllerBase):
         Uses the unit's position in the score to classify:
         - First measure -> ANACRUSIS
         - Last measure -> FINAL
-        - Otherwise -> SPLIT_FIRST (may be refined by Phase 2 grouping)
+        - Otherwise -> SPLIT_FIRST (may be refined by the Grouping step)
 
         Args:
             unit: The incomplete MeasureUnit.
@@ -2181,17 +2181,17 @@ class ScoreFlowController(FlowControllerBase):
             return IncompletePosition.final
         else:
             # Check if this might be part of a split measure
-            # For now, classify as SPLIT_FIRST (Phase 2 will refine)
+            # For now, classify as SPLIT_FIRST (the Grouping step will refine)
             return IncompletePosition.split_first
 
     # ========================================================================
-    # Phase 2: Grouping methods
+    # Grouping step: Grouping methods
     # ========================================================================
 
     def _build_groups(
         self, typed_measures: tuple[TypedMeasure, ...]
     ) -> tuple[MeasureGroup, ...]:
-        """Group typed measures into MeasureGroups (Phase 2 of two-phase algorithm).
+        """Group typed measures into MeasureGroups (Grouping step of the two-step algorithm).
 
         Algorithm for complete coverage (every measure belongs to exactly one group):
         1. Identify VoltaGroups (consecutive measures with same volta number)
@@ -2201,7 +2201,7 @@ class ScoreFlowController(FlowControllerBase):
         5. Group remaining CompleteMeasures into CompleteMeasureGroups
 
         Args:
-            typed_measures: Tuple of typed measures from Phase 1.
+            typed_measures: Tuple of typed measures from the Typing step.
 
         Returns:
             Tuple of MeasureGroup objects covering all measures.
@@ -2849,20 +2849,20 @@ class ScoreFlowController(FlowControllerBase):
                 if letter is not None and letter not in to_sections:
                     to_sections.append(letter)
 
-            # Build typed_measures for this section (Phase 1 typing)
+            # Build typed_measures for this section (Typing step)
             # Collect MeasureUnits in the range [start_mc, end_mc+1) (right-open)
             section_units: list[MeasureUnit] = []
             for mc in range(start_mc, end_mc + 1):
                 if mc in unit_lookup:
                     section_units.append(unit_lookup[mc])
 
-            # Type each unit (Phase 1)
+            # Type each unit (Typing step)
             typed_measures: tuple[TypedMeasure, ...] | None = None
             groups: tuple[MeasureGroup, ...] | None = None
             if section_units:
                 typed_list = [self._type_measure(u) for u in section_units]
                 typed_measures = tuple(typed_list)
-                # Build groups (Phase 2)
+                # Build groups (Grouping step)
                 groups = self._build_groups(typed_measures)
 
             sections.append(
@@ -2974,7 +2974,7 @@ class ScoreFlowController(FlowControllerBase):
             """Build a PlaythroughSection with typed_measures and groups."""
             atomic_ids = self._find_atomic_ids(start_mc, end_mc + 1)
 
-            # Collect and type MeasureUnits in the range (Phase 1)
+            # Collect and type MeasureUnits in the range (Typing step)
             typed_list: list[TypedMeasure] = []
             for mc in range(start_mc, end_mc + 1):
                 if mc in unit_lookup:
@@ -2982,7 +2982,7 @@ class ScoreFlowController(FlowControllerBase):
 
             typed_measures = tuple(typed_list) if typed_list else None
 
-            # Build groups (Phase 2)
+            # Build groups (Grouping step)
             groups: tuple[MeasureGroup, ...] | None = None
             if typed_measures:
                 groups = self._build_groups(typed_measures)
@@ -3835,8 +3835,8 @@ def create_unfolded_timeline(
       truncation of interval events at section boundaries
     - Children recursively sliced (when *include_children* is True)
 
-    Design Decision (Phase 3.10): Replaces the Phase 3.9 FlowMap-based
-    per-event coordinate remapping with structural slicing.  The old
+    Design decision: replaces the earlier FlowMap-based per-event
+    coordinate remapping with structural slicing.  The previous
     approach operated in MC-number space and produced wrong coordinates
     for scores with non-uniform measure durations.
 
@@ -3890,7 +3890,7 @@ def create_unfolded_timeline(
     else:
         raise ValueError(
             "flow_controller is required for QB-space unfolding. "
-            "The legacy MC-number-space path has been removed in Phase 3.10."
+            "The legacy MC-number-space path has been removed."
         )
 
     # --- 2. Build the QB-space FlowMap ---

@@ -145,6 +145,98 @@ find yourself wanting to break one, raise it as a discussion before coding.
 For the full conceptual rationale see [Concepts](concepts.qmd) and the
 [Glossary](glossary.qmd).
 
+### 2.4 Architectural decision log
+
+The invariants below are load-bearing design rules. They are not
+auto-discoverable from any single docstring; new code is expected to
+respect them, and breaking changes are expected to be discussed and
+recorded here.
+
+**Pydantic-derived schemas + value projectors.**
+Every scalar (`Coordinate`, `Duration`, `SpecificPitch`, `Note`,
+`Measure`, the pitch / harmony hierarchies, …) is a pydantic
+`BaseModel` subclass with `model_config = ConfigDict(frozen=True)`.
+The corresponding PyArrow `pa.StructType` is derived **once at
+class-definition time** via `derive_arrow_struct(model_cls)` (see
+`timetoalign/core/fields.py`). Computed pydantic fields are
+deliberately excluded from the derived struct. Individual fields may
+be denormalised or dropped via `register_value_projector(model_cls,
+field_name, projector)`: for example, `Coordinate.value` projects to
+`{value, numerator, denominator}` so rationals survive Parquet, and
+`Note.pitch` is dropped entirely so pitch lives in its own field
+(`midi_pitch` / `specific_pitch`) rather than as a sub-field of
+`Note`.
+
+**Union-of-`BaseModel` rejected.**
+Distinct scalar types live in distinct PyArrow fields. The translator
+deliberately raises on `BaseModel | BaseModel` unions: storing them as
+PyArrow `dense_union` is forbidden because consumers (DuckDB, polars,
+pandas) cannot project the union arms cleanly. The required pattern
+is **columnar separation** — drop the polymorphic field with
+`register_value_projector(..., lambda *_: [])` and expose each scalar
+type in its own field.
+
+**Bulk construction path.**
+The canonical bulk constructor is
+`StructArrayBuilder.from_model(model_cls).build(objects)`, with
+`build_struct_array(model_cls, objects)` as the public facade and
+`build_coordinate_struct_array` as the specialised facade for the
+rational denormalisation of `Coordinate` / `Duration`. The builder
+traverses each scalar once and accumulates per-field arrays. **Never
+`model_dump` row-wise in production paths.** The microbenchmark gate
+requires the store-builder to be ≥ 2× faster than row-wise
+`model_dump`; on `Coordinate` the observed ratio is ~5×, and the
+underlying load-bearing claim — vectorised `pa.compute` operations on
+a 1M-element field being ~150–210× faster than the equivalent
+per-object Python loop — is *the* justification for the columnar
+architecture as a whole.
+
+**Paired scalar + field convention.**
+Every scalar `X` is followed in the same source file by its paired
+`XField(SemanticField[X])`. `core/time.py` cohabits the time scalars
+(`Coordinate`, `Duration`, `IdCoordinate`, `IdDuration`) and their
+paired fields under a single `TimeScalarField` parent that
+consolidates `from_field` / `from_table` / metadata plumbing;
+`core/events.py` cohabits pitch, harmony, `Note`, and `Measure` with
+their paired fields. Object + ObjectField is the unit of code
+organisation and must never be split across files.
+
+**Raw vs semantic DataField branch.**
+`DataField` is the abstract base for field wrappers. Raw subclasses
+(`NumericField`, `StringField`, `StructField`, `MapField`, plus the
+struct-shaped numeric branch `NumberField` → `RationalField` →
+`DenominateNumberField`) wrap PyArrow data with type checks and
+accessors. `SemanticField[T]` is the strictly-typed bridge between a
+pydantic scalar `T` and a struct-shaped raw field; it pins the inner
+raw type via the `_raw_cls` ClassVar (default `StructField`, refined
+to `DenominateNumberField` by `TimeScalarField`).
+
+**Two-step typing/grouping algorithm.**
+`FlowController` converts raw `MeasureUnit`s into typed measures and
+groups via two passes:
+
+1. **Typing step.** Each `MeasureUnit` is classified as
+   `IncompleteMeasure` / `CompleteMeasure` / `OverlengthMeasure` by
+   comparing its actual duration to the expected time-signature
+   duration, with local context (first/last measure) refining the
+   incomplete position.
+2. **Grouping step.** Typed measures are consolidated into
+   `MeasureGroup` subclasses (`CompleteMeasureGroup`, `SplitMeasure`,
+   `VoltaGroup`, `IncompleteGroup`, `OverlengthGroup`) so every
+   measure belongs to exactly one group.
+
+Do not use the word "Phase" to refer to these passes in shipped code
+or docs — say "Typing step" / "Grouping step".
+
+**Unified `TimeStamp` architecture.**
+A single `TimeStamp` return type is the canonical result of every
+coordinate resolution call (Timeline ↔ child, TimelineGroup ↔ member).
+`MatchStamp` (used by `MatchClaim` / `AlignmentBundle`) is a sibling
+type, sharing the same interface where applicable. No
+"GroupTimestamp" / "BundleTimestamp" parallel hierarchy. `MatchGraph`
+remains on-demand (see §2.3) — these two rules together pin the
+"one resolution mechanism" invariant.
+
 ---
 
 ## 3. Environment & Installation

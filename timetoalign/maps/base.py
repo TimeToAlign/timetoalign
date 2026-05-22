@@ -90,7 +90,7 @@ class ConversionMap(ABC, Generic[T]):
             source_unit: The unit of input coordinates. Defaults to class default.
             target_unit: The unit of output coordinates. Defaults to class default.
             uid: Optional explicit ID. If None, auto-generated.
-            name: Human-readable name for this map. Used as column header in
+            name: Human-readable name for this map. Used as field header in
                 timestamp tables. Defaults to "source_to_target" if units are
                 provided, otherwise uses the map's ID.
         """
@@ -140,7 +140,7 @@ class ConversionMap(ABC, Generic[T]):
     def name(self) -> str:
         """Human-readable name for this map.
 
-        Used as column header in timestamp tables. Defaults to
+        Used as field header in timestamp tables. Defaults to
         "source_to_target" if units are provided, otherwise the map's ID.
         """
         return self._name

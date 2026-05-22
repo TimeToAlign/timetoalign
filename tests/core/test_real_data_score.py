@@ -3,11 +3,11 @@
 This module validates paired ``XField`` implementations against published
 musical corpora rather than synthetic test data.
 
-Schema changes under WP2.5:
-* ``midi_pitch`` column shape collapsed to ``{midi_number: int64}`` (was
-  ``{ep, epc}`` — ``epc`` was redundant with ``ep % 12``).
-* ``specific_pitch`` column shape collapsed to
-  ``{step, alter, octave, cents}`` (was 7-field SP storage).
+Schema invariants pinned here:
+* ``midi_pitch`` column shape is ``{midi_number: int64}`` (legacy
+  ``{ep, epc}`` was collapsed — ``epc`` was redundant with ``ep % 12``).
+* ``specific_pitch`` column shape is ``{step, alter, octave, cents}``
+  (collapsed from a 7-field legacy storage).
 """
 
 from __future__ import annotations

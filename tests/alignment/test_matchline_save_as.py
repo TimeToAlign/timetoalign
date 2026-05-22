@@ -564,7 +564,7 @@ class TestRoundTripHow03Notebook:
         )
         from timetoalign.loader.physical.eep_notes import EepNotesLoader
 
-        # Phase 1: Load and match (same as how03)
+        # Step 1: Load and match (same as how03)
         eep_loader = EepNotesLoader()
         eep_loader.load(*sorted(NORMAL_DIR.glob("*_align_*.notes")))
         eep_df = eep_loader.events.to_pandas()
@@ -590,7 +590,7 @@ class TestRoundTripHow03Notebook:
             source_timeline_id="clt1",
         )
 
-        # Phase 2: Build context and export
+        # Step 2: Build context and export
         context = MatchFileContext.from_dataframes(
             score_df=abc_prepared,
             perf_df=eep_prepared,
@@ -608,7 +608,7 @@ class TestRoundTripHow03Notebook:
         )
         assert output_path.exists()
 
-        # Phase 3: Read back and verify structure
+        # Step 3: Read back and verify structure
         content = output_path.read_text()
         lines = content.strip().split("\n")
 
@@ -648,7 +648,7 @@ class TestRoundTripHow03Notebook:
 
         from timetoalign.loader.alignment import MatchfileLoader
 
-        # Phase 1: Load the original .match file
+        # Step 1: Load the original .match file
         loader = MatchfileLoader()
         loader.load(CHOPIN_P01)
         bundle = loader.create_alignment_bundle()
@@ -663,7 +663,7 @@ class TestRoundTripHow03Notebook:
         )
         original_n_stamps = match_line.n_stamps
 
-        # Phase 2: Build context from original file and export
+        # Step 2: Build context from original file and export
         context = _build_context_from_match_file(CHOPIN_P01)
 
         # Add original score properties and deletion lines
@@ -680,7 +680,7 @@ class TestRoundTripHow03Notebook:
         )
         assert output_path.exists()
 
-        # Phase 3: Reload the exported file with MatchfileLoader
+        # Step 3: Reload the exported file with MatchfileLoader
         reload_loader = MatchfileLoader()
         reload_loader.load(output_path)
         reload_bundle = reload_loader.create_alignment_bundle()

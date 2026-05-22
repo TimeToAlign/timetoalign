@@ -18,14 +18,14 @@ Specialized timelines:
 Structural components:
 - Region: Named TimeInterval (not a timeline itself)
 
-Flow API (Phase 3.7 + Phase 10 MeasureUnit Architecture):
+Flow API (MeasureUnit architecture):
 - MeasureUnit: Fundamental building block (one per MeasureData row)
-- Typed MeasureUnit subclasses (Phase 10.2a):
+- Typed MeasureUnit subclasses (Typing step):
   - IncompleteMeasure: Measure shorter than expected (anacrusis, final, split)
   - CompleteMeasure: Measure matching expected duration
   - OverlengthMeasure: Measure exceeding expected duration (fermata, cadenza)
   - TypedMeasure: Type alias for any typed measure
-- MeasureGroup hierarchy (Phase 10.2b):
+- MeasureGroup hierarchy (Grouping step):
   - MeasureGroup: Base class for groupings of typed measures
   - SplitMeasure: IncompleteMeasures that together form a complete unit
   - IncompleteGroup: Isolated IncompleteMeasures (will merge in playthrough)
@@ -121,14 +121,14 @@ __all__ = [
     "SegmentLine",
     # Structural components
     "Region",
-    # Flow API (Phase 3.7 + Phase 10)
+    # Flow API
     "MeasureUnit",
-    # Typed MeasureUnit subclasses (Phase 10.2a)
+    # Typed MeasureUnit subclasses (Typing step)
     "IncompleteMeasure",
     "CompleteMeasure",
     "OverlengthMeasure",
     "TypedMeasure",
-    # MeasureGroup hierarchy (Phase 10.2b)
+    # MeasureGroup hierarchy (Grouping step)
     "MeasureGroup",
     "SplitMeasure",
     "IncompleteGroup",
@@ -140,10 +140,10 @@ __all__ = [
     "FlowMap",
     "FlowMapSection",
     "FlowController",  # Backwards-compatible alias for ScoreFlowController
-    "FlowControllerBase",  # Abstract base class (Phase 3.9)
-    "ScoreFlowController",  # Concrete implementation for score data (Phase 3.9)
+    "FlowControllerBase",  # Abstract base class
+    "ScoreFlowController",  # Concrete implementation for score data
     "AtomicSection",
     "PlaythroughSection",
     "load_valid_flows",
-    "create_unfolded_timeline",  # Phase 3.9 - create unfolded timeline from flow
+    "create_unfolded_timeline",  # Create unfolded timeline from flow
 ]

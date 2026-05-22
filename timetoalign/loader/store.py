@@ -183,7 +183,7 @@ class EventStore(ABC):
             # Try to extract coordinate range
             if len(data) > 0:
                 try:
-                    # EventData stores coordinates in 'start' or 'instant' columns
+                    # EventData stores coordinates in 'start' or 'instant' fields
                     table = data._table if hasattr(data, "_table") else None
                     if table is not None:
                         start_col = (
@@ -627,7 +627,7 @@ class MatchData:
         """Create MatchData from an existing PyArrow table.
 
         Args:
-            table: PyArrow table with MATCH_SCHEMA columns.
+            table: PyArrow table with MATCH_SCHEMA fields.
 
         Returns:
             A new MatchData wrapping the table.
