@@ -1325,9 +1325,21 @@ class TimeScalarField(SemanticField):
     # denormalised rational struct, NEVER a per-row Python loop.
 
     def _value_array(self) -> pa.Array:
-        """Return the underlying ``value`` sub-field as a ``pa.Array``."""
+        """Return the underlying ``value`` sub-field with outer-struct nulls propagated.
+
+        The inner ``value`` sub-field by itself ignores the outer
+        ``{value, numerator, denominator}`` struct's null mask, so a
+        naive ``arr.field("value")`` would yield ``0.0`` (or any inner
+        value) at positions where the outer struct is null.  We fold
+        the outer null mask in via :func:`pc.if_else`, so every
+        data-shaped predicate / arithmetic / conversion mirror that
+        consumes this method's output sees ``None`` at null positions
+        and agrees element-wise with the scalar dispatch.
+        """
         arr = self.to_pyarrow()
-        return arr.field("value")
+        value_arr = arr.field("value")
+        outer_valid = arr.is_valid()
+        return pc.if_else(outer_valid, value_arr, pa.scalar(None, type=value_arr.type))
 
     def to_float(self) -> pa.Array:
         """Vectorized cast of the ``value`` sub-field to ``float64``."""

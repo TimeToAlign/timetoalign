@@ -6,9 +6,12 @@ This directory contains tests for the `timetoalign.core` module, which provides 
 
 | Module | Status |
 |--------|--------|
-| `core/types.py` | Complete |
+| `core/time.py` (TimeScalar hierarchy + paired Fields) | Complete |
+| `core/events.py` (pitch / harmony / Note / Measure + paired Fields) | Complete |
+| `core/fields.py` (SemanticField base + arrow translator/builder/metadata) | Complete |
 | `core/enums.py` | Complete |
 | `core/ids.py` | Complete |
+| `core/protocols.py` | Complete |
 | `core/timestamp.py` | Complete |
 
 ## Test Files
@@ -233,6 +236,37 @@ print(interval)            # Two-column (start, end) display with '-' for out-of
   manuscript's left-inclusive, right-exclusive interval convention.
 - **TimeIntervalStamp.__str__**: Shows a `-` when one endpoint is out of range for a
   child, making it easy to see events that straddle children.
+
+---
+
+### `test_field_scalar_parity.py` - Scalar `to(*)` vs Field `convert_to(*)` Parity (WP3)
+
+**Purpose:** Verifies that every `@data_shaped` conversion implemented at the `SemanticField` level produces the same scalar values as the per-row scalar dispatch. The field-level `convert_to(*)` MUST be a `pa.compute` expression over the underlying `pa.Array`; iterating over materialised scalars to call `scalar.to()` is forbidden by the WP3 design.
+
+**Test Categories:**
+
+1. **EnharmonicPitch conversions** (3 tests)
+   - `EP → MidiPitch` (metadata-only retype)
+   - `EP → EnharmonicPitchClass` (vectorized `pc.mod(midi_number, 12)`)
+   - `EP → EP` (identity)
+2. **SpecificPitch conversions** (4 parametrized tests)
+   - Full conversion matrix: `SP → {SpecificPitch, MidiPitch, EnharmonicPitchClass, SpecificPitchClass}`
+3. **SpecificPitchClass conversions** (2 tests)
+   - `SPC → EnharmonicPitchClass`
+   - `SPC → SPC` (identity)
+4. **GenericPitch conversions** (1 test)
+   - `GP → GenericPitchClass`
+5. **Sliced-field parity** (2 tests)
+   - `SP[20:70] → EnharmonicPitchClass` on a zero-copy slice
+   - `EP[10:60] → EnharmonicPitchClass` on a zero-copy slice
+
+**Validity Rationale:**
+
+Per `workshop_typing_push.md` decision 6 ("Scalar/Field parity is structurally enforced — for data-shaped methods only"), every scalar method tagged `@data_shaped` MUST have a vectorized mirror on the paired `SemanticField` subclass. These tests are the runtime guarantee that the mirror produces semantically identical output to the per-row scalar path. Samples include nulls and boundary values (e.g. MIDI 0/1/127, step C/B with alter ±2, octave -1 and 8) to confirm that null propagation and edge cases are handled identically on both paths.
+
+The sliced-field tests confirm the corpus-scale slicing constraint (`workshop_typing_push.md` negative constraints): SemanticField operations MUST work efficiently on zero-copy `pa.Array` slices, never round-tripping through Python loops over materialised scalars.
+
+This file also carries the `__init_subclass__` parity-check failure-path test (`TestParityCheckEnforcement`) that exercises `SemanticField.__init_subclass__`'s `@data_shaped` enforcement on a synthetic bad subclass.
 
 ---
 
