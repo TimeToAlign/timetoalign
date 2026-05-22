@@ -20,7 +20,8 @@ bundles, error handling).
 | `test_schema.py` | `TableSchema` and field-spec resolution |
 | `test_store.py` | `EventStore` low-level operations |
 | `test_tilia_loader.py` | `TiliaJsonLoader` round-trip |
-| `test_get_field_by_class.py` | `EventData.get_field(<SemanticField subclass>)` class-based discovery — regression test ensuring that `events.get_field(PitchField)` discovers struct fields even when the loader has not injected `b"timetoalign"` metadata onto the field. |
+| `test_mixins.py` | `EventData` field-access mixins — three-strategy field discovery (metadata, default-column, shape-based `matches_pa_field`), `has_field`, `get_field`, `get_fields`, `get_raw`, and the convenience accessors (`get_pitch_field`, `get_harmony_field`). |
+| `test_mixins_wp3.py` | WP3 dispatch additions on `SemanticFieldAccessMixin` — `get_field(ScalarClass)` pydantic-scalar dispatch, `IdCoordinate` vs `Coordinate` discrimination via metadata (`matches_pa_field` rejection contracts), `MultipleFieldsError` on ambiguity + `name=` resolution, and `get_fields_satisfying(ProtocolClass)` Protocol-based grouping (covering `GenericPitchLike` and the new `TimeScalarLike`). |
 | `tabular/` | CSV / TSV / Parquet loader specifics |
 | `score/` | Music-notation loaders (Ms3, music21, Partitura) |
 | `midi/` | Score and performance MIDI loaders |

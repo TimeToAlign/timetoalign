@@ -34,6 +34,7 @@ from timetoalign.core.time import (
     DurationField,
     IdCoordinate,
     IdCoordinateField,
+    IdDurationField,
 )
 from timetoalign.loader.mixins import (
     MultipleFieldsError,
@@ -316,3 +317,164 @@ class TestGetFieldsSatisfying:
         host = _MixinHost(table)
         fields = host.get_fields_satisfying(GenericPitchLike)
         assert fields == []
+
+
+# ---------------------------------------------------------------------------
+# Strict-mode 4-leaf TimeScalarField sibling discrimination
+# ---------------------------------------------------------------------------
+
+
+def _make_table_with_all_four_timescalar_leaves() -> pa.Table:
+    """Build a table containing one column per TimeScalarField sibling leaf.
+
+    Columns: ``coord`` (CoordinateField), ``dur`` (DurationField),
+    ``id_coord`` (IdCoordinateField, timeline_id ``tl-a``),
+    ``id_dur`` (IdDurationField, timeline_id ``tl-b``).  All four share
+    the rational struct shape; ``b"timetoalign"`` ``field_type`` metadata
+    is what distinguishes them.
+    """
+    coord_arr = _make_coord_field([1.0, 2.0])
+    dur_arr = _make_coord_field([0.5, 0.75])
+    id_coord_arr = _make_coord_field([10.0, 20.0])
+    id_dur_arr = _make_coord_field([1.0, 1.5])
+
+    coord_field = _inject_metadata(
+        pa.field("coord", _rational_struct()),
+        "CoordinateField",
+        unit="seconds",
+        domain="physical",
+        number_type="float",
+    )
+    dur_field = _inject_metadata(
+        pa.field("dur", _rational_struct()),
+        "DurationField",
+        unit="seconds",
+        domain="physical",
+        number_type="float",
+    )
+    id_coord_field = _inject_metadata(
+        pa.field("id_coord", _rational_struct()),
+        "IdCoordinateField",
+        unit="seconds",
+        domain="physical",
+        number_type="float",
+        timeline_id="tl-a",
+    )
+    id_dur_field = _inject_metadata(
+        pa.field("id_dur", _rational_struct()),
+        "IdDurationField",
+        unit="seconds",
+        domain="physical",
+        number_type="float",
+        timeline_id="tl-b",
+    )
+
+    schema = pa.schema([coord_field, dur_field, id_coord_field, id_dur_field])
+    return pa.table(
+        {
+            "coord": coord_arr,
+            "dur": dur_arr,
+            "id_coord": id_coord_arr,
+            "id_dur": id_dur_arr,
+        },
+        schema=schema,
+    )
+
+
+class TestGetFieldsStrictFourLeafDiscrimination:
+    """``get_fields(field_type, strict=True)`` returns ONLY the named leaf class.
+
+    The four TimeScalarField sibling leaves (``CoordinateField``,
+    ``DurationField``, ``IdCoordinateField``, ``IdDurationField``) share
+    a common struct shape.  Strict mode requires the ``b"timetoalign"``
+    metadata ``field_type`` blob to equal the requested class name
+    exactly, so sibling leaves are excluded.  Without this guarantee,
+    ``get_field(Coordinate)`` would silently see ``IdCoordinate`` columns
+    and vice versa.
+    """
+
+    def test_strict_coordinate_excludes_id_and_duration(self) -> None:
+        host = _MixinHost(_make_table_with_all_four_timescalar_leaves())
+        result = host.get_fields(CoordinateField, strict=True)
+        names = sorted(f.name for f in result)
+        assert names == ["coord"]
+        assert all(type(f) is CoordinateField for f in result)
+
+    def test_strict_duration_excludes_id_and_coordinate(self) -> None:
+        host = _MixinHost(_make_table_with_all_four_timescalar_leaves())
+        result = host.get_fields(DurationField, strict=True)
+        names = sorted(f.name for f in result)
+        assert names == ["dur"]
+        assert all(type(f) is DurationField for f in result)
+
+    def test_strict_id_coordinate_excludes_coordinate_and_id_duration(self) -> None:
+        host = _MixinHost(_make_table_with_all_four_timescalar_leaves())
+        result = host.get_fields(IdCoordinateField, strict=True)
+        names = sorted(f.name for f in result)
+        assert names == ["id_coord"]
+        assert all(type(f) is IdCoordinateField for f in result)
+
+    def test_strict_id_duration_excludes_duration_and_id_coordinate(self) -> None:
+        host = _MixinHost(_make_table_with_all_four_timescalar_leaves())
+        result = host.get_fields(IdDurationField, strict=True)
+        names = sorted(f.name for f in result)
+        assert names == ["id_dur"]
+        assert all(type(f) is IdDurationField for f in result)
+
+
+# ---------------------------------------------------------------------------
+# get_field(blueprint) — SemanticField-instance dispatch
+# ---------------------------------------------------------------------------
+
+
+class TestGetFieldBlueprintDispatch:
+    """``get_field(SemanticField_instance)`` resolves a blueprint to a live field.
+
+    Blueprint mode lets a caller construct a deferred-resolution
+    SemanticField with ``source_fields="<col-name>"`` and hand it to
+    ``EventData.get_field()``; the mixin pulls the matching column off
+    the underlying table and materialises the typed field.
+
+    These tests exercise the blueprint branch of the four-branch
+    dispatch at ``loader/mixins.py:569-574`` and the blueprint resolver
+    at ``:885-918``:
+
+    * (a) string ``source_fields=`` → resolves to the live field.
+    * (b) blueprint + ``name=`` together → ``TypeError`` (only scalar-class
+      dispatch accepts ``name=``).
+    * (c) dict-shaped ``source_fields=`` → ``NotImplementedError`` (the
+      mixin's blueprint resolver only wires up the string-spec path so far).
+    """
+
+    def test_blueprint_string_source_field_resolves(self) -> None:
+        host = _MixinHost(_make_table_with_pitches_and_coordinates())
+        blueprint = EnharmonicPitchField(source_fields="midi_pitch")
+        assert blueprint.is_blueprint
+        resolved = host.get_field(blueprint)
+        assert isinstance(resolved, EnharmonicPitchField)
+        assert resolved.name == "midi_pitch"
+        assert not resolved.is_blueprint
+
+    def test_blueprint_with_name_kwarg_rejected(self) -> None:
+        host = _MixinHost(_make_table_with_pitches_and_coordinates())
+        blueprint = EnharmonicPitchField(source_fields="midi_pitch")
+        with pytest.raises(TypeError, match=r"name="):
+            host.get_field(blueprint, name="midi_pitch")
+
+    def test_blueprint_dict_source_field_not_implemented(self) -> None:
+        host = _MixinHost(_make_table_with_pitches_and_coordinates())
+        # SpecificPitchField's pa_schema is {step, alter, octave, cents?};
+        # a dict-spec blueprint MUST validate against that shape, then the
+        # mixin's resolver explicitly rejects dict specs until the multi-
+        # column path is wired up.
+        blueprint = SpecificPitchField(
+            source_fields={
+                "step": "specific_pitch",
+                "alter": "specific_pitch",
+                "octave": "specific_pitch",
+                "cents": "specific_pitch",
+            }
+        )
+        assert blueprint.is_blueprint
+        with pytest.raises(NotImplementedError):
+            host.get_field(blueprint)
