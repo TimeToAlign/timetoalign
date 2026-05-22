@@ -482,7 +482,9 @@ class SemanticField(DataField, Generic[R]):
             cls.scalar_cls = scalar
             cls.pa_schema = derive_arrow_struct(scalar)
 
-    def __init__(self, raw: R | None = None, *, column: str | None = None) -> None:
+    def __init__(
+        self, raw: R | None = None, *, source_fields: str | None = None
+    ) -> None:
         """Construct a SemanticField.
 
         Two construction modes:
@@ -498,10 +500,10 @@ class SemanticField(DataField, Generic[R]):
         Args:
             raw: The wrapped raw DataField (live mode), or ``None`` for
                 blueprint mode.
-            column: Column name to resolve later (blueprint mode).
+            source_fields: Column name to resolve later (blueprint mode).
         """
         if raw is None:
-            if column is None:
+            if source_fields is None:
                 raise TypeError(
                     f"{type(self).__name__} requires either a raw DataField (live) "
                     "or column= (blueprint)"
@@ -512,10 +514,10 @@ class SemanticField(DataField, Generic[R]):
                     f"{type(self).__name__} cannot be a blueprint without a derived "
                     "pa_schema; check Generic parametrisation"
                 )
-            dummy_field = pa.field(column, schema)
+            dummy_field = pa.field(source_fields, schema)
             raw = StructField(None, dummy_field)
             self._is_blueprint = True
-            self._blueprint_column: str | None = column
+            self._blueprint_column: str | None = source_fields
         else:
             self._is_blueprint = False
             self._blueprint_column = None
