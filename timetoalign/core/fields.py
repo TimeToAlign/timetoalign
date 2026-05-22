@@ -857,6 +857,19 @@ _ValueProjector = Callable[[type[BaseModel], str, FieldInfo], list[pa.Field]]
 _VALUE_PROJECTORS: dict[tuple[type[BaseModel], str], _ValueProjector] = {}
 
 
+def _lookup_value_projector(
+    model_cls: type[BaseModel], field_name: str
+) -> _ValueProjector | None:
+    """Find the most-specific projector registered for ``(C, field_name)``
+    where ``C`` is ``model_cls`` or any of its bases. Subclasses inherit
+    projectors from their ancestors; a subclass registration overrides."""
+    for c in model_cls.__mro__:
+        proj = _VALUE_PROJECTORS.get((c, field_name))
+        if proj is not None:
+            return proj
+    return None
+
+
 def register_value_projector(
     model_cls: type[BaseModel],
     field_name: str,
@@ -874,6 +887,10 @@ def register_value_projector(
     Registration is idempotent on the (cls, field_name) pair — later
     registrations override earlier ones.  Calling this also invalidates
     the per-class derivation cache.
+
+    Projectors are inherited by subclasses via MRO walk — register on the
+    class that declares the pydantic field; subclasses automatically pick
+    it up. Register on a subclass to override.
 
     Args:
         model_cls: The pydantic ``BaseModel`` subclass.
@@ -1013,7 +1030,7 @@ def _derive_arrow_fields(model_cls: type[BaseModel]) -> tuple[pa.Field, ...]:
     """
     out: list[pa.Field] = []
     for name, info in model_cls.model_fields.items():
-        proj = _VALUE_PROJECTORS.get((model_cls, name))
+        proj = _lookup_value_projector(model_cls, name)
         if proj is not None:
             out.extend(proj(model_cls, name, info))
             continue
@@ -1274,7 +1291,7 @@ def _group_pa_fields_by_pydantic_field(
         return {k: v for k, v in out.items() if v}
 
     for pyd_name in pyd_names:
-        proj = _VALUE_PROJECTORS.get((model_cls, pyd_name))
+        proj = _lookup_value_projector(model_cls, pyd_name)
         if proj is None:
             continue
         emitted = proj(model_cls, pyd_name, model_cls.model_fields[pyd_name])

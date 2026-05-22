@@ -801,16 +801,9 @@ def _drop_field_projector(
     return []
 
 
-register_value_projector(Coordinate, "value", _time_value_projector)
-register_value_projector(Coordinate, "unit", _drop_field_projector)
-register_value_projector(Duration, "value", _time_value_projector)
-register_value_projector(Duration, "unit", _drop_field_projector)
-register_value_projector(IdCoordinate, "value", _time_value_projector)
-register_value_projector(IdCoordinate, "unit", _drop_field_projector)
-register_value_projector(IdCoordinate, "timeline_id", _drop_field_projector)
-register_value_projector(IdDuration, "value", _time_value_projector)
-register_value_projector(IdDuration, "unit", _drop_field_projector)
-register_value_projector(IdDuration, "timeline_id", _drop_field_projector)
+register_value_projector(TimeScalar, "value", _time_value_projector)
+register_value_projector(TimeScalar, "unit", _drop_field_projector)
+register_value_projector(IdTimeScalar, "timeline_id", _drop_field_projector)
 
 
 # ---------------------------------------------------------------------------
