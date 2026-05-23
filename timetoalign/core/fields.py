@@ -36,7 +36,6 @@ from typing import (
     Generic,
     Iterable,
     Literal,
-    Optional,
     Sequence,
     TypeVar,
     get_args,
@@ -63,9 +62,9 @@ def data_shaped(fn: Any) -> Any:
     :class:`TypeError` at import time.
 
     The marker is purely a metadata flag (``__data_shaped__ = True``)
-    on the underlying function.  Behavior-shaped methods (per the WP2
-    audit) are NOT decorated — they only run on a single materialised
-    scalar at a system edge and have no vectorized dual.
+    on the underlying function.  Behavior-shaped methods are NOT
+    decorated — they only run on a single materialised scalar at a
+    system edge and have no vectorized dual.
 
     Stacking notes:
 
@@ -660,7 +659,16 @@ class SemanticField(DataField, Generic[T]):
                 source_fields if isinstance(source_fields, str) else type(self).__name__
             )
             dummy_field = pa.field(dummy_name, schema)
-            raw = type(self)._raw_cls(None, dummy_field)
+            raw_cls = type(self)._raw_cls
+            # DenominateNumberField requires a bound unit at construction
+            # time, which a blueprint has not yet resolved.  Substitute a
+            # plain StructField for the blueprint placeholder — the unit
+            # is resolved when the blueprint is materialised against an
+            # EventData table.
+            if raw_cls is DenominateNumberField:
+                raw = StructField(None, dummy_field)
+            else:
+                raw = raw_cls(None, dummy_field)
             self._is_blueprint = True
             self._blueprint_source_fields: "str | dict[str, Any] | None" = normalised
         else:
@@ -1716,8 +1724,6 @@ class RationalField(NumberField):
 
 def _coerce_time_unit(unit: Any) -> TimeUnit:
     """Coerce a unit value to a ``TimeUnit`` enum (lazy import to avoid cycles)."""
-    if unit is None:
-        return None
     from .enums import TimeUnit
 
     return TimeUnit(unit)
@@ -1734,10 +1740,12 @@ class DenominateNumberField(RationalField):
         data: The underlying rational struct array, or ``None`` for
             schema-only / blueprint use.
         field: The ``pa.Field`` descriptor.
-        unit: The unit bound to this field.  May be ``None`` for
-            unresolved blueprints; the metadata blob on *field* is
-            consulted as a fallback.  Required (one way or the other)
-            before the field is serialised.
+        unit: The unit bound to this field.  Required: a
+            DenominateNumberField is defined by its bound unit, so
+            construction without one is forbidden.  ``unit`` may also be
+            supplied implicitly via the field's metadata blob (see
+            :meth:`_resolve_unit`); if neither is present, ``ValueError``
+            is raised.
     """
 
     def __init__(
@@ -1745,28 +1753,33 @@ class DenominateNumberField(RationalField):
         data: pa.Array | pa.ChunkedArray | None,
         field: pa.Field,
         *,
-        unit: Optional[TimeUnit | str] = None,
+        unit: TimeUnit | str,
     ):
         super().__init__(data, field)
-        self._unit: Optional[TimeUnit] = self._resolve_unit(field, unit)
+        self._unit: TimeUnit = self._resolve_unit(field, unit)
 
     # -- properties ----------------------------------------------------------
 
     @property
-    def unit(self) -> Optional[TimeUnit]:
-        """The single unit bound to this field, or ``None`` if unresolved."""
+    def unit(self) -> TimeUnit:
+        """The single unit bound to this field."""
         return self._unit
 
     @property
     def domain(self) -> Any:
-        """The temporal domain implied by the unit, or ``None`` if unresolved."""
-        return None if self._unit is None else self._unit.domain
+        """The temporal domain implied by the unit."""
+        return self._unit.domain
 
     # -- helpers -------------------------------------------------------------
 
     @staticmethod
-    def _resolve_unit(pa_field: pa.Field, override: Any) -> Optional[TimeUnit]:
-        """Resolve the unit from a kwarg override, then from field metadata."""
+    def _resolve_unit(pa_field: pa.Field, override: Any) -> TimeUnit:
+        """Resolve the unit from a kwarg override, then from field metadata.
+
+        Raises:
+            ValueError: If neither *override* nor the field metadata
+                supplies a unit.
+        """
         if override is not None:
             return _coerce_time_unit(override)
         raw_meta = pa_field.metadata
@@ -1781,15 +1794,28 @@ class DenominateNumberField(RationalField):
             unit = payload.get("unit") if isinstance(payload, dict) else None
             if unit is not None:
                 return _coerce_time_unit(unit)
-        return None
+        raise ValueError(
+            f"DenominateNumberField requires a unit; field {pa_field.name!r} "
+            "carries neither a kwarg unit nor a 'unit' entry in its metadata"
+        )
 
     @classmethod
     def from_field(
         cls,
         source: tuple[pa.Array | pa.ChunkedArray | None, pa.Field],
         *,
-        unit: Any = None,
+        unit: TimeUnit | str | None = None,
         **kw: Any,
     ) -> "DenominateNumberField":
+        """Construct a DenominateNumberField from a ``(data, pa.Field)`` tuple.
+
+        Args:
+            source: A ``(data, pa.Field)`` tuple.
+            unit: Override unit.  Defaults to the unit carried in the
+                pa.Field's ``b"timetoalign"`` metadata blob; if neither
+                is present, ``_resolve_unit`` raises ``ValueError``.
+        """
         data, field = source
+        if unit is None:
+            unit = cls._resolve_unit(field, None)
         return cls(data, field, unit=unit)

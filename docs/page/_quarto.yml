@@ -88,6 +88,8 @@ website:
           contents:
             - text: "How to Encode Song Genesis (Hendrix)"
               href: howto/how04_hendrix_song_genesis.ipynb
+            - text: "How to Load CSV/TSV with column_specs and field_specs"
+              href: howto/how04_loading_csv.ipynb
 
     - title: "Explanation"
       contents:

@@ -1,18 +1,31 @@
 """TabularLoader: Vectorized base class for loading tabular data.
 
 This module provides the TabularLoader class that supports:
+
 - ZERO ROW ITERATION: All operations are vectorized
-- Configurable column mapping (source column -> schema field)
+- Two-step column → field pipeline driven by ``column_specs`` (Step 1)
+  and ``field_specs`` (Step 2)
 - Multiple coordinate parsing strategies (float, int, fraction)
 - Delimiter configuration for different formats
 - Event type inference from data
 
-Design:
-- Single file read: pd.read_csv() -> DataFrame
-- Vectorized column extraction -> numpy/pandas arrays
-- Vectorized coordinate parsing -> PyArrow StructArrays via CoordinateParser
-- Vectorized validation -> ArrayValidator
-- Single table construction: pa.table()
+Design
+
+* Single file read: ``pd.read_csv()`` -> DataFrame.
+* The source DataFrame is materialised as a faithful ``pa.Table`` and
+  stored as ``self._raw_table`` (no type coercion).
+* Step 1 — ``column_specs`` resolves each source column into a typed
+  :class:`DataField` via :func:`field_specs.resolve_field_spec`.  Each
+  emitted field carries its own name and ``pa.Field`` metadata.
+* Coordinate parsing (``start`` / ``end`` / ``duration``) continues
+  to flow through :class:`CoordinateParser`, driven by
+  ``start_column`` / ``end_column`` / ``duration_column`` on the
+  loader.  This produces the canonical struct-shaped coordinate
+  columns the rest of the codebase expects.
+* Step 2 — ``field_specs`` (optional) materialises blueprint-mode
+  :class:`SemanticField` instances against the Step-1 output and
+  decorates the corresponding column with paired-class metadata so
+  ``EventData.get_field()`` round-trips the semantic type.
 
 NO FOR LOOPS OVER ROWS. EVER.
 """
@@ -21,22 +34,30 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Sequence
 
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import (
+    NumberType,
+    SemanticField,
+    TimeUnit,
+)
+from timetoalign.core.fields import (
+    TIMETOALIGN_METADATA_KEY,
+    DataField,
+    metadata_blob_from_dict,
+)
 from timetoalign.loader.base import Loader
 from timetoalign.loader.parsing import CoordinateParser
 from timetoalign.loader.schema import (
     ComputedField,
-    ConvertedField,
-    CoordinateField,
     Field,
-    parse_json_to_struct,
 )
+
+from .field_specs import CompositeFieldSpec, FieldSpec, resolve_field_spec
 
 if TYPE_CHECKING:
     pass
@@ -48,55 +69,42 @@ module_logger = logging.getLogger(__name__)
 
 
 class TabularLoader(Loader):
-    """Vectorized base class for loading tabular data with configurable column mapping.
+    """Vectorized base class for loading tabular data with column/field specs.
 
-    TabularLoader provides a ZERO ROW ITERATION framework for loading CSV, TSV,
-    and other delimited formats into EventData. All operations use vectorized
-    numpy/pandas/pyarrow operations.
+    TabularLoader provides a ZERO ROW ITERATION framework for loading
+    CSV, TSV, and other delimited formats into EventData.  All
+    operations use vectorized numpy / pandas / pyarrow operations.
 
     Configuration Attributes:
-        delimiter: Field delimiter character (default: ",").
+        delimiter: Field delimiter character (default: ``,``).
         header_row: Row index containing column headers (default: 0).
-        id_column: Source column name for event IDs (auto-generated if None).
+        id_column: Source column name for event IDs (auto-generated if
+            ``None``).
         name_column: Source column name for event names (optional).
         start_column: Source column name for start coordinate (required).
-        end_column: Source column name for end coordinate (None for instant events).
-        duration_column: Source column name for duration (alternative to end_column).
+        end_column: Source column name for end coordinate (None for
+            instant events).
+        duration_column: Source column name for duration (alternative to
+            ``end_column``).
         event_type_column: Source column name for event type (optional).
         default_event_type: Default event type if no column provides one.
-        extra_columns: List of extra source columns to include. Can be:
-            - Column names as strings: ["midi", "velocity"]
-            - ConvertedField objects for type/converter control
+        column_specs: Mapping or sequence describing the per-column
+            translation from source to :class:`DataField`.  See
+            :mod:`timetoalign.loader.tabular.field_specs`.
+        field_specs: Optional sequence/mapping of blueprint-mode
+            :class:`SemanticField` instances that promote raw fields to
+            paired semantic fields.
         coordinate_unit: TimeUnit for coordinate values.
         coordinate_type: NumberType for coordinate parsing.
 
-    Architecture:
-        1. Single file read: pd.read_csv() -> DataFrame
-        2. Vectorized column extraction -> numpy arrays
-        3. Vectorized coordinate parsing -> PyArrow StructArrays
-        4. Vectorized validation -> ArrayValidator
-        5. Returns column dict (NOT row dicts)
-
-    NO FOR LOOPS OVER ROWS. EVER.
-
     Examples:
+        >>> from timetoalign.loader.tabular.field_specs import IntFieldSpec
         >>> class MyLoader(TabularLoader):
         ...     delimiter = "\\t"
         ...     start_column = "onset"
         ...     end_column = "offset"
         ...     coordinate_unit = TimeUnit.seconds
-        ...     extra_columns = ["velocity", "channel"]  # Simple column names
-
-        >>> # For advanced cases with type/converter:
-        >>> from timetoalign.loader.schema import ConvertedField
-        >>> class AdvancedLoader(TabularLoader):
-        ...     extra_columns = [
-        ...         "velocity",  # Simple
-        ...         ConvertedField("pitch", int, source="midi_note"),  # Renamed + typed
-        ...     ]
-
-        >>> loader = MyLoader()
-        >>> loader.load("annotations.tsv")  # Vectorized loading
+        ...     column_specs = {"velocity": IntFieldSpec(), "channel": int}
     """
 
     # region Class Configuration
@@ -129,24 +137,28 @@ class TabularLoader(Loader):
     event_type_column: ClassVar[str | None] = None
     default_event_type: ClassVar[str] = "Event"
 
-    # Extra columns to include from source data.
-    # Can be:
-    #   - List of column names: ["midi", "velocity", "staff"]
-    #   - List mixing names and ConvertedField for advanced cases:
-    #     ["midi", ConvertedField("pitch", int, source="note_num")]
-    #   - ConvertedField with struct type for JSON parsing:
-    #     [ConvertedField("rect_coords", dict, source="rect_coords_json")]
-    #   - True: Auto-include all remaining columns (inferred types)
-    #   - Dict mapping column names to types: {"midi": int, "velocity": float}
-    extra_columns: ClassVar[list | bool | dict] = []
+    # Step 1 — column_specs.  Translates source columns to typed
+    # :class:`DataField` instances.  Two shapes:
+    #
+    # * ``dict[str, X]`` — keys are source column names (header-based
+    #   sources); the dict-key seeds the emitted field's name unless
+    #   the spec carries an explicit ``name=`` override.
+    # * ``Sequence[X]`` — positional, for header-less sources.  Each
+    #   entry MUST carry a ``name=`` (either through a class-level
+    #   default — e.g. ``MeasureNumberField`` resolves to
+    #   ``measure_number`` — or via an explicit constructor kwarg).
+    #
+    # ``X`` resolves via the universal table in
+    # :func:`field_specs.resolve_field_spec`.
+    column_specs: ClassVar[dict[str, Any] | Sequence[Any] | None] = None
 
-    # Field specs: typed column specifications for the loader-first pipeline.
-    # Each entry can be:
-    #   1. ("name", pa_type) — raw column with explicit PyArrow type
-    #   2. ("name", DataFieldClass) — raw column wrapped in a DataField subclass
-    #   3. DataField(source="col", ...) — semantic field spec with source mapping
-    # field_specs coexists with extra_columns during migration.
-    field_specs: ClassVar[list] = []
+    # Step 2 — field_specs.  Sequence or dict of blueprint-mode
+    # :class:`SemanticField` instances that materialise against the
+    # Step-1 output table.  Optional; many loaders are complete with
+    # Step 1 alone.
+    field_specs: ClassVar[Sequence[SemanticField] | dict[str, SemanticField] | None] = (
+        None
+    )
 
     # Coordinate configuration
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
@@ -173,8 +185,9 @@ class TabularLoader(Loader):
 
         super().__init__(unit=unit, number_type=number_type, **kwargs)
         self._logger = module_logger.getChild(self.__class__.__name__)
-        # Extra fields for coordinate columns from CoordinateField definitions
-        # These are built during _extract_column_arrays and passed to from_arrays
+        # Extra pa.Fields contributed by column_specs / field_specs.
+        # These carry the typed (and possibly semantic) metadata that
+        # EventData.from_arrays propagates onto its schema.
         self._extra_schema_fields: list[pa.Field] = []
         # Store the original pa.Table for the loader-first pipeline.
         # This is the faithful representation of the source file, before
@@ -226,6 +239,236 @@ class TabularLoader(Loader):
 
     # endregion
 
+    # region Column / Field Spec Plumbing
+
+    def _resolved_column_specs(
+        self, df: pd.DataFrame
+    ) -> list[tuple[str | int, FieldSpec, str]]:
+        """Resolve ``column_specs`` into ``(source_key, FieldSpec, name)``.
+
+        Returns one entry per spec, in declaration order.  For a
+        ``dict`` form, ``source_key`` is the dict key (a column name).
+        For a ``Sequence`` form, ``source_key`` is the positional index
+        (an int) and the spec must supply a ``name=`` (either via its
+        constructor or via a class-level default).
+
+        Raises:
+            ValueError: If a positional spec lacks a name.
+        """
+        specs = self.column_specs
+        if specs is None:
+            return []
+        resolved: list[tuple[str | int, FieldSpec, str]] = []
+        if isinstance(specs, dict):
+            for col_name, raw in specs.items():
+                spec = resolve_field_spec(raw)
+                emit_name = spec.name if spec.name is not None else col_name
+                resolved.append((col_name, spec, emit_name))
+        else:
+            for i, raw in enumerate(specs):
+                spec = resolve_field_spec(raw)
+                if spec.name is None:
+                    raise ValueError(
+                        f"column_specs[{i}] has no name; positional specs "
+                        "require an explicit name= or a class-level default"
+                    )
+                resolved.append((i, spec, spec.name))
+        return resolved
+
+    def _source_array(self, df: pd.DataFrame, source_key: str | int) -> pa.Array | None:
+        """Return the column at *source_key* as a ``pa.Array``.
+
+        ``str`` keys are looked up by column name (header-based
+        source); a missing column returns ``None`` so the caller can
+        skip the spec gracefully (column_specs entries are advisory
+        for sibling-file variants — a measures.tsv lacks ``staff`` /
+        ``voice`` columns that notes.tsv carries).
+
+        ``int`` keys are looked up positionally; a missing index is a
+        hard error because positional schemas are fixed.
+        """
+        if isinstance(source_key, int):
+            if source_key >= len(df.columns):
+                raise IndexError(
+                    f"column_specs positional index {source_key} out of range "
+                    f"(source has {len(df.columns)} columns)"
+                )
+            col = df.iloc[:, source_key]
+        else:
+            if source_key not in df.columns:
+                return None
+            col = df[source_key]
+        return pa.array(col)
+
+    def _apply_column_specs(
+        self, df: pd.DataFrame, columns: dict[str, Any]
+    ) -> dict[str, DataField]:
+        """Run Step 1: ``column_specs`` → emitted :class:`DataField`s.
+
+        Each emitted field is written into *columns* (as a ``pa.Array``)
+        and its ``pa.Field`` (metadata-bearing) is appended to
+        ``self._extra_schema_fields``.
+
+        Returns:
+            A dict mapping emit names to emitted DataField objects (for
+            Step 2 lookup).
+        """
+        emitted: dict[str, DataField] = {}
+        for source_key, spec, emit_name in self._resolved_column_specs(df):
+            source_arr = self._source_array(df, source_key)
+            if source_arr is None:
+                continue
+            data_field = spec.emit(source_arr, name=emit_name)
+            emitted[emit_name] = data_field
+            data = data_field.data
+            if data is None:
+                continue
+            columns[emit_name] = data
+            self._extra_schema_fields.append(data_field.field)
+        return emitted
+
+    def _apply_field_specs(
+        self, columns: dict[str, Any], emitted: dict[str, DataField]
+    ) -> None:
+        """Run Step 2: blueprint :class:`SemanticField` materialisation.
+
+        For each blueprint, look up its ``source_fields`` against the
+        Step-1 emitted dict (or the running columns), pack the source
+        column into the target's ``pa_schema`` shape when needed, and
+        decorate the resulting column with paired-class metadata so
+        EventData discovery round-trips the semantic type.
+
+        Currently supports the string shorthand:
+
+        * ``source_fields="<name>"`` — single-source promotion.  Atomic
+          source columns are packed into a single-field struct whose
+          sub-field name matches the target's ``pa_schema`` (e.g.
+          ``EnharmonicPitchField`` → ``{midi_number: <source>}``).
+        """
+        specs = self.field_specs
+        if specs is None:
+            return
+        iterable = list(specs.values()) if isinstance(specs, dict) else list(specs)
+        for blueprint in iterable:
+            if not isinstance(blueprint, SemanticField):
+                raise TypeError(
+                    f"field_specs entries must be SemanticField instances, got "
+                    f"{type(blueprint).__name__}"
+                )
+            if not blueprint.is_blueprint:
+                raise TypeError(
+                    "field_specs entries must be blueprint-mode SemanticField "
+                    "(constructed via source_fields=...)"
+                )
+            spec_str = blueprint._blueprint_source_fields  # type: ignore[attr-defined]
+            if not isinstance(spec_str, str):
+                raise NotImplementedError(
+                    "Step 2 currently supports the 'source_fields=<name>' "
+                    "shorthand only; multi-source / dict blueprints land in "
+                    "a follow-up"
+                )
+            source_name = spec_str
+            if source_name not in columns:
+                raise KeyError(
+                    f"field_specs blueprint references unknown source "
+                    f"{source_name!r}; available: {sorted(columns.keys())}"
+                )
+
+            blueprint_cls = type(blueprint)
+            target_schema = blueprint_cls.pa_schema
+            data_arr = columns[source_name]
+
+            # Pack atomic source into a single-field struct matching the
+            # target schema when needed.
+            packed_arr = self._pack_field_spec_source(
+                data_arr, target_schema, source_name, blueprint_cls.__name__
+            )
+            if packed_arr is not None:
+                columns[source_name] = packed_arr
+                data_arr = packed_arr
+
+            # Decorate the column's pa.Field with paired-class metadata.
+            meta_blob = metadata_blob_from_dict({"field_type": blueprint_cls.__name__})
+            existing_idx = next(
+                (
+                    i
+                    for i, pf in enumerate(self._extra_schema_fields)
+                    if pf.name == source_name
+                ),
+                None,
+            )
+            if existing_idx is not None:
+                # The packing step may have changed the column's dtype;
+                # rebuild the pa.Field from the current data array.
+                arr_type = (
+                    data_arr.type
+                    if isinstance(data_arr, (pa.Array, pa.ChunkedArray))
+                    else pa.array(data_arr).type
+                )
+                self._extra_schema_fields[existing_idx] = pa.field(
+                    source_name,
+                    arr_type,
+                    metadata={TIMETOALIGN_METADATA_KEY: meta_blob},
+                )
+            else:
+                arr_type = (
+                    data_arr.type
+                    if isinstance(data_arr, (pa.Array, pa.ChunkedArray))
+                    else pa.array(data_arr).type
+                )
+                self._extra_schema_fields.append(
+                    pa.field(
+                        source_name,
+                        arr_type,
+                        metadata={TIMETOALIGN_METADATA_KEY: meta_blob},
+                    )
+                )
+
+    @staticmethod
+    def _pack_field_spec_source(
+        data_arr: Any,
+        target_schema: pa.StructType | None,
+        source_name: str,
+        target_cls_name: str,
+    ) -> pa.Array | None:
+        """Pack an atomic source array into a target struct shape.
+
+        Returns the packed array, or ``None`` when no packing is
+        required (the source already matches).  Currently handles the
+        single-sub-field case (``{<name>: <atomic>}``) used by
+        :class:`EnharmonicPitchField` (``{midi_number}``) and
+        :class:`IdField` (``{value}``) and other single-value structs.
+
+        Raises:
+            TypeError: When the source dtype and target sub-field type
+                are incompatible and no automatic packing exists.
+        """
+        if target_schema is None:
+            return None
+        if not isinstance(data_arr, (pa.Array, pa.ChunkedArray)):
+            data_arr = pa.array(data_arr)
+        if pa.types.is_struct(data_arr.type):
+            if data_arr.type == target_schema:
+                return None
+            # Shape mismatch on a struct source — leave as-is; the
+            # downstream EventData.get_field discovery will surface a
+            # clear error if needed.
+            return None
+        # Atomic source.  Target must have exactly one sub-field.
+        if target_schema.num_fields != 1:
+            raise TypeError(
+                f"field_specs cannot pack atomic source {source_name!r} into "
+                f"multi-field target {target_cls_name} (pa_schema has "
+                f"{target_schema.num_fields} sub-fields)"
+            )
+        sub_field = target_schema.field(0)
+        sub_type = sub_field.type
+        if data_arr.type != sub_type:
+            data_arr = data_arr.cast(sub_type)
+        return pa.StructArray.from_arrays([data_arr], fields=list(target_schema))
+
+    # endregion
+
     # region Vectorized Loading
 
     def _load_source(
@@ -233,15 +476,21 @@ class TabularLoader(Loader):
     ) -> tuple[dict[str, Any], dict[str, np.ndarray | pa.Array]]:
         """Load a single source file (VECTORIZED).
 
-        Reads the tabular file using vectorized pandas operations and returns
-        column arrays ready for EventData.from_arrays(). NO ROW ITERATION.
+        Reads the tabular file using vectorized pandas operations and
+        returns column arrays ready for ``EventData.from_arrays()``.  NO
+        ROW ITERATION.
 
         Architecture:
-            1. Single file read: pd.read_csv()
-            2. Validate required columns exist
-            3. Extract columns as numpy/pyarrow arrays (vectorized)
-            4. Parse coordinates via CoordinateParser (vectorized)
-            5. Return column dict (NOT row dicts)
+            1. Single file read: ``pd.read_csv()``.
+            2. Validate required columns exist.
+            3. Extract canonical columns (id, name, start, end / duration,
+               event_type, temporal_type) — vectorized.
+            4. Apply ``column_specs`` (Step 1) → typed DataFields.
+            5. Apply ``field_specs`` (Step 2, optional) → semantic
+               decorations.
+            6. Hook ``_post_process_columns`` for subclass-specific
+               extensions.
+            7. Return column dict (NOT row dicts).
 
         Args:
             source: Path to the source file.
@@ -249,7 +498,8 @@ class TabularLoader(Loader):
         Returns:
             A tuple of (metadata_dict, column_dict):
             - metadata_dict: File-specific metadata
-            - column_dict: Dict[str, np.ndarray | pa.Array] for EventData.from_arrays()
+            - column_dict: Dict[str, np.ndarray | pa.Array] for
+              ``EventData.from_arrays()``.
 
         Raises:
             FileNotFoundError: If the source file doesn't exist.
@@ -262,17 +512,18 @@ class TabularLoader(Loader):
         df = self._read_dataframe(source)
 
         # Store the faithful original table (before any field extraction).
-        # Use a safe conversion that handles non-PyArrow-native types
-        # (e.g., Fraction objects from ms3) by converting to strings.
         self._raw_table = self._dataframe_to_arrow(df)
 
         # Step 2: Validate required columns exist
         self._validate_columns(df, source)
 
-        # Step 3: Extract column arrays (vectorized)
+        # Step 3: Extract canonical columns + column_specs (vectorized)
         columns = self._extract_column_arrays(df)
 
-        # Step 3b: Post-process columns (subclass hook)
+        # Step 3b: Apply field_specs (Step 2) — semantic decorations.
+        self._apply_field_specs(columns, getattr(self, "_emitted_fields", {}))
+
+        # Step 3c: Post-process hook (subclass extension point).
         self._post_process_columns(df, columns)
 
         # Step 4: Build metadata
@@ -313,6 +564,11 @@ class TabularLoader(Loader):
         Handles string column names, Field references, and ComputedField.
         For Field/ComputedField, validates that required source columns exist.
 
+        ``start_column`` may name either a source column (read from
+        ``df``) or a synthesised column produced by ``column_specs``;
+        synthesised names are not checked here and are resolved later in
+        :meth:`_extract_column_arrays`.
+
         Args:
             df: The loaded DataFrame.
             source: Path to source (for error messages).
@@ -325,26 +581,24 @@ class TabularLoader(Loader):
         # For Field, validate the parent column exists
         if isinstance(start_col, Field):
             if start_col.column not in df.columns:
-                # Check if it's a struct column from extra_columns
-                struct_sources = self._get_struct_source_columns()
-                if start_col.column not in struct_sources:
-                    raise ValueError(
-                        f"Column '{start_col.column}' for Field not found in {source}. "
-                        f"Available columns: {list(df.columns)}"
-                    )
+                raise ValueError(
+                    f"Column '{start_col.column}' for Field not found in {source}. "
+                    f"Available columns: {list(df.columns)}"
+                )
         elif isinstance(start_col, tuple):
             # Tuple is shorthand for Field
             if start_col[0] not in df.columns:
-                struct_sources = self._get_struct_source_columns()
-                if start_col[0] not in struct_sources:
-                    raise ValueError(
-                        f"Column '{start_col[0]}' for tuple field not found in {source}. "
-                        f"Available columns: {list(df.columns)}"
-                    )
+                raise ValueError(
+                    f"Column '{start_col[0]}' for tuple field not found in {source}. "
+                    f"Available columns: {list(df.columns)}"
+                )
         elif isinstance(start_col, ComputedField):
             # ComputedField is validated during computation
             pass
         elif isinstance(start_col, str) and start_col not in df.columns:
+            # Defer if column_specs may synthesise the column.
+            if start_col in self._column_spec_output_names():
+                return
             # Check fallback
             if not (
                 self._fallback_start_column
@@ -355,128 +609,106 @@ class TabularLoader(Loader):
                     f"Available columns: {list(df.columns)}"
                 )
 
-    def _get_struct_source_columns(self) -> dict[str, ConvertedField]:
-        """Get mapping of struct column names to their ConvertedField definitions.
+    def _column_spec_output_names(self) -> set[str]:
+        """Names produced by ``column_specs`` (top-level + composite parts).
 
-        Returns:
-            Dict mapping output column name to ConvertedField for struct columns.
+        Used by :meth:`_validate_columns` to permit ``start_column``
+        references to synthesised columns.  Composite parts are
+        included so a loader can route ``start_column`` to a part name
+        when that part should drive the canonical start coordinate.
         """
-        # Only lists can contain ConvertedField with struct types
-        # True and dict forms don't support struct parsing
-        if not isinstance(self.extra_columns, list):
-            return {}
-
-        result = {}
-        for spec in self.extra_columns:
-            if isinstance(spec, ConvertedField) and spec.is_struct:
-                result[spec.name] = spec
-        return result
-
-    def _normalize_extra_columns(self, df: pd.DataFrame) -> list[str | ConvertedField]:
-        """Normalize extra_columns to a list based on DataFrame.
-
-        Handles three formats:
-        - list: Return as-is
-        - True: Return all non-core columns from DataFrame
-        - dict: Convert to list of column names (types used for future validation)
-
-        Args:
-            df: The loaded DataFrame.
-
-        Returns:
-            Normalized list of column specs.
-        """
-        if isinstance(self.extra_columns, list):
-            return self.extra_columns
-
-        if self.extra_columns is True:
-            # Auto-include all columns not already used by core fields
-            core_names = {
-                self.id_column,
-                self.name_column,
-                self.event_type_column,
-                self.duration_column,
-            }
-            # Handle start_column (could be str, tuple, or Field)
-            if isinstance(self.start_column, str):
-                core_names.add(self.start_column)
-            if self._fallback_start_column:
-                core_names.add(self._fallback_start_column)
-            # Handle end_column
-            if isinstance(self.end_column, str):
-                core_names.add(self.end_column)
-
-            # Return all columns not in core set
-            return [name for name in df.columns if name not in core_names]
-
-        if isinstance(self.extra_columns, dict):
-            # Dict format: {"col_name": type, ...}
-            # For now, just return the column names (types are for future validation)
-            return list(self.extra_columns.keys())
-
-        # Fallback: empty list
-        return []
+        names: set[str] = set()
+        specs = self.column_specs
+        if specs is None:
+            return names
+        # Iterate without materialising via resolve_field_spec — we only
+        # need names, not full resolution.
+        iterable = specs.values() if isinstance(specs, dict) else specs
+        keys = list(specs.keys()) if isinstance(specs, dict) else None
+        for i, raw in enumerate(iterable):
+            spec = resolve_field_spec(raw)
+            if isinstance(spec, FieldSpec):
+                if spec.name is not None:
+                    names.add(spec.name)
+                elif keys is not None:
+                    names.add(keys[i])
+                if isinstance(spec, CompositeFieldSpec):
+                    names.update(spec.part_keys)
+        return names
 
     def _extract_column_arrays(
         self, df: pd.DataFrame
     ) -> dict[str, np.ndarray | pa.Array]:
-        """Extract column arrays from DataFrame (VECTORIZED).
+        """Extract canonical column arrays + run Step 1 (VECTORIZED).
 
-        NO ROW ITERATION. All operations use vectorized numpy/pandas/pyarrow.
+        NO ROW ITERATION.  All operations use vectorized
+        numpy / pandas / pyarrow.
 
-        Supports:
-        - Direct column names (str)
-        - Struct field access via Field or tuple
-        - Computed columns via ComputedField
-        - JSON to struct parsing for ConvertedField with is_struct=True
+        Order:
+
+        1. ``column_specs`` (Step 1) — emits typed DataFields into
+           ``columns``.  Each emitted field's data array is also
+           exposed under its part-key name so canonical
+           ``start_column`` / ``duration_column`` references can route
+           through synthesised columns.
+        2. Canonical columns — id, name, start, end / duration,
+           event_type, temporal_type.  ``start_column`` references may
+           resolve against either a source-DataFrame column or a
+           Step-1 synthesised column.
 
         Args:
             df: The loaded DataFrame.
 
         Returns:
-            Dict of {column_name: array} ready for EventData.from_arrays().
+            Dict of {column_name: array} ready for
+            ``EventData.from_arrays()``.
         """
 
         n = len(df)
         columns: dict[str, Any] = {}
 
-        # Normalize extra_columns to a list (handles True, dict, and list forms)
-        extras = self._normalize_extra_columns(df)
+        # Reset extra schema fields for this load.
+        self._extra_schema_fields = []
 
-        # Step 1: Parse struct columns (JSON -> struct) FIRST
-        # This builds a temporary table we can use for Field/ComputedField resolution
-        struct_arrs: dict[str, pa.Array] = {}
-        for spec in extras:
-            if isinstance(spec, ConvertedField) and spec.is_struct:
-                source_name = spec.source
-                if source_name in df.columns:
-                    struct_arr = parse_json_to_struct(
-                        df[source_name],
-                        struct_schema=spec.struct_schema,
-                    )
-                    struct_arrs[spec.name] = struct_arr
-                    columns[spec.name] = struct_arr
+        # Step 1: column_specs — typed DataField emission.  Run first
+        # so that canonical start_column / duration_column references
+        # can route through synthesised columns.
+        self._emitted_fields = self._apply_column_specs(df, columns)
+        # Expose composite-part keys directly as columns so
+        # start_column="<part_name>" works.  Only opaque struct fields
+        # (CompositeFieldSpec emissions, NOT RationalField / numeric
+        # struct emissions which are atomic semantic units) get their
+        # sub-fields surfaced as top-level columns.
+        from timetoalign.core.fields import RationalField, StructField
 
-        # Step 2: Build a temporary PyArrow table for Field/ComputedField resolution
-        # Include DataFrame columns + parsed struct columns
-        temp_arrays = {}
-        for name in df.columns:
-            temp_arrays[name] = pa.array(df[name])
-        temp_arrays.update(struct_arrs)
-        temp_table = pa.table(temp_arrays)
+        for emit_name, df_field in self._emitted_fields.items():
+            if isinstance(df_field, RationalField):
+                continue
+            if not isinstance(df_field, StructField) or isinstance(
+                df_field, RationalField
+            ):
+                continue
+            # Skip if the struct is a SemanticField's inner storage —
+            # SemanticField subclasses are atomic semantic units.
+            if isinstance(df_field, SemanticField):
+                continue
+            for sub_name in df_field.field_names:
+                if sub_name not in columns:
+                    sub_field = df_field.get_sub_field(sub_name)
+                    if sub_field.data is not None:
+                        columns[sub_name] = sub_field.data
+                        # Track the sub-field in the schema as well.
+                        self._extra_schema_fields.append(sub_field.field)
 
-        # Step 3: Extract basic columns
         # ID column (vectorized generation if not present)
         if self.id_column and self.id_column in df.columns:
             columns["id"] = df[self.id_column].astype(str).to_numpy()
         else:
-            # Vectorized ID generation
             columns["id"] = np.array([f"e{i:06d}" for i in range(n)])
 
         # Name column (vectorized extraction)
         if self.name_column and self.name_column in df.columns:
             name_series = df[self.name_column]
-            # Convert to string, handling nulls (vectorized)
             name_arr = name_series.astype(str).to_numpy()
             null_mask = name_series.isna().to_numpy()
             name_arr[null_mask] = None  # type: ignore[assignment]
@@ -484,18 +716,18 @@ class TabularLoader(Loader):
         else:
             columns["name"] = np.array([None] * n, dtype=object)
 
-        # Step 4: Extract start coordinate
-        start_values = self._resolve_column_reference(
-            self.start_column, df, temp_table, "start"
+        # Extract start coordinate (may reference a synthesised column).
+        start_values = self._resolve_start_or_duration(
+            self.start_column, df, columns, "start"
         )
         columns["start"] = CoordinateParser.parse(
             start_values, self.coordinate_type, self._unit
         )
 
-        # Step 5: Extract end coordinate
-        columns["end"] = self._extract_end_column(df, temp_table, columns, n)
+        # Extract end coordinate.
+        columns["end"] = self._extract_end_column(df, self._raw_table, columns, n)
 
-        # Temporal type (vectorized: instant if end is null, interval otherwise)
+        # Temporal type (vectorized)
         if isinstance(columns["end"], pa.StructArray):
             has_end_arr = ~columns["end"].is_null().to_numpy(zero_copy_only=False)
         else:
@@ -513,58 +745,62 @@ class TabularLoader(Loader):
         else:
             columns["event_type"] = np.full(n, self.default_event_type, dtype=object)
 
-        # Step 6: Extract extra columns (non-struct, already handled struct above)
-        # Reset extra schema fields for this load
-        self._extra_schema_fields = []
-
-        for spec in extras:
-            if isinstance(spec, str):
-                # Simple case: column name, same in source and output
-                if spec in df.columns:
-                    columns[spec] = df[spec].to_numpy()
-            elif isinstance(spec, CoordinateField):
-                # CoordinateField: parse as coordinate struct using CoordinateParser
-                # Source can be a string column name or a Field for nested access
-                source_name = spec.source
-                parsed = None
-                if isinstance(source_name, (Field, tuple, ComputedField)):
-                    # Resolve Field/tuple/ComputedField to get values
-                    values = self._resolve_column_reference(
-                        source_name, df, temp_table, spec.name
-                    )
-                    parsed = CoordinateParser.parse(values, spec.number_type, spec.unit)
-                elif isinstance(source_name, str) and source_name in df.columns:
-                    values = df[source_name].to_numpy()
-                    parsed = CoordinateParser.parse(values, spec.number_type, spec.unit)
-
-                if parsed is not None:
-                    columns[spec.name] = parsed
-                    # Store the field with proper metadata (unit from CoordinateField)
-                    self._extra_schema_fields.append(spec.to_field())
-
-            elif isinstance(spec, ConvertedField):
-                # Skip struct columns (already processed)
-                if spec.is_struct:
-                    continue
-                # ConvertedField case: may have different source name, type, converter
-                schema_name = spec.name
-                source_name = spec.source
-                if source_name in df.columns:
-                    arr = df[source_name].to_numpy()
-                    if spec.converter:
-                        arr = spec.converter(arr)
-                    columns[schema_name] = arr
-
         return columns
+
+    def _resolve_start_or_duration(
+        self,
+        col_ref: str | tuple | Field | ComputedField,
+        df: pd.DataFrame,
+        columns: dict[str, Any],
+        context: str,
+    ) -> np.ndarray:
+        """Resolve a coordinate column reference.
+
+        Like :meth:`_resolve_column_reference`, but additionally
+        recognises string references to columns produced by
+        ``column_specs``.  When the column is a synthesised rational
+        struct, the resolver extracts a numpy float-equivalent
+        (computed from numerator / denominator) so :class:`CoordinateParser`
+        retains the exact rational representation.
+        """
+        if (
+            isinstance(col_ref, str)
+            and col_ref not in df.columns
+            and col_ref in columns
+        ):
+            arr = columns[col_ref]
+            if isinstance(arr, pa.StructArray) and {f.name for f in arr.type} >= {
+                "value",
+                "numerator",
+                "denominator",
+            }:
+                num = arr.field("numerator").to_numpy(zero_copy_only=False)
+                den = arr.field("denominator").to_numpy(zero_copy_only=False)
+                from fractions import Fraction
+
+                # Build a Python-object array of Fraction instances so
+                # CoordinateParser preserves the exact rational form.
+                out = np.empty(len(arr), dtype=object)
+                for i in range(len(arr)):
+                    if num[i] is None or den[i] is None:
+                        out[i] = None
+                    else:
+                        out[i] = Fraction(int(num[i]), int(den[i]))
+                return out
+            if isinstance(arr, (pa.Array, pa.ChunkedArray)):
+                return arr.to_numpy(zero_copy_only=False)
+            return np.asarray(arr)
+        return self._resolve_column_reference(col_ref, df, self._raw_table, context)
 
     def _post_process_columns(self, df: pd.DataFrame, columns: dict[str, Any]) -> None:
         """Post-process extracted columns before table construction.
 
-        Subclass hook called after ``_extract_column_arrays()``.  Override
-        to create semantic fields (e.g., pitch) from raw columns.
+        Subclass hook called after ``_extract_column_arrays()`` and
+        ``_apply_field_specs()``.  Override to inject domain-specific
+        fields not expressible in ``column_specs`` / ``field_specs``.
 
         Args:
-            df: The original DataFrame (for accessing columns not in extras).
+            df: The original DataFrame.
             columns: The mutable column dict that will be passed to
                 ``EventData.from_arrays()``.
         """
@@ -573,7 +809,7 @@ class TabularLoader(Loader):
         self,
         col_ref: str | tuple | Field | ComputedField,
         df: pd.DataFrame,
-        temp_table: pa.Table,
+        temp_table: pa.Table | None,
         context: str,
     ) -> np.ndarray:
         """Resolve a column reference to a numpy array of values.
@@ -587,14 +823,13 @@ class TabularLoader(Loader):
         Args:
             col_ref: The column reference to resolve.
             df: The source DataFrame.
-            temp_table: PyArrow table with struct columns.
+            temp_table: PyArrow table for Field/ComputedField resolution.
             context: Context name for error messages (e.g., "start", "end").
 
         Returns:
             Numpy array of values.
         """
         if isinstance(col_ref, str):
-            # Direct column name
             if col_ref in df.columns:
                 return df[col_ref].to_numpy()
             elif self._fallback_start_column and context == "start":
@@ -606,16 +841,23 @@ class TabularLoader(Loader):
             )
 
         elif isinstance(col_ref, tuple):
-            # Convert tuple to Field
             col_ref = Field(col_ref[0], *col_ref[1:])
 
         if isinstance(col_ref, Field):
-            # Struct field access
+            if temp_table is None:
+                raise ValueError(
+                    f"Cannot resolve Field reference for {context}: source "
+                    "table not yet materialised"
+                )
             array = col_ref.resolve(temp_table)
             return array.to_numpy(zero_copy_only=False)
 
         elif isinstance(col_ref, ComputedField):
-            # Computed column
+            if temp_table is None:
+                raise ValueError(
+                    f"Cannot resolve ComputedField for {context}: source "
+                    "table not yet materialised"
+                )
             array = col_ref.compute(temp_table)
             return array.to_numpy(zero_copy_only=False)
 
@@ -627,7 +869,7 @@ class TabularLoader(Loader):
     def _extract_end_column(
         self,
         df: pd.DataFrame,
-        temp_table: pa.Table,
+        temp_table: pa.Table | None,
         columns: dict[str, Any],
         n: int,
     ) -> pa.Array:
@@ -641,7 +883,7 @@ class TabularLoader(Loader):
 
         Args:
             df: Source DataFrame.
-            temp_table: PyArrow table with struct columns.
+            temp_table: PyArrow table for Field resolution.
             columns: Already extracted columns (includes "start").
             n: Number of rows.
 
@@ -677,8 +919,11 @@ class TabularLoader(Loader):
             else:
                 return pa.nulls(n, type=columns["start"].type)
 
-        # Case 4: Duration column (compute end = start + duration)
-        if self.duration_column and self.duration_column in df.columns:
+        # Case 4: Duration column (compute end = start + duration).
+        # Also accept a synthesised duration column from column_specs.
+        if self.duration_column and (
+            self.duration_column in df.columns or self.duration_column in columns
+        ):
             return self._compute_end_from_duration(df, columns, n)
 
         # Case 5: end_column specified but not found, and no duration
@@ -696,6 +941,10 @@ class TabularLoader(Loader):
     ) -> pa.Array:
         """Compute end column from start + duration (FULLY VECTORIZED).
 
+        The duration source may be a raw DataFrame column or a
+        synthesised column (rational struct or scalar) produced by
+        ``column_specs``.
+
         Args:
             df: Source DataFrame.
             columns: Already extracted columns (includes "start").
@@ -704,13 +953,37 @@ class TabularLoader(Loader):
         Returns:
             PyArrow array for the end column.
         """
-        dur_series = df[self.duration_column]
-        has_dur_values = dur_series.notna()
+        # Resolve the duration source: DataFrame column or synthesised
+        # column from column_specs.
+        if self.duration_column in df.columns:
+            dur_series = df[self.duration_column]
+            has_dur_values = dur_series.notna()
+            if not bool(has_dur_values.any()):
+                return pa.nulls(n, type=columns["start"].type)
+            dur_values = dur_series.to_numpy()
+        else:
+            synth = columns[self.duration_column]
+            if isinstance(synth, pa.StructArray) and {f.name for f in synth.type} >= {
+                "value",
+                "numerator",
+                "denominator",
+            }:
+                num = synth.field("numerator").to_numpy(zero_copy_only=False)
+                den = synth.field("denominator").to_numpy(zero_copy_only=False)
+                from fractions import Fraction
 
-        if not bool(has_dur_values.any()):
-            return pa.nulls(n, type=columns["start"].type)
-
-        dur_values = dur_series.to_numpy()
+                dur_values = np.empty(n, dtype=object)
+                for i in range(n):
+                    if num[i] is None or den[i] is None:
+                        dur_values[i] = None
+                    else:
+                        dur_values[i] = Fraction(int(num[i]), int(den[i]))
+            elif isinstance(synth, (pa.Array, pa.ChunkedArray)):
+                dur_values = synth.to_numpy(zero_copy_only=False)
+            else:
+                dur_values = np.asarray(synth)
+            if all(v is None for v in dur_values):
+                return pa.nulls(n, type=columns["start"].type)
 
         # Compute valid masks (vectorized)
         start_is_null = columns["start"].is_null().to_numpy(zero_copy_only=False)
@@ -845,11 +1118,9 @@ class TabularLoader(Loader):
 
         # Parse valid values (vectorized)
         valid_values = values[valid_mask]
-        # Ensure numeric type for parsing
         if valid_values.dtype == object:
             valid_values = valid_values.astype(np.float64)
 
-        # Use the loader's coordinate_type for parsing
         parsed = CoordinateParser.parse(valid_values, self.coordinate_type, self._unit)
 
         # Extract parsed arrays (vectorized)
@@ -860,13 +1131,12 @@ class TabularLoader(Loader):
         # Build full arrays with proper defaults (vectorized)
         value_arr = np.full(n, np.nan, dtype=np.float64)
         num_arr = np.zeros(n, dtype=np.int64)
-        den_arr = np.ones(n, dtype=np.int64)  # Default denominator = 1
+        den_arr = np.ones(n, dtype=np.int64)
 
         # Scatter valid values using boolean indexing (vectorized)
         valid_indices = np.where(valid_mask)[0]
         value_arr[valid_indices] = parsed_value
 
-        # Handle numerator/denominator with null awareness (vectorized)
         num_valid_in_parsed = ~pd.isna(parsed_num)
         den_valid_in_parsed = ~pd.isna(parsed_den)
 
@@ -877,20 +1147,16 @@ class TabularLoader(Loader):
             target_indices = valid_indices[den_valid_in_parsed]
             den_arr[target_indices] = parsed_den[den_valid_in_parsed].astype(np.int64)
 
-        # Build null masks (vectorized)
         struct_null_mask = ~valid_mask
 
-        # For numerator/denominator, null if struct is null OR no fraction data
         num_has_value = np.zeros(n, dtype=bool)
         num_has_value[valid_indices] = num_valid_in_parsed
         num_null_mask = ~num_has_value
 
-        # Build PyArrow arrays with proper null masks
         value_pa = pa.array(value_arr, mask=struct_null_mask, type=pa.float64())
         num_pa = pa.array(num_arr, mask=num_null_mask, type=pa.int64())
         den_pa = pa.array(den_arr, mask=num_null_mask, type=pa.int64())
 
-        # Combine into struct array
         return pa.StructArray.from_arrays(
             [value_pa, num_pa, den_pa],
             fields=list(coord_type),

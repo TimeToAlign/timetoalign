@@ -430,11 +430,10 @@ class Field:
         >>> # Deeply nested access
         >>> value = Field("metadata", "timing", "offset")
 
-        >>> # In loader configuration
+        >>> # In loader configuration — combine with explicit JSON-to-struct
+        >>> # preprocessing on the loader side, then point start_column at the
+        >>> # nested field.
         >>> class MyLoader(TsvLoader):
-        ...     extra_columns = [
-        ...         ConvertedField("rect_coords", dict, source="rect_coords_json"),
-        ...     ]
         ...     start_column = Field("rect_coords", "x")
     """
 
@@ -704,8 +703,8 @@ class ConvertedField:
     - Rename columns during loading
     - Specify explicit PyArrow types
 
-    For simple extra columns without conversion, use a plain string or dict
-    in the loader's extra_columns attribute instead.
+    For simple extra columns without conversion, use a plain string or type
+    in the loader's ``column_specs`` attribute instead.
 
     Attributes:
         name: The column name in the output schema.
@@ -881,14 +880,9 @@ class CoordinateField:
         ...     number_type=NumberType.fraction
         ... )
 
-        >>> # In a loader
-        >>> class DualLoader(TsvLoader):
-        ...     start_column = "time_sec"
-        ...     _default_unit = TimeUnit.seconds
-        ...     extra_columns = [
-        ...         CoordinateField("x_pixels", source="x_px", unit=TimeUnit.pixels),
-        ...         "image_filename",  # Regular string column
-        ...     ]
+        >>> # CoordinateField is used as a typed descriptor for the loader's
+        >>> # canonical start/end/duration coordinates.  Auxiliary columns
+        >>> # are declared via ``column_specs`` (see TabularLoader).
     """
 
     def __init__(

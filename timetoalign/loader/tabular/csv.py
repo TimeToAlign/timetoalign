@@ -52,7 +52,7 @@ class CsvLoader(TabularLoader):
         >>> class MyLoader(CsvLoader):
         ...     start_column = "onset_time"
         ...     end_column = "offset_time"
-        ...     extra_columns = {"pitch": "note_number"}
+        ...     column_specs = {"pitch": int, "velocity": int}
     """
 
     # CSV uses comma delimiter
@@ -178,24 +178,16 @@ class Ms3Loader(TabularLoader):
     _default_unit: ClassVar[TimeUnit] = TimeUnit.quarters
     coordinate_type: ClassVar[NumberType] = NumberType.fraction
 
-    # Extra columns from ms3 format (pitch columns handled via _post_process_columns)
-    extra_columns: ClassVar[list] = [
-        "staff",
-        "voice",
-        "chord_id",
-        "mc",  # Measure count
-        "mn",  # Measure number
-    ]
-
-    # Field specs for the loader-first pipeline.
-    # Declares the semantic field types for canonical columns.
-    # These coexist with extra_columns during migration.
-    field_specs: ClassVar[list] = [
-        # ("start", CoordinateField) — handled by start_column config
-        # ("duration", DurationField) — handled by duration_column config
-        # Pitch is handled by _post_process_columns -> PitchField
-        # Property columns are everything else from extra_columns
-    ]
+    # Step 1 — column_specs.  Pitch handling is delegated to
+    # _post_process_columns (SP construction from name + tpc/midi
+    # validation).
+    column_specs: ClassVar[dict[str, Any]] = {
+        "staff": int,
+        "voice": int,
+        "chord_id": int,
+        "mc": int,  # Measure count
+        "mn": int,  # Measure number
+    }
 
     # ms3-aware fraction columns: columns known to carry fraction strings.
     # The CoordinateParser handles fraction strings ("3/4") natively, so

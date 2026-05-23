@@ -114,7 +114,7 @@ class Domain(FancyStrEnum):
 
 # Domain mappings for TimeUnit (module-level for efficiency)
 _LOGICAL_UNITS: frozenset[str] = frozenset(
-    {"beats", "measures", "quarters", "ticks", "number"}
+    {"beats", "floating_measures", "quarters", "ticks", "number"}
 )
 _PHYSICAL_UNITS: frozenset[str] = frozenset(
     {"milliseconds", "seconds", "minutes", "samples", "frames"}

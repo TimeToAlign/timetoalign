@@ -10,11 +10,10 @@ This directory contains comprehensive tests for the `timetoalign.loader.tabular`
 | `test_vectorized.py` | 10 | Vectorized pipeline integration tests |
 | `test_correctness.py` | 11 | ZERO TOLERANCE validation with real specimens |
 | `test_error_handling.py` | 15 | Graceful degradation and error message clarity |
-| `test_struct_columns.py` | 20 | Struct field parsing, ConvertedField, Field, ComputedField |
+| `test_struct_columns.py` | 16 | `Field`, `ComputedField`, `ConvertedField` unit tests and JSON-to-struct parsing helper |
 | `test_table_schema.py` | 25 | TableSchema system for semantic column specifications |
+| `test_solo_loader.py` | `SoloLoader` round-trip against the Chopin Nocturne ``.solo`` specimen — see §SoloLoader below |
 | `profile_vectorized.py` | - | Performance profiling script (not a test file) |
-
-**Total: 92 tests**
 
 ---
 
@@ -137,7 +136,7 @@ See `PROFILING_REPORT.md` for full details.
 
 1. **Null start coordinates raise error**: If `quarterbeats` column contains empty values, the fraction parser raises `ValueError`. This is intentional - null start coordinates are invalid for note events.
 
-2. **No schema validation for extra columns**: Values from `extra_columns` mapping are stored as-is without type conversion or validation.
+2. **Sibling-file variants silently skip missing columns**: `column_specs` lookups against the source DataFrame return `None` when a named column is absent (a measures.tsv lacks the `staff` / `voice` / `chord_id` columns that notes.tsv carries).  Positional specs (integer source keys) are NOT skipped — a missing positional index is a hard `IndexError`.
 
 3. **Fraction parsing requires specific format**: Accepts "num/den" strings or pure integers ("0", "1", "42"). Does NOT accept:
    - Decimal strings ("0.5")
@@ -270,3 +269,68 @@ results = schema.create_timelines(df)
 - `TestTimelineCreation`: Timeline, region, CMap, and instant event creation
 - `TestSerialization`: Dict round-trip and repr output
 - `TestEdgeCases`: Missing source columns, empty DataFrames, null handling
+
+---
+
+## SoloLoader
+
+### Specimen
+
+`tests/data/performance_precision/Chopin Nocturne Op. 9 No. 2.solo` — a
+header-less tab-separated file of 2494 lines (one note-on or note-off
+event per line) produced by a performance-analysis tool.  Six columns:
+
+| Index | Name             | Type         | Example  |
+|-------|------------------|--------------|----------|
+| 0     | `position`       | "M+frac"     | `1+3/8`  |
+| 1     | `duration`       | rational     | `1/2`    |
+| 2     | `channel`        | int          | `90`     |
+| 3     | `pitch`          | int          | `63`     |
+| 4     | `velocity`       | int          | `80`     |
+| 5     | `note_id`        | alphanumeric | `nwp1wrk`|
+
+### Validation logic (decided in advance — document-before-implement)
+
+1. **EXACT row count**: 2494 events, matching `wc -l` on the source.
+2. **Sentinel rows asserted exactly**:
+   - Row 0: `position == "0+11/8"`, `duration == "0/1"`, `channel == 90`,
+     `pitch == 70`, `velocity == 80`, `note_id == "n1b8xktz"`.
+   - Row 1: `position == "1+0/1"`, `duration == "1/8"`, `pitch == 70`,
+     `note_id == "n1b8xktz"` (the note-off paired with row 0).
+   - Row 12: `position == "1+3/8"`, `duration == "1/2"`, `pitch == 58`,
+     `velocity == 0`, `note_id == "n1fst1u3"` (a note-off pairing).
+3. **`column_specs` shape decision**: the composite `position` column
+   splits into two parts named `measure_number` (default name derived
+   from `MeasureNumberField`'s class name minus the `Field` suffix in
+   snake_case) and `mn_onset` (explicit `name="mn_onset"`).  The
+   loader surfaces both at the top level of the EventData table so
+   `start_column = "mn_onset"` resolves correctly.  The composite
+   `position` column also remains as an opaque struct for users who
+   need the original packing.
+4. **Step 2 promotion**: the `pitch` column is decorated with
+   `EnharmonicPitchField` metadata; it is repacked from `int64` into
+   the `{midi_number: int64}` struct shape expected by
+   `EnharmonicPitchField`.  `note_id` is decorated with `IdField`
+   metadata and repacked into `{value: string}`.
+5. **`get_field` round-trip**: `events.get_field(EnharmonicPitch)`
+   returns an `EnharmonicPitchField` of length 2494; indexing into
+   it yields `EnharmonicPitch` scalars (e.g. `[0] -> EnharmonicPitch(B♭4)`
+   for MIDI 70).  `events.get_field(Id)[0]` yields
+   `Id(value='n1b8xktz')`.
+6. **Out-of-scope** (explicitly NOT asserted): the canonical `start`
+   coordinate.  Measures are second-order time units; the loader
+   currently routes `start_column = "mn_onset"` and consumers must
+   reconcile measure-number into flat-quarter coordinates against a
+   `MetricMap` separately.
+
+### Composite-part naming convention
+
+When the iterable form of `CompositeFieldSpec(parts=[...])` is given an
+unnamed entry that resolves to a paired SemanticField subclass (e.g.
+`MeasureNumberField`), the resulting sub-field's default name is the
+class name minus the `Field` suffix, snake-cased: `MeasureNumberField`
+→ `measure_number`.  When the resolved entry is a `FieldSpec` instance
+with an explicit `name=`, that name is used directly.  Otherwise the
+fallback is `f"part_{i}"`.  This is exercised end-to-end in
+`test_solo_loader.py` (the `position` column splits into
+`measure_number` + `mn_onset`).

@@ -1783,7 +1783,7 @@ class DcmlHarmonyField(SemanticField[DcmlHarmony]):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 3. EVENT SCALARS — Note, Measure
+# 3. EVENT SCALARS — Note, Measure, MeasureNumber, Id
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -2129,6 +2129,88 @@ class Measure(BaseModel):
 
 class MeasureField(SemanticField[Measure]):
     """Columnar wrapper for ``Measure`` (paired Field)."""
+
+
+class MeasureNumber(BaseModel):
+    """A measure-number label for a tabular event.
+
+    Storage struct (derived): ``{value: int64}``.  ``MeasureNumber``
+    carries the printed measure number of a musical event — the integer
+    that appears in the score margin (e.g. ``1``, ``2``, ``16``).  It is
+    a *label*, not a coordinate: it identifies a measure rather than
+    locating an instant on a timeline.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    value: int
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> MeasureNumber | None:
+        if not isinstance(row, dict):
+            return None
+        v = row.get("value")
+        if v is None:
+            return None
+        return cls(value=int(v))
+
+    def __repr__(self) -> str:
+        return f"MeasureNumber(value={self.value})"
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+
+class MeasureNumberField(SemanticField[MeasureNumber]):
+    """Paired Field for :class:`MeasureNumber`.
+
+    Empty body — :class:`MeasureNumber` carries no ``@data_shaped``
+    methods, so the parity check is trivially satisfied.  The class
+    exists to give the paired-class shape (``Object`` + ``ObjectField``)
+    a stable home for future evolution and to integrate with
+    ``EventData.get_field(MeasureNumber)`` dispatch.
+    """
+
+
+class Id(BaseModel):
+    """A string identity label for a tabular event.
+
+    Storage struct (derived): ``{value: string}``.  Used to carry an
+    event-level identity through loading and analysis — typically the
+    note-id string emitted by a performance-analysis tool (``n1b8xktz``,
+    ``nh9xux4``, …).  Equality / hashing are inherited from pydantic's
+    frozen ``BaseModel``; two ``Id`` objects compare equal iff their
+    ``value`` strings match.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    value: str
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> Id | None:
+        if not isinstance(row, dict):
+            return None
+        v = row.get("value")
+        if v is None:
+            return None
+        return cls(value=str(v))
+
+    def __repr__(self) -> str:
+        return f"Id(value={self.value!r})"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class IdField(SemanticField[Id]):
+    """Paired Field for :class:`Id`.
+
+    Empty body — :class:`Id` carries no ``@data_shaped`` methods, so the
+    parity check is trivially satisfied.  The class exists to give the
+    paired-class shape (``Object`` + ``ObjectField``) a stable home and
+    to integrate with ``EventData.get_field(Id)`` dispatch.
+    """
 
 
 # ═══════════════════════════════════════════════════════════════════════════

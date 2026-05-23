@@ -167,7 +167,7 @@ class TestCustomTabularLoader:
             start_column = "onset"
             end_column = "offset"
             id_column = "note_id"
-            extra_columns = {"pitch": "midi_note"}
+            column_specs = {"midi_note": int}
 
         content = """note_id,onset,offset,midi_note
 n1,0.0,1.0,60

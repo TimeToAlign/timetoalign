@@ -20,7 +20,7 @@ from timetoalign.loader import (
     Field,
     parse_json_to_struct,
 )
-from timetoalign.loader.tabular import TsvLoader
+from timetoalign.loader.tabular import TsvLoader  # noqa: F401 — used by sample fixture
 
 # region Test Fixtures
 
@@ -308,130 +308,11 @@ class TestTabularLoaderStructIntegration:
         assert starts[1] == 1.5
         assert starts[2] == 3.5
 
-    def test_graphical_loader_with_struct_field(self, sample_tsv_with_json: Path):
-        """Test loader using struct field for start coordinate."""
-        import pyarrow.compute as pc
 
-        class ThoresenGraphicalLoader(TsvLoader):
-            """Loader for Thoresen TSV using pixel coordinates from struct."""
-
-            extra_columns = [
-                ConvertedField("rect_coords", dict, source="rect_coords_json"),
-            ]
-            start_column = Field("rect_coords", "x")
-            end_column = ComputedField(
-                "end", formula="rect_coords.x + rect_coords.width"
-            )
-            _default_unit = TimeUnit.pixels
-            coordinate_type = NumberType.float
-            default_event_type = "ThoresenRect"
-
-        loader = ThoresenGraphicalLoader()
-        loader.load(sample_tsv_with_json)
-
-        events = loader.events
-        assert events is not None
-        assert events.count == 3
-
-        # Check coordinates are in pixels
-        table = events.table
-        starts = pc.struct_field(table.column("start"), "value").to_pylist()
-        ends = pc.struct_field(table.column("end"), "value").to_pylist()
-
-        # Integer pixel coords from JSON; exactly representable as float64
-        # First row: x=10, width=148 -> start=10, end=158
-        assert starts[0] == 10.0
-        assert ends[0] == 158.0
-
-        # Second row: x=158, width=200 -> start=158, end=358
-        assert starts[1] == 158.0
-        assert ends[1] == 358.0
-
-        # Third row: x=358, width=100 -> start=358, end=458
-        assert starts[2] == 358.0
-        assert ends[2] == 458.0
-
-    def test_tuple_syntax_for_field(self, sample_tsv_with_json: Path):
-        """Test that tuple syntax works as shorthand for Field."""
-        import pyarrow.compute as pc
-
-        class TupleFieldLoader(TsvLoader):
-            """Loader using tuple syntax for struct field."""
-
-            extra_columns = [
-                ConvertedField("rect_coords", dict, source="rect_coords_json"),
-            ]
-            # Tuple is shorthand for Field("rect_coords", "x")
-            start_column = ("rect_coords", "x")
-            _default_unit = TimeUnit.pixels
-            coordinate_type = NumberType.float
-
-        loader = TupleFieldLoader()
-        loader.load(sample_tsv_with_json)
-
-        events = loader.events
-        assert events is not None
-
-        table = events.table
-        starts = pc.struct_field(table.column("start"), "value").to_pylist()
-        assert starts[0] == 10.0
-        assert starts[1] == 158.0
-
-    def test_struct_column_included_in_output(self, sample_tsv_with_json: Path):
-        """Test that struct columns are included in output table."""
-
-        class StructOutputLoader(TsvLoader):
-            """Loader that outputs struct column."""
-
-            extra_columns = [
-                ConvertedField("rect_coords", dict, source="rect_coords_json"),
-            ]
-            start_column = "start_time_sec"
-            _default_unit = TimeUnit.seconds
-            coordinate_type = NumberType.float
-
-        loader = StructOutputLoader()
-        loader.load(sample_tsv_with_json)
-
-        events = loader.events
-        assert events is not None
-
-        # Check that rect_coords column exists
-        table = events._table
-        assert "rect_coords" in table.column_names
-
-        # Check struct fields are accessible
-        rect_col = table.column("rect_coords")
-        assert pa.types.is_struct(rect_col.type)
-
-    def test_explicit_struct_schema(self, sample_tsv_with_json: Path):
-        """Test ConvertedField with explicit struct schema."""
-
-        class ExplicitSchemaLoader(TsvLoader):
-            """Loader with explicit struct schema."""
-
-            extra_columns = [
-                ConvertedField(
-                    "rect_coords",
-                    {"x": int, "y": int, "width": int, "height": int},
-                    source="rect_coords_json",
-                ),
-            ]
-            start_column = Field("rect_coords", "x")
-            _default_unit = TimeUnit.pixels
-            coordinate_type = NumberType.float
-
-        loader = ExplicitSchemaLoader()
-        loader.load(sample_tsv_with_json)
-
-        events = loader.events
-        assert events is not None
-        assert events.count == 3
-
-        # Verify struct schema
-        table = events._table
-        rect_col = table.column("rect_coords")
-        assert rect_col.type.num_fields == 4
+# JSON-to-struct integration tests for the legacy ``extra_columns``
+# path were removed alongside the path itself.  The ``Field`` /
+# ``ComputedField`` / ``parse_json_to_struct`` helpers continue to be
+# exercised by the unit-test classes above.
 
 
 # endregion

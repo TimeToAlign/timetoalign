@@ -295,7 +295,9 @@ class TestQuartersToFloatingMeasures:
             y_values=[1.0, 2.0, 3.0, 4.0, 5.0],
         )
         assert m.source_unit.value == "quarters"
-        assert m.target_unit.value == "measures"  # Returns coordinates in measures
+        assert (
+            m.target_unit.value == "floating_measures"
+        )  # Returns coordinates in measures
 
     def test_linear_interpolation(self):
         """Interpolation within measures."""
