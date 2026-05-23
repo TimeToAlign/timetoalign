@@ -391,7 +391,7 @@ class TestSerialization:
                 start="onset",
                 end="offset",
                 cmap_fields={
-                    "beat": CMapField(target_unit=TimeUnit.measures),
+                    "beat": CMapField(target_unit=TimeUnit.floating_measures),
                 },
             ),
             partitions=PartitionSpec(fields=["voice"]),

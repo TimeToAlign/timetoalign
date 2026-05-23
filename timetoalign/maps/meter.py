@@ -97,7 +97,7 @@ class MetricMap(ConversionMap[int]):
         mns: Sequence[str],
         lengths: Sequence[Fraction],
         source_unit: TimeUnit | str = TimeUnit.quarters,
-        target_unit: TimeUnit | str = TimeUnit.measures,
+        target_unit: TimeUnit | str = TimeUnit.floating_measures,
         uid: str | None = None,
     ) -> None:
         """Initialize a MetricMap from explicit boundary data.
@@ -291,7 +291,7 @@ class MetricMap(ConversionMap[int]):
             mns=data["mns"],
             lengths=lengths,
             source_unit=data.get("source_unit", TimeUnit.quarters),
-            target_unit=data.get("target_unit", TimeUnit.measures),
+            target_unit=data.get("target_unit", TimeUnit.floating_measures),
             uid=data.get("id"),
         )
 

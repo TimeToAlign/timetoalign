@@ -497,7 +497,7 @@ class QuartersToFloatingMeasures(TableMap):
         x_values: Sequence[CoordinateValue],
         y_values: Sequence[float],
         source_unit: TimeUnit | str = TimeUnit.quarters,
-        target_unit: TimeUnit | str = TimeUnit.measures,
+        target_unit: TimeUnit | str = TimeUnit.floating_measures,
         uid: str | None = None,
         name: str | None = None,
     ) -> None:
@@ -711,7 +711,7 @@ class QuartersToFloatingMeasures(TableMap):
             x_values=x_values,
             y_values=y_values,
             source_unit=data.get("source_unit", TimeUnit.quarters),
-            target_unit=data.get("target_unit", TimeUnit.measures),
+            target_unit=data.get("target_unit", TimeUnit.floating_measures),
             uid=data.get("id"),
             name=data.get("name"),
         )

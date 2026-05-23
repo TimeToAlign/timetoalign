@@ -122,7 +122,7 @@ LOGICAL_UNITS: frozenset[TimeUnit] = frozenset(
     {
         TimeUnit.beats,
         TimeUnit.quarters,
-        TimeUnit.measures,
+        TimeUnit.floating_measures,
         TimeUnit.ticks,
         TimeUnit.number,
     }
@@ -153,7 +153,7 @@ GRAPHICAL_UNITS: frozenset[TimeUnit] = frozenset(
 
 # Continuous vs discrete unit categorization
 CONTINUOUS_LOGICAL_UNITS: frozenset[TimeUnit] = frozenset(
-    {TimeUnit.beats, TimeUnit.quarters, TimeUnit.measures, TimeUnit.number}
+    {TimeUnit.beats, TimeUnit.quarters, TimeUnit.floating_measures, TimeUnit.number}
 )
 DISCRETE_LOGICAL_UNITS: frozenset[TimeUnit] = frozenset({TimeUnit.ticks})
 
