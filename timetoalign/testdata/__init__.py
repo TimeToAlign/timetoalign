@@ -82,7 +82,7 @@ except ImportError as exc:  # pragma: no cover - tested via integration
 # ---------------------------------------------------------------------------
 
 #: GitHub release tag in the ``tta_test_data`` repository.
-RELEASE_TAG = "testdata-v2"
+RELEASE_TAG = "testdata-v3"
 
 #: Base URL where the release assets are hosted.
 BASE_URL = (
@@ -96,20 +96,21 @@ BASE_URL = (
 #: ``tarfile`` is not reproducible by default (mtimes / entry order leak into
 #: the gzip bytes), so a local rebuild will not match the CI-produced
 #: archives — always use the digests emitted by the workflow.
-REGISTRY: dict[str, str] = {
-    "audio.tar.gz": "sha256:771ec6c0443e5683cd0a56942012588a80b3bfb797cd14e983455b27b10c832b",
-    "audiolabs_omr.tar.gz": "sha256:9d891969949e2ae4406b08b6ccf08f519bb8a0579a90a0c5419638a584a69f70",
-    "fixtures.tar.gz": "sha256:5adc74fd42f76ca4a13afe3af7476b627b0ed67a66e0f6c5d83e797b765ebc2f",
-    "hendrix.tar.gz": "sha256:b9c40a03a3c4b68490f8ca2f514c5cb41b6719761cdfb3c689d7fc544753bf5e",
-    "midi.tar.gz": "sha256:3af0c2a59847cf5d9df9711cdbe3a5e21bbe7e77cecece802cc523ff5d648b35",
-    "mpm_toolbox.tar.gz": "sha256:9d77346bcf1a63c94c42a7eee7c432250a3df4dbf6c18d708e88aad9e22dfe76",
-    "performance_precision.tar.gz": "sha256:633711ab61c61330620d75c612f570b5e7a2185112ea888e660629b50678e50e",
-    "score.tar.gz": "sha256:fe9950386b72bac9cee8b9e1a0e6964f54f82633be9c0b4d038a5c1d5127396b",
-    "supra.tar.gz": "sha256:f89556d06930460bee87104650a87652da5e7b46610bc69ac865a1d4ca3bf630",
-    "tabular.tar.gz": "sha256:ee5e8bb338e5cdabb9c77128379c3f9503fb7e6b421c01c8f420dffe3d5239d6",
-    "target_flows.tar.gz": "sha256:cc0665dabf26abd6954b3e9dad000174cf56dc322504161b84cc2c4cbc196a23",
-    "thoresen.tar.gz": "sha256:5f40739cdd3a346e450c1dd16e14a1033ec37a696c48b4e0ea7a27579b60963a",
-    "vienna_1x22.tar.gz": "sha256:361acad1b806fe9fa1838ab1aaf756e09586c16a92083291f48c79ec8bf92688",
+REGISTRY = {
+    "audio.tar.gz": "sha256:c3492aeddf2b22918630cdc065db7ba7d3003599f79709e63b76b4cb692dc39f",
+    "audiolabs_omr.tar.gz": "sha256:6708f5ecefff280c5c7f9fe492d105f3f982c89e0c280b72e0c3aa4110b866d7",
+    "fixtures.tar.gz": "sha256:86ddac0deef4b4aa8db525fc5d0fde18e078afcc0a412e8f41befa2d48b12ad1",
+    "hendrix.tar.gz": "sha256:045e5c34990c93e2a0f3d1583de86fd191662020f526c6d6e20a80a23798ddaf",
+    "midi.tar.gz": "sha256:98137d87da7a93fc3c80ad4fc25c5ece0d5d1b0d03ab566b9a880891b0fe47c9",
+    "mpm_toolbox.tar.gz": "sha256:5e1df17bd6f156f6fefee06cd6bc7e3fa0755abca75c2b2afa0b27535a83ebf4",
+    "parangonar.tar.gz": "sha256:f8ab0562cf5c9131ca2a75d002dc1b3bc24056f426654701c9ad452b706a89ac",
+    "performance_precision.tar.gz": "sha256:e0bdd532ee95418f0178c8295682073453b1a7670a66bb108c76499a8e59598f",
+    "score.tar.gz": "sha256:56a037f26b5edddcaa393f6574db911f346e6aa10d7b3b434b8e8ac83b53f84b",
+    "supra.tar.gz": "sha256:d42c50123736bcf373de5494973a97eb1832e4d04840bea42ab980bfe26bc1c2",
+    "tabular.tar.gz": "sha256:49fff33269fcd1797a95b6848fb6267a8494784135bf984094567ba7feefcb70",
+    "target_flows.tar.gz": "sha256:6ee13db5ee983a5be232a906f60e258cf157d4d9600f77945f2d4f5433479a1f",
+    "thoresen.tar.gz": "sha256:d9fc39caa371c2af7fdce2181930dec1f3fd528b63e036b46efa4236bd5636bd",
+    "vienna_1x22.tar.gz": "sha256:57d782ee0e733a112cd4a02869546fefe824f08f97e54f45d3d63036087469a7",
 }
 
 
