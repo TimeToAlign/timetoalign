@@ -118,6 +118,50 @@ CombinationMap enables multi-valued lookups required by the TTA model:
 
 ---
 
+### `test_meter.py` - Meter-Aware Maps (MetricMap, MetricalPositionMap)
+
+**Purpose:** Validates `MetricMap.from_verovio_timemap` and the
+`MetricalPositionMap` reverse lookup it feeds.
+
+**Test Categories:**
+
+#### MetricMap.from_verovio_timemap
+
+A Verovio timemap is a JSON list whose measure-start entries carry a
+`measureOn` xml:id and a `meterSig` of the form `"<measure_number>
+<num>/<den>"`.  The factory collects each `measureOn` entry's `qstamp`
+(absolute quarters) as a measure boundary, parses the measure-number token
+as the label, and bounds the last measure by the timemap's final `qstamp`.
+
+Validated against the Chopin Nocturne specimen (`performance_precision`
+corpus) — zero-tolerance, exact values only:
+
+- `n_measures == 38`
+- `total_length == Fraction(425, 2)` (212.5 quarters)
+- `starts[0] == Fraction(0)`, `starts[1] == Fraction(1, 2)` (0.5),
+  `starts[2] == Fraction(13, 2)` (6.5), `starts[37] == Fraction(413, 2)`
+  (206.5)
+- `mns[0] == "1"`, `mns[-1] == "38"`; `mcs == list(range(1, 39))`
+- last measure length == `Fraction(6)` (212.5 − 206.5)
+- a timemap with no `measureOn` entries raises `ValueError`
+
+#### MetricalPositionMap reverse lookup
+
+`MetricalPositionMap(meter_map).quarters_at(mc, beat)` returns the
+quarter position of a measure's beat.  Validated against the same specimen
+boundaries (e.g. `quarters_at(2)` == `starts[1]` == the downbeat of MC 2),
+and `mn_at(quarters)` returns the measure-number label at a position.
+
+**Validity Rationale:**
+
+The Verovio timemap supplies what a bare `.meter` file cannot: an upper
+bound for the final measure.  A `.meter` file encodes only meter *changes*
+(this specimen lists 4 rows across 38 measures), so the timemap's terminal
+`qstamp` is required to close the last bar.  Exact-value assertions pin the
+boundary arithmetic.
+
+---
+
 ## Integration Tests
 
 Integration with the `Timeline` class is tested in `tests/timelines/test_maps_integration.py`.

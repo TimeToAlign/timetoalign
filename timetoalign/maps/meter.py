@@ -18,7 +18,9 @@ according to their beat coordinates."
 
 from __future__ import annotations
 
+import json
 from fractions import Fraction
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Sequence
 
 import numpy as np
@@ -404,6 +406,88 @@ class MetricMap(ConversionMap[int]):
         mcs = [b[1] for b in boundaries]
         mns = [b[2] for b in boundaries]
         lengths = [b[3] for b in boundaries]
+
+        return cls(
+            starts=starts,
+            mcs=mcs,
+            mns=mns,
+            lengths=lengths,
+            uid=uid,
+        )
+
+    @classmethod
+    def from_verovio_timemap(
+        cls,
+        path: str | Path,
+        *,
+        uid: str | None = None,
+    ) -> MetricMap:
+        """Build a MetricMap from a Verovio timemap JSON file.
+
+        A Verovio timemap is a JSON list of timeline entries, each carrying
+        a ``qstamp`` (absolute position in quarter notes).  Entries that
+        begin a measure additionally carry a ``measureOn`` key (the xml:id
+        of the bar) and a ``meterSig`` value of the form
+        ``"<measure_number> <numerator>/<denominator>"`` (e.g.
+        ``"1 12/8"``).  This factory walks the list, treats every
+        ``measureOn`` entry as a measure-start boundary, and uses the final
+        entry's ``qstamp`` as the upper bound of the last measure.
+
+        Each measure's length is the difference between consecutive
+        boundary qstamps; the last measure's length is bounded by the final
+        timemap entry.  Measure-number labels are taken verbatim from the
+        first whitespace token of ``meterSig`` (so ``"1 12/8"`` yields
+        measure number ``"1"`` and measure count ``1``).
+
+        Args:
+            path: Path to the Verovio timemap JSON file.
+            uid: Optional explicit ID.
+
+        Returns:
+            A new MetricMap whose boundaries match the timemap.
+
+        Raises:
+            ValueError: If the timemap contains no ``measureOn`` boundaries.
+
+        Examples:
+            >>> meter = MetricMap.from_verovio_timemap("nocturne.json")
+            >>> meter.n_measures
+            38
+            >>> meter.total_length
+            Fraction(425, 2)
+        """
+        # TODO: A future MetricMap.from_meter_file(path, *, last_measure)
+        # factory should ingest the companion ``.meter`` file directly.  A
+        # ``.meter`` file only encodes meter *changes* (this specimen lists
+        # 4 rows across 38 measures), so it cannot bound the final measure
+        # on its own; the caller must supply the last measure's length (or
+        # its terminal quarter position) separately.  The Verovio timemap
+        # is preferred here precisely because its final ``qstamp`` supplies
+        # that upper bound directly.
+        timemap = json.loads(Path(path).read_text(encoding="utf-8"))
+
+        starts: list[Fraction] = []
+        mcs: list[int] = []
+        mns: list[str] = []
+        for entry in timemap:
+            if "measureOn" not in entry:
+                continue
+            mn = str(entry["meterSig"]).split()[0]
+            starts.append(Fraction(str(entry["qstamp"])))
+            mns.append(mn)
+            mcs.append(int(mn))
+
+        if not starts:
+            raise ValueError(
+                "Verovio timemap contains no measure boundaries (no "
+                "'measureOn' entries)."
+            )
+
+        final_qstamp = Fraction(str(timemap[-1]["qstamp"]))
+        # Length of each measure is the gap to the next boundary; the last
+        # measure runs to the final timemap entry.
+        boundaries = starts + [final_qstamp]
+        lengths = [boundaries[i + 1] - boundaries[i] for i in range(len(starts))]
 
         return cls(
             starts=starts,
