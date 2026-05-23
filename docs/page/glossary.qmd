@@ -305,6 +305,19 @@ to the relevant section of the conceptual model.
     {{< glossary AlignmentBundle >}} via `create_bundle()`.
     See the [API reference](reference/PerformancePrecisionLoader.qmd).
 
+**ParangonadaLoader**
+:   Loader for a *parangonar* *parangonada* export: per-performance CSV triples
+    (score notes, performed notes, note-level correspondences) for one work.
+    Uses the standard two-phase `load()` → `create_*()` pattern. Parses the
+    shared score once into two logical {{< glossary Timeline >}}s (quarters and
+    division-grid ticks, linked by a divs→quarters `LinearMap`), builds one
+    performance group per recording with two physical {{< glossary Timeline >}}s
+    (seconds and samples, linked by a `SamplesToSeconds` map), and emits one
+    cross-group {{< glossary MatchClaim >}} per correspondence — synchronous for
+    a matched note, {{< glossary NOMATCH >}} for a score-only or
+    performance-only note. Reads the existing alignment; never runs an aligner.
+    Returns an {{< glossary AlignmentBundle >}} via `create_bundle()`.
+
 ## R
 
 **raw_to_normalised**

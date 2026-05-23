@@ -21,5 +21,6 @@ howto,how03_create_note_alignment.py,how03_create_note_alignment,How to Create a
 howto,how03_beethoven_multimodal.py,how03_beethoven_multimodal,How to Align Multimodal Data (Beethoven),"AlignmentBundle, FlowMap, OMR, 16+ timelines across 3 domains"
 howto,how03_loading_vienna_corpus.py,how03_loading_vienna_corpus,How to Load the Vienna 4x22 Corpus,"MatchfileLoader, 22 performances, AlignmentBundle"
 howto,how05_performance_precision.py,how05_performance_precision,How to Load an Audio-to-Score Alignment Corpus and Compare Performances,"PerformancePrecisionLoader, MetricMap, granularity-tagged MatchClaims, tempo comparison"
+howto,how06_parangonada.py,how06_parangonada,How to Load a parangonada Note Alignment Across Several Performances,"ParangonadaLoader, multimodal AlignmentBundle, divs/quarters and samples/seconds C-Maps, synchronous and NOMATCH MatchClaims"
 howto,how04_hendrix_song_genesis.py,how04_hendrix_song_genesis,How to Encode Song Genesis (Hendrix),"MatchClaim, NOMATCH, synchronous vs conceptual, TiliaJsonLoader"
 howto,how04_loading_csv.py,how04_loading_csv,How to Load CSV/TSV with column_specs and field_specs,"DataField blueprints, the Step-1 resolution chain, CompositeFieldParser, and a from-scratch .solo loader"

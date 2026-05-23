@@ -190,6 +190,18 @@ PerformancePrecisionLoader: |
   alignment row — synchronous for located onsets, NOMATCH for the dangling ones.
   Returns an AlignmentBundle via create_bundle().
 
+ParangonadaLoader: |
+  Loader for a parangonar parangonada export: per-performance CSV triples (score
+  notes, performed notes, note-level correspondences) for one work. Uses the
+  standard two-phase load() → create_*() pattern. Parses the shared score once
+  into two logical timelines (quarters and division-grid ticks, linked by a
+  divs→quarters LinearMap), builds one performance group per recording with two
+  physical timelines (seconds and samples, linked by a SamplesToSeconds map),
+  and emits one cross-group MatchClaim per correspondence — synchronous for a
+  matched note, NOMATCH for a score-only or performance-only note. Reads the
+  existing alignment; never runs an aligner. Returns an AlignmentBundle via
+  create_bundle().
+
 Parent: |
   A timeline that contains one or more Child timelines. The parent and all
   its children must share the same measuring unit. Coordinate transfer uses

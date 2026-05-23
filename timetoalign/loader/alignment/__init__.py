@@ -9,6 +9,8 @@ Loaders:
     TiliaJsonLoader: TiLiA JSON annotation exports (.tla/.json).
     PerformancePrecisionLoader: CAAMP audio-to-score alignment specimens
         (.solo score + Verovio timemap + per-performer alignment CSVs).
+    ParangonadaLoader: parangonada CSV exports (part/ppart/align triples)
+        ingested as one multimodal AlignmentBundle.
 
 Stores:
     TiliaDictStore: DictStore subclass with TiLiA timeline type properties.
@@ -17,11 +19,13 @@ Stores:
 from __future__ import annotations
 
 from .matchfile import MatchfileLoader
+from .parangonada import ParangonadaLoader
 from .performance_precision import PerformancePrecisionLoader
 from .tilia import TiliaDictStore, TiliaJsonLoader
 
 __all__ = [
     "MatchfileLoader",
+    "ParangonadaLoader",
     "PerformancePrecisionLoader",
     "TiliaDictStore",
     "TiliaJsonLoader",
