@@ -147,10 +147,6 @@ class PerformanceMidiLoader(MidiLoader):
                             "velocity": velocity,
                             "channel": channel,
                             "track": i,
-                            # Nullable score fields
-                            "voice": None,
-                            "staff": None,
-                            "part_id": None,
                             "control": None,
                             "value": None,
                             "program": None,
@@ -192,9 +188,6 @@ class PerformanceMidiLoader(MidiLoader):
                         "pitch": None,
                         "velocity": None,
                         "program": None,
-                        "voice": None,
-                        "staff": None,
-                        "part_id": None,
                     }
                     events.append(cc_event)
 
@@ -213,9 +206,6 @@ class PerformanceMidiLoader(MidiLoader):
                         "velocity": None,
                         "control": None,
                         "value": None,
-                        "voice": None,
-                        "staff": None,
-                        "part_id": None,
                     }
                     events.append(pc_event)
 
