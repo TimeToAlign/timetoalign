@@ -48,7 +48,9 @@ class ScoreLoader(Loader):
         """The primary event data (notes), for compatibility."""
         return self._store.notes
 
-    def get_events(self, properties: bool | tuple[str, ...] = True) -> ScoreEventData:
+    def get_events(
+        self, properties: bool | str | tuple[str, ...] = True
+    ) -> ScoreEventData:
         """Return note events with field control.
 
         Overrides the base ``Loader.get_events`` because ``ScoreLoader``
@@ -57,8 +59,11 @@ class ScoreLoader(Loader):
         Args:
             properties: Controls which non-field-spec fields to include.
                 ``True``: all fields.  ``False``: spec + core fields only.
+                Single string: shorthand for a one-element tuple.
                 Tuple of strings: named property fields only.
         """
+        if isinstance(properties, str):
+            properties = (properties,)
         self._events = self._store.notes
         return self._assemble_events_table(properties)
 

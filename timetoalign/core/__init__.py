@@ -83,6 +83,8 @@ from .fields import (
     TIMETOALIGN_METADATA_KEY,
     DataField,
     DenominateNumberField,
+    FloatField,
+    IntField,
     MapField,
     NumberField,
     NumericField,
@@ -168,6 +170,8 @@ __all__ = [
     "TimeScalarValue",
     # DataField hierarchy / schema mechanism
     "DataField",
+    "FloatField",
+    "IntField",
     "MapField",
     "NumericField",
     "StringField",

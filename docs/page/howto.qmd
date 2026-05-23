@@ -75,5 +75,5 @@ documentation:
 - [How to Encode Song Genesis (Hendrix)](howto/how04_hendrix_song_genesis.ipynb) ---
   MatchClaim (synchronous vs conceptual), NOMATCH sentinels, TiliaJsonLoader.
 - [How to Load CSV/TSV with column_specs and field_specs](howto/how04_loading_csv.ipynb) ---
-  Universal resolution table, CompositeFieldSpec, FractionFieldSpec, the
-  `.solo` worked example.
+  DataField blueprints, the Step-1 resolution chain, CompositeFieldParser,
+  and a from-scratch `.solo` loader.

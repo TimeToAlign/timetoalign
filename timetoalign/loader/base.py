@@ -295,7 +295,7 @@ class Loader(ABC):
 
     # region Events Assembly
 
-    def get_events(self, properties: bool | tuple[str, ...] = True) -> EventData:
+    def get_events(self, properties: bool | str | tuple[str, ...] = True) -> EventData:
         """Return an EventData assembled from loaded data.
 
         This is the primary access method for the loader-first pipeline.
@@ -308,15 +308,19 @@ class Loader(ABC):
                 - ``False``: Only include semantic-field fields (start, end,
                   duration, pitch, etc.) and core fields (id, name,
                   event_type, temporal_type).
+                - Single string: shorthand for a one-element tuple — include
+                  only the named property field.
                 - Tuple of strings: Include only the named property fields.
 
         Returns:
             An ``EventData`` containing the assembled events.
         """
+        if isinstance(properties, str):
+            properties = (properties,)
         return self._assemble_events_table(properties)
 
     def _assemble_events_table(
-        self, properties: bool | tuple[str, ...] = True
+        self, properties: bool | str | tuple[str, ...] = True
     ) -> EventData:
         """Assemble an EventData from internal state, with field ordering.
 
@@ -336,6 +340,8 @@ class Loader(ABC):
         Returns:
             An ``EventData`` with the requested fields.
         """
+        if isinstance(properties, str):
+            properties = (properties,)
         if properties is True:
             return self._events
 

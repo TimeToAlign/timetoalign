@@ -15,8 +15,8 @@ Design
 * The source DataFrame is materialised as a faithful ``pa.Table`` and
   stored as ``self._raw_table`` (no type coercion).
 * Step 1 — ``column_specs`` resolves each source column into a typed
-  :class:`DataField` via :func:`field_specs.resolve_field_spec`.  Each
-  emitted field carries its own name and ``pa.Field`` metadata.
+  :class:`DataField` via :func:`field_parsers.resolve_field_parser`.
+  Each emitted field carries its own name and ``pa.Field`` metadata.
 * Coordinate parsing (``start`` / ``end`` / ``duration``) continues
   to flow through :class:`CoordinateParser`, driven by
   ``start_column`` / ``end_column`` / ``duration_column`` on the
@@ -49,6 +49,7 @@ from timetoalign.core.fields import (
     TIMETOALIGN_METADATA_KEY,
     DataField,
     metadata_blob_from_dict,
+    parse_metadata_blob,
 )
 from timetoalign.loader.base import Loader
 from timetoalign.loader.parsing import CoordinateParser
@@ -57,12 +58,51 @@ from timetoalign.loader.schema import (
     Field,
 )
 
-from .field_specs import CompositeFieldSpec, FieldSpec, resolve_field_spec
+from .field_parsers import (
+    CompositeFieldParser,
+    FieldParser,
+    resolve_field_parser,
+)
 
 if TYPE_CHECKING:
     pass
 
 module_logger = logging.getLogger(__name__)
+
+
+def _producer_name(producer: DataField | FieldParser) -> str | None:
+    """Return the producer's preferred output name, or ``None`` for fallback.
+
+    DataField blueprints carry a name on their :attr:`DataField.name`
+    attribute; FieldParser instances carry an optional override in
+    :attr:`FieldParser.name`.
+    """
+    if isinstance(producer, FieldParser):
+        return producer.name
+    if isinstance(producer, DataField):
+        return producer.name
+    return None
+
+
+def _merge_field_type_metadata(pa_field: pa.Field, field_type: str) -> pa.Field:
+    """Return *pa_field* with a ``b"timetoalign"`` blob carrying ``field_type``.
+
+    If *pa_field* already carries a ``b"timetoalign"`` payload (e.g.
+    ``DenominateNumberField.emit()`` writes ``{"unit": ...}``), the
+    existing payload is preserved and ``"field_type"`` is added /
+    overwritten on top.  Any non-``b"timetoalign"`` metadata entries are
+    passed through unchanged.
+    """
+    existing = dict(pa_field.metadata or {})
+    payload: dict[str, Any] = {}
+    blob = existing.pop(TIMETOALIGN_METADATA_KEY, None)
+    if blob is not None:
+        payload = parse_metadata_blob(blob)
+        if not isinstance(payload, dict):
+            payload = {}
+    payload["field_type"] = field_type
+    existing[TIMETOALIGN_METADATA_KEY] = metadata_blob_from_dict(payload)
+    return pa_field.with_metadata(existing)
 
 
 # region TabularLoader
@@ -90,7 +130,7 @@ class TabularLoader(Loader):
         default_event_type: Default event type if no column provides one.
         column_specs: Mapping or sequence describing the per-column
             translation from source to :class:`DataField`.  See
-            :mod:`timetoalign.loader.tabular.field_specs`.
+            :mod:`timetoalign.loader.tabular.field_parsers`.
         field_specs: Optional sequence/mapping of blueprint-mode
             :class:`SemanticField` instances that promote raw fields to
             paired semantic fields.
@@ -98,13 +138,13 @@ class TabularLoader(Loader):
         coordinate_type: NumberType for coordinate parsing.
 
     Examples:
-        >>> from timetoalign.loader.tabular.field_specs import IntFieldSpec
+        >>> from timetoalign.core import IntField
         >>> class MyLoader(TabularLoader):
         ...     delimiter = "\\t"
         ...     start_column = "onset"
         ...     end_column = "offset"
         ...     coordinate_unit = TimeUnit.seconds
-        ...     column_specs = {"velocity": IntFieldSpec(), "channel": int}
+        ...     column_specs = {"velocity": IntField(name="velocity"), "channel": int}
     """
 
     # region Class Configuration
@@ -142,14 +182,15 @@ class TabularLoader(Loader):
     #
     # * ``dict[str, X]`` — keys are source column names (header-based
     #   sources); the dict-key seeds the emitted field's name unless
-    #   the spec carries an explicit ``name=`` override.
+    #   the producer carries an explicit ``name=`` override.
     # * ``Sequence[X]`` — positional, for header-less sources.  Each
-    #   entry MUST carry a ``name=`` (either through a class-level
-    #   default — e.g. ``MeasureNumberField`` resolves to
-    #   ``measure_number`` — or via an explicit constructor kwarg).
+    #   entry MUST carry a ``name=`` (either through an explicit
+    #   constructor kwarg or, for paired SemanticField subclasses, via
+    #   the snake-case default — e.g. ``MeasureNumberField`` resolves
+    #   to ``measure_number``).
     #
     # ``X`` resolves via the universal table in
-    # :func:`field_specs.resolve_field_spec`.
+    # :func:`field_parsers.resolve_field_parser`.
     column_specs: ClassVar[dict[str, Any] | Sequence[Any] | None] = None
 
     # Step 2 — field_specs.  Sequence or dict of blueprint-mode
@@ -243,14 +284,16 @@ class TabularLoader(Loader):
 
     def _resolved_column_specs(
         self, df: pd.DataFrame
-    ) -> list[tuple[str | int, FieldSpec, str]]:
-        """Resolve ``column_specs`` into ``(source_key, FieldSpec, name)``.
+    ) -> list[tuple[str | int, DataField | FieldParser, str]]:
+        """Resolve ``column_specs`` into ``(source_key, producer, name)``.
 
         Returns one entry per spec, in declaration order.  For a
-        ``dict`` form, ``source_key`` is the dict key (a column name).
-        For a ``Sequence`` form, ``source_key`` is the positional index
-        (an int) and the spec must supply a ``name=`` (either via its
-        constructor or via a class-level default).
+        ``dict`` form, ``source_key`` is the dict key (a column name)
+        and the dict-key seeds ``default_name`` for blueprint
+        construction.  For a ``Sequence`` form, ``source_key`` is the
+        positional index (an int) and the spec must supply its own
+        name (via constructor or class-level default — the resolver is
+        called with ``default_name=None``).
 
         Raises:
             ValueError: If a positional spec lacks a name.
@@ -258,21 +301,22 @@ class TabularLoader(Loader):
         specs = self.column_specs
         if specs is None:
             return []
-        resolved: list[tuple[str | int, FieldSpec, str]] = []
+        resolved: list[tuple[str | int, DataField | FieldParser, str]] = []
         if isinstance(specs, dict):
             for col_name, raw in specs.items():
-                spec = resolve_field_spec(raw)
-                emit_name = spec.name if spec.name is not None else col_name
-                resolved.append((col_name, spec, emit_name))
+                producer = resolve_field_parser(raw, default_name=col_name)
+                emit_name = _producer_name(producer) or col_name
+                resolved.append((col_name, producer, emit_name))
         else:
             for i, raw in enumerate(specs):
-                spec = resolve_field_spec(raw)
-                if spec.name is None:
+                producer = resolve_field_parser(raw)
+                emit_name = _producer_name(producer)
+                if emit_name is None:
                     raise ValueError(
                         f"column_specs[{i}] has no name; positional specs "
                         "require an explicit name= or a class-level default"
                     )
-                resolved.append((i, spec, spec.name))
+                resolved.append((i, producer, emit_name))
         return resolved
 
     def _source_array(self, df: pd.DataFrame, source_key: str | int) -> pa.Array | None:
@@ -306,25 +350,47 @@ class TabularLoader(Loader):
         """Run Step 1: ``column_specs`` → emitted :class:`DataField`s.
 
         Each emitted field is written into *columns* (as a ``pa.Array``)
-        and its ``pa.Field`` (metadata-bearing) is appended to
-        ``self._extra_schema_fields``.
+        and its ``pa.Field`` (with a ``b"timetoalign"`` ``field_type``
+        blob) is appended to ``self._extra_schema_fields``.  The
+        metadata stamp lets downstream filtering (``get_events(properties=False)``)
+        recognise column-spec emissions as *fields* rather than raw
+        property columns.  Any metadata the producer's ``emit()`` had
+        already attached (e.g. ``DenominateNumberField`` writes the
+        ``unit``) is preserved and merged with the ``field_type`` key.
+
+        Side effect:
+            Populates ``self._consumed_source_columns`` with the set of
+            source-DataFrame column names that were consumed by
+            ``column_specs`` (used by :meth:`_extract_column_arrays` to
+            decide which raw source columns survive as property columns).
 
         Returns:
             A dict mapping emit names to emitted DataField objects (for
             Step 2 lookup).
         """
         emitted: dict[str, DataField] = {}
-        for source_key, spec, emit_name in self._resolved_column_specs(df):
+        consumed: set[str] = set()
+        for source_key, producer, emit_name in self._resolved_column_specs(df):
             source_arr = self._source_array(df, source_key)
             if source_arr is None:
                 continue
-            data_field = spec.emit(source_arr, name=emit_name)
+            # Record the source-DataFrame column that backed this spec.
+            if isinstance(source_key, int):
+                if 0 <= source_key < len(df.columns):
+                    consumed.add(str(df.columns[source_key]))
+            else:
+                consumed.add(source_key)
+            data_field = producer.emit(source_arr, name=emit_name)
             emitted[emit_name] = data_field
             data = data_field.data
             if data is None:
                 continue
             columns[emit_name] = data
-            self._extra_schema_fields.append(data_field.field)
+            pa_field_with_meta = _merge_field_type_metadata(
+                data_field.field, type(data_field).__name__
+            )
+            self._extra_schema_fields.append(pa_field_with_meta)
+        self._consumed_source_columns = consumed
         return emitted
 
     def _apply_field_specs(
@@ -621,19 +687,23 @@ class TabularLoader(Loader):
         specs = self.column_specs
         if specs is None:
             return names
-        # Iterate without materialising via resolve_field_spec — we only
-        # need names, not full resolution.
-        iterable = specs.values() if isinstance(specs, dict) else specs
-        keys = list(specs.keys()) if isinstance(specs, dict) else None
-        for i, raw in enumerate(iterable):
-            spec = resolve_field_spec(raw)
-            if isinstance(spec, FieldSpec):
-                if spec.name is not None:
-                    names.add(spec.name)
-                elif keys is not None:
-                    names.add(keys[i])
-                if isinstance(spec, CompositeFieldSpec):
-                    names.update(spec.part_keys)
+        # Resolve through resolve_field_parser so dict keys seed
+        # blueprint names consistently with _resolved_column_specs.
+        if isinstance(specs, dict):
+            for key, raw in specs.items():
+                producer = resolve_field_parser(raw, default_name=key)
+                name = _producer_name(producer)
+                names.add(name if name is not None else key)
+                if isinstance(producer, CompositeFieldParser):
+                    names.update(producer.part_keys)
+        else:
+            for raw in specs:
+                producer = resolve_field_parser(raw)
+                name = _producer_name(producer)
+                if name is not None:
+                    names.add(name)
+                if isinstance(producer, CompositeFieldParser):
+                    names.update(producer.part_keys)
         return names
 
     def _extract_column_arrays(
@@ -676,7 +746,7 @@ class TabularLoader(Loader):
         self._emitted_fields = self._apply_column_specs(df, columns)
         # Expose composite-part keys directly as columns so
         # start_column="<part_name>" works.  Only opaque struct fields
-        # (CompositeFieldSpec emissions, NOT RationalField / numeric
+        # (CompositeFieldParser emissions, NOT RationalField / numeric
         # struct emissions which are atomic semantic units) get their
         # sub-fields surfaced as top-level columns.
         from timetoalign.core.fields import RationalField, StructField
@@ -697,8 +767,14 @@ class TabularLoader(Loader):
                     sub_field = df_field.get_sub_field(sub_name)
                     if sub_field.data is not None:
                         columns[sub_name] = sub_field.data
-                        # Track the sub-field in the schema as well.
-                        self._extra_schema_fields.append(sub_field.field)
+                        # Track the sub-field in the schema with a
+                        # ``field_type`` blob so it is preserved under
+                        # ``properties=False`` filtering.
+                        self._extra_schema_fields.append(
+                            _merge_field_type_metadata(
+                                sub_field.field, type(sub_field).__name__
+                            )
+                        )
 
         # ID column (vectorized generation if not present)
         if self.id_column and self.id_column in df.columns:
@@ -745,7 +821,61 @@ class TabularLoader(Loader):
         else:
             columns["event_type"] = np.full(n, self.default_event_type, dtype=object)
 
+        # Property columns — every source column NOT consumed by
+        # column_specs or by a canonical reference is propagated as a
+        # raw, semantically opaque pa.Array.  ``get_events(properties=)``
+        # then controls which of these survive into the final
+        # EventData table.  No metadata is attached: these are
+        # unconsumed source columns, not fields.
+        self._propagate_property_columns(df, columns)
+
         return columns
+
+    def _propagate_property_columns(
+        self, df: pd.DataFrame, columns: dict[str, Any]
+    ) -> None:
+        """Copy unconsumed source columns into *columns* as raw pa.Arrays.
+
+        A source column is "consumed" iff it backed an entry in
+        ``column_specs`` (tracked by :meth:`_apply_column_specs` via
+        ``self._consumed_source_columns``) OR it was referenced by a
+        canonical loader attribute (``id_column`` / ``name_column`` /
+        ``start_column`` / ``end_column`` / ``duration_column`` /
+        ``event_type_column``).  Every other source column is added to
+        *columns* under its original name.
+
+        No ``b"timetoalign"`` metadata is attached — unconsumed source
+        columns are property columns, not fields, and
+        ``get_events(properties=False)`` is expected to drop them.
+        """
+        consumed: set[str] = set(getattr(self, "_consumed_source_columns", set()))
+        for attr in (
+            "id_column",
+            "name_column",
+            "event_type_column",
+        ):
+            value = getattr(self, attr, None)
+            if isinstance(value, str):
+                consumed.add(value)
+        for attr in ("start_column", "end_column", "duration_column"):
+            value = getattr(self, attr, None)
+            if isinstance(value, str):
+                consumed.add(value)
+            elif isinstance(value, tuple) and value and isinstance(value[0], str):
+                consumed.add(value[0])
+            elif isinstance(value, Field):
+                consumed.add(value.column)
+            # ComputedField references are opaque; we don't attempt to
+            # introspect them — any source columns it reads will simply
+            # appear as property columns alongside the computed result.
+
+        for col in df.columns:
+            name = str(col)
+            if name in columns:
+                continue
+            if name in consumed:
+                continue
+            columns[name] = pa.array(df[col])
 
     def _resolve_start_or_duration(
         self,

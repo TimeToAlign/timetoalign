@@ -14,27 +14,22 @@ Classes:
     SoloLoader: ``.solo`` performance-analysis file loader.
 
 Modules:
-    field_specs: Universal ``FieldSpec`` hierarchy
-        (:class:`IntFieldSpec`, :class:`FloatFieldSpec`,
-        :class:`StringFieldSpec`, :class:`RationalFieldSpec`,
-        :class:`CompositeFieldSpec`, :class:`FractionFieldSpec`) plus
-        :func:`resolve_field_spec`.
+    field_parsers: :class:`FieldParser` hierarchy
+        (:class:`CompositeFieldParser`, :class:`CallableFieldParser`)
+        plus :func:`resolve_field_parser`, the universal-resolution
+        dispatcher that turns user-supplied ``column_specs`` entries
+        into producers (DataField blueprints or FieldParser instances).
 """
 
 from __future__ import annotations
 
 from .base import TabularLoader
 from .csv import CsvLoader, LabLoader, Ms3Loader, TsvLoader
-from .field_specs import (
-    CallableFieldSpec,
-    CompositeFieldSpec,
-    FieldSpec,
-    FloatFieldSpec,
-    FractionFieldSpec,
-    IntFieldSpec,
-    RationalFieldSpec,
-    StringFieldSpec,
-    resolve_field_spec,
+from .field_parsers import (
+    CallableFieldParser,
+    CompositeFieldParser,
+    FieldParser,
+    resolve_field_parser,
 )
 from .solo import SoloLoader
 
@@ -45,14 +40,9 @@ __all__ = [
     "LabLoader",
     "Ms3Loader",
     "SoloLoader",
-    # FieldSpec hierarchy
-    "FieldSpec",
-    "IntFieldSpec",
-    "FloatFieldSpec",
-    "StringFieldSpec",
-    "RationalFieldSpec",
-    "CompositeFieldSpec",
-    "FractionFieldSpec",
-    "CallableFieldSpec",
-    "resolve_field_spec",
+    # FieldParser hierarchy + dispatcher
+    "FieldParser",
+    "CompositeFieldParser",
+    "CallableFieldParser",
+    "resolve_field_parser",
 ]
