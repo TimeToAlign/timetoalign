@@ -99,8 +99,8 @@ class CMapField:
         >>> # Field with beat positions -> creates TableMap(seconds -> beats)
         >>> CMapField(target_unit=TimeUnit.quarters)
 
-        >>> # Field with measure numbers
-        >>> CMapField(target_unit=TimeUnit.measures)
+        >>> # Field with samples
+        >>> CMapField(target_unit=TimeUnit.samples)
     """
 
     target_unit: TimeUnit

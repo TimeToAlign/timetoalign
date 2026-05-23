@@ -96,7 +96,7 @@ class TestTimeUnit:
         """Musical domain units have correct values."""
         assert TimeUnit.quarters.value == "quarters"
         assert TimeUnit.beats.value == "beats"
-        assert TimeUnit.measures.value == "measures"
+        assert TimeUnit.floating_measures.value == "floating_measures"
         assert TimeUnit.ticks.value == "ticks"
 
     def test_graphical_units(self) -> None:
@@ -117,7 +117,7 @@ class TestTimeUnit:
         # Musical
         assert TimeUnit.q is TimeUnit.quarters
         assert TimeUnit.b is TimeUnit.beats
-        assert TimeUnit.m is TimeUnit.measures
+        assert TimeUnit.fm is TimeUnit.floating_measures
         assert TimeUnit.pulses is TimeUnit.ticks
 
         # Physical
@@ -147,7 +147,7 @@ class TestTimeUnit:
         """Musical units map to logical domain."""
         assert TimeUnit.quarters.domain == Domain.logical
         assert TimeUnit.beats.domain == Domain.logical
-        assert TimeUnit.measures.domain == Domain.logical
+        assert TimeUnit.floating_measures.domain == Domain.logical
         assert TimeUnit.ticks.domain == Domain.logical
         assert TimeUnit.number.domain == Domain.logical
 
@@ -171,7 +171,7 @@ class TestTimeUnit:
         assert TimeUnit.milliseconds.is_discrete is False
         assert TimeUnit.quarters.is_discrete is False
         assert TimeUnit.beats.is_discrete is False
-        assert TimeUnit.measures.is_discrete is False
+        assert TimeUnit.floating_measures.is_discrete is False
         assert TimeUnit.points.is_discrete is False
         assert TimeUnit.inches.is_discrete is False
         assert TimeUnit.millimeters.is_discrete is False

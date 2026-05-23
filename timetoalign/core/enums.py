@@ -140,9 +140,9 @@ class TimeUnit(FancyStrEnum):
     b = beats
     """beats"""
 
-    measures = auto()
+    floating_measures = auto()
     """measures"""
-    m = measures
+    fm = floating_measures
     """measures"""
 
     quarters = auto()

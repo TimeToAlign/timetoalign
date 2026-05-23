@@ -112,7 +112,7 @@ class TestLogicalTimeline:
         # Should work
         LogicalTimeline(length=4.0, unit=TimeUnit.quarters)
         LogicalTimeline(length=4.0, unit=TimeUnit.beats)
-        LogicalTimeline(length=4.0, unit=TimeUnit.measures)
+        LogicalTimeline(length=4.0, unit=TimeUnit.floating_measures)
         LogicalTimeline(length=480, unit=TimeUnit.ticks)
 
         # Should fail
