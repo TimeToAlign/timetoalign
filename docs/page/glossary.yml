@@ -155,6 +155,20 @@ MatchStamp: |
   Contains one coordinate per participating timeline and, with
   conversion_maps=True (the default), C-map conversion values.
 
+MetricMap: |
+  A table-based ConversionMap from a quarter position to its measure count,
+  built from explicit measure-boundary anchors rather than a uniform measure
+  length. Correctly handles anacrusis (incomplete first measure), irregular
+  measures, varying time signatures, and repeat structure. Built directly from
+  a Verovio timemap via MetricMap.from_verovio_timemap(). Not invertible (many
+  quarters map to the same measure).
+
+MetricalPositionMap: |
+  A CombinationMap pairing a MetricMap with a beat-in-measure map to return a
+  metrical position {mc, beat} from a quarter coordinate. Adds a reverse lookup
+  quarters_at(mc, beat) (metrical position → quarters) and mn_at(quarters)
+  (quarters → measure-number label).
+
 MultiMap: |
   An umbrella term for composed ConversionMaps: ChainMap (sequential),
   CombinationMap (parallel outputs), and ConcatenationMap (regional).
@@ -165,6 +179,16 @@ NOMATCH: |
   timeline IDs but has no AlignmentAnchors; is_synchronous is always False.
 
 Origin: "The zero coordinate of a timeline, from which all positions are measured."
+
+PerformancePrecisionLoader: |
+  Loader for audio-to-score alignment specimens: a directory bundling a .solo
+  score, a Verovio timemap, and per-performer alignment files at the note, bar,
+  and beat granularities. Uses the standard two-phase load() → create_*()
+  pattern. Resolves every "<measure>+<offset>" label to absolute quarters via a
+  MetricMap, builds one logical score timeline (quarters) and one physical
+  performance timeline per recording (seconds), and emits a MatchClaim per
+  alignment row — synchronous for located onsets, NOMATCH for the dangling ones.
+  Returns an AlignmentBundle via create_bundle().
 
 Parent: |
   A timeline that contains one or more Child timelines. The parent and all

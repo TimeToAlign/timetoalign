@@ -65,7 +65,8 @@ This documentation follows the
     *AlignmentBundles* ---
     [How to Create a Note Alignment](howto/how03_create_note_alignment.ipynb) ·
     [How to Align Multimodal Data (Beethoven)](howto/how03_beethoven_multimodal.ipynb) ·
-    [How to Load the Vienna 4x22 Corpus](howto/how03_loading_vienna_corpus.ipynb)
+    [How to Load the Vienna 4x22 Corpus](howto/how03_loading_vienna_corpus.ipynb) ·
+    [How to Load an Audio-to-Score Alignment Corpus and Compare Performances](howto/how05_performance_precision.ipynb)
 
     *In-depth Topics* ---
     [How to Encode Song Genesis (Hendrix)](howto/how04_hendrix_song_genesis.ipynb) ·

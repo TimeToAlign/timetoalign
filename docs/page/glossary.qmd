@@ -243,6 +243,24 @@ to the relevant section of the conceptual model.
     C-map conversion values.
     See [Alignment](concepts.qmd#alignment).
 
+**MetricMap**
+:   A table-based {{< glossary ConversionMap >}} from a quarter position to its
+    measure count, built from explicit measure-boundary anchors rather than a
+    uniform measure length. Correctly handles anacrusis (an incomplete first
+    measure), irregular measures, varying time signatures, and repeat
+    structure. Built directly from a Verovio timemap via
+    `MetricMap.from_verovio_timemap()`. Not invertible — many quarters map to
+    the same measure.
+    See [Conversion maps](concepts.qmd#conversion-maps).
+
+**MetricalPositionMap**
+:   A {{< glossary CombinationMap >}} pairing a {{< glossary MetricMap >}} with
+    a beat-in-measure map to return a metrical position `{mc, beat}` from a
+    quarter coordinate. Adds a reverse lookup `quarters_at(mc, beat)` (metrical
+    position to quarters) and `mn_at(quarters)` (quarters to measure-number
+    label).
+    See [Conversion maps](concepts.qmd#conversion-maps).
+
 **MultiMap**
 :   An umbrella term for composed {{< glossary ConversionMap >}}s:
     {{< glossary ChainMap >}} (sequential),
@@ -273,6 +291,19 @@ to the relevant section of the conceptual model.
     {{< glossary Child >}} timelines. The parent and all its children must
     share the same measuring unit.
     See [Nested timelines](concepts.qmd#nested-timelines).
+
+**PerformancePrecisionLoader**
+:   Loader for audio-to-score alignment specimens: a directory bundling a
+    `.solo` score, a Verovio timemap, and per-performer alignment files at the
+    note, bar, and beat granularities. Uses the standard two-phase `load()` →
+    `create_*()` pattern. Resolves every `"<measure>+<offset>"` label to
+    absolute quarters via a {{< glossary MetricMap >}}, builds one logical score
+    {{< glossary Timeline >}} (quarters) and one physical performance
+    {{< glossary Timeline >}} per recording (seconds), and emits a
+    {{< glossary MatchClaim >}} per alignment row — synchronous for located
+    onsets, {{< glossary NOMATCH >}} for the dangling ones. Returns an
+    {{< glossary AlignmentBundle >}} via `create_bundle()`.
+    See the [API reference](reference/PerformancePrecisionLoader.qmd).
 
 ## R
 

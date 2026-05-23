@@ -69,6 +69,9 @@ documentation:
   AlignmentBundle, FlowMap, OMR, 16+ timelines across 3 domains.
 - [How to Load the Vienna 4x22 Corpus](howto/how03_loading_vienna_corpus.ipynb) ---
   MatchfileLoader, 22 performances, AlignmentBundle.
+- [How to Load an Audio-to-Score Alignment Corpus and Compare Performances](howto/how05_performance_precision.ipynb) ---
+  PerformancePrecisionLoader, MetricMap from a Verovio timemap,
+  granularity-tagged MatchClaims, cross-performer tempo comparison.
 
 ### In-depth Topics
 

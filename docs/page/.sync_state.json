@@ -30,5 +30,6 @@
   "tut00_quickstart.py": "7e46fafbca0f1344c1913271bb806158908c09cadb043dd100840ff699868e24",
   "how03_create_note_alignment.py": "11300505e5c5e50cb1ae0fd01e6c6391e81f83cfd2a9dfad8bcce55b04e21d75",
   "how01_thoresen_annotation_transfer.py": "38669a3c67320bfa41c8ec335201cef506fd53bbe2201afe32f608d35c83ab05",
-  "how04_hendrix_song_genesis.py": "13b578af946b8ea52c739994c4e4f13d0f02c71947395e32d69d3ad8e6f12fa3"
+  "how04_hendrix_song_genesis.py": "13b578af946b8ea52c739994c4e4f13d0f02c71947395e32d69d3ad8e6f12fa3",
+  "how05_performance_precision.py": "b0d83b935c8b21ab7283091ec7491455e4331b2369905dc0379019e6286b7b0e"
 }

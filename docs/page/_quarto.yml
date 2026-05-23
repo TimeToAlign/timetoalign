@@ -84,6 +84,8 @@ website:
               href: howto/how03_beethoven_multimodal.ipynb
             - text: "How to Load the Vienna 4x22 Corpus"
               href: howto/how03_loading_vienna_corpus.ipynb
+            - text: "How to Load an Audio-to-Score Alignment Corpus and Compare Performances"
+              href: howto/how05_performance_precision.ipynb
         - section: "In-depth Topics"
           contents:
             - text: "How to Encode Song Genesis (Hendrix)"
