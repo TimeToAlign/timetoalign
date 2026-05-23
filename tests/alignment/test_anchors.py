@@ -816,16 +816,69 @@ class TestMatchClaim:
         assert "0.0-975.0" in r
 
     def test_repr_non_synchronous(self) -> None:
-        """Test string representation of non-synchronous claim."""
+        """A non-synchronous claim renders the NOMATCH flag (not 'non-synchronous')."""
         claim = MatchClaim(
             timeline_a_id="tl1",
             timeline_b_id="tl2",
             is_synchronous=False,
         )
         r = repr(claim)
-        assert "non-synchronous" in r
+        assert "NOMATCH" in r
+        assert "non-synchronous" not in r
         assert "tl1" in r
         assert "tl2" in r
+
+    def test_repr_nomatch_with_coordinate_exact(self) -> None:
+        """NOMATCH claim from nomatch() renders the source coordinate exactly."""
+        claim = MatchClaim.nomatch(
+            event={"start": 188.8},
+            source_tl_id="score:clt1",
+            target_tl_id="perf:Chopin_Ashkenazy",
+        )
+        assert claim.source_coordinate == 188.8
+        assert repr(claim) == (
+            "MatchClaim(score:clt1@188.8 <-> perf:Chopin_Ashkenazy [NOMATCH])"
+        )
+
+    def test_repr_nomatch_without_coordinate(self) -> None:
+        """NOMATCH claim with no 'start' falls back to bare timeline_a."""
+        claim = MatchClaim.nomatch(
+            event={"id": "orphan"},
+            source_tl_id="score:clt1",
+            target_tl_id="perf:Chopin_Ashkenazy",
+        )
+        assert claim.source_coordinate is None
+        assert repr(claim) == (
+            "MatchClaim(score:clt1 <-> perf:Chopin_Ashkenazy [NOMATCH])"
+        )
+
+    def test_nomatch_source_coordinate_roundtrip(self) -> None:
+        """to_dict()/from_dict() preserves source_coordinate for a NOMATCH claim."""
+        claim = MatchClaim.nomatch(
+            event={"start": 188.8},
+            source_tl_id="score:clt1",
+            target_tl_id="perf:Chopin_Ashkenazy",
+        )
+        restored = MatchClaim.from_dict(claim.to_dict())
+        assert restored == claim
+        assert restored.source_coordinate == 188.8
+
+    def test_repr_synchronous_instant_unchanged(self) -> None:
+        """Regression guard: a synchronous instant repr is unchanged (no NOMATCH)."""
+        claim = MatchClaim(
+            timeline_a_id="score:1",
+            timeline_b_id="recording:1",
+            start_anchor=AlignmentAnchor(
+                timeline_a_id="score:1",
+                coordinate_a=100.0,
+                timeline_b_id="recording:1",
+                coordinate_b=45.5,
+            ),
+        )
+        assert claim.source_coordinate is None
+        assert repr(claim) == (
+            "MatchClaim(instant: score:1@100.0 <-> recording:1@45.5)"
+        )
 
 
 # endregion

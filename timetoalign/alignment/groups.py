@@ -1020,7 +1020,7 @@ class TimelineGroup:
 
     def convert(
         self,
-        coordinate: float,
+        coordinate: CoordinateSpec,
         source: str,
         target: str,
         *,
@@ -1032,7 +1032,10 @@ class TimelineGroup:
         coordinate and returns the target timeline's coordinate from it.
 
         Args:
-            coordinate: The coordinate value to convert.
+            coordinate: The coordinate value to convert. Accepts a raw
+                int/float/Fraction, a Coordinate, or an IdCoordinate (whose
+                value is used; its timeline_id is informational only here,
+                since the endpoints are named by ``source``/``target``).
             source: Source timeline ID.
             target: Target timeline ID.
             relative_to:
@@ -1051,6 +1054,22 @@ class TimelineGroup:
             >>> group.convert(75.0, source="audio:1", target="dgt1:1")
             2437.5
         """
+        from fractions import Fraction
+
+        from timetoalign.core.time import Coordinate
+
+        # Reduce to a plain float; the endpoint is named by ``source``, so an
+        # IdCoordinate's own timeline_id is informational only here.
+        if isinstance(coordinate, Coordinate):
+            coordinate = float(coordinate.value)
+        elif isinstance(coordinate, (int, float, Fraction)):
+            coordinate = float(coordinate)
+        else:
+            raise TypeError(
+                f"coordinate must be int, float, Fraction, Coordinate, or "
+                f"IdCoordinate, got {type(coordinate).__name__}"
+            )
+
         ts = self.get_timestamp_at(coordinate, source, relative_to=relative_to)
         return ts[target]
 

@@ -17,9 +17,16 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Literal
 
-from timetoalign.core import IdCoordinate, IdGenerator, resolve_id
+from timetoalign.core import (
+    Coordinate,
+    CoordinateSpec,
+    IdCoordinate,
+    IdGenerator,
+    resolve_id,
+)
 
 from .anchors import MatchClaim
 from .filters import ClaimFilter
@@ -46,6 +53,52 @@ def _reset_bundle_ids() -> None:
     """Reset the module-level ID generator. For testing only."""
     global _bundle_id_generator
     _bundle_id_generator = IdGenerator(scope="bundle")
+
+
+def _resolve_coordinate_and_timeline(
+    coordinate: CoordinateSpec,
+    timeline_id: str | None,
+) -> tuple[float, str | None]:
+    """Reduce a coordinate specification to a plain float and resolve its timeline.
+
+    Accepts the three canonical coordinate forms and returns the underlying
+    value as a float alongside the timeline the coordinate lives on. When the
+    coordinate is an ``IdCoordinate`` it carries its own ``timeline_id``, which
+    fills an omitted ``timeline_id`` argument.
+
+    Args:
+        coordinate: The query coordinate. One of:
+
+            - int/float/Fraction: Raw value, ``timeline_id`` required.
+            - Coordinate: Value with unit, ``timeline_id`` required.
+            - IdCoordinate: Value, unit AND timeline_id (``timeline_id`` param
+              optional).
+        timeline_id: Explicit timeline id, or None to take it from an
+            ``IdCoordinate``.
+
+    Returns:
+        A ``(coord_value, timeline_id)`` tuple. ``timeline_id`` may still be
+        None if a non-Id coordinate was passed without one; callers decide
+        whether that is an error.
+
+    Raises:
+        TypeError: If ``coordinate`` is not one of the accepted forms.
+    """
+    # IdCoordinate is a subclass of Coordinate, so this check must come first.
+    if isinstance(coordinate, IdCoordinate):
+        if timeline_id is None:
+            timeline_id = coordinate.timeline_id
+        coord_value = float(coordinate.value)
+    elif isinstance(coordinate, Coordinate):
+        coord_value = float(coordinate.value)
+    elif isinstance(coordinate, (int, float, Fraction)):
+        coord_value = float(coordinate)
+    else:
+        raise TypeError(
+            f"coordinate must be int, float, Fraction, Coordinate, or "
+            f"IdCoordinate, got {type(coordinate).__name__}"
+        )
+    return coord_value, timeline_id
 
 
 # region AlignmentBundle
@@ -508,7 +561,7 @@ class AlignmentBundle:
 
     def transfer(
         self,
-        coord: float,
+        coord: CoordinateSpec,
         from_timeline: str,
         to_timeline: str,
     ) -> float | None:
@@ -538,6 +591,7 @@ class AlignmentBundle:
         Raises:
             KeyError: If either timeline is not in the bundle.
         """
+        coord, _ = _resolve_coordinate_and_timeline(coord, None)
         if from_timeline not in self.timelines:
             raise KeyError(f"Source timeline '{from_timeline}' not in bundle")
         if to_timeline not in self.timelines:
@@ -629,22 +683,26 @@ class AlignmentBundle:
 
     def transfer_interval(
         self,
-        start: float,
-        end: float,
+        start: CoordinateSpec,
+        end: CoordinateSpec,
         from_timeline: str,
         to_timeline: str,
     ) -> tuple[float, float] | None:
         """Transfer an interval from one timeline to another.
 
         Args:
-            start: Start coordinate in source timeline.
-            end: End coordinate in source timeline.
+            start: Start coordinate in source timeline. Accepts a raw
+                int/float/Fraction, a Coordinate, or an IdCoordinate.
+            end: End coordinate in source timeline. Accepts a raw
+                int/float/Fraction, a Coordinate, or an IdCoordinate.
             from_timeline: ID of the source timeline.
             to_timeline: ID of the target timeline.
 
         Returns:
             Tuple of (start, end) in target timeline, or None if no path.
         """
+        start, _ = _resolve_coordinate_and_timeline(start, None)
+        end, _ = _resolve_coordinate_and_timeline(end, None)
         transferred_start = self.transfer(start, from_timeline, to_timeline)
         transferred_end = self.transfer(end, from_timeline, to_timeline)
 
@@ -955,8 +1013,8 @@ class AlignmentBundle:
 
     def get_matchstamp_at(
         self,
-        coordinate: float,
-        timeline_id: str,
+        coordinate: CoordinateSpec,
+        timeline_id: str | None = None,
         *,
         conversion_maps: bool = True,
         timeline_ids: set[str] | None = None,
@@ -976,8 +1034,15 @@ class AlignmentBundle:
         2. Returns the graph's MatchStamp.
 
         Args:
-            coordinate: The coordinate value.
-            timeline_id: Bundle UID of the source timeline.
+            coordinate: The query coordinate. Can be:
+
+                - int/float/Fraction: Raw value, ``timeline_id`` required.
+                - Coordinate: Value with unit, ``timeline_id`` required.
+                - IdCoordinate: Value with unit AND timeline_id
+                  (``timeline_id`` param optional).
+            timeline_id: Bundle UID of the source timeline. Required unless
+                ``coordinate`` is an ``IdCoordinate``, in which case the
+                coordinate's own ``timeline_id`` is used.
             conversion_maps: Include C-map conversions. Reserved for
                 future use (currently ignored).
             timeline_ids: Only include these timelines in the result.
@@ -989,14 +1054,25 @@ class AlignmentBundle:
             MatchStamp spanning all connected timelines.
 
         Raises:
+            TypeError: If coordinate is not int/float/Fraction/Coordinate/
+                IdCoordinate.
+            ValueError: If timeline_id is None and coordinate is not an
+                IdCoordinate.
             KeyError: If timeline_id is not in the bundle.
-            ValueError: If no synchronous claims touch this coordinate.
 
         Examples:
             >>> ms = bundle.get_matchstamp_at(10.0, "score:clt1")
             >>> ms.n_timelines
             23  # score + 22 performers
         """
+        coordinate, timeline_id = _resolve_coordinate_and_timeline(
+            coordinate, timeline_id
+        )
+        if timeline_id is None:
+            raise ValueError(
+                "timeline_id is required unless coordinate is an IdCoordinate"
+            )
+
         if timeline_id not in self.timelines:
             if timeline_id not in self._timeline_id_to_uid:
                 raise KeyError(f"Timeline '{timeline_id}' not in bundle")
@@ -1269,8 +1345,8 @@ class AlignmentBundle:
 
     def get_timestamp_at(
         self,
-        coordinate: float,
-        timeline_id: str,
+        coordinate: CoordinateSpec,
+        timeline_id: str | None = None,
         *,
         format: Literal["prefix", "nested", "flat"] = "prefix",
     ) -> dict[str, Any]:
@@ -1290,8 +1366,15 @@ class AlignmentBundle:
         4. Returns all coordinates in the requested format.
 
         Args:
-            coordinate: The coordinate value on the source timeline.
-            timeline_id: ID of the source timeline (bundle UID).
+            coordinate: The query coordinate on the source timeline. Can be:
+
+                - int/float/Fraction: Raw value, ``timeline_id`` required.
+                - Coordinate: Value with unit, ``timeline_id`` required.
+                - IdCoordinate: Value with unit AND timeline_id
+                  (``timeline_id`` param optional).
+            timeline_id: ID of the source timeline (bundle UID). Required
+                unless ``coordinate`` is an ``IdCoordinate``, in which case
+                the coordinate's own ``timeline_id`` is used.
             format: Output format:
                 - ``"prefix"`` (default): ``{"group/timeline": coord, ...}``
                 - ``"nested"``: ``{"group": {"timeline": coord, ...}, ...}``
@@ -1302,6 +1385,10 @@ class AlignmentBundle:
             Timelines that cannot be reached return None values.
 
         Raises:
+            TypeError: If coordinate is not int/float/Fraction/Coordinate/
+                IdCoordinate.
+            ValueError: If timeline_id is None and coordinate is not an
+                IdCoordinate.
             KeyError: If timeline_id is not in the bundle.
 
         Examples:
@@ -1315,6 +1402,14 @@ class AlignmentBundle:
             {'score': {'clt1_score': 50.0, 'dgt1': 45000.0},
              'normal': {'dpt1': 23456789, ...}, ...}
         """
+        coordinate, timeline_id = _resolve_coordinate_and_timeline(
+            coordinate, timeline_id
+        )
+        if timeline_id is None:
+            raise ValueError(
+                "timeline_id is required unless coordinate is an IdCoordinate"
+            )
+
         if timeline_id not in self.timelines:
             raise KeyError(f"Timeline '{timeline_id}' not in bundle")
 

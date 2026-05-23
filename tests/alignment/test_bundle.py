@@ -1063,3 +1063,189 @@ class TestAddGroup:
 
 
 # endregion
+
+
+# region Test: Coordinate-type parity (raw / Coordinate / IdCoordinate)
+
+
+def _make_xgroup_bundle_with_claims() -> tuple[AlignmentBundle, str, str]:
+    """Cross-group bundle with linear claims; returns (bundle, score_id, audio_id).
+
+    Reuses the module-level ``_make_cross_group_bundle`` + ``_make_linear_claims``
+    helpers. Claims map score_t -> audio_t linearly (audio = score * 0.5). The
+    score and audio timelines are seconds.
+
+    The returned ``score_id`` / ``audio_id`` are the *actual* timeline IDs
+    (the keys ``get_matchstamp_at`` operates on, since the MatchGraph is keyed
+    on the timeline IDs carried by the claims). ``transfer`` and
+    ``get_timestamp_at`` are keyed on the bundle UIDs (``"score"`` / ``"audio"``)
+    instead.
+    """
+    bundle, score_tl, _image_tl, audio_tl, _midi_tl = _make_cross_group_bundle()
+    bundle.add_match_claims(_make_linear_claims(score_tl.id, audio_tl.id, n_points=5))
+    return bundle, score_tl.id, audio_tl.id
+
+
+class TestGetMatchstampAtCoordinateParity:
+    """get_matchstamp_at accepts raw value, Coordinate, and IdCoordinate."""
+
+    def test_raw_float_form(self) -> None:
+        """Raw float with explicit timeline_id returns the known stamp."""
+        bundle, score_id, audio_id = _make_xgroup_bundle_with_claims()
+        stamp = bundle.get_matchstamp_at(100.0, score_id)
+        assert stamp.n_timelines == 2
+        assert stamp.get_coordinate(score_id) == 100.0
+        assert stamp.get_coordinate(audio_id) == 50.0
+
+    def test_coordinate_form_equals_raw(self) -> None:
+        """A Coordinate with explicit timeline_id matches the raw-float result."""
+        bundle, score_id, _audio_id = _make_xgroup_bundle_with_claims()
+        from timetoalign.core import Coordinate
+        from timetoalign.core.enums import TimeUnit
+
+        raw = bundle.get_matchstamp_at(100.0, score_id)
+        from_coord = bundle.get_matchstamp_at(
+            Coordinate(100.0, TimeUnit.seconds), score_id
+        )
+        assert from_coord.coordinates == raw.coordinates
+
+    def test_idcoordinate_alone_equals_raw(self) -> None:
+        """An IdCoordinate alone (timeline_id omitted) matches the raw result."""
+        bundle, score_id, audio_id = _make_xgroup_bundle_with_claims()
+        from timetoalign.core import IdCoordinate
+        from timetoalign.core.enums import TimeUnit
+
+        raw = bundle.get_matchstamp_at(100.0, score_id)
+        from_id = bundle.get_matchstamp_at(
+            IdCoordinate(100.0, TimeUnit.seconds, score_id)
+        )
+        assert from_id.coordinates == raw.coordinates
+        assert from_id.get_coordinate(score_id) == 100.0
+        assert from_id.get_coordinate(audio_id) == 50.0
+
+    def test_missing_timeline_id_raises_value_error(self) -> None:
+        """Raw float without timeline_id raises ValueError."""
+        bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
+        with pytest.raises(ValueError, match="timeline_id is required"):
+            bundle.get_matchstamp_at(100.0)
+
+    def test_unsupported_type_raises_type_error(self) -> None:
+        """A non-coordinate type raises TypeError."""
+        bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
+        with pytest.raises(TypeError, match="coordinate must be"):
+            bundle.get_matchstamp_at("not-a-coordinate")  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match="coordinate must be"):
+            bundle.get_matchstamp_at([1.0])  # type: ignore[arg-type]
+
+
+class TestGetTimestampAtCoordinateParity:
+    """get_timestamp_at accepts raw value, Coordinate, and IdCoordinate.
+
+    ``get_timestamp_at`` is keyed on the bundle UID (``"score"``), so these
+    tests pass UIDs and compare whole-dict results across the three forms.
+    """
+
+    def test_raw_float_form(self) -> None:
+        """Raw float with explicit timeline_id returns the known timestamp."""
+        bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
+        ts = bundle.get_timestamp_at(100.0, "score", format="flat")
+        score_key = next(k for k in ts if k.startswith("score"))
+        audio_key = next(k for k in ts if k.startswith("audio"))
+        assert ts[score_key] == 100.0
+        assert ts[audio_key] == 50.0
+
+    def test_coordinate_form_equals_raw(self) -> None:
+        """A Coordinate with explicit timeline_id matches the raw-float result."""
+        bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
+        from timetoalign.core import Coordinate
+        from timetoalign.core.enums import TimeUnit
+
+        raw = bundle.get_timestamp_at(100.0, "score", format="flat")
+        from_coord = bundle.get_timestamp_at(
+            Coordinate(100.0, TimeUnit.seconds), "score", format="flat"
+        )
+        assert from_coord == raw
+
+    def test_idcoordinate_alone_equals_raw(self) -> None:
+        """An IdCoordinate alone (timeline_id omitted) matches the raw result.
+
+        The IdCoordinate carries the bundle UID ``"score"`` so the omitted
+        ``timeline_id`` is resolved from it.
+        """
+        bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
+        from timetoalign.core import IdCoordinate
+        from timetoalign.core.enums import TimeUnit
+
+        raw = bundle.get_timestamp_at(100.0, "score", format="flat")
+        from_id = bundle.get_timestamp_at(
+            IdCoordinate(100.0, TimeUnit.seconds, "score"), format="flat"
+        )
+        assert from_id == raw
+
+    def test_missing_timeline_id_raises_value_error(self) -> None:
+        """Raw float without timeline_id raises ValueError."""
+        bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
+        with pytest.raises(ValueError, match="timeline_id is required"):
+            bundle.get_timestamp_at(100.0)
+
+    def test_unsupported_type_raises_type_error(self) -> None:
+        """A non-coordinate type raises TypeError."""
+        bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
+        with pytest.raises(TypeError, match="coordinate must be"):
+            bundle.get_timestamp_at({"start": 1.0})  # type: ignore[arg-type]
+
+
+class TestTransferCoordinateParity:
+    """transfer / transfer_interval accept raw value, Coordinate, IdCoordinate.
+
+    ``transfer`` is keyed on the bundle UIDs (``"score"`` / ``"audio"``).
+    """
+
+    def test_transfer_accepts_coordinate(self) -> None:
+        """transfer reduces a Coordinate to its value (endpoints stay positional)."""
+        bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
+        from timetoalign.core import Coordinate
+        from timetoalign.core.enums import TimeUnit
+
+        assert bundle.transfer(100.0, "score", "audio") == 50.0
+        assert (
+            bundle.transfer(Coordinate(100.0, TimeUnit.seconds), "score", "audio")
+            == 50.0
+        )
+
+    def test_transfer_accepts_idcoordinate_value_only(self) -> None:
+        """transfer uses an IdCoordinate's value; its timeline_id is informational."""
+        bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
+        from timetoalign.core import IdCoordinate
+        from timetoalign.core.enums import TimeUnit
+
+        # The endpoint is named by from_timeline; the embedded id is ignored.
+        result = bundle.transfer(
+            IdCoordinate(100.0, TimeUnit.seconds, "score"), "score", "audio"
+        )
+        assert result == 50.0
+
+    def test_transfer_unsupported_type_raises(self) -> None:
+        """transfer rejects non-coordinate types."""
+        bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
+        with pytest.raises(TypeError, match="coordinate must be"):
+            bundle.transfer("x", "score", "audio")  # type: ignore[arg-type]
+
+    def test_transfer_interval_accepts_coordinates(self) -> None:
+        """transfer_interval reduces Coordinate endpoints to values."""
+        bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
+        from timetoalign.core import Coordinate
+        from timetoalign.core.enums import TimeUnit
+
+        raw = bundle.transfer_interval(0.0, 200.0, "score", "audio")
+        assert raw == (0.0, 100.0)
+        from_coord = bundle.transfer_interval(
+            Coordinate(0.0, TimeUnit.seconds),
+            Coordinate(200.0, TimeUnit.seconds),
+            "score",
+            "audio",
+        )
+        assert from_coord == (0.0, 100.0)
+
+
+# endregion
