@@ -42,12 +42,16 @@
 # 4. Inspect the cross-group {{< glossary MatchClaim >}}s — both the synchronous
 #    matches and the {{< glossary NOMATCH >}} sentinels — and read one shared
 #    score position across all five performances.
+# 5. Read each performance's measured per-beat tempo and dynamics, carried as
+#    events on its own timeline.
 
 # %% [markdown]
 # ## Setup
 
 # %%
 from __future__ import annotations
+
+import pandas as pd
 
 from timetoalign.core import TimeUnit
 from timetoalign.loader.alignment import ParangonadaLoader
@@ -243,6 +247,115 @@ bundle.get_matchstamp_at(40.0, "score:clt1")
 # no aligner ever run.
 
 # %% [markdown]
+# ---
+#
+# ## 5. Measured tempo and dynamics, as events on the performance
+#
+# The alignment ties each performance to the score note by note, but parangonar
+# also measured, for every recording, a per-beat **tempo** and **dynamics**
+# profile. These are not a model or a synthesised constant-tempo grid: they are
+# the variable tempo and loudness actually measured beat by beat in each
+# recording. The loader places them on the performance's own seconds timeline —
+# `perf:<key>:cpt1` — as `Beat` and `Dynamics`
+# {{< glossary Event >}}s, sitting alongside the `Note` events at their measured
+# onsets. A performance timeline therefore carries three kinds of event: the
+# notes that were played, and the measured tempo and dynamics that describe how.
+#
+# We read them with the same event query used everywhere else — filter by
+# `event_type`. The coordinate (`start`) comes back as a number; the remaining
+# measured columns currently round-trip as strings, so we cast them as we read.
+
+# %% [markdown]
+# ### Tempo: the `Beat` events
+#
+# Each `Beat` event carries the measured beat-per-minute reading at its onset,
+# together with the `measure_number` and `beat` it falls on. There are 63 of
+# them — one per measured beat of the variation. Take Szegedi's:
+
+# %%
+szegedi_beats = szegedi_cpt.get_events().filter(event_type="Beat").to_pandas()
+
+szegedi_tempo = szegedi_beats[["start", "measure_number", "beat", "bpm"]].copy()
+szegedi_tempo["onset_sec"] = szegedi_tempo.pop("start").astype(float)
+szegedi_tempo["measure_number"] = szegedi_tempo["measure_number"].astype(int)
+szegedi_tempo["beat"] = szegedi_tempo["beat"].astype(int)
+szegedi_tempo["bpm"] = szegedi_tempo["bpm"].astype(float)
+
+{
+    "beat events": len(szegedi_tempo),
+    "first onset (s)": szegedi_tempo["onset_sec"].iloc[0],
+    "measured BPM: min / median / max": (
+        round(szegedi_tempo["bpm"].min(), 1),
+        round(szegedi_tempo["bpm"].median(), 1),
+        round(szegedi_tempo["bpm"].max(), 1),
+    ),
+}
+
+# %% [markdown]
+# The tempo is anything but constant. Reading the first measures of the
+# variation shows the measured BPM moving from beat to beat — the local rubato
+# of the playing, recorded as data:
+
+# %%
+szegedi_tempo.head(8)
+
+# %% [markdown]
+# ### Dynamics: the `Dynamics` events
+#
+# At the same measured onsets sit 63 `Dynamics` events, each carrying the mean
+# and peak MIDI velocity measured over its beat. The `.dyn` source rows have no
+# onset of their own; the loader joined each to the `Beat` row sharing its
+# `(measure_number, beat)` key, so the dynamics land at exactly the same seconds
+# as the tempo readings:
+
+# %%
+szegedi_dyn = szegedi_cpt.get_events().filter(event_type="Dynamics").to_pandas()
+
+szegedi_dynamics = szegedi_dyn[
+    ["start", "measure_number", "beat", "velocity_mean", "velocity_max"]
+].copy()
+szegedi_dynamics["onset_sec"] = szegedi_dynamics.pop("start").astype(float)
+szegedi_dynamics["measure_number"] = szegedi_dynamics["measure_number"].astype(int)
+szegedi_dynamics["beat"] = szegedi_dynamics["beat"].astype(int)
+szegedi_dynamics["velocity_mean"] = szegedi_dynamics["velocity_mean"].astype(float)
+szegedi_dynamics["velocity_max"] = szegedi_dynamics["velocity_max"].astype(float)
+
+szegedi_dynamics.head(8)
+
+# %% [markdown]
+# ### Five interpretations, five tempo profiles
+#
+# Because every performance carries its own measured `Beat` events, the "five
+# interpretations of one work" claim becomes concrete: the same 63 beats of the
+# variation, measured in each recording. Summarising each performer's measured
+# tempo shows how differently they take it — Gould stretches the variation across
+# nearly twice the span of Brendel, at roughly half the median tempo:
+
+# %%
+tempo_by_performer = {}
+for key in bundle.group_ids:
+    if not key.startswith("perf:"):
+        continue
+    cpt = bundle.get_timeline(f"{key}:cpt1")
+    beats = cpt.get_events().filter(event_type="Beat").to_pandas()
+    bpm = beats["bpm"].astype(float)
+    onset = beats["start"].astype(float)
+    tempo_by_performer[key.removeprefix("perf:")] = {
+        "beats": len(beats),
+        "median BPM": round(bpm.median(), 1),
+        "span (s)": round(onset.max() - onset.min(), 1),
+    }
+
+pd.DataFrame(tempo_by_performer).T
+
+# %% [markdown]
+# These profiles are measured features carried on the performance timelines, not
+# anything Time To Align! inferred. Loaded next to the notes and the cross-group
+# {{< glossary MatchClaim >}}s, they let one bundle hold both *what* was played
+# (the aligned notes) and *how* it was played (the measured tempo and dynamics),
+# for every one of the five recordings.
+
+# %% [markdown]
 # ## Recap
 #
 # | What the bundle expresses | How |
@@ -251,8 +364,11 @@ bundle.get_matchstamp_at(40.0, "score:clt1")
 # | Performance, two physical units | `perf:<key>:cpt1` (s) + `perf:<key>:dpt1` (samples), one `SamplesToSeconds` |
 # | Score ↔ performance | a synchronous {{< glossary MatchClaim >}} per match; a {{< glossary NOMATCH >}} per gap |
 # | A shared position read everywhere | `bundle.get_matchstamp_at(coord, "score:clt1")` |
+# | Measured tempo and dynamics | `Beat` / `Dynamics` events on `perf:<key>:cpt1`, read via `filter(event_type=...)` |
 #
 # Two logical units for the score, two physical units per performance, each pair
-# linked by a {{< glossary ConversionMap >}}, and the whole tied together by
-# cross-group {{< glossary MatchClaim >}}s — one {{< glossary AlignmentBundle >}}
-# carrying an existing note alignment of one work across five performances.
+# linked by a {{< glossary ConversionMap >}}, the whole tied together by
+# cross-group {{< glossary MatchClaim >}}s, and each performance additionally
+# carrying its measured per-beat tempo and dynamics as events — one
+# {{< glossary AlignmentBundle >}} carrying an existing note alignment of one
+# work across five performances, and a faithful record of how each was played.

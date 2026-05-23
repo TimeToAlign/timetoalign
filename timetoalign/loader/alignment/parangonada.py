@@ -22,6 +22,26 @@ subdirectory of ``match/match_transkun/``:
   (``ppartid == "undefined"``), and ``2`` for a performance-only
   deletion (``partid == "undefined"``).
 
+Each performance also carries a pair of **measured beat-feature**
+files under the dataset's ``features/`` directory, tab-separated and
+discovered by globbing ``<key>_measure*.{beats,dyn}`` (the file stems
+are non-uniform — one performer's are ``..._measure_fix`` while the
+rest are ``..._measure``):
+
+* ``<key>_measure*.beats`` — one row per measured beat.  Header
+  ``measure_number  beat  onset_beat  onset_sec  BPM  interp  swap``.
+* ``<key>_measure*.dyn`` — one row per measured beat.  Header
+  ``measure_number  beat  onset_beat  velocity_mean  velocity_max
+  interp`` (no ``onset_sec`` column).
+
+These are *measured* per-beat features (variable tempo and dynamics
+extracted from the recording), not a synthesised tempo curve; they are
+added as ``Beat`` and ``Dynamics`` events to the performance's seconds
+timeline (``perf:<key>:cpt1``), alongside its ``Note`` events.  The
+``.dyn`` rows have no onset of their own, so each is joined to the
+``.beats`` row sharing its ``(measure_number, beat)`` key (the two
+files are 1:1 on that key) to recover its ``onset_sec``.
+
 ``ParangonadaLoader`` ingests the whole dataset directory in one call::
 
     bundle = ParangonadaLoader.from_file(dataset_dir).create_bundle()
@@ -96,6 +116,9 @@ _SCORE_GROUP = "score"
 
 #: Required CSV files in every performer subdirectory.
 _REQUIRED_FILES = ("part.csv", "ppart.csv", "align.csv")
+
+#: Dataset subdirectory holding the per-performer beat-feature files.
+_FEATURES_DIR = "features"
 
 #: Trailing suffix some performer directories carry; stripped to form the key.
 _PARANGONADA_SUFFIX = "_parangonada"
@@ -187,6 +210,7 @@ class ParangonadaLoader(AlignmentLoader):
                 f"No 'match/match_transkun/' subdirectory in dataset: {directory}"
             )
         audio_dir = directory / "audio"
+        features_dir = directory / _FEATURES_DIR
 
         performers = self._discover_performers(match_dir)
         self._sources = [match_dir]
@@ -204,7 +228,7 @@ class ParangonadaLoader(AlignmentLoader):
 
         for performer_key, performer_dir in performers:
             self._build_one_performer(
-                performer_key, performer_dir, audio_dir, score_q_by_id
+                performer_key, performer_dir, audio_dir, features_dir, score_q_by_id
             )
 
         return self
@@ -252,6 +276,12 @@ class ParangonadaLoader(AlignmentLoader):
         """Read a header-based CSV into a list of row dicts."""
         with open(path, "r", encoding="utf-8", newline="") as handle:
             return list(csv.DictReader(handle))
+
+    @staticmethod
+    def _read_tsv(path: Path) -> list[dict[str, str]]:
+        """Read a header-based TAB-separated file into a list of row dicts."""
+        with open(path, "r", encoding="utf-8", newline="") as handle:
+            return list(csv.DictReader(handle, delimiter="\t"))
 
     def _build_score_timelines(self, score_rows: list[dict[str, str]]) -> None:
         """Build the two shared logical score timelines from ``part.csv``.
@@ -326,15 +356,17 @@ class ParangonadaLoader(AlignmentLoader):
         performer_key: str,
         performer_dir: Path,
         audio_dir: Path,
+        features_dir: Path,
         score_q_by_id: dict[str, Fraction],
     ) -> None:
         """Build a performance's two physical timelines and its MatchClaims.
 
         The continuous timeline holds one event per ``ppart.csv`` row in
-        seconds; the discrete timeline holds the same notes converted to
-        sample indices, with a :class:`SamplesToSeconds` C-Map.  Claims
-        are emitted faithfully — one per ``align.csv`` row, with no
-        deduplication.
+        seconds, plus the measured ``Beat`` / ``Dynamics`` feature events
+        from the ``features/`` directory; the discrete timeline holds the
+        same notes converted to sample indices, with a
+        :class:`SamplesToSeconds` C-Map.  Claims are emitted faithfully —
+        one per ``align.csv`` row, with no deduplication.
         """
         sample_rate = self._resolve_sample_rate(performer_key, audio_dir)
 
@@ -376,6 +408,12 @@ class ParangonadaLoader(AlignmentLoader):
             ]
         )
 
+        # Measured per-beat features (variable tempo + dynamics) extend
+        # the seconds timeline with Beat / Dynamics events.  The schema
+        # grows (new columns) per successive add_events call; absent
+        # columns are null-filled.
+        self._add_feature_events(performer_key, features_dir, perf_cpt)
+
         perf_dpt = DiscretePhysicalTimeline(
             length=samples_length,
             unit=TimeUnit.samples,
@@ -402,6 +440,115 @@ class ParangonadaLoader(AlignmentLoader):
         self._build_claims(
             performer_key, performer_dir, score_q_by_id, perf_sec_by_id, cpt_id
         )
+
+    @classmethod
+    def _add_feature_events(
+        cls,
+        performer_key: str,
+        features_dir: Path,
+        perf_cpt: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Add measured ``Beat`` / ``Dynamics`` events to the seconds timeline.
+
+        Both feature files are discovered by globbing
+        ``<key>_measure*.beats`` / ``<key>_measure*.dyn`` under
+        *features_dir* (the stems are non-uniform — one performer uses
+        ``_measure_fix``, the rest ``_measure``).
+
+        Each ``.beats`` row becomes a ``Beat`` event timed at its
+        ``onset_sec``.  The ``.dyn`` file carries no onset, so each
+        ``.dyn`` row is joined to the ``.beats`` row sharing its
+        ``(measure_number, beat)`` key (1:1) to recover the onset for a
+        ``Dynamics`` event.  Events are faithful measured features — no
+        tempo curve is synthesised.
+
+        Args:
+            performer_key: The stripped performer key (the feature-file
+                stem prefix).
+            features_dir: The dataset's ``features/`` directory.
+            perf_cpt: The performer's seconds (``cpt1``) timeline, already
+                holding its ``Note`` events; feature events are appended in
+                place via ``add_events(..., allow_expansion=True)``.
+        """
+        beats_path = cls._glob_feature_file(features_dir, performer_key, "beats")
+        dyn_path = cls._glob_feature_file(features_dir, performer_key, "dyn")
+
+        beats_rows = cls._read_tsv(beats_path)
+        dyn_rows = cls._read_tsv(dyn_path)
+
+        # Onset lookup for the .dyn join: (measure_number, beat) -> onset_sec.
+        onset_by_key: dict[tuple[str, str], float] = {
+            (row["measure_number"], row["beat"]): float(row["onset_sec"])
+            for row in beats_rows
+        }
+        # The two files are 1:1 on (measure_number, beat): every .dyn row
+        # must find exactly one .beats onset.
+        assert len(onset_by_key) == len(beats_rows), (
+            f"{performer_key}: .beats (measure_number, beat) keys are not "
+            f"unique ({len(onset_by_key)} keys for {len(beats_rows)} rows)"
+        )
+        matched = sum(
+            1
+            for row in dyn_rows
+            if (row["measure_number"], row["beat"]) in onset_by_key
+        )
+        assert matched == len(dyn_rows), (
+            f"{performer_key}: .dyn ↔ .beats join is not 1:1 "
+            f"({matched} of {len(dyn_rows)} .dyn rows matched a .beats onset)"
+        )
+
+        beat_events = [
+            {
+                "id": f"{performer_key}:beat:{i}",
+                "start": float(row["onset_sec"]),
+                "event_type": "Beat",
+                "measure_number": int(row["measure_number"]),
+                "beat": int(row["beat"]),
+                "bpm": float(row["BPM"]),
+                "interp": int(row["interp"]),
+                "swap": int(row["swap"]),
+            }
+            for i, row in enumerate(beats_rows)
+        ]
+        dyn_events = [
+            {
+                "id": f"{performer_key}:dyn:{i}",
+                "start": onset_by_key[(row["measure_number"], row["beat"])],
+                "event_type": "Dynamics",
+                "measure_number": int(row["measure_number"]),
+                "beat": int(row["beat"]),
+                "velocity_mean": float(row["velocity_mean"]),
+                "velocity_max": float(row["velocity_max"]),
+                "interp": int(row["interp"]),
+            }
+            for i, row in enumerate(dyn_rows)
+        ]
+
+        perf_cpt.add_events(beat_events, allow_expansion=True)
+        perf_cpt.add_events(dyn_events, allow_expansion=True)
+
+    @staticmethod
+    def _glob_feature_file(features_dir: Path, performer_key: str, suffix: str) -> Path:
+        """Return the single ``<key>_measure*.<suffix>`` file for a performer.
+
+        Args:
+            features_dir: The dataset's ``features/`` directory.
+            performer_key: The stripped performer key.
+            suffix: The feature-file extension without a dot (``beats`` /
+                ``dyn``).
+
+        Raises:
+            FileNotFoundError: If no matching file (or more than one) is
+                found.
+        """
+        matches = sorted(features_dir.glob(f"{performer_key}_measure*.{suffix}"))
+        if len(matches) != 1:
+            raise FileNotFoundError(
+                f"Expected exactly one '{performer_key}_measure*.{suffix}' file "
+                f"under {features_dir}, found {len(matches)}: "
+                + ", ".join(m.name for m in matches)
+            )
+        return matches[0]
 
     def _build_claims(
         self,
@@ -584,7 +731,60 @@ class ParangonadaLoader(AlignmentLoader):
 
     # endregion
 
+    # region HTML Representation
+
+    def _repr_html_(self) -> str:
+        """Accurate Jupyter summary consistent with :meth:`__repr__`.
+
+        The base :class:`AlignmentLoader` HTML reads the unpopulated
+        per-source ``AlignmentStore`` and reports ``Events: 0``, which
+        contradicts this loader (whose data lives in the assembled
+        timelines and claims).  This override renders the real shape:
+        the performer count, the claim count, and the timeline / group
+        structure.
+        """
+        n_perf = len(self._perf_cpt)
+        n_claims = len(self._claims)
+        loaded = self._score_clt is not None
+
+        parts = [f"<h4>{self.__class__.__name__}</h4>", "<table>"]
+        name = self._name or "(not loaded)"
+        parts.append(f"<tr><td><b>Dataset</b></td><td><code>{name}</code></td></tr>")
+        parts.append(f"<tr><td><b>Performers</b></td><td>{n_perf}</td></tr>")
+        parts.append(f"<tr><td><b>Claims</b></td><td>{n_claims}</td></tr>")
+
+        if loaded:
+            # 2 shared score timelines + 2 per performer; 1 score group + 1
+            # per performer.
+            n_timelines = 2 + 2 * n_perf
+            n_groups = 1 + n_perf
+            parts.append(
+                f"<tr><td><b>Timelines</b></td><td>{n_timelines} "
+                f"in {n_groups} group(s)</td></tr>"
+            )
+            keys = ", ".join(f"<code>{k}</code>" for k in self._perf_cpt)
+            parts.append(f"<tr><td><b>Performer keys</b></td><td>{keys}</td></tr>")
+
+        parts.append(
+            "<tr><td><b>Create</b></td>"
+            "<td>create_bundle(), create_timeline(), create_timelines()</td></tr>"
+        )
+        parts.append("</table>")
+        return "\n".join(parts)
+
+    # endregion
+
     # region Magic Methods
+
+    def __len__(self) -> int:
+        """Number of cross-group MatchClaims (the loader's primary payload).
+
+        The inherited count reads the per-source ``AlignmentStore``, which
+        this whole-directory loader never populates; the claim count is the
+        meaningful size and keeps :meth:`_repr_html_` consistent with
+        :meth:`__repr__`.
+        """
+        return len(self._claims)
 
     def __repr__(self) -> str:
         n_perf = len(self._perf_cpt)
