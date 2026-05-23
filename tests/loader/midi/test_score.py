@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign.loader.midi import ScoreMidiLoader
+from timetoalign.loader.midi import MidiEventData, ScoreMidiEventData, ScoreMidiLoader
 
 
 class TestScoreMidiLoader:
@@ -41,6 +41,39 @@ class TestScoreMidiLoader:
         # (no exception wrapping in score.py, raw partitura error escapes)
         with pytest.raises(EOFError):
             loader.load(empty_file)
+
+    def test_score_emits_wide_schema(self, beethoven_score_path: Path) -> None:
+        """Score MIDI emits the wider 10-extra-column schema.
+
+        Partitura supplies ``voice``, ``staff`` and ``part_id`` per
+        note, so the storage class is :class:`ScoreMidiEventData`
+        (not the narrower performance-side :class:`MidiEventData`).
+        """
+        if not beethoven_score_path.exists():
+            pytest.skip("Test data not found")
+
+        loader = ScoreMidiLoader(part_voice_assign_mode=0)
+        loader.load(beethoven_score_path)
+
+        # Concrete class is the wider subclass.
+        assert type(loader.events) is ScoreMidiEventData
+        # Subclass relationship is preserved.
+        assert isinstance(loader.events, MidiEventData)
+
+        columns = set(loader.events.table.column_names)
+        for required in (
+            "pitch",
+            "velocity",
+            "channel",
+            "track",
+            "control",
+            "value",
+            "program",
+            "voice",
+            "staff",
+            "part_id",
+        ):
+            assert required in columns, f"missing {required} column"
 
 
 if __name__ == "__main__":

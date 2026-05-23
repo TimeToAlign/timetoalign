@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign.loader.midi import MidiEventType, PerformanceMidiLoader
+from timetoalign.loader.midi import (
+    MidiEventData,
+    MidiEventType,
+    PerformanceMidiLoader,
+    ScoreMidiEventData,
+)
 
 
 class TestPerformanceMidiLoader:
@@ -71,3 +76,43 @@ class TestPerformanceMidiLoader:
         assert event["event_type"] == MidiEventType.NOTE
         assert event["pitch"] == 60
         assert event["duration"] == 480
+
+    def test_performance_emits_narrow_schema(self, tmp_path: Path) -> None:
+        """Performance MIDI emits the narrower 7-extra-column schema.
+
+        ``ScoreMidiEventData``-only columns (``voice``, ``staff``,
+        ``part_id``) must NOT appear on the performance-MIDI store —
+        partitura is the only loader that can populate them.
+        """
+        import mido
+
+        mid = mido.MidiFile(type=0)
+        track = mido.MidiTrack()
+        mid.tracks.append(track)
+        track.append(mido.Message("note_on", note=60, velocity=100, time=0))
+        track.append(mido.Message("note_off", note=60, velocity=0, time=480))
+        track.append(mido.Message("control_change", control=64, value=127, time=0))
+        midi_path = tmp_path / "narrow.mid"
+        mid.save(midi_path)
+
+        loader = PerformanceMidiLoader(include_controls=True)
+        loader.load(midi_path)
+
+        # The concrete EventData class is the narrower base, not the
+        # wider score-side subclass.
+        assert type(loader.events) is MidiEventData
+        assert not isinstance(loader.events, ScoreMidiEventData)
+
+        columns = set(loader.events.table.column_names)
+        for required in (
+            "pitch",
+            "velocity",
+            "channel",
+            "track",
+            "control",
+            "value",
+            "program",
+        ):
+            assert required in columns, f"missing {required} column"
+        for forbidden in ("voice", "staff", "part_id"):
+            assert forbidden not in columns, f"unexpected {forbidden} column"

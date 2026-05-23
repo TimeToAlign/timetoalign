@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 # Suppress pkg_resources deprecation warning from partitura
 with warnings.catch_warnings():
@@ -17,6 +17,7 @@ from timetoalign.core import NumberType, TimeUnit
 
 from .base import MidiLoader
 from .constants import MidiEventType
+from .events import MidiEventData, ScoreMidiEventData
 
 
 class ScoreMidiLoader(MidiLoader):
@@ -25,7 +26,13 @@ class ScoreMidiLoader(MidiLoader):
     This loader uses partitura's sophisticated MIDI parsing to extract structural
     information like voices, parts, and specific pitches (optional). It is ideal
     for quantized MIDI files representing scores.
+
+    Emits a :class:`ScoreMidiEventData` (the wider 10-column schema)
+    because partitura supplies the score-only ``voice``, ``staff`` and
+    ``part_id`` columns on top of the cross-loader seven.
     """
+
+    _event_data_class: ClassVar[type[MidiEventData]] = ScoreMidiEventData
 
     def __init__(
         self,

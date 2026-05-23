@@ -12,7 +12,9 @@ Sections (in file order):
 * Pitch scalars + paired Fields (7 pairs)
 * Harmony scalars + paired Fields (5 pairs) — plus the DCML import
   schemas (``DcmlStorageSchema`` etc.) and the ``Inversion`` enum.
-* Event scalars + paired Fields (Note, Measure)
+* Event scalars + paired Fields (Note, Measure, MeasureNumber, Id)
+* MIDI event scalars + paired Fields (``MidiEvent`` base +
+  ``ScoreMidiEvent`` subclass).
 """
 
 from __future__ import annotations
@@ -2214,7 +2216,179 @@ class IdField(SemanticField[Id]):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 4. COMPLEX NUMBER STUB — placeholder for future Fourier work
+# 4. MIDI EVENT (BASE + SCORE SUBCLASS)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class MidiEvent(BaseModel):
+    """Performance MIDI event scalar (mido-shaped). 7 cross-loader fields.
+
+    Storage struct (derived): nested — ``pitch`` is a
+    ``struct<midi_number: int64>`` (from :class:`EnharmonicPitch`); the
+    other six sub-fields are nullable ``int64``.  Velocity, channel,
+    track, control, value, program are all optional 0–127 (channel
+    0–15, track for multi-track files).  Pitch is present for note
+    events, ``None`` for Control Change / Program Change.  The wider
+    score-side variant is :class:`ScoreMidiEvent`, which extends this
+    base with three partitura-only fields.
+
+    This scalar is the cross-loader intersection of the columns mido
+    and partitura can produce, and is the storage shape emitted by
+    ``PerformanceMidiLoader``.  Score-only fields (``voice`` /
+    ``staff`` / ``part_id``) live on the subclass rather than as
+    always-null columns on every performance MIDI table, so the
+    storage stays minimal.
+    """
+
+    model_config = ConfigDict(frozen=True, slots=True)
+
+    pitch: EnharmonicPitch | None = None
+    velocity: int | None = None
+    channel: int | None = None
+    track: int | None = None
+    control: int | None = None
+    value: int | None = None
+    program: int | None = None
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> "MidiEvent | None":
+        """Reconstruct a :class:`MidiEvent` from a storage-row dict.
+
+        Accepts the dict shape produced by ``pa.StructArray.to_pylist()``
+        on the column-builder output:
+
+        * ``pitch``: either ``None`` or a nested ``{"midi_number": int}``
+          dict (translated into an :class:`EnharmonicPitch` via its own
+          ``from_row``).
+        * The six other fields are pass-through ``int | None``.
+
+        Returns ``None`` for a ``None`` row (the null-struct slot).
+        """
+        if row is None:
+            return None
+        pitch_raw = row.get("pitch")
+        if isinstance(pitch_raw, dict):
+            pitch = EnharmonicPitch.from_row(pitch_raw)
+        elif pitch_raw is None:
+            pitch = None
+        else:
+            pitch = EnharmonicPitch(midi_number=int(pitch_raw))
+        return cls(
+            pitch=pitch,
+            velocity=row.get("velocity"),
+            channel=row.get("channel"),
+            track=row.get("track"),
+            control=row.get("control"),
+            value=row.get("value"),
+            program=row.get("program"),
+        )
+
+    def __repr__(self) -> str:
+        parts: list[str] = []
+        if self.pitch is not None:
+            parts.append(f"pitch={self.pitch!r}")
+        if self.velocity is not None:
+            parts.append(f"velocity={self.velocity}")
+        if self.channel is not None:
+            parts.append(f"channel={self.channel}")
+        if self.track is not None:
+            parts.append(f"track={self.track}")
+        if self.control is not None:
+            parts.append(f"control={self.control}")
+        if self.value is not None:
+            parts.append(f"value={self.value}")
+        if self.program is not None:
+            parts.append(f"program={self.program}")
+        return f"{type(self).__name__}({', '.join(parts)})"
+
+
+class MidiEventField(SemanticField[MidiEvent]):
+    """Paired Field for :class:`MidiEvent`.
+
+    Empty body — :class:`MidiEvent` carries no ``@data_shaped``
+    methods, so the parity check is trivially satisfied.  The class
+    exists to give the paired-class shape (``Object`` + ``ObjectField``)
+    a stable home and to integrate with
+    ``EventData.get_field(MidiEvent)`` dispatch.
+    """
+
+
+class ScoreMidiEvent(MidiEvent):
+    """Score MIDI event scalar (partitura-shaped).
+
+    Extends :class:`MidiEvent` with three partitura-only fields:
+    ``voice``, ``staff``, ``part_id``.  The derived ``pa.StructType``
+    is a **separate (wider) struct** than :class:`MidiEvent`'s — the
+    column-builder produces two distinct shapes; there is no shared
+    layout and no struct subtyping.  This is the storage shape
+    emitted by ``ScoreMidiLoader``.
+    """
+
+    voice: int | None = None
+    staff: int | None = None
+    part_id: str | None = None
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> "ScoreMidiEvent | None":
+        """Reconstruct a :class:`ScoreMidiEvent` from a storage-row dict.
+
+        Accepts the wider 10-field dict shape produced by
+        :func:`build_struct_array` on this scalar; mirrors
+        :meth:`MidiEvent.from_row` with the three score-only fields
+        (``voice`` / ``staff`` / ``part_id``) appended.
+        """
+        if row is None:
+            return None
+        pitch_raw = row.get("pitch")
+        if isinstance(pitch_raw, dict):
+            pitch = EnharmonicPitch.from_row(pitch_raw)
+        elif pitch_raw is None:
+            pitch = None
+        else:
+            pitch = EnharmonicPitch(midi_number=int(pitch_raw))
+        return cls(
+            pitch=pitch,
+            velocity=row.get("velocity"),
+            channel=row.get("channel"),
+            track=row.get("track"),
+            control=row.get("control"),
+            value=row.get("value"),
+            program=row.get("program"),
+            voice=row.get("voice"),
+            staff=row.get("staff"),
+            part_id=row.get("part_id"),
+        )
+
+    def __repr__(self) -> str:
+        # ``super().__repr__()`` returns "ScoreMidiEvent(...)" because
+        # it uses ``type(self).__name__``; pop off the wrapper, append
+        # our extras, and re-wrap so the subclass fields are visible.
+        base = super().__repr__()
+        inner = base.split("(", 1)[1].rsplit(")", 1)[0]
+        extras: list[str] = []
+        if self.voice is not None:
+            extras.append(f"voice={self.voice}")
+        if self.staff is not None:
+            extras.append(f"staff={self.staff}")
+        if self.part_id is not None:
+            extras.append(f"part_id={self.part_id!r}")
+        parts = [p for p in (inner, *extras) if p]
+        return f"{type(self).__name__}({', '.join(parts)})"
+
+
+class ScoreMidiEventField(SemanticField[ScoreMidiEvent]):
+    """Paired Field for :class:`ScoreMidiEvent`.
+
+    Empty body — :class:`ScoreMidiEvent` carries no ``@data_shaped``
+    methods, so the parity check is trivially satisfied.  The class
+    exists to give the paired-class shape (``Object`` + ``ObjectField``)
+    a stable home and to integrate with
+    ``EventData.get_field(ScoreMidiEvent)`` dispatch.
+    """
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. COMPLEX NUMBER STUB — placeholder for future Fourier work
 # ═══════════════════════════════════════════════════════════════════════════
 
 

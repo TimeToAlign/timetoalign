@@ -110,8 +110,12 @@ class MidiStore(EventStore):
         # Filter notes
         notes = data.filter(event_type="Note")
 
-        # Filter controls: accumulate all control event types
-        controls = MidiEventData.empty(data.unit, data.number_type)
+        # Filter controls: accumulate all control event types.  Use the
+        # incoming data's concrete class so the wider score-MIDI schema
+        # is preserved when present; ``MidiEventData.filter`` already
+        # honours ``self.__class__`` for the notes branch above.
+        concrete_cls = type(data)
+        controls = concrete_cls.empty(data.unit, data.number_type)
         for event_type in CONTROL_EVENT_TYPES:
             filtered = data.filter(event_type=event_type)
             if len(filtered) > 0:

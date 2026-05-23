@@ -13,20 +13,42 @@ To handle this, `timetoalign` provides two specialized loaders that map these di
 
 ## 2. Loader Schemata & Fields
 
-The `MidiEventData` uses a superset schema. Each loader populates a subset of fields appropriate for its paradigm.
+Two concrete `EventData` subclasses model the cross-loader vs
+loader-specific split, so the storage schema is the minimal set of
+columns each loader can populate:
 
-| Field | Type | `PerformanceMidiLoader` (mido) | `ScoreMidiLoader` (partitura) | Notes |
+* `MidiEventData` — used by `PerformanceMidiLoader`. Carries the
+  seven cross-loader columns: `pitch`, `velocity`, `channel`,
+  `track`, `control`, `value`, `program`.
+* `ScoreMidiEventData(MidiEventData)` — used by `ScoreMidiLoader`.
+  Extends the base with three partitura-only columns: `voice`,
+  `staff`, `part_id`.
+
+The previous unified-superset schema (with always-null `voice` /
+`staff` / `part_id` columns on every performance-MIDI store) has
+been retired — those columns existed only on the score side and
+storing them as nulls on performance data was redundant.
+
+| Field | Type | `MidiEventData` | `ScoreMidiEventData` | Source / notes |
 | :--- | :--- | :--- | :--- | :--- |
-| `start` | Coordinate | Exact Tick | Quantized Tick (Div) | |
-| `duration` | Coordinate | Exact Duration | Quantized Duration | |
-| `pitch` | int8 | MIDI Number (0-127) | MIDI Number (0-127) | Partitura also has spelling, but we store MIDI pitch. |
-| `velocity` | int8 | **Measured Velocity** | *Default (64)* | Score MIDI rarely contains meaningful velocity. |
-| `channel` | int8 | **Source Channel** | *Derived/Null* | Partitura maps channels to parts. |
-| `track` | int16 | **Source Track** | *Derived/Null* | |
-| `control` | int8 | **Captured** | *Ignored* | CC messages are performance-specific. |
-| `voice` | int8 | *Null* | **Extracted** | Voice separation (polyphony analysis). |
-| `staff` | int8 | *Null* | **Extracted** | Staff assignment (LH/RH). |
-| `part_id` | string | *Null* | **Extracted** | Part ID from score structure. |
+| `start` | Coordinate | yes | yes | Exact tick (mido) / quantized tick (partitura) |
+| `duration` | Coordinate | yes | yes | Exact / quantized |
+| `pitch` | int8 | yes | yes | MIDI number (0–127) |
+| `velocity` | int8 | **measured** | default 64 | Score MIDI rarely carries velocity |
+| `channel` | int8 | **source channel** | derived / null | Partitura maps channels to parts |
+| `track` | int16 | **source track** | derived / null | |
+| `control` | int8 | **captured** | ignored | CC is performance-specific |
+| `value` | int8 | **captured** | ignored | CC / Program value |
+| `program` | int8 | **captured** | ignored | Program Change |
+| `voice` | int8 | *(absent)* | **extracted** | Voice separation |
+| `staff` | int8 | *(absent)* | **extracted** | LH / RH assignment |
+| `part_id` | string | *(absent)* | **extracted** | Part ID from score structure |
+
+The paired pydantic scalars `MidiEvent` (7 fields) and
+`ScoreMidiEvent(MidiEvent)` (+3 fields) live in `core/events.py`;
+their derived `pa.Schema` shapes are the two distinct semantic
+fingerprints these EventData subclasses round-trip via
+`SemanticField` / `EventData.get_field(...)`.
 
 ## 3. The Three Parsing Approaches
 
@@ -80,9 +102,9 @@ On `supra_raw.mid`, we observed a difference of exactly 4 events:
 
 **Status**: VALIDATED. The loaders produce musically equivalent note data.
 
-## 6. Test Status (Feb 2026)
+## 6. Test Status
 
-**All 33 tests passing.**
+**All MIDI-loader tests passing under the split schema.**
 
 ### Bug Fix History
 
@@ -94,8 +116,13 @@ On `supra_raw.mid`, we observed a difference of exactly 4 events:
 
 | File | Tests | Purpose |
 |------|-------|---------|
-| `test_performance.py` | 3 | PerformanceMidiLoader (mido parsing) |
-| `test_score.py` | 2 | ScoreMidiLoader (partitura parsing) |
-| `test_harmonization.py` | 2 | Cross-loader validation |
-| `test_store.py` | 3 | MidiEventData schema |
-| `test_bundle.py` | 23 | MidiStore/MidiBundle operations |
+| `test_performance.py` | 4 | `PerformanceMidiLoader` (mido parsing); pins the narrower 7-extra-column schema |
+| `test_score.py` | 3 | `ScoreMidiLoader` (partitura parsing); pins the wider 10-extra-column schema |
+| `test_harmonization.py` | 2 | Cross-loader Note-count validation |
+| `test_store.py` | 7 | `MidiEventData` + `ScoreMidiEventData` schema contracts |
+| `test_bundle.py` | 23 | `MidiStore` operations (filter / merge / canonical iteration) |
+
+Scalar-side coverage for `MidiEvent` / `ScoreMidiEvent` lives at
+`tests/core/test_midi_event.py` (16 tests) — pydantic construction,
+`derive_arrow_schema` shape, and the column-builder → `from_field`
+round-trip for both scalars.

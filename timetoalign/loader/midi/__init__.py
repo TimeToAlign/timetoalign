@@ -14,7 +14,7 @@ If you attempt to import a loader whose dependency is not installed, an
 
 from .base import MidiLoader
 from .constants import CC_PURPOSE, MidiEventType
-from .events import MidiEventData
+from .events import MidiEventData, ScoreMidiEventData
 from .store import MidiStore
 
 __all__ = [
@@ -23,6 +23,7 @@ __all__ = [
     "MidiEventType",
     "MidiLoader",
     "MidiStore",
+    "ScoreMidiEventData",
 ]
 
 # ---------------------------------------------------------------------------
