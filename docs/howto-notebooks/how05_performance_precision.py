@@ -201,7 +201,12 @@ bundle
 # %% [markdown]
 # Each recording was aligned at three granularities — note, bar, and beat — and
 # the loader records which one produced each claim in its metadata. Counting the
-# claims for one performer shows the shape of a single recording's alignment:
+# claims for one performer shows the shape of a single recording's alignment.
+# A {{< glossary NOMATCH >}} claim prints its unmatched score coordinate
+# (`score:clt1@…`) so the dangling position stays legible at a glance:
+
+# %%
+bundle.cross_group_claims
 
 # %%
 ashkenazy_claims = [c for c in bundle.cross_group_claims if c.connects(ashkenazy.id)]

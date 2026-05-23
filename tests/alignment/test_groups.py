@@ -497,6 +497,44 @@ class TestConvert:
         result = group.convert(30.0, source="audio", target="score")
         assert result is None
 
+    def test_convert_accepts_coordinate_objects(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """convert() accepts raw value, Coordinate, and IdCoordinate forms.
+
+        The endpoints are named by ``source``/``target``, so an IdCoordinate's
+        own timeline_id is informational only; its value is what is converted.
+        """
+        from timetoalign.core import Coordinate, IdCoordinate
+        from timetoalign.core.enums import TimeUnit
+
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        raw = group.convert(75.0, source="audio", target="dgt1")
+        assert raw == 2438
+        from_coord = group.convert(
+            Coordinate(75.0, TimeUnit.seconds), source="audio", target="dgt1"
+        )
+        assert from_coord == 2438
+        from_id = group.convert(
+            IdCoordinate(75.0, TimeUnit.seconds, "audio"),
+            source="audio",
+            target="dgt1",
+        )
+        assert from_id == 2438
+
+    def test_convert_rejects_unsupported_type(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """convert() raises TypeError for a non-coordinate value."""
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+        with pytest.raises(TypeError, match="coordinate must be"):
+            group.convert("x", source="audio", target="dgt1")  # type: ignore[arg-type]
+
 
 # endregion
 

@@ -267,6 +267,9 @@ class MatchClaim:
         event_a_name: Name/label of the event on timeline A (if known).
         event_b_id: ID of the event on timeline B (if known).
         event_b_name: Name/label of the event on timeline B (if known).
+        source_coordinate: Unmatched source-side coordinate for a NOMATCH
+            claim. None for synchronous claims, whose coordinate is held by
+            the anchor instead.
         id: Unique identifier for this claim.
 
     Examples:
@@ -304,6 +307,7 @@ class MatchClaim:
     event_a_name: str | None = None
     event_b_id: str | None = None
     event_b_name: str | None = None
+    source_coordinate: float | None = None
     id: str = field(default="")
     _bundle: Any = field(default=None, compare=False, hash=False, repr=False)
 
@@ -694,11 +698,16 @@ class MatchClaim:
             metadata: Provenance information.
 
         Returns:
-            A non-synchronous MatchClaim with no anchors but source event info.
+            A non-synchronous MatchClaim with no anchors but source event
+            info. The source-side coordinate (``event["start"]``) is
+            preserved as ``source_coordinate`` for display.
         """
         # Extract event info from source event
         event_a_id = str(event["id"]) if event.get("id") is not None else None
         event_a_name = str(event["name"]) if event.get("name") is not None else None
+        source_coordinate = (
+            float(event["start"]) if event.get("start") is not None else None
+        )
 
         return cls(
             timeline_a_id=source_tl_id,
@@ -712,6 +721,7 @@ class MatchClaim:
             event_a_name=event_a_name,
             event_b_id=None,
             event_b_name=None,
+            source_coordinate=source_coordinate,
         )
 
     @classmethod
@@ -770,6 +780,7 @@ class MatchClaim:
             "event_a_name": self.event_a_name,
             "event_b_id": self.event_b_id,
             "event_b_name": self.event_b_name,
+            "source_coordinate": self.source_coordinate,
         }
         if self.source_claim_id is not None:
             data["source_claim_id"] = self.source_claim_id
@@ -818,6 +829,7 @@ class MatchClaim:
             event_a_name=data.get("event_a_name"),
             event_b_id=data.get("event_b_id"),
             event_b_name=data.get("event_b_name"),
+            source_coordinate=data.get("source_coordinate"),
             id=data.get("id", ""),
         )
 
@@ -827,14 +839,15 @@ class MatchClaim:
         if not self.is_explicit:
             flags.append("inferred")
         if not self.is_synchronous:
-            flags.append("non-synchronous")
+            flags.append("NOMATCH")
         flag_str = f" [{', '.join(flags)}]" if flags else ""
 
         if not self.is_synchronous:
-            return (
-                f"MatchClaim({self.timeline_a_id} <-> "
-                f"{self.timeline_b_id}{flag_str})"
-            )
+            if self.source_coordinate is not None:
+                timeline_a = f"{self.timeline_a_id}@{self.source_coordinate:.1f}"
+            else:
+                timeline_a = self.timeline_a_id
+            return f"MatchClaim({timeline_a} <-> {self.timeline_b_id}{flag_str})"
 
         if self.is_interval:
             start_a, end_a = self.get_coordinates_for(self.timeline_a_id)

@@ -257,6 +257,31 @@ Anchors are value objects — identified entirely by their coordinates. Immutabi
 | `test_nomatch_constructor` | `nomatch()` has no anchors, `is_synchronous=False` |
 | `test_implicit_constructor` | `implicit()` records `source_claim_id` for traceability |
 
+### NOMATCH Coordinate Preservation & Repr
+
+A NOMATCH claim records the *unmatched source-side coordinate* in a
+`source_coordinate` field. Synchronous claims leave it `None` because their
+coordinate already lives on the anchor (minimal-schema: the coordinate is
+stored once, never duplicated). `nomatch()` extracts it from
+`event["start"]`; `to_dict()`/`from_dict()` round-trip it so a serialised
+NOMATCH claim reconstructs identically.
+
+The `__repr__` of a NOMATCH claim shows that coordinate next to the source
+timeline and tags the claim with the flag word `NOMATCH` (not the internal
+field name "non-synchronous"). When no source coordinate is known the repr
+falls back to the bare timeline id.
+
+| Test | Validates |
+|------|-----------|
+| `test_repr_non_synchronous` | NOMATCH claim repr carries the `NOMATCH` flag and never the literal "non-synchronous" |
+| `test_repr_nomatch_with_coordinate_exact` | Exact string `MatchClaim(score:clt1@188.8 <-> perf:Chopin_Ashkenazy [NOMATCH])`; `source_coordinate == 188.8` |
+| `test_repr_nomatch_without_coordinate` | No `start` in the event ⇒ `source_coordinate is None` and repr drops the `@coord` segment |
+| `test_nomatch_source_coordinate_roundtrip` | `from_dict(to_dict())` preserves `source_coordinate` and equals the original |
+| `test_repr_synchronous_instant_unchanged` | Regression guard: a synchronous instant repr is byte-for-byte unchanged and its `source_coordinate is None` |
+
+These assertions are exact strings (ZERO TOLERANCE), pinning both the new
+NOMATCH form and the unchanged synchronous form.
+
 ### The Mismatch Test in Detail
 
 ```python
@@ -559,6 +584,42 @@ result = warp.forward(source_coord)
 
 The cache is keyed by `(source_group_id, target_group_id)` and invalidated whenever `add_match_claims()` is called. This avoids redundant `MatchLine.from_claims()` + `WarpMap.from_match_line()` computation for repeated queries.
 
+### Coordinate-Type Parity (raw / Coordinate / IdCoordinate)
+
+Every coordinate-accepting query method must accept a raw `int`/`float`/
+`Fraction`, a `Coordinate`, or an `IdCoordinate` and resolve all three to the
+same result. For methods that pair a coordinate with the id of the timeline it
+lives on (`get_matchstamp_at`, `get_timestamp_at`), an `IdCoordinate` supplies
+that id, so the `timeline_id` argument becomes optional; passing a non-Id
+coordinate without an explicit `timeline_id` is an error. For methods whose
+endpoints are explicit positional names (`transfer`, `transfer_interval`), the
+coordinate's value is used and any embedded `IdCoordinate.timeline_id` is
+informational only — the endpoint names decide direction.
+
+These tests reuse the existing `_make_cross_group_bundle()` +
+`_make_linear_claims()` fixtures (no new corpus). The claims map
+`score_t → audio_t` linearly (`audio = score * 0.5`), so a query at score 100
+resolves to audio 50 — an exact value with no interpolation rounding. Parity is
+asserted by comparing the whole result across all three call forms, plus a
+pinned concrete value.
+
+A key implementation detail documented in the helper docstring: the MatchGraph
+that backs `get_matchstamp_at` is keyed on the timeline ids carried by the
+claims (the *actual* timeline ids), whereas `transfer` and `get_timestamp_at`
+are keyed on the bundle *UIDs*. The tests pass the right key space to each
+method accordingly.
+
+| Test class | Validates |
+|------------|-----------|
+| `TestGetMatchstampAtCoordinateParity` | raw / Coordinate / IdCoordinate-alone agree; `score 100 → audio 50`; missing `timeline_id` ⇒ `ValueError`; non-coordinate type ⇒ `TypeError` |
+| `TestGetTimestampAtCoordinateParity` | same three forms produce identical whole-dict results; error paths identical |
+| `TestTransferCoordinateParity` | `transfer`/`transfer_interval` reduce Coordinate/IdCoordinate to the value; endpoints stay positional; non-coordinate ⇒ `TypeError` |
+
+The same parity is validated for `TimelineGroup.convert()` in
+`test_groups.py::TestConvert` (`test_convert_accepts_coordinate_objects`,
+`test_convert_rejects_unsupported_type`): `convert(75 seconds → dgt1)` returns
+the exact pixel value `2438` for all three coordinate forms.
+
 ---
 
 ## WarpMap Tests (`test_warpmap.py`)
@@ -668,9 +729,9 @@ python -m pytest tests/alignment/ -v
 | File | Tests | Description |
 |------|-------|-------------|
 | `conftest.py` | — | Shared fixtures and constants: Thoresen timeline fixtures (`dgt1_timeline`, `dgt2_timeline`, `audio_timeline`, `thoresen_segment_claims`), DGT1/DGT2 coordinate constants, `autouse` ID reset fixture, graphical bundle fixtures |
-| `test_groups.py` | 58 | TimelineGroup, GroupTimestamp, and unified TimeStamp API |
-| `test_bundle.py` | 61 | AlignmentBundle: linear/partial alignment, cross-group transfer, timestamps, commensurability, caching, edge cases |
-| `test_anchors.py` | ~55 | AlignmentAnchor, MatchClaim, MatchMetadata |
+| `test_groups.py` | 79 | TimelineGroup, GroupTimestamp, unified TimeStamp API, `convert()` coordinate-type parity |
+| `test_bundle.py` | 75 | AlignmentBundle: linear/partial alignment, cross-group transfer, timestamps, commensurability, caching, edge cases, coordinate-type parity (raw/Coordinate/IdCoordinate) |
+| `test_anchors.py` | 62 | AlignmentAnchor, MatchClaim (incl. NOMATCH coordinate preservation + repr), MatchMetadata |
 | `test_graph.py` | 54 | MatchGraph operations (implicit claims, filtering, stamps); imports Thoresen fixtures from conftest |
 | `test_matchline.py` | 33 | MatchLine construction, from_claims, from_graphs, coordinate pairs, serialization; imports Thoresen fixtures from conftest |
 | `test_warpmap.py` | 36 | WarpMap construction, forward/inverse, materialise (events, children, regions, type conversion), serialization, end-to-end pipeline |
