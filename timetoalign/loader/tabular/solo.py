@@ -27,9 +27,9 @@ Example::
 
 * Step 1 splits the composite ``position`` column into a
   ``measure_number`` + ``mn_onset`` struct via
-  :class:`CompositeFieldSpec`; the ``duration`` column is parsed by
-  :class:`FractionFieldSpec` with a bound unit, promoting it to a
-  semantic :class:`DenominateNumberField` directly.
+  :class:`CompositeFieldParser`; the ``duration`` column is parsed by
+  a :class:`DenominateNumberField` blueprint bound to
+  ``TimeUnit.quarters``.
 * Step 2 promotes the integer ``pitch`` column to an
   :class:`EnharmonicPitchField` and the string ``note_id`` column to a
   paired :class:`IdField`, using the blueprint-mode
@@ -41,20 +41,19 @@ from __future__ import annotations
 from typing import Any, ClassVar
 
 from timetoalign.core import (
+    DenominateNumberField,
     EnharmonicPitchField,
     IdField,
+    IntField,
     MeasureNumberField,
     NumberType,
+    RationalField,
+    StringField,
     TimeUnit,
 )
 
 from .csv import CsvLoader
-from .field_specs import (
-    CompositeFieldSpec,
-    FractionFieldSpec,
-    IntFieldSpec,
-    StringFieldSpec,
-)
+from .field_parsers import CompositeFieldParser
 
 # region SoloLoader
 
@@ -99,21 +98,21 @@ class SoloLoader(CsvLoader):
 
     column_specs: ClassVar[list[Any]] = [
         # col 0: measure_number + fractional onset within the measure.
-        CompositeFieldSpec(
+        CompositeFieldParser(
             separator="+",
             parts=[
-                MeasureNumberField,  # int-backed; default part name 'measure_number'
-                FractionFieldSpec(name="mn_onset"),  # raw RationalField (raw fraction)
+                MeasureNumberField,  # SemanticField class — default name 'measure_number'
+                RationalField(name="mn_onset"),  # raw rational struct
             ],
             name="position",
         ),
-        # col 1: duration as a fraction of a quarter note.
-        FractionFieldSpec(name="duration", unit=TimeUnit.quarters),
+        # col 1: duration as a fraction of a quarter note (semantic).
+        DenominateNumberField(name="duration", unit=TimeUnit.quarters),
         # cols 2–5: simple typed columns.
-        IntFieldSpec(name="channel"),
-        IntFieldSpec(name="pitch"),
-        IntFieldSpec(name="velocity"),
-        StringFieldSpec(name="note_id"),
+        IntField(name="channel"),
+        IntField(name="pitch"),
+        IntField(name="velocity"),
+        StringField(name="note_id"),
     ]
 
     field_specs: ClassVar[list[Any]] = [

@@ -325,12 +325,13 @@ event per line) produced by a performance-analysis tool.  Six columns:
 
 ### Composite-part naming convention
 
-When the iterable form of `CompositeFieldSpec(parts=[...])` is given an
-unnamed entry that resolves to a paired SemanticField subclass (e.g.
-`MeasureNumberField`), the resulting sub-field's default name is the
-class name minus the `Field` suffix, snake-cased: `MeasureNumberField`
-→ `measure_number`.  When the resolved entry is a `FieldSpec` instance
-with an explicit `name=`, that name is used directly.  Otherwise the
-fallback is `f"part_{i}"`.  This is exercised end-to-end in
+When the iterable form of `CompositeFieldParser(parts=[...])` is given
+an unnamed entry that resolves to a paired SemanticField subclass
+(e.g. `MeasureNumberField`), the resulting sub-field's default name is
+the class name minus the `Field` suffix, snake-cased:
+`MeasureNumberField` → `measure_number`.  When the resolved entry is a
+DataField blueprint or a `FieldParser` instance with an explicit
+`name=`, that name is used directly.  Otherwise the fallback is
+`f"part_{i}"`.  This is exercised end-to-end in
 `test_solo_loader.py` (the `position` column splits into
 `measure_number` + `mn_onset`).

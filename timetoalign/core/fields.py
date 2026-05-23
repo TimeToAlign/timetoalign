@@ -25,6 +25,7 @@ Layout convention: five labelled sections — base hierarchy → translator
 from __future__ import annotations
 
 import json
+import re
 import sys
 from abc import ABC, abstractmethod
 from fractions import Fraction
@@ -42,7 +43,9 @@ from typing import (
     get_origin,
 )
 
+import numpy as np
 import pyarrow as pa
+import pyarrow.compute as pc
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
@@ -131,22 +134,70 @@ class DataField(ABC):
     ``pa.Field`` schema descriptor, providing convenient access to data,
     metadata, and type information.
 
+    Two construction modes:
+
+    * **Live mode:** pass ``data`` (a ``pa.Array``/``pa.ChunkedArray``)
+      plus an explicit ``field``.  The DataField wraps the pair.
+    * **Blueprint mode:** pass only ``name=<str>`` (without ``field=``).
+      The DataField is materialised as schema-only with a ``pa.Field``
+      whose type comes from the subclass's class-level
+      ``_blueprint_pa_type`` default.  ``data`` may also be omitted
+      (defaults to ``None``).  Blueprints are intended to be
+      materialised later via :meth:`emit`.
+
     Args:
         data: The PyArrow array holding field values, or ``None`` for
             schema-only (empty) fields.
         field: The PyArrow field descriptor carrying name, type, and
-            metadata.
+            metadata.  When omitted, ``name=`` triggers blueprint mode.
+        name: When ``field`` is ``None``, the blueprint name for a
+            schema-only construction; the type comes from
+            ``cls._blueprint_pa_type``.
 
     Attributes:
         _data: The underlying array (may be ``None``).
         _field: The PyArrow field descriptor.
     """
 
+    # Default ``pa.DataType`` used by blueprint construction (``name=``
+    # only, without ``field=``).  Concrete leaves override this; the
+    # abstract base leaves it as ``None`` so :meth:`_default_blueprint_pa_type`
+    # raises an explicit error.
+    _blueprint_pa_type: ClassVar[pa.DataType | None] = None
+
     def __init__(
-        self, data: pa.Array | pa.ChunkedArray | None, field: pa.Field
+        self,
+        data: pa.Array | pa.ChunkedArray | None = None,
+        field: pa.Field | None = None,
+        *,
+        name: str | None = None,
     ) -> None:
-        self._data = data
-        self._field = field
+        if field is not None:
+            self._data = data
+            self._field = field
+            return
+        if name is None:
+            raise TypeError(f"{type(self).__name__} requires either field= or name=")
+        pa_type = self._default_blueprint_pa_type()
+        self._data = data  # typically ``None`` for a blueprint
+        self._field = pa.field(name, pa_type)
+
+    @classmethod
+    def _default_blueprint_pa_type(cls) -> pa.DataType:
+        """Return the default ``pa.DataType`` for blueprint construction.
+
+        Override on each concrete leaf via the ``_blueprint_pa_type``
+        ClassVar.  Classes without a blueprint default (e.g.
+        :class:`StructField` and :class:`MapField`, whose concrete shape
+        is user-defined) MUST be constructed with an explicit ``field=``
+        argument.
+        """
+        t = getattr(cls, "_blueprint_pa_type", None)
+        if t is None:
+            raise TypeError(
+                f"{cls.__name__} has no blueprint pa_type; pass field= explicitly"
+            )
+        return t
 
     # -- properties ----------------------------------------------------------
 
@@ -253,6 +304,44 @@ class DataField(ABC):
         """Return the ``pa.Field`` descriptor (with metadata)."""
         return self._field
 
+    # -- blueprint materialisation ------------------------------------------
+
+    def emit(
+        self,
+        source: pa.Array | pa.ChunkedArray,
+        *,
+        name: str | None = None,
+    ) -> "DataField":
+        """Materialise a live DataField from a source array.
+
+        The default implementation casts ``source`` to this field's
+        :attr:`pa_type` and wraps the result in a new instance of
+        ``type(self)`` carrying the blueprint's name (or the explicit
+        ``name=`` override).  Subclasses whose semantics are not a
+        simple cast (e.g. :class:`RationalField` parses ``"n/d"``
+        strings; :class:`DenominateNumberField` also stamps unit
+        metadata) override this method.
+
+        Args:
+            source: The raw source column.
+            name: Optional override for the emitted field's name.
+                Defaults to :attr:`name`.
+
+        Returns:
+            A new live DataField of the same class.
+
+        Raises:
+            TypeError: If called on a non-blueprint (live) field.
+        """
+        if not self.is_empty:
+            raise TypeError(
+                f"{type(self).__name__}.emit() can only be called on a blueprint "
+                f"(empty DataField); this instance has live data"
+            )
+        out_name = name if name is not None else self.name
+        casted = pc.cast(source, self.pa_type)
+        return type(self)(casted, pa.field(out_name, self.pa_type))
+
     # -- abstract factory ----------------------------------------------------
 
     @classmethod
@@ -278,21 +367,36 @@ class NumericField(DataField):
     """A DataField backed by a numeric (integer or floating-point) array.
 
     Validates at construction time that the PyArrow type is numeric.
+    Subclasses :class:`IntField` and :class:`FloatField` pin a concrete
+    blueprint ``pa.DataType`` so they can be constructed with ``name=``
+    alone; the abstract ``NumericField`` has no blueprint default.
 
     Args:
         data: Numeric PyArrow array, or ``None``.
-        field: PyArrow field descriptor.
+        field: PyArrow field descriptor (live mode).
+        name: Blueprint name (when ``field`` is ``None``); the
+            ``pa.DataType`` comes from the subclass's
+            :attr:`_blueprint_pa_type`.
 
     Raises:
         TypeError: If the field type is not numeric.
     """
 
     def __init__(
-        self, data: pa.Array | pa.ChunkedArray | None, field: pa.Field
+        self,
+        data: pa.Array | pa.ChunkedArray | None = None,
+        field: pa.Field | None = None,
+        *,
+        name: str | None = None,
     ) -> None:
-        if not (pa.types.is_integer(field.type) or pa.types.is_floating(field.type)):
-            raise TypeError(f"NumericField requires a numeric type, got {field.type}")
-        super().__init__(data, field)
+        super().__init__(data, field, name=name)
+        if not (
+            pa.types.is_integer(self._field.type)
+            or pa.types.is_floating(self._field.type)
+        ):
+            raise TypeError(
+                f"NumericField requires a numeric type, got {self._field.type}"
+            )
 
     def __getitem__(self, i: int) -> int | float:
         """Return the *i*-th element as ``int`` or ``float``.
@@ -322,23 +426,85 @@ class NumericField(DataField):
         return cls(data, field)
 
 
+class IntField(NumericField):
+    """A :class:`NumericField` pinned to ``pa.int64`` for blueprint use.
+
+    Constructing ``IntField(name="x")`` yields a schema-only field of
+    type ``pa.int64()`` suitable for :meth:`emit`-time materialisation.
+    Live-mode construction (``IntField(data, field)``) still validates
+    the field type via the :class:`NumericField` base.
+    """
+
+    _blueprint_pa_type: ClassVar[pa.DataType] = pa.int64()
+
+
+class FloatField(NumericField):
+    """A :class:`NumericField` pinned to ``pa.float64`` for blueprint use.
+
+    Constructing ``FloatField(name="x")`` yields a schema-only field of
+    type ``pa.float64()`` suitable for :meth:`emit`-time materialisation.
+    Live-mode construction still validates the field type via the
+    :class:`NumericField` base.
+    """
+
+    _blueprint_pa_type: ClassVar[pa.DataType] = pa.float64()
+
+
 class StringField(DataField):
     """A DataField backed by a string (utf8 / large_utf8) array.
 
+    Usable as a blueprint directly: ``StringField(name="x")`` constructs
+    a schema-only field with :func:`pa.string` as its type.
+
     Args:
         data: String PyArrow array, or ``None``.
-        field: PyArrow field descriptor.
+        field: PyArrow field descriptor (live mode).
+        name: Blueprint name (when ``field`` is ``None``).
 
     Raises:
         TypeError: If the field type is not string-like.
     """
 
+    _blueprint_pa_type: ClassVar[pa.DataType] = pa.string()
+
     def __init__(
-        self, data: pa.Array | pa.ChunkedArray | None, field: pa.Field
+        self,
+        data: pa.Array | pa.ChunkedArray | None = None,
+        field: pa.Field | None = None,
+        *,
+        name: str | None = None,
     ) -> None:
-        if not (pa.types.is_string(field.type) or pa.types.is_large_string(field.type)):
-            raise TypeError(f"StringField requires a string type, got {field.type}")
-        super().__init__(data, field)
+        super().__init__(data, field, name=name)
+        if not (
+            pa.types.is_string(self._field.type)
+            or pa.types.is_large_string(self._field.type)
+        ):
+            raise TypeError(
+                f"StringField requires a string type, got {self._field.type}"
+            )
+
+    def emit(
+        self,
+        source: pa.Array | pa.ChunkedArray,
+        *,
+        name: str | None = None,
+    ) -> "StringField":
+        """Materialise a live StringField from a source array.
+
+        Non-string source dtypes are cast to ``pa.string()`` before
+        wrapping.
+        """
+        if not self.is_empty:
+            raise TypeError(
+                f"{type(self).__name__}.emit() can only be called on a blueprint "
+                f"(empty DataField); this instance has live data"
+            )
+        out_name = name if name is not None else self.name
+        if pa.types.is_string(source.type) or pa.types.is_large_string(source.type):
+            casted = source
+        else:
+            casted = pc.cast(source, pa.string())
+        return StringField(casted, pa.field(out_name, pa.string()))
 
     def __getitem__(self, i: int) -> str | None:
         return super().__getitem__(i)
@@ -355,22 +521,31 @@ class StructField(DataField):
     """A DataField backed by a struct array.
 
     Provides sub-field extraction and field-name introspection on top of
-    the base ``DataField`` interface.
+    the base ``DataField`` interface.  Has no blueprint default — the
+    concrete struct shape is user-defined, so callers MUST pass an
+    explicit ``field=`` argument.
 
     Args:
         data: Struct PyArrow array, or ``None``.
         field: PyArrow field descriptor.
 
     Raises:
-        TypeError: If the field type is not a struct.
+        TypeError: If the field type is not a struct, or if constructed
+            in blueprint mode without an explicit field.
     """
 
     def __init__(
-        self, data: pa.Array | pa.ChunkedArray | None, field: pa.Field
+        self,
+        data: pa.Array | pa.ChunkedArray | None = None,
+        field: pa.Field | None = None,
+        *,
+        name: str | None = None,
     ) -> None:
-        if not pa.types.is_struct(field.type):
-            raise TypeError(f"StructField requires a struct type, got {field.type}")
-        super().__init__(data, field)
+        super().__init__(data, field, name=name)
+        if not pa.types.is_struct(self._field.type):
+            raise TypeError(
+                f"StructField requires a struct type, got {self._field.type}"
+            )
 
     @property
     def field_names(self) -> list[str]:
@@ -442,6 +617,9 @@ class StructField(DataField):
 class MapField(DataField):
     """A DataField backed by a map array.
 
+    Has no blueprint default — the concrete key/value types are
+    user-defined, so callers MUST pass an explicit ``field=``.
+
     Args:
         data: Map PyArrow array, or ``None``.
         field: PyArrow field descriptor.
@@ -451,11 +629,15 @@ class MapField(DataField):
     """
 
     def __init__(
-        self, data: pa.Array | pa.ChunkedArray | None, field: pa.Field
+        self,
+        data: pa.Array | pa.ChunkedArray | None = None,
+        field: pa.Field | None = None,
+        *,
+        name: str | None = None,
     ) -> None:
-        if not pa.types.is_map(field.type):
-            raise TypeError(f"MapField requires a map type, got {field.type}")
-        super().__init__(data, field)
+        super().__init__(data, field, name=name)
+        if not pa.types.is_map(self._field.type):
+            raise TypeError(f"MapField requires a map type, got {self._field.type}")
 
     def __getitem__(self, i: int) -> dict[Any, Any] | None:
         raw = super().__getitem__(i)
@@ -606,20 +788,27 @@ class SemanticField(DataField, Generic[T]):
         raw: "StructField | None" = None,
         *,
         source_fields: "str | dict[str, Any] | None" = None,
+        name: str | None = None,
     ) -> None:
         """Construct a SemanticField.
 
-        Two construction modes:
+        Three construction modes:
 
         * **Live mode:** pass a non-``None`` raw ``StructField`` (or any
           subclass of :attr:`_raw_cls`).  The SemanticField wraps it as
           usual.
-        * **Blueprint mode:** pass only ``source_fields=<spec>``.  The
-          SemanticField acts as a deferred specification of "find me
-          this raw field (or this combination of raw fields) on an
-          EventData table".  :attr:`is_blueprint` becomes ``True``;
+        * **Source-fields blueprint:** pass ``source_fields=<spec>``.
+          The SemanticField acts as a deferred specification of
+          "find me this raw field (or this combination of raw fields)
+          on an EventData table".  :attr:`is_blueprint` becomes ``True``;
           :attr:`_blueprint_source_fields` holds the spec.  Materialise
           via ``EventData.get_field(blueprint)``.
+        * **Plain blueprint:** pass only ``name=<str>``.  The
+          SemanticField is materialised with the class's
+          :attr:`pa_schema` and the supplied name, and is intended to
+          be promoted to a live field by :meth:`emit` against a source
+          array.  :attr:`is_blueprint` is also ``True`` in this mode;
+          :attr:`_blueprint_source_fields` remains ``None``.
 
         The ``source_fields`` spec accepts:
 
@@ -636,30 +825,41 @@ class SemanticField(DataField, Generic[T]):
 
         Args:
             raw: The wrapped raw DataField (live mode), or ``None`` for
-                blueprint mode.
+                blueprint modes.
             source_fields: Either a name (string) or a nested mapping of
-                schema-sub-field → source spec (blueprint mode).
+                schema-sub-field → source spec (source-fields blueprint).
+            name: Plain-blueprint name (used when neither ``raw`` nor
+                ``source_fields`` is supplied).
         """
         if raw is None:
-            if source_fields is None:
-                raise TypeError(
-                    f"{type(self).__name__} requires either a live raw DataField "
-                    "or source_fields= (blueprint)"
-                )
             schema = type(self).pa_schema
             if schema is None:
                 raise TypeError(
                     f"{type(self).__name__} cannot be a blueprint without a derived "
                     "pa_schema; check Generic parametrisation"
                 )
-            # Validate congruence (and normalise) up front so misshapen
-            # dicts are rejected before reaching the table resolver.
-            normalised = resolve_source_fields(source_fields, schema)
-            dummy_name = (
-                source_fields if isinstance(source_fields, str) else type(self).__name__
-            )
-            dummy_field = pa.field(dummy_name, schema)
             raw_cls = type(self)._raw_cls
+            if source_fields is not None:
+                # Validate congruence (and normalise) up front so misshapen
+                # dicts are rejected before reaching the table resolver.
+                normalised = resolve_source_fields(source_fields, schema)
+                dummy_name = (
+                    source_fields
+                    if isinstance(source_fields, str)
+                    else type(self).__name__
+                )
+                dummy_field = pa.field(dummy_name, schema)
+                self._blueprint_source_fields: "str | dict[str, Any] | None" = (
+                    normalised
+                )
+            elif name is not None:
+                dummy_field = pa.field(name, schema)
+                self._blueprint_source_fields = None
+            else:
+                raise TypeError(
+                    f"{type(self).__name__} requires either a live raw DataField, "
+                    "source_fields= (deferred lookup), or name= (plain blueprint)"
+                )
             # DenominateNumberField requires a bound unit at construction
             # time, which a blueprint has not yet resolved.  Substitute a
             # plain StructField for the blueprint placeholder — the unit
@@ -670,7 +870,6 @@ class SemanticField(DataField, Generic[T]):
             else:
                 raw = raw_cls(None, dummy_field)
             self._is_blueprint = True
-            self._blueprint_source_fields: "str | dict[str, Any] | None" = normalised
         else:
             self._is_blueprint = False
             self._blueprint_source_fields = None
@@ -778,6 +977,93 @@ class SemanticField(DataField, Generic[T]):
         raise TypeError(
             f"Unsupported source type for {cls.__name__}.from_field: {type(source).__name__}"
         )
+
+    def emit(
+        self,
+        source: pa.Array | pa.ChunkedArray,
+        *,
+        name: str | None = None,
+    ) -> "SemanticField[T]":
+        """Materialise a live SemanticField from a source column.
+
+        Resolution by ``cls.pa_schema``:
+
+        * If the schema is the canonical rational struct
+          (``{value, numerator, denominator}``), parse via
+          :func:`_build_rational_struct`.
+        * If the schema is a single-sub-field struct (e.g.
+          ``{value: int}`` for :class:`MeasureNumberField` /
+          :class:`IdField`, ``{midi_number: int}`` for
+          :class:`EnharmonicPitchField`), pack the (cast) atomic
+          source into the struct shape directly.
+        * Otherwise fall back to a row-wise ``model_validate`` of each
+          source row followed by the column-builder.  This path is
+          reserved for richer scalars whose storage shape exceeds the
+          single-atomic-value case.
+        """
+        if not self.is_empty:
+            raise TypeError(
+                f"{type(self).__name__}.emit() can only be called on a blueprint "
+                f"(empty DataField); this instance has live data"
+            )
+        cls = type(self)
+        schema = cls.pa_schema
+        if schema is None:
+            raise TypeError(f"{cls.__name__} has no derived pa_schema; cannot emit")
+        out_name = name if name is not None else self.name
+        field_names = [schema.field(i).name for i in range(schema.num_fields)]
+
+        # Canonical rational shape — parse fractions.
+        if field_names == ["value", "numerator", "denominator"]:
+            struct_arr, pa_field = _build_rational_struct(source, name=out_name)
+            return cls.from_field((struct_arr, pa_field))
+
+        # Single-sub-field struct — pack the atomic source.
+        if schema.num_fields == 1:
+            sub_field = schema.field(0)
+            sub_type = sub_field.type
+            if isinstance(source, pa.ChunkedArray):
+                source = source.combine_chunks()
+            if not (
+                pa.types.is_string(source.type)
+                or pa.types.is_large_string(source.type)
+                or pa.types.is_integer(source.type)
+                or pa.types.is_floating(source.type)
+            ):
+                source = pc.cast(source, pa.string())
+            if pa.types.is_integer(sub_type) or pa.types.is_floating(sub_type):
+                casted = pc.cast(source, sub_type)
+            elif pa.types.is_string(sub_type):
+                if pa.types.is_string(source.type) or pa.types.is_large_string(
+                    source.type
+                ):
+                    casted = source
+                else:
+                    casted = pc.cast(source, pa.string())
+            else:
+                raise TypeError(
+                    f"{cls.__name__}.emit: unsupported sub-field type {sub_type!r}"
+                )
+            struct_arr = pa.StructArray.from_arrays([casted], fields=list(schema))
+            pa_field = pa.field(out_name, schema)
+            return cls.from_field((struct_arr, pa_field))
+
+        # Generic fallback: row-wise validate + column-builder.
+        scalar_cls = cls.scalar_cls
+        if scalar_cls is None:
+            raise TypeError(
+                f"{cls.__name__}.emit fallback requires a paired scalar_cls"
+            )
+        if isinstance(source, pa.ChunkedArray):
+            source = source.combine_chunks()
+        objects: list[Any] = []
+        for row in source.to_pylist():
+            objects.append(None if row is None else scalar_cls.model_validate(row))
+        struct_arr = build_struct_array(
+            scalar_cls, [o for o in objects if o is not None]
+        )
+        pa_field = pa.field(out_name, schema)
+        return cls.from_field((struct_arr, pa_field))
 
     @classmethod
     def matches_pa_field(cls, pa_field: pa.Field) -> bool:
@@ -1507,6 +1793,99 @@ _RATIONAL_STRUCT_TYPE: pa.StructType = pa.struct(
 """Canonical denormalised storage shape for a rational number."""
 
 
+_FRACTION_RE = re.compile(r"^\s*(-?\d+)\s*/\s*(-?\d+)\s*$")
+"""Recogniser for ``"<numerator>/<denominator>"`` strings."""
+
+
+def _parse_rational_pair(value: Any) -> tuple[int, int]:
+    """Parse *value* into a ``(numerator, denominator)`` pair.
+
+    Accepts strings of the form ``"<int>/<int>"``, plain integer or
+    float strings, ``int``, ``float``, ``Fraction`` instances.  Raises
+    ``ValueError`` for unparseable input.
+
+    Float-to-fraction conversion uses :meth:`Fraction.from_float` (via
+    ``Fraction(value).limit_denominator(10**12)``) to keep a high-fidelity
+    rational approximation; callers wanting an exact ratio should pass a
+    ``Fraction`` directly.
+    """
+    if value is None:
+        raise ValueError("cannot parse None as a rational")
+    if isinstance(value, Fraction):
+        return value.numerator, value.denominator
+    if isinstance(value, bool):
+        return int(value), 1
+    if isinstance(value, int):
+        return value, 1
+    if isinstance(value, float):
+        f = Fraction(value).limit_denominator(10**12)
+        return f.numerator, f.denominator
+    if isinstance(value, str):
+        m = _FRACTION_RE.match(value)
+        if m is not None:
+            num, den = int(m.group(1)), int(m.group(2))
+            if den == 0:
+                raise ValueError(f"zero denominator in {value!r}")
+            return num, den
+        # Plain numeric strings: route through float.
+        return _parse_rational_pair(float(value))
+    raise TypeError(f"cannot parse {type(value).__name__} as a rational")
+
+
+def _build_rational_struct(
+    source: pa.Array | pa.ChunkedArray, *, name: str
+) -> tuple[pa.StructArray, pa.Field]:
+    """Build the canonical ``{value, numerator, denominator}`` struct array.
+
+    Walks the source as a Python iterable exactly once (necessary
+    because ``pa.compute`` has no general fraction parser); produces a
+    single ``pa.StructArray`` plus the matching ``pa.Field`` carrying
+    the supplied *name*.  Rows that fail to parse become null entries.
+    """
+    if isinstance(source, pa.ChunkedArray):
+        source = source.combine_chunks()
+    pylist = source.to_pylist()
+    n = len(pylist)
+    values = np.empty(n, dtype=np.float64)
+    nums = np.zeros(n, dtype=np.int64)
+    dens = np.ones(n, dtype=np.int64)
+    null_mask = np.zeros(n, dtype=bool)
+    for i, raw in enumerate(pylist):
+        if raw is None:
+            null_mask[i] = True
+            continue
+        try:
+            num, den = _parse_rational_pair(raw)
+        except (ValueError, TypeError):
+            null_mask[i] = True
+            continue
+        nums[i] = num
+        dens[i] = den
+        values[i] = num / den if den != 0 else float("nan")
+
+    struct_type = _RATIONAL_STRUCT_TYPE
+    if null_mask.any():
+        value_pa = pa.array(values, mask=null_mask, type=pa.float64())
+        num_pa = pa.array(nums, mask=null_mask, type=pa.int64())
+        den_pa = pa.array(dens, mask=null_mask, type=pa.int64())
+        struct_arr = pa.StructArray.from_arrays(
+            [value_pa, num_pa, den_pa],
+            fields=list(struct_type),
+            mask=pa.array(null_mask.tolist()),
+        )
+    else:
+        struct_arr = pa.StructArray.from_arrays(
+            [
+                pa.array(values, type=pa.float64()),
+                pa.array(nums, type=pa.int64()),
+                pa.array(dens, type=pa.int64()),
+            ],
+            fields=list(struct_type),
+        )
+    pa_field = pa.field(name, struct_type)
+    return struct_arr, pa_field
+
+
 def _rational_components(value: Any) -> tuple[float, int | None, int | None]:
     """Decompose a numeric ``.value`` payload into ``(float, num, den)``.
 
@@ -1703,16 +2082,23 @@ class RationalField(NumberField):
     """
 
     PA_SCHEMA: ClassVar[pa.StructType] = _RATIONAL_STRUCT_TYPE
+    _blueprint_pa_type: ClassVar[pa.DataType] = _RATIONAL_STRUCT_TYPE
 
     def __init__(
-        self, data: pa.Array | pa.ChunkedArray | None, field: pa.Field
+        self,
+        data: pa.Array | pa.ChunkedArray | None = None,
+        field: pa.Field | None = None,
+        *,
+        name: str | None = None,
     ) -> None:
-        if not _struct_types_match(field.type, type(self).PA_SCHEMA):
+        # Defer to DataField for the live/blueprint dispatch, then
+        # validate the resolved field type matches our canonical schema.
+        DataField.__init__(self, data, field, name=name)
+        if not _struct_types_match(self._field.type, type(self).PA_SCHEMA):
             raise TypeError(
                 f"{type(self).__name__} requires the rational struct schema "
-                f"{type(self).PA_SCHEMA}; got {field.type}"
+                f"{type(self).PA_SCHEMA}; got {self._field.type}"
             )
-        super().__init__(data, field)
 
     @classmethod
     def from_field(
@@ -1720,6 +2106,28 @@ class RationalField(NumberField):
     ) -> "RationalField":
         data, field = source
         return cls(data, field)
+
+    def emit(
+        self,
+        source: pa.Array | pa.ChunkedArray,
+        *,
+        name: str | None = None,
+    ) -> "RationalField":
+        """Parse a source column as fractions and wrap as a RationalField.
+
+        Accepts strings of the form ``"<numerator>/<denominator>"`` as
+        well as plain numeric input; the resulting struct stores both
+        the float-best-effort ``value`` and the exact
+        ``numerator``/``denominator``.
+        """
+        if not self.is_empty:
+            raise TypeError(
+                f"{type(self).__name__}.emit() can only be called on a blueprint "
+                f"(empty DataField); this instance has live data"
+            )
+        out_name = name if name is not None else self.name
+        struct_arr, pa_field = _build_rational_struct(source, name=out_name)
+        return RationalField(struct_arr, pa_field)
 
 
 def _coerce_time_unit(unit: Any) -> TimeUnit:
@@ -1750,13 +2158,21 @@ class DenominateNumberField(RationalField):
 
     def __init__(
         self,
-        data: pa.Array | pa.ChunkedArray | None,
-        field: pa.Field,
+        data: pa.Array | pa.ChunkedArray | None = None,
+        field: pa.Field | None = None,
         *,
+        name: str | None = None,
         unit: TimeUnit | str,
     ):
+        if field is None:
+            # Blueprint construction.  ``unit=`` is still mandatory —
+            # a DenominateNumberField is defined by its bound unit.
+            if name is None:
+                raise TypeError("DenominateNumberField requires either field= or name=")
+            pa_type = type(self)._default_blueprint_pa_type()
+            field = pa.field(name, pa_type)
         super().__init__(data, field)
-        self._unit: TimeUnit = self._resolve_unit(field, unit)
+        self._unit: TimeUnit = self._resolve_unit(self._field, unit)
 
     # -- properties ----------------------------------------------------------
 
@@ -1819,3 +2235,30 @@ class DenominateNumberField(RationalField):
         if unit is None:
             unit = cls._resolve_unit(field, None)
         return cls(data, field, unit=unit)
+
+    def emit(
+        self,
+        source: pa.Array | pa.ChunkedArray,
+        *,
+        name: str | None = None,
+    ) -> "DenominateNumberField":
+        """Parse a source column as fractions and stamp unit metadata.
+
+        Equivalent to :meth:`RationalField.emit` followed by attaching
+        the blueprint's bound :attr:`unit` as a ``b"timetoalign"``
+        metadata blob (``{"unit": ...}``) on the emitted field.
+        """
+        if not self.is_empty:
+            raise TypeError(
+                f"{type(self).__name__}.emit() can only be called on a blueprint "
+                f"(empty DataField); this instance has live data"
+            )
+        out_name = name if name is not None else self.name
+        struct_arr, pa_field = _build_rational_struct(source, name=out_name)
+        meta = {
+            TIMETOALIGN_METADATA_KEY: metadata_blob_from_dict(
+                {"unit": self._unit.value}
+            )
+        }
+        pa_field = pa_field.with_metadata(meta)
+        return DenominateNumberField(struct_arr, pa_field, unit=self._unit)
