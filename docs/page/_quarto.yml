@@ -86,6 +86,8 @@ website:
               href: howto/how03_loading_vienna_corpus.ipynb
             - text: "How to Load an Audio-to-Score Alignment Corpus and Compare Performances"
               href: howto/how05_performance_precision.ipynb
+            - text: "How to Load a parangonada Note Alignment Across Several Performances"
+              href: howto/how06_parangonada.ipynb
         - section: "In-depth Topics"
           contents:
             - text: "How to Encode Song Genesis (Hendrix)"
