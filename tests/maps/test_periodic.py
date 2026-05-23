@@ -219,7 +219,7 @@ class TestFloorMap:
             base=1,
             offset=0.5,
             source_unit="quarters",
-            target_unit="measures",
+            target_unit="floating_measures",
         )
 
         d = fm.to_dict()
@@ -285,7 +285,7 @@ class TestPeriodicMapIntegration:
             divisor=QUARTERS_PER_MEASURE,
             base=1,
             source_unit="quarters",
-            target_unit="measures",
+            target_unit="floating_measures",
         )
         beat_map = RotationMap(
             period=QUARTERS_PER_MEASURE,

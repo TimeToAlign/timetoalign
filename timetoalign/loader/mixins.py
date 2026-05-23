@@ -106,7 +106,9 @@ def _get_field_type_map() -> dict[str, type[SemanticField[Any]]]:
         GenericPitchClassField,
         GenericPitchField,
         HarmonyLabelField,
+        IdField,
         MeasureField,
+        MeasureNumberField,
         MidiPitchField,
         NoteField,
         PitchBasedHarmonyField,
@@ -143,7 +145,9 @@ def _get_field_type_map() -> dict[str, type[SemanticField[Any]]]:
         "RomanNumeralHarmonyField": RomanNumeralHarmonyField,
         "WesternTertianHarmonyField": WesternTertianHarmonyField,
         # Event scalars
+        "IdField": IdField,
         "MeasureField": MeasureField,
+        "MeasureNumberField": MeasureNumberField,
         "NoteField": NoteField,
     }
     return _FIELD_TYPE_MAP

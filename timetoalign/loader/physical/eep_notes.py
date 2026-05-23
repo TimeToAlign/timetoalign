@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import pandas as pd
 
@@ -94,8 +94,11 @@ class EepNotesLoader(CsvLoader):
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
     coordinate_type: ClassVar[NumberType] = NumberType.float
 
-    # Extra columns: pitch is already captured via name_column, add staff
-    extra_columns: ClassVar[list] = ["pitch", "staff"]
+    # column_specs: pitch is already captured via name_column; pitch
+    # is preserved as a string column (chord/rest tokens like
+    # "G3,D4,B4,F5"), and staff is the integer derived from the
+    # filename suffix in _read_dataframe.
+    column_specs: ClassVar[dict[str, Any]] = {"pitch": str, "staff": int}
 
     def _read_dataframe(self, source: Path) -> pd.DataFrame:
         """Read a headerless .notes file with staff inference from filename.
