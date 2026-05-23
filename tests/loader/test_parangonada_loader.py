@@ -15,6 +15,9 @@ It verifies:
   ``onset_quarter`` exactly;
 - per-performer performance-timeline event counts and MatchClaim counts;
 - the bundle totals (12 timelines, 6 groups, 1275 claims);
+- the measured ``Beat`` / ``Dynamics`` feature events on each
+  performance's seconds timeline (63 of each per performer), including
+  the ``.dyn`` ↔ ``.beats`` 1:1 onset join and feature spot-checks;
 - a coordinate spot-check (Szegedi ``align`` row 0);
 - the faithfully-preserved duplicate matchtype-0 rows in Brendel and
   Hewitt; and
@@ -40,6 +43,10 @@ from timetoalign.testdata import ensure_data
 
 DATASET_DIR = ensure_data("parangonar") / "Beethoven_Eroica_op35-cpjku"
 MATCH_DIR = DATASET_DIR / "match" / "match_transkun"
+FEATURES_DIR = DATASET_DIR / "features"
+
+#: Each performer's .beats / .dyn files hold exactly this many data rows.
+FEATURE_ROW_COUNT = 63
 
 SCORE_CLT_ID = "score:clt1"
 SCORE_DLT_ID = "score:dlt1"
@@ -79,6 +86,18 @@ def bundle(loader: ParangonadaLoader):
 def _subdir(performer_key: str) -> Path:
     name = dict(PERFORMERS)[performer_key]
     return MATCH_DIR / name
+
+
+def _feature_file(performer_key: str, suffix: str) -> Path:
+    """The single ``<key>_measure*.<suffix>`` feature file (globbed)."""
+    matches = sorted(FEATURES_DIR.glob(f"{performer_key}_measure*.{suffix}"))
+    assert len(matches) == 1, f"expected one {suffix} file, found {matches}"
+    return matches[0]
+
+
+def _read_tsv(path: Path) -> list[dict[str, str]]:
+    with open(path, encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f, delimiter="\t"))
 
 
 def _performer_claims(bundle, performer_key: str) -> list[MatchClaim]:
@@ -169,13 +188,17 @@ def test_divs_to_quarters_cmap_reproduces_all_onsets(
 def test_performance_timeline_event_counts(
     loader: ParangonadaLoader, performer_key: str
 ) -> None:
-    """cpt1 and dpt1 each hold one event per ppart.csv row."""
+    """cpt1 and dpt1 each hold one *Note* event per ppart.csv row.
+
+    ``cpt1`` additionally holds Beat/Dynamics feature events, so the Note
+    count is filtered explicitly; ``dpt1`` carries notes only.
+    """
     expected = PERFORMER_COUNTS[performer_key]["ppart"]
     cpt = loader.create_timeline(f"perf:{performer_key}:cpt1")
     dpt = loader.create_timeline(f"perf:{performer_key}:dpt1")
     assert cpt.unit == TimeUnit.seconds
     assert dpt.unit == TimeUnit.samples
-    assert len(cpt.events) == expected
+    assert len(cpt.events.filter(event_type="Note")) == expected
     assert len(dpt.events) == expected
 
 
@@ -206,6 +229,101 @@ def test_claim_metadata(bundle) -> None:
     assert sample.metadata.decision_criteria == "parangonada_export"
     assert sample.metadata.certainty == 1.0
     assert sample.metadata.algorithm_params["performer"] == "1966_Szegedi"
+
+
+# endregion
+
+
+# region Feature events (.beats / .dyn)
+
+
+@pytest.mark.parametrize("performer_key", PERFORMER_KEYS)
+def test_feature_event_counts(loader: ParangonadaLoader, performer_key: str) -> None:
+    """Each cpt1 holds exactly 63 Beat and 63 Dynamics feature events."""
+    cpt = loader.create_timeline(f"perf:{performer_key}:cpt1")
+    assert len(cpt.events.filter(event_type="Beat")) == FEATURE_ROW_COUNT
+    assert len(cpt.events.filter(event_type="Dynamics")) == FEATURE_ROW_COUNT
+
+
+@pytest.mark.parametrize("performer_key", PERFORMER_KEYS)
+def test_feature_events_only_on_cpt(
+    loader: ParangonadaLoader, performer_key: str
+) -> None:
+    """Beat/Dynamics events live on cpt1 (seconds) only, never on dpt1."""
+    dpt = loader.create_timeline(f"perf:{performer_key}:dpt1")
+    assert len(dpt.events.filter(event_type="Beat")) == 0
+    assert len(dpt.events.filter(event_type="Dynamics")) == 0
+
+
+@pytest.mark.parametrize("performer_key", PERFORMER_KEYS)
+def test_beats_dyn_join_is_one_to_one(performer_key: str) -> None:
+    """The .beats ↔ .dyn join on (measure_number, beat) is 1:1 with 63 matches.
+
+    Asserts the keys are unique within each file and the two key sets are
+    identical, so every .dyn row recovers exactly one .beats onset.
+    """
+    beats = _read_tsv(_feature_file(performer_key, "beats"))
+    dyn = _read_tsv(_feature_file(performer_key, "dyn"))
+    assert len(beats) == FEATURE_ROW_COUNT
+    assert len(dyn) == FEATURE_ROW_COUNT
+
+    beat_keys = [(r["measure_number"], r["beat"]) for r in beats]
+    dyn_keys = [(r["measure_number"], r["beat"]) for r in dyn]
+    assert len(set(beat_keys)) == FEATURE_ROW_COUNT
+    assert len(set(dyn_keys)) == FEATURE_ROW_COUNT
+    assert set(beat_keys) == set(dyn_keys)
+
+    matched = sum(1 for k in dyn_keys if k in set(beat_keys))
+    assert matched == FEATURE_ROW_COUNT
+
+
+def test_szegedi_beat_spot_check(loader: ParangonadaLoader) -> None:
+    """Szegedi .beats row 0 → a Beat event at 0.796354 s (measure 1, beat 1).
+
+    Row 0 is ``1  1  0.000000  0.796354  83.660126  0  0``.  Extra columns
+    are stored as strings; ``start`` is the coordinate struct.
+    """
+    cpt = loader.create_timeline("perf:1966_Szegedi:cpt1")
+    beats = cpt.events.filter(event_type="Beat").table.to_pylist()
+    matching = [
+        r
+        for r in beats
+        if r["start"]["value"] == 0.796354
+        and r["measure_number"] == "1"
+        and r["beat"] == "1"
+        and float(r["bpm"]) == 83.660126
+    ]
+    assert len(matching) == 1
+
+
+def test_szegedi_dynamics_spot_check(loader: ParangonadaLoader) -> None:
+    """Szegedi .dyn row 0 → a Dynamics event at 0.796354 s (onset joined).
+
+    Row 0 is ``1  1  0.000000  48.500000  58.000000  0``; the onset is
+    recovered from the .beats row with the same ``(1, 1)`` key.
+    """
+    cpt = loader.create_timeline("perf:1966_Szegedi:cpt1")
+    dyns = cpt.events.filter(event_type="Dynamics").table.to_pylist()
+    matching = [
+        r
+        for r in dyns
+        if r["start"]["value"] == 0.796354
+        and r["measure_number"] == "1"
+        and r["beat"] == "1"
+        and float(r["velocity_mean"]) == 48.5
+        and float(r["velocity_max"]) == 58.0
+    ]
+    assert len(matching) == 1
+
+
+def test_feature_events_preserve_bundle_totals(bundle) -> None:
+    """Feature events do not change the bundle's claim/timeline/group totals."""
+    assert bundle.n_timelines == 12
+    assert bundle.n_groups == 6
+    claims = bundle.cross_group_claims
+    assert len(claims) == 1275
+    assert sum(1 for c in claims if c.is_synchronous) == 1208
+    assert sum(1 for c in claims if not c.is_synchronous) == 67
 
 
 # endregion

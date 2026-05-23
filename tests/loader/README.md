@@ -17,7 +17,7 @@ bundles, error handling).
 | `test_interval_policy.py` | Half-open interval semantics on event ingestion |
 | `test_matchfile_loader.py` | `MatchfileLoader` parity against gold standard |
 | `test_performance_precision_loader.py` | `PerformancePrecisionLoader` against the CAAMP Chopin Nocturne specimen — composes `SoloLoader` for the `.solo` score (2494 notes), builds the score timeline by resolving every `"<measure>+<offset>"` label to absolute quarters via the `MetricMap`, and emits one physical timeline + three granularities of `MatchClaim` per performer. Zero-tolerance counts (see "Validation logic" below). |
-| `test_parangonada_loader.py` | `ParangonadaLoader` against the parangonada CSV export of the `Beethoven_Eroica_op35-cpjku` dataset (5 performers). Builds one shared multimodal `AlignmentBundle` (1 score group + 5 performer groups) from `part.csv` / `ppart.csv` / `align.csv`. Zero-tolerance counts (see "Validation logic" below). |
+| `test_parangonada_loader.py` | `ParangonadaLoader` against the parangonada CSV export of the `Beethoven_Eroica_op35-cpjku` dataset (5 performers). Builds one shared multimodal `AlignmentBundle` (1 score group + 5 performer groups) from `part.csv` / `ppart.csv` / `align.csv`, plus measured `Beat` / `Dynamics` feature events (`.beats` / `.dyn`) on each performance's seconds timeline. Zero-tolerance counts (see "Validation logic" below). |
 | `test_parsing.py` | Format-agnostic parsing helpers |
 | `test_schema.py` | `TableSchema` and field-spec resolution |
 | `test_store.py` | `EventStore` low-level operations |
@@ -156,8 +156,10 @@ Three CSV families:
 The ``score.mei`` (partitura raises ``KeyError: 'dur'`` on it),
 ``feature.csv`` (all-zero placeholder), ``zalign.csv`` (byte-duplicate
 of ``align.csv``), ``majority_match/*.match``, and the
-``transcribed_midi/`` tree are deliberately **not** parsed. The
-``.beats`` / ``.dyn`` feature files are a separate concern.
+``transcribed_midi/`` tree are deliberately **not** parsed.
+
+The per-performer ``.beats`` / ``.dyn`` files under the dataset's
+``features/`` directory **are** parsed (see "Feature events" below).
 
 ### Bundle structure
 
@@ -169,21 +171,81 @@ logical units):
   ``pitch`` (MIDI int) and ``voice`` (int).
 * ``score:dlt1`` — `DiscreteLogicalTimeline`, ticks (``divs``), the
   same 251 notes with ``start = onset_div`` (int). A divs→quarters
-  C-Map ``LinearMap(slope = 1/32, intercept = -1/2)`` is attached; it
-  reproduces every ``onset_quarter`` from ``onset_div`` exactly
-  (asserted for all 251 rows, exact `Fraction` equality).
+  C-Map ``LinearMap(scalar=Fraction(1,32), offset=Fraction(-1,2))`` is
+  attached (``scalar`` / ``offset`` are the constructor's real
+  parameter names); it reproduces every ``onset_quarter`` from
+  ``onset_div`` exactly (asserted for all 251 rows, exact `Fraction`
+  equality).
 
 Per performer, a **performance group** ``perf:<key>`` (the same
 performed notes in two physical units):
 
 * ``perf:<key>:cpt1`` — `ContinuousPhysicalTimeline`, seconds, one note
   event per ``ppart.csv`` row with ``start = onset_sec`` (float),
-  carrying ``pitch`` and ``velocity``.
+  carrying ``pitch`` and ``velocity``; **plus** the measured beat
+  features (see "Feature events" below) as ``Beat`` and ``Dynamics``
+  events on the same timeline.
 * ``perf:<key>:dpt1`` — `DiscretePhysicalTimeline`, samples, the same
   notes with ``start = round(onset_sec * sample_rate)``. A
   ``SamplesToSeconds(sample_rate=44100)`` C-Map is attached
   (``sample_rate`` read from the performer's 44100 Hz stereo ``.wav``
   via `AudioLoader`).
+
+### Feature events
+
+Each performance carries a pair of measured beat-feature files under
+the dataset's ``features/`` directory, tab-separated. They are
+discovered by **globbing** ``<key>_measure*.{beats,dyn}`` — the stems
+are non-uniform: Szegedi's are ``1966_Szegedi_measure_fix.{beats,dyn}``,
+the other four are ``<key>_measure.{beats,dyn}``. All ten files have
+**63 data rows**.
+
+* ``.beats`` (7 columns) — header
+  ``measure_number  beat  onset_beat  onset_sec  BPM  interp  swap``.
+  Each row becomes a ``Beat`` event on ``perf:<key>:cpt1`` at
+  ``start = onset_sec``, carrying ``measure_number`` / ``beat`` /
+  ``bpm`` (from ``BPM``) / ``interp`` / ``swap``. Event id
+  ``<key>:beat:<i>``.
+* ``.dyn`` (6 columns) — header
+  ``measure_number  beat  onset_beat  velocity_mean  velocity_max
+  interp`` (**no** ``onset_sec``, **no** ``swap``). Each row becomes a
+  ``Dynamics`` event on ``perf:<key>:cpt1`` carrying ``measure_number``
+  / ``beat`` / ``velocity_mean`` / ``velocity_max`` / ``interp``. Event
+  id ``<key>:dyn:<i>``.
+
+Because the ``.dyn`` rows have no onset, each is joined to the
+``.beats`` row sharing its ``(measure_number, beat)`` key to recover
+its ``onset_sec``. The two files are **1:1 on ``(measure_number,
+beat)``**: the keys are unique within each file and the two key sets
+are identical, so the join yields exactly 63 matches (asserted). These
+are *measured* per-beat features (variable tempo + dynamics from the
+recording); no tempo curve is synthesised (no ``BeatGrid.from_tempo``).
+
+The events are added to the **existing** seconds timeline (not a new
+timeline, not on ``dpt1``) via ``add_events(rows,
+allow_expansion=True)``. The ``cpt1`` schema already holds ``Note``
+columns (``pitch`` / ``velocity``); the ``Beat`` / ``Dynamics`` rows
+introduce new columns (``bpm`` / ``measure_number`` / ``beat`` /
+``velocity_mean`` / …). Successive ``add_events`` calls grow the schema
+via ``pyarrow.concat_tables(promote_options="default")``, so the
+heterogeneous ``Note`` / ``Beat`` / ``Dynamics`` table round-trips with
+absent columns null-filled. After ingestion each ``perf:<key>:cpt1``
+holds its ppart ``Note`` events (the per-performer count above) **plus
+63 ``Beat`` and 63 ``Dynamics``** events.
+
+The feature events do **not** change the bundle totals — the claim
+counts, timeline count (12), and group count (6) are derived from
+``part.csv`` / ``ppart.csv`` / ``align.csv`` only and are unchanged.
+
+**Feature spot-checks (Szegedi):**
+
+* ``.beats`` row 0 (``1  1  0.000000  0.796354  83.660126  0  0``) → a
+  ``Beat`` event at ``start == 0.796354`` with ``measure_number == 1``,
+  ``beat == 1``, ``bpm == 83.660126``.
+* ``.dyn`` row 0 (``1  1  0.000000  48.500000  58.000000  0``) → a
+  ``Dynamics`` event at ``start == 0.796354`` (onset joined from the
+  ``.beats`` row with the same ``(1, 1)`` key) with
+  ``velocity_mean == 48.5``, ``velocity_max == 58.0``.
 
 ### Cross-group MatchClaims
 
