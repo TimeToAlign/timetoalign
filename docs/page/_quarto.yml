@@ -85,11 +85,11 @@ website:
             - text: "How to Load the Vienna 4x22 Corpus"
               href: howto/how03_loading_vienna_corpus.ipynb
             - text: "How to Load an Audio-to-Score Alignment Corpus and Compare Performances"
-              href: howto/how05_performance_precision.ipynb
+              href: howto/how03_performance_precision.ipynb
             - text: "How to Load a parangonada Note Alignment Across Several Performances"
-              href: howto/how06_parangonada.ipynb
+              href: howto/how03_parangonada.ipynb
             - text: "How to Load an MPM-Toolbox Project (Score, Modelled Performance, Observed Alignment)"
-              href: howto/how07_mpm_toolbox.ipynb
+              href: howto/how03_mpm_toolbox.ipynb
         - section: "In-depth Topics"
           contents:
             - text: "How to Encode Song Genesis (Hendrix)"
