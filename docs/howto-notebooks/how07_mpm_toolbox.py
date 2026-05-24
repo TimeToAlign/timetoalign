@@ -21,14 +21,15 @@
 # (tempo, dynamics, articulation, … as expressive markup), and a `.mpr` project
 # file carrying an *observed* audio-to-score alignment. This guide loads such a
 # project in a single call and arranges it as one multimodal
-# {{< glossary AlignmentBundle >}} spanning the logical (score) and physical
-# (performance) domains.
+# {{< glossary AlignmentBundle >}} spanning the logical (score), physical
+# (performance), and graphical (spectrogram) domains.
 #
 # The work is Beethoven's *Eroica* Variations, Op. 35 — Var. XIV — in a 1971
 # Curzon recording. By the end we will have, in one bundle: the notated score in
 # two logical units, the performance markup carried as
 # {{< glossary Event >}}s, a modelled tempo curve mapping score quarters to
-# seconds, and the observed onsets tied back to the score note by note.
+# seconds, the observed onsets tied back to the score note by note, and the
+# recording's spectrogram as a graphical time axis.
 #
 # We **load** the modelled markup and the observed alignment exactly as they sit
 # on disk. Nothing here runs an aligner, and the tempo model is read as written
@@ -43,6 +44,7 @@
 # 4. Read the modelled quarters→seconds tempo map.
 # 5. Read the observed alignment — the physical performance and its cross-group
 #    {{< glossary MatchClaim >}}s.
+# 6. Read the recording's spectrogram as a graphical (pixels) time axis.
 
 # %% [markdown]
 # ## Setup
@@ -325,6 +327,58 @@ stamp
 # with no aligner ever run.
 
 # %% [markdown]
+# ---
+#
+# ## 6. The spectrogram, a graphical axis
+#
+# The project also ships a rendered **spectrogram** of the recording — a `.png`
+# whose horizontal axis is time. The loader reads that axis as a third
+# performance-group {{< glossary Timeline >}}, `perf:dgt1`, measured in
+# **pixels** (frame columns): one position per column of the image. This is the
+# graphical domain — the same work, now reached visually.
+#
+# Unlike the other timelines, this one carries **no** {{< glossary Event >}}s. A
+# spectrogram column is not a note; it is a tick mark on a picture's time axis.
+# The timeline's job is to *be* that axis — its length is the image's width in
+# frame columns:
+
+# %%
+perf_dgt = bundle.get_timeline("perf:dgt1")
+perf_dgt
+
+# %%
+{
+    "unit": perf_dgt.unit.name,
+    "length (frame columns)": perf_dgt.length.value,
+    "events (it is an axis, not events)": perf_dgt.n_events,
+}
+
+# %% [markdown]
+# A pixel column is only meaningful once tied to clock time. Each column
+# advances the recording by a fixed hop of audio samples, so `perf:dgt1` carries
+# a px→seconds {{< glossary ConversionMap >}} — a `ScalarMap` whose scalar is
+# `hopSize / sample_rate`. Pulling it off the timeline and reading a couple of
+# columns places the picture on the same seconds clock as the performance:
+
+# %%
+px_to_seconds = perf_dgt.get_conversion_map(TimeUnit.seconds)
+
+last_column = perf_dgt.length.value
+{
+    "scalar (seconds per column)": px_to_seconds.scalar,
+    "column 0 -> seconds": perf_dgt.get_timestamp(0).get_unit(TimeUnit.seconds),
+    f"column {last_column} -> seconds": perf_dgt.get_timestamp(last_column).get_unit(
+        TimeUnit.seconds
+    ),
+}
+
+# %% [markdown]
+# Column 0 sits at the start of the recording; the rightmost column lands at the
+# spectrogram's full time span — the audio duration. The picture's x-axis and
+# the performance's seconds are now one conversion apart, exactly as ticks and
+# quarters were on the score.
+
+# %% [markdown]
 # ## Recap
 #
 # | What the bundle expresses | How |
@@ -333,10 +387,15 @@ stamp
 # | Performance markup | `Tempo` / `Dynamics` / `Articulation` events on `score:dlt1`, via `filter(event_type=...)` |
 # | Modelled tempo | a quarters→seconds `TableMap` (`loader.tempo_map`), constant-tempo-per-segment |
 # | Observed performance, two physical units | `perf:cpt1` (s) + `perf:dpt1` (samples), one `SamplesToSeconds` |
+# | Spectrogram, a graphical axis | `perf:dgt1` (pixels), no events, one px→seconds `ScalarMap` |
 # | Score ↔ performance | one synchronous {{< glossary MatchClaim >}} per note (a perfect bijection) |
 # | A score position read across domains | `bundle.get_matchstamp_at(coord, "score:clt1")` |
 #
-# One {{< glossary AlignmentBundle >}} carries the notated score (in ticks and
-# quarters, with its modelled performance markup and tempo) and the observed
-# performance (in seconds and samples), linked note by note — a single object
-# holding what was notated, how it was modelled, and how it was actually played.
+# One {{< glossary AlignmentBundle >}} now expresses this single work across all
+# three domains — logical (score ticks and quarters), physical (performance
+# seconds and samples), and graphical (spectrogram pixels). Within each group the
+# units are tied by {{< glossary ConversionMap >}}s; across the groups the score
+# and performance are tied note by note by {{< glossary MatchClaim >}}s. A single
+# object holds what was notated, how it was modelled, how it was actually played,
+# and how it looks — the score, the model, the recording, and its picture, all on
+# one set of linked clocks.

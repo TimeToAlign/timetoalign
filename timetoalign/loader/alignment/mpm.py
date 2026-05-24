@@ -27,7 +27,8 @@ musical work, all sharing a common stem:
     bundle = MpmLoader.from_file(mpr_path).create_bundle()
 
 and produces a single :class:`~timetoalign.alignment.bundle.AlignmentBundle`
-expressing the work across the logical and physical domains:
+expressing the work across all three domains (logical, physical, and
+graphical):
 
 * a shared ``"score"`` group holding the score in two logical units — a
   tick :class:`~timetoalign.timelines.types.DiscreteLogicalTimeline`
@@ -45,7 +46,14 @@ expressing the work across the logical and physical domains:
   :class:`~timetoalign.timelines.types.DiscretePhysicalTimeline`
   (``perf:dpt1``) carrying a
   :class:`~timetoalign.maps.convenience.SamplesToSeconds` map (sample
-  rate read from the recording's ``.wav``); and
+  rate read from the recording's ``.wav``) — plus, when the project
+  carries one, a third graphical timeline: the spectrogram's frame-column
+  x-axis as a pixels
+  :class:`~timetoalign.timelines.types.DiscreteGraphicalTimeline`
+  (``perf:dgt1``).  It carries no events — it is a graphical axis whose
+  length is the spectrogram ``.png``'s width in frame columns — and a
+  px→seconds :class:`~timetoalign.maps.linear.ScalarMap`
+  (``seconds = px * hopSize / sample_rate``); and
 * a cross-group :class:`~timetoalign.alignment.anchors.MatchClaim` per
   score note — a synchronous projection from ``score:clt1`` (quarters)
   onto ``perf:cpt1`` (seconds), joined ``xml:id == ref``.
@@ -65,6 +73,7 @@ See Also:
     timetoalign.maps.TicksToQuarters
     timetoalign.maps.SamplesToSeconds
     timetoalign.maps.TableMap
+    timetoalign.maps.ScalarMap
 """
 
 from __future__ import annotations
@@ -82,10 +91,12 @@ from timetoalign.core import TimeUnit
 from timetoalign.loader.base import AlignmentLoader
 from timetoalign.loader.physical.audio import AudioLoader
 from timetoalign.maps.convenience import SamplesToSeconds, TicksToQuarters
+from timetoalign.maps.linear import ScalarMap
 from timetoalign.maps.table import TableMap
 from timetoalign.timelines.types import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
+    DiscreteGraphicalTimeline,
     DiscreteLogicalTimeline,
     DiscretePhysicalTimeline,
 )
@@ -106,6 +117,7 @@ _SCORE_DLT_ID = "score:dlt1"
 #: Performance-group timeline uids.
 _PERF_CPT_ID = "perf:cpt1"
 _PERF_DPT_ID = "perf:dpt1"
+_PERF_DGT_ID = "perf:dgt1"
 
 #: Group ids.
 _SCORE_GROUP = "score"
@@ -183,8 +195,11 @@ class MpmLoader(AlignmentLoader):
     ``.msm`` / ``.mpm`` by the bare filenames the project names, parses the
     score, the selected modelled performance's markup, and the observed
     alignment, and assembles a bundle with a shared logical ``"score"``
-    group and a physical ``"perf"`` group linked by one synchronous
-    :class:`MatchClaim` per score note.
+    group and a physical ``"perf"`` group — the latter also carrying the
+    spectrogram's graphical pixel axis (``perf:dgt1``) when the project
+    ships one — linked by one synchronous :class:`MatchClaim` per score
+    note.  The bundle thus spans the logical, physical, and (when a
+    spectrogram is present) graphical domains.
 
     **Usage follows the standard loader two-phase pattern:**
 
@@ -207,6 +222,7 @@ class MpmLoader(AlignmentLoader):
         self._score_dlt: DiscreteLogicalTimeline | None = None
         self._perf_cpt: ContinuousPhysicalTimeline | None = None
         self._perf_dpt: DiscretePhysicalTimeline | None = None
+        self._perf_dgt: DiscreteGraphicalTimeline | None = None
         self._claims: list[MatchClaim] = []
         self._tempo_map: TableMap | None = None
         self._ppq: int = 720
@@ -292,9 +308,11 @@ class MpmLoader(AlignmentLoader):
         tempo_entries = self._collect_tempo_entries(performance)
         alignment_notes = self._parse_mpr_alignment(mpr_root)
         sample_rate = self._resolve_sample_rate(mpr)
+        spectrogram = self._parse_spectrogram(mpr, mpr_root)
 
         self._build_score_timelines(score_notes, markup_events, tempo_entries)
         self._build_performance_timelines(alignment_notes, sample_rate)
+        self._build_spectrogram_timeline(spectrogram, sample_rate)
         self._build_claims(score_notes, alignment_notes)
 
         return self
@@ -606,8 +624,10 @@ class MpmLoader(AlignmentLoader):
         The ``<alignment>`` element (under ``<audios>/<audio>``) holds
         ``<part>`` children, each with ``<note ref midi.pitch
         milliseconds.date …>`` onsets.  Onsets are collected across all
-        parts.  The score-image ``<score><page><note ref x y>`` block and
-        the ``<spectrogram>`` are intentionally *not* parsed here.
+        parts.  The score-image ``<score><page><note ref x y>`` block is
+        intentionally *not* parsed (a later concern); the sibling
+        ``<spectrogram>`` x-axis is read separately by
+        :meth:`_parse_spectrogram`.
         """
         alignment = None
         for element in mpr_root.iter():
@@ -643,6 +663,62 @@ class MpmLoader(AlignmentLoader):
         if not wavs:
             return _DEFAULT_SAMPLE_RATE
         return AudioLoader.from_file(wavs[0]).audio_info.sample_rate
+
+    @staticmethod
+    def _parse_spectrogram(mpr: Path, mpr_root: Any) -> dict[str, Any] | None:
+        """Parse the ``<spectrogram>`` element (under ``<audios>/<audio>``).
+
+        The spectrogram's x-axis is time in frame columns: each column
+        advances by ``hopSize`` audio samples.  The XML carries no
+        width/height, so the number of frame columns is the width of the
+        referenced ``.png`` (read from its PNG IHDR header).
+
+        Returns a dict ``{"hop_size": int, "n_columns": int}`` (the
+        timeline length in pixels), or ``None`` when the project carries no
+        ``<spectrogram>`` or its ``.png`` is missing — in which case the
+        graphical timeline is simply absent (the loader does not crash).
+        """
+        spectrogram = next(
+            (
+                element
+                for element in mpr_root.iter()
+                if _localname(element) == "spectrogram"
+            ),
+            None,
+        )
+        if spectrogram is None:
+            return None
+
+        hop_size_text = spectrogram.get("hopSize")
+        file_attr = spectrogram.get("file")
+        if hop_size_text is None or file_attr is None:
+            return None
+
+        png_path = mpr.parent / Path(file_attr)
+        if not png_path.is_file():
+            return None
+
+        n_columns = MpmLoader._read_png_width(png_path)
+        if n_columns is None:
+            return None
+
+        return {"hop_size": int(float(hop_size_text)), "n_columns": n_columns}
+
+    @staticmethod
+    def _read_png_width(png_path: Path) -> int | None:
+        """Read a PNG's pixel width from its IHDR header.
+
+        A PNG file begins with the 8-byte signature, then the IHDR chunk
+        whose 4-byte length + 4-byte type are followed by the big-endian
+        ``uint32`` width and height.  Bytes 16:20 are therefore the width.
+        Reading only the header avoids decoding the image (no heavy image
+        dependency).  Returns ``None`` if the file is not a valid PNG.
+        """
+        with png_path.open("rb") as handle:
+            header = handle.read(24)
+        if len(header) < 24 or header[:8] != b"\x89PNG\r\n\x1a\n":
+            return None
+        return int.from_bytes(header[16:20], byteorder="big")
 
     def _build_score_timelines(
         self,
@@ -843,6 +919,43 @@ class MpmLoader(AlignmentLoader):
         self._perf_cpt = perf_cpt
         self._perf_dpt = perf_dpt
 
+    def _build_spectrogram_timeline(
+        self,
+        spectrogram: dict[str, Any] | None,
+        sample_rate: int,
+    ) -> None:
+        """Build the graphical performance timeline from the spectrogram.
+
+        ``perf:dgt1`` (pixels) is the spectrogram's frame-column x-axis: a
+        :class:`DiscreteGraphicalTimeline` whose length is the number of
+        frame columns (the ``.png``'s pixel width).  It carries **no
+        events** — the columns are a graphical axis, not events — and a
+        px→seconds :class:`ScalarMap` whose scalar is ``hopSize /
+        sample_rate`` (each column advances ``hopSize`` audio samples, so
+        ``seconds = px * hopSize / sample_rate``).
+
+        When the project carries no spectrogram, the timeline is left
+        ``None`` and the bundle simply omits the graphical domain.
+        """
+        if spectrogram is None:
+            self._perf_dgt = None
+            return
+
+        perf_dgt = DiscreteGraphicalTimeline(
+            length=spectrogram["n_columns"],
+            unit=TimeUnit.pixels,
+            uid=_PERF_DGT_ID,
+            name=self._name,
+        )
+        perf_dgt.add_conversion_map(
+            ScalarMap(
+                scalar=spectrogram["hop_size"] / sample_rate,
+                source_unit=TimeUnit.pixels,
+                target_unit=TimeUnit.seconds,
+            )
+        )
+        self._perf_dgt = perf_dgt
+
     def _build_claims(
         self,
         score_notes: list[dict[str, Any]],
@@ -918,11 +1031,19 @@ class MpmLoader(AlignmentLoader):
         )
         bundle.add_timeline(self._perf_cpt, uid=_PERF_CPT_ID, as_group=_PERF_GROUP)
         bundle.add_timeline(self._perf_dpt, uid=_PERF_DPT_ID, aligned_to=_PERF_CPT_ID)
+        if self._perf_dgt is not None:
+            bundle.add_timeline(
+                self._perf_dgt, uid=_PERF_DGT_ID, aligned_to=_PERF_CPT_ID
+            )
         bundle.add_match_claims(self._claims)
         return bundle
 
     def create_timelines(self, id_pattern: str | None = None) -> list["Timeline"]:
-        """Return all four timelines: the two score then the two performance.
+        """Return all loaded timelines: the two score, then the performance.
+
+        The performance group always contributes ``perf:cpt1`` and
+        ``perf:dpt1``; ``perf:dgt1`` (the spectrogram graphical axis) is
+        appended when the project carries a spectrogram.
 
         Args:
             id_pattern: Unused; present for base-class signature parity.
@@ -934,19 +1055,23 @@ class MpmLoader(AlignmentLoader):
             or self._perf_dpt is None
         ):
             return []
-        return [
+        timelines: list["Timeline"] = [
             self._score_clt,
             self._score_dlt,
             self._perf_cpt,
             self._perf_dpt,
         ]
+        if self._perf_dgt is not None:
+            timelines.append(self._perf_dgt)
+        return timelines
 
     def create_timeline(self, id: str | None = None, **kwargs: Any) -> "Timeline":
         """Return a single timeline by its uid.
 
         Args:
             id: One of ``"score:clt1"`` / ``"score:dlt1"`` / ``"perf:cpt1"``
-                / ``"perf:dpt1"``.
+                / ``"perf:dpt1"`` / ``"perf:dgt1"`` (the last present only
+                when the project carries a spectrogram).
 
         Raises:
             KeyError: If no timeline matches.
@@ -956,12 +1081,14 @@ class MpmLoader(AlignmentLoader):
             raise RuntimeError(
                 "No project loaded yet. Call load() before create_timeline()."
             )
-        mapping = {
+        mapping: dict[str, "Timeline"] = {
             _SCORE_CLT_ID: self._score_clt,
             _SCORE_DLT_ID: self._score_dlt,
             _PERF_CPT_ID: self._perf_cpt,
             _PERF_DPT_ID: self._perf_dpt,
         }
+        if self._perf_dgt is not None:
+            mapping[_PERF_DGT_ID] = self._perf_dgt
         if id in mapping:
             return mapping[id]
         raise KeyError(
@@ -994,8 +1121,9 @@ class MpmLoader(AlignmentLoader):
         parts.append(f"<tr><td><b>Claims</b></td><td>{n_claims}</td></tr>")
 
         if loaded:
+            n_timelines = 5 if self._perf_dgt is not None else 4
             parts.append(
-                "<tr><td><b>Timelines</b></td><td>4 in 2 group(s) "
+                f"<tr><td><b>Timelines</b></td><td>{n_timelines} in 2 group(s) "
                 "(score, perf)</td></tr>"
             )
 

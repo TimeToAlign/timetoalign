@@ -317,7 +317,8 @@ parametrized over both specimens:
 ### What the loader builds
 
 ``MpmLoader.from_file(mpr_path).create_bundle()`` produces one
-``AlignmentBundle`` with **4 timelines** in **2 groups**:
+``AlignmentBundle`` with **5 timelines** in **2 groups** (both specimens
+carry a spectrogram, so the graphical axis is always present here):
 
 - a shared ``"score"`` group:
   - ``score:dlt1`` — a ``DiscreteLogicalTimeline`` in ticks holding the
@@ -327,13 +328,23 @@ parametrized over both specimens:
   - ``score:clt1`` — a ``ContinuousLogicalTimeline`` in quarters holding
     the same ``Note`` events (onset ``date / ppq`` as an exact
     ``Fraction``), carrying a modelled quarters→seconds ``TableMap``;
-- a ``"perf"`` group:
+- a ``"perf"`` group (3 timelines):
   - ``perf:cpt1`` — a ``ContinuousPhysicalTimeline`` in seconds, one
     ``Note`` event per observed onset (``milliseconds.date / 1000``);
   - ``perf:dpt1`` — a ``DiscretePhysicalTimeline`` in samples, the same
     onsets scaled by the sample rate, carrying ``SamplesToSeconds``;
+  - ``perf:dgt1`` — a ``DiscreteGraphicalTimeline`` in pixels: the
+    spectrogram's frame-column x-axis (see *Spectrogram graphical axis*
+    below). It carries **no events** — it is a graphical axis, not an
+    event timeline — and a px→seconds ``ScalarMap``;
 - one synchronous cross-group ``MatchClaim`` per score note, projecting
   ``score:clt1`` (quarters) onto ``perf:cpt1`` (seconds).
+
+The bundle therefore spans all **three domains**: logical (quarters /
+ticks), physical (seconds / samples), and graphical (pixels). A test
+collects the units across every timeline (via ``bundle.get_timeline(uid)``
+and ``timeline.unit.domain``) and asserts that all three ``Domain``
+members are present.
 
 ### Parsing notes
 
@@ -357,7 +368,42 @@ The ``.mpr`` carries two ``<note ref …>`` blocks: a ``<score><page>``
 block of score-image 2-D coordinates (**not** parsed here — a later
 concern) and an ``<alignment>`` block (under ``<audios>/<audio>``) of
 observed onsets (``ref`` / ``midi.pitch`` / ``milliseconds.date`` /
-``velocity``). Only the alignment block is read.
+``velocity``). Only the alignment block is read for the onset events.
+
+### Spectrogram graphical axis
+
+The ``.mpr`` also carries a ``<spectrogram windowFunction hopSize
+minFrequency maxFrequency binsPerSemitone normalize file>`` element under
+``<audios>/<audio>``. Its x-axis is time in *frame columns*: each column
+advances by ``hopSize`` audio samples. The XML has **no width/height**, so
+the number of frame columns equals the **pixel width of the referenced
+``.png``** (``file``, resolved relative to the ``.mpr``'s parent
+directory). The width is read directly from the PNG IHDR header (bytes
+16:20 are the big-endian ``uint32`` width) — no image-decoding dependency
+is added. The pinned widths are **Beethoven 26469** and **Reger 1587**
+frame columns.
+
+``perf:dgt1`` is built as ``DiscreteGraphicalTimeline(length=<png width>,
+unit=TimeUnit.pixels)`` and carries **0 events** (the columns are an axis,
+not events). Its only attachment is a px→seconds ``ScalarMap`` with scalar
+``hopSize / sample_rate`` (so ``seconds = px * hopSize / sample_rate``,
+``map(0) == 0``):
+
+- **Beethoven**: ``hopSize`` 128, sample rate 44100, scalar
+  ``128 / 44100``; ``map(1) == 128 / 44100`` and ``map(26469) ==
+  26469 * 128 / 44100`` (the audio duration in seconds).
+- **Reger**: ``hopSize`` 512, sample rate 48000, scalar ``512 / 48000``;
+  ``map(1) == 512 / 48000``.
+
+The map is pulled off the timeline via
+``timeline.get_conversion_map(TimeUnit.seconds)`` and asserted to be a
+``ScalarMap`` with the expected scalar. The per-note score-image
+``<score><page><note ref x y>`` 2-D coordinates remain unparsed (a later
+concern — per-event 2-D graphical storage does not exist yet).
+
+When a project carries no ``<spectrogram>`` (or its ``.png`` is missing),
+``perf:dgt1`` is simply absent and the bundle holds 4 timelines; the
+loader does not crash. Both specimens here have one.
 
 ### Performance selection and style resolution
 
@@ -430,10 +476,16 @@ beat-length, spq 2.4) advances 0.5 quarter to ``map(40.0) == 24.9``.
 | NOMATCH claims | 0 | 0 |
 | Tempo-map anchors | 8 | 2 |
 | Sample rate (Hz) | 44100 | 48000 |
+| ``perf:dgt1`` length (frame columns / pixels) | 26469 | 1587 |
+| ``perf:dgt1`` events | 0 | 0 |
+| Spectrogram ``hopSize`` | 128 | 512 |
+| px→seconds ``ScalarMap`` scalar | 128 / 44100 | 512 / 48000 |
 
-The bundle holds **4 timelines** (``score:clt1`` / ``score:dlt1`` /
-``perf:cpt1`` / ``perf:dpt1``) and **2 groups** (``score`` / ``perf``)
-for both specimens.
+The bundle holds **5 timelines** (``score:clt1`` / ``score:dlt1`` /
+``perf:cpt1`` / ``perf:dpt1`` / ``perf:dgt1``) and **2 groups**
+(``score`` / ``perf``) for both specimens; the ``perf`` group holds 3
+timelines. The timeline units across the bundle span all three
+``Domain``s: logical, physical, and graphical.
 
 **C-Map spot-check (``TicksToQuarters``):** on ``score:dlt1``, tick
 ``360`` resolves to ``0.5`` quarters and ``720`` to ``1.0`` (queried via

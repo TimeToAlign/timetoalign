@@ -189,7 +189,6 @@ quartodoc:
       desc: Classes for connecting and aligning timelines.
       contents:
         - TimelineGroup
-        - PerfectAlignment
         - AlignmentBundle
         - AlignmentAnchor
         - MatchClaim
@@ -220,3 +219,9 @@ quartodoc:
           package: timetoalign.loader.alignment.tilia
         - name: TiliaDictStore
           package: timetoalign.loader.alignment.tilia
+        - name: PerformancePrecisionLoader
+          package: timetoalign.loader.alignment.performance_precision
+        - name: ParangonadaLoader
+          package: timetoalign.loader.alignment.parangonada
+        - name: MpmLoader
+          package: timetoalign.loader.alignment.mpm

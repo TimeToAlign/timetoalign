@@ -15,9 +15,13 @@ It verifies, parametrized over both specimens unless noted:
 - the ``TicksToQuarters`` and modelled quarters→seconds ``TableMap``
   C-Maps;
 - the two physical performance timelines and an onset spot-check;
+- the spectrogram graphical timeline (``perf:dgt1``): its pixel length
+  (= the spectrogram ``.png``'s frame-column width), its 0 events, and
+  its px→seconds ``ScalarMap``;
 - the cross-group claims (count, all synchronous, no NOMATCH) and the
   ``ref`` ↔ ``xml:id`` bijection (0 orphans, 0 unaligned);
-- the bundle shape (4 timelines, 2 groups);
+- the bundle shape (5 timelines, 2 groups) and that its timeline units
+  span all three domains (logical / physical / graphical);
 - style-resolution spot-checks (Beethoven / Reger);
 - the ``performance=`` selector reaching a non-default performance; and
 - a note pitch / spelling spot-check.
@@ -36,8 +40,9 @@ from typing import Any
 import pytest
 from lxml import etree
 
-from timetoalign.core import TimeUnit
+from timetoalign.core import Domain, TimeUnit
 from timetoalign.loader.alignment import MpmLoader
+from timetoalign.maps.linear import ScalarMap
 from timetoalign.maps.table import TableMap
 from timetoalign.testdata import ensure_data
 
@@ -53,6 +58,7 @@ SCORE_CLT_ID = "score:clt1"
 SCORE_DLT_ID = "score:dlt1"
 PERF_CPT_ID = "perf:cpt1"
 PERF_DPT_ID = "perf:dpt1"
+PERF_DGT_ID = "perf:dgt1"
 
 _XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
 
@@ -69,6 +75,9 @@ SPECIMENS = {
         "claims": 251,
         "tempo_anchors": 8,
         "sample_rate": 44100,
+        # Spectrogram: x-axis = frame columns = the .png's pixel width.
+        "spectrogram_columns": 26469,
+        "hop_size": 128,
     },
     "reger": {
         "mpr": REGER_MPR,
@@ -79,6 +88,8 @@ SPECIMENS = {
         "claims": 92,
         "tempo_anchors": 2,
         "sample_rate": 48000,
+        "spectrogram_columns": 1587,
+        "hop_size": 512,
     },
 }
 
@@ -267,14 +278,92 @@ def test_beethoven_note_pitch_spot_check() -> None:
 # endregion
 
 
+# region Spectrogram graphical timeline
+
+
+def test_spectrogram_timeline_is_pixels_axis(specimen: dict[str, Any]) -> None:
+    """``perf:dgt1`` is a pixels axis of the .png's frame-column width, 0 events.
+
+    The spectrogram x-axis is time in frame columns; the column count is the
+    pixel width of the spectrogram ``.png`` (read from its IHDR header).  The
+    timeline carries no events — it is a graphical axis, not an event
+    timeline.
+    """
+    loader = _loaded(specimen["mpr"])
+    dgt = loader.create_timeline(PERF_DGT_ID)
+    assert dgt.unit == TimeUnit.pixels
+    assert dgt.length.value == specimen["spectrogram_columns"]
+    assert dgt.events._table.num_rows == 0
+
+
+def test_spectrogram_px_to_seconds_cmap(specimen: dict[str, Any]) -> None:
+    """``perf:dgt1`` carries a px→seconds ``ScalarMap`` of ``hopSize/rate``.
+
+    Each frame column advances ``hopSize`` audio samples, so
+    ``seconds = px * hopSize / sample_rate``.  The map is a ``ScalarMap``
+    whose scalar is exactly ``hop_size / sample_rate`` (the same Python
+    expression the loader evaluates, so the IEEE-754 double matches).
+    """
+    loader = _loaded(specimen["mpr"])
+    dgt = loader.create_timeline(PERF_DGT_ID)
+    expected_scalar = specimen["hop_size"] / specimen["sample_rate"]
+
+    cmap = dgt.get_conversion_map(TimeUnit.seconds)
+    assert isinstance(cmap, ScalarMap)
+    assert cmap.scalar == expected_scalar
+    # The axis resolves px -> seconds: map(0)=0, map(1)=scalar.
+    assert dgt.get_timestamp(0).get_unit(TimeUnit.seconds) == 0.0
+    assert dgt.get_timestamp(1).get_unit(TimeUnit.seconds) == expected_scalar
+
+
+def test_beethoven_spectrogram_duration() -> None:
+    """Beethoven's last spectrogram column maps to the audio duration.
+
+    ``map(26469) == 26469 * 128 / 44100`` seconds (the rightmost frame
+    column's onset = the spectrogram's total time span).
+    """
+    loader = _loaded(BEETHOVEN_MPR)
+    dgt = loader.create_timeline(PERF_DGT_ID)
+    expected = 26469 * 128 / 44100
+    assert dgt.get_timestamp(26469).get_unit(TimeUnit.seconds) == expected
+
+
+def test_reger_spectrogram_first_column() -> None:
+    """Reger's first spectrogram column maps to ``512 / 48000`` seconds."""
+    loader = _loaded(REGER_MPR)
+    dgt = loader.create_timeline(PERF_DGT_ID)
+    assert dgt.get_timestamp(1).get_unit(TimeUnit.seconds) == 512 / 48000
+
+
+def test_bundle_spans_three_domains(specimen: dict[str, Any]) -> None:
+    """The bundle's timeline units span logical, physical, and graphical.
+
+    Adding ``perf:dgt1`` (pixels) completes the third domain: the bundle now
+    carries a logical member (quarters / ticks), a physical member (seconds
+    / samples), and a graphical member (pixels).
+    """
+    loader = _loaded(specimen["mpr"])
+    bundle = loader.create_bundle()
+    domains = {bundle.get_timeline(uid).unit.domain for uid in bundle.timeline_ids}
+    assert domains == {Domain.logical, Domain.physical, Domain.graphical}
+
+
+# endregion
+
+
 # region Claims + bijection
 
 
 def test_bundle_shape(specimen: dict[str, Any]) -> None:
-    """The bundle holds 4 timelines in 2 groups (score, perf)."""
+    """The bundle holds 5 timelines in 2 groups (score, perf).
+
+    The ``perf`` group holds three timelines (``perf:cpt1`` / ``perf:dpt1``
+    / ``perf:dgt1``); both specimens carry a spectrogram, so the graphical
+    axis is always present.
+    """
     loader = _loaded(specimen["mpr"])
     bundle = loader.create_bundle()
-    assert bundle.n_timelines == 4
+    assert bundle.n_timelines == 5
     assert bundle.n_groups == 2
     assert bundle.group_ids == ["score", "perf"]
     assert bundle.timeline_ids == [
@@ -282,7 +371,11 @@ def test_bundle_shape(specimen: dict[str, Any]) -> None:
         SCORE_DLT_ID,
         PERF_CPT_ID,
         PERF_DPT_ID,
+        PERF_DGT_ID,
     ]
+    # The perf group now holds three timelines.
+    perf_group = bundle.get_group("perf")
+    assert set(perf_group.timeline_ids) == {PERF_CPT_ID, PERF_DPT_ID, PERF_DGT_ID}
 
 
 def test_claims_all_synchronous(specimen: dict[str, Any]) -> None:
@@ -455,8 +548,8 @@ def test_create_timeline_unknown_uid_raises() -> None:
         loader.create_timeline("score:bogus")
 
 
-def test_create_timelines_returns_four(specimen: dict[str, Any]) -> None:
-    """``create_timelines`` returns the four timelines in canonical order."""
+def test_create_timelines_returns_all(specimen: dict[str, Any]) -> None:
+    """``create_timelines`` returns the five timelines in canonical order."""
     loader = _loaded(specimen["mpr"])
     timelines = loader.create_timelines()
     assert [tl.id for tl in timelines] == [
@@ -464,6 +557,7 @@ def test_create_timelines_returns_four(specimen: dict[str, Any]) -> None:
         SCORE_DLT_ID,
         PERF_CPT_ID,
         PERF_DPT_ID,
+        PERF_DGT_ID,
     ]
 
 
