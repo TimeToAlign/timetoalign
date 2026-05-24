@@ -69,13 +69,13 @@ documentation:
   AlignmentBundle, FlowMap, OMR, 16+ timelines across 3 domains.
 - [How to Load the Vienna 4x22 Corpus](howto/how03_loading_vienna_corpus.ipynb) ---
   MatchfileLoader, 22 performances, AlignmentBundle.
-- [How to Load an Audio-to-Score Alignment Corpus and Compare Performances](howto/how05_performance_precision.ipynb) ---
+- [How to Load an Audio-to-Score Alignment Corpus and Compare Performances](howto/how03_performance_precision.ipynb) ---
   PerformancePrecisionLoader, MetricMap from a Verovio timemap,
   granularity-tagged MatchClaims, cross-performer tempo comparison.
-- [How to Load a parangonada Note Alignment Across Several Performances](howto/how06_parangonada.ipynb) ---
+- [How to Load a parangonada Note Alignment Across Several Performances](howto/how03_parangonada.ipynb) ---
   ParangonadaLoader, one multimodal AlignmentBundle across five performances,
   divs/quarters and samples/seconds C-Maps, synchronous and NOMATCH MatchClaims.
-- [How to Load an MPM-Toolbox Project (Score, Modelled Performance, Observed Alignment)](howto/how07_mpm_toolbox.ipynb) ---
+- [How to Load an MPM-Toolbox Project (Score, Modelled Performance, Observed Alignment)](howto/how03_mpm_toolbox.ipynb) ---
   MpmLoader, the score in ticks and quarters with MPM markup carried as events,
   a modelled quarters/seconds TableMap, and the observed alignment as MatchClaims.
 

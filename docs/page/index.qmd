@@ -66,9 +66,9 @@ This documentation follows the
     [How to Create a Note Alignment](howto/how03_create_note_alignment.ipynb) ·
     [How to Align Multimodal Data (Beethoven)](howto/how03_beethoven_multimodal.ipynb) ·
     [How to Load the Vienna 4x22 Corpus](howto/how03_loading_vienna_corpus.ipynb) ·
-    [How to Load an Audio-to-Score Alignment Corpus and Compare Performances](howto/how05_performance_precision.ipynb) ·
-    [How to Load a parangonada Note Alignment Across Several Performances](howto/how06_parangonada.ipynb) ·
-    [How to Load an MPM-Toolbox Project (Score, Modelled Performance, Observed Alignment)](howto/how07_mpm_toolbox.ipynb)
+    [How to Load an Audio-to-Score Alignment Corpus and Compare Performances](howto/how03_performance_precision.ipynb) ·
+    [How to Load a parangonada Note Alignment Across Several Performances](howto/how03_parangonada.ipynb) ·
+    [How to Load an MPM-Toolbox Project (Score, Modelled Performance, Observed Alignment)](howto/how03_mpm_toolbox.ipynb)
 
     *In-depth Topics* ---
     [How to Encode Song Genesis (Hendrix)](howto/how04_hendrix_song_genesis.ipynb) ·
