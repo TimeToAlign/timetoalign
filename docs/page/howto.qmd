@@ -75,6 +75,9 @@ documentation:
 - [How to Load a parangonada Note Alignment Across Several Performances](howto/how06_parangonada.ipynb) ---
   ParangonadaLoader, one multimodal AlignmentBundle across five performances,
   divs/quarters and samples/seconds C-Maps, synchronous and NOMATCH MatchClaims.
+- [How to Load an MPM-Toolbox Project (Score, Modelled Performance, Observed Alignment)](howto/how07_mpm_toolbox.ipynb) ---
+  MpmLoader, the score in ticks and quarters with MPM markup carried as events,
+  a modelled quarters/seconds TableMap, and the observed alignment as MatchClaims.
 
 ### In-depth Topics
 

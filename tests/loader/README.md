@@ -301,3 +301,162 @@ deduplicate.
 **C-Map round-trip:** ``SamplesToSeconds(44100)`` on a ``dpt1`` timeline
 converts ``44100`` samples to ``1.0`` seconds (and ``sample / 44100``
 generally).
+
+## `MpmLoader` validation logic
+
+Corpus: ``mpm_toolbox`` (two MPM-Toolbox projects, each a sibling
+``.msm`` / ``.mpm`` / ``.mpr`` triple in its own subdirectory). Tests are
+parametrized over both specimens:
+
+- **Beethoven** — directory ``MPRproject_1971Curzon_VariationXIV/``, stem
+  ``Beethoven_op35_1971Curzon_Var14only``. Recording: a 44100 Hz ``.wav``.
+- **Reger** — directory ``Max Reger - Moment Musical (MPM Toolbox
+  Tutorial)/``, stem ``Reger - Moment Musical op 13 no 4``. Recording: a
+  48000 Hz ``.wav``.
+
+### What the loader builds
+
+``MpmLoader.from_file(mpr_path).create_bundle()`` produces one
+``AlignmentBundle`` with **4 timelines** in **2 groups**:
+
+- a shared ``"score"`` group:
+  - ``score:dlt1`` — a ``DiscreteLogicalTimeline`` in ticks holding the
+    MSM ``Note`` events *and* every MPM markup event (``Tempo`` /
+    ``Dynamics`` / ``Articulation`` / ``Asynchrony`` / any other map
+    type), carrying a ticks→quarters ``TicksToQuarters(ppq)`` map;
+  - ``score:clt1`` — a ``ContinuousLogicalTimeline`` in quarters holding
+    the same ``Note`` events (onset ``date / ppq`` as an exact
+    ``Fraction``), carrying a modelled quarters→seconds ``TableMap``;
+- a ``"perf"`` group:
+  - ``perf:cpt1`` — a ``ContinuousPhysicalTimeline`` in seconds, one
+    ``Note`` event per observed onset (``milliseconds.date / 1000``);
+  - ``perf:dpt1`` — a ``DiscretePhysicalTimeline`` in samples, the same
+    onsets scaled by the sample rate, carrying ``SamplesToSeconds``;
+- one synchronous cross-group ``MatchClaim`` per score note, projecting
+  ``score:clt1`` (quarters) onto ``perf:cpt1`` (seconds).
+
+### Parsing notes
+
+The three files are parsed with ``lxml`` using
+``etree.XMLParser(recover=True, collect_ids=False)``. ``collect_ids`` is
+**off** because the MSM / MPM / MPR reuse ``xml:id`` values across files;
+a default id-collecting parser raises ``XMLSyntaxError: ID … already
+defined``. The ``.mpm`` uses the CEMFI MPM default namespace, so its
+elements are matched by local name; the ``.msm`` and ``.mpr`` are plain
+XML. All numeric attributes are float-strings, parsed ``int(float(x))``
+for integers (ticks / pitch / octave) and ``float(x)`` for reals.
+
+The MSM ``midi.pitch`` integer is stored verbatim as the pitch; the
+spelling attributes (``pitchname`` / ``accidentals`` / ``octave``) are
+carried as-is. No ``SpecificPitch`` is constructed — the MSM octave
+numbering is inconsistent with ``midi.pitch`` under scientific notation,
+so interpreting it would be inference rather than faithful
+representation.
+
+The ``.mpr`` carries two ``<note ref …>`` blocks: a ``<score><page>``
+block of score-image 2-D coordinates (**not** parsed here — a later
+concern) and an ``<alignment>`` block (under ``<audios>/<audio>``) of
+observed onsets (``ref`` / ``midi.pitch`` / ``milliseconds.date`` /
+``velocity``). Only the alignment block is read.
+
+### Performance selection and style resolution
+
+The MPM holds several ``<performance>`` blocks; the **first** is the
+default. ``load(mpr_path, performance=<name>)`` selects another.
+
+Within the chosen performance, maps appear under both
+``performance>global>dated`` and every ``performance>part>dated``
+(``tempoMap`` / ``asynchronyMap`` are global, ``articulationMap`` is
+per-part, ``dynamicsMap`` is either). Each map's leading ``<style
+name.ref="…">`` child is *not* an entry; it names the active styleDef.
+One markup event is emitted per remaining entry, ``event_type`` =
+capitalised element local-name.
+
+Tempo / dynamics values are inline numbers (audio performances) *or*
+style names resolved against the performance's ``tempoDef`` / ``dynamicsDef``
+(``value``). Articulation ``name.ref`` resolves against an
+``articulationDef`` whose snake-cased numeric attributes
+(``relative_duration`` / ``absolute_duration_ms`` / ``absolute_velocity``
+/ ``absolute_velocity_change`` …) become event columns; a ``name.ref``
+with no matching def carries the name only (no crash). Any unrecognised
+map type is emitted generically (raw attributes carried verbatim), so
+nothing is dropped.
+
+### The central join
+
+The alignment ``ref`` → MSM ``xml:id`` is a **perfect bijection** in both
+specimens (zero orphan refs, zero unaligned MSM ids). Every score note
+has exactly one observed onset, so every claim is **synchronous** (no
+NOMATCH). Tests assert the bijection (0 orphans, 0 unaligned) and that
+the claim count equals the MSM note count.
+
+### Modelled quarters→seconds TableMap
+
+Constant tempo per segment (``transition.to`` accelerando / ritardando
+ramps are **ignored** for integration — stored only as a Tempo-event
+attribute). For each ``tempoMap`` entry (sorted by date) with resolved
+bpm ``B`` and beat-length ``L``, the segment's seconds-per-quarter is
+``(0.25 / L) * (60 / B)``. Entry dates (ticks) become quarters
+(``date / ppq``); the first entry sits at ``q = 0, s = 0``. Segments are
+cumulatively integrated (``s_{i+1} = s_i + (q_{i+1} − q_i) · spq_i``); a
+final anchor at the score's last quarter extends the last segment. The
+result is a ``TableMap(x_values=[q…], y_values=[s…], kind="linear",
+source_unit=quarters, target_unit=seconds)``.
+
+Tests assert ``map(0) == 0.0`` and strict monotonic increase. For
+**Reger** (single tempo entry, ``beatLength`` 0.0625, bpm 80) the spq is
+``(0.25 / 0.0625) · (60 / 80) = 4 · 0.75 = 3.0``, so the map is
+``s = 3·q`` and ``map(1) == 3.0`` (2 anchors). For **Beethoven** (7 tempo
+entries → 8 anchors) the first segment (bpm 100, beatLength 0.25) has
+``spq = 0.6``, so ``map(39.5) == 23.7``; the second entry (bpm 25, same
+beat-length, spq 2.4) advances 0.5 quarter to ``map(40.0) == 24.9``.
+
+### Zero-tolerance counts
+
+| Quantity | Beethoven | Reger |
+|----------|-----------|-------|
+| PPQ | 720 | 720 |
+| MSM notes | 251 | 92 |
+| ``score:clt1`` events (notes) | 251 | 92 |
+| Tempo events (default perf) | 7 | 1 |
+| Dynamics events (default perf) | 34 | 11 |
+| Articulation events (default perf) | 207 | 80 |
+| Asynchrony events (default perf) | 0 | 0 |
+| Other markup (default perf) | 0 | 1 (Ornament) |
+| ``score:dlt1`` events (notes + markup) | 499 | 185 |
+| Alignment notes | 251 | 92 |
+| ``perf:cpt1`` / ``perf:dpt1`` events | 251 | 92 |
+| Synchronous claims | 251 | 92 |
+| NOMATCH claims | 0 | 0 |
+| Tempo-map anchors | 8 | 2 |
+| Sample rate (Hz) | 44100 | 48000 |
+
+The bundle holds **4 timelines** (``score:clt1`` / ``score:dlt1`` /
+``perf:cpt1`` / ``perf:dpt1``) and **2 groups** (``score`` / ``perf``)
+for both specimens.
+
+**C-Map spot-check (``TicksToQuarters``):** on ``score:dlt1``, tick
+``360`` resolves to ``0.5`` quarters and ``720`` to ``1.0`` (queried via
+``timeline.get_timestamp(tick).get_unit(TimeUnit.quarters)``).
+
+**Onset spot-check:** Beethoven note ``nbwxzb1`` has
+``milliseconds.date == 828.0190259247195``, so its ``perf:cpt1`` onset
+and its claim target coordinate are ``828.0190259247195 / 1000.0``
+seconds (the loader divides by 1000; the test pins the same Python
+expression, so the IEEE-754 double matches exactly). Its source
+coordinate is ``360 / 720 == 0.5`` quarters.
+
+**Note pitch spot-check:** Beethoven ``nbwxzb1`` → pitch ``75``,
+pitchname ``"e"``, accidentals ``-1``, octave ``4``, date ``360`` ticks.
+
+**Style-resolution spot-checks:** Beethoven Dynamics ``volume="p"`` →
+``48.0``, Tempo ``bpm="Meno mosso."`` → ``100.0``, Articulation
+``name.ref="staccato"`` → ``absolute_duration_ms == 160.0`` (and
+``noteid`` stripped of its leading ``#``). Reger Dynamics
+``volume="dolciss."`` → ``74.0``, Tempo ``bpm="Andantino"`` → ``80.0``.
+
+**Performance selector:** Beethoven
+``load(mpr, performance="Curzon_1971_DECCA-SXL6523_audio")`` reaches a
+different performance whose inline-numeric bpm values resolve directly —
+its ``score:dlt1`` then carries **25** Asynchrony events (vs 0 in the
+default) and **123** Tempo events.
