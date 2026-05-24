@@ -88,6 +88,8 @@ website:
               href: howto/how05_performance_precision.ipynb
             - text: "How to Load a parangonada Note Alignment Across Several Performances"
               href: howto/how06_parangonada.ipynb
+            - text: "How to Load an MPM-Toolbox Project (Score, Modelled Performance, Observed Alignment)"
+              href: howto/how07_mpm_toolbox.ipynb
         - section: "In-depth Topics"
           contents:
             - text: "How to Encode Song Genesis (Hendrix)"

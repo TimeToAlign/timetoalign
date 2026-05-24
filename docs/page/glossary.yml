@@ -169,6 +169,20 @@ MetricalPositionMap: |
   quarters_at(mc, beat) (metrical position → quarters) and mn_at(quarters)
   (quarters → measure-number label).
 
+MpmLoader: |
+  Loader for an MPM-Toolbox project: a sibling .msm score, .mpm modelled
+  performance, and .mpr project file (carrying an observed audio-to-score
+  alignment) for one work. Uses the standard two-phase load() → create_*()
+  pattern. Builds a shared logical "score" group holding the notes in two units
+  — a ticks DiscreteLogicalTimeline (also carrying every MPM markup event:
+  Tempo, Dynamics, Articulation, …) and a quarters ContinuousLogicalTimeline —
+  with a TicksToQuarters map and a modelled quarters→seconds TableMap integrated
+  from the performance's tempo markup; and a physical "perf" group of observed
+  onsets in seconds and samples. Emits one synchronous cross-group MatchClaim
+  per score note (the MSM xml:id ↔ MPR ref join is a bijection). Reads the
+  modelled performance and the observed alignment; never runs an aligner.
+  Returns an AlignmentBundle via create_bundle().
+
 MultiMap: |
   An umbrella term for composed ConversionMaps: ChainMap (sequential),
   CombinationMap (parallel outputs), and ConcatenationMap (regional).

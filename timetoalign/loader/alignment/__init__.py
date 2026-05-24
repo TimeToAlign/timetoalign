@@ -11,6 +11,9 @@ Loaders:
         (.solo score + Verovio timemap + per-performer alignment CSVs).
     ParangonadaLoader: parangonada CSV exports (part/ppart/align triples)
         ingested as one multimodal AlignmentBundle.
+    MpmLoader: MPM-Toolbox MSM+MPM+MPR triples (notated score + modelled
+        performance markup + observed alignment) ingested as one
+        multimodal AlignmentBundle.
 
 Stores:
     TiliaDictStore: DictStore subclass with TiLiA timeline type properties.
@@ -19,12 +22,14 @@ Stores:
 from __future__ import annotations
 
 from .matchfile import MatchfileLoader
+from .mpm import MpmLoader
 from .parangonada import ParangonadaLoader
 from .performance_precision import PerformancePrecisionLoader
 from .tilia import TiliaDictStore, TiliaJsonLoader
 
 __all__ = [
     "MatchfileLoader",
+    "MpmLoader",
     "ParangonadaLoader",
     "PerformancePrecisionLoader",
     "TiliaDictStore",
