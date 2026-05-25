@@ -78,6 +78,10 @@ documentation:
 - [How to Load an MPM-Toolbox Project (Score, Modelled Performance, Observed Alignment)](howto/how03_mpm_toolbox.ipynb) ---
   MpmLoader, the score in ticks and quarters with MPM markup carried as events,
   a modelled quarters/seconds TableMap, and the observed alignment as MatchClaims.
+- [How to Load an Audio-to-Audio Alignment (Listen Here!)](howto/how03_listen_here.ipynb) ---
+  ListenHereLoader, a dense audio-to-audio alignment matrix, the columnar
+  MatchClaimField holding the complete pairwise topology, and a single point
+  placed across every recording at once.
 
 ### In-depth Topics
 

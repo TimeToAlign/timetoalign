@@ -18,6 +18,7 @@ bundles, error handling).
 | `test_matchfile_loader.py` | `MatchfileLoader` parity against gold standard |
 | `test_performance_precision_loader.py` | `PerformancePrecisionLoader` against the CAAMP Chopin Nocturne specimen — composes `SoloLoader` for the `.solo` score (2494 notes), builds the score timeline by resolving every `"<measure>+<offset>"` label to absolute quarters via the `MetricMap`, and emits one physical timeline + three granularities of `MatchClaim` per performer. Zero-tolerance counts (see "Validation logic" below). |
 | `test_parangonada_loader.py` | `ParangonadaLoader` against the parangonada CSV export of the `Beethoven_Eroica_op35-cpjku` dataset (5 performers). Builds one shared multimodal `AlignmentBundle` (1 score group + 5 performer groups) from `part.csv` / `ppart.csv` / `align.csv`, plus measured `Beat` / `Dynamics` feature events (`.beats` / `.dyn`) on each performance's seconds timeline. Zero-tolerance counts (see "Validation logic" below). |
+| `test_listen_here_loader.py` | `ListenHereLoader` against an inline synthetic Listen Here! alignment JSON (built in `tmp_path`). Parses many recordings of one work warped onto a shared equidistant reference grid into one audio-to-audio `AlignmentBundle`: one empty seconds timeline per recording (each its own group) and complete-topology pairwise synchronous claims held columnar in a `MatchClaimField`. Zero-tolerance counts (see "Validation logic" below). |
 | `test_parsing.py` | Format-agnostic parsing helpers |
 | `test_schema.py` | `TableSchema` and field-spec resolution |
 | `test_store.py` | `EventStore` low-level operations |
@@ -596,3 +597,82 @@ absent / null for Control-Change rows whose `pitch` is null).
 - *raw-column route* — `get_field(EnharmonicPitch)[i].midi_number` equals
   the raw `midi` value, and (zero-tolerance) the two routes agree
   element-wise on the spelled-source fixture.
+## `ListenHereLoader` validation logic
+
+### What the loader builds
+
+A Listen Here! alignment JSON describes many recordings of one work warped
+onto a shared **equidistant reference grid**.  Per recording, ``body.audio``
+holds a ``times`` array whose ``i``-th entry is that recording's clock-time
+(seconds) at reference-grid column ``i``; the arrays are parallel and equal
+length, so together they are a dense alignment matrix.  ``ListenHereLoader``
+reads it into one audio-to-audio ``AlignmentBundle``:
+
+* one empty seconds ``ContinuousPhysicalTimeline`` (``<stem>:cpt1``) per
+  recording, each in its **own** group named by the recording stem;
+  ``length`` is that recording's stored ``duration``;
+* the **complete pairwise topology** — for every unordered pair of recordings
+  ``(a, b)`` and every grid column ``i``, one synchronous instant claim
+  ``a@times_a[i] ↔ b@times_b[i]`` — held columnar in a ``MatchClaimField``
+  (``loader.claim_field``), built vectorized via
+  ``MatchClaimField.from_columns`` (never one ``MatchClaim`` object per row).
+
+The recordings carry **no symbolic events**; all alignment lives in the claim
+field.  The reference named by ``header.ref`` is just another recording, not a
+privileged hub.  The loader reads the existing alignment — it never runs an
+aligner.
+
+### The synthetic specimen
+
+Committed tests use an **inline synthetic** ``alignment.json`` written to
+``tmp_path`` (no pooch corpus, parallel-safe).  The canonical specimen:
+
+```json
+{
+  "header": {"ref": "rec-ref.mp3", "createdBy": "Listen Here! v0.20.0"},
+  "body": {"audio": {
+    "rec-a.mp3":   {"times": [0.00, 0.02, 0.04, 0.06, 0.08], "peaks": [0.1,0.2], "duration": 0.08},
+    "rec-b.mp3":   {"times": [-0.01, 0.01, 0.03, 0.05, 0.07], "peaks": [0.1,0.2], "duration": 0.10},
+    "rec-ref.mp3": {"times": [0.00, 0.025, 0.045, 0.065, 0.085], "peaks": [0.1,0.2], "duration": 0.085}
+  }}
+}
+```
+
+Sorted keys → ``["rec-a.mp3", "rec-b.mp3", "rec-ref.mp3"]``; stems ``rec-a`` /
+``rec-b`` / ``rec-ref``; timeline uids ``rec-a:cpt1`` / ``rec-b:cpt1`` /
+``rec-ref:cpt1``; pairs ``(a, b)``, ``(a, ref)``, ``(b, ref)``.  ``rec-b``'s
+first column is ``-0.01`` — a **negative** pre-onset warp coordinate that the
+loader keeps faithfully (never clamped or dropped).  ``peaks`` is
+waveform-display payload and is ignored.
+
+### Zero-tolerance counts
+
+* After ``load``: ``len(loader) == 15`` and ``len(loader.claim_field) == 15``
+  (C(3,2) = 3 pairs × 5 columns); ``loader.recording_keys ==
+  ["rec-a", "rec-b", "rec-ref"]``.
+* ``claim_field.timeline_ids == {"rec-a:cpt1", "rec-b:cpt1", "rec-ref:cpt1"}``.
+* **Faithfulness:** ``pc.min`` over both coordinate columns of the field is
+  exactly ``-0.01`` (negatives kept).
+* ``bundle = loader.create_bundle()``: exactly **3** timelines and **3**
+  groups; timeline uids equal the set above; each timeline holds **0** events;
+  ``rec-b:cpt1`` length ``== 0.10``.
+* ``bundle.get_matchstamp_at(0.045, "rec-ref:cpt1")``: ``stamp.n_timelines ==
+  3``; ``stamp.get_coordinate("rec-a:cpt1") == 0.04``;
+  ``stamp.get_coordinate("rec-b:cpt1") == 0.03``;
+  ``stamp.get_coordinate("rec-ref:cpt1") == 0.045``.  The exact float literals
+  from the specimen are reused so the equality is exact.
+* **Bare-array form:** a second fixture where one entry is a bare list
+  ``[0.0, 0.02, 0.04]`` (no ``peaks`` / ``duration``) parses, and that
+  recording's timeline ``length == max(times)``.
+* **Metadata:** the bundle's first materialised claim has
+  ``.metadata.agent == "Listen Here! v0.20.0"`` (from ``header.createdBy``) and
+  ``.metadata.decision_criteria == "dtw_chroma_alignment"``.
+
+### Error cases
+
+``load`` raises ``ValueError`` when:
+
+* the per-recording ``times`` arrays differ in length (the message names the
+  differing lengths);
+* ``header.ref`` is absent from ``body.audio``;
+* fewer than two recordings are present.

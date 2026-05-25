@@ -90,6 +90,8 @@ website:
               href: howto/how03_parangonada.ipynb
             - text: "How to Load an MPM-Toolbox Project (Score, Modelled Performance, Observed Alignment)"
               href: howto/how03_mpm_toolbox.ipynb
+            - text: "How to Load an Audio-to-Audio Alignment (Listen Here!)"
+              href: howto/how03_listen_here.ipynb
         - section: "In-depth Topics"
           contents:
             - text: "How to Encode Song Genesis (Hendrix)"
@@ -192,6 +194,7 @@ quartodoc:
         - AlignmentBundle
         - AlignmentAnchor
         - MatchClaim
+        - MatchClaimField
         - MatchMetadata
         - MatchGraph
         - MatchStamp
@@ -225,3 +228,5 @@ quartodoc:
           package: timetoalign.loader.alignment.parangonada
         - name: MpmLoader
           package: timetoalign.loader.alignment.mpm
+        - name: ListenHereLoader
+          package: timetoalign.loader.alignment.listen_here
