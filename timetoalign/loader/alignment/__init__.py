@@ -11,6 +11,9 @@ Loaders:
         (.solo score + Verovio timemap + per-performer alignment CSVs).
     ParangonadaLoader: parangonada CSV exports (part/ppart/align triples)
         ingested as one multimodal AlignmentBundle.
+    ListenHereLoader: Listen Here! alignment JSON exports (many recordings of
+        one work warped onto a shared reference grid) ingested as one
+        audio-to-audio AlignmentBundle with complete-topology pairwise claims.
     MpmLoader: MPM-Toolbox MSM+MPM+MPR triples (notated score + modelled
         performance markup + observed alignment) ingested as one
         multimodal AlignmentBundle.
@@ -21,6 +24,7 @@ Stores:
 
 from __future__ import annotations
 
+from .listen_here import ListenHereLoader
 from .matchfile import MatchfileLoader
 from .mpm import MpmLoader
 from .parangonada import ParangonadaLoader
@@ -28,6 +32,7 @@ from .performance_precision import PerformancePrecisionLoader
 from .tilia import TiliaDictStore, TiliaJsonLoader
 
 __all__ = [
+    "ListenHereLoader",
     "MatchfileLoader",
     "MpmLoader",
     "ParangonadaLoader",
