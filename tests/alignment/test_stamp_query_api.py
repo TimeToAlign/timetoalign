@@ -16,12 +16,12 @@ from __future__ import annotations
 
 import pytest
 
-from timetoalign.alignment.anchors import (
+from timetoalign.alignment.bundle import AlignmentBundle
+from timetoalign.alignment.claims import (
     AlignmentAnchor,
     MatchClaim,
     MatchMetadata,
 )
-from timetoalign.alignment.bundle import AlignmentBundle
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
 from timetoalign.timelines import Timeline
 

@@ -35,7 +35,7 @@ from pathlib import Path
 import pyarrow.compute as pc
 import pytest
 
-from timetoalign.alignment.anchors import MatchClaimField
+from timetoalign.alignment.claims import MatchClaimField
 from timetoalign.loader.alignment import ListenHereLoader
 
 # region Fixtures
