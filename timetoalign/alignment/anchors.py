@@ -19,9 +19,13 @@ Design:
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+
+import pyarrow as pa
+import pyarrow.compute as pc
 
 from timetoalign.core import IdGenerator
 
@@ -1101,6 +1105,495 @@ class MatchClaim:
             f"<strong>MatchClaim</strong> {badge}"
             f"<table style='border-collapse: collapse; margin-top: 4px;'>"
             f"<tbody>{''.join(rows)}</tbody>"
+            f"</table></div>"
+        )
+
+
+# endregion
+
+
+# region MatchClaimField
+
+
+class MatchClaimField:
+    """Columnar store for a set of synchronous-instant pairwise match claims.
+
+    A ``MatchClaimField`` wraps a single :class:`pyarrow.Table` so that a very
+    large set of pairwise alignment claims (millions of rows) can be held as
+    four columns instead of one frozen :class:`MatchClaim` object per claim.
+    Individual :class:`MatchClaim` instances are materialised lazily, only when
+    a row is indexed or iterated.
+
+    This is **not** a ``SemanticField`` / ``DataField`` subclass: a
+    :class:`MatchClaim` is a frozen dataclass (not a pydantic scalar) and the
+    store spans several columns, so the pydantic-to-Arrow translation machinery
+    does not apply. It is a purpose-built columnar store that follows the
+    paired-Scalar/Field file-layout convention only in spirit -- it lives in
+    the same module as :class:`MatchClaim`, immediately after it.
+
+    **Scope (v1): synchronous instant pairwise claims only.** Every row
+    represents a claim where ``is_synchronous is True``, ``start_anchor`` is
+    present, and ``end_anchor`` is ``None`` (an instant). NOMATCH claims
+    (non-synchronous) and interval claims (with an end anchor) remain
+    dataclass-only and are **out of scope** for this store;
+    :meth:`from_claims` raises :class:`ValueError` when handed one.
+
+    The backing table has exactly four columns:
+
+    * ``timeline_a_id`` -- dictionary-encoded string. Only a handful of
+      distinct timeline ids appear across up to ~1.15M rows, so the dictionary
+      encoding keeps the store compact.
+    * ``timeline_b_id`` -- dictionary-encoded string (same type).
+    * ``coordinate_a`` -- ``float64``.
+    * ``coordinate_b`` -- ``float64``.
+
+    Shared provenance is held once at field level as a single
+    :class:`MatchMetadata` (or ``None``); it is **not** a per-row column. Every
+    claim a ``MatchClaimField`` materialises carries this same metadata.
+
+    Attributes:
+        table: The backing :class:`pyarrow.Table` (read-only property).
+        metadata: Shared :class:`MatchMetadata` (or ``None``) applied to every
+            materialised claim.
+
+    Examples:
+        >>> meta = MatchMetadata(agent="dtw", decision_criteria="warp")
+        >>> field = MatchClaimField.from_columns(
+        ...     timeline_a_ids=["A", "A", "B"],
+        ...     timeline_b_ids=["B", "C", "C"],
+        ...     coordinate_a=[0.0, 0.0, 1.0],
+        ...     coordinate_b=[10.0, 20.0, 21.0],
+        ...     metadata=meta,
+        ... )
+        >>> len(field)
+        3
+        >>> field[0].timeline_a_id, field[0].timeline_b_id
+        ('A', 'B')
+    """
+
+    # The exact column layout every backing table must carry.
+    _ID_TYPE: pa.DataType = pa.dictionary(pa.int32(), pa.string())
+    _COLUMN_NAMES: tuple[str, ...] = (
+        "timeline_a_id",
+        "timeline_b_id",
+        "coordinate_a",
+        "coordinate_b",
+    )
+
+    @classmethod
+    def from_columns(
+        cls,
+        timeline_a_ids: Sequence[str] | pa.Array | pa.ChunkedArray,
+        timeline_b_ids: Sequence[str] | pa.Array | pa.ChunkedArray,
+        coordinate_a: Sequence[float] | pa.Array | pa.ChunkedArray,
+        coordinate_b: Sequence[float] | pa.Array | pa.ChunkedArray,
+        *,
+        metadata: MatchMetadata | None = None,
+    ) -> "MatchClaimField":
+        """Build a field directly from parallel columns (the vectorized path).
+
+        This is the constructor a bulk producer (e.g. an alignment loader)
+        uses. It builds the four columns straight into a
+        :class:`pyarrow.Table` and **never** materialises a single
+        :class:`MatchClaim` Python object, so it scales to millions of rows.
+
+        Args:
+            timeline_a_ids: Timeline-A ids, one per claim. Any sequence or
+                PyArrow array; dictionary-encoded into the store.
+            timeline_b_ids: Timeline-B ids, one per claim.
+            coordinate_a: Coordinate on timeline A, one per claim. Cast to
+                ``float64``.
+            coordinate_b: Coordinate on timeline B, one per claim.
+            metadata: Shared provenance for every claim in the field.
+
+        Returns:
+            A new :class:`MatchClaimField`.
+
+        Raises:
+            ValueError: If the four inputs do not all have the same length.
+        """
+        tl_a = cls._encode_id_array(timeline_a_ids)
+        tl_b = cls._encode_id_array(timeline_b_ids)
+        coord_a = cls._encode_coordinate_array(coordinate_a)
+        coord_b = cls._encode_coordinate_array(coordinate_b)
+
+        lengths = {len(tl_a), len(tl_b), len(coord_a), len(coord_b)}
+        if len(lengths) != 1:
+            raise ValueError(
+                "from_columns requires four equal-length columns; got lengths "
+                f"timeline_a_id={len(tl_a)}, timeline_b_id={len(tl_b)}, "
+                f"coordinate_a={len(coord_a)}, coordinate_b={len(coord_b)}."
+            )
+
+        table = pa.table(
+            [tl_a, tl_b, coord_a, coord_b],
+            names=list(cls._COLUMN_NAMES),
+        )
+        return cls(table, metadata=metadata)
+
+    @classmethod
+    def from_claims(
+        cls,
+        claims: list[MatchClaim],
+        *,
+        metadata: MatchMetadata | None = None,
+    ) -> "MatchClaimField":
+        """Build a field from existing :class:`MatchClaim` objects.
+
+        Every claim must be a synchronous instant (``is_synchronous is True``,
+        ``start_anchor`` present, ``end_anchor is None``) per the v1 scope.
+
+        If ``metadata`` is ``None`` and all claims share one identical
+        :class:`MatchMetadata` (by equality), that metadata is adopted as the
+        field-level provenance; otherwise the field's metadata stays ``None``
+        (no per-row metadata is ever stored).
+
+        Args:
+            claims: The claims to store. Coordinates are pulled from each
+                claim's ``start_anchor``.
+            metadata: Explicit field-level provenance. When provided it
+                overrides any per-claim metadata inference.
+
+        Returns:
+            A new :class:`MatchClaimField`.
+
+        Raises:
+            ValueError: If any claim is non-synchronous (NOMATCH), lacks a
+                start anchor, or is an interval (carries an end anchor).
+        """
+        for index, claim in enumerate(claims):
+            if not claim.is_synchronous or claim.start_anchor is None:
+                raise ValueError(
+                    f"MatchClaimField holds synchronous instant claims only; "
+                    f"claim at index {index} is non-synchronous (NOMATCH) and "
+                    f"is out of scope."
+                )
+            if claim.end_anchor is not None:
+                raise ValueError(
+                    f"MatchClaimField holds synchronous instant claims only; "
+                    f"claim at index {index} is an interval claim (has an "
+                    f"end anchor) and is out of scope."
+                )
+
+        if metadata is None:
+            metadata = cls._common_metadata(claims)
+
+        timeline_a_ids = [claim.timeline_a_id for claim in claims]
+        timeline_b_ids = [claim.timeline_b_id for claim in claims]
+        coordinate_a = [claim.start_anchor.coordinate_a for claim in claims]
+        coordinate_b = [claim.start_anchor.coordinate_b for claim in claims]
+
+        return cls.from_columns(
+            timeline_a_ids,
+            timeline_b_ids,
+            coordinate_a,
+            coordinate_b,
+            metadata=metadata,
+        )
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "MatchClaimField":
+        """Deserialize a field from a plain dictionary.
+
+        Inverse of :meth:`to_dict`.
+
+        Args:
+            data: A mapping with the four column lists and an optional
+                ``metadata`` dict.
+
+        Returns:
+            A new :class:`MatchClaimField`.
+        """
+        metadata_dict = data.get("metadata")
+        metadata = (
+            MatchMetadata.from_dict(metadata_dict)
+            if metadata_dict is not None
+            else None
+        )
+        return cls.from_columns(
+            data["timeline_a_id"],
+            data["timeline_b_id"],
+            data["coordinate_a"],
+            data["coordinate_b"],
+            metadata=metadata,
+        )
+
+    @staticmethod
+    def _encode_id_array(
+        values: Sequence[str] | pa.Array | pa.ChunkedArray,
+    ) -> pa.Array | pa.ChunkedArray:
+        """Coerce a sequence/array of ids into the dictionary-encoded id type."""
+        if isinstance(values, (pa.Array, pa.ChunkedArray)):
+            arr: pa.Array | pa.ChunkedArray = values
+        else:
+            arr = pa.array(values, type=pa.string())
+        if pa.types.is_dictionary(arr.type):
+            return pc.cast(arr, MatchClaimField._ID_TYPE)
+        return pc.cast(arr, MatchClaimField._ID_TYPE)
+
+    @staticmethod
+    def _encode_coordinate_array(
+        values: Sequence[float] | pa.Array | pa.ChunkedArray,
+    ) -> pa.Array | pa.ChunkedArray:
+        """Coerce a sequence/array of coordinates into ``float64``."""
+        if isinstance(values, (pa.Array, pa.ChunkedArray)):
+            return pc.cast(values, pa.float64())
+        return pa.array(values, type=pa.float64())
+
+    @staticmethod
+    def _common_metadata(claims: list[MatchClaim]) -> MatchMetadata | None:
+        """Return the shared metadata if all claims agree, else ``None``."""
+        if not claims:
+            return None
+        first = claims[0].metadata
+        if first is None:
+            return None
+        for claim in claims[1:]:
+            if claim.metadata != first:
+                return None
+        return first
+
+    def __init__(
+        self,
+        table: pa.Table,
+        *,
+        metadata: MatchMetadata | None = None,
+    ) -> None:
+        """Wrap a backing table of synchronous-instant pairwise claims.
+
+        Args:
+            table: A :class:`pyarrow.Table` carrying exactly the four expected
+                columns in order: ``timeline_a_id`` and ``timeline_b_id``
+                (dictionary-encoded strings), ``coordinate_a`` and
+                ``coordinate_b`` (``float64``).
+            metadata: Shared provenance applied to every materialised claim.
+
+        Raises:
+            ValueError: If the table's columns do not match the expected
+                names or types.
+        """
+        if tuple(table.column_names) != self._COLUMN_NAMES:
+            raise ValueError(
+                f"MatchClaimField table must have columns {list(self._COLUMN_NAMES)}; "
+                f"got {table.column_names}."
+            )
+        schema = table.schema
+        for id_column in ("timeline_a_id", "timeline_b_id"):
+            if not pa.types.is_dictionary(schema.field(id_column).type):
+                raise ValueError(
+                    f"MatchClaimField column {id_column!r} must be dictionary-encoded; "
+                    f"got {schema.field(id_column).type}."
+                )
+        for coord_column in ("coordinate_a", "coordinate_b"):
+            if schema.field(coord_column).type != pa.float64():
+                raise ValueError(
+                    f"MatchClaimField column {coord_column!r} must be float64; "
+                    f"got {schema.field(coord_column).type}."
+                )
+        self._table = table
+        self._metadata = metadata
+
+    def __len__(self) -> int:
+        """Number of claims (rows) in the field."""
+        return self._table.num_rows
+
+    def __getitem__(self, i: int) -> MatchClaim:
+        """Materialise the claim at row ``i`` as a :class:`MatchClaim`.
+
+        Supports negative indexing.
+
+        Args:
+            i: Zero-based row index (negative counts from the end).
+
+        Returns:
+            A synchronous instant :class:`MatchClaim` carrying the field's
+            shared metadata.
+
+        Raises:
+            IndexError: If ``i`` is out of range.
+        """
+        n = self._table.num_rows
+        if i < 0:
+            i += n
+        if i < 0 or i >= n:
+            raise IndexError(f"MatchClaimField index {i} out of range (len={n})")
+
+        timeline_a_id = self._table.column("timeline_a_id")[i].as_py()
+        timeline_b_id = self._table.column("timeline_b_id")[i].as_py()
+        coordinate_a = self._table.column("coordinate_a")[i].as_py()
+        coordinate_b = self._table.column("coordinate_b")[i].as_py()
+
+        anchor = AlignmentAnchor(
+            timeline_a_id=timeline_a_id,
+            coordinate_a=coordinate_a,
+            timeline_b_id=timeline_b_id,
+            coordinate_b=coordinate_b,
+        )
+        return MatchClaim(
+            timeline_a_id=timeline_a_id,
+            timeline_b_id=timeline_b_id,
+            start_anchor=anchor,
+            is_synchronous=True,
+            metadata=self._metadata,
+        )
+
+    def __iter__(self) -> Iterator[MatchClaim]:
+        """Yield each claim, materialised lazily one row at a time."""
+        for i in range(self._table.num_rows):
+            yield self[i]
+
+    def __repr__(self) -> str:
+        return (
+            f"MatchClaimField(claims={self._table.num_rows}, "
+            f"timelines={len(self.timeline_ids)})"
+        )
+
+    @property
+    def table(self) -> pa.Table:
+        """The backing :class:`pyarrow.Table`."""
+        return self._table
+
+    @property
+    def metadata(self) -> MatchMetadata | None:
+        """Shared provenance applied to every materialised claim."""
+        return self._metadata
+
+    @property
+    def timeline_ids(self) -> set[str]:
+        """The distinct timeline ids appearing in either id column.
+
+        Reads the dictionary-encoded columns' dictionaries directly rather
+        than scanning every row.
+        """
+        ids: set[str] = set()
+        for column_name in ("timeline_a_id", "timeline_b_id"):
+            column = self._table.column(column_name)
+            for chunk in column.chunks:
+                ids.update(chunk.dictionary.to_pylist())
+        return ids
+
+    def connecting(self, timeline_id: str) -> "MatchClaimField":
+        """Return the claims that involve ``timeline_id`` on either side.
+
+        The filter is a vectorized boolean mask over the id columns; no claim
+        is materialised. The shared metadata carries over.
+
+        Args:
+            timeline_id: The exact timeline id to match against either column.
+
+        Returns:
+            A new :class:`MatchClaimField` holding only the matching rows.
+        """
+        mask = self._involves_mask(timeline_id)
+        return MatchClaimField(self._table.filter(mask), metadata=self._metadata)
+
+    def filter(
+        self,
+        *,
+        timeline_id: str | None = None,
+        timeline_ids: set[str] | None = None,
+    ) -> "MatchClaimField":
+        """Return a filtered view following the unified-filter spirit.
+
+        Both arguments are vectorized; no claim is materialised. The shared
+        metadata carries over.
+
+        Args:
+            timeline_id: Keep rows involving this exact id on either side
+                (equivalent to :meth:`connecting`).
+            timeline_ids: Keep rows involving **any** id in this set on either
+                side.
+
+        Returns:
+            A new :class:`MatchClaimField`. When both arguments are ``None``,
+            a copy over the full table is returned. When both are given the
+            two conditions are combined with logical AND.
+        """
+        mask: pa.Array | None = None
+        if timeline_id is not None:
+            mask = self._involves_mask(timeline_id)
+        if timeline_ids is not None:
+            any_mask = self._involves_any_mask(timeline_ids)
+            mask = any_mask if mask is None else pc.and_(mask, any_mask)
+        if mask is None:
+            return MatchClaimField(self._table, metadata=self._metadata)
+        return MatchClaimField(self._table.filter(mask), metadata=self._metadata)
+
+    def to_claims(self) -> list[MatchClaim]:
+        """Materialise every row into a list of :class:`MatchClaim` objects.
+
+        This is ``O(n)`` and defeats the columnar purpose for large sets; it
+        is provided for convenience and round-tripping, not for hot paths.
+
+        Returns:
+            A list of synchronous instant claims, one per row.
+        """
+        return [self[i] for i in range(self._table.num_rows)]
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a plain dictionary (inverse of :meth:`from_dict`).
+
+        The four columns are emitted as plain Python lists; the metadata is
+        emitted via :meth:`MatchMetadata.to_dict` (or ``None``).
+
+        Returns:
+            A round-trippable mapping.
+        """
+        return {
+            "timeline_a_id": self._table.column("timeline_a_id").to_pylist(),
+            "timeline_b_id": self._table.column("timeline_b_id").to_pylist(),
+            "coordinate_a": self._table.column("coordinate_a").to_pylist(),
+            "coordinate_b": self._table.column("coordinate_b").to_pylist(),
+            "metadata": (
+                self._metadata.to_dict() if self._metadata is not None else None
+            ),
+        }
+
+    def _involves_mask(self, timeline_id: str) -> pa.Array:
+        """Boolean mask: rows where either id column equals ``timeline_id``."""
+        return pc.or_(
+            pc.equal(self._table.column("timeline_a_id"), timeline_id),
+            pc.equal(self._table.column("timeline_b_id"), timeline_id),
+        )
+
+    def _involves_any_mask(self, timeline_ids: set[str]) -> pa.Array:
+        """Boolean mask: rows involving any id in ``timeline_ids``."""
+        wanted = pa.array(sorted(timeline_ids), type=pa.string())
+        return pc.or_(
+            pc.is_in(self._table.column("timeline_a_id"), value_set=wanted),
+            pc.is_in(self._table.column("timeline_b_id"), value_set=wanted),
+        )
+
+    def _repr_html_(self) -> str:
+        """Compact Jupyter summary: claim count, timeline count, head sample."""
+        import html as html_mod
+
+        n = self._table.num_rows
+        n_timelines = len(self.timeline_ids)
+        head = min(n, 5)
+        rows = []
+        for i in range(head):
+            claim = self[i]
+            anchor = claim.start_anchor
+            rows.append(
+                f"<tr><td>{i}</td>"
+                f"<td>{html_mod.escape(claim.timeline_a_id)}</td>"
+                f"<td>{anchor.coordinate_a:g}</td>"
+                f"<td>{html_mod.escape(claim.timeline_b_id)}</td>"
+                f"<td>{anchor.coordinate_b:g}</td></tr>"
+            )
+        if n > head:
+            rows.append("<tr><td colspan='5'>&hellip;</td></tr>")
+        header = (
+            "<tr><th>#</th><th>timeline A</th><th>coord A</th>"
+            "<th>timeline B</th><th>coord B</th></tr>"
+        )
+        return (
+            f"<div style='font-family: monospace;'>"
+            f"<strong>MatchClaimField</strong> "
+            f"<span style='color: #555;'>claims={n}, timelines={n_timelines}</span>"
+            f"<table style='border-collapse: collapse; margin-top: 4px;'>"
+            f"<thead>{header}</thead><tbody>{''.join(rows)}</tbody>"
             f"</table></div>"
         )
 
