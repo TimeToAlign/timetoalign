@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import bisect
 import logging
+import string
 import weakref
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -51,6 +52,34 @@ if TYPE_CHECKING:
     from timetoalign.timelines.types import SegmentLine
 
 module_logger = logging.getLogger(__name__)
+
+
+# Atomic-section labels run through the Latin alphabet (A–Z, then a–z) and
+# continue into Greek — uppercase first (Α–Ω), then lowercase (α–ω) — so that
+# scores with many sections stay legible instead of spilling into punctuation
+# and control characters. The reserved code point U+03A2 and the final-sigma
+# form U+03C2 are skipped to keep each Greek run to its 24 canonical letters.
+_GREEK_UPPER = [chr(c) for c in range(0x391, 0x3AA) if c != 0x3A2]
+_GREEK_LOWER = [chr(c) for c in range(0x3B1, 0x3CA) if c != 0x3C2]
+_SECTION_ALPHABET = (
+    list(string.ascii_uppercase)
+    + list(string.ascii_lowercase)
+    + _GREEK_UPPER
+    + _GREEK_LOWER
+)
+
+
+def _section_label(index: int) -> str:
+    """Return the display label for the atomic section at *index* (0-based).
+
+    Labels walk ``_SECTION_ALPHABET`` (Latin then Greek). Beyond its 100
+    entries the alphabet repeats with a numeric suffix (``A2``, ``B2``, …)
+    so labels stay unique and printable for arbitrarily long scores.
+    """
+    n = len(_SECTION_ALPHABET)
+    if index < n:
+        return _SECTION_ALPHABET[index]
+    return f"{_SECTION_ALPHABET[index % n]}{index // n + 1}"
 
 
 # region FlowMode
@@ -2777,11 +2806,26 @@ class ScoreFlowController(FlowControllerBase):
                 if i < len(sorted_mcs) - 1:
                     boundaries.add(sorted_mcs[i + 1])
 
+            # Boundary at the start of every volta bracket. Each ending must
+            # occupy its own section so it reads on the diagram as a ┌N volta
+            # bracket. A prima/seconda pair already gets boundaries via its
+            # jump targets, but a first ending with no following alternative
+            # produces no jump target at the volta MC and would otherwise be
+            # absorbed into the preceding section, hiding the volta.
+            volta_here = bar.get("volta")
+            if volta_here is not None:
+                prev_volta = (
+                    self._measure_lookup[sorted_mcs[i - 1]].get("volta")
+                    if i > 0
+                    else None
+                )
+                if prev_volta != volta_here:
+                    boundaries.add(mc)
+
         # Convert to sorted list
         boundaries_list: list[int] = sorted(boundaries)
 
         # Create atomic sections from boundaries
-        section_id = ord("A")
         sections: list[AtomicSection] = []
 
         # Build lookup from mc to MeasureUnit for typed_measures
@@ -2831,10 +2875,10 @@ class ScoreFlowController(FlowControllerBase):
                 for j, bnd in enumerate(boundaries_list):
                     if j + 1 < len(boundaries_list):
                         if bnd <= target_mc < boundaries_list[j + 1]:
-                            return chr(ord("A") + j)
+                            return _section_label(j)
                     else:
                         if bnd <= target_mc:
-                            return chr(ord("A") + j)
+                            return _section_label(j)
                 return None
 
             to_sections: list[str] = []
@@ -2867,7 +2911,7 @@ class ScoreFlowController(FlowControllerBase):
 
             sections.append(
                 AtomicSection(
-                    id=chr(section_id),
+                    id=_section_label(i),
                     mc_start=start_mc,
                     mc_end=end_mc + 1,  # Right-open: end is exclusive
                     to=tuple(to_sections),
@@ -2876,7 +2920,6 @@ class ScoreFlowController(FlowControllerBase):
                     groups=groups,
                 )
             )
-            section_id += 1
 
         self._atomic_sections = sections
 
