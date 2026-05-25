@@ -28,6 +28,18 @@ to the relevant section of the conceptual model.
     offset arithmetic, interpolation, and {{< glossary WarpMap >}}s.
     See [Alignment](concepts.qmd#alignment).
 
+**AlignmentMatrix**
+:   An audio-to-audio alignment in which several recordings of one work are each
+    warped onto a single shared, equidistant reference grid. Per recording, a
+    parallel onset-time array gives that recording's clock-time at each grid
+    column; because every array indexes the same grid they are equal length, so
+    together they form a dense matrix of shape (recordings × grid columns). A
+    single such file encodes an entire {{< glossary MatchGraph >}} directly ---
+    every pair of recordings is related at every grid column --- rather than
+    only one score-to-performance correspondence. The complete pairwise claim
+    set is held in a {{< glossary MatchClaimField >}}.
+    See [Alignment](concepts.qmd#alignment).
+
 ## B
 
 **Break**
@@ -215,6 +227,18 @@ to the relevant section of the conceptual model.
     equivalence without temporal commitment). Always knows which pair of
     timelines it connects. Four cases: (a) event-to-event, (b) projection,
     (c) {{< glossary NOMATCH >}}, (d) implicit (from group extension).
+    See [Alignment](concepts.qmd#alignment).
+
+**MatchClaimField**
+:   A columnar, PyArrow-backed store holding a whole set of synchronous-instant
+    pairwise {{< glossary MatchClaim >}}s as Arrow columns (the two timeline ids
+    dictionary-encoded, the two coordinates as `float64`) rather than as one
+    frozen MatchClaim object per claim. Individual MatchClaims are materialised
+    on demand when a row is indexed or iterated. Built vectorized via
+    `from_columns()`, it is the scalable backing for dense
+    {{< glossary AlignmentMatrix >}} alignments, where the complete pairwise
+    topology of a whole work runs to roughly a million claims. Shared provenance
+    is held once at field level, never per row.
     See [Alignment](concepts.qmd#alignment).
 
 **MatchGraph**

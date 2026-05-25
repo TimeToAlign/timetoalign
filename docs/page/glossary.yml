@@ -14,6 +14,17 @@ AlignmentBundle: |
   provides coordinate transfer via offset arithmetic, interpolation, and
   WarpMaps.
 
+AlignmentMatrix: |
+  An audio-to-audio alignment in which several recordings of one work are each
+  warped onto a single shared, equidistant reference grid. Per recording, a
+  parallel onset-time array gives that recording's clock-time at each grid
+  column; because every array indexes the same grid they are equal length, so
+  together they form a dense matrix of shape (recordings × grid columns). A
+  single such file encodes an entire MatchGraph directly — every pair of
+  recordings is related at every grid column — rather than only one
+  score-to-performance correspondence. Read by ListenHereLoader, with the
+  complete pairwise claim set held in a MatchClaimField.
+
 Break: |
   A control event that voids contiguity at its Instant. TimeIntervals cannot span
   a Break, and Breaks cannot be inserted into existing TimeIntervals.
@@ -139,6 +150,16 @@ MatchClaim: |
   commitment). Always knows which pair of timelines it connects. Four cases:
   (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group
   extension).
+
+MatchClaimField: |
+  A columnar, PyArrow-backed store holding a whole set of synchronous-instant
+  pairwise MatchClaims as Arrow columns (the two timeline ids dictionary-encoded,
+  the two coordinates as float64) rather than as one frozen MatchClaim object per
+  claim. Individual MatchClaims are materialised on demand when a row is indexed
+  or iterated. Built vectorized via from_columns(), it is the scalable backing
+  for dense alignment matrices, where the complete pairwise topology of a whole
+  work runs to roughly a million claims. Shared provenance is held once at field
+  level, never per row.
 
 MatchGraph: |
   An auxiliary structure formed by extending MatchClaims through shared
