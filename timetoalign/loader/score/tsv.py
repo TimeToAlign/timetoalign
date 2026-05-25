@@ -338,11 +338,9 @@ class TSVLoader(ScoreLoader):
             nominal_duration = self._parse_fraction(row.get("nominal_duration"))
             scalar = self._parse_fraction(row.get("scalar"))
 
-            # Pitch - MIDI (canonical pydantic-derived shape)
-            midi_pitch = None
-            if pd.notna(row.get("midi")):
-                ep = int(row["midi"])
-                midi_pitch = {"midi_number": ep}
+            # Pitch - source MIDI number (raw int; NON-DEFAULT — affords an
+            # EnharmonicPitch view on request, redundant with specific_pitch).
+            midi = int(row["midi"]) if pd.notna(row.get("midi")) else None
 
             # Pitch - Specific (canonical pydantic-derived shape)
             specific_pitch = None
@@ -379,7 +377,7 @@ class TSVLoader(ScoreLoader):
             part_id = str(row.get("part", "P1"))
 
             # Check if rest (no pitch)
-            if midi_pitch is None:
+            if midi is None:
                 has_rests = True
 
             note_rows.append(
@@ -388,7 +386,7 @@ class TSVLoader(ScoreLoader):
                     "temporal_type": (
                         "interval" if (dur_qb and dur_qb > 0) else "instant"
                     ),
-                    "event_type": "Note" if midi_pitch else "Rest",
+                    "event_type": "Note" if midi is not None else "Rest",
                     # Temporal - core coordinates use coordinate_to_struct
                     # (value/numerator/denominator format for EventData)
                     "quarterbeats": (
@@ -420,9 +418,10 @@ class TSVLoader(ScoreLoader):
                     "scalar": (
                         fraction_to_struct(scalar) if scalar is not None else None
                     ),
-                    # Pitch
-                    "midi_pitch": midi_pitch,
+                    # Pitch — specific_pitch is the sole default semantic
+                    # pitch field; ``midi`` is the redundant raw number.
                     "specific_pitch": specific_pitch,
+                    "midi": midi,
                     "tpc": tpc_val,
                     "octave": octave_val,
                     # Attributes

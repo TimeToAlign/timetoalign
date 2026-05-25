@@ -3,11 +3,14 @@
 This module validates paired ``XField`` implementations against published
 musical corpora rather than synthetic test data.
 
-Schema invariants pinned here:
-* ``midi_pitch`` column shape is ``{midi_number: int64}`` (legacy
-  ``{ep, epc}`` was collapsed — ``epc`` was redundant with ``ep % 12``).
-* ``specific_pitch`` column shape is ``{step, alter, octave, cents}``
-  (collapsed from a 7-field legacy storage).
+Schema invariants pinned here (represent pitch exactly once):
+* A spelled score faithfully supports ``SpecificPitch``, so
+  ``specific_pitch`` ({step, alter, octave, cents}) is the sole default
+  semantic pitch field on ``NoteEventData``.
+* The source MIDI number is kept only as a non-default raw ``midi``
+  int64 column, which affords an ``EnharmonicPitch`` view on request
+  (``notes.get_field(EnharmonicPitch)``, whose ``.name`` is ``"midi"``).
+  No redundant ``midi_pitch`` struct column is stored.
 """
 
 from __future__ import annotations
@@ -62,30 +65,26 @@ class TestChopinEnharmonicPitchFieldFromTSV:
         assert len(note_rows) == 498, f"Expected 498 notes, got {len(note_rows)}"
 
     def test_first_note_midi_number(self, chopin_store) -> None:
-        """First note (B3) has midi_pitch.midi_number == 59."""
+        """First note (B3) carries the source MIDI number 59 in the raw ``midi`` int."""
         notes = chopin_store.notes
+        # Represent-once: no redundant midi_pitch struct column.
+        assert "midi_pitch" not in notes.table.column_names
         df = notes.to_dataframe()
         note_rows = df[df["event_type"] == "Note"].reset_index(drop=True)
-        first_midi_pitch = note_rows.iloc[0]["midi_pitch"]
-        assert isinstance(first_midi_pitch, dict)
-        assert (
-            first_midi_pitch["midi_number"] == 59
-        ), f"Expected midi_number=59 (B3), got {first_midi_pitch['midi_number']}"
+        first_midi = note_rows.iloc[0]["midi"]
+        assert int(first_midi) == 59, f"Expected midi=59 (B3), got {first_midi}"
 
     def test_paired_field_construction_from_store(self, chopin_store) -> None:
-        notes_table = chopin_store.notes._table
-        midi_pitch_col = notes_table.column("midi_pitch")
-        midi_pitch_field = notes_table.schema.field("midi_pitch")
-        ef = EnharmonicPitchField.from_field((midi_pitch_col, midi_pitch_field))
+        # EnharmonicPitch is afforded over the raw ``midi`` int column.
+        ef = chopin_store.notes.get_field(EnharmonicPitch)
+        assert isinstance(ef, EnharmonicPitchField)
+        assert ef.name == "midi"
         # Total rows include rests (which have null pitch), so len >= 498
         assert len(ef) >= 498
 
     def test_paired_field_first_element(self, chopin_store) -> None:
-        """EnharmonicPitchField[0] returns EnharmonicPitch(B3) for the first row."""
-        notes_table = chopin_store.notes._table
-        midi_pitch_col = notes_table.column("midi_pitch")
-        midi_pitch_field = notes_table.schema.field("midi_pitch")
-        ef = EnharmonicPitchField.from_field((midi_pitch_col, midi_pitch_field))
+        """The afforded EnharmonicPitchField[0] is EnharmonicPitch(B3)."""
+        ef = chopin_store.notes.get_field(EnharmonicPitch)
         first = ef[0]
         assert first is not None
         assert isinstance(first, EnharmonicPitch)
@@ -225,20 +224,20 @@ class TestEnharmonicPitchFieldParquetRoundtrip:
         parquet_path = tmp_path / "chopin_pitches.parquet"
 
         loader = TSVLoader().load(CHOPIN_NOTES_TSV)
-        notes_table = loader.store.notes._table
-        midi_pitch_col = notes_table.column("midi_pitch")
-        midi_pitch_field = notes_table.schema.field("midi_pitch")
+        # The EnharmonicPitch view is afforded over the raw ``midi`` int
+        # column (represent once).  Materialise it, then round-trip the
+        # afforded {midi_number} struct through Parquet.
+        ef = loader.store.notes.get_field(EnharmonicPitch)
+        assert isinstance(ef, EnharmonicPitchField)
 
-        ef = EnharmonicPitchField.from_field((midi_pitch_col, midi_pitch_field))
-
-        table = pa.table(
-            {"midi_pitch": midi_pitch_col}, schema=pa.schema([midi_pitch_field])
-        )
+        ep_col = ef.to_pyarrow()
+        ep_field = ef.to_field()
+        table = pa.table({ep_field.name: ep_col}, schema=pa.schema([ep_field]))
         pq.write_table(table, str(parquet_path))
         table_back = pq.read_table(str(parquet_path))
 
-        col_back = table_back.column("midi_pitch")
-        field_back = table_back.schema.field("midi_pitch")
+        col_back = table_back.column(ep_field.name)
+        field_back = table_back.schema.field(ep_field.name)
         ef2 = EnharmonicPitchField.from_field((col_back, field_back))
 
         first = ef2[0]
@@ -287,8 +286,10 @@ class TestCrossLoaderPitchConsistency:
 
         def extract_sorted_midi(df):
             df = df.copy()
-            df["midi_number"] = df["midi_pitch"].apply(
-                lambda x: x["midi_number"] if isinstance(x, dict) else None
+            # The source MIDI number lives in the raw ``midi`` int column
+            # (represent once; EnharmonicPitch is afforded over it).
+            df["midi_number"] = df["midi"].apply(
+                lambda x: int(x) if pd.notna(x) else None
             )
             if "start" in df.columns:
                 df["start_val"] = df["start"].apply(

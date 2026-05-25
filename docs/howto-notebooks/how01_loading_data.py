@@ -54,6 +54,7 @@
 # %%
 import pandas as pd
 
+from timetoalign.core.events import EnharmonicPitch
 from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.tsv import TSVLoader
@@ -168,8 +169,8 @@ pd.DataFrame(schema_info)
 # | `start`, `end`, `duration` | Temporal coordinates (as structs) |
 # | `duration_float` | Duration as a float for quick queries |
 # | `mc`, `mn` | Measure count and measure number |
-# | `midi_pitch` | MIDI pitch number (0-127) |
-# | `specific_pitch` | Pitch spelling information |
+# | `specific_pitch` | Fully spelled pitch (step + alter + octave) — the default pitch field |
+# | `midi` | The raw source MIDI pitch as an integer (affords an `EnharmonicPitch` view on request) |
 
 # %%
 # Show selected fields for the first few notes
@@ -188,19 +189,31 @@ tsv_df[display_cols].head(10)
 # %% [markdown]
 # ## Pitch Information
 #
-# The `specific_pitch` field contains rich pitch information as a struct.
-# This preserves the enharmonic spelling (e.g., G# vs Ab) which is lost
-# when using only MIDI pitch numbers.
+# A spelled score faithfully supports a fully specific pitch, so pitch is
+# **represented exactly once**: `specific_pitch` (step + alter + octave) is
+# the single default pitch field, and it preserves the enharmonic spelling
+# (e.g. G♯ vs A♭) that a bare MIDI pitch cannot.
+#
+# The source MIDI pitch survives as a plain `midi` integer column. It is
+# redundant with the spelling, so it is not stored as a second pitch field;
+# instead the EventStore *affords* an `EnharmonicPitch` view over it on
+# request via `get_field(EnharmonicPitch)` (or the
+# `enharmonic_pitch_field` accessor). The spelled and enharmonic views
+# diverge exactly where it matters — an accidental-bearing note.
 
 # %%
-# Extract specific_pitch pitch information for the first note
-first_note = tsv_df.iloc[0]
+# The default pitch field: fully spelled SpecificPitch scalars.
+specific_pitch = notes_store.specific_pitch_field
 
+# The afforded EnharmonicPitch view over the raw `midi` integer column.
+enharmonic_pitch = notes_store.get_field(EnharmonicPitch)
+
+# Index 3 is an accidental-bearing note, where spelling (SP) and the
+# MIDI pitch (EP) part ways.
 {
-    "name": first_note["name"],
-    "midi_pitch": first_note["midi_pitch"],
-    "octave": first_note["octave"],
-    "specific_pitch": first_note["specific_pitch"],
+    "specific_pitch[3] (default)": repr(specific_pitch[3]),
+    "enharmonic_pitch[3] (afforded view)": repr(enharmonic_pitch[3]),
+    "raw midi int[3]": tsv_df.iloc[3]["midi"],
 }
 
 # %% [markdown]

@@ -239,9 +239,13 @@ spf
 # %% [markdown]
 # ### From a loader — real Chopin data
 #
-# The Chopin Op. 10 No. 3 notes table carries both `midi_pitch` (EP) and
-# `specific_pitch` (SP) fields.  The loader produces typed `PitchField`
-# views over each one.
+# A spelled score represents pitch exactly once, by its most expressive
+# faithful type: the Chopin Op. 10 No. 3 notes table carries
+# `specific_pitch` (SP) as its single default pitch field.  The source
+# MIDI pitch survives as a plain `midi` integer that *affords* an
+# `EnharmonicPitch` (EP) view on request — reached here through the
+# `enharmonic_pitch_field` accessor — rather than being stored as a second
+# pitch field.
 
 # %%
 loader = TSVLoader.from_file(CHOPIN_NOTES)

@@ -22,22 +22,34 @@ operations preserve the wider schema when one is in play.
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import pyarrow as pa
 
+from timetoalign.core.events import EnharmonicPitchField
+from timetoalign.core.fields import SemanticField
 from timetoalign.loader.events import EventData
+from timetoalign.loader.mixins import PitchAccessMixin
 
 
-class MidiEventData(EventData):
+class MidiEventData(EventData, PitchAccessMixin):
     """EventData for performance MIDI events (mido cross-loader columns).
 
     Carries the seven columns mido can produce on its own: ``pitch``,
     ``velocity``, ``channel``, ``track``, ``control``, ``value``,
     ``program``.  Stored as nullable atomic columns (NOT a struct) for
-    fast columnar access; the paired :class:`MidiEvent` scalar
-    advertises the matching shape via its ``midi_number``-nested
-    pa.Schema for semantic-field round-tripping.
+    fast columnar access.
+
+    A MIDI source is *number-only* — it carries a bare MIDI pitch with no
+    enharmonic spelling — so its most-expressive faithful pitch type is
+    :class:`~timetoalign.core.events.EnharmonicPitch`.  The raw ``pitch``
+    column stays a plain integer (a faithful Layer-0 column); the
+    EventData *affords* the ``EnharmonicPitchField`` view over it on
+    request via :attr:`_afforded_fields`, honouring the
+    scalar↔EventData contract that :class:`MidiEvent.pitch` promises
+    without storing a redundant pitch struct.  ``pitch`` is stored as
+    ``int64`` to match the ``{midi_number: int64}`` shape that view
+    materialises into, keeping the affordance coherent across loaders.
 
     For score-side MIDI loaded via partitura, see
     :class:`ScoreMidiEventData`, which adds ``voice``, ``staff`` and
@@ -45,8 +57,9 @@ class MidiEventData(EventData):
     """
 
     _extra_fields: ClassVar[list[pa.Field]] = [
-        # Note fields (required for Notes)
-        pa.field("pitch", pa.int8(), nullable=True),
+        # Note fields (required for Notes).  ``pitch`` is int64 so it packs
+        # cleanly into the EnharmonicPitch view (``{midi_number: int64}``).
+        pa.field("pitch", pa.int64(), nullable=True),
         pa.field("velocity", pa.int8(), nullable=True),
         # MIDI routing
         pa.field("channel", pa.int8(), nullable=True),
@@ -58,6 +71,12 @@ class MidiEventData(EventData):
         pa.field("program", pa.int8(), nullable=True),
     ]
 
+    # The raw ``pitch`` integer affords the most-expressive faithful pitch
+    # view a number-only source supports: EnharmonicPitch.
+    _afforded_fields: ClassVar[dict[str, type[SemanticField[Any]]]] = {
+        "pitch": EnharmonicPitchField,
+    }
+
 
 class ScoreMidiEventData(MidiEventData):
     """EventData for score MIDI events (partitura).
@@ -66,11 +85,15 @@ class ScoreMidiEventData(MidiEventData):
     columns: ``voice``, ``staff``, ``part_id``.  ``_extra_fields`` is
     redeclared (not appended) because the base ``EventData.get_schema``
     reads ``cls._extra_fields`` directly as the canonical column list.
+
+    Score MIDI is still number-only at the pitch level (partitura's MIDI
+    export carries no enharmonic spelling), so the inherited ``pitch`` →
+    ``EnharmonicPitchField`` affordance applies unchanged.
     """
 
     _extra_fields: ClassVar[list[pa.Field]] = [
         # Inherited cross-loader columns
-        pa.field("pitch", pa.int8(), nullable=True),
+        pa.field("pitch", pa.int64(), nullable=True),
         pa.field("velocity", pa.int8(), nullable=True),
         pa.field("channel", pa.int8(), nullable=True),
         pa.field("track", pa.int16(), nullable=True),

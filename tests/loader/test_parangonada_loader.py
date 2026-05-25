@@ -148,14 +148,19 @@ def test_score_dlt_event_count(loader: ParangonadaLoader) -> None:
 
 
 def test_score_clt_carries_pitch_and_voice(loader: ParangonadaLoader) -> None:
-    """The first part.csv note (id 'nwqgcz5') carries MIDI pitch 63, voice 3."""
+    """The first part.csv note (id 'nwqgcz5') carries MIDI pitch 63, voice 3.
+
+    A number-only source represents pitch as its most-expressive faithful
+    type, EnharmonicPitch, carried as a ``{midi_number}`` struct; the
+    keystone preserves it as a real struct column (never a JSON string).
+    """
     score = loader.create_timeline(SCORE_CLT_ID)
     table = score.events._table
     ids = table.column("id").to_pylist()
     pitches = table.column("pitch").to_pylist()
     voices = table.column("voice").to_pylist()
     idx = ids.index("nwqgcz5")
-    assert int(pitches[idx]) == 63
+    assert pitches[idx] == {"midi_number": 63}
     assert int(voices[idx]) == 3
 
 
@@ -280,8 +285,10 @@ def test_beats_dyn_join_is_one_to_one(performer_key: str) -> None:
 def test_szegedi_beat_spot_check(loader: ParangonadaLoader) -> None:
     """Szegedi .beats row 0 → a Beat event at 0.796354 s (measure 1, beat 1).
 
-    Row 0 is ``1  1  0.000000  0.796354  83.660126  0  0``.  Extra columns
-    are stored as strings; ``start`` is the coordinate struct.
+    Row 0 is ``1  1  0.000000  0.796354  83.660126  0  0``.  Carried
+    scalar columns keep their native PyArrow types (``measure_number`` /
+    ``beat`` as ints, ``bpm`` as a float); ``start`` is the coordinate
+    struct.
     """
     cpt = loader.create_timeline("perf:1966_Szegedi:cpt1")
     beats = cpt.events.filter(event_type="Beat").table.to_pylist()
@@ -289,9 +296,9 @@ def test_szegedi_beat_spot_check(loader: ParangonadaLoader) -> None:
         r
         for r in beats
         if r["start"]["value"] == 0.796354
-        and r["measure_number"] == "1"
-        and r["beat"] == "1"
-        and float(r["bpm"]) == 83.660126
+        and r["measure_number"] == 1
+        and r["beat"] == 1
+        and r["bpm"] == 83.660126
     ]
     assert len(matching) == 1
 
@@ -300,7 +307,8 @@ def test_szegedi_dynamics_spot_check(loader: ParangonadaLoader) -> None:
     """Szegedi .dyn row 0 → a Dynamics event at 0.796354 s (onset joined).
 
     Row 0 is ``1  1  0.000000  48.500000  58.000000  0``; the onset is
-    recovered from the .beats row with the same ``(1, 1)`` key.
+    recovered from the .beats row with the same ``(1, 1)`` key.  Carried
+    scalar columns keep their native PyArrow types.
     """
     cpt = loader.create_timeline("perf:1966_Szegedi:cpt1")
     dyns = cpt.events.filter(event_type="Dynamics").table.to_pylist()
@@ -308,10 +316,10 @@ def test_szegedi_dynamics_spot_check(loader: ParangonadaLoader) -> None:
         r
         for r in dyns
         if r["start"]["value"] == 0.796354
-        and r["measure_number"] == "1"
-        and r["beat"] == "1"
-        and float(r["velocity_mean"]) == 48.5
-        and float(r["velocity_max"]) == 58.0
+        and r["measure_number"] == 1
+        and r["beat"] == 1
+        and r["velocity_mean"] == 48.5
+        and r["velocity_max"] == 58.0
     ]
     assert len(matching) == 1
 

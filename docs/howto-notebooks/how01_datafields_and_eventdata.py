@@ -233,16 +233,16 @@ start.get_raw()
 # %% [markdown]
 # ## Layer 1 — Semantic Fields via Blueprint
 #
-# Real-world tables routinely carry several fields that mean the same
-# kind of thing in different representations.  Chopin's notes table has
-# **two** pitch fields:
+# Pitch is **represented exactly once**: a spelled score faithfully
+# supports a fully specific pitch, so Chopin's notes table carries a single
+# default pitch field, `specific_pitch` (SP, with accidental identity).
+# The source MIDI pitch survives as a plain `midi` integer that affords an
+# `EnharmonicPitch` (EP) view on request — the poorer view is derived, not
+# stored a second time.
 #
-# - `midi_pitch` — EP, enharmonic pitch via MIDI numbers
-# - `specific_pitch` — SP, fully specific pitch with accidental identity
-#
-# A **blueprint** is a `PitchField` (or any SemanticField) that names a
-# field but carries no data.  Passing it to `get_field()` resolves the
-# field, constructs the live field, and caches it.
+# A **blueprint** is a SemanticField that names a field but carries no
+# data.  Passing it to `get_field()` resolves the field, constructs the
+# live field, and caches it.
 
 # %% [markdown]
 # ### EP blueprint (midi_pitch)
@@ -298,7 +298,8 @@ events.get_field(PitchField(ep="midi_pitch")) is pf_ep
 events.has_field(PitchField)
 
 # %%
-# get_fields -- ALL matching fields (returns both midi_pitch and specific_pitch)
+# get_fields -- ALL matching fields (the default specific_pitch, plus the
+# EnharmonicPitch view afforded over the raw `midi` column on request)
 pitch_fields = events.get_fields(PitchField)
 len(pitch_fields), [repr(pf) for pf in pitch_fields]
 

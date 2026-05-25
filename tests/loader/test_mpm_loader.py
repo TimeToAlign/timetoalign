@@ -258,20 +258,23 @@ def test_beethoven_onset_spot_check() -> None:
 
 
 def test_beethoven_note_pitch_spot_check() -> None:
-    """Beethoven ``nbwxzb1`` carries verbatim MSM pitch + spelling on dlt1.
+    """Beethoven ``nbwxzb1`` carries the MSM number + verbatim spelling on dlt1.
 
-    The timeline's generic ``add_events`` ingestion stores carried,
-    non-coordinate attributes as strings, so the test coerces them back to
-    the parsed numeric values (the same convention as the other alignment
-    loader tests).  ``start`` is a coordinate, so it round-trips numerically.
+    A number-only-plus-inconsistent-spelling source represents pitch as
+    its most-expressive faithful type, EnharmonicPitch, carried as a
+    ``{midi_number}`` struct; the keystone preserves it as a real struct
+    column.  The verbatim ``pitchname`` / ``accidentals`` / ``octave``
+    survive as non-default raw columns keeping their native PyArrow types
+    (a string and two ints), no longer JSON-stringified.  ``start`` is a
+    coordinate, so it round-trips numerically.
     """
     loader = _loaded(BEETHOVEN_MPR)
     dlt = loader.create_timeline(SCORE_DLT_ID)
     note = next(r for r in _event_rows(dlt) if r["id"] == "nbwxzb1")
-    assert int(note["pitch"]) == 75
+    assert note["pitch"] == {"midi_number": 75}
     assert note["pitchname"] == "e"
-    assert int(note["accidentals"]) == -1
-    assert int(note["octave"]) == 4
+    assert note["accidentals"] == -1
+    assert note["octave"] == 4
     assert note["start"]["value"] == 360.0
 
 

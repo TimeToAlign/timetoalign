@@ -326,13 +326,16 @@ class TestEventDataComposition:
     def test_note_event_data_pitch_field_backward_compat(self) -> None:
         from timetoalign.loader.score.stores.notes import NoteEventData
 
+        # Represent once: NoteEventData affords EnharmonicPitch over the raw
+        # ``midi`` int column (the source MIDI number), reached via the
+        # ``pitch_field`` convenience property.
         store = NoteEventData.from_dicts(
             [
                 {
                     "event_type": "Note",
                     "start": 0.0,
                     "duration": 1.0,
-                    "midi_pitch": {"midi_number": 60},
+                    "midi": 60,
                 }
             ],
         )

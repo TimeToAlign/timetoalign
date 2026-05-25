@@ -494,15 +494,14 @@ class PartituraLoader(ScoreLoader):
                     mc_onset = Fraction(0)
 
                 # Pitch
-                midi_pitch = None
+                midi = None
                 specific_pitch = None
                 octave = None
                 tpc = None
 
                 _sp_label = ""
                 if not is_rest and hasattr(obj, "midi_pitch"):
-                    ep = obj.midi_pitch
-                    midi_pitch = {"midi_number": int(ep)}
+                    midi = int(obj.midi_pitch)
 
                     if hasattr(obj, "step"):
                         step = obj.step
@@ -529,8 +528,8 @@ class PartituraLoader(ScoreLoader):
                 note_name = ""
                 if _sp_label:
                     note_name = _sp_label
-                elif midi_pitch and "midi_number" in midi_pitch:
-                    note_name = f"MIDI {midi_pitch['midi_number']}"
+                elif midi is not None:
+                    note_name = f"MIDI {midi}"
 
                 note_rows.append(
                     {
@@ -550,8 +549,8 @@ class PartituraLoader(ScoreLoader):
                         "duration": None,
                         "nominal_duration": None,
                         "scalar": None,
-                        "midi_pitch": midi_pitch,
                         "specific_pitch": specific_pitch,
+                        "midi": midi,
                         "tpc": tpc,
                         "octave": octave,
                         "velocity": 64,

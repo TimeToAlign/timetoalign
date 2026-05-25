@@ -485,15 +485,14 @@ class Music21Loader(ScoreLoader):
         chord_id: int | None = None,
     ) -> dict[str, Any]:
         """Create note row dict."""
-        midi_pitch = None
+        midi = None
         specific_pitch = None
         octave = None
         tpc = None
 
         _sp_label = ""
         if not is_rest and hasattr(obj, "pitch"):
-            ep = int(obj.pitch.midi)
-            midi_pitch = {"midi_number": ep}
+            midi = int(obj.pitch.midi)
 
             step = obj.pitch.step
             alter = int(obj.pitch.alter or 0)
@@ -520,8 +519,8 @@ class Music21Loader(ScoreLoader):
         note_name = ""
         if _sp_label:
             note_name = _sp_label
-        elif midi_pitch and "midi_number" in midi_pitch:
-            note_name = f"MIDI {midi_pitch['midi_number']}"
+        elif midi is not None:
+            note_name = f"MIDI {midi}"
 
         return {
             # ID auto-generated from event_type (Note or Rest)
@@ -538,8 +537,8 @@ class Music21Loader(ScoreLoader):
             "duration": None,
             "nominal_duration": None,
             "scalar": None,
-            "midi_pitch": midi_pitch,
             "specific_pitch": specific_pitch,
+            "midi": midi,
             "tpc": tpc,
             "octave": octave,
             "velocity": 64,

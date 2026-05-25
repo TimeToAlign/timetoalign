@@ -24,10 +24,13 @@ Provides three levels of field access on ``EventData``:
    table (or a dict-shaped spec for multi-field blueprints) and caches
    the result.
 
-Domain mixins add convenience accessors with priority-based defaults
-and ``format=`` parameters for on-the-fly conversion:
+Pitch access is uniform: ``get_pitch_field(type, format=)`` lives on the
+base :class:`SemanticFieldAccessMixin` and returns the single
+most-expressive pitch field an EventData affords (including fields
+afforded over a raw atomic column via ``_afforded_fields``).
+``PitchAccessMixin`` is retained as a backward-compatible alias.  The
+remaining domain mixins add their own convenience accessors:
 
-- ``PitchAccessMixin`` -- ``get_pitch_field(type, format=)``
 - ``HarmonyAccessMixin`` -- ``get_harmony_field(type, format=)``
 - ``MeasureAccessMixin`` -- ``get_measure_field(format=)`` (placeholder)
 """
@@ -478,9 +481,27 @@ class SemanticFieldAccessMixin:
     - ``get_field(PitchField(ep="col"))`` -- blueprint resolution.
 
     Expects the host class to provide a ``_table`` attribute.
+
+    **Afforded fields.**  An EventData subclass may declare
+    :attr:`_afforded_fields` — a mapping of *raw atomic column name* →
+    paired ``SemanticField`` subclass that the column can be promoted to
+    on request.  This is how a faithful raw column (e.g. a bare MIDI
+    pitch ``int`` from a MIDI / performance source) affords its
+    most-expressive semantic view (``EnharmonicPitch``) without storing a
+    redundant semantic struct.  The promotion is materialised lazily by
+    :meth:`get_fields` (and therefore by ``get_field`` /
+    ``get_pitch_field`` / ``get_fields_satisfying``) via the paired
+    class's ``emit()``, and cached.  The raw column stays raw and
+    queryable; the affordance is reached only when asked for.
     """
 
     _table: pa.Table  # provided by EventData
+
+    # Maps a raw atomic column name to the paired SemanticField subclass
+    # the EventData affords over it (see the class docstring).  Empty on
+    # the base — subclasses that carry a bare-number pitch column (or any
+    # other raw column with a most-expressive semantic view) declare it.
+    _afforded_fields: dict[str, type[SemanticField[Any]]] = {}
 
     @property
     def _field_cache(self) -> dict[tuple[str, str], SemanticField[Any]]:
@@ -661,6 +682,68 @@ class SemanticFieldAccessMixin:
 
         # Strategy 3: structural discovery via cls.matches_pa_field()
         result = _discover_by_shape(self._table, field_type, cache)
+        if result:
+            return result
+
+        # Strategy 4: declared affordances over raw atomic columns.
+        # A subclass may declare that a raw column (e.g. a bare MIDI
+        # pitch int) affords a most-expressive semantic view; materialise
+        # it lazily here so get_field / get_pitch_field surface it.
+        return self._discover_afforded(field_type, cache, strict=strict)
+
+    def _discover_afforded(
+        self,
+        field_type: type[SemanticField[Any]],
+        cache: dict[tuple[str, str], SemanticField[Any]],
+        *,
+        strict: bool,
+    ) -> list[SemanticField[Any]]:
+        """Materialise declared :attr:`_afforded_fields` matching *field_type*.
+
+        For each ``(column, afforded_cls)`` declared on this EventData
+        whose ``afforded_cls`` matches *field_type* (exact class when
+        *strict*, else a subclass), and whose ``column`` is present as a
+        non-struct (atomic) column on the table, promote the raw column to
+        a live ``afforded_cls`` via its blueprint ``emit()`` and cache it.
+
+        Returns the matches in declaration order (an empty list when none
+        apply).
+        """
+        afforded: dict[str, type[SemanticField[Any]]] = getattr(
+            type(self), "_afforded_fields", {}
+        )
+        if not afforded:
+            return []
+        result: list[SemanticField[Any]] = []
+        column_names = set(self._table.column_names)
+        for column, afforded_cls in afforded.items():
+            if strict:
+                if afforded_cls is not field_type:
+                    continue
+            else:
+                if not issubclass(afforded_cls, field_type):
+                    continue
+            if column not in column_names:
+                continue
+            pa_field = self._table.schema.field(column)
+            # Only promote a raw atomic column; a struct column with the
+            # target shape is already handled by shape discovery.
+            if pa.types.is_struct(pa_field.type):
+                continue
+            cache_key = (column, afforded_cls.__name__)
+            cached = cache.get(cache_key)
+            if cached is not None:
+                result.append(cached)
+                continue
+            arr = self._table.column(column)
+            if isinstance(arr, pa.ChunkedArray):
+                arr = arr.combine_chunks()
+            try:
+                field = afforded_cls(name=column).emit(arr, name=column)
+            except (TypeError, KeyError, ValueError, pa.ArrowInvalid):
+                continue
+            cache[cache_key] = field
+            result.append(field)
         return result
 
     def get_fields_satisfying(self, protocol: type) -> list[SemanticField[Any]]:
@@ -758,6 +841,18 @@ class SemanticFieldAccessMixin:
             if field_type.matches_pa_field(schema.field(i)):
                 return True
 
+        # Strategy 4: declared affordances over raw atomic columns.
+        afforded: dict[str, type[SemanticField[Any]]] = getattr(
+            type(self), "_afforded_fields", {}
+        )
+        for column, afforded_cls in afforded.items():
+            if column not in field_names:
+                continue
+            if not issubclass(afforded_cls, field_type):
+                continue
+            if not pa.types.is_struct(self._table.schema.field(column).type):
+                return True
+
         return False
 
     # -- convenience accessors for default temporal fields -------------------
@@ -773,6 +868,77 @@ class SemanticFieldAccessMixin:
     def get_duration_field(self) -> SemanticField[Any]:
         """Return the ``DurationField`` for the ``duration`` field."""
         return self.get_field("duration")
+
+    # -- pitch access (uniform across every EventData) -----------------------
+
+    def get_pitch_field(
+        self,
+        pitch_field_type: type[SemanticField[Any]] | None = None,
+        *,
+        format: str | None = None,
+    ) -> SemanticField[Any]:
+        """Return the most-expressive pitch field this EventData affords.
+
+        Pitch is **represented exactly once** on an EventData: the single
+        default semantic pitch field is the most-expressive type the
+        source faithfully supports.  This accessor returns that default,
+        chosen from the priority order
+
+            ``SpecificPitchField`` > ``EnharmonicPitchField`` >
+            ``SpecificPitchClassField`` > ``GenericPitchClassField``
+
+        applied over every pitch-like field discovered on the table —
+        including fields *afforded* over a raw atomic column via
+        :attr:`_afforded_fields` (e.g. a bare MIDI pitch int promoted to
+        ``EnharmonicPitch``).  Poorer / derived views are reached on
+        request (``get_field(<ScalarClass>)`` or
+        ``field.convert_to(...)``), never stored a second time.
+
+        The accessor lives on the base field-access mixin so that *every*
+        EventData exposes it uniformly; an EventData with no pitch column
+        raises ``KeyError`` (as it always has).
+
+        Args:
+            pitch_field_type: A specific paired ``XField`` class (e.g.
+                ``EnharmonicPitchField``).  If ``None``, returns the most
+                expressive available pitch field from the priority list.
+            format: Format specifier for on-the-fly conversion.
+                Reserved for future conversion support.
+
+        Raises:
+            KeyError: If no matching pitch field is found / afforded.
+        """
+        from timetoalign.core.events import (
+            EnharmonicPitchField,
+            GenericPitchClassField,
+            SpecificPitchClassField,
+            SpecificPitchField,
+        )
+        from timetoalign.core.protocols import PitchLike
+
+        if pitch_field_type is not None:
+            return self.get_field(pitch_field_type)
+
+        # Discover all pitch-like fields, then pick the most informative
+        # via the priority list (SP > EP > SPC > GPC).  Other pitch
+        # scalar fields not in the priority list fall back after the
+        # priority sweep.
+        all_pitch_fields = self.get_fields_satisfying(PitchLike)
+        if not all_pitch_fields:
+            raise KeyError("No pitch field found in table")
+
+        priority: list[type[SemanticField[Any]]] = [
+            SpecificPitchField,
+            EnharmonicPitchField,
+            SpecificPitchClassField,
+            GenericPitchClassField,
+        ]
+        for cls in priority:
+            for field in all_pitch_fields:
+                if isinstance(field, cls):
+                    return field
+        # No priority match — return the first discovered pitch field.
+        return all_pitch_fields[0]
 
     # -- private dispatch methods --------------------------------------------
 
@@ -928,62 +1094,15 @@ class SemanticFieldAccessMixin:
 
 
 class PitchAccessMixin(SemanticFieldAccessMixin):
-    """Mixin providing pitch field access with priority-based defaults.
+    """Backward-compatible alias for the base pitch accessor.
 
-    Priority order (most informative first):
-    ``SpecificPitchField`` > ``EnharmonicPitchField`` >
-    ``SpecificPitchClassField`` > ``GenericPitchClassField``.
+    :meth:`SemanticFieldAccessMixin.get_pitch_field` now lives on the base
+    field-access mixin so that *every* EventData exposes pitch access
+    uniformly (pitch is afforded uniformly — including over raw atomic
+    columns via :attr:`_afforded_fields`).  This subclass is retained only
+    so that existing ``class X(EventData, PitchAccessMixin)`` declarations
+    keep working; it adds nothing beyond the inherited method.
     """
-
-    def get_pitch_field(
-        self,
-        pitch_field_type: type[SemanticField[Any]] | None = None,
-        *,
-        format: str | None = None,
-    ) -> SemanticField[Any]:
-        """Return a pitch field, optionally filtered by class.
-
-        Args:
-            pitch_field_type: A specific paired ``XField`` class (e.g.
-                ``EnharmonicPitchField``).  If ``None``, returns the most
-                informative available pitch field from the priority list.
-            format: Format specifier for on-the-fly conversion.
-                Reserved for future conversion support.
-
-        Raises:
-            KeyError: If no matching pitch field is found.
-        """
-        from timetoalign.core.events import (
-            EnharmonicPitchField,
-            GenericPitchClassField,
-            SpecificPitchClassField,
-            SpecificPitchField,
-        )
-        from timetoalign.core.protocols import PitchLike
-
-        if pitch_field_type is not None:
-            return self.get_field(pitch_field_type)
-
-        # Discover all pitch-like fields, then pick the most informative
-        # via the priority list (SP > EP > SPC > GPC).  Other pitch
-        # scalar fields not in the priority list fall back after the
-        # priority sweep.
-        all_pitch_fields = self.get_fields_satisfying(PitchLike)
-        if not all_pitch_fields:
-            raise KeyError("No pitch field found in table")
-
-        priority: list[type[SemanticField[Any]]] = [
-            SpecificPitchField,
-            EnharmonicPitchField,
-            SpecificPitchClassField,
-            GenericPitchClassField,
-        ]
-        for cls in priority:
-            for field in all_pitch_fields:
-                if isinstance(field, cls):
-                    return field
-        # No priority match — return the first discovered pitch field.
-        return all_pitch_fields[0]
 
 
 # ---------------------------------------------------------------------------

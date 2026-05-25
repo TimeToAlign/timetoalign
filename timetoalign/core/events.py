@@ -1795,11 +1795,15 @@ class Note(BaseModel):
     ``Note.pitch`` is annotated ``EnharmonicPitch | SpecificPitch | None``
     for materialised scalars — both are legitimate pitch representations
     on a note.  This union MUST NOT translate to Arrow ``dense_union``;
-    instead, the field is dropped from the pa.Schema and
-    ``NoteEventData`` stores pitch in separate fields
-    (``midi_pitch``, ``specific_pitch``).  See Contributing → §2.4
-    Architectural decision log (union-of-BaseModels rejected; columnar
-    separation).
+    instead, the field is dropped from the pa.Schema and pitch is
+    represented exactly once on the EventData.  ``NoteEventData`` (a
+    spelled score source) stores ``specific_pitch`` as the sole default
+    semantic pitch field and keeps the source MIDI number as a
+    non-default raw ``midi`` int that affords an ``EnharmonicPitch`` view
+    on request.  Number-only sources store the bare number instead (as a
+    raw ``pitch`` int or an ``EnharmonicPitch`` ``{midi_number}`` struct).
+    See Contributing → §2.4 Architectural decision log
+    (union-of-BaseModels rejected; columnar separation).
     """
 
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
@@ -1904,16 +1908,27 @@ class Note(BaseModel):
         end = _coerce_coord(row.get("end"))
         duration = _coerce_duration(row.get("duration"))
 
+        # Represent-once resolution.  A spelled source stores the full
+        # ``specific_pitch`` (the most-expressive faithful type); prefer
+        # it.  Otherwise fall back to the bare MIDI number a number-only
+        # source carries — either the non-default raw ``midi`` int on a
+        # spelled NoteEventData, or a ``pitch`` value that arrives as an
+        # ``EnharmonicPitch`` ``{midi_number}`` struct dict (or a plain
+        # int) from a number-only timeline.  Pitch is never stored twice,
+        # so at most one of these is populated.
         pitch: EnharmonicPitch | SpecificPitch | None = None
         sp_raw = row.get("specific_pitch")
         if isinstance(sp_raw, dict):
             pitch = SpecificPitch.from_row(sp_raw)
         if pitch is None:
-            mp_raw = row.get("midi_pitch")
-            if isinstance(mp_raw, dict):
-                pitch = EnharmonicPitch.from_row(mp_raw)
-            elif isinstance(mp_raw, (int, float)) and mp_raw is not None:
-                pitch = EnharmonicPitch(midi_number=int(mp_raw))
+            midi_raw = row.get("midi")
+            pitch_raw = row.get("pitch")
+            if isinstance(midi_raw, (int, float)):
+                pitch = EnharmonicPitch(midi_number=int(midi_raw))
+            elif isinstance(pitch_raw, dict):
+                pitch = EnharmonicPitch.from_row(pitch_raw)
+            elif isinstance(pitch_raw, (int, float)):
+                pitch = EnharmonicPitch(midi_number=int(pitch_raw))
 
         return cls(
             start=start,
@@ -1937,8 +1952,9 @@ def _drop_field(_model_cls: type[BaseModel], _name: str, _info: object) -> list[
 
 
 # Columnar-separation rule: drop ``Note.pitch`` from pa.Schema so that
-# ``midi_pitch`` and ``specific_pitch`` live in their own fields
-# (see Contributing → §2.4 Architectural decision log).
+# the represent-once pitch field (``specific_pitch`` for a spelled
+# source, plus the non-default raw ``midi`` int) lives in its own
+# column (see Contributing → §2.4 Architectural decision log).
 register_value_projector(Note, "pitch", _drop_field)
 
 
@@ -1949,24 +1965,24 @@ class NoteField(SemanticField[Note]):
     def is_rest(self) -> pa.Array:
         """Vectorized rest predicate.
 
-        A row is a rest when BOTH ``midi_pitch`` and ``specific_pitch``
-        (the columnar-separated pitch fields on the EventData) are null.
+        A row is a rest when the EventData carries no pitch for it — i.e.
+        the default ``specific_pitch`` semantic field and the raw ``midi``
+        number it affords an ``EnharmonicPitch`` view from are both null.
         At Field level, only the ``Note`` struct columns are available;
         the columnar-separation rule (CLAUDE.md §15) means ``Note.pitch``
-        does NOT exist on the Field's struct.  The mirror is therefore
-        defined defensively: if the wrapped struct exposes a ``pitch``
-        sub-field (legacy layouts), use it; otherwise raise.
+        does NOT exist on the Field's struct.
 
-        Per the audit ``Note.is_rest`` is data-shaped, but the data lives
-        outside the ``Note`` struct in the canonical TTA layout — so this
-        method must be invoked on a higher-level container that knows
-        about the separated pitch columns.  Until that container exists,
-        the mirror raises with a clear message.
+        Per the audit ``Note.is_rest`` is data-shaped, but the pitch data
+        lives outside the ``Note`` struct in the represent-once TTA layout
+        — so this method must be invoked on a higher-level container that
+        knows about the separated pitch columns.  Until that container
+        exists, the mirror raises with a clear message.
         """
         raise NotImplementedError(
-            "NoteField.is_rest requires access to the columnar-separated "
-            "midi_pitch / specific_pitch columns on NoteEventData, not "
-            "available on the bare Note struct field."
+            "NoteField.is_rest requires access to the represent-once pitch "
+            "columns on NoteEventData (the default specific_pitch field and "
+            "the raw midi number), not available on the bare Note struct "
+            "field."
         )
 
 

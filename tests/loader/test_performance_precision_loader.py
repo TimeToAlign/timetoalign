@@ -162,16 +162,21 @@ def test_score_first_full_bar_note(loader: PerformancePrecisionLoader) -> None:
 
 
 def test_score_carries_pitch(loader: PerformancePrecisionLoader) -> None:
-    """The raw MIDI pitch is carried through faithfully from the SoloLoader.
+    """The EnharmonicPitch view is carried through from the SoloLoader.
 
-    The pickup note's MIDI pitch is 70 in the ``.solo`` file.
+    A ``.solo`` file is number-only, so its most-expressive faithful
+    pitch type is EnharmonicPitch, carried as a ``{midi_number}`` struct.
+    The loader keeps that view on the score timeline (rather than
+    degrading it to a raw int), and the keystone preserves it as a real
+    struct column.  The pickup note's MIDI pitch is 70 in the ``.solo``
+    file.
     """
     score = loader.create_timeline("score")
     table = score.events._table
     note_ids = table.column("note_id").to_pylist()
     pitches = table.column("pitch").to_pylist()
     idx = note_ids.index("n1b8xktz")
-    assert int(pitches[idx]) == 70
+    assert pitches[idx] == {"midi_number": 70}
 
 
 # endregion

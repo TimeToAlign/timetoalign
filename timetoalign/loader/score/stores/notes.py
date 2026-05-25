@@ -9,6 +9,7 @@ from typing_extensions import Self
 
 from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.core.events import EnharmonicPitchField, SpecificPitchField
+from timetoalign.core.fields import SemanticField
 from timetoalign.loader.events import EventData
 from timetoalign.loader.mixins import PitchAccessMixin
 from timetoalign.loader.schema import make_fraction_field
@@ -23,9 +24,21 @@ class NoteEventData(EventData, PitchAccessMixin):
     - mc/mn: Measure context
     - mc_onset/mn_onset: Measure-relative offsets (Fraction)
 
-    Pitch fields (canonical pydantic-derived struct shapes):
-    - midi_pitch: {midi_number}                  (EnharmonicPitchField)
-    - specific_pitch: {step, alter, octave, cents} (SpecificPitchField)
+    Pitch is **represented exactly once**.  A spelled score source
+    faithfully supports :class:`~timetoalign.core.events.SpecificPitch`
+    (step + alter + octave), so ``specific_pitch`` is the **sole default
+    semantic pitch field** and :meth:`get_pitch_field` returns it.  The
+    source MIDI number is kept only as the **non-default raw ``midi``
+    int** column — redundant data the spelling already determines — which
+    the EventData *affords* as an
+    :class:`~timetoalign.core.events.EnharmonicPitch` view on request via
+    :attr:`_afforded_fields` (so ``get_field(EnharmonicPitch)`` works
+    without storing a second pitch struct, and a future check can confirm
+    the raw number agrees with the value derived from ``specific_pitch``).
+
+    Pitch / pitch-adjacent fields:
+    - specific_pitch: {step, alter, octave, cents} (SpecificPitchField, default)
+    - midi: source MIDI number (raw int64; affords EnharmonicPitch on request)
     - tpc: Tonal Pitch Class (fifths)
     - octave: Octave number
     """
@@ -36,10 +49,15 @@ class NoteEventData(EventData, PitchAccessMixin):
         pa.field("mn", pa.string(), nullable=True),
         make_fraction_field("mc_onset", nullable=True),
         make_fraction_field("mn_onset", nullable=True),
-        # Pitch struct fields — schemas derived from the paired Fields'
-        # pydantic models (see core/events.py).
-        pa.field("midi_pitch", EnharmonicPitchField.pa_schema, nullable=True),
+        # Pitch — represented once.  SpecificPitch is the sole default
+        # semantic pitch field (schema derived from the paired Field's
+        # pydantic model, see core/events.py).
         pa.field("specific_pitch", SpecificPitchField.pa_schema, nullable=True),
+        # The source MIDI number, kept as a NON-DEFAULT raw int.  It is
+        # redundant with ``specific_pitch`` (the spelling determines it),
+        # so it is NOT a semantic pitch struct; it affords an
+        # EnharmonicPitch view on request (see _afforded_fields).
+        pa.field("midi", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field(
             "tpc",
             pa.int64(),
@@ -58,6 +76,12 @@ class NoteEventData(EventData, PitchAccessMixin):
         pa.field("staff", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("part_id", pa.string(), nullable=True),
     ]
+
+    # The raw ``midi`` integer affords an EnharmonicPitch view on request
+    # (non-default — SpecificPitch remains the sole default pitch field).
+    _afforded_fields: ClassVar[dict[str, type[SemanticField[Any]]]] = {
+        "midi": EnharmonicPitchField,
+    }
 
     def __init__(
         self,
@@ -84,24 +108,21 @@ class NoteEventData(EventData, PitchAccessMixin):
 
     @property
     def enharmonic_pitch_field(self) -> EnharmonicPitchField:
-        """Extract the ``midi_pitch`` field as an ``EnharmonicPitchField``.
+        """Return an ``EnharmonicPitchField`` view over the source MIDI number.
+
+        The score stores pitch once (as ``specific_pitch``); the
+        EnharmonicPitch view is *afforded* on request from the raw
+        ``midi`` column (see :attr:`_afforded_fields`).
 
         Returns:
-            An ``EnharmonicPitchField`` wrapping the ``midi_pitch`` field.
+            An ``EnharmonicPitchField`` wrapping the afforded ``midi`` view.
 
         Raises:
-            KeyError: If the table has no ``midi_pitch`` field.
+            KeyError: If the table affords no EnharmonicPitch view.
         """
-        try:
-            result = self.get_pitch_field(EnharmonicPitchField)
-            if isinstance(result, EnharmonicPitchField):
-                return result
-        except KeyError:
-            pass
-
-        col = self._table.column("midi_pitch")
-        pa_field = self._table.schema.field("midi_pitch")
-        return EnharmonicPitchField.from_field((col, pa_field))
+        result = self.get_field(EnharmonicPitchField)
+        assert isinstance(result, EnharmonicPitchField)
+        return result
 
     # Backward-compat alias
     pitch_field = enharmonic_pitch_field

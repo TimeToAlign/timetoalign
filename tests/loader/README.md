@@ -27,6 +27,7 @@ bundles, error handling).
 | `test_field_parsers.py` | The :class:`FieldParser` hierarchy and `resolve_field_parser` universal-resolution dispatcher. Exercises the DataField blueprint mechanism: `IntField`, `FloatField`, `StringField`, `RationalField`, `DenominateNumberField`, and paired SemanticField subclasses all accept `name=` for blueprint construction and expose a uniform `emit(source, name=...)` materialisation. `CompositeFieldParser` (separator + regex strategies, dict + iterable parts) and `CallableFieldParser` (escape hatch) are exercised end-to-end. Resolution-table assertions: every entry (Python type, `pa.DataType`, raw / paired `DataField` subclass, blueprint instance, `FieldParser` instance, callable) routes to the correct producer. |
 | `test_step2_field_specs.py` | Step 2 (`field_specs`) blueprint resolution. Builds a fixture `pa.Table` and a `TabularLoader` subclass with `field_specs = [...]`, verifies that each blueprint matches its declared `source_fields=` entry, that the resulting column receives `b"timetoalign"` metadata (`field_type` = paired class name), that atomic source columns are packed into single-field structs matching the target `pa_schema`, and that unresolvable references raise `KeyError`. Exercises the two currently-supported `source_fields=` shorthands (string for single-source promotion; explicit dict for multi-sub-field mapping) and the negative cases (list shorthand rejected by `resolve_source_fields` today; live-mode SemanticField instances rejected; multi-source dict spec raises `NotImplementedError` at loader-materialisation time). |
 | `test_get_events_properties.py` | The four shapes accepted by `Loader.get_events(properties=...)` — `True`, `False`, a tuple of property names, and the single-string shorthand that normalises to a one-element tuple. |
+| `test_represent_pitch_once.py` | The **represent-pitch-once** contract across every pitch-bearing EventData and loader. Verifies (1) the keystone `from_dicts` / `add_events` struct-preservation fix (carried struct-dict columns become real `pa.struct` columns with `field_type` metadata, never JSON strings); (2) the uniform `_afforded_fields` mechanism that promotes a raw atomic column to its semantic view on request; (3) the per-source default pitch type (`get_pitch_field()` → SP for spelled, EP for number-only, EP for MSM with SPC additionally afforded); (4) represent-once (no EventData carries a redundant *default* pitch struct — score notes no longer afford a default EnharmonicPitch); (5) the scalar↔EventData contract for MIDI EventData; (6) on-request EP from a SP field via both routes (conversion + raw column). See "Represent pitch once" below. |
 | `tabular/` | CSV / TSV / Parquet loader specifics |
 | `score/` | Music-notation loaders (Ms3, music21, Partitura) |
 | `midi/` | Score and performance MIDI loaders |
@@ -512,3 +513,86 @@ pitchname ``"e"``, accidentals ``-1``, octave ``4``, date ``360`` ticks.
 different performance whose inline-numeric bpm values resolve directly —
 its ``score:dlt1`` then carries **25** Asynchrony events (vs 0 in the
 default) and **123** Tempo events.
+
+## Represent pitch once — validation logic
+
+`test_represent_pitch_once.py` pins the rule that **pitch is represented
+exactly once** — by the single most-expressive semantic pitch type the
+source *faithfully* supports — and that poorer / derived views are
+reached on request, never stored a second time.  The only deterministic
+derivations are downhill from SpecificPitch (`GP ← SP → EP`,
+`GPC ← SPC → EPC`, and `Pitch → PitchClass`); every other step (above
+all `EP → SP`) is inference and is forbidden as a faithful
+representation.
+
+**The keystone (struct-preservation in `from_dicts` / `add_events`).**
+A carried struct-dict column (e.g. `pitch={"midi_number": 60}`) must
+survive ingestion as a real `pa.struct` column — not be JSON-stringified.
+The tests assert, on a plain `EventData.from_dicts` and on a
+`Timeline.add_events` round-trip:
+
+- a `pitch` dict becomes `struct<midi_number: int64>` (exact type), not a
+  `string` column;
+- the column carries `b"timetoalign"` metadata with `field_type ==
+  "EnharmonicPitchField"` (so the affordance round-trips without relying
+  on shape discovery);
+- the sub-field order is the paired class's canonical order even when the
+  carried dict keys were in another order (`{"alter": -1, "step": "E"}` →
+  stored `struct<step, alter>`), because `pa.array` infers struct fields
+  alphabetically and the loader reorders to canonical;
+- `events.get_field(EnharmonicPitch)[i]` reconstructs the exact scalar.
+
+A heterogeneous sequence of `add_events` calls (a `Note` batch carrying
+the `pitch` struct, then a markup/feature batch without it) preserves the
+struct column and null-fills the absent rows — the affordance is intact
+after the concat.
+
+**The uniform affordance mechanism (`_afforded_fields`).** An EventData
+subclass declares `{raw_column: PairedField}`.  `get_fields` promotes the
+raw atomic column to a live field via the paired class's `emit()` only
+when asked (4th discovery strategy, after metadata / default-name /
+shape), and caches it.  Tested invariants:
+
+- `MidiEventData` / `ScoreMidiEventData` declare `{"pitch":
+  EnharmonicPitchField}`; their raw `pitch` column is `int64` (uniform
+  with the `{midi_number: int64}` view it materialises into);
+- `NoteEventData` declares `{"midi": EnharmonicPitchField}` — a
+  *non-default* affordance over the raw MIDI number, alongside the
+  default `specific_pitch` struct;
+- a declared affordance is surfaced by `get_field(<ScalarClass>)`,
+  `has_field`, `get_fields_satisfying(PitchLike)`, and `get_pitch_field`;
+- the raw column is left untouched (still queryable as a plain int).
+
+**Per-source default pitch type (zero-tolerance affordance pins).**
+`get_pitch_field()` returns the single most-expressive default:
+
+| Producer | `get_pitch_field()` type | Also afforded on request | NOT afforded |
+|----------|--------------------------|--------------------------|--------------|
+| `NoteEventData` (ms3 / music21 / partitura) | `SpecificPitchField` | `EnharmonicPitch` from raw `midi` | a *default* `EnharmonicPitch` struct (represent-once) |
+| `MidiEventData` / `ScoreMidiEventData` | `EnharmonicPitchField` | `MidiPitch` display view; `EnharmonicPitchClass` | `SpecificPitch` (inference) |
+| Parangonada score / perf timelines | `EnharmonicPitchField` | `MidiPitch` | `SpecificPitch` |
+| `PerformancePrecisionLoader` score timeline | `EnharmonicPitchField` | `MidiPitch` | `SpecificPitch` |
+| MSM (`MpmLoader`) score timelines | `EnharmonicPitchField` | `SpecificPitchClass` from `pitchname`+`accidentals` | `SpecificPitch` (octave inconsistent with `midi.pitch`) |
+
+**Represent-once assertion.** For `NoteEventData`, exactly one default
+semantic pitch field exists (`specific_pitch`, a `SpecificPitchField`);
+`get_field(SpecificPitchField)` resolves it, and there is **no**
+`midi_pitch` struct column.  The MIDI number lives only as the raw `midi`
+int (no `field_type` metadata).
+
+**Scalar↔EventData contract (MIDI).** `MidiEvent.pitch` is annotated
+`EnharmonicPitch | None`; the produced `MidiEventData` affords exactly
+that field over its `pitch` column, so `get_field(EnharmonicPitch)[i] ==
+EnharmonicPitch(midi_number=<pitch[i]>)` for note rows (and the field is
+absent / null for Control-Change rows whose `pitch` is null).
+
+**On-request EP from a SP field (both routes).** On `NoteEventData`:
+
+- *conversion route* — `sp_field.convert_to(MidiPitch)[i].midi_number`
+  equals the note's MIDI number computed from `(octave+1)*12 + step_semi
+  + alter` (the scalar's own `midi_number`); `SpecificPitch.to` does not
+  support `EnharmonicPitch` directly, so the test uses the `MidiPitch`
+  thin alias as the documented path;
+- *raw-column route* — `get_field(EnharmonicPitch)[i].midi_number` equals
+  the raw `midi` value, and (zero-tolerance) the two routes agree
+  element-wise on the spelled-source fixture.

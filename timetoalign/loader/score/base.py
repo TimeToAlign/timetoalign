@@ -13,8 +13,8 @@ from typing_extensions import Self
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.base import Loader
 
-from .events import ScoreEventData
 from .store import ScoreStore
+from .stores.notes import NoteEventData
 
 if TYPE_CHECKING:
     from timetoalign.timelines.flow import ScoreFlowController
@@ -31,7 +31,7 @@ class ScoreLoader(Loader):
     """
 
     _default_unit = TimeUnit.quarters
-    _event_data_class = ScoreEventData
+    _event_data_class = NoteEventData
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("number_type", NumberType.fraction)
@@ -44,13 +44,13 @@ class ScoreLoader(Loader):
         return self._store
 
     @property
-    def events(self) -> ScoreEventData:
+    def events(self) -> NoteEventData:
         """The primary event data (notes), for compatibility."""
         return self._store.notes
 
     def get_events(
         self, properties: bool | str | tuple[str, ...] = True
-    ) -> ScoreEventData:
+    ) -> NoteEventData:
         """Return note events with field control.
 
         Overrides the base ``Loader.get_events`` because ``ScoreLoader``

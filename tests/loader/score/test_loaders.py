@@ -58,21 +58,39 @@ class TestTSVLoader:
         assert "value" in qb
 
     def test_pitch_schema(self, chopin_tsv_notes):
-        """Pitch fields properly populated."""
+        """Pitch is represented once: specific_pitch default + raw midi int.
+
+        A spelled score faithfully supports SpecificPitch, so
+        ``specific_pitch`` ({step, alter, octave, cents}) is the sole
+        default semantic pitch field.  The source MIDI number survives
+        only as a non-default raw ``midi`` int column, which affords an
+        EnharmonicPitch view on request.  No ``midi_pitch`` struct exists.
+        """
+        from timetoalign.core.events import EnharmonicPitch, EnharmonicPitchField
+
         loader = TSVLoader()
         loader.load(chopin_tsv_notes)
         store = loader.store
         first = list(store.notes)[0]
 
-        # Canonical storage shapes: midi_pitch is {midi_number} and
-        # specific_pitch is {step, alter, octave, cents}.
-        mp = first.get("midi_pitch")
-        assert mp is not None
-        assert "midi_number" in mp and mp["midi_number"] == 59  # B3
+        # Represent-once: the redundant midi_pitch struct is gone.
+        assert "midi_pitch" not in store.notes.table.column_names
 
+        # SpecificPitch is the default semantic pitch field.
         sp = first.get("specific_pitch")
         assert sp is not None
-        assert sp.get("step") == "B"
+        assert sp.get("step") == "B"  # B3
+
+        # The source MIDI number is a raw int column.
+        assert first.get("midi") == 59  # B3
+
+        # EnharmonicPitch is afforded over the raw ``midi`` column.
+        ep = store.notes.get_field(EnharmonicPitch)
+        assert isinstance(ep, EnharmonicPitchField)
+        assert ep.name == "midi"
+        assert ep[0] == EnharmonicPitch(midi_number=59)
+        # The convenience property routes through the same affordance.
+        assert store.notes.enharmonic_pitch_field[0] == EnharmonicPitch(midi_number=59)
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")

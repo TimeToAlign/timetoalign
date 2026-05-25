@@ -312,7 +312,10 @@ class ParangonadaLoader(AlignmentLoader):
                     "id": row["id"],
                     "start": Fraction(str(row["onset_quarter"])),
                     "event_type": "Note",
-                    "pitch": int(row["pitch"]),
+                    # Number-only source: the most-expressive faithful pitch
+                    # type is EnharmonicPitch, carried as its {midi_number}
+                    # struct so the timeline affords the EP semantic field.
+                    "pitch": {"midi_number": int(row["pitch"])},
                     "voice": int(row["voice"]),
                 }
                 for row in score_rows
@@ -331,7 +334,7 @@ class ParangonadaLoader(AlignmentLoader):
                     "id": row["id"],
                     "start": int(row["onset_div"]),
                     "event_type": "Note",
-                    "pitch": int(row["pitch"]),
+                    "pitch": {"midi_number": int(row["pitch"])},
                     "voice": int(row["voice"]),
                 }
                 for row in score_rows
@@ -401,7 +404,7 @@ class ParangonadaLoader(AlignmentLoader):
                     "id": row["id"],
                     "start": float(row["onset_sec"]),
                     "event_type": "Note",
-                    "pitch": int(row["pitch"]),
+                    "pitch": {"midi_number": int(row["pitch"])},
                     "velocity": int(row["velocity"]),
                 }
                 for row in ppart_rows
@@ -426,7 +429,7 @@ class ParangonadaLoader(AlignmentLoader):
                     "id": row["id"],
                     "start": int(round(float(row["onset_sec"]) * sample_rate)),
                     "event_type": "Note",
-                    "pitch": int(row["pitch"]),
+                    "pitch": {"midi_number": int(row["pitch"])},
                     "velocity": int(row["velocity"]),
                 }
                 for row in ppart_rows

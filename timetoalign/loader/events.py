@@ -49,6 +49,196 @@ if TYPE_CHECKING:
 module_logger = logging.getLogger(__name__)
 
 
+def _first_non_null(rows: list[dict[str, Any]], name: str) -> Any:
+    """Return the first non-null value carried under *name*, or ``None``."""
+    for row in rows:
+        val = row.get(name)
+        if val is not None:
+            return val
+    return None
+
+
+def _struct_fields_match_unordered(
+    actual: pa.StructType, expected: pa.StructType
+) -> bool:
+    """Return True iff *actual* and *expected* have the same ``{name: type}`` set.
+
+    Order-independent counterpart to ``core.fields._struct_types_match``:
+    ``pa.array`` infers struct sub-fields in alphabetical order, which may
+    differ from a paired class's canonical ``pa_schema`` order, so a carried
+    struct dict must be matched by name-set, then reordered to canonical.
+    """
+    if not pa.types.is_struct(actual):
+        return False
+    if actual.num_fields != expected.num_fields:
+        return False
+    actual_map = {
+        actual.field(i).name: actual.field(i).type for i in range(actual.num_fields)
+    }
+    for i in range(expected.num_fields):
+        e = expected.field(i)
+        a_type = actual_map.get(e.name)
+        if a_type is None or not a_type.equals(e.type):
+            return False
+    return True
+
+
+def _semantic_field_type_for_struct(
+    struct_type: pa.StructType,
+) -> tuple[str, pa.StructType] | None:
+    """Return the paired ``SemanticField`` matching *struct_type* by name-set.
+
+    Walks the scalar→field registry and returns the ``(field_type_str,
+    canonical_pa_schema)`` of the first paired ``SemanticField`` whose
+    ``pa_schema`` has the same sub-field ``{name: type}`` set as
+    *struct_type* (order-independent).  Returns ``None`` when no paired
+    class claims the shape — the column then stays a plain struct with no
+    semantic identity.
+
+    The generic coordinate struct ``{value, numerator, denominator}`` is
+    deliberately excluded: ``start`` / ``end`` / ``duration`` already live
+    in the base schema, so a stray coordinate-shaped extra column should
+    stay a plain struct rather than masquerade as a CoordinateField.
+    """
+    from timetoalign.loader.mixins import _get_field_type_map
+
+    for field_type_str, field_cls in _get_field_type_map().items():
+        schema = field_cls.pa_schema
+        if schema is None:
+            continue
+        names = [schema.field(i).name for i in range(schema.num_fields)]
+        if names == ["value", "numerator", "denominator"]:
+            continue
+        if _struct_fields_match_unordered(struct_type, schema):
+            return field_type_str, schema
+    return None
+
+
+def _build_extra_field_schema(
+    schema: pa.Schema,
+    extra_field_names: list[str],
+    processed_rows: list[dict[str, Any]],
+) -> pa.Schema:
+    """Append extra (non-base-schema) fields to *schema*, preserving shape.
+
+    Each extra column is materialised under the most faithful PyArrow type
+    its values support, so that the semantic-field affordance of a carried
+    column survives the round-trip:
+
+    * **struct-shaped** values (a ``dict`` sample) become a real
+      ``pa.struct`` column whose type is inferred from the dicts.  When the
+      inferred struct matches a paired ``SemanticField``'s ``pa_schema``,
+      the field is stamped with the ``b"timetoalign"`` ``field_type``
+      metadata blob so ``get_field()`` round-trips the semantic type
+      directly (no reliance on shape discovery).
+    * **list-shaped** values become a ``pa.list_`` column.
+    * **scalar** values keep their native inferred type (int / float /
+      bool / string).  Genuinely unrepresentable objects fall back to
+      ``str`` — but a struct ``dict`` is NEVER serialised to a JSON string,
+      because that would silently destroy the field's struct affordance.
+
+    Mutates *processed_rows* in place to null-fill absent columns and to
+    coerce non-native scalars to ``str``.
+
+    Args:
+        schema: The base + declared-extra schema to extend.
+        extra_field_names: Sorted names of the carried columns not already
+            in *schema*.
+        processed_rows: The row dicts about to be turned into a table.
+
+    Returns:
+        A new ``pa.Schema`` with the extra fields appended.
+    """
+    from timetoalign.core.fields import (
+        TIMETOALIGN_METADATA_KEY,
+        metadata_blob_from_dict,
+    )
+
+    new_fields = list(schema)
+    for name in extra_field_names:
+        sample = _first_non_null(processed_rows, name)
+
+        if isinstance(sample, dict):
+            # Infer the struct type from the carried dicts and keep it as a
+            # real struct column.  Stamp paired-class metadata when the
+            # shape is a known SemanticField so the affordance round-trips.
+            values = [row.get(name) for row in processed_rows]
+            try:
+                arr = pa.array(values)
+            except (pa.ArrowInvalid, pa.ArrowTypeError, pa.ArrowNotImplementedError):
+                # Heterogeneous dict shapes that PyArrow cannot unify: keep
+                # the column out of the typed path rather than crash.  Fall
+                # back to a string rendering (last resort, logged).
+                module_logger.warning(
+                    "Carried struct column %r has heterogeneous shapes; "
+                    "storing as string.",
+                    name,
+                )
+                for row in processed_rows:
+                    val = row.get(name)
+                    row[name] = None if val is None else str(val)
+                new_fields.append(pa.field(name, pa.string(), nullable=True))
+                continue
+            metadata = None
+            struct_type = arr.type
+            if pa.types.is_struct(struct_type):
+                match = _semantic_field_type_for_struct(struct_type)
+                if match is not None:
+                    field_type_str, canonical_schema = match
+                    # Use the paired class's canonical sub-field order so
+                    # the stored struct round-trips through from_row and is
+                    # claimed by shape discovery; from_pylist coerces the
+                    # carried dicts to this order.
+                    struct_type = canonical_schema
+                    metadata = {
+                        TIMETOALIGN_METADATA_KEY: metadata_blob_from_dict(
+                            {"field_type": field_type_str}
+                        )
+                    }
+            new_fields.append(
+                pa.field(name, struct_type, nullable=True, metadata=metadata)
+            )
+            continue
+
+        if isinstance(sample, list):
+            values = [row.get(name) for row in processed_rows]
+            try:
+                arr = pa.array(values)
+                new_fields.append(pa.field(name, arr.type, nullable=True))
+                continue
+            except (pa.ArrowInvalid, pa.ArrowTypeError, pa.ArrowNotImplementedError):
+                pass  # fall through to string rendering below
+
+        if sample is not None and not isinstance(sample, (str, bytes)):
+            # Scalar of a native arrow type (int / float / bool): infer and
+            # keep the native type so numeric carried columns stay numeric.
+            values = [row.get(name) for row in processed_rows]
+            try:
+                arr = pa.array(values)
+                if not pa.types.is_null(arr.type):
+                    new_fields.append(pa.field(name, arr.type, nullable=True))
+                    continue
+            except (pa.ArrowInvalid, pa.ArrowTypeError, pa.ArrowNotImplementedError):
+                pass  # fall through to string rendering below
+            # Unrepresentable scalar object: render to string.
+            for row in processed_rows:
+                val = row.get(name)
+                if val is not None and not isinstance(val, str):
+                    row[name] = str(val)
+                elif name not in row:
+                    row[name] = None
+            new_fields.append(pa.field(name, pa.string(), nullable=True))
+            continue
+
+        # String (or all-null) column.
+        for row in processed_rows:
+            if name not in row:
+                row[name] = None
+        new_fields.append(pa.field(name, pa.string(), nullable=True))
+
+    return pa.schema(new_fields, metadata=schema.metadata)
+
+
 class EventData(SemanticFieldAccessMixin):
     """PyArrow-based storage for timeline events.
 
@@ -687,26 +877,10 @@ class EventData(SemanticFieldAccessMixin):
                 if key not in base_field_names:
                     extra_field_names.add(key)
 
-        # Add extra fields to schema (as nullable strings for flexibility)
         if extra_field_names:
-            new_fields = list(schema)
-            for name in sorted(extra_field_names):
-                new_fields.append(pa.field(name, pa.string(), nullable=True))
-            schema = pa.schema(new_fields, metadata=schema.metadata)
-            # Convert extra field values to strings for storage
-            for row in processed_rows:
-                for name in extra_field_names:
-                    if name in row and row[name] is not None:
-                        # Convert non-string values to JSON strings for complex types
-                        val = row[name]
-                        if isinstance(val, (dict, list)):
-                            import json
-
-                            row[name] = json.dumps(val)
-                        elif not isinstance(val, str):
-                            row[name] = str(val)
-                    elif name not in row:
-                        row[name] = None
+            schema = _build_extra_field_schema(
+                schema, sorted(extra_field_names), processed_rows
+            )
 
         table = pa.Table.from_pylist(processed_rows, schema=schema)
         return cls(table, unit, number_type)

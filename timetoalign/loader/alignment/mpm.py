@@ -357,6 +357,67 @@ class MpmLoader(AlignmentLoader):
             raise FileNotFoundError(f"Sibling MPM not found: {mpm_path}")
         return msm_path, mpm_path
 
+    @staticmethod
+    def _msm_note_row(
+        note: dict[str, Any],
+        start: Any,
+        *,
+        extra: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Build a score-timeline Note row from a parsed MSM note.
+
+        Pitch is afforded faithfully and *only* faithfully.  The MSM
+        carries a bare ``midi.pitch`` plus a ``pitchname`` / ``accidentals``
+        / ``octave`` spelling whose octave is internally inconsistent with
+        ``midi.pitch`` under scientific notation — so a full
+        :class:`SpecificPitch` would be inference and is NOT built.  The
+        faithful pieces are:
+
+        * the bare number → ``pitch`` as an
+          :class:`~timetoalign.core.events.EnharmonicPitch` struct
+          (``{midi_number}``): the **default** semantic pitch field
+          (most-expressive faithful type for a number-only pitch);
+        * ``pitchname`` + ``accidentals`` → ``specific_pitch_class`` as a
+          :class:`~timetoalign.core.events.SpecificPitchClass` struct
+          (``{step, alter}``): an **additional** afforded field, the
+          spelling without the unreliable octave.
+
+        The verbatim ``pitchname`` / ``accidentals`` / ``octave`` are
+        carried as non-default raw columns alongside.
+
+        Args:
+            note: A parsed MSM note dict (see :meth:`_parse_msm_notes`).
+            start: The onset coordinate (ticks for the discrete timeline,
+                quarters for the continuous one).
+            extra: Optional extra columns to merge (e.g. ``duration``).
+
+        Returns:
+            A row dict suitable for ``Timeline.add_events``.
+        """
+        row: dict[str, Any] = {
+            "id": note["xml_id"],
+            "start": start,
+            "event_type": "Note",
+            # Default semantic pitch field: EnharmonicPitch over the bare
+            # MIDI number (the most-expressive faithful type here).
+            "pitch": {"midi_number": note["pitch"]},
+            # Verbatim spelling, kept as non-default raw columns.
+            "pitchname": note["pitchname"],
+            "accidentals": note["accidentals"],
+            "octave": note["octave"],
+        }
+        # Additional afforded field: SpecificPitchClass from the faithful
+        # spelling pieces (step + alter), where a pitchname is present.
+        pitchname = note.get("pitchname")
+        if pitchname:
+            row["specific_pitch_class"] = {
+                "step": str(pitchname).upper(),
+                "alter": int(note["accidentals"]),
+            }
+        if extra:
+            row.update(extra)
+        return row
+
     def _parse_msm_notes(self, msm_root: Any) -> list[dict[str, Any]]:
         """Parse the score notes from the (plain-XML) MSM.
 
@@ -754,16 +815,9 @@ class MpmLoader(AlignmentLoader):
         )
         score_dlt.add_events(
             [
-                {
-                    "id": note["xml_id"],
-                    "start": note["date"],
-                    "event_type": "Note",
-                    "pitch": note["pitch"],
-                    "pitchname": note["pitchname"],
-                    "accidentals": note["accidentals"],
-                    "octave": note["octave"],
-                    "duration": note["duration"],
-                }
+                self._msm_note_row(
+                    note, note["date"], extra={"duration": note["duration"]}
+                )
                 for note in score_notes
             ]
         )
@@ -783,15 +837,7 @@ class MpmLoader(AlignmentLoader):
         )
         score_clt.add_events(
             [
-                {
-                    "id": note["xml_id"],
-                    "start": Fraction(note["date"], ppq),
-                    "event_type": "Note",
-                    "pitch": note["pitch"],
-                    "pitchname": note["pitchname"],
-                    "accidentals": note["accidentals"],
-                    "octave": note["octave"],
-                }
+                self._msm_note_row(note, Fraction(note["date"], ppq))
                 for note in score_notes
             ]
         )
@@ -887,7 +933,9 @@ class MpmLoader(AlignmentLoader):
                     "id": note["ref"],
                     "start": note["milliseconds_date"] / 1000.0,
                     "event_type": "Note",
-                    "pitch": note["pitch"],
+                    # Observed onsets carry a bare MIDI number: afford
+                    # EnharmonicPitch via its {midi_number} struct.
+                    "pitch": {"midi_number": note["pitch"]},
                     "velocity": note["velocity"],
                 }
                 for note in alignment_notes
@@ -908,7 +956,7 @@ class MpmLoader(AlignmentLoader):
                         round(note["milliseconds_date"] / 1000.0 * sample_rate)
                     ),
                     "event_type": "Note",
-                    "pitch": note["pitch"],
+                    "pitch": {"midi_number": note["pitch"]},
                     "velocity": note["velocity"],
                 }
                 for note in alignment_notes

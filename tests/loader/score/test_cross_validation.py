@@ -21,7 +21,8 @@ The cross-validation is trustworthy because:
 3. **Overlapping Columns**: We compare fields that all loaders extract:
    - quarterbeats: High trust (computed from divs/ticks)
    - duration_qb: High trust (computed from note duration)
-   - midi_pitch.ep: Very high trust (direct from MIDI or pitch)
+   - midi: Very high trust (the raw MIDI number; a spelled score keeps
+     it as a non-default raw int that affords EnharmonicPitch)
    - mc: Medium trust (derived from measure structure)
 
 NOTE: Tests for quarterbeats, duration_qb, and mc cross-validation were removed
@@ -64,11 +65,10 @@ def extract_notes_df(store: ScoreStore, loader_name: str) -> pd.DataFrame:
                 )
             )
 
-    # Flatten pitch structs — canonical storage shape is {midi_number}.
-    if "midi_pitch" in df.columns:
-        df["midi_number"] = df["midi_pitch"].apply(
-            lambda x: x["midi_number"] if isinstance(x, dict) else None
-        )
+    # The source MIDI number lives in the raw ``midi`` int column
+    # (represent once; EnharmonicPitch is afforded over it).
+    if "midi" in df.columns:
+        df["midi_number"] = df["midi"].apply(lambda x: int(x) if pd.notna(x) else None)
 
     # Sort deterministically by (quarterbeats, pitch)
     sort_cols = ["quarterbeats_float", "midi_number"]
@@ -117,7 +117,7 @@ class TestNoteCountConsistency:
 class TestMidiPitchExact:
     """MIDI pitch must match exactly (no tolerance).
 
-    Rationale: MIDI pitch (ep) is unambiguous - a note is either the right pitch
+    Rationale: the MIDI number is unambiguous - a note is either the right pitch
     or wrong. There is no room for interpretation or rounding. This is our
     highest-confidence validation field.
     """
@@ -130,8 +130,8 @@ class TestMidiPitchExact:
             first_idx = mismatches.idxmax()
             pytest.fail(
                 f"MIDI pitch mismatch at index {first_idx}: "
-                f"Gold={gold_df['ep'].iloc[first_idx]}, "
-                f"Partitura={partitura_df['ep'].iloc[first_idx]}"
+                f"Gold={gold_df['midi_number'].iloc[first_idx]}, "
+                f"Partitura={partitura_df['midi_number'].iloc[first_idx]}"
             )
 
     def test_music21_pitch(self, gold_df, music21_df):
@@ -142,6 +142,6 @@ class TestMidiPitchExact:
             first_idx = mismatches.idxmax()
             pytest.fail(
                 f"MIDI pitch mismatch at index {first_idx}: "
-                f"Gold={gold_df['ep'].iloc[first_idx]}, "
-                f"Music21={music21_df['ep'].iloc[first_idx]}"
+                f"Gold={gold_df['midi_number'].iloc[first_idx]}, "
+                f"Music21={music21_df['midi_number'].iloc[first_idx]}"
             )

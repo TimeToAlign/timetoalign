@@ -1,9 +1,9 @@
 """Score loading module for TimeToAlign!
 
 This package provides loaders for symbolic music scores.  The core classes
-(:class:`ScoreStore`, :class:`ScoreEventData`, :class:`ScoreEventType`,
-:class:`MeasureMapLoader`) are always available.  Individual loader backends
-are guarded behind optional dependencies:
+(:class:`ScoreStore`, :class:`ScoreEventType`, :class:`MeasureMapLoader`) are
+always available.  Individual loader backends are guarded behind optional
+dependencies:
 
 * :class:`PartituraLoader` — requires the ``partitura`` extra
 * :class:`Music21Loader` — requires the ``music21`` extra
@@ -15,14 +15,13 @@ If you attempt to import a loader whose dependency is not installed, an
 
 from __future__ import annotations
 
-from .events import ScoreEventData, ScoreEventType
+from .events import ScoreEventType
 from .measuremap import MeasureMapLoader
 from .store import ScoreStore
 
 __all__ = [
     "MeasureMapLoader",
     "ScoreStore",
-    "ScoreEventData",
     "ScoreEventType",
 ]
 
