@@ -223,6 +223,12 @@ FLOW_CHARS: dict[str, str] = {
     "segno": "\u00a7",  # §  U+00A7 SECTION SIGN (widely supported)
     "coda": "\u2295",  # ⊕  U+2295 CIRCLED PLUS (BMP, well-supported)
     "section_break": "\u2551",  # ║  U+2551 BOX DRAWINGS DOUBLE VERTICAL
+    # Heavy (bold-reading) junction glyphs that mark a section break in the
+    # section ruler: the right edge of the closing section, the left edge of
+    # the opening section, and the opening section's volta corner.
+    "break_right": "\u252b",  # ┫  U+252B BOX DRAWINGS HEAVY VERTICAL AND LEFT
+    "break_left": "\u2523",  # ┣  U+2523 BOX DRAWINGS HEAVY VERTICAL AND RIGHT
+    "break_volta": "\u250f",  # ┏  U+250F BOX DRAWINGS HEAVY DOWN AND RIGHT
     "arrow": "\u2192",  # →  U+2192 RIGHTWARDS ARROW
     "match": "=",
     "mismatch": "\u2260",  # ≠  U+2260 NOT EQUAL TO
@@ -237,6 +243,9 @@ FLOW_CHARS_ASCII: dict[str, str] = {
     "segno": "S",
     "coda": "@",
     "section_break": "||",
+    "break_right": "#",
+    "break_left": "#",
+    "break_volta": "#",
     "arrow": "->",
     "match": "=",
     "mismatch": "!=",
@@ -1278,6 +1287,8 @@ def _build_section_slot(
     fc: dict[str, str],
     tree: dict[str, str],
     unicode: bool,
+    break_after: bool = False,
+    break_before: bool = False,
 ) -> tuple[str, str, str, str, str]:
     """Return per-section slot strings for the four ruler rows.
 
@@ -1286,14 +1297,23 @@ def _build_section_slot(
     the raw left- and right-anchored marker glyph strings, which the
     caller composes into either one merged marker row or two split rows.
 
+    A section break is a flow control element and so must read on the
+    schema itself: ``break_after`` (this section closes on a Break) draws
+    the slot's right edge with the heavy junction glyph, and
+    ``break_before`` (the preceding section closed on a Break) draws the
+    left edge — branch or volta corner — heavy. The two adjacent heavy
+    edges render the break as a bold ``┫┣`` junction, distinct from an
+    ordinary ``┤├`` section boundary.
+
     All alignment inside the slot is done with ``str.ljust``,
     ``str.rjust`` and ``str.center`` against ``col_width``. No absolute
     slot offsets exist here, by design — that is what makes vertical
     misalignment between the four rows structurally impossible.
     """
     h = tree["horizontal"]
-    branch = tree["branch"]
-    right_branch = "┤" if unicode else "|"
+    branch = fc["break_left"] if break_before else tree["branch"]
+    right_branch = fc["break_right"] if break_after else ("┤" if unicode else "|")
+    volta_corner = fc["break_volta"] if break_before else fc["volta_corner"]
     mc_count = sec.mc_end - sec.mc_start
 
     def _center(s: str, w: int, fill: str = " ") -> str:
@@ -1314,7 +1334,7 @@ def _build_section_slot(
     inner_w = max(0, col_width - 2)
     middle = _center(sec.id, inner_w, h)
     if sec_volta is not None:
-        left = f"{fc['volta_corner']}{sec_volta}"
+        left = f"{volta_corner}{sec_volta}"
         right = ""
     else:
         left = branch
@@ -1410,18 +1430,27 @@ def _render_sections_ruler(
         if sec_id is not None:
             units_by_sec[sec_id].append(u)
 
-    # Volta prefix is shown only for sections that are *entirely* a volta —
-    # every MC in the section shares the same non-None volta value.
+    unit_by_mc: dict[int, Any] = {u.mc: u for u in units}
+
+    # A section opens a volta bracket when its first measure carries a volta
+    # number. The bracket spans the whole section, so the number is read off
+    # ``mc_start`` alone — NOT by requiring every measure in the section to
+    # share one volta value (a first ending whose section also contains
+    # post-ending measures would otherwise be missed).
     sec_volta: dict[str, int] = {}
     for sec in sections:
-        mcs_in_sec = units_by_sec.get(sec.id, [])
-        if not mcs_in_sec:
-            continue
-        voltas = {u.volta for u in mcs_in_sec}
-        if len(voltas) == 1:
-            (only,) = voltas
-            if only is not None:
-                sec_volta[sec.id] = only
+        first = unit_by_mc.get(sec.mc_start)
+        if first is not None and first.volta is not None:
+            sec_volta[sec.id] = first.volta
+
+    # A section closes on a Break when its last measure carries a section
+    # break. The Break sits at a section junction (it forces the boundary),
+    # so the closing section's right edge and the next section's left edge
+    # are both drawn heavy to render the break on the schema.
+    ends_with_break: list[bool] = []
+    for sec in sections:
+        last = unit_by_mc.get(sec.mc_end - 1)
+        ends_with_break.append(bool(last is not None and last.section_break))
 
     slots = [
         _build_section_slot(
@@ -1432,8 +1461,10 @@ def _render_sections_ruler(
             fc,
             tree,
             unicode,
+            break_after=ends_with_break[i],
+            break_before=(i > 0 and ends_with_break[i - 1]),
         )
-        for sec in sections
+        for i, sec in enumerate(sections)
     ]
 
     id_row = prefix + "".join(s[0] for s in slots)
