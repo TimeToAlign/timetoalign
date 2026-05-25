@@ -314,6 +314,104 @@ The manuscript requires matches to include "the agent/author, decision criteria,
 
 ---
 
+## MatchClaimField Tests (`test_match_claim_field.py`)
+
+### What We're Validating
+
+`MatchClaimField` is a columnar store that wraps a single `pa.Table` so a very
+large set of pairwise alignment claims can be held as four columns instead of
+one frozen `MatchClaim` object per claim. Dense audio-to-audio alignments push
+this into the millions of claims, so the store must build vectorized (never one
+Python object per row) and materialise individual `MatchClaim` instances only on
+demand.
+
+The store is purpose-built, **not** a `SemanticField`/`DataField` subclass: a
+`MatchClaim` is a frozen dataclass (not a pydantic scalar) and the store is
+multi-column, so the pydantic-to-Arrow machinery does not apply. It lives in the
+same module as `MatchClaim`, immediately after it.
+
+### Scope (v1) — and what raises
+
+The store holds **synchronous instant pairwise claims only**: each row has
+`is_synchronous is True`, a `start_anchor`, and `end_anchor is None`. Two
+categories are deliberately out of scope and `from_claims` raises `ValueError`
+on either:
+
+- **NOMATCH claims** (`is_synchronous is False`, no anchors) — these stay
+  dataclass-only.
+- **Interval claims** (carry an `end_anchor`) — these stay dataclass-only.
+
+Shared provenance is a single `MatchMetadata | None` held once at field level,
+never a per-row column. There is no `id` column and no end/interval column.
+
+### Internal schema (minimal)
+
+Exactly four columns, in order:
+
+| Column | Type | Why |
+|--------|------|-----|
+| `timeline_a_id` | `dictionary(int32, string)` | Only a handful of distinct ids over ~1.15M rows; dictionary encoding keeps the store compact |
+| `timeline_b_id` | `dictionary(int32, string)` | same |
+| `coordinate_a` | `float64` | coordinate on timeline A |
+| `coordinate_b` | `float64` | coordinate on timeline B |
+
+### Canonical gold vector
+
+```python
+meta = MatchMetadata(agent="test", decision_criteria="manual")
+f = MatchClaimField.from_columns(
+    timeline_a_ids=["A", "A", "B"],
+    timeline_b_ids=["B", "C", "C"],
+    coordinate_a=[0.0, 0.0, 1.0],
+    coordinate_b=[10.0, 20.0, 21.0],
+    metadata=meta,
+)
+```
+
+### Key Evidence (exact, zero-tolerance)
+
+| Test | Validates |
+|------|-----------|
+| `test_from_columns_length` | `len(f) == 3` |
+| `test_table_shape` | 4 columns, names `["timeline_a_id", "timeline_b_id", "coordinate_a", "coordinate_b"]` |
+| `test_id_columns_dictionary_encoded` | `pa.types.is_dictionary(...)` True for both id columns |
+| `test_coordinate_columns_float64` | both coordinate columns are `pa.float64()` |
+| `test_timeline_ids` | `f.timeline_ids == {"A", "B", "C"}` |
+| `test_getitem_first_row` | `f[0]` is a `MatchClaim`, `A`↔`B`, synchronous instant, coords 0.0/10.0, metadata identity `is meta` |
+| `test_getitem_negative_index` | `f[-1]` → `B`, `coordinate_b == 21.0` |
+| `test_getitem_out_of_range` | `f[3]` / `f[-4]` raise `IndexError` |
+| `test_connecting` | `f.connecting("C")` has `len == 2`; rows are exactly `{("A","C"), ("B","C")}` |
+| `test_filter_timeline_ids` | `f.filter(timeline_ids={"A"})` has `len == 2` (rows 0 and 1) |
+| `test_filter_timeline_id_equals_connecting` | `filter(timeline_id=...)` matches `connecting(...)` |
+| `test_filter_both_none_copies` | `f.filter()` returns all rows |
+| `test_filter_and_combination` | `timeline_id` AND `timeline_ids` combine with logical AND |
+| `test_to_claims` | `len(f.to_claims()) == 3`, all synchronous instants |
+| `test_iter` | iteration yields 3 synchronous-instant claims |
+| `test_roundtrip_from_claims` | `from_claims(f.to_claims()).table` equals `f.table` (`.equals`) |
+| `test_roundtrip_from_dict` | `from_dict(f.to_dict()).table` equals `f.table`; metadata preserved |
+| `test_from_claims_rejects_nomatch` | a `MatchClaim.nomatch(...)` raises `ValueError` |
+| `test_from_claims_rejects_interval` | an interval claim (both anchors) raises `ValueError` |
+| `test_from_claims_adopts_common_metadata` | shared per-claim metadata becomes field metadata when `metadata=None` |
+| `test_from_claims_mixed_metadata_stays_none` | divergent per-claim metadata → field metadata stays `None` |
+| `test_from_columns_length_mismatch_raises` | unequal column lengths raise `ValueError` |
+| `test_constructor_rejects_bad_table` | a table without the four exact columns/types raises `ValueError` |
+| `test_empty_field` | zero-row field: `len == 0`, `timeline_ids == set()`, `to_claims() == []` |
+| `test_repr` | `repr(f) == "MatchClaimField(claims=3, timelines=3)"` |
+| `test_repr_html_contains_summary` | `_repr_html_()` is non-empty and reports the claim/timeline counts |
+| `test_top_level_export` | `MatchClaimField` importable from `timetoalign` and `timetoalign.alignment` |
+
+### Scale sanity (vectorized path, no Python objects)
+
+`test_scale_builds_columnar` builds a field of **100 000** rows via
+`from_columns` with deterministic inputs (`coordinate_a = [float(i) for i in
+range(100_000)]`), asserting `len == 100_000` and that `f[50_000]` materialises
+to the correct coordinate (`50000.0`). Construction completes in well under a
+second (≈30 ms locally) because `from_columns` builds Arrow arrays directly and
+never instantiates a `MatchClaim`. This is the proof that the columnar path
+scales to the dense-alignment workload.
+
+---
+
 ## SUPRA Integration Tests (`test_supra_integration.py`)
 
 ### What We're Validating

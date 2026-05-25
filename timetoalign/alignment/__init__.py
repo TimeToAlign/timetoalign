@@ -9,6 +9,7 @@ Public API:
 - GroupTimestamp: A synchronized instant across all timelines in a group
 - AlignmentAnchor: Atomic coordinate pair claim
 - MatchClaim: Low-level match between two events
+- MatchClaimField: Columnar store for synchronous-instant pairwise claims
 - MatchMetadata: Provenance information for matches
 - MatchGraph: Graph of MatchClaims (networkx integration)
 - MatchStamp: Cross-group timestamp at a single coordinate
@@ -18,7 +19,7 @@ Public API:
 
 from __future__ import annotations
 
-from .anchors import AlignmentAnchor, MatchClaim, MatchMetadata
+from .anchors import AlignmentAnchor, MatchClaim, MatchClaimField, MatchMetadata
 from .bundle import AlignmentBundle
 from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
@@ -42,6 +43,7 @@ __all__ = [
     # Anchors and Claims
     "AlignmentAnchor",
     "MatchClaim",
+    "MatchClaimField",
     "MatchMetadata",
     # Filters
     "ClaimFilter",
