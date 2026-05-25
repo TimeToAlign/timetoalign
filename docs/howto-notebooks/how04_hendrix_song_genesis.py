@@ -51,7 +51,7 @@
 import pandas as pd
 
 from timetoalign import AlignmentBundle
-from timetoalign.alignment.anchors import MatchClaim, MatchMetadata
+from timetoalign.alignment.claims import MatchClaim, MatchMetadata
 from timetoalign.loader.alignment import TiliaJsonLoader
 from timetoalign.testdata import ensure_data  # noqa: E402
 

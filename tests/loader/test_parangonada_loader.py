@@ -35,7 +35,7 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign.alignment.anchors import MatchClaim
+from timetoalign.alignment.claims import MatchClaim
 from timetoalign.core import TimeUnit
 from timetoalign.loader.alignment import ParangonadaLoader
 from timetoalign.maps.convenience import SamplesToSeconds

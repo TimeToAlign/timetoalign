@@ -19,8 +19,8 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign.alignment.anchors import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.bundle import AlignmentBundle, _reset_bundle_ids
+from timetoalign.alignment.claims import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.groups import _reset_group_ids
 from timetoalign.core import TimeUnit
 from timetoalign.loader.alignment.matchfile import MatchfileLoader
