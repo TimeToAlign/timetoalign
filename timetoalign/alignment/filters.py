@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 from timetoalign.core.enums import Domain, TimeUnit
 
 if TYPE_CHECKING:
-    from timetoalign.alignment.anchors import MatchClaim
+    from timetoalign.alignment.claims import MatchClaim
     from timetoalign.timelines import Timeline
 
 module_logger = logging.getLogger(__name__)

@@ -19,8 +19,8 @@ Public API:
 
 from __future__ import annotations
 
-from .anchors import AlignmentAnchor, MatchClaim, MatchClaimField, MatchMetadata
 from .bundle import AlignmentBundle
+from .claims import AlignmentAnchor, MatchClaim, MatchClaimField, MatchMetadata
 from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
 from .groups import GroupTimestamp, TimelineGroup

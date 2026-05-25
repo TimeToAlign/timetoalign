@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 
-from timetoalign.alignment.anchors import AlignmentAnchor, MatchClaim
+from timetoalign.alignment.claims import AlignmentAnchor, MatchClaim
 from timetoalign.core.enums import Domain, TimeUnit
 
 if TYPE_CHECKING:

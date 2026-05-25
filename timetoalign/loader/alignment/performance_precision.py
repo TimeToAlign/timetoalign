@@ -54,7 +54,7 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
-from timetoalign.alignment.anchors import MatchClaim, MatchMetadata
+from timetoalign.alignment.claims import MatchClaim, MatchMetadata
 from timetoalign.core import TimeUnit
 from timetoalign.loader.base import AlignmentLoader
 from timetoalign.loader.tabular.solo import SoloLoader

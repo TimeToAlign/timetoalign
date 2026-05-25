@@ -28,7 +28,7 @@ from typing import Any, Sequence
 
 import pandas as pd
 
-from timetoalign.alignment.anchors import AlignmentAnchor, MatchClaim, MatchMetadata
+from timetoalign.alignment.claims import AlignmentAnchor, MatchClaim, MatchMetadata
 
 module_logger = logging.getLogger(__name__)
 

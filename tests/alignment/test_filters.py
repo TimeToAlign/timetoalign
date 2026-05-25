@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from timetoalign.alignment.anchors import (
+from timetoalign.alignment.claims import (
     AlignmentAnchor,
     MatchClaim,
 )

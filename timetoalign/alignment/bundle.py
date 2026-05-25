@@ -28,7 +28,7 @@ from timetoalign.core import (
     resolve_id,
 )
 
-from .anchors import MatchClaim
+from .claims import MatchClaim
 from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
 from .groups import TimelineGroup
@@ -812,7 +812,7 @@ class AlignmentBundle:
             >>> len(claims)
             2
         """
-        from .anchors import MatchClaim, MatchMetadata
+        from .claims import MatchClaim, MatchMetadata
 
         claims = []
         for event_a, tl_a, event_b, tl_b in event_pairs:

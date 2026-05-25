@@ -25,7 +25,7 @@ from fractions import Fraction
 
 import pytest
 
-from timetoalign.alignment.anchors import MatchClaim
+from timetoalign.alignment.claims import MatchClaim
 from timetoalign.core import TimeUnit
 from timetoalign.loader.alignment import PerformancePrecisionLoader
 from timetoalign.loader.tabular.solo import SoloLoader

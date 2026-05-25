@@ -64,7 +64,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from typing_extensions import Self
 
-from timetoalign.alignment.anchors import MatchClaimField, MatchMetadata
+from timetoalign.alignment.claims import MatchClaimField, MatchMetadata
 from timetoalign.core import TimeUnit
 from timetoalign.loader.base import AlignmentLoader
 from timetoalign.timelines.types import ContinuousPhysicalTimeline

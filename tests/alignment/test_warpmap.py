@@ -18,7 +18,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from timetoalign.alignment.anchors import AlignmentAnchor, MatchClaim
+from timetoalign.alignment.claims import AlignmentAnchor, MatchClaim
 from timetoalign.alignment.graph import MatchStamp
 from timetoalign.alignment.matchline import MatchLine
 from timetoalign.alignment.warpmap import WarpMap

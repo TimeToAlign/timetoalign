@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 import partitura as pt
 from typing_extensions import Self
 
-from timetoalign.alignment.anchors import MatchClaim, MatchMetadata
+from timetoalign.alignment.claims import MatchClaim, MatchMetadata
 from timetoalign.core import TimeUnit, resolve_id
 from timetoalign.maps.linear import ScalarMap, ShiftMap
 from timetoalign.timelines.types import (
