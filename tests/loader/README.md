@@ -614,14 +614,44 @@ reads it into one audio-to-audio ``AlignmentBundle``:
   ``length`` is that recording's stored ``duration``;
 * the **complete pairwise topology** — for every unordered pair of recordings
   ``(a, b)`` and every grid column ``i``, one synchronous instant claim
-  ``a@times_a[i] ↔ b@times_b[i]`` — held columnar in a ``MatchClaimField``
-  (``loader.claim_field``), built vectorized via
-  ``MatchClaimField.from_columns`` (never one ``MatchClaim`` object per row).
+  ``a@times_a[i] ↔ b@times_b[i]`` — held columnar in a ``MatchClaimField``,
+  built vectorized via ``MatchClaimField.from_columns`` (never one
+  ``MatchClaim`` object per row).
 
 The recordings carry **no symbolic events**; all alignment lives in the claim
 field.  The reference named by ``header.ref`` is just another recording, not a
 privileged hub.  The loader reads the existing alignment — it never runs an
 aligner.
+
+### Public field access — the uniform ``get_field`` API
+
+The claim field is reached through the uniform field API, not a bespoke
+property: ``loader.get_field(MatchClaim) -> MatchClaimField`` (the paired
+``MatchClaimField`` class resolves identically).  There is **no
+``loader.claim_field`` property** — the tests assert it is gone
+(``not hasattr(loader, "claim_field")``).  Any other selector raises
+``TypeError``.
+
+### Reference recording in the repr
+
+Reading the reference is essential to interpreting the bundle, so both
+``repr(loader)`` and ``loader._repr_html_()`` name it.  The ``__repr__`` is
+``ListenHereLoader(recordings=3, reference='rec-ref.mp3', claims=15)``; the
+HTML carries a ``Reference`` row with the ``header.ref`` string.
+
+### Columnar bundle query — the field is never exploded
+
+``create_bundle()`` hands the ``MatchClaimField`` to the bundle via
+``add_match_claim_field`` (the columnar store), **not** ``add_match_claims``.
+Consequently the bundle's Python-list ``cross_group_claims`` stays **empty**
+(length 0) while ``cross_group_claim_fields`` holds the one field.
+``get_matchstamp_at`` answers by filtering the field's struct column vectorized
+(exact-equality boolean mask on ``timeline_a/b_id`` + ``coordinate_a/b``) and
+materialising only the matched rows — a whole-work field is never turned into a
+million Python claims.  Tests pin this by asserting
+``len(bundle.cross_group_claims) == 0`` and
+``len(bundle.cross_group_claim_fields) == 1`` while the matchstamp read still
+succeeds.
 
 ### The synthetic specimen
 
@@ -648,25 +678,33 @@ waveform-display payload and is ignored.
 
 ### Zero-tolerance counts
 
-* After ``load``: ``len(loader) == 15`` and ``len(loader.claim_field) == 15``
-  (C(3,2) = 3 pairs × 5 columns); ``loader.recording_keys ==
-  ["rec-a", "rec-b", "rec-ref"]``.
-* ``claim_field.timeline_ids == {"rec-a:cpt1", "rec-b:cpt1", "rec-ref:cpt1"}``.
+* After ``load``: ``len(loader) == 15`` and
+  ``len(loader.get_field(MatchClaim)) == 15`` (C(3,2) = 3 pairs × 5 columns);
+  ``loader.recording_keys == ["rec-a", "rec-b", "rec-ref"]``;
+  ``loader.reference == "rec-ref.mp3"``.
+* ``loader.get_field(MatchClaim)`` is a ``MatchClaimField``;
+  ``loader.get_field(MatchClaimField)`` returns the same field.
+* ``get_field(MatchClaim).timeline_ids == {"rec-a:cpt1", "rec-b:cpt1",
+  "rec-ref:cpt1"}``.
 * **Faithfulness:** ``pc.min`` over both coordinate columns of the field is
   exactly ``-0.01`` (negatives kept).
 * ``bundle = loader.create_bundle()``: exactly **3** timelines and **3**
   groups; timeline uids equal the set above; each timeline holds **0** events;
-  ``rec-b:cpt1`` length ``== 0.10``.
+  ``rec-b:cpt1`` length ``== 0.10``; the claim field is added columnar, so
+  ``len(bundle.cross_group_claims) == 0`` and
+  ``len(bundle.cross_group_claim_fields) == 1``.
 * ``bundle.get_matchstamp_at(0.045, "rec-ref:cpt1")``: ``stamp.n_timelines ==
   3``; ``stamp.get_coordinate("rec-a:cpt1") == 0.04``;
   ``stamp.get_coordinate("rec-b:cpt1") == 0.03``;
   ``stamp.get_coordinate("rec-ref:cpt1") == 0.045``.  The exact float literals
-  from the specimen are reused so the equality is exact.
+  from the specimen are reused so the equality is exact.  Because the bundle's
+  Python claim list is empty, this read proves the columnar path resolves the
+  matchstamp without exploding the field.
 * **Bare-array form:** a second fixture where one entry is a bare list
   ``[0.0, 0.02, 0.04]`` (no ``peaks`` / ``duration``) parses, and that
   recording's timeline ``length == max(times)``.
-* **Metadata:** the bundle's first materialised claim has
-  ``.metadata.agent.name == "Listen Here! v0.20.0"`` (from ``header.createdBy``)
+* **Metadata:** the field's first materialised claim (``get_field(MatchClaim)[0]``)
+  has ``.metadata.agent.name == "Listen Here! v0.20.0"`` (from ``header.createdBy``)
   and ``.metadata.agent.identifier == "dtw_chroma_alignment"`` (the alignment
   method).
 

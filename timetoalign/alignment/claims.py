@@ -1434,8 +1434,20 @@ class MatchClaimField(SemanticField[MatchClaim]):
         """
         schema = cls.pa_schema
         anchor_type = schema.field("start_anchor").type
+        # Build the anchor's child arrays BY NAME (not by position) so a future
+        # AlignmentAnchor field reorder cannot silently misalign the columns.
+        anchor_sources: dict[str, pa.Array] = {
+            "timeline_a_id": timeline_a_id,
+            "coordinate_a": coordinate_a,
+            "timeline_b_id": timeline_b_id,
+            "coordinate_b": coordinate_b,
+        }
+        anchor_children = [
+            anchor_sources[anchor_type.field(i).name]
+            for i in range(anchor_type.num_fields)
+        ]
         start_anchor = pa.StructArray.from_arrays(
-            [timeline_a_id, coordinate_a, timeline_b_id, coordinate_b],
+            anchor_children,
             fields=list(anchor_type),
         )
         true_array = pa.array([True] * n, type=pa.bool_())
