@@ -454,6 +454,80 @@ class TestBundleDiagram:
         # Match claims footer
         assert "MatchClaims:" in result
 
+    def test_columnar_claim_field_counted(self) -> None:
+        """Claims held only in a columnar MatchClaimField are counted.
+
+        A dense audio-to-audio bundle stores its claims in a MatchClaimField
+        (not the per-claim Python list), so the diagram's claim count must
+        include the field's row count.
+        """
+        from timetoalign.alignment import AlignmentBundle, MatchClaimField
+
+        bundle = AlignmentBundle(id="columnar_bundle")
+        tl_a = ContinuousPhysicalTimeline(length=1.0, uid="rec-a:cpt1")
+        tl_b = ContinuousPhysicalTimeline(length=1.0, uid="rec-b:cpt1")
+        bundle.add_timeline(tl_a, uid="rec-a:cpt1", as_group="rec-a")
+        bundle.add_timeline(tl_b, uid="rec-b:cpt1", as_group="rec-b")
+
+        # Three synchronous instant claims, held columnar (never materialised).
+        field = MatchClaimField.from_columns(
+            timeline_a_ids=["rec-a:cpt1"] * 3,
+            timeline_b_ids=["rec-b:cpt1"] * 3,
+            coordinate_a=[0.0, 0.1, 0.2],
+            coordinate_b=[0.0, 0.1, 0.2],
+        )
+        bundle.add_match_claim_field(field)
+
+        result = bundle_diagram(bundle)
+
+        # The Python claim list is empty; the count comes from the field.
+        assert len(bundle.cross_group_claims) == 0
+        assert "MatchClaims: 3" in result
+
+    def test_list_and_field_claim_counts_sum(self) -> None:
+        """The diagram count is the list count plus the columnar field count."""
+        from timetoalign.alignment import (
+            AlignmentAnchor,
+            AlignmentBundle,
+            MatchClaim,
+            MatchClaimField,
+        )
+
+        bundle = AlignmentBundle(id="mixed_bundle")
+        tl_a = ContinuousPhysicalTimeline(length=1.0, uid="rec-a:cpt1")
+        tl_b = ContinuousPhysicalTimeline(length=1.0, uid="rec-b:cpt1")
+        bundle.add_timeline(tl_a, uid="rec-a:cpt1", as_group="rec-a")
+        bundle.add_timeline(tl_b, uid="rec-b:cpt1", as_group="rec-b")
+
+        # Two Python-list claims ...
+        bundle.add_match_claims(
+            [
+                MatchClaim(
+                    timeline_a_id="rec-a:cpt1",
+                    timeline_b_id="rec-b:cpt1",
+                    start_anchor=AlignmentAnchor(
+                        timeline_a_id="rec-a:cpt1",
+                        coordinate_a=c,
+                        timeline_b_id="rec-b:cpt1",
+                        coordinate_b=c,
+                    ),
+                )
+                for c in (0.0, 0.1)
+            ]
+        )
+        # ... plus three columnar claims → 5 total.
+        bundle.add_match_claim_field(
+            MatchClaimField.from_columns(
+                timeline_a_ids=["rec-a:cpt1"] * 3,
+                timeline_b_ids=["rec-b:cpt1"] * 3,
+                coordinate_a=[0.2, 0.3, 0.4],
+                coordinate_b=[0.2, 0.3, 0.4],
+            )
+        )
+
+        result = bundle_diagram(bundle)
+        assert "MatchClaims: 5" in result
+
 
 # endregion
 

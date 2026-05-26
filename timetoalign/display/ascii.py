@@ -1019,10 +1019,15 @@ def bundle_diagram(
 
         lines.append("")
 
-    # Match claims summary
+    # Match claims summary. Count the per-claim Python list AND the columnar
+    # claim fields (the latter via each field's row count — no claim is
+    # materialised), so a dense audio-to-audio bundle whose claims live only
+    # in a MatchClaimField reports its true claim count.
     n_matches = (
         len(bundle.cross_group_claims) if hasattr(bundle, "cross_group_claims") else 0
     )
+    if hasattr(bundle, "cross_group_claim_fields"):
+        n_matches += sum(len(field) for field in bundle.cross_group_claim_fields)
     if n_matches > 0:
         lines.append(f"  MatchClaims: {n_matches}")
     else:

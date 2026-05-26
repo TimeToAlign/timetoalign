@@ -222,11 +222,13 @@ to the relevant section of the conceptual model.
 
 **MatchClaim**
 :   A claim of equivalence between events on different timelines, with
-    provenance metadata (agent, method, certainty). May be synchronous
-    (producing {{< glossary AlignmentAnchor >}}s) or conceptual (structural
-    equivalence without temporal commitment). Always knows which pair of
-    timelines it connects. Four cases: (a) event-to-event, (b) projection,
-    (c) {{< glossary NOMATCH >}}, (d) implicit (from group extension).
+    provenance metadata (the authoring agent and a certainty). May be
+    synchronous (producing {{< glossary AlignmentAnchor >}}s) or conceptual
+    (structural equivalence without temporal commitment). Always knows which
+    pair of timelines it connects. Four cases: (a) event-to-event,
+    (b) projection, (c) {{< glossary NOMATCH >}}, (d) implicit (from group
+    extension). Held individually, or columnar at scale in a
+    {{< glossary MatchClaimField >}}.
     See [Alignment](concepts.qmd#alignment).
 
 **MatchClaimField**
