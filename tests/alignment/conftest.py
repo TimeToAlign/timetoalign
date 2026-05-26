@@ -14,10 +14,11 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign.alignment import AlignmentAnchor, MatchClaim, MatchMetadata
+from timetoalign.alignment import Agent, AlignmentAnchor, MatchClaim, MatchMetadata
 from timetoalign.alignment.bundle import _reset_bundle_ids
 from timetoalign.alignment.claims import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.groups import _reset_group_ids
+from timetoalign.core import AgentType
 from timetoalign.testdata import ensure_data
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
@@ -223,9 +224,11 @@ def thoresen_segment_claims() -> list[MatchClaim]:
                 coordinate_b=float(offset_dgt2 + DGT2_SEGMENT_LENGTHS[i]),
             ),
             metadata=MatchMetadata(
-                agent="thoresen_analysis",
-                decision_criteria="segment_correspondence",
-                notes=f"Segment {i+1} of 5",
+                agent=Agent(
+                    name="thoresen_analysis",
+                    type=AgentType.human,
+                    identifier="segment_correspondence",
+                ),
             ),
         )
         claims.append(claim)

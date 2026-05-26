@@ -206,6 +206,8 @@ Both implement the `TimeStampSource` protocol, enabling code reuse.
 
 **Design:** AlignmentAnchor is a **pure coordinate pair** — a neutral record associating one coordinate on timeline A with one coordinate on timeline B. It contains no claim semantics (`is_synchronous`, `is_explicit`, `id` fields were removed). Claim semantics live exclusively on `MatchClaim`.
 
+`AlignmentAnchor` is now a **frozen pydantic v2 `BaseModel`** (the whole claim family — `Agent`, `MatchMetadata`, `AlignmentAnchor`, `MatchClaim` — moved from frozen dataclasses to pydantic scalars). Its coordinates remain plain `float` values.
+
 ### Key Evidence
 
 | Test | Validates |
@@ -214,17 +216,17 @@ Both implement the `TimeStampSource` protocol, enabling code reuse.
 | `test_connects` / `test_connects_both` | Query methods correctly identify connected timelines |
 | `test_get_coordinate_for` | Coordinate retrieval by timeline ID |
 | `test_from_dict_roundtrip` | Serialization preserves all fields exactly (no legacy fields) |
-| `test_frozen_dataclass` | Immutability enforced (frozen dataclass) |
+| `test_frozen_model` | Immutability enforced (frozen pydantic model) |
 
 ### Why Immutability Matters
 
 ```python
-def test_frozen_dataclass(self):
-    with pytest.raises(AttributeError):
+def test_frozen_model(self):
+    with pytest.raises(ValidationError):
         basic_anchor.coordinate_a = 200.0
 ```
 
-Anchors are value objects — identified entirely by their coordinates. Immutability prevents subtle bugs where coordinate modifications propagate unexpectedly through a MatchGraph.
+Anchors are value objects — identified entirely by their coordinates. Immutability prevents subtle bugs where coordinate modifications propagate unexpectedly through a MatchGraph. (A frozen pydantic model raises `pydantic.ValidationError` on attribute assignment.)
 
 ---
 
@@ -298,19 +300,33 @@ This prevents creating semantically invalid claims. An interval match between `(
 
 ---
 
-## MatchMetadata Tests (`test_anchors.py::TestMatchMetadata`)
+## Agent & MatchMetadata Tests (`test_anchors.py::TestMatchMetadata`)
 
 ### What We're Validating
 
-The manuscript requires matches to include "the agent/author, decision criteria, and certainty level." This is provenance data for research reproducibility.
+A match records who authored it and how confident that author is. The schema
+was **slimmed**: `MatchMetadata` is now exactly `{agent: Agent, certainty:
+float}`. The previous free-form fields — `decision_criteria`, `created_at`,
+`notes`, `algorithm_params` — were **deleted entirely** (no compat shim).
+
+`Agent` is a new frozen pydantic scalar `{name: str, type: AgentType,
+identifier: str}`. `AgentType` is a two-member `FancyStrEnum`
+(`human`, `software`); the `identifier` is a URI for a human and a version
+string for software. Both `Agent` and `MatchMetadata` are frozen pydantic v2
+models with `to_dict()` / `from_dict()` round-trips (the `type` member stores
+as its string value and is coerced back to `AgentType` on read).
 
 ### Key Evidence
 
 | Test | Validates |
 |------|-----------|
-| `test_certainty_validation` | Certainty must be in [0, 1] |
+| `test_agent_type_members` | `AgentType` has exactly `human` and `software` |
+| `test_basic_creation` | `MatchMetadata{agent, certainty}`; `certainty` defaults to `1.0` |
+| `test_agent_roundtrip` | `Agent.from_dict(agent.to_dict())` reconstructs identically (`type` as string) |
+| `test_metadata_roundtrip` | `MatchMetadata.from_dict(meta.to_dict())` reconstructs identically (nested `Agent`) |
+| `test_certainty_validation` | Certainty must be in [0, 1] (message: `Certainty must be in [0, 1], got ...`) |
 | `test_certainty_boundaries` | Boundary values (0.0, 1.0) are valid |
-| `test_from_dict_roundtrip` | Datetime serialization works (ISO format) |
+| `test_frozen_model` | Immutability enforced (frozen pydantic model) |
 
 ---
 
@@ -318,17 +334,28 @@ The manuscript requires matches to include "the agent/author, decision criteria,
 
 ### What We're Validating
 
-`MatchClaimField` is a columnar store that wraps a single `pa.Table` so a very
-large set of pairwise alignment claims can be held as four columns instead of
-one frozen `MatchClaim` object per claim. Dense audio-to-audio alignments push
-this into the millions of claims, so the store must build vectorized (never one
-Python object per row) and materialise individual `MatchClaim` instances only on
+`MatchClaimField` is a **genuine `SemanticField[MatchClaim]`** — the Field
+paired with the `MatchClaim` scalar. It holds a very large set of pairwise
+alignment claims in a **single derived struct column** instead of one frozen
+`MatchClaim` object per claim. Dense audio-to-audio alignments push this into
+the millions of claims, so the store must build vectorized (never one Python
+object per row) and materialise individual `MatchClaim` instances only on
 demand.
 
-The store is purpose-built, **not** a `SemanticField`/`DataField` subclass: a
-`MatchClaim` is a frozen dataclass (not a pydantic scalar) and the store is
-multi-column, so the pydantic-to-Arrow machinery does not apply. It lives in the
-same module as `MatchClaim`, immediately after it.
+Because `MatchClaim` is now a pydantic scalar, the field's struct schema is
+**derived from the scalar** by `derive_arrow_struct(MatchClaim)` and cached on
+the class as `MatchClaimField.pa_schema` — exactly like every other paired
+`SemanticField` (`NoteField`, `CoordinateField`, …). The `MatchClaim` scalar
+carries no `@data_shaped` methods, so the parity check requires no vectorized
+mirrors.
+
+Shared provenance is a single `MatchMetadata | None` held **once at field
+level** (a Python attribute, `self._metadata`) and **injected on read**. This
+mirrors how `CoordinateField` carries its `unit` outside the data: the struct
+column's `metadata` sub-field is left null in the bulk path, and `__getitem__`
+injects the field-level metadata into each materialised `MatchClaim`. This
+keeps the store compact (one struct column, no per-row metadata) while the field
+remains a real SemanticField. Anchor coordinates remain plain `float`.
 
 ### Scope (v1) — and what raises
 
@@ -337,28 +364,28 @@ The store holds **synchronous instant pairwise claims only**: each row has
 categories are deliberately out of scope and `from_claims` raises `ValueError`
 on either:
 
-- **NOMATCH claims** (`is_synchronous is False`, no anchors) — these stay
-  dataclass-only.
-- **Interval claims** (carry an `end_anchor`) — these stay dataclass-only.
+- **NOMATCH claims** (`is_synchronous is False`, no anchors).
+- **Interval claims** (carry an `end_anchor`).
 
-Shared provenance is a single `MatchMetadata | None` held once at field level,
-never a per-row column. There is no `id` column and no end/interval column.
+### Internal schema (the derived `MatchClaim` struct)
 
-### Internal schema (minimal)
-
-Exactly four columns, in order:
-
-| Column | Type | Why |
-|--------|------|-----|
-| `timeline_a_id` | `dictionary(int32, string)` | Only a handful of distinct ids over ~1.15M rows; dictionary encoding keeps the store compact |
-| `timeline_b_id` | `dictionary(int32, string)` | same |
-| `coordinate_a` | `float64` | coordinate on timeline A |
-| `coordinate_b` | `float64` | coordinate on timeline B |
+The backing table has **one** column, `match_claim`, whose type is exactly
+`MatchClaimField.pa_schema == derive_arrow_struct(MatchClaim)`. The vectorized
+`from_columns` fills the `timeline_a_id` / `timeline_b_id` top-level string
+sub-fields and the `start_anchor` sub-struct
+(`{timeline_a_id, coordinate_a, timeline_b_id, coordinate_b}`), sets
+`is_synchronous` / `is_explicit` to `True`, and leaves every other sub-field
+(`end_anchor`, `metadata`, event ids/names, `source_coordinate`,
+`source_claim_id`, `id`) null. It uses `pa.StructArray.from_arrays` and never
+materialises a Python `MatchClaim`. The `coordinate_a` / `coordinate_b` values
+read back through the `start_anchor` sub-struct; `timeline_ids` reads the two
+top-level id sub-fields vectorized.
 
 ### Canonical gold vector
 
 ```python
-meta = MatchMetadata(agent="test", decision_criteria="manual")
+agent = Agent(name="test", type=AgentType.software, identifier="manual")
+meta = MatchMetadata(agent=agent)
 f = MatchClaimField.from_columns(
     timeline_a_ids=["A", "A", "B"],
     timeline_b_ids=["B", "C", "C"],
@@ -370,12 +397,15 @@ f = MatchClaimField.from_columns(
 
 ### Key Evidence (exact, zero-tolerance)
 
+Claim counts and coordinate values are **identical** to the prior layout; only
+the metadata shape and the field's internal column layout changed.
+
 | Test | Validates |
 |------|-----------|
 | `test_from_columns_length` | `len(f) == 3` |
-| `test_table_shape` | 4 columns, names `["timeline_a_id", "timeline_b_id", "coordinate_a", "coordinate_b"]` |
-| `test_id_columns_dictionary_encoded` | `pa.types.is_dictionary(...)` True for both id columns |
-| `test_coordinate_columns_float64` | both coordinate columns are `pa.float64()` |
+| `test_is_semantic_field` | `issubclass(MatchClaimField, SemanticField)` |
+| `test_pa_schema_is_derived` | `MatchClaimField.pa_schema == derive_arrow_struct(MatchClaim)` |
+| `test_table_single_struct_column` | one column `match_claim` whose type equals `pa_schema` |
 | `test_timeline_ids` | `f.timeline_ids == {"A", "B", "C"}` |
 | `test_getitem_first_row` | `f[0]` is a `MatchClaim`, `A`↔`B`, synchronous instant, coords 0.0/10.0, metadata identity `is meta` |
 | `test_getitem_negative_index` | `f[-1]` → `B`, `coordinate_b == 21.0` |
@@ -389,16 +419,17 @@ f = MatchClaimField.from_columns(
 | `test_iter` | iteration yields 3 synchronous-instant claims |
 | `test_roundtrip_from_claims` | `from_claims(f.to_claims()).table` equals `f.table` (`.equals`) |
 | `test_roundtrip_from_dict` | `from_dict(f.to_dict()).table` equals `f.table`; metadata preserved |
+| `test_getitem_injects_metadata` | a materialised claim carries the field-level metadata (struct row is null there) |
 | `test_from_claims_rejects_nomatch` | a `MatchClaim.nomatch(...)` raises `ValueError` |
 | `test_from_claims_rejects_interval` | an interval claim (both anchors) raises `ValueError` |
 | `test_from_claims_adopts_common_metadata` | shared per-claim metadata becomes field metadata when `metadata=None` |
 | `test_from_claims_mixed_metadata_stays_none` | divergent per-claim metadata → field metadata stays `None` |
 | `test_from_columns_length_mismatch_raises` | unequal column lengths raise `ValueError` |
-| `test_constructor_rejects_bad_table` | a table without the four exact columns/types raises `ValueError` |
 | `test_empty_field` | zero-row field: `len == 0`, `timeline_ids == set()`, `to_claims() == []` |
 | `test_repr` | `repr(f) == "MatchClaimField(claims=3, timelines=3)"` |
 | `test_repr_html_contains_summary` | `_repr_html_()` is non-empty and reports the claim/timeline counts |
 | `test_top_level_export` | `MatchClaimField` importable from `timetoalign` and `timetoalign.alignment` |
+| `test_translator_strenum_to_string` | `derive_arrow_struct(MatchMetadata)` has a string `type` sub-field inside the `agent` struct |
 
 ### Scale sanity (vectorized path, no Python objects)
 

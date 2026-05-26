@@ -7,10 +7,12 @@ Public API:
 - AlignmentBundle: Primary entry point for alignment workflows
 - TimelineGroup: Container for commensurable timelines (timestamp-based)
 - GroupTimestamp: A synchronized instant across all timelines in a group
+- Agent: The human or software author of a match claim
 - AlignmentAnchor: Atomic coordinate pair claim
 - MatchClaim: Low-level match between two events
-- MatchClaimField: Columnar store for synchronous-instant pairwise claims
-- MatchMetadata: Provenance information for matches
+- MatchClaimField: ``SemanticField[MatchClaim]`` columnar store for
+  synchronous-instant pairwise claims
+- MatchMetadata: Provenance information for matches (agent + certainty)
 - MatchGraph: Graph of MatchClaims (networkx integration)
 - MatchStamp: Cross-group timestamp at a single coordinate
 - MatchLine: Ordered sequence of MatchStamps for WarpMap generation
@@ -20,7 +22,13 @@ Public API:
 from __future__ import annotations
 
 from .bundle import AlignmentBundle
-from .claims import AlignmentAnchor, MatchClaim, MatchClaimField, MatchMetadata
+from .claims import (
+    Agent,
+    AlignmentAnchor,
+    MatchClaim,
+    MatchClaimField,
+    MatchMetadata,
+)
 from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
 from .groups import GroupTimestamp, TimelineGroup
@@ -41,6 +49,7 @@ __all__ = [
     "TimelineGroup",
     "GroupTimestamp",
     # Anchors and Claims
+    "Agent",
     "AlignmentAnchor",
     "MatchClaim",
     "MatchClaimField",

@@ -98,6 +98,7 @@ For more information, see the documentation site.
 from __future__ import annotations
 
 from timetoalign.alignment import (
+    Agent,
     AlignmentAnchor,
     AlignmentBundle,
     ClaimFilter,
@@ -243,6 +244,7 @@ __all__ = [
     "TableMap",
     "ChainMap",
     # Alignment
+    "Agent",
     "AlignmentBundle",
     "TimelineGroup",
     "AlignmentAnchor",

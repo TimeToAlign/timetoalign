@@ -24,6 +24,7 @@ Layout convention: five labelled sections — base hierarchy → translator
 
 from __future__ import annotations
 
+import enum
 import json
 import re
 import sys
@@ -1324,6 +1325,11 @@ def _atomic_arrow_type(py_type: Any) -> pa.DataType:
 
     if isinstance(py_type, type) and issubclass(py_type, BaseModel):
         return pa.struct(_derive_arrow_fields(py_type))
+
+    # A StrEnum stores as its string value; the scalar's validator rebuilds
+    # the member from that string on read (pydantic coerces str -> StrEnum).
+    if isinstance(py_type, type) and issubclass(py_type, enum.StrEnum):
+        return pa.string()
 
     if _is_tuple_type(py_type):
         args = get_args(py_type)

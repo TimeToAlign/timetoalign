@@ -266,9 +266,10 @@ deduplication):
   the ppart note's ``onset_sec``).
 
 Each performer's claims share a
-``MatchMetadata(agent="parangonada",
-decision_criteria="parangonada_export", certainty=1.0,
-algorithm_params={"performer": key})``.
+``MatchMetadata`` whose agent is
+``Agent(name="parangonada", type=AgentType.software, identifier=<key>)``
+with ``certainty=1.0`` (the per-performer key now lives in the agent's
+``identifier``).
 
 ### Zero-tolerance counts
 
@@ -665,8 +666,9 @@ waveform-display payload and is ignored.
   ``[0.0, 0.02, 0.04]`` (no ``peaks`` / ``duration``) parses, and that
   recording's timeline ``length == max(times)``.
 * **Metadata:** the bundle's first materialised claim has
-  ``.metadata.agent == "Listen Here! v0.20.0"`` (from ``header.createdBy``) and
-  ``.metadata.decision_criteria == "dtw_chroma_alignment"``.
+  ``.metadata.agent.name == "Listen Here! v0.20.0"`` (from ``header.createdBy``)
+  and ``.metadata.agent.identifier == "dtw_chroma_alignment"`` (the alignment
+  method).
 
 ### Error cases
 

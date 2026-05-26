@@ -18,11 +18,13 @@ import pytest
 
 from timetoalign.alignment.bundle import AlignmentBundle
 from timetoalign.alignment.claims import (
+    Agent,
     AlignmentAnchor,
     MatchClaim,
     MatchMetadata,
 )
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
+from timetoalign.core import AgentType
 from timetoalign.timelines import Timeline
 
 # region Helpers
@@ -743,8 +745,11 @@ class TestMatchClaimDisplay:
                 coordinate_b=128.0,
             ),
             metadata=MatchMetadata(
-                agent="partitura",
-                decision_criteria="note_matching",
+                agent=Agent(
+                    name="partitura",
+                    type=AgentType.software,
+                    identifier="note_matching",
+                ),
                 certainty=0.95,
             ),
         )

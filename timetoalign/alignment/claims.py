@@ -1,33 +1,48 @@
-"""AlignmentAnchor and MatchClaim classes.
+"""AlignmentAnchor and MatchClaim scalars and the paired MatchClaimField.
 
 This module implements the atomic and low-level alignment claims from the
-TTA manuscript's multi-level alignment hierarchy:
+multi-level alignment hierarchy:
 
-- AlignmentAnchor: Neutral coordinate pair (pure value object)
-- MatchClaim: Alignment claim between two timelines (with provenance)
-- MatchMetadata: Provenance information for matches
+- Agent: The human or software author of a match claim.
+- MatchMetadata: Provenance information for a match (agent + certainty).
+- AlignmentAnchor: Neutral coordinate pair (pure value object).
+- MatchClaim: Alignment claim between two timelines (with provenance).
+- MatchClaimField: A ``SemanticField[MatchClaim]`` columnar store.
 
 The hierarchy is:
     AlignmentAnchor -> MatchClaim -> MatchGraph -> MatchStamp -> MatchLine
 
 Design:
-    AlignmentAnchor is a pure coordinate pair with no claim semantics.
-    Only synchronous MatchClaims produce AlignmentAnchors.
-    MatchClaim always knows its two timelines via top-level fields.
+    Agent, MatchMetadata, AlignmentAnchor, and MatchClaim are all frozen
+    pydantic v2 ``BaseModel`` scalars.  AlignmentAnchor is a pure coordinate
+    pair with no claim semantics; its coordinates are plain ``float`` values.
+    Only synchronous MatchClaims produce AlignmentAnchors.  A MatchClaim
+    always knows its two timelines via top-level fields.
+
+    ``MatchClaim`` is paired with ``MatchClaimField`` — a genuine
+    ``SemanticField[MatchClaim]`` whose single derived struct column holds a
+    large set of synchronous-instant pairwise claims columnar, with shared
+    provenance injected on read.
 """
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 
 import pyarrow as pa
 import pyarrow.compute as pc
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    PrivateAttr,
+    field_validator,
+    model_validator,
+)
 
-from timetoalign.core import IdGenerator
+from timetoalign.core import AgentType, IdGenerator
+from timetoalign.core.fields import SemanticField, StructField
 
 module_logger = logging.getLogger(__name__)
 
@@ -48,73 +63,111 @@ def _reset_claim_ids() -> None:
     _claim_id_generator = IdGenerator(scope="claim")
 
 
+# region Agent
+
+
+class Agent(BaseModel):
+    """The author of a match claim — a human annotator or a software aligner.
+
+    Attributes:
+        name: A human-readable label for the agent (a person's name or a
+            tool's name).
+        type: Whether the agent is a human or a piece of software.
+        identifier: A stable handle for the agent — a URI for a human (e.g.
+            an ORCID), a version string for software (e.g. ``"v0.20.0"``).
+
+    Examples:
+        >>> Agent(name="J. Doe", type=AgentType.human, identifier="0000-0001")
+        Agent(name='J. Doe', type="human", identifier='0000-0001')
+        >>> Agent(name="dtw", type=AgentType.software, identifier="v2")
+        Agent(name='dtw', type="software", identifier='v2')
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    type: AgentType  # noqa: A003 — distinguishes human / software author
+    identifier: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a plain dictionary (``type`` as its string value)."""
+        return {
+            "name": self.name,
+            "type": str(self.type),
+            "identifier": self.identifier,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Agent":
+        """Deserialize from a dictionary (``type`` coerced to ``AgentType``)."""
+        return cls(
+            name=data["name"],
+            type=data["type"],
+            identifier=data["identifier"],
+        )
+
+
+# endregion
+
+
 # region MatchMetadata
 
 
-@dataclass(frozen=True)
-class MatchMetadata:
+class MatchMetadata(BaseModel):
     """Provenance information for a match claim.
 
-    Following the TTA manuscript's requirement that matches must include
-    the agent/author, decision criteria, and certainty level.
+    A match claim records who authored it and how confident that author is.
 
     Attributes:
-        agent: Who or what created this match (user ID, algorithm name).
-        decision_criteria: How the match was determined (e.g., "manual",
-            "dynamic_time_warping", "segment_correspondence").
+        agent: The human or software :class:`Agent` that created this match.
         certainty: Confidence level in [0, 1]. 1.0 = certain.
-        created_at: When the match was created.
-        notes: Additional human-readable notes.
-        algorithm_params: Parameters used by the matching algorithm.
 
     Examples:
         >>> meta = MatchMetadata(
-        ...     agent="analyst_jh",
-        ...     decision_criteria="manual_segmentation",
+        ...     agent=Agent(
+        ...         name="analyst_jh",
+        ...         type=AgentType.human,
+        ...         identifier="https://orcid.org/0000-0001",
+        ...     ),
         ...     certainty=1.0,
         ... )
 
         >>> meta = MatchMetadata(
-        ...     agent="dtw_v2",
-        ...     decision_criteria="dynamic_time_warping",
+        ...     agent=Agent(name="dtw", type=AgentType.software, identifier="v2"),
         ...     certainty=0.85,
-        ...     algorithm_params={"window_size": 100},
         ... )
     """
 
-    agent: str
-    decision_criteria: str
-    certainty: float = 1.0
-    created_at: datetime = field(default_factory=datetime.now)
-    notes: str | None = None
-    algorithm_params: dict[str, Any] | None = None
+    model_config = ConfigDict(frozen=True)
 
-    def __post_init__(self) -> None:
-        """Validate certainty is in valid range."""
-        if not 0.0 <= self.certainty <= 1.0:
-            raise ValueError(f"Certainty must be in [0, 1], got {self.certainty}")
+    agent: Agent
+    certainty: float = 1.0
+
+    @field_validator("certainty")
+    @classmethod
+    def _validate_certainty(cls, value: float) -> float:
+        """Validate certainty is in the closed range [0, 1]."""
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"Certainty must be in [0, 1], got {value}")
+        return value
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary for storage."""
         return {
-            "agent": self.agent,
-            "decision_criteria": self.decision_criteria,
+            "agent": self.agent.to_dict(),
             "certainty": self.certainty,
-            "created_at": self.created_at.isoformat(),
-            "notes": self.notes,
-            "algorithm_params": self.algorithm_params,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MatchMetadata":
-        """Deserialize from dictionary."""
+        """Deserialize from dictionary (``agent`` rebuilt via ``Agent``)."""
+        agent_data = data["agent"]
+        agent = (
+            agent_data if isinstance(agent_data, Agent) else Agent.from_dict(agent_data)
+        )
         return cls(
-            agent=data["agent"],
-            decision_criteria=data["decision_criteria"],
+            agent=agent,
             certainty=data.get("certainty", 1.0),
-            created_at=datetime.fromisoformat(data["created_at"]),
-            notes=data.get("notes"),
-            algorithm_params=data.get("algorithm_params"),
         )
 
 
@@ -124,8 +177,7 @@ class MatchMetadata:
 # region AlignmentAnchor
 
 
-@dataclass(frozen=True)
-class AlignmentAnchor:
+class AlignmentAnchor(BaseModel):
     """A coordinate pair associating one coordinate on timeline A with one
     coordinate on timeline B.
 
@@ -138,9 +190,9 @@ class AlignmentAnchor:
 
     Attributes:
         timeline_a_id: First timeline's unique identifier.
-        coordinate_a: Coordinate in first timeline.
+        coordinate_a: Coordinate in first timeline (plain ``float``).
         timeline_b_id: Second timeline's unique identifier.
-        coordinate_b: Coordinate in second timeline.
+        coordinate_b: Coordinate in second timeline (plain ``float``).
 
     Examples:
         >>> anchor = AlignmentAnchor(
@@ -152,6 +204,8 @@ class AlignmentAnchor:
         >>> anchor.get_coordinate_for("score:1")
         100.0
     """
+
+    model_config = ConfigDict(frozen=True)
 
     timeline_a_id: str
     coordinate_a: float
@@ -241,8 +295,7 @@ class AlignmentAnchor:
 # region MatchClaim
 
 
-@dataclass(frozen=True)
-class MatchClaim:
+class MatchClaim(BaseModel):
     """A claim that two events or coordinates on different timelines correspond.
 
     A MatchClaim always knows which two timelines it connects via top-level
@@ -299,6 +352,8 @@ class MatchClaim:
         True
     """
 
+    model_config = ConfigDict(frozen=True)
+
     timeline_a_id: str
     timeline_b_id: str
     start_anchor: AlignmentAnchor | None = None
@@ -312,12 +367,16 @@ class MatchClaim:
     event_b_id: str | None = None
     event_b_name: str | None = None
     source_coordinate: float | None = None
-    id: str = field(default="")
-    _bundle: Any = field(default=None, compare=False, hash=False, repr=False)
+    id: str = ""  # noqa: A003 — auto-generated claim id
 
-    def __post_init__(self) -> None:
-        """Validate and auto-generate ID if not provided."""
-        # Auto-generate ID
+    # Runtime association with the owning bundle. A private attr is excluded
+    # from equality, hash, repr, and the derived Arrow schema.
+    _bundle: Any = PrivateAttr(default=None)
+
+    @model_validator(mode="after")
+    def _validate_claim(self) -> "MatchClaim":
+        """Auto-generate the ID and validate anchor presence vs synchrony."""
+        # Auto-generate ID (frozen model: bypass via object.__setattr__).
         if not self.id:
             object.__setattr__(
                 self,
@@ -365,6 +424,7 @@ class MatchClaim:
                     "Set start_anchor=None and end_anchor=None, or use "
                     "is_synchronous=True."
                 )
+        return self
 
     @property
     def is_interval(self) -> bool:
@@ -386,7 +446,8 @@ class MatchClaim:
         Args:
             bundle: The AlignmentBundle containing this claim.
         """
-        object.__setattr__(self, "_bundle", bundle)
+        # Private attrs are mutable on frozen pydantic models.
+        self._bundle = bundle
 
     @property
     def timelines(self) -> tuple[str, str]:
@@ -834,8 +895,26 @@ class MatchClaim:
             event_b_id=data.get("event_b_id"),
             event_b_name=data.get("event_b_name"),
             source_coordinate=data.get("source_coordinate"),
-            id=data.get("id", ""),
+            id=data.get("id") or "",
         )
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> "MatchClaim":
+        """Reconstruct a claim from a struct-shaped Arrow row dict.
+
+        This is the entry point ``SemanticField.__getitem__`` uses to
+        materialise a scalar from the backing struct column.  The row dict
+        carries the nested ``start_anchor`` / ``end_anchor`` / ``metadata``
+        sub-dicts (or ``None`` for absent slots), so the shape is exactly the
+        one :meth:`from_dict` already accepts.
+
+        Args:
+            row: The ``.as_py()`` dict of one struct-column element.
+
+        Returns:
+            A reconstructed :class:`MatchClaim`.
+        """
+        return cls.from_dict(row)
 
     def __repr__(self) -> str:
         match_type = "interval" if self.is_interval else "instant"
@@ -961,11 +1040,9 @@ class MatchClaim:
 
         # Metadata
         if self.metadata is not None:
-            meta_parts = [f"agent={self.metadata.agent}"]
+            meta_parts = [f"agent={self.metadata.agent.name}"]
             if self.metadata.certainty < 1.0:
                 meta_parts.append(f"certainty={self.metadata.certainty}")
-            if self.metadata.decision_criteria:
-                meta_parts.append(f"criteria={self.metadata.decision_criteria}")
             lines.append(f"  Metadata:    {', '.join(meta_parts)}")
 
         if self.source_claim_id is not None:
@@ -1091,7 +1168,7 @@ class MatchClaim:
         # Metadata row
         if self.metadata is not None:
             meta_parts = [
-                html_mod.escape(f"agent={self.metadata.agent}"),
+                html_mod.escape(f"agent={self.metadata.agent.name}"),
             ]
             if self.metadata.certainty < 1.0:
                 meta_parts.append(f"certainty={self.metadata.certainty}")
@@ -1115,49 +1192,42 @@ class MatchClaim:
 # region MatchClaimField
 
 
-class MatchClaimField:
-    """Columnar store for a set of synchronous-instant pairwise match claims.
+class MatchClaimField(SemanticField[MatchClaim]):
+    """A ``SemanticField[MatchClaim]`` columnar store for pairwise claims.
 
-    A ``MatchClaimField`` wraps a single :class:`pyarrow.Table` so that a very
-    large set of pairwise alignment claims (millions of rows) can be held as
-    four columns instead of one frozen :class:`MatchClaim` object per claim.
-    Individual :class:`MatchClaim` instances are materialised lazily, only when
-    a row is indexed or iterated.
+    ``MatchClaimField`` is the Field paired with the :class:`MatchClaim`
+    scalar.  It holds a large set of synchronous-instant pairwise alignment
+    claims (millions of rows) in a single derived struct column instead of one
+    frozen :class:`MatchClaim` per claim.  Individual claims are materialised
+    lazily, only when a row is indexed or iterated.
 
-    This is **not** a ``SemanticField`` / ``DataField`` subclass: a
-    :class:`MatchClaim` is a frozen dataclass (not a pydantic scalar) and the
-    store spans several columns, so the pydantic-to-Arrow translation machinery
-    does not apply. It is a purpose-built columnar store that follows the
-    paired-Scalar/Field file-layout convention only in spirit -- it lives in
-    the same module as :class:`MatchClaim`, immediately after it.
+    Like every paired Field, its struct schema is derived from the scalar by
+    :func:`~timetoalign.core.fields.derive_arrow_struct` — so the inner column
+    type is exactly ``MatchClaimField.pa_schema``.  Shared provenance is held
+    once at field level as a single :class:`MatchMetadata` (or ``None``) and
+    **injected on read**, mirroring how
+    :class:`~timetoalign.core.time.CoordinateField` carries its ``unit``
+    outside the data: the struct column's ``metadata`` sub-field is left null
+    in bulk, and :meth:`__getitem__` injects the field-level metadata into each
+    materialised :class:`MatchClaim`.  This keeps the store compact (one struct
+    column, no per-row metadata) while remaining a genuine SemanticField.
 
     **Scope (v1): synchronous instant pairwise claims only.** Every row
     represents a claim where ``is_synchronous is True``, ``start_anchor`` is
     present, and ``end_anchor`` is ``None`` (an instant). NOMATCH claims
-    (non-synchronous) and interval claims (with an end anchor) remain
-    dataclass-only and are **out of scope** for this store;
-    :meth:`from_claims` raises :class:`ValueError` when handed one.
-
-    The backing table has exactly four columns:
-
-    * ``timeline_a_id`` -- dictionary-encoded string. Only a handful of
-      distinct timeline ids appear across up to ~1.15M rows, so the dictionary
-      encoding keeps the store compact.
-    * ``timeline_b_id`` -- dictionary-encoded string (same type).
-    * ``coordinate_a`` -- ``float64``.
-    * ``coordinate_b`` -- ``float64``.
-
-    Shared provenance is held once at field level as a single
-    :class:`MatchMetadata` (or ``None``); it is **not** a per-row column. Every
-    claim a ``MatchClaimField`` materialises carries this same metadata.
+    (non-synchronous) and interval claims (with an end anchor) are **out of
+    scope** for this store; :meth:`from_claims` raises :class:`ValueError`
+    when handed one.
 
     Attributes:
-        table: The backing :class:`pyarrow.Table` (read-only property).
+        table: The backing single-column :class:`pyarrow.Table` (read-only
+            property) whose one column is the derived ``MatchClaim`` struct.
         metadata: Shared :class:`MatchMetadata` (or ``None``) applied to every
             materialised claim.
 
     Examples:
-        >>> meta = MatchMetadata(agent="dtw", decision_criteria="warp")
+        >>> agent = Agent(name="dtw", type=AgentType.software, identifier="v1")
+        >>> meta = MatchMetadata(agent=agent)
         >>> field = MatchClaimField.from_columns(
         ...     timeline_a_ids=["A", "A", "B"],
         ...     timeline_b_ids=["B", "C", "C"],
@@ -1171,14 +1241,27 @@ class MatchClaimField:
         ('A', 'B')
     """
 
-    # The exact column layout every backing table must carry.
-    _ID_TYPE: pa.DataType = pa.dictionary(pa.int32(), pa.string())
-    _COLUMN_NAMES: tuple[str, ...] = (
-        "timeline_a_id",
-        "timeline_b_id",
-        "coordinate_a",
-        "coordinate_b",
-    )
+    #: The name of the single struct column backing every instance.
+    _COLUMN_NAME: ClassVar[str] = "match_claim"
+
+    def __init__(
+        self,
+        raw: "StructField | None" = None,
+        *,
+        source_fields: "str | dict[str, Any] | None" = None,
+        name: str | None = None,
+        metadata: MatchMetadata | None = None,
+    ) -> None:
+        """Wrap a derived ``MatchClaim`` struct field, carrying shared metadata.
+
+        Prefer the :meth:`from_columns` / :meth:`from_claims` / :meth:`from_dict`
+        classmethods; this constructor mirrors the base ``SemanticField`` so
+        blueprint construction keeps working, plus a field-level ``metadata``.
+        """
+        super().__init__(raw, source_fields=source_fields, name=name)
+        self._metadata: MatchMetadata | None = metadata
+
+    # ── construction ──────────────────────────────────────────────────────
 
     @classmethod
     def from_columns(
@@ -1193,17 +1276,23 @@ class MatchClaimField:
         """Build a field directly from parallel columns (the vectorized path).
 
         This is the constructor a bulk producer (e.g. an alignment loader)
-        uses. It builds the four columns straight into a
-        :class:`pyarrow.Table` and **never** materialises a single
-        :class:`MatchClaim` Python object, so it scales to millions of rows.
+        uses. It assembles the derived ``MatchClaim`` struct column straight
+        from the parallel inputs with :meth:`pyarrow.StructArray.from_arrays`
+        and **never** materialises a single :class:`MatchClaim` Python object,
+        so it scales to millions of rows.
+
+        Each row is a synchronous instant claim: ``timeline_a_id`` /
+        ``timeline_b_id`` and the ``start_anchor`` sub-struct are filled from
+        the inputs; ``is_synchronous`` and ``is_explicit`` are ``True``;
+        ``end_anchor`` / event ids / names / ``source_coordinate`` /
+        ``metadata`` / ``source_claim_id`` / ``id`` are left null (the shared
+        metadata is injected on read, the id is generated on materialise).
 
         Args:
-            timeline_a_ids: Timeline-A ids, one per claim. Any sequence or
-                PyArrow array; dictionary-encoded into the store.
+            timeline_a_ids: Timeline-A ids, one per claim.
             timeline_b_ids: Timeline-B ids, one per claim.
-            coordinate_a: Coordinate on timeline A, one per claim. Cast to
-                ``float64``.
-            coordinate_b: Coordinate on timeline B, one per claim.
+            coordinate_a: Coordinate on timeline A, one per claim (``float64``).
+            coordinate_b: Coordinate on timeline B, one per claim (``float64``).
             metadata: Shared provenance for every claim in the field.
 
         Returns:
@@ -1212,10 +1301,10 @@ class MatchClaimField:
         Raises:
             ValueError: If the four inputs do not all have the same length.
         """
-        tl_a = cls._encode_id_array(timeline_a_ids)
-        tl_b = cls._encode_id_array(timeline_b_ids)
-        coord_a = cls._encode_coordinate_array(coordinate_a)
-        coord_b = cls._encode_coordinate_array(coordinate_b)
+        tl_a = cls._string_array(timeline_a_ids)
+        tl_b = cls._string_array(timeline_b_ids)
+        coord_a = cls._float_array(coordinate_a)
+        coord_b = cls._float_array(coordinate_b)
 
         lengths = {len(tl_a), len(tl_b), len(coord_a), len(coord_b)}
         if len(lengths) != 1:
@@ -1224,12 +1313,10 @@ class MatchClaimField:
                 f"timeline_a_id={len(tl_a)}, timeline_b_id={len(tl_b)}, "
                 f"coordinate_a={len(coord_a)}, coordinate_b={len(coord_b)}."
             )
+        n = next(iter(lengths))
 
-        table = pa.table(
-            [tl_a, tl_b, coord_a, coord_b],
-            names=list(cls._COLUMN_NAMES),
-        )
-        return cls(table, metadata=metadata)
+        struct_array = cls._build_struct_array(n, tl_a, tl_b, coord_a, coord_b)
+        return cls._from_struct_array(struct_array, metadata=metadata)
 
     @classmethod
     def from_claims(
@@ -1318,27 +1405,76 @@ class MatchClaimField:
             metadata=metadata,
         )
 
-    @staticmethod
-    def _encode_id_array(
-        values: Sequence[str] | pa.Array | pa.ChunkedArray,
-    ) -> pa.Array | pa.ChunkedArray:
-        """Coerce a sequence/array of ids into the dictionary-encoded id type."""
-        if isinstance(values, (pa.Array, pa.ChunkedArray)):
-            arr: pa.Array | pa.ChunkedArray = values
-        else:
-            arr = pa.array(values, type=pa.string())
-        if pa.types.is_dictionary(arr.type):
-            return pc.cast(arr, MatchClaimField._ID_TYPE)
-        return pc.cast(arr, MatchClaimField._ID_TYPE)
+    @classmethod
+    def _from_struct_array(
+        cls,
+        struct_array: pa.StructArray,
+        *,
+        metadata: MatchMetadata | None = None,
+    ) -> "MatchClaimField":
+        """Wrap a derived ``MatchClaim`` struct array as a live field."""
+        pa_field = pa.field(cls._COLUMN_NAME, cls.pa_schema)
+        raw = StructField(struct_array, pa_field)
+        return cls(raw, metadata=metadata)
+
+    @classmethod
+    def _build_struct_array(
+        cls,
+        n: int,
+        timeline_a_id: pa.Array,
+        timeline_b_id: pa.Array,
+        coordinate_a: pa.Array,
+        coordinate_b: pa.Array,
+    ) -> pa.StructArray:
+        """Assemble the derived ``MatchClaim`` struct array, vectorized.
+
+        The struct's child arrays are produced in the exact field order of
+        :attr:`pa_schema` (so the resulting type equals ``pa_schema``); unused
+        slots are all-null arrays of the right type.
+        """
+        schema = cls.pa_schema
+        anchor_type = schema.field("start_anchor").type
+        start_anchor = pa.StructArray.from_arrays(
+            [timeline_a_id, coordinate_a, timeline_b_id, coordinate_b],
+            fields=list(anchor_type),
+        )
+        true_array = pa.array([True] * n, type=pa.bool_())
+
+        per_field: dict[str, pa.Array] = {
+            "timeline_a_id": timeline_a_id,
+            "timeline_b_id": timeline_b_id,
+            "start_anchor": start_anchor,
+            "is_synchronous": true_array,
+            "is_explicit": true_array,
+        }
+        arrays: list[pa.Array] = []
+        for sub_field in schema:
+            arrays.append(
+                per_field.get(sub_field.name) or pa.nulls(n, type=sub_field.type)
+            )
+        return pa.StructArray.from_arrays(arrays, fields=list(schema))
 
     @staticmethod
-    def _encode_coordinate_array(
+    def _string_array(
+        values: Sequence[str] | pa.Array | pa.ChunkedArray,
+    ) -> pa.Array:
+        """Coerce a sequence/array of ids into a plain ``string`` array."""
+        if isinstance(values, pa.ChunkedArray):
+            values = values.combine_chunks()
+        if isinstance(values, pa.Array):
+            return pc.cast(values, pa.string())
+        return pa.array(list(values), type=pa.string())
+
+    @staticmethod
+    def _float_array(
         values: Sequence[float] | pa.Array | pa.ChunkedArray,
-    ) -> pa.Array | pa.ChunkedArray:
-        """Coerce a sequence/array of coordinates into ``float64``."""
-        if isinstance(values, (pa.Array, pa.ChunkedArray)):
+    ) -> pa.Array:
+        """Coerce a sequence/array of coordinates into a ``float64`` array."""
+        if isinstance(values, pa.ChunkedArray):
+            values = values.combine_chunks()
+        if isinstance(values, pa.Array):
             return pc.cast(values, pa.float64())
-        return pa.array(values, type=pa.float64())
+        return pa.array(list(values), type=pa.float64())
 
     @staticmethod
     def _common_metadata(claims: list[MatchClaim]) -> MatchMetadata | None:
@@ -1353,54 +1489,19 @@ class MatchClaimField:
                 return None
         return first
 
-    def __init__(
-        self,
-        table: pa.Table,
-        *,
-        metadata: MatchMetadata | None = None,
-    ) -> None:
-        """Wrap a backing table of synchronous-instant pairwise claims.
-
-        Args:
-            table: A :class:`pyarrow.Table` carrying exactly the four expected
-                columns in order: ``timeline_a_id`` and ``timeline_b_id``
-                (dictionary-encoded strings), ``coordinate_a`` and
-                ``coordinate_b`` (``float64``).
-            metadata: Shared provenance applied to every materialised claim.
-
-        Raises:
-            ValueError: If the table's columns do not match the expected
-                names or types.
-        """
-        if tuple(table.column_names) != self._COLUMN_NAMES:
-            raise ValueError(
-                f"MatchClaimField table must have columns {list(self._COLUMN_NAMES)}; "
-                f"got {table.column_names}."
-            )
-        schema = table.schema
-        for id_column in ("timeline_a_id", "timeline_b_id"):
-            if not pa.types.is_dictionary(schema.field(id_column).type):
-                raise ValueError(
-                    f"MatchClaimField column {id_column!r} must be dictionary-encoded; "
-                    f"got {schema.field(id_column).type}."
-                )
-        for coord_column in ("coordinate_a", "coordinate_b"):
-            if schema.field(coord_column).type != pa.float64():
-                raise ValueError(
-                    f"MatchClaimField column {coord_column!r} must be float64; "
-                    f"got {schema.field(coord_column).type}."
-                )
-        self._table = table
-        self._metadata = metadata
+    # ── access ────────────────────────────────────────────────────────────
 
     def __len__(self) -> int:
         """Number of claims (rows) in the field."""
-        return self._table.num_rows
+        data = self._raw.data
+        return 0 if data is None else len(data)
 
     def __getitem__(self, i: int) -> MatchClaim:
         """Materialise the claim at row ``i`` as a :class:`MatchClaim`.
 
-        Supports negative indexing.
+        Supports negative indexing.  The field-level shared metadata is
+        injected into the materialised claim (the struct column carries no
+        per-row metadata).
 
         Args:
             i: Zero-based row index (negative counts from the end).
@@ -1412,46 +1513,36 @@ class MatchClaimField:
         Raises:
             IndexError: If ``i`` is out of range.
         """
-        n = self._table.num_rows
+        n = len(self)
         if i < 0:
             i += n
         if i < 0 or i >= n:
             raise IndexError(f"MatchClaimField index {i} out of range (len={n})")
-
-        timeline_a_id = self._table.column("timeline_a_id")[i].as_py()
-        timeline_b_id = self._table.column("timeline_b_id")[i].as_py()
-        coordinate_a = self._table.column("coordinate_a")[i].as_py()
-        coordinate_b = self._table.column("coordinate_b")[i].as_py()
-
-        anchor = AlignmentAnchor(
-            timeline_a_id=timeline_a_id,
-            coordinate_a=coordinate_a,
-            timeline_b_id=timeline_b_id,
-            coordinate_b=coordinate_b,
-        )
-        return MatchClaim(
-            timeline_a_id=timeline_a_id,
-            timeline_b_id=timeline_b_id,
-            start_anchor=anchor,
-            is_synchronous=True,
-            metadata=self._metadata,
-        )
+        row = self._raw[i]
+        claim = MatchClaim.from_row(row)
+        if self._metadata is not None:
+            claim = claim.model_copy(update={"metadata": self._metadata})
+        return claim
 
     def __iter__(self) -> Iterator[MatchClaim]:
         """Yield each claim, materialised lazily one row at a time."""
-        for i in range(self._table.num_rows):
+        for i in range(len(self)):
             yield self[i]
 
     def __repr__(self) -> str:
         return (
-            f"MatchClaimField(claims={self._table.num_rows}, "
+            f"MatchClaimField(claims={len(self)}, "
             f"timelines={len(self.timeline_ids)})"
         )
 
     @property
     def table(self) -> pa.Table:
-        """The backing :class:`pyarrow.Table`."""
-        return self._table
+        """The backing single-column :class:`pyarrow.Table`.
+
+        The one column is the derived :class:`MatchClaim` struct
+        (``MatchClaimField.pa_schema``).
+        """
+        return pa.table({self._COLUMN_NAME: self._raw.data})
 
     @property
     def metadata(self) -> MatchMetadata | None:
@@ -1462,21 +1553,24 @@ class MatchClaimField:
     def timeline_ids(self) -> set[str]:
         """The distinct timeline ids appearing in either id column.
 
-        Reads the dictionary-encoded columns' dictionaries directly rather
-        than scanning every row.
+        Reads the struct's two id sub-fields vectorized (no claim is
+        materialised).
         """
+        data = self._raw.data
+        if data is None or len(data) == 0:
+            return set()
         ids: set[str] = set()
-        for column_name in ("timeline_a_id", "timeline_b_id"):
-            column = self._table.column(column_name)
-            for chunk in column.chunks:
-                ids.update(chunk.dictionary.to_pylist())
+        for name in ("timeline_a_id", "timeline_b_id"):
+            column = data.field(name)
+            ids.update(v for v in column.to_pylist() if v is not None)
         return ids
 
     def connecting(self, timeline_id: str) -> "MatchClaimField":
         """Return the claims that involve ``timeline_id`` on either side.
 
-        The filter is a vectorized boolean mask over the id columns; no claim
-        is materialised. The shared metadata carries over.
+        The filter is a vectorized boolean mask over the struct's id
+        sub-fields; no claim is materialised. The shared metadata carries
+        over.
 
         Args:
             timeline_id: The exact timeline id to match against either column.
@@ -1485,7 +1579,7 @@ class MatchClaimField:
             A new :class:`MatchClaimField` holding only the matching rows.
         """
         mask = self._involves_mask(timeline_id)
-        return MatchClaimField(self._table.filter(mask), metadata=self._metadata)
+        return self._filtered(mask)
 
     def filter(
         self,
@@ -1506,8 +1600,8 @@ class MatchClaimField:
 
         Returns:
             A new :class:`MatchClaimField`. When both arguments are ``None``,
-            a copy over the full table is returned. When both are given the
-            two conditions are combined with logical AND.
+            a copy is returned. When both are given the two conditions are
+            combined with logical AND.
         """
         mask: pa.Array | None = None
         if timeline_id is not None:
@@ -1516,8 +1610,8 @@ class MatchClaimField:
             any_mask = self._involves_any_mask(timeline_ids)
             mask = any_mask if mask is None else pc.and_(mask, any_mask)
         if mask is None:
-            return MatchClaimField(self._table, metadata=self._metadata)
-        return MatchClaimField(self._table.filter(mask), metadata=self._metadata)
+            return self._from_struct_array(self._raw.data, metadata=self._metadata)
+        return self._filtered(mask)
 
     def to_claims(self) -> list[MatchClaim]:
         """Materialise every row into a list of :class:`MatchClaim` objects.
@@ -1528,47 +1622,67 @@ class MatchClaimField:
         Returns:
             A list of synchronous instant claims, one per row.
         """
-        return [self[i] for i in range(self._table.num_rows)]
+        return [self[i] for i in range(len(self))]
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain dictionary (inverse of :meth:`from_dict`).
 
-        The four columns are emitted as plain Python lists; the metadata is
-        emitted via :meth:`MatchMetadata.to_dict` (or ``None``).
+        The id and coordinate columns are emitted as plain Python lists (read
+        directly from the struct sub-fields); the metadata is emitted via
+        :meth:`MatchMetadata.to_dict` (or ``None``).
 
         Returns:
             A round-trippable mapping.
         """
-        return {
-            "timeline_a_id": self._table.column("timeline_a_id").to_pylist(),
-            "timeline_b_id": self._table.column("timeline_b_id").to_pylist(),
-            "coordinate_a": self._table.column("coordinate_a").to_pylist(),
-            "coordinate_b": self._table.column("coordinate_b").to_pylist(),
-            "metadata": (
-                self._metadata.to_dict() if self._metadata is not None else None
-            ),
-        }
+        data = self._raw.data
+        if data is None:
+            empty: list[Any] = []
+            columns = {
+                "timeline_a_id": empty,
+                "timeline_b_id": empty,
+                "coordinate_a": empty,
+                "coordinate_b": empty,
+            }
+        else:
+            anchor = data.field("start_anchor")
+            columns = {
+                "timeline_a_id": data.field("timeline_a_id").to_pylist(),
+                "timeline_b_id": data.field("timeline_b_id").to_pylist(),
+                "coordinate_a": anchor.field("coordinate_a").to_pylist(),
+                "coordinate_b": anchor.field("coordinate_b").to_pylist(),
+            }
+        columns["metadata"] = (
+            self._metadata.to_dict() if self._metadata is not None else None
+        )
+        return columns
+
+    def _filtered(self, mask: pa.Array) -> "MatchClaimField":
+        """Return a new field with the struct array filtered by ``mask``."""
+        filtered = self._raw.data.filter(mask)
+        return self._from_struct_array(filtered, metadata=self._metadata)
 
     def _involves_mask(self, timeline_id: str) -> pa.Array:
-        """Boolean mask: rows where either id column equals ``timeline_id``."""
+        """Boolean mask: rows where either id sub-field equals ``timeline_id``."""
+        data = self._raw.data
         return pc.or_(
-            pc.equal(self._table.column("timeline_a_id"), timeline_id),
-            pc.equal(self._table.column("timeline_b_id"), timeline_id),
+            pc.equal(data.field("timeline_a_id"), timeline_id),
+            pc.equal(data.field("timeline_b_id"), timeline_id),
         )
 
     def _involves_any_mask(self, timeline_ids: set[str]) -> pa.Array:
         """Boolean mask: rows involving any id in ``timeline_ids``."""
+        data = self._raw.data
         wanted = pa.array(sorted(timeline_ids), type=pa.string())
         return pc.or_(
-            pc.is_in(self._table.column("timeline_a_id"), value_set=wanted),
-            pc.is_in(self._table.column("timeline_b_id"), value_set=wanted),
+            pc.is_in(data.field("timeline_a_id"), value_set=wanted),
+            pc.is_in(data.field("timeline_b_id"), value_set=wanted),
         )
 
     def _repr_html_(self) -> str:
         """Compact Jupyter summary: claim count, timeline count, head sample."""
         import html as html_mod
 
-        n = self._table.num_rows
+        n = len(self)
         n_timelines = len(self.timeline_ids)
         head = min(n, 5)
         rows = []

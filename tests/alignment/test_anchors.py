@@ -1,12 +1,18 @@
-"""Tests for AlignmentAnchor, MatchClaim, and MatchMetadata classes."""
+"""Tests for Agent, AlignmentAnchor, MatchClaim, and MatchMetadata scalars.
+
+The whole claim family is now frozen pydantic v2 models. ``MatchMetadata`` is
+``{agent: Agent, certainty: float}`` — the old free-form ``decision_criteria``
+/ ``created_at`` / ``notes`` / ``algorithm_params`` fields are gone. Anchor
+coordinates remain plain ``float``.
+"""
 
 from __future__ import annotations
 
-from datetime import datetime
-
 import pytest
+from pydantic import ValidationError
 
-from timetoalign.alignment import AlignmentAnchor, MatchClaim, MatchMetadata
+from timetoalign.alignment import Agent, AlignmentAnchor, MatchClaim, MatchMetadata
+from timetoalign.core import AgentType
 
 # region Fixtures
 
@@ -23,66 +29,82 @@ def basic_anchor() -> AlignmentAnchor:
 
 
 @pytest.fixture
-def basic_metadata() -> MatchMetadata:
-    """Create basic match metadata."""
-    return MatchMetadata(
-        agent="test_user",
-        decision_criteria="manual_alignment",
+def basic_agent() -> Agent:
+    """Create a basic software agent."""
+    return Agent(
+        name="test_user",
+        type=AgentType.software,
+        identifier="manual_alignment",
     )
+
+
+@pytest.fixture
+def basic_metadata(basic_agent: Agent) -> MatchMetadata:
+    """Create basic match metadata."""
+    return MatchMetadata(agent=basic_agent)
 
 
 # endregion
 
 
-# region MatchMetadata Tests
+# region Agent & MatchMetadata Tests
 
 
 class TestMatchMetadata:
-    """Tests for MatchMetadata dataclass."""
+    """Tests for the Agent and MatchMetadata pydantic scalars."""
 
-    def test_basic_creation(self) -> None:
+    def test_agent_type_members(self) -> None:
+        """AgentType has exactly the two members human and software."""
+        assert {member.name for member in AgentType} == {"human", "software"}
+        assert str(AgentType.human) == "human"
+        assert str(AgentType.software) == "software"
+
+    def test_basic_creation(self, basic_agent: Agent) -> None:
         """Test creating metadata with required fields."""
-        meta = MatchMetadata(
-            agent="analyst",
-            decision_criteria="segment_correspondence",
-        )
+        meta = MatchMetadata(agent=basic_agent)
 
-        assert meta.agent == "analyst"
-        assert meta.decision_criteria == "segment_correspondence"
+        assert meta.agent is basic_agent
+        assert meta.agent.name == "test_user"
         assert meta.certainty == 1.0  # default
-        assert meta.notes is None
-        assert meta.algorithm_params is None
 
-    def test_full_creation(self) -> None:
-        """Test creating metadata with all fields."""
-        now = datetime.now()
-        meta = MatchMetadata(
-            agent="dtw_v2",
-            decision_criteria="dynamic_time_warping",
-            certainty=0.85,
-            created_at=now,
-            notes="Test alignment",
-            algorithm_params={"window_size": 100},
-        )
+    def test_agent_roundtrip(self, basic_agent: Agent) -> None:
+        """Agent.to_dict / from_dict reconstructs identically."""
+        d = basic_agent.to_dict()
+        assert d == {
+            "name": "test_user",
+            "type": "software",
+            "identifier": "manual_alignment",
+        }
+        restored = Agent.from_dict(d)
+        assert restored == basic_agent
+        assert restored.type is AgentType.software
 
-        assert meta.agent == "dtw_v2"
-        assert meta.certainty == 0.85
-        assert meta.created_at == now
-        assert meta.notes == "Test alignment"
-        assert meta.algorithm_params == {"window_size": 100}
+    def test_metadata_roundtrip(self, basic_metadata: MatchMetadata) -> None:
+        """MatchMetadata.to_dict / from_dict round-trips the nested Agent."""
+        d = basic_metadata.to_dict()
+        assert d == {
+            "agent": {
+                "name": "test_user",
+                "type": "software",
+                "identifier": "manual_alignment",
+            },
+            "certainty": 1.0,
+        }
+        restored = MatchMetadata.from_dict(d)
+        assert restored == basic_metadata
 
-    def test_certainty_validation(self) -> None:
+    def test_certainty_validation(self, basic_agent: Agent) -> None:
         """Test certainty must be in [0, 1]."""
-        with pytest.raises(ValueError, match="Certainty must be in"):
-            MatchMetadata(agent="test", decision_criteria="test", certainty=-0.1)
+        with pytest.raises(ValidationError, match="Certainty must be in"):
+            MatchMetadata(agent=basic_agent, certainty=-0.1)
 
-        with pytest.raises(ValueError, match="Certainty must be in"):
-            MatchMetadata(agent="test", decision_criteria="test", certainty=1.1)
+        with pytest.raises(ValidationError, match="Certainty must be in"):
+            MatchMetadata(agent=basic_agent, certainty=1.1)
 
-    def test_certainty_boundaries(self) -> None:
+    def test_certainty_boundaries(self, basic_agent: Agent) -> None:
         """Test certainty boundary values are valid."""
-        meta_0 = MatchMetadata(agent="test", decision_criteria="test", certainty=0.0)
-        meta_1 = MatchMetadata(agent="test", decision_criteria="test", certainty=1.0)
+        meta_0 = MatchMetadata(agent=basic_agent, certainty=0.0)
+        meta_1 = MatchMetadata(agent=basic_agent, certainty=1.0)
         assert meta_0.certainty == 0.0
         assert meta_1.certainty == 1.0
 
@@ -90,10 +112,10 @@ class TestMatchMetadata:
         """Test serialization to dictionary."""
         d = basic_metadata.to_dict()
 
-        assert d["agent"] == "test_user"
-        assert d["decision_criteria"] == "manual_alignment"
+        assert d["agent"]["name"] == "test_user"
+        assert d["agent"]["type"] == "software"
         assert d["certainty"] == 1.0
-        assert "created_at" in d
+        assert set(d) == {"agent", "certainty"}
 
     def test_from_dict_roundtrip(self, basic_metadata: MatchMetadata) -> None:
         """Test serialization round-trip."""
@@ -101,13 +123,12 @@ class TestMatchMetadata:
         restored = MatchMetadata.from_dict(d)
 
         assert restored.agent == basic_metadata.agent
-        assert restored.decision_criteria == basic_metadata.decision_criteria
         assert restored.certainty == basic_metadata.certainty
 
-    def test_frozen_dataclass(self, basic_metadata: MatchMetadata) -> None:
+    def test_frozen_model(self, basic_metadata: MatchMetadata) -> None:
         """Test that MatchMetadata is immutable."""
-        with pytest.raises(AttributeError):
-            basic_metadata.agent = "other"  # type: ignore
+        with pytest.raises(ValidationError):
+            basic_metadata.certainty = 0.5  # type: ignore
 
 
 # endregion
@@ -203,9 +224,9 @@ class TestAlignmentAnchor:
         assert restored.timeline_b_id == basic_anchor.timeline_b_id
         assert restored.coordinate_b == basic_anchor.coordinate_b
 
-    def test_frozen_dataclass(self, basic_anchor: AlignmentAnchor) -> None:
-        """Test that AlignmentAnchor is immutable."""
-        with pytest.raises(AttributeError):
+    def test_frozen_model(self, basic_anchor: AlignmentAnchor) -> None:
+        """Test that AlignmentAnchor is immutable (frozen pydantic model)."""
+        with pytest.raises(ValidationError):
             basic_anchor.coordinate_a = 200.0  # type: ignore
 
     def test_repr(self, basic_anchor: AlignmentAnchor) -> None:
@@ -525,7 +546,7 @@ class TestMatchClaim:
         )
 
         assert claim.metadata is basic_metadata
-        assert claim.metadata.agent == "test_user"
+        assert claim.metadata.agent.name == "test_user"
 
     def test_instant_factory(self) -> None:
         """Test instant match via direct construction."""
@@ -742,7 +763,9 @@ class TestMatchClaim:
                 timeline_b_id="tl2",
                 coordinate_b=200.0,
             ),
-            metadata=MatchMetadata(agent="test", decision_criteria="test"),
+            metadata=MatchMetadata(
+                agent=Agent(name="test", type=AgentType.software, identifier="test")
+            ),
         )
         d = claim.to_dict()
         restored = MatchClaim.from_dict(d)
@@ -750,7 +773,7 @@ class TestMatchClaim:
         assert restored.id == claim.id
         assert restored.is_interval is True
         assert restored.metadata is not None
-        assert restored.metadata.agent == "test"
+        assert restored.metadata.agent.name == "test"
 
     def test_from_dict_roundtrip_non_synchronous(self) -> None:
         """Test serialization round-trip for non-synchronous claim."""
@@ -767,14 +790,14 @@ class TestMatchClaim:
         assert restored.timeline_a_id == "tl1"
         assert restored.timeline_b_id == "tl2"
 
-    def test_frozen_dataclass(self, basic_anchor: AlignmentAnchor) -> None:
-        """Test that MatchClaim is immutable."""
+    def test_frozen_model(self, basic_anchor: AlignmentAnchor) -> None:
+        """Test that MatchClaim is immutable (frozen pydantic model)."""
         claim = MatchClaim(
             timeline_a_id="score:1",
             timeline_b_id="recording:1",
             start_anchor=basic_anchor,
         )
-        with pytest.raises(AttributeError):
+        with pytest.raises(ValidationError):
             claim.is_explicit = False  # type: ignore
 
     def test_repr_instant(self, basic_anchor: AlignmentAnchor) -> None:
@@ -921,8 +944,11 @@ class TestClaimIntegration:
                     coordinate_b=float(offset_dgt2 + segment_lengths_dgt2[i]),
                 ),
                 metadata=MatchMetadata(
-                    agent="analyst",
-                    decision_criteria="segment_correspondence",
+                    agent=Agent(
+                        name="analyst",
+                        type=AgentType.human,
+                        identifier="segment_correspondence",
+                    ),
                 ),
             )
             claims.append(claim)

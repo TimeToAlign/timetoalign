@@ -85,8 +85,8 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
-from timetoalign.alignment.claims import MatchClaim, MatchMetadata
-from timetoalign.core import TimeUnit
+from timetoalign.alignment.claims import Agent, MatchClaim, MatchMetadata
+from timetoalign.core import AgentType, TimeUnit
 from timetoalign.loader.base import AlignmentLoader
 from timetoalign.loader.physical.audio import AudioLoader
 from timetoalign.maps.convenience import SamplesToSeconds
@@ -570,10 +570,12 @@ class ParangonadaLoader(AlignmentLoader):
         data are preserved as duplicate claims.
         """
         meta = MatchMetadata(
-            agent="parangonada",
-            decision_criteria="parangonada_export",
+            agent=Agent(
+                name="parangonada",
+                type=AgentType.software,
+                identifier=performer_key,
+            ),
             certainty=1.0,
-            algorithm_params={"performer": performer_key},
         )
         for row in self._read_csv(performer_dir / "align.csv"):
             matchtype = row["matchtype"]

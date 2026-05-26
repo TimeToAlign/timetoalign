@@ -86,8 +86,8 @@ from typing import TYPE_CHECKING, Any
 from lxml import etree
 from typing_extensions import Self
 
-from timetoalign.alignment.claims import MatchClaim, MatchMetadata
-from timetoalign.core import TimeUnit
+from timetoalign.alignment.claims import Agent, MatchClaim, MatchMetadata
+from timetoalign.core import AgentType, TimeUnit
 from timetoalign.loader.base import AlignmentLoader
 from timetoalign.loader.physical.audio import AudioLoader
 from timetoalign.maps.convenience import SamplesToSeconds, TicksToQuarters
@@ -1024,10 +1024,12 @@ class MpmLoader(AlignmentLoader):
             note["ref"]: note["milliseconds_date"] / 1000.0 for note in alignment_notes
         }
         meta = MatchMetadata(
-            agent="mpm",
-            decision_criteria="mpr_alignment",
+            agent=Agent(
+                name="mpm",
+                type=AgentType.software,
+                identifier=self._performance_name,
+            ),
             certainty=1.0,
-            algorithm_params={"performance": self._performance_name},
         )
         for ref, target_seconds in seconds_by_ref.items():
             source_quarters = quarter_by_id.get(ref)

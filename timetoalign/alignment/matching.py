@@ -28,7 +28,13 @@ from typing import Any, Sequence
 
 import pandas as pd
 
-from timetoalign.alignment.claims import AlignmentAnchor, MatchClaim, MatchMetadata
+from timetoalign.alignment.claims import (
+    Agent,
+    AlignmentAnchor,
+    MatchClaim,
+    MatchMetadata,
+)
+from timetoalign.core import AgentType
 
 module_logger = logging.getLogger(__name__)
 
@@ -257,8 +263,11 @@ def match_notes_by_attributes(
     if create_claims and len(matched_df) > 0:
         if metadata is None:
             metadata = MatchMetadata(
-                agent="timetoalign.alignment.matching",
-                decision_criteria="greedy_sequential_by_" + "+".join(match_columns),
+                agent=Agent(
+                    name="timetoalign.alignment.matching",
+                    type=AgentType.software,
+                    identifier="greedy_sequential_by_" + "+".join(match_columns),
+                ),
             )
 
         for _, row in matched_df.iterrows():
