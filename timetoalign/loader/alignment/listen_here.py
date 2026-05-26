@@ -17,7 +17,7 @@ recordings ``(a, b)`` is directly related by a synchronous instant
 (``a@times_a[i] ↔ b@times_b[i]``).  For ``R`` recordings and ``N`` grid columns
 this is ``C(R, 2) × N`` claims — a very large set for a whole work — so the
 claims are held columnar in a
-:class:`~timetoalign.alignment.anchors.MatchClaimField` and assembled
+:class:`~timetoalign.alignment.claims.MatchClaimField` and assembled
 **vectorized** (never one Python claim object per row).
 
 ``ListenHereLoader`` ingests one alignment JSON file in one call::
@@ -64,8 +64,8 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from typing_extensions import Self
 
-from timetoalign.alignment.claims import MatchClaimField, MatchMetadata
-from timetoalign.core import TimeUnit
+from timetoalign.alignment.claims import Agent, MatchClaimField, MatchMetadata
+from timetoalign.core import AgentType, TimeUnit
 from timetoalign.loader.base import AlignmentLoader
 from timetoalign.timelines.types import ContinuousPhysicalTimeline
 
@@ -274,8 +274,11 @@ class ListenHereLoader(AlignmentLoader):
         )
 
         metadata = MatchMetadata(
-            agent=agent,
-            decision_criteria=_DECISION_CRITERIA,
+            agent=Agent(
+                name=agent,
+                type=AgentType.software,
+                identifier=_DECISION_CRITERIA,
+            ),
             certainty=1.0,
         )
         return MatchClaimField.from_columns(

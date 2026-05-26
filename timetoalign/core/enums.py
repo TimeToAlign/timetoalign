@@ -226,6 +226,22 @@ class TimeUnit(FancyStrEnum):
         }
 
 
+class AgentType(FancyStrEnum):
+    """The kind of agent that authored a match claim.
+
+    Distinguishes a human annotator from a software aligner.  The
+    ``identifier`` on the paired :class:`~timetoalign.alignment.claims.Agent`
+    is interpreted accordingly: a URI for a human (e.g. an ORCID or homepage)
+    and a version string for software (e.g. ``"v0.20.0"``).
+    """
+
+    human = auto()
+    """A human annotator; the agent's identifier is a URI."""
+
+    software = auto()
+    """A software aligner; the agent's identifier is a version string."""
+
+
 class NumberType(Enum):
     """The numeric type used for coordinate values.
 

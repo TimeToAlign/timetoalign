@@ -812,11 +812,19 @@ class AlignmentBundle:
             >>> len(claims)
             2
         """
-        from .claims import MatchClaim, MatchMetadata
+        from timetoalign.core import AgentType
+
+        from .claims import Agent, MatchClaim, MatchMetadata
 
         claims = []
         for event_a, tl_a, event_b, tl_b in event_pairs:
-            metadata = MatchMetadata(agent=agent, decision_criteria=decision_criteria)
+            metadata = MatchMetadata(
+                agent=Agent(
+                    name=agent,
+                    type=AgentType.software,
+                    identifier=decision_criteria,
+                ),
+            )
             # Auto-detect interval events: if both events have a non-null
             # "end" key, create an interval match with both start and end
             # anchors.  Event dicts from PyArrow may store coordinates as

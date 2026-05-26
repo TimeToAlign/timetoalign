@@ -1,10 +1,11 @@
 """Tests for the MatchClaimField columnar claim store.
 
-MatchClaimField holds a set of synchronous-instant pairwise MatchClaims as four
-PyArrow columns instead of one frozen MatchClaim object per claim, materialising
-individual claims only on demand. Validation strategy and gold values are
-documented in ``tests/alignment/README.md`` (the "MatchClaimField Tests"
-section).
+MatchClaimField is a genuine ``SemanticField[MatchClaim]`` holding a set of
+synchronous-instant pairwise MatchClaims as a single derived struct column
+instead of one frozen MatchClaim object per claim, materialising individual
+claims only on demand. Field-level shared metadata is injected on read.
+Validation strategy and gold values are documented in
+``tests/alignment/README.md`` (the "MatchClaimField Tests" section).
 """
 
 from __future__ import annotations
@@ -14,7 +15,14 @@ import time
 import pyarrow as pa
 import pytest
 
-from timetoalign.alignment import MatchClaim, MatchClaimField, MatchMetadata
+from timetoalign.alignment import (
+    Agent,
+    MatchClaim,
+    MatchClaimField,
+    MatchMetadata,
+)
+from timetoalign.core import AgentType
+from timetoalign.core.fields import SemanticField, derive_arrow_struct
 
 # region Fixtures
 
@@ -22,7 +30,9 @@ from timetoalign.alignment import MatchClaim, MatchClaimField, MatchMetadata
 @pytest.fixture
 def meta() -> MatchMetadata:
     """The canonical shared metadata for the gold vector."""
-    return MatchMetadata(agent="test", decision_criteria="manual")
+    return MatchMetadata(
+        agent=Agent(name="test", type=AgentType.software, identifier="manual")
+    )
 
 
 @pytest.fixture
@@ -44,29 +54,23 @@ def gold_field(meta: MatchMetadata) -> MatchClaimField:
 
 
 class TestFromColumns:
-    """The vectorized constructor and the backing table's schema."""
+    """The vectorized constructor and the backing struct column's schema."""
 
     def test_from_columns_length(self, gold_field: MatchClaimField) -> None:
         assert len(gold_field) == 3
 
-    def test_table_shape(self, gold_field: MatchClaimField) -> None:
-        assert gold_field.table.num_columns == 4
-        assert gold_field.table.column_names == [
-            "timeline_a_id",
-            "timeline_b_id",
-            "coordinate_a",
-            "coordinate_b",
-        ]
+    def test_is_semantic_field(self) -> None:
+        assert issubclass(MatchClaimField, SemanticField)
+        assert MatchClaimField.scalar_cls is MatchClaim
 
-    def test_id_columns_dictionary_encoded(self, gold_field: MatchClaimField) -> None:
-        schema = gold_field.table.schema
-        assert pa.types.is_dictionary(schema.field("timeline_a_id").type)
-        assert pa.types.is_dictionary(schema.field("timeline_b_id").type)
+    def test_pa_schema_is_derived(self) -> None:
+        assert MatchClaimField.pa_schema == derive_arrow_struct(MatchClaim)
 
-    def test_coordinate_columns_float64(self, gold_field: MatchClaimField) -> None:
-        schema = gold_field.table.schema
-        assert schema.field("coordinate_a").type == pa.float64()
-        assert schema.field("coordinate_b").type == pa.float64()
+    def test_table_single_struct_column(self, gold_field: MatchClaimField) -> None:
+        table = gold_field.table
+        assert table.num_columns == 1
+        assert table.column_names == ["match_claim"]
+        assert table.schema.field("match_claim").type == MatchClaimField.pa_schema
 
     def test_timeline_ids(self, gold_field: MatchClaimField) -> None:
         assert gold_field.timeline_ids == {"A", "B", "C"}
@@ -85,7 +89,7 @@ class TestFromColumns:
             metadata=meta,
         )
         assert len(field) == 2
-        assert pa.types.is_dictionary(field.table.schema.field("timeline_a_id").type)
+        assert field.table.schema.field("match_claim").type == MatchClaimField.pa_schema
 
     def test_from_columns_length_mismatch_raises(self) -> None:
         with pytest.raises(ValueError, match="equal-length"):
@@ -96,34 +100,15 @@ class TestFromColumns:
                 coordinate_b=[1.0],
             )
 
-    def test_constructor_rejects_bad_columns(self) -> None:
-        with pytest.raises(ValueError, match="must have columns"):
-            MatchClaimField(pa.table({"x": [1], "y": [2]}))
+    def test_translator_strenum_to_string(self) -> None:
+        """A StrEnum field stores as pa.string() inside the derived struct.
 
-    def test_constructor_rejects_non_dictionary_id(self) -> None:
-        table = pa.table(
-            {
-                "timeline_a_id": pa.array(["A"], type=pa.string()),
-                "timeline_b_id": pa.array(["B"], type=pa.string()),
-                "coordinate_a": pa.array([0.0], type=pa.float64()),
-                "coordinate_b": pa.array([1.0], type=pa.float64()),
-            }
-        )
-        with pytest.raises(ValueError, match="dictionary-encoded"):
-            MatchClaimField(table)
-
-    def test_constructor_rejects_non_float_coordinate(self) -> None:
-        id_type = pa.dictionary(pa.int32(), pa.string())
-        table = pa.table(
-            {
-                "timeline_a_id": pa.array(["A"], type=id_type),
-                "timeline_b_id": pa.array(["B"], type=id_type),
-                "coordinate_a": pa.array([0], type=pa.int64()),
-                "coordinate_b": pa.array([1.0], type=pa.float64()),
-            }
-        )
-        with pytest.raises(ValueError, match="float64"):
-            MatchClaimField(table)
+        ``MatchMetadata.agent.type`` is an ``AgentType`` (a ``FancyStrEnum``);
+        its derived sub-field must be ``pa.string()``.
+        """
+        meta_struct = derive_arrow_struct(MatchMetadata)
+        agent_struct = meta_struct.field("agent").type
+        assert agent_struct.field("type").type == pa.string()
 
 
 # endregion
@@ -147,6 +132,16 @@ class TestGetItem:
         assert claim.start_anchor.coordinate_a == 0.0
         assert claim.start_anchor.coordinate_b == 10.0
         assert claim.metadata is meta
+
+    def test_getitem_injects_metadata(
+        self, gold_field: MatchClaimField, meta: MatchMetadata
+    ) -> None:
+        """Metadata lives at field level (null in the struct) and is injected."""
+        # The struct row carries no per-row metadata.
+        struct = gold_field.table.column("match_claim").combine_chunks()
+        assert struct.field("metadata").to_pylist() == [None, None, None]
+        # The materialised claim nonetheless carries the field-level metadata.
+        assert gold_field[1].metadata is meta
 
     def test_getitem_negative_index(self, gold_field: MatchClaimField) -> None:
         last = gold_field[-1]
@@ -254,7 +249,9 @@ class TestFromClaims:
         assert rebuilt.table.equals(gold_field.table)
 
     def test_from_claims_adopts_common_metadata(self) -> None:
-        meta = MatchMetadata(agent="dtw", decision_criteria="warp")
+        meta = MatchMetadata(
+            agent=Agent(name="dtw", type=AgentType.software, identifier="warp")
+        )
         claims = [
             MatchClaim.from_projection(
                 event={"id": "e", "start": 0.0},
@@ -269,8 +266,12 @@ class TestFromClaims:
         assert field.metadata == meta
 
     def test_from_claims_mixed_metadata_stays_none(self) -> None:
-        m1 = MatchMetadata(agent="a1", decision_criteria="c1")
-        m2 = MatchMetadata(agent="a2", decision_criteria="c2")
+        m1 = MatchMetadata(
+            agent=Agent(name="a1", type=AgentType.software, identifier="c1")
+        )
+        m2 = MatchMetadata(
+            agent=Agent(name="a2", type=AgentType.software, identifier="c2")
+        )
         claims = [
             MatchClaim.from_projection(
                 event={"id": "e", "start": 0.0},
@@ -285,8 +286,12 @@ class TestFromClaims:
         assert field.metadata is None
 
     def test_from_claims_explicit_metadata_overrides(self) -> None:
-        per_claim = MatchMetadata(agent="a1", decision_criteria="c1")
-        override = MatchMetadata(agent="override", decision_criteria="c2")
+        per_claim = MatchMetadata(
+            agent=Agent(name="a1", type=AgentType.software, identifier="c1")
+        )
+        override = MatchMetadata(
+            agent=Agent(name="override", type=AgentType.software, identifier="c2")
+        )
         claims = [
             MatchClaim.from_projection(
                 event={"id": "e", "start": 0.0},

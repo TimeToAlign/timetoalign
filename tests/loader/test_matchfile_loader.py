@@ -260,15 +260,15 @@ class TestMatchfileLoaderSingle:
         assert len(nomatch_claims) == P01_DELETION_COUNT
 
     def test_match_metadata_agent(self, p01_loader: MatchfileLoader):
-        """All claims carry agent='vienna_match_v1.0.0'."""
+        """All claims carry the vienna_match software agent."""
         for claim in p01_loader._claims:
             assert claim.metadata is not None
-            assert claim.metadata.agent == "vienna_match_v1.0.0"
+            assert claim.metadata.agent.name == "vienna_match"
 
-    def test_match_metadata_criteria(self, p01_loader: MatchfileLoader):
-        """All claims carry decision_criteria='automatic'."""
+    def test_match_metadata_agent_version(self, p01_loader: MatchfileLoader):
+        """All claims carry the vienna_match version as the agent identifier."""
         for claim in p01_loader._claims:
-            assert claim.metadata.decision_criteria == "automatic"
+            assert claim.metadata.agent.identifier == "v1.0.0"
 
     def test_match_metadata_certainty(self, p01_loader: MatchfileLoader):
         """All claims carry certainty=1.0."""

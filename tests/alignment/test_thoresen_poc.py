@@ -236,8 +236,8 @@ class TestThoresenSegmentClaims:
         """Claims have proper provenance metadata."""
         for claim in thoresen_segment_claims:
             assert claim.metadata is not None
-            assert claim.metadata.agent == "thoresen_analysis"
-            assert claim.metadata.decision_criteria == "segment_correspondence"
+            assert claim.metadata.agent.name == "thoresen_analysis"
+            assert claim.metadata.agent.identifier == "segment_correspondence"
 
 
 # endregion

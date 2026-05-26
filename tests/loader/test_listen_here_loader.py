@@ -124,10 +124,11 @@ def test_repr(loader: ListenHereLoader) -> None:
 
 
 def test_negative_coordinate_kept(loader: ListenHereLoader) -> None:
-    table = loader.claim_field.table
+    struct = loader.claim_field.table.column("match_claim").combine_chunks()
+    anchor = struct.field("start_anchor")
     minimum = min(
-        pc.min(table.column("coordinate_a")).as_py(),
-        pc.min(table.column("coordinate_b")).as_py(),
+        pc.min(anchor.field("coordinate_a")).as_py(),
+        pc.min(anchor.field("coordinate_b")).as_py(),
     )
     # rec-b's first grid column is -0.01 (pre-onset extrapolation); the
     # loader stores it as-is, neither clamped nor dropped.
@@ -192,8 +193,8 @@ def test_claim_metadata(loader: ListenHereLoader) -> None:
     bundle = loader.create_bundle()
     claim = bundle.cross_group_claims[0]
     assert claim.metadata is not None
-    assert claim.metadata.agent == "Listen Here! v0.20.0"
-    assert claim.metadata.decision_criteria == "dtw_chroma_alignment"
+    assert claim.metadata.agent.name == "Listen Here! v0.20.0"
+    assert claim.metadata.agent.identifier == "dtw_chroma_alignment"
 
 
 # endregion

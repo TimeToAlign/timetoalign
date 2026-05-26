@@ -222,13 +222,12 @@ def test_total_claim_counts(bundle) -> None:
 
 
 def test_claim_metadata(bundle) -> None:
-    """Claims carry the documented agent / criteria / performer."""
+    """Claims carry the documented agent (name + per-performer identifier)."""
     claims = _performer_claims(bundle, "1966_Szegedi")
     sample = claims[0]
-    assert sample.metadata.agent == "parangonada"
-    assert sample.metadata.decision_criteria == "parangonada_export"
+    assert sample.metadata.agent.name == "parangonada"
     assert sample.metadata.certainty == 1.0
-    assert sample.metadata.algorithm_params["performer"] == "1966_Szegedi"
+    assert sample.metadata.agent.identifier == "1966_Szegedi"
 
 
 # endregion
