@@ -10,16 +10,21 @@ work warped onto a shared equidistant reference grid: per recording, a
 It verifies:
 
 - the dense complete-topology pairwise claim field (C(R, 2) × columns
-  synchronous instant claims) held columnar in a ``MatchClaimField``;
+  synchronous instant claims) held columnar in a ``MatchClaimField``,
+  reached through the uniform ``loader.get_field(MatchClaim)`` API (the
+  ``loader.claim_field`` property is gone);
+- the loader repr names the reference recording (``header.ref``);
 - one empty seconds timeline per recording, each in its own group, with
   ``length`` taken from the recording's stored ``duration``;
 - faithful preservation of negative pre-onset warp coordinates (never
   clamped or dropped);
+- a columnar ``create_bundle`` that never explodes the field — the
+  bundle's Python claim list stays empty while the field is the store;
 - a ``get_matchstamp_at`` headline read returning all recordings'
-  coordinates at one reference instant;
+  coordinates at one reference instant via the columnar query path;
 - the bare-array ``body.audio`` value form (``length == max(times)``);
 - field-level ``MatchMetadata`` (agent from ``header.createdBy``,
-  criteria ``dtw_chroma_alignment``); and
+  identifier ``dtw_chroma_alignment``); and
 - the ``ValueError`` paths (unequal ``times`` lengths, ``header.ref``
   absent from ``body.audio``, fewer than two recordings).
 
@@ -35,7 +40,7 @@ from pathlib import Path
 import pyarrow.compute as pc
 import pytest
 
-from timetoalign.alignment.claims import MatchClaimField
+from timetoalign.alignment.claims import MatchClaim, MatchClaimField
 from timetoalign.loader.alignment import ListenHereLoader
 
 # region Fixtures
@@ -94,19 +99,38 @@ def loader(canonical_path: Path) -> ListenHereLoader:
 def test_claim_count(loader: ListenHereLoader) -> None:
     # C(3, 2) = 3 pairs × 5 grid columns = 15 synchronous claims.
     assert len(loader) == 15
-    assert len(loader.claim_field) == 15
+    assert len(loader.get_field(MatchClaim)) == 15
 
 
 def test_recording_keys(loader: ListenHereLoader) -> None:
     assert loader.recording_keys == ["rec-a", "rec-b", "rec-ref"]
 
 
-def test_claim_field_is_match_claim_field(loader: ListenHereLoader) -> None:
-    assert isinstance(loader.claim_field, MatchClaimField)
+def test_reference(loader: ListenHereLoader) -> None:
+    assert loader.reference == "rec-ref.mp3"
+
+
+def test_get_field_returns_match_claim_field(loader: ListenHereLoader) -> None:
+    assert isinstance(loader.get_field(MatchClaim), MatchClaimField)
+
+
+def test_get_field_by_field_class_is_same(loader: ListenHereLoader) -> None:
+    # The paired Field class resolves to the same field as the scalar class.
+    assert loader.get_field(MatchClaimField) is loader.get_field(MatchClaim)
+
+
+def test_get_field_rejects_other_selectors(loader: ListenHereLoader) -> None:
+    with pytest.raises(TypeError, match="MatchClaim"):
+        loader.get_field(str)
+
+
+def test_claim_field_property_is_gone(loader: ListenHereLoader) -> None:
+    # The old hard-coded property was deleted in favour of get_field().
+    assert not hasattr(loader, "claim_field")
 
 
 def test_timeline_ids(loader: ListenHereLoader) -> None:
-    assert loader.claim_field.timeline_ids == {
+    assert loader.get_field(MatchClaim).timeline_ids == {
         "rec-a:cpt1",
         "rec-b:cpt1",
         "rec-ref:cpt1",
@@ -114,7 +138,15 @@ def test_timeline_ids(loader: ListenHereLoader) -> None:
 
 
 def test_repr(loader: ListenHereLoader) -> None:
-    assert repr(loader) == "ListenHereLoader(recordings=3, claims=15)"
+    assert repr(loader) == (
+        "ListenHereLoader(recordings=3, reference='rec-ref.mp3', claims=15)"
+    )
+
+
+def test_repr_html_names_reference(loader: ListenHereLoader) -> None:
+    html = loader._repr_html_()
+    assert "rec-ref.mp3" in html
+    assert "Reference" in html
 
 
 # endregion
@@ -124,7 +156,8 @@ def test_repr(loader: ListenHereLoader) -> None:
 
 
 def test_negative_coordinate_kept(loader: ListenHereLoader) -> None:
-    struct = loader.claim_field.table.column("match_claim").combine_chunks()
+    field = loader.get_field(MatchClaim)
+    struct = field.table.column("match_claim").combine_chunks()
     anchor = struct.field("start_anchor")
     minimum = min(
         pc.min(anchor.field("coordinate_a")).as_py(),
@@ -145,6 +178,16 @@ def test_bundle_timeline_and_group_counts(loader: ListenHereLoader) -> None:
     bundle = loader.create_bundle()
     assert bundle.n_timelines == 3
     assert len(bundle.groups) == 3
+
+
+def test_bundle_uses_columnar_claim_store(loader: ListenHereLoader) -> None:
+    # create_bundle hands the MatchClaimField to the columnar store, NOT the
+    # per-claim Python list, so the field is never exploded into objects.
+    bundle = loader.create_bundle()
+    assert len(bundle.cross_group_claims) == 0
+    assert len(bundle.cross_group_claim_fields) == 1
+    # The columnar field carries all 15 claims.
+    assert len(bundle.cross_group_claim_fields[0]) == 15
 
 
 def test_bundle_timeline_uids(loader: ListenHereLoader) -> None:
@@ -183,6 +226,29 @@ def test_matchstamp_spans_all_recordings(loader: ListenHereLoader) -> None:
     assert stamp.get_coordinate("rec-ref:cpt1") == 0.045
 
 
+def test_matchstamp_does_not_explode_field(loader: ListenHereLoader) -> None:
+    # The columnar query path must answer get_matchstamp_at WITHOUT ever
+    # filling the bundle's Python claim list: it stays empty before AND after
+    # the query (the few matched rows are materialised transiently inside the
+    # MatchGraph, never appended to cross_group_claims).
+    bundle = loader.create_bundle()
+    assert len(bundle.cross_group_claims) == 0
+    stamp = bundle.get_matchstamp_at(0.045, "rec-ref:cpt1")
+    assert stamp.n_timelines == 3
+    assert len(bundle.cross_group_claims) == 0
+
+
+def test_matchstamp_at_first_grid_coordinate(loader: ListenHereLoader) -> None:
+    # Query an exact grid coordinate read off one recording: rec-a column 0
+    # is 0.0, where rec-b is -0.01 and rec-ref is 0.0. Same instant in all 3.
+    bundle = loader.create_bundle()
+    stamp = bundle.get_matchstamp_at(0.0, "rec-a:cpt1")
+    assert stamp.n_timelines == 3
+    assert stamp.get_coordinate("rec-a:cpt1") == 0.0
+    assert stamp.get_coordinate("rec-b:cpt1") == -0.01
+    assert stamp.get_coordinate("rec-ref:cpt1") == 0.0
+
+
 # endregion
 
 
@@ -190,8 +256,9 @@ def test_matchstamp_spans_all_recordings(loader: ListenHereLoader) -> None:
 
 
 def test_claim_metadata(loader: ListenHereLoader) -> None:
-    bundle = loader.create_bundle()
-    claim = bundle.cross_group_claims[0]
+    # Metadata is field-level, injected on read; pull a materialised claim
+    # from the columnar field (the bundle's Python claim list is empty).
+    claim = loader.get_field(MatchClaim)[0]
     assert claim.metadata is not None
     assert claim.metadata.agent.name == "Listen Here! v0.20.0"
     assert claim.metadata.agent.identifier == "dtw_chroma_alignment"

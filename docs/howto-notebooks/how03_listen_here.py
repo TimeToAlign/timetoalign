@@ -40,68 +40,42 @@
 #
 # The arc:
 #
-# 1. Build a small self-contained Listen Here! export and load it in one call.
-# 2. Inspect the columnar {{< glossary MatchClaimField >}} that holds the whole
-#    pairwise claim set.
-# 3. The headline: place a point on one recording and read it on all the others.
-# 4. A note on scale — why the claims live in a column, not a million objects.
-# 5. What a real export carries beyond what this loader yet reads.
+# 1. Load the export in one call and read the reference recording.
+# 2. Reach the columnar {{< glossary MatchClaimField >}} through the uniform
+#    `get_field` API, and inspect a single claim.
+# 3. Build the {{< glossary AlignmentBundle >}}.
+# 4. The headline: place a point on one recording and read it on all the others.
+# 5. A note on scale — why the claims live in a column, not a million objects.
 
 # %% [markdown]
 # ## Setup
 #
-# The published Listen Here! corpus is not yet bundled with the project, so this
-# guide is **self-contained**: we synthesise a small but plausible export in a
-# temporary file and load that. It stands in for the real thing — four
-# recordings of one work, warped onto a reference grid at 0.02 s (50 Hz)
-# spacing.
+# The example data is a real *Listen Here!* alignment export of six recordings
+# of the whole of Beethoven's *Eroica Variations*, Op. 35 — six readings of the
+# entire work warped onto one reference grid. The file is large (about 14 MB of
+# parallel onset arrays), so it is read directly from its place on disk rather
+# than fetched through the test-data helper. The cell below walks up from the
+# notebook to the directory that holds the export.
 
 # %%
 from __future__ import annotations
 
-import json
-import tempfile
+import os
 from pathlib import Path
 
+from timetoalign.alignment.claims import MatchClaim
 from timetoalign.loader.alignment import ListenHereLoader
 
-# The reference recording fixes the grid origin; the other three are warped
-# onto it. Each per-recording warp is a scale (a steadier or quicker reading of
-# the same music) plus a small onset offset. One recording (PARK) begins after
-# the reference's grid origin, so its early columns carry small *negative*
-# seconds — a pre-onset extrapolation the loader keeps faithfully.
-_REFERENCE = "mdw-Wataru-MASHIMO.mp3"
-_N_COLUMNS = 24
-_GRID = [round(i * 0.02, 5) for i in range(_N_COLUMNS)]
-
-
-def _warp(scale: float, offset: float) -> list[float]:
-    return [round(scale * g + offset, 5) for g in _GRID]
-
-
-_TIMES = {
-    "mdw-Wataru-MASHIMO.mp3": _GRID,  # the reference itself
-    "mdw-Seika-ISHIDA.mp3": _warp(0.94, 0.030),
-    "mdw-Martin-NOEBAUER.mp3": _warp(1.08, 0.015),
-    "mdw-Hyo-Eun-PARK.mp3": _warp(1.15, -0.025),  # negative pre-onset
-}
-
-_EXPORT = {
-    "header": {"ref": _REFERENCE, "createdBy": "Listen Here! v0.20.0"},
-    "body": {
-        "audio": {
-            key: {
-                "times": times,
-                "peaks": [0.1, 0.2],
-                "duration": round(max(times) + 0.5, 3),
-            }
-            for key, times in _TIMES.items()
-        }
-    },
-}
-
-alignment_json = Path(tempfile.mkdtemp()) / "alignment.json"
-alignment_json.write_text(json.dumps(_EXPORT), encoding="utf-8")
+# Locate the local Listen Here! alignment export by walking up the directory
+# tree until an ancestor contains it. This reads a local export file directly;
+# it is not a packaged test corpus.
+_EXPORT_REL = Path("beethoven_eroica_variations_op35/variation_14/mdw/alignment.json")
+_search_roots = [Path.cwd(), *Path.cwd().parents]
+if "__file__" in globals():
+    _search_roots += list(Path(__file__).resolve().parents)
+_alignment_json = next(
+    candidate for base in _search_roots if (candidate := base / _EXPORT_REL).exists()
+)
 
 # %% [markdown]
 # ## 1. Load the export in one call
@@ -112,13 +86,21 @@ alignment_json.write_text(json.dumps(_EXPORT), encoding="utf-8")
 # is the one-line form of the standard two-phase loader pattern.
 
 # %%
-loader = ListenHereLoader.from_file(alignment_json)
+loader = ListenHereLoader.from_file(_alignment_json)
 loader
 
 # %% [markdown]
-# Four recordings, and the loader reports its recording stems in sorted order.
-# The recording named by `header.ref` is just another recording here — it fixes
-# the grid origin but is **not** a privileged hub.
+# The loader names the **reference recording** — the recording whose clock
+# defines the grid origin. Reading the reference matters because it is the
+# anchor against which every other recording was warped; it is, however, *just
+# another recording* in the bundle, not a privileged hub. Every recording is
+# related to every other directly, so the bundle can be read from any of them.
+
+# %%
+loader.reference
+
+# %% [markdown]
+# Six recordings, reported as sorted stems:
 
 # %%
 loader.recording_keys
@@ -128,144 +110,137 @@ loader.recording_keys
 #
 # ## 2. The whole pairwise claim set, in a column
 #
-# The loader's `claim_field` is a {{< glossary MatchClaimField >}}: a columnar,
-# PyArrow-backed store that holds the entire set of pairwise
+# The alignment is reached through the uniform field API:
+# `loader.get_field(MatchClaim)` returns a {{< glossary MatchClaimField >}} — a
+# columnar, PyArrow-backed store that holds the entire set of pairwise
 # {{< glossary MatchClaim >}}s as Arrow columns and materialises individual
 # `MatchClaim` objects only on demand. Its length is the **complete topology**:
 # for `R` recordings and `N` grid columns, every unordered pair at every column,
-# i.e. `C(R, 2) × N` claims. Here `C(4, 2) × 24 = 6 × 24 = 144`:
+# i.e. `C(R, 2) × N` claims. Six recordings give `C(6, 2) = 15` pairs, and this
+# 25-minute work is sampled at 76 376 grid columns — so the field holds well
+# over a million claims:
 
 # %%
-claims = loader.claim_field
-claims
+field = loader.get_field(MatchClaim)
 
-# %%
 {
-    "claims": len(claims),
-    "recordings": len(loader.recording_keys),
-    "grid columns": _N_COLUMNS,
-    "C(4,2) x 24": 6 * _N_COLUMNS,
+    "field type": type(field).__name__,
+    "claims": len(field),
+    "C(6,2) pairs": 15,
+    "grid columns": len(field) // 15,
 }
 
 # %% [markdown]
-# Indexing the field materialises one {{< glossary MatchClaim >}} on demand. It
-# is an ordinary pairwise claim — two timelines, a synchronous instant anchor,
-# and the shared provenance the export recorded (Listen Here!'s chroma-feature
-# DTW). The first claim relates the reference to the first warped recording at
-# grid column 0:
+# The field is held columnar precisely so that this many claims need not be a
+# million Python objects. Indexing it materialises **one** {{< glossary MatchClaim >}}
+# on demand — an ordinary pairwise claim relating two recordings at one grid
+# column, carrying the shared provenance the export recorded (Listen Here!'s
+# chroma-feature DTW). We look at a single claim to see the shape; we do **not**
+# iterate or materialise the whole field.
 
 # %%
-claims[0]
-
-# %% [markdown]
-# Because the field is columnar, narrowing it is a vectorised Arrow filter, not
-# a Python loop over a million objects. `connecting(...)` returns a **new**
-# `MatchClaimField` holding only the claims that touch a given timeline — here,
-# every claim involving the PARK recording. With four recordings each is paired
-# with the other three, so PARK appears in `3 × 24 = 72` of the 144 claims:
-
-# %%
-park_claims = claims.connecting("mdw-Hyo-Eun-PARK:cpt1")
-
-{
-    "claims touching PARK": len(park_claims),
-    "3 pairs x 24 columns": 3 * _N_COLUMNS,
-    "timelines in the view": sorted(park_claims.timeline_ids),
-}
-
-# %% [markdown]
-# One of PARK's claims at the very first grid column carries the **negative**
-# pre-onset coordinate — the recording's clock has not yet reached its first
-# onset at the reference origin. The loader stores it as written, neither
-# clamped nor dropped:
-
-# %%
-park_claims[0]
+field[0]
 
 # %% [markdown]
 # ---
 #
-# ## 3. Place a point on one recording, read it on all the others
+# ## 3. Build the bundle
 #
 # `create_bundle()` assembles the {{< glossary AlignmentBundle >}}: one seconds
 # {{< glossary Timeline >}} per recording, each in its own group, and the
 # complete pairwise claim set tying every recording to every other. The
-# recordings carry **no symbolic events** — the timelines hold only a length (the
-# recording's stored duration) and a unit; all the alignment lives in the
-# cross-group claims.
+# recordings carry **no symbolic events** — each timeline holds only a length
+# (the recording's stored duration) and a unit; all the alignment lives in the
+# cross-group claim field, which the bundle keeps columnar rather than exploding
+# into a million claim objects.
 
 # %%
 bundle = loader.create_bundle()
-bundle
 
-# %%
 {
     "timelines": bundle.n_timelines,
     "groups": bundle.n_groups,
-    "groups_listed": bundle.group_ids,
 }
 
 # %% [markdown]
+# The bundle's diagram confirms the shape: six single-timeline groups and the
+# full claim count, read straight from the columnar field (no claim is
+# materialised to count it):
+
+# %%
+print(bundle.diagram())
+
+# %% [markdown]
+# ---
+#
+# ## 4. Place a point on one recording, read it on all the others
+#
 # Here is the promise that makes audio-to-audio alignment compelling: **place a
 # point on one recording, and it is instantly placed on all the others.**
 # `get_matchstamp_at` takes a coordinate on any one recording's timeline and
 # returns the corresponding coordinate on *every* recording connected to it.
-# Read 0.24 seconds into the reference recording across the whole bundle:
+#
+# The query coordinate must land on an exact grid column carried by the field,
+# so we take a real one from the data rather than inventing a value: a claim
+# from roughly the middle of the work, read off the reference recording's clock.
 
 # %%
-stamp = bundle.get_matchstamp_at(0.24, "mdw-Wataru-MASHIMO:cpt1")
+reference_uid = f"{os.path.splitext(loader.reference)[0]}:cpt1"
+
+reference_claims = field.connecting(reference_uid)
+mid_claim = reference_claims[len(reference_claims) // 2]
+query_coord = mid_claim.start_anchor.get_coordinate_for(reference_uid)
+
+query_coord
+
+# %% [markdown]
+# That instant — about twelve and a half minutes into the reference reading —
+# resolves to a {{< glossary MatchStamp >}} spanning all six recordings at once:
+
+# %%
+stamp = bundle.get_matchstamp_at(query_coord, reference_uid)
 stamp
 
 # %% [markdown]
 # Read across that {{< glossary MatchStamp >}}: the same musical instant the
-# reference reaches at 0.24 s falls at a slightly different second in each of the
-# other three recordings — the steadier reading reaches it a touch earlier, the
-# quicker one a touch later. Because the topology is complete, the same query
-# works from *any* recording as the anchor, not only the reference. The same
-# grid column read from NOEBAUER's clock (0.2742 s) returns the very same set of
-# positions:
+# reference reaches at this second falls at a slightly different second in each
+# of the other five recordings — a quicker reading reaches it earlier, a
+# steadier one later. One coordinate, placed once, located in all six recordings
+# in a single query:
 
 # %%
-bundle.get_matchstamp_at(0.2742, "mdw-Martin-NOEBAUER:cpt1")
+{
+    "timelines in the stamp": stamp.n_timelines,
+    "seconds per recording": {
+        tl_id: round(stamp.get_coordinate(tl_id), 2)
+        for tl_id in sorted(stamp.coordinates)
+    },
+}
+
+# %% [markdown]
+# Because the topology is complete, the same query works from *any* recording as
+# the anchor, not only the reference — every pair is directly related, so no
+# recording is a required hub.
 
 # %% [markdown]
 # ---
 #
-# ## 4. A note on scale
+# ## 5. A note on scale
 #
-# The synthetic export above has four recordings and 24 grid columns. A real
-# whole-work export is far larger. Six recordings give `C(6, 2) = 15` pairs, and
-# a 25-minute work sampled at 50 Hz is on the order of tens of thousands of grid
-# columns — so the complete topology runs to **roughly a million pairwise
-# claims** for one work.
+# This single file holds **more than a million** pairwise claims: six recordings
+# give `C(6, 2) = 15` pairs, and a 25-minute work sampled at 50 Hz runs to tens
+# of thousands of grid columns. A whole-work export with more recordings would
+# be larger still.
 #
 # This is exactly why the claims live in a {{< glossary MatchClaimField >}}
 # rather than as a million individual `MatchClaim` objects. The field stores the
-# whole set as four Arrow columns (the two timeline ids dictionary-encoded, the
-# two coordinates as `float64`) and the loader builds it **vectorised** — never
-# constructing a Python claim per row. A `MatchClaim` is materialised only when a
-# single row is indexed or iterated. The columnar store is what lets one
-# `AlignmentBundle` hold a whole-work, every-pair audio-to-audio graph without
-# strain.
-
-# %% [markdown]
-# ---
-#
-# ## 5. What a real export carries beyond this
-#
-# This loader reads the part of a Listen Here! export that makes the
-# audio-to-audio graph: the per-recording warp arrays over the reference grid. A
-# real export additionally carries a couple of things this loader does **not yet
-# read**:
-#
-# - an in-file **score↔reference bridge** (the export can also align a symbolic
-#   score to the reference grid, which would add a logical score group tied to
-#   the recordings); and
-# - **per-recording sample grids** (a samples timeline alongside each seconds
-#   timeline, once a sample rate is resolved from the audio).
-#
-# Neither is loaded here. What this guide does build is the core of the model:
-# many recordings of one work, every pair directly related, in one bundle.
+# whole set as Arrow columns (the two timeline ids dictionary-encoded, the two
+# coordinates as `float64`) and the loader builds it **vectorised** — never
+# constructing a Python claim per row. A `MatchClaim` is materialised only when
+# a single row is indexed. `get_matchstamp_at` likewise filters the column
+# vectorised and materialises only the handful of claims at the queried
+# coordinate. The columnar store is what lets one `AlignmentBundle` hold a
+# whole-work, every-pair audio-to-audio graph without strain.
 
 # %% [markdown]
 # ## Recap
@@ -273,9 +248,9 @@ bundle.get_matchstamp_at(0.2742, "mdw-Martin-NOEBAUER:cpt1")
 # | What the bundle expresses | How |
 # |---|---|
 # | One recording per group | `<stem>:cpt1` seconds timeline, no events, length = the recording's duration |
-# | The whole pairwise alignment | a columnar {{< glossary MatchClaimField >}} (`loader.claim_field`), `C(R,2) × N` |
-# | One claim, materialised | `claim_field[i]` → a synchronous instant {{< glossary MatchClaim >}} |
-# | Claims touching one recording | `claim_field.connecting(timeline_id)` → a new (vectorised) `MatchClaimField` |
+# | The whole pairwise alignment | a columnar {{< glossary MatchClaimField >}} via `get_field(MatchClaim)` |
+# | One claim, materialised | `field[i]` → a synchronous instant {{< glossary MatchClaim >}} |
+# | The reference recording | `loader.reference` — the grid origin, but just another recording |
 # | A point placed everywhere | `bundle.get_matchstamp_at(coord, "<stem>:cpt1")` → every recording at once |
 #
 # A single file encodes an entire audio-to-audio {{< glossary MatchGraph >}} —

@@ -1113,9 +1113,7 @@ class TableSchema:
                     agent=Agent(
                         name=meta_dict.get("agent", "table_schema"),
                         type=AgentType.software,
-                        identifier=meta_dict.get(
-                            "decision_criteria", "field_reference"
-                        ),
+                        identifier=meta_dict.get("agent_identifier", "field_reference"),
                     ),
                     certainty=meta_dict.get("certainty", 1.0),
                 )

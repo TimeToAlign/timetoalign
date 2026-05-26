@@ -28,7 +28,7 @@ from timetoalign.core import (
     resolve_id,
 )
 
-from .claims import MatchClaim
+from .claims import MatchClaim, MatchClaimField
 from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
 from .groups import TimelineGroup
@@ -130,7 +130,11 @@ class AlignmentBundle:
         timelines: Dictionary mapping bundle UIDs to Timeline objects.
         groups: Dictionary mapping group IDs to TimelineGroup objects.
         timeline_to_group: Mapping from bundle UID to its containing group ID.
-        cross_group_claims: MatchClaims connecting timelines across groups.
+        cross_group_claims: MatchClaims connecting timelines across groups
+            (the per-claim Python-list store).
+        cross_group_claim_fields: Columnar ``MatchClaimField`` stores of dense
+            synchronous-instant pairwise claims, queried vectorized without
+            materialising the full claim list.
 
     Note:
         The bundle maintains a UID mapping layer. Users interact with bundle UIDs
@@ -160,6 +164,12 @@ class AlignmentBundle:
     timeline_to_group: dict[str, str] = field(default_factory=dict)
     meta: dict[str, Any] = field(default_factory=dict)
     cross_group_claims: list[MatchClaim] = field(default_factory=list)
+    # Columnar claim stores added additively (e.g. by ListenHereLoader). Each
+    # holds a dense set of synchronous instant pairwise claims as a single
+    # PyArrow struct column. Queries filter these vectorized and materialise
+    # only the matched rows — a million-claim field is never exploded into a
+    # Python list. The Python-list ``cross_group_claims`` path is unchanged.
+    cross_group_claim_fields: list[MatchClaimField] = field(default_factory=list)
 
     # Mapping from bundle UID to actual timeline.id (used by groups)
     _uid_to_timeline_id: dict[str, str] = field(default_factory=dict, repr=False)
@@ -777,7 +787,7 @@ class AlignmentBundle:
         *,
         synchronous: bool = True,
         agent: str = "user",
-        decision_criteria: str = "manual",
+        agent_identifier: str = "manual",
     ) -> list[MatchClaim]:
         """Create MatchClaims from a list of event pairs.
 
@@ -793,8 +803,10 @@ class AlignmentBundle:
                 ``start_anchor`` and ``end_anchor``).
             synchronous: Whether the matches are temporally synchronous.
             agent: Name of the agent creating the claims (for provenance).
-            decision_criteria: How the match was determined (e.g., "manual",
-                "dynamic_time_warping", "segment_correspondence").
+            agent_identifier: The agent's stable identifier — a version string
+                for a software agent or a URI for a human agent (e.g.
+                ``"manual"``, ``"dynamic_time_warping"``). Stored as
+                ``Agent.identifier``.
 
         Returns:
             List of MatchClaim objects. Also automatically adds them to
@@ -822,7 +834,7 @@ class AlignmentBundle:
                 agent=Agent(
                     name=agent,
                     type=AgentType.software,
-                    identifier=decision_criteria,
+                    identifier=agent_identifier,
                 ),
             )
             # Auto-detect interval events: if both events have a non-null
@@ -878,6 +890,35 @@ class AlignmentBundle:
         for claim in claims:
             claim.set_bundle(self)
         self.cross_group_claims.extend(claims)
+        self._invalidate_warp_cache()
+        return self
+
+    def add_match_claim_field(
+        self,
+        claim_field: MatchClaimField,
+    ) -> "AlignmentBundle":
+        """Add a columnar ``MatchClaimField`` of cross-group claims.
+
+        This is the columnar counterpart of :meth:`add_match_claims`.  The
+        field is stored as-is (one PyArrow struct column) and queried
+        vectorized by :meth:`get_matchstamp_at` /
+        :meth:`_get_or_build_matchgraph`, which filter the struct column and
+        materialise only the handful of claims at the queried coordinate.  A
+        dense whole-work field (on the order of a million claims) is therefore
+        never exploded into a Python list.
+
+        It complements the per-claim list path: a bundle may hold both a
+        Python-list ``cross_group_claims`` and one or more
+        ``cross_group_claim_fields`` at once.
+
+        Args:
+            claim_field: A :class:`MatchClaimField` of synchronous instant
+                pairwise claims.
+
+        Returns:
+            self (for method chaining)
+        """
+        self.cross_group_claim_fields.append(claim_field)
         self._invalidate_warp_cache()
         return self
 
@@ -976,7 +1017,9 @@ class AlignmentBundle:
         if key in self._matchgraph_cache:
             return self._matchgraph_cache[key]
 
-        # Find ALL claims that touch this coordinate on this timeline
+        # Find ALL claims that touch this coordinate on this timeline.
+        # Scan the per-claim Python list as before (small for the other
+        # alignment loaders) ...
         relevant_claims: list[MatchClaim] = []
         for c in self.cross_group_claims:
             if not c.is_synchronous or c.start_anchor is None:
@@ -990,6 +1033,13 @@ class AlignmentBundle:
                 and anchor.coordinate_b == coordinate
             ):
                 relevant_claims.append(c)
+
+        # ... then query each columnar field vectorized, materialising only
+        # the matched rows (never the whole field).
+        for claim_field in self.cross_group_claim_fields:
+            relevant_claims.extend(
+                self._claims_at_from_field(claim_field, timeline_id, coordinate)
+            )
 
         if not relevant_claims:
             raise ValueError(
@@ -1018,6 +1068,60 @@ class AlignmentBundle:
             self._matchgraph_cache[(node_tl, node_coord)] = mg
 
         return mg
+
+    @staticmethod
+    def _claims_at_from_field(
+        claim_field: MatchClaimField,
+        timeline_id: str,
+        coordinate: float,
+    ) -> list[MatchClaim]:
+        """Return the field's claims touching ``(timeline_id, coordinate)``.
+
+        The match is a vectorized PyArrow boolean mask over the field's struct
+        column — rows where ``timeline_a_id == timeline_id`` and
+        ``coordinate_a == coordinate``, OR the symmetric
+        ``timeline_b_id == timeline_id`` and ``coordinate_b == coordinate``.
+        Only the masked rows are materialised into :class:`MatchClaim`
+        objects (the field's shared metadata is injected as usual); the rest of
+        the field is never touched.
+
+        Coordinate matching is **exact float equality** — a query coordinate
+        must land on a grid column carried by the field, matching the per-claim
+        Python-list path above.
+
+        Args:
+            claim_field: The columnar field to filter.
+            timeline_id: The timeline the queried coordinate lives on.
+            coordinate: The exact coordinate value.
+
+        Returns:
+            The matched claims (possibly empty).
+        """
+        import pyarrow.compute as pc
+
+        struct = claim_field.table.column(MatchClaimField._COLUMN_NAME)
+        struct = struct.combine_chunks()
+        if len(struct) == 0:
+            return []
+
+        anchor = struct.field("start_anchor")
+        a_side = pc.and_(
+            pc.equal(struct.field("timeline_a_id"), timeline_id),
+            pc.equal(anchor.field("coordinate_a"), coordinate),
+        )
+        b_side = pc.and_(
+            pc.equal(struct.field("timeline_b_id"), timeline_id),
+            pc.equal(anchor.field("coordinate_b"), coordinate),
+        )
+        mask = pc.or_(a_side, b_side)
+        # Empty mask short-circuit: avoid building a filtered sub-field.
+        if pc.sum(pc.cast(mask, "int64")).as_py() == 0:
+            return []
+        matched = type(claim_field)._from_struct_array(
+            struct.filter(mask),
+            metadata=claim_field.metadata,
+        )
+        return matched.to_claims()
 
     def get_matchstamp_at(
         self,

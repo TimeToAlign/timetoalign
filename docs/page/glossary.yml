@@ -145,11 +145,11 @@ MatchfileLoader: |
 
 MatchClaim: |
   A claim of equivalence between events on different timelines, with provenance
-  metadata (agent, method, certainty). May be synchronous (producing
+  metadata (the authoring agent and a certainty). May be synchronous (producing
   AlignmentAnchors) or conceptual (structural equivalence without temporal
   commitment). Always knows which pair of timelines it connects. Four cases:
   (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group
-  extension).
+  extension). Held individually, or columnar at scale in a MatchClaimField.
 
 MatchClaimField: |
   A columnar, PyArrow-backed store holding a whole set of synchronous-instant

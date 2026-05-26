@@ -13,7 +13,7 @@ performance), a single Listen Here! file already encodes the alignment of *all*
 recordings against one another.  The natural Time To Align! reading is therefore
 a **complete pairwise topology**: at every grid column, every unordered pair of
 recordings ``(a, b)`` is directly related by a synchronous instant
-:class:`~timetoalign.alignment.anchors.MatchClaim`
+:class:`~timetoalign.alignment.claims.MatchClaim`
 (``a@times_a[i] ↔ b@times_b[i]``).  For ``R`` recordings and ``N`` grid columns
 this is ``C(R, 2) × N`` claims — a very large set for a whole work — so the
 claims are held columnar in a
@@ -32,8 +32,8 @@ and produces a single :class:`~timetoalign.alignment.bundle.AlignmentBundle`:
   ``length`` equal to that recording's stored ``duration``.  The recordings
   carry **no symbolic events** — the timelines hold only a length and a unit;
   all alignment lives in the cross-group claim field; and
-* the complete-topology pairwise claims, exposed as
-  :attr:`ListenHereLoader.claim_field`.
+* the complete-topology pairwise claims, reached through the uniform field
+  API ``loader.get_field(MatchClaim)`` -> :class:`MatchClaimField`.
 
 The reference recording named by ``header.ref`` fixes the grid origin but is
 **not** a privileged hub: it is just another recording, related to every other
@@ -64,8 +64,14 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from typing_extensions import Self
 
-from timetoalign.alignment.claims import Agent, MatchClaimField, MatchMetadata
+from timetoalign.alignment.claims import (
+    Agent,
+    MatchClaim,
+    MatchClaimField,
+    MatchMetadata,
+)
 from timetoalign.core import AgentType, TimeUnit
+from timetoalign.core.fields import SemanticField
 from timetoalign.loader.base import AlignmentLoader
 from timetoalign.timelines.types import ContinuousPhysicalTimeline
 
@@ -79,10 +85,10 @@ module_logger = logging.getLogger(__name__)
 # region Constants
 
 #: Provenance recorded on every materialised claim.  The agent is read from the
-#: file's ``header.createdBy`` (falling back to a generic label); the decision
-#: criteria names the alignment method Listen Here! uses (chroma-feature DTW).
+#: file's ``header.createdBy`` (falling back to a generic label); the agent
+#: identifier names the alignment method Listen Here! uses (chroma-feature DTW).
 _DEFAULT_AGENT = "Listen Here!"
-_DECISION_CRITERIA = "dtw_chroma_alignment"
+_AGENT_IDENTIFIER = "dtw_chroma_alignment"
 
 # endregion
 
@@ -120,6 +126,8 @@ class ListenHereLoader(AlignmentLoader):
         self._durations: dict[str, float] = {}
         self._claim_field: MatchClaimField | None = None
         self._name: str | None = None
+        # The reference recording key (``header.ref``): the grid origin.
+        self._ref: str | None = None
 
     # region Abstract-method satisfaction
 
@@ -192,6 +200,7 @@ class ListenHereLoader(AlignmentLoader):
 
         self._keys = keys
         self._name = path.stem
+        self._ref = ref
         agent = header.get("createdBy", _DEFAULT_AGENT)
         self._claim_field = self._build_claim_field(keys, times_by_key, agent)
         self._sources = [path]
@@ -277,7 +286,7 @@ class ListenHereLoader(AlignmentLoader):
             agent=Agent(
                 name=agent,
                 type=AgentType.software,
-                identifier=_DECISION_CRITERIA,
+                identifier=_AGENT_IDENTIFIER,
             ),
             certainty=1.0,
         )
@@ -302,20 +311,60 @@ class ListenHereLoader(AlignmentLoader):
 
     # endregion
 
-    # region Properties
+    # region Field access
 
-    @property
-    def claim_field(self) -> MatchClaimField:
-        """The complete-topology pairwise claim field.
+    def get_field(
+        self,
+        selector: type[MatchClaim] | type[SemanticField[Any]],
+    ) -> MatchClaimField:
+        """Return the complete-topology pairwise claim field.
+
+        The loader's alignment is reached through the uniform field API, the
+        same way any :class:`~timetoalign.loader.mixins.SemanticFieldAccessMixin`
+        surfaces a semantic view:
+
+            >>> field = loader.get_field(MatchClaim)
+            >>> isinstance(field, MatchClaimField)
+            True
+
+        The selector may be the :class:`MatchClaim` scalar class or its paired
+        :class:`MatchClaimField` class; both resolve to the single
+        ``MatchClaimField`` this loader builds.
+
+        Args:
+            selector: ``MatchClaim`` or ``MatchClaimField``.
+
+        Returns:
+            The :class:`MatchClaimField` of ``C(R, 2) × N`` synchronous claims.
 
         Raises:
             RuntimeError: If ``load()`` has not been called yet.
+            TypeError: If ``selector`` is not ``MatchClaim`` /
+                ``MatchClaimField``.
         """
         if self._claim_field is None:
             raise RuntimeError(
-                "No alignment loaded yet. Call load() before reading claim_field."
+                "No alignment loaded yet. Call load() before get_field()."
             )
-        return self._claim_field
+        if selector is MatchClaim or selector is MatchClaimField:
+            return self._claim_field
+        name = getattr(selector, "__name__", repr(selector))
+        raise TypeError(
+            f"ListenHereLoader.get_field() resolves only MatchClaim / "
+            f"MatchClaimField; got {name}."
+        )
+
+    # endregion
+
+    # region Properties
+
+    @property
+    def reference(self) -> str | None:
+        """The reference recording (``header.ref``) — the grid origin.
+
+        ``None`` until :meth:`load` has been called.
+        """
+        return self._ref
 
     @property
     def recording_keys(self) -> list[str]:
@@ -331,20 +380,19 @@ class ListenHereLoader(AlignmentLoader):
 
         Each recording becomes an empty seconds
         :class:`ContinuousPhysicalTimeline` in its own group, and the complete
-        pairwise claim field is added to the bundle.
+        pairwise claim field is added to the bundle **columnar**.
 
-        Note:
-            ``add_match_claims`` takes a list, so the columnar
-            :class:`MatchClaimField` is materialised to a list of
-            :class:`MatchClaim` objects here.  This simple path is fine for the
-            modest grids used in tests and notebooks.  For a whole-work file
-            (on the order of a million claims) a columnar bundle-query path
-            (vectorising ``get_matchstamp_at`` over a ``MatchClaimField``
-            directly) is the documented next step; it is not implemented here.
+        The field is handed to the bundle with
+        :meth:`~timetoalign.alignment.bundle.AlignmentBundle.add_match_claim_field`,
+        not exploded into a list of :class:`MatchClaim` objects.  The bundle
+        answers ``get_matchstamp_at`` by filtering the field's struct column
+        vectorized and materialising only the handful of claims at the queried
+        coordinate, so a whole-work file (on the order of a million claims)
+        never builds a million Python claims.
 
         Returns:
-            An ``AlignmentBundle`` with one group per recording and all
-            cross-group pairwise claims.
+            An ``AlignmentBundle`` with one group per recording and the
+            cross-group pairwise claim field.
 
         Raises:
             RuntimeError: If ``load()`` has not been called yet.
@@ -362,7 +410,7 @@ class ListenHereLoader(AlignmentLoader):
             stem = self._stems[key]
             bundle.add_timeline(timeline, uid=timeline.id, as_group=stem)
 
-        bundle.add_match_claims(self._claim_field.to_claims())
+        bundle.add_match_claim_field(self._claim_field)
         return bundle
 
     def create_timelines(self, id_pattern: str | None = None) -> list["Timeline"]:
@@ -428,8 +476,10 @@ class ListenHereLoader(AlignmentLoader):
 
         parts = [f"<h4>{self.__class__.__name__}</h4>", "<table>"]
         name = self._name or "(not loaded)"
+        ref = self._ref or "(not loaded)"
         parts.append(f"<tr><td><b>File</b></td><td><code>{name}</code></td></tr>")
         parts.append(f"<tr><td><b>Recordings</b></td><td>{n_recordings}</td></tr>")
+        parts.append(f"<tr><td><b>Reference</b></td><td><code>{ref}</code></td></tr>")
         parts.append(f"<tr><td><b>Claims</b></td><td>{n_claims}</td></tr>")
 
         if loaded:
@@ -464,7 +514,11 @@ class ListenHereLoader(AlignmentLoader):
     def __repr__(self) -> str:
         n_recordings = len(self._keys)
         n_claims = len(self._claim_field) if self._claim_field is not None else 0
-        return f"ListenHereLoader(recordings={n_recordings}, claims={n_claims})"
+        ref = self._ref if self._ref is not None else "(not loaded)"
+        return (
+            f"ListenHereLoader(recordings={n_recordings}, "
+            f"reference={ref!r}, claims={n_claims})"
+        )
 
     # endregion
 

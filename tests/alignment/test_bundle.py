@@ -23,6 +23,7 @@ from timetoalign.alignment import (
     AlignmentAnchor,
     AlignmentBundle,
     MatchClaim,
+    MatchClaimField,
     TimelineGroup,
 )
 from timetoalign.timelines import Timeline
@@ -989,6 +990,101 @@ class TestAddMatchClaims:
         ]
         bundle.add_match_claims(claims2)
         assert len(bundle.cross_group_claims) == 4
+
+
+# endregion
+
+
+# region Test: create_match_claims agent_identifier
+
+
+class TestCreateMatchClaims:
+    """Tests for create_match_claims() and the agent_identifier keyword."""
+
+    def test_agent_identifier_lands_in_agent_identifier(self) -> None:
+        # The public keyword is agent_identifier (renamed from
+        # decision_criteria); its value lands in Agent.identifier.
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        claims = bundle.create_match_claims(
+            [({"start": 0.0}, score_tl.id, {"start": 10.0}, audio_tl.id)],
+            agent="dtw",
+            agent_identifier="dynamic_time_warping",
+        )
+        assert len(claims) == 1
+        meta = claims[0].metadata
+        assert meta is not None
+        assert meta.agent.name == "dtw"
+        assert meta.agent.identifier == "dynamic_time_warping"
+
+    def test_no_decision_criteria_keyword(self) -> None:
+        # The old keyword is gone — no compat shim.
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        with pytest.raises(TypeError):
+            bundle.create_match_claims(
+                [({"start": 0.0}, score_tl.id, {"start": 10.0}, audio_tl.id)],
+                decision_criteria="manual",
+            )
+
+
+# endregion
+
+
+# region Test: add_match_claim_field (columnar) API
+
+
+class TestAddMatchClaimField:
+    """Tests for the columnar add_match_claim_field() path."""
+
+    def _field(self, tl_a_id: str, tl_b_id: str) -> MatchClaimField:
+        """A 5-row instant claim field: coord_b = coord_a * 0.5."""
+        return MatchClaimField.from_columns(
+            timeline_a_ids=[tl_a_id] * 5,
+            timeline_b_ids=[tl_b_id] * 5,
+            coordinate_a=[0.0, 50.0, 100.0, 150.0, 200.0],
+            coordinate_b=[0.0, 25.0, 50.0, 75.0, 100.0],
+        )
+
+    def test_returns_self_for_chaining(self) -> None:
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        field = self._field(score_tl.id, audio_tl.id)
+        assert bundle.add_match_claim_field(field) is bundle
+
+    def test_field_stored_columnar_not_in_list(self) -> None:
+        # The field goes to the columnar store; the per-claim Python list is
+        # left untouched (never exploded).
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        bundle.add_match_claim_field(self._field(score_tl.id, audio_tl.id))
+        assert len(bundle.cross_group_claims) == 0
+        assert len(bundle.cross_group_claim_fields) == 1
+        assert len(bundle.cross_group_claim_fields[0]) == 5
+
+    def test_matchstamp_via_columnar_field(self) -> None:
+        # get_matchstamp_at answers from the columnar field at an exact grid
+        # coordinate, without touching the Python claim list.
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        bundle.add_match_claim_field(self._field(score_tl.id, audio_tl.id))
+        stamp = bundle.get_matchstamp_at(100.0, score_tl.id)
+        assert stamp.get_coordinate(score_tl.id) == 100.0
+        assert stamp.get_coordinate(audio_tl.id) == 50.0
+        assert len(bundle.cross_group_claims) == 0
+
+    def test_inexact_coordinate_finds_nothing(self) -> None:
+        # Exact float equality: a coordinate off the grid matches no claims.
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        bundle.add_match_claim_field(self._field(score_tl.id, audio_tl.id))
+        with pytest.raises(ValueError, match="No synchronous claims"):
+            bundle.get_matchstamp_at(123.456, score_tl.id)
+
+    def test_list_and_field_stores_coexist(self) -> None:
+        # A bundle may hold a Python-list claim AND a columnar field at once;
+        # a query reads both stores.
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        bundle.add_match_claims(_make_linear_claims(score_tl.id, audio_tl.id, 5))
+        bundle.add_match_claim_field(self._field(score_tl.id, audio_tl.id))
+        assert len(bundle.cross_group_claims) == 5
+        assert len(bundle.cross_group_claim_fields) == 1
+        stamp = bundle.get_matchstamp_at(50.0, score_tl.id)
+        assert stamp.get_coordinate(audio_tl.id) == 25.0
 
 
 # endregion
