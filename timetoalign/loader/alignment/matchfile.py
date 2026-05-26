@@ -29,8 +29,8 @@ from typing import TYPE_CHECKING, Any
 import partitura as pt
 from typing_extensions import Self
 
-from timetoalign.alignment.claims import MatchClaim, MatchMetadata
-from timetoalign.core import TimeUnit, resolve_id
+from timetoalign.alignment.claims import Agent, MatchClaim, MatchMetadata
+from timetoalign.core import AgentType, TimeUnit, resolve_id
 from timetoalign.maps.linear import ScalarMap, ShiftMap
 from timetoalign.timelines.types import (
     ContinuousLogicalTimeline,
@@ -47,8 +47,11 @@ module_logger = logging.getLogger(__name__)
 # region Constants
 
 MATCH_META = MatchMetadata(
-    agent="vienna_match_v1.0.0",
-    decision_criteria="automatic",
+    agent=Agent(
+        name="vienna_match",
+        type=AgentType.software,
+        identifier="v1.0.0",
+    ),
     certainty=1.0,
 )
 
@@ -86,8 +89,9 @@ class MatchfileLoader:
       - Deletion records produce ``MatchClaim.nomatch()`` (non-synchronous,
         NOMATCH).
 
-    All MatchClaims carry ``MatchMetadata(agent="vienna_match_v1.0.0",
-    decision_criteria="automatic", certainty=1.0)``.
+    All MatchClaims carry ``MatchMetadata`` whose agent is
+    ``Agent(name="vienna_match", type=AgentType.software,
+    identifier="v1.0.0")`` and ``certainty=1.0``.
 
     **Coordinate system and normalisation:**
     Score coordinates are stored as **normalised TTA coordinates** (shifted

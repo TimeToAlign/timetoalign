@@ -54,8 +54,8 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
-from timetoalign.alignment.claims import MatchClaim, MatchMetadata
-from timetoalign.core import TimeUnit
+from timetoalign.alignment.claims import Agent, MatchClaim, MatchMetadata
+from timetoalign.core import AgentType, TimeUnit
 from timetoalign.loader.base import AlignmentLoader
 from timetoalign.loader.tabular.solo import SoloLoader
 from timetoalign.maps.meter import MetricalPositionMap, MetricMap
@@ -439,10 +439,12 @@ class PerformancePrecisionLoader(AlignmentLoader):
         # MatchClaims for every granularity.
         for gran, rows in granularity_rows.items():
             meta = MatchMetadata(
-                agent="performance_precision",
-                decision_criteria="audio_to_score_alignment",
+                agent=Agent(
+                    name="performance_precision",
+                    type=AgentType.software,
+                    identifier=gran,
+                ),
                 certainty=1.0,
-                algorithm_params={"granularity": gran},
             )
             for measure, offset_wn, time_str in rows:
                 quarters = self._resolve_label(measure, offset_wn, starts, m0_downbeat)

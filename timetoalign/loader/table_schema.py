@@ -1079,10 +1079,12 @@ class TableSchema:
             return []
 
         from timetoalign.alignment import (  # noqa: F811
+            Agent,
             AlignmentAnchor,
             MatchClaim,
             MatchMetadata,
         )
+        from timetoalign.core import AgentType
 
         matches = []
         start_field = self.coordinates.start or self.coordinates.instant
@@ -1108,9 +1110,12 @@ class TableSchema:
                 if match_spec.match_metadata:
                     meta_dict.update(match_spec.match_metadata)
                 metadata = MatchMetadata(
-                    agent=meta_dict.get("agent", "table_schema"),
-                    decision_criteria=meta_dict.get(
-                        "decision_criteria", "field_reference"
+                    agent=Agent(
+                        name=meta_dict.get("agent", "table_schema"),
+                        type=AgentType.software,
+                        identifier=meta_dict.get(
+                            "decision_criteria", "field_reference"
+                        ),
                     ),
                     certainty=meta_dict.get("certainty", 1.0),
                 )

@@ -200,9 +200,7 @@ def _performer_claims(bundle, performer_key: str) -> list[MatchClaim]:
 
 
 def _by_granularity(claims: list[MatchClaim], granularity: str) -> list[MatchClaim]:
-    return [
-        c for c in claims if c.metadata.algorithm_params["granularity"] == granularity
-    ]
+    return [c for c in claims if c.metadata.agent.identifier == granularity]
 
 
 @pytest.mark.parametrize("performer_key", PERFORMERS)
@@ -233,13 +231,12 @@ def test_performer_physical_timeline(loader: PerformancePrecisionLoader) -> None
 
 
 def test_claim_metadata(bundle) -> None:
-    """Claims carry the documented agent / criteria / granularity."""
+    """Claims carry the documented agent (name + per-granularity identifier)."""
     claims = _performer_claims(bundle, "Chopin_Ashkenazy")
     sample = claims[0]
-    assert sample.metadata.agent == "performance_precision"
-    assert sample.metadata.decision_criteria == "audio_to_score_alignment"
+    assert sample.metadata.agent.name == "performance_precision"
     assert sample.metadata.certainty == 1.0
-    assert "granularity" in sample.metadata.algorithm_params
+    assert sample.metadata.agent.identifier in {"note", "bar", "beats"}
 
 
 # endregion
