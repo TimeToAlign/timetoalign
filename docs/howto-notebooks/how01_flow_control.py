@@ -44,19 +44,35 @@
 
 # %%
 from fractions import Fraction
+from pathlib import Path
 
 import pandas as pd
 
 from timetoalign import Coordinate, TimeUnit
 from timetoalign.core.enums import ActivationCondition, FlowControlElement, FlowMode
 from timetoalign.loader.score import TSVLoader
-from timetoalign.testdata import ensure_data
 from timetoalign.timelines.flow import FlowMap, compute_qb_sections
 from timetoalign.timelines.flowcontrol import Break, Jump
 
-DATA_DIR = ensure_data("score") / "beethoven_woo71"
-NOTES_TSV = DATA_DIR / "WoO71.notes.tsv"
-MEASURES_TSV = DATA_DIR / "WoO71.measures.tsv"
+DATA_DIR = Path("~/git/beethoven_eroica_variations_op35/measures").expanduser()
+COUNT_THROUGH_TSV = (
+    DATA_DIR
+    / "15-variations-and-fugue-in-e-flat-major-op-35-eroica-ludwig-van-beethoven.measures.tsv"
+)
+PER_VARIATION_TSV = (
+    DATA_DIR
+    / "15-variations-and-fugue-in-e-flat-major-op-35-eroica-variations-ludwig-van-beethoven.measures.tsv"
+)
+
+# %%
+count_through_loader = TSVLoader.from_file(PER_VARIATION_TSV)
+controller = count_through_loader.create_flow_controller()
+controller
+
+# %%
+per_variation_loader = TSVLoader.from_file(PER_VARIATION_TSV)
+controller = per_variation_loader.create_flow_controller()
+controller
 
 # %% [markdown]
 # ---
@@ -179,8 +195,8 @@ pd.DataFrame(
 
 # %%
 # from_file() handles both phases: load + internal state construction
-loader = TSVLoader.from_file(MEASURES_TSV)
-controller = loader.create_flow_controller()
+per_variation_loader = TSVLoader.from_file(PER_VARIATION_TSV)
+controller = per_variation_loader.create_flow_controller()
 controller
 
 # %%
@@ -324,7 +340,7 @@ inverse_map = flow_map.inverse()
 
 # %%
 # Load notes + measures together
-loader_full = TSVLoader.from_file(NOTES_TSV, MEASURES_TSV)
+loader_full = TSVLoader.from_file(NOTES_TSV, PER_VARIATION_TSV)
 score_tl = loader_full.create_timeline()
 {
     "id": score_tl.id,
