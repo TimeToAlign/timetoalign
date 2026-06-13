@@ -44,14 +44,16 @@ website:
           contents:
             - text: "Flow Control and Grids"
               href: tutorials/tut04_flow_and_grids.ipynb
+        - section: "Data & Type Model"
+          contents:
+            - text: "DataFields and Layered EventData"
+              href: tutorials/tut05_datafields_and_eventdata.ipynb
 
     - title: "How-To Guides"
       contents:
         - howto.qmd
         - section: "Timelines, Events & Maps"
           contents:
-            - text: "How to Work with DataFields and Layered EventData"
-              href: howto/how01_datafields_and_eventdata.ipynb
             - text: "How to Work with Pitch and Harmony Types"
               href: howto/how01_pitch_and_harmony_types.ipynb
             - text: "How to Do Coordinate Math"
