@@ -584,7 +584,22 @@ class TwelveTETPitchMixin:
     subclasses that name a same-name field (V2 emits a "field shadows
     attribute in parent" warning and uses the parent property's
     descriptor, breaking the field).
+
+    Representation contract: ``repr()`` is the SHORT typed form
+    ``ABBR(token)`` (each concrete scalar sets ``_REPR_ABBR``); ``str()``
+    is the PRETTY human token (``get()``).  Concrete scalars whose pretty
+    ``get()`` token differs from the desired repr token (e.g. the dual
+    enharmonic spelling) override ``__repr__``.
     """
+
+    #: Short repr prefix.  No sensible default -- each concrete scalar sets it.
+    _REPR_ABBR: str
+
+    def __str__(self) -> str:
+        return self.get()
+
+    def __repr__(self) -> str:
+        return f"{self._REPR_ABBR}({self.get()})"
 
     def to(
         self, target_type: type, *, format: str | None = None

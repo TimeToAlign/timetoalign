@@ -172,7 +172,7 @@ def _parse_octave_from_sp(sp: str | None, step: str) -> int:
 # ---------------------------------------------------------------------------
 
 
-class EnharmonicPitchClass(BaseModel, TwelveTETPitchMixin):
+class EnharmonicPitchClass(TwelveTETPitchMixin, BaseModel):
     """Enharmonic pitch class scalar -- chromatic pitch class (0-11).
 
     Pydantic v2 ``BaseModel``, frozen.  Storage struct (derived):
@@ -180,6 +180,8 @@ class EnharmonicPitchClass(BaseModel, TwelveTETPitchMixin):
     """
 
     model_config = ConfigDict(frozen=True)
+
+    _REPR_ABBR: ClassVar[str] = "EPC"
 
     pitch_class: int
 
@@ -242,6 +244,14 @@ class EnharmonicPitchClass(BaseModel, TwelveTETPitchMixin):
     def __hash__(self) -> int:
         return hash(("EnharmonicPitchClass", self.pitch_class))
 
+    def __str__(self) -> str:
+        # Pretty label override: ``get()`` returns the bare pitch-class
+        # integer (untouched -- its Field-vectorized mirror depends on it),
+        # so ``str()`` mirrors the repr's inner token instead.
+        if 0 <= self.pitch_class < 12:
+            return _PC_TO_LABEL[self.pitch_class]
+        return str(self.pitch_class)
+
     def __repr__(self) -> str:
         if 0 <= self.pitch_class < 12:
             return f"EPC({_PC_TO_LABEL[self.pitch_class]})"
@@ -266,7 +276,7 @@ class EnharmonicPitchClassField(SemanticField[EnharmonicPitchClass]):
 _GPC_NAMES: tuple[str, ...] = ("C", "D", "E", "F", "G", "A", "B")
 
 
-class GenericPitchClass(BaseModel, TwelveTETPitchMixin):
+class GenericPitchClass(TwelveTETPitchMixin, BaseModel):
     """Generic pitch class scalar -- diatonic step (0-6).
 
     Pydantic v2 ``BaseModel``, frozen.  Storage struct (derived):
@@ -274,6 +284,8 @@ class GenericPitchClass(BaseModel, TwelveTETPitchMixin):
     """
 
     model_config = ConfigDict(frozen=True)
+
+    _REPR_ABBR: ClassVar[str] = "GPC"
 
     step: int
 
@@ -344,11 +356,6 @@ class GenericPitchClass(BaseModel, TwelveTETPitchMixin):
     def __hash__(self) -> int:
         return hash(("GenericPitchClass", self.step))
 
-    def __repr__(self) -> str:
-        if 0 <= self.step < 7:
-            return f"GPC({_GPC_NAMES[self.step]})"
-        return f"GPC({self.step})"
-
 
 class GenericPitchClassField(SemanticField[GenericPitchClass]):
     """Columnar wrapper for ``GenericPitchClass`` (paired Field)."""
@@ -368,7 +375,7 @@ class GenericPitchClassField(SemanticField[GenericPitchClass]):
 # ---------------------------------------------------------------------------
 
 
-class GenericPitch(BaseModel, TwelveTETPitchMixin):
+class GenericPitch(TwelveTETPitchMixin, BaseModel):
     """Generic pitch scalar -- diatonic step + octave.
 
     Pydantic v2 ``BaseModel``, frozen.  Storage struct (derived):
@@ -376,6 +383,8 @@ class GenericPitch(BaseModel, TwelveTETPitchMixin):
     """
 
     model_config = ConfigDict(frozen=True)
+
+    _REPR_ABBR: ClassVar[str] = "GP"
 
     step: int
     octave: int
@@ -451,11 +460,6 @@ class GenericPitch(BaseModel, TwelveTETPitchMixin):
     def __hash__(self) -> int:
         return hash(("GenericPitch", self.step, self.octave))
 
-    def __repr__(self) -> str:
-        if 0 <= self.step < 7:
-            return f"GP({_GPC_NAMES[self.step]}{self.octave})"
-        return f"GP(step={self.step}, oct={self.octave})"
-
 
 class GenericPitchField(SemanticField[GenericPitch]):
     """Columnar wrapper for ``GenericPitch`` (paired Field)."""
@@ -505,7 +509,7 @@ class GenericPitchField(SemanticField[GenericPitch]):
 # ---------------------------------------------------------------------------
 
 
-class SpecificPitchClass(BaseModel, TwelveTETPitchMixin):
+class SpecificPitchClass(TwelveTETPitchMixin, BaseModel):
     """Pitch class with spelling.
 
     Pydantic v2 ``BaseModel``, frozen.  Storage struct (derived):
@@ -514,6 +518,8 @@ class SpecificPitchClass(BaseModel, TwelveTETPitchMixin):
     """
 
     model_config = ConfigDict(frozen=True)
+
+    _REPR_ABBR: ClassVar[str] = "SPC"
 
     step: _StepLiteral
     alter: int = 0
@@ -617,9 +623,6 @@ class SpecificPitchClass(BaseModel, TwelveTETPitchMixin):
             step=str(step),
             alter=int(alter or 0),
         )
-
-    def __repr__(self) -> str:
-        return f"SpecificPitchClass({self.get()})"
 
 
 class SpecificPitchClassField(SemanticField[SpecificPitchClass]):
@@ -744,7 +747,7 @@ _EP_LABELS: tuple[str, ...] = (
 )
 
 
-class EnharmonicPitch(BaseModel, TwelveTETPitchMixin):
+class EnharmonicPitch(TwelveTETPitchMixin, BaseModel):
     """Enharmonic pitch scalar -- MIDI number with pitch-name display.
 
     Pydantic v2 ``BaseModel``, frozen.  Storage struct (derived):
@@ -753,6 +756,8 @@ class EnharmonicPitch(BaseModel, TwelveTETPitchMixin):
     """
 
     model_config = ConfigDict(frozen=True)
+
+    _REPR_ABBR: ClassVar[str] = "EP"
 
     midi_number: int
 
@@ -830,7 +835,7 @@ class EnharmonicPitch(BaseModel, TwelveTETPitchMixin):
         return hash((type(self).__name__, self.midi_number))
 
     def __repr__(self) -> str:
-        return f"EnharmonicPitch({_EP_LABELS[self.pitch_class]}{self.octave})"
+        return f"EP({_PC_TO_LABEL[self.pitch_class]}{self.octave})"
 
 
 class EnharmonicPitchField(SemanticField[EnharmonicPitch]):
@@ -912,6 +917,8 @@ class MidiPitch(EnharmonicPitch):
     ``get()`` format.
     """
 
+    _REPR_ABBR: ClassVar[str] = "MP"
+
     @property
     def semantic_type(self) -> str:
         return "MidiPitch"
@@ -929,7 +936,7 @@ class MidiPitch(EnharmonicPitch):
         return super().get(format=format)
 
     def __repr__(self) -> str:
-        return f"MidiPitch({self.midi_number})"
+        return f"MP({self.midi_number})"
 
 
 class MidiPitchField(SemanticField[MidiPitch]):
@@ -992,7 +999,7 @@ class MidiPitchField(SemanticField[MidiPitch]):
 # ---------------------------------------------------------------------------
 
 
-class SpecificPitch(BaseModel, TwelveTETPitchMixin):
+class SpecificPitch(TwelveTETPitchMixin, BaseModel):
     """Specific pitch scalar with full enharmonic identity.
 
     Storage struct (derived): ``{step: string, alter: int64, octave: int64,
@@ -1001,6 +1008,8 @@ class SpecificPitch(BaseModel, TwelveTETPitchMixin):
     """
 
     model_config = ConfigDict(frozen=True)
+
+    _REPR_ABBR: ClassVar[str] = "SP"
 
     step: _StepLiteral
     alter: int = 0
@@ -1108,9 +1117,6 @@ class SpecificPitch(BaseModel, TwelveTETPitchMixin):
                 cents=cents,
             )
         return None
-
-    def __repr__(self) -> str:
-        return f"SpecificPitch({self.get()})"
 
 
 class SpecificPitchField(SemanticField[SpecificPitch]):
@@ -1432,6 +1438,9 @@ class HarmonyLabel(BaseModel):
     def __repr__(self) -> str:
         return f"HarmonyLabel(label={self.label!r}, standard={self.standard!r})"
 
+    def __str__(self) -> str:
+        return self.label
+
 
 class HarmonyLabelField(SemanticField[HarmonyLabel]):
     """Columnar wrapper for ``HarmonyLabel`` (paired Field)."""
@@ -1481,6 +1490,9 @@ class PitchBasedHarmony(BaseModel):
 
     def __repr__(self) -> str:
         return f"PitchBasedHarmony(label={self.label!r}, root={self.root})"
+
+    def __str__(self) -> str:
+        return self.label
 
 
 class PitchBasedHarmonyField(SemanticField[PitchBasedHarmony]):
@@ -1544,6 +1556,9 @@ class WesternTertianHarmony(BaseModel):
             f"WesternTertianHarmony(label={self.label!r}, "
             f"chord_type={self.chord_type!r})"
         )
+
+    def __str__(self) -> str:
+        return self.label
 
 
 class WesternTertianHarmonyField(SemanticField[WesternTertianHarmony]):
@@ -1616,6 +1631,9 @@ class RomanNumeralHarmony(BaseModel):
             f"RomanNumeralHarmony(label={self.label!r}, "
             f"numeral={self.numeral!r}, key={self.globalkey}:{self.localkey})"
         )
+
+    def __str__(self) -> str:
+        return self.label
 
 
 class RomanNumeralHarmonyField(SemanticField[RomanNumeralHarmony]):
@@ -1779,6 +1797,9 @@ class DcmlHarmony(BaseModel):
             f"DcmlHarmony(label={self.label!r}, key={self.globalkey}:{self.localkey})"
         )
 
+    def __str__(self) -> str:
+        return self.label
+
 
 class DcmlHarmonyField(SemanticField[DcmlHarmony]):
     """Columnar wrapper for ``DcmlHarmony`` (paired Field)."""
@@ -1929,6 +1950,10 @@ class Note(BaseModel):
     def __repr__(self) -> str:
         pitch_str = repr(self.pitch) if self.pitch is not None else "rest"
         return f"Note(start={self.start}, duration={self.duration}, pitch={pitch_str})"
+
+    def __str__(self) -> str:
+        pitch_str = str(self.pitch) if self.pitch is not None else "rest"
+        return f"{pitch_str} @{self.start}+{self.duration}"
 
 
 def _drop_field(_model_cls: type[BaseModel], _name: str, _info: object) -> list[Any]:
@@ -2128,6 +2153,9 @@ class Measure(BaseModel):
         ts = f"{self.time_signature[0]}/{self.time_signature[1]}"
         return f"Measure(id={self.id}, mn={self.mn!r}, timesig={ts})"
 
+    def __str__(self) -> str:
+        return str(self.mn)
+
 
 class MeasureField(SemanticField[Measure]):
     """Columnar wrapper for ``Measure`` (paired Field)."""
@@ -2157,7 +2185,7 @@ class MeasureNumber(BaseModel):
         return cls(value=int(v))
 
     def __repr__(self) -> str:
-        return f"MeasureNumber(value={self.value})"
+        return f"MeasureNumber({self.value})"
 
     def __str__(self) -> str:
         return str(self.value)
@@ -2199,7 +2227,7 @@ class Id(BaseModel):
         return cls(value=str(v))
 
     def __repr__(self) -> str:
-        return f"Id(value={self.value!r})"
+        return f"Id({self.value!r})"
 
     def __str__(self) -> str:
         return self.value
@@ -2283,7 +2311,12 @@ class MidiEvent(BaseModel):
             program=row.get("program"),
         )
 
-    def __repr__(self) -> str:
+    def _repr_parts(self) -> list[str]:
+        """Return ``"field=val"`` strings for every non-None field.
+
+        Subclasses extend this (never the rendered string) so the
+        inherited :meth:`__repr__` stays the single rendering site.
+        """
         parts: list[str] = []
         if self.pitch is not None:
             parts.append(f"pitch={self.pitch!r}")
@@ -2299,7 +2332,10 @@ class MidiEvent(BaseModel):
             parts.append(f"value={self.value}")
         if self.program is not None:
             parts.append(f"program={self.program}")
-        return f"{type(self).__name__}({', '.join(parts)})"
+        return parts
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({', '.join(self._repr_parts())})"
 
 
 class MidiEventField(SemanticField[MidiEvent]):
@@ -2359,21 +2395,15 @@ class ScoreMidiEvent(MidiEvent):
             part_id=row.get("part_id"),
         )
 
-    def __repr__(self) -> str:
-        # ``super().__repr__()`` returns "ScoreMidiEvent(...)" because
-        # it uses ``type(self).__name__``; pop off the wrapper, append
-        # our extras, and re-wrap so the subclass fields are visible.
-        base = super().__repr__()
-        inner = base.split("(", 1)[1].rsplit(")", 1)[0]
-        extras: list[str] = []
+    def _repr_parts(self) -> list[str]:
+        parts = super()._repr_parts()
         if self.voice is not None:
-            extras.append(f"voice={self.voice}")
+            parts.append(f"voice={self.voice}")
         if self.staff is not None:
-            extras.append(f"staff={self.staff}")
+            parts.append(f"staff={self.staff}")
         if self.part_id is not None:
-            extras.append(f"part_id={self.part_id!r}")
-        parts = [p for p in (inner, *extras) if p]
-        return f"{type(self).__name__}({', '.join(parts)})"
+            parts.append(f"part_id={self.part_id!r}")
+        return parts
 
 
 class ScoreMidiEventField(SemanticField[ScoreMidiEvent]):

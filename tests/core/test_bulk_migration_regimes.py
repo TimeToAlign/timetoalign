@@ -177,7 +177,7 @@ class TestMidiPitchRegimes:
         p = MidiPitch(60)
         assert p.midi_number == 60
         assert p.semantic_type == "MidiPitch"
-        assert repr(p) == "MidiPitch(60)"
+        assert repr(p) == "MP(60)"
 
 
 class TestHarmonyLabelRegimes:
