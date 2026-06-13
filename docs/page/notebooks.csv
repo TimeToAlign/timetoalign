@@ -5,7 +5,7 @@ tutorials,tut01b_children_regions_timestamps.py,tut01b_children_regions_timestam
 tutorials,tut02_timeline_groups.py,tut02_timeline_groups,Timeline Groups and Commensurability,"TimelineGroup, coordinate transfer, partial alignment"
 tutorials,tut03_alignment_bundles.py,tut03_alignment_bundles,Alignment Bundles,"MatchfileLoader, AlignmentBundle, cross-group transfer"
 tutorials,tut04_flow_and_grids.py,tut04_flow_and_grids,Flow Control and Grids,"BeatGrid, repeats, metrical structure"
-howto,how01_datafields_and_eventdata.py,how01_datafields_and_eventdata,How to Work with DataFields and Layered EventData,"Data-access axis: raw DataFields, SemanticField composition, Layer 0/1/2, PitchField blueprints, Parquet round-trip"
+tutorials,tut05_datafields_and_eventdata.py,tut05_datafields_and_eventdata,DataFields and Layered EventData,"The Protocol/Scalar/Field triple, raw Layer 0 fields, default and self-built semantic fields, discovery, and Parquet-embedded metadata"
 howto,how01_pitch_and_harmony_types.py,how01_pitch_and_harmony_types,How to Work with Pitch and Harmony Types,"Type-design axis: Protocol/Scalar/Field for pitch and harmony, conversion, protocol dispatch, Parquet round-trip"
 howto,how01_coordinate_math.py,how01_coordinate_math,How to Do Coordinate Math,"Domains, TimeUnits, NumberType, Coordinate arithmetic"
 howto,how01_advanced_cmaps.py,how01_advanced_cmaps,How to Use Advanced Conversion Maps,"ChainMap, PiecewiseMap, TableMap, vectorised operations"
