@@ -129,6 +129,18 @@ def test_discovers_five_performers(loader: ParangonadaLoader) -> None:
     assert loader.performer_keys == PERFORMER_KEYS
 
 
+def test_repr_html_shows_claims_not_zero_events(loader: ParangonadaLoader) -> None:
+    """The HTML card reports the real claim count, never the base Events: 0."""
+    html = loader._repr_html_()
+    n_claims = len(loader)
+    assert f"<tr><td><b>Claims</b></td><td>{n_claims}</td></tr>" in html
+    assert "Events" not in html
+    assert "<tr><td><b>Performers</b></td><td>5</td></tr>" in html
+    assert "<b>Dataset</b>" in html
+    assert "in 6 group(s)" in html
+    assert "<b>Performer keys</b>" in html
+
+
 # endregion
 
 

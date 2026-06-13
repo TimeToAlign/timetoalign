@@ -72,6 +72,7 @@ from timetoalign.alignment.claims import (
 )
 from timetoalign.core import AgentType, TimeUnit
 from timetoalign.core.fields import SemanticField
+from timetoalign.display.html import code
 from timetoalign.loader.base import AlignmentLoader
 from timetoalign.timelines.types import ContinuousPhysicalTimeline
 
@@ -460,43 +461,31 @@ class ListenHereLoader(AlignmentLoader):
 
     # region HTML Representation
 
-    def _repr_html_(self) -> str:
-        """Accurate Jupyter summary consistent with :meth:`__repr__`.
+    def _repr_count_row(self) -> tuple[str, str]:
+        """This loader's payload is pairwise claims, not store events."""
+        return ("Claims", str(len(self)))
 
-        The base :class:`AlignmentLoader` HTML reads the unpopulated
-        per-source ``AlignmentStore`` and reports ``Events: 0``, which
-        contradicts this loader (whose data lives in the assembled timelines
-        and the claim field).  This override renders the real shape: the
-        recording count, the claim count, and the timeline / group structure
-        (one empty seconds timeline per recording, each its own group).
+    def _repr_rows(self) -> list[tuple[str, str]]:
+        """Extend the base rows with the Listen Here!-specific shape.
+
+        The base :class:`AlignmentLoader` count row is replaced by the
+        claim count (see :meth:`_repr_count_row`); the data lives in the
+        assembled timelines and the claim field, not the unpopulated
+        per-source ``AlignmentStore``.  One empty seconds timeline per
+        recording, each in its own group.
         """
+        rows = super()._repr_rows()
         n_recordings = len(self._keys)
-        n_claims = len(self._claim_field) if self._claim_field is not None else 0
-        loaded = self._claim_field is not None
-
-        parts = [f"<h4>{self.__class__.__name__}</h4>", "<table>"]
         name = self._name or "(not loaded)"
         ref = self._ref or "(not loaded)"
-        parts.append(f"<tr><td><b>File</b></td><td><code>{name}</code></td></tr>")
-        parts.append(f"<tr><td><b>Recordings</b></td><td>{n_recordings}</td></tr>")
-        parts.append(f"<tr><td><b>Reference</b></td><td><code>{ref}</code></td></tr>")
-        parts.append(f"<tr><td><b>Claims</b></td><td>{n_claims}</td></tr>")
-
-        if loaded:
-            # One empty seconds timeline per recording, each in its own group.
-            parts.append(
-                f"<tr><td><b>Timelines</b></td><td>{n_recordings} "
-                f"in {n_recordings} group(s)</td></tr>"
-            )
-            stems = ", ".join(f"<code>{s}</code>" for s in self.recording_keys)
-            parts.append(f"<tr><td><b>Recordings</b></td><td>{stems}</td></tr>")
-
-        parts.append(
-            "<tr><td><b>Create</b></td>"
-            "<td>create_bundle(), create_timeline(), create_timelines()</td></tr>"
-        )
-        parts.append("</table>")
-        return "\n".join(parts)
+        rows.append(("File", code(name)))
+        rows.append(("Recordings", str(n_recordings)))
+        rows.append(("Reference", code(ref)))
+        if self._claim_field is not None:
+            rows.append(("Timelines", f"{n_recordings} in {n_recordings} group(s)"))
+            stems = ", ".join(code(s) for s in self.recording_keys)
+            rows.append(("Recording keys", stems))
+        return rows
 
     # endregion
 

@@ -350,6 +350,44 @@ surgery over the base repr. The exact-string assertions guard against silent
 drift, regression of the EnharmonicPitch dual-spelling repr, and accidental
 re-introduction of the verbose `Object(field=…)` forms.
 
+### `test_field_repr_html.py` - Field affordance `_repr_html_`
+
+Validates the rich-HTML affordance card every `DataField` / `SemanticField`
+renders through the shared `affordance_html` helper.
+
+**What we validate (exact presence of specific rows/snippets):**
+
+- A live `CoordinateField` card titled `<h4>CoordinateField</h4>` shows:
+  - a `Scalar type` row whose value is `Coordinate`;
+  - a `Length` row matching the element count;
+  - an `Arrow type` row (escaped `struct<…>`);
+  - a `Sample` row containing the new scalar reprs (e.g. `Coordinate(0.0,`)
+    — proving the sample uses `repr(field[i])`, the WP5a scalar reprs.
+- The `Try` row lists exactly the three affordance snippets
+  `field[i] -> <Scalar>`, `field.convert_to(<TargetScalar>)`,
+  `field.get_raw()` (each as a `<code>` span, `<`/`>` escaped).
+- A raw `StructField` card (the scalar-less base path) shows `Length`,
+  `Arrow type`, `Sample` and the base `field[i]` / `field.get_raw()`
+  affordances — but NO `Scalar type` row.
+- A schema-only (blueprint) field's `Sample` value is `(schema-only)` and
+  its `Length` is `0` — the card never raises.
+- Head/tail truncation: a 6-element field's `Sample` shows the first 3 and
+  last 2 element reprs separated by the `…` ellipsis.
+
+### `test_eventdata_repr_html.py` - EventData affordance `_repr_html_`
+
+**What we validate:**
+
+- A `MidiEventData` card titled `<h4>MidiEventData</h4>` shows `Events`,
+  `Unit`, `Number type`, and a `Fields` row listing each metadata-bearing
+  semantic field as `name : ScalarType` inside an `<ul>` (the materialised
+  `pitch` column reports `pitch : EnharmonicPitch`).
+- The `Try` row lists `get_field(<Scalar>)`, `get_pitch_field()`,
+  `get_raw('<col>')`.
+- A plain `EventData` whose columns carry no `field_type` metadata renders a
+  `Fields` row of `(none)` and does NOT raise (graceful skip per the
+  "must not raise if a column has no paired field" contract).
+
 ---
 
 ## Running Tests
