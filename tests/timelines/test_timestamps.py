@@ -770,4 +770,74 @@ class TestTimestampEdgeCases:
         assert len(table.column_names) == 102  # axis + big + 100 children
 
 
+class TestFractionLengthTimestamps:
+    """Timestamp generation on a quarters/beats timeline whose length is a Fraction.
+
+    A logical (quarters/beats) timeline stores its length as a ``Coordinate``
+    whose ``value`` is a ``Fraction``. The bounds check inside
+    ``_compute_local_coordinates`` compares the local coordinate array against
+    that length scalar through a PyArrow compute kernel, which rejects a raw
+    ``Fraction``. These tests pin that the length reaches the kernel as a float
+    so both public timestamp entry points run without raising on a
+    Fraction-length timeline.
+    """
+
+    def test_compute_local_coordinates_with_fraction_length(self) -> None:
+        """The bounds kernel accepts a Fraction-valued length."""
+        from fractions import Fraction
+
+        from timetoalign.timelines.types import ContinuousLogicalTimeline
+
+        tl = ContinuousLogicalTimeline(length=Fraction(9, 2))
+        assert isinstance(tl._length.value, Fraction)
+
+        local = tl._compute_local_coordinates(
+            pa.array([0.0, 2.0, 4.5, 5.0], type=pa.float64()), offset=0.0
+        )
+        # In bounds [0, 9/2]: 0.0, 2.0, 4.5 kept; 5.0 > 4.5 -> null.
+        assert local.to_pylist() == [0.0, 2.0, 4.5, None]
+
+    def test_get_timestamp_table_with_fraction_length(self) -> None:
+        """get_timestamp_table() runs on a Fraction-length quarters timeline."""
+        from fractions import Fraction
+
+        from timetoalign.timelines.types import ContinuousLogicalTimeline
+
+        tl = ContinuousLogicalTimeline(length=Fraction(9, 2))
+        tl.add_events(
+            [
+                {"start": Fraction(0)},
+                {"start": Fraction(3, 2)},
+                {"start": Fraction(3)},
+            ]
+        )
+
+        table = tl.get_timestamp_table()
+        assert table.num_rows == 3
+        assert table.column("axis").to_pylist() == [0.0, 1.5, 3.0]
+        # Root timeline (offset 0): local coordinates equal the axis.
+        assert table.column(tl.id).to_pylist() == [0.0, 1.5, 3.0]
+
+    def test_get_timestamps_with_fraction_length(self) -> None:
+        """get_timestamps() runs and returns exact Fraction coordinates."""
+        from fractions import Fraction
+
+        from timetoalign.timelines.types import ContinuousLogicalTimeline
+
+        tl = ContinuousLogicalTimeline(length=Fraction(9, 2))
+        tl.add_events(
+            [
+                {"start": Fraction(0)},
+                {"start": Fraction(3, 2)},
+                {"start": Fraction(3)},
+            ]
+        )
+
+        df = tl.get_timestamps()
+        assert df.shape == (3, 2)
+        axis_name = df.columns[0]
+        # Fraction number-type timeline -> coordinates auto-rendered as Fractions.
+        assert list(df[axis_name]) == [Fraction(0), Fraction(3, 2), Fraction(3)]
+
+
 # endregion
