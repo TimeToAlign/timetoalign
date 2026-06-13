@@ -2675,9 +2675,11 @@ class Timeline:
         # Subtract offset: local = root - offset
         local = pc.subtract(root_coords, offset)
 
-        # Create mask for out-of-bounds coordinates
+        # Create mask for out-of-bounds coordinates. The length scalar must
+        # reach the kernel as a float: on a quarters/beats axis its value is a
+        # Fraction, which the PyArrow compute kernel rejects.
         too_low = pc.less(local, 0.0)
-        too_high = pc.greater(local, self._length.value)
+        too_high = pc.greater(local, float(self._length.value))
         out_of_bounds = pc.or_(too_low, too_high)
 
         # Replace out-of-bounds with null
