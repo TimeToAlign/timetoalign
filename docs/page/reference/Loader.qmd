@@ -1,7 +1,11 @@
 # Loader { #timetoalign.Loader }
 
 ```python
-Loader(unit=None, number_type=NumberType.float)
+Loader(
+    unit=None,
+    number_type=NumberType.float,
+    interval_policy=IntervalPolicy.warn,
+)
 ```
 
 Abstract base class for loading music representations.
@@ -53,13 +57,14 @@ Examples:
 | [count_events_by_temporal_type](#timetoalign.Loader.count_events_by_temporal_type) | Count events grouped by temporal_type (instant/interval). |
 | [count_events_by_type](#timetoalign.Loader.count_events_by_type) | Count events grouped by event_type. |
 | [create_bundle](#timetoalign.Loader.create_bundle) | Create an `AlignmentBundle`. Override in subclasses that support bundles. |
-| [create_cmap](#timetoalign.Loader.create_cmap) | Create a ConversionMap from two coordinate columns. |
+| [create_cmap](#timetoalign.Loader.create_cmap) | Create a ConversionMap from two coordinate fields. |
 | [create_group](#timetoalign.Loader.create_group) | Create a `TimelineGroup`. Override in subclasses that support groups. |
 | [create_timeline](#timetoalign.Loader.create_timeline) | Create a Timeline from the loaded events. |
 | [create_timelines](#timetoalign.Loader.create_timelines) | Create all timelines, optionally filtered by regex pattern. |
 | [event_summary](#timetoalign.Loader.event_summary) | Get a summary of loaded events. |
 | [from_file](#timetoalign.Loader.from_file) | Load one or more files and return the loader (convenience constructor). |
 | [from_parquet](#timetoalign.Loader.from_parquet) | Load a Loader from a Parquet file. |
+| [get_events](#timetoalign.Loader.get_events) | Return an EventData assembled from loaded data. |
 | [load](#timetoalign.Loader.load) | Load one or more source files. |
 | [to_parquet](#timetoalign.Loader.to_parquet) | Save the loaded events to a Parquet file. |
 
@@ -107,20 +112,20 @@ Returns:
 ### create_cmap { #timetoalign.Loader.create_cmap }
 
 ```python
-Loader.create_cmap(source_column, target_column, *, map_type=None, **kwargs)
+Loader.create_cmap(source_field, target_field, *, map_type=None, **kwargs)
 ```
 
-Create a ConversionMap from two coordinate columns.
+Create a ConversionMap from two coordinate fields.
 
 This method creates a C-Map from loaded coordinate data, enabling
 conversion between different coordinate systems (e.g., seconds to pixels).
 
-Both columns must contain coordinate data (either core coordinates like
-'start'/'end', or CoordinateField extra columns).
+Both fields must contain coordinate data (either core coordinates like
+'start'/'end', or CoordinateField extra fields).
 
 Args:
-    source_column: Name of the source coordinate column.
-    target_column: Name of the target coordinate column.
+    source_field: Name of the source coordinate field.
+    target_field: Name of the target coordinate field.
     map_type: The map class to create. Defaults to TableMap.
         Supported: TableMap, LinearMap, ScalarMap.
     **kwargs: Additional arguments passed to the map constructor.
@@ -131,7 +136,7 @@ Returns:
     A ConversionMap instance.
 
 Raises:
-    ValueError: If columns don't exist or aren't coordinate columns.
+    ValueError: If fields don't exist or aren't coordinate fields.
     ValueError: If insufficient data points for the map type.
 
 Examples:
@@ -258,6 +263,31 @@ Args:
 Returns:
     A new Loader with events loaded from the file.
 
+### get_events { #timetoalign.Loader.get_events }
+
+```python
+Loader.get_events(properties=True)
+```
+
+Return an EventData assembled from loaded data.
+
+This is the primary access method for the loader-first pipeline.
+It assembles EventData from the loaded data, with control over
+which property fields are included.
+
+Args:
+    properties: Controls which non-field-spec data fields to include.
+        - ``True``: Include all property fields (default).
+        - ``False``: Only include semantic-field fields (start, end,
+          duration, pitch, etc.) and core fields (id, name,
+          event_type, temporal_type).
+        - Single string: shorthand for a one-element tuple — include
+          only the named property field.
+        - Tuple of strings: Include only the named property fields.
+
+Returns:
+    An ``EventData`` containing the assembled events.
+
 ### load { #timetoalign.Loader.load }
 
 ```python
@@ -269,7 +299,7 @@ Load one or more source files.
 Events from all sources are aggregated into the EventData.
 Metadata for each source is recorded separately.
 
-Supports both vectorized (column dict) and legacy (row dicts) modes:
+Supports both vectorized (field dict) and legacy (row dicts) modes:
 - Vectorized: _load_source returns dict[str, np.ndarray | pa.Array]
 - Legacy: _load_source returns list[dict[str, Any]]
 

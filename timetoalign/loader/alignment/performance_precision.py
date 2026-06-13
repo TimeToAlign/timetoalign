@@ -328,8 +328,9 @@ class PerformancePrecisionLoader(AlignmentLoader):
             for r in table.column("mn_onset").to_pylist()
         ]
         # ``pitch`` is the EnharmonicPitch struct {midi_number}; carry the
-        # raw MIDI pitch integer (the faithful ``.solo`` value).
-        pitches = [r["midi_number"] for r in table.column("pitch").to_pylist()]
+        # whole struct so the score timeline keeps affording the
+        # EnharmonicPitch view (``add_events`` preserves the struct column).
+        pitches = table.column("pitch").to_pylist()
         velocities = table.column("velocity").to_pylist()
         note_ids = [r["value"] for r in table.column("note_id").to_pylist()]
 

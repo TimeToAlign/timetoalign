@@ -455,3 +455,130 @@ class TestEventDataSubclass:
 
         names = NoteEventData.field_names()
         assert "pitch" in names
+
+
+class TestCarriedStructAffordance:
+    """Carried struct dicts survive ``from_dicts`` / ``add_events`` as typed columns.
+
+    A loader may emit an event attribute as a struct dict (a pitch promoted
+    to ``{"midi_number": 60}``, a spelling promoted to the SpecificPitch
+    shape).  ``from_dicts`` MUST rebuild it as a proper struct column that
+    keeps affording the semantic-field view — never collapse it to a JSON
+    string.
+    """
+
+    def test_from_dicts_preserves_pitch_struct(self) -> None:
+        from timetoalign.core.events import EnharmonicPitch, EnharmonicPitchField
+
+        events = [
+            {
+                "id": "n1",
+                "event_type": "Note",
+                "start": 0,
+                "pitch": {"midi_number": 60},
+            },
+            {
+                "id": "n2",
+                "event_type": "Note",
+                "start": 1,
+                "pitch": {"midi_number": 64},
+            },
+        ]
+        data = EventData.from_dicts(events, TimeUnit.quarters)
+
+        col = data.table.column("pitch")
+        assert col.type == pa.struct([pa.field("midi_number", pa.int64())])
+        assert col[0]["midi_number"].as_py() == 60
+
+        field = data.get_field(EnharmonicPitch)
+        assert isinstance(field, EnharmonicPitchField)
+        assert field[1] == EnharmonicPitch(midi_number=64)
+
+    def test_from_dicts_preserves_specific_pitch_struct(self) -> None:
+        """All-null leaves (cents) keep their declared float64 type."""
+        from timetoalign.core.events import SpecificPitch
+
+        events = [
+            {
+                "id": "n1",
+                "event_type": "Note",
+                "start": 0,
+                "specific_pitch": {
+                    "step": "C",
+                    "alter": 0,
+                    "octave": 4,
+                    "cents": None,
+                },
+            }
+        ]
+        data = EventData.from_dicts(events, TimeUnit.quarters)
+        assert data.get_field(SpecificPitch)[0] == SpecificPitch(
+            step="C", alter=0, octave=4
+        )
+
+    def test_from_dicts_never_json_stringifies_struct(self) -> None:
+        events = [
+            {"id": "n1", "event_type": "Note", "start": 0, "pitch": {"midi_number": 60}}
+        ]
+        data = EventData.from_dicts(events, TimeUnit.quarters)
+        assert pa.types.is_struct(data.table.column("pitch").type)
+
+    def test_atomic_carried_attribute_stays_string(self) -> None:
+        """Atomic extras keep the historical string-coercion behaviour."""
+        events = [{"id": "n1", "event_type": "Note", "start": 0, "label_text": 42}]
+        data = EventData.from_dicts(events, TimeUnit.quarters)
+        assert data.table.column("label_text")[0].as_py() == "42"
+
+    def test_add_events_roundtrip_preserves_affordance(self) -> None:
+        from timetoalign.core.events import EnharmonicPitch
+        from timetoalign.timelines import ContinuousLogicalTimeline
+
+        tl = ContinuousLogicalTimeline(length=10, unit=TimeUnit.quarters, uid="clt1")
+        tl.add_events(
+            [
+                {
+                    "id": "n1",
+                    "event_type": "Note",
+                    "start": 0,
+                    "pitch": {"midi_number": 60},
+                },
+                {
+                    "id": "n2",
+                    "event_type": "Note",
+                    "start": 1,
+                    "pitch": {"midi_number": 67},
+                },
+            ]
+        )
+        col = tl.events.table.column("pitch")
+        assert pa.types.is_struct(col.type)
+        assert tl.events.get_field(EnharmonicPitch)[1] == EnharmonicPitch(
+            midi_number=67
+        )
+        # The universal convenience accessor works on plain timeline EventData.
+        assert tl.events.get_pitch_field()[1].midi_number == 67
+
+    def test_second_batch_without_struct_preserves_first(self) -> None:
+        """A later add_events batch lacking the struct null-fills it."""
+        from timetoalign.core.events import EnharmonicPitch
+        from timetoalign.timelines import ContinuousLogicalTimeline
+
+        tl = ContinuousLogicalTimeline(length=10, unit=TimeUnit.quarters, uid="clt1")
+        tl.add_events(
+            [
+                {
+                    "id": "n1",
+                    "event_type": "Note",
+                    "start": 0,
+                    "pitch": {"midi_number": 60},
+                }
+            ]
+        )
+        tl.add_events(
+            [{"id": "b1", "event_type": "Beat", "start": 1}], allow_expansion=True
+        )
+        col = tl.events.table.column("pitch")
+        assert pa.types.is_struct(col.type)
+        assert tl.events.get_field(EnharmonicPitch)[0] == EnharmonicPitch(
+            midi_number=60
+        )

@@ -258,21 +258,34 @@ def test_beethoven_onset_spot_check() -> None:
 
 
 def test_beethoven_note_pitch_spot_check() -> None:
-    """Beethoven ``nbwxzb1`` carries verbatim MSM pitch + spelling on dlt1.
+    """Beethoven ``nbwxzb1`` carries both afforded pitch views on dlt1.
 
-    The timeline's generic ``add_events`` ingestion stores carried,
-    non-coordinate attributes as strings, so the test coerces them back to
-    the parsed numeric values (the same convention as the other alignment
-    loader tests).  ``start`` is a coordinate, so it round-trips numerically.
+    The score timeline preserves two struct columns through ``add_events``:
+    ``pitch`` (the ``EnharmonicPitch`` ``{midi_number}`` struct) and
+    ``specific_pitch`` (the ``SpecificPitch`` ``{step, alter, octave, cents}``
+    struct lifted from the verbatim MSM spelling ``pitchname="e"``,
+    ``accidentals=-1``, ``octave=4`` → E♭4).  ``start`` is a coordinate, so it
+    round-trips numerically.
     """
+    from timetoalign.core.events import EnharmonicPitch, SpecificPitch
+
     loader = _loaded(BEETHOVEN_MPR)
     dlt = loader.create_timeline(SCORE_DLT_ID)
     note = next(r for r in _event_rows(dlt) if r["id"] == "nbwxzb1")
-    assert int(note["pitch"]) == 75
-    assert note["pitchname"] == "e"
-    assert int(note["accidentals"]) == -1
-    assert int(note["octave"]) == 4
+    assert note["pitch"] == {"midi_number": 75}
+    assert note["specific_pitch"]["step"] == "E"
+    assert note["specific_pitch"]["alter"] == -1
+    assert note["specific_pitch"]["octave"] == 4
     assert note["start"]["value"] == 360.0
+
+    # Both semantic-field views are afforded over the struct columns.
+    events = dlt.events
+    ep = events.get_field(EnharmonicPitch)
+    sp = events.get_field(SpecificPitch)
+    ids = events._table.column("id").to_pylist()
+    idx = ids.index("nbwxzb1")
+    assert ep[idx] == EnharmonicPitch(midi_number=75)
+    assert sp[idx] == SpecificPitch(step="E", alter=-1, octave=4)
 
 
 # endregion

@@ -21,7 +21,6 @@ from timetoalign.core.events import (
 from timetoalign.loader.mixins import (
     HarmonyAccessMixin,
     MeasureAccessMixin,
-    PitchAccessMixin,
     SemanticFieldAccessMixin,
 )
 
@@ -139,11 +138,6 @@ class _MixinHost(SemanticFieldAccessMixin):
         self._table = table
 
 
-class _PitchHost(PitchAccessMixin):
-    def __init__(self, table: pa.Table) -> None:
-        self._table = table
-
-
 class _HarmonyHost(HarmonyAccessMixin):
     def __init__(self, table: pa.Table) -> None:
         self._table = table
@@ -208,37 +202,50 @@ class TestSemanticFieldAccessMixin:
 
 
 # ---------------------------------------------------------------------------
-# PitchAccessMixin tests
+# get_pitch_field — universal accessor on the base SemanticFieldAccessMixin
 # ---------------------------------------------------------------------------
 
 
-class TestPitchAccessMixin:
+class TestPitchFieldAccessor:
+    """``get_pitch_field`` is now on the base mixin (no ``PitchAccessMixin``).
+
+    Every ``EventData`` — including the plain bundle / timeline ``EventData``
+    carrying only ``SemanticFieldAccessMixin`` — affords it.  The priority
+    logic (SP > EP > SPC > GPC) is unchanged.
+    """
+
     def test_get_pitch_field_with_type(self) -> None:
-        host = _PitchHost(_make_midi_pitch_table())
+        host = _MixinHost(_make_midi_pitch_table())
         result = host.get_pitch_field(EnharmonicPitchField)
         assert isinstance(result, EnharmonicPitchField)
 
     def test_get_pitch_field_default_priority_sp(self) -> None:
         """When both EP and SP are present, default picks SP (most informative)."""
-        host = _PitchHost(_make_both_pitch_table())
+        host = _MixinHost(_make_both_pitch_table())
         result = host.get_pitch_field()
         assert isinstance(result, SpecificPitchField)
 
     def test_get_pitch_field_default_only_ep(self) -> None:
-        host = _PitchHost(_make_midi_pitch_table())
+        host = _MixinHost(_make_midi_pitch_table())
         result = host.get_pitch_field()
         assert isinstance(result, EnharmonicPitchField)
 
     def test_get_pitch_field_default_only_sp(self) -> None:
-        host = _PitchHost(_make_specific_pitch_table())
+        host = _MixinHost(_make_specific_pitch_table())
         result = host.get_pitch_field()
         assert isinstance(result, SpecificPitchField)
 
     def test_get_pitch_field_raises_no_pitch(self) -> None:
         table = pa.table({"x": pa.array([1])})
-        host = _PitchHost(table)
+        host = _MixinHost(table)
         with pytest.raises(KeyError, match="No pitch field"):
             host.get_pitch_field()
+
+    def test_get_pitch_field_on_base_mixin_host(self) -> None:
+        """The accessor resolves on a host carrying ONLY the base mixin."""
+        assert hasattr(SemanticFieldAccessMixin, "get_pitch_field")
+        host = _MixinHost(_make_midi_pitch_table())
+        assert host.get_pitch_field()[0].midi_number == 60
 
 
 # ---------------------------------------------------------------------------
@@ -303,6 +310,12 @@ class TestMeasureAccessMixin:
 
 
 class TestEventDataComposition:
+    def test_base_event_data_affords_pitch_access(self) -> None:
+        """Plain bundle / timeline ``EventData`` affords ``get_pitch_field``."""
+        from timetoalign.loader.events import EventData
+
+        assert hasattr(EventData, "get_pitch_field")
+
     def test_note_event_data_has_pitch_access(self) -> None:
         from timetoalign.loader.score.stores.notes import NoteEventData
 

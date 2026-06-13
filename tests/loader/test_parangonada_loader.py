@@ -148,15 +148,24 @@ def test_score_dlt_event_count(loader: ParangonadaLoader) -> None:
 
 
 def test_score_clt_carries_pitch_and_voice(loader: ParangonadaLoader) -> None:
-    """The first part.csv note (id 'nwqgcz5') carries MIDI pitch 63, voice 3."""
+    """The first part.csv note (id 'nwqgcz5') carries MIDI pitch 63, voice 3.
+
+    The score timeline affords the ``EnharmonicPitch`` view: ``pitch`` is the
+    ``{midi_number}`` struct (preserved through ``add_events``).
+    """
+    from timetoalign.core.events import EnharmonicPitch
+
     score = loader.create_timeline(SCORE_CLT_ID)
     table = score.events._table
     ids = table.column("id").to_pylist()
     pitches = table.column("pitch").to_pylist()
     voices = table.column("voice").to_pylist()
     idx = ids.index("nwqgcz5")
-    assert int(pitches[idx]) == 63
+    assert pitches[idx] == {"midi_number": 63}
     assert int(voices[idx]) == 3
+
+    field = score.events.get_field(EnharmonicPitch)
+    assert field[idx] == EnharmonicPitch(midi_number=63)
 
 
 def test_divs_to_quarters_cmap_reproduces_all_onsets(

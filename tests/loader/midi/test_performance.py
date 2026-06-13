@@ -74,8 +74,14 @@ class TestPerformanceMidiLoader:
         event = loader.events.to_dataframe().iloc[0]
 
         assert event["event_type"] == MidiEventType.NOTE
-        assert event["pitch"] == 60
+        # ``pitch`` is the EnharmonicPitch struct {midi_number}.
+        assert event["pitch"]["midi_number"] == 60
         assert event["duration"] == 480
+
+        # The produced EventData affords the EnharmonicPitch semantic view.
+        from timetoalign.core.events import EnharmonicPitch
+
+        assert loader.events.get_field(EnharmonicPitch)[0].midi_number == 60
 
     def test_performance_emits_narrow_schema(self, tmp_path: Path) -> None:
         """Performance MIDI emits the narrower 7-extra-column schema.

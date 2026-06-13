@@ -1,102 +1,12 @@
 # IdCoordinate { #timetoalign.IdCoordinate }
 
 ```python
-IdCoordinate(value, unit, timeline_id)
+IdCoordinate(value=None, unit=None, timeline_id=None, /, **data)
 ```
 
-A Coordinate that carries the ID of the timeline it belongs to.
+A ``Coordinate`` that carries the ID of the timeline it belongs to.
 
-IdCoordinate extends Coordinate with a timeline_id field, providing
-the most specific form of coordinate specification. This enables
-unambiguous coordinate operations across multiple timelines.
-
-The layered coordinate specification API:
-- Least specific: Just a number (int, float, Fraction)
-- More specific: A Coordinate (value + unit)
-- Most specific: An IdCoordinate (value + unit + timeline_id)
-
-Attributes:
-    value: The numeric position (int, float, or Fraction)
-    unit: The time unit (e.g., seconds, quarters, pixels)
-    timeline_id: The unique identifier of the timeline this coordinate belongs to
-
-Examples:
-    >>> c = IdCoordinate(120, TimeUnit.ticks, "midi:1")
-    >>> c.timeline_id
-    'midi:1'
-
-    >>> # Create from existing Coordinate
-    >>> coord = Coordinate(1.5, TimeUnit.seconds)
-    >>> id_coord = coord.with_timeline("audio:1")
-    >>> id_coord.timeline_id
-    'audio:1'
-
-    >>> # Downcast to Coordinate (drops timeline_id)
-    >>> base_coord = id_coord.to_coordinate()
-    >>> isinstance(base_coord, IdCoordinate)
-    False
-
-## Methods
-
-| Name | Description |
-| --- | --- |
-| [from_coordinate](#timetoalign.IdCoordinate.from_coordinate) | Create an IdCoordinate from a Coordinate and timeline ID. |
-| [to_coordinate](#timetoalign.IdCoordinate.to_coordinate) | Return a base Coordinate without the timeline_id. |
-| [with_timeline](#timetoalign.IdCoordinate.with_timeline) | Return a new IdCoordinate with a different timeline_id. |
-| [with_unit](#timetoalign.IdCoordinate.with_unit) | Return a new IdCoordinate with a different unit but same value and timeline. |
-| [with_value](#timetoalign.IdCoordinate.with_value) | Return a new IdCoordinate with a different value but same unit and timeline. |
-
-### from_coordinate { #timetoalign.IdCoordinate.from_coordinate }
-
-```python
-IdCoordinate.from_coordinate(coord, timeline_id)
-```
-
-Create an IdCoordinate from a Coordinate and timeline ID.
-
-Args:
-    coord: The base Coordinate.
-    timeline_id: The timeline ID to attach.
-
-Returns:
-    A new IdCoordinate.
-
-### to_coordinate { #timetoalign.IdCoordinate.to_coordinate }
-
-```python
-IdCoordinate.to_coordinate()
-```
-
-Return a base Coordinate without the timeline_id.
-
-Useful when you need to pass the coordinate to functions that
-don't support IdCoordinate.
-
-Returns:
-    A Coordinate with the same value and unit.
-
-### with_timeline { #timetoalign.IdCoordinate.with_timeline }
-
-```python
-IdCoordinate.with_timeline(timeline_id)
-```
-
-Return a new IdCoordinate with a different timeline_id.
-
-### with_unit { #timetoalign.IdCoordinate.with_unit }
-
-```python
-IdCoordinate.with_unit(new_unit)
-```
-
-Return a new IdCoordinate with a different unit but same value and timeline.
-
-Warning: This does NOT convert the value - use a ConversionMap for that.
-
-### with_value { #timetoalign.IdCoordinate.with_value }
-
-```python
-IdCoordinate.with_value(new_value)
-```
-
-Return a new IdCoordinate with a different value but same unit and timeline.
+Extends ``Coordinate`` with a ``timeline_id`` field, providing the
+most specific form of coordinate specification.  Operator results
+inherit the timeline_id (``IdCoordinate + Duration → IdCoordinate``;
+``IdCoordinate - IdCoordinate → IdDuration`` when the ids match).

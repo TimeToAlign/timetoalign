@@ -24,10 +24,15 @@ Provides three levels of field access on ``EventData``:
    table (or a dict-shaped spec for multi-field blueprints) and caches
    the result.
 
-Domain mixins add convenience accessors with priority-based defaults
-and ``format=`` parameters for on-the-fly conversion:
+Pitch access is universal: ``get_pitch_field(type, format=)`` lives on the
+base ``SemanticFieldAccessMixin``, so every ``EventData`` (including the
+plain bundle / timeline ``EventData``) affords it alongside
+``get_field(EnharmonicPitch)``.  It depends only on ``get_field`` and
+``get_fields_satisfying``, both on the base.
 
-- ``PitchAccessMixin`` -- ``get_pitch_field(type, format=)``
+Domain mixins add further convenience accessors with priority-based
+defaults and ``format=`` parameters for on-the-fly conversion:
+
 - ``HarmonyAccessMixin`` -- ``get_harmony_field(type, format=)``
 - ``MeasureAccessMixin`` -- ``get_measure_field(format=)`` (placeholder)
 """
@@ -774,6 +779,64 @@ class SemanticFieldAccessMixin:
         """Return the ``DurationField`` for the ``duration`` field."""
         return self.get_field("duration")
 
+    def get_pitch_field(
+        self,
+        pitch_field_type: type[SemanticField[Any]] | None = None,
+        *,
+        format: str | None = None,
+    ) -> SemanticField[Any]:
+        """Return a pitch field, optionally filtered by class.
+
+        Universal convenience accessor — available on every ``EventData``
+        (including the plain bundle / timeline ``EventData`` carrying the
+        base mixin), since it depends only on :meth:`get_field` and
+        :meth:`get_fields_satisfying`.  When *pitch_field_type* is ``None``,
+        the most informative available pitch field is returned via the
+        priority order ``SpecificPitchField`` > ``EnharmonicPitchField`` >
+        ``SpecificPitchClassField`` > ``GenericPitchClassField``.
+
+        Args:
+            pitch_field_type: A specific paired ``XField`` class (e.g.
+                ``EnharmonicPitchField``).  If ``None``, returns the most
+                informative available pitch field from the priority list.
+            format: Format specifier for on-the-fly conversion.
+                Reserved for future conversion support.
+
+        Raises:
+            KeyError: If no matching pitch field is found.
+        """
+        from timetoalign.core.events import (
+            EnharmonicPitchField,
+            GenericPitchClassField,
+            SpecificPitchClassField,
+            SpecificPitchField,
+        )
+        from timetoalign.core.protocols import PitchLike
+
+        if pitch_field_type is not None:
+            return self.get_field(pitch_field_type)
+
+        # Discover all pitch-like fields, then pick the most informative
+        # via the priority list (SP > EP > SPC > GPC).  Other pitch
+        # scalar fields not in the priority list fall back after the
+        # priority sweep.
+        all_pitch_fields = self.get_fields_satisfying(PitchLike)
+        if not all_pitch_fields:
+            raise KeyError("No pitch field found in table")
+
+        priority: list[type[SemanticField[Any]]] = [
+            SpecificPitchField,
+            EnharmonicPitchField,
+            SpecificPitchClassField,
+            GenericPitchClassField,
+        ]
+        for cls in priority:
+            for field in all_pitch_fields:
+                if isinstance(field, cls):
+                    return field
+        # No priority match — return the first discovered pitch field.
+        return all_pitch_fields[0]
+
     # -- private dispatch methods --------------------------------------------
 
     def _get_field_by_name(self, name: str) -> SemanticField[Any]:
@@ -920,70 +983,6 @@ class SemanticFieldAccessMixin:
         field = type(blueprint).from_field((arr, pa_field))
         cache[cache_key] = field
         return field
-
-
-# ---------------------------------------------------------------------------
-# PitchAccessMixin
-# ---------------------------------------------------------------------------
-
-
-class PitchAccessMixin(SemanticFieldAccessMixin):
-    """Mixin providing pitch field access with priority-based defaults.
-
-    Priority order (most informative first):
-    ``SpecificPitchField`` > ``EnharmonicPitchField`` >
-    ``SpecificPitchClassField`` > ``GenericPitchClassField``.
-    """
-
-    def get_pitch_field(
-        self,
-        pitch_field_type: type[SemanticField[Any]] | None = None,
-        *,
-        format: str | None = None,
-    ) -> SemanticField[Any]:
-        """Return a pitch field, optionally filtered by class.
-
-        Args:
-            pitch_field_type: A specific paired ``XField`` class (e.g.
-                ``EnharmonicPitchField``).  If ``None``, returns the most
-                informative available pitch field from the priority list.
-            format: Format specifier for on-the-fly conversion.
-                Reserved for future conversion support.
-
-        Raises:
-            KeyError: If no matching pitch field is found.
-        """
-        from timetoalign.core.events import (
-            EnharmonicPitchField,
-            GenericPitchClassField,
-            SpecificPitchClassField,
-            SpecificPitchField,
-        )
-        from timetoalign.core.protocols import PitchLike
-
-        if pitch_field_type is not None:
-            return self.get_field(pitch_field_type)
-
-        # Discover all pitch-like fields, then pick the most informative
-        # via the priority list (SP > EP > SPC > GPC).  Other pitch
-        # scalar fields not in the priority list fall back after the
-        # priority sweep.
-        all_pitch_fields = self.get_fields_satisfying(PitchLike)
-        if not all_pitch_fields:
-            raise KeyError("No pitch field found in table")
-
-        priority: list[type[SemanticField[Any]]] = [
-            SpecificPitchField,
-            EnharmonicPitchField,
-            SpecificPitchClassField,
-            GenericPitchClassField,
-        ]
-        for cls in priority:
-            for field in all_pitch_fields:
-                if isinstance(field, cls):
-                    return field
-        # No priority match — return the first discovered pitch field.
-        return all_pitch_fields[0]
 
 
 # ---------------------------------------------------------------------------

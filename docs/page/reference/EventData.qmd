@@ -10,11 +10,11 @@ EventData wraps a PyArrow table containing events. Events are rows in the
 table, not Python wrapper objects. The primary API is bulk operations:
 
 - from_dicts(): Create from list of row dictionaries
-- from_arrays(): Create from column-oriented arrays
+- from_arrays(): Create from field-oriented arrays
 - from_dataframe(): Create from pandas DataFrame
 
 The schema is fixed at class definition time but can be extended by
-subclasses to add domain-specific columns (e.g., pitch, velocity for notes).
+subclasses to add domain-specific fields (e.g., pitch, velocity for notes).
 
 NOTE: This class was renamed from EventStore to EventData in the 2026-01 API
 refactoring. EventStore now refers to the container class (formerly EventBundle)
@@ -49,39 +49,28 @@ Examples:
 
 | Name | Description |
 | --- | --- |
-| [column_names](#timetoalign.EventData.column_names) | Get the list of column names for this EventData class. |
 | [concat](#timetoalign.EventData.concat) | Concatenate with other EventData, returning a new EventData. |
 | [coordinate_range](#timetoalign.EventData.coordinate_range) | Get the min and max coordinates across all events. |
-| [count_by](#timetoalign.EventData.count_by) | Count events grouped by a column's values. |
+| [count_by](#timetoalign.EventData.count_by) | Count events grouped by a field's values. |
 | [create_timeline](#timetoalign.EventData.create_timeline) | Create a Timeline from this EventData. |
 | [empty](#timetoalign.EventData.empty) | Create an empty EventData. |
 | [event_types](#timetoalign.EventData.event_types) | Get the list of unique event types. |
 | [extend](#timetoalign.EventData.extend) | Extend this data with events from another EventData (in-place). |
+| [field_names](#timetoalign.EventData.field_names) | Get the list of field names for this EventData class. |
 | [filter](#timetoalign.EventData.filter) | Filter events by criteria, returning a new EventData. |
-| [from_arrays](#timetoalign.EventData.from_arrays) | Create EventData from column-oriented arrays (VECTORIZED). |
-| [from_arrays_legacy](#timetoalign.EventData.from_arrays_legacy) | Legacy from_arrays using row-based coordinate_to_struct. |
+| [from_arrays](#timetoalign.EventData.from_arrays) | Create EventData from field-oriented arrays (VECTORIZED). |
 | [from_dataframe](#timetoalign.EventData.from_dataframe) | Create EventData from a pandas DataFrame. |
 | [from_dicts](#timetoalign.EventData.from_dicts) | Create EventData from a list of row dictionaries. |
+| [from_fields](#timetoalign.EventData.from_fields) | Legacy from_arrays using row-based coordinate_to_struct. |
 | [from_parquet](#timetoalign.EventData.from_parquet) | Load EventData from a Parquet file. |
 | [get_schema](#timetoalign.EventData.get_schema) | Get the canonical PyArrow schema for this EventData class. |
 | [prefix_ids](#timetoalign.EventData.prefix_ids) | Return a new EventData with all event IDs prefixed. |
-| [select](#timetoalign.EventData.select) | Select specific columns from the table. |
+| [select](#timetoalign.EventData.select) | Select specific fields from the table. |
 | [summary](#timetoalign.EventData.summary) | Get a comprehensive summary of the store. |
 | [to_dataframe](#timetoalign.EventData.to_dataframe) | Convert to a DataFrame in the specified format. |
 | [to_pandas](#timetoalign.EventData.to_pandas) | Convert to a pandas DataFrame. |
 | [to_parquet](#timetoalign.EventData.to_parquet) | Save the EventData to a Parquet file. |
 | [where](#timetoalign.EventData.where) | Filter with a custom PyArrow compute expression. |
-
-### column_names { #timetoalign.EventData.column_names }
-
-```python
-EventData.column_names()
-```
-
-Get the list of column names for this EventData class.
-
-Returns:
-    List of all column names (base + extra).
 
 ### concat { #timetoalign.EventData.concat }
 
@@ -92,7 +81,7 @@ EventData.concat(*others)
 Concatenate with other EventData, returning a new EventData.
 
 Args:
-    *others: Other EventData to concatenate (extra columns are
+    *others: Other EventData to concatenate (extra fields are
         allowed and will be merged using schema promotion).
 
 Returns:
@@ -111,20 +100,21 @@ Get the min and max coordinates across all events.
 
 Returns:
     Tuple of (min, max) coordinates, or None if store is empty.
+    Returns Fraction values when number_type is fraction.
 
 ### count_by { #timetoalign.EventData.count_by }
 
 ```python
-EventData.count_by(column)
+EventData.count_by(field)
 ```
 
-Count events grouped by a column's values.
+Count events grouped by a field's values.
 
 Args:
-    column: The column to group by.
+    field: The field to group by.
 
 Returns:
-    Dict mapping column values to counts.
+    Dict mapping field values to counts.
 
 ### create_timeline { #timetoalign.EventData.create_timeline }
 
@@ -185,11 +175,22 @@ EventData.extend(other)
 Extend this data with events from another EventData (in-place).
 
 Args:
-    other: Another EventData with compatible schema (extra columns
+    other: Another EventData with compatible schema (extra fields
         are allowed and will be merged using schema promotion).
 
 Raises:
     ValueError: If units don't match.
+
+### field_names { #timetoalign.EventData.field_names }
+
+```python
+EventData.field_names()
+```
+
+Get the list of field names for this EventData class.
+
+Returns:
+    List of all field names (base + extra).
 
 ### filter { #timetoalign.EventData.filter }
 
@@ -212,7 +213,7 @@ Args:
     event_type: Filter by event type name.
     min_coord: Minimum coordinate (inclusive).
     max_coord: Maximum coordinate (exclusive).
-    **kwargs: Exact match filters for other columns (e.g. event_category="note").
+    **kwargs: Exact match filters for other fields (e.g. event_category="note").
 
 Returns:
     A new EventData with filtered events.
@@ -221,42 +222,50 @@ Returns:
 
 ```python
 EventData.from_arrays(
-    columns,
+    fields,
     unit,
     number_type=NumberType.float,
     *,
     validate=True,
     extra_fields=None,
+    interval_policy=IntervalPolicy.warn,
 )
 ```
 
-Create EventData from column-oriented arrays (VECTORIZED).
+Create EventData from field-oriented arrays (VECTORIZED).
 
 This is the PRIMARY construction method for loaders. All operations
 are vectorized - NO row iteration occurs.
 
+Missing ``end`` or ``duration`` values are computed automatically
+from the other (``end = start + duration`` or
+``duration = end - start``).  Behaviour when both are present but
+inconsistent is controlled by *interval_policy*.
+
 Args:
-    columns: Dict mapping column names to arrays. Supports:
+    fields: Dict mapping field names to arrays. Supports:
         - np.ndarray: NumPy arrays
         - pa.Array: PyArrow arrays (including StructArray for coords)
         - list: Python lists (converted to numpy)
 
-        For coordinate columns (start, end, duration):
+        For coordinate fields (start, end, duration):
         - If pa.StructArray: used directly
         - If numeric/string array: parsed via CoordinateParser
 
     unit: The time unit for coordinates.
     number_type: The number type for coordinates.
     validate: Whether to validate arrays before table construction.
-    extra_fields: Optional list of PyArrow fields for extra columns.
+    extra_fields: Optional list of PyArrow fields for extra data.
         These fields include metadata (e.g., unit for CoordinateFields).
         If not provided, fields are inferred from the data arrays.
+    interval_policy: How to handle end/duration inconsistencies.
+        See `IntervalPolicy` for options.
 
 Returns:
     A new EventData containing the events.
 
 Raises:
-    ValueError: If validation fails (missing columns, length mismatch, etc.)
+    ValueError: If validation fails (missing fields, length mismatch, etc.)
 
 Examples:
     >>> # Vectorized construction from arrays
@@ -268,25 +277,7 @@ Examples:
     ... }, unit=TimeUnit.ticks)
 
     >>> # Direct from loader output (StructArrays already parsed)
-    >>> data = EventData.from_arrays(loader_columns, unit=TimeUnit.quarters)
-
-### from_arrays_legacy { #timetoalign.EventData.from_arrays_legacy }
-
-```python
-EventData.from_arrays_legacy(columns, unit, number_type=NumberType.float)
-```
-
-Legacy from_arrays using row-based coordinate_to_struct.
-
-DEPRECATED: Use from_arrays() instead for vectorized operations.
-
-Args:
-    columns: Dict mapping column names to lists of values.
-    unit: The time unit for coordinates.
-    number_type: The number type for coordinates.
-
-Returns:
-    A new EventData containing the events.
+    >>> data = EventData.from_arrays(loader_fields, unit=TimeUnit.quarters)
 
 ### from_dataframe { #timetoalign.EventData.from_dataframe }
 
@@ -297,7 +288,7 @@ EventData.from_dataframe(df, unit, number_type=NumberType.float)
 Create EventData from a pandas DataFrame.
 
 Args:
-    df: DataFrame with event data. Column names should match the schema.
+    df: DataFrame with event data. Field names should match the schema.
     unit: The time unit for coordinates.
     number_type: The number type for coordinates.
 
@@ -307,7 +298,13 @@ Returns:
 ### from_dicts { #timetoalign.EventData.from_dicts }
 
 ```python
-EventData.from_dicts(rows, unit, number_type=NumberType.float)
+EventData.from_dicts(
+    rows,
+    unit,
+    number_type=NumberType.float,
+    *,
+    interval_policy=IntervalPolicy.warn,
+)
 ```
 
 Create EventData from a list of row dictionaries.
@@ -324,12 +321,19 @@ applied so that callers can omit boilerplate fields:
   ``"interval"`` when *both* ``start`` and ``end`` (or ``duration``)
   are given, ``"instant"`` otherwise.
 
+Missing ``end`` or ``duration`` values are computed automatically
+from the other (``end = start + duration`` or
+``duration = end - start``).  Behaviour when both are present but
+inconsistent is controlled by *interval_policy*.
+
 Args:
     rows: List of event dictionaries. At minimum each dict needs a
         coordinate (``instant`` *or* ``start``/``end``) and an
         ``event_type``. All other fields have sensible defaults.
     unit: The time unit for coordinates.
     number_type: The number type for coordinates.
+    interval_policy: How to handle end/duration inconsistencies.
+        See `IntervalPolicy` for options.
 
 Returns:
     A new EventData containing the events.
@@ -339,6 +343,24 @@ Examples:
     ...     {"event_type": "Beat", "instant": 0},
     ...     {"event_type": "Note", "start": 0, "end": 0.5},
     ... ], unit=TimeUnit.seconds)
+
+### from_fields { #timetoalign.EventData.from_fields }
+
+```python
+EventData.from_fields(fields, unit, number_type=NumberType.float)
+```
+
+Legacy from_arrays using row-based coordinate_to_struct.
+
+DEPRECATED: Use from_arrays() instead for vectorized operations.
+
+Args:
+    fields: Dict mapping field names to lists of values.
+    unit: The time unit for coordinates.
+    number_type: The number type for coordinates.
+
+Returns:
+    A new EventData containing the events.
 
 ### from_parquet { #timetoalign.EventData.from_parquet }
 
@@ -360,7 +382,7 @@ Raises:
 ### get_schema { #timetoalign.EventData.get_schema }
 
 ```python
-EventData.get_schema(unit)
+EventData.get_schema(unit, number_type=None)
 ```
 
 Get the canonical PyArrow schema for this EventData class.
@@ -370,7 +392,8 @@ independent of any specific instance. Useful for constructing empty
 tables or validating incoming data.
 
 Args:
-    unit: The time unit for coordinate columns.
+    unit: The time unit for coordinate fields.
+    number_type: The number type for coordinate fields.
 
 Returns:
     The complete schema including base and extra fields.
@@ -398,16 +421,16 @@ Returns:
 ### select { #timetoalign.EventData.select }
 
 ```python
-EventData.select(columns)
+EventData.select(fields)
 ```
 
-Select specific columns from the table.
+Select specific fields from the table.
 
 Args:
-    columns: List of column names to select.
+    fields: List of field names to select.
 
 Returns:
-    A PyArrow table with only the selected columns.
+    A PyArrow table with only the selected fields.
 
 ### summary { #timetoalign.EventData.summary }
 
@@ -455,14 +478,14 @@ EventData.to_pandas(raw=False, coordinates=False)
 
 Convert to a pandas DataFrame.
 
-By default, coordinate columns (start, end, duration) are converted from
+By default, coordinate fields (start, end, duration) are converted from
 the internal struct representation to the appropriate Python number type:
 - Fraction if numerator/denominator are present
 - float otherwise
 
 Args:
     raw: If True, return the raw PyArrow-to-pandas conversion with struct
-        dicts for coordinate columns. Default False shows cleaned numbers.
+        dicts for coordinate fields. Default False shows cleaned numbers.
     coordinates: If True, wrap coordinate values in Coordinate objects that
         include unit information. Only effective when raw=False.
 

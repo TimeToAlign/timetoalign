@@ -53,6 +53,7 @@
 from __future__ import annotations
 
 from timetoalign.core import TimeUnit
+from timetoalign.core.events import EnharmonicPitch, SpecificPitch
 from timetoalign.loader.alignment import MpmLoader
 from timetoalign.testdata import ensure_data
 
@@ -127,13 +128,60 @@ score_clt
 
 # %% [markdown]
 # Both hold the same 251 notes. The `.msm` records each note's MIDI pitch
-# together with the spelling it was notated with (`pitchname` / `octave`); a look
-# at the first few notes of `score:clt1` shows what the score carried:
+# together with the spelling it was notated with; a look at the first few notes of
+# `score:clt1` shows what the score carried:
 
 # %%
-score_clt.get_events().table.slice(0, 5).to_pandas()[
-    ["id", "pitch", "pitchname", "octave"]
-]
+score_clt.get_events().table.slice(0, 5).to_pandas()[["id", "name", "pitch"]]
+
+# %% [markdown]
+# ### Two pitch views, because the source represents two things
+#
+# A pitch column is not just a number sitting in a table — the events expose it
+# as a typed view, reached uniformly through `get_field(...)` on the events.
+# A MIDI pitch *number* carries no enharmonic spelling, so reading it as an
+# `EnharmonicPitch` invents nothing: it is exactly what the number says.
+# `get_field(EnharmonicPitch)` returns that view over the score's pitch column:
+
+# %%
+events = score_clt.get_events()
+enharmonic = events.get_field(EnharmonicPitch)
+enharmonic[0], enharmonic[1], enharmonic[2]
+
+# %% [markdown]
+# The `.msm`, however, records *more* than the number: each note also carries the
+# spelling it was notated with (`pitchname` / `octave`). Where a source commits to
+# a spelling, the events afford a **second**, independent view —
+# `get_field(SpecificPitch)` — that preserves the written accidental:
+
+# %%
+specific = events.get_field(SpecificPitch)
+specific[0], specific[1], specific[2]
+
+# %% [markdown]
+# The two views are deliberately *not* reconciled against each other: each
+# reports exactly what the source represented. The enharmonic view is the
+# semitone number; the specific view is the written spelling. Where they appear
+# to disagree — a note whose MIDI number lands in one octave while its notated
+# spelling sits in another — the disagreement is the source's, faithfully
+# preserved rather than silently "corrected". The note `nbwxzb1` is one such
+# case:
+
+# %%
+ids = events.table.column("id").to_pylist()
+idx = ids.index("nbwxzb1")
+{
+    "EnharmonicPitch (the number)": repr(enharmonic[idx]),
+    "SpecificPitch (the written spelling)": repr(specific[idx]),
+}
+
+# %% [markdown]
+# This dual affordance is uniform across the loaders. Any events that carry a
+# pitch column afford `get_field(EnharmonicPitch)` over it, whatever the source —
+# MIDI, an alignment export, or a notated score. A source that *additionally*
+# encodes spelling, as the `.msm` does here, affords the second
+# `get_field(SpecificPitch)` view alongside it. The typed view each format
+# affords is exactly what that format represents — no more, no less.
 
 # %% [markdown]
 # ### The tick grid and the quarter grid are one conversion apart
@@ -384,6 +432,7 @@ last_column = perf_dgt.length.value
 # | What the bundle expresses | How |
 # |---|---|
 # | Score, two logical units | `score:dlt1` (ticks) + `score:clt1` (quarters), one `TicksToQuarters` map |
+# | Score pitch, two views | `get_field(EnharmonicPitch)` (number) + `get_field(SpecificPitch)` (spelling) |
 # | Performance markup | `Tempo` / `Dynamics` / `Articulation` events on `score:dlt1`, via `filter(event_type=...)` |
 # | Modelled tempo | a quarters→seconds `TableMap` (`loader.tempo_map`), constant-tempo-per-segment |
 # | Observed performance, two physical units | `perf:cpt1` (s) + `perf:dpt1` (samples), one `SamplesToSeconds` |

@@ -1,0 +1,118 @@
+# PerformancePrecisionLoader { #timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader }
+
+```python
+loader.alignment.performance_precision.PerformancePrecisionLoader(
+    score_unit=TimeUnit.quarters,
+    media_unit=TimeUnit.seconds,
+)
+```
+
+Load a Performance Precision specimen directory as an AlignmentBundle.
+
+The loader composes :class:`SoloLoader` internally for the ``.solo``
+score and :meth:`MetricMap.from_verovio_timemap` for the measure
+structure, then resolves every ``"<measure>+<offset>"`` label — both
+the score notes and the per-performer alignment rows — into absolute
+quarter-note positions.
+
+**Usage follows the standard loader two-phase pattern:**
+
+1. ``loader.load(specimen_dir)`` — ingests the whole directory.
+2. ``loader.create_bundle()`` — assembles the AlignmentBundle.
+3. ``loader.create_timeline(id)`` / ``create_timelines()`` — retrieve
+   individual timelines.
+
+Args:
+    score_unit: Unit for the score timeline. Default
+        ``TimeUnit.quarters``.
+    media_unit: Unit for the performance timelines. Default
+        ``TimeUnit.seconds``.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [metric_map](#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.metric_map) | The MetricMap of measure boundaries (built from the timemap). |
+| [metrical_position_map](#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.metrical_position_map) | The MetricalPositionMap linking quarters ↔ measure/beat. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [create_bundle](#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_bundle) | Assemble an AlignmentBundle from the loaded specimen. |
+| [create_timeline](#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline) | Return a single timeline by id, role, or performer key. |
+| [create_timelines](#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines) | Return all timelines: ``[score, performer_1, ..., performer_n]``. |
+| [load](#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load) | Ingest a whole Performance Precision specimen directory. |
+
+### create_bundle { #timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_bundle }
+
+```python
+loader.alignment.performance_precision.PerformancePrecisionLoader.create_bundle(
+)
+```
+
+Assemble an AlignmentBundle from the loaded specimen.
+
+Returns:
+    An ``AlignmentBundle`` with the score timeline in its own
+    ``"score"`` group, each performer timeline standalone, and all
+    MatchClaims as cross-group claims.
+
+Raises:
+    RuntimeError: If ``load()`` has not been called yet.
+
+### create_timeline { #timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline }
+
+```python
+loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline(
+    id=None,
+    **kwargs,
+)
+```
+
+Return a single timeline by id, role, or performer key.
+
+Args:
+    id: ``"score"`` (or the score uid) for the score timeline; a
+        performer key (``"Chopin_Ashkenazy"``) or its uid
+        (``"perf:Chopin_Ashkenazy"``) for a performance timeline.
+
+Raises:
+    KeyError: If no timeline matches.
+    RuntimeError: If ``load()`` has not been called yet.
+
+### create_timelines { #timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines }
+
+```python
+loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines(
+    id_pattern=None,
+)
+```
+
+Return all timelines: ``[score, performer_1, ..., performer_n]``.
+
+Args:
+    id_pattern: Unused; present for base-class signature parity.
+
+### load { #timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load }
+
+```python
+loader.alignment.performance_precision.PerformancePrecisionLoader.load(
+    specimen_dir,
+)
+```
+
+Ingest a whole Performance Precision specimen directory.
+
+Args:
+    specimen_dir: Path to the directory containing the ``.solo``
+        file, the Verovio timemap ``.json``, and the
+        ``Alignments/`` subdirectory.
+
+Returns:
+    Self, for method chaining.
+
+Raises:
+    FileNotFoundError: If the directory or a required artifact is
+        missing.
+    ValueError: If more than one ``.solo`` or timemap is present.

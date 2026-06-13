@@ -1,0 +1,119 @@
+# MpmLoader { #timetoalign.loader.alignment.mpm.MpmLoader }
+
+```python
+loader.alignment.mpm.MpmLoader()
+```
+
+Load an MPM-Toolbox MSM+MPM+MPR triple as one multimodal AlignmentBundle.
+
+The loader is given the ``.mpr`` project file; it resolves the sibling
+``.msm`` / ``.mpm`` by the bare filenames the project names, parses the
+score, the selected modelled performance's markup, and the observed
+alignment, and assembles a bundle with a shared logical ``"score"``
+group and a physical ``"perf"`` group — the latter also carrying the
+spectrogram's graphical pixel axis (``perf:dgt1``) when the project
+ships one — linked by one synchronous :class:`MatchClaim` per score
+note.  The bundle thus spans the logical, physical, and (when a
+spectrogram is present) graphical domains.
+
+**Usage follows the standard loader two-phase pattern:**
+
+1. ``loader.load(mpr_path)`` — ingest the whole project.
+2. ``loader.create_bundle()`` — assemble the AlignmentBundle.
+3. ``loader.create_timeline(id)`` / ``create_timelines()`` — retrieve
+   individual timelines.
+
+By default the *first* ``<performance>`` in the ``.mpm`` is used.  Pass
+``performance=<name>`` to ``load`` to select a different one.
+
+The loader reads the modelled performance and the observed alignment;
+it never runs an aligner.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [performance_name](#timetoalign.loader.alignment.mpm.MpmLoader.performance_name) | The name of the selected ``<performance>`` block. |
+| [ppq](#timetoalign.loader.alignment.mpm.MpmLoader.ppq) | Pulses per quarter note (read from the MSM/MPM). |
+| [tempo_map](#timetoalign.loader.alignment.mpm.MpmLoader.tempo_map) | The modelled quarters→seconds TableMap (from the tempoMap). |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [create_bundle](#timetoalign.loader.alignment.mpm.MpmLoader.create_bundle) | Assemble the AlignmentBundle from the loaded project. |
+| [create_timeline](#timetoalign.loader.alignment.mpm.MpmLoader.create_timeline) | Return a single timeline by its uid. |
+| [create_timelines](#timetoalign.loader.alignment.mpm.MpmLoader.create_timelines) | Return all loaded timelines: the two score, then the performance. |
+| [load](#timetoalign.loader.alignment.mpm.MpmLoader.load) | Ingest a whole MPM-Toolbox project. |
+
+### create_bundle { #timetoalign.loader.alignment.mpm.MpmLoader.create_bundle }
+
+```python
+loader.alignment.mpm.MpmLoader.create_bundle()
+```
+
+Assemble the AlignmentBundle from the loaded project.
+
+Returns:
+    An ``AlignmentBundle`` with a shared ``"score"`` group (two
+    logical timelines), a ``"perf"`` group (two physical
+    timelines), and one synchronous cross-group MatchClaim per
+    score note.
+
+Raises:
+    RuntimeError: If ``load()`` has not been called yet.
+
+### create_timeline { #timetoalign.loader.alignment.mpm.MpmLoader.create_timeline }
+
+```python
+loader.alignment.mpm.MpmLoader.create_timeline(id=None, **kwargs)
+```
+
+Return a single timeline by its uid.
+
+Args:
+    id: One of ``"score:clt1"`` / ``"score:dlt1"`` / ``"perf:cpt1"``
+        / ``"perf:dpt1"`` / ``"perf:dgt1"`` (the last present only
+        when the project carries a spectrogram).
+
+Raises:
+    KeyError: If no timeline matches.
+    RuntimeError: If ``load()`` has not been called yet.
+
+### create_timelines { #timetoalign.loader.alignment.mpm.MpmLoader.create_timelines }
+
+```python
+loader.alignment.mpm.MpmLoader.create_timelines(id_pattern=None)
+```
+
+Return all loaded timelines: the two score, then the performance.
+
+The performance group always contributes ``perf:cpt1`` and
+``perf:dpt1``; ``perf:dgt1`` (the spectrogram graphical axis) is
+appended when the project carries a spectrogram.
+
+Args:
+    id_pattern: Unused; present for base-class signature parity.
+
+### load { #timetoalign.loader.alignment.mpm.MpmLoader.load }
+
+```python
+loader.alignment.mpm.MpmLoader.load(mpr_path, *, performance=None)
+```
+
+Ingest a whole MPM-Toolbox project.
+
+Args:
+    mpr_path: Path to the ``.mpr`` project file.  The sibling
+        ``.msm`` / ``.mpm`` are resolved from the bare filenames
+        the project names.
+    performance: Name of the ``<performance>`` block to use.  When
+        ``None`` (the default), the first performance is selected.
+
+Returns:
+    Self, for method chaining.
+
+Raises:
+    FileNotFoundError: If the ``.mpr`` or a sibling it names is
+        missing.
+    ValueError: If a named performance is not present in the MPM.

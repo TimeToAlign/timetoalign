@@ -50,6 +50,24 @@ their derived `pa.Schema` shapes are the two distinct semantic
 fingerprints these EventData subclasses round-trip via
 `SemanticField` / `EventData.get_field(...)`.
 
+### Pitch is stored as the `EnharmonicPitch` struct
+
+`pitch` is a materialised `{midi_number: int64}` struct — the exact
+`EnharmonicPitch` storage shape — decorated with `b"timetoalign"`
+metadata advertising `EnharmonicPitchField`. A MIDI pitch *number* carries
+no enharmonic spelling, so reading it as an `EnharmonicPitch` (display alias
+`MidiPitch`) invents nothing. Because the column is the canonical struct,
+both `MidiEventData` and `ScoreMidiEventData` afford
+`events.get_field(EnharmonicPitch)` / `events.get_pitch_field()` over the
+note number with no per-loader wiring, which is what the
+`pitch: EnharmonicPitch | None` annotation on the scalar promises. The MIDI
+loaders emit a bare note integer; `MidiEventData.from_dicts` lifts it into
+the struct dict before construction. Control Change / Program Change events
+carry a null pitch. Validation pins (in `test_store.py` and the loader test
+files): the `pitch` column type is `struct<midi_number: int64>`,
+`table.column("pitch")[i]["midi_number"]` equals the source note number, and
+`events.get_field(EnharmonicPitch)[i].midi_number` round-trips it.
+
 ## 3. The Three Parsing Approaches
 
 We evaluated three approaches to parsing MIDI.

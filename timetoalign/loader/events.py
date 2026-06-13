@@ -49,6 +49,104 @@ if TYPE_CHECKING:
 module_logger = logging.getLogger(__name__)
 
 
+def _identify_semantic_field_for_struct(
+    keys: set[str],
+) -> type[Any] | None:
+    """Return the paired ``SemanticField`` class whose struct shape matches *keys*.
+
+    Carried event attributes that arrive as struct dicts (e.g. a pitch
+    promoted to ``{"midi_number": 60}`` or a spelling promoted to
+    ``{"step": "C", "alter": 0, "octave": 4, "cents": None}``) must be
+    rebuilt as proper struct columns so the EventData they land in keeps
+    affording the semantic-field view.  Identification is by sub-field
+    name set against each paired ``SemanticField``'s ``pa_schema``.
+
+    Args:
+        keys: The dict keys of the carried struct value.
+
+    Returns:
+        The matching ``SemanticField`` subclass, or ``None`` when no
+        paired class advertises exactly these sub-fields.
+    """
+    from .mixins import _get_field_type_map
+
+    for field_cls in _get_field_type_map().values():
+        schema = getattr(field_cls, "pa_schema", None)
+        if schema is None or not pa.types.is_struct(schema):
+            continue
+        schema_names = {schema.field(i).name for i in range(schema.num_fields)}
+        if schema_names == keys:
+            return field_cls
+    return None
+
+
+def _build_carried_struct_column(
+    values: list[Any],
+) -> tuple[pa.Array, pa.DataType, dict[bytes, bytes] | None]:
+    """Build a struct column (and its field metadata) from carried dict values.
+
+    Identifies the paired ``SemanticField`` by sub-field name set; when a
+    match is found the column is built with that field's exact
+    ``pa_schema`` (so all-null leaves such as ``cents`` keep their
+    declared type) and decorated with ``b"timetoalign"`` metadata
+    advertising the paired ``field_type``.  When no paired class matches,
+    the column is built by type inference and carries no semantic
+    metadata (a faithful generic struct).
+
+    Args:
+        values: The per-row values for one carried field (dicts / None).
+
+    Returns:
+        ``(array, struct_type, metadata)`` ready for a ``pa.field``.
+
+    Raises:
+        ValueError: If the values cannot be materialised as a struct
+            column (preserve-or-raise contract — never a silent
+            JSON-stringify fallback).
+    """
+    from timetoalign.core.fields import (
+        TIMETOALIGN_METADATA_KEY,
+        metadata_blob_from_dict,
+    )
+
+    sample = next((v for v in values if v is not None), None)
+    keys = set(sample.keys()) if isinstance(sample, dict) else set()
+    field_cls = _identify_semantic_field_for_struct(keys) if keys else None
+
+    if field_cls is not None:
+        struct_type = field_cls.pa_schema
+        try:
+            arr = pa.array(values, type=struct_type)
+        except (pa.ArrowInvalid, pa.ArrowTypeError) as exc:
+            raise ValueError(
+                f"Carried struct values do not fit {field_cls.__name__}."
+                f"pa_schema ({struct_type}): {exc}"
+            ) from exc
+        scalar_cls = getattr(field_cls, "scalar_cls", None)
+        meta_source: dict[str, str] = {"field_type": field_cls.__name__}
+        sample_obj = None
+        if scalar_cls is not None and hasattr(scalar_cls, "from_row"):
+            sample_obj = scalar_cls.from_row(sample)
+        if sample_obj is not None and hasattr(sample_obj, "metadata_dict"):
+            meta_source = sample_obj.metadata_dict()
+        metadata = {TIMETOALIGN_METADATA_KEY: metadata_blob_from_dict(meta_source)}
+        return arr, struct_type, metadata
+
+    try:
+        arr = pa.array(values)
+    except (pa.ArrowInvalid, pa.ArrowTypeError) as exc:
+        raise ValueError(
+            f"Carried struct values cannot be materialised as a struct "
+            f"column (refusing to JSON-stringify): {exc}"
+        ) from exc
+    if not pa.types.is_struct(arr.type):
+        raise ValueError(
+            f"Carried struct values inferred a non-struct type {arr.type}; "
+            f"refusing to JSON-stringify a struct payload."
+        )
+    return arr, arr.type, None
+
+
 class EventData(SemanticFieldAccessMixin):
     """PyArrow-based storage for timeline events.
 
@@ -679,7 +777,7 @@ class EventData(SemanticFieldAccessMixin):
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
 
-        # Collect extra fields not in the base schema and add them dynamically
+        # Collect extra fields not in the base schema and add them dynamically.
         base_field_names = set(schema.names)
         extra_field_names: set[str] = set()
         for row in processed_rows:
@@ -687,19 +785,31 @@ class EventData(SemanticFieldAccessMixin):
                 if key not in base_field_names:
                     extra_field_names.add(key)
 
-        # Add extra fields to schema (as nullable strings for flexibility)
-        if extra_field_names:
+        # A carried attribute that arrives as a struct dict (e.g. a pitch
+        # promoted to ``{"midi_number": 60}``) MUST be preserved as a proper
+        # struct column so the resulting EventData keeps affording the
+        # semantic-field view — never silently JSON-stringified.  Atomic
+        # carried attributes keep the historical string-coercion behaviour.
+        struct_field_names: set[str] = set()
+        for name in extra_field_names:
+            for row in processed_rows:
+                val = row.get(name)
+                if isinstance(val, dict):
+                    struct_field_names.add(name)
+                    break
+        scalar_field_names = extra_field_names - struct_field_names
+
+        if scalar_field_names:
             new_fields = list(schema)
-            for name in sorted(extra_field_names):
+            for name in sorted(scalar_field_names):
                 new_fields.append(pa.field(name, pa.string(), nullable=True))
             schema = pa.schema(new_fields, metadata=schema.metadata)
-            # Convert extra field values to strings for storage
+            # Convert atomic extra field values to strings for storage.
             for row in processed_rows:
-                for name in extra_field_names:
+                for name in scalar_field_names:
                     if name in row and row[name] is not None:
-                        # Convert non-string values to JSON strings for complex types
                         val = row[name]
-                        if isinstance(val, (dict, list)):
+                        if isinstance(val, list):
                             import json
 
                             row[name] = json.dumps(val)
@@ -708,7 +818,26 @@ class EventData(SemanticFieldAccessMixin):
                     elif name not in row:
                         row[name] = None
 
+        # Materialise the struct-carrying extra fields as typed struct
+        # columns (preserve-or-raise) and append them to the table.
+        struct_columns: list[tuple[pa.Array, pa.Field]] = []
+        for name in sorted(struct_field_names):
+            values = [row.get(name) for row in processed_rows]
+            arr, struct_type, field_meta = _build_carried_struct_column(values)
+            struct_columns.append(
+                (arr, pa.field(name, struct_type, nullable=True, metadata=field_meta))
+            )
+
+        # Drop the struct keys from the row dicts before from_pylist (they
+        # are appended as built columns afterwards).
+        if struct_field_names:
+            for row in processed_rows:
+                for name in struct_field_names:
+                    row.pop(name, None)
+
         table = pa.Table.from_pylist(processed_rows, schema=schema)
+        for arr, pa_field in struct_columns:
+            table = table.append_column(pa_field, arr)
         return cls(table, unit, number_type)
 
     @classmethod
