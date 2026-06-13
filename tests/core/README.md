@@ -270,6 +270,88 @@ This file also carries the `__init_subclass__` parity-check failure-path test (`
 
 ---
 
+### `test_scalar_repr.py` - Uniform scalar `repr()` / `str()`
+
+**Purpose:** Pins the one uniform representation rule across every scalar:
+`repr()` is the SHORT typed form `ABBR(token)`, and `str()` is the PRETTY
+human token. The pitch scalars consolidate this onto the shared
+`TwelveTETPitchMixin` (a class attribute `_REPR_ABBR` + a single
+`__str__` / `__repr__`); two pitch scalars override `__repr__` for a
+dual-spelling or numeric form. The MIDI-event scalars share one rendered
+`__repr__` driven by a `_repr_parts()` hook (no string surgery between the
+base and the subclass).
+
+**Exact expected strings (zero-tolerance; canonical ♯/♭ per §13):**
+
+Pitch scalars — `repr()` then `str()`:
+
+| Scalar | construction | `repr()` | `str()` |
+|--------|--------------|----------|---------|
+| `EnharmonicPitchClass` | `(0)` | `EPC(C)` | `C` |
+| `EnharmonicPitchClass` | `(1)` | `EPC(C♯/D♭)` | `C♯/D♭` |
+| `GenericPitchClass` | `(0)` | `GPC(C)` | `C` |
+| `GenericPitch` | `(0, 4)` | `GP(C4)` | `C4` |
+| `SpecificPitchClass` | `(step="C", alter=1)` | `SPC(C♯)` | `C♯` |
+| `EnharmonicPitch` | `(56)` (black) | `EP(G♯/A♭3)` | `A♭3` |
+| `EnharmonicPitch` | `(60)` (white) | `EP(C4)` | `C4` |
+| `MidiPitch` | `(60)` | `MP(60)` | `60` |
+| `SpecificPitch` | `(step="C", alter=1, octave=4)` | `SP(C♯4)` | `C♯4` |
+
+Note: `EnharmonicPitchClass` is the only pitch scalar whose `get()` returns
+the bare pitch-class integer (untouched — its Field-vectorized mirror depends
+on it). To honour the str=pretty rule, `EnharmonicPitchClass.__str__` is an
+explicit override returning the dual `_PC_TO_LABEL` label (mirroring the
+repr's inner token); `repr()` likewise uses an explicit `_PC_TO_LABEL`
+override.
+
+Shallow scalars:
+
+| Scalar | `repr()` | `str()` |
+|--------|----------|---------|
+| `MeasureNumber(value=16)` | `MeasureNumber(16)` | `16` |
+| `Id(value="n0")` | `Id('n0')` | `n0` |
+
+MIDI-event scalars (only non-None fields appear, in declaration order;
+`_repr_parts()` is the single source — no `super().__repr__()` slicing):
+
+| Scalar | `repr()` |
+|--------|----------|
+| `MidiEvent(pitch=EnharmonicPitch(60), velocity=80, channel=0)` | `MidiEvent(pitch=EP(C4), velocity=80, channel=0)` |
+| `MidiEvent(control=64, value=127, channel=0)` | `MidiEvent(channel=0, control=64, value=127)` |
+| `ScoreMidiEvent(pitch=EnharmonicPitch(60), velocity=80, voice=1, staff=2, part_id="P1")` | `ScoreMidiEvent(pitch=EP(C4), velocity=80, voice=1, staff=2, part_id='P1')` |
+
+Harmony scalars — `str()` returns the bare `label`:
+
+| Scalar | `str()` |
+|--------|---------|
+| `HarmonyLabel(label="V7", …)` | `V7` |
+| `PitchBasedHarmony(label="Cmaj", …)` | `Cmaj` |
+| `WesternTertianHarmony(label="Cmaj7", …)` | `Cmaj7` |
+| `RomanNumeralHarmony(label="V7", …)` | `V7` |
+| `DcmlHarmony(label="V(64)", …)` | `V(64)` |
+
+Note / Measure — `str()` is a pretty one-liner; `repr()` unchanged:
+
+| Scalar | `str()` |
+|--------|---------|
+| `Note(start=0q, duration=1q, pitch=EnharmonicPitch(61))` | `C♯4 @0 quarters+1 quarters` |
+| `Note(start=0q, duration=1q, pitch=None)` (rest) | `rest @0 quarters+1 quarters` |
+| `Measure(mn="16", …)` | `16` |
+
+**Validity Rationale:**
+
+The TimeStamp-uniformity philosophy (CLAUDE.md §4) extends to scalar
+representation: a user must be able to trust that any scalar's `repr()` is a
+short typed form and `str()` is the readable token. Consolidating the rule
+onto `TwelveTETPitchMixin` (CLAUDE.md §10 hierarchy-first) means seven pitch
+scalars share one implementation; the `_repr_parts()` hook makes the
+`ScoreMidiEvent` extension a first-class override rather than fragile string
+surgery over the base repr. The exact-string assertions guard against silent
+drift, regression of the EnharmonicPitch dual-spelling repr, and accidental
+re-introduction of the verbose `Object(field=…)` forms.
+
+---
+
 ## Running Tests
 
 ```bash

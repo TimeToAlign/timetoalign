@@ -100,7 +100,7 @@ CHOPIN_NOTES = VIENNA / "ms3" / "chopin_op10_no3.notes.tsv"
 # `EnharmonicPitch` is canonical for the `ep` storage field on
 # score-level data; `MidiPitch` is a thin display-alias reserved as the
 # default scalar for the planned `MidiField` (so MidiField rows display
-# as `MidiPitch(60)` rather than `EnharmonicPitch(C4)`).
+# as `MP(60)` rather than `EP(C4)`).
 
 # %% [markdown]
 # ### EnharmonicPitchClass (EPC): chromatic pitch class only
@@ -148,7 +148,7 @@ spc.to_dict()
 # ### MidiPitch (display alias of EnharmonicPitch)
 #
 # Same data as `EnharmonicPitch` (a 12-TET pitch with octave); differs
-# only in how it renders.  `MidiPitch(60)` vs `EnharmonicPitch(C4)`.
+# only in how it renders.  `MP(60)` vs `EP(C4)`.
 
 # %%
 mp = MidiPitch(midi_number=60)
