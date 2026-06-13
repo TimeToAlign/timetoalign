@@ -1,0 +1,228 @@
+# MatchClaimField { #timetoalign.MatchClaimField }
+
+```python
+MatchClaimField(raw=None, *, source_fields=None, name=None, metadata=None)
+```
+
+A ``SemanticField[MatchClaim]`` columnar store for pairwise claims.
+
+``MatchClaimField`` is the Field paired with the :class:`MatchClaim`
+scalar.  It holds a large set of synchronous-instant pairwise alignment
+claims (millions of rows) in a single derived struct column instead of one
+frozen :class:`MatchClaim` per claim.  Individual claims are materialised
+lazily, only when a row is indexed or iterated.
+
+Like every paired Field, its struct schema is derived from the scalar by
+:func:`~timetoalign.core.fields.derive_arrow_struct` — so the inner column
+type is exactly ``MatchClaimField.pa_schema``.  Shared provenance is held
+once at field level as a single :class:`MatchMetadata` (or ``None``) and
+**injected on read**, mirroring how
+:class:`~timetoalign.core.time.CoordinateField` carries its ``unit``
+outside the data: the struct column's ``metadata`` sub-field is left null
+in bulk, and :meth:`__getitem__` injects the field-level metadata into each
+materialised :class:`MatchClaim`.  This keeps the store compact (one struct
+column, no per-row metadata) while remaining a genuine SemanticField.
+
+**Scope (v1): synchronous instant pairwise claims only.** Every row
+represents a claim where ``is_synchronous is True``, ``start_anchor`` is
+present, and ``end_anchor`` is ``None`` (an instant). NOMATCH claims
+(non-synchronous) and interval claims (with an end anchor) are **out of
+scope** for this store; :meth:`from_claims` raises :class:`ValueError`
+when handed one.
+
+Attributes:
+    table: The backing single-column :class:`pyarrow.Table` (read-only
+        property) whose one column is the derived ``MatchClaim`` struct.
+    metadata: Shared :class:`MatchMetadata` (or ``None``) applied to every
+        materialised claim.
+
+Examples:
+    >>> agent = Agent(name="dtw", type=AgentType.software, identifier="v1")
+    >>> meta = MatchMetadata(agent=agent)
+    >>> field = MatchClaimField.from_columns(
+    ...     timeline_a_ids=["A", "A", "B"],
+    ...     timeline_b_ids=["B", "C", "C"],
+    ...     coordinate_a=[0.0, 0.0, 1.0],
+    ...     coordinate_b=[10.0, 20.0, 21.0],
+    ...     metadata=meta,
+    ... )
+    >>> len(field)
+    3
+    >>> field[0].timeline_a_id, field[0].timeline_b_id
+    ('A', 'B')
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [metadata](#timetoalign.MatchClaimField.metadata) | Shared provenance applied to every materialised claim. |
+| [table](#timetoalign.MatchClaimField.table) | The backing single-column :class:`pyarrow.Table`. |
+| [timeline_ids](#timetoalign.MatchClaimField.timeline_ids) | The distinct timeline ids appearing in either id column. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [connecting](#timetoalign.MatchClaimField.connecting) | Return the claims that involve ``timeline_id`` on either side. |
+| [filter](#timetoalign.MatchClaimField.filter) | Return a filtered view following the unified-filter spirit. |
+| [from_claims](#timetoalign.MatchClaimField.from_claims) | Build a field from existing :class:`MatchClaim` objects. |
+| [from_columns](#timetoalign.MatchClaimField.from_columns) | Build a field directly from parallel columns (the vectorized path). |
+| [from_dict](#timetoalign.MatchClaimField.from_dict) | Deserialize a field from a plain dictionary. |
+| [to_claims](#timetoalign.MatchClaimField.to_claims) | Materialise every row into a list of :class:`MatchClaim` objects. |
+| [to_dict](#timetoalign.MatchClaimField.to_dict) | Serialize to a plain dictionary (inverse of :meth:`from_dict`). |
+
+### connecting { #timetoalign.MatchClaimField.connecting }
+
+```python
+MatchClaimField.connecting(timeline_id)
+```
+
+Return the claims that involve ``timeline_id`` on either side.
+
+The filter is a vectorized boolean mask over the struct's id
+sub-fields; no claim is materialised. The shared metadata carries
+over.
+
+Args:
+    timeline_id: The exact timeline id to match against either column.
+
+Returns:
+    A new :class:`MatchClaimField` holding only the matching rows.
+
+### filter { #timetoalign.MatchClaimField.filter }
+
+```python
+MatchClaimField.filter(timeline_id=None, timeline_ids=None)
+```
+
+Return a filtered view following the unified-filter spirit.
+
+Both arguments are vectorized; no claim is materialised. The shared
+metadata carries over.
+
+Args:
+    timeline_id: Keep rows involving this exact id on either side
+        (equivalent to :meth:`connecting`).
+    timeline_ids: Keep rows involving **any** id in this set on either
+        side.
+
+Returns:
+    A new :class:`MatchClaimField`. When both arguments are ``None``,
+    a copy is returned. When both are given the two conditions are
+    combined with logical AND.
+
+### from_claims { #timetoalign.MatchClaimField.from_claims }
+
+```python
+MatchClaimField.from_claims(claims, *, metadata=None)
+```
+
+Build a field from existing :class:`MatchClaim` objects.
+
+Every claim must be a synchronous instant (``is_synchronous is True``,
+``start_anchor`` present, ``end_anchor is None``) per the v1 scope.
+
+If ``metadata`` is ``None`` and all claims share one identical
+:class:`MatchMetadata` (by equality), that metadata is adopted as the
+field-level provenance; otherwise the field's metadata stays ``None``
+(no per-row metadata is ever stored).
+
+Args:
+    claims: The claims to store. Coordinates are pulled from each
+        claim's ``start_anchor``.
+    metadata: Explicit field-level provenance. When provided it
+        overrides any per-claim metadata inference.
+
+Returns:
+    A new :class:`MatchClaimField`.
+
+Raises:
+    ValueError: If any claim is non-synchronous (NOMATCH), lacks a
+        start anchor, or is an interval (carries an end anchor).
+
+### from_columns { #timetoalign.MatchClaimField.from_columns }
+
+```python
+MatchClaimField.from_columns(
+    timeline_a_ids,
+    timeline_b_ids,
+    coordinate_a,
+    coordinate_b,
+    *,
+    metadata=None,
+)
+```
+
+Build a field directly from parallel columns (the vectorized path).
+
+This is the constructor a bulk producer (e.g. an alignment loader)
+uses. It assembles the derived ``MatchClaim`` struct column straight
+from the parallel inputs with :meth:`pyarrow.StructArray.from_arrays`
+and **never** materialises a single :class:`MatchClaim` Python object,
+so it scales to millions of rows.
+
+Each row is a synchronous instant claim: ``timeline_a_id`` /
+``timeline_b_id`` and the ``start_anchor`` sub-struct are filled from
+the inputs; ``is_synchronous`` and ``is_explicit`` are ``True``;
+``end_anchor`` / event ids / names / ``source_coordinate`` /
+``metadata`` / ``source_claim_id`` / ``id`` are left null (the shared
+metadata is injected on read, the id is generated on materialise).
+
+Args:
+    timeline_a_ids: Timeline-A ids, one per claim.
+    timeline_b_ids: Timeline-B ids, one per claim.
+    coordinate_a: Coordinate on timeline A, one per claim (``float64``).
+    coordinate_b: Coordinate on timeline B, one per claim (``float64``).
+    metadata: Shared provenance for every claim in the field.
+
+Returns:
+    A new :class:`MatchClaimField`.
+
+Raises:
+    ValueError: If the four inputs do not all have the same length.
+
+### from_dict { #timetoalign.MatchClaimField.from_dict }
+
+```python
+MatchClaimField.from_dict(data)
+```
+
+Deserialize a field from a plain dictionary.
+
+Inverse of :meth:`to_dict`.
+
+Args:
+    data: A mapping with the four column lists and an optional
+        ``metadata`` dict.
+
+Returns:
+    A new :class:`MatchClaimField`.
+
+### to_claims { #timetoalign.MatchClaimField.to_claims }
+
+```python
+MatchClaimField.to_claims()
+```
+
+Materialise every row into a list of :class:`MatchClaim` objects.
+
+This is ``O(n)`` and defeats the columnar purpose for large sets; it
+is provided for convenience and round-tripping, not for hot paths.
+
+Returns:
+    A list of synchronous instant claims, one per row.
+
+### to_dict { #timetoalign.MatchClaimField.to_dict }
+
+```python
+MatchClaimField.to_dict()
+```
+
+Serialize to a plain dictionary (inverse of :meth:`from_dict`).
+
+The id and coordinate columns are emitted as plain Python lists (read
+directly from the struct sub-fields); the metadata is emitted via
+:meth:`MatchMetadata.to_dict` (or ``None``).
+
+Returns:
+    A round-trippable mapping.

@@ -1,7 +1,7 @@
 # AlignmentAnchor { #timetoalign.AlignmentAnchor }
 
 ```python
-AlignmentAnchor(timeline_a_id, coordinate_a, timeline_b_id, coordinate_b)
+AlignmentAnchor()
 ```
 
 A coordinate pair associating one coordinate on timeline A with one
@@ -16,9 +16,9 @@ Non-synchronous claims (conceptual matches, NOMATCH) have no anchors.
 
 Attributes:
     timeline_a_id: First timeline's unique identifier.
-    coordinate_a: Coordinate in first timeline.
+    coordinate_a: Coordinate in first timeline (plain ``float``).
     timeline_b_id: Second timeline's unique identifier.
-    coordinate_b: Coordinate in second timeline.
+    coordinate_b: Coordinate in second timeline (plain ``float``).
 
 Examples:
     >>> anchor = AlignmentAnchor(

@@ -162,16 +162,25 @@ def test_score_first_full_bar_note(loader: PerformancePrecisionLoader) -> None:
 
 
 def test_score_carries_pitch(loader: PerformancePrecisionLoader) -> None:
-    """The raw MIDI pitch is carried through faithfully from the SoloLoader.
+    """The MIDI pitch is carried through faithfully from the SoloLoader.
 
-    The pickup note's MIDI pitch is 70 in the ``.solo`` file.
+    The pickup note's MIDI pitch is 70 in the ``.solo`` file.  The score
+    timeline keeps the SoloLoader's ``EnharmonicPitch`` affordance: the
+    ``pitch`` column is the ``{midi_number}`` struct (``add_events`` no
+    longer unwraps it to a raw int).
     """
+    from timetoalign.core.events import EnharmonicPitch
+
     score = loader.create_timeline("score")
     table = score.events._table
     note_ids = table.column("note_id").to_pylist()
     pitches = table.column("pitch").to_pylist()
     idx = note_ids.index("n1b8xktz")
-    assert int(pitches[idx]) == 70
+    assert pitches[idx] == {"midi_number": 70}
+
+    # The struct column affords the EnharmonicPitch semantic view.
+    field = score.events.get_field(EnharmonicPitch)
+    assert field[idx] == EnharmonicPitch(midi_number=70)
 
 
 # endregion

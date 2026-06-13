@@ -106,14 +106,16 @@ class TestMidiHarmonization:
         ), f"partitura note count: {len(part_notes)}, expected {CHOPIN_NOTE_COUNT}"
 
         # Pitch histograms must be identical
+        # ``pitch`` is the EnharmonicPitch struct {midi_number}; the
+        # histogram keys are the raw note numbers.
         mido_pitches: dict[int, int] = {}
         for n in mido_notes:
-            p = n["pitch"]
+            p = n["pitch"]["midi_number"]
             mido_pitches[p] = mido_pitches.get(p, 0) + 1
 
         part_pitches: dict[int, int] = {}
         for n in part_notes:
-            p = n["pitch"]
+            p = n["pitch"]["midi_number"]
             part_pitches[p] = part_pitches.get(p, 0) + 1
 
         assert mido_pitches == part_pitches, "Pitch histograms differ between loaders"

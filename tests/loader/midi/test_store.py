@@ -1,6 +1,9 @@
 """Tests for ``MidiEventData`` and ``ScoreMidiEventData``."""
 
+import pyarrow as pa
+
 from timetoalign.core import TimeUnit
+from timetoalign.core.events import EnharmonicPitch, EnharmonicPitchField
 from timetoalign.loader.midi import MidiEventData, ScoreMidiEventData
 
 # Canonical extra-column sets used by both EventData classes.  Pin
@@ -62,7 +65,46 @@ class TestMidiEventData:
 
         assert len(data) == 1
         table = data.table
-        assert table.column("pitch")[0].as_py() == 60
+        # ``pitch`` is the materialised EnharmonicPitch struct.
+        assert table.column("pitch").type == pa.struct(
+            [pa.field("midi_number", pa.int64())]
+        )
+        assert table.column("pitch")[0]["midi_number"].as_py() == 60
+
+    def test_pitch_column_affords_enharmonic_pitch(self) -> None:
+        """The pitch struct column affords the ``EnharmonicPitch`` view."""
+        events = [
+            {
+                "id": "n1",
+                "event_type": "Note",
+                "start": 0,
+                "end": 480,
+                "pitch": 60,
+                "velocity": 100,
+            }
+        ]
+        data = MidiEventData.from_dicts(events, TimeUnit.ticks)
+
+        field = data.get_field(EnharmonicPitch)
+        assert isinstance(field, EnharmonicPitchField)
+        assert field[0] == EnharmonicPitch(midi_number=60)
+        # And via the priority-based pitch accessor.
+        assert data.get_pitch_field()[0].midi_number == 60
+
+    def test_control_change_carries_null_pitch(self) -> None:
+        """Control Change events have no pitch (null struct slot)."""
+        events = [
+            {
+                "id": "cc1",
+                "event_type": "ControlChange",
+                "instant": 0,
+                "pitch": None,
+                "control": 64,
+                "value": 127,
+            }
+        ]
+        data = MidiEventData.from_dicts(events, TimeUnit.ticks)
+        assert data.table.column("pitch")[0].as_py() is None
 
 
 class TestScoreMidiEventData:
@@ -108,10 +150,12 @@ class TestScoreMidiEventData:
 
         assert len(data) == 1
         table = data.table
-        assert table.column("pitch")[0].as_py() == 60
+        assert table.column("pitch")[0]["midi_number"].as_py() == 60
         assert table.column("voice")[0].as_py() == 1
         assert table.column("staff")[0].as_py() == 1
         assert table.column("part_id")[0].as_py() == "p0"
+        # The wider score store affords the EnharmonicPitch view too.
+        assert data.get_field(EnharmonicPitch)[0] == EnharmonicPitch(midi_number=60)
 
     def test_subclass_relationship(self) -> None:
         """``ScoreMidiEventData`` must remain a subclass of ``MidiEventData``."""

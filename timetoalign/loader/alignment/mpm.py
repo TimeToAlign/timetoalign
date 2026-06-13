@@ -151,6 +151,31 @@ _DEFAULT_SAMPLE_RATE = 44100
 # region Helpers
 
 
+_SPECIFIC_PITCH_STEPS = ("C", "D", "E", "F", "G", "A", "B")
+
+
+def _specific_pitch_struct(
+    pitchname: str | None, accidentals: int, octave: int
+) -> dict[str, Any] | None:
+    """Build the ``SpecificPitch`` storage struct from MSM spelling.
+
+    Returns ``{step, alter, octave, cents}`` (the ``SpecificPitch`` shape,
+    ``cents`` null) when ``pitchname`` is a usable step letter (A–G), else
+    ``None`` (no committed spelling to represent).
+    """
+    if not pitchname:
+        return None
+    step = pitchname.strip().upper()[:1]
+    if step not in _SPECIFIC_PITCH_STEPS:
+        return None
+    return {
+        "step": step,
+        "alter": int(accidentals),
+        "octave": int(octave),
+        "cents": None,
+    }
+
+
 def _localname(element: Any) -> str:
     """Return an element's namespace-stripped local name."""
     return etree.QName(element).localname
@@ -361,26 +386,40 @@ class MpmLoader(AlignmentLoader):
         """Parse the score notes from the (plain-XML) MSM.
 
         Each ``<note xml:id date midi.pitch pitchname accidentals octave
-        duration>`` becomes a dict with integer ticks / pitch / octave /
-        duration and the verbatim spelling.  No :class:`SpecificPitch` is
-        constructed — the MSM octave numbering is inconsistent with
-        ``midi.pitch`` under scientific notation, so interpreting it would
-        be inference rather than faithful representation; the raw
-        ``midi.pitch`` integer is stored as the pitch and the spelling
-        attributes are carried verbatim.
+        duration>`` becomes a dict carrying integer ticks / duration plus
+        two afforded pitch views:
+
+        * ``pitch`` — the ``midi.pitch`` integer lifted into the
+          ``EnharmonicPitch`` storage struct ``{"midi_number": int}``.  A
+          MIDI number carries no enharmonic spelling, so this view invents
+          nothing.
+        * ``specific_pitch`` — the verbatim MSM spelling
+          (``pitchname`` + ``accidentals`` + ``octave``) lifted into the
+          ``SpecificPitch`` storage struct ``{step, alter, octave, cents}``
+          when ``pitchname`` is a usable step letter.  This is a SECOND,
+          independent view of what the source committed to in spelling —
+          never a reinterpretation of the number — so the EventData affords
+          both ``get_field(EnharmonicPitch)`` and ``get_field(SpecificPitch)``.
+
+        The two views are independent: the MSM octave numbering need not be
+        consistent with ``midi.pitch`` under scientific notation, and
+        :class:`SpecificPitch` stores exactly what the source represented.
         """
         notes: list[dict[str, Any]] = []
         for element in msm_root.iter():
             if _localname(element) != "note":
                 continue
+            octave = int(float(element.get("octave")))
+            pitchname = element.get("pitchname")
+            accidentals = int(float(element.get("accidentals")))
             notes.append(
                 {
                     "xml_id": element.get(_XML_ID),
                     "date": int(float(element.get("date"))),
-                    "pitch": int(float(element.get("midi.pitch"))),
-                    "pitchname": element.get("pitchname"),
-                    "accidentals": int(float(element.get("accidentals"))),
-                    "octave": int(float(element.get("octave"))),
+                    "pitch": {"midi_number": int(float(element.get("midi.pitch")))},
+                    "specific_pitch": _specific_pitch_struct(
+                        pitchname, accidentals, octave
+                    ),
                     "duration": int(float(element.get("duration"))),
                 }
             )
@@ -644,7 +683,7 @@ class MpmLoader(AlignmentLoader):
             notes.append(
                 {
                     "ref": element.get("ref"),
-                    "pitch": int(float(element.get("midi.pitch"))),
+                    "pitch": {"midi_number": int(float(element.get("midi.pitch")))},
                     "milliseconds_date": float(element.get("milliseconds.date")),
                     "velocity": int(float(element.get("velocity"))),
                 }
@@ -759,9 +798,7 @@ class MpmLoader(AlignmentLoader):
                     "start": note["date"],
                     "event_type": "Note",
                     "pitch": note["pitch"],
-                    "pitchname": note["pitchname"],
-                    "accidentals": note["accidentals"],
-                    "octave": note["octave"],
+                    "specific_pitch": note["specific_pitch"],
                     "duration": note["duration"],
                 }
                 for note in score_notes
@@ -788,9 +825,7 @@ class MpmLoader(AlignmentLoader):
                     "start": Fraction(note["date"], ppq),
                     "event_type": "Note",
                     "pitch": note["pitch"],
-                    "pitchname": note["pitchname"],
-                    "accidentals": note["accidentals"],
-                    "octave": note["octave"],
+                    "specific_pitch": note["specific_pitch"],
                 }
                 for note in score_notes
             ]

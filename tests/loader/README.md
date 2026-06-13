@@ -23,7 +23,7 @@ bundles, error handling).
 | `test_schema.py` | `TableSchema` and field-spec resolution |
 | `test_store.py` | `EventStore` low-level operations |
 | `test_tilia_loader.py` | `TiliaJsonLoader` round-trip |
-| `test_mixins.py` | `EventData` field-access mixins — three-strategy field discovery (metadata, default-column, shape-based `matches_pa_field`), `has_field`, `get_field`, `get_fields`, `get_raw`, and the convenience accessors (`get_pitch_field`, `get_harmony_field`). |
+| `test_mixins.py` | `EventData` field-access mixins — three-strategy field discovery (metadata, default-column, shape-based `matches_pa_field`), `has_field`, `get_field`, `get_fields`, `get_raw`. `get_pitch_field` is now **universal** (lives on the base `SemanticFieldAccessMixin`, so every EventData incl. plain bundle/timeline EventData affords it); `get_harmony_field` remains a leaf-mixin convenience (`HarmonyAccessMixin`). |
 | `test_mixins_wp3.py` | Dispatch additions on `SemanticFieldAccessMixin` — `get_field(ScalarClass)` pydantic-scalar dispatch, `IdCoordinate` vs `Coordinate` discrimination via metadata (`matches_pa_field` rejection contracts), `MultipleFieldsError` on ambiguity + `name=` resolution, and `get_fields_satisfying(ProtocolClass)` Protocol-based grouping (covering `GenericPitchLike` and `TimeScalarLike`). |
 | `test_field_parsers.py` | The :class:`FieldParser` hierarchy and `resolve_field_parser` universal-resolution dispatcher. Exercises the DataField blueprint mechanism: `IntField`, `FloatField`, `StringField`, `RationalField`, `DenominateNumberField`, and paired SemanticField subclasses all accept `name=` for blueprint construction and expose a uniform `emit(source, name=...)` materialisation. `CompositeFieldParser` (separator + regex strategies, dict + iterable parts) and `CallableFieldParser` (escape hatch) are exercised end-to-end. Resolution-table assertions: every entry (Python type, `pa.DataType`, raw / paired `DataField` subclass, blueprint instance, `FieldParser` instance, callable) routes to the correct producer. |
 | `test_step2_field_specs.py` | Step 2 (`field_specs`) blueprint resolution. Builds a fixture `pa.Table` and a `TabularLoader` subclass with `field_specs = [...]`, verifies that each blueprint matches its declared `source_fields=` entry, that the resulting column receives `b"timetoalign"` metadata (`field_type` = paired class name), that atomic source columns are packed into single-field structs matching the target `pa_schema`, and that unresolvable references raise `KeyError`. Exercises the two currently-supported `source_fields=` shorthands (string for single-source promotion; explicit dict for multi-sub-field mapping) and the negative cases (list shorthand rejected by `resolve_source_fields` today; live-mode SemanticField instances rejected; multi-source dict spec raises `NotImplementedError` at loader-materialisation time). |
@@ -43,6 +43,35 @@ Tests resolve corpus paths via ``timetoalign.testdata.ensure_data("<corpus>")``
 constants are forbidden — they break under ``jupytext --execute`` and in CI
 container layouts.  See ``CLAUDE.md`` "Test Data Provisioning" for the
 binding contract.
+
+## Carried struct affordance through `add_events` / `from_dicts`
+
+`test_store.py::TestCarriedStructAffordance` pins the infrastructure that
+lets a semantic-field view survive when events flow onto a timeline. When a
+loader emits an event attribute as a struct dict (e.g. a pitch promoted to
+`{"midi_number": 60}` or a spelling promoted to
+`{"step": "C", "alter": 0, "octave": 4, "cents": None}`),
+`EventData.from_dicts` MUST rebuild it as a proper struct column — never
+collapse it to a JSON string. The struct value is matched by sub-field name
+set against each paired `SemanticField`'s `pa_schema`; when a match is found
+the column is built with that exact schema (so all-null leaves such as
+`cents` keep their declared `float64` type) and decorated with
+`b"timetoalign"` metadata advertising the paired `field_type`. Carried
+struct values that fit no paired class are kept as a faithful generic struct
+(type inference); a payload that cannot be materialised as a struct at all
+raises `ValueError` rather than being silently stringified.
+
+Validation pins:
+
+- `from_dicts` with `pitch={"midi_number": 60}` yields a
+  `struct<midi_number: int64>` column that affords `get_field(EnharmonicPitch)`.
+- An `add_events` round-trip onto a generic timeline preserves the
+  affordance (the historical JSON-stringify path is gone).
+- A second `add_events` batch lacking the struct column null-fills it while
+  the first batch keeps affording the view (the `extend` / schema-promotion
+  path).
+- Atomic carried attributes (ints / strings) keep the historical
+  string-coercion behaviour.
 
 ## `PerformancePrecisionLoader` validation logic
 
@@ -359,12 +388,22 @@ elements are matched by local name; the ``.msm`` and ``.mpr`` are plain
 XML. All numeric attributes are float-strings, parsed ``int(float(x))``
 for integers (ticks / pitch / octave) and ``float(x)`` for reals.
 
-The MSM ``midi.pitch`` integer is stored verbatim as the pitch; the
-spelling attributes (``pitchname`` / ``accidentals`` / ``octave``) are
-carried as-is. No ``SpecificPitch`` is constructed — the MSM octave
-numbering is inconsistent with ``midi.pitch`` under scientific notation,
-so interpreting it would be inference rather than faithful
-representation.
+The MSM ``midi.pitch`` integer is lifted into the ``EnharmonicPitch``
+storage struct ``{midi_number}`` (a MIDI number carries no spelling, so
+this view invents nothing), and the verbatim spelling
+(``pitchname`` + ``accidentals`` + ``octave``) is lifted into the
+``SpecificPitch`` storage struct ``{step, alter, octave, cents}`` whenever
+``pitchname`` is a usable step letter (A–G; the MSM uses lowercase, e.g.
+``e``). These are two **independent** afforded views — never a
+reinterpretation of one another. ``SpecificPitch`` stores exactly what the
+source spelled, regardless of whether the MSM octave numbering agrees with
+``midi.pitch`` under scientific notation; the two views are deliberately not
+cross-validated. The score timelines (``dlt1`` / ``clt1``) therefore afford
+both ``get_field(EnharmonicPitch)`` and ``get_field(SpecificPitch)``.
+``test_beethoven_note_pitch_spot_check`` pins note ``nbwxzb1``:
+``pitch == {midi_number: 75}``, ``specific_pitch`` spells E♭4
+(``step="E"``, ``alter=-1``, ``octave=4``), and both fields round-trip via
+``get_field``.
 
 The ``.mpr`` carries two ``<note ref …>`` blocks: a ``<score><page>``
 block of score-image 2-D coordinates (**not** parsed here — a later

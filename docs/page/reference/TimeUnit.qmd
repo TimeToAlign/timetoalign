@@ -19,11 +19,11 @@ Aliases are provided for common abbreviations.
 | [cm](#timetoalign.TimeUnit.cm) | centimeters |
 | [divs](#timetoalign.TimeUnit.divs) | ticks (MIDI's time unit) |
 | [domain](#timetoalign.TimeUnit.domain) | Return the domain this unit belongs to. |
+| [floating_measures](#timetoalign.TimeUnit.floating_measures) | measures |
+| [fm](#timetoalign.TimeUnit.fm) | measures |
 | [frames](#timetoalign.TimeUnit.frames) | frames |
 | [inches](#timetoalign.TimeUnit.inches) | inches |
 | [is_discrete](#timetoalign.TimeUnit.is_discrete) | Whether this unit is inherently discrete (integer-valued). |
-| [m](#timetoalign.TimeUnit.m) | measures |
-| [measures](#timetoalign.TimeUnit.measures) | measures |
 | [meters](#timetoalign.TimeUnit.meters) | meters |
 | [millimeters](#timetoalign.TimeUnit.millimeters) | millimeters |
 | [milliseconds](#timetoalign.TimeUnit.milliseconds) | milliseconds |

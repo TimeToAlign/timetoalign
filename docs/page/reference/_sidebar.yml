@@ -39,10 +39,10 @@ website:
       section: Conversion Maps
     - contents:
       - reference/TimelineGroup.qmd
-      - reference/PerfectAlignment.qmd
       - reference/AlignmentBundle.qmd
       - reference/AlignmentAnchor.qmd
       - reference/MatchClaim.qmd
+      - reference/MatchClaimField.qmd
       - reference/MatchMetadata.qmd
       - reference/MatchGraph.qmd
       - reference/MatchStamp.qmd
@@ -65,6 +65,10 @@ website:
       - reference/MatchfileLoader.qmd
       - reference/TiliaJsonLoader.qmd
       - reference/TiliaDictStore.qmd
+      - reference/PerformancePrecisionLoader.qmd
+      - reference/ParangonadaLoader.qmd
+      - reference/MpmLoader.qmd
+      - reference/ListenHereLoader.qmd
       section: Loaders
     id: reference
   - id: dummy-sidebar
