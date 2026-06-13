@@ -149,6 +149,17 @@ def test_repr_html_names_reference(loader: ListenHereLoader) -> None:
     assert "Reference" in html
 
 
+def test_repr_html_shows_claims_not_zero_events(loader: ListenHereLoader) -> None:
+    html = loader._repr_html_()
+    # The payload count is named "Claims" (15), never the base "Events: 0".
+    assert "<tr><td><b>Claims</b></td><td>15</td></tr>" in html
+    assert "Events" not in html
+    # Listen Here!-specific rows are present.
+    assert "<tr><td><b>Recordings</b></td><td>3</td></tr>" in html
+    assert "<b>File</b>" in html
+    assert "in 3 group(s)" in html
+
+
 # endregion
 
 

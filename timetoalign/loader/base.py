@@ -15,6 +15,7 @@ Design principles:
 
 from __future__ import annotations
 
+import html
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -27,6 +28,7 @@ import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
+from timetoalign.display.html import affordance_html, code
 
 from .events import EventData
 
@@ -734,40 +736,65 @@ class Loader(ABC):
     # region HTML Representation
 
     def _repr_html_(self) -> str:
-        """Rich HTML representation for Jupyter notebooks.
+        """Rich HTML affordance card for Jupyter notebooks.
 
-        Shows the loader class name, source files, store summary,
-        and available create methods.
+        Built from the overridable :meth:`_repr_rows` /
+        :meth:`_repr_count_row` / :meth:`_repr_affordances` hooks so the
+        whole loader hierarchy shares one rendering path (no hand-rolled
+        ``<table>`` markup per subclass).
         """
-        parts = [f"<h4>{self.__class__.__name__}</h4>"]
-        parts.append("<table>")
+        return affordance_html(
+            type(self).__name__,
+            self._repr_rows(),
+            affordances=self._repr_affordances(),
+        )
 
-        # Sources
+    def _repr_count_row(self) -> tuple[str, str]:
+        """Return the payload-count row shown in :meth:`_repr_html_`.
+
+        Default is ``("Events", str(len(self)))`` — ``len(self)`` (NOT
+        ``self.store.event_count``) so whole-directory / single-file
+        loaders that keep their payload in claims or timelines report the
+        meaningful count via their ``__len__`` override.  Loaders whose
+        payload is better named otherwise (e.g. alignment loaders counting
+        claims) override this hook rather than appending a second row.
+        """
+        return ("Events", str(len(self)))
+
+    def _repr_rows(self) -> list[tuple[str, str]]:
+        """Return the ``(label, value)`` rows for :meth:`_repr_html_`.
+
+        Default rows: Sources (count + first up-to-5 names), the
+        :meth:`_repr_count_row` payload-count row, and Unit.  Subclasses
+        extend by calling ``super()._repr_rows()`` and adding their own.
+        """
         n_sources = len(self._sources)
-        parts.append(f"<tr><td><b>Sources</b></td><td>{n_sources} file(s)</td></tr>")
-        for s in self._sources[:5]:
-            parts.append(f"<tr><td></td><td><code>{s.name}</code></td></tr>")
+        names = ", ".join(code(s.name) for s in self._sources[:5])
         if n_sources > 5:
-            parts.append(f"<tr><td></td><td>... and {n_sources - 5} more</td></tr>")
+            names += f", … (+{n_sources - 5} more)"
+        sources_value = f"{n_sources} file(s)" + (f": {names}" if names else "")
+        return [
+            ("Sources", sources_value),
+            self._repr_count_row(),
+            ("Unit", html.escape(str(self._unit.value))),
+        ]
 
-        # Events
-        parts.append(
-            f"<tr><td><b>Events</b></td><td>{self.store.event_count}</td></tr>"
-        )
-        parts.append(f"<tr><td><b>Unit</b></td><td>{self._unit.value}</td></tr>")
+    def _repr_affordances(self) -> list[str]:
+        """Return the invocation snippets for the ``Try`` row.
 
-        # Available create methods
-        creates = ["create_timeline()"]
+        Detects the create methods this loader overrides plus the
+        universal ``get_events(...)`` accessor and, when the class defines
+        a ``diagram`` method, ``diagram()``.
+        """
+        snippets = ["create_timeline()"]
         if self.create_group.__func__ is not Loader.create_group:
-            creates.append("create_group()")
+            snippets.append("create_group()")
         if self.create_bundle.__func__ is not Loader.create_bundle:
-            creates.append("create_bundle()")
-        parts.append(
-            f"<tr><td><b>Create</b></td>" f"<td>{', '.join(creates)}</td></tr>"
-        )
-
-        parts.append("</table>")
-        return "\n".join(parts)
+            snippets.append("create_bundle()")
+        snippets.append("get_events(...)")
+        if hasattr(type(self), "diagram"):
+            snippets.append("diagram()")
+        return snippets
 
     # endregion
 
@@ -1035,22 +1062,36 @@ class ManifestLoader(ABC):
     # region HTML Representation
 
     def _repr_html_(self) -> str:
-        """Rich HTML representation for Jupyter notebooks."""
-        parts = [f"<h4>{self.__class__.__name__}</h4>"]
-        parts.append("<table>")
+        """Rich HTML affordance card for Jupyter notebooks."""
+        return affordance_html(
+            type(self).__name__,
+            self._repr_rows(),
+            affordances=self._repr_affordances(),
+        )
 
+    def _repr_rows(self) -> list[tuple[str, str]]:
+        """Return the ``(label, value)`` rows for :meth:`_repr_html_`.
+
+        Sources, the manifest count, then one row per dimension of the
+        first manifest (the manifest's structural shape).
+        """
         n_sources = len(self._sources)
-        parts.append(f"<tr><td><b>Sources</b></td><td>{n_sources} file(s)</td></tr>")
-        for s in self._sources[:5]:
-            parts.append(f"<tr><td></td><td><code>{s.name}</code></td></tr>")
-
+        names = ", ".join(code(s.name) for s in self._sources[:5])
+        if n_sources > 5:
+            names += f", … (+{n_sources - 5} more)"
+        sources_value = f"{n_sources} file(s)" + (f": {names}" if names else "")
+        rows: list[tuple[str, str]] = [
+            ("Sources", sources_value),
+            ("Manifests", str(len(self))),
+        ]
         if self._manifests:
-            m = self._manifests[0]
-            for k, v in m.dimensions.items():
-                parts.append(f"<tr><td><b>{k}</b></td><td>{v}</td></tr>")
+            for k, v in self._manifests[0].dimensions.items():
+                rows.append((str(k), html.escape(str(v))))
+        return rows
 
-        parts.append("</table>")
-        return "\n".join(parts)
+    def _repr_affordances(self) -> list[str]:
+        """Return the invocation snippets for the ``Try`` row."""
+        return ["create_timeline()", "create_timelines()"]
 
     # endregion
 
@@ -1284,41 +1325,55 @@ class AlignmentLoader(ABC):
     # region HTML Representation
 
     def _repr_html_(self) -> str:
-        """Rich HTML representation for Jupyter notebooks."""
-        parts = [f"<h4>{self.__class__.__name__}</h4>"]
-        parts.append("<table>")
+        """Rich HTML affordance card for Jupyter notebooks.
 
+        Built from the overridable :meth:`_repr_rows` /
+        :meth:`_repr_count_row` / :meth:`_repr_affordances` hooks so every
+        alignment loader shares one rendering path.
+        """
+        return affordance_html(
+            type(self).__name__,
+            self._repr_rows(),
+            affordances=self._repr_affordances(),
+        )
+
+    def _repr_count_row(self) -> tuple[str, str]:
+        """Return the payload-count row shown in :meth:`_repr_html_`.
+
+        Default ``("Events", str(len(self)))``.  Whole-directory /
+        single-file alignment loaders whose payload is claims override
+        this to ``("Claims", …)`` rather than appending a second row, so
+        the count row never doubles up.
+        """
+        return ("Events", str(len(self)))
+
+    def _repr_rows(self) -> list[tuple[str, str]]:
+        """Return the ``(label, value)`` rows for :meth:`_repr_html_`.
+
+        Default rows: Sources (count + first up-to-5 names) and the
+        :meth:`_repr_count_row` payload-count row.  Subclasses extend by
+        calling ``super()._repr_rows()`` and adding their own.
+        """
         n_sources = len(self._sources)
-        parts.append(f"<tr><td><b>Sources</b></td><td>{n_sources} file(s)</td></tr>")
-        for s in self._sources[:5]:
-            parts.append(f"<tr><td></td><td><code>{s.name}</code></td></tr>")
+        names = ", ".join(code(s.name) for s in self._sources[:5])
+        if n_sources > 5:
+            names += f", … (+{n_sources - 5} more)"
+        sources_value = f"{n_sources} file(s)" + (f": {names}" if names else "")
+        return [
+            ("Sources", sources_value),
+            self._repr_count_row(),
+        ]
 
-        n_events = len(self)
-        parts.append(f"<tr><td><b>Events</b></td><td>{n_events}</td></tr>")
-
-        # Available create methods
-        creates = []
-        try:
-            self.create_timeline
-            creates.append("create_timeline()")
-        except Exception:
-            pass
-        try:
-            self.create_timelines
-            creates.append("create_timelines()")
-        except Exception:
-            pass
+    def _repr_affordances(self) -> list[str]:
+        """Return the invocation snippets for the ``Try`` row."""
+        snippets = ["create_timeline()", "create_timelines()"]
         if self.create_group.__func__ is not AlignmentLoader.create_group:
-            creates.append("create_group()")
+            snippets.append("create_group()")
         if self.create_bundle.__func__ is not AlignmentLoader.create_bundle:
-            creates.append("create_bundle()")
-        if creates:
-            parts.append(
-                f"<tr><td><b>Create</b></td>" f"<td>{', '.join(creates)}</td></tr>"
-            )
-
-        parts.append("</table>")
-        return "\n".join(parts)
+            snippets.append("create_bundle()")
+        if hasattr(type(self), "diagram"):
+            snippets.append("diagram()")
+        return snippets
 
     # endregion
 
