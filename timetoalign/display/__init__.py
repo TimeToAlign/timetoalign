@@ -33,7 +33,7 @@ from timetoalign.display.ascii import (
     group_diagram,
     timeline_diagram,
 )
-from timetoalign.display.html import affordance_html, code
+from timetoalign.display.html import affordance_html, affordance_line, code
 
 __all__ = [
     "Diagram",
@@ -50,5 +50,6 @@ __all__ = [
     "FLOW_CHARS",
     "FLOW_CHARS_ASCII",
     "affordance_html",
+    "affordance_line",
     "code",
 ]

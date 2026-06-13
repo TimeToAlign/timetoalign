@@ -8,7 +8,7 @@ documented expectations.
 
 from __future__ import annotations
 
-from timetoalign.display.html import affordance_html, code
+from timetoalign.display.html import affordance_html, affordance_line, code
 
 
 class TestCode:
@@ -71,3 +71,27 @@ class TestAffordanceHtml:
             "<tr><td><b>Try</b></td><td><code>one()</code></td></tr>\n"
             "</table>"
         )
+
+
+class TestAffordanceLine:
+    """The ``affordance_line()`` standalone footer renderer."""
+
+    def test_full_fixture_exact_string(self) -> None:
+        out = affordance_line(["a()", "b(<x>)"])
+        assert out == (
+            "<div style='margin-top: 4px; color: #666; font-size: 0.85em;'>"
+            "Try: <code>a()</code>, <code>b(&lt;x&gt;)</code></div>"
+        )
+
+    def test_single_snippet(self) -> None:
+        out = affordance_line(["one()"])
+        assert out == (
+            "<div style='margin-top: 4px; color: #666; font-size: 0.85em;'>"
+            "Try: <code>one()</code></div>"
+        )
+
+    def test_empty_list_returns_empty_string(self) -> None:
+        assert affordance_line([]) == ""
+
+    def test_none_returns_empty_string(self) -> None:
+        assert affordance_line(None) == ""

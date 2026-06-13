@@ -1057,6 +1057,8 @@ class MatchClaim(BaseModel):
         """
         import html as html_mod
 
+        from timetoalign.display.html import affordance_line
+
         def _fmt(v: float) -> str:
             """Format coordinate without scientific notation."""
             if v == int(v) and abs(v) < 1e15:
@@ -1182,7 +1184,9 @@ class MatchClaim(BaseModel):
             f"<strong>MatchClaim</strong> {badge}"
             f"<table style='border-collapse: collapse; margin-top: 4px;'>"
             f"<tbody>{''.join(rows)}</tbody>"
-            f"</table></div>"
+            f"</table>"
+            f"{affordance_line(['claim.get_matchstamp()'])}"
+            f"</div>"
         )
 
 

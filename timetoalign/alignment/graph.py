@@ -259,6 +259,8 @@ class MatchStamp:
         """
         import html as html_mod
 
+        from timetoalign.display.html import affordance_line
+
         def _fmt_html(v: float) -> str:
             """Format coordinate without scientific notation."""
             if v == int(v) and abs(v) < 1e15:
@@ -323,7 +325,9 @@ class MatchStamp:
             f"<th style='text-align: left; padding: 2px 8px;'>Type</th>"
             f"</tr></thead>"
             f"<tbody>{''.join(rows)}</tbody>"
-            f"</table></div>"
+            f"</table>"
+            f"{affordance_line(['stamp.get_coordinate(<tl_id>)', 'stamp.get_group_coordinates(<group>)'])}"
+            f"</div>"
         )
 
 

@@ -140,6 +140,8 @@ class GroupTimestamp:
         """
         import html
 
+        from timetoalign.display.html import affordance_line
+
         rows = []
         for tid, val in self.coordinates.items():
             unit = self.units.get(tid, "")
@@ -174,7 +176,9 @@ class GroupTimestamp:
             f"<th style='text-align: right; padding: 2px 8px;'>Coordinate</th>"
             f"</tr></thead>"
             f"<tbody>{''.join(rows)}</tbody>"
-            f"</table></div>"
+            f"</table>"
+            f"{affordance_line(['ts[<tl_id>]', 'ts.get(<tl_id>)'])}"
+            f"</div>"
         )
 
 
