@@ -108,7 +108,7 @@ score
 
 # %% [markdown]
 # The score is a `ContinuousLogicalTimeline` in quarter-beat coordinates,
-# carrying two conversion maps: `raw_to_normalised` (a ShiftMap for
+# carrying two conversion maps: `raw_quarters` (a ShiftMap for
 # anacrusis offset) and `quarters_to_divs` (a ScalarMap to MIDI
 # divisions).
 
