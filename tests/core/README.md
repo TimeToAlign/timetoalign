@@ -204,6 +204,11 @@ The ID system ensures:
    - `_get_related_timeline_ids()` returns child IDs
    - `_get_available_units()` returns C-Map targets
 
+7. **TimeStampReprHtml** (2 tests)
+   - `_repr_html_` still renders the coordinate cross-section table
+   - `_repr_html_` appends an affordance `Try` footer after the table
+     surfacing the real accessors (`ts.get(<tl_id>)` / `ts.get_unit(<unit>)`)
+
 **Validity Rationale:**
 
 The unified TimeStamp architecture enables:

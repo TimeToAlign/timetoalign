@@ -91,7 +91,7 @@ The manuscript states Groups contain timelines with "perfect alignment"--any coo
 
 | Class | Tests |
 |-------|-------|
-| `TestGroupTimestamp` | View object creation, coordinate access, `present_timelines` property |
+| `TestGroupTimestamp` | View object creation, coordinate access, `present_timelines` property, `_repr_html_` coordinate table + affordance `Try` footer (`ts[<tl_id>]` / `ts.get(<tl_id>)`) |
 | `TestTimelineGroupCreation` | Empty groups, groups with initial timelines, ID generation |
 | `TestTimelineGroupAddTimeline` | Linear alignment, partial alignment with `start`/`end`, duplicate detection |
 | `TestTimelineGroupTimestamps` | Timestamp count, boundary retrieval, table structure |
@@ -865,7 +865,7 @@ python -m pytest tests/alignment/ -v
 | `test_matchline.py` | 33 | MatchLine construction, from_claims, from_graphs, coordinate pairs, serialization; imports Thoresen fixtures from conftest |
 | `test_warpmap.py` | 36 | WarpMap construction, forward/inverse, materialise (events, children, regions, type conversion), serialization, end-to-end pipeline |
 | `test_filters.py` | 27 | `ClaimFilter` dataclass: exact ID, set-of-IDs, regex, between, synchronous/nomatch, combined filters, timeline-level filtering |
-| `test_stamp_query_api.py` | 52 | Unified Stamp & Query API: `get_match_claims()`, `get_matchstamp_at()`, `MatchGraph.get_matchstamp()`/`split_components()`, `MatchClaim.get_matchstamp()`, MatchGraph cache, display methods (`__str__`/`_repr_html_`), `transfer()` docstring fix, top-level exports |
+| `test_stamp_query_api.py` | 54 | Unified Stamp & Query API: `get_match_claims()`, `get_matchstamp_at()`, `MatchGraph.get_matchstamp()`/`split_components()`, `MatchClaim.get_matchstamp()`, MatchGraph cache, display methods (`__str__`/`_repr_html_` incl. the affordance `Try` footer on `MatchStamp`/`MatchClaim`), `transfer()` docstring fix, top-level exports |
 | `test_supra_integration.py` | 13 | SUPRA piano roll workflow (partial alignment) |
 | `test_thoresen_poc.py` | 35 | Thoresen graphical analysis workflow; imports Thoresen fixtures from conftest |
 | `../timelines/test_offset_arithmetic.py` | 11 | Parent–child offset arithmetic |
@@ -901,8 +901,8 @@ Tests for the Unified Stamp & Query API, using a star-topology bundle (1 score +
 | `TestMatchClaimGetMatchstamp` | 4 | `MatchClaim.get_matchstamp()`: reduced stamp, NOMATCH returns None, no-bundle raises, from-graph with bundle |
 | `TestMatchGraphCache` | 5 | MatchGraph cache: hit, cross-key lookup, invalidation, no-claims raises, different coordinates |
 | `TestGetMatchstampAt` | 6 | `AlignmentBundle.get_matchstamp_at()`: basic, non-zero coordinate, not-in-bundle, no claims, regex filter, timeline_ids filter |
-| `TestMatchStampDisplay` | 7 | `MatchStamp.__str__`/`_repr_html_`: header, entries, empty, integer formatting, valid HTML, bold anchors, greyed inferred |
-| `TestMatchClaimDisplay` | 8 | `MatchClaim.__str__`/`_repr_html_`: instant, interval, NOMATCH, metadata, inferred, valid HTML, NOMATCH badge |
+| `TestMatchStampDisplay` | 8 | `MatchStamp.__str__`/`_repr_html_`: header, entries, empty, integer formatting, valid HTML, bold anchors, greyed inferred, affordance `Try` footer (`stamp.get_coordinate(<tl_id>)` / `stamp.get_group_coordinates(<group>)`) appended after the table |
+| `TestMatchClaimDisplay` | 9 | `MatchClaim.__str__`/`_repr_html_`: instant, interval, NOMATCH, metadata, inferred, valid HTML, NOMATCH badge, affordance `Try` footer (`claim.get_matchstamp()`) appended after the table |
 | `TestTransferDocstring` | 1 | `transfer()` docstring no longer says "primary user-facing" |
 | `TestTopLevelExports` | 4 | `MatchGraph`, `MatchStamp`, `ClaimFilter` importable from top-level |
 

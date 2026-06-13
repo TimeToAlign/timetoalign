@@ -618,3 +618,27 @@ class TestTimestampTableMetadata:
         assert cmap_field.metadata is not None
         assert cmap_field.metadata[b"unit"] == b"seconds"  # Target unit
         assert cmap_field.metadata[b"cmap_id"] == tempo_map.id.encode("utf-8")
+
+
+class TestTimeStampReprHtml:
+    """TimeStamp ``_repr_html_`` affordance footer."""
+
+    def test_repr_html_renders_coordinate_table(self):
+        """The coordinate cross-section table still renders."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds, uid="tl:1")
+        ts = tl.get_timestamp(50.0)
+        html = ts._repr_html_()
+        assert "<table" in html
+        assert "TimeStamp" in html
+        assert "tl:1" in html
+
+    def test_repr_html_try_footer(self):
+        """A Try footer surfaces the real TimeStamp accessors after the table."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds, uid="tl:1")
+        ts = tl.get_timestamp(50.0)
+        html = ts._repr_html_()
+        assert (
+            "Try: <code>ts.get(&lt;tl_id&gt;)</code>, "
+            "<code>ts.get_unit(&lt;unit&gt;)</code>" in html
+        )
+        assert html.index("</table>") < html.index("Try:")

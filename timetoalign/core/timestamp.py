@@ -518,6 +518,8 @@ class TimeStamp:
         """
         import html
 
+        from timetoalign.display.html import affordance_line
+
         def _fmt_html(value: float, unit_name: str = "") -> str:
             """Format for HTML display, keeping unit separate."""
             return _format_coordinate_value(value, unit_name)
@@ -574,7 +576,9 @@ class TimeStamp:
             f"<th style='text-align: left; padding: 2px 8px;'>Type</th>"
             f"</tr></thead>"
             f"<tbody>{''.join(rows)}</tbody>"
-            f"</table></div>"
+            f"</table>"
+            f"{affordance_line(['ts.get(<tl_id>)', 'ts.get_unit(<unit>)'])}"
+            f"</div>"
         )
 
 

@@ -669,6 +669,23 @@ class TestMatchStampDisplay:
         assert "color: #666" in html
         assert "inferred" in html
 
+    def test_repr_html_try_footer(self):
+        """_repr_html_ appends the affordance Try footer after the table."""
+        stamp = MatchStamp(
+            coordinates={"score": 10.0, "audio": 45.5},
+            anchor_edges=[("score", "audio")],
+        )
+        html = stamp._repr_html_()
+        # The coordinate table still renders.
+        assert "<strong>score</strong>" in html
+        # The Try footer surfaces the real MatchStamp accessors.
+        assert (
+            "Try: <code>stamp.get_coordinate(&lt;tl_id&gt;)</code>, "
+            "<code>stamp.get_group_coordinates(&lt;group&gt;)</code>" in html
+        )
+        # Footer is a free-standing div after the table close.
+        assert html.index("</table>") < html.index("Try:")
+
 
 # endregion
 
@@ -804,6 +821,25 @@ class TestMatchClaimDisplay:
         html = claim._repr_html_()
         assert "NOMATCH" in html
         assert "#ffcdd2" in html  # Red background
+
+    def test_repr_html_try_footer(self):
+        """_repr_html_ appends the affordance Try footer after the table."""
+        claim = MatchClaim(
+            timeline_a_id="score:clt1",
+            timeline_b_id="perf:dlt1",
+            start_anchor=AlignmentAnchor(
+                timeline_a_id="score:clt1",
+                coordinate_a=10.0,
+                timeline_b_id="perf:dlt1",
+                coordinate_b=128.0,
+            ),
+        )
+        html = claim._repr_html_()
+        # The claim detail table still renders.
+        assert "<strong>score:clt1</strong>" in html
+        # The Try footer surfaces the real MatchClaim accessor.
+        assert "Try: <code>claim.get_matchstamp()</code>" in html
+        assert html.index("</table>") < html.index("Try:")
 
 
 # endregion

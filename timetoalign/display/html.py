@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import html
 
-__all__ = ["affordance_html", "code"]
+__all__ = ["affordance_html", "affordance_line", "code"]
 
 
 def code(s: str) -> str:
@@ -35,6 +35,45 @@ def code(s: str) -> str:
         ``<code>{escaped}</code>``.
     """
     return f"<code>{html.escape(s)}</code>"
+
+
+def _join_snippets(snippets: list[str]) -> str:
+    """Join *snippets* as escaped ``<code>`` spans separated by ``", "``.
+
+    Shared by :func:`affordance_html`'s ``Try`` row and
+    :func:`affordance_line` so the snippet-join lives in exactly one place.
+
+    Args:
+        snippets: Invocation snippets to render as inline code.
+
+    Returns:
+        ``", "``-joined ``<code>`` spans.
+    """
+    return ", ".join(code(s) for s in snippets)
+
+
+def affordance_line(snippets: list[str] | None) -> str:
+    """Render a standalone "Try" footer element listing *snippets*.
+
+    Unlike :func:`affordance_html`'s ``Try`` table row, this is a free-standing
+    ``<div>`` for objects that own their own ``<table>`` (e.g. the timestamp /
+    claim coordinate cross-sections). Append it immediately before the object's
+    closing ``</div>``.
+
+    Args:
+        snippets: Invocation snippets a user might call next. Each is rendered
+            as an inline ``<code>`` span via :func:`code`.
+
+    Returns:
+        ``<div …>Try: <code>a()</code>, <code>b()</code></div>``, or ``""``
+        when *snippets* is empty or ``None``.
+    """
+    if not snippets:
+        return ""
+    return (
+        f"<div style='margin-top: 4px; color: #666; font-size: 0.85em;'>"
+        f"Try: {_join_snippets(snippets)}</div>"
+    )
 
 
 def affordance_html(
@@ -60,7 +99,8 @@ def affordance_html(
     for label, value in rows:
         parts.append(f"<tr><td><b>{html.escape(label)}</b></td><td>{value}</td></tr>")
     if affordances:
-        snippets = ", ".join(code(s) for s in affordances)
-        parts.append(f"<tr><td><b>Try</b></td><td>{snippets}</td></tr>")
+        parts.append(
+            f"<tr><td><b>Try</b></td><td>{_join_snippets(affordances)}</td></tr>"
+        )
     parts.append("</table>")
     return "\n".join(parts)
