@@ -23,7 +23,7 @@ from fractions import Fraction
 
 import pandas as pd
 
-from timetoalign import Coordinate, Domain, NumberType, TimeUnit
+from timetoalign import Coordinate, Domain, IdCoordinate, NumberType, TimeUnit
 
 # %% [markdown]
 # ## The Three Domains
@@ -115,6 +115,14 @@ c1, c2, c3
 
 # %% [markdown]
 # ### Arithmetic
+#
+# Coordinates are *positions*, so the arithmetic is deliberately strict. The
+# guiding distinction is between a position (a `Coordinate`) and a span between
+# two positions (a `Duration`). The rules below fall straight out of that
+# distinction.
+
+# %% [markdown]
+# **Comparisons.** Coordinates of the same unit compare as you would expect.
 
 # %%
 x = Coordinate(10, TimeUnit.seconds)
@@ -122,12 +130,104 @@ y = Coordinate(5, TimeUnit.seconds)
 
 {"x > y": x > y, "x == y": x == y, "x <= y": x <= y}
 
+# %% [markdown]
+# **Subtracting two Coordinates gives a `Duration`.** The span between two
+# positions is a duration, not another position. Reverse the operands and the
+# duration is signed — `is_negative` / `is_positive` make the direction
+# queryable.
+
 # %%
-# Unit mismatch raises TypeError
+forwards = x - y  # 10s - 5s
+backwards = y - x  # 5s - 10s
+
+{
+    "x - y": forwards,
+    "type": type(forwards).__name__,
+    "is_positive": forwards.is_positive(),
+    "y - x": backwards,
+    "is_negative": backwards.is_negative(),
+}
+
+# %% [markdown]
+# **A Coordinate plus or minus a Duration is a Coordinate** — shifting a
+# position by a span lands on another position. Shifting by a bare number works
+# the same way.
+
+# %%
+{
+    "x - (x - y)": x - forwards,  # Coordinate - Duration -> Coordinate
+    "x + 2": x + 2,  # Coordinate + number -> Coordinate
+    "x - 2": x - 2,
+}
+
+# %% [markdown]
+# **Adding two Coordinates is forbidden.** The sum of two positions is
+# meaningless; subtract them instead to obtain the span between them.
+
+# %%
 try:
-    Coordinate(480, TimeUnit.ticks) + Coordinate(1.0, TimeUnit.seconds)
+    x + y  # two positions cannot be added
 except TypeError as e:
     print(f"TypeError: {e}")
+
+# %% [markdown]
+# **A Duration on the left of `+ Coordinate` is forbidden too** — write
+# `coord + dur`, not `dur + coord`.
+
+# %%
+try:
+    forwards + x  # Duration + Coordinate
+except TypeError as e:
+    print(f"TypeError: {e}")
+
+# %% [markdown]
+# **Multiplying two TimeScalars is forbidden.** Scaling a position by a number
+# is fine; multiplying two positions (or two spans) is not.
+
+# %%
+try:
+    x * y  # Coordinate * Coordinate
+except TypeError as e:
+    print(f"TypeError: {e}")
+
+# %% [markdown]
+# **Scaling by a number preserves the type.** A scaled Coordinate is a
+# Coordinate; a scaled Duration is a Duration.
+
+# %%
+{
+    "x * 2": x * 2,
+    "x / 2": x / 2,
+    "(x - y) * 2": forwards * 2,
+    "(x - y) type": type(forwards * 2).__name__,
+}
+
+# %% [markdown]
+# **Different units cannot be combined.** This is a separate rule from the
+# two-Coordinates ban above: even subtraction — which *is* allowed between two
+# Coordinates — refuses operands whose units disagree.
+
+# %%
+try:
+    Coordinate(1, TimeUnit.ticks) - Coordinate(1, TimeUnit.seconds)
+except TypeError as e:
+    print(f"TypeError: {e}")
+
+# %% [markdown]
+# **Id-bearing coordinates preserve their timeline.** Subtracting two
+# `IdCoordinate`s on the *same* timeline yields an `IdDuration` that keeps the
+# `timeline_id`. Mixing two different timelines raises.
+
+# %%
+p = IdCoordinate(10, TimeUnit.quarters, timeline_id="clt1")
+q = IdCoordinate(4, TimeUnit.quarters, timeline_id="clt1")
+span = p - q
+
+{
+    "p - q": span,
+    "type": type(span).__name__,
+    "timeline_id": span.timeline_id,
+}
 
 # %% [markdown]
 # ### Type Conversions

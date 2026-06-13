@@ -361,13 +361,14 @@ to the relevant section of the conceptual model.
 
 ## R
 
-**raw_to_normalised**
+**raw_quarters**
 :   The conventional name for the {{< glossary ConversionMap >}} (specifically
-    a `ShiftMap`) attached to a score timeline to expose normalised
-    (non-negative) coordinates. Its offset equals `−min(raw_onsets)`. Added
-    by {{< glossary MatchfileLoader >}} and `PartituraLoader` so downstream
-    code can detect and apply the same shift when comparing coordinates across
-    loaders.
+    a `ShiftMap`) attached to a score timeline. The timeline stores normalised
+    (non-negative) coordinates — shifted so the minimum onset is `0.0` — and
+    this map converts them back to the raw quarter values of the source. Its
+    offset equals `min(raw_onsets)`. Added by {{< glossary MatchfileLoader >}}
+    and `PartituraLoader` so downstream code can detect and apply the same
+    shift when comparing coordinates across loaders.
 
 **Region**
 :   A named part of a {{< glossary Timeline >}} defined by a

@@ -246,11 +246,13 @@ Region: |
   A named part of a timeline defined by a TimeInterval (e.g., "Chorus", "Verse").
   Regions are not timelines and cannot hold events or maps directly.
 
-raw_to_normalised: |
-  The conventional name for the ShiftMap attached to a score timeline to expose
-  normalised (non-negative) coordinates. Its offset equals −min(raw_onsets).
-  Added by MatchfileLoader and PartituraLoader so downstream code can detect
-  and apply the same shift when comparing coordinates across loaders.
+raw_quarters: |
+  The conventional name for the ShiftMap attached to a score timeline. The
+  timeline stores normalised (non-negative) coordinates — shifted so the
+  minimum onset is 0.0 — and this map converts them back to the raw quarter
+  values of the source. Its offset equals min(raw_onsets). Added by
+  MatchfileLoader and PartituraLoader so downstream code can detect and apply
+  the same shift when comparing coordinates across loaders.
 
 Root: |
   The top-level timeline in a hierarchy of nested timelines. Only the root
