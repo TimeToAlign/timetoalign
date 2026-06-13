@@ -42,12 +42,12 @@ This documentation follows the
     - [Timeline Groups and Commensurability](tutorials/tut02_timeline_groups.ipynb)
     - [Alignment Bundles](tutorials/tut03_alignment_bundles.ipynb)
     - [Flow Control and Grids](tutorials/tut04_flow_and_grids.ipynb)
+    - [DataFields and Layered EventData](tutorials/tut05_datafields_and_eventdata.ipynb)
 
 [**How-To Guides**](howto.qmd)
 :   Task-oriented recipes grouped by topic.
 
     *Timelines, Events & Maps* ---
-    [How to Work with DataFields and Layered EventData](howto/how01_datafields_and_eventdata.ipynb) ·
     [How to Work with Pitch and Harmony Types](howto/how01_pitch_and_harmony_types.ipynb) ·
     [How to Do Coordinate Math](howto/how01_coordinate_math.ipynb) ·
     [How to Use Advanced Conversion Maps](howto/how01_advanced_cmaps.ipynb) ·
