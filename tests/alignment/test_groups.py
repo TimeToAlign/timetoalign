@@ -83,6 +83,25 @@ class TestGroupTimestamp:
         with pytest.raises(AttributeError):
             ts.row_index = 5  # type: ignore
 
+    def test_repr_html_renders_coordinate_table(self) -> None:
+        """The coordinate cross-section table still renders."""
+        ts = GroupTimestamp(coordinates={"tl1": 10.0, "tl2": 20.0}, row_index=0)
+        html = ts._repr_html_()
+        assert "<table" in html
+        assert "GroupTimestamp" in html
+        assert "tl1" in html
+        assert "tl2" in html
+
+    def test_repr_html_try_footer(self) -> None:
+        """A Try footer surfaces the real GroupTimestamp accessors after the table."""
+        ts = GroupTimestamp(coordinates={"tl1": 10.0, "tl2": 20.0}, row_index=0)
+        html = ts._repr_html_()
+        assert (
+            "Try: <code>ts[&lt;tl_id&gt;]</code>, "
+            "<code>ts.get(&lt;tl_id&gt;)</code>" in html
+        )
+        assert html.index("</table>") < html.index("Try:")
+
 
 # endregion
 

@@ -54,6 +54,38 @@ affordance_html("Demo", [("A", "x"), ("B", code("y<z"))], affordances=["f()", "g
 </table>
 ```
 
+### Validation Logic — `affordance_line` (deterministic, exact-string)
+
+`affordance_line(snippets)` is the standalone footer counterpart to
+`affordance_html`'s `Try` row, for objects that own their own `<table>` (the
+timestamp / claim coordinate cross-sections). It renders a free-standing
+`<div>` listing the snippets as `<code>` spans under a `Try:` label, and shares
+the snippet-join with `affordance_html` via the private `_join_snippets` helper
+(no duplicated join logic).
+
+Pinned expectations:
+- A non-empty list renders
+  `<div style='margin-top: 4px; color: #666; font-size: 0.85em;'>Try: {code-spans joined by ", "}</div>`.
+- Each snippet is escaped via `code()` (a `<` in a snippet survives as `&lt;`).
+- An empty list or `None` renders `""` (no element at all).
+
+Exact-string fixtures:
+
+```
+affordance_line(["a()", "b(<x>)"])
+```
+
+→
+
+```
+<div style='margin-top: 4px; color: #666; font-size: 0.85em;'>Try: <code>a()</code>, <code>b(&lt;x&gt;)</code></div>
+```
+
+```
+affordance_line([])  →  ""
+affordance_line(None) →  ""
+```
+
 ## Test File: `test_ascii.py`
 
 ### Overview
