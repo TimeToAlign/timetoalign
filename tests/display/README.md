@@ -1,7 +1,58 @@
 # Display Module Tests
 
 This directory contains tests for the `timetoalign.display` module, which provides
-ASCII/Unicode terminal visualization for TimeToAlign! objects.
+ASCII/Unicode terminal visualization and rich-HTML affordance cards for
+TimeToAlign! objects.
+
+## Test File: `test_html.py`
+
+### Overview
+
+Validates `timetoalign.display.html`, the single shared helper behind every
+object's `_repr_html_` affordance card. Loaders, EventData, and Fields all
+render through `affordance_html`, so this is the one canonical place the markup
+shape is pinned.
+
+### Validation Logic — `affordance_html` / `code` (deterministic, exact-string)
+
+`affordance_html(title, rows, *, affordances=None)` and `code(s)` are pure
+functions. Tests assert the EXACT full output string.
+
+**`code(s)`** wraps text in an HTML-escaped `<code>` span:
+- `code("y")` == `"<code>y</code>"`
+- `code("y<z")` == `"<code>y&lt;z</code>"` (the value is escaped)
+
+**`affordance_html`** renders `<h4>{escaped title}</h4>` + `<table>` with one
+`<tr><td><b>{escaped label}</b></td><td>{verbatim value}</td></tr>` per row,
+then — when `affordances` is non-empty — a final
+`<tr><td><b>Try</b></td><td>{code-spans joined by ", "}</td></tr>`, then
+`</table>`. Lines are joined by `"\n"`.
+
+Pinned expectations:
+- Title is HTML-escaped: a `"<X>"` title renders `<h4>&lt;X&gt;</h4>`.
+- Row LABEL is escaped by the helper; row VALUE is passed through verbatim
+  (so a caller-supplied `<code>` survives intact, an unescaped `<` in the
+  value survives intact).
+- `affordances=None` or `[]` emits NO `Try` row.
+- A non-empty `affordances` list emits exactly one `Try` row whose value is the
+  snippets each wrapped via `code()` and joined by `", "`.
+
+The exact-string fixture is:
+
+```
+affordance_html("Demo", [("A", "x"), ("B", code("y<z"))], affordances=["f()", "g(1)"])
+```
+
+→
+
+```
+<h4>Demo</h4>
+<table>
+<tr><td><b>A</b></td><td>x</td></tr>
+<tr><td><b>B</b></td><td><code>y&lt;z</code></td></tr>
+<tr><td><b>Try</b></td><td><code>f()</code>, <code>g(1)</code></td></tr>
+</table>
+```
 
 ## Test File: `test_ascii.py`
 

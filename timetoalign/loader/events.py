@@ -1302,6 +1302,52 @@ class EventData(SemanticFieldAccessMixin):
             f"count={self.count}, unit={self.unit}, number_type={self.number_type})"
         )
 
+    def _repr_html_(self) -> str:
+        """Rich HTML affordance card for Jupyter notebooks.
+
+        Lists the event count, unit, number type, and the semantic fields
+        reachable via :meth:`get_field` — each as ``name : ScalarType``
+        with the backing column name — followed by the typical next-step
+        invocations.
+        """
+        from timetoalign.display.html import affordance_html, code
+        from timetoalign.loader.mixins import (
+            _get_field_type_map,
+            _parse_field_type_metadata,
+        )
+
+        rows: list[tuple[str, str]] = [
+            ("Events", str(self.count)),
+            ("Unit", str(self.unit)),
+            ("Number type", str(self.number_type)),
+        ]
+
+        # Enumerate reachable semantic fields best-effort from the table
+        # schema's b"timetoalign" field_type metadata (the same source
+        # get_field uses). Columns with no paired field are skipped.
+        registry = _get_field_type_map()
+        field_items: list[str] = []
+        schema = self._table.schema
+        for i in range(len(schema)):
+            pa_field = schema.field(i)
+            ft_str = _parse_field_type_metadata(pa_field)
+            if ft_str is None:
+                continue
+            field_cls = registry.get(ft_str)
+            if field_cls is None:
+                continue
+            scalar_cls = field_cls.scalar_cls
+            scalar_name = scalar_cls.__name__ if scalar_cls is not None else "—"
+            field_items.append(f"<li>{code(pa_field.name)} : {scalar_name}</li>")
+        if field_items:
+            fields_value = "<ul>" + "".join(field_items) + "</ul>"
+        else:
+            fields_value = "(none)"
+        rows.append(("Fields", fields_value))
+
+        affordances = ["get_field(<Scalar>)", "get_pitch_field()", "get_raw('<col>')"]
+        return affordance_html(type(self).__name__, rows, affordances=affordances)
+
     # endregion
 
     # region Extend/Merge

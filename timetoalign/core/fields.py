@@ -282,6 +282,56 @@ class DataField(ABC):
         length = len(self) if not self.is_empty else 0
         return f"{type(self).__name__}(name={self.name!r}, type={self.pa_type}, len={length})"
 
+    def _repr_sample(self) -> str:
+        """Return a head/tail sample of element ``repr``s.
+
+        Shows the first up-to-3 and last up-to-2 elements via ``repr``,
+        inserting an ellipsis when the field is longer than the shown
+        window.  Returns ``"(schema-only)"`` for empty fields.
+        """
+        if self.is_empty:
+            return "(schema-only)"
+        length = len(self)
+        if length == 0:
+            return "(empty)"
+        head = [repr(self[i]) for i in range(min(3, length))]
+        if length <= 3:
+            return ", ".join(head)
+        tail_start = max(3, length - 2)
+        tail = [repr(self[i]) for i in range(tail_start, length)]
+        gap = "…" if tail_start > 3 else ""
+        middle = [gap] if gap else []
+        return ", ".join(head + middle + tail)
+
+    def _repr_rows(self) -> list[tuple[str, str]]:
+        """Return the ``(label, value)`` rows for :meth:`_repr_html_`.
+
+        Base (scalar-less) rows: Length, Arrow type, Sample.  The
+        :class:`SemanticField` override prepends the scalar-type row.
+        """
+        import html as _html
+
+        length = 0 if self.is_empty else len(self)
+        return [
+            ("Length", str(length)),
+            ("Arrow type", _html.escape(str(self.pa_type))),
+            ("Sample", _html.escape(self._repr_sample())),
+        ]
+
+    def _repr_affordances(self) -> list[str]:
+        """Return the invocation snippets for the ``Try`` row."""
+        return ["field[i]", "field.get_raw()"]
+
+    def _repr_html_(self) -> str:
+        """Rich HTML affordance card for Jupyter notebooks."""
+        from timetoalign.display.html import affordance_html
+
+        return affordance_html(
+            type(self).__name__,
+            self._repr_rows(),
+            affordances=self._repr_affordances(),
+        )
+
     # -- conversion helpers --------------------------------------------------
 
     def to_pyarrow(self) -> pa.Array:
@@ -906,6 +956,19 @@ class SemanticField(DataField, Generic[T]):
             f"{type(self).__name__}(name={self.name!r}, "
             f"raw={type(self._raw).__name__}, len={length})"
         )
+
+    def _repr_rows(self) -> list[tuple[str, str]]:
+        """Prepend the scalar-type row to the base Length/Arrow/Sample rows."""
+        scalar_name = self.scalar_cls.__name__ if self.scalar_cls is not None else "—"
+        return [("Scalar type", scalar_name)] + super()._repr_rows()
+
+    def _repr_affordances(self) -> list[str]:
+        """Return the invocation snippets for the ``Try`` row."""
+        return [
+            "field[i] -> <Scalar>",
+            "field.convert_to(<TargetScalar>)",
+            "field.get_raw()",
+        ]
 
     def get_raw(self) -> "StructField":
         """Return the underlying raw field (strips the semantic layer)."""

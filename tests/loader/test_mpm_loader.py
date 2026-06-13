@@ -147,6 +147,17 @@ def test_loader_repr_and_ppq(specimen: dict[str, Any]) -> None:
     )
 
 
+def test_repr_html_shows_claims_not_zero_events(specimen: dict[str, Any]) -> None:
+    """The HTML card reports the real claim count, never the base Events: 0."""
+    loader = _loaded(specimen["mpr"])
+    html = loader._repr_html_()
+    assert f"<tr><td><b>Claims</b></td><td>{specimen['claims']}</td></tr>" in html
+    assert "Events" not in html
+    assert "<b>Project</b>" in html
+    assert "<b>Performance</b>" in html
+    assert "in 2 group(s) (score, perf)" in html
+
+
 def test_from_file_matches_load(specimen: dict[str, Any]) -> None:
     """``from_file`` is equivalent to ``load`` for the default performance."""
     via_from_file = MpmLoader.from_file(specimen["mpr"])

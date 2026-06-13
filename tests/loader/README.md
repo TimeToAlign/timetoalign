@@ -639,6 +639,21 @@ Reading the reference is essential to interpreting the bundle, so both
 ``ListenHereLoader(recordings=3, reference='rec-ref.mp3', claims=15)``; the
 HTML carries a ``Reference`` row with the ``header.ref`` string.
 
+### Affordance HTML card — Claims, not "Events: 0"
+
+The three whole-directory / single-file alignment loaders (Parangonada,
+MPM, Listen Here!) keep their payload in assembled claims/timelines, not the
+per-source ``AlignmentStore``.  Their ``_repr_html_`` cards therefore label the
+payload-count row **Claims** (via the ``_repr_count_row`` hook) and never show
+the base ``Events`` row that read the empty store as ``0``.  Tests assert the
+exact ``<tr><td><b>Claims</b></td><td>N</td></tr>`` row, the absence of any
+``Events`` text, and the loader-specific rows:
+
+- Listen Here!: ``Recordings`` (3), ``File``, and ``… in 3 group(s)``.
+- MPM: ``Project``, ``Performance``, and ``… in 2 group(s) (score, perf)``.
+- Parangonada: ``Performers`` (5), ``Dataset``, ``Performer keys``, and
+  ``… in 6 group(s)``.
+
 ### Columnar bundle query — the field is never exploded
 
 ``create_bundle()`` hands the ``MatchClaimField`` to the bundle via

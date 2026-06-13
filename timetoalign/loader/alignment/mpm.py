@@ -88,6 +88,7 @@ from typing_extensions import Self
 
 from timetoalign.alignment.claims import Agent, MatchClaim, MatchMetadata
 from timetoalign.core import AgentType, TimeUnit
+from timetoalign.display.html import code
 from timetoalign.loader.base import AlignmentLoader
 from timetoalign.loader.physical.audio import AudioLoader
 from timetoalign.maps.convenience import SamplesToSeconds, TicksToQuarters
@@ -1150,39 +1151,27 @@ class MpmLoader(AlignmentLoader):
 
     # region HTML Representation
 
-    def _repr_html_(self) -> str:
-        """Accurate Jupyter summary consistent with :meth:`__repr__`.
+    def _repr_count_row(self) -> tuple[str, str]:
+        """This loader's payload is cross-group claims, not store events."""
+        return ("Claims", str(len(self._claims)))
 
-        The base :class:`AlignmentLoader` HTML reads the unpopulated
-        per-source ``AlignmentStore`` and reports ``Events: 0``, which
-        contradicts this loader (whose data lives in the assembled
-        timelines and claims).  This override renders the real shape.
+    def _repr_rows(self) -> list[tuple[str, str]]:
+        """Extend the base rows with the MPM-specific shape.
+
+        The base :class:`AlignmentLoader` count row is replaced by the
+        claim count (see :meth:`_repr_count_row`); the data lives in the
+        assembled timelines and claims, not the unpopulated per-source
+        ``AlignmentStore``.
         """
-        n_claims = len(self._claims)
-        loaded = self._score_clt is not None
-
-        parts = [f"<h4>{self.__class__.__name__}</h4>", "<table>"]
+        rows = super()._repr_rows()
         name = self._name or "(not loaded)"
-        parts.append(f"<tr><td><b>Project</b></td><td><code>{name}</code></td></tr>")
         performance = self._performance_name or "(not loaded)"
-        parts.append(
-            f"<tr><td><b>Performance</b></td><td><code>{performance}</code></td></tr>"
-        )
-        parts.append(f"<tr><td><b>Claims</b></td><td>{n_claims}</td></tr>")
-
-        if loaded:
+        rows.append(("Project", code(name)))
+        rows.append(("Performance", code(performance)))
+        if self._score_clt is not None:
             n_timelines = 5 if self._perf_dgt is not None else 4
-            parts.append(
-                f"<tr><td><b>Timelines</b></td><td>{n_timelines} in 2 group(s) "
-                "(score, perf)</td></tr>"
-            )
-
-        parts.append(
-            "<tr><td><b>Create</b></td>"
-            "<td>create_bundle(), create_timeline(), create_timelines()</td></tr>"
-        )
-        parts.append("</table>")
-        return "\n".join(parts)
+            rows.append(("Timelines", f"{n_timelines} in 2 group(s) (score, perf)"))
+        return rows
 
     # endregion
 

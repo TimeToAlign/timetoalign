@@ -87,6 +87,7 @@ from typing_extensions import Self
 
 from timetoalign.alignment.claims import Agent, MatchClaim, MatchMetadata
 from timetoalign.core import AgentType, TimeUnit
+from timetoalign.display.html import code
 from timetoalign.loader.base import AlignmentLoader
 from timetoalign.loader.physical.audio import AudioLoader
 from timetoalign.maps.convenience import SamplesToSeconds
@@ -738,44 +739,32 @@ class ParangonadaLoader(AlignmentLoader):
 
     # region HTML Representation
 
-    def _repr_html_(self) -> str:
-        """Accurate Jupyter summary consistent with :meth:`__repr__`.
+    def _repr_count_row(self) -> tuple[str, str]:
+        """This loader's payload is cross-group claims, not store events."""
+        return ("Claims", str(len(self._claims)))
 
-        The base :class:`AlignmentLoader` HTML reads the unpopulated
-        per-source ``AlignmentStore`` and reports ``Events: 0``, which
-        contradicts this loader (whose data lives in the assembled
-        timelines and claims).  This override renders the real shape:
-        the performer count, the claim count, and the timeline / group
-        structure.
+    def _repr_rows(self) -> list[tuple[str, str]]:
+        """Extend the base rows with the parangonada-specific shape.
+
+        The base :class:`AlignmentLoader` count row is replaced by the
+        claim count (see :meth:`_repr_count_row`); the data lives in the
+        assembled timelines and claims, not the unpopulated per-source
+        ``AlignmentStore``.
         """
+        rows = super()._repr_rows()
         n_perf = len(self._perf_cpt)
-        n_claims = len(self._claims)
-        loaded = self._score_clt is not None
-
-        parts = [f"<h4>{self.__class__.__name__}</h4>", "<table>"]
         name = self._name or "(not loaded)"
-        parts.append(f"<tr><td><b>Dataset</b></td><td><code>{name}</code></td></tr>")
-        parts.append(f"<tr><td><b>Performers</b></td><td>{n_perf}</td></tr>")
-        parts.append(f"<tr><td><b>Claims</b></td><td>{n_claims}</td></tr>")
-
-        if loaded:
+        rows.append(("Dataset", code(name)))
+        rows.append(("Performers", str(n_perf)))
+        if self._score_clt is not None:
             # 2 shared score timelines + 2 per performer; 1 score group + 1
             # per performer.
             n_timelines = 2 + 2 * n_perf
             n_groups = 1 + n_perf
-            parts.append(
-                f"<tr><td><b>Timelines</b></td><td>{n_timelines} "
-                f"in {n_groups} group(s)</td></tr>"
-            )
-            keys = ", ".join(f"<code>{k}</code>" for k in self._perf_cpt)
-            parts.append(f"<tr><td><b>Performer keys</b></td><td>{keys}</td></tr>")
-
-        parts.append(
-            "<tr><td><b>Create</b></td>"
-            "<td>create_bundle(), create_timeline(), create_timelines()</td></tr>"
-        )
-        parts.append("</table>")
-        return "\n".join(parts)
+            rows.append(("Timelines", f"{n_timelines} in {n_groups} group(s)"))
+            keys = ", ".join(code(k) for k in self._perf_cpt)
+            rows.append(("Performer keys", keys))
+        return rows
 
     # endregion
 
