@@ -408,6 +408,40 @@ When a project carries no ``<spectrogram>`` (or its ``.png`` is missing),
 ``perf:dgt1`` is simply absent and the bundle holds 4 timelines; the
 loader does not crash. Both specimens here have one.
 
+#### No-spectrogram fallback
+
+``_parse_spectrogram`` returns ``None`` whenever the project carries no
+``<spectrogram>`` element (or its ``hopSize`` / ``file`` attribute is
+missing, or the referenced ``.png`` is absent / unreadable). In that case
+``perf:dgt1`` is never built: the graphical timeline reference is left
+``None`` and the bundle simply omits the graphical domain. Both corpus
+specimens ship a complete spectrogram, so this branch never executes when
+the loader is driven against the real files — it cannot be reached by
+loading either specimen as-is. To pin it without inventing a synthetic
+spectrogram-less corpus, the fallback tests replace ``_parse_spectrogram``
+with a stub that returns ``None`` (a per-test ``monkeypatch`` of the
+static method, so the substitution is local and parallel-safe), then load
+the unmodified specimen ``.mpr``. Every other parse step runs exactly as
+in the spectrogram case; only the graphical axis drops out.
+
+The fallback tests are parametrized over both specimens (free loader
+parity) and pin the exact 4-timeline shape:
+
+- after ``load``, ``loader._perf_dgt is None``;
+- ``create_bundle()`` yields ``n_timelines == 4``, ``n_groups == 2``,
+  ``group_ids == ["score", "perf"]``, and ``timeline_ids ==
+  [score:clt1, score:dlt1, perf:cpt1, perf:dpt1]`` (no ``perf:dgt1``);
+  the ``perf`` group holds exactly ``{perf:cpt1, perf:dpt1}``; the claim
+  count is unchanged (one synchronous claim per note); and the bundle's
+  timeline-unit domains are exactly ``{logical, physical}`` — the
+  graphical domain is **absent** (the converse of the three-domain test);
+- ``create_timelines()`` returns exactly the four non-graphical timelines
+  by ``.id``;
+- ``create_timeline("perf:dgt1")`` raises ``KeyError`` (matching ``No
+  timeline with uid``) because that timeline was never registered;
+- ``_repr_html_()`` reports ``"4 in 2 group(s) (score, perf)"`` and never
+  ``"5 in 2 group(s)"``.
+
 ### Performance selection and style resolution
 
 The MPM holds several ``<performance>`` blocks; the **first** is the
