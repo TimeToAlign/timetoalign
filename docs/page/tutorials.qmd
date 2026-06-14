@@ -58,3 +58,6 @@ same four topics used throughout the documentation:
 - [DataFields and Layered EventData](tutorials/tut05_datafields_and_eventdata.ipynb) ---
   The Protocol/Scalar/Field triple, raw and semantic fields, discovery,
   and Parquet-embedded metadata.
+- [Pitch and Harmony across Formats](tutorials/tut06_pitch_and_harmony.ipynb) ---
+  Cross-format pitch equivalence and the typed view each format affords,
+  applied to pitch and harmony.
