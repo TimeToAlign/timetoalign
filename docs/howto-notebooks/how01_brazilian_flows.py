@@ -35,7 +35,14 @@
 # `controller.check_invariants()` is the structural-diagnostic entry point: it
 # returns a list of `FlowDiagnostic` records describing any way the parsed
 # section graph departs from the rules a well-formed score must satisfy (empty
-# when the structure is sound), and never raises.
+# when the structure is sound), and never raises. Each record carries a `kind`,
+# a human-readable `message`, and the `section_id`/`mc` it concerns. The kinds
+# span more than volta adjacency: alongside a volta flowing directly into another
+# volta, the check also surfaces **under-determined repeat-ends** — a repeat-end
+# with no matching repeat-start upstream, reported as a *dangling* back-edge when
+# no candidate start can be found or an *ambiguous* one when several compete — and
+# **non-terminating loops**, where an under-specified repeat/jump structure would
+# cycle forever and the traversal stops and names the looping measures.
 #
 # A **FlowMap** is the bidirectional coordinate transform derived from a chosen
 # `FlowMode`. `unfold(coord)` returns a list of unfolded positions (≥1);
@@ -216,9 +223,37 @@ qb_sections_table(controller)
 invariants_table(controller)
 
 # %% [markdown]
+# ### The unfolded performance order (a doppia coda)
+#
+# This piece is the most demanding of the three: it carries a **doppia coda** —
+# two distinct coda destinations reached by two successive *dal segno* passes.
+# `compute_flow(FlowMode.default)` resolves the repeats and segno/coda jumps into
+# a single linear performance order and always terminates. The measure-count
+# sequence below is the order in which the bars are actually played:
+
+# %%
+default_flow = controller.compute_flow(FlowMode.default)
+default_flow.to_mc_sequence()
+
+# %% [markdown]
+# Reading the sequence: the opening section plays with its repeat and a
+# prima/seconda volta, the *segno* block (from MC 2) is then traversed, and the
+# first *dal segno al coda* jump leaves it **at the first coda (MC 26)**. After
+# the second strain repeats, a final *dal segno* runs the segno block once more
+# and this time the play-until marker names the **variant coda (MC 44)** instead.
+# Two passes over the same written music, two different exits: the first time to
+# the coda, the second time to the variant coda. Each measure number in the
+# sequence is one played bar, so repeated numbers mark the bars heard more than
+# once.
+
+# %%
+qb_sections_table(controller, FlowMode.default)
+
+# %% [markdown]
 # **Corrections / re-definition.** As with the previous piece, `check_invariants()`
-# returns an empty frame: the encoded repeat structure is well-posed and the
-# atomic partition needs no adjustment. The same forthcoming editing surface
+# returns an empty frame: the encoded repeat structure is well-posed — including
+# the doppia coda, whose two segno passes resolve to different destinations — so
+# the atomic partition needs no adjustment. The same forthcoming editing surface
 # (affordance / element / named-group layers, then
 # `FlowMap.from_qb_sections(...)`) would apply if a non-standard reading were
 # wanted; nothing here is flagged for correction.

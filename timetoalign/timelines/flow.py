@@ -1826,6 +1826,9 @@ class ScoreFlowController(FlowControllerBase):
         self._measure_lookup: dict[int, dict[str, Any]] = {}
         self._units: list[MeasureUnit] = []
         self._atomic_sections: list[AtomicSection] = []
+        # Diagnostics accumulated by the most recent default-flow traversal
+        # (e.g. a guard-disabled cycle). Surfaced via check_invariants().
+        self._traversal_diagnostics: list[FlowDiagnostic] = []
         self._build_lookup()
         self._build_units()
         self._build_atomic_sections()
@@ -1858,6 +1861,7 @@ class ScoreFlowController(FlowControllerBase):
         instance._measure_lookup = {}
         instance._units = []
         instance._atomic_sections = list(sections)
+        instance._traversal_diagnostics = []
 
         # Build lookup and units if measures provided
         if measures is not None:
@@ -2685,6 +2689,116 @@ class ScoreFlowController(FlowControllerBase):
                 )
         return breaks
 
+    def _candidate_jump_targets(self, end_mc: int) -> list[int]:
+        """Upstream instants a repeat-end could plausibly jump back to.
+
+        When a repeat-end carries no matching upstream ``repeats=start`` the
+        back-edge destination is under-determined. This helper enumerates the
+        legal back-edge targets — the recognised jump-to instants strictly
+        before ``end_mc`` — so the default engine can resolve (or flag) the
+        ambiguity instead of silently snapping to the first measure.
+
+        A measure qualifies as a candidate when it carries any of:
+
+        - a ``repeats=start`` (an explicit repeat-block opening),
+        - a ``segno`` marker,
+        - a ``coda`` marker,
+        - a volta-bracket onset (its ``volta`` differs from the preceding
+          measure's), since an alternative ending opens a fresh traversal slot.
+
+        Candidates are returned **nearest-first** (largest MC below ``end_mc``
+        first), so ``candidates[0]`` is the innermost enclosing target — the
+        balanced/left-open nesting choice a reader makes by default.
+
+        Args:
+            end_mc: The measure carrying the unresolved repeat-end.
+
+        Returns:
+            Candidate target MCs in nearest-first order. Empty when the
+            repeat-end is dangling (no upstream target at all).
+        """
+        unit_lookup = {u.mc: u for u in self._units}
+        sorted_mcs = sorted(unit_lookup)
+        candidates: list[int] = []
+        prev_volta: int | None = None
+        for mc in sorted_mcs:
+            unit = unit_lookup[mc]
+            if mc < end_mc:
+                is_volta_onset = unit.volta is not None and unit.volta != prev_volta
+                if (
+                    unit.start_repeat
+                    or unit.segno is not None
+                    or unit.coda is not None
+                    or is_volta_onset
+                ):
+                    candidates.append(mc)
+            prev_volta = unit.volta
+        candidates.sort(reverse=True)
+        return candidates
+
+    def _jump_resolution_diagnostics(self) -> list[FlowDiagnostic]:
+        """Diagnose under-determined repeat-end back-edges.
+
+        Every repeat-end that lacks an upstream ``repeats=start`` is resolved
+        by :meth:`_candidate_jump_targets`. Resolution policy for the default
+        engine:
+
+        - exactly one candidate — auto-resolve silently (no diagnostic);
+        - no candidate — the back-edge is dangling: emit
+          ``kind="dangling_jump"`` (the engine still falls back to the first
+          measure so traversal stays total);
+        - more than one candidate — the back-edge is ambiguous: emit
+          ``kind="ambiguous_jump"`` naming every candidate (the engine takes
+          the nearest).
+
+        Returns:
+            One diagnostic per under-determined repeat-end; empty when every
+            repeat-end resolves cleanly.
+        """
+        unit_lookup = {u.mc: u for u in self._units}
+        diagnostics: list[FlowDiagnostic] = []
+        for unit in self._units:
+            if not unit.end_repeat:
+                continue
+            has_repeat_start = any(
+                cand < unit.mc and unit_lookup[cand].start_repeat
+                for cand in unit_lookup
+            )
+            if has_repeat_start:
+                continue
+            candidates = self._candidate_jump_targets(unit.mc)
+            if len(candidates) == 1:
+                continue
+            if not candidates:
+                diagnostics.append(
+                    FlowDiagnostic(
+                        kind="dangling_jump",
+                        message=(
+                            f"repeat-end at MC {unit.mc} has no upstream "
+                            f"repeat-start, segno, coda, or volta onset to "
+                            f"jump back to; the engine falls back to the first "
+                            f"measure — add an explicit repeat-start or section "
+                            f"boundary to disambiguate"
+                        ),
+                        mc=unit.mc,
+                    )
+                )
+            else:
+                listed = ", ".join(f"MC {c}" for c in candidates)
+                diagnostics.append(
+                    FlowDiagnostic(
+                        kind="ambiguous_jump",
+                        message=(
+                            f"repeat-end at MC {unit.mc} has no upstream "
+                            f"repeat-start; multiple back-edge targets are "
+                            f"plausible ({listed}); the engine takes the "
+                            f"nearest (MC {candidates[0]})"
+                        ),
+                        mc=unit.mc,
+                    )
+                )
+        return diagnostics
+
     def get_jumps(self) -> list["Jump"]:
         """Return all `Jump` events derived from the score's flow control.
 
@@ -2731,7 +2845,11 @@ class ScoreFlowController(FlowControllerBase):
                         target_mc = cand
                         break
                 if target_mc is None:
-                    target_mc = sorted_mcs[0]
+                    # No upstream repeat-start: resolve against the candidate
+                    # generator (other valid back-edge targets — segno, coda,
+                    # volta-end) and keep a safe fallback to the first MC.
+                    candidates = self._candidate_jump_targets(unit.mc)
+                    target_mc = candidates[0] if candidates else sorted_mcs[0]
                 jumps.append(
                     Jump(
                         from_coordinate=from_coord,
@@ -3084,23 +3202,30 @@ class ScoreFlowController(FlowControllerBase):
         The controller's posture toward a malformed flow is detect-and-report,
         not crash: this method returns a list of :class:`FlowDiagnostic`
         describing every violation it finds, and an empty list when the flow is
-        well-formed.
+        well-formed. It reports several kinds of diagnostic:
 
-        Currently checks the **volta-follows-volta** invariant: in the atomic
-        flow graph a volta section can never have a ``to`` edge to another volta
-        section. A prima volta's only out-edge is the repeat back-edge (to the
-        repeat-start, a non-volta section); a seconda volta is reached only from
-        the repeat-start and continues into the music that follows the bracket.
-        Two flow-adjacent voltas therefore indicate a malformed ``next`` array —
-        most often a jump target that resolved to the wrong ending. This is the
-        ``to`` (flow) edge relation, NOT score-order adjacency: volta sections
-        are naturally adjacent in MC order, which is correct; they must not be
-        connected by a ``to`` edge.
+        - ``volta_follows_volta`` — in the atomic flow graph a volta section can
+          never have a ``to`` edge to another volta section. A prima volta's
+          only out-edge is the repeat back-edge (to the repeat-start, a
+          non-volta section); a seconda volta is reached only from the
+          repeat-start and continues into the music that follows the bracket.
+          Two flow-adjacent voltas therefore indicate a malformed ``next``
+          array — most often a jump target that resolved to the wrong ending.
+          This is the ``to`` (flow) edge relation, NOT score-order adjacency:
+          volta sections are naturally adjacent in MC order, which is correct;
+          they must not be connected by a ``to`` edge.
+        - ``dangling_jump`` / ``ambiguous_jump`` — a repeat-end with no upstream
+          ``repeats=start`` whose back-edge target the candidate generator
+          cannot resolve to a single instant (see
+          :meth:`_jump_resolution_diagnostics`).
+        - ``flow_cycle`` — a non-terminating traversal detected by the default
+          engine's lasso check on the most recent ``compute_flow`` call (see
+          :meth:`_compute_default_flow`); reported only after a default flow has
+          been computed.
 
         Returns:
-            One ``FlowDiagnostic(kind="volta_follows_volta", ...)`` per
-            offending edge, naming the source and destination section ids; an
-            empty list when no invariant is violated.
+            One ``FlowDiagnostic`` per detected issue, naming the involved
+            section(s)/measure(s); an empty list when no invariant is violated.
         """
         unit_lookup: dict[int, MeasureUnit] = {u.mc: u for u in self._units}
 
@@ -3134,6 +3259,8 @@ class ScoreFlowController(FlowControllerBase):
                             mc=section.mc_start,
                         )
                     )
+        diagnostics.extend(self._jump_resolution_diagnostics())
+        diagnostics.extend(self._traversal_diagnostics)
         return diagnostics
 
     def get_sections(
@@ -3596,36 +3723,118 @@ class ScoreFlowController(FlowControllerBase):
 
         natural_limit = 2  # Standard "play once, repeat once" convention.
 
-        def _trigger_fires(unit: MeasureUnit, kind: str, mc: int) -> bool:
-            """Does this MC satisfy a 'play until' trigger?"""
+        def _is_coda_family(name: str | None) -> bool:
+            """A play-until naming a coda variant (coda / codab / varcoda)."""
+            return name is not None and "coda" in name
+
+        def _trigger_is_genuine(unit: MeasureUnit, kind: str, mc: int) -> bool:
+            """Is this MC an *explicit* play-until marker for the armed kind?
+
+            A genuine trigger is the fine marker (al-fine), a literal marker
+            instance (e.g. ``play_until="segno"`` reaching the segno), or a
+            real coda-family marker (al-coda reaching a measure that actually
+            prints a coda). A genuine trigger outranks an un-exhausted repeat
+            at the same MC: a "to coda"/"al fine" printed instruction is a hard
+            exit. The weaker section-boundary fallback (below) does not.
+            """
             if kind == "fine":
                 return unit.fine
+            if kind == "coda":
+                if unit.coda is not None:
+                    return True
+                raw = self._measure_lookup.get(mc, {}).get("marker")
+                return raw is not None and "coda" in raw
+            # Literal marker trigger (e.g. play_until="segno").
             if unit.segno == kind or unit.coda == kind:
                 return True
             raw = self._measure_lookup.get(mc, {}).get("marker")
-            if raw == kind:
-                return True
-            # Fallback for play_until="coda" in scores that don't carry
-            # an explicit "coda" marker: fire at the next atomic-section
-            # boundary (a "to coda" point is always a section boundary).
-            if (
-                kind == "coda"
-                and "coda" not in marker_mc_by_name
-                and mc in section_end_mcs
-            ):
-                return True
-            return False
+            return raw == kind
+
+        def _trigger_is_fallback(kind: str, mc: int) -> bool:
+            """Section-boundary fallback for an al-coda with no printed coda.
+
+            When a score arms a "to coda" but carries no explicit coda marker
+            the to-coda point is taken to be the next atomic-section boundary
+            (a "to coda" point is always a section boundary). This weak trigger
+            is evaluated only *after* an un-exhausted repeat at the same MC has
+            been honoured, so it can never hijack a legitimate repeat.
+            """
+            return kind == "coda" and mc in section_end_mcs
+
+        def _resolve_play_until(unit: MeasureUnit) -> tuple[str, int | None]:
+            """Normalise an armed play-until into (trigger-kind, destination).
+
+            The trigger kind is ``"fine"`` for al-fine, the canonical ``"coda"``
+            sentinel for every al-coda variant, or the literal marker name
+            otherwise (e.g. ``"segno"``). For al-coda the destination is
+            **pass-indexed via the marker name**: it resolves to the MC carrying
+            the ``play_until`` marker when that marker exists (e.g. ``varcoda``
+            on the final pass → its own measure), otherwise it falls back to the
+            ``jump_fwd`` target (e.g. ``coda`` with no literal "coda" marker →
+            ``codab``). This is the doppia-coda mechanism: successive D.S.
+            passes name different codas, so they land on different destinations
+            without any hard-coded measure numbers. An empty ``jump_fwd`` with
+            no resolvable coda marker terminates the traversal (dest ``None``).
+            """
+            name = unit.play_until
+            dest = marker_mc_by_name.get(unit.jump_fwd) if unit.jump_fwd else None
+            if name == "fine":
+                return "fine", dest
+            if _is_coda_family(name):
+                coda_dest = marker_mc_by_name.get(name)
+                return "coda", coda_dest if coda_dest is not None else dest
+            return (name or "coda"), dest
 
         mc_sequence: list[int] = []
         pass_count: dict[int, int] = defaultdict(int)
         play_until_kind: str | None = None
         play_until_dest: int | None = None
         pc: int | None = first_mc
-        max_iterations = len(sorted_units) * 30
+        # Lasso cycle detection over the full machine state. A state is the
+        # tuple (program counter, armed trigger kind, armed destination,
+        # pass-count snapshot). Re-entering an identical state is sound proof
+        # of non-termination: nothing else in the loop body can change, so the
+        # run would repeat forever. The doppia-coda re-traversals are NOT
+        # false-flagged — successive al-coda passes carry a DIFFERENT armed
+        # destination (codab, then varcoda) and/or pass-count snapshot, so
+        # their states are distinct. A generous absolute cap guarantees the
+        # method always returns even if a future state component is forgotten.
+        self._traversal_diagnostics = []
+        visited_states: set[
+            tuple[int, str | None, int | None, tuple[tuple[int, int], ...]]
+        ] = set()
+        absolute_cap = max(len(sorted_units) * 50, 1000)
+        steps = 0
 
-        for _ in range(max_iterations):
-            if pc is None or pc not in unit_by_mc:
+        while pc is not None and pc in unit_by_mc:
+            steps += 1
+            if steps > absolute_cap:
                 break
+            state = (
+                pc,
+                play_until_kind,
+                play_until_dest,
+                tuple(sorted(pass_count.items())),
+            )
+            if state in visited_states:
+                looping = sorted({pc, *(c for c, _ in pass_count.items())})
+                self._traversal_diagnostics.append(
+                    FlowDiagnostic(
+                        kind="flow_cycle",
+                        message=(
+                            f"flow traversal re-entered an identical state at "
+                            f"MC {pc} (looping over MCs {looping}); the "
+                            f"guard-disabled edge out of MC {pc} would repeat "
+                            f"forever — the score's repeat/jump structure is "
+                            f"under-determined and needs an explicit terminating "
+                            f"marker (fine, section break, or pass-limited jump)"
+                        ),
+                        mc=pc,
+                    )
+                )
+                break
+            visited_states.add(state)
+
             unit = unit_by_mc[pc]
 
             # Volta-mismatch skip.
@@ -3653,25 +3862,39 @@ class ScoreFlowController(FlowControllerBase):
 
             mc_sequence.append(pc)
 
-            # play_until trigger fires before end_repeat: a triggered
-            # jump supersedes any pending repeat-back.
-            if play_until_kind is not None and _trigger_fires(
+            # Edge-kind priority. A *genuine* printed play-until marker (the
+            # fine marker, a literal segno target, a real coda) is a hard exit
+            # that outranks an un-exhausted repeat at the same MC. An
+            # un-exhausted repeat back-edge in turn outranks the weak
+            # section-boundary *fallback* trigger of an al-coda with no printed
+            # coda — so a coincidental section boundary can never hijack a
+            # repeat that should still run (the score_1361 / doppia-coda case).
+            genuine = play_until_kind is not None and _trigger_is_genuine(
                 unit, play_until_kind, pc
-            ):
-                dest = play_until_dest
-                play_until_kind = None
-                play_until_dest = None
-                if dest is None:
-                    break
-                pc = dest
-                continue
-
-            if unit.end_repeat:
+            )
+            took_back_edge = False
+            if not genuine and unit.end_repeat:
                 blk = enclosing_start[pc]
                 pass_count[blk] += 1
                 if pass_count[blk] < natural_limit:
                     pc = blk
+                    took_back_edge = True
+            if not took_back_edge:
+                fallback = (
+                    not genuine
+                    and play_until_kind is not None
+                    and _trigger_is_fallback(play_until_kind, pc)
+                )
+                if genuine or fallback:
+                    dest = play_until_dest
+                    play_until_kind = None
+                    play_until_dest = None
+                    if dest is None:
+                        break
+                    pc = dest
                     continue
+            if took_back_edge:
+                continue
 
             if unit.jump_from:
                 target: int | None = None
@@ -3683,12 +3906,7 @@ class ScoreFlowController(FlowControllerBase):
                     target = marker_mc_by_name.get(unit.jump_fwd)
                 if target is not None:
                     if unit.play_until:
-                        play_until_kind = unit.play_until
-                        play_until_dest = (
-                            marker_mc_by_name.get(unit.jump_fwd)
-                            if unit.jump_fwd
-                            else None
-                        )
+                        play_until_kind, play_until_dest = _resolve_play_until(unit)
                     # A jump_bwd=segno restarts the segno-home-block's
                     # pass count so the post-jump pass plays it fresh.
                     # A jump_bwd=start (D.C.) leaves counts intact: any

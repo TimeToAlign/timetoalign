@@ -930,6 +930,212 @@ class TestFlowInvariants:
 
 # endregion
 
+# region Default-engine traversal as a guarded transition system
+
+_FLOW_TABLE_COLUMNS = (
+    "mc",
+    "mn",
+    "duration",
+    "start",
+    "next",
+    "timesig",
+    "volta",
+    "start_repeat",
+    "end_repeat",
+    "segno",
+    "coda",
+    "fine",
+    "markers",
+    "jump_bwd",
+    "jump_fwd",
+    "play_until",
+    "section_break",
+)
+
+
+def _flow_table(rows: list[dict]):
+    """Build a synthetic measures table from sparse per-MC role dicts.
+
+    Each row needs ``mc`` and ``next``; every other flow-control column
+    defaults to a falsy value. ``duration`` / ``start`` / ``timesig`` are
+    auto-filled so the FlowController's lookup pass succeeds.
+    """
+    import pyarrow as pa
+
+    filled: list[dict] = []
+    for row in rows:
+        mc = row["mc"]
+        record = {
+            "mc": mc,
+            "mn": str(mc),
+            "duration": {"value": 4.0},
+            "start": {"value": 4.0 * (mc - 1)},
+            "timesig": "4/4",
+        }
+        record.update(row)
+        for col in _FLOW_TABLE_COLUMNS:
+            if col in ("start_repeat", "end_repeat", "fine", "section_break"):
+                record.setdefault(col, False)
+            else:
+                record.setdefault(col, None)
+        filled.append(record)
+    return pa.table({col: [r[col] for r in filled] for col in _FLOW_TABLE_COLUMNS})
+
+
+def _flow_diag_kinds(controller: FlowController, kind: str) -> list:
+    """Diagnostics of a given kind from ``check_invariants()``."""
+    return [d for d in controller.check_invariants() if d.kind == kind]
+
+
+class TestDefaultFlowTraversal:
+    """``_compute_default_flow`` as a guarded transition system."""
+
+    def test_edge_kind_priority_repeat_beats_armed_coda(self) -> None:
+        """An un-exhausted repeat outranks an armed section-boundary coda.
+
+        The repeat block [2,3] must run on BOTH the natural pass and the
+        post-D.S. replay; the al-coda fallback fires only after the repeat is
+        exhausted on the replay. Under the old (trigger-before-repeat) order
+        the replay's second [2,3] would be dropped.
+        """
+        rows = [
+            {"mc": 1, "next": [2]},
+            {"mc": 2, "next": [3], "start_repeat": True, "segno": "segno"},
+            {"mc": 3, "next": [2, 4], "end_repeat": True},
+            {
+                "mc": 4,
+                "next": [2],
+                "jump_bwd": "segno",
+                "jump_fwd": "coda5",
+                "play_until": "coda",
+            },
+            {"mc": 5, "next": [-1], "coda": "coda5"},
+        ]
+        controller = FlowController(_MockMeasureData(_flow_table(rows)))
+        flow = controller.compute_flow(FlowMode.default)
+        assert flow.to_mc_sequence() == [1, 2, 3, 2, 3, 4, 2, 3, 2, 3, 5]
+        assert _flow_diag_kinds(controller, "flow_cycle") == []
+
+    def test_lasso_detects_nonterminating_da_capo(self) -> None:
+        """An unconditioned D.C. loop terminates with one flow_cycle diagnostic."""
+        rows = [
+            {"mc": 1, "next": [2]},
+            {"mc": 2, "next": [1], "jump_bwd": "start"},
+            {"mc": 3, "next": [-1]},
+        ]
+        controller = FlowController(_MockMeasureData(_flow_table(rows)))
+        flow = controller.compute_flow(FlowMode.default)
+        # Traversal terminates instead of running forever / silently truncating.
+        assert flow.to_mc_sequence() == [1, 2]
+        cycles = _flow_diag_kinds(controller, "flow_cycle")
+        assert len(cycles) == 1
+        assert cycles[0].kind == "flow_cycle"
+        assert cycles[0].mc == 1
+        assert "MC 1" in cycles[0].message
+
+    def test_pass_indexed_doppia_coda(self) -> None:
+        """Two D.S. al coda passes target two distinct codas (codab, varcoda).
+
+        The destination is derived from each jump's ``play_until`` marker name,
+        not from any hard-coded measure number: ``codab`` resolves to its own
+        measure on the first pass, ``varcoda`` to its own on the final pass.
+        """
+        rows = [
+            {"mc": 1, "next": [2], "start_repeat": True, "segno": "segno"},
+            {"mc": 2, "next": [3], "coda": "coda"},
+            {
+                "mc": 3,
+                "next": [1, 4],
+                "end_repeat": True,
+                "jump_bwd": "segno",
+                "jump_fwd": "codab",
+                "play_until": "codab",
+            },
+            {"mc": 4, "next": [5], "coda": "codab"},
+            {
+                "mc": 5,
+                "next": [1],
+                "jump_bwd": "segno",
+                "jump_fwd": "codab",
+                "play_until": "varcoda",
+            },
+            {"mc": 6, "next": [-1], "markers": "varcoda"},
+        ]
+        controller = FlowController(_MockMeasureData(_flow_table(rows)))
+        flow = controller.compute_flow(FlowMode.default)
+        seq = flow.to_mc_sequence()
+        assert seq == [1, 2, 3, 2, 3, 1, 2, 4, 5, 1, 2, 6]
+        # codab (MC 4) is reached after the first D.S.; varcoda (MC 6) after the
+        # second — the doppia coda resolves to two distinct destinations.
+        assert 4 in seq and 6 in seq
+        assert seq.index(4) < seq.index(6)
+        assert _flow_diag_kinds(controller, "flow_cycle") == []
+
+
+class TestCandidateJumpTargets:
+    """``_candidate_jump_targets`` + repeat-end resolution diagnostics."""
+
+    def test_single_candidate_auto_resolves(self) -> None:
+        """One upstream target → resolved silently (no diagnostic)."""
+        rows = [
+            {"mc": 1, "next": [2], "segno": "segno"},
+            {"mc": 2, "next": [3]},
+            {"mc": 3, "next": [1, 4], "end_repeat": True},
+            {"mc": 4, "next": [-1]},
+        ]
+        controller = FlowController(_MockMeasureData(_flow_table(rows)))
+        assert controller._candidate_jump_targets(3) == [1]
+        assert _flow_diag_kinds(controller, "dangling_jump") == []
+        assert _flow_diag_kinds(controller, "ambiguous_jump") == []
+
+    def test_zero_candidates_emits_dangling_jump(self) -> None:
+        """No upstream target → dangling_jump diagnostic; safe fallback kept."""
+        rows = [
+            {"mc": 1, "next": [2]},
+            {"mc": 2, "next": [1, 3], "end_repeat": True},
+            {"mc": 3, "next": [-1]},
+        ]
+        controller = FlowController(_MockMeasureData(_flow_table(rows)))
+        assert controller._candidate_jump_targets(2) == []
+        dangling = _flow_diag_kinds(controller, "dangling_jump")
+        assert len(dangling) == 1
+        assert dangling[0].kind == "dangling_jump"
+        assert dangling[0].mc == 2
+        assert "MC 2" in dangling[0].message
+
+    def test_multiple_candidates_emits_ambiguous_jump_nearest_first(self) -> None:
+        """Several upstream targets → ambiguous_jump; candidates nearest-first."""
+        rows = [
+            {"mc": 1, "next": [2], "segno": "segno"},
+            {"mc": 2, "next": [3], "coda": "coda"},
+            {"mc": 3, "next": [4]},
+            {"mc": 4, "next": [1, 5], "end_repeat": True},
+            {"mc": 5, "next": [-1]},
+        ]
+        controller = FlowController(_MockMeasureData(_flow_table(rows)))
+        assert controller._candidate_jump_targets(4) == [2, 1]
+        ambiguous = _flow_diag_kinds(controller, "ambiguous_jump")
+        assert len(ambiguous) == 1
+        assert ambiguous[0].kind == "ambiguous_jump"
+        assert ambiguous[0].mc == 4
+        assert "MC 2" in ambiguous[0].message
+        assert "MC 1" in ambiguous[0].message
+
+    def test_upstream_repeat_start_emits_no_diagnostic(self) -> None:
+        """A repeat-end WITH an upstream repeat-start resolves cleanly."""
+        rows = [
+            {"mc": 1, "next": [2], "start_repeat": True},
+            {"mc": 2, "next": [3]},
+            {"mc": 3, "next": [1, 4], "end_repeat": True},
+            {"mc": 4, "next": [-1]},
+        ]
+        controller = FlowController(_MockMeasureData(_flow_table(rows)))
+        assert _flow_diag_kinds(controller, "dangling_jump") == []
+        assert _flow_diag_kinds(controller, "ambiguous_jump") == []
+
+
+# endregion
+
 # region Unit Tests: AtomicSection
 
 

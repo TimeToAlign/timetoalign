@@ -838,6 +838,115 @@ and the segment-naming integration test. The detect-and-report invariant above
 is the right home for "this volta arrangement looks wrong": a malformed flow is
 surfaced as a `FlowDiagnostic`, not silently re-partitioned.
 
+#### Default-engine traversal as a guarded transition system (`TestDefaultFlowTraversal`)
+
+**Purpose.** Validate three behaviours of the default-flow state machine
+(`ScoreFlowController._compute_default_flow`), each driven by synthetic
+`_MockMeasureData` tables so the assertion is an exact mc-sequence (or exact
+diagnostic) independent of any loader.
+
+**1 — Edge-kind priority (marker-before-repeat).** When, on the al-coda
+replay, a measure is simultaneously the end of an un-exhausted repeat AND the
+weak section-boundary fallback point for the armed "to coda", the repeat
+back-edge must run first; the armed coda jump fires only once the repeat is
+exhausted. (A *genuine* printed play-until marker — a real coda marker, the
+fine marker, a literal segno target — is the opposite: a hard exit that
+outranks the repeat. Only the section-boundary *fallback* yields to a repeat.)
+The fixture is a repeat block whose end-measure is also a section boundary, with
+a downstream D.S.-al-coda (no printed coda marker) that arms the fallback:
+
+| MC | role | flow control | next |
+|----|------|--------------|------|
+| 1 | intro | — | [2] |
+| 2 | repeat-start / segno | start_repeat, segno | [3] |
+| 3 | repeat-end / to-coda boundary | end_repeat | [2, 4] |
+| 4 | D.S. al coda origin | jump_bwd=segno, jump_fwd=coda5, play_until=coda | [2] |
+| 5 | coda5 target | coda=coda5 | [-1] |
+
+Expected mc-sequence: `[1, 2, 3, 2, 3, 4, 2, 3, 2, 3, 5]`. Block `[2,3]` repeats
+once (1st pass), the D.S. arms the al-coda and jumps back to the segno, the
+replay re-runs the repeat `[2,3]` AGAIN (the un-exhausted back-edge outranks the
+armed fallback), and only when the repeat is exhausted does the fallback fire at
+the to-coda boundary (MC 3) and jump to coda5 (MC 5). Under the old ordering the
+fallback fired before the repeat, dropping the second `2,3` — so this exact
+sequence pins the priority.
+
+**2 — Real termination via lasso cycle detection.** A score with an
+unconditioned D.C. (`jump_bwd=start`) and no fine / section break / pass-limited
+jump loops forever. The engine's lasso check keys each step on
+`(program-counter, armed-trigger-kind, armed-destination, pass-count
+snapshot)`; re-entering an identical state is sound proof of non-termination.
+The fixture places the D.C. at MC 2 with a trailing (unreachable) MC 3 so the
+backward jump is recognised as a jump origin:
+
+| MC | role | flow control | next |
+|----|------|--------------|------|
+| 1 | body | — | [2] |
+| 2 | D.C. | jump_bwd=start | [1] |
+| 3 | trailing (unreachable) | — | [-1] |
+
+The traversal STOPS and records exactly one `FlowDiagnostic(kind="flow_cycle")`
+whose `mc` is the looping measure and whose message names the looping MCs and
+the guard-disabled edge. Asserted: the returned mc-sequence is finite
+(`[1, 2]`), `check_invariants()` contains exactly one `flow_cycle` diagnostic,
+its `mc == 1`, and the message contains `MC 1`. A legitimate finite score (the
+priority fixture above) produces NO `flow_cycle` diagnostic — the doppia-coda
+re-traversals differ in armed destination / pass index and are not
+false-flagged.
+
+**3 — Pass-indexed doppia coda.** Two D.S.-al-coda jump origins that name
+DIFFERENT codas in their `play_until` (`codab` then `varcoda`) must land on
+different destinations on successive passes, derived purely from the parsed
+marker names — never hard-coded measure numbers. The destination of an al-coda
+is the MC carrying the exact coda marker the play-until names, falling back to
+the `jump_fwd` target when that marker is absent. The fixture is a compact
+two-coda score:
+
+| MC | role | flow control | next |
+|----|------|--------------|------|
+| 1 | repeat-start / segno | start_repeat, segno | [2] |
+| 2 | to-coda point | coda=coda | [3] |
+| 3 | first D.S. al coda | end_repeat, jump_bwd=segno, jump_fwd=codab, play_until=codab | [1, 4] |
+| 4 | codab target | coda=codab | [5] |
+| 5 | second D.S. al coda | jump_bwd=segno, jump_fwd=codab, play_until=varcoda | [1] |
+| 6 | varcoda target | markers=varcoda | [-1] |
+
+Expected mc-sequence: `[1, 2, 3, 2, 3, 1, 2, 4, 5, 1, 2, 6]`. Block `[1,3]`
+repeats once, the first D.S. (MC 3) resolves `play_until=codab` → fires at the
+to-coda point (MC 2) → MC 4; the second D.S. (MC 5) resolves
+`play_until=varcoda` → fires at MC 2 → MC 6. The asserted mc-sequence shows MC 4
+(codab) reached after the first D.S. and MC 6 (varcoda) after the second,
+confirming the two passes target the two distinct codas; the traversal
+terminates and emits no `flow_cycle`.
+
+#### Candidate-jump-to generator (`TestCandidateJumpTargets`)
+
+**Purpose.** Validate `ScoreFlowController._candidate_jump_targets(end_mc)` and
+the resolution policy wired through `check_invariants()` for a repeat-end that
+carries no upstream `repeats=start`.
+
+The generator returns upstream jump-to instants — `repeats=start`, `segno`,
+`coda`, or a volta-bracket onset — strictly before `end_mc`, nearest-first
+(largest MC first). The default-engine resolution policy, surfaced as
+diagnostics:
+
+- **exactly one candidate** — auto-resolve, no diagnostic;
+- **no candidate** — dangling: one `FlowDiagnostic(kind="dangling_jump")`;
+- **more than one candidate** — ambiguous: one
+  `FlowDiagnostic(kind="ambiguous_jump")` listing every candidate; the engine
+  takes the nearest.
+
+| Case | fixture (MC : role, next) | candidates(end) | diagnostic |
+|------|--------------------------|------------------|------------|
+| one | `1: segno [2]`, `2: body [3]`, `3: end_repeat [1,4]`, `4: end [-1]` | `[1]` | none |
+| zero | `1: body [2]`, `2: end_repeat [1,3]`, `3: end [-1]` | `[]` | `dangling_jump`, mc=2 |
+| many | `1: segno [2]`, `2: coda [3]`, `3: body [4]`, `4: end_repeat [1,5]`, `5: end [-1]` | `[2, 1]` | `ambiguous_jump`, mc=4, message lists `MC 2`/`MC 1` |
+
+A repeat-end WITH an upstream `repeats=start` emits no diagnostic (it resolves
+through the normal repeat-start search). Following the ZERO TOLERANCE policy,
+all assertions are exact: the candidate list (order included), the diagnostic
+count, kind, mc, and the substring identities in the ambiguous message.
+
 ---
 
 ### `test_segment_naming.py` - Customizable Atomic-Section Labelling
