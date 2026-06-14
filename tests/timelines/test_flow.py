@@ -836,6 +836,100 @@ class TestBuildGroups:
 
 # endregion
 
+# region Flow invariants
+
+
+def _volta_with_following_section_table():
+    """Synthetic measures: a repeat with prima/seconda volta, then a non-volta
+    section, with a section break two measures after the seconda volta.
+
+    This is a well-formed volta score. The seconda volta (MC 5, volta 2)
+    continues sequentially into the music that follows the bracket, absorbing
+    it up to the next genuine boundary (the section break at MC 7 places a
+    boundary at MC 8), exactly as a seconda volta does in real scores. The
+    only volta sections are the prima (-> repeat-start, non-volta) and the
+    seconda (-> the continuation, non-volta), so no volta section flows to
+    another volta section.
+    """
+    import pyarrow as pa
+
+    return pa.table(
+        {
+            "mc": [1, 2, 3, 4, 5, 6, 7, 8],
+            "mn": ["1", "2", "3", "3", "4", "5", "6", "7"],
+            "duration": [{"value": 4.0}] * 8,
+            "start": [{"value": float(4 * i)} for i in range(8)],
+            "next": [[2], [3], [4, 5], [1], [6], [7], [8], [-1]],
+            "timesig": ["4/4"] * 8,
+            "volta": [None, None, None, 1, 2, None, None, None],
+            "section_break": [
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                True,
+                False,
+            ],
+        }
+    )
+
+
+class TestFlowInvariants:
+    """``ScoreFlowController.check_invariants`` — volta-follows-volta rule."""
+
+    def test_clean_score_yields_no_diagnostics(self) -> None:
+        """A well-formed volta score reports no invariant violations."""
+        controller = FlowController(
+            _MockMeasureData(_volta_with_following_section_table())
+        )
+        assert controller.check_invariants() == []
+
+    def test_malformed_score_reports_volta_follows_volta(self) -> None:
+        """A volta section whose ``to`` edge lands on another volta section is
+        reported."""
+        import pyarrow as pa
+
+        from timetoalign.timelines import FlowDiagnostic
+
+        # Prima volta (MC 4, volta 1) mis-resolves its next forward to the
+        # seconda volta (MC 5) instead of back to the repeat-start (MC 1).
+        table = pa.table(
+            {
+                "mc": [1, 2, 3, 4, 5, 6, 7],
+                "mn": ["1", "2", "3", "3", "4", "5", "6"],
+                "duration": [{"value": 4.0}] * 7,
+                "start": [{"value": float(4 * i)} for i in range(7)],
+                "next": [[2], [3], [4, 5], [5], [6], [7], [-1]],
+                "timesig": ["4/4"] * 7,
+                "volta": [None, None, None, 1, 2, None, None],
+                "section_break": [False] * 7,
+            }
+        )
+        controller = FlowController(_MockMeasureData(table))
+
+        sections = controller.get_sections()
+        by_id = {sec.id: sec for sec in sections}
+        # The mis-resolution makes the prima-volta section A1 point at the
+        # seconda-volta section A2.
+        assert by_id["A1"].to == ("A2",)
+        assert controller._measure_lookup[by_id["A1"].mc_start]["volta"] == 1
+        assert controller._measure_lookup[by_id["A2"].mc_start]["volta"] == 2
+
+        diagnostics = controller.check_invariants()
+        assert len(diagnostics) == 1
+        diag = diagnostics[0]
+        assert isinstance(diag, FlowDiagnostic)
+        assert diag.kind == "volta_follows_volta"
+        assert diag.section_id == "A1"
+        assert diag.mc == 4
+        assert "'A1'" in diag.message
+        assert "'A2'" in diag.message
+
+
+# endregion
+
 # region Unit Tests: AtomicSection
 
 

@@ -771,6 +771,54 @@ class AtomicSection:
 
 # endregion
 
+# region FlowDiagnostic
+
+
+@dataclass(frozen=True)
+class FlowDiagnostic:
+    """A structural-invariant violation found in an atomic flow graph.
+
+    Diagnostics are produced by ``ScoreFlowController.check_invariants`` and
+    describe a way in which the folded section graph departs from the rules a
+    well-formed score must satisfy. The controller never raises on a malformed
+    flow — it reports. Each diagnostic names the kind of violation and, where
+    applicable, the section(s) and measure involved.
+
+    Attributes:
+        kind: Short machine-readable violation tag (e.g. ``"volta_follows_volta"``).
+        message: Human-readable explanation, including a remediation hint.
+        section_id: The offending source section's id, if the violation is
+            attributable to a single section. ``None`` otherwise.
+        mc: The measure count most relevant to the violation, if any.
+
+    Examples:
+        >>> diag = FlowDiagnostic(
+        ...     kind="volta_follows_volta",
+        ...     message="section 'B' flows directly to volta section 'C'",
+        ...     section_id="B",
+        ...     mc=5,
+        ... )
+        >>> diag.kind
+        'volta_follows_volta'
+    """
+
+    kind: str
+    message: str
+    section_id: str | None = None
+    mc: int | None = None
+
+    def __repr__(self) -> str:
+        bits = [f"kind={self.kind!r}"]
+        if self.section_id is not None:
+            bits.append(f"section={self.section_id!r}")
+        if self.mc is not None:
+            bits.append(f"mc={self.mc}")
+        bits.append(f"message={self.message!r}")
+        return f"FlowDiagnostic({', '.join(bits)})"
+
+
+# endregion
+
 # region PlaythroughSection
 
 
@@ -3029,6 +3077,64 @@ class ScoreFlowController(FlowControllerBase):
             )
 
         self._atomic_sections = sections
+
+    def check_invariants(self) -> list[FlowDiagnostic]:
+        """Check structural invariants of the atomic flow graph.
+
+        The controller's posture toward a malformed flow is detect-and-report,
+        not crash: this method returns a list of :class:`FlowDiagnostic`
+        describing every violation it finds, and an empty list when the flow is
+        well-formed.
+
+        Currently checks the **volta-follows-volta** invariant: in the atomic
+        flow graph a volta section can never have a ``to`` edge to another volta
+        section. A prima volta's only out-edge is the repeat back-edge (to the
+        repeat-start, a non-volta section); a seconda volta is reached only from
+        the repeat-start and continues into the music that follows the bracket.
+        Two flow-adjacent voltas therefore indicate a malformed ``next`` array —
+        most often a jump target that resolved to the wrong ending. This is the
+        ``to`` (flow) edge relation, NOT score-order adjacency: volta sections
+        are naturally adjacent in MC order, which is correct; they must not be
+        connected by a ``to`` edge.
+
+        Returns:
+            One ``FlowDiagnostic(kind="volta_follows_volta", ...)`` per
+            offending edge, naming the source and destination section ids; an
+            empty list when no invariant is violated.
+        """
+        unit_lookup: dict[int, MeasureUnit] = {u.mc: u for u in self._units}
+
+        def _is_volta_section(section: AtomicSection) -> bool:
+            unit = unit_lookup.get(section.mc_start)
+            return unit is not None and unit.volta is not None
+
+        section_by_id: dict[str, AtomicSection] = {
+            section.id: section for section in self._atomic_sections
+        }
+
+        diagnostics: list[FlowDiagnostic] = []
+        for section in self._atomic_sections:
+            if not _is_volta_section(section):
+                continue
+            for target_id in section.to:
+                target = section_by_id.get(target_id)
+                if target is not None and _is_volta_section(target):
+                    diagnostics.append(
+                        FlowDiagnostic(
+                            kind="volta_follows_volta",
+                            message=(
+                                f"volta section {section.id!r} flows directly to "
+                                f"volta section {target_id!r}; a volta's only "
+                                f"out-edge is the repeat back-edge (prima) or the "
+                                f"music after the bracket (seconda), so the "
+                                f"source section's next/jump target is likely "
+                                f"mis-resolved"
+                            ),
+                            section_id=section.id,
+                            mc=section.mc_start,
+                        )
+                    )
+        return diagnostics
 
     def get_sections(
         self, mode: FlowMode | None = None

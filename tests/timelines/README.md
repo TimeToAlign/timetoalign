@@ -758,6 +758,86 @@ Following the project's ZERO TOLERANCE validation policy, all tests use **exact 
 - EXACT MC ranges: `(mc_start, mc_end)` pairs must match exactly (right-open)
 - EXACT section order (positional comparison)
 
+#### Volta-follows-volta invariant (`TestFlowInvariants`)
+
+**Purpose.** Validate `ScoreFlowController.check_invariants()`, a
+detect-and-report structural-invariant check over the atomic flow graph. It
+never raises; it returns a list of `FlowDiagnostic` describing each violation
+and an empty list when the flow is well-formed.
+
+**The invariant.** In the atomic flow graph a volta section can never have a
+`to` edge to another volta section. A prima volta's only out-edge is the repeat
+back-edge (to the repeat-start, a non-volta section); a seconda volta is
+reached only from the repeat-start and continues into the music after the
+bracket (also non-volta). Two flow-adjacent voltas therefore indicate a
+malformed `next` array — most often a jump target that resolved to the wrong
+ending. This is the `to` (flow) edge relation, NOT score-order adjacency: volta
+sections ARE naturally adjacent in MC order, which is correct; they must merely
+never be connected by a `to` edge. A section "is a volta" iff its first
+measure's `volta is not None` — the same criterion the label generator's
+volta-flag and the ASCII diagram's `┌N` corner use.
+
+**Fixture — clean score → no diagnostics.** A repeat with a prima/seconda
+volta, then a non-volta section, with a section break two measures after the
+seconda volta. Eight MCs (4/4 throughout):
+
+| MC | mn | volta | next | section_break | role |
+|----|----|-------|------|---------------|------|
+| 1 | 1 | None | [2] | — | repeat-start body |
+| 2 | 2 | None | [3] | — | body |
+| 3 | 3 | None | [4, 5] | — | branch into the two endings |
+| 4 | 3 | 1 | [1] | — | prima volta (repeats back to MC 1) |
+| 5 | 4 | 2 | [6] | — | seconda volta (continues sequentially) |
+| 6 | 5 | None | [7] | — | continuation after the bracket |
+| 7 | 6 | None | [8] | yes | continuation, with section break |
+| 8 | 7 | None | [-1] | — | final section |
+
+This is a well-formed score. The atomic partition is `A [1,4)` (to A1, A2),
+`A1 [4,5)` prima (to A), `A2 [5,8)` seconda (to B), `B [8,9)` final. The seconda
+volta absorbs its continuation up to the next genuine boundary (the section
+break at MC 7 puts a boundary at MC 8) — the correct behaviour, matching how a
+seconda volta continues in real scores (see the design note below). The only
+volta sections are A1 (`to=(A,)` → A non-volta) and A2 (`to=(B,)` → B
+non-volta), so `controller.check_invariants() == []`.
+
+**Fixture — malformed score → exactly one diagnostic.** A seven-MC fixture that
+mis-resolves the prima volta's `next` so it points forward to the seconda volta
+(`MC 4`, volta 1, `next=[5]`) instead of back to the repeat-start (`next=[1]`).
+
+| MC | volta | next | resulting section | `to` |
+|----|-------|------|-------------------|------|
+| 1–3 | None / None / None | [2]/[3]/[4,5] | A `[1,4)` | (A1, A2) |
+| 4 | 1 | [5] | A1 `[4,5)` | (A2,) ← violation |
+| 5 | 2 | [6] | A2 `[5,8)` | () |
+| 6–7 | None / None | [7]/[-1] | (absorbed into A2) | — |
+
+The prima-volta section `A1` then carries `to=(A2,)` where `A2` is the
+seconda-volta section. `check_invariants()` returns exactly one
+`FlowDiagnostic(kind="volta_follows_volta", section_id="A1", mc=4)`; its message
+names both section ids `'A1'`/`'A2'` and hints that the source section's
+next/jump target is mis-resolved.
+
+Following the project's ZERO TOLERANCE policy, all assertions are exact:
+diagnostic count, the `to` edges, the volta values at each section start, and
+the diagnostic's `kind` / `section_id` / `mc` plus the substring identities in
+its message.
+
+**Design note — a closing volta does NOT force an atomic boundary.** The
+volta-boundary rule adds a boundary at the *onset* of a volta bracket (a
+`volta` value change *into* a non-None ending), NOT at the measure where a
+bracket closes (`volta n → None`). A seconda (or final) volta therefore
+continues into the music that follows it, absorbing it up to the next genuine
+boundary — a later jump target or `section_break`. This is intentional and
+matches every `.flow.csv` gold standard: e.g. Op.18 No.4 iv's seconda voltas
+are the atomic sections `(45, 78)` and `(103, 227)`, each spanning far beyond
+the single volta measure. Adding a boundary at the volta-close transition would
+split those sections (`(45, 46)` + `(46, 78)`, …), changing the atomic
+partition, the section labels (`A, B, C, D, D1, D2, E, F, F1, F2, G, G1, G2`
+would gain extra letters), and the unfolded flow — breaking the gold for Op.18
+and the segment-naming integration test. The detect-and-report invariant above
+is the right home for "this volta arrangement looks wrong": a malformed flow is
+surfaced as a `FlowDiagnostic`, not silently re-partitioned.
+
 ---
 
 ### `test_segment_naming.py` - Customizable Atomic-Section Labelling
