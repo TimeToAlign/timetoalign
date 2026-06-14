@@ -31,9 +31,6 @@ documentation:
 
 ### Timelines, Events & Maps
 
-- [How to Work with Pitch and Harmony Types](howto/how01_pitch_and_harmony_types.ipynb) ---
-  Type-design axis: Protocol/Scalar/Field for pitch and harmony,
-  conversion, protocol dispatch, Parquet round-trip.
 - [How to Do Coordinate Math](howto/how01_coordinate_math.ipynb) ---
   Domains, TimeUnits, NumberType, and Coordinate arithmetic.
 - [How to Use Advanced Conversion Maps](howto/how01_advanced_cmaps.ipynb) ---
