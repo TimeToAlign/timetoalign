@@ -586,3 +586,105 @@ def test_create_timelines_returns_all(specimen: dict[str, Any]) -> None:
 
 
 # endregion
+
+
+# region No-spectrogram fallback
+
+# When a project carries no ``<spectrogram>`` (or its ``.png`` is missing),
+# ``_parse_spectrogram`` returns ``None`` and ``perf:dgt1`` is never built:
+# the bundle omits the graphical domain and holds 4 timelines.  Both corpus
+# specimens ship a complete spectrogram, so the fallback is forced by
+# stubbing the static parser to return ``None`` (a per-test monkeypatch, so
+# the substitution is local and parallel-safe) before loading the
+# unmodified specimen ``.mpr``.
+
+
+def test_no_spectrogram_perf_dgt_is_none(
+    specimen: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With ``_parse_spectrogram`` stubbed to ``None``, ``perf:dgt1`` is absent."""
+    monkeypatch.setattr(
+        MpmLoader, "_parse_spectrogram", staticmethod(lambda *a, **k: None)
+    )
+    loader = _loaded(specimen["mpr"])
+    assert loader._perf_dgt is None
+
+
+def test_no_spectrogram_bundle_shape(
+    specimen: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without a spectrogram the bundle holds 4 timelines, 2 groups, no graphical.
+
+    The ``perf`` group drops to two timelines (``perf:cpt1`` / ``perf:dpt1``);
+    the claim count is unchanged (one synchronous claim per note); and the
+    bundle's timeline-unit domains are exactly logical + physical — the
+    graphical domain is absent (the converse of
+    ``test_bundle_spans_three_domains``).
+    """
+    monkeypatch.setattr(
+        MpmLoader, "_parse_spectrogram", staticmethod(lambda *a, **k: None)
+    )
+    loader = _loaded(specimen["mpr"])
+    bundle = loader.create_bundle()
+
+    assert bundle.n_timelines == 4
+    assert bundle.n_groups == 2
+    assert bundle.group_ids == ["score", "perf"]
+    assert bundle.timeline_ids == [
+        SCORE_CLT_ID,
+        SCORE_DLT_ID,
+        PERF_CPT_ID,
+        PERF_DPT_ID,
+    ]
+    perf_group = bundle.get_group("perf")
+    assert set(perf_group.timeline_ids) == {PERF_CPT_ID, PERF_DPT_ID}
+
+    assert len(bundle.get_match_claims()) == specimen["claims"]
+
+    domains = {bundle.get_timeline(uid).unit.domain for uid in bundle.timeline_ids}
+    assert domains == {Domain.logical, Domain.physical}
+
+
+def test_no_spectrogram_create_timelines_omits_graphical(
+    specimen: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``create_timelines`` returns only the four non-graphical timelines."""
+    monkeypatch.setattr(
+        MpmLoader, "_parse_spectrogram", staticmethod(lambda *a, **k: None)
+    )
+    loader = _loaded(specimen["mpr"])
+    timelines = loader.create_timelines()
+    assert [tl.id for tl in timelines] == [
+        SCORE_CLT_ID,
+        SCORE_DLT_ID,
+        PERF_CPT_ID,
+        PERF_DPT_ID,
+    ]
+
+
+def test_no_spectrogram_create_timeline_dgt_raises(
+    specimen: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``create_timeline('perf:dgt1')`` raises KeyError — it was never built."""
+    monkeypatch.setattr(
+        MpmLoader, "_parse_spectrogram", staticmethod(lambda *a, **k: None)
+    )
+    loader = _loaded(specimen["mpr"])
+    with pytest.raises(KeyError, match="No timeline with uid"):
+        loader.create_timeline(PERF_DGT_ID)
+
+
+def test_no_spectrogram_repr_html_reports_four(
+    specimen: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The HTML card reports ``4 in 2 group(s)``, never ``5 in 2 group(s)``."""
+    monkeypatch.setattr(
+        MpmLoader, "_parse_spectrogram", staticmethod(lambda *a, **k: None)
+    )
+    loader = _loaded(specimen["mpr"])
+    html = loader._repr_html_()
+    assert "4 in 2 group(s) (score, perf)" in html
+    assert "5 in 2 group(s)" not in html
+
+
+# endregion
