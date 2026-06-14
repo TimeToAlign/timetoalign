@@ -78,6 +78,7 @@ from .flow import (
     OverlengthMeasure,
     PlaythroughSection,
     ScoreFlowController,
+    SegmentNameGenerator,
     SplitMeasure,
     TypedMeasure,
     VoltaGroup,
@@ -142,6 +143,7 @@ __all__ = [
     "FlowController",  # Backwards-compatible alias for ScoreFlowController
     "FlowControllerBase",  # Abstract base class
     "ScoreFlowController",  # Concrete implementation for score data
+    "SegmentNameGenerator",  # Customizable atomic-section labelling
     "AtomicSection",
     "PlaythroughSection",
     "load_valid_flows",

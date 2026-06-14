@@ -169,6 +169,7 @@ from timetoalign.timelines import (
     GraphicalTimeline,
     LogicalTimeline,
     PhysicalTimeline,
+    SegmentNameGenerator,
     Timeline,
 )
 
@@ -230,6 +231,7 @@ __all__ = [
     "ContinuousGraphicalTimeline",
     "DiscreteGraphicalTimeline",
     "BeatGrid",
+    "SegmentNameGenerator",
     # Maps
     "ConstantMap",
     "ConversionMap",

@@ -760,6 +760,64 @@ Following the project's ZERO TOLERANCE validation policy, all tests use **exact 
 
 ---
 
+### `test_segment_naming.py` - Customizable Atomic-Section Labelling
+
+**Purpose:** Validates `SegmentNameGenerator`, the strategy object that the
+`ScoreFlowController` uses to label atomic sections, and its integration into
+the controller's section-building pass.
+
+**What the generator does.** `generate(volta_flags)` turns a list of
+per-section booleans (`volta_flags[i]` is `True` when atomic section `i` opens
+a volta bracket) into one label per section. Two policies are configurable at
+construction:
+
+- **Alphabet** (`alphabet=`, default `_SECTION_ALPHABET`): base sections walk
+  the alphabet; once exhausted it repeats with a numeric suffix (`A2`, `B2`,
+  …). The generator never reaches into punctuation or control characters.
+- **Volta suffix** (`volta_suffix=`, default `True`): a section that opens a
+  volta bracket inherits the preceding base section's label plus a *positional*
+  numeric suffix (`1`, `2`, …) — section `B` followed by two endings reads `B,
+  B1, B2`, not `B, C, D`. The suffix is positional and independent of the
+  volta's own ending number. A non-volta section resets the counter, so two
+  independent volta groups read `B, B1, B2` then `C, C1, C2` (never `C3, C4`).
+  A leading volta with no preceding base falls back to a base letter (never
+  `None1`). With `volta_suffix=False` every section consumes the next base
+  label, the historical pure-sequential behaviour.
+
+**Generator unit tests (exact strings):**
+
+| Case | `volta_flags` | Generator config | Expected labels |
+|------|---------------|------------------|-----------------|
+| Default sequential | all `False` | default | `A, B, C` |
+| Alphabet overflow | one flag beyond alphabet length | tiny `alphabet=` | tail label carries the `2` suffix (`…, A2`) |
+| Volta suffix | `[False, True, True]` after a base | default | `A, A1, A2` |
+| Legacy sequential | `[False, True, True]` | `volta_suffix=False` | `A, B, C` |
+| Custom alphabet | all `False` | `alphabet=["X", "Y", "Z"]` | `X, Y, Z` |
+| First-section volta | `[True, False, True]` | default | `A, B, B1` (no `None1`) |
+| Two volta groups | `[False, True, True, False, True]` | default | `A, A1, A2, B, B1` (counter resets) |
+
+**Integration test (Op.18 No.4 iv specimen).** The folded measures TSV at
+`beethoven_op18-4iv_multimodal/op18_no4_mov4_flow/` carries three volta groups.
+Building a `ScoreFlowController` over it and reading the atomic sections must
+yield, in order:
+
+```
+A, B, C, D, D1, D2, E, F, F1, F2, G, G1, G2
+```
+
+(13 sections — count unchanged from the pre-volta-suffix labelling). The test
+asserts EXACT section ids AND that every `to[]` graph edge references those new
+labels (the edges are derived from the same label list, so e.g. `D` points to
+`('D1', 'D2')` and `D1` back to `('D',)`). It also confirms section count and
+MC ranges are untouched by the relabelling. Passing `volta_suffix=False` to the
+controller reproduces the legacy sequential ids `A, B, … M`.
+
+Following the project's ZERO TOLERANCE policy, all assertions are exact string
+and exact count comparisons; the data path is resolved relative to the test
+file (the pattern already used by `test_unfolding.py` for this specimen).
+
+---
+
 ### `test_timestamps.py` - Cross-Section Timestamp Tables
 
 **Purpose:** Validates `get_timestamp_table()` / `get_timestamps()` and the

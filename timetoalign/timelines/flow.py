@@ -35,7 +35,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any, Iterator, Sequence
 
 from timetoalign.core.enums import FlowMode, IncompletePosition
 
@@ -69,17 +69,98 @@ _SECTION_ALPHABET = (
 )
 
 
-def _section_label(index: int) -> str:
-    """Return the display label for the atomic section at *index* (0-based).
+class SegmentNameGenerator:
+    """Assign display labels to a run of atomic sections.
 
-    Labels walk ``_SECTION_ALPHABET`` (Latin then Greek). Beyond its 100
-    entries the alphabet repeats with a numeric suffix (``A2``, ``B2``, …)
-    so labels stay unique and printable for arbitrarily long scores.
+    The generator turns a sequence of per-section volta flags into a list
+    of labels, one per section. Two policies are configurable:
+
+    Alphabet:
+        Base sections walk *alphabet* (default ``_SECTION_ALPHABET`` —
+        Latin upper, Latin lower, Greek upper, Greek lower). Once the
+        alphabet is exhausted it repeats with a numeric suffix (``A2``,
+        ``B2``, …) so labels stay unique and printable for arbitrarily
+        long scores. A caller may pass any sequence of symbols.
+
+    Volta suffix:
+        When *volta_suffix* is ``True`` (the default), a section that
+        opens a volta bracket inherits the preceding non-volta section's
+        label plus a positional numeric suffix (``1``, ``2``, …). A
+        section **B** followed by two alternative endings is therefore
+        labelled ``B``, ``B1``, ``B2`` rather than consuming the next
+        three letters. The suffix is positional — the first volta after a
+        base is ``1``, the second ``2`` — and is independent of the
+        volta's own ending number. A non-volta section resets the
+        counter, so two independent volta groups read ``B, B1, B2`` then
+        ``C, C1, C2`` (never ``C3, C4``). A leading volta with no
+        preceding base falls back to a base letter.
+
+        When *volta_suffix* is ``False`` every section consumes the next
+        base label in sequence (``B, C, D``), the historical behaviour.
+
+    Examples:
+        >>> SegmentNameGenerator().generate([False, True, True])
+        ['A', 'A1', 'A2']
+        >>> SegmentNameGenerator(volta_suffix=False).generate([False, True, True])
+        ['A', 'B', 'C']
     """
-    n = len(_SECTION_ALPHABET)
-    if index < n:
-        return _SECTION_ALPHABET[index]
-    return f"{_SECTION_ALPHABET[index % n]}{index // n + 1}"
+
+    def __init__(
+        self,
+        alphabet: Sequence[str] | None = None,
+        volta_suffix: bool = True,
+    ) -> None:
+        """Initialize the generator.
+
+        Args:
+            alphabet: Symbols for base section labels. ``None`` selects the
+                default ``_SECTION_ALPHABET``.
+            volta_suffix: When ``True``, volta sections inherit the
+                preceding base label with a positional numeric suffix.
+                When ``False``, every section consumes the next base label.
+        """
+        self._alphabet: Sequence[str] = (
+            _SECTION_ALPHABET if alphabet is None else alphabet
+        )
+        self._volta_suffix = volta_suffix
+
+    def _base_label(self, index: int) -> str:
+        """Return the base label for the section at *index* (0-based).
+
+        Labels walk the instance alphabet. Beyond its length the alphabet
+        repeats with a numeric suffix (``A2``, ``B2``, …) so labels stay
+        unique for arbitrarily long scores.
+        """
+        n = len(self._alphabet)
+        if index < n:
+            return self._alphabet[index]
+        return f"{self._alphabet[index % n]}{index // n + 1}"
+
+    def generate(self, volta_flags: Sequence[bool]) -> list[str]:
+        """Return one label per section, honouring the volta-suffix policy.
+
+        Args:
+            volta_flags: ``volta_flags[i]`` is ``True`` when atomic section
+                ``i`` opens a volta bracket.
+
+        Returns:
+            A list of labels the same length as *volta_flags*.
+        """
+        labels: list[str] = []
+        base_i = 0
+        volta_n = 0
+        last_base: str | None = None
+        for is_volta in volta_flags:
+            if self._volta_suffix and is_volta and last_base is not None:
+                volta_n += 1
+                labels.append(f"{last_base}{volta_n}")
+            else:
+                label = self._base_label(base_i)
+                labels.append(label)
+                last_base = label
+                base_i += 1
+                volta_n = 0
+        return labels
 
 
 # region FlowMode
@@ -1678,13 +1759,22 @@ class ScoreFlowController(FlowControllerBase):
         ...     print(f"MC {unit.mc}: next={unit.next}, jump_from={unit.jump_from}")
     """
 
-    def __init__(self, measures: "MeasureData") -> None:
+    def __init__(
+        self,
+        measures: "MeasureData",
+        *,
+        name_generator: SegmentNameGenerator | None = None,
+    ) -> None:
         """Initialize FlowController from MeasureData.
 
         Args:
             measures: MeasureData containing flow control fields.
+            name_generator: Strategy for labelling atomic sections. Defaults
+                to a ``SegmentNameGenerator`` with the standard alphabet and
+                the volta-suffix rule enabled.
         """
         self._measures = measures
+        self._name_generator = name_generator or SegmentNameGenerator()
         self._measure_lookup: dict[int, dict[str, Any]] = {}
         self._units: list[MeasureUnit] = []
         self._atomic_sections: list[AtomicSection] = []
@@ -1697,12 +1787,18 @@ class ScoreFlowController(FlowControllerBase):
         cls,
         sections: list[AtomicSection],
         measures: "MeasureData | None" = None,
+        *,
+        name_generator: SegmentNameGenerator | None = None,
     ) -> "ScoreFlowController":
         """Initialize directly from atomic sections (e.g., from partitura).
 
         Args:
             sections: List of AtomicSection objects.
             measures: Optional MeasureData for detailed step computation.
+            name_generator: Strategy for labelling atomic sections. Stored for
+                consistency with the regular constructor; the pre-built
+                sections are not relabelled. Defaults to a fresh
+                ``SegmentNameGenerator``.
 
         Returns:
             ScoreFlowController with pre-built atomic sections.
@@ -1710,6 +1806,7 @@ class ScoreFlowController(FlowControllerBase):
         # Create instance without calling __init__
         instance = object.__new__(cls)
         instance._measures = measures
+        instance._name_generator = name_generator or SegmentNameGenerator()
         instance._measure_lookup = {}
         instance._units = []
         instance._atomic_sections = list(sections)
@@ -2831,6 +2928,16 @@ class ScoreFlowController(FlowControllerBase):
         # Build lookup from mc to MeasureUnit for typed_measures
         unit_lookup: dict[int, MeasureUnit] = {u.mc: u for u in self._units}
 
+        # Assign labels to every boundary section in one pass. A section opens
+        # a volta bracket when its first measure carries a volta number (the
+        # same criterion the diagram uses). The name generator turns these
+        # flags into the per-section labels, applying the volta-suffix rule.
+        volta_flags: list[bool] = [
+            (start_mc in unit_lookup and unit_lookup[start_mc].volta is not None)
+            for start_mc in boundaries_list
+        ]
+        labels = self._name_generator.generate(volta_flags)
+
         for i, start_mc in enumerate(boundaries_list):
             # Find end MC (last MC before next boundary, or last MC)
             if i + 1 < len(boundaries_list):
@@ -2875,10 +2982,10 @@ class ScoreFlowController(FlowControllerBase):
                 for j, bnd in enumerate(boundaries_list):
                     if j + 1 < len(boundaries_list):
                         if bnd <= target_mc < boundaries_list[j + 1]:
-                            return _section_label(j)
+                            return labels[j]
                     else:
                         if bnd <= target_mc:
-                            return _section_label(j)
+                            return labels[j]
                 return None
 
             to_sections: list[str] = []
@@ -2911,7 +3018,7 @@ class ScoreFlowController(FlowControllerBase):
 
             sections.append(
                 AtomicSection(
-                    id=_section_label(i),
+                    id=labels[i],
                     mc_start=start_mc,
                     mc_end=end_mc + 1,  # Right-open: end is exclusive
                     to=tuple(to_sections),

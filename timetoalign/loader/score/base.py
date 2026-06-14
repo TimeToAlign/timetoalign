@@ -17,7 +17,7 @@ from .events import ScoreEventData
 from .store import ScoreStore
 
 if TYPE_CHECKING:
-    from timetoalign.timelines.flow import ScoreFlowController
+    from timetoalign.timelines.flow import ScoreFlowController, SegmentNameGenerator
 
 module_logger = logging.getLogger(__name__)
 
@@ -114,13 +114,22 @@ class ScoreLoader(Loader):
 
     # region Flow Control
 
-    def create_flow_controller(self) -> "ScoreFlowController":
+    def create_flow_controller(
+        self,
+        *,
+        name_generator: "SegmentNameGenerator | None" = None,
+    ) -> "ScoreFlowController":
         """Create a `timetoalign.ScoreFlowController` from the loaded measure data.
 
         The flow controller derives the repeat structure (repeats, voltas,
         jumps, D.S., D.C.) from the measure data and computes the
         traversal order.  Requires measures to have been loaded; raises
         ``ValueError`` if no measure data is available.
+
+        Args:
+            name_generator: Strategy for labelling atomic sections, forwarded
+                to the ``ScoreFlowController``.  ``None`` uses the default
+                naming (standard alphabet with the volta-suffix rule).
 
         Returns:
             A configured ``ScoreFlowController`` ready to compute flows.
@@ -140,7 +149,7 @@ class ScoreLoader(Loader):
                 "Cannot create a FlowController: no measure data has been "
                 "loaded.  Load a measures file first (e.g. *.measures.tsv)."
             )
-        return ScoreFlowController(self._store.measures)
+        return ScoreFlowController(self._store.measures, name_generator=name_generator)
 
     # endregion
 
