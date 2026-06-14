@@ -129,7 +129,7 @@ def qb_sections_table(controller, mode: FlowMode = FlowMode.default) -> pd.DataF
 
 # %%
 controller = load_controller("score_1988-Ciume_e_brincadeira")
-controller.diagram()
+controller
 
 # %%
 boundaries_summary(controller)
@@ -159,7 +159,7 @@ qb_sections_table(controller)
 
 # %%
 controller = load_controller("score_1361-Medrosa-Anacleto_de_Medeiros")
-controller.diagram()
+controller
 
 # %%
 boundaries_summary(controller)
@@ -189,7 +189,7 @@ qb_sections_table(controller)
 
 # %%
 controller = load_controller("score_133-Digitalis-Irineu_de_Almeida")
-controller.diagram()
+controller
 
 # %%
 boundaries_summary(controller)
