@@ -6,7 +6,7 @@ tutorials,tut02_timeline_groups.py,tut02_timeline_groups,Timeline Groups and Com
 tutorials,tut03_alignment_bundles.py,tut03_alignment_bundles,Alignment Bundles,"MatchfileLoader, AlignmentBundle, cross-group transfer"
 tutorials,tut04_flow_and_grids.py,tut04_flow_and_grids,Flow Control and Grids,"BeatGrid, repeats, metrical structure"
 tutorials,tut05_datafields_and_eventdata.py,tut05_datafields_and_eventdata,DataFields and Layered EventData,"The Protocol/Scalar/Field triple, raw Layer 0 fields, default and self-built semantic fields, discovery, and Parquet-embedded metadata"
-howto,how01_pitch_and_harmony_types.py,how01_pitch_and_harmony_types,How to Work with Pitch and Harmony Types,"Type-design axis: Protocol/Scalar/Field for pitch and harmony, conversion, protocol dispatch, Parquet round-trip"
+tutorials,tut06_pitch_and_harmony.py,tut06_pitch_and_harmony,Pitch and Harmony across Formats,"Cross-format pitch equivalence: the same note from ms3 TSV, music21, partitura, MIDI, and parangonada; the SpecificPitch vs EnharmonicPitch/MidiPitch affordance; the same triple for harmony"
 howto,how01_coordinate_math.py,how01_coordinate_math,How to Do Coordinate Math,"Domains, TimeUnits, NumberType, Coordinate arithmetic"
 howto,how01_advanced_cmaps.py,how01_advanced_cmaps,How to Use Advanced Conversion Maps,"ChainMap, PiecewiseMap, TableMap, vectorised operations"
 howto,how01_advanced_timestamps.py,how01_advanced_timestamps,How to Query Timestamps,"TimeStamp, TimeIntervalStamp, boundary tables, PyArrow"

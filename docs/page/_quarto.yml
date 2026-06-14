@@ -48,14 +48,14 @@ website:
           contents:
             - text: "DataFields and Layered EventData"
               href: tutorials/tut05_datafields_and_eventdata.ipynb
+            - text: "Pitch and Harmony across Formats"
+              href: tutorials/tut06_pitch_and_harmony.ipynb
 
     - title: "How-To Guides"
       contents:
         - howto.qmd
         - section: "Timelines, Events & Maps"
           contents:
-            - text: "How to Work with Pitch and Harmony Types"
-              href: howto/how01_pitch_and_harmony_types.ipynb
             - text: "How to Do Coordinate Math"
               href: howto/how01_coordinate_math.ipynb
             - text: "How to Use Advanced Conversion Maps"
