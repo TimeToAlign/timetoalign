@@ -1,0 +1,26 @@
+flow_mode,source_file,software_version,mc_start,mc_end,atomic_sections
+atomic,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,1,2,A
+atomic,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,2,28,B
+atomic,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,28,30,B1
+atomic,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,30,55,B2
+atomic,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,55,57,B3
+atomic,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,57,60,B4
+atomic,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,60,90,C
+atomic,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,90,92,C1
+atomic,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,92,94,C2
+printed,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,1,94,A;B;B1;B2;B3;B4;C;C1;C2
+single,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,1,29,A;B;B1
+single,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,30,91,B2;B3;B4;C;C1
+single,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,92,94,C2
+default,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,1,30,A;B;B1
+default,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,2,28,B
+default,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,30,55,B2
+default,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,57,92,B4;C;C1
+default,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,60,90,C
+default,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,92,94,C2
+ms3,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,1,30,A;B;B1
+ms3,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,2,28,B
+ms3,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,30,55,B2
+ms3,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,57,92,B4;C;C1
+ms3,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,60,90,C
+ms3,score_133-Digitalis-Irineu_de_Almeida.measures.tsv,timetoalign 0.2.0,92,94,C2

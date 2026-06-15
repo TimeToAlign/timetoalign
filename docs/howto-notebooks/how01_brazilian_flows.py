@@ -32,34 +32,33 @@
 # The `FlowControlElement` enum lists the full vocabulary; the predicates
 # `is_jump`, `is_break`, `is_target`, and `is_structural_marker` filter members.
 #
-# `controller.check_invariants()` is the structural-diagnostic entry point: it
-# returns a list of `FlowDiagnostic` records describing any way the parsed
-# section graph departs from the rules a well-formed score must satisfy (empty
-# when the structure is sound), and never raises.
-#
 # A **FlowMap** is the bidirectional coordinate transform derived from a chosen
 # `FlowMode`. `unfold(coord)` returns a list of unfolded positions (≥1);
 # `fold(coord)` returns a single folded coordinate.
 # `FlowMap.from_qb_sections(flow, qb_sections)` is the entry point for manual
 # correction or non-standard interpretations.
 #
-# This notebook inspects three Choros scores. Each piece's section ends with a
-# placeholder for re-defining the flow when the parsed structure needs adjusting.
+# This notebook inspects three Choros scores. Each piece's section ends by
+# exporting all of its available flows to a CSV under `outputs/`.
 
 # %% [markdown]
 # ## Setup
 
 # %%
+import os
 from fractions import Fraction
 from pathlib import Path
 
 import pandas as pd
 
+from timetoalign import __version__
 from timetoalign.core.enums import FlowMode
 from timetoalign.loader.score import TSVLoader
 from timetoalign.timelines.flow import compute_qb_sections
 
 DATA_DIR = Path("~/git/brazilian_flows").expanduser()
+
+os.makedirs("outputs", exist_ok=True)
 
 
 def make_paths(name: str, data_dir: Path = DATA_DIR) -> tuple[Path, Path]:
@@ -127,22 +126,34 @@ def qb_sections_table(controller, mode: FlowMode = FlowMode.default) -> pd.DataF
     )
 
 
-def invariants_table(controller) -> pd.DataFrame:
-    """One row per structural diagnostic from ``check_invariants()``; empty when well-formed."""
-    diagnostics = controller.check_invariants()
-    if not diagnostics:
-        return pd.DataFrame(columns=["kind", "section_id", "mc", "message"])
-    return pd.DataFrame(
-        [
-            {
-                "kind": d.kind,
-                "section_id": d.section_id,
-                "mc": d.mc,
-                "message": d.message,
-            }
-            for d in diagnostics
-        ]
-    )
+# Flow modes with a genuine implementation; the remaining `FlowMode` members
+# silently fall back to `default`, so exporting them would duplicate rows.
+AVAILABLE_FLOW_MODES = (
+    FlowMode.atomic,
+    FlowMode.printed,
+    FlowMode.single,
+    FlowMode.default,
+    FlowMode.ms3,
+)
+
+
+def export_flows(controller, name: str) -> Path:
+    """Write every available flow to ``outputs/{name}.csv`` in `.flow.csv` format.
+
+    One block of rows per mode in `AVAILABLE_FLOW_MODES`, using the library's
+    canonical `Flow.to_csv_rows()` serialisation (columns: ``flow_mode``,
+    ``source_file``, ``software_version``, ``mc_start``, ``mc_end``,
+    ``atomic_sections``).
+    """
+    _, measures = make_paths(name)
+    software_version = f"timetoalign {__version__}"
+    rows = []
+    for mode in AVAILABLE_FLOW_MODES:
+        flow = controller.compute_flow(mode)
+        rows.extend(flow.to_csv_rows(measures.name, software_version))
+    out_path = Path("outputs") / f"{name}.csv"
+    pd.DataFrame(rows).to_csv(out_path, index=False)
+    return out_path
 
 
 # %% [markdown]
@@ -151,7 +162,8 @@ def invariants_table(controller) -> pd.DataFrame:
 # ## score_1988-Ciume_e_brincadeira
 
 # %%
-controller = load_controller("score_1988-Ciume_e_brincadeira")
+piece_name = "score_1988-Ciume_e_brincadeira"
+controller = load_controller(piece_name)
 controller
 
 # %%
@@ -173,17 +185,8 @@ flow_modes_table(controller)
 qb_sections_table(controller)
 
 # %%
-invariants_table(controller)
-
-# %% [markdown]
-# **Corrections / re-definition.** `check_invariants()` reports no structural
-# violations here: the parsed repeat structure is well-formed, so the empty
-# diagnostics frame above is the expected result and the computed atomic
-# partition can be taken at face value. Should a future reading call for a
-# non-standard interpretation, the planned route is interactive correction at
-# the affordance / element / named-group layers, re-feeding the adjusted
-# structure through `FlowMap.from_qb_sections(...)`. That editing surface is
-# forthcoming; for now the notebook only exposes the diagnostics.
+# Export all available flows for this piece to outputs/{piece_name}.csv.
+export_flows(controller, piece_name)
 
 # %% [markdown]
 # ---
@@ -191,7 +194,8 @@ invariants_table(controller)
 # ## score_1361-Medrosa-Anacleto_de_Medeiros
 
 # %%
-controller = load_controller("score_1361-Medrosa-Anacleto_de_Medeiros")
+piece_name = "score_1361-Medrosa-Anacleto_de_Medeiros"
+controller = load_controller(piece_name)
 controller
 
 # %%
@@ -213,15 +217,8 @@ flow_modes_table(controller)
 qb_sections_table(controller)
 
 # %%
-invariants_table(controller)
-
-# %% [markdown]
-# **Corrections / re-definition.** As with the previous piece, `check_invariants()`
-# returns an empty frame: the encoded repeat structure is well-posed and the
-# atomic partition needs no adjustment. The same forthcoming editing surface
-# (affordance / element / named-group layers, then
-# `FlowMap.from_qb_sections(...)`) would apply if a non-standard reading were
-# wanted; nothing here is flagged for correction.
+# Export all available flows for this piece to outputs/{piece_name}.csv.
+export_flows(controller, piece_name)
 
 # %% [markdown]
 # ---
@@ -229,7 +226,8 @@ invariants_table(controller)
 # ## score_133-Digitalis-Irineu_de_Almeida
 
 # %%
-controller = load_controller("score_133-Digitalis-Irineu_de_Almeida")
+piece_name = "score_133-Digitalis-Irineu_de_Almeida"
+controller = load_controller(piece_name)
 controller
 
 # %%
@@ -251,28 +249,8 @@ flow_modes_table(controller)
 qb_sections_table(controller)
 
 # %%
-invariants_table(controller)
-
-# %% [markdown]
-# **Corrections / re-definition.** Here `check_invariants()` is not empty: it
-# reports several `volta_follows_volta` violations. The rule it enforces is a
-# plain one — a volta ending can never flow directly into another volta ending.
-# A prima volta's only out-edge is the repeat back-edge to the start of the
-# repeated block; a seconda volta is entered from that same repeat start and
-# then continues into the music after the bracket. Two voltas connected by a
-# flow (`to`) edge therefore cannot occur in a well-formed score, and when they
-# do it signals a mis-resolved jump target in the source.
-#
-# That is exactly what this score's encoding produces: a volta repeat-end whose
-# `next` points forward to the following ending rather than back to a repeat
-# start, with no repeat-start marker beginning the block that should be
-# repeated. The structure is **under-determined** — the source has not pinned
-# down the intended flow — so the computed atomic partition looks wrong at the
-# flagged sections. This is the source's defect surfaced by detect-and-report,
-# **not** a library bug to silently paper over, and the diagnostic is reported
-# rather than fixed. Repairing it means re-encoding the intended repeat
-# structure; interactive correction at the affordance / element / named-group
-# layers (then `FlowMap.from_qb_sections(...)`) is the planned next step.
+# Export all available flows for this piece to outputs/{piece_name}.csv.
+export_flows(controller, piece_name)
 
 # %% [markdown]
 # ---
