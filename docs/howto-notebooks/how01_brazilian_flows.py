@@ -39,13 +39,12 @@
 # correction or non-standard interpretations.
 #
 # This notebook inspects three Choros scores. Each piece's section ends by
-# exporting all of its available flows to a CSV under `outputs/`.
+# exporting all of its available flows to a CSV under the corpus `flows/` directory.
 
 # %% [markdown]
 # ## Setup
 
 # %%
-import os
 from fractions import Fraction
 from pathlib import Path
 
@@ -57,8 +56,6 @@ from timetoalign.loader.score import TSVLoader
 from timetoalign.timelines.flow import compute_qb_sections
 
 DATA_DIR = Path("~/git/brazilian_flows").expanduser()
-
-os.makedirs("outputs", exist_ok=True)
 
 
 def make_paths(name: str, data_dir: Path = DATA_DIR) -> tuple[Path, Path]:
@@ -126,32 +123,23 @@ def qb_sections_table(controller, mode: FlowMode = FlowMode.default) -> pd.DataF
     )
 
 
-# Flow modes with a genuine implementation; the remaining `FlowMode` members
-# silently fall back to `default`, so exporting them would duplicate rows.
-AVAILABLE_FLOW_MODES = (
-    FlowMode.atomic,
-    FlowMode.printed,
-    FlowMode.single,
-    FlowMode.default,
-    FlowMode.ms3,
-)
-
-
 def export_flows(controller, name: str) -> Path:
-    """Write every available flow to ``outputs/{name}.csv`` in `.flow.csv` format.
+    """Write every available flow to ``{DATA_DIR}/flows/{name}.csv`` in `.flow.csv` format.
 
-    One block of rows per mode in `AVAILABLE_FLOW_MODES`, using the library's
-    canonical `Flow.to_csv_rows()` serialisation (columns: ``flow_mode``,
-    ``source_file``, ``software_version``, ``mc_start``, ``mc_end``,
-    ``atomic_sections``).
+    One block of rows per `FlowMode` not in `SKIPPED_FLOW_MODES`, using the
+    library's canonical `Flow.to_csv_rows()` serialisation (columns:
+    ``flow_mode``, ``source_file``, ``software_version``, ``mc_start``,
+    ``mc_end``, ``atomic_sections``).
     """
     _, measures = make_paths(name)
     software_version = f"timetoalign {__version__}"
     rows = []
-    for mode in AVAILABLE_FLOW_MODES:
+    for mode in FlowMode:
+        if mode in SKIPPED_FLOW_MODES:
+            continue
         flow = controller.compute_flow(mode)
         rows.extend(flow.to_csv_rows(measures.name, software_version))
-    out_path = Path("outputs") / f"{name}.csv"
+    out_path = DATA_DIR / "flows" / f"{name}.csv"
     pd.DataFrame(rows).to_csv(out_path, index=False)
     return out_path
 
@@ -185,7 +173,7 @@ flow_modes_table(controller)
 qb_sections_table(controller)
 
 # %%
-# Export all available flows for this piece to outputs/{piece_name}.csv.
+# Export all available flows for this piece to {DATA_DIR}/flows/{piece_name}.csv.
 export_flows(controller, piece_name)
 
 # %% [markdown]
@@ -217,7 +205,7 @@ flow_modes_table(controller)
 qb_sections_table(controller)
 
 # %%
-# Export all available flows for this piece to outputs/{piece_name}.csv.
+# Export all available flows for this piece to {DATA_DIR}/flows/{piece_name}.csv.
 export_flows(controller, piece_name)
 
 # %% [markdown]
@@ -249,7 +237,7 @@ flow_modes_table(controller)
 qb_sections_table(controller)
 
 # %%
-# Export all available flows for this piece to outputs/{piece_name}.csv.
+# Export all available flows for this piece to {DATA_DIR}/flows/{piece_name}.csv.
 export_flows(controller, piece_name)
 
 # %% [markdown]
