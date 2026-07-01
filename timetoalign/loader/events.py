@@ -1327,6 +1327,7 @@ class EventData(SemanticFieldAccessMixin):
         # get_field uses). Columns with no paired field are skipped.
         registry = _get_field_type_map()
         field_items: list[str] = []
+        listed_columns: set[str] = set()
         schema = self._table.schema
         for i in range(len(schema)):
             pa_field = schema.field(i)
@@ -1339,6 +1340,23 @@ class EventData(SemanticFieldAccessMixin):
             scalar_cls = field_cls.scalar_cls
             scalar_name = scalar_cls.__name__ if scalar_cls is not None else "—"
             field_items.append(f"<li>{code(pa_field.name)} : {scalar_name}</li>")
+            listed_columns.add(pa_field.name)
+
+        # Also surface fields *afforded* over a raw atomic column
+        # (represent-once): the typed pitch view is reachable via
+        # get_field() / get_pitch_field() even though the column itself
+        # carries no semantic metadata, so an honest "reachable fields"
+        # listing must include it.
+        column_names = set(self._table.column_names)
+        afforded: dict[str, Any] = getattr(type(self), "_afforded_fields", {})
+        for column, afforded_cls in afforded.items():
+            if column in listed_columns or column not in column_names:
+                continue
+            scalar_cls = afforded_cls.scalar_cls
+            scalar_name = scalar_cls.__name__ if scalar_cls is not None else "—"
+            field_items.append(f"<li>{code(column)} : {scalar_name}</li>")
+            listed_columns.add(column)
+
         if field_items:
             fields_value = "<ul>" + "".join(field_items) + "</ul>"
         else:
@@ -1371,6 +1389,11 @@ class EventData(SemanticFieldAccessMixin):
         self._table = pa.concat_tables(
             [self._table, other._table], promote_options="default"
         )
+        # The table was replaced in place; any cached SemanticField (incl.
+        # an afforded pitch view over a raw column) now wraps the stale
+        # pre-extend array, so drop the cache and let the affordance
+        # re-attach over the concatenated table on next access.
+        self._invalidate_field_cache()
 
     def concat(self, *others: "EventData") -> "EventData":
         """Concatenate with other EventData, returning a new EventData.

@@ -33,6 +33,7 @@ Flow API (MeasureUnit architecture):
   - CompleteMeasureGroup: Adjacent CompleteMeasures
   - OverlengthGroup: OverlengthMeasures
 - AtomicSection: Smallest indivisible traversal unit (with typed_measures)
+- FlowDiagnostic: A structural-invariant violation found in an atomic flow graph
 - PlaythroughSection: Contiguous group of atomic sections (with typed_measures)
 - Flow: A computed flow (sequence of measure visitations)
 - FlowMap: Attached to timelines for coordinate transformation
@@ -68,6 +69,7 @@ from .flow import (
     Flow,
     FlowController,
     FlowControllerBase,
+    FlowDiagnostic,
     FlowMap,
     FlowMapSection,
     IncompleteGroup,
@@ -78,6 +80,7 @@ from .flow import (
     OverlengthMeasure,
     PlaythroughSection,
     ScoreFlowController,
+    SegmentNameGenerator,
     SplitMeasure,
     TypedMeasure,
     VoltaGroup,
@@ -142,7 +145,9 @@ __all__ = [
     "FlowController",  # Backwards-compatible alias for ScoreFlowController
     "FlowControllerBase",  # Abstract base class
     "ScoreFlowController",  # Concrete implementation for score data
+    "SegmentNameGenerator",  # Customizable atomic-section labelling
     "AtomicSection",
+    "FlowDiagnostic",
     "PlaythroughSection",
     "load_valid_flows",
     "create_unfolded_timeline",  # Create unfolded timeline from flow

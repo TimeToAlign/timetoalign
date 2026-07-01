@@ -48,7 +48,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from timetoalign import Coordinate, TimeUnit
+from timetoalign import Coordinate, SegmentNameGenerator, TimeUnit
 from timetoalign.core.enums import ActivationCondition, FlowControlElement, FlowMode
 from timetoalign.loader.score import TSVLoader
 from timetoalign.timelines.flow import FlowMap, compute_qb_sections
@@ -62,6 +62,11 @@ COUNT_THROUGH_TSV = (
 PER_VARIATION_TSV = (
     DATA_DIR
     / "15-variations-and-fugue-in-e-flat-major-op-35-eroica-variations-ludwig-van-beethoven.measures.tsv"
+)
+NOTES_TSV = (
+    DATA_DIR.parent
+    / "notes"
+    / "15-variations-and-fugue-in-e-flat-major-op-35-eroica-variations-ludwig-van-beethoven.notes.tsv"
 )
 
 # %%
@@ -210,6 +215,63 @@ boundaries = controller.get_section_boundary_coordinates()
     "n_atomic_sections": len(boundaries) + 1,
     "break_positions_qb": [float(b) for b in boundaries],
 }
+
+# %% [markdown]
+# ---
+#
+# ## Part 2b: Naming the Atomic Sections
+#
+# Every atomic section carries a short **label** — the letters `A`, `B`, `C` …
+# you see in `controller.diagram()` and in each section's `id`.  By default a
+# *volta* (an alternative ending such as a *prima/seconda volta*) does **not**
+# consume the next letter.  Instead it inherits the preceding section's letter
+# plus a positional numeric suffix: a section `W` followed by two endings reads
+# `W`, `W1`, `W2`.  Look at the right-hand end of the diagram above — the two
+# volta slots render `┌1─W1─┌2─W2─`.
+#
+# The `┌N` number printed in the corner is the volta's **own ending number**
+# (first ending → `1`, second ending → `2`).  It is read straight from the score
+# and is independent of the label: the `1` and `2` in `W1`/`W2` happen to agree
+# here only because `W` is the first volta group with exactly two endings.  The
+# label suffix is *positional* (first volta after a base → `1`), so two
+# independent volta groups read `W, W1, W2` then `X, X1, X2`, never `X3, X4`.
+
+# %%
+# The default labels — note the volta-suffixed W1, W2 at the tail
+[s.id for s in controller.get_sections()]
+
+# %% [markdown]
+# ### Customising the labels
+#
+# The labelling strategy is a `SegmentNameGenerator`, passed to
+# `create_flow_controller(name_generator=...)`.  Two policies are configurable.
+#
+# **`volta_suffix=False`** restores the historical behaviour in which a volta
+# consumes the next letter in sequence — the two endings become fresh sections
+# `X` and `Y`, and the diagram corner reads `┌1─X──┌2─Y──`:
+
+# %%
+controller_legacy = per_variation_loader.create_flow_controller(
+    name_generator=SegmentNameGenerator(volta_suffix=False)
+)
+{
+    "default_tail": [s.id for s in controller.get_sections()][-4:],
+    "legacy_tail": [s.id for s in controller_legacy.get_sections()][-4:],
+}
+
+# %% [markdown]
+# **`alphabet=`** accepts any sequence of symbols to drive the base labels.
+# Here we label sections with Greek letters instead of Latin ones.  Once the
+# alphabet is exhausted it repeats with a numeric suffix (`α2`, `β2`, …), and the
+# volta-suffix rule still applies on top (so a volta of section `δ2` reads
+# `δ21`, `δ22`):
+
+# %%
+greek = "αβγδεζηθικλμνξοπρστυφχψω"
+controller_greek = per_variation_loader.create_flow_controller(
+    name_generator=SegmentNameGenerator(alphabet=list(greek))
+)
+[s.id for s in controller_greek.get_sections()]
 
 # %% [markdown]
 # ---

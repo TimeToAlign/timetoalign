@@ -16,13 +16,19 @@ These tests pin, with exact expected values:
 3. the per-source default pitch type via ``get_pitch_field()``;
 4. represent-once (no redundant *default* pitch struct);
 5. the scalar↔EventData contract for the MIDI EventData classes;
-6. on-request EnharmonicPitch from a SpecificPitch field via both routes.
+6. on-request EnharmonicPitch from a SpecificPitch field via both routes;
+7. the multi-batch concat re-affordance — the afforded pitch view
+   survives ``EventData.extend`` / ``Timeline.add_events`` schema
+   promotion across batches (raw column stays ``int64``; the field cache
+   is dropped so the affordance re-attaches over the concatenated table).
 
 The validation logic is documented in ``tests/loader/README.md`` under
 "Represent pitch once".
 """
 
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pyarrow as pa
 import pytest
@@ -41,6 +47,9 @@ from timetoalign.core.events import (
 from timetoalign.loader.events import EventData
 from timetoalign.loader.midi.events import MidiEventData, ScoreMidiEventData
 from timetoalign.loader.score.stores.notes import NoteEventData
+
+if TYPE_CHECKING:
+    from timetoalign.timelines.base import Timeline
 
 _TIMETOALIGN_KEY = b"timetoalign"
 
@@ -446,3 +455,138 @@ class TestMsmShapedAffordsEpAndSpc:
         events = self._msm_events()
         epc = events.get_pitch_field().convert_to(EnharmonicPitchClass)
         assert epc[0] == EnharmonicPitchClass(pitch_class=75 % 12)
+
+
+# ---------------------------------------------------------------------------
+# 7. Multi-batch concat re-affordance (the represent-once load-bearing risk)
+# ---------------------------------------------------------------------------
+
+
+def _midi_note(start: int, pitch: int) -> dict[str, object]:
+    """A minimal MIDI note row with a bare-int pitch."""
+    return {
+        "event_type": "Note",
+        "start": start,
+        "end": start + 480,
+        "pitch": pitch,
+        "velocity": 90,
+        "channel": 0,
+        "track": 0,
+    }
+
+
+def _ep_numbers(field: EnharmonicPitchField) -> list[int | None]:
+    """Materialise a field's midi_number values (None for null rows)."""
+    out: list[int | None] = []
+    for i in range(len(field)):
+        scalar = field[i]
+        out.append(None if scalar is None else scalar.midi_number)
+    return out
+
+
+class TestMultiBatchConcatAffordance:
+    """The bare-int pitch affordance survives ``extend`` / ``add_events``.
+
+    Represent-once stores a number-only pitch as a raw ``int64`` and
+    affords ``EnharmonicPitch`` over it on demand.  The multi-batch
+    ingestion path replaces the table in place with a
+    ``pa.concat_tables(..., promote_options="default")`` result, so the
+    affordance must re-attach over the concatenated table — this is the
+    specific risk a materialised pitch struct would have sidestepped.
+    """
+
+    # -- EventData.extend level ---------------------------------------------
+
+    def test_extend_grows_afforded_field_with_interleaved_query(self) -> None:
+        # Afford -> extend -> query again: the field must span both batches
+        # (a stale cache would expose only the pre-extend rows).
+        data = MidiEventData.from_dicts(
+            [_midi_note(0, 60), _midi_note(480, 62)], TimeUnit.ticks
+        )
+        first = data.get_field(EnharmonicPitch)
+        assert _ep_numbers(first) == [60, 62]
+
+        data.extend(MidiEventData.from_dicts([_midi_note(960, 64)], TimeUnit.ticks))
+        second = data.get_field(EnharmonicPitch)
+        assert _ep_numbers(second) == [60, 62, 64]
+        assert [s.midi_number for s in (second[0], second[1], second[2])] == [
+            60,
+            62,
+            64,
+        ]
+
+    def test_third_heterogeneous_batch_null_fills_and_affords(self) -> None:
+        # A third batch with NO pitch column (a Control-Change row) plus a
+        # brand-new column exercises promote_options="default" null-fill.
+        data = MidiEventData.from_dicts(
+            [_midi_note(0, 60), _midi_note(480, 62)], TimeUnit.ticks
+        )
+        data.get_field(EnharmonicPitch)  # prime the cache
+        data.extend(MidiEventData.from_dicts([_midi_note(960, 64)], TimeUnit.ticks))
+        data.get_field(EnharmonicPitch)  # prime again over the 3-row table
+        data.extend(
+            MidiEventData.from_dicts(
+                [
+                    {
+                        "event_type": "ControlChange",
+                        "instant": 1440,
+                        "control": 64,
+                        "value": 127,
+                        "channel": 0,
+                        "track": 0,
+                    }
+                ],
+                TimeUnit.ticks,
+            )
+        )
+        field = data.get_field(EnharmonicPitch)
+        assert _ep_numbers(field) == [60, 62, 64, None]
+        assert isinstance(data.get_pitch_field(), EnharmonicPitchField)
+
+    def test_raw_pitch_column_stays_int64_across_concats(self) -> None:
+        # Robustness / negative: the raw column is never promoted to a
+        # struct nor stringified, and carries no field_type metadata.
+        data = MidiEventData.from_dicts([_midi_note(0, 60)], TimeUnit.ticks)
+        for start, pitch in ((480, 62), (960, 64)):
+            data.extend(
+                MidiEventData.from_dicts([_midi_note(start, pitch)], TimeUnit.ticks)
+            )
+            assert data.schema.field("pitch").type == pa.int64()
+            assert _field_type_meta(data.table, "pitch") is None
+        assert _ep_numbers(data.get_field(EnharmonicPitch)) == [60, 62, 64]
+
+    def test_concat_returns_new_eventdata_that_affords(self) -> None:
+        # The non-mutating sibling `concat` returns a fresh EventData that
+        # also affords the view (no shared stale cache).
+        a = MidiEventData.from_dicts([_midi_note(0, 60)], TimeUnit.ticks)
+        a.get_field(EnharmonicPitch)  # cache on the source object
+        b = MidiEventData.from_dicts([_midi_note(480, 62)], TimeUnit.ticks)
+        merged = a.concat(b)
+        assert _ep_numbers(merged.get_field(EnharmonicPitch)) == [60, 62]
+        # The source object is untouched by the non-mutating concat.
+        assert _ep_numbers(a.get_field(EnharmonicPitch)) == [60]
+
+    # -- Timeline.add_events level ------------------------------------------
+
+    def _midi_backed_timeline(self) -> "Timeline":
+        # A timeline whose events store is a MidiEventData.  SingleStore ->
+        # create_timeline keeps the concrete class through prefix_ids.
+        from timetoalign.loader.store import SingleStore
+
+        data = MidiEventData.from_dicts([_midi_note(0, 60)], TimeUnit.ticks)
+        timeline = SingleStore(data, name="notes").create_timeline()
+        assert isinstance(timeline.events, MidiEventData)
+        return timeline
+
+    def test_timeline_add_events_affords_across_batches(self) -> None:
+        timeline = self._midi_backed_timeline()
+        assert _ep_numbers(timeline.events.get_field(EnharmonicPitch)) == [60]
+
+        timeline.add_events([_midi_note(480, 62)], allow_expansion=True)
+        assert _ep_numbers(timeline.events.get_field(EnharmonicPitch)) == [60, 62]
+
+        timeline.add_events([_midi_note(960, 64)], allow_expansion=True)
+        events = timeline.events
+        assert _ep_numbers(events.get_field(EnharmonicPitch)) == [60, 62, 64]
+        assert isinstance(events.get_pitch_field(), EnharmonicPitchField)
+        assert events.schema.field("pitch").type == pa.int64()

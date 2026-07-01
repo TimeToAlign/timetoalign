@@ -1,0 +1,104 @@
+# ParangonadaLoader { #timetoalign.loader.alignment.parangonada.ParangonadaLoader }
+
+```python
+loader.alignment.parangonada.ParangonadaLoader()
+```
+
+Load a parangonada CSV export as one multimodal AlignmentBundle.
+
+The loader discovers every performance under the dataset's
+``match/match_transkun/`` directory, parses the shared score
+``part.csv`` once, each performance's ``ppart.csv`` and ``align.csv``,
+and binds each recording's ``.wav`` for its sample rate.  It then
+assembles a single bundle with one shared score group and one group
+per performance, linked by cross-group :class:`MatchClaim` instances.
+
+**Usage follows the standard loader two-phase pattern:**
+
+1. ``loader.load(dataset_dir)`` — ingest the whole dataset directory.
+2. ``loader.create_bundle()`` — assemble the AlignmentBundle.
+3. ``loader.create_timeline(id)`` / ``create_timelines()`` — retrieve
+   individual timelines.
+
+The loader reads existing alignments; it never runs an aligner.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [performer_keys](#timetoalign.loader.alignment.parangonada.ParangonadaLoader.performer_keys) | The discovered performer keys, in sorted (chronological) order. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [create_bundle](#timetoalign.loader.alignment.parangonada.ParangonadaLoader.create_bundle) | Assemble the AlignmentBundle from the loaded dataset. |
+| [create_timeline](#timetoalign.loader.alignment.parangonada.ParangonadaLoader.create_timeline) | Return a single timeline by its uid. |
+| [create_timelines](#timetoalign.loader.alignment.parangonada.ParangonadaLoader.create_timelines) | Return all timelines: the two score timelines then each performer's. |
+| [load](#timetoalign.loader.alignment.parangonada.ParangonadaLoader.load) | Ingest a whole parangonada dataset directory. |
+
+### create_bundle { #timetoalign.loader.alignment.parangonada.ParangonadaLoader.create_bundle }
+
+```python
+loader.alignment.parangonada.ParangonadaLoader.create_bundle()
+```
+
+Assemble the AlignmentBundle from the loaded dataset.
+
+Returns:
+    An ``AlignmentBundle`` with one shared ``"score"`` group (two
+    logical timelines), one ``perf:<key>`` group per performance
+    (two physical timelines), and all cross-group MatchClaims.
+
+Raises:
+    RuntimeError: If ``load()`` has not been called yet.
+
+### create_timeline { #timetoalign.loader.alignment.parangonada.ParangonadaLoader.create_timeline }
+
+```python
+loader.alignment.parangonada.ParangonadaLoader.create_timeline(
+    id=None,
+    **kwargs,
+)
+```
+
+Return a single timeline by its uid.
+
+Args:
+    id: A timeline uid — ``"score:clt1"``, ``"score:dlt1"``, or a
+        performer timeline uid (``"perf:<key>:cpt1"`` /
+        ``"perf:<key>:dpt1"``).
+
+Raises:
+    KeyError: If no timeline matches.
+    RuntimeError: If ``load()`` has not been called yet.
+
+### create_timelines { #timetoalign.loader.alignment.parangonada.ParangonadaLoader.create_timelines }
+
+```python
+loader.alignment.parangonada.ParangonadaLoader.create_timelines(id_pattern=None)
+```
+
+Return all timelines: the two score timelines then each performer's.
+
+Args:
+    id_pattern: Unused; present for base-class signature parity.
+
+### load { #timetoalign.loader.alignment.parangonada.ParangonadaLoader.load }
+
+```python
+loader.alignment.parangonada.ParangonadaLoader.load(dataset_dir)
+```
+
+Ingest a whole parangonada dataset directory.
+
+Args:
+    dataset_dir: Path to the dataset directory (the one that
+        contains the ``match/`` and ``audio/`` subdirectories).
+
+Returns:
+    Self, for method chaining.
+
+Raises:
+    FileNotFoundError: If the directory or a required subdirectory
+        is missing.

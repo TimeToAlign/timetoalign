@@ -1,0 +1,143 @@
+# ListenHereLoader { #timetoalign.loader.alignment.listen_here.ListenHereLoader }
+
+```python
+loader.alignment.listen_here.ListenHereLoader()
+```
+
+Load a Listen Here! alignment JSON file as one AlignmentBundle.
+
+The loader parses a single alignment JSON file describing many recordings
+of one work warped onto a shared equidistant reference grid, and assembles
+a bundle in which every recording is a seconds timeline in its own group,
+related to every other recording by a complete set of pairwise synchronous
+instant :class:`MatchClaim` rows held columnar in a :class:`MatchClaimField`.
+
+**Usage follows the standard loader two-phase pattern:**
+
+1. ``loader.load(alignment_json)`` — parse one alignment JSON file.
+2. ``loader.create_bundle()`` — assemble the AlignmentBundle.
+3. ``loader.create_timeline(id)`` / ``create_timelines()`` — retrieve
+   individual timelines.
+
+The loader reads the existing alignment; it never runs an aligner.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [recording_keys](#timetoalign.loader.alignment.listen_here.ListenHereLoader.recording_keys) | The recording stems, in sorted order. |
+| [reference](#timetoalign.loader.alignment.listen_here.ListenHereLoader.reference) | The reference recording (``header.ref``) — the grid origin. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [create_bundle](#timetoalign.loader.alignment.listen_here.ListenHereLoader.create_bundle) | Assemble the AlignmentBundle from the loaded alignment. |
+| [create_timeline](#timetoalign.loader.alignment.listen_here.ListenHereLoader.create_timeline) | Return a single recording's seconds timeline by its uid. |
+| [create_timelines](#timetoalign.loader.alignment.listen_here.ListenHereLoader.create_timelines) | Return one empty seconds timeline per recording, in sorted order. |
+| [get_field](#timetoalign.loader.alignment.listen_here.ListenHereLoader.get_field) | Return the complete-topology pairwise claim field. |
+| [load](#timetoalign.loader.alignment.listen_here.ListenHereLoader.load) | Ingest one Listen Here! alignment JSON file. |
+
+### create_bundle { #timetoalign.loader.alignment.listen_here.ListenHereLoader.create_bundle }
+
+```python
+loader.alignment.listen_here.ListenHereLoader.create_bundle()
+```
+
+Assemble the AlignmentBundle from the loaded alignment.
+
+Each recording becomes an empty seconds
+:class:`ContinuousPhysicalTimeline` in its own group, and the complete
+pairwise claim field is added to the bundle **columnar**.
+
+The field is handed to the bundle with
+:meth:`~timetoalign.alignment.bundle.AlignmentBundle.add_match_claim_field`,
+not exploded into a list of :class:`MatchClaim` objects.  The bundle
+answers ``get_matchstamp_at`` by filtering the field's struct column
+vectorized and materialising only the handful of claims at the queried
+coordinate, so a whole-work file (on the order of a million claims)
+never builds a million Python claims.
+
+Returns:
+    An ``AlignmentBundle`` with one group per recording and the
+    cross-group pairwise claim field.
+
+Raises:
+    RuntimeError: If ``load()`` has not been called yet.
+
+### create_timeline { #timetoalign.loader.alignment.listen_here.ListenHereLoader.create_timeline }
+
+```python
+loader.alignment.listen_here.ListenHereLoader.create_timeline(id=None, **kwargs)
+```
+
+Return a single recording's seconds timeline by its uid.
+
+Args:
+    id: A timeline uid (``"<stem>:cpt1"``).
+
+Raises:
+    KeyError: If no recording matches.
+    RuntimeError: If ``load()`` has not been called yet.
+
+### create_timelines { #timetoalign.loader.alignment.listen_here.ListenHereLoader.create_timelines }
+
+```python
+loader.alignment.listen_here.ListenHereLoader.create_timelines(id_pattern=None)
+```
+
+Return one empty seconds timeline per recording, in sorted order.
+
+Args:
+    id_pattern: Unused; present for base-class signature parity.
+
+### get_field { #timetoalign.loader.alignment.listen_here.ListenHereLoader.get_field }
+
+```python
+loader.alignment.listen_here.ListenHereLoader.get_field(selector)
+```
+
+Return the complete-topology pairwise claim field.
+
+The loader's alignment is reached through the uniform field API, the
+same way any :class:`~timetoalign.loader.mixins.SemanticFieldAccessMixin`
+surfaces a semantic view:
+
+    >>> field = loader.get_field(MatchClaim)
+    >>> isinstance(field, MatchClaimField)
+    True
+
+The selector may be the :class:`MatchClaim` scalar class or its paired
+:class:`MatchClaimField` class; both resolve to the single
+``MatchClaimField`` this loader builds.
+
+Args:
+    selector: ``MatchClaim`` or ``MatchClaimField``.
+
+Returns:
+    The :class:`MatchClaimField` of ``C(R, 2) × N`` synchronous claims.
+
+Raises:
+    RuntimeError: If ``load()`` has not been called yet.
+    TypeError: If ``selector`` is not ``MatchClaim`` /
+        ``MatchClaimField``.
+
+### load { #timetoalign.loader.alignment.listen_here.ListenHereLoader.load }
+
+```python
+loader.alignment.listen_here.ListenHereLoader.load(source)
+```
+
+Ingest one Listen Here! alignment JSON file.
+
+Args:
+    source: Path to the ``alignment.json`` file.
+
+Returns:
+    Self, for method chaining.
+
+Raises:
+    ValueError: If ``header.ref`` is missing or is not one of the
+        ``body.audio`` keys; if fewer than two recordings are present;
+        or if the per-recording ``times`` arrays are not all the same
+        length.

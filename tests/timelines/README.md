@@ -758,6 +758,179 @@ Following the project's ZERO TOLERANCE validation policy, all tests use **exact 
 - EXACT MC ranges: `(mc_start, mc_end)` pairs must match exactly (right-open)
 - EXACT section order (positional comparison)
 
+#### Volta-follows-volta invariant (`TestFlowInvariants`)
+
+**Purpose.** Validate `ScoreFlowController.check_invariants()`, a
+detect-and-report structural-invariant check over the atomic flow graph. It
+never raises; it returns a list of `FlowDiagnostic` describing each violation
+and an empty list when the flow is well-formed.
+
+**The invariant.** In the atomic flow graph a volta section can never have a
+`to` edge to another volta section. A prima volta's only out-edge is the repeat
+back-edge (to the repeat-start, a non-volta section); a seconda volta is
+reached only from the repeat-start and continues into the music after the
+bracket (also non-volta). Two flow-adjacent voltas therefore indicate a
+malformed `next` array — most often a jump target that resolved to the wrong
+ending. This is the `to` (flow) edge relation, NOT score-order adjacency: volta
+sections ARE naturally adjacent in MC order, which is correct; they must merely
+never be connected by a `to` edge. A section "is a volta" iff its first
+measure's `volta is not None` — the same criterion the label generator's
+volta-flag and the ASCII diagram's `┌N` corner use.
+
+**Fixture — clean score → no diagnostics.** A repeat with a prima/seconda
+volta, then a non-volta section, with a section break two measures after the
+seconda volta. Eight MCs (4/4 throughout):
+
+| MC | mn | volta | next | section_break | role |
+|----|----|-------|------|---------------|------|
+| 1 | 1 | None | [2] | — | repeat-start body |
+| 2 | 2 | None | [3] | — | body |
+| 3 | 3 | None | [4, 5] | — | branch into the two endings |
+| 4 | 3 | 1 | [1] | — | prima volta (repeats back to MC 1) |
+| 5 | 4 | 2 | [6] | — | seconda volta (continues sequentially) |
+| 6 | 5 | None | [7] | — | continuation after the bracket |
+| 7 | 6 | None | [8] | yes | continuation, with section break |
+| 8 | 7 | None | [-1] | — | final section |
+
+This is a well-formed score. The atomic partition is `A [1,4)` (to A1, A2),
+`A1 [4,5)` prima (to A), `A2 [5,8)` seconda (to B), `B [8,9)` final. The seconda
+volta absorbs its continuation up to the next genuine boundary (the section
+break at MC 7 puts a boundary at MC 8) — the correct behaviour, matching how a
+seconda volta continues in real scores (see the design note below). The only
+volta sections are A1 (`to=(A,)` → A non-volta) and A2 (`to=(B,)` → B
+non-volta), so `controller.check_invariants() == []`.
+
+**Fixture — malformed score → exactly one diagnostic.** A seven-MC fixture that
+mis-resolves the prima volta's `next` so it points forward to the seconda volta
+(`MC 4`, volta 1, `next=[5]`) instead of back to the repeat-start (`next=[1]`).
+
+| MC | volta | next | resulting section | `to` |
+|----|-------|------|-------------------|------|
+| 1–3 | None / None / None | [2]/[3]/[4,5] | A `[1,4)` | (A1, A2) |
+| 4 | 1 | [5] | A1 `[4,5)` | (A2,) ← violation |
+| 5 | 2 | [6] | A2 `[5,8)` | () |
+| 6–7 | None / None | [7]/[-1] | (absorbed into A2) | — |
+
+The prima-volta section `A1` then carries `to=(A2,)` where `A2` is the
+seconda-volta section. `check_invariants()` returns exactly one
+`FlowDiagnostic(kind="volta_follows_volta", section_id="A1", mc=4)`; its message
+names both section ids `'A1'`/`'A2'` and hints that the source section's
+next/jump target is mis-resolved.
+
+Following the project's ZERO TOLERANCE policy, all assertions are exact:
+diagnostic count, the `to` edges, the volta values at each section start, and
+the diagnostic's `kind` / `section_id` / `mc` plus the substring identities in
+its message.
+
+**Design note — a closing volta does NOT force an atomic boundary.** The
+volta-boundary rule adds a boundary at the *onset* of a volta bracket (a
+`volta` value change *into* a non-None ending), NOT at the measure where a
+bracket closes (`volta n → None`). A seconda (or final) volta therefore
+continues into the music that follows it, absorbing it up to the next genuine
+boundary — a later jump target or `section_break`. This is intentional and
+matches every `.flow.csv` gold standard: e.g. Op.18 No.4 iv's seconda voltas
+are the atomic sections `(45, 78)` and `(103, 227)`, each spanning far beyond
+the single volta measure. Adding a boundary at the volta-close transition would
+split those sections (`(45, 46)` + `(46, 78)`, …), changing the atomic
+partition, the section labels (`A, B, C, D, D1, D2, E, F, F1, F2, G, G1, G2`
+would gain extra letters), and the unfolded flow — breaking the gold for Op.18
+and the segment-naming integration test. The detect-and-report invariant above
+is the right home for "this volta arrangement looks wrong": a malformed flow is
+surfaced as a `FlowDiagnostic`, not silently re-partitioned.
+
+---
+
+### `test_segment_naming.py` - Customizable Atomic-Section Labelling
+
+**Purpose:** Validates `SegmentNameGenerator`, the strategy object that the
+`ScoreFlowController` uses to label atomic sections, and its integration into
+the controller's section-building pass.
+
+**What the generator does.** `generate(volta_flags)` turns a list of
+per-section booleans (`volta_flags[i]` is `True` when atomic section `i` opens
+a volta bracket) into one label per section. Two policies are configurable at
+construction:
+
+- **Alphabet** (`alphabet=`, default `_SECTION_ALPHABET`): base sections walk
+  the alphabet; once exhausted it repeats with a numeric suffix (`A2`, `B2`,
+  …). The generator never reaches into punctuation or control characters.
+- **Volta suffix** (`volta_suffix=`, default `True`): a section that opens a
+  volta bracket inherits the preceding base section's label plus a *positional*
+  numeric suffix (`1`, `2`, …) — section `B` followed by two endings reads `B,
+  B1, B2`, not `B, C, D`. The suffix is positional and independent of the
+  volta's own ending number. A non-volta section resets the counter, so two
+  independent volta groups read `B, B1, B2` then `C, C1, C2` (never `C3, C4`).
+  A leading volta with no preceding base falls back to a base letter (never
+  `None1`). With `volta_suffix=False` every section consumes the next base
+  label, the historical pure-sequential behaviour.
+
+**Generator unit tests (exact strings):**
+
+| Case | `volta_flags` | Generator config | Expected labels |
+|------|---------------|------------------|-----------------|
+| Default sequential | all `False` | default | `A, B, C` |
+| Alphabet overflow | one flag beyond alphabet length | tiny `alphabet=` | tail label carries the `2` suffix (`…, A2`) |
+| Volta suffix | `[False, True, True]` after a base | default | `A, A1, A2` |
+| Legacy sequential | `[False, True, True]` | `volta_suffix=False` | `A, B, C` |
+| Custom alphabet | all `False` | `alphabet=["X", "Y", "Z"]` | `X, Y, Z` |
+| First-section volta | `[True, False, True]` | default | `A, B, B1` (no `None1`) |
+| Two volta groups | `[False, True, True, False, True]` | default | `A, A1, A2, B, B1` (counter resets) |
+
+**Integration test (Op.18 No.4 iv specimen).** The folded measures TSV at
+`beethoven_op18-4iv_multimodal/op18_no4_mov4_flow/` carries three volta groups.
+Building a `ScoreFlowController` over it and reading the atomic sections must
+yield, in order:
+
+```
+A, B, C, D, D1, D2, E, F, F1, F2, G, G1, G2
+```
+
+(13 sections — count unchanged from the pre-volta-suffix labelling). The test
+asserts EXACT section ids AND that every `to[]` graph edge references those new
+labels (the edges are derived from the same label list, so e.g. `D` points to
+`('D1', 'D2')` and `D1` back to `('D',)`). It also confirms section count and
+MC ranges are untouched by the relabelling. Passing `volta_suffix=False` to the
+controller reproduces the legacy sequential ids `A, B, … M`.
+
+Following the project's ZERO TOLERANCE policy, all assertions are exact string
+and exact count comparisons; the data path is resolved relative to the test
+file (the pattern already used by `test_unfolding.py` for this specimen).
+
+---
+
+### `test_timestamps.py` - Cross-Section Timestamp Tables
+
+**Purpose:** Validates `get_timestamp_table()` / `get_timestamps()` and the
+helpers that build the timestamp axis (event-coordinate collection, boundary
+collection, local-coordinate computation) across a timeline hierarchy.
+
+**Fraction-length regression (`TestFractionLengthTimestamps`):**
+
+A logical timeline (quarters/beats) carries `number_type = Fraction`, so its
+length is a `Coordinate` whose `value` is a `Fraction`. The bounds check inside
+`_compute_local_coordinates` masks out-of-range coordinates by comparing the
+local-coordinate array against the length scalar through a PyArrow compute
+kernel (`pc.greater`). That kernel rejects a raw `Fraction` argument, so the
+length must be coerced to `float` at the kernel boundary — consistent with the
+sibling `pc.less(local, 0.0)` and the float64 arrays this internal helper
+already operates on. Empirically, only the `pc.greater` comparison broke: the
+boundary collector builds a `pa.array(..., type=pa.float64())`, which coerces a
+`Fraction` via `__float__`, and the child-offset accumulation starts from a
+`float` default so it never reaches a kernel as a raw `Fraction`.
+
+| Test | Construction | Exact assertion |
+|------|--------------|-----------------|
+| `test_compute_local_coordinates_with_fraction_length` | CLT length `9/2`, probe `[0.0, 2.0, 4.5, 5.0]` | local = `[0.0, 2.0, 4.5, None]` (5.0 > 4.5 → null) |
+| `test_get_timestamp_table_with_fraction_length` | CLT length `9/2`, events at `0, 3/2, 3` | `num_rows == 3`; axis = `[0.0, 1.5, 3.0]`; root-local = `[0.0, 1.5, 3.0]` |
+| `test_get_timestamps_with_fraction_length` | same timeline | shape `(3, 2)`; axis column = `[Fraction(0), Fraction(3,2), Fraction(3)]` (auto-rendered as Fractions for a Fraction-type timeline) |
+
+**Validity Rationale:** The timestamp axis is the spine of every cross-domain
+alignment view. A quarters/beats timeline — the most common logical timeline —
+must produce timestamp tables and frames without raising. The asserted values
+are the exact in-bounds coordinates: the out-of-bounds probe coordinate becomes
+`null`, the event coordinates pass through unchanged, and the root timeline's
+local coordinates equal the axis because its offset is zero.
+
 ---
 
 ### `test_timestamps.py` - Cross-Section Timestamp Tables
