@@ -9,7 +9,7 @@ Fundamental types for coordinates, units, and domains.
 | [Coordinate](Coordinate.qmd#timetoalign.Coordinate) | A position on a timeline, defined by a value and unit. |
 | [CoordinateSpec](CoordinateSpec.qmd#timetoalign.CoordinateSpec) |  |
 | [CoordinateValue](CoordinateValue.qmd#timetoalign.CoordinateValue) |  |
-| [IdCoordinate](IdCoordinate.qmd#timetoalign.IdCoordinate) | A Coordinate that carries the ID of the timeline it belongs to. |
+| [IdCoordinate](IdCoordinate.qmd#timetoalign.IdCoordinate) | A ``Coordinate`` that carries the ID of the timeline it belongs to. |
 | [Domain](Domain.qmd#timetoalign.Domain) | The temporal domain of a timeline. |
 | [TimeUnit](TimeUnit.qmd#timetoalign.TimeUnit) | Units of measurement for coordinates. |
 | [NumberType](NumberType.qmd#timetoalign.NumberType) | The numeric type used for coordinate values. |
@@ -57,10 +57,10 @@ Classes for connecting and aligning timelines.
 | | |
 | --- | --- |
 | [TimelineGroup](TimelineGroup.qmd#timetoalign.TimelineGroup) | Container for commensurable timelines. |
-| [PerfectAlignment](PerfectAlignment.qmd#timetoalign.PerfectAlignment) | DEPRECATED: TimelineGroup no longer uses per-timeline alignment objects. |
 | [AlignmentBundle](AlignmentBundle.qmd#timetoalign.AlignmentBundle) | The primary entry point for all alignment workflows. |
 | [AlignmentAnchor](AlignmentAnchor.qmd#timetoalign.AlignmentAnchor) | A coordinate pair associating one coordinate on timeline A with one |
 | [MatchClaim](MatchClaim.qmd#timetoalign.MatchClaim) | A claim that two events or coordinates on different timelines correspond. |
+| [MatchClaimField](MatchClaimField.qmd#timetoalign.MatchClaimField) | A ``SemanticField[MatchClaim]`` columnar store for pairwise claims. |
 | [MatchMetadata](MatchMetadata.qmd#timetoalign.MatchMetadata) | Provenance information for a match claim. |
 | [MatchGraph](MatchGraph.qmd#timetoalign.MatchGraph) | A graph of MatchClaims connecting events across timelines/groups. |
 | [MatchStamp](MatchStamp.qmd#timetoalign.MatchStamp) | A synchronized timestamp across multiple timelines. |
@@ -88,3 +88,7 @@ Data ingestion from various file formats.
 | [MatchfileLoader](MatchfileLoader.qmd#timetoalign.loader.alignment.matchfile.MatchfileLoader) | Load Vienna Match (.match) alignment files via partitura. |
 | [TiliaJsonLoader](TiliaJsonLoader.qmd#timetoalign.loader.alignment.tilia.TiliaJsonLoader) | Loader for TiLiA JSON annotation exports. |
 | [TiliaDictStore](TiliaDictStore.qmd#timetoalign.loader.alignment.tilia.TiliaDictStore) | ``DictStore`` subclass with convenience properties for TiLiA timeline types. |
+| [PerformancePrecisionLoader](PerformancePrecisionLoader.qmd#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader) | Load a Performance Precision specimen directory as an AlignmentBundle. |
+| [ParangonadaLoader](ParangonadaLoader.qmd#timetoalign.loader.alignment.parangonada.ParangonadaLoader) | Load a parangonada CSV export as one multimodal AlignmentBundle. |
+| [MpmLoader](MpmLoader.qmd#timetoalign.loader.alignment.mpm.MpmLoader) | Load an MPM-Toolbox MSM+MPM+MPR triple as one multimodal AlignmentBundle. |
+| [ListenHereLoader](ListenHereLoader.qmd#timetoalign.loader.alignment.listen_here.ListenHereLoader) | Load a Listen Here! alignment JSON file as one AlignmentBundle. |

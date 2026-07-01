@@ -1,49 +1,37 @@
 # MatchMetadata { #timetoalign.MatchMetadata }
 
 ```python
-MatchMetadata(
-    agent,
-    decision_criteria,
-    certainty=1.0,
-    created_at=datetime.now(),
-    notes=None,
-    algorithm_params=None,
-)
+MatchMetadata()
 ```
 
 Provenance information for a match claim.
 
-Following the TTA manuscript's requirement that matches must include
-the agent/author, decision criteria, and certainty level.
+A match claim records who authored it and how confident that author is.
 
 Attributes:
-    agent: Who or what created this match (user ID, algorithm name).
-    decision_criteria: How the match was determined (e.g., "manual",
-        "dynamic_time_warping", "segment_correspondence").
+    agent: The human or software :class:`Agent` that created this match.
     certainty: Confidence level in [0, 1]. 1.0 = certain.
-    created_at: When the match was created.
-    notes: Additional human-readable notes.
-    algorithm_params: Parameters used by the matching algorithm.
 
 Examples:
     >>> meta = MatchMetadata(
-    ...     agent="analyst_jh",
-    ...     decision_criteria="manual_segmentation",
+    ...     agent=Agent(
+    ...         name="analyst_jh",
+    ...         type=AgentType.human,
+    ...         identifier="https://orcid.org/0000-0001",
+    ...     ),
     ...     certainty=1.0,
     ... )
 
     >>> meta = MatchMetadata(
-    ...     agent="dtw_v2",
-    ...     decision_criteria="dynamic_time_warping",
+    ...     agent=Agent(name="dtw", type=AgentType.software, identifier="v2"),
     ...     certainty=0.85,
-    ...     algorithm_params={"window_size": 100},
     ... )
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
-| [from_dict](#timetoalign.MatchMetadata.from_dict) | Deserialize from dictionary. |
+| [from_dict](#timetoalign.MatchMetadata.from_dict) | Deserialize from dictionary (``agent`` rebuilt via ``Agent``). |
 | [to_dict](#timetoalign.MatchMetadata.to_dict) | Serialize to dictionary for storage. |
 
 ### from_dict { #timetoalign.MatchMetadata.from_dict }
@@ -52,7 +40,7 @@ Examples:
 MatchMetadata.from_dict(data)
 ```
 
-Deserialize from dictionary.
+Deserialize from dictionary (``agent`` rebuilt via ``Agent``).
 
 ### to_dict { #timetoalign.MatchMetadata.to_dict }
 

@@ -1,7 +1,7 @@
 # TiliaJsonLoader { #timetoalign.loader.alignment.tilia.TiliaJsonLoader }
 
 ```python
-loader.alignment.tilia.TiliaJsonLoader(media_unit=TimeUnit.seconds)
+loader.alignment.tilia.TiliaJsonLoader(media_unit=TimeUnit.seconds, **kwargs)
 ```
 
 Loader for TiLiA JSON annotation exports.

@@ -30,9 +30,6 @@ Examples:
     >>> # Get synchronized timestamps
     >>> stamps = graph.get_stamps()
 
-    >>> # Legacy API (deprecated)
-    >>> start_stamp, end_stamp = graph.get_match_stamps()
-
 ## Attributes
 
 | Name | Description |
@@ -53,11 +50,9 @@ Examples:
 | [extend_to_groups](#timetoalign.MatchGraph.extend_to_groups) | Extend anchors to full group timestamps via implicit claims. |
 | [filter](#timetoalign.MatchGraph.filter) | Create filtered view of the graph. |
 | [from_dict](#timetoalign.MatchGraph.from_dict) | Deserialize from dictionary. |
-| [get_all_stamps](#timetoalign.MatchGraph.get_all_stamps) | Get all unique MatchStamps from the graph. |
 | [get_connected_nodes](#timetoalign.MatchGraph.get_connected_nodes) | Get all nodes connected to a given node. |
 | [get_connected_timelines](#timetoalign.MatchGraph.get_connected_timelines) | Get all timelines connected to a given timeline. |
 | [get_coordinates_for_timeline](#timetoalign.MatchGraph.get_coordinates_for_timeline) | Get all coordinates for a specific timeline. |
-| [get_match_stamps](#timetoalign.MatchGraph.get_match_stamps) | Extract MatchStamps from the graph. |
 | [get_matchstamp](#timetoalign.MatchGraph.get_matchstamp) | Get the single MatchStamp for this graph. |
 | [get_nodes_for_timeline](#timetoalign.MatchGraph.get_nodes_for_timeline) | Get all nodes for a specific timeline. |
 | [get_stamps](#timetoalign.MatchGraph.get_stamps) | Get all MatchStamps from the graph. |
@@ -145,21 +140,6 @@ MatchGraph.from_dict(data)
 
 Deserialize from dictionary.
 
-### get_all_stamps { #timetoalign.MatchGraph.get_all_stamps }
-
-```python
-MatchGraph.get_all_stamps()
-```
-
-Get all unique MatchStamps from the graph.
-
-.. deprecated::
-    Use ``get_stamps()`` instead. This is an alias retained for
-    backward compatibility.
-
-Returns:
-    List of MatchStamps, one per connected component.
-
 ### get_connected_nodes { #timetoalign.MatchGraph.get_connected_nodes }
 
 ```python
@@ -201,26 +181,6 @@ Args:
 
 Returns:
     List of coordinates, sorted.
-
-### get_match_stamps { #timetoalign.MatchGraph.get_match_stamps }
-
-```python
-MatchGraph.get_match_stamps()
-```
-
-Extract MatchStamps from the graph.
-
-.. deprecated::
-    Use ``get_stamps()`` for all MatchStamps by connected component.
-    This method is retained for backward compatibility.
-
-Returns:
-    (start_stamp, end_stamp) - end_stamp is None for instant matches.
-
-Note:
-    For a graph built from multiple interval claims, this returns
-    stamps for the first synchronous claim's coordinates. Use
-    get_stamps() for all unique timestamps.
 
 ### get_matchstamp { #timetoalign.MatchGraph.get_matchstamp }
 

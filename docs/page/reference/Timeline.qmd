@@ -109,11 +109,11 @@ Examples:
 | [create_child_from_region](#timetoalign.Timeline.create_child_from_region) | Create a child timeline from a named region (partitioning). |
 | [create_children_from_regions](#timetoalign.Timeline.create_children_from_regions) | Create children from multiple regions (batch partitioning). |
 | [create_region](#timetoalign.Timeline.create_region) | Create a new named Region and attach it to this timeline. |
-| [create_regions_by_grouping](#timetoalign.Timeline.create_regions_by_grouping) | Create regions by grouping *adjacent* events on a column value. |
+| [create_regions_by_grouping](#timetoalign.Timeline.create_regions_by_grouping) | Create regions by grouping *adjacent* events on a field value. |
 | [create_regions_by_splitting](#timetoalign.Timeline.create_regions_by_splitting) | Create contiguous regions by splitting at events matching a predicate. |
 | [create_regions_from_boundaries](#timetoalign.Timeline.create_regions_from_boundaries) | Create contiguous regions from boundary coordinates. |
 | [create_segment_line](#timetoalign.Timeline.create_segment_line) | Create a SegmentLine by segmenting at boundary coordinates. |
-| [create_segment_line_by_grouping](#timetoalign.Timeline.create_segment_line_by_grouping) | Create a SegmentLine by grouping adjacent events on a column value. |
+| [create_segment_line_by_grouping](#timetoalign.Timeline.create_segment_line_by_grouping) | Create a SegmentLine by grouping adjacent events on a field value. |
 | [create_segment_line_by_splitting](#timetoalign.Timeline.create_segment_line_by_splitting) | Create a SegmentLine by splitting at events matching a predicate. |
 | [create_segment_line_from_regions](#timetoalign.Timeline.create_segment_line_from_regions) | Create a SegmentLine from contiguous regions. |
 | [derive](#timetoalign.Timeline.derive) | Create a derivative timeline in a different unit via C-Map conversion. |
@@ -142,7 +142,7 @@ Examples:
 | [get_timestamp_of](#timetoalign.Timeline.get_timestamp_of) | Get the timestamp for a specific event by its ID. |
 | [get_timestamp_table](#timetoalign.Timeline.get_timestamp_table) | Generate a timestamp table as a PyArrow Table. |
 | [get_timestamp_table_filtered](#timetoalign.Timeline.get_timestamp_table_filtered) | Generate timestamps for filtered events only. |
-| [get_timestamps](#timetoalign.Timeline.get_timestamps) | Generate timestamps as a pandas DataFrame with units in column names. |
+| [get_timestamps](#timetoalign.Timeline.get_timestamps) | Generate timestamps as a pandas DataFrame with units in field names. |
 | [get_timestamps_filtered](#timetoalign.Timeline.get_timestamps_filtered) | Generate timestamps for filtered events as a pandas DataFrame. |
 | [get_timestamps_of](#timetoalign.Timeline.get_timestamps_of) | Get timestamps for multiple events, returned as a DataFrame. |
 | [has_child](#timetoalign.Timeline.has_child) | Check if a child with the given ID exists. |
@@ -157,7 +157,7 @@ Examples:
 | [query_events_hierarchical](#timetoalign.Timeline.query_events_hierarchical) | Query events across the timeline hierarchy. |
 | [resolve_subclass](#timetoalign.Timeline.resolve_subclass) | Return the canonical Timeline subclass for a unit/number_type pair. |
 | [summary](#timetoalign.Timeline.summary) | Get a summary of the timeline. |
-| [to_dataframe](#timetoalign.Timeline.to_dataframe) | Generate timestamps as a pandas DataFrame with formatted column names. |
+| [to_dataframe](#timetoalign.Timeline.to_dataframe) | Generate timestamps as a pandas DataFrame with formatted field names. |
 | [to_dict](#timetoalign.Timeline.to_dict) | Convert timeline to a dictionary for serialization. |
 | [to_typed](#timetoalign.Timeline.to_typed) | Return this timeline re-instantiated as the appropriate typed subclass. |
 | [unfold](#timetoalign.Timeline.unfold) | Convert a folded coordinate to unfolded coordinates. |
@@ -557,13 +557,13 @@ Examples:
 ### create_regions_by_grouping { #timetoalign.Timeline.create_regions_by_grouping }
 
 ```python
-Timeline.create_regions_by_grouping(column, *, name_format='{value}')
+Timeline.create_regions_by_grouping(field, *, name_format='{value}')
 ```
 
-Create regions by grouping *adjacent* events on a column value.
+Create regions by grouping *adjacent* events on a field value.
 
 For each *run* of consecutive events that share the same value in the
-specified column, creates a region spanning the run's coordinate extent
+specified field, creates a region spanning the run's coordinate extent
 ``[min_start, max_end)``. Only adjacent events with the same value are
 grouped — non-adjacent occurrences of the same value produce separate
 regions.
@@ -573,7 +573,7 @@ the same time signature may recur after a change (4/4 → 3/4 → 4/4)
 and each occurrence should be its own region.
 
 Args:
-    column: Event column name to group by.
+    field: Event field name to group by.
     name_format: Format string. Placeholders: {value}, {i} (0-based),
         {n} (1-based), {run} (1-based run index for this value).
 
@@ -581,7 +581,7 @@ Returns:
     List of Region objects ordered by start coordinate.
 
 Raises:
-    ValueError: If column does not exist in events.
+    ValueError: If field does not exist in events.
     RuntimeError: If timeline is locked.
 
 Examples:
@@ -609,18 +609,18 @@ Finds events matching the predicate, uses their coordinates as split
 points, creates contiguous regions between consecutive split points.
 
 The predicate can be:
-- A string: column name. Events where this column is truthy (non-null,
+- A string: field name. Events where this field is truthy (non-null,
   non-empty, non-zero) are split points.
 - A dict: keyword filters in the same style as ``EventData.filter()``.
   For example ``{"breaks": "section"}`` selects events whose ``breaks``
-  column equals ``"section"``.
+  field equals ``"section"``.
 - A callable: receives event dict, returns True for split points.
 
 For each matching event the split coordinate is the event's ``end``
 (interval events) or ``start``/``instant`` (instant events).
 
 Args:
-    predicate: Column name, filter dict, or callable identifying
+    predicate: Field name, filter dict, or callable identifying
         split-point events.
     names: Explicit region names.
     name_format: Format string. Placeholders: {prefix}, {i}, {n}.
@@ -719,14 +719,14 @@ Examples:
 
 ```python
 Timeline.create_segment_line_by_grouping(
-    column,
+    field,
     *,
     copy_events=True,
     name_format='{value}',
 )
 ```
 
-Create a SegmentLine by grouping adjacent events on a column value.
+Create a SegmentLine by grouping adjacent events on a field value.
 
 Groups must form contiguous, non-overlapping spans. This is validated
 and raises if not satisfied.
@@ -734,7 +734,7 @@ and raises if not satisfied.
 Does NOT modify self. Does NOT add intermediate regions to self.
 
 Args:
-    column: Event column to group by.
+    field: Event field to group by.
     copy_events: Copy events into segments.
     name_format: Format string for segment names.
 
@@ -929,7 +929,7 @@ Timeline.export_to_csv(
     include_events=True,
     include_boundaries=False,
     *,
-    columns=None,
+    fields=None,
     units=True,
     sep=',',
     header=True,
@@ -946,14 +946,14 @@ to_dataframe() and save manually.
 Args:
     filepath: Output CSV file path.
     coordinates: Explicit coordinates to use as the axis.
-    conversion_maps: C-Maps to include as columns. Defaults to True (all).
+    conversion_maps: C-Maps to include as additional fields. Defaults to True (all).
     recursion_limit: Maximum depth for child traversal.
     include_events: If True and coordinates is None, extract from events.
     include_boundaries: If True, include timeline boundary coordinates.
-    columns: How to name the columns (see to_dataframe).
-    units: If True (default), append units to column names.
+    fields: How to name the DataFrame fields (see to_dataframe).
+    units: If True (default), append units to field names.
     sep: Field separator. Default "," (comma).
-    header: If True (default), write column headers.
+    header: If True (default), write field headers.
     index: If True, write row indices. Default False.
 
 Returns:
@@ -1053,7 +1053,7 @@ Returns a timestamp table containing only start (0) and end (length)
 coordinates for this timeline and all children.
 
 Args:
-    conversion_maps: C-Maps to include as columns (see get_timestamp_table).
+    conversion_maps: C-Maps to include as fields (see get_timestamp_table).
     recursion_limit: Maximum depth for child traversal.
 
 Returns:
@@ -1186,7 +1186,7 @@ Timeline.get_events(
     include_children=True,
     min_coord=None,
     max_coord=None,
-    **column_filters,
+    **field_filters,
 )
 ```
 
@@ -1207,8 +1207,8 @@ Args:
         (converted via inverse C-Map).
     max_coord: Maximum coordinate (exclusive). Same conversion
         rules as min_coord.
-    **column_filters: Additional column equality filters. Each
-        kwarg name is a column name, and the value is the
+    **field_filters: Additional field equality filters. Each
+        kwarg name is a field name, and the value is the
         required value (or a list of values for OR logic).
 
 Returns:
@@ -1223,7 +1223,7 @@ Examples:
     >>> coord = Coordinate(5.0, TimeUnit.seconds)
     >>> events = tl.get_events(min_coord=coord)
 
-    >>> # Arbitrary column filters
+    >>> # Arbitrary field filters
     >>> events = tl.get_events(pitch=60)  # Only middle C
     >>> events = tl.get_events(pitch=[60, 62, 64])  # C, D, E
 
@@ -1510,7 +1510,7 @@ Args:
         coordinates are extracted from events (and optionally boundaries).
         Accepts IdCoordinate objects - if timeline_id matches a child,
         the offset is automatically applied.
-    conversion_maps: C-Maps to include as columns. Flexible input:
+    conversion_maps: C-Maps to include as fields. Flexible input:
         - True: Include all attached conversion maps
         - str: Map ID or target unit name (e.g., "inches", "seconds")
         - TimeUnit: Find map by target unit enum
@@ -1529,8 +1529,8 @@ Returns:
 
     Each field includes metadata:
         - unit: TimeUnit.value string (e.g., "seconds", "pixels")
-        - timeline_id: Timeline ID (for timeline columns)
-        - cmap_id: C-Map ID (for C-Map columns)
+        - timeline_id: Timeline ID (for timeline fields)
+        - cmap_id: C-Map ID (for C-Map fields)
 
     Access metadata via: ``table.schema.field(col_name).metadata``
 
@@ -1565,7 +1565,7 @@ Generate timestamps for filtered events only.
 .. deprecated::
     This method is deprecated. Use ``get_events(**filters)`` combined
     with ``get_timestamp_table()`` instead. The ``get_events()`` method
-    now supports arbitrary column filters via ``**kwargs``.
+    now supports arbitrary field filters via ``**kwargs``.
 
 Applies an event filter before extracting coordinates from EventData.
 This enables efficient timestamp generation for subsets of events
@@ -1581,7 +1581,7 @@ Args:
           Example: {"event_type": "Note"} or {"temporal_type": "interval"}
         - pc.Expression: Passed to EventData.where() for complex filters.
           Example: pc.greater(pc.struct_field(pc.field("start"), "value"), 10.0)
-    conversion_maps: C-Maps to include as columns (see get_timestamp_table).
+    conversion_maps: C-Maps to include as fields (see get_timestamp_table).
     recursion_limit: Maximum depth for child traversal.
     include_boundaries: If True, also include timeline boundary coordinates.
 
@@ -1629,7 +1629,7 @@ Timeline.get_timestamps(
 )
 ```
 
-Generate timestamps as a pandas DataFrame with units in column names.
+Generate timestamps as a pandas DataFrame with units in field names.
 
 Convenience wrapper around get_timestamp_table() for users who
 prefer working with pandas.
@@ -1644,7 +1644,7 @@ applied. This enables the dead-simple pattern::
 Args:
     coordinates: CoordinateSpec or sequence of CoordinateSpec. Accepts
         IdCoordinate - if timeline_id matches a child, offset is auto-applied.
-    conversion_maps: C-Maps to include as columns. Flexible input:
+    conversion_maps: C-Maps to include as fields. Flexible input:
         - True: Include all attached conversion maps
         - str: Map ID or target unit name (e.g., "inches", "seconds")
         - TimeUnit: Find map by target unit enum
@@ -1654,7 +1654,7 @@ Args:
     recursion_limit: Maximum depth for child traversal.
     include_events: If True and coordinates is None, extract from events.
     include_boundaries: If True, include timeline boundary coordinates.
-    units: If True (default), append units to column names like "name (unit)".
+    units: If True (default), append units to field names like "name (unit)".
     include_ids: If True (default), add event IDs as the DataFrame
         index. Each coordinate is matched to the nearest event at that
         coordinate, showing what each timestamp row corresponds to.
@@ -1663,9 +1663,9 @@ Args:
         based on the timeline's number_type.
 
 Returns:
-    pandas DataFrame with units in column names (if units=True)
+    pandas DataFrame with units in field names (if units=True)
     and event IDs as the index (if include_ids=True). For fraction
-    number-type timelines with as_fractions=True, coordinate columns
+    number-type timelines with as_fractions=True, coordinate fields
     contain Fraction objects instead of floats.
 
 Examples:
@@ -1689,14 +1689,14 @@ Generate timestamps for filtered events as a pandas DataFrame.
 .. deprecated::
     This method is deprecated. Use ``get_events(**filters)`` combined
     with ``get_timestamps()`` instead. The ``get_events()`` method
-    now supports arbitrary column filters via ``**kwargs``.
+    now supports arbitrary field filters via ``**kwargs``.
 
 Convenience wrapper around get_timestamp_table_filtered() for users
 who prefer working with pandas.
 
 Args:
     event_filter: Filter to apply (dict for simple, pc.Expression for complex).
-    conversion_maps: C-Maps to include as columns (see get_timestamp_table).
+    conversion_maps: C-Maps to include as fields (see get_timestamp_table).
     recursion_limit: Maximum depth for child traversal.
     include_boundaries: If True, include timeline boundary coordinates.
 
@@ -1715,14 +1715,14 @@ Timeline.get_timestamps_of(event_ids)
 
 Get timestamps for multiple events, returned as a DataFrame.
 
-For each event, includes columns for start coordinate, end coordinate
+For each event, includes fields for start coordinate, end coordinate
 (if interval), event type, and temporal type.
 
 Args:
     event_ids: Sequence of event identifiers to look up.
 
 Returns:
-    DataFrame indexed by event_id with columns:
+    DataFrame indexed by event_id with fields:
     - ``start``: Start coordinate value
     - ``end``: End coordinate value (NaN for instant events)
     - ``event_type``: The event type name
@@ -1958,43 +1958,43 @@ Timeline.to_dataframe(
     include_events=True,
     include_boundaries=False,
     *,
-    columns=None,
+    fields=None,
     units=True,
     format='pandas',
 )
 ```
 
-Generate timestamps as a pandas DataFrame with formatted column names.
+Generate timestamps as a pandas DataFrame with formatted field names.
 
 This is the recommended high-level method for getting timestamp data.
-It builds on get_timestamp_table() and applies column formatting.
+It builds on get_timestamp_table() and applies field formatting.
 
 Args:
     coordinates: Explicit coordinates to use as the axis.
-    conversion_maps: C-Maps to include as columns. Defaults to True (all).
+    conversion_maps: C-Maps to include as additional fields. Defaults to True (all).
     recursion_limit: Maximum depth for child traversal.
     include_events: If True and coordinates is None, extract from events.
     include_boundaries: If True, include timeline boundary coordinates.
-    columns: How to name the columns. Options:
+    fields: How to name the DataFrame fields. Options:
         - None or ColumnNaming.name (default): Use timeline/cmap name
         - ColumnNaming.id: Use timeline/cmap id
         - Callable: Function taking (name, metadata_dict) -> new_name
-        - list[str]: Explicit column names
-    units: If True (default), append units to column names like "name (unit)".
+        - list[str]: Explicit field names
+    units: If True (default), append units to field names like "name (unit)".
     format: Output format. Currently only "pandas" is supported.
 
 Returns:
     pandas DataFrame with:
-    - Columns named according to the `columns` parameter
-    - Units appended if `units=True`
-    - Integer columns using pandas nullable Int64 dtype
+    - Fields named according to the ``fields`` parameter
+    - Units appended if ``units=True``
+    - Integer fields using pandas nullable Int64 dtype
 
 Examples:
     >>> df = timeline.to_dataframe()
     >>> df.columns
     Index(['axis (pixels)', 'dgt1 (pixels)', 'pixels_to_inches (inches)'])
 
-    >>> # Without units in column names
+    >>> # Without units in field names
     >>> df = timeline.to_dataframe(units=False)
     >>> df.columns
     Index(['axis', 'dgt1', 'pixels_to_inches'])
