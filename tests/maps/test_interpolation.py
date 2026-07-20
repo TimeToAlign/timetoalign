@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from timetoalign.core import Coordinate, TimeUnit
-from timetoalign.maps import ConversionMap, InterpolationMap
+from timetoalign.maps import ConversionMap, InterpolationMap, LinearMap
 
 
 class TestInterpolationMapBasics:
@@ -71,7 +71,7 @@ class TestInterpolationMapBasics:
         values = np.array([0.0, 25.0, 50.0, 100.0])
         result = imap.convert_array(values)
         expected = np.array([0.0, 50.0, 100.0, 200.0])
-        np.testing.assert_array_almost_equal(result, expected)
+        assert np.array_equal(result, expected)
 
     def test_inverse_array(self):
         """inverse() map with array input."""
@@ -84,7 +84,7 @@ class TestInterpolationMapBasics:
         values = np.array([0.0, 50.0, 100.0, 200.0])
         result = imap.inverse().convert_array(values)
         expected = np.array([0.0, 25.0, 50.0, 100.0])
-        np.testing.assert_array_almost_equal(result, expected)
+        assert np.array_equal(result, expected)
 
 
 class TestInterpolationMapIsConversionMap:
@@ -105,7 +105,7 @@ class TestInterpolationMapIsConversionMap:
             target_unit=TimeUnit.seconds,
         )
         result = imap(Coordinate(240.0, TimeUnit.ticks))
-        assert result == pytest.approx(0.5)
+        assert result == 0.5
 
     def test_coordinate_input_wrong_unit_raises(self):
         """A Coordinate with an incompatible unit raises via the base __call__."""
@@ -158,10 +158,10 @@ class TestInterpolationMapTempoConversion:
         assert imap(960.0) == 1.5
 
         # Check interpolation within first segment (faster tempo)
-        assert imap(240.0) == pytest.approx(0.25)
+        assert imap(240.0) == 0.25
 
         # Check interpolation within second segment (slower tempo)
-        assert imap(720.0) == pytest.approx(1.0)
+        assert imap(720.0) == 1.0
 
     def test_tempo_inverse(self):
         """Inverse conversion with tempo changes."""
@@ -179,8 +179,8 @@ class TestInterpolationMapTempoConversion:
         assert inv(1.5) == 960.0
 
         # Check interpolation
-        assert inv(0.25) == pytest.approx(240.0)
-        assert inv(1.0) == pytest.approx(720.0)
+        assert inv(0.25) == 240.0
+        assert inv(1.0) == 720.0
 
 
 class TestInterpolationMapExtrapolation:
@@ -195,9 +195,9 @@ class TestInterpolationMapExtrapolation:
             target_id="target",
         )
         # Beyond max: extrapolate
-        assert imap(150.0) == pytest.approx(300.0)
+        assert imap(150.0) == 300.0
         # Below min: extrapolate
-        assert imap(-50.0) == pytest.approx(-100.0)
+        assert imap(-50.0) == -100.0
 
     def test_inverse_extrapolation(self):
         """Inverse extrapolation extends linearly."""
@@ -209,9 +209,9 @@ class TestInterpolationMapExtrapolation:
         )
         inv = imap.inverse()
         # Beyond max: extrapolate
-        assert inv(300.0) == pytest.approx(150.0)
+        assert inv(300.0) == 150.0
         # Below min: extrapolate
-        assert inv(-100.0) == pytest.approx(-50.0)
+        assert inv(-100.0) == -50.0
 
 
 class TestInterpolationMapValidation:
@@ -301,7 +301,7 @@ class TestInterpolationMapDecreasingTarget:
         assert imap.is_invertible
         assert imap(0.0) == 100.0
         assert imap(100.0) == 0.0
-        assert imap(50.0) == pytest.approx(50.0)
+        assert imap(50.0) == 50.0
 
     def test_decreasing_target_inverse(self):
         """Inverse works with decreasing target."""
@@ -313,9 +313,9 @@ class TestInterpolationMapDecreasingTarget:
         )
         inv = imap.inverse()
         # Note: inverse reverses the arrays internally
-        assert inv(100.0) == pytest.approx(0.0)
-        assert inv(0.0) == pytest.approx(100.0)
-        assert inv(50.0) == pytest.approx(50.0)
+        assert inv(100.0) == 0.0
+        assert inv(0.0) == 100.0
+        assert inv(50.0) == 50.0
 
 
 class TestInterpolationMapFactories:
@@ -382,7 +382,7 @@ class TestInterpolationMapSerialization:
         assert restored.target_unit == TimeUnit.seconds
         np.testing.assert_array_equal(restored.source_coords, imap.source_coords)
         np.testing.assert_array_equal(restored.target_coords, imap.target_coords)
-        assert restored(240.0) == pytest.approx(0.25)
+        assert restored(240.0) == 0.25
 
     def test_registry_dispatch(self):
         """ConversionMap.from_dict dispatches to InterpolationMap."""
@@ -395,3 +395,123 @@ class TestInterpolationMapSerialization:
         restored = ConversionMap.from_dict(imap.to_dict())
         assert isinstance(restored, InterpolationMap)
         assert restored(50.0) == 60.0
+
+
+class TestInterpolationMapReadOnlyArrays:
+    """Tests for read-only coordinate arrays and inverse cache integrity."""
+
+    def test_source_coords_read_only(self):
+        """Mutating source_coords raises ValueError."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 100.0]),
+            target_coords=np.array([10.0, 110.0]),
+            source_id="child",
+            target_id="parent",
+        )
+        with pytest.raises(ValueError):
+            imap.source_coords[0] = 5.0
+
+    def test_target_coords_read_only(self):
+        """Mutating target_coords raises ValueError."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 100.0]),
+            target_coords=np.array([10.0, 110.0]),
+            source_id="child",
+            target_id="parent",
+        )
+        with pytest.raises(ValueError):
+            imap.target_coords[0] = 5.0
+
+    def test_conversion_unaffected_by_input_array_mutation(self):
+        """Mutating the caller's input array after construction has no effect."""
+        source = np.array([0.0, 100.0])
+        target = np.array([10.0, 110.0])
+        imap = InterpolationMap(
+            source_coords=source,
+            target_coords=target,
+            source_id="child",
+            target_id="parent",
+        )
+        source[0] = 999.0
+        target[0] = 999.0
+        assert imap(50.0) == 60.0
+
+    def test_inverse_coords_read_only(self):
+        """The cached inverse's coordinate arrays are also read-only."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 100.0]),
+            target_coords=np.array([10.0, 110.0]),
+            source_id="child",
+            target_id="parent",
+        )
+        inv = imap.inverse()
+        with pytest.raises(ValueError):
+            inv.source_coords[0] = 5.0
+        with pytest.raises(ValueError):
+            inv.target_coords[0] = 5.0
+
+    def test_inverse_cache_identity_unaffected(self):
+        """Since arrays cannot be mutated, the cached inverse identity holds."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 100.0]),
+            target_coords=np.array([10.0, 110.0]),
+            source_id="child",
+            target_id="parent",
+        )
+        inv = imap.inverse()
+        assert imap(50.0) == 60.0
+        assert inv(60.0) == 50.0
+        assert inv.inverse() is imap
+
+
+class TestMatchesSelector:
+    """Tests for ConversionMap.matches_selector and its InterpolationMap override."""
+
+    def test_linear_map_matches_id(self):
+        """A LinearMap matches its own id."""
+        lm = LinearMap(scalar=2.0, source_unit="quarters", target_unit="seconds")
+        assert lm.matches_selector(lm.id)
+
+    def test_linear_map_matches_name(self):
+        """A LinearMap matches its own name."""
+        lm = LinearMap(
+            scalar=2.0, source_unit="quarters", target_unit="seconds", name="q2s"
+        )
+        assert lm.matches_selector("q2s")
+
+    def test_linear_map_negative(self):
+        """A LinearMap does not match an unrelated selector."""
+        lm = LinearMap(
+            scalar=2.0, source_unit="quarters", target_unit="seconds", name="q2s"
+        )
+        assert not lm.matches_selector("nope")
+
+    def test_interpolation_map_matches_source_id(self):
+        """An InterpolationMap matches its source_id."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 100.0]),
+            target_coords=np.array([10.0, 110.0]),
+            source_id="child:1",
+            target_id="parent:1",
+        )
+        assert imap.matches_selector("child:1")
+
+    def test_interpolation_map_matches_id_and_name(self):
+        """An InterpolationMap still matches its own id/name too."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 100.0]),
+            target_coords=np.array([10.0, 110.0]),
+            source_id="child:1",
+            target_id="parent:1",
+        )
+        assert imap.matches_selector(imap.id)
+
+    def test_interpolation_map_negative(self):
+        """An InterpolationMap does not match an unrelated selector."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 100.0]),
+            target_coords=np.array([10.0, 110.0]),
+            source_id="child:1",
+            target_id="parent:1",
+        )
+        assert not imap.matches_selector("nope")

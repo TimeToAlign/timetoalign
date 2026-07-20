@@ -61,6 +61,19 @@ shared interface rather than a bespoke value-passing API.
 - **Serialization**: `to_dict()`/`from_dict()` round-trips arrays, ids, and
   units exactly; `ConversionMap.from_dict()` dispatches to
   `InterpolationMap` via the self-registering type registry.
+- **Read-only coordinate arrays**: `source_coords`/`target_coords` are
+  copied and frozen (`setflags(write=False)`) on construction, so mutating
+  either raises `ValueError`; this also protects the cached inverse from
+  desynchronizing, since the caller can no longer mutate one map's arrays
+  in place and have it silently affect the other's converted values.
+- **Selector matching**: `matches_selector()` (inherited from `ConversionMap`,
+  overridden here) matches an `InterpolationMap`'s `source_id` in addition to
+  its `id`/`name`, since group converter maps are addressed by the source
+  timeline id in conversion-map specifications.
+- **Exact assertions**: all numeric expectations use `==`/`np.array_equal`
+  rather than `pytest.approx`/`assert_array_almost_equal` — the anchor
+  values chosen throughout are exactly representable in binary floating
+  point, so the computed conversions are exact.
 - **Extraction factory removed**: `InterpolationMap` no longer offers a
   TableMap-extraction constructor that degrades a `TableMap`'s
   interpolation kind and extrapolation policy to plain linear

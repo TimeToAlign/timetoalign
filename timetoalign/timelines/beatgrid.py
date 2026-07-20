@@ -334,10 +334,23 @@ class BeatGrid(ContinuousLogicalTimeline):
     def to_dict(self) -> dict[str, Any]:
         """Convert the grid and its construction parameters to a dictionary.
 
+        The three metrical maps created by ``__init__`` (meter, beat-in-
+        measure, and metrical-position maps) are excluded from the
+        serialized ``conversion_maps`` list, since ``from_dict`` rebuilds
+        them from the construction parameters instead. Any other attached
+        conversion map (for example, a tempo map from ``from_tempo`` or a
+        user-attached map) is serialized normally.
+
         Returns:
             A dictionary representation that reconstructs the attached meter maps.
         """
         data = super().to_dict()
+        meter_map_ids = {self._meter_map.id, self._beat_map.id, self._metrical_map.id}
+        data["conversion_maps"] = [
+            map_data
+            for map_data in data["conversion_maps"]
+            if map_data.get("id") not in meter_map_ids
+        ]
         data["beats_per_measure"] = self._beats_per_measure
         data["beat_unit"] = str(self._beat_unit)
         data["start_measure"] = self._start_measure
@@ -355,8 +368,10 @@ class BeatGrid(ContinuousLogicalTimeline):
     def from_dict(cls, data: dict[str, Any]) -> BeatGrid:
         """Create a BeatGrid from a serialized dictionary.
 
-        The constructor recreates the meter-map family. Serialized meter maps
-        are skipped so they are not attached a second time.
+        The constructor recreates the meter-map family; the serialized
+        ``conversion_maps`` list contains only the maps attached beyond that
+        family (for example, a ``from_tempo`` tempo map or a user-attached
+        map), so every entry is restored via ``ConversionMap.from_dict``.
 
         Args:
             data: Dictionary created by :meth:`to_dict`.
@@ -395,10 +410,7 @@ class BeatGrid(ContinuousLogicalTimeline):
             child = cls.from_dict(child_data["timeline"])
             grid.add_child(child, offset=child_data["offset"])
 
-        meter_map_ids = {grid._meter_map.id, grid._beat_map.id, grid._metrical_map.id}
         for map_data in data.get("conversion_maps", []):
-            if map_data.get("id") in meter_map_ids:
-                continue
             cmap = ConversionMap.from_dict(map_data)
             grid.add_conversion_map(cmap)
             if cmap.target_unit == TimeUnit.seconds:

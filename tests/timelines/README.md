@@ -241,6 +241,12 @@ Graphical) and 2 modalities (Continuous, Discrete). Each type has:
       quarter 2 is beat 2
     - Serialization rebuilds BeatGrid's attached meter maps from its metrical
       construction parameters, preserving anacrusis labels and tempo state
+    - `to_dict()` excludes the three metrical maps (meter/beat/metrical) from
+      the serialized `conversion_maps` list, since `from_dict()` rebuilds them
+      from construction parameters instead; a plain grid serializes an empty
+      list, a `from_tempo` grid serializes exactly its tempo map, and any
+      user-attached map is serialized and restored via `ConversionMap.from_dict`
+      alongside it
 
 3. **Materialization Tests** (4 tests)
    - `materialize_beats()`: Creates Beat instant events at each beat position

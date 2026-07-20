@@ -13,14 +13,16 @@ instead.
 
 InterpolationMap is a full member of the ConversionMap family: it supports
 the shared __call__/convert_array interface, inverse(), composition, and
-to_dict/from_dict serialization, while remaining a lightweight, immutable
-building block optimized for performance.
+to_dict/from_dict serialization, while remaining a lightweight building
+block optimized for performance. Its coordinate arrays (source_coords,
+target_coords) are read-only after construction, and inverse() caches the
+computed inverse map so repeated calls return the same instance.
 
 Design rationale (from unified_timestamp_architecture.md):
 - No table lookups for coordinate conversion - direct np.interp calls
 - Precomputed sorted arrays enable O(log n) binary search
 - Bidirectional: forward (source -> target) and inverse (target -> source)
-- Immutable: safe to share between threads/contexts
+- Coordinate arrays are read-only: safe to share between threads/contexts
 """
 
 from __future__ import annotations
@@ -50,8 +52,12 @@ class InterpolationMap(ConversionMap[float]):
     and ``inverse()`` returns a new map that converts target -> source.
 
     Attributes:
-        source_coords: Sorted source axis coordinates (float64).
-        target_coords: Corresponding target values (float64).
+        source_coords: Sorted source axis coordinates (float64). Read-only:
+            the array is copied on construction and marked non-writable, so
+            in-place mutation raises ``ValueError`` instead of silently
+            desynchronizing the cached inverse.
+        target_coords: Corresponding target values (float64). Read-only, for
+            the same reason as source_coords.
         source_id: Timeline/C-Map ID for source.
         target_id: Timeline/C-Map ID for target.
 
@@ -117,12 +123,14 @@ class InterpolationMap(ConversionMap[float]):
             name=name,
         )
 
-        self.source_coords: NDArray[np.floating[Any]] = np.asarray(
-            source_coords, dtype=np.float64
+        self.source_coords: NDArray[np.floating[Any]] = np.array(
+            source_coords, dtype=np.float64, copy=True
         )
-        self.target_coords: NDArray[np.floating[Any]] = np.asarray(
-            target_coords, dtype=np.float64
+        self.source_coords.setflags(write=False)
+        self.target_coords: NDArray[np.floating[Any]] = np.array(
+            target_coords, dtype=np.float64, copy=True
         )
+        self.target_coords.setflags(write=False)
         self.source_id = source_id
         self.target_id = target_id
 
@@ -229,6 +237,22 @@ class InterpolationMap(ConversionMap[float]):
         return self._interp_with_extrapolation(
             values, self.source_coords, self.target_coords
         )
+
+    def matches_selector(self, key: str) -> bool:
+        """Return whether a user conversion-map selector addresses this map.
+
+        In addition to the id/name match provided by the family base class,
+        group converter maps are addressed by their source timeline id in
+        conversion-map specifications, since InterpolationMap instances are
+        auto-generated and have no meaningful user-facing id or name.
+
+        Args:
+            key: A selector string from a conversion-map specification.
+
+        Returns:
+            True if key equals this map's id, name, or source_id.
+        """
+        return super().matches_selector(key) or key == self.source_id
 
     # endregion
 

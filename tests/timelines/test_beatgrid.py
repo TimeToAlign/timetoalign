@@ -190,6 +190,47 @@ class TestBeatGridMetricalMaps:
         assert restored.tempo_bpm == 120.0
         np.testing.assert_array_equal(restored.beat_seconds()[:3], [0.5, 1.0, 1.5])
 
+    def test_to_dict_excludes_metrical_maps(self) -> None:
+        """A plain grid's serialized conversion_maps list is empty."""
+        grid = BeatGrid(length=16, beats_per_measure=4)
+        data = grid.to_dict()
+        assert data["conversion_maps"] == []
+
+    def test_to_dict_serializes_only_tempo_map(self) -> None:
+        """A from_tempo grid serializes exactly its tempo map."""
+        grid = BeatGrid.from_tempo(tempo_bpm=120.0, length_seconds=60.0)
+        data = grid.to_dict()
+        assert len(data["conversion_maps"]) == 1
+        assert data["conversion_maps"][0]["id"] == grid._tempo_map.id
+
+    def test_round_trip_reconstructs_three_maps(self) -> None:
+        """A plain grid round-trips to exactly 3 conversion maps."""
+        grid = BeatGrid(length=16, beats_per_measure=4)
+        restored = BeatGrid.from_dict(grid.to_dict())
+        assert len(restored._conversion_maps) == 3
+        assert restored.measure_at(4.0) == 2
+        assert restored.beat_at(Fraction(1, 2)) == Fraction(3, 2)
+
+    def test_round_trip_with_tempo_reconstructs_four_maps(self) -> None:
+        """A from_tempo grid round-trips to exactly 4 conversion maps."""
+        grid = BeatGrid.from_tempo(tempo_bpm=120.0, length_seconds=60.0)
+        restored = BeatGrid.from_dict(grid.to_dict())
+        assert len(restored._conversion_maps) == 4
+
+    def test_user_attached_map_survives_round_trip(self) -> None:
+        """A user-attached extra conversion map is preserved by round-tripping."""
+        grid = BeatGrid(length=16, beats_per_measure=4)
+        extra = ScalarMap(scalar=3.0, source_unit="quarters", target_unit="ticks")
+        grid.add_conversion_map(extra)
+
+        data = grid.to_dict()
+        assert len(data["conversion_maps"]) == 1
+        assert data["conversion_maps"][0]["id"] == extra.id
+
+        restored = BeatGrid.from_dict(data)
+        assert len(restored._conversion_maps) == 4
+        assert extra.id in restored._conversion_maps
+
     def test_metrical_position(self):
         """Test combined measure/beat lookup.
 

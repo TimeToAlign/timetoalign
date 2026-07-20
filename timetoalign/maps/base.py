@@ -281,6 +281,21 @@ class ConversionMap(ABC, Generic[T]):
         """
         ...
 
+    def matches_selector(self, key: str) -> bool:
+        """Return whether a user conversion-map selector addresses this map.
+
+        Subclasses that are addressed by other identifiers (for example,
+        InterpolationMap by its source timeline id) should override this
+        and extend the match.
+
+        Args:
+            key: A selector string from a conversion-map specification.
+
+        Returns:
+            True if key equals this map's id or name.
+        """
+        return key == self._id or key == self._name
+
     # endregion
 
     # region Composition

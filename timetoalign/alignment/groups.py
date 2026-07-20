@@ -198,22 +198,12 @@ class GroupTimestamp(Stamp):
                 except ValueError:
                     pass
                 for cmap in maps:
-                    # InterpolationMap has no meaningful id/name for user
-                    # specs (it is auto-generated for a timeline<->group
-                    # relationship); match by its source_id instead, which
-                    # names the timeline the map converts from.
-                    cmap_source_id = getattr(cmap, "source_id", None)
-                    if cmap_source_id is not None:
-                        if allowed == cmap_source_id:
-                            return True
-                    elif allowed in (cmap.id, cmap.name):
+                    if cmap.matches_selector(allowed):
                         return True
             elif isinstance(allowed, ConversionMap):
                 if allowed.target_unit == unit:
                     return True
-                if any(
-                    getattr(cmap, "source_id", cmap.id) == allowed.id for cmap in maps
-                ):
+                if any(cmap.matches_selector(allowed.id) for cmap in maps):
                     return True
         return False
 
