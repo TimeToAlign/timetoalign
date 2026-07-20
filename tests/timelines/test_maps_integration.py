@@ -1,10 +1,14 @@
 """Tests for Timeline conversion map integration."""
 
+from fractions import Fraction
+
 import numpy as np
 import pytest
 
 from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.maps.linear import ScalarMap
+from timetoalign.maps.meter import MetricMap
+from timetoalign.maps.table import TableMap
 from timetoalign.timelines import Timeline
 
 
@@ -92,3 +96,71 @@ class TestMapIntegration:
         assert restored_cmap is not None
         assert restored_cmap.id == "cmap1"
         assert restored_cmap(1.0) == 1000.0
+
+
+class TestTableMapHonesty:
+    """A TableMap attached via add_conversion_map is stored as-is: its
+    interpolation kind and extrapolation policy are honored exactly at the
+    TimeStamp level, not silently converted to plain linear interpolation.
+    """
+
+    def test_kind_previous_honored_at_timestamp(self):
+        tl = Timeline(length=10, unit=TimeUnit.quarters)
+        tmap = TableMap(
+            x_values=[0, 4, 8],
+            y_values=[0.0, 10.0, 20.0],
+            kind="previous",
+            source_unit=TimeUnit.quarters,
+            target_unit=TimeUnit.seconds,
+        )
+        tl.add_conversion_map(tmap)
+
+        assert tl._unit_maps[TimeUnit.seconds] is tmap
+
+        ts = tl.get_timestamp(2)
+        assert ts.get_unit(TimeUnit.seconds) == 0.0
+
+    def test_extrapolate_error_honored_at_timestamp(self):
+        tl = Timeline(length=20, unit=TimeUnit.quarters)
+        tmap = TableMap(
+            x_values=[0, 4, 8],
+            y_values=[0.0, 10.0, 20.0],
+            extrapolate="error",
+            source_unit=TimeUnit.quarters,
+            target_unit=TimeUnit.seconds,
+        )
+        tl.add_conversion_map(tmap)
+
+        ts = tl.get_timestamp(12)
+        with pytest.raises(ValueError, match="outside table bounds"):
+            ts.get_unit(TimeUnit.seconds)
+
+    def test_extrapolate_constant_honored_at_timestamp(self):
+        tl = Timeline(length=20, unit=TimeUnit.quarters)
+        tmap = TableMap(
+            x_values=[0, 4, 8],
+            y_values=[0.0, 10.0, 20.0],
+            extrapolate="constant",
+            source_unit=TimeUnit.quarters,
+            target_unit=TimeUnit.seconds,
+        )
+        tl.add_conversion_map(tmap)
+
+        ts = tl.get_timestamp(20)
+        assert ts.get_unit(TimeUnit.seconds) == 20.0
+
+
+class TestTimelineSerializationWithMeterMap:
+    """A MetricMap attached to a Timeline round-trips through to_dict/from_dict."""
+
+    def test_round_trip_with_metric_map(self):
+        tl = Timeline(length=20, unit=TimeUnit.quarters, uid="tl1")
+        meter = MetricMap.from_uniform(4, Fraction(4, 1), uid="meter1")
+        tl.add_conversion_map(meter)
+
+        data = tl.to_dict()
+        restored = Timeline.from_dict(data)
+
+        restored_meter = restored.get_conversion_map("meter1")
+        assert restored_meter is not None
+        assert restored_meter(4.0) == 2

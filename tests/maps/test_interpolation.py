@@ -1,7 +1,8 @@
 """Tests for InterpolationMap.
 
-InterpolationMap is the core bidirectional coordinate conversion engine
-for the unified timestamp architecture.
+InterpolationMap is a full ConversionMap family member providing
+bidirectional anchor-pair coordinate conversion for TimelineGroup and
+WarpMap.
 """
 
 from __future__ import annotations
@@ -9,8 +10,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from timetoalign.core import TimeUnit
-from timetoalign.maps import InterpolationMap
+from timetoalign.core import Coordinate, TimeUnit
+from timetoalign.maps import ConversionMap, InterpolationMap
 
 
 class TestInterpolationMapBasics:
@@ -29,7 +30,7 @@ class TestInterpolationMapBasics:
         assert imap.n_anchors == 2
 
     def test_forward_conversion(self):
-        """Forward conversion adds offset."""
+        """Calling the map converts source -> target."""
         imap = InterpolationMap(
             source_coords=np.array([0.0, 100.0]),
             target_coords=np.array([10.0, 110.0]),
@@ -37,29 +38,30 @@ class TestInterpolationMapBasics:
             target_id="parent",
         )
         # child 0 -> parent 10
-        assert imap.forward(0.0) == 10.0
+        assert imap(0.0) == 10.0
         # child 50 -> parent 60
-        assert imap.forward(50.0) == 60.0
+        assert imap(50.0) == 60.0
         # child 100 -> parent 110
-        assert imap.forward(100.0) == 110.0
+        assert imap(100.0) == 110.0
 
     def test_inverse_conversion(self):
-        """Inverse conversion subtracts offset."""
+        """inverse() returns a map that converts target -> source."""
         imap = InterpolationMap(
             source_coords=np.array([0.0, 100.0]),
             target_coords=np.array([10.0, 110.0]),
             source_id="child",
             target_id="parent",
         )
+        inv = imap.inverse()
         # parent 10 -> child 0
-        assert imap.inverse(10.0) == 0.0
+        assert inv(10.0) == 0.0
         # parent 60 -> child 50
-        assert imap.inverse(60.0) == 50.0
+        assert inv(60.0) == 50.0
         # parent 110 -> child 100
-        assert imap.inverse(110.0) == 100.0
+        assert inv(110.0) == 100.0
 
     def test_forward_array(self):
-        """Forward conversion with array input."""
+        """Calling the map with an array input."""
         imap = InterpolationMap(
             source_coords=np.array([0.0, 100.0]),
             target_coords=np.array([0.0, 200.0]),  # 2x scaling
@@ -67,12 +69,12 @@ class TestInterpolationMapBasics:
             target_id="target",
         )
         values = np.array([0.0, 25.0, 50.0, 100.0])
-        result = imap.forward(values)
+        result = imap.convert_array(values)
         expected = np.array([0.0, 50.0, 100.0, 200.0])
         np.testing.assert_array_almost_equal(result, expected)
 
     def test_inverse_array(self):
-        """Inverse conversion with array input."""
+        """inverse() map with array input."""
         imap = InterpolationMap(
             source_coords=np.array([0.0, 100.0]),
             target_coords=np.array([0.0, 200.0]),
@@ -80,9 +82,43 @@ class TestInterpolationMapBasics:
             target_id="target",
         )
         values = np.array([0.0, 50.0, 100.0, 200.0])
-        result = imap.inverse(values)
+        result = imap.inverse().convert_array(values)
         expected = np.array([0.0, 25.0, 50.0, 100.0])
         np.testing.assert_array_almost_equal(result, expected)
+
+
+class TestInterpolationMapIsConversionMap:
+    """InterpolationMap is a ConversionMap family member."""
+
+    def test_is_subclass(self):
+        """InterpolationMap subclasses ConversionMap."""
+        assert issubclass(InterpolationMap, ConversionMap)
+
+    def test_coordinate_input_matching_unit(self):
+        """A Coordinate matching the map's source unit converts normally."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 480.0]),
+            target_coords=np.array([0.0, 1.0]),
+            source_id="ticks",
+            target_id="seconds",
+            source_unit=TimeUnit.ticks,
+            target_unit=TimeUnit.seconds,
+        )
+        result = imap(Coordinate(240.0, TimeUnit.ticks))
+        assert result == pytest.approx(0.5)
+
+    def test_coordinate_input_wrong_unit_raises(self):
+        """A Coordinate with an incompatible unit raises via the base __call__."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 480.0]),
+            target_coords=np.array([0.0, 1.0]),
+            source_id="ticks",
+            target_id="seconds",
+            source_unit=TimeUnit.ticks,
+            target_unit=TimeUnit.seconds,
+        )
+        with pytest.raises(ValueError, match="does not match"):
+            imap(Coordinate(240.0, TimeUnit.seconds))
 
 
 class TestInterpolationMapWithUnits:
@@ -117,15 +153,15 @@ class TestInterpolationMapTempoConversion:
         )
 
         # Check anchor points
-        assert imap.forward(0.0) == 0.0
-        assert imap.forward(480.0) == 0.5
-        assert imap.forward(960.0) == 1.5
+        assert imap(0.0) == 0.0
+        assert imap(480.0) == 0.5
+        assert imap(960.0) == 1.5
 
         # Check interpolation within first segment (faster tempo)
-        assert imap.forward(240.0) == pytest.approx(0.25)
+        assert imap(240.0) == pytest.approx(0.25)
 
         # Check interpolation within second segment (slower tempo)
-        assert imap.forward(720.0) == pytest.approx(1.0)
+        assert imap(720.0) == pytest.approx(1.0)
 
     def test_tempo_inverse(self):
         """Inverse conversion with tempo changes."""
@@ -135,15 +171,16 @@ class TestInterpolationMapTempoConversion:
             source_id="ticks",
             target_id="seconds",
         )
+        inv = imap.inverse()
 
         # Check inverse at anchor points
-        assert imap.inverse(0.0) == 0.0
-        assert imap.inverse(0.5) == 480.0
-        assert imap.inverse(1.5) == 960.0
+        assert inv(0.0) == 0.0
+        assert inv(0.5) == 480.0
+        assert inv(1.5) == 960.0
 
         # Check interpolation
-        assert imap.inverse(0.25) == pytest.approx(240.0)
-        assert imap.inverse(1.0) == pytest.approx(720.0)
+        assert inv(0.25) == pytest.approx(240.0)
+        assert inv(1.0) == pytest.approx(720.0)
 
 
 class TestInterpolationMapExtrapolation:
@@ -158,9 +195,9 @@ class TestInterpolationMapExtrapolation:
             target_id="target",
         )
         # Beyond max: extrapolate
-        assert imap.forward(150.0) == pytest.approx(300.0)
+        assert imap(150.0) == pytest.approx(300.0)
         # Below min: extrapolate
-        assert imap.forward(-50.0) == pytest.approx(-100.0)
+        assert imap(-50.0) == pytest.approx(-100.0)
 
     def test_inverse_extrapolation(self):
         """Inverse extrapolation extends linearly."""
@@ -170,10 +207,11 @@ class TestInterpolationMapExtrapolation:
             source_id="source",
             target_id="target",
         )
+        inv = imap.inverse()
         # Beyond max: extrapolate
-        assert imap.inverse(300.0) == pytest.approx(150.0)
+        assert inv(300.0) == pytest.approx(150.0)
         # Below min: extrapolate
-        assert imap.inverse(-100.0) == pytest.approx(-50.0)
+        assert inv(-100.0) == pytest.approx(-50.0)
 
 
 class TestInterpolationMapValidation:
@@ -219,7 +257,34 @@ class TestInterpolationMapValidation:
         )
         assert not imap.is_invertible
         with pytest.raises(ValueError, match="not strictly monotonic"):
-            imap.inverse(50.0)
+            imap.inverse()
+
+
+class TestInterpolationMapInverseCaching:
+    """Tests for inverse() caching."""
+
+    def test_inverse_is_cached(self):
+        """Repeated inverse() calls return the same instance."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 100.0]),
+            target_coords=np.array([10.0, 110.0]),
+            source_id="child",
+            target_id="parent",
+        )
+        inv1 = imap.inverse()
+        inv2 = imap.inverse()
+        assert inv1 is inv2
+
+    def test_inverse_cache_is_symmetric(self):
+        """The inverse's own inverse() returns the original instance."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 100.0]),
+            target_coords=np.array([10.0, 110.0]),
+            source_id="child",
+            target_id="parent",
+        )
+        inv = imap.inverse()
+        assert inv.inverse() is imap
 
 
 class TestInterpolationMapDecreasingTarget:
@@ -234,9 +299,9 @@ class TestInterpolationMapDecreasingTarget:
             target_id="target",
         )
         assert imap.is_invertible
-        assert imap.forward(0.0) == 100.0
-        assert imap.forward(100.0) == 0.0
-        assert imap.forward(50.0) == pytest.approx(50.0)
+        assert imap(0.0) == 100.0
+        assert imap(100.0) == 0.0
+        assert imap(50.0) == pytest.approx(50.0)
 
     def test_decreasing_target_inverse(self):
         """Inverse works with decreasing target."""
@@ -246,10 +311,11 @@ class TestInterpolationMapDecreasingTarget:
             source_id="source",
             target_id="target",
         )
+        inv = imap.inverse()
         # Note: inverse reverses the arrays internally
-        assert imap.inverse(100.0) == pytest.approx(0.0)
-        assert imap.inverse(0.0) == pytest.approx(100.0)
-        assert imap.inverse(50.0) == pytest.approx(50.0)
+        assert inv(100.0) == pytest.approx(0.0)
+        assert inv(0.0) == pytest.approx(100.0)
+        assert inv(50.0) == pytest.approx(50.0)
 
 
 class TestInterpolationMapFactories:
@@ -258,29 +324,8 @@ class TestInterpolationMapFactories:
     def test_identity(self):
         """Identity map: output equals input."""
         imap = InterpolationMap.identity(0.0, 100.0, "test")
-        assert imap.forward(50.0) == 50.0
-        assert imap.inverse(50.0) == 50.0
-
-    def test_from_table_map(self):
-        """Create from TableMap."""
-        from timetoalign.maps import TableMap
-
-        tmap = TableMap(
-            x_values=[0, 480, 960],
-            y_values=[0.0, 0.5, 1.5],
-            source_unit=TimeUnit.ticks,
-            target_unit=TimeUnit.seconds,
-        )
-        imap = InterpolationMap.from_table_map(tmap)
-
-        # Should have same anchor points
-        assert imap.n_anchors == 3
-        assert imap.source_unit == TimeUnit.ticks
-        assert imap.target_unit == TimeUnit.seconds
-
-        # Should produce same results
-        assert imap.forward(240.0) == pytest.approx(tmap(240))
-        assert imap.forward(720.0) == pytest.approx(tmap(720))
+        assert imap(50.0) == 50.0
+        assert imap.inverse()(50.0) == 50.0
 
 
 class TestInterpolationMapProperties:
@@ -311,3 +356,42 @@ class TestInterpolationMapProperties:
         assert "child:1" in r
         assert "parent:1" in r
         assert "2" in r  # n_anchors
+
+
+class TestInterpolationMapSerialization:
+    """Tests for to_dict / from_dict round-tripping."""
+
+    def test_round_trip(self):
+        """to_dict/from_dict preserves arrays, ids, and units."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 480.0, 960.0]),
+            target_coords=np.array([0.0, 0.5, 1.5]),
+            source_id="ticks",
+            target_id="seconds",
+            source_unit=TimeUnit.ticks,
+            target_unit=TimeUnit.seconds,
+            uid="imap1",
+        )
+        data = imap.to_dict()
+        restored = InterpolationMap.from_dict(data)
+
+        assert restored.id == "imap1"
+        assert restored.source_id == "ticks"
+        assert restored.target_id == "seconds"
+        assert restored.source_unit == TimeUnit.ticks
+        assert restored.target_unit == TimeUnit.seconds
+        np.testing.assert_array_equal(restored.source_coords, imap.source_coords)
+        np.testing.assert_array_equal(restored.target_coords, imap.target_coords)
+        assert restored(240.0) == pytest.approx(0.25)
+
+    def test_registry_dispatch(self):
+        """ConversionMap.from_dict dispatches to InterpolationMap."""
+        imap = InterpolationMap(
+            source_coords=np.array([0.0, 100.0]),
+            target_coords=np.array([10.0, 110.0]),
+            source_id="child",
+            target_id="parent",
+        )
+        restored = ConversionMap.from_dict(imap.to_dict())
+        assert isinstance(restored, InterpolationMap)
+        assert restored(50.0) == 60.0

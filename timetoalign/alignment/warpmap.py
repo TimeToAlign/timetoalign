@@ -121,7 +121,7 @@ class WarpMap:
         Returns:
             Corresponding target coordinate(s).
         """
-        return self.interpolation_map.forward(coord)
+        return self.interpolation_map(coord)
 
     def inverse(
         self, coord: float | NDArray[np.floating[Any]]
@@ -141,7 +141,7 @@ class WarpMap:
             ValueError: If the target coordinates are not strictly
                 monotonic (map is not invertible).
         """
-        return self.interpolation_map.inverse(coord)
+        return self.interpolation_map.inverse()(coord)
 
     # endregion
 

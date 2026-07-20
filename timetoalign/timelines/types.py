@@ -1063,7 +1063,8 @@ class SegmentLine(Timeline, Generic[T]):
         if name:
             segment._name = name
 
-        # Use add_child (validates unit match, builds InterpolationMap)
+        # Use add_child (validates unit match, records the offset for
+        # exact parent<->child coordinate arithmetic)
         self.add_child(segment, offset, allow_expansion=True)
 
     def get_segment_at(

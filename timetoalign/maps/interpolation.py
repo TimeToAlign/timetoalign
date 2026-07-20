@@ -1,19 +1,20 @@
-"""InterpolationMap: Core bidirectional coordinate conversion engine.
+"""InterpolationMap: bidirectional anchor-pair coordinate conversion.
 
-This module provides InterpolationMap, a lightweight dataclass for O(log n)
-bidirectional coordinate conversion using numpy.interp.
+This module provides InterpolationMap, a ConversionMap that performs
+O(log n) bidirectional coordinate conversion using numpy.interp between
+explicit source/target anchor points.
 
 InterpolationMap is the internal engine used by:
 - TimelineGroup coordinate conversion
-- TableMap forward/inverse conversions
 - WarpMap alignment warping
 
 Parent-child coordinate conversion in Timeline uses exact offset arithmetic
 instead.
 
-It is NOT a ConversionMap subclass - it's a lower-level building block
-optimized for performance. ConversionMap has richer functionality (units,
-serialization, composition) while InterpolationMap is pure interpolation.
+InterpolationMap is a full member of the ConversionMap family: it supports
+the shared __call__/convert_array interface, inverse(), composition, and
+to_dict/from_dict serialization, while remaining a lightweight, immutable
+building block optimized for performance.
 
 Design rationale (from unified_timestamp_architecture.md):
 - No table lookups for coordinate conversion - direct np.interp calls
@@ -25,39 +26,34 @@ Design rationale (from unified_timestamp_architecture.md):
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
+from typing_extensions import Self
 
-if TYPE_CHECKING:
-    from ..core.enums import TimeUnit
-    from .table import TableMap
+from ..core.enums import TimeUnit
+from .base import ConversionMap
 
 module_logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, slots=True)
-class InterpolationMap:
+class InterpolationMap(ConversionMap[float]):
     """Bidirectional coordinate mapping using numpy.interp.
 
     Provides O(log n) coordinate conversion without table lookup.
     Used for:
-    - Parent <-> Child timeline relationships
     - Timeline <-> Group relationships
-    - C-Map forward and inverse conversions
+    - WarpMap alignment warping
 
-    The map is bidirectional: forward() converts source -> target,
-    inverse() converts target -> source.
+    The map is bidirectional: calling the map converts source -> target,
+    and ``inverse()`` returns a new map that converts target -> source.
 
     Attributes:
         source_coords: Sorted source axis coordinates (float64).
         target_coords: Corresponding target values (float64).
         source_id: Timeline/C-Map ID for source.
         target_id: Timeline/C-Map ID for target.
-        source_unit: The unit of source coordinates (optional).
-        target_unit: The unit of target coordinates (optional).
 
     Examples:
         >>> # Simple offset relationship: child at offset 10 in parent
@@ -67,9 +63,9 @@ class InterpolationMap:
         ...     source_id="child:1",
         ...     target_id="parent:1",
         ... )
-        >>> imap.forward(50.0)  # child 50 -> parent 60
+        >>> imap(50.0)  # child 50 -> parent 60
         60.0
-        >>> imap.inverse(60.0)  # parent 60 -> child 50
+        >>> imap.inverse()(60.0)  # parent 60 -> child 50
         50.0
 
         >>> # Tempo map: ticks to seconds
@@ -79,19 +75,57 @@ class InterpolationMap:
         ...     source_id="ticks",
         ...     target_id="seconds",
         ... )
-        >>> imap.forward(240.0)  # 240 ticks -> 0.25 seconds
+        >>> imap(240.0)  # 240 ticks -> 0.25 seconds
         0.25
     """
 
-    source_coords: NDArray[np.floating[Any]] = field(repr=False)
-    target_coords: NDArray[np.floating[Any]] = field(repr=False)
-    source_id: str
-    target_id: str
-    source_unit: "TimeUnit | None" = field(default=None)
-    target_unit: "TimeUnit | None" = field(default=None)
+    def __init__(
+        self,
+        *,
+        source_coords: NDArray[np.floating[Any]] | Any,
+        target_coords: NDArray[np.floating[Any]] | Any,
+        source_id: str,
+        target_id: str,
+        source_unit: TimeUnit | str | None = None,
+        target_unit: TimeUnit | str | None = None,
+        uid: str | None = None,
+        name: str | None = None,
+    ) -> None:
+        """Initialize an InterpolationMap.
 
-    def __post_init__(self) -> None:
-        """Validate arrays after initialization."""
+        Args:
+            source_coords: Source axis coordinates. Must be strictly
+                monotonically increasing.
+            target_coords: Corresponding target values. Same length as
+                source_coords.
+            source_id: Timeline/C-Map ID for source.
+            target_id: Timeline/C-Map ID for target.
+            source_unit: The unit of source coordinates (optional).
+            target_unit: The unit of target coordinates (optional).
+            uid: Optional explicit ID.
+            name: Optional human-readable name.
+
+        Raises:
+            ValueError: If source_coords and target_coords have different
+                lengths, if fewer than 2 anchor points are given, or if
+                source_coords is not strictly monotonically increasing.
+        """
+        super().__init__(
+            source_unit=source_unit,
+            target_unit=target_unit,
+            uid=uid,
+            name=name,
+        )
+
+        self.source_coords: NDArray[np.floating[Any]] = np.asarray(
+            source_coords, dtype=np.float64
+        )
+        self.target_coords: NDArray[np.floating[Any]] = np.asarray(
+            target_coords, dtype=np.float64
+        )
+        self.source_id = source_id
+        self.target_id = target_id
+
         if len(self.source_coords) != len(self.target_coords):
             raise ValueError(
                 f"source_coords and target_coords must have same length, "
@@ -100,9 +134,10 @@ class InterpolationMap:
         if len(self.source_coords) < 2:
             raise ValueError("InterpolationMap requires at least 2 anchor points")
 
-        # Validate source_coords is monotonically increasing
         if not np.all(np.diff(self.source_coords) > 0):
             raise ValueError("source_coords must be strictly monotonically increasing")
+
+        self._inverse: InterpolationMap | None = None
 
     @property
     def n_anchors(self) -> int:
@@ -138,7 +173,7 @@ class InterpolationMap:
         diff = np.diff(self.target_coords)
         return bool(np.all(diff > 0) or np.all(diff < 0))
 
-    # region Forward/Inverse Conversion
+    # region Conversion
 
     @staticmethod
     def _interp_with_extrapolation(
@@ -181,88 +216,64 @@ class InterpolationMap:
             return float(result[0])
         return result
 
-    def forward(
-        self,
-        values: float | NDArray[np.floating[Any]],
-    ) -> float | NDArray[np.floating[Any]]:
-        """Convert from source to target coordinates.
+    def _convert_scalar(self, value: Any, **kwargs: Any) -> float:
+        """Convert a single source value to target via interpolation."""
+        return float(
+            self._interp_with_extrapolation(
+                float(value), self.source_coords, self.target_coords
+            )
+        )
 
-        Uses numpy.interp for O(log n) lookup with linear interpolation.
-        Values outside source range are extrapolated linearly.
-
-        Args:
-            values: Source coordinate(s) to convert.
-
-        Returns:
-            Target coordinate(s), same shape as input.
-        """
+    def _convert_array(self, values: NDArray[Any], **kwargs: Any) -> NDArray[Any]:
+        """Convert an array of source values to target via interpolation."""
         return self._interp_with_extrapolation(
             values, self.source_coords, self.target_coords
         )
 
-    def inverse(
-        self,
-        values: float | NDArray[np.floating[Any]],
-    ) -> float | NDArray[np.floating[Any]]:
-        """Convert from target to source coordinates.
+    # endregion
 
-        Uses numpy.interp with swapped axes for O(log n) lookup.
-        Values outside target range are extrapolated linearly.
+    # region Inverse
 
-        Args:
-            values: Target coordinate(s) to convert.
+    def inverse(self) -> Self:
+        """Return the inverse map (target -> source).
+
+        The inverse is cached: repeated calls return the same instance,
+        and the returned map's own ``inverse()`` returns back the original.
 
         Returns:
-            Source coordinate(s), same shape as input.
+            A new InterpolationMap with source and target swapped.
 
         Raises:
             ValueError: If target_coords are not strictly monotonic.
         """
+        if self._inverse is not None:
+            return self._inverse
+
         if not self.is_invertible:
             raise ValueError("Cannot invert: target_coords are not strictly monotonic")
 
-        # If target is decreasing, we need to reverse for interp
-        # (interp requires xp to be increasing)
         if self.target_coords[0] > self.target_coords[-1]:
-            # Reverse both arrays for interp
-            return self._interp_with_extrapolation(
-                values,
-                self.target_coords[::-1],
-                self.source_coords[::-1],
-            )
-        return self._interp_with_extrapolation(
-            values, self.target_coords, self.source_coords
+            new_source = self.target_coords[::-1].copy()
+            new_target = self.source_coords[::-1].copy()
+        else:
+            new_source = self.target_coords.copy()
+            new_target = self.source_coords.copy()
+
+        inv = InterpolationMap(
+            source_coords=new_source,
+            target_coords=new_target,
+            source_id=self.target_id,
+            target_id=self.source_id,
+            source_unit=self._target_unit,
+            target_unit=self._source_unit,
         )
+        inv._inverse = self
+        self._inverse = inv
+        return inv
 
     # endregion
 
     # region Factory Methods
-
-    @classmethod
-    def from_table_map(cls, tmap: "TableMap") -> "InterpolationMap":
-        """Create from an existing TableMap.
-
-        This extracts the core interpolation data from a TableMap,
-        allowing it to be used in the unified timestamp system.
-
-        Args:
-            tmap: The TableMap to convert.
-
-        Returns:
-            InterpolationMap with the same anchor points.
-
-        Note:
-            Only linear interpolation is preserved. Other interpolation
-            kinds (nearest, previous, next) are converted to linear.
-        """
-        return cls(
-            source_coords=tmap.x_values.copy(),
-            target_coords=tmap.y_values.copy(),
-            source_id=tmap.id,
-            target_id=f"{tmap.id}:target",
-            source_unit=tmap.source_unit,
-            target_unit=tmap.target_unit,
-        )
 
     @classmethod
     def identity(
@@ -270,7 +281,7 @@ class InterpolationMap:
         start: float = 0.0,
         end: float = 1.0,
         timeline_id: str = "identity",
-    ) -> "InterpolationMap":
+    ) -> InterpolationMap:
         """Create an identity map (output = input).
 
         Useful for testing or placeholder mappings.
@@ -281,7 +292,7 @@ class InterpolationMap:
             timeline_id: ID to use for both source and target.
 
         Returns:
-            InterpolationMap where forward(x) == x.
+            InterpolationMap where map(x) == x.
         """
         coords = np.array([start, end], dtype=np.float64)
         return cls(
@@ -289,6 +300,43 @@ class InterpolationMap:
             target_coords=coords.copy(),
             source_id=timeline_id,
             target_id=timeline_id,
+        )
+
+    # endregion
+
+    # region Serialization
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize the map to a dictionary.
+
+        Returns:
+            Dictionary representation of the map.
+        """
+        d = super().to_dict()
+        d["source_coords"] = [float(v) for v in self.source_coords]
+        d["target_coords"] = [float(v) for v in self.target_coords]
+        d["source_id"] = self.source_id
+        d["target_id"] = self.target_id
+        return d
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> InterpolationMap:
+        """Deserialize from dictionary.
+
+        Args:
+            data: Dictionary representation.
+
+        Returns:
+            A new InterpolationMap instance.
+        """
+        return cls(
+            source_coords=np.array(data["source_coords"], dtype=np.float64),
+            target_coords=np.array(data["target_coords"], dtype=np.float64),
+            source_id=data["source_id"],
+            target_id=data["target_id"],
+            source_unit=data.get("source_unit"),
+            target_unit=data.get("target_unit"),
+            uid=data.get("id"),
         )
 
     # endregion

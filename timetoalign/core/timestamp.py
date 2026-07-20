@@ -6,12 +6,15 @@ TimelineGroup (with member timelines).
 
 Design rationale (from unified_timestamp_architecture.md):
 - TimeStamp is a lightweight view object that computes coordinates on access
-- Uses InterpolationMaps for O(log n) coordinate conversion
-- No table lookups - direct interpolation via precomputed maps
+- InterpolationMap gives TimelineGroup members O(log n) coordinate conversion
+- Every attached C-Map (whatever its concrete type) is called directly via
+  the shared ConversionMap interface, so unit-based conversions honor each
+  map's own interpolation kind and extrapolation policy
 - Works identically for Timeline.get_timestamp() and TimelineGroup.get_timestamp()
 
-Key insight: Every relationship (parent<->child, timeline<->group, forward<->inverse
-C-Map) is stored as an InterpolationMap, enabling unified coordinate resolution.
+Key insight: parent<->child coordinates use exact offset arithmetic;
+timeline<->group and unit-based conversions are resolved through whichever
+ConversionMap was registered for that relationship.
 """
 
 from __future__ import annotations
@@ -409,9 +412,9 @@ class TimeStamp(Stamp):
 
         # Determine direction based on source/target IDs
         if imap.source_id == self.source_id:
-            result = float(imap.forward(self.axis))
+            result = float(imap(self.axis))
         else:
-            result = float(imap.inverse(self.axis))
+            result = float(imap.inverse()(self.axis))
 
         # Round for discrete timelines (TimelineGroup members)
         if self._number_type_for(timeline_id) == "int":
@@ -422,9 +425,9 @@ class TimeStamp(Stamp):
     def get_unit(self, unit: "TimeUnit") -> float | None:
         """Get coordinate converted to a specific unit.
 
-        Works with any map registered by ``add_conversion_map``:
-        ``InterpolationMap`` (for ``TableMap``), or analytical
-        ``ConversionMap`` subclasses (``ScalarMap``, ``LinearMap``, ...).
+        Works with any map registered by ``add_conversion_map``, called
+        directly regardless of concrete type (``TableMap``, ``ScalarMap``,
+        ``LinearMap``, ``InterpolationMap``, ...).
 
         For TimelineGroup sources, searches ALL member timelines for the C-Map,
         first trying the source timeline, then others. This ensures that
@@ -449,8 +452,6 @@ class TimeStamp(Stamp):
             )
             if value is None:
                 continue
-            if isinstance(umap, InterpolationMap):
-                return float(umap.forward(value))
             return float(umap(value))
         return None
 
@@ -520,8 +521,13 @@ class TimeStamp(Stamp):
                 except ValueError:
                     pass
                 for cmap in maps:
-                    if isinstance(cmap, InterpolationMap):
-                        if allowed == cmap.source_id:
+                    # InterpolationMap has no meaningful id/name for user
+                    # specs (it is auto-generated for a timeline<->group
+                    # relationship); match by its source_id instead, which
+                    # names the timeline the map converts from.
+                    cmap_source_id = getattr(cmap, "source_id", None)
+                    if cmap_source_id is not None:
+                        if allowed == cmap_source_id:
                             return True
                     elif allowed in (cmap.id, cmap.name):
                         return True
@@ -529,11 +535,7 @@ class TimeStamp(Stamp):
                 if allowed.target_unit == unit:
                     return True
                 if any(
-                    isinstance(cmap, InterpolationMap)
-                    and cmap.source_id == allowed.id
-                    or not isinstance(cmap, InterpolationMap)
-                    and cmap.id == allowed.id
-                    for cmap in maps
+                    getattr(cmap, "source_id", cmap.id) == allowed.id for cmap in maps
                 ):
                     return True
         return False

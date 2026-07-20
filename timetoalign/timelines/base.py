@@ -209,11 +209,10 @@ class Timeline:
         # Conversion maps
         self._conversion_maps: dict[str, ConversionMap[Any]] = {}
 
-        # Maps TimeUnit -> map for unit-based conversion via C-Maps.
-        # Stores InterpolationMap (for TableMaps) or ConversionMap (for
-        # analytical maps like ScalarMap, LinearMap) so that *any* C-Map
-        # with a target_unit is available in the TimeStamp system.
-        self._unit_maps: dict[TimeUnit, InterpolationMap | ConversionMap[Any]] = {}
+        # Maps TimeUnit -> the ConversionMap registered for that unit via
+        # add_conversion_map(), so that any C-Map with a target_unit is
+        # available in the TimeStamp system.
+        self._unit_maps: dict[TimeUnit, ConversionMap[Any]] = {}
 
         # Region storage (named TimeIntervals)
         # From TTA manuscript: "A Region is a named part of a timeline that is
@@ -1673,9 +1672,10 @@ class Timeline:
 
         Any map with a ``target_unit`` is automatically registered in the
         unified timestamp system so that :meth:`get_timestamp` can resolve
-        coordinates in that unit.  ``TableMap`` instances are wrapped in an
-        ``InterpolationMap`` for O(log n) lookup; analytical maps (e.g.
-        ``ScalarMap``, ``LinearMap``) are stored directly.
+        coordinates in that unit. The map is stored as-is: ``TableMap``
+        instances honor their own ``kind`` (nearest/previous/next/linear)
+        and ``extrapolate`` policy directly, and analytical maps (e.g.
+        ``ScalarMap``, ``LinearMap``) are likewise stored directly.
 
         Args:
             cmap: The ConversionMap to add.
@@ -1683,8 +1683,6 @@ class Timeline:
         Raises:
             ValueError: If the map's source unit is incompatible.
         """
-        from timetoalign.maps import TableMap
-
         if cmap.source_unit is not None and cmap.source_unit != self._unit:
             raise ValueError(
                 f"Map source unit '{cmap.source_unit}' does not match "
@@ -1694,12 +1692,7 @@ class Timeline:
 
         # Register in the unified timestamp system for unit-based lookup
         if cmap.target_unit is not None:
-            if isinstance(cmap, TableMap):
-                self._unit_maps[cmap.target_unit] = InterpolationMap.from_table_map(
-                    cmap
-                )
-            else:
-                self._unit_maps[cmap.target_unit] = cmap
+            self._unit_maps[cmap.target_unit] = cmap
 
         self._logger.debug(f"Added conversion map '{cmap.id}'")
 
@@ -1995,9 +1988,10 @@ class Timeline:
 
         For parent-child relationships, returns None: child coordinates are
         resolved via exact offset arithmetic in ``_get_child_coordinate()``
-        instead. InterpolationMaps are only used for unit-based conversions
-        (via ``_get_unit_map``) and by `TimelineGroup` for inter-member
-        conversions.
+        instead. InterpolationMaps are only used by `TimelineGroup` for
+        inter-member conversions and, for unit-based conversions, by
+        ``_get_unit_map`` (which returns whichever ConversionMap type was
+        registered, not necessarily an InterpolationMap).
 
         Args:
             target_id: Target timeline ID.
@@ -2008,14 +2002,13 @@ class Timeline:
         """
         return None
 
-    def _get_unit_map(
-        self, unit: TimeUnit
-    ) -> InterpolationMap | ConversionMap[Any] | None:
+    def _get_unit_map(self, unit: TimeUnit) -> ConversionMap[Any] | None:
         """Get a map for unit-based conversion.
 
-        Returns an ``InterpolationMap`` (for ``TableMap``-based conversions)
-        or a ``ConversionMap`` (for analytical maps like ``ScalarMap``) --
-        whichever was registered by :meth:`add_conversion_map`.
+        Returns whichever ``ConversionMap`` was registered by
+        :meth:`add_conversion_map` for this unit, called directly regardless
+        of its concrete type (``TableMap``, ``ScalarMap``, ``LinearMap``,
+        ...).
 
         This method is part of the TimeStampSource protocol.
 
@@ -2029,7 +2022,7 @@ class Timeline:
 
     def _get_unit_map_for_timeline(
         self, timeline_id: str, unit: TimeUnit
-    ) -> InterpolationMap | ConversionMap[Any] | None:
+    ) -> ConversionMap[Any] | None:
         """Get a C-Map for this timeline when it is the source timeline."""
         if timeline_id != self._id:
             return None
@@ -2142,15 +2135,14 @@ class Timeline:
                     f"No C-Map available to convert coordinate from unit "
                     f"'{resolved.unit}' to '{self._unit}' on timeline '{self._id}'"
                 )
-            if not unit_map.is_invertible:
+            try:
+                inverse_map = unit_map.inverse()
+            except (NotImplementedError, ValueError):
                 raise ValueError(
                     f"No invertible C-Map available to convert coordinate from unit "
                     f"'{resolved.unit}' to '{self._unit}' on timeline '{self._id}'"
-                )
-            if isinstance(unit_map, InterpolationMap):
-                native_value = unit_map.inverse(float(value))
-            else:
-                native_value = unit_map.inverse()(value)
+                ) from None
+            native_value = inverse_map(value)
 
         if child_offset is not None:
             native_value = native_value + child_offset.value

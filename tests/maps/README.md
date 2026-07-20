@@ -36,6 +36,38 @@ This directory contains tests for the `timetoalign.maps` module, which implement
 - **Inverse**: Inversion by swapping axes (requires monotonicity).
 - **Factory Methods**: `from_tempo_changes` correctly builds maps from MIDI tempo data.
 
+### `test_interpolation.py` - InterpolationMap
+
+**Purpose:** Validates `InterpolationMap`, the anchor-pair engine used by
+`TimelineGroup` and `WarpMap`. `InterpolationMap` is a `ConversionMap`
+subclass like every other map in this package, so its tests exercise the
+shared interface rather than a bespoke value-passing API.
+
+**Test Categories:**
+- **Conversion via `__call__`/`convert_array`**: scalar and array forward
+  conversion, replacing the old `forward(values)` method form.
+- **Inverse via `inverse()`**: the map-returning form (`inverse()(x)`),
+  replacing the old `inverse(values)` method form. Covers increasing and
+  decreasing target arrays, extrapolation, and the non-invertible error.
+- **Inverse caching**: `inverse()` returns the same instance on repeated
+  calls, and the returned map's own `inverse()` yields back the original
+  instance (symmetric cache) — this matters because inverting is not free
+  (it validates monotonicity and may reverse arrays), so callers that
+  round-trip through `.inverse().inverse()` should not pay for it twice.
+- **ConversionMap family membership**: `issubclass(InterpolationMap,
+  ConversionMap)`; a `Coordinate` input is checked against the map's
+  `source_unit` by the inherited `__call__`, so a mismatched unit raises
+  `ValueError` without any InterpolationMap-specific code.
+- **Serialization**: `to_dict()`/`from_dict()` round-trips arrays, ids, and
+  units exactly; `ConversionMap.from_dict()` dispatches to
+  `InterpolationMap` via the self-registering type registry.
+- **Extraction factory removed**: `InterpolationMap` no longer offers a
+  TableMap-extraction constructor that degrades a `TableMap`'s
+  interpolation kind and extrapolation policy to plain linear
+  interpolation/extrapolation — `Timeline.add_conversion_map` now stores
+  `TableMap` instances directly (see `test_maps_integration.py`), so the
+  factory and its tests are gone.
+
 ### `test_composite.py` - Composite Maps
 
 **Purpose:** Validates maps composed of other maps (`ChainMap`, `PiecewiseMap`).
@@ -159,6 +191,17 @@ bound for the final measure.  A `.meter` file encodes only meter *changes*
 (this specimen lists 4 rows across 38 measures), so the timemap's terminal
 `qstamp` is required to close the last bar.  Exact-value assertions pin the
 boundary arithmetic.
+
+#### `ConversionMap.from_dict` registry dispatch
+
+`MetricMap`, `BeatInMeasureMap`, and `MetricalPositionMap` round-trip
+through `ConversionMap.from_dict()` using the self-registering class
+registry (`__init_subclass__`), the same mechanism every other map type in
+this package uses — there is no hand-written type-name table to keep in
+sync as new map classes are added. `MetricalPositionMap.to_dict()` no
+longer emits a redundant `map_type` key: the base `ConversionMap.to_dict()`
+already writes `type` as the class name, which is exactly what the
+registry dispatches on.
 
 ---
 

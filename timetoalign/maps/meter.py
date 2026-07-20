@@ -700,7 +700,6 @@ class MetricalPositionMap(CombinationMap):
         """Serialize to dictionary."""
         d = super().to_dict()
         d["meter_map"] = self._meter_map.to_dict()
-        d["map_type"] = "MetricalPositionMap"
         return d
 
     @classmethod

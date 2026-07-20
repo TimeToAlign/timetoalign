@@ -6,9 +6,10 @@ map implementations must inherit from.
 
 from __future__ import annotations
 
+import inspect
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -75,6 +76,22 @@ class ConversionMap(ABC, Generic[T]):
     # Class-level attributes that subclasses may override
     _default_source_unit: TimeUnit | None = None
     _default_target_unit: TimeUnit | None = None
+
+    # Registry of concrete map types, keyed by class name, populated
+    # automatically as subclasses are defined. Used by from_dict() to
+    # dispatch deserialization without a hand-maintained lookup table.
+    _registry: ClassVar[dict[str, type["ConversionMap[Any]"]]] = {}
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Register every concrete subclass under its class name.
+
+        Abstract subclasses (those still carrying unimplemented abstract
+        methods) are not registered, since they cannot be instantiated by
+        from_dict().
+        """
+        super().__init_subclass__(**kwargs)
+        if not inspect.isabstract(cls):
+            ConversionMap._registry[cls.__name__] = cls
 
     def __init__(
         self,
@@ -309,6 +326,10 @@ class ConversionMap(ABC, Generic[T]):
     def from_dict(cls, data: dict[str, Any]) -> ConversionMap[Any]:
         """Deserialize a map from a dictionary.
 
+        Dispatches to the concrete subclass named by ``data["type"]`` using
+        the self-registering class registry populated by
+        ``__init_subclass__``.
+
         Args:
             data: Dictionary representation.
 
@@ -316,60 +337,25 @@ class ConversionMap(ABC, Generic[T]):
             A ConversionMap instance.
 
         Raises:
-            ValueError: If the type is unknown.
+            ValueError: If the type is missing or unknown.
+            TypeError: If the registered class does not override from_dict,
+                which would otherwise recurse indefinitely.
         """
         map_type = data.get("type")
         if map_type is None:
             raise ValueError("Map dictionary must include 'type'")
 
-        # Import all map types for dispatch
-        from .combination import CombinationMap
-        from .composite import ChainMap, PiecewiseMap
-        from .constant import ConstantMap
-        from .convenience import (
-            QuartersToTicks,
-            SamplesToSeconds,
-            SecondsToSamples,
-            TicksToQuarters,
-        )
-        from .interval import (
-            IntervalToConstantMap,
-            QuartersToFloatingMeasures,
-            QuartersToMeasureNumber,
-        )
-        from .linear import LinearMap, ScalarMap, ShiftMap
-        from .periodic import FloorMap, RotationMap
-        from .table import TableMap
+        map_cls = cls._registry.get(map_type)
+        if map_cls is None:
+            known = ", ".join(sorted(cls._registry))
+            raise ValueError(f"Unknown map type: {map_type!r}. Known types: {known}")
 
-        type_map = {
-            "LinearMap": LinearMap,
-            "ScalarMap": ScalarMap,
-            "ShiftMap": ShiftMap,
-            "TableMap": TableMap,
-            "ChainMap": ChainMap,
-            "PiecewiseMap": PiecewiseMap,
-            # Constant map
-            "ConstantMap": ConstantMap,
-            # Interval-to-constant maps
-            "IntervalToConstantMap": IntervalToConstantMap,
-            "QuartersToMeasureNumber": QuartersToMeasureNumber,
-            "QuartersToFloatingMeasures": QuartersToFloatingMeasures,
-            # Multi-output maps
-            "CombinationMap": CombinationMap,
-            # Periodic/floor maps
-            "RotationMap": RotationMap,
-            "FloorMap": FloorMap,
-            # Convenience classes
-            "TicksToQuarters": TicksToQuarters,
-            "QuartersToTicks": QuartersToTicks,
-            "SamplesToSeconds": SamplesToSeconds,
-            "SecondsToSamples": SecondsToSamples,
-        }
+        if map_cls.from_dict.__func__ is ConversionMap.from_dict.__func__:
+            raise TypeError(
+                f"{map_cls.__name__} must override from_dict() to deserialize itself"
+            )
 
-        if map_type not in type_map:
-            raise ValueError(f"Unknown map type: {map_type}")
-
-        return type_map[map_type].from_dict(data)
+        return map_cls.from_dict(data)
 
     # endregion
 

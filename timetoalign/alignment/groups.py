@@ -138,8 +138,6 @@ class GroupTimestamp(Stamp):
             )
             if value is None:
                 continue
-            if isinstance(umap, InterpolationMap):
-                return float(umap.forward(value))
             return float(umap(value))
         return None
 
@@ -200,8 +198,13 @@ class GroupTimestamp(Stamp):
                 except ValueError:
                     pass
                 for cmap in maps:
-                    if isinstance(cmap, InterpolationMap):
-                        if allowed == cmap.source_id:
+                    # InterpolationMap has no meaningful id/name for user
+                    # specs (it is auto-generated for a timeline<->group
+                    # relationship); match by its source_id instead, which
+                    # names the timeline the map converts from.
+                    cmap_source_id = getattr(cmap, "source_id", None)
+                    if cmap_source_id is not None:
+                        if allowed == cmap_source_id:
                             return True
                     elif allowed in (cmap.id, cmap.name):
                         return True
@@ -209,11 +212,7 @@ class GroupTimestamp(Stamp):
                 if allowed.target_unit == unit:
                     return True
                 if any(
-                    isinstance(cmap, InterpolationMap)
-                    and cmap.source_id == allowed.id
-                    or not isinstance(cmap, InterpolationMap)
-                    and cmap.id == allowed.id
-                    for cmap in maps
+                    getattr(cmap, "source_id", cmap.id) == allowed.id for cmap in maps
                 ):
                     return True
         return False
