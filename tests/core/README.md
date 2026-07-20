@@ -16,6 +16,25 @@ This directory contains tests for the `timetoalign.core` module, which provides 
 
 ## Test Files
 
+### `test_coordinate_resolution.py` - Coordinate Input Resolution
+
+**Purpose:** Validates the shared decomposition of public coordinate inputs and
+the timeline-level policy that resolves timeline IDs and units.
+
+The tests use exact values to cover raw integer, float, and `Fraction` inputs;
+plain and timeline-qualified coordinates; conflicting IDs; unsupported input
+types; exact preservation of native `Fraction` values; conversion through an
+attached C-Map; missing conversion paths; unknown timeline IDs; and direct-child
+offset arithmetic. This separates the pure core decomposition contract from the
+unit- and hierarchy-aware behavior owned by `Timeline.resolve_coordinate()`.
+
+**Validity Rationale:** A single decomposition shape prevents callers from
+silently discarding unit or timeline metadata, while timeline resolution makes
+every public coordinate entry point apply the same conversion and child-offset
+rules.
+
+---
+
 ### `test_types.py` - Coordinate Type
 
 **Purpose:** Validates the `Coordinate` dataclass, the fundamental unit for representing positions on timelines.

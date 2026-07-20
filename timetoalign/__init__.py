@@ -127,11 +127,13 @@ from timetoalign.core import (
     IdGenerator,
     NumberType,
     OptionalCoordinate,
+    ResolvedCoordinate,
     ScopedId,
     TimeIntervalStamp,
     TimelineIdGenerator,
     TimeStamp,
     TimeUnit,
+    resolve_coordinate_spec,
 )
 from timetoalign.loader import (
     AudioInfo,
@@ -196,6 +198,8 @@ __all__ = [
     "CoordinateValue",
     "CoordinateSpec",
     "OptionalCoordinate",
+    "ResolvedCoordinate",
+    "resolve_coordinate_spec",
     # Timestamps (first-class citizens)
     "TimeStamp",
     "TimeIntervalStamp",

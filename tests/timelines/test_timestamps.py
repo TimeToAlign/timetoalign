@@ -461,32 +461,40 @@ class TestGetTimestampTable:
 # endregion
 
 
-# region Tests: get_timestamps
+# region Tests: to_dataframe
 
 
-class TestGetTimestamps:
-    """Tests for Timeline.get_timestamps() convenience method."""
+class TestToDataFrame:
+    """Tests for Timeline.to_dataframe()."""
 
     def test_returns_dataframe(self, simple_timeline: Timeline) -> None:
         """Returns a pandas DataFrame."""
-        df = simple_timeline.get_timestamps()
+        df = simple_timeline.to_dataframe()
         assert isinstance(df, pd.DataFrame)
 
     def test_filtered_event_coordinates(self, simple_timeline: Timeline) -> None:
         """Returns same data as get_timestamp_table().to_pandas()."""
         # Use include_ids=False since get_timestamp_table() doesn't add ID index
-        df1 = simple_timeline.get_timestamps(units=False, include_ids=False)
+        df1 = simple_timeline.to_dataframe(units=False, include_ids=False)
         df2 = simple_timeline.get_timestamp_table().to_pandas()
         pd.testing.assert_frame_equal(df1, df2)
 
     def test_passes_through_parameters(self, simple_timeline: Timeline) -> None:
         """All parameters are passed to get_timestamp_table."""
         coords = [0.0, 5.0, 10.0]
-        df = simple_timeline.get_timestamps(
+        df = simple_timeline.to_dataframe(
             coordinates=coords,
             include_boundaries=True,
         )
         assert len(df) == 3
+
+    def test_include_ids_uses_event_ids_as_index(
+        self, simple_timeline: Timeline
+    ) -> None:
+        """include_ids retains the absorbed event-index behavior."""
+        df = simple_timeline.to_dataframe(units=False, include_ids=True)
+        assert df.index.name == "id"
+        assert df.index.tolist() == ["e1", "e3", "e2", "", "e4"]
 
 
 # endregion
@@ -546,136 +554,6 @@ class TestGetBoundaryTable:
         # level1 at offset 10, length 50: 10, 60
         assert 10.0 in axis
         assert 60.0 in axis
-
-
-# endregion
-
-
-# region Tests: get_timestamp_table_filtered
-
-
-class TestGetTimestampTableFiltered:
-    """Tests for Timeline.get_timestamp_table_filtered()."""
-
-    def test_dict_filter_by_event_type(self, simple_timeline: Timeline) -> None:
-        """Dict filter by event_type works."""
-        # simple_timeline has Beats at 0.0, 2.5, 5.0 and Note interval [1.0, 3.0]
-        table = simple_timeline.get_timestamp_table_filtered({"event_type": "Beat"})
-        axis = table.column("axis").to_pylist()
-
-        # Should have Beat coordinates only
-        assert 0.0 in axis
-        assert 2.5 in axis
-        assert 5.0 in axis
-
-        # Note interval coordinates should NOT be in axis
-        # (1.0 and 3.0 are Note events)
-        # Actually 1.0 could coincide with other events, but 3.0 is unique to Note
-        # Let's just check that we have exactly 3 coordinates from Beats
-        assert len(axis) == 3
-
-    def test_dict_filter_by_temporal_type(self, simple_timeline: Timeline) -> None:
-        """Dict filter by temporal_type works."""
-        table = simple_timeline.get_timestamp_table_filtered(
-            {"temporal_type": "interval"}
-        )
-        axis = table.column("axis").to_pylist()
-
-        # Only interval events: Note [1.0, 3.0]
-        assert 1.0 in axis
-        assert 3.0 in axis
-        assert len(axis) == 2
-
-    def test_expression_filter(self, simple_timeline: Timeline) -> None:
-        """PyArrow Expression filter works."""
-        import pyarrow.compute as pc
-
-        # Filter: events with start.value > 2.0
-        expr = pc.greater(pc.struct_field(pc.field("start"), "value"), 2.0)
-
-        table = simple_timeline.get_timestamp_table_filtered(expr)
-        axis = table.column("axis").to_pylist()
-
-        # Events starting after 2.0: Beat at 2.5 (start=2.5), Beat at 5.0 (start=5.0)
-        # Note: instant events have start = instant
-        assert all(c > 2.0 for c in axis if c is not None)
-
-    def test_filter_propagates_to_children(
-        self, nested_timeline: tuple[Timeline, Timeline, Timeline]
-    ) -> None:
-        """Filter is applied to children as well."""
-        parent, child1, child2 = nested_timeline
-
-        # Filter for Note events (children have Note events, parent has Beat events)
-        table = parent.get_timestamp_table_filtered({"event_type": "Note"})
-        axis = table.column("axis").to_pylist()
-
-        # Parent Beat events (0.0, 50.0) should NOT be in axis
-        # Parent segment events might be included depending on event_type
-        # Child1 Note events at local 0, 10 -> root 10, 20
-        # Child2 Note event at local 5 -> root 65
-
-        assert 10.0 in axis  # child1 event
-        assert 20.0 in axis  # child1 event
-        assert 65.0 in axis  # child2 event
-
-        # Parent's Beat coordinates should not be present
-        # (unless segment events are stored with event_type matching)
-        # In this case, parent has explicit Beat events at 0.0 and 50.0
-        # which should be filtered out
-
-    def test_include_boundaries_with_filter(self, simple_timeline: Timeline) -> None:
-        """include_boundaries=True adds boundaries even when filtering."""
-        table = simple_timeline.get_timestamp_table_filtered(
-            {"event_type": "Beat"},
-            include_boundaries=True,
-        )
-        axis = table.column("axis").to_pylist()
-
-        # Should have boundaries (0.0, 10.0) plus Beat coordinates
-        assert 0.0 in axis
-        assert 10.0 in axis
-        assert 5.0 in axis  # Beat at 5.0
-
-    def test_empty_filter_result(self) -> None:
-        """Filter that matches nothing returns empty table."""
-        tl = Timeline(length=10, unit=TimeUnit.seconds, uid="test")
-        tl.add_events(
-            [
-                {
-                    "id": "e1",
-                    "temporal_type": "instant",
-                    "event_type": "Beat",
-                    "instant": 5.0,
-                }
-            ]
-        )
-
-        # Filter for non-existent event type
-        table = tl.get_timestamp_table_filtered({"event_type": "NonExistent"})
-        assert len(table) == 0
-
-    def test_with_conversion_maps(self, simple_timeline: Timeline) -> None:
-        """Filtered timestamps work with C-Maps."""
-        from timetoalign.maps import ScalarMap
-
-        # Add a simple C-Map (seconds -> samples at 2 samples/second)
-        cmap = ScalarMap(scalar=2.0, source_unit="seconds", target_unit="samples")
-        simple_timeline.add_conversion_map(cmap)
-
-        table = simple_timeline.get_timestamp_table_filtered(
-            {"event_type": "Beat"},
-            conversion_maps=[cmap],
-        )
-
-        # Should have C-Map field (uses cmap.name, not cmap.id)
-        assert cmap.name in table.column_names
-
-        # Verify conversion is correct
-        df = table.to_pandas()
-        # axis values should be doubled in the C-Map field
-        for _, row in df.iterrows():
-            assert row[cmap.name] == row["axis"] * 2.0
 
 
 # endregion
@@ -863,8 +741,8 @@ class TestFractionLengthTimestamps:
         # Root timeline (offset 0): local coordinates equal the axis.
         assert table.column(tl.id).to_pylist() == [0.0, 1.5, 3.0]
 
-    def test_get_timestamps_with_fraction_length(self) -> None:
-        """get_timestamps() runs and returns exact Fraction coordinates."""
+    def test_to_dataframe_with_fraction_length(self) -> None:
+        """to_dataframe() runs and returns exact Fraction coordinates."""
         from fractions import Fraction
 
         from timetoalign.timelines.types import ContinuousLogicalTimeline
@@ -878,7 +756,7 @@ class TestFractionLengthTimestamps:
             ]
         )
 
-        df = tl.get_timestamps()
+        df = tl.to_dataframe()
         assert df.shape == (3, 2)
         axis_name = df.columns[0]
         # Fraction number-type timeline -> coordinates auto-rendered as Fractions.

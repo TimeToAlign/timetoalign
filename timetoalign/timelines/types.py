@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, Iterator, Literal, TypeVar
 
-from timetoalign.core import Coordinate, CoordinateValue, NumberType, TimeUnit
+from timetoalign.core import Coordinate, CoordinateSpec, NumberType, TimeUnit
 
 from .base import Timeline
 from .mixins import ContinuousMixin, DiscreteMixin
@@ -943,7 +943,7 @@ class SegmentLine(Timeline, Generic[T]):
     def validate_child(
         self,
         child: Timeline,
-        offset: CoordinateValue | Coordinate,
+        offset: CoordinateSpec,
     ) -> None:
         """Override to enforce contiguity and segment type consistency.
 
@@ -994,7 +994,7 @@ class SegmentLine(Timeline, Generic[T]):
                         f"SegmentLines must have the same segment_type."
                     )
 
-        offset_val = offset.value if isinstance(offset, Coordinate) else offset
+        offset_val = self._resolve_axis_value(offset)
 
         # First segment must start at 0 (or current length if empty)
         expected_offset = self.length.value if self._segment_order else 0
@@ -1009,7 +1009,7 @@ class SegmentLine(Timeline, Generic[T]):
     def add_child(
         self,
         child: Timeline,
-        offset: CoordinateValue | Coordinate,
+        offset: CoordinateSpec,
         allow_expansion: bool = False,
     ) -> None:
         """Add a segment at the specified offset.
@@ -1068,7 +1068,7 @@ class SegmentLine(Timeline, Generic[T]):
 
     def get_segment_at(
         self,
-        coord: CoordinateValue,
+        coord: CoordinateSpec,
     ) -> tuple[int, Timeline, Any]:
         """Get segment containing a coordinate.
 
@@ -1082,9 +1082,7 @@ class SegmentLine(Timeline, Generic[T]):
             ValueError: If no segment contains the coordinate.
         """
         ts = self.get_timestamp(coord)
-        coord_val = (
-            float(coord) if not isinstance(coord, Coordinate) else float(coord.value)
-        )
+        coord_val = float(self._resolve_axis_value(coord))
 
         for i, seg_id in enumerate(self._segment_order):
             seg_coord = ts.get(seg_id)
@@ -1215,8 +1213,8 @@ class SegmentLine(Timeline, Generic[T]):
 
     def get_slice(
         self,
-        start: CoordinateValue,
-        end: CoordinateValue,
+        start: CoordinateSpec,
+        end: CoordinateSpec,
         *,
         truncate_events: bool = True,
         include_children: bool = True,
@@ -1244,16 +1242,18 @@ class SegmentLine(Timeline, Generic[T]):
         base class helpers.
         """
         # Coerce to native number type
+        start_value = self._resolve_axis_value(start)
+        end_value = self._resolve_axis_value(end)
         nt = self._number_type
         if nt == NumberType.fraction:
-            s = Fraction(start)
-            e = Fraction(end)
+            s = Fraction(start_value)
+            e = Fraction(end_value)
         elif nt == NumberType.int:
-            s = int(start)
-            e = int(end)
+            s = int(start_value)
+            e = int(end_value)
         else:
-            s = float(start)
-            e = float(end)
+            s = float(start_value)
+            e = float(end_value)
 
         # Validate
         if s >= e:
@@ -1362,7 +1362,7 @@ class SegmentLine(Timeline, Generic[T]):
     def from_segmentation(
         cls,
         source: Timeline,
-        split_coords: list[CoordinateValue],
+        split_coords: list[CoordinateSpec],
         copy_events: bool = True,
     ) -> "SegmentLine":
         """Create a SegmentLine by segmenting an existing timeline.
@@ -1416,7 +1416,9 @@ class SegmentLine(Timeline, Generic[T]):
             )
 
         # Sort and validate coordinates
-        coords = sorted(float(c) for c in split_coords)
+        coords = sorted(
+            float(source._resolve_axis_value(coord)) for coord in split_coords
+        )
 
         # Determine the segment class from the source's concrete type
         source_class = type(source)

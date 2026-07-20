@@ -14,7 +14,6 @@ Design principles:
 from __future__ import annotations
 
 import logging
-import warnings
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterator, Literal, Sequence
 
@@ -32,6 +31,7 @@ from timetoalign.core import (
     IdCoordinate,
     NumberType,
     TimeUnit,
+    resolve_coordinate_spec,
 )
 from timetoalign.core.timestamp import (
     ConversionMapsSpec,
@@ -533,7 +533,7 @@ class Timeline:
         return self._length
 
     @length.setter
-    def length(self, value: CoordinateValue | Coordinate) -> None:
+    def length(self, value: CoordinateSpec) -> None:
         """Set the timeline length.
 
         Args:
@@ -545,15 +545,7 @@ class Timeline:
         """
         self._check_not_locked("set length")
 
-        if isinstance(value, Coordinate):
-            if value.unit != self._unit:
-                raise ValueError(
-                    f"Cannot set length with unit '{value.unit}', "
-                    f"expected '{self._unit}'"
-                )
-            new_length = value
-        else:
-            new_length = self._make_coordinate(value)
+        new_length = self.resolve_coordinate(value)
 
         # Check that new length accommodates all content
         max_content = self._get_max_content_coordinate()
@@ -866,8 +858,8 @@ class Timeline:
         temporal_type: Literal["instant", "interval"] | None = None,
         event_type: str | None = None,
         include_children: bool = True,
-        min_coord: float | Coordinate | None = None,
-        max_coord: float | Coordinate | None = None,
+        min_coord: CoordinateSpec | None = None,
+        max_coord: CoordinateSpec | None = None,
         **field_filters: Any,
     ) -> EventData:
         """Filter and retrieve events.
@@ -907,39 +899,14 @@ class Timeline:
             >>> events = tl.get_events(pitch=60)  # Only middle C
             >>> events = tl.get_events(pitch=[60, 62, 64])  # C, D, E
         """
-        # Convert Coordinate objects to native unit if needed
         min_coord_float: float | None = None
         max_coord_float: float | None = None
 
         if min_coord is not None:
-            if isinstance(min_coord, Coordinate):
-                if min_coord.unit != self._unit:
-                    imap = self._get_unit_map(min_coord.unit)
-                    if imap is None:
-                        raise ValueError(
-                            f"No C-Map available for unit '{min_coord.unit}'. "
-                            f"Cannot convert min_coord."
-                        )
-                    min_coord_float = float(imap.inverse(float(min_coord.value)))
-                else:
-                    min_coord_float = float(min_coord.value)
-            else:
-                min_coord_float = float(min_coord)
+            min_coord_float = float(self._resolve_axis_value(min_coord))
 
         if max_coord is not None:
-            if isinstance(max_coord, Coordinate):
-                if max_coord.unit != self._unit:
-                    imap = self._get_unit_map(max_coord.unit)
-                    if imap is None:
-                        raise ValueError(
-                            f"No C-Map available for unit '{max_coord.unit}'. "
-                            f"Cannot convert max_coord."
-                        )
-                    max_coord_float = float(imap.inverse(float(max_coord.value)))
-                else:
-                    max_coord_float = float(max_coord.value)
-            else:
-                max_coord_float = float(max_coord)
+            max_coord_float = float(self._resolve_axis_value(max_coord))
         # Start with own events, always excluding segment events
         result = self._events
         segment_data = result.filter(event_type=SEGMENT_EVENT_TYPE)
@@ -990,108 +957,6 @@ class Timeline:
 
         return result
 
-    def query_events_hierarchical(
-        self,
-        coord_range: tuple[float, float] | None = None,
-        event_types: set[str] | None = None,
-        include_children: bool = True,
-        recursion_limit: int | None = None,
-    ) -> list[dict[str, Any]]:
-        """Query events across the timeline hierarchy.
-
-        Returns events from this timeline and all children, with coordinates
-        adjusted to the root timeline's coordinate system.
-
-        From TTA manuscript: Hierarchical timelines should support querying
-        events across the entire hierarchy with root-relative coordinates.
-
-        Args:
-            coord_range: Optional (min, max) range filter in ROOT coordinates.
-            event_types: Optional set of event types to include.
-            include_children: If True, include events from children.
-            recursion_limit: Maximum depth for child traversal. None = unlimited.
-
-        Returns:
-            List of event dictionaries, each augmented with:
-            - "source_timeline": ID of the timeline containing the event
-            - "root_start": Root-relative start coordinate
-            - "root_end": Root-relative end coordinate (for intervals)
-
-        Examples:
-            >>> # Get all notes in a range
-            >>> events = score.query_events_hierarchical(
-            ...     coord_range=(16.0, 40.0),
-            ...     event_types={"Note"},
-            ... )
-            >>> len(events)
-            127
-        """
-        return self._query_events_recursive(
-            coord_range=coord_range,
-            event_types=event_types,
-            include_children=include_children,
-            recursion_limit=recursion_limit,
-            root_offset=0.0,
-        )
-
-    def _query_events_recursive(
-        self,
-        coord_range: tuple[float, float] | None,
-        event_types: set[str] | None,
-        include_children: bool,
-        recursion_limit: int | None,
-        root_offset: float,
-    ) -> list[dict[str, Any]]:
-        """Internal recursive helper for query_events_hierarchical."""
-        result: list[dict[str, Any]] = []
-
-        # Get this timeline's events (excluding segment events)
-        local_events = self.get_events(include_children=False)
-
-        for event in local_events:
-            # Filter by event type if specified
-            if event_types and event.get("event_type") not in event_types:
-                continue
-
-            # Extract coordinates
-            start_val = self._extract_coord_value(event, "start", "instant")
-            end_val = self._extract_coord_value(event, "end")
-
-            # Calculate root-relative coordinates
-            root_start = start_val + root_offset if start_val is not None else None
-            root_end = end_val + root_offset if end_val is not None else None
-
-            # Filter by coordinate range (using root_start)
-            if coord_range and root_start is not None:
-                if root_start < coord_range[0] or root_start >= coord_range[1]:
-                    continue
-
-            # Create augmented event
-            augmented = dict(event)
-            augmented["source_timeline"] = self._id
-            augmented["root_start"] = root_start
-            augmented["root_end"] = root_end
-            result.append(augmented)
-
-        # Recurse into children
-        if include_children and (recursion_limit is None or recursion_limit > 0):
-            next_limit = None if recursion_limit is None else recursion_limit - 1
-
-            for child_id, child in self._children.items():
-                child_offset = float(self._child_offsets[child_id].value)
-                combined_offset = root_offset + child_offset
-
-                child_events = child._query_events_recursive(
-                    coord_range=coord_range,
-                    event_types=event_types,
-                    include_children=True,
-                    recursion_limit=next_limit,
-                    root_offset=combined_offset,
-                )
-                result.extend(child_events)
-
-        return result
-
     def _extract_coord_value(
         self,
         event: dict[str, Any],
@@ -1116,7 +981,7 @@ class Timeline:
 
     def get_events_at(
         self,
-        coord: CoordinateValue | Coordinate,
+        coord: CoordinateSpec,
         tolerance: float = 0.0,
         include_children: bool = True,
     ) -> dict[str, list[dict[str, Any]]]:
@@ -1147,7 +1012,7 @@ class Timeline:
             >>> events["measure_5"]  # Events in measure 5
             [...]
         """
-        coord_val = float(coord.value if isinstance(coord, Coordinate) else coord)
+        coord_val = float(self._resolve_axis_value(coord))
         result: dict[str, list[dict[str, Any]]] = {}
 
         # Get events from this timeline
@@ -1209,7 +1074,7 @@ class Timeline:
     def validate_child(
         self,
         child: Timeline,
-        offset: CoordinateValue | Coordinate,
+        offset: CoordinateSpec,
     ) -> None:
         """Validate that a timeline can be added as a child.
 
@@ -1243,7 +1108,7 @@ class Timeline:
             raise ValueError(f"Child '{child.id}' is already a child of this timeline")
 
         # Validate offset
-        offset_coord = self._make_coordinate(offset)
+        offset_coord = self.resolve_coordinate(offset)
         if offset_coord.value < 0:
             raise ValueError(f"Offset cannot be negative: {offset_coord.value}")
 
@@ -1346,7 +1211,7 @@ class Timeline:
     def add_child(
         self,
         child: Timeline,
-        offset: CoordinateValue | Coordinate,
+        offset: CoordinateSpec,
         allow_expansion: bool = False,
         use_conversion_map: ConversionMapsSpec = None,
     ) -> None:
@@ -1396,7 +1261,7 @@ class Timeline:
 
         self.validate_child(child, offset)
 
-        offset_coord = self._make_coordinate(offset)
+        offset_coord = self.resolve_coordinate(offset)
         child_end = offset_coord.value + child.length.value
 
         # Ensure capacity
@@ -1425,8 +1290,8 @@ class Timeline:
 
     def create_child(
         self,
-        length: CoordinateValue | Coordinate,
-        offset: CoordinateValue | Coordinate,
+        length: CoordinateSpec,
+        offset: CoordinateSpec,
         uid: str | None = None,
         name: str | None = None,
         allow_expansion: bool = False,
@@ -1470,14 +1335,7 @@ class Timeline:
             >>> # Now add events to the child
             >>> holes_region.add_events(hole_events)
         """
-        # Extract value from Coordinate if provided, validating unit
-        if isinstance(length, Coordinate):
-            if length.unit != self._unit:
-                raise ValueError(
-                    f"Length Coordinate unit mismatch: got {length.unit}, "
-                    f"expected {self._unit}"
-                )
-            length = length.value
+        length = self._resolve_axis_value(length)
 
         child = Timeline(
             length=length,
@@ -2252,9 +2110,56 @@ class Timeline:
         length = float(self._children[timeline_id].length.value)
         return offset <= axis < offset + length
 
+    def resolve_coordinate(self, coord: CoordinateSpec) -> Coordinate:
+        """Resolve a coordinate into this timeline's coordinate system.
+
+        Args:
+            coord: Numeric, unit-qualified, or timeline-qualified coordinate.
+
+        Returns:
+            A coordinate expressed in this timeline's native unit.
+
+        Raises:
+            ValueError: If a timeline ID is unknown or no unit conversion path exists.
+        """
+        resolved = resolve_coordinate_spec(coord)
+        value = resolved.value
+
+        if resolved.timeline_id is not None and resolved.timeline_id != self._id:
+            if resolved.timeline_id not in self._children:
+                raise ValueError(
+                    f"Timeline ID '{resolved.timeline_id}' is not this timeline "
+                    f"'{self._id}' or one of its direct children"
+                )
+            value = value + self._child_offsets[resolved.timeline_id].value
+
+        if resolved.unit is None or resolved.unit == self._unit:
+            return Coordinate(value, self._unit)
+
+        unit_map = self._get_unit_map(resolved.unit)
+        if unit_map is None:
+            raise ValueError(
+                f"No C-Map available to convert coordinate from unit "
+                f"'{resolved.unit}' to '{self._unit}' on timeline '{self._id}'"
+            )
+        if not unit_map.is_invertible:
+            raise ValueError(
+                f"No invertible C-Map available to convert coordinate from unit "
+                f"'{resolved.unit}' to '{self._unit}' on timeline '{self._id}'"
+            )
+        if isinstance(unit_map, InterpolationMap):
+            native_value = unit_map.inverse(float(value))
+        else:
+            native_value = unit_map.inverse()(value)
+        return Coordinate(native_value, self._unit)
+
+    def _resolve_axis_value(self, coord: CoordinateSpec) -> int | float | Fraction:
+        """Resolve a coordinate and return its native numeric value."""
+        return self.resolve_coordinate(coord).value
+
     def get_timestamp(
         self,
-        coord: CoordinateValue | Coordinate,
+        coord: CoordinateSpec,
         unit: TimeUnit | str | None = None,
         *,
         conversion_maps: ConversionMapsSpec = True,
@@ -2290,29 +2195,25 @@ class Timeline:
             >>> ts.axis  # Converted from seconds to timeline's unit
             5.0
         """
-        # Resolve coordinate value
-        if isinstance(coord, Coordinate):
-            if unit is None and coord.unit != self._unit:
-                unit = coord.unit
-            axis = float(coord.value)
+        if unit is None:
+            native_coord = self.resolve_coordinate(coord)
         else:
-            axis = float(coord)
-
-        # Convert from specified unit if needed
-        if unit is not None:
             target_unit = TimeUnit(unit) if isinstance(unit, str) else unit
-            if target_unit != self._unit:
-                imap = self._get_unit_map(target_unit)
-                if imap is None:
-                    raise ValueError(
-                        f"No C-Map available for unit '{target_unit}'. "
-                        f"Cannot resolve coordinate."
-                    )
-                # Inverse: target unit -> timeline's unit
-                axis = float(imap.inverse(axis))
+            decomposed = resolve_coordinate_spec(coord)
+            if decomposed.timeline_id is None:
+                qualified_coord: CoordinateSpec = Coordinate(
+                    decomposed.value, target_unit
+                )
+            else:
+                qualified_coord = IdCoordinate(
+                    decomposed.value,
+                    target_unit,
+                    decomposed.timeline_id,
+                )
+            native_coord = self.resolve_coordinate(qualified_coord)
 
         return TimeStamp(
-            axis=axis,
+            axis=float(native_coord.value),
             source=self,
             source_id=self._id,
             conversion_maps=conversion_maps,
@@ -2320,7 +2221,7 @@ class Timeline:
 
     def get_timestamp_at(
         self,
-        coord: CoordinateValue | Coordinate,
+        coord: CoordinateSpec,
         unit: TimeUnit | str | None = None,
         *,
         conversion_maps: ConversionMapsSpec = True,
@@ -2351,8 +2252,8 @@ class Timeline:
 
     def get_interval_stamp(
         self,
-        start: CoordinateValue | Coordinate,
-        end: CoordinateValue | Coordinate,
+        start: CoordinateSpec,
+        end: CoordinateSpec,
         unit: TimeUnit | str | None = None,
         *,
         conversion_maps: ConversionMapsSpec = True,
@@ -2911,7 +2812,7 @@ class Timeline:
         This enables the dead-simple pattern:
 
             child_coords = [IdCoordinate(v, unit, "child_id") for v in values]
-            df = parent.get_timestamps(coordinates=child_coords)
+            df = parent.to_dataframe(coordinates=child_coords)
 
         When an IdCoordinate's timeline_id matches a child of this timeline,
         the coordinate is automatically converted to parent coordinates by
@@ -2940,33 +2841,15 @@ class Timeline:
         if isinstance(coordinates, np.ndarray):
             return pa.array(coordinates.astype(np.float64))
 
-        # Single Coordinate or IdCoordinate
-        if isinstance(coordinates, (Coordinate, IdCoordinate)):
+        # Single coordinate specification
+        if isinstance(coordinates, (int, float, Fraction, Coordinate, IdCoordinate)):
             coordinates = [coordinates]
 
         # Process list of coordinates
         resolved: list[float] = []
         for coord in coordinates:
-            if isinstance(coord, IdCoordinate):
-                # Check if timeline_id matches a child
-                if coord.timeline_id in self._children:
-                    # Apply offset: parent_coord = child_coord + offset
-                    offset = float(self._child_offsets[coord.timeline_id].value)
-                    resolved.append(float(coord.value) + offset)
-                elif coord.timeline_id == self._id:
-                    # Coordinate is already in parent's coordinate system
-                    resolved.append(float(coord.value))
-                else:
-                    # Unknown timeline_id - use value as-is (may be intentional)
-                    resolved.append(float(coord.value))
-            elif isinstance(coord, Coordinate):
-                # Plain Coordinate - use value directly
-                resolved.append(float(coord.value))
-            else:
-                # Numeric value (int, float, Fraction, or pyarrow scalar)
-                resolved.append(
-                    float(coord.as_py() if hasattr(coord, "as_py") else coord)
-                )
+            resolve_coordinate_spec(coord)
+            resolved.append(float(self._resolve_axis_value(coord)))
 
         return pa.array(resolved, type=pa.float64())
 
@@ -2988,7 +2871,7 @@ class Timeline:
 
             >>> # IdCoordinates from child timeline - offsets auto-applied!
             >>> child_coords = [IdCoordinate(v, unit, "child_id") for v in values]
-            >>> df = parent.get_timestamps(coordinates=child_coords)
+            >>> df = parent.to_dataframe(coordinates=child_coords)
 
         Args:
             coordinates: Explicit coordinates to use as the axis. If None,
@@ -3070,125 +2953,9 @@ class Timeline:
             recursion_limit=recursion_limit,
         )
 
-    def get_timestamps(
-        self,
-        coordinates: CoordinateSpec | Sequence[CoordinateSpec] | None = None,
-        conversion_maps: ConversionMapsSpec = True,
-        recursion_limit: int | None = None,
-        include_events: bool = True,
-        include_boundaries: bool = False,
-        *,
-        units: bool = True,
-        include_ids: bool = True,
-        as_fractions: bool | None = None,
-    ) -> pd.DataFrame:
-        """Generate timestamps as a pandas DataFrame with units in field names.
-
-        Convenience wrapper around get_timestamp_table() for users who
-        prefer working with pandas.
-
-        **IdCoordinate support:** When passing IdCoordinate objects whose
-        `timeline_id` matches a child timeline, the offset is automatically
-        applied. This enables the dead-simple pattern::
-
-            child_coords = [IdCoordinate(v, unit, "dgt_holes") for v in values]
-            df = parent.get_timestamps(coordinates=child_coords)
-
-        Args:
-            coordinates: CoordinateSpec or sequence of CoordinateSpec. Accepts
-                IdCoordinate - if timeline_id matches a child, offset is auto-applied.
-            conversion_maps: C-Maps to include as fields. Flexible input:
-                - True: Include all attached conversion maps
-                - str: Map ID or target unit name (e.g., "inches", "seconds")
-                - TimeUnit: Find map by target unit enum
-                - ConversionMap: Include the specific map
-                - list: Mix of the above
-                - None/False: No conversion maps
-            recursion_limit: Maximum depth for child traversal.
-            include_events: If True and coordinates is None, extract from events.
-            include_boundaries: If True, include timeline boundary coordinates.
-            units: If True (default), append units to field names like "name (unit)".
-            include_ids: If True (default), add event IDs as the DataFrame
-                index. Each coordinate is matched to the nearest event at that
-                coordinate, showing what each timestamp row corresponds to.
-            as_fractions: If True, convert float values to Fraction objects for
-                fraction number-type timelines. If None (default), auto-detect
-                based on the timeline's number_type.
-
-        Returns:
-            pandas DataFrame with units in field names (if units=True)
-            and event IDs as the index (if include_ids=True). For fraction
-            number-type timelines with as_fractions=True, coordinate fields
-            contain Fraction objects instead of floats.
-
-        Examples:
-            >>> df = timeline.get_timestamps()
-            >>> df.index.name
-            'id'
-        """
-        from fractions import Fraction
-
-        from timetoalign.core.timestamp import timestamp_table_to_dataframe
-
-        table = self.get_timestamp_table(
-            coordinates=coordinates,
-            conversion_maps=conversion_maps,
-            recursion_limit=recursion_limit,
-            include_events=include_events,
-            include_boundaries=include_boundaries,
-        )
-        df = timestamp_table_to_dataframe(table=table, units=units)
-
-        # Determine if we should convert to Fractions
-        # Auto-detect if not specified: use Fractions for fraction number-type timelines
-        use_fractions = as_fractions
-        if use_fractions is None:
-            use_fractions = self._number_type == NumberType.fraction
-
-        if use_fractions:
-            # Convert float fields back to Fraction objects for fraction-type fields
-            # This is slow but provides exact representation for display
-            for name in df.columns:
-                # Skip non-numeric fields
-                if df[name].dtype not in (float, "float64", "Float64"):
-                    continue
-                # Convert to Fraction with reasonable denominator limit
-                df[name] = df[name].apply(
-                    lambda x: (
-                        Fraction(x).limit_denominator(10000) if pd.notna(x) else None
-                    )
-                )
-
-        if include_ids and include_events and coordinates is None:
-            # Build coordinate->event_id lookup from all events (incl. children)
-            all_events = self.get_events(include_children=True)
-            coord_to_ids: dict[float, str] = {}
-            for event in all_events:
-                start = event.get("start")
-                if start is not None:
-                    if isinstance(start, dict) and "value" in start:
-                        coord_val = float(start["value"])
-                    else:
-                        coord_val = float(start)
-                    event_id = event.get("id", "")
-                    # First event at each coordinate wins
-                    if coord_val not in coord_to_ids:
-                        coord_to_ids[coord_val] = event_id
-
-            # Map each row's axis coordinate to an event ID
-            axis_name = df.columns[0]  # First field is always axis
-            ids = []
-            for val in df[axis_name]:
-                fval = float(val) if val is not None else None
-                ids.append(coord_to_ids.get(fval, ""))
-            df.index = ids
-            df.index.name = "id"
-
-        return df
-
     def to_dataframe(
         self,
-        coordinates: pa.Array | np.ndarray | list[float] | None = None,
+        coordinates: CoordinateSpec | Sequence[CoordinateSpec] | None = None,
         conversion_maps: ConversionMapsSpec = True,
         recursion_limit: int | None = None,
         include_events: bool = True,
@@ -3197,6 +2964,8 @@ class Timeline:
         fields: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
         units: bool = True,
         format: str = "pandas",
+        include_ids: bool = True,
+        as_fractions: bool | None = None,
     ) -> pd.DataFrame:
         """Generate timestamps as a pandas DataFrame with formatted field names.
 
@@ -3216,6 +2985,10 @@ class Timeline:
                 - list[str]: Explicit field names
             units: If True (default), append units to field names like "name (unit)".
             format: Output format. Currently only "pandas" is supported.
+            include_ids: If True (default), add event IDs as the DataFrame index
+                when coordinates are collected from events.
+            as_fractions: If True, render float coordinate fields as Fraction
+                objects. If None, enable this for fraction-based timelines.
 
         Returns:
             pandas DataFrame with:
@@ -3242,12 +3015,50 @@ class Timeline:
             include_events=include_events,
             include_boundaries=include_boundaries,
         )
-        return timestamp_table_to_dataframe(
+        df = timestamp_table_to_dataframe(
             table=table,
             fields=fields,
             units=units,
             format=format,
         )
+
+        use_fractions = as_fractions
+        if use_fractions is None:
+            use_fractions = self._number_type == NumberType.fraction
+        if use_fractions:
+            for name in df.columns:
+                if df[name].dtype not in (float, "float64", "Float64"):
+                    continue
+                df[name] = df[name].apply(
+                    lambda x: (
+                        Fraction(x).limit_denominator(10000) if pd.notna(x) else None
+                    )
+                )
+
+        if include_ids and include_events and coordinates is None:
+            all_events = self.get_events(include_children=True)
+            coord_to_ids: dict[float, str] = {}
+            for event in all_events:
+                start = event.get("start")
+                if start is None:
+                    continue
+                if isinstance(start, dict) and "value" in start:
+                    coord_val = float(start["value"])
+                else:
+                    coord_val = float(start)
+                event_id = event.get("id", "")
+                if coord_val not in coord_to_ids:
+                    coord_to_ids[coord_val] = event_id
+
+            axis_name = df.columns[0]
+            ids = []
+            for value in df[axis_name]:
+                float_value = float(value) if value is not None else None
+                ids.append(coord_to_ids.get(float_value, ""))
+            df.index = ids
+            df.index.name = "id"
+
+        return df
 
     def get_boundary_table(
         self,
@@ -3285,108 +3096,10 @@ class Timeline:
             include_boundaries=False,  # Already included in coordinates
         )
 
-    def get_timestamp_table_filtered(
-        self,
-        event_filter: dict[str, Any] | pc.Expression,
-        conversion_maps: ConversionMapsSpec = True,
-        recursion_limit: int | None = None,
-        include_boundaries: bool = False,
-    ) -> pa.Table:
-        """Generate timestamps for filtered events only.
-
-        .. deprecated::
-            This method is deprecated. Use ``get_events(**filters)`` combined
-            with ``get_timestamp_table()`` instead. The ``get_events()`` method
-            now supports arbitrary field filters via ``**kwargs``.
-
-        Applies an event filter before extracting coordinates from EventData.
-        This enables efficient timestamp generation for subsets of events
-        (e.g., only Note events, events above a certain duration, etc.).
-
-        The filter is applied to each timeline in the hierarchy using either
-        EventData.filter() (for dict filters) or EventData.where() (for
-        PyArrow compute expressions).
-
-        Args:
-            event_filter: Filter to apply before extracting coordinates.
-                - dict: Passed to EventData.filter() for simple filters.
-                  Example: {"event_type": "Note"} or {"temporal_type": "interval"}
-                - pc.Expression: Passed to EventData.where() for complex filters.
-                  Example: pc.greater(pc.struct_field(pc.field("start"), "value"), 10.0)
-            conversion_maps: C-Maps to include as fields (see get_timestamp_table).
-            recursion_limit: Maximum depth for child traversal.
-            include_boundaries: If True, also include timeline boundary coordinates.
-
-        Returns:
-            PyArrow Table with timestamp data for filtered events only.
-
-        Examples:
-            >>> # Dict filter: only Note events
-            >>> table = timeline.get_timestamp_table_filtered(
-            ...     {"event_type": "Note"}
-            ... )
-
-            >>> # Dict filter: only interval events
-            >>> table = timeline.get_timestamp_table_filtered(
-            ...     {"temporal_type": "interval"}
-            ... )
-
-            >>> # PyArrow Expression: events starting after coordinate 10
-            >>> import pyarrow.compute as pc
-            >>> expr = pc.greater(
-            ...     pc.struct_field(pc.field("start"), "value"),
-            ...     10.0
-            ... )
-            >>> table = timeline.get_timestamp_table_filtered(expr)
-
-            >>> # Combine with C-Maps
-            >>> table = timeline.get_timestamp_table_filtered(
-            ...     {"event_type": "Note"},
-            ...     conversion_maps=["seconds"],
-            ... )
-        """
-        warnings.warn(
-            "get_timestamp_table_filtered() is deprecated. Use get_events(**filters) "
-            "combined with get_timestamp_table() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        # Extract filtered coordinates
-        filtered_coords = self._collect_all_coordinates(
-            recursion_limit=recursion_limit,
-            event_filter=event_filter,
-        )
-
-        # Optionally include boundaries
-        if include_boundaries:
-            boundary_coords = self._collect_boundary_coordinates(
-                recursion_limit=recursion_limit
-            )
-            if len(filtered_coords) > 0 and len(boundary_coords) > 0:
-                combined = pa.concat_arrays([filtered_coords, boundary_coords])
-                unique = pc.unique(combined)
-                sort_indices = pc.sort_indices(unique)
-                axis = pc.take(unique, sort_indices)
-            elif len(boundary_coords) > 0:
-                axis = boundary_coords
-            else:
-                axis = filtered_coords
-        else:
-            axis = filtered_coords
-
-        # Resolve C-Map references using flexible helper
-        resolved_maps = self._resolve_conversion_maps(conversion_maps)
-
-        return self._build_timestamp_table(
-            axis=axis,
-            conversion_maps=resolved_maps if resolved_maps else None,
-            recursion_limit=recursion_limit,
-        )
-
     def export_to_csv(
         self,
         filepath: str,
-        coordinates: pa.Array | np.ndarray | list[float] | None = None,
+        coordinates: CoordinateSpec | Sequence[CoordinateSpec] | None = None,
         conversion_maps: ConversionMapsSpec = True,
         recursion_limit: int | None = None,
         include_events: bool = True,
@@ -3449,8 +3162,8 @@ class Timeline:
     def add_region(
         self,
         region_or_name: Region | str,
-        start: CoordinateValue | Coordinate | None = None,
-        end: CoordinateValue | Coordinate | None = None,
+        start: CoordinateSpec | None = None,
+        end: CoordinateSpec | None = None,
         *,
         meta: dict[str, Any] | None = None,
     ) -> Region:
@@ -3531,8 +3244,8 @@ class Timeline:
     def create_region(
         self,
         name: str,
-        start: CoordinateValue | Coordinate,
-        end: CoordinateValue | Coordinate,
+        start: CoordinateSpec,
+        end: CoordinateSpec,
         *,
         meta: dict[str, Any] | None = None,
     ) -> Region:
@@ -3563,8 +3276,8 @@ class Timeline:
         if name in self._regions:
             raise ValueError(f"Region '{name}' already exists")
 
-        start_coord = self._make_coordinate(start)
-        end_coord = self._make_coordinate(end)
+        start_coord = self.resolve_coordinate(start)
+        end_coord = self.resolve_coordinate(end)
 
         region = Region(
             name=name,
@@ -3583,7 +3296,7 @@ class Timeline:
 
     def create_regions_from_boundaries(
         self,
-        boundaries: Sequence[CoordinateValue],
+        boundaries: Sequence[CoordinateSpec],
         *,
         names: Sequence[str] | None = None,
         name_format: str = "{prefix}_{n}",
@@ -3625,7 +3338,7 @@ class Timeline:
                 f"Need at least 2 boundary coordinates, got {len(boundaries)}"
             )
 
-        coords = [float(b) for b in boundaries]
+        coords = [float(self._resolve_axis_value(boundary)) for boundary in boundaries]
         for i in range(1, len(coords)):
             if coords[i] <= coords[i - 1]:
                 raise ValueError(
@@ -3957,7 +3670,7 @@ class Timeline:
 
     def get_regions_at(
         self,
-        coord: CoordinateValue | Coordinate,
+        coord: CoordinateSpec,
     ) -> list[Region]:
         """Return all regions containing the given coordinate.
 
@@ -3975,7 +3688,7 @@ class Timeline:
             >>> tl.get_regions_at(75.0)
             [Region('verse_1', 30-90), Region('chorus', 60-120)]
         """
-        coord_val = float(coord.value if isinstance(coord, Coordinate) else coord)
+        coord_val = float(self._resolve_axis_value(coord))
         matching = [r for r in self._regions.values() if r.contains(coord_val)]
         matching.sort(key=lambda r: float(r.start.value))
         return matching
@@ -4104,7 +3817,7 @@ class Timeline:
 
     def get_children_at(
         self,
-        coord: CoordinateValue | Coordinate,
+        coord: CoordinateSpec,
     ) -> list["Timeline"]:
         """Return all children whose extent contains the given coordinate.
 
@@ -4117,7 +3830,7 @@ class Timeline:
             List of child Timeline objects, ordered by offset.
             Empty list if no children contain coord.
         """
-        coord_val = float(coord.value if isinstance(coord, Coordinate) else coord)
+        coord_val = float(self._resolve_axis_value(coord))
         matching: list[tuple[float, Timeline]] = []
         for child_id, child in self._children.items():
             offset = float(self._child_offsets[child_id].value)
@@ -4185,8 +3898,8 @@ class Timeline:
 
     def get_slice(
         self,
-        start: CoordinateValue,
-        end: CoordinateValue,
+        start: CoordinateSpec,
+        end: CoordinateSpec,
         *,
         truncate_events: bool = True,
         include_children: bool = True,
@@ -4230,16 +3943,18 @@ class Timeline:
             Fraction(20, 1)
         """
         # Coerce to the timeline's native number type for consistent arithmetic
+        start_value = self._resolve_axis_value(start)
+        end_value = self._resolve_axis_value(end)
         nt = self._number_type
         if nt == NumberType.fraction:
-            s = Fraction(start)
-            e = Fraction(end)
+            s = Fraction(start_value)
+            e = Fraction(end_value)
         elif nt == NumberType.int:
-            s = int(start)
-            e = int(end)
+            s = int(start_value)
+            e = int(end_value)
         else:
-            s = float(start)
-            e = float(end)
+            s = float(start_value)
+            e = float(end_value)
 
         # Validate
         if s >= e:
@@ -4445,7 +4160,7 @@ class Timeline:
 
     def create_segment_line(
         self,
-        boundaries: Sequence[CoordinateValue],
+        boundaries: Sequence[CoordinateSpec],
         *,
         copy_events: bool = True,
     ) -> "SegmentLine":
@@ -4479,7 +4194,7 @@ class Timeline:
                 f"Need at least 2 boundary coordinates, got {len(boundaries)}"
             )
 
-        coords = [float(b) for b in boundaries]
+        coords = [float(self._resolve_axis_value(boundary)) for boundary in boundaries]
         for i in range(1, len(coords)):
             if coords[i] <= coords[i - 1]:
                 raise ValueError(
@@ -4848,7 +4563,7 @@ class Timeline:
         """Number of attached FlowMaps."""
         return len(self._flow_maps)
 
-    def unfold(self, coord: float | int, id: str = "default") -> list[float]:
+    def unfold(self, coord: CoordinateSpec, id: str = "default") -> list[float]:
         """Convert a folded coordinate to unfolded coordinates.
 
         Convenience method that delegates to the attached FlowMap.
@@ -4868,9 +4583,9 @@ class Timeline:
         flow_map = self._flow_maps.get(id)
         if flow_map is None:
             raise ValueError(f"No FlowMap attached with id '{id}'")
-        return [float(c) for c in flow_map.unfold(coord)]
+        return [float(c) for c in flow_map.unfold(self._resolve_axis_value(coord))]
 
-    def fold(self, coord: float | int, id: str = "default") -> float:
+    def fold(self, coord: CoordinateSpec, id: str = "default") -> float:
         """Convert an unfolded coordinate to a folded coordinate.
 
         Convenience method that delegates to the attached FlowMap.
@@ -4889,7 +4604,7 @@ class Timeline:
         flow_map = self._flow_maps.get(id)
         if flow_map is None:
             raise ValueError(f"No FlowMap attached with id '{id}'")
-        return float(flow_map.fold(coord))
+        return float(flow_map.fold(self._resolve_axis_value(coord)))
 
     # endregion
 

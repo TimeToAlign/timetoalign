@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pandas as pd
@@ -36,6 +37,8 @@ from timetoalign.timelines import (
     DiscreteLogicalTimeline,
 )
 from timetoalign.timelines.flow import (
+    Flow,
+    PlaythroughSection,
     ScoreFlowController,
     compute_qb_sections,
     create_unfolded_timeline,
@@ -828,6 +831,33 @@ class TestSegmentLineAssembly:
 
 
 # endregion
+
+
+class TestCreateUnfoldedTimelineIdentity:
+    """Tests explicit identifiers on standalone unfolded timelines."""
+
+    @pytest.mark.parametrize("as_segment_line", [False, True])
+    def test_uid_is_passed_to_returned_timeline(self, as_segment_line: bool) -> None:
+        """The requested uid identifies either supported return shape."""
+        source = ContinuousLogicalTimeline(length=Fraction(4), uid="source")
+        flow = Flow.from_sections(
+            [PlaythroughSection(1, 2, ("A",))],
+            FlowMode.default,
+            folded_length=1,
+        )
+        controller = SimpleNamespace(
+            iter_units=lambda: iter([SimpleNamespace(mc=1, duration_qb=Fraction(4))])
+        )
+
+        unfolded = create_unfolded_timeline(
+            source,
+            flow,
+            controller,
+            uid="unfolded",
+            as_segment_line=as_segment_line,
+        )
+
+        assert unfolded.id == "unfolded"
 
 
 # region TestUnfoldingGoldStandard — End-to-end validation against reference flows

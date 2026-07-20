@@ -1124,16 +1124,6 @@ class Flow:
         """
         return [sec.to_dict() for sec in self.sections]
 
-    def to_section_dataframe(self) -> "pd.DataFrame":
-        """Export as DataFrame (section-based).
-
-        Returns:
-            DataFrame with fields: mc_start, mc_end, atomic_sections.
-        """
-        import pandas as pd
-
-        return pd.DataFrame(self.to_records())
-
     def to_csv_rows(self, source_file: str, software_version: str) -> list[dict]:
         """Export as .flow.csv format rows.
 
@@ -4116,6 +4106,7 @@ def create_unfolded_timeline(
     flow: Flow,
     flow_controller: FlowControllerBase | None = None,
     *,
+    uid: str | None = None,
     target_unit: "TimeUnit | str | None" = None,
     include_children: bool = True,
     as_segment_line: bool = False,
@@ -4148,6 +4139,7 @@ def create_unfolded_timeline(
         flow_controller: The controller that computed the flow. Required for
             QB-space boundary computation. If ``None``, the function raises
             ``ValueError`` because no QB-space boundaries can be computed.
+        uid: Optional identifier for the returned timeline.
         target_unit: Optional unit for the unfolded timeline. When given,
             ``Timeline.resolve_subclass(target_unit, number_type)`` selects
             the timeline type; otherwise ``type(source_timeline)`` is used.
@@ -4212,6 +4204,7 @@ def create_unfolded_timeline(
         length=0,
         unit=unit,
         number_type=number_type,
+        uid=uid if as_segment_line else None,
         name=f"{source_timeline.name}_unfolded",
     )
 
@@ -4233,6 +4226,7 @@ def create_unfolded_timeline(
             length=unfolded_length,
             unit=unit,
             number_type=number_type,
+            uid=uid,
             name=f"{source_timeline.name}_unfolded",
         )
         _flatten_segment_line_onto(segment_line, result, include_children)

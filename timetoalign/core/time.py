@@ -61,7 +61,7 @@ too for the Id-variants.
 from __future__ import annotations
 
 from fractions import Fraction
-from typing import Any, Union
+from typing import Any, NamedTuple, Union
 
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -842,6 +842,45 @@ CoordinateSpec = Union[int, float, Fraction, Coordinate, IdCoordinate]
 
 # CoordinateWithTimeline: coordinate specification with optional explicit timeline.
 CoordinateWithTimeline = Union[tuple[CoordinateSpec, str], CoordinateSpec]
+
+
+class ResolvedCoordinate(NamedTuple):
+    """Decomposed form of a CoordinateSpec input."""
+
+    value: int | float | Fraction
+    timeline_id: str | None
+    unit: TimeUnit | None
+
+
+def resolve_coordinate_spec(
+    spec: CoordinateSpec, *, timeline_id: str | None = None
+) -> ResolvedCoordinate:
+    """Decompose a coordinate specification without converting its unit.
+
+    Args:
+        spec: Coordinate specification to decompose.
+        timeline_id: Optional timeline ID for otherwise unqualified input.
+
+    Returns:
+        The numeric value and any timeline or unit metadata.
+
+    Raises:
+        ValueError: If an explicit timeline ID conflicts with an IdCoordinate.
+        TypeError: If spec is not a supported coordinate specification.
+    """
+    if isinstance(spec, IdCoordinate):
+        if timeline_id is not None and timeline_id != spec.timeline_id:
+            raise ValueError(
+                f"Timeline ID '{timeline_id}' conflicts with coordinate timeline ID "
+                f"'{spec.timeline_id}'"
+            )
+        return ResolvedCoordinate(spec.value, spec.timeline_id, spec.unit)
+    if isinstance(spec, Coordinate):
+        return ResolvedCoordinate(spec.value, timeline_id, spec.unit)
+    if not isinstance(spec, bool) and isinstance(spec, (int, float, Fraction)):
+        return ResolvedCoordinate(spec, timeline_id, None)
+    raise TypeError(f"Unsupported coordinate specification type: {type(spec).__name__}")
+
 
 # Optional coordinate (common pattern).
 OptionalCoordinate = Union[Coordinate, None]

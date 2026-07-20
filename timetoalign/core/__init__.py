@@ -126,9 +126,11 @@ from .time import (
     IdDurationField,
     IdTimeScalar,
     OptionalCoordinate,
+    ResolvedCoordinate,
     TimeScalar,
     TimeScalarField,
     TimeScalarValue,
+    resolve_coordinate_spec,
 )
 from .timestamp import (
     TimeIntervalStamp,
@@ -171,9 +173,11 @@ __all__ = [
     "IdDurationField",
     "IdTimeScalar",
     "OptionalCoordinate",
+    "ResolvedCoordinate",
     "TimeScalar",
     "TimeScalarField",
     "TimeScalarValue",
+    "resolve_coordinate_spec",
     # DataField hierarchy / schema mechanism
     "DataField",
     "FloatField",

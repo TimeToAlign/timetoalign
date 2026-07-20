@@ -527,17 +527,7 @@ measures.
     - Returns correct class for all 6 domain/modality combinations
     - Raises ValueError for unknown domain
 
-21. **query_events_hierarchical() Tests** (8 tests)
-    - Returns root events when no children
-    - Includes events from children
-    - Root-relative coordinates in root_start field
-    - Nested children (grandchildren) with correct offsets
-    - Filter by event_types
-    - Filter by coord_range (root-relative)
-    - Recursion limit controls depth
-    - include_children=False excludes child events
-
-22. **get_events_at() Tests** (10 tests)
+21. **get_events_at() Tests** (10 tests)
     - Returns instant events at exact coordinate
     - Uses tolerance for instant matching
     - Interval left-inclusive (start included)
@@ -549,10 +539,10 @@ measures.
     - Returns empty dict when no match
     - Accepts Coordinate object input
 
-23. **Real Data Tests (TSVLoader)** (13 tests)
+22. **Real Data Tests (TSVLoader)** (13 tests)
     - See "Real Data Validation" section below
 
-24. **Integration Tests** (3 tests)
+23. **Integration Tests** (3 tests)
     - Regions used to create SegmentLine structure
     - Derived timeline can have children added
     - SegmentLine with individual segment C-maps
@@ -570,10 +560,9 @@ These tests ensure:
 2. SegmentLine enforces strict contiguity (no gaps/overlaps)
 3. derive() creates proper cross-domain relationships via C-maps
 4. Inverse C-maps enable accurate roundtrip conversions
-5. query_events_hierarchical() enables cross-hierarchy event queries with root-relative coordinates
-6. get_events_at() enables point-in-time queries following [start, end) interval semantics
-7. The unified verb×noun API provides consistent naming across all noun types
-8. Real data from TSVLoader validates the API against production musicological data
+5. get_events_at() enables point-in-time queries following [start, end) interval semantics
+6. The unified verb×noun API provides consistent naming across all noun types
+7. Real data from TSVLoader validates the API against production musicological data
 
 ---
 
@@ -893,7 +882,7 @@ file (the pattern already used by `test_unfolding.py` for this specimen).
 
 ### `test_timestamps.py` - Cross-Section Timestamp Tables
 
-**Purpose:** Validates `get_timestamp_table()` / `get_timestamps()` and the
+**Purpose:** Validates `get_timestamp_table()` / `to_dataframe()` and the
 helpers that build the timestamp axis (event-coordinate collection, boundary
 collection, local-coordinate computation) across a timeline hierarchy.
 
@@ -915,7 +904,7 @@ boundary collector builds a `pa.array(..., type=pa.float64())`, which coerces a
 |------|--------------|-----------------|
 | `test_compute_local_coordinates_with_fraction_length` | CLT length `9/2`, probe `[0.0, 2.0, 4.5, 5.0]` | local = `[0.0, 2.0, 4.5, None]` (5.0 > 4.5 → null) |
 | `test_get_timestamp_table_with_fraction_length` | CLT length `9/2`, events at `0, 3/2, 3` | `num_rows == 3`; axis = `[0.0, 1.5, 3.0]`; root-local = `[0.0, 1.5, 3.0]` |
-| `test_get_timestamps_with_fraction_length` | same timeline | shape `(3, 2)`; axis column = `[Fraction(0), Fraction(3,2), Fraction(3)]` (auto-rendered as Fractions for a Fraction-type timeline) |
+| `test_to_dataframe_with_fraction_length` | same timeline | shape `(3, 2)`; axis column = `[Fraction(0), Fraction(3,2), Fraction(3)]` (auto-rendered as Fractions for a Fraction-type timeline) |
 
 **Validity Rationale:** The timestamp axis is the spine of every cross-domain
 alignment view. A quarters/beats timeline — the most common logical timeline —
@@ -928,7 +917,7 @@ local coordinates equal the axis because its offset is zero.
 
 ### `test_timestamps.py` - Cross-Section Timestamp Tables
 
-**Purpose:** Validates `get_timestamp_table()` / `get_timestamps()` and the
+**Purpose:** Validates `get_timestamp_table()` / `to_dataframe()` and the
 helpers that build the timestamp axis (event-coordinate collection, boundary
 collection, local-coordinate computation) across a timeline hierarchy.
 
@@ -950,7 +939,7 @@ boundary collector builds a `pa.array(..., type=pa.float64())`, which coerces a
 |------|--------------|-----------------|
 | `test_compute_local_coordinates_with_fraction_length` | CLT length `9/2`, probe `[0.0, 2.0, 4.5, 5.0]` | local = `[0.0, 2.0, 4.5, None]` (5.0 > 4.5 → null) |
 | `test_get_timestamp_table_with_fraction_length` | CLT length `9/2`, events at `0, 3/2, 3` | `num_rows == 3`; axis = `[0.0, 1.5, 3.0]`; root-local = `[0.0, 1.5, 3.0]` |
-| `test_get_timestamps_with_fraction_length` | same timeline | shape `(3, 2)`; axis column = `[Fraction(0), Fraction(3,2), Fraction(3)]` (auto-rendered as Fractions for a Fraction-type timeline) |
+| `test_to_dataframe_with_fraction_length` | same timeline | shape `(3, 2)`; axis column = `[Fraction(0), Fraction(3,2), Fraction(3)]` (auto-rendered as Fractions for a Fraction-type timeline) |
 
 **Validity Rationale:** The timestamp axis is the spine of every cross-domain
 alignment view. A quarters/beats timeline — the most common logical timeline —
@@ -966,13 +955,14 @@ local coordinates equal the axis because its offset is zero.
 **Purpose:** Validates the slice-based unfolding pipeline that replaces the buggy MC-space
 FlowMap approach with structural slicing in QB-space.
 
-**88 tests** (78 single-timeline + 10 group unfolding) across 5 test classes:
+**90 tests** (80 single-timeline + 10 group unfolding) across 6 test classes:
 
 | Class | Tests | Purpose |
 |-------|-------|---------|
 | `TestGetSlice` | 16 | Unit tests for `Timeline.get_slice()` primitive |
 | `TestComputeQBSections` | 8 | QB boundary computation from Flow + ScoreFlowController |
 | `TestSegmentLineAssembly` | 5 | Integration: slice + concatenate into SegmentLine |
+| `TestCreateUnfoldedTimelineIdentity` | 2 | Explicit uid on flat and SegmentLine results |
 | `TestUnfoldingGoldStandard` | 49 | End-to-end validation against 7 ms3 gold standard specimens |
 | `TestGroupUnfolding` | 10 | Cross-domain unfolding via GroupTimestamp interpolation |
 
@@ -1020,11 +1010,15 @@ FlowMap approach with structural slicing in QB-space.
    - Segment type matches source class
    - Repeated section assembly (same range played twice)
 
-4. **Gold Standard End-to-End Tests** (49 tests, parametrized × 7 specimens)
+4. **Standalone Unfolded Timeline Identity Tests** (2 tests)
+   - Explicit `uid` is retained by flat timeline results
+   - Explicit `uid` is retained by SegmentLine results
+
+5. **Gold Standard End-to-End Tests** (49 tests, parametrized × 7 specimens)
    - EXACT row count, MC sequence, mc_playthrough, mn_playthrough with suffixes
    - EXACT quarterbeats as Fraction (not float), total unfolded length
 
-5. **Group Unfolding Tests** (10 tests)
+6. **Group Unfolding Tests** (10 tests)
    - Uses Beethoven Op.18 No.4 iv multimodal score group (CLT1 + DGT1 + OpenScore)
    - Validates that one FlowMap unfolds ALL timelines regardless of domain
    - Resolves section boundaries through GroupTimestamps
