@@ -63,7 +63,7 @@ from timetoalign.storage.schema import (
 )
 
 from .alignment import MatchfileLoader, TiliaDictStore, TiliaJsonLoader
-from .base import AlignmentLoader, Loader, ManifestData, ManifestLoader
+from .base import AlignmentLoader, EventLoader, Loader, ManifestData, ManifestLoader
 from .physical import (
     AudioInfo,
     AudioLoader,
@@ -76,6 +76,7 @@ __all__ = [
     "ManifestData",
     # Loader ABCs
     "Loader",
+    "EventLoader",
     "ManifestLoader",
     "AlignmentLoader",
     # Alignment loaders

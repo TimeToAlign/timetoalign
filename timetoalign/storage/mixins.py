@@ -65,6 +65,15 @@ class MultipleFieldsError(KeyError):
 _TIMETOALIGN_KEY = b"timetoalign"
 
 
+def _are_interchangeable_pitch_views(
+    declared: type[SemanticField[Any]], requested: type[SemanticField[Any]]
+) -> bool:
+    """Return whether two field classes are MIDI-number pitch views."""
+    from timetoalign.core.events import EnharmonicPitchField, MidiPitchField
+
+    return {declared, requested} == {EnharmonicPitchField, MidiPitchField}
+
+
 # ---------------------------------------------------------------------------
 # DefaultField -- core temporal fields present on every EventData
 # ---------------------------------------------------------------------------
@@ -730,11 +739,16 @@ class SemanticFieldAccessMixin:
         column_names = set(self._table.column_names)
         for column, afforded_cls in afforded.items():
             if strict:
-                if afforded_cls is not field_type:
+                if (
+                    afforded_cls is not field_type
+                    and not _are_interchangeable_pitch_views(afforded_cls, field_type)
+                ):
                     continue
+                materialized_cls = field_type
             else:
                 if not issubclass(afforded_cls, field_type):
                     continue
+                materialized_cls = afforded_cls
             if column not in column_names:
                 continue
             pa_field = self._table.schema.field(column)
@@ -742,7 +756,7 @@ class SemanticFieldAccessMixin:
             # target shape is already handled by shape discovery.
             if pa.types.is_struct(pa_field.type):
                 continue
-            cache_key = (column, afforded_cls.__name__)
+            cache_key = (column, materialized_cls.__name__)
             cached = cache.get(cache_key)
             if cached is not None:
                 result.append(cached)
@@ -751,7 +765,7 @@ class SemanticFieldAccessMixin:
             if isinstance(arr, pa.ChunkedArray):
                 arr = arr.combine_chunks()
             try:
-                field = afforded_cls(name=column).emit(arr, name=column)
+                field = materialized_cls(name=column).emit(arr, name=column)
             except (TypeError, KeyError, ValueError, pa.ArrowInvalid):
                 continue
             cache[cache_key] = field
@@ -860,7 +874,9 @@ class SemanticFieldAccessMixin:
         for column, afforded_cls in afforded.items():
             if column not in field_names:
                 continue
-            if not issubclass(afforded_cls, field_type):
+            if not issubclass(
+                afforded_cls, field_type
+            ) and not _are_interchangeable_pitch_views(afforded_cls, field_type):
                 continue
             if not pa.types.is_struct(self._table.schema.field(column).type):
                 return True

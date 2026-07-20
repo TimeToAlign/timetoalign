@@ -190,6 +190,30 @@ class TestTimelineGroupEvents:
         assert events.table.num_rows == 0
         assert events.table.column("timeline_id").to_pylist() == []
 
+    def test_get_events_rejects_incompatible_shared_column_types(self) -> None:
+        """A shared column cannot silently change its Arrow type."""
+        first = ContinuousPhysicalTimeline(length=10.0, uid="first")
+        first.add_events([{"start": 1.0, "tag": 1}])
+        second = ContinuousPhysicalTimeline(length=10.0, uid="second")
+        second.add_events([{"start": 2.0, "tag": "x"}])
+
+        group = TimelineGroup(id="group", timelines=[first, second])
+        with pytest.raises(
+            ValueError,
+            match=r"^Conflicting Arrow types for column 'tag': int64 and string\.$",
+        ):
+            group.get_events()
+
+    def test_get_events_overwrites_member_timeline_id(self) -> None:
+        """Group membership is authoritative provenance."""
+        timeline = ContinuousPhysicalTimeline(length=10.0, uid="authoritative")
+        timeline.add_events([{"start": 1.0, "timeline_id": "stale"}])
+
+        events = TimelineGroup(id="group", timelines=[timeline]).get_events()
+
+        assert events.table.column_names.count("timeline_id") == 1
+        assert events.table.column("timeline_id").to_pylist() == ["authoritative"]
+
     def test_get_events_propagates_timeline_errors(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

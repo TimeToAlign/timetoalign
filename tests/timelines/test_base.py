@@ -80,6 +80,22 @@ class TestTimelineConstruction:
         tl = Timeline(locked=True)
         assert tl.is_locked
 
+    def test_duplicate_subclass_tag_is_rejected(self) -> None:
+        """A different class cannot replace an existing serialized tag."""
+
+        class RegistryCollision(Timeline):
+            pass
+
+        expected = (
+            "Timeline tag 'RegistryCollision' is already registered to "
+            f"{RegistryCollision!r}; cannot register "
+            "<class 'tests.timelines.test_base.RegistryCollision'>."
+        )
+        with pytest.raises(ValueError) as exc_info:
+            type("RegistryCollision", (Timeline,), {})
+
+        assert str(exc_info.value) == expected
+
     def test_timeline_with_metadata(self):
         """Timeline stores metadata."""
         meta = {"source": "test", "version": 1}

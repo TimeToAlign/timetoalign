@@ -6,7 +6,6 @@ import warnings
 from pathlib import Path
 from typing import Any, ClassVar
 
-import numpy as np
 import pyarrow as pa
 
 # Suppress pkg_resources deprecation warning from partitura
@@ -188,7 +187,4 @@ class ScoreMidiLoader(MidiLoader):
             return metadata, {}
         table = pa.Table.from_pylist(events)
         fields = {name: table.column(name) for name in table.column_names}
-        for name in ("start", "end", "duration"):
-            if name in fields:
-                fields[name] = np.asarray(fields[name].to_pylist())
         return metadata, fields

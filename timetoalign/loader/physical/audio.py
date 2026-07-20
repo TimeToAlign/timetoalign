@@ -26,8 +26,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from typing_extensions import Self
-
 from timetoalign.loader.base import Loader
 
 if TYPE_CHECKING:
@@ -159,7 +157,8 @@ class AudioLoader(Loader[AudioInfo]):
         Coordinate(7938048, samples)
 
         >>> # The timeline has a SamplesToSeconds C-map attached
-        >>> timeline.convert(44100, target_unit="seconds")
+        >>> from timetoalign.core import TimeUnit
+        >>> timeline.get_timestamp(44100).get_unit(TimeUnit.seconds)
         1.0
 
     Attributes:
@@ -174,90 +173,88 @@ class AudioLoader(Loader[AudioInfo]):
         self._logger = module_logger.getChild("AudioLoader")
 
     def _load_source(self, source: Path) -> AudioInfo:
-        """Reject the event-oriented root lifecycle for audio metadata."""
-        raise NotImplementedError(
-            "AudioLoader uses its manifest-specific load() implementation."
-        )
-
-    # region Loading
-
-    def load(self, path: Path | str) -> Self:
-        """Load audio file metadata.
+        """Load metadata from one audio file.
 
         Args:
-            path: Path to the audio file.
+            source: Path to the audio file.
 
         Returns:
-            Self, for method chaining.
+            Parsed audio metadata.
 
         Raises:
             FileNotFoundError: If the file doesn't exist.
             ValueError: If the file format is not supported or cannot be read.
         """
-        path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(f"Audio file not found: {path}")
+        if not source.exists():
+            raise FileNotFoundError(f"Audio file not found: {source}")
 
         # Try backends in order of preference
         sf = _get_soundfile()
         if sf is not None:
             try:
-                self._audio_info = self._load_with_soundfile(sf, path)
-                self._source_path = path
+                info = self._load_with_soundfile(sf, source)
                 self._logger.debug(
-                    f"Loaded audio metadata from {path} using soundfile: "
-                    f"{self._audio_info.n_samples} samples @ {self._audio_info.sample_rate} Hz"
+                    f"Read audio metadata from {source} using soundfile: "
+                    f"{info.n_samples} samples @ {info.sample_rate} Hz"
                 )
-                return self
+                return info
             except Exception as e:
-                self._logger.debug(f"soundfile failed for {path}: {e}")
+                self._logger.debug(f"soundfile failed for {source}: {e}")
 
         # Try mutagen for MP3/M4A
         mutagen = _get_mutagen()
         if mutagen is not None:
             try:
-                self._audio_info = self._load_with_mutagen(mutagen, path)
-                self._source_path = path
+                info = self._load_with_mutagen(mutagen, source)
                 self._logger.debug(
-                    f"Loaded audio metadata from {path} using mutagen: "
-                    f"{self._audio_info.n_samples} samples @ {self._audio_info.sample_rate} Hz"
+                    f"Read audio metadata from {source} using mutagen: "
+                    f"{info.n_samples} samples @ {info.sample_rate} Hz"
                 )
-                return self
+                return info
             except Exception as e:
-                self._logger.debug(f"mutagen failed for {path}: {e}")
+                self._logger.debug(f"mutagen failed for {source}: {e}")
 
         # Fallback to wave module for WAV files (PCM only)
-        if path.suffix.lower() in (".wav", ".wave"):
+        if source.suffix.lower() in (".wav", ".wave"):
             try:
-                self._audio_info = self._load_with_wave(path)
-                self._source_path = path
+                info = self._load_with_wave(source)
                 self._logger.debug(
-                    f"Loaded audio metadata from {path} using wave: "
-                    f"{self._audio_info.n_samples} samples @ {self._audio_info.sample_rate} Hz"
+                    f"Read audio metadata from {source} using wave: "
+                    f"{info.n_samples} samples @ {info.sample_rate} Hz"
                 )
-                return self
+                return info
             except Exception as e:
-                self._logger.debug(f"wave module failed for {path}: {e}")
+                self._logger.debug(f"wave module failed for {source}: {e}")
 
         # Last resort: manual RIFF header parsing (handles IEEE float and other
         # non-PCM WAV formats that Python's wave module rejects)
-        if path.suffix.lower() in (".wav", ".wave"):
+        if source.suffix.lower() in (".wav", ".wave"):
             try:
-                self._audio_info = self._load_with_riff_parser(path)
-                self._source_path = path
+                info = self._load_with_riff_parser(source)
                 self._logger.debug(
-                    f"Loaded audio metadata from {path} using RIFF parser: "
-                    f"{self._audio_info.n_samples} samples @ {self._audio_info.sample_rate} Hz"
+                    f"Read audio metadata from {source} using RIFF parser: "
+                    f"{info.n_samples} samples @ {info.sample_rate} Hz"
                 )
-                return self
+                return info
             except Exception as e:
-                self._logger.debug(f"RIFF parser failed for {path}: {e}")
+                self._logger.debug(f"RIFF parser failed for {source}: {e}")
 
         raise ValueError(
-            f"Cannot read audio file '{path}'. "
+            f"Cannot read audio file '{source}'. "
             "Install soundfile (pip install soundfile) for broad format support, "
             "or mutagen (pip install mutagen) for MP3/M4A support."
         )
+
+    def _accept_source(
+        self,
+        path: Path,
+        source_meta: dict[str, Any],
+        payload: AudioInfo,
+    ) -> None:
+        """Retain parsed audio information from the shared lifecycle."""
+        super()._accept_source(path, source_meta, payload)
+        self._audio_info = payload
+        self._source_path = path
 
     def _load_with_soundfile(self, sf, path: Path) -> AudioInfo:
         """Load metadata using soundfile (libsndfile backend)."""
@@ -546,7 +543,8 @@ class AudioLoader(Loader[AudioInfo]):
             <TimeUnit.samples: 'samples'>
 
             >>> # Convert sample coordinates to seconds
-            >>> timeline.convert(44100, target_unit="seconds")
+            >>> from timetoalign.core import TimeUnit
+            >>> timeline.get_timestamp(44100).get_unit(TimeUnit.seconds)
             1.0
         """
         from timetoalign.core import NumberType, TimeUnit

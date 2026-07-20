@@ -240,6 +240,19 @@ class TestAffordedFieldsMechanism:
         assert isinstance(ep, EnharmonicPitchField)
         assert ep[0] == EnharmonicPitch(midi_number=60)
 
+    def test_both_midi_number_views_share_raw_column(self) -> None:
+        events = self._midi_events()
+        ep = events.get_field(EnharmonicPitch)
+        mp = events.get_field(MidiPitch)
+        assert [ep[i].midi_number if ep[i] else None for i in range(len(ep))] == [
+            60,
+            None,
+        ]
+        assert [mp[i].midi_number if mp[i] else None for i in range(len(mp))] == [
+            60,
+            None,
+        ]
+
     def test_has_field_sees_afforded(self) -> None:
         events = self._midi_events()
         assert events.has_field(EnharmonicPitchField) is True
@@ -376,6 +389,13 @@ class TestScoreRepresentOnce:
         assert ep.name == "midi"
         assert ep[0] == EnharmonicPitch(midi_number=60)
         assert ep[1] == EnharmonicPitch(midi_number=66)
+
+    def test_midi_pitch_afforded_from_raw_midi(self) -> None:
+        events = _note_events()
+        mp = events.get_field(MidiPitch)
+        assert mp.name == "midi"
+        assert mp[0] == MidiPitch(midi_number=60)
+        assert mp[1] == MidiPitch(midi_number=66)
 
     def test_enharmonic_pitch_field_property(self) -> None:
         # The convenience property routes through the affordance.

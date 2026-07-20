@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader.base import Loader
+from timetoalign.loader.base import EventLoader
 
 from .store import ScoreStore
 from .stores.notes import NoteEventData
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 module_logger = logging.getLogger(__name__)
 
 
-class ScoreLoader(Loader):
+class ScoreLoader(EventLoader):
     """Base loader for symbolic music scores (MusicXML, MIDI-Score, TSV).
 
     All score loaders normalise coordinates to quarter-note positions using

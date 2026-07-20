@@ -97,9 +97,7 @@ For more information, see the documentation site.
 
 from __future__ import annotations
 
-import sys
 from importlib import import_module
-from types import ModuleType
 
 from timetoalign.core import (
     ColumnNaming,
@@ -145,6 +143,7 @@ _DEFERRED_EXPORTS = {
     "AudioLoader": ("timetoalign.loader", "AudioLoader"),
     "EepNotesLoader": ("timetoalign.loader", "EepNotesLoader"),
     "Loader": ("timetoalign.loader", "Loader"),
+    "EventLoader": ("timetoalign.loader", "EventLoader"),
     "MatchfileLoader": ("timetoalign.loader", "MatchfileLoader"),
     "Ms3Loader": ("timetoalign.loader.score", "Ms3Loader"),
     "TsvLoader": ("timetoalign.loader.tabular", "TsvLoader"),
@@ -219,27 +218,21 @@ _DEFERRED_EXPORTS = {
 }
 
 
-class _FacadeModule(ModuleType):
-    """Module facade that loads upper layers only when their exports are requested."""
-
-    def __getattribute__(self, name: str) -> object:
-        deferred_exports = ModuleType.__getattribute__(self, "_DEFERRED_EXPORTS")
-        target = deferred_exports.get(name)
-        if target is not None:
-            module_name, attribute_name = target
-            value = getattr(import_module(module_name), attribute_name)
-            ModuleType.__setattr__(self, name, value)
-            deferred_exports.pop(name, None)
-            return value
-        return ModuleType.__getattribute__(self, name)
-
-    def __dir__(self) -> list[str]:
-        names = set(ModuleType.__dir__(self))
-        names.update(ModuleType.__getattribute__(self, "_DEFERRED_EXPORTS"))
-        return sorted(names)
+def __getattr__(name: str) -> object:
+    """Resolve and cache a deferred public export."""
+    target = _DEFERRED_EXPORTS.get(name)
+    if target is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attribute_name = target
+    value = getattr(import_module(module_name), attribute_name)
+    globals()[name] = value
+    return value
 
 
-sys.modules[__name__].__class__ = _FacadeModule
+def __dir__() -> list[str]:
+    """Return eager and deferred public module names."""
+    return sorted(set(globals()) | set(__all__) | set(_DEFERRED_EXPORTS))
+
 
 # User-friendly alias for Coordinate
 Coord = Coordinate
@@ -279,6 +272,7 @@ __all__ = [
     "SingleStore",
     "DictStore",
     "Loader",
+    "EventLoader",
     # Loader - Manifest-based (Type 1)
     "AudioLoader",
     "AudioInfo",

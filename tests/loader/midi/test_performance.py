@@ -10,6 +10,7 @@ from timetoalign.loader.midi import (
     PerformanceMidiLoader,
     ScoreMidiEventData,
 )
+from timetoalign.timelines import TimelineGroup
 
 
 class TestPerformanceMidiLoader:
@@ -36,6 +37,12 @@ class TestPerformanceMidiLoader:
         assert MidiEventType.NOTE in types
         # Piano roll: 30092 notes + 4 control changes = 30096 total
         assert types[MidiEventType.NOTE] == 30092
+        assert loader.events.summary()["coordinate_range"] == (0.0, 277776.0)
+
+        timeline = loader.create_timeline(uid="supra:dlt1")
+        assert timeline.length.value == 277776
+        group = TimelineGroup(id="supra", timelines=[timeline])
+        assert group.timeline_ids == ["supra:dlt1"]
 
     def test_load_chopin_performance(self, chopin_perf_path: Path) -> None:
         """Can load expressive performance MIDI."""
@@ -116,3 +123,30 @@ class TestPerformanceMidiLoader:
             assert required in columns, f"missing {required} column"
         for forbidden in ("voice", "staff", "part_id"):
             assert forbidden not in columns, f"unexpected {forbidden} column"
+
+    def test_nullable_coordinates_preserve_exact_extent(self, tmp_path: Path) -> None:
+        """Mixed instant/interval coordinates stay nullable Arrow values."""
+        import mido
+
+        mid = mido.MidiFile(type=0)
+        track = mido.MidiTrack()
+        mid.tracks.append(track)
+        track.append(mido.Message("program_change", program=4, time=0))
+        track.append(mido.Message("note_on", note=60, velocity=100, time=240))
+        track.append(mido.Message("control_change", control=64, value=127, time=240))
+        track.append(mido.Message("note_off", note=60, velocity=0, time=480))
+        midi_path = tmp_path / "nullable.mid"
+        mid.save(midi_path)
+
+        loader = PerformanceMidiLoader.from_file(midi_path)
+
+        starts = loader.events.table.column("start").combine_chunks().field("value")
+        ends = loader.events.table.column("end").combine_chunks().field("value")
+        assert sorted(starts.to_pylist()) == [0.0, 240.0, 480.0]
+        assert ends.to_pylist() == [None, None, 960.0]
+        assert loader.events.summary()["coordinate_range"] == (0.0, 960.0)
+
+        timeline = loader.create_timeline(uid="perf:dlt1")
+        assert timeline.length.value == 960
+        group = TimelineGroup(id="perf", timelines=[timeline])
+        assert group.timeline_ids == ["perf:dlt1"]

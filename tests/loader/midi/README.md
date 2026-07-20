@@ -102,6 +102,18 @@ On `supra_raw.mid`, we observed a difference of exactly 4 events:
 
 **Status**: VALIDATED. The loaders produce musically equivalent note data.
 
+### Nullable coordinate preservation
+
+Performance MIDI mixes interval notes with instant control/program events. The
+vectorized handoff keeps `start`, `end`, and `duration` as nullable Arrow arrays;
+`start` is formed with Arrow `coalesce(start, instant)`. The synthetic regression
+pins starts `[0, 240, 480]`, coordinate range `(0.0, 960.0)`, timeline length
+`960`, and successful `TimelineGroup` construction. This prevents null interval
+coordinates from becoming floating NaNs that poison extents. Score MIDI likewise
+hands its coordinate columns through as Arrow arrays. The downloaded SUPRA piano
+roll additionally pins its real coordinate range and timeline length to
+`(0.0, 277776.0)` and `277776`, then constructs the formerly failing group.
+
 ## 6. Test Status
 
 **All MIDI-loader tests passing under the split schema.**
@@ -116,7 +128,7 @@ On `supra_raw.mid`, we observed a difference of exactly 4 events:
 
 | File | Tests | Purpose |
 |------|-------|---------|
-| `test_performance.py` | 4 | `PerformanceMidiLoader` (mido parsing); pins the narrower 7-extra-column schema |
+| `test_performance.py` | 5 | `PerformanceMidiLoader` (mido parsing); pins nullable mixed-event coordinates, exact extent, group construction, and the narrower 7-extra-column schema |
 | `test_score.py` | 3 | `ScoreMidiLoader` (partitura parsing); pins the wider 10-extra-column schema |
 | `test_harmonization.py` | 2 | Cross-loader Note-count validation |
 | `test_store.py` | 7 | `MidiEventData` + `ScoreMidiEventData` schema contracts |

@@ -36,6 +36,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from timetoalign.core.events import EnharmonicPitch, MidiPitch
 from timetoalign.loader.score.ms3 import Ms3Loader
 from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
@@ -145,3 +146,26 @@ class TestMidiPitchExact:
                 f"Gold={gold_df['midi_number'].iloc[first_idx]}, "
                 f"Music21={music21_df['midi_number'].iloc[first_idx]}"
             )
+
+    @pytest.mark.parametrize(
+        ("loader_class", "source"),
+        [
+            (Ms3Loader, CHOPIN_TSV),
+            (PartituraLoader, CHOPIN_XML),
+            (Music21Loader, CHOPIN_XML),
+        ],
+    )
+    def test_loader_affords_both_midi_number_views(
+        self, loader_class, source: Path
+    ) -> None:
+        """Every score loader exposes EP and MP over identical MIDI numbers."""
+        events = loader_class.from_file(source).get_events()
+        enharmonic = events.get_field(EnharmonicPitch)
+        midi = events.get_field(MidiPitch)
+
+        assert len(enharmonic) == len(midi) == 498
+        assert [enharmonic[i].midi_number for i in range(498)] == [
+            midi[i].midi_number for i in range(498)
+        ]
+        if loader_class is Ms3Loader:
+            assert enharmonic[0].midi_number == midi[0].midi_number == 59

@@ -445,7 +445,7 @@ class MatchfileLoader(AlignmentLoader):
         perf_tl = DiscreteLogicalTimeline(
             length=perf_max,
             unit=TimeUnit.ticks,
-            uid=f"perf:{perf_stem}:cpt1",
+            uid=f"perf:{perf_stem}:dlt1",
             name=perf_stem,
         )
         perf_tl.add_events(perf_event_dicts)
@@ -736,7 +736,7 @@ class MatchfileLoader(AlignmentLoader):
             >>> loader.create_timeline("score")               # -> score:clt1
             >>> loader.create_timeline("perf:1")              # First performance
             >>> loader.create_timeline("perf:p01")            # Same shorthand
-            >>> loader.create_timeline(r"^perf:.*p01:cpt1$")  # Stored-ID regex
+            >>> loader.create_timeline(r"^perf:.*p01:dlt1$")  # Stored-ID regex
         """
         if self._score_timeline is None:
             raise RuntimeError(

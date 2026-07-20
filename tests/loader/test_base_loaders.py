@@ -7,6 +7,8 @@ from pathlib import Path
 from timetoalign.core import TimeUnit
 from timetoalign.loader import (
     AlignmentLoader,
+    EventLoader,
+    Loader,
     ManifestData,
     ManifestLoader,
 )
@@ -46,6 +48,17 @@ class TestManifestData:
 
 
 # region ManifestLoader Tests
+
+
+def test_loader_hierarchy_separates_event_pipeline() -> None:
+    """Only EventLoader descendants expose event assembly APIs."""
+    assert issubclass(EventLoader, Loader)
+    assert issubclass(ManifestLoader, Loader)
+    assert issubclass(AlignmentLoader, Loader)
+    assert hasattr(EventLoader, "get_events")
+    for loader_class in (ManifestLoader, AlignmentLoader):
+        assert not hasattr(loader_class, "events")
+        assert not hasattr(loader_class, "get_events")
 
 
 class TestManifestLoader:

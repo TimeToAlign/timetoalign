@@ -21,8 +21,12 @@ reside beside the timeline implementation. Boundary tests construct
 `(coordinate, timeline_id)` pairs are intentionally outside the accepted
 coordinate contract. Event aggregation tests assert `EventData` results because
 the group preserves Arrow schemas, null-fills fields that are absent from some
-member timelines, and adds a constant `timeline_id` provenance column. DataFrame
-views are tested only through `EventData.to_dataframe()`.
+member timelines, and adds a constant `timeline_id` provenance column. A member's
+own `timeline_id` is overwritten by authoritative group membership. Columns
+present in multiple members must retain the same Arrow type; incompatible types
+raise an exact `ValueError` naming the column and both types, while genuinely
+missing columns remain null-filled. DataFrame views are tested only through
+`EventData.to_dataframe()`.
 
 ## Test Files
 
@@ -67,6 +71,8 @@ views are tested only through `EventData.to_dataframe()`.
    - Base-class deserialization dispatches the serialized ``class`` tag through
      the timeline-type registry, preserving each concrete timeline type and
      rejecting calls through a mismatched concrete subclass
+   - Duplicate serialized class tags reject registration by a different class;
+     registering the already-recorded class remains idempotent
 
 7. **Magic Methods Tests** (5 tests)
    - `__len__`, `__repr__`, `__str__`, `__contains__`

@@ -996,12 +996,35 @@ class EventData(SemanticFieldAccessMixin):
                 if arr_data is None:
                     # Create null struct array (vectorized)
                     processed[field_name] = pa.nulls(n_rows, type=pa_field.type)
-                elif isinstance(arr_data, pa.StructArray):
-                    # Already a StructArray (from CoordinateParser)
-                    processed[field_name] = arr_data
-                elif isinstance(arr_data, pa.ChunkedArray):
-                    # Combine chunks into single array
-                    processed[field_name] = arr_data.combine_chunks()
+                elif isinstance(arr_data, (pa.Array, pa.ChunkedArray)):
+                    arr = (
+                        arr_data.combine_chunks()
+                        if isinstance(arr_data, pa.ChunkedArray)
+                        else arr_data
+                    )
+                    if isinstance(arr, pa.StructArray):
+                        processed[field_name] = arr
+                    elif pa.types.is_null(arr.type):
+                        processed[field_name] = pa.nulls(n_rows, type=pa_field.type)
+                    else:
+                        null_mask = pc.is_null(arr, nan_is_null=True)
+                        fill_value: str | int = (
+                            "0"
+                            if pa.types.is_string(arr.type)
+                            or pa.types.is_large_string(arr.type)
+                            else 0
+                        )
+                        filled = pc.if_else(
+                            null_mask, pa.scalar(fill_value, type=arr.type), arr
+                        )
+                        parsed = CoordinateParser.parse(
+                            filled.to_numpy(zero_copy_only=False), number_type, unit
+                        )
+                        processed[field_name] = pa.StructArray.from_arrays(
+                            [parsed.field(i) for i in range(parsed.type.num_fields)],
+                            fields=list(parsed.type),
+                            mask=null_mask,
+                        )
                 else:
                     # Need to parse via CoordinateParser (vectorized)
                     arr = CoordinateParser._to_numpy(arr_data)

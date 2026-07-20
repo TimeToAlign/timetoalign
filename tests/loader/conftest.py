@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from timetoalign.core import TimeUnit
-from timetoalign.loader import Loader
+from timetoalign.loader import EventLoader
 from timetoalign.storage import EventData
 
 
@@ -129,8 +129,8 @@ def temp_parquet_path(tmp_path: Path) -> Path:
     return tmp_path / "test.parquet"
 
 
-class DummyLoader(Loader):
-    """A concrete Loader implementation for testing."""
+class DummyLoader(EventLoader):
+    """A concrete EventLoader implementation for testing."""
 
     _default_unit = TimeUnit.ticks
 

@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import mido
-import numpy as np
 import pyarrow as pa
+import pyarrow.compute as pc
 
 from timetoalign.core import NumberType, TimeUnit
 
@@ -147,6 +147,7 @@ class PerformanceMidiLoader(MidiLoader):
                             "temporal_type": "interval",
                             "event_type": MidiEventType.NOTE,
                             "start": absolute_time,
+                            "instant": None,
                             "end": None,  # Will be filled by note_off
                             "duration": None,
                             "pitch": note,
@@ -185,7 +186,10 @@ class PerformanceMidiLoader(MidiLoader):
                         "id": f"cc{i}_{absolute_time}_{msg.control}",
                         "temporal_type": "instant",
                         "event_type": MidiEventType.CONTROL_CHANGE,
+                        "start": None,
                         "instant": absolute_time,
+                        "end": None,
+                        "duration": None,
                         "control": msg.control,
                         "value": msg.value,
                         "channel": msg.channel,
@@ -203,7 +207,10 @@ class PerformanceMidiLoader(MidiLoader):
                         "id": f"pc{i}_{absolute_time}",
                         "temporal_type": "instant",
                         "event_type": MidiEventType.PROGRAM_CHANGE,
+                        "start": None,
                         "instant": absolute_time,
+                        "end": None,
+                        "duration": None,
                         "program": msg.program,
                         "channel": msg.channel,
                         "track": i,
@@ -240,26 +247,16 @@ class PerformanceMidiLoader(MidiLoader):
         table = pa.Table.from_pylist(events)
         fields = {name: table.column(name) for name in table.column_names}
         if "instant" in fields:
-            starts = fields.get("start")
-            start_values = (
-                starts.to_pylist() if starts is not None else [None] * len(events)
+            starts = fields.get(
+                "start",
+                pa.chunked_array([pa.nulls(len(events), type=fields["instant"].type)]),
             )
-            instant_values = fields["instant"].to_pylist()
-            fields["start"] = np.asarray(
-                [
-                    start if start is not None else instant
-                    for start, instant in zip(start_values, instant_values)
-                ],
-                dtype=np.float64,
-            )
+            instants = fields["instant"]
+            if pa.types.is_null(instants.type):
+                fields["start"] = starts
+            elif pa.types.is_null(starts.type):
+                fields["start"] = instants
+            else:
+                fields["start"] = pc.coalesce(starts, instants)
             del fields["instant"]
-        for name in ("start", "end", "duration"):
-            if name in fields:
-                values = (
-                    fields[name].to_pylist()
-                    if isinstance(fields[name], (pa.Array, pa.ChunkedArray))
-                    else fields[name].tolist()
-                )
-                dtype = object if any(value is None for value in values) else None
-                fields[name] = np.asarray(values, dtype=dtype)
         return metadata, fields

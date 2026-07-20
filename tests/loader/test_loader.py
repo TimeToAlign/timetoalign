@@ -1,4 +1,4 @@
-"""Tests for loader/base.py (Loader)."""
+"""Tests for the event pipeline on loader/base.py EventLoader."""
 
 from __future__ import annotations
 

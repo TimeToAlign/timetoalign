@@ -54,7 +54,108 @@ PayloadT = TypeVar("PayloadT")
 
 
 class Loader(ABC, Generic[PayloadT]):
-    """Abstract base class for loading music representations.
+    """Shared lifecycle for all loader families.
+
+    The root owns source tracking, the ``load`` template, convenience
+    construction, and timeline-creation surfaces. Payload-specific state and
+    APIs belong to subclasses such as :class:`EventLoader`,
+    :class:`ManifestLoader`, and :class:`AlignmentLoader`.
+    """
+
+    def __init__(self) -> None:
+        """Initialize shared loader state."""
+        self._sources: list[Path] = []
+        self._source_metadata: list[dict[str, Any]] = []
+        self._timeline_id_generator = TimelineIdGenerator()
+
+    @abstractmethod
+    def _load_source(self, source: Path) -> PayloadT:
+        """Parse one source and return the family-specific payload."""
+        ...
+
+    def _unpack_source_result(
+        self, result: PayloadT
+    ) -> tuple[dict[str, Any], PayloadT]:
+        """Return metadata and payload from a source parser result."""
+        return {}, result
+
+    def _accept_source(
+        self, path: Path, source_meta: dict[str, Any], payload: PayloadT
+    ) -> None:
+        """Record a parsed payload.
+
+        Generic payload loaders override this hook to retain their parsed
+        object. The default records source lifecycle information only.
+        """
+        self._sources.append(path)
+        self._source_metadata.append(source_meta)
+
+    def load(self, *sources: Path | str) -> Self:
+        """Load and accept one or more sources through the shared template."""
+        for source in sources:
+            path = Path(source)
+            source_meta, payload = self._unpack_source_result(self._load_source(path))
+            source_meta["path"] = str(path)
+            source_meta["loaded_at"] = datetime.now(timezone.utc).isoformat()
+            self._accept_source(path, source_meta, payload)
+        return self
+
+    @classmethod
+    def from_file(cls, *paths: Path | str, **kwargs: Any) -> Self:
+        """Instantiate the loader, load *paths*, and return it."""
+        loader = cls(**kwargs)
+        loader.load(*paths)
+        return loader
+
+    @property
+    def sources(self) -> list[Path]:
+        """List of loaded source paths."""
+        return list(self._sources)
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Aggregated source metadata."""
+        return {
+            "loader_class": self.__class__.__name__,
+            "source_count": len(self._sources),
+            "sources": self._source_metadata,
+        }
+
+    def clear(self) -> None:
+        """Clear shared source state."""
+        self._sources.clear()
+        self._source_metadata.clear()
+
+    def create_timeline(self, uid: str | None = None, **kwargs: Any) -> "Timeline":
+        """Create a timeline from the loaded payload.
+
+        Concrete loader families implement payload-specific construction.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement create_timeline()."
+        )
+
+    def create_timelines(self, id_pattern: str | None = None) -> "list[Timeline]":
+        """Create all timelines, optionally filtered by an implementation."""
+        return [self.create_timeline()]
+
+    def create_group(self, **kwargs: Any) -> Any:
+        """Create a timeline group when supported."""
+        return None
+
+    def create_bundle(self, **kwargs: Any) -> Any:
+        """Create an alignment bundle when supported."""
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement create_bundle()."
+        )
+
+    def __repr__(self) -> str:
+        """Return a concise shared-lifecycle representation."""
+        return f"{self.__class__.__name__}(sources={len(self._sources)})"
+
+
+class EventLoader(Loader[LoadSourceResult]):
+    """Abstract base class for event-producing loaders.
 
     Loader provides a unified interface for loading one or more source files
     and aggregating their events into an EventData. Metadata about the sources
@@ -111,12 +212,10 @@ class Loader(ABC, Generic[PayloadT]):
                 ``"strict"``).  Default: ``"warn"`` -- prefer ``end``, warn
                 on discrepancies.
         """
+        super().__init__()
         self._unit = unit or self._default_unit
         self._number_type = number_type
         self._interval_policy = IntervalPolicy(interval_policy)
-        self._timeline_id_generator = TimelineIdGenerator()
-        self._sources: list[Path] = []
-        self._source_metadata: list[dict[str, Any]] = []
         self._events: EventData = self._event_data_class.empty(
             self._unit, self._number_type
         )
@@ -124,7 +223,7 @@ class Loader(ABC, Generic[PayloadT]):
     # region Abstract Methods
 
     @abstractmethod
-    def _load_source(self, source: Path) -> LoadSourceResult | PayloadT:
+    def _load_source(self, source: Path) -> LoadSourceResult:
         """Load a single source file.
 
         Subclasses implement this to parse their specific format.
@@ -402,11 +501,17 @@ class Loader(ABC, Generic[PayloadT]):
 
     # region Loading
 
+    def _unpack_source_result(
+        self, result: LoadSourceResult
+    ) -> tuple[dict[str, Any], dict[str, np.ndarray | pa.Array | pa.ChunkedArray]]:
+        """Split an event parser result into metadata and field arrays."""
+        return result
+
     def _accept_source(
         self,
         path: Path,
         source_meta: dict[str, Any],
-        payload: PayloadT | dict[str, np.ndarray | pa.Array | pa.ChunkedArray],
+        payload: dict[str, np.ndarray | pa.Array | pa.ChunkedArray],
     ) -> None:
         """Accept one loaded source using the event payload implementation."""
         if not isinstance(payload, dict):
@@ -434,40 +539,9 @@ class Loader(ABC, Generic[PayloadT]):
         else:
             self._events.extend(new_data)
 
-    def load(self, *sources: Path | str) -> Self:
-        """Load one or more source files.
-
-        Events from all sources are aggregated into the EventData.
-        Metadata for each source is recorded separately.
-
-        Args:
-            *sources: Paths to source files.
-
-        Returns:
-            Self, for method chaining.
-
-        Raises:
-            FileNotFoundError: If any source doesn't exist.
-            ValueError: If any source is invalid.
-        """
-        for source in sources:
-            path = Path(source)
-
-            result = self._load_source(path)
-            if isinstance(result, tuple) and len(result) == 2:
-                source_meta, payload = result
-            else:
-                source_meta, payload = {}, result
-            source_meta["path"] = str(path)
-            source_meta["loaded_at"] = datetime.now(timezone.utc).isoformat()
-            self._accept_source(path, source_meta, payload)
-
-        return self
-
     def clear(self) -> None:
         """Clear all loaded sources and events."""
-        self._sources.clear()
-        self._source_metadata.clear()
+        super().clear()
         self._events = self._event_data_class.empty(self._unit, self._number_type)
 
     # endregion
@@ -705,32 +779,6 @@ class Loader(ABC, Generic[PayloadT]):
 
     # endregion
 
-    # region Convenience Constructors
-
-    @classmethod
-    def from_file(cls, *paths: Path | str, **kwargs: Any) -> Self:
-        """Load one or more files and return the loader (convenience constructor).
-
-        This combines instantiation and loading into a single call.
-
-        Args:
-            *paths: Paths to source files.
-            **kwargs: Additional keyword arguments passed to ``__init__``.
-
-        Returns:
-            A new Loader instance with the files already loaded.
-
-        Examples:
-            >>> loader = Ms3Loader.from_file("notes.tsv")
-            >>> len(loader.events)
-            42
-        """
-        loader = cls(**kwargs)
-        loader.load(*paths)
-        return loader
-
-    # endregion
-
     # region HTML Representation
 
     def _repr_html_(self) -> str:
@@ -785,9 +833,9 @@ class Loader(ABC, Generic[PayloadT]):
         a ``diagram`` method, ``diagram()``.
         """
         snippets = ["create_timeline()"]
-        if self.create_group.__func__ is not Loader.create_group:
+        if self.create_group.__func__ is not EventLoader.create_group:
             snippets.append("create_group()")
-        if self.create_bundle.__func__ is not Loader.create_bundle:
+        if self.create_bundle.__func__ is not EventLoader.create_bundle:
             snippets.append("create_bundle()")
         snippets.append("get_events(...)")
         if hasattr(type(self), "diagram"):
@@ -910,7 +958,6 @@ class ManifestLoader(Loader[ManifestData]):
     def __init__(self) -> None:
         """Initialize the ManifestLoader."""
         super().__init__()
-        self._sources: list[Path] = []
         self._manifests: list[ManifestData] = []
         self._logger = module_logger.getChild(self.__class__.__name__)
 
@@ -968,29 +1015,10 @@ class ManifestLoader(Loader[ManifestData]):
 
     # endregion
 
-    # region Loading
-
-    def load(self, *sources: Path | str) -> Self:
-        """Load one or more source files.
-
-        Args:
-            *sources: Paths to source files.
-
-        Returns:
-            Self, for method chaining.
-
-        Raises:
-            FileNotFoundError: If any source doesn't exist.
-            ValueError: If any source is invalid.
-        """
-        return Loader.load(self, *sources)
-
     def clear(self) -> None:
         """Clear all loaded sources and manifests."""
-        self._sources.clear()
+        super().clear()
         self._manifests.clear()
-
-    # endregion
 
     # region Timeline Creation
 
@@ -1035,30 +1063,6 @@ class ManifestLoader(Loader[ManifestData]):
             List of `Timeline` objects.
         """
         return [self.create_timeline()]
-
-    # endregion
-
-    # region Convenience Constructors
-
-    @classmethod
-    def from_file(cls, *paths: Path | str, **kwargs: Any) -> Self:
-        """Load one or more files and return the loader (convenience constructor).
-
-        Args:
-            *paths: Paths to source files.
-            **kwargs: Additional keyword arguments passed to ``__init__``.
-
-        Returns:
-            A new ManifestLoader instance with the files already loaded.
-
-        Examples:
-            >>> loader = AudioLoader.from_file("song.wav")
-            >>> loader.duration_seconds
-            180.0
-        """
-        loader = cls(**kwargs)
-        loader.load(*paths)
-        return loader
 
     # endregion
 
@@ -1142,8 +1146,6 @@ class AlignmentLoader(Loader["AlignmentStore"]):
     def __init__(self) -> None:
         """Initialize the AlignmentLoader."""
         super().__init__()
-        self._sources: list[Path] = []
-        self._source_metadata: list[dict[str, Any]] = []
         self._store: AlignmentStore | None = None
         self._logger = module_logger.getChild(self.__class__.__name__)
 
@@ -1207,33 +1209,10 @@ class AlignmentLoader(Loader["AlignmentStore"]):
 
     # endregion
 
-    # region Loading
-
-    def load(self, *sources: Path | str) -> Self:
-        """Load one or more source files.
-
-        For multiple sources, stores are merged (events concatenated,
-        C-maps and matches aggregated).
-
-        Args:
-            *sources: Paths to source files.
-
-        Returns:
-            Self, for method chaining.
-
-        Raises:
-            FileNotFoundError: If any source doesn't exist.
-            ValueError: If any source is invalid.
-        """
-        return Loader.load(self, *sources)
-
     def clear(self) -> None:
         """Clear all loaded sources and store."""
-        self._sources.clear()
-        self._source_metadata.clear()
+        super().clear()
         self._store = None
-
-    # endregion
 
     # region Timeline & Bundle Creation
 
@@ -1303,25 +1282,6 @@ class AlignmentLoader(Loader["AlignmentStore"]):
         raise NotImplementedError(
             f"{self.__class__.__name__} does not implement create_bundle()."
         )
-
-    # endregion
-
-    # region Convenience Constructors
-
-    @classmethod
-    def from_file(cls, *paths: Path | str, **kwargs: Any) -> Self:
-        """Load one or more files and return the loader (convenience constructor).
-
-        Args:
-            *paths: Paths to source files.
-            **kwargs: Additional keyword arguments passed to ``__init__``.
-
-        Returns:
-            A new AlignmentLoader instance with the files already loaded.
-        """
-        loader = cls(**kwargs)
-        loader.load(*paths)
-        return loader
 
     # endregion
 

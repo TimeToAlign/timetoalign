@@ -229,7 +229,7 @@ class TestMatchfileLoaderSingle:
     def test_perf_timeline_uid(self, p01_loader: MatchfileLoader):
         """Performance timeline uses a role/source/type ID."""
         perf_tl = p01_loader.create_timeline("perf:1")
-        assert perf_tl.id == "perf:Chopin_op10_no3_p01:cpt1"
+        assert perf_tl.id == "perf:Chopin_op10_no3_p01:dlt1"
         assert perf_tl.name == "Chopin_op10_no3_p01"
 
     def test_perf_timeline_note_count(self, p01_loader: MatchfileLoader):
@@ -294,7 +294,7 @@ class TestMatchfileLoaderSingle:
     def test_claims_reference_correct_timelines(self, p01_loader: MatchfileLoader):
         """All claims connect score and p01 performance timelines."""
         score_id = "score:clt1"
-        perf_id = "perf:Chopin_op10_no3_p01:cpt1"
+        perf_id = "perf:Chopin_op10_no3_p01:dlt1"
         for claim in p01_loader._claims:
             assert claim.timeline_a_id == score_id
             assert claim.timeline_b_id == perf_id
@@ -372,12 +372,12 @@ class TestMatchfileLoaderCreateTimeline:
     def test_perf_numeric_role(self, p01_loader: MatchfileLoader):
         """'perf:1' returns first performance timeline."""
         tl = p01_loader.create_timeline("perf:1")
-        assert tl.id == "perf:Chopin_op10_no3_p01:cpt1"
+        assert tl.id == "perf:Chopin_op10_no3_p01:dlt1"
 
     def test_perf_uid_lookup(self, p01_loader: MatchfileLoader):
         """Full uid lookup works."""
-        tl = p01_loader.create_timeline("perf:Chopin_op10_no3_p01:cpt1")
-        assert tl.id == "perf:Chopin_op10_no3_p01:cpt1"
+        tl = p01_loader.create_timeline("perf:Chopin_op10_no3_p01:dlt1")
+        assert tl.id == "perf:Chopin_op10_no3_p01:dlt1"
 
     def test_score_uid_lookup(self, p01_loader: MatchfileLoader):
         """Score timeline accessible by full uid."""
@@ -929,7 +929,7 @@ class TestPerPerformerDeletionCounts:
         p08_claims = [
             c
             for c in all_loader._claims
-            if c.timeline_b_id == "perf:Chopin_op10_no3_p08:cpt1"
+            if c.timeline_b_id == "perf:Chopin_op10_no3_p08:dlt1"
         ]
         nomatch_p08 = [c for c in p08_claims if not c.is_synchronous]
         assert len(nomatch_p08) == 20
@@ -939,7 +939,7 @@ class TestPerPerformerDeletionCounts:
         p12_claims = [
             c
             for c in all_loader._claims
-            if c.timeline_b_id == "perf:Chopin_op10_no3_p12:cpt1"
+            if c.timeline_b_id == "perf:Chopin_op10_no3_p12:dlt1"
         ]
         nomatch_p12 = [c for c in p12_claims if not c.is_synchronous]
         assert len(nomatch_p12) == 1
@@ -958,7 +958,7 @@ class TestMatchfileLoaderPerfPNNShorthand:
     def test_perf_p01_shorthand(self, p01_loader: MatchfileLoader):
         """'perf:p01' resolves to the first performance timeline."""
         tl = p01_loader.create_timeline("perf:p01")
-        assert tl.id == "perf:Chopin_op10_no3_p01:cpt1"
+        assert tl.id == "perf:Chopin_op10_no3_p01:dlt1"
 
     def test_perf_p_shorthands_all_22(self, all_loader: MatchfileLoader):
         """'perf:p01' through 'perf:p22' all resolve for the 22-file set."""

@@ -1,8 +1,8 @@
 # Loader tests
 
 This directory tests the loader package end-to-end, covering all formats
-(``tabular/``, ``score/``, ``midi/``, ``graphical/``, ``format/``,
-``physical/``, ``paths/``), the ``EventStore`` and ``EventData`` machinery,
+(``tabular/``, ``score/``, ``midi/``, ``graphical/``, ``format/``, and
+``physical/``), the ``EventStore`` and ``EventData`` machinery,
 and the shared loader infrastructure (base classes, matchfiles, schemas,
 bundles, error handling).
 
@@ -54,7 +54,7 @@ or NOMATCH count.
 
 Timeline identity assertions use the library's type-based grammar rather than
 source labels. Matchfile score/performance timelines are stored as
-``score:clt1`` and ``perf:<source-stem>:cpt1``; Performance Precision uses
+``score:clt1`` and ``perf:<source-stem>:dlt1``; Performance Precision uses
 ``score:clt1`` and ``perf:<performer-key>:cpt1``. TiLiA timelines are numbered
 ``cpt1``, ``cpt2``, ... in source order. Source filenames, performer keys, and
 TiLiA IDs/titles remain human-readable metadata and lookup inputs, so changing
@@ -626,6 +626,9 @@ shape), and caches it.  Tested invariants:
   default `specific_pitch` struct;
 - a declared affordance is surfaced by `get_field(<ScalarClass>)`,
   `has_field`, `get_fields_satisfying(PitchLike)`, and `get_pitch_field`;
+- the two number-only views are interchangeable at lookup time: every raw
+  MIDI-number affordance answers both `get_field(EnharmonicPitch)` and
+  `get_field(MidiPitch)` from the same atomic column;
 - the raw column is left untouched (still queryable as a plain int).
 
 **Per-source default pitch type (zero-tolerance affordance pins).**
@@ -633,7 +636,7 @@ shape), and caches it.  Tested invariants:
 
 | Producer | `get_pitch_field()` type | Also afforded on request | NOT afforded |
 |----------|--------------------------|--------------------------|--------------|
-| `NoteEventData` (ms3 / music21 / partitura) | `SpecificPitchField` | `EnharmonicPitch` from raw `midi` | a *default* `EnharmonicPitch` struct (represent-once) |
+| `NoteEventData` (ms3 / music21 / partitura) | `SpecificPitchField` | `EnharmonicPitch` and `MidiPitch` from raw `midi` | a *default* `EnharmonicPitch` struct (represent-once) |
 | `MidiEventData` / `ScoreMidiEventData` | `EnharmonicPitchField` | `MidiPitch` display view; `EnharmonicPitchClass` | `SpecificPitch` (inference) |
 | Parangonada score / perf timelines | `EnharmonicPitchField` | `MidiPitch` | `SpecificPitch` |
 | `PerformancePrecisionLoader` score timeline | `EnharmonicPitchField` | `MidiPitch` | `SpecificPitch` |
@@ -645,11 +648,12 @@ semantic pitch field exists (`specific_pitch`, a `SpecificPitchField`);
 `midi_pitch` struct column.  The MIDI number lives only as the raw `midi`
 int (no `field_type` metadata).
 
-**Scalar↔EventData contract (MIDI).** `MidiEvent.pitch` is annotated
-`EnharmonicPitch | None`; the produced `MidiEventData` affords exactly
-that field over its `pitch` column, so `get_field(EnharmonicPitch)[i] ==
-EnharmonicPitch(midi_number=<pitch[i]>)` for note rows (and the field is
-absent / null for Control-Change rows whose `pitch` is null).
+**Scalar↔EventData contract (MIDI).** Every pitch-bearing loader affords both
+number-only views over its one raw MIDI-number source. Thus
+`get_field(EnharmonicPitch)` and `get_field(MidiPitch)` produce identical MIDI
+numbers for note rows (and nulls for control rows), while number-only sources
+still refuse `SpecificPitch`. The Vienna Chopin notes TSV pins 498 rows and
+first-note MIDI number 59 for both views.
 
 **On-request EP from a SP field (both routes).** On `NoteEventData`:
 

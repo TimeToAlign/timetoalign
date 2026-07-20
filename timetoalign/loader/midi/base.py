@@ -6,7 +6,7 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING, ClassVar, cast
 
 from timetoalign.core import TimeUnit
-from timetoalign.loader import Loader
+from timetoalign.loader import EventLoader
 
 from .events import MidiEventData
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from timetoalign.loader.midi.store import MidiStore
 
 
-class MidiLoader(Loader):
+class MidiLoader(EventLoader):
     """Abstract base class for MIDI loaders.
 
     Subclasses must implement:

@@ -53,7 +53,7 @@ import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader.base import Loader, LoadSourceResult
+from timetoalign.loader.base import EventLoader, LoadSourceResult
 from timetoalign.storage.events import EventData
 from timetoalign.storage.store import DictStore
 
@@ -298,7 +298,7 @@ def _resolve_lookups(
 # region JsonLoader
 
 
-class JsonLoader(Loader):
+class JsonLoader(EventLoader):
     """Configurable JSON normaliser producing flat ``pa.Table`` objects.
 
     ``JsonLoader`` parses one or more JSON files and normalises their

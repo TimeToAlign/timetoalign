@@ -51,7 +51,7 @@ from timetoalign.core.fields import (
     metadata_blob_from_dict,
     parse_metadata_blob,
 )
-from timetoalign.loader.base import Loader
+from timetoalign.loader.base import EventLoader
 from timetoalign.storage.parsing import CoordinateParser
 from timetoalign.storage.schema import (
     ComputedField,
@@ -108,7 +108,7 @@ def _merge_field_type_metadata(pa_field: pa.Field, field_type: str) -> pa.Field:
 # region TabularLoader
 
 
-class TabularLoader(Loader):
+class TabularLoader(EventLoader):
     """Vectorized base class for loading tabular data with column/field specs.
 
     TabularLoader provides a ZERO ROW ITERATION framework for loading

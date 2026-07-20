@@ -565,7 +565,8 @@ class TimelineGroup:
 
         Collects events from all member timelines (or a specific one) and
         concatenates their Arrow tables into a single EventData. Each row includes a
-        ``timeline_id`` field identifying the source timeline.
+        ``timeline_id`` field identifying the source timeline. A member-provided
+        ``timeline_id`` column is discarded because group membership is authoritative.
 
         Args:
             timeline_id: If provided, only return events from this timeline.
@@ -606,9 +607,26 @@ class TimelineGroup:
             if len(events) == 0:
                 continue
             source_ids = pa.array([tl_id] * len(events), type=pa.string())
-            tables.append(events.table.append_column("timeline_id", source_ids))
+            member_table = events.table
+            if "timeline_id" in member_table.column_names:
+                member_table = member_table.drop_columns(["timeline_id"])
+            tables.append(member_table.append_column("timeline_id", source_ids))
 
         if tables:
+            column_types: dict[str, pa.DataType] = {}
+            for table in tables:
+                for schema_field in table.schema:
+                    previous = column_types.get(schema_field.name)
+                    if previous is None or pa.types.is_null(previous):
+                        column_types[schema_field.name] = schema_field.type
+                        continue
+                    if pa.types.is_null(schema_field.type):
+                        continue
+                    if previous != schema_field.type:
+                        raise ValueError(
+                            f"Conflicting Arrow types for column {schema_field.name!r}: "
+                            f"{previous} and {schema_field.type}."
+                        )
             table = pa.concat_tables(tables, promote_options="permissive")
             return EventData(table, result_unit, result_number_type)
 

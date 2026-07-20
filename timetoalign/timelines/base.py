@@ -141,7 +141,14 @@ class Timeline:
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Register a timeline subclass under its serialized class tag."""
         super().__init_subclass__(**kwargs)
-        Timeline._registry[cls.__name__] = cls
+        tag = cls.__name__
+        registered = Timeline._registry.get(tag)
+        if registered is not None and registered is not cls:
+            raise ValueError(
+                f"Timeline tag {tag!r} is already registered to {registered!r}; "
+                f"cannot register {cls!r}."
+            )
+        Timeline._registry[tag] = cls
 
     # endregion
 

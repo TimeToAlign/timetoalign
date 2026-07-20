@@ -53,7 +53,7 @@ import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader.base import Loader, LoadSourceResult
+from timetoalign.loader.base import EventLoader, LoadSourceResult
 from timetoalign.storage.events import EventData
 from timetoalign.storage.store import DictStore
 
@@ -286,7 +286,7 @@ def _detect_principal_tags(root: ET.Element, min_count: int = 2) -> list[str]:
 # region XmlLoader
 
 
-class XmlLoader(Loader):
+class XmlLoader(EventLoader):
     """Configurable XML normaliser producing flat ``pa.Table`` objects.
 
     ``XmlLoader`` parses one or more XML files and normalises their

@@ -15,8 +15,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from typing_extensions import Self
-
 from timetoalign.loader.base import Loader
 
 if TYPE_CHECKING:
@@ -92,43 +90,40 @@ class IIIFManifestLoader(Loader[IIIFManifestInfo]):
         self._logger = module_logger.getChild("IIIFManifestLoader")
 
     def _load_source(self, source: Path) -> IIIFManifestInfo:
-        """Reject the event-oriented root lifecycle for IIIF manifests."""
-        raise NotImplementedError(
-            "IIIFManifestLoader uses its manifest-specific load() implementation."
-        )
-
-    # region Loading
-
-    def load(self, path: Path | str) -> Self:
-        """Load and parse an IIIF manifest file.
+        """Load and parse one IIIF manifest file.
 
         Args:
-            path: Path to the IIIF manifest JSON file.
+            source: Path to the IIIF manifest JSON file.
 
         Returns:
-            Self, for method chaining.
+            Parsed IIIF manifest information.
 
         Raises:
             FileNotFoundError: If the manifest file doesn't exist.
             ValueError: If the manifest is invalid or has no canvases.
             json.JSONDecodeError: If the file is not valid JSON.
         """
-        path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(f"Manifest file not found: {path}")
+        if not source.exists():
+            raise FileNotFoundError(f"Manifest file not found: {source}")
 
-        with open(path, encoding="utf-8") as f:
+        with open(source, encoding="utf-8") as f:
             manifest_data = json.load(f)
+        return self._parse_manifest(manifest_data)
 
-        self._manifest_info = self._parse_manifest(manifest_data)
+    def _accept_source(
+        self,
+        path: Path,
+        source_meta: dict[str, Any],
+        payload: IIIFManifestInfo,
+    ) -> None:
+        """Retain parsed manifest information from the shared lifecycle."""
+        super()._accept_source(path, source_meta, payload)
+        self._manifest_info = payload
         self._source_path = path
-
         self._logger.debug(
             f"Loaded manifest from {path}: "
             f"{len(self._manifest_info.canvases)} canvas(es)"
         )
-
-        return self
 
     def _parse_manifest(self, data: dict[str, Any]) -> IIIFManifestInfo:
         """Parse manifest data into structured info.
