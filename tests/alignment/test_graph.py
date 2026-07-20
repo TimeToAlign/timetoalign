@@ -17,6 +17,7 @@ from timetoalign.alignment import (
     TimelineGroup,
 )
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
+from timetoalign.core import Coordinate
 from timetoalign.core.enums import AgentType, Domain, TimeUnit
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
@@ -165,16 +166,25 @@ class TestMatchStamp:
         """Create an empty MatchStamp."""
         stamp = MatchStamp()
         assert stamp.n_timelines == 0
-        assert stamp.timeline_ids == []
+        assert stamp.present_timelines == []
 
-    def test_get_coordinate(self) -> None:
-        """Get coordinate for specific timeline."""
+    def test_get(self) -> None:
+        """Get a raw coordinate for a specific timeline."""
         stamp = MatchStamp(
             coordinates={"tl_a": 100.0, "tl_b": 50.0},
         )
-        assert stamp.get_coordinate("tl_a") == 100.0
-        assert stamp.get_coordinate("tl_b") == 50.0
-        assert stamp.get_coordinate("tl_c") is None
+        assert stamp.get("tl_a") == 100.0
+        assert stamp.get("tl_b") == 50.0
+        assert stamp.get("tl_c") is None
+
+    def test_get_coordinate(self) -> None:
+        """Get an exact Coordinate carrying the timeline unit."""
+        stamp = MatchStamp(
+            coordinates={"tl_a": 100.0},
+            units={"tl_a": "seconds"},
+        )
+
+        assert stamp.get_coordinate("tl_a") == Coordinate(100.0, TimeUnit.seconds)
 
     def test_has_timeline(self) -> None:
         """Check if timeline is in stamp."""
@@ -184,12 +194,12 @@ class TestMatchStamp:
         assert stamp.has_timeline("tl_a") is True
         assert stamp.has_timeline("tl_c") is False
 
-    def test_timeline_ids(self) -> None:
+    def test_present_timelines(self) -> None:
         """Get list of timeline IDs."""
         stamp = MatchStamp(
             coordinates={"tl_a": 100.0, "tl_b": 50.0, "tl_c": 25.0},
         )
-        assert set(stamp.timeline_ids) == {"tl_a", "tl_b", "tl_c"}
+        assert set(stamp.present_timelines) == {"tl_a", "tl_b", "tl_c"}
 
     def test_filter_by_timelines_include(self) -> None:
         """Filter stamp to include only specific timelines."""
@@ -223,7 +233,7 @@ class TestMatchStamp:
             anchor_edges=[("tl_a", "tl_b")],
             inferred_edges=[("tl_b", "tl_c")],
         )
-        data = stamp.to_dict()
+        data = stamp.to_dict(format="graph")
         restored = MatchStamp.from_dict(data)
 
         assert restored.coordinates == stamp.coordinates
@@ -341,8 +351,8 @@ class TestMatchGraphStamps:
 
         assert len(stamps) == 1
         stamp = stamps[0]
-        assert stamp.get_coordinate("tl_a") == 100.0
-        assert stamp.get_coordinate("tl_b") == 50.0
+        assert stamp.get("tl_a") == 100.0
+        assert stamp.get("tl_b") == 50.0
         assert len(stamp.anchor_edges) == 1
 
     def test_interval_claim_yields_two_stamps(
@@ -350,18 +360,18 @@ class TestMatchGraphStamps:
     ) -> None:
         """Interval claim yields two MatchStamps."""
         graph = MatchGraph([simple_interval_claim])
-        stamps = sorted(graph.get_stamps(), key=lambda s: s.get_coordinate("tl_a"))
+        stamps = sorted(graph.get_stamps(), key=lambda s: s.get("tl_a"))
 
         assert len(stamps) == 2
         start_stamp, end_stamp = stamps
 
         # Start stamp
-        assert start_stamp.get_coordinate("tl_a") == 0.0
-        assert start_stamp.get_coordinate("tl_b") == 0.0
+        assert start_stamp.get("tl_a") == 0.0
+        assert start_stamp.get("tl_b") == 0.0
 
         # End stamp
-        assert end_stamp.get_coordinate("tl_a") == 100.0
-        assert end_stamp.get_coordinate("tl_b") == 50.0
+        assert end_stamp.get("tl_a") == 100.0
+        assert end_stamp.get("tl_b") == 50.0
 
     def test_get_stamps_three_timeline_chain(
         self, three_timeline_claims: list[MatchClaim]
@@ -474,7 +484,7 @@ class TestMatchGraphGroupExtension:
         stamps = extended.get_stamps()
         assert len(stamps) == 1
         stamp = stamps[0]
-        assert stamp.get_coordinate("audio") == pytest.approx(50.0)
+        assert stamp.get("audio") == pytest.approx(50.0)
 
     def test_extend_marks_inferred_edges(
         self,
@@ -783,9 +793,7 @@ class TestMatchGraphThoresenIntegration:
         # Stamps are one per connected component; find segment-1's start (0,0)
         # and end (967,866) boundary stamps.
         stamps = graph.get_stamps()
-        coord_pairs = {
-            (s.get_coordinate("dgt1"), s.get_coordinate("dgt2")) for s in stamps
-        }
+        coord_pairs = {(s.get("dgt1"), s.get("dgt2")) for s in stamps}
         assert (0.0, 0.0) in coord_pairs
         assert (967.0, 866.0) in coord_pairs
 
@@ -882,8 +890,8 @@ class TestMatchGraphGetStamps:
 
         assert isinstance(stamps, list)
         assert len(stamps) == 1
-        assert stamps[0].get_coordinate("tl_a") == 100.0
-        assert stamps[0].get_coordinate("tl_b") == 50.0
+        assert stamps[0].get("tl_a") == 100.0
+        assert stamps[0].get("tl_b") == 50.0
 
     def test_get_stamps_one_per_component(self) -> None:
         """get_stamps() returns one MatchStamp per connected component."""
@@ -1064,11 +1072,11 @@ class TestMatchGraphExtendToGroupsImplicitClaims:
         # Verify coordinates via linear interpolation
         # tl1: 1000px, tl4: 500px, tl5: 200px (all linear from 0)
         # tl1@500 -> tl4: 500 * (500/1000) = 250
-        assert stamp.get_coordinate("tl4") == pytest.approx(250.0)
+        assert stamp.get("tl4") == pytest.approx(250.0)
         # tl1@500 -> tl5: 500 * (200/1000) = 100
-        assert stamp.get_coordinate("tl5") == pytest.approx(100.0)
+        assert stamp.get("tl5") == pytest.approx(100.0)
         # tl2@400 -> tl6: 400 * (400/800) = 200
-        assert stamp.get_coordinate("tl6") == pytest.approx(200.0)
+        assert stamp.get("tl6") == pytest.approx(200.0)
 
         # Count implicit claims
         implicit = [c for c in extended.claims if not c.is_explicit]

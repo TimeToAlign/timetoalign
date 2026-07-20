@@ -244,13 +244,13 @@ print(interval)            # Two-column (start, end) display with '-' for out-of
 
 ### `test_stamp_interface.py` - Stamp Family Contract
 
-**Purpose:** Pins the shared `Stamp` contract using `TimeStamp` as its first
-conforming implementation. The exact coordinate values make the `Coordinate`
-return type and its attached `TimeUnit` observable, while the subscript cases
-pin timeline-ID lookup, unit-name fallback, and unknown-key errors. The tests
-also pin `conversion_maps` gating so disabled and allowed-set timestamps cannot
-silently resolve units outside their declared set, and verify the exact
-`to_dict()` materialized shape.
+**Purpose:** Pins the shared `Stamp` contract across `TimeStamp` and `MatchStamp`.
+The exact coordinate values distinguish raw `get()` lookup from the
+`Coordinate`-returning `get_coordinate()` API and make attached `TimeUnit`
+values observable. The cases pin `present_timelines`, timeline-ID-first
+subscript lookup with unit-name fallback, conversion-map gating, every
+`MatchStamp.to_dict()` format, and frozen `MatchStamp` fields. Exact dictionary
+shapes ensure neither grouped rendering nor legacy graph serialization drifts.
 
 ---
 

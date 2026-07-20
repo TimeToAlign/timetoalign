@@ -1,9 +1,13 @@
-"""Tests for the shared Stamp contract as implemented by TimeStamp."""
+"""Tests for the shared Stamp contract implemented by TimeStamp and MatchStamp."""
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
+from timetoalign.alignment import AlignmentBundle
+from timetoalign.alignment.graph import MatchStamp
 from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.core.timestamp import Stamp, TimeStamp
 from timetoalign.maps import TableMap
@@ -32,6 +36,18 @@ def _timeline_with_maps() -> Timeline:
         )
     )
     return timeline
+
+
+def _matchstamp_with_maps(*, conversion_maps: bool = True) -> MatchStamp:
+    """Build a bundle-backed MatchStamp with exact-value conversion maps."""
+    timeline = _timeline_with_maps()
+    bundle = AlignmentBundle(id="stamp-contract")
+    bundle.add_timeline(timeline, uid="clock", as_group="clock-group")
+    return bundle.get_matchstamp_at(
+        25.0,
+        "clock",
+        conversion_maps=conversion_maps,
+    )
 
 
 def test_timestamp_implements_stamp_contract() -> None:
@@ -100,3 +116,60 @@ def test_to_dict_shape_is_stable() -> None:
         "clock": 25.0,
         "milliseconds": 25000.0,
     }
+
+
+def test_matchstamp_implements_stamp_contract() -> None:
+    """MatchStamp exposes the shared members with exact values and types."""
+    stamp = _matchstamp_with_maps()
+
+    assert isinstance(stamp, Stamp)
+    assert stamp.axis == 25.0
+    assert stamp.source is not None
+    assert stamp.source_id == "clock"
+    assert stamp.present_timelines == ["clock"]
+    assert stamp.is_interpolated is True
+    assert stamp.get("clock") == 25.0
+    assert stamp.get_unit(TimeUnit.milliseconds) == 25000.0
+    assert stamp._unit_for("clock") == TimeUnit.seconds
+
+
+def test_matchstamp_coordinate_and_subscript_contract() -> None:
+    """MatchStamp retains units and supports timeline then unit subscripts."""
+    stamp = _matchstamp_with_maps()
+
+    assert stamp.get_coordinate("clock") == Coordinate(25.0, TimeUnit.seconds)
+    assert stamp["clock"] == 25.0
+    assert stamp["milliseconds"] == 25000.0
+    with pytest.raises(KeyError):
+        _ = stamp["not-a-timeline-or-unit"]
+
+
+def test_matchstamp_to_dict_formats_are_exact() -> None:
+    """MatchStamp materializes every supported format exactly."""
+    stamp = _matchstamp_with_maps()
+
+    assert stamp.to_dict(format="flat") == {"clock (seconds)": 25.0}
+    assert stamp.to_dict(format="prefix") == {"clock-group/clock (seconds)": 25.0}
+    assert stamp.to_dict(format="nested") == {"clock-group": {"clock (seconds)": 25.0}}
+    assert stamp.to_dict(format="graph") == {
+        "coordinates": {"clock": 25.0},
+        "anchor_edges": [],
+        "inferred_edges": [],
+    }
+
+
+def test_matchstamp_is_frozen() -> None:
+    """MatchStamp fields cannot be rebound after construction."""
+    stamp = _matchstamp_with_maps()
+
+    with pytest.raises(FrozenInstanceError):
+        stamp.axis = 50.0  # type: ignore[misc]
+
+
+def test_matchstamp_conversion_maps_false_disables_unit_subscript() -> None:
+    """MatchStamp threads disabled conversion maps to group machinery."""
+    stamp = _matchstamp_with_maps(conversion_maps=False)
+
+    assert stamp.get_unit(TimeUnit.milliseconds) is None
+    with pytest.raises(KeyError):
+        _ = stamp["milliseconds"]

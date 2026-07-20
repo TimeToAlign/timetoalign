@@ -36,6 +36,30 @@ if TYPE_CHECKING:
 module_logger = logging.getLogger(__name__)
 
 
+class _RawStampExportView:
+    """Present raw stamp coordinates to storage writers."""
+
+    def __init__(self, stamp: MatchStamp) -> None:
+        self._stamp = stamp
+
+    def get_coordinate(self, timeline_id: str) -> float | None:
+        """Return the raw coordinate expected by storage writers."""
+        return self._stamp.get(timeline_id)
+
+
+class _RawMatchLineExportView:
+    """Present a MatchLine with raw-coordinate stamp views."""
+
+    def __init__(self, match_line: MatchLine) -> None:
+        self.source_timeline_id = match_line.source_timeline_id
+        self.stamps = [_RawStampExportView(stamp) for stamp in match_line.stamps]
+        self._target_timeline_ids = match_line.target_timeline_ids()
+
+    def target_timeline_ids(self) -> set[str]:
+        """Return target timeline IDs from the source MatchLine."""
+        return self._target_timeline_ids
+
+
 @dataclass
 class MatchLine:
     """Ordered sequence of MatchStamps for a source timeline.
@@ -87,7 +111,7 @@ class MatchLine:
             "stamps",
             sorted(
                 valid_stamps,
-                key=lambda s: s.get_coordinate(self.source_timeline_id),
+                key=lambda s: s.get(self.source_timeline_id),
             ),
         )
 
@@ -99,7 +123,7 @@ class MatchLine:
     @property
     def source_coordinates(self) -> list[float]:
         """Sorted list of coordinates on the source timeline."""
-        return [s.get_coordinate(self.source_timeline_id) for s in self.stamps]
+        return [s.get(self.source_timeline_id) for s in self.stamps]
 
     def target_timeline_ids(self) -> set[str]:
         """All target timelines appearing in at least 2 stamps.
@@ -113,7 +137,7 @@ class MatchLine:
         """
         counts: dict[str, int] = {}
         for stamp in self.stamps:
-            for tl_id in stamp.timeline_ids:
+            for tl_id in stamp.present_timelines:
                 if tl_id == self.source_timeline_id:
                     continue
                 counts[tl_id] = counts.get(tl_id, 0) + 1
@@ -146,10 +170,10 @@ class MatchLine:
             )
         pairs: list[tuple[float, float]] = []
         for stamp in self.stamps:
-            target_coord = stamp.get_coordinate(target_timeline_id)
+            target_coord = stamp.get(target_timeline_id)
             if target_coord is None:
                 continue
-            source_coord = stamp.get_coordinate(self.source_timeline_id)
+            source_coord = stamp.get(self.source_timeline_id)
             pairs.append((source_coord, target_coord))
         return pairs
 
@@ -241,7 +265,7 @@ class MatchLine:
         # keep the one with more timelines (richer information).
         seen: dict[float, MatchStamp] = {}
         for stamp in all_stamps:
-            coord = stamp.get_coordinate(source_timeline_id)
+            coord = stamp.get(source_timeline_id)
             if coord is None:
                 continue
             existing = seen.get(coord)
@@ -295,7 +319,7 @@ class MatchLine:
                 f"Currently supported: 'match'."
             )
 
-        return write_match_file(filepath, self, context)
+        return write_match_file(filepath, _RawMatchLineExportView(self), context)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary for storage.
@@ -305,7 +329,7 @@ class MatchLine:
         """
         return {
             "source_timeline_id": self.source_timeline_id,
-            "stamps": [s.to_dict() for s in self.stamps],
+            "stamps": [s.to_dict(format="graph") for s in self.stamps],
         }
 
     @classmethod

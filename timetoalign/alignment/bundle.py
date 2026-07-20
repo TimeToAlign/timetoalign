@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 from timetoalign.core import (
     Coordinate,
@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     import pyarrow as pa
 
     from timetoalign.core.enums import Domain, TimeUnit
+    from timetoalign.core.timestamp import ConversionMapsSpec
     from timetoalign.display.ascii import Diagram
     from timetoalign.maps.base import ConversionMap
     from timetoalign.timelines import Timeline
@@ -142,19 +143,12 @@ class AlignmentBundle:
         The bundle translates between these two namespaces transparently.
 
     Examples:
-        Basic usage with explicit timelines:
-
-            >>> bundle = AlignmentBundle()
-            >>> bundle.add_timeline(score_timeline, uid="score")
-            >>> bundle.add_timeline(audio_timeline, uid="audio", aligned_to="score")
-            >>> bundle.transfer(100.0, "score", "audio")
-            45.5
-
-        Cross-group transfer via MatchClaims:
-
-            >>> bundle.add_match_claims(match_results.match_claims)
-            >>> bundle.transfer(79.0, "clt1", "dpt1")  # score -> audio
-            1234567.0
+        >>> bundle = AlignmentBundle()
+        >>> bundle.add_timeline(score_timeline, uid="score")
+        >>> bundle.add_timeline(audio_timeline, uid="audio", aligned_to="score")
+        >>> stamp = bundle.get_matchstamp_at(100.0, "score")
+        >>> stamp.get("audio")
+        45.5
     """
 
     id: str = field(default="")
@@ -878,7 +872,7 @@ class AlignmentBundle:
         ``MatchLine`` → ``WarpMap``.
 
         WarpMaps are built lazily on first ``transfer()`` or
-        ``get_timestamp_at()`` call, so adding claims is cheap.
+        ``get_matchstamp_at()`` call, so adding claims is cheap.
 
         Args:
             claims: List of MatchClaim objects.  Each synchronous claim
@@ -1128,7 +1122,7 @@ class AlignmentBundle:
         coordinate: CoordinateSpec,
         timeline_id: str | None = None,
         *,
-        conversion_maps: bool = True,
+        conversion_maps: "ConversionMapsSpec" = True,
         timeline_ids: set[str] | None = None,
         id_pattern: str | None = None,
         include_domains: set["Domain"] | None = None,
@@ -1155,8 +1149,7 @@ class AlignmentBundle:
             timeline_id: Bundle UID of the source timeline. Required unless
                 ``coordinate`` is an ``IdCoordinate``, in which case the
                 coordinate's own ``timeline_id`` is used.
-            conversion_maps: Include C-map conversions. Reserved for
-                future use (currently ignored).
+            conversion_maps: C-map conversions available through unit lookup.
             timeline_ids: Only include these timelines in the result.
             id_pattern: Regex filter for timeline IDs in the result.
             include_domains: Only these domains in the result.
@@ -1185,12 +1178,48 @@ class AlignmentBundle:
                 "timeline_id is required unless coordinate is an IdCoordinate"
             )
 
-        if timeline_id not in self.timelines:
-            if timeline_id not in self._timeline_id_to_uid:
-                raise KeyError(f"Timeline '{timeline_id}' not in bundle")
+        if (
+            timeline_id not in self.timelines
+            and timeline_id not in self._timeline_id_to_uid
+        ):
+            raise KeyError(f"Timeline '{timeline_id}' not in bundle")
 
-        mg = self._get_or_build_matchgraph(timeline_id, coordinate)
-        stamp = mg.get_matchstamp()
+        bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
+        actual_timeline_id = self._uid_to_timeline_id.get(bundle_uid, timeline_id)
+
+        try:
+            mg = self._get_or_build_matchgraph(actual_timeline_id, coordinate)
+        except ValueError as error:
+            if "No synchronous claims touch" not in str(error):
+                raise
+            stamp = self._get_interpolated_matchstamp(
+                coordinate,
+                bundle_uid,
+                actual_timeline_id,
+                timeline_id,
+                conversion_maps,
+            )
+        else:
+            graph_stamp = mg.get_matchstamp()
+            unit_map = self._get_unit_map()
+            units = dict(unit_map)
+            units.update(
+                {
+                    self._uid_to_timeline_id.get(bundle_tl_id, bundle_tl_id): unit
+                    for bundle_tl_id, unit in unit_map.items()
+                }
+            )
+            stamp = MatchStamp(
+                coordinates=dict(graph_stamp.coordinates),
+                anchor_edges=list(graph_stamp.anchor_edges),
+                inferred_edges=list(graph_stamp.inferred_edges),
+                units=units,
+                axis=coordinate,
+                source=self,
+                source_id=timeline_id,
+                is_interpolated=False,
+                conversion_maps=conversion_maps,
+            )
 
         # Apply post-hoc filtering if requested
         has_filter = (
@@ -1206,10 +1235,17 @@ class AlignmentBundle:
                 include_domains=include_domains,
                 include_units=include_units,
             )
+            filter_timelines = dict(self.timelines)
+            filter_timelines.update(
+                {
+                    actual_tl_id: self.timelines[bundle_tl_id]
+                    for bundle_tl_id, actual_tl_id in self._uid_to_timeline_id.items()
+                }
+            )
             filtered_coords = {
                 tl_id: coord
                 for tl_id, coord in stamp.coordinates.items()
-                if filt.matches_timeline(tl_id, timelines=self.timelines)
+                if filt.matches_timeline(tl_id, timelines=filter_timelines)
             }
             remaining = set(filtered_coords.keys())
             stamp = MatchStamp(
@@ -1224,9 +1260,92 @@ class AlignmentBundle:
                     for a, b in stamp.inferred_edges
                     if a in remaining and b in remaining
                 ],
+                units={
+                    tl_id: stamp.units[tl_id]
+                    for tl_id in remaining
+                    if tl_id in stamp.units
+                },
+                axis=stamp.axis,
+                source=stamp.source,
+                source_id=stamp.source_id,
+                is_interpolated=stamp.is_interpolated,
+                conversion_maps=stamp.conversion_maps,
             )
 
         return stamp
+
+    def _get_interpolated_matchstamp(
+        self,
+        coordinate: float,
+        source_bundle_uid: str,
+        source_timeline_id: str,
+        query_timeline_id: str,
+        conversion_maps: "ConversionMapsSpec",
+    ) -> MatchStamp:
+        """Resolve a cross-group stamp through group timestamps and WarpMaps."""
+        source_group_id = self.timeline_to_group.get(source_bundle_uid)
+        if source_group_id is None:
+            coordinates = {source_bundle_uid: coordinate}
+            inferred_edges: list[tuple[str, str]] = []
+        else:
+            source_group = self.groups[source_group_id]
+            grouped_coordinates = self._get_group_timestamp(
+                source_group,
+                coordinate,
+                source_timeline_id,
+                conversion_maps=conversion_maps,
+            )
+            coordinates = {
+                tl_id: value
+                for tl_id, value in grouped_coordinates.items()
+                if value is not None
+            }
+            inferred_edges = []
+
+            for other_group_id, other_group in self.groups.items():
+                if other_group_id == source_group_id:
+                    continue
+                transferred = self._transfer_to_group(
+                    coordinate,
+                    source_timeline_id,
+                    source_group,
+                    other_group,
+                )
+                if transferred is None:
+                    continue
+                target_timeline_id, target_coordinate = transferred
+                target_bundle_uid = self._timeline_id_to_uid.get(
+                    target_timeline_id, target_timeline_id
+                )
+                inferred_edges.append((source_bundle_uid, target_bundle_uid))
+                other_coordinates = self._get_group_timestamp(
+                    other_group,
+                    target_coordinate,
+                    target_timeline_id,
+                    conversion_maps=conversion_maps,
+                )
+                coordinates.update(
+                    {
+                        tl_id: value
+                        for tl_id, value in other_coordinates.items()
+                        if value is not None
+                    }
+                )
+
+        unit_map = self._get_unit_map()
+        return MatchStamp(
+            coordinates=coordinates,
+            anchor_edges=[],
+            inferred_edges=inferred_edges,
+            units={
+                tl_id: unit_map[tl_id] for tl_id in coordinates if tl_id in unit_map
+            },
+            axis=coordinate,
+            source=self,
+            source_id=query_timeline_id,
+            is_interpolated=True,
+            conversion_maps=conversion_maps,
+        )
 
     def get_matchstamps(
         self,
@@ -1453,116 +1572,15 @@ class AlignmentBundle:
 
     # endregion
 
-    # region Grouped Timestamp API
-
-    def get_timestamp_at(
-        self,
-        coordinate: CoordinateSpec,
-        timeline_id: str | None = None,
-        *,
-        format: Literal["prefix", "nested", "flat"] = "prefix",
-    ) -> dict[str, Any]:
-        """Get a cross-group timestamp at a coordinate on a given timeline.
-
-        This is the primary method for cross-domain coordinate transfer.
-        Given a coordinate on one timeline, it returns the corresponding
-        coordinates on ALL connected timelines across ALL groups.
-
-        The method:
-
-        1. Finds the group containing the source timeline.
-        2. Gets the within-group timestamp (via ``group.get_timestamp_at()``).
-        3. For each connected group (via ``MatchLine``/``WarpMap`` from
-           MatchClaims), transfers the coordinate and gets the
-           within-group timestamp.
-        4. Returns all coordinates in the requested format.
-
-        Args:
-            coordinate: The query coordinate on the source timeline. Can be:
-
-                - int/float/Fraction: Raw value, ``timeline_id`` required.
-                - Coordinate: Value with unit, ``timeline_id`` required.
-                - IdCoordinate: Value with unit AND timeline_id
-                  (``timeline_id`` param optional).
-            timeline_id: ID of the source timeline (bundle UID). Required
-                unless ``coordinate`` is an ``IdCoordinate``, in which case
-                the coordinate's own ``timeline_id`` is used.
-            format: Output format:
-                - ``"prefix"`` (default): ``{"group/timeline": coord, ...}``
-                - ``"nested"``: ``{"group": {"timeline": coord, ...}, ...}``
-                - ``"flat"``: ``{"timeline": coord, ...}``
-
-        Returns:
-            Dict of coordinates across all connected groups and timelines.
-            Timelines that cannot be reached return None values.
-
-        Raises:
-            TypeError: If coordinate is not int/float/Fraction/Coordinate/
-                IdCoordinate.
-            ValueError: If timeline_id is None and coordinate is not an
-                IdCoordinate.
-            KeyError: If timeline_id is not in the bundle.
-
-        Examples:
-            >>> ts = bundle.get_timestamp_at(50.0, "clt1_score", format="prefix")
-            >>> ts
-            {'score/clt1_score': 50.0, 'score/dgt1': 45000.0,
-             'normal/dpt1': 23456789, ...}
-
-            >>> ts = bundle.get_timestamp_at(50.0, "clt1_score", format="nested")
-            >>> ts
-            {'score': {'clt1_score': 50.0, 'dgt1': 45000.0},
-             'normal': {'dpt1': 23456789, ...}, ...}
-        """
-        coordinate, timeline_id = _resolve_coordinate_and_timeline(
-            coordinate, timeline_id
-        )
-        if timeline_id is None:
-            raise ValueError(
-                "timeline_id is required unless coordinate is an IdCoordinate"
-            )
-
-        if timeline_id not in self.timelines:
-            raise KeyError(f"Timeline '{timeline_id}' not in bundle")
-
-        # Get the source group
-        source_group_id = self.timeline_to_group.get(timeline_id)
-        if source_group_id is None:
-            # Standalone timeline — return just its coordinate
-            return self._format_timestamp(
-                {timeline_id: {timeline_id: coordinate}}, format
-            )
-
-        source_group = self.groups[source_group_id]
-        actual_tl_id = self._uid_to_timeline_id[timeline_id]
-
-        # Step 1: Get within-group timestamp for the source group
-        result: dict[str, dict[str, float | None]] = {}
-        source_ts = self._get_group_timestamp(source_group, coordinate, actual_tl_id)
-        result[source_group_id] = source_ts
-
-        # Step 2: Transfer to connected groups via WarpMap pipeline
-        for other_group_id, other_group in self.groups.items():
-            if other_group_id == source_group_id:
-                continue
-
-            transferred = self._transfer_to_group(
-                coordinate, actual_tl_id, source_group, other_group
-            )
-            if transferred is not None:
-                target_tl_id, target_coord = transferred
-                other_ts = self._get_group_timestamp(
-                    other_group, target_coord, target_tl_id
-                )
-                result[other_group_id] = other_ts
-
-        return self._format_timestamp(result, format)
+    # region Grouped Timestamp Helpers
 
     def _get_group_timestamp(
         self,
         group: TimelineGroup,
         coordinate: float,
         timeline_id: str,
+        *,
+        conversion_maps: "ConversionMapsSpec" = True,
     ) -> dict[str, float | None]:
         """Get timestamp within a group, mapped to bundle UIDs.
 
@@ -1579,7 +1597,11 @@ class AlignmentBundle:
         result: dict[str, float | None] = {}
 
         try:
-            ts = group.get_timestamp_at(coordinate, timeline_id)
+            ts = group.get_timestamp_at(
+                coordinate,
+                timeline_id,
+                conversion_maps=conversion_maps,
+            )
             for tl_id in group.timeline_ids:
                 bundle_uid = self._timeline_id_to_uid.get(tl_id, tl_id)
                 coord = ts.get(tl_id)
@@ -1750,53 +1772,6 @@ class AlignmentBundle:
                         continue
 
         return None
-
-    def _format_timestamp(
-        self,
-        grouped: dict[str, dict[str, float | None]],
-        fmt: Literal["prefix", "nested", "flat"],
-    ) -> dict[str, Any]:
-        """Format a grouped timestamp dict into the requested output format.
-
-        Keys include the timeline's coordinate unit in parentheses so the
-        output is self-describing (e.g. ``"score/clt1 (quarters)"``).
-
-        Args:
-            grouped: Dict of group_id -> {bundle_uid -> coordinate}.
-            fmt: Output format.
-
-        Returns:
-            Formatted dict.
-        """
-        unit_map = self._get_unit_map()
-
-        def _uid_label(tl_id: str) -> str:
-            unit = unit_map.get(tl_id)
-            return f"{tl_id} ({unit})" if unit else tl_id
-
-        if fmt == "nested":
-            return {
-                group_id: {
-                    _uid_label(tl_id): coord for tl_id, coord in tl_coords.items()
-                }
-                for group_id, tl_coords in grouped.items()
-            }
-
-        if fmt == "prefix":
-            result: dict[str, Any] = {}
-            for group_id, tl_coords in grouped.items():
-                for tl_id, coord in tl_coords.items():
-                    result[f"{group_id}/{_uid_label(tl_id)}"] = coord
-            return result
-
-        if fmt == "flat":
-            result = {}
-            for tl_coords in grouped.values():
-                for tl_id, coord in tl_coords.items():
-                    result[_uid_label(tl_id)] = coord
-            return result
-
-        raise ValueError(f"Unknown format: {fmt!r}. Use 'prefix', 'nested', or 'flat'")
 
     # endregion
 

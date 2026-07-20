@@ -25,15 +25,17 @@ Design:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING, Any, Literal
 
 import networkx as nx
 
 from timetoalign.alignment.claims import AlignmentAnchor, MatchClaim
 from timetoalign.core.enums import Domain, TimeUnit
+from timetoalign.core.timestamp import ConversionMapsSpec, Stamp
 
 if TYPE_CHECKING:
+    from timetoalign.alignment.bundle import AlignmentBundle
     from timetoalign.alignment.groups import TimelineGroup
     from timetoalign.timelines import Timeline
 
@@ -47,8 +49,8 @@ GraphNode = tuple[str, float]
 # region MatchStamp
 
 
-@dataclass
-class MatchStamp:
+@dataclass(frozen=True)
+class MatchStamp(Stamp):
     """A synchronized timestamp across multiple timelines.
 
     A MatchStamp represents a single coordinate (or instant) that has been
@@ -62,6 +64,12 @@ class MatchStamp:
         coordinates: Dict of timeline_id -> coordinate.
         anchor_edges: List of (tl_a, tl_b) pairs that are explicitly anchored.
         inferred_edges: List of (tl_a, tl_b) pairs inferred via groups.
+        units: Coordinate unit name for each timeline.
+        axis: Coordinate used to query the stamp.
+        source: Bundle that produced the stamp.
+        source_id: Timeline ID used for the query.
+        is_interpolated: Whether the stamp used interpolated transfer.
+        conversion_maps: Conversion maps available to unit lookup.
 
     Examples:
         >>> stamp = MatchStamp(
@@ -69,16 +77,22 @@ class MatchStamp:
         ...     anchor_edges=[("score", "audio")],
         ...     inferred_edges=[("audio", "video")],
         ... )
-        >>> stamp.get_coordinate("audio")
+        >>> stamp.get("audio")
         45.5
     """
 
     coordinates: dict[str, float] = field(default_factory=dict)
     anchor_edges: list[tuple[str, str]] = field(default_factory=list)
     inferred_edges: list[tuple[str, str]] = field(default_factory=list)
+    units: dict[str, str] = field(default_factory=dict)
+    axis: float | None = None
+    source: "AlignmentBundle | None" = None
+    source_id: str | None = None
+    is_interpolated: bool = False
+    conversion_maps: ConversionMapsSpec = True
 
     @property
-    def timeline_ids(self) -> list[str]:
+    def present_timelines(self) -> list[str]:
         """List of timeline IDs in this stamp."""
         return list(self.coordinates.keys())
 
@@ -97,16 +111,81 @@ class MatchStamp:
         """Number of inferred (via group) pairs."""
         return len(self.inferred_edges)
 
-    def get_coordinate(self, timeline_id: str) -> float | None:
+    def get(self, timeline_id: str, default: float | None = None) -> float | None:
         """Get coordinate for a specific timeline.
 
         Args:
             timeline_id: The timeline to get coordinate for.
+            default: Value returned when the timeline is absent.
 
         Returns:
-            The coordinate, or None if timeline not in this stamp.
+            The coordinate, or the default if the timeline is absent.
         """
-        return self.coordinates.get(timeline_id)
+        return self.coordinates.get(timeline_id, default)
+
+    def get_unit(self, unit: TimeUnit) -> float | None:
+        """Get the query coordinate converted to a unit.
+
+        Unit conversion is delegated to the source timeline's owning group so
+        the same conversion-map selection rules as ``TimeStamp`` apply.
+
+        Args:
+            unit: The target unit.
+
+        Returns:
+            The converted coordinate, or None when it cannot be resolved.
+        """
+        timestamp = self._source_timestamp()
+        if timestamp is None:
+            return None
+        return timestamp.get_unit(unit)
+
+    def _unit_for(self, timeline_id: str) -> TimeUnit | None:
+        """Get the unit associated with a timeline ID."""
+        unit = self.units.get(timeline_id)
+        if unit is None:
+            return None
+        try:
+            return TimeUnit(unit)
+        except ValueError:
+            return None
+
+    def _source_timestamp(self) -> Any | None:
+        """Resolve the source group's TimeStamp for unit conversion."""
+        if self.source is None or self.source_id is None or self.axis is None:
+            return None
+
+        bundle_uid = self.source._timeline_id_to_uid.get(self.source_id, self.source_id)
+        group_id = self.source.timeline_to_group.get(bundle_uid)
+        if group_id is None:
+            return None
+
+        group = self.source.groups.get(group_id)
+        if group is None:
+            return None
+        actual_timeline_id = self.source._uid_to_timeline_id.get(
+            bundle_uid, self.source_id
+        )
+        try:
+            timestamp = group.get_timestamp_at(
+                self.axis,
+                actual_timeline_id,
+                conversion_maps=self.conversion_maps,
+            )
+            return replace(timestamp, conversion_maps=self.conversion_maps)
+        except (AttributeError, KeyError, TypeError, ValueError):
+            return None
+
+    def _unit_resolution_enabled(self, unit: TimeUnit) -> bool:
+        """Return whether the conversion-map specification permits a unit."""
+        timestamp = self._source_timestamp()
+        if timestamp is None:
+            return False
+        return timestamp._unit_resolution_enabled(unit)
+
+    def _is_timeline_id(self, key: str) -> bool:
+        """Return whether key names a coordinate carried by this stamp."""
+        return key in self.coordinates or key == self.source_id
 
     def has_timeline(self, timeline_id: str) -> bool:
         """Check if timeline is in this stamp."""
@@ -167,15 +246,123 @@ class MatchStamp:
             coordinates=filtered_coords,
             anchor_edges=filtered_anchor_edges,
             inferred_edges=filtered_inferred_edges,
+            units={
+                tl_id: self.units[tl_id] for tl_id in remaining if tl_id in self.units
+            },
+            axis=self.axis,
+            source=self.source,
+            source_id=self.source_id,
+            is_interpolated=self.is_interpolated,
+            conversion_maps=self.conversion_maps,
         )
 
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize to dictionary."""
-        return {
-            "coordinates": self.coordinates,
-            "anchor_edges": self.anchor_edges,
-            "inferred_edges": self.inferred_edges,
-        }
+    def to_dict(
+        self,
+        format: Literal["flat", "prefix", "nested", "graph"] = "flat",
+    ) -> dict[str, Any]:
+        """Materialize the stamp in a flat, grouped, or graph representation.
+
+        Args:
+            format: Output representation. ``"graph"`` preserves the legacy
+                MatchGraph storage shape.
+
+        Returns:
+            The requested dictionary representation.
+
+        Raises:
+            ValueError: If a grouped format is requested without a source
+                bundle, or if the format is unknown.
+        """
+        if format == "graph":
+            return {
+                "coordinates": self.coordinates,
+                "anchor_edges": self.anchor_edges,
+                "inferred_edges": self.inferred_edges,
+            }
+
+        def _bundle_uid(timeline_id: str) -> str:
+            if self.source is None:
+                return timeline_id
+            return self.source._timeline_id_to_uid.get(timeline_id, timeline_id)
+
+        def _uid_label(timeline_id: str) -> str:
+            bundle_uid = _bundle_uid(timeline_id)
+            unit = self.units.get(timeline_id) or self.units.get(bundle_uid)
+            if unit is None and self.source is not None:
+                unit = self.source._get_unit_map().get(bundle_uid)
+            return f"{bundle_uid} ({unit})" if unit else bundle_uid
+
+        if format not in ("flat", "prefix", "nested"):
+            raise ValueError(
+                f"Unknown format: {format!r}. Use 'flat', 'prefix', "
+                "'nested', or 'graph'"
+            )
+        if format in ("prefix", "nested") and self.source is None:
+            raise ValueError(
+                f"MatchStamp.to_dict(format={format!r}) requires a source bundle "
+                "to resolve timeline groups"
+            )
+
+        grouped: dict[str, dict[str, float | None]] = {}
+        for timeline_id, coordinate in self.coordinates.items():
+            bundle_uid = _bundle_uid(timeline_id)
+            if self.source is None:
+                grouped.setdefault(bundle_uid, {})[timeline_id] = coordinate
+                continue
+
+            group_id = self.source.timeline_to_group.get(bundle_uid, bundle_uid)
+            if group_id in grouped:
+                continue
+            group = self.source.groups.get(group_id)
+            if group is None:
+                grouped[group_id] = {bundle_uid: coordinate}
+                continue
+
+            actual_timeline_id = self.source._uid_to_timeline_id.get(
+                bundle_uid, timeline_id
+            )
+            try:
+                timestamp = group.get_timestamp_at(
+                    coordinate,
+                    actual_timeline_id,
+                    conversion_maps=self.conversion_maps,
+                )
+            except (KeyError, TypeError, ValueError):
+                grouped[group_id] = {bundle_uid: coordinate}
+                continue
+
+            grouped[group_id] = {
+                self.source._timeline_id_to_uid.get(
+                    group_tl_id, group_tl_id
+                ): timestamp.get(group_tl_id)
+                for group_tl_id in group.timeline_ids
+                if not self.units
+                or group_tl_id in self.units
+                or self.source._timeline_id_to_uid.get(group_tl_id, group_tl_id)
+                in self.units
+            }
+
+        if format == "flat":
+            return {
+                _uid_label(timeline_id): coordinate
+                for timeline_coordinates in grouped.values()
+                for timeline_id, coordinate in timeline_coordinates.items()
+            }
+
+        if format == "nested":
+            return {
+                group_id: {
+                    _uid_label(timeline_id): coordinate
+                    for timeline_id, coordinate in timeline_coordinates.items()
+                }
+                for group_id, timeline_coordinates in grouped.items()
+            }
+
+        result: dict[str, float | None] = {}
+        for group_id, timeline_coordinates in grouped.items():
+            for timeline_id, coordinate in timeline_coordinates.items():
+                result[f"{group_id}/{_uid_label(timeline_id)}"] = coordinate
+        return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MatchStamp":
@@ -326,7 +513,7 @@ class MatchStamp:
             f"</tr></thead>"
             f"<tbody>{''.join(rows)}</tbody>"
             f"</table>"
-            f"{affordance_line(['stamp.get_coordinate(<tl_id>)', 'stamp.get_group_coordinates(<group>)'])}"
+            f"{affordance_line(['stamp.get(<tl_id>)', 'stamp.get_coordinate(<tl_id>)'])}"
             f"</div>"
         )
 
@@ -405,10 +592,10 @@ class MatchGraph:
         """Number of edges in the graph."""
         return self._graph.number_of_edges()
 
-    @property
-    def timeline_ids(self) -> set[str]:
-        """Set of all timeline IDs in the graph."""
-        return {node[0] for node in self._graph.nodes()}
+    timeline_ids = property(
+        lambda self: {node[0] for node in self._graph.nodes()},
+        doc="Set of all timeline IDs in the graph.",
+    )
 
     def _build_graph(self) -> nx.Graph:
         """Build the anchor graph from claims.

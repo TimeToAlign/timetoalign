@@ -6,7 +6,7 @@ Tests cover core functionality:
 - Coordinate transfer within groups
 - Order-independence (critical invariant)
 - Cross-group transfer via MatchClaim -> MatchLine -> WarpMap pipeline
-- get_timestamp_at() propagation across groups
+- get_matchstamp_at() propagation across groups
 - are_commensurable() with claims
 - WarpMap cache invalidation
 - Indirect transfer (within-group convert + cross-group warp)
@@ -719,19 +719,20 @@ class TestCrossGroupTransfer:
 # endregion
 
 
-# region Test: get_timestamp_at Cross-Group
+# region Test: get_matchstamp_at Cross-Group
 
 
-class TestGetTimestampAtCrossGroup:
-    """Tests for get_timestamp_at() propagation across groups."""
+class TestGetMatchstampAtCrossGroup:
+    """Tests for get_matchstamp_at() propagation across groups."""
 
     def test_timestamp_includes_source_group(self) -> None:
-        """get_timestamp_at returns source group timelines."""
+        """get_matchstamp_at returns source group timelines."""
         bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
         claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
         bundle.add_match_claims(claims)
 
-        ts = bundle.get_timestamp_at(100.0, "score", format="flat")
+        stamp = bundle.get_matchstamp_at(100.0, "score")
+        ts = stamp.to_dict(format="flat")
 
         # Source group timelines present (score + image)
         score_key = next(k for k in ts if k.startswith("score"))
@@ -741,12 +742,13 @@ class TestGetTimestampAtCrossGroup:
         assert ts[image_key] == 200.0
 
     def test_timestamp_includes_target_group(self) -> None:
-        """get_timestamp_at propagates to connected groups."""
+        """get_matchstamp_at propagates to connected groups."""
         bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
         claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
         bundle.add_match_claims(claims)
 
-        ts = bundle.get_timestamp_at(100.0, "score", format="flat")
+        stamp = bundle.get_matchstamp_at(100.0, "score")
+        ts = stamp.to_dict(format="flat")
 
         # Target group timelines should be present
         audio_key = next((k for k in ts if k.startswith("audio")), None)
@@ -754,12 +756,12 @@ class TestGetTimestampAtCrossGroup:
         assert ts[audio_key] == 50.0
 
     def test_timestamp_nested_format(self) -> None:
-        """get_timestamp_at with nested format groups by group_id."""
+        """MatchStamp nested format groups by group_id."""
         bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
         claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
         bundle.add_match_claims(claims)
 
-        ts = bundle.get_timestamp_at(100.0, "score", format="nested")
+        ts = bundle.get_matchstamp_at(100.0, "score").to_dict(format="nested")
 
         # Must have source group
         assert "score_group" in ts
@@ -772,22 +774,22 @@ class TestGetTimestampAtCrossGroup:
                 assert recording_vals[audio_key] == 50.0
 
     def test_timestamp_prefix_format(self) -> None:
-        """get_timestamp_at with prefix format uses group/timeline keys."""
+        """MatchStamp prefix format uses group/timeline keys."""
         bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
         claims = _make_linear_claims(score_tl.id, audio_tl.id, n_points=5)
         bundle.add_match_claims(claims)
 
-        ts = bundle.get_timestamp_at(100.0, "score", format="prefix")
+        ts = bundle.get_matchstamp_at(100.0, "score").to_dict(format="prefix")
 
         # Keys should be "group_id/timeline_uid" format
         score_keys = [k for k in ts if k.startswith("score_group/")]
         assert len(score_keys) >= 1  # at least "score"
 
     def test_timestamp_no_claims_source_only(self) -> None:
-        """Without claims, get_timestamp_at returns only source group."""
+        """Without claims, get_matchstamp_at returns only source group."""
         bundle, _, _, _, _ = _make_cross_group_bundle()
 
-        ts = bundle.get_timestamp_at(100.0, "score", format="nested")
+        ts = bundle.get_matchstamp_at(100.0, "score").to_dict(format="nested")
 
         assert "score_group" in ts
         assert "recording_group" not in ts
@@ -1064,16 +1066,19 @@ class TestAddMatchClaimField:
         bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
         bundle.add_match_claim_field(self._field(score_tl.id, audio_tl.id))
         stamp = bundle.get_matchstamp_at(100.0, score_tl.id)
-        assert stamp.get_coordinate(score_tl.id) == 100.0
-        assert stamp.get_coordinate(audio_tl.id) == 50.0
+        assert stamp.get(score_tl.id) == 100.0
+        assert stamp.get(audio_tl.id) == 50.0
         assert len(bundle.cross_group_claims) == 0
 
-    def test_inexact_coordinate_finds_nothing(self) -> None:
-        # Exact float equality: a coordinate off the grid matches no claims.
+    def test_inexact_coordinate_returns_interpolated_source_stamp(self) -> None:
+        # Columnar claims are exact-match queried; without a list-backed
+        # MatchLine, the fallback still returns the source-group cross-section.
         bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
         bundle.add_match_claim_field(self._field(score_tl.id, audio_tl.id))
-        with pytest.raises(ValueError, match="No synchronous claims"):
-            bundle.get_matchstamp_at(123.456, score_tl.id)
+        stamp = bundle.get_matchstamp_at(123.456, score_tl.id)
+
+        assert stamp.is_interpolated is True
+        assert stamp.get("score") == 123.456
 
     def test_list_and_field_stores_coexist(self) -> None:
         # A bundle may hold a Python-list claim AND a columnar field at once;
@@ -1084,7 +1089,7 @@ class TestAddMatchClaimField:
         assert len(bundle.cross_group_claims) == 5
         assert len(bundle.cross_group_claim_fields) == 1
         stamp = bundle.get_matchstamp_at(50.0, score_tl.id)
-        assert stamp.get_coordinate(audio_tl.id) == 25.0
+        assert stamp.get(audio_tl.id) == 25.0
 
 
 # endregion
@@ -1173,9 +1178,8 @@ def _make_xgroup_bundle_with_claims() -> tuple[AlignmentBundle, str, str]:
 
     The returned ``score_id`` / ``audio_id`` are the *actual* timeline IDs
     (the keys ``get_matchstamp_at`` operates on, since the MatchGraph is keyed
-    on the timeline IDs carried by the claims). ``transfer`` and
-    ``get_timestamp_at`` are keyed on the bundle UIDs (``"score"`` / ``"audio"``)
-    instead.
+    on the timeline IDs carried by the claims). ``transfer`` is keyed on the
+    bundle UIDs (``"score"`` / ``"audio"``) instead.
     """
     bundle, score_tl, _image_tl, audio_tl, _midi_tl = _make_cross_group_bundle()
     bundle.add_match_claims(_make_linear_claims(score_tl.id, audio_tl.id, n_points=5))
@@ -1190,8 +1194,8 @@ class TestGetMatchstampAtCoordinateParity:
         bundle, score_id, audio_id = _make_xgroup_bundle_with_claims()
         stamp = bundle.get_matchstamp_at(100.0, score_id)
         assert stamp.n_timelines == 2
-        assert stamp.get_coordinate(score_id) == 100.0
-        assert stamp.get_coordinate(audio_id) == 50.0
+        assert stamp.get(score_id) == 100.0
+        assert stamp.get(audio_id) == 50.0
 
     def test_coordinate_form_equals_raw(self) -> None:
         """A Coordinate with explicit timeline_id matches the raw-float result."""
@@ -1216,8 +1220,8 @@ class TestGetMatchstampAtCoordinateParity:
             IdCoordinate(100.0, TimeUnit.seconds, score_id)
         )
         assert from_id.coordinates == raw.coordinates
-        assert from_id.get_coordinate(score_id) == 100.0
-        assert from_id.get_coordinate(audio_id) == 50.0
+        assert from_id.get(score_id) == 100.0
+        assert from_id.get(audio_id) == 50.0
 
     def test_missing_timeline_id_raises_value_error(self) -> None:
         """Raw float without timeline_id raises ValueError."""
@@ -1234,17 +1238,18 @@ class TestGetMatchstampAtCoordinateParity:
             bundle.get_matchstamp_at([1.0])  # type: ignore[arg-type]
 
 
-class TestGetTimestampAtCoordinateParity:
-    """get_timestamp_at accepts raw value, Coordinate, and IdCoordinate.
+class TestGetMatchstampRenderingCoordinateParity:
+    """get_matchstamp_at accepts raw value, Coordinate, and IdCoordinate.
 
-    ``get_timestamp_at`` is keyed on the bundle UID (``"score"``), so these
+    ``get_matchstamp_at`` is keyed on the bundle UID (``"score"``), so these
     tests pass UIDs and compare whole-dict results across the three forms.
     """
 
     def test_raw_float_form(self) -> None:
         """Raw float with explicit timeline_id returns the known timestamp."""
         bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
-        ts = bundle.get_timestamp_at(100.0, "score", format="flat")
+        stamp = bundle.get_matchstamp_at(100.0, "score")
+        ts = stamp.to_dict(format="flat")
         score_key = next(k for k in ts if k.startswith("score"))
         audio_key = next(k for k in ts if k.startswith("audio"))
         assert ts[score_key] == 100.0
@@ -1256,10 +1261,10 @@ class TestGetTimestampAtCoordinateParity:
         from timetoalign.core import Coordinate
         from timetoalign.core.enums import TimeUnit
 
-        raw = bundle.get_timestamp_at(100.0, "score", format="flat")
-        from_coord = bundle.get_timestamp_at(
-            Coordinate(100.0, TimeUnit.seconds), "score", format="flat"
-        )
+        raw = bundle.get_matchstamp_at(100.0, "score").to_dict(format="flat")
+        from_coord = bundle.get_matchstamp_at(
+            Coordinate(100.0, TimeUnit.seconds), "score"
+        ).to_dict(format="flat")
         assert from_coord == raw
 
     def test_idcoordinate_alone_equals_raw(self) -> None:
@@ -1272,23 +1277,25 @@ class TestGetTimestampAtCoordinateParity:
         from timetoalign.core import IdCoordinate
         from timetoalign.core.enums import TimeUnit
 
-        raw = bundle.get_timestamp_at(100.0, "score", format="flat")
-        from_id = bundle.get_timestamp_at(
-            IdCoordinate(100.0, TimeUnit.seconds, "score"), format="flat"
-        )
+        raw = bundle.get_matchstamp_at(100.0, "score").to_dict(format="flat")
+        from_id = bundle.get_matchstamp_at(
+            IdCoordinate(100.0, TimeUnit.seconds, "score")
+        ).to_dict(format="flat")
         assert from_id == raw
 
     def test_missing_timeline_id_raises_value_error(self) -> None:
         """Raw float without timeline_id raises ValueError."""
         bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
         with pytest.raises(ValueError, match="timeline_id is required"):
-            bundle.get_timestamp_at(100.0)
+            bundle.get_matchstamp_at(100.0).to_dict(format="flat")
 
     def test_unsupported_type_raises_type_error(self) -> None:
         """A non-coordinate type raises TypeError."""
         bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
         with pytest.raises(TypeError, match="coordinate must be"):
-            bundle.get_timestamp_at({"start": 1.0})  # type: ignore[arg-type]
+            bundle.get_matchstamp_at({"start": 1.0}).to_dict(  # type: ignore[arg-type]
+                format="flat"
+            )
 
 
 class TestTransferCoordinateParity:

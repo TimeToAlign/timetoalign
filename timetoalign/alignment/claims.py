@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator, Sequence
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -43,6 +43,10 @@ from pydantic import (
 
 from timetoalign.core import AgentType, IdGenerator
 from timetoalign.core.fields import SemanticField, StructField
+
+if TYPE_CHECKING:
+    from timetoalign.alignment.bundle import AlignmentBundle
+    from timetoalign.alignment.graph import MatchStamp
 
 module_logger = logging.getLogger(__name__)
 
@@ -523,10 +527,10 @@ class MatchClaim(BaseModel):
     def get_matchstamp(
         self,
         *,
-        bundle: Any | None = None,
+        bundle: "AlignmentBundle | None" = None,
         from_graph: bool = True,
         conversion_maps: bool = True,
-    ) -> Any | None:
+    ) -> "MatchStamp | None":
         """Return a MatchStamp for this claim's start anchor.
 
         With ``from_graph=True`` (the default), the method builds or retrieves
@@ -545,8 +549,7 @@ class MatchClaim(BaseModel):
                 MatchGraph and return the FULL MatchStamp across ALL
                 connected groups. If False, return a reduced 2-timeline
                 MatchStamp.
-            conversion_maps: Include C-map conversions (reserved for
-                future use).
+            conversion_maps: C-map conversions available through unit lookup.
 
         Returns:
             MatchStamp with coordinates, or None if this claim is
@@ -584,6 +587,7 @@ class MatchClaim(BaseModel):
             return effective_bundle.get_matchstamp_at(
                 self.start_anchor.coordinate_a,
                 self.timeline_a_id,
+                conversion_maps=conversion_maps,
             )
         else:
             # Reduced stamp: just the two coordinates from this claim
@@ -593,10 +597,26 @@ class MatchClaim(BaseModel):
                 self.timeline_a_id: self.start_anchor.coordinate_a,
                 self.timeline_b_id: self.start_anchor.coordinate_b,
             }
+            effective_bundle = bundle if bundle is not None else self._bundle
+            units: dict[str, str] = {}
+            if effective_bundle is not None:
+                unit_map = effective_bundle._get_unit_map()
+                for timeline_id in coords:
+                    bundle_uid = effective_bundle._timeline_id_to_uid.get(
+                        timeline_id, timeline_id
+                    )
+                    if bundle_uid in unit_map:
+                        units[timeline_id] = unit_map[bundle_uid]
             return MatchStamp(
                 coordinates=coords,
                 anchor_edges=[(self.timeline_a_id, self.timeline_b_id)],
                 inferred_edges=[],
+                units=units,
+                axis=self.start_anchor.coordinate_a,
+                source=effective_bundle,
+                source_id=self.timeline_a_id,
+                is_interpolated=False,
+                conversion_maps=conversion_maps,
             )
 
     # region Factory Methods

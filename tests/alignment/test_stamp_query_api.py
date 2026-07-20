@@ -205,9 +205,9 @@ class TestMatchGraphGetMatchstamp:
         mg = MatchGraph(claims=claims)
         stamp = mg.get_matchstamp()
         assert stamp.n_timelines == 3
-        assert stamp.get_coordinate("tl_a") == 100.0
-        assert stamp.get_coordinate("tl_b") == 50.0
-        assert stamp.get_coordinate("tl_c") == 25.0
+        assert stamp.get("tl_a") == 100.0
+        assert stamp.get("tl_b") == 50.0
+        assert stamp.get("tl_c") == 25.0
 
     def test_multi_component_raises(self):
         """Multiple disconnected components raise ValueError."""
@@ -364,7 +364,7 @@ class TestMatchGraphStarTopology:
         assert mg.n_components == 1
         stamp = mg.get_matchstamp()
         assert stamp.n_timelines == 6  # 1 score + 5 performers
-        assert stamp.get_coordinate("score:clt1") == 0.0
+        assert stamp.get("score:clt1") == 0.0
 
     def test_star_determinism(self):
         """Building graph from any single claim gives same stamp.
@@ -422,8 +422,8 @@ class TestMatchClaimGetMatchstamp:
         stamp = claim.get_matchstamp(from_graph=False)
         assert stamp is not None
         assert stamp.n_timelines == 2
-        assert stamp.get_coordinate("score:clt1") == 10.0
-        assert stamp.get_coordinate("perf:dlt1") == 128.0
+        assert stamp.get("score:clt1") == 10.0
+        assert stamp.get("perf:dlt1") == 128.0
 
     def test_nomatch_returns_none(self):
         """NOMATCH claim returns None."""
@@ -535,20 +535,21 @@ class TestGetMatchstampAt:
         bundle, _ = _make_star_bundle()
         stamp = bundle.get_matchstamp_at(0.0, "score:clt1")
         assert stamp.n_timelines == 4  # score + 3 performers
-        assert stamp.get_coordinate("score:clt1") == 0.0
-        assert stamp.get_coordinate("perf:dlt1") == 0.0
-        assert stamp.get_coordinate("perf:dlt2") == 0.0
-        assert stamp.get_coordinate("perf:dlt3") == 0.0
+        assert stamp.is_interpolated is False
+        assert stamp.get("score:clt1") == 0.0
+        assert stamp.get("perf:dlt1") == 0.0
+        assert stamp.get("perf:dlt2") == 0.0
+        assert stamp.get("perf:dlt3") == 0.0
 
     def test_nonzero_coordinate(self):
         """MatchStamp at a non-zero coordinate."""
         bundle, _ = _make_star_bundle()
         stamp = bundle.get_matchstamp_at(50.0, "score:clt1")
         assert stamp.n_timelines == 4
-        assert stamp.get_coordinate("score:clt1") == 50.0
-        assert stamp.get_coordinate("perf:dlt1") == 100.0  # 50 * 2.0
-        assert stamp.get_coordinate("perf:dlt2") == 75.0  # 50 * 1.5
-        assert stamp.get_coordinate("perf:dlt3") == 90.0  # 50 * 1.8
+        assert stamp.get("score:clt1") == 50.0
+        assert stamp.get("perf:dlt1") == 100.0  # 50 * 2.0
+        assert stamp.get("perf:dlt2") == 75.0  # 50 * 1.5
+        assert stamp.get("perf:dlt3") == 90.0  # 50 * 1.8
 
     def test_not_in_bundle_raises(self):
         """Unknown timeline raises KeyError."""
@@ -556,11 +557,23 @@ class TestGetMatchstampAt:
         with pytest.raises(KeyError, match="not in bundle"):
             bundle.get_matchstamp_at(0.0, "nonexistent")
 
-    def test_no_claims_at_coordinate_raises(self):
-        """No claims at coordinate raises ValueError."""
+    def test_between_anchors_uses_interpolation(self):
+        """A coordinate between claim anchors uses exact WarpMap interpolation."""
         bundle, _ = _make_star_bundle()
-        with pytest.raises(ValueError, match="No synchronous claims"):
-            bundle.get_matchstamp_at(999.0, "score:clt1")
+        stamp = bundle.get_matchstamp_at(37.5, "score:clt1")
+
+        assert stamp.is_interpolated is True
+        assert stamp.anchor_edges == []
+        assert stamp.get("score:clt1") == 37.5
+        assert stamp.get("perf:dlt1") == 75.0
+        assert stamp.get("perf:dlt2") == 56.25
+        assert stamp.get("perf:dlt3") == 67.5
+        assert set(stamp.inferred_edges) == {
+            ("score:clt1", "perf:dlt1"),
+            ("score:clt1", "perf:dlt2"),
+            ("score:clt1", "perf:dlt3"),
+        }
+        assert bundle.transfer(37.5, "score:clt1", "perf:dlt1") == 75.0
 
     def test_filtered_by_pattern(self):
         """Regex filter reduces output."""
@@ -680,8 +693,8 @@ class TestMatchStampDisplay:
         assert "<strong>score</strong>" in html
         # The Try footer surfaces the real MatchStamp accessors.
         assert (
-            "Try: <code>stamp.get_coordinate(&lt;tl_id&gt;)</code>, "
-            "<code>stamp.get_group_coordinates(&lt;group&gt;)</code>" in html
+            "Try: <code>stamp.get(&lt;tl_id&gt;)</code>, "
+            "<code>stamp.get_coordinate(&lt;tl_id&gt;)</code>" in html
         )
         # Footer is a free-standing div after the table close.
         assert html.index("</table>") < html.index("Try:")
