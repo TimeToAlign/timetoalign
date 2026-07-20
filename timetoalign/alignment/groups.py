@@ -793,6 +793,7 @@ class TimelineGroup:
             source=self,
             source_id=timeline_id,
             row_index=row_index,
+            conversion_maps=conversion_maps,
         )
 
     def get_timestamps_at(
@@ -1073,14 +1074,14 @@ class TimelineGroup:
                 if unit_bytes:
                     units[field_name] = unit_bytes.decode("utf-8")
 
-        axis_field = self._timestamp_table.column_names[0]
-        axis = coords[axis_field]
+        axis_timeline_id = next(iter(self._timelines))
+        axis = coords[axis_timeline_id]
         return GroupTimestamp(
             coordinates=coords,
             units=units,
             row_index=index,
             source=self,
-            source_id=self.id,
+            source_id=axis_timeline_id,
             axis=axis,
         )
 

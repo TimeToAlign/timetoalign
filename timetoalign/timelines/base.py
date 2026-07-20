@@ -2322,6 +2322,8 @@ class Timeline:
         self,
         coord: CoordinateValue | Coordinate,
         unit: TimeUnit | str | None = None,
+        *,
+        conversion_maps: ConversionMapsSpec = True,
     ) -> TimeStamp:
         """Alias for `get_timestamp()` for API consistency with TimelineGroup.
 
@@ -2332,6 +2334,7 @@ class Timeline:
         Args:
             coord: Coordinate value (see `get_timestamp()` for details).
             unit: Optional unit for coordinate interpretation.
+            conversion_maps: C-Maps available through the returned stamp.
 
         Returns:
             TimeStamp object for the resolved coordinate.
@@ -2340,13 +2343,19 @@ class Timeline:
             get_timestamp: The primary coordinate resolution method.
             timetoalign.TimelineGroup.get_timestamp_at: Group-level version.
         """
-        return self.get_timestamp(coord, unit=unit)
+        return self.get_timestamp(
+            coord,
+            unit=unit,
+            conversion_maps=conversion_maps,
+        )
 
     def get_interval_stamp(
         self,
         start: CoordinateValue | Coordinate,
         end: CoordinateValue | Coordinate,
         unit: TimeUnit | str | None = None,
+        *,
+        conversion_maps: ConversionMapsSpec = True,
     ) -> TimeIntervalStamp:
         """Get a TimeIntervalStamp for a coordinate range.
 
@@ -2354,6 +2363,7 @@ class Timeline:
             start: Start coordinate.
             end: End coordinate.
             unit: If provided, interpret both coords as being in this unit.
+            conversion_maps: C-Maps available through the returned stamps.
 
         Returns:
             TimeIntervalStamp with start and end TimeStamps.
@@ -2366,11 +2376,16 @@ class Timeline:
             (0.0, 7.5)
         """
         return TimeIntervalStamp(
-            start=self.get_timestamp(start, unit=unit),
-            end=self.get_timestamp(end, unit=unit),
+            start=self.get_timestamp(start, unit=unit, conversion_maps=conversion_maps),
+            end=self.get_timestamp(end, unit=unit, conversion_maps=conversion_maps),
         )
 
-    def get_timestamp_of(self, event_id: str) -> TimeStamp | TimeIntervalStamp:
+    def get_timestamp_of(
+        self,
+        event_id: str,
+        *,
+        conversion_maps: ConversionMapsSpec = True,
+    ) -> TimeStamp | TimeIntervalStamp:
         """Get the timestamp for a specific event by its ID.
 
         Returns a TimeStamp for instant events, or a TimeIntervalStamp for
@@ -2379,6 +2394,7 @@ class Timeline:
 
         Args:
             event_id: The event identifier to look up.
+            conversion_maps: C-Maps available through the returned stamp or stamps.
 
         Returns:
             TimeStamp for instant events, TimeIntervalStamp for interval events.
@@ -2421,9 +2437,13 @@ class Timeline:
                 end_coord = float(end_val["value"])
             else:
                 end_coord = float(end_val)
-            return self.get_interval_stamp(start_coord, end_coord)
+            return self.get_interval_stamp(
+                start_coord,
+                end_coord,
+                conversion_maps=conversion_maps,
+            )
 
-        return self.get_timestamp(start_coord)
+        return self.get_timestamp(start_coord, conversion_maps=conversion_maps)
 
     def get_timestamps_of(
         self,

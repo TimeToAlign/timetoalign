@@ -12,6 +12,7 @@ import pyarrow as pa
 import pytest
 
 from timetoalign.core import TimeUnit
+from timetoalign.maps import ScalarMap
 from timetoalign.timelines import Timeline
 
 # region Fixtures
@@ -675,6 +676,66 @@ class TestGetTimestampTableFiltered:
         # axis values should be doubled in the C-Map field
         for _, row in df.iterrows():
             assert row[cmap.name] == row["axis"] * 2.0
+
+
+# endregion
+
+
+# region Tests: Timestamp Access
+
+
+class TestTimestampAccess:
+    """Tests for Timeline timestamp accessors."""
+
+    def test_get_timestamp_at_without_conversion_maps(self) -> None:
+        """Disabled conversion maps leave timeline access available."""
+        timeline = Timeline(length=10, unit=TimeUnit.seconds, uid="timeline")
+        timeline.add_conversion_map(
+            ScalarMap(
+                scalar=1000.0,
+                source_unit=TimeUnit.seconds,
+                target_unit=TimeUnit.milliseconds,
+                uid="seconds-to-milliseconds",
+            )
+        )
+
+        ts = timeline.get_timestamp_at(3.0, conversion_maps=False)
+
+        assert ts.get_unit(TimeUnit.milliseconds) is None
+        with pytest.raises(KeyError):
+            _ = ts["milliseconds"]
+        assert ts["timeline"] == 3.0
+
+    def test_get_timestamp_at_with_restricted_conversion_maps(self) -> None:
+        """Restricted conversion maps expose only their target unit."""
+        timeline = Timeline(length=10, unit=TimeUnit.seconds, uid="timeline")
+        timeline.add_conversion_map(
+            ScalarMap(
+                scalar=1000.0,
+                source_unit=TimeUnit.seconds,
+                target_unit=TimeUnit.milliseconds,
+                uid="seconds-to-milliseconds",
+            )
+        )
+        timeline.add_conversion_map(
+            ScalarMap(
+                scalar=2.0,
+                source_unit=TimeUnit.seconds,
+                target_unit=TimeUnit.samples,
+                uid="seconds-to-samples",
+            )
+        )
+
+        ts = timeline.get_timestamp_at(
+            3.0,
+            conversion_maps=[TimeUnit.milliseconds],
+        )
+
+        assert ts.get_unit(TimeUnit.milliseconds) == 3000.0
+        assert ts["milliseconds"] == 3000.0
+        assert ts.get_unit(TimeUnit.samples) is None
+        with pytest.raises(KeyError):
+            _ = ts["samples"]
 
 
 # endregion

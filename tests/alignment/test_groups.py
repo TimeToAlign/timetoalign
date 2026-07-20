@@ -309,11 +309,24 @@ class TestTimestampAccess:
 
         assert isinstance(gt, Stamp)
         assert gt.source is group
-        assert gt.source_id == "test_group"
+        assert gt.source_id == "dgt1"
         assert gt.axis == 4875.0
         assert gt.get_coordinate("dgt1") == Coordinate(4875.0, TimeUnit.pixels)
         assert gt["seconds"] == 150.0
         assert gt.to_dict() == {"dgt1": 4875.0, "audio": 150.0}
+
+    def test_row_timestamp_round_trips_through_group_lookup(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """A row stamp identifies the member timeline that owns its axis."""
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        gt = group.get_timestamp_at_index(1)
+        ts = group.get_timestamp_at(gt.axis, gt.source_id)
+
+        assert ts.get("audio") == gt.get("audio")
 
     def test_old_timestamp_accessor_is_absent(
         self, dgt_timeline: DiscreteGraphicalTimeline
@@ -896,6 +909,68 @@ class TestTimelineGroupTimestampAt:
         assert isinstance(ts, TimeStamp)
         assert ts.axis == 75.0
         assert ts.source_id == "audio"
+
+    def test_get_timestamp_at_without_conversion_maps(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Disabled conversion maps leave member timeline access available."""
+        dgt_timeline.add_conversion_map(
+            TableMap(
+                x_values=[0.0, 4875.0],
+                y_values=[0.0, 100.0],
+                source_unit=TimeUnit.pixels,
+                target_unit=TimeUnit.beats,
+                uid="pixels-to-beats",
+            )
+        )
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        ts = group.get_timestamp_at(4875.0, "dgt1", conversion_maps=False)
+
+        assert ts.get_unit(TimeUnit.beats) is None
+        with pytest.raises(KeyError):
+            _ = ts["beats"]
+        assert ts["dgt1"] == 4875
+
+    def test_get_timestamp_at_with_restricted_conversion_maps(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Restricted conversion maps expose only their target unit."""
+        dgt_timeline.add_conversion_map(
+            TableMap(
+                x_values=[0.0, 4875.0],
+                y_values=[0.0, 100.0],
+                source_unit=TimeUnit.pixels,
+                target_unit=TimeUnit.beats,
+                uid="pixels-to-beats",
+            )
+        )
+        dgt_timeline.add_conversion_map(
+            TableMap(
+                x_values=[0.0, 4875.0],
+                y_values=[0.0, 200.0],
+                source_unit=TimeUnit.pixels,
+                target_unit=TimeUnit.frames,
+                uid="pixels-to-frames",
+            )
+        )
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        ts = group.get_timestamp_at(
+            4875.0,
+            "dgt1",
+            conversion_maps=[TimeUnit.beats],
+        )
+
+        assert ts.get_unit(TimeUnit.beats) == 100.0
+        assert ts["beats"] == 100.0
+        assert ts.get_unit(TimeUnit.frames) is None
+        with pytest.raises(KeyError):
+            _ = ts["frames"]
 
     def test_get_timestamp_at_coordinate_conversion(
         self,
