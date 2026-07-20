@@ -101,7 +101,8 @@ packages = ["timetoalign"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-n auto --cov=timetoalign --cov-report=term-missing"
+addopts = "-n auto"
+markers = ["slow: long-running corpus-scale integration test; skipped unless --runslow is given"]
 
 [tool.ruff]
 line-length = 100

@@ -32,6 +32,8 @@ from timetoalign.loader.tabular.solo import SoloLoader
 from timetoalign.maps.meter import MetricalPositionMap, MetricMap
 from timetoalign.testdata import ensure_data
 
+pytestmark = pytest.mark.slow
+
 SPECIMEN_DIR = ensure_data("performance_precision")
 SOLO_PATH = SPECIMEN_DIR / "Chopin Nocturne Op. 9 No. 2.solo"
 

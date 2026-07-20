@@ -1313,6 +1313,7 @@ def test_event_data_coerces_volta_to_integer() -> None:
 # region TestTimelineGroupUnfold
 
 
+@pytest.mark.slow
 class TestTimelineGroupUnfold:
     """Tests for TimelineGroup.unfold() — group-level unfolding.
 

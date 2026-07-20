@@ -473,6 +473,7 @@ class TestMatchfileLoaderCreateTimelines:
 # region TestMatchfileLoaderMulti
 
 
+@pytest.mark.slow
 class TestMatchfileLoaderMulti:
     """Tests for multi-file loading (all 22 performances)."""
 
@@ -847,6 +848,7 @@ class TestMatchfileLoaderCheckOrAddScoreEvent:
 # region TestPerPerformerDeletionCounts
 
 
+@pytest.mark.slow
 class TestPerPerformerDeletionCounts:
     """Validate exact per-performer deletion and match counts.
 
@@ -934,6 +936,7 @@ class TestPerPerformerDeletionCounts:
 # region TestMatchfileLoaderPerfPNNShorthand
 
 
+@pytest.mark.slow
 class TestMatchfileLoaderPerfPNNShorthand:
     """Tests for the perf:pNN shorthand in create_timeline()."""
 

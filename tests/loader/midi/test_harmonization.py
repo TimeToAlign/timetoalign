@@ -27,6 +27,7 @@ CHOPIN_MAX_PITCH = 59
 CHOPIN_MAX_PITCH_COUNT = 50
 
 
+@pytest.mark.slow
 class TestMidiHarmonization:
     """Compare PerformanceMidiLoader and ScoreMidiLoader on the same file.
 

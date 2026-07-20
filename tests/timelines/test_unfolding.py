@@ -1268,6 +1268,7 @@ def beethoven_unfolded_group(
     return _unfold_group(beethoven_score_group)
 
 
+@pytest.mark.slow
 class TestGroupUnfolding:
     """Unfold an entire TimelineGroup via one FlowMap.
 

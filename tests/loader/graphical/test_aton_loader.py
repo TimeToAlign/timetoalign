@@ -12,6 +12,8 @@ import pytest
 
 from timetoalign.loader.graphical.aton import ATONHole, ATONLoader
 
+pytestmark = pytest.mark.slow
+
 # Test data directory
 SUPRA_DIR = Path(__file__).parent.parent.parent / "data" / "supra"
 ATON_FILE = SUPRA_DIR / "image" / "fd660zf8362_analysis.txt"

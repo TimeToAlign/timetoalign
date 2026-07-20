@@ -18,6 +18,8 @@ from timetoalign.loader.physical.repovizz import (
 )
 from timetoalign.timelines import DiscretePhysicalTimeline
 
+pytestmark = pytest.mark.slow
+
 # region Test Data Paths
 
 

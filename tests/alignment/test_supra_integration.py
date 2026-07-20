@@ -23,6 +23,8 @@ from timetoalign.loader.graphical.aton import ATONLoader
 from timetoalign.loader.graphical.iiif import IIIFManifestLoader
 from timetoalign.timelines import Timeline
 
+pytestmark = pytest.mark.slow
+
 # Test data directory
 SUPRA_DIR = Path(__file__).parent.parent / "data" / "supra"
 
