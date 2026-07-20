@@ -240,6 +240,42 @@ class TestMatchStamp:
         assert restored.anchor_edges == stamp.anchor_edges
         assert restored.inferred_edges == stamp.inferred_edges
 
+    def test_graph_dict_isolation(self) -> None:
+        """Graph dictionaries do not expose the stamp's mutable containers."""
+        stamp = MatchStamp(
+            coordinates={"tl_a": 100.0, "tl_b": 50.0},
+            anchor_edges=[("tl_a", "tl_b")],
+            inferred_edges=[("tl_b", "tl_c")],
+        )
+        data = stamp.to_dict(format="graph")
+        data["coordinates"]["tl_a"] = 999.0
+        data["anchor_edges"].append(("tl_c", "tl_d"))
+        data["inferred_edges"].clear()
+
+        assert stamp.coordinates == {"tl_a": 100.0, "tl_b": 50.0}
+        assert stamp.anchor_edges == [("tl_a", "tl_b")]
+        assert stamp.inferred_edges == [("tl_b", "tl_c")]
+
+    def test_from_dict_isolation(self) -> None:
+        """Mutating input dictionaries does not mutate the restored stamp."""
+        data = {
+            "coordinates": {"tl_a": 100.0, "tl_b": 50.0},
+            "anchor_edges": [("tl_a", "tl_b")],
+            "inferred_edges": [("tl_b", "tl_c")],
+        }
+        stamp = MatchStamp.from_dict(data)
+        data["coordinates"]["tl_a"] = 999.0
+        data["anchor_edges"].append(("tl_c", "tl_d"))
+        data["inferred_edges"].clear()
+
+        assert stamp.coordinates == {"tl_a": 100.0, "tl_b": 50.0}
+        assert stamp.anchor_edges == [("tl_a", "tl_b")]
+        assert stamp.inferred_edges == [("tl_b", "tl_c")]
+
+    def test_axis_coordinate_is_none_without_axis(self) -> None:
+        """An axis-less stamp has no axis coordinate."""
+        assert MatchStamp().axis_coordinate is None
+
     def test_repr(self) -> None:
         """Test string representation."""
         stamp = MatchStamp(

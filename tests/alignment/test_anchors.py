@@ -8,13 +8,14 @@ coordinates are unit-bearing ``Coordinate`` values.
 
 from __future__ import annotations
 
+import json
 from fractions import Fraction
 
 import pytest
 from pydantic import ValidationError
 
 from timetoalign.alignment import Agent, AlignmentAnchor, MatchClaim, MatchMetadata
-from timetoalign.core import AgentType, Coordinate, TimeUnit
+from timetoalign.core import AgentType, Coordinate, IdCoordinate, TimeUnit
 
 # region Fixtures
 
@@ -235,9 +236,19 @@ class TestAlignmentAnchor:
         d = basic_anchor.to_dict()
 
         assert d["timeline_a_id"] == "score:1"
-        assert d["coordinate_a"] == {"value": 100.0, "unit": "quarters"}
+        assert d["coordinate_a"] == {
+            "value": 100.0,
+            "numerator": None,
+            "denominator": None,
+            "unit": "quarters",
+        }
         assert d["timeline_b_id"] == "recording:1"
-        assert d["coordinate_b"] == {"value": 45.5, "unit": "seconds"}
+        assert d["coordinate_b"] == {
+            "value": 45.5,
+            "numerator": None,
+            "denominator": None,
+            "unit": "seconds",
+        }
         # No is_explicit, is_synchronous, or id in dict
         assert "is_explicit" not in d
         assert "is_synchronous" not in d
@@ -673,6 +684,80 @@ class TestMatchClaim:
         assert claim.start_anchor is not None
         assert claim.start_anchor.coordinate_a.value == 100.0
         assert claim.start_anchor.coordinate_b.value == 45.5
+
+    def test_coordinate_inputs_supply_units(self) -> None:
+        """Coordinate and IdCoordinate inputs make explicit units optional."""
+        projected = MatchClaim.from_projection(
+            event={"start": 100.0},
+            source_tl_id="score",
+            target_tl_id="recording",
+            target_coord=IdCoordinate(45.5, TimeUnit.seconds, "recording"),
+            source_unit=TimeUnit.number,
+        )
+        implicit = MatchClaim.implicit(
+            tl_a_id="score",
+            coord_a=Coordinate(100.0, TimeUnit.quarters),
+            tl_b_id="recording",
+            coord_b=IdCoordinate(45.5, TimeUnit.seconds, "recording"),
+        )
+
+        assert projected.start_anchor.coordinate_b == IdCoordinate(
+            45.5, TimeUnit.seconds, "recording"
+        )
+        assert implicit.start_anchor.coordinate_a == Coordinate(
+            100.0, TimeUnit.quarters
+        )
+        assert implicit.start_anchor.coordinate_b == IdCoordinate(
+            45.5, TimeUnit.seconds, "recording"
+        )
+
+    def test_coordinate_input_mismatches_raise(self) -> None:
+        """Conflicting units and timeline IDs are rejected."""
+        with pytest.raises(ValueError, match="unit"):
+            MatchClaim.implicit(
+                tl_a_id="score",
+                coord_a=Coordinate(100.0, TimeUnit.quarters),
+                tl_b_id="recording",
+                coord_b=45.5,
+                unit_a=TimeUnit.seconds,
+                unit_b=TimeUnit.seconds,
+            )
+        with pytest.raises(ValueError, match="timeline_id"):
+            MatchClaim.from_projection(
+                event={"start": 100.0},
+                source_tl_id="score",
+                target_tl_id="recording",
+                target_coord=IdCoordinate(45.5, TimeUnit.seconds, "other"),
+                source_unit=TimeUnit.number,
+            )
+        with pytest.raises(ValueError, match="explicit unit"):
+            MatchClaim.from_projection(
+                event={"start": 100.0},
+                source_tl_id="score",
+                target_tl_id="recording",
+                target_coord=Coordinate(45.5, TimeUnit.seconds),
+                source_unit=TimeUnit.number,
+                target_unit=TimeUnit.frames,
+            )
+
+    def test_fraction_claim_dict_is_json_safe_and_exact(self) -> None:
+        """Fraction coordinates serialize to JSON and restore exactly."""
+        claim = MatchClaim(
+            timeline_a_id="score",
+            timeline_b_id="recording",
+            start_anchor=AlignmentAnchor(
+                timeline_a_id="score",
+                coordinate_a=Coordinate(Fraction(7, 3), TimeUnit.quarters),
+                timeline_b_id="recording",
+                coordinate_b=Coordinate(2.0, TimeUnit.seconds),
+            ),
+        )
+
+        serialized = claim.to_dict()
+        json.dumps(serialized)
+        restored = MatchClaim.from_dict(serialized)
+
+        assert restored.start_anchor.coordinate_a.value == Fraction(7, 3)
 
     def test_nomatch_factory(self) -> None:
         """Test nomatch() factory method (case c: no match)."""

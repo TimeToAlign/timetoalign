@@ -1045,7 +1045,21 @@ class AlignmentBundle:
 
         # Build graph — transitive closure connects all timelines at
         # this coordinate
-        mg = MatchGraph(claims=relevant_claims)
+        unit_map = self._get_unit_map()
+        graph_units = dict(unit_map)
+        graph_units.update(
+            {
+                self._uid_to_timeline_id.get(bundle_uid, bundle_uid): unit
+                for bundle_uid, unit in unit_map.items()
+            }
+        )
+        mg = MatchGraph(
+            claims=relevant_claims,
+            units=graph_units,
+            axis=coordinate,
+            source=self,
+            source_id=timeline_id,
+        )
 
         # Interval claims add both their start- and end-anchor edges,
         # which usually live on separate connected components. Restrict
@@ -1304,6 +1318,21 @@ class AlignmentBundle:
             }
             inferred_edges = []
 
+            def add_inferred_edge(timeline_a: str, timeline_b: str) -> None:
+                """Record a relationship once, regardless of orientation."""
+                edge = (timeline_a, timeline_b)
+                reverse = (timeline_b, timeline_a)
+                if (
+                    timeline_a != timeline_b
+                    and edge not in inferred_edges
+                    and reverse not in inferred_edges
+                ):
+                    inferred_edges.append(edge)
+
+            for member_uid, member_coordinate in grouped_coordinates.items():
+                if member_coordinate is not None:
+                    add_inferred_edge(source_bundle_uid, member_uid)
+
             for other_group_id, other_group in self.groups.items():
                 if other_group_id == source_group_id:
                     continue
@@ -1319,20 +1348,22 @@ class AlignmentBundle:
                 target_bundle_uid = self._timeline_id_to_uid.get(
                     target_timeline_id, target_timeline_id
                 )
-                inferred_edges.append((source_bundle_uid, target_bundle_uid))
                 other_coordinates = self._get_group_timestamp(
                     other_group,
                     target_coordinate,
                     target_timeline_id,
                     conversion_maps=conversion_maps,
                 )
-                coordinates.update(
-                    {
-                        tl_id: value
-                        for tl_id, value in other_coordinates.items()
-                        if value is not None
-                    }
-                )
+                materialized_coordinates = {
+                    tl_id: value
+                    for tl_id, value in other_coordinates.items()
+                    if value is not None
+                }
+                if target_bundle_uid in materialized_coordinates:
+                    add_inferred_edge(source_bundle_uid, target_bundle_uid)
+                    for member_uid in materialized_coordinates:
+                        add_inferred_edge(target_bundle_uid, member_uid)
+                coordinates.update(materialized_coordinates)
 
         unit_map = self._get_unit_map()
         return MatchStamp(

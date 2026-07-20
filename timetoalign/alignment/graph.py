@@ -32,6 +32,7 @@ import networkx as nx
 
 from timetoalign.alignment.claims import AlignmentAnchor, MatchClaim
 from timetoalign.core.enums import Domain, TimeUnit
+from timetoalign.core.time import Coordinate
 from timetoalign.core.timestamp import ConversionMapsSpec, Stamp
 
 if TYPE_CHECKING:
@@ -90,6 +91,17 @@ class MatchStamp(Stamp):
     source_id: str | None = None
     is_interpolated: bool = False
     conversion_maps: ConversionMapsSpec = True
+
+    def __post_init__(self) -> None:
+        """Isolate mutable containers from callers and serialized data."""
+        object.__setattr__(self, "coordinates", dict(self.coordinates))
+        object.__setattr__(
+            self, "anchor_edges", [tuple(edge) for edge in self.anchor_edges]
+        )
+        object.__setattr__(
+            self, "inferred_edges", [tuple(edge) for edge in self.inferred_edges]
+        )
+        object.__setattr__(self, "units", dict(self.units))
 
     @property
     def present_timelines(self) -> list[str]:
@@ -263,7 +275,7 @@ class MatchStamp(Stamp):
         """Materialize the stamp in a flat, grouped, or graph representation.
 
         Args:
-            format: Output representation. ``"graph"`` preserves the legacy
+            format: Output representation. ``"graph"`` preserves the
                 MatchGraph storage shape.
 
         Returns:
@@ -275,9 +287,9 @@ class MatchStamp(Stamp):
         """
         if format == "graph":
             return {
-                "coordinates": self.coordinates,
-                "anchor_edges": self.anchor_edges,
-                "inferred_edges": self.inferred_edges,
+                "coordinates": dict(self.coordinates),
+                "anchor_edges": list(self.anchor_edges),
+                "inferred_edges": list(self.inferred_edges),
             }
 
         def _bundle_uid(timeline_id: str) -> str:
@@ -368,10 +380,17 @@ class MatchStamp(Stamp):
     def from_dict(cls, data: dict[str, Any]) -> "MatchStamp":
         """Deserialize from dictionary."""
         return cls(
-            coordinates=data["coordinates"],
+            coordinates=dict(data["coordinates"]),
             anchor_edges=[tuple(e) for e in data.get("anchor_edges", [])],
             inferred_edges=[tuple(e) for e in data.get("inferred_edges", [])],
         )
+
+    @property
+    def axis_coordinate(self) -> "Coordinate | None":
+        """Get the axis value with its source unit, when an axis exists."""
+        if self.axis is None:
+            return None
+        return super().axis_coordinate
 
     def __repr__(self) -> str:
         tl_list = ", ".join(f"{k}={v:.2f}" for k, v in self.coordinates.items())
@@ -552,7 +571,15 @@ class MatchGraph:
         >>> stamps = graph.get_stamps()
     """
 
-    def __init__(self, claims: list[MatchClaim] | None = None):
+    def __init__(
+        self,
+        claims: list[MatchClaim] | None = None,
+        *,
+        units: dict[str, str] | None = None,
+        axis: float | None = None,
+        source: "AlignmentBundle | None" = None,
+        source_id: str | None = None,
+    ):
         """Initialize MatchGraph from MatchClaims.
 
         Args:
@@ -561,6 +588,10 @@ class MatchGraph:
         self._claims: list[MatchClaim] = claims or []
         self._graph: nx.Graph = self._build_graph()
         self._logger = module_logger.getChild("MatchGraph")
+        self._units = dict(units or {})
+        self._axis = axis
+        self._source = source
+        self._source_id = source_id
 
     @property
     def claims(self) -> list[MatchClaim]:
@@ -812,7 +843,14 @@ class MatchGraph:
                     )
 
         all_claims = list(self._claims) + implicit_claims
-        return MatchGraph._from_graph(extended, all_claims)
+        return MatchGraph._from_graph(
+            extended,
+            all_claims,
+            units=self._units,
+            axis=self._axis,
+            source=self._source,
+            source_id=self._source_id,
+        )
 
     def _find_source_claim_for_node(self, node: GraphNode) -> MatchClaim | None:
         """Find the first explicit synchronous claim that contains this node.
@@ -898,6 +936,11 @@ class MatchGraph:
         cls,
         graph: nx.Graph,
         claims: list[MatchClaim],
+        *,
+        units: dict[str, str] | None = None,
+        axis: float | None = None,
+        source: "AlignmentBundle | None" = None,
+        source_id: str | None = None,
     ) -> "MatchGraph":
         """Create MatchGraph from existing networkx graph.
 
@@ -914,6 +957,10 @@ class MatchGraph:
         instance._claims = claims
         instance._graph = graph
         instance._logger = module_logger.getChild("MatchGraph")
+        instance._units = dict(units or {})
+        instance._axis = axis
+        instance._source = source
+        instance._source_id = source_id
         return instance
 
     def get_stamps(
@@ -944,7 +991,7 @@ class MatchGraph:
         If the graph contains multiple disconnected components, this
         method raises ``ValueError`` -- each component should be its own
         MatchGraph. Use ``split_components()`` to separate them first, or
-        use the legacy ``get_stamps()`` method.
+        use the multi-component ``get_stamps()`` method.
 
         Returns:
             Single MatchStamp spanning all timelines in the graph.
@@ -956,7 +1003,7 @@ class MatchGraph:
         See Also:
             `split_components`: Split a multi-component graph into separate
                 MatchGraph objects.
-            `get_stamps`: Legacy method returning one stamp per component.
+            `get_stamps`: Multi-component method returning one stamp per component.
         """
         components = list(nx.connected_components(self._graph))
         if not components:
@@ -968,7 +1015,7 @@ class MatchGraph:
             raise ValueError(
                 f"MatchGraph has {len(components)} disconnected components. "
                 f"One graph = one MatchStamp. Use split_components() first, "
-                f"or use get_stamps() for the legacy multi-component API."
+                f"or use get_stamps() for the multi-component API."
             )
         node = next(iter(components[0]))
         return self._build_stamp_from_node(node)
@@ -1010,7 +1057,16 @@ class MatchGraph:
                     ):
                         component_claims.append(c)
 
-            result.append(MatchGraph._from_graph(subgraph, component_claims))
+            result.append(
+                MatchGraph._from_graph(
+                    subgraph,
+                    component_claims,
+                    units=self._units,
+                    axis=self._axis,
+                    source=self._source,
+                    source_id=self._source_id,
+                )
+            )
         return result
 
     @property
@@ -1034,6 +1090,10 @@ class MatchGraph:
                 coordinates={start_node[0]: start_node[1]},
                 anchor_edges=[],
                 inferred_edges=[],
+                units=self._units,
+                axis=self._axis,
+                source=self._source,
+                source_id=self._source_id,
             )
 
         # Find all nodes in the connected component
@@ -1073,6 +1133,10 @@ class MatchGraph:
             coordinates=coordinates,
             anchor_edges=anchor_edges,
             inferred_edges=inferred_edges,
+            units=self._units,
+            axis=self._axis,
+            source=self._source,
+            source_id=self._source_id,
         )
 
     def filter(
@@ -1154,7 +1218,14 @@ class MatchGraph:
             ):
                 filtered_claims.append(c)
 
-        return MatchGraph._from_graph(filtered, filtered_claims)
+        return MatchGraph._from_graph(
+            filtered,
+            filtered_claims,
+            units=self._units,
+            axis=self._axis,
+            source=self._source,
+            source_id=self._source_id,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary.

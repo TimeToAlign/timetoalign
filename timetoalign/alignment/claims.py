@@ -42,7 +42,7 @@ from pydantic import (
     model_validator,
 )
 
-from timetoalign.core import AgentType, Coordinate, IdGenerator, TimeUnit
+from timetoalign.core import AgentType, Coordinate, IdCoordinate, IdGenerator, TimeUnit
 from timetoalign.core.fields import SemanticField, StructField, register_value_projector
 
 if TYPE_CHECKING:
@@ -183,8 +183,14 @@ class MatchMetadata(BaseModel):
 
 
 def _coordinate_to_dict(coordinate: Coordinate) -> dict[str, Any]:
-    """Serialize a coordinate without changing its native numeric value."""
-    return {"value": coordinate.value, "unit": coordinate.unit.value}
+    """Serialize a coordinate with JSON-safe and exact numeric fields."""
+    value = coordinate.value
+    return {
+        "value": float(value),
+        "numerator": value.numerator if isinstance(value, Fraction) else None,
+        "denominator": value.denominator if isinstance(value, Fraction) else None,
+        "unit": coordinate.unit.value,
+    }
 
 
 def _coordinate_from_dict(data: dict[str, Any]) -> Coordinate:
@@ -197,6 +203,33 @@ def _coordinate_from_dict(data: dict[str, Any]) -> Coordinate:
         else data["value"]
     )
     return Coordinate(value, data["unit"])
+
+
+def _coordinate_from_input(
+    value: int | float | Fraction | Coordinate,
+    unit: TimeUnit | str | None,
+    timeline_id: str,
+    parameter_name: str,
+) -> Coordinate:
+    """Resolve a raw or unit-bearing coordinate factory argument."""
+    if isinstance(value, Coordinate):
+        if isinstance(value, IdCoordinate) and value.timeline_id != timeline_id:
+            raise ValueError(
+                f"{parameter_name} timeline_id {value.timeline_id!r} does not "
+                f"match {timeline_id!r}"
+            )
+        if unit is not None and TimeUnit(unit) != value.unit:
+            raise ValueError(
+                f"{parameter_name} unit {value.unit.value!r} does not match "
+                f"explicit unit {TimeUnit(unit).value!r}"
+            )
+        return value
+
+    if unit is None:
+        raise ValueError(
+            f"{parameter_name} requires an explicit unit for a raw coordinate"
+        )
+    return Coordinate(value, unit)
 
 
 def _event_coordinate_value(raw: Any) -> int | float | Fraction:
@@ -744,12 +777,12 @@ class MatchClaim(BaseModel):
         event: dict[str, Any],
         source_tl_id: str,
         target_tl_id: str,
-        target_coord: int | float | Fraction,
+        target_coord: int | float | Fraction | Coordinate,
         *,
         source_unit: TimeUnit | str,
-        target_unit: TimeUnit | str,
+        target_unit: TimeUnit | str | None = None,
         coord_key: str = "start",
-        target_end_coord: int | float | Fraction | None = None,
+        target_end_coord: int | float | Fraction | Coordinate | None = None,
         end_coord_key: str | None = None,
         metadata: MatchMetadata | None = None,
     ) -> "MatchClaim":
@@ -774,24 +807,31 @@ class MatchClaim(BaseModel):
         Returns:
             A synchronous MatchClaim with 1 or 2 anchors and source event info.
         """
+        target_coordinate = _coordinate_from_input(
+            target_coord, target_unit, target_tl_id, "target_coord"
+        )
+
         start_anchor = AlignmentAnchor(
             timeline_a_id=source_tl_id,
             coordinate_a=Coordinate(
                 _event_coordinate_value(event[coord_key]), source_unit
             ),
             timeline_b_id=target_tl_id,
-            coordinate_b=Coordinate(target_coord, target_unit),
+            coordinate_b=target_coordinate,
         )
 
         end_anchor = None
         if target_end_coord is not None and end_coord_key is not None:
+            target_end_coordinate = _coordinate_from_input(
+                target_end_coord, target_unit, target_tl_id, "target_end_coord"
+            )
             end_anchor = AlignmentAnchor(
                 timeline_a_id=source_tl_id,
                 coordinate_a=Coordinate(
                     _event_coordinate_value(event[end_coord_key]), source_unit
                 ),
                 timeline_b_id=target_tl_id,
-                coordinate_b=Coordinate(target_end_coord, target_unit),
+                coordinate_b=target_end_coordinate,
             )
 
         # Extract event info from source event (target has no event)
@@ -866,12 +906,12 @@ class MatchClaim(BaseModel):
     def implicit(
         cls,
         tl_a_id: str,
-        coord_a: float,
+        coord_a: int | float | Fraction | Coordinate,
         tl_b_id: str,
-        coord_b: float,
+        coord_b: int | float | Fraction | Coordinate,
         *,
-        unit_a: TimeUnit | str,
-        unit_b: TimeUnit | str,
+        unit_a: TimeUnit | str | None = None,
+        unit_b: TimeUnit | str | None = None,
         source_claim: "MatchClaim | None" = None,
         metadata: MatchMetadata | None = None,
     ) -> "MatchClaim":
@@ -890,14 +930,17 @@ class MatchClaim(BaseModel):
         Returns:
             A synchronous, non-explicit MatchClaim with one anchor.
         """
+        coordinate_a = _coordinate_from_input(coord_a, unit_a, tl_a_id, "coord_a")
+        coordinate_b = _coordinate_from_input(coord_b, unit_b, tl_b_id, "coord_b")
+
         return cls(
             timeline_a_id=tl_a_id,
             timeline_b_id=tl_b_id,
             start_anchor=AlignmentAnchor(
                 timeline_a_id=tl_a_id,
-                coordinate_a=Coordinate(coord_a, unit_a),
+                coordinate_a=coordinate_a,
                 timeline_b_id=tl_b_id,
-                coordinate_b=Coordinate(coord_b, unit_b),
+                coordinate_b=coordinate_b,
             ),
             is_synchronous=True,
             is_explicit=False,

@@ -757,6 +757,30 @@ class TestGetMatchstampAtCrossGroup:
         assert audio_key is not None
         assert ts[audio_key] == 50.0
 
+    def test_interpolated_stamp_records_all_group_edges(self) -> None:
+        """Interpolation records every materialized group relationship."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        bundle.add_match_claims(_make_linear_claims(score_tl.id, audio_tl.id))
+
+        stamp = bundle.get_matchstamp_at(75.0, "score")
+
+        assert stamp.inferred_edges == [
+            ("score", "image"),
+            ("score", "audio"),
+            ("audio", "midi"),
+        ]
+
+    def test_cached_graph_matchstamp_carries_bundle_units(self) -> None:
+        """Stamps returned directly by a bundle-owned graph carry units."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        bundle.add_match_claims(_make_linear_claims(score_tl.id, audio_tl.id))
+
+        graph = bundle._get_or_build_matchgraph(score_tl.id, 50.0)
+        stamp = graph.get_matchstamp()
+
+        assert stamp.get_coordinate(score_tl.id) == Coordinate(50.0, score_tl.unit)
+        assert stamp.get_coordinate(audio_tl.id) == Coordinate(25.0, audio_tl.unit)
+
     def test_timestamp_nested_format(self) -> None:
         """MatchStamp nested format groups by group_id."""
         bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
