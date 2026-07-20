@@ -863,7 +863,7 @@ class CoordinateField:
         number_type: How to parse values (float, int, fraction).
 
     Examples:
-        >>> from timetoalign.loader import CoordinateField
+        >>> from timetoalign.storage.schema import CoordinateField
         >>> from timetoalign.core import TimeUnit, NumberType
 
         >>> # Basic usage: seconds field from x_seconds column

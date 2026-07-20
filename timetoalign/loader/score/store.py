@@ -9,12 +9,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from timetoalign.loader.events import EventData
 from timetoalign.loader.score.stores.annotations import AnnotationEventData
 from timetoalign.loader.score.stores.controls import ControlEventData
 from timetoalign.loader.score.stores.measures import MeasureData
 from timetoalign.loader.score.stores.notes import NoteEventData
-from timetoalign.loader.store import EventStore
+from timetoalign.storage.events import EventData
+from timetoalign.storage.store import EventStore
 
 if TYPE_CHECKING:
     from timetoalign.maps import ConversionMap

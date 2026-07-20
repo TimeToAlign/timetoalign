@@ -36,7 +36,7 @@ from timetoalign.core.time import (
     IdCoordinateField,
     IdDurationField,
 )
-from timetoalign.loader.mixins import (
+from timetoalign.storage.mixins import (
     MultipleFieldsError,
     SemanticFieldAccessMixin,
 )

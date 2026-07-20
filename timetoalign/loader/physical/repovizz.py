@@ -45,13 +45,13 @@ from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit, resolve_id
 from timetoalign.loader.base import ManifestData, ManifestLoader
-from timetoalign.loader.events import EventData
-from timetoalign.loader.store import DictStore
+from timetoalign.storage.events import EventData
+from timetoalign.storage.store import DictStore
 
 if TYPE_CHECKING:
-    from timetoalign.alignment.groups import TimelineGroup
     from timetoalign.timelines import DiscretePhysicalTimeline
     from timetoalign.timelines.base import Timeline
+    from timetoalign.timelines.groups import TimelineGroup
 
 
 module_logger = logging.getLogger(__name__)
@@ -140,7 +140,7 @@ class RepovizzDictStore(DictStore):
     rates, different file formats).
 
     See Also:
-        timetoalign.loader.store.DictStore
+        timetoalign.storage.store.DictStore
         timetoalign.loader.alignment.tilia.TiliaDictStore
     """
 
@@ -1106,7 +1106,7 @@ class RepoVizzLoader(ManifestLoader):
             >>> loader = RepoVizzLoader.from_file("recording.xml")
             >>> group = loader.create_group(id="normal", name="Normal Recording", with_notes=True)
         """
-        from timetoalign.alignment.groups import TimelineGroup
+        from timetoalign.timelines.groups import TimelineGroup
 
         if not self._is_xml_mode:
             # Legacy mode: single timeline group
@@ -1167,7 +1167,7 @@ class RepoVizzLoader(ManifestLoader):
                             break
 
             if audio_timeline:
-                from timetoalign.loader.store import SingleStore
+                from timetoalign.storage.store import SingleStore
 
                 # Create notes timeline from stored notes EventData
                 notes_data = self._store.notes

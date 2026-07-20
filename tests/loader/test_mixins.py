@@ -18,7 +18,7 @@ from timetoalign.core.events import (
     SpecificPitchField,
     WesternTertianHarmonyField,
 )
-from timetoalign.loader.mixins import (
+from timetoalign.storage.mixins import (
     HarmonyAccessMixin,
     SemanticFieldAccessMixin,
 )
@@ -335,7 +335,7 @@ class TestEventDataComposition:
         assert spf[0] is not None
 
     def test_plain_event_data_has_field_access(self) -> None:
-        from timetoalign.loader.events import EventData
+        from timetoalign.storage.events import EventData
 
         assert hasattr(EventData, "get_field")
         assert hasattr(EventData, "get_fields")
@@ -343,7 +343,7 @@ class TestEventDataComposition:
 
     def test_plain_event_data_get_field_with_metadata(self) -> None:
         from timetoalign.core import TimeUnit
-        from timetoalign.loader.events import EventData
+        from timetoalign.storage.events import EventData
 
         store = EventData.from_dicts(
             [
@@ -370,7 +370,7 @@ class TestEventDataComposition:
 
     def test_plain_event_data_has_field_false_without_metadata(self) -> None:
         from timetoalign.core import TimeUnit
-        from timetoalign.loader.events import EventData
+        from timetoalign.storage.events import EventData
 
         store = EventData.from_dicts(
             [

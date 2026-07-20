@@ -9,7 +9,8 @@ from typing import Any
 import pytest
 
 from timetoalign.core import TimeUnit
-from timetoalign.loader import EventData, Loader
+from timetoalign.loader import Loader
+from timetoalign.storage import EventData
 
 
 @pytest.fixture

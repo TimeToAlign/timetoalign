@@ -18,7 +18,7 @@ Design principles:
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from fractions import Fraction
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
@@ -54,6 +54,18 @@ if TYPE_CHECKING:
     from timetoalign.timelines.base import Timeline
 
 module_logger = logging.getLogger(__name__)
+
+_timeline_factory: (
+    Callable[["EventData", str | None, dict[str, Any] | None], "Timeline"] | None
+) = None
+
+
+def _register_timeline_factory(
+    factory: Callable[["EventData", str | None, dict[str, Any] | None], "Timeline"],
+) -> None:
+    """Register the timeline-layer constructor used by ``create_timeline``."""
+    global _timeline_factory
+    _timeline_factory = factory
 
 
 def _first_non_null(rows: list[dict[str, Any]], name: str) -> Any:
@@ -107,7 +119,7 @@ def _semantic_field_type_for_struct(
     in the base schema, so a stray coordinate-shaped extra column should
     stay a plain struct rather than masquerade as a CoordinateField.
     """
-    from timetoalign.loader.mixins import _get_field_type_map
+    from timetoalign.storage.mixins import _get_field_type_map
 
     for field_type_str, field_cls in _get_field_type_map().items():
         schema = field_cls.pa_schema
@@ -1138,7 +1150,7 @@ class EventData(SemanticFieldAccessMixin):
             else:
                 # For coordinate struct fields, add unit metadata
                 # This enables dataframe conversion to properly convert them
-                from timetoalign.loader.schema import is_coordinate_type
+                from timetoalign.storage.schema import is_coordinate_type
 
                 if is_coordinate_type(arr.type):
                     # Coordinate field - add unit metadata (use default unit)
@@ -1268,7 +1280,7 @@ class EventData(SemanticFieldAccessMixin):
         invocations.
         """
         from timetoalign.display.html import affordance_html, code
-        from timetoalign.loader.mixins import (
+        from timetoalign.storage.mixins import (
             _get_field_type_map,
             _parse_field_type_metadata,
         )
@@ -1630,23 +1642,9 @@ class EventData(SemanticFieldAccessMixin):
             >>> timeline = data.create_timeline(uid="notes")
             >>> filtered = data.create_timeline(filters={"event_type": "Note"})
         """
-        from timetoalign.timelines.factory import _infer_timeline_class_and_number_type
-
-        source = self.filter(**filters) if filters else self
-        timeline_class, effective_number_type = _infer_timeline_class_and_number_type(
-            self.unit, self.number_type
-        )
-        # Create timeline with corrected number_type
-        coord_range = source.coordinate_range()
-        length = coord_range[1] if coord_range else 0
-        timeline = timeline_class(
-            length=length,
-            unit=source.unit,
-            number_type=effective_number_type,
-            uid=uid,
-        )
-        timeline._events = source
-        return timeline
+        if _timeline_factory is None:
+            raise RuntimeError("Timeline creation requires timetoalign.timelines")
+        return _timeline_factory(self, uid, filters)
 
     # endregion
 
@@ -1700,7 +1698,7 @@ class EventData(SemanticFieldAccessMixin):
             # Detect coordinate fields from schema (struct with value/num/den fields)
             # This handles both core fields (start, end, duration) and extra
             # CoordinateField fields.
-            from timetoalign.loader.schema import is_coordinate_type
+            from timetoalign.storage.schema import is_coordinate_type
 
             for pa_field in self._table.schema:
                 field_name = pa_field.name

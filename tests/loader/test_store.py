@@ -11,7 +11,7 @@ import pyarrow.compute as pc
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader import EventData
+from timetoalign.storage import EventData
 
 
 class TestEventDataCreation:

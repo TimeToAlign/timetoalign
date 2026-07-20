@@ -29,11 +29,11 @@ from timetoalign.core import (
     resolve_coordinate_spec,
     resolve_id,
 )
+from timetoalign.timelines import TimelineGroup
 
 from .claims import MatchClaim, MatchClaimField
 from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
-from .groups import TimelineGroup
 from .matchline import MatchLine
 from .warpmap import WarpMap
 
@@ -196,8 +196,8 @@ class AlignmentBundle:
         uid: str | None = None,
         aligned_to: str | None = None,
         as_group: str | None = None,
-        start: CoordinateSpec | tuple[float, str] | None = None,
-        end: CoordinateSpec | tuple[float, str] | None = None,
+        start: CoordinateSpec | None = None,
+        end: CoordinateSpec | None = None,
     ) -> "AlignmentBundle":
         """Add a timeline, optionally aligned to an existing timeline.
 
@@ -215,7 +215,6 @@ class AlignmentBundle:
             start: Where this timeline's 0-origin starts in the group.
                 - CoordinateSpec: Coordinate in the aligned_to timeline
                 - IdCoordinate: Coordinate with explicit timeline_id (preferred)
-                - (coord, timeline_id): Legacy tuple form
                 - float: Coordinate in the aligned_to timeline
                 - None: Use group's current start (default for linear alignment)
             end: Where this timeline's end (length) aligns in the group.
@@ -279,8 +278,7 @@ class AlignmentBundle:
                 self.groups[group_id] = group
                 self.timeline_to_group[aligned_to] = group_id
 
-            # Process start/end parameters for partial alignment
-            # Convert bundle UIDs in (coord, uid) tuples to actual timeline IDs
+            # Process start/end parameters for partial alignment.
             start_spec = self._convert_boundary_spec(start, aligned_to)
             end_spec = self._convert_boundary_spec(end, aligned_to)
 
@@ -499,16 +497,15 @@ class AlignmentBundle:
 
     def _convert_boundary_spec(
         self,
-        spec: CoordinateSpec | tuple[float, str] | None,
+        spec: CoordinateSpec | None,
         aligned_to: str,
-    ) -> CoordinateSpec | tuple[float, str] | None:
+    ) -> CoordinateSpec | None:
         """Convert a boundary specification from bundle UIDs to timeline IDs.
 
         Args:
             spec: The boundary specification (start or end).
                 - CoordinateSpec: Uses the aligned_to timeline as context
-                - IdCoordinate: Uses timeline_id attribute as bundle UID (preferred)
-                - (coord, bundle_uid): Legacy tuple form
+                - IdCoordinate: Uses timeline_id attribute as bundle UID
                 - float: Coordinate in the aligned_to timeline
                 - None: Use defaults
             aligned_to: The bundle UID of the aligned_to timeline.
@@ -531,22 +528,10 @@ class AlignmentBundle:
             actual_tl_id = self._uid_to_timeline_id[bundle_uid]
             return spec.with_timeline(actual_tl_id)
 
-        if isinstance(spec, tuple):
-            coord, bundle_uid = spec
-            # Convert bundle UID to actual timeline ID
-            if bundle_uid not in self._uid_to_timeline_id:
-                raise KeyError(
-                    f"Timeline '{bundle_uid}' not found in bundle. "
-                    f"Available: {list(self._uid_to_timeline_id.keys())}"
-                )
-            actual_tl_id = self._uid_to_timeline_id[bundle_uid]
-            return (float(coord), actual_tl_id)
-
         resolved = resolve_coordinate_spec(spec)
         actual_tl_id = self._uid_to_timeline_id[aligned_to]
-        if resolved.unit is None:
-            return (float(resolved.value), actual_tl_id)
-        return Coordinate(resolved.value, resolved.unit).with_timeline(actual_tl_id)
+        unit = resolved.unit or self.timelines[actual_tl_id].unit
+        return IdCoordinate(resolved.value, unit, actual_tl_id)
 
     # endregion
 

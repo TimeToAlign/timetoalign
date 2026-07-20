@@ -15,7 +15,6 @@ from timetoalign.alignment import (
     MatchClaim,
     MatchLine,
     MatchMetadata,
-    TimelineGroup,
 )
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
 from timetoalign.core import Coordinate
@@ -23,6 +22,7 @@ from timetoalign.core.enums import AgentType, Domain, TimeUnit
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
+    TimelineGroup,
 )
 
 # region Fixtures

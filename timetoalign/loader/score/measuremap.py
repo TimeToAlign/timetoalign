@@ -338,7 +338,7 @@ class MeasureMapLoader(ScoreLoader):
         Returns:
             List of row dictionaries for MeasureData.from_dicts().
         """
-        from timetoalign.loader.schema import coordinate_to_struct
+        from timetoalign.storage.schema import coordinate_to_struct
 
         rows: list[dict[str, Any]] = []
 

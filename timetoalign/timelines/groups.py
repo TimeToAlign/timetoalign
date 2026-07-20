@@ -47,6 +47,7 @@ from timetoalign.core.timestamp import (
 )
 from timetoalign.maps.base import ConversionMap
 from timetoalign.maps.interpolation import InterpolationMap
+from timetoalign.storage import EventData
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -308,10 +309,11 @@ class TimelineGroup:
         >>> group.add_timeline(dgt1)
 
         >>> # Add with explicit boundaries
+        >>> from timetoalign import IdCoordinate, TimeUnit
         >>> group.add_timeline(
         ...     score_section,
-        ...     start=(45.0, "audio:1"),
-        ...     end=(135.0, "audio:1"),
+        ...     start=IdCoordinate(45.0, TimeUnit.seconds, "audio:1"),
+        ...     end=IdCoordinate(135.0, TimeUnit.seconds, "audio:1"),
         ... )
 
         >>> # Convert coordinates via timestamp lookup
@@ -380,8 +382,8 @@ class TimelineGroup:
         self,
         timeline: "Timeline",
         *,
-        start: CoordinateSpec | GroupTimestamp | tuple[float, str] | None = None,
-        end: CoordinateSpec | GroupTimestamp | tuple[float, str] | None = None,
+        start: CoordinateSpec | GroupTimestamp | None = None,
+        end: CoordinateSpec | GroupTimestamp | None = None,
         allow_extension: bool = False,
     ) -> None:
         """Add a timeline (or Child) to the group.
@@ -398,9 +400,8 @@ class TimelineGroup:
                 extent is used. If a Timeline, its full extent (0 to length).
             start: Where this timeline's section STARTS in the group.
                 - CoordinateSpec: Coordinate in the alignment-reference timeline
-                - IdCoordinate: Coordinate with explicit timeline_id (preferred)
+                - IdCoordinate: Coordinate with explicit timeline_id
                 - GroupTimestamp: Use this existing timestamp
-                - (coord, timeline_id): Legacy tuple form
                 - float: Coordinate (only if single timeline in group)
                 - None: Use group's current start, or 0 if empty
             end: Where this timeline's section ENDS in the group.
@@ -559,11 +560,11 @@ class TimelineGroup:
         *,
         timeline_id: str | None = None,
         **kwargs: Any,
-    ) -> "pd.DataFrame":
+    ) -> EventData:
         """Get events from all timelines in the group, concatenated.
 
         Collects events from all member timelines (or a specific one) and
-        concatenates them into a single DataFrame. Each row includes a
+        concatenates their Arrow tables into a single EventData. Each row includes a
         ``timeline_id`` field identifying the source timeline.
 
         Args:
@@ -573,45 +574,50 @@ class TimelineGroup:
                 (e.g., ``min_coord``, ``max_coord``, ``event_type``).
 
         Returns:
-            DataFrame with events from all (or specified) timelines. Includes
+            EventData with events from all (or specified) timelines. Includes
             a ``timeline_id`` field and standard event fields (``start``,
             ``end``, ``event_type``, etc.).
 
         Examples:
             >>> # Get all events from all timelines
-            >>> df = group.get_events()
+            >>> df = group.get_events().to_dataframe()
 
             >>> # Get events from a specific timeline
-            >>> df = group.get_events(timeline_id="clt1")
+            >>> df = group.get_events(timeline_id="clt1").to_dataframe()
 
             >>> # Get events with filters
-            >>> df = group.get_events(event_type="Note", min_coord=0.0, max_coord=100.0)
+            >>> df = group.get_events(
+            ...     event_type="Note", min_coord=0.0, max_coord=100.0
+            ... ).to_dataframe()
         """
-        dfs = []
-
         if timeline_id is not None:
-            # Single timeline
-            tl = self.get_timeline(timeline_id)
-            events = tl.get_events(**kwargs)
-            df = events.to_dataframe()
-            df["timeline_id"] = tl.id
-            dfs.append(df)
+            timeline = self.get_timeline(timeline_id)
+            timelines = [(timeline.id, timeline)]
         else:
-            # All timelines
-            for tl_id, tl in self._timelines.items():
-                try:
-                    events = tl.get_events(**kwargs)
-                    df = events.to_dataframe()
-                    df["timeline_id"] = tl_id
-                    dfs.append(df)
-                except Exception:
-                    # Skip timelines that fail (e.g., no events)
-                    continue
+            timelines = list(self._timelines.items())
 
-        if not dfs:
-            return pd.DataFrame()
+        tables: list[pa.Table] = []
+        result_unit = TimeUnit.seconds
+        result_number_type = NumberType.float
+        for tl_id, timeline in timelines:
+            events = timeline.get_events(**kwargs)
+            result_unit = events.unit
+            result_number_type = events.number_type
+            if len(events) == 0:
+                continue
+            source_ids = pa.array([tl_id] * len(events), type=pa.string())
+            tables.append(events.table.append_column("timeline_id", source_ids))
 
-        return pd.concat(dfs, ignore_index=True)
+        if tables:
+            table = pa.concat_tables(tables, promote_options="permissive")
+            return EventData(table, result_unit, result_number_type)
+
+        empty = EventData.empty(result_unit, result_number_type)
+        return EventData(
+            empty.table.append_column("timeline_id", pa.array([], type=pa.string())),
+            result_unit,
+            result_number_type,
+        )
 
     # endregion
 
@@ -1427,7 +1433,7 @@ class TimelineGroup:
 
     def _resolve_boundary(
         self,
-        spec: CoordinateSpec | GroupTimestamp | tuple[float, str] | None,
+        spec: CoordinateSpec | GroupTimestamp | None,
         is_start: bool,
         new_timeline: "Timeline",
     ) -> dict[str, Any]:
@@ -1482,11 +1488,6 @@ class TimelineGroup:
                 float(native_coord.value), spec.timeline_id, new_timeline, is_start
             )
 
-        # (coordinate, timeline_id): find or create (legacy tuple form)
-        if isinstance(spec, tuple):
-            coord, tl_id = spec
-            return self._find_or_create_at(float(coord), tl_id, new_timeline, is_start)
-
         # Unqualified CoordinateSpec: need an existing timeline for context
         try:
             resolved = resolve_coordinate_spec(spec)
@@ -1504,7 +1505,7 @@ class TimelineGroup:
             else:
                 raise ValueError(
                     f"Ambiguous boundary specification: {spec}. "
-                    f"Multiple timelines exist. Use IdCoordinate or (coord, timeline_id)."
+                    f"Multiple timelines exist. Use IdCoordinate."
                 )
 
         raise ValueError(f"Invalid boundary specification: {spec}")

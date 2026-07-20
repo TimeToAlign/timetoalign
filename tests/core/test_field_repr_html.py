@@ -11,7 +11,7 @@ import pyarrow as pa
 
 from timetoalign.core import TimeUnit
 from timetoalign.core.fields import StructField
-from timetoalign.loader.events import EventData
+from timetoalign.storage.events import EventData
 
 
 def _coordinate_field(n: int) -> object:

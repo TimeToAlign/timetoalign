@@ -5,8 +5,6 @@ synchronization as described in the TTA manuscript.
 
 Public API:
 - AlignmentBundle: Primary entry point for alignment workflows
-- TimelineGroup: Container for commensurable timelines (timestamp-based)
-- GroupTimestamp: A synchronized instant across all timelines in a group
 - Agent: The human or software author of a match claim
 - AlignmentAnchor: Atomic coordinate pair claim
 - MatchClaim: Low-level match between two events
@@ -31,7 +29,6 @@ from .claims import (
 )
 from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
-from .groups import GroupTimestamp, TimelineGroup
 from .match_format import MatchFileContext, NoteRecord, SnoteRecord
 from .matching import (
     MatchResult,
@@ -45,9 +42,6 @@ from .warpmap import WarpMap
 __all__ = [
     # Bundle (Primary Entry Point)
     "AlignmentBundle",
-    # Groups
-    "TimelineGroup",
-    "GroupTimestamp",
     # Anchors and Claims
     "Agent",
     "AlignmentAnchor",

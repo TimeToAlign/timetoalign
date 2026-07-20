@@ -12,15 +12,62 @@ Design principles:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from timetoalign.core import Domain, NumberType, TimeUnit
+from timetoalign.storage import EventData, EventStore, SingleStore
+from timetoalign.storage.events import (
+    _register_timeline_factory as _register_data_factory,
+)
+from timetoalign.storage.store import (
+    _register_timeline_factory as _register_store_factory,
+)
 
 if TYPE_CHECKING:
-    from timetoalign.loader import EventData, EventStore, Loader
     from timetoalign.timelines.base import Timeline
 
 module_logger = logging.getLogger(__name__)
+
+
+@runtime_checkable
+class LoaderSource(Protocol):
+    """Object exposing an EventStore through a ``store`` attribute."""
+
+    @property
+    def store(self) -> EventStore:
+        """Return the loaded event store."""
+        ...
+
+
+def create_timeline_from_event_data(
+    data: EventData,
+    uid: str | None = None,
+    filters: dict[str, Any] | None = None,
+) -> "Timeline":
+    """Create a timeline containing one EventData table.
+
+    Args:
+        data: Source event data.
+        uid: Optional timeline ID.
+        filters: Optional EventData filters.
+
+    Returns:
+        A timeline containing the selected events.
+    """
+    source = data.filter(**filters) if filters else data
+    timeline_class, effective_number_type = _infer_timeline_class_and_number_type(
+        data.unit, data.number_type
+    )
+    coord_range = source.coordinate_range()
+    length = coord_range[1] if coord_range else 0
+    timeline = timeline_class(
+        length=length,
+        unit=source.unit,
+        number_type=effective_number_type,
+        uid=uid,
+    )
+    timeline._events = source
+    return timeline
 
 
 def _infer_timeline_class_and_number_type(
@@ -157,8 +204,6 @@ def _create_grouped_timeline(
     # Create child for each unique value
     import pyarrow.compute as pc
 
-    from timetoalign.loader.events import EventData
-
     for group_value in unique_values:
         if group_value is None:
             child_name = "_none_"
@@ -240,8 +285,6 @@ def create_timeline_from_bundle(
     Raises:
         ValueError: If no data remain after filtering, or all are empty.
     """
-    from timetoalign.loader.events import EventData
-
     store_filters = store_filters or {}
     exclude_set = set(exclude_stores or [])
 
@@ -347,7 +390,7 @@ def create_timeline_from_bundle(
 
 
 def create_timeline(
-    source: "EventStore | EventData | Loader",
+    source: EventStore | EventData | LoaderSource,
     uid: str | None = None,
     store_filters: dict[str, dict[str, Any]] | None = None,
     include_stores: list[str] | None = None,
@@ -418,16 +461,12 @@ def create_timeline(
         >>> timeline = create_timeline(loader, group_by="image_filename")
         >>> # Creates children: page1.png, page2.png, etc.
     """
-    from timetoalign.loader.base import Loader
-    from timetoalign.loader.events import EventData
-    from timetoalign.loader.store import EventStore, SingleStore
-
     # Normalize to EventStore
     if isinstance(source, EventStore):
         store = source
     elif isinstance(source, EventData):
         store = SingleStore(source, name="events")
-    elif isinstance(source, Loader):
+    elif isinstance(source, LoaderSource) and isinstance(source.store, EventStore):
         store = source.store
     else:
         raise TypeError(
@@ -444,3 +483,7 @@ def create_timeline(
         flatten=flatten,
         group_by=group_by,
     )
+
+
+_register_data_factory(create_timeline_from_event_data)
+_register_store_factory(create_timeline_from_bundle)

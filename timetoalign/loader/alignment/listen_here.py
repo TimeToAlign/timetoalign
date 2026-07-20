@@ -323,7 +323,7 @@ class ListenHereLoader(AlignmentLoader):
         """Return the complete-topology pairwise claim field.
 
         The loader's alignment is reached through the uniform field API, the
-        same way any :class:`~timetoalign.loader.mixins.SemanticFieldAccessMixin`
+        same way any :class:`~timetoalign.storage.mixins.SemanticFieldAccessMixin`
         surfaces a semantic view:
 
             >>> field = loader.get_field(MatchClaim)

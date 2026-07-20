@@ -13,7 +13,9 @@ AlignmentAnchor (atomic) -> MatchClaim (low) -> MatchGraph (mid) -> MatchLine (h
    start/end params         TimelineGroup (timestamp table)
 ```
 
-**NOTE:** The `PerfectAlignment` class is **deprecated**. TimelineGroup now uses a timestamp-based architecture where alignment is specified via `start`/`end` parameters to `add_timeline()`. See `test_groups.py` for the new API.
+**NOTE:** TimelineGroup uses a timestamp-based architecture where alignment is
+specified via `start`/`end` parameters to `add_timeline()`. Its tests live in
+`tests/timelines/test_groups.py`; alignment tests cover consumers of groups.
 
 Each test validates a **specific claim** from the manuscript specification. Tests are not exploratory--they verify exact behaviors required by the model.
 
@@ -87,13 +89,13 @@ equivalent graph, group-extension, match-line, and stamp filtering results.
 
 | Before (deprecated) | After |
 |---------------------|-------------------|
-| `PerfectAlignment(source_start=0, source_end=277776, ref_start=15343, ref_end=293119)` | `group.add_timeline(holes, start=(15343.0, "dgt1"), end=(293119.0, "dgt1"))` |
+| `PerfectAlignment(source_start=0, source_end=277776, ref_start=15343, ref_end=293119)` | `group.add_timeline(holes, start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"), end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"))` |
 | Per-timeline alignment objects | Timestamp table with one field per timeline |
 | `group.reference_timeline_id` | Reference timeline is first field in table |
 
 ---
 
-## TimelineGroup Tests (`test_groups.py`)
+## TimelineGroup Integration
 
 ### What We're Validating
 
@@ -119,7 +121,7 @@ The manuscript states Groups contain timelines with "perfect alignment"--any coo
 
 | Test | Validates |
 |------|-----------|
-| `test_add_with_partial_alignment` | Partial ranges work: `start=(15343, "dgt1")` maps holes 0 -> image 15343 |
+| `test_add_with_partial_alignment` | Partial ranges work: `start=IdCoordinate(15343, TimeUnit.seconds, "dgt1")` maps holes 0 -> image 15343 |
 | `test_interpolation_exact_boundary` | Exact boundary coordinates return stored values (no interpolation) |
 | `test_interpolation_interior_point` | Interior points are linearly interpolated |
 | `test_conversion_same_timeline` | Self-conversion returns input unchanged (reflexivity) |
@@ -131,7 +133,11 @@ The manuscript states Groups contain timelines with "perfect alignment"--any coo
 ```python
 def test_floating_point_precision(self):
     # Partial alignment: holes [0, 277776] -> image [15343, 293119]
-    group.add_timeline(holes, start=(15343.0, "dgt1"), end=(293119.0, "dgt1"))
+    group.add_timeline(
+        holes,
+        start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
+        end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
+    )
 
     # Boundary coordinates must be EXACT
     result = group.convert(0.0, source="holes", target="dgt1")
@@ -883,7 +889,6 @@ python -m pytest tests/alignment/ -v
 | File | Tests | Description |
 |------|-------|-------------|
 | `conftest.py` | — | Shared fixtures and constants: Thoresen timeline fixtures (`dgt1_timeline`, `dgt2_timeline`, `audio_timeline`, `thoresen_segment_claims`), DGT1/DGT2 coordinate constants, `autouse` ID reset fixture, graphical bundle fixtures |
-| `test_groups.py` | 79 | TimelineGroup, GroupTimestamp, unified TimeStamp API, `convert()` coordinate-type parity |
 | `test_bundle.py` | 75 | AlignmentBundle: linear/partial alignment, cross-group transfer, timestamps, commensurability, caching, edge cases, coordinate-type parity (raw/Coordinate/IdCoordinate) |
 | `test_anchors.py` | 62 | AlignmentAnchor, MatchClaim (incl. NOMATCH coordinate preservation + repr), MatchMetadata |
 | `test_graph.py` | 54 | MatchGraph operations (implicit claims, filtering, stamps); imports Thoresen fixtures from conftest |

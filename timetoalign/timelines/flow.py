@@ -38,6 +38,7 @@ from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Iterator, Sequence
 
 from timetoalign.core.enums import FlowMode, IncompletePosition
+from timetoalign.storage import EventData
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -46,7 +47,6 @@ if TYPE_CHECKING:
 
     from timetoalign.core import Coordinate, TimeUnit
     from timetoalign.display.ascii import Diagram
-    from timetoalign.loader.score.stores.measures import MeasureData
     from timetoalign.timelines.base import Timeline
     from timetoalign.timelines.flowcontrol import Break, FlowControlRegistry, Jump
     from timetoalign.timelines.types import SegmentLine
@@ -1795,7 +1795,7 @@ class ScoreFlowController(FlowControllerBase):
 
     def __init__(
         self,
-        measures: "MeasureData",
+        measures: EventData,
         *,
         name_generator: SegmentNameGenerator | None = None,
     ) -> None:
@@ -1820,7 +1820,7 @@ class ScoreFlowController(FlowControllerBase):
     def from_atomic_sections(
         cls,
         sections: list[AtomicSection],
-        measures: "MeasureData | None" = None,
+        measures: EventData | None = None,
         *,
         name_generator: SegmentNameGenerator | None = None,
     ) -> "ScoreFlowController":

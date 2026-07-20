@@ -16,7 +16,7 @@ import pyarrow as pa
 import pytest
 
 from timetoalign.loader.format.xml import XmlLoader
-from timetoalign.loader.store import DictStore
+from timetoalign.storage.store import DictStore
 
 # region Test data paths
 
@@ -367,7 +367,7 @@ class TestXmlLoaderStore:
 
     def test_store_getitem_returns_event_data(self, simple_loader: XmlLoader) -> None:
         """Store values should be EventData wrapping pa.Table."""
-        from timetoalign.loader.events import EventData
+        from timetoalign.storage.events import EventData
 
         for key in simple_loader.keys():
             data = simple_loader.store[key]

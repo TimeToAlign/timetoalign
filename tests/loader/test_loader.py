@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader import EventData
+from timetoalign.storage import EventData
 
 from .conftest import DummyLoader
 

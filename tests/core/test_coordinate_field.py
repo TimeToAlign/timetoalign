@@ -13,7 +13,7 @@ from timetoalign.core.enums import Domain, NumberType, TimeUnit
 from timetoalign.core.fields import StructField
 from timetoalign.core.protocols import CoordinateLike, SemanticTypeLike
 from timetoalign.core.time import Coordinate, CoordinateField
-from timetoalign.loader.schema import coordinate_to_struct, make_coordinate_type
+from timetoalign.storage.schema import coordinate_to_struct, make_coordinate_type
 
 # ---------------------------------------------------------------------------
 # Helpers

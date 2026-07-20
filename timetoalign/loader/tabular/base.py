@@ -52,8 +52,8 @@ from timetoalign.core.fields import (
     parse_metadata_blob,
 )
 from timetoalign.loader.base import Loader
-from timetoalign.loader.parsing import CoordinateParser
-from timetoalign.loader.schema import (
+from timetoalign.storage.parsing import CoordinateParser
+from timetoalign.storage.schema import (
     ComputedField,
     Field,
 )

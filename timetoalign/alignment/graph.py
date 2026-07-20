@@ -39,8 +39,8 @@ from timetoalign.core.timestamp import ConversionMapsSpec, Stamp
 
 if TYPE_CHECKING:
     from timetoalign.alignment.bundle import AlignmentBundle
-    from timetoalign.alignment.groups import TimelineGroup
     from timetoalign.timelines import Timeline
+    from timetoalign.timelines.groups import TimelineGroup
 
 module_logger = logging.getLogger(__name__)
 

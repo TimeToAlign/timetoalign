@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -29,11 +29,19 @@ import pyarrow as pa
 
 if TYPE_CHECKING:
     from timetoalign.core import Domain
-    from timetoalign.loader.events import EventData
     from timetoalign.maps import ConversionMap
+    from timetoalign.storage.events import EventData
     from timetoalign.timelines.base import Timeline
 
 module_logger = logging.getLogger(__name__)
+
+_timeline_factory: Callable[..., "Timeline"] | None = None
+
+
+def _register_timeline_factory(factory: Callable[..., "Timeline"]) -> None:
+    """Register the timeline-layer constructor used by ``create_timeline``."""
+    global _timeline_factory
+    _timeline_factory = factory
 
 
 class EventStore(ABC):
@@ -324,9 +332,9 @@ class EventStore(ABC):
             ...     exclude_stores=["annotations"],
             ... )
         """
-        from timetoalign.timelines.factory import create_timeline_from_bundle
-
-        return create_timeline_from_bundle(
+        if _timeline_factory is None:
+            raise RuntimeError("Timeline creation requires timetoalign.timelines")
+        return _timeline_factory(
             self,
             uid=uid,
             store_filters=store_filters,
@@ -701,7 +709,8 @@ class AlignmentStore:
             An AlignmentStore with empty events, no C-maps, and no matches.
         """
         from timetoalign.core import TimeUnit
-        from timetoalign.loader.events import EventData
+
+        from .events import EventData
 
         empty_data = EventData.empty(TimeUnit.seconds)
         empty_store = SingleStore(empty_data, name="events")

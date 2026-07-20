@@ -18,10 +18,11 @@ from __future__ import annotations
 
 import pytest
 
-from timetoalign.alignment import MatchClaim, TimelineGroup
+from timetoalign.alignment import MatchClaim
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
+    TimelineGroup,
 )
 
 # Import shared Thoresen constants from conftest (canonical source)

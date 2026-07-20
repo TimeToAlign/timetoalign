@@ -30,8 +30,8 @@ from .mixins import ContinuousMixin, DiscreteMixin
 T = TypeVar("T", bound=Timeline)
 
 if TYPE_CHECKING:
-    from timetoalign.alignment.groups import TimelineGroup
     from timetoalign.maps.meter import MetricalPositionMap, MetricMap
+    from timetoalign.timelines.groups import TimelineGroup
 
 
 # region MetricalResult
@@ -356,9 +356,9 @@ class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
             ...     anacrusis_quarters=Fraction(1, 1),  # 1 beat pickup
             ... )
         """
-        from timetoalign.alignment.groups import TimelineGroup
         from timetoalign.maps import LinearMap
         from timetoalign.maps.meter import MetricalPositionMap, MetricMap
+        from timetoalign.timelines.groups import TimelineGroup
 
         # Validate inputs
         if first_beat_at < 0:

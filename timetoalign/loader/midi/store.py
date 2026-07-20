@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from timetoalign.loader.midi.events import MidiEventData
-from timetoalign.loader.store import EventStore
+from timetoalign.storage.store import EventStore
 
 if TYPE_CHECKING:
     from timetoalign.maps import ConversionMap

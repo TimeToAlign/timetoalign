@@ -20,7 +20,7 @@ from timetoalign.core.fields import (
     register_value_projector,
 )
 from timetoalign.core.time import Coordinate
-from timetoalign.loader.schema import make_coordinate_type
+from timetoalign.storage.schema import make_coordinate_type
 
 
 class TestCoordinateSchema:

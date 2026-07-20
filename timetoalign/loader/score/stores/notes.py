@@ -10,8 +10,8 @@ from typing_extensions import Self
 from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.core.events import EnharmonicPitchField, SpecificPitchField
 from timetoalign.core.fields import SemanticField
-from timetoalign.loader.events import EventData
-from timetoalign.loader.schema import make_fraction_field
+from timetoalign.storage.events import EventData
+from timetoalign.storage.schema import make_fraction_field
 
 
 class NoteEventData(EventData):
@@ -173,7 +173,7 @@ class NoteEventData(EventData):
         if not rows:
             return cls.empty(unit, number_type, has_rests)
 
-        from timetoalign.loader.schema import make_table_metadata
+        from timetoalign.storage.schema import make_table_metadata
 
         schema = cls.get_schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)

@@ -24,11 +24,10 @@ from timetoalign.alignment import (
     AlignmentBundle,
     MatchClaim,
     MatchClaimField,
-    TimelineGroup,
 )
 from timetoalign.core import Coordinate, IdCoordinate, TimeUnit
 from timetoalign.maps import ScalarMap
-from timetoalign.timelines import Timeline
+from timetoalign.timelines import Timeline, TimelineGroup
 
 # region Fixtures
 
@@ -395,7 +394,7 @@ class TestCustomAlignment:
         # Map second_timeline's full extent (0-200) to simple_timeline's 0-50
         group.add_timeline(
             second_timeline,
-            end=(50.0, simple_timeline.id),  # Map to first 50 units of tl1
+            end=IdCoordinate(50.0, simple_timeline.unit, simple_timeline.id),
         )
 
         # At tl2 coord 50: 25% through tl2's range (0-200)

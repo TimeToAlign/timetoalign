@@ -13,9 +13,9 @@ with dot-separated field names; element attributes become fields.
 When no principal tags are specified, the loader auto-detects all element
 tags that appear multiple times as children of any parent.
 
-A `timetoalign.loader.store.DictStore` is used as the internal storage,
+A `timetoalign.storage.store.DictStore` is used as the internal storage,
 keyed by element tag name.  Each normalised ``pa.Table`` is wrapped in an
-`timetoalign.loader.events.EventData` for uniform access through the
+`timetoalign.storage.events.EventData` for uniform access through the
 ``EventStore`` interface.
 
 Usage::
@@ -37,7 +37,7 @@ The loader follows the standard two-phase pattern:
 ``loader.store`` for the ``DictStore``.
 
 See Also:
-    timetoalign.loader.store.DictStore
+    timetoalign.storage.store.DictStore
     timetoalign.loader.base.Loader
     timetoalign.loader.format.json.JsonLoader
 """
@@ -54,8 +54,8 @@ from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.base import Loader
-from timetoalign.loader.events import EventData
-from timetoalign.loader.store import DictStore
+from timetoalign.storage.events import EventData
+from timetoalign.storage.store import DictStore
 
 module_logger = logging.getLogger(__name__)
 
@@ -291,7 +291,7 @@ class XmlLoader(Loader):
 
     ``XmlLoader`` parses one or more XML files and normalises their
     nested element structures into flat PyArrow tables stored in a
-    `timetoalign.loader.store.DictStore`.
+    `timetoalign.storage.store.DictStore`.
 
     **Principal tags** determine which element types become tables:
 
@@ -333,7 +333,7 @@ class XmlLoader(Loader):
             assert loader.get_table("Signal").num_rows > 0
 
     See Also:
-        timetoalign.loader.store.DictStore
+        timetoalign.storage.store.DictStore
         timetoalign.loader.base.Loader
         timetoalign.loader.format.json.JsonLoader
     """

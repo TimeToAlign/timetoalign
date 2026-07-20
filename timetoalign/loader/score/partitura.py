@@ -16,7 +16,7 @@ with warnings.catch_warnings():
     import partitura.score as pts
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader.schema import fraction_to_struct
+from timetoalign.storage.schema import fraction_to_struct
 
 from .base import ScoreLoader
 from .store import ScoreStore

@@ -97,24 +97,10 @@ For more information, see the documentation site.
 
 from __future__ import annotations
 
-from timetoalign.alignment import (
-    Agent,
-    AlignmentAnchor,
-    AlignmentBundle,
-    ClaimFilter,
-    GroupTimestamp,
-    MatchClaim,
-    MatchClaimField,
-    MatchFileContext,
-    MatchGraph,
-    MatchLine,
-    MatchMetadata,
-    MatchStamp,
-    NoteRecord,
-    SnoteRecord,
-    TimelineGroup,
-    WarpMap,
-)
+import sys
+from importlib import import_module
+from types import ModuleType
+
 from timetoalign.core import (
     ColumnNaming,
     ColumnRole,
@@ -135,18 +121,6 @@ from timetoalign.core import (
     TimeUnit,
     resolve_coordinate_spec,
 )
-from timetoalign.loader import (
-    AudioInfo,
-    AudioLoader,
-    DictStore,
-    EepNotesLoader,
-    EventData,
-    EventStore,
-    Loader,
-    RepoVizzInfo,
-    RepoVizzLoader,
-    SingleStore,
-)
 from timetoalign.maps import (
     ChainMap,
     ConstantMap,
@@ -162,20 +136,79 @@ from timetoalign.maps import (
     ShiftMap,
     TableMap,
 )
-from timetoalign.timelines import (
-    BeatGrid,
-    ContinuousGraphicalTimeline,
-    ContinuousLogicalTimeline,
-    ContinuousPhysicalTimeline,
-    DiscreteGraphicalTimeline,
-    DiscreteLogicalTimeline,
-    DiscretePhysicalTimeline,
-    GraphicalTimeline,
-    LogicalTimeline,
-    PhysicalTimeline,
-    SegmentNameGenerator,
-    Timeline,
-)
+from timetoalign.storage import DictStore, EventData, EventStore, SingleStore
+
+_DEFERRED_EXPORTS = {
+    # Loader layer
+    "AudioInfo": ("timetoalign.loader", "AudioInfo"),
+    "AudioLoader": ("timetoalign.loader", "AudioLoader"),
+    "EepNotesLoader": ("timetoalign.loader", "EepNotesLoader"),
+    "Loader": ("timetoalign.loader", "Loader"),
+    "MatchfileLoader": ("timetoalign.loader", "MatchfileLoader"),
+    "RepoVizzInfo": ("timetoalign.loader", "RepoVizzInfo"),
+    "RepoVizzLoader": ("timetoalign.loader", "RepoVizzLoader"),
+    "TiliaDictStore": ("timetoalign.loader", "TiliaDictStore"),
+    "TiliaJsonLoader": ("timetoalign.loader", "TiliaJsonLoader"),
+    # Timeline layer
+    "BeatGrid": ("timetoalign.timelines", "BeatGrid"),
+    "ContinuousGraphicalTimeline": (
+        "timetoalign.timelines",
+        "ContinuousGraphicalTimeline",
+    ),
+    "ContinuousLogicalTimeline": ("timetoalign.timelines", "ContinuousLogicalTimeline"),
+    "ContinuousPhysicalTimeline": (
+        "timetoalign.timelines",
+        "ContinuousPhysicalTimeline",
+    ),
+    "DiscreteGraphicalTimeline": ("timetoalign.timelines", "DiscreteGraphicalTimeline"),
+    "DiscreteLogicalTimeline": ("timetoalign.timelines", "DiscreteLogicalTimeline"),
+    "DiscretePhysicalTimeline": ("timetoalign.timelines", "DiscretePhysicalTimeline"),
+    "GraphicalTimeline": ("timetoalign.timelines", "GraphicalTimeline"),
+    "GroupTimestamp": ("timetoalign.timelines", "GroupTimestamp"),
+    "LogicalTimeline": ("timetoalign.timelines", "LogicalTimeline"),
+    "PhysicalTimeline": ("timetoalign.timelines", "PhysicalTimeline"),
+    "SegmentNameGenerator": ("timetoalign.timelines", "SegmentNameGenerator"),
+    "Timeline": ("timetoalign.timelines", "Timeline"),
+    "TimelineGroup": ("timetoalign.timelines", "TimelineGroup"),
+    # Alignment layer
+    "Agent": ("timetoalign.alignment", "Agent"),
+    "AlignmentAnchor": ("timetoalign.alignment", "AlignmentAnchor"),
+    "AlignmentBundle": ("timetoalign.alignment", "AlignmentBundle"),
+    "ClaimFilter": ("timetoalign.alignment", "ClaimFilter"),
+    "MatchClaim": ("timetoalign.alignment", "MatchClaim"),
+    "MatchClaimField": ("timetoalign.alignment", "MatchClaimField"),
+    "MatchFileContext": ("timetoalign.alignment", "MatchFileContext"),
+    "MatchGraph": ("timetoalign.alignment", "MatchGraph"),
+    "MatchLine": ("timetoalign.alignment", "MatchLine"),
+    "MatchMetadata": ("timetoalign.alignment", "MatchMetadata"),
+    "MatchStamp": ("timetoalign.alignment", "MatchStamp"),
+    "NoteRecord": ("timetoalign.alignment", "NoteRecord"),
+    "SnoteRecord": ("timetoalign.alignment", "SnoteRecord"),
+    "WarpMap": ("timetoalign.alignment", "WarpMap"),
+}
+
+
+class _FacadeModule(ModuleType):
+    """Module facade that loads upper layers only when their exports are requested."""
+
+    def __getattribute__(self, name: str) -> object:
+        deferred_exports = ModuleType.__getattribute__(self, "_DEFERRED_EXPORTS")
+        target = deferred_exports.get(name)
+        if target is not None:
+            module_name, attribute_name = target
+            value = getattr(import_module(module_name), attribute_name)
+            ModuleType.__setattr__(self, name, value)
+            deferred_exports.pop(name, None)
+            return value
+        return ModuleType.__getattribute__(self, name)
+
+    def __dir__(self) -> list[str]:
+        names = set(ModuleType.__dir__(self))
+        names.update(ModuleType.__getattribute__(self, "_DEFERRED_EXPORTS"))
+        return sorted(names)
+
+
+sys.modules[__name__].__class__ = _FacadeModule
 
 # User-friendly alias for Coordinate
 Coord = Coordinate
@@ -270,20 +303,3 @@ __all__ = [
     "SnoteRecord",
     "WarpMap",
 ]
-
-
-def __getattr__(name: str):
-    """Lazy imports for classes that would cause circular imports."""
-    if name == "MatchfileLoader":
-        from timetoalign.loader.alignment import MatchfileLoader
-
-        return MatchfileLoader
-    if name == "TiliaJsonLoader":
-        from timetoalign.loader.alignment import TiliaJsonLoader
-
-        return TiliaJsonLoader
-    if name == "TiliaDictStore":
-        from timetoalign.loader.alignment import TiliaDictStore
-
-        return TiliaDictStore
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

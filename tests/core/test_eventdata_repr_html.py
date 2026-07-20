@@ -6,8 +6,8 @@ See ``README.md`` for the documented expectations.
 from __future__ import annotations
 
 from timetoalign.core import TimeUnit
-from timetoalign.loader.events import EventData
 from timetoalign.loader.midi.events import MidiEventData
+from timetoalign.storage.events import EventData
 
 
 class TestMidiEventDataReprHtml:

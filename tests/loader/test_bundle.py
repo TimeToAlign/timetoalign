@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.core import TimeUnit
-from timetoalign.loader import EventData, EventStore, SingleStore
+from timetoalign.storage import EventData, EventStore, SingleStore
 
 
 class TestEventStoreProtocol:

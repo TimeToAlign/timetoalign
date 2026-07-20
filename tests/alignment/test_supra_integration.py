@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 
 from timetoalign.alignment import AlignmentBundle
+from timetoalign.core import IdCoordinate, TimeUnit
 from timetoalign.loader.graphical.aton import ATONLoader
 from timetoalign.loader.graphical.iiif import IIIFManifestLoader
 from timetoalign.timelines import Timeline
@@ -158,8 +159,12 @@ class TestSUPRAAlignmentBundle:
             holes_timeline,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(float(aton_loader.first_hole.value), "dgt1"),
-            end=(float(aton_loader.last_hole.value), "dgt1"),
+            start=IdCoordinate(
+                float(aton_loader.first_hole.value), TimeUnit.seconds, "dgt1"
+            ),
+            end=IdCoordinate(
+                float(aton_loader.last_hole.value), TimeUnit.seconds, "dgt1"
+            ),
         )
 
         assert bundle.n_timelines == 2
@@ -182,8 +187,12 @@ class TestSUPRAAlignmentBundle:
             holes_timeline,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(float(aton_loader.first_hole.value), "dgt1"),  # 15343.0
-            end=(float(aton_loader.last_hole.value), "dgt1"),  # 293119.0
+            start=IdCoordinate(
+                float(aton_loader.first_hole.value), TimeUnit.seconds, "dgt1"
+            ),  # 15343.0
+            end=IdCoordinate(
+                float(aton_loader.last_hole.value), TimeUnit.seconds, "dgt1"
+            ),  # 293119.0
         )
 
         # Coordinate 0 in holes -> first_hole in image - EXACT
@@ -216,8 +225,12 @@ class TestSUPRAAlignmentBundle:
             holes_timeline,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(float(aton_loader.first_hole.value), "dgt1"),
-            end=(float(aton_loader.last_hole.value), "dgt1"),
+            start=IdCoordinate(
+                float(aton_loader.first_hole.value), TimeUnit.seconds, "dgt1"
+            ),
+            end=IdCoordinate(
+                float(aton_loader.last_hole.value), TimeUnit.seconds, "dgt1"
+            ),
         )
 
         # first_hole in image -> 0 in holes - EXACT
@@ -260,8 +273,8 @@ class TestSUPRAOrderIndependence:
             holes_tl,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(15343.0, "dgt1"),
-            end=(293119.0, "dgt1"),
+            start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
+            end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
 
         # Test transfer - interior point, compute expected exactly
@@ -287,8 +300,8 @@ class TestSUPRAOrderIndependence:
             holes_tl_1,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(15343.0, "dgt1"),
-            end=(293119.0, "dgt1"),
+            start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
+            end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
 
         # Order 2: Same order but with different uid assignment
@@ -301,8 +314,8 @@ class TestSUPRAOrderIndependence:
             holes_tl_2,
             uid="holes",
             aligned_to="image",
-            start=(15343.0, "image"),
-            end=(293119.0, "image"),
+            start=IdCoordinate(15343.0, TimeUnit.seconds, "image"),
+            end=IdCoordinate(293119.0, TimeUnit.seconds, "image"),
         )
 
         # Both should produce same coordinate values (just with different UIDs)
@@ -330,15 +343,15 @@ class TestSUPRAOrderIndependence:
             holes1,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(15343.0, "dgt1"),
-            end=(293119.0, "dgt1"),
+            start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
+            end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
         b1.add_timeline(
             midi1,
             uid="dlt1",
             aligned_to="dgt1",
-            start=(15343.0, "dgt1"),
-            end=(293119.0, "dgt1"),
+            start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
+            end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
 
         # Order 2: image -> midi -> holes (same partial alignments, different order)
@@ -352,15 +365,15 @@ class TestSUPRAOrderIndependence:
             midi2,
             uid="dlt1",
             aligned_to="dgt1",
-            start=(15343.0, "dgt1"),
-            end=(293119.0, "dgt1"),
+            start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
+            end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
         b2.add_timeline(
             holes2,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(15343.0, "dgt1"),
-            end=(293119.0, "dgt1"),
+            start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
+            end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
 
         # Both bundles have holes and midi aligned to the same image region
@@ -407,8 +420,12 @@ class TestSUPRASummary:
             holes_timeline,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(float(aton_loader.first_hole.value), "dgt1"),
-            end=(float(aton_loader.last_hole.value), "dgt1"),
+            start=IdCoordinate(
+                float(aton_loader.first_hole.value), TimeUnit.seconds, "dgt1"
+            ),
+            end=IdCoordinate(
+                float(aton_loader.last_hole.value), TimeUnit.seconds, "dgt1"
+            ),
         )
 
         summary = bundle.summary()
@@ -434,8 +451,8 @@ class TestSUPRASummary:
             holes1,
             uid="dgt1_holes",
             aligned_to="dgt1",
-            start=(15343.0, "dgt1"),
-            end=(293119.0, "dgt1"),
+            start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
+            end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
 
         summary1 = b1.summary()

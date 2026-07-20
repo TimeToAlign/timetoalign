@@ -35,7 +35,7 @@ properties for each TiLiA timeline type:
 
 See Also:
     timetoalign.loader.format.json.JsonLoader
-    timetoalign.alignment.groups.TimelineGroup
+    timetoalign.timelines.groups.TimelineGroup
     timetoalign.alignment.bundle.AlignmentBundle
 """
 
@@ -47,15 +47,15 @@ from typing import TYPE_CHECKING, Any
 import pyarrow as pa
 
 from timetoalign.core import TimeUnit, resolve_id
-from timetoalign.loader.events import EventData
 from timetoalign.loader.format.json import JsonLoader, _normalise_array
-from timetoalign.loader.store import DictStore
+from timetoalign.storage.events import EventData
+from timetoalign.storage.store import DictStore
 from timetoalign.timelines.types import ContinuousPhysicalTimeline
 
 if TYPE_CHECKING:
     from timetoalign.alignment.bundle import AlignmentBundle
-    from timetoalign.alignment.groups import TimelineGroup
     from timetoalign.timelines.base import Timeline
+    from timetoalign.timelines.groups import TimelineGroup
 
 module_logger = logging.getLogger(__name__)
 
@@ -298,7 +298,7 @@ class TiliaDictStore(DictStore):
         >>> loader.store.beat       # all beat tables concatenated
 
     See Also:
-        timetoalign.loader.store.DictStore
+        timetoalign.storage.store.DictStore
     """
 
     def __init__(
@@ -448,7 +448,7 @@ class TiliaJsonLoader(JsonLoader):
 
     Parses a TiLiA ``.tla`` or ``.json`` file and produces one
     `ContinuousPhysicalTimeline` (seconds) per annotated timeline in
-    the file.  The primary output is a `timetoalign.alignment.groups.TimelineGroup`
+    the file.  The primary output is a `timetoalign.timelines.groups.TimelineGroup`
     containing all timelines, accessible via ``create_group()``.
 
     Internally, the ``"timelines"`` array is parsed so that each element
@@ -488,7 +488,7 @@ class TiliaJsonLoader(JsonLoader):
 
     See Also:
         timetoalign.loader.format.json.JsonLoader
-        timetoalign.alignment.groups.TimelineGroup
+        timetoalign.timelines.groups.TimelineGroup
         TiliaDictStore
     """
 
@@ -731,7 +731,7 @@ class TiliaJsonLoader(JsonLoader):
         Raises:
             RuntimeError: If ``load()`` has not been called.
         """
-        from timetoalign.alignment.groups import TimelineGroup
+        from timetoalign.timelines.groups import TimelineGroup
 
         if not self._timeline_specs:
             raise RuntimeError("No data loaded. Call load() before create_group().")

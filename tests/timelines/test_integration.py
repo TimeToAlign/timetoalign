@@ -62,7 +62,7 @@ class TestEventDataIntegration:
 
     def test_timeline_from_event_data_empty(self):
         """Empty EventData creates empty timeline."""
-        from timetoalign.loader import EventData
+        from timetoalign.storage import EventData
 
         data = EventData.empty(TimeUnit.seconds, NumberType.float)
         tl = Timeline.from_event_data(data)
@@ -73,7 +73,7 @@ class TestEventDataIntegration:
 
     def test_timeline_from_event_data_with_events(self):
         """EventData with events creates populated timeline."""
-        from timetoalign.loader import EventData
+        from timetoalign.storage import EventData
 
         events = [
             {
@@ -105,7 +105,7 @@ class TestEventDataIntegration:
 
     def test_timeline_preserves_event_data_unit(self):
         """Timeline inherits unit from EventData."""
-        from timetoalign.loader import EventData
+        from timetoalign.storage import EventData
 
         events = [
             {
@@ -247,7 +247,7 @@ class TestScoreLoaderIntegration:
 
     def test_continuous_timeline_from_note_data(self):
         """ContinuousLogicalTimeline can hold NoteEventData events."""
-        from timetoalign.loader import EventData
+        from timetoalign.storage import EventData
 
         # Create sample note events in quarter notes using base EventData
         events = [
@@ -287,7 +287,7 @@ class TestScoreLoaderIntegration:
 
     def test_timeline_from_score_store_combined(self):
         """Create timeline containing all events from a ScoreStore."""
-        from timetoalign.loader import EventData
+        from timetoalign.storage import EventData
 
         # Create a mock score data with events using base EventData
         notes = EventData.from_dicts(
@@ -506,7 +506,7 @@ class TestPerformanceIntegration:
 
     def test_large_event_data_to_timeline(self, profiler):
         """Benchmark creating timeline from large EventData."""
-        from timetoalign.loader import EventData
+        from timetoalign.storage import EventData
 
         n_events = 50000
         events = [

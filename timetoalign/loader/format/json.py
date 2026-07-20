@@ -14,9 +14,9 @@ dot-separated field names; nested arrays become list-typed fields.
 When no principal keys are specified, the loader auto-detects all top-level
 keys whose values are arrays of objects.
 
-A `timetoalign.loader.store.DictStore` is used as the internal storage,
+A `timetoalign.storage.store.DictStore` is used as the internal storage,
 keyed by principal key name.  Each normalised ``pa.Table`` is wrapped in an
-`timetoalign.loader.store.EventData` for uniform access through the
+`timetoalign.storage.store.EventData` for uniform access through the
 ``EventStore`` interface.
 
 Usage::
@@ -38,7 +38,7 @@ The loader follows the standard two-phase pattern:
 ``loader.store`` for the ``DictStore``.
 
 See Also:
-    timetoalign.loader.store.DictStore
+    timetoalign.storage.store.DictStore
     timetoalign.loader.base.Loader
 """
 
@@ -54,8 +54,8 @@ from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.base import Loader
-from timetoalign.loader.events import EventData
-from timetoalign.loader.store import DictStore
+from timetoalign.storage.events import EventData
+from timetoalign.storage.store import DictStore
 
 module_logger = logging.getLogger(__name__)
 
@@ -303,7 +303,7 @@ class JsonLoader(Loader):
 
     ``JsonLoader`` parses one or more JSON files and normalises their
     nested structures into flat PyArrow tables stored in a
-    `timetoalign.loader.store.DictStore`.
+    `timetoalign.storage.store.DictStore`.
 
     **Principal keys** determine which top-level arrays become tables:
 
@@ -354,7 +354,7 @@ class JsonLoader(Loader):
             # Collects hotCuePoints from audio[*].cueData.hotCuePoints
 
     See Also:
-        timetoalign.loader.store.DictStore
+        timetoalign.storage.store.DictStore
         timetoalign.loader.base.Loader
     """
 

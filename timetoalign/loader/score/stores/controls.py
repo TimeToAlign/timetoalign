@@ -8,8 +8,8 @@ import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
-from timetoalign.loader.events import EventData
-from timetoalign.loader.schema import make_fraction_field
+from timetoalign.storage.events import EventData
+from timetoalign.storage.schema import make_fraction_field
 
 if TYPE_CHECKING:
     pass
@@ -71,7 +71,7 @@ class ControlEventData(EventData):
         if not rows:
             return cls.empty(unit, number_type)
 
-        from timetoalign.loader.schema import make_table_metadata
+        from timetoalign.storage.schema import make_table_metadata
 
         schema = cls.get_schema(unit)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)

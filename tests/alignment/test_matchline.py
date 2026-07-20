@@ -19,7 +19,6 @@ import pytest
 from timetoalign.alignment import (
     AlignmentAnchor,
     MatchClaim,
-    TimelineGroup,
 )
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
 from timetoalign.alignment.matchline import MatchLine
@@ -27,6 +26,7 @@ from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
+    TimelineGroup,
 )
 
 # region Fixtures

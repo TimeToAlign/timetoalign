@@ -14,7 +14,7 @@ import pyarrow as pa
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader.parsing import ArrayValidator, CoordinateParser
+from timetoalign.storage.parsing import ArrayValidator, CoordinateParser
 
 # region CoordinateParser Tests
 

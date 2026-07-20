@@ -840,9 +840,6 @@ register_value_projector(IdTimeScalar, "timeline_id", _drop_field_projector)
 # CoordinateSpec: any form of coordinate specification.
 CoordinateSpec = Union[int, float, Fraction, Coordinate, IdCoordinate]
 
-# CoordinateWithTimeline: coordinate specification with optional explicit timeline.
-CoordinateWithTimeline = Union[tuple[CoordinateSpec, str], CoordinateSpec]
-
 
 class ResolvedCoordinate(NamedTuple):
     """Decomposed form of a CoordinateSpec input."""
@@ -1147,7 +1144,7 @@ class TimeScalarField(SemanticField):
         raw_dict = self._raw[i]
         if raw_dict is None:
             return None
-        from ..loader.schema import struct_to_coordinate
+        from timetoalign.storage.schema import struct_to_coordinate
 
         return struct_to_coordinate(raw_dict, self._number_type)
 

@@ -1209,7 +1209,7 @@ def beethoven_score_group() -> dict[str, Any]:
     openscore = _build_openscore(data_dir)
 
     # Score group
-    from timetoalign.alignment import TimelineGroup
+    from timetoalign.timelines import TimelineGroup
 
     score_group = TimelineGroup(
         id="score",

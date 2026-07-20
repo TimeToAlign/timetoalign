@@ -20,8 +20,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from timetoalign.alignment import AlignmentBundle, TimelineGroup
-    from timetoalign.timelines import Timeline
+    from timetoalign.alignment import AlignmentBundle
+    from timetoalign.timelines import Timeline, TimelineGroup
     from timetoalign.timelines.flow import Flow, ScoreFlowController
 
 

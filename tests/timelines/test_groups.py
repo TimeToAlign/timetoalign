@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import pytest
 
-from timetoalign.alignment import GroupTimestamp, TimelineGroup
 from timetoalign.core import Coordinate, IdCoordinate
 from timetoalign.core.enums import NumberType, TimeUnit
 from timetoalign.core.timestamp import Stamp
-from timetoalign.loader.events import EventData
 from timetoalign.maps import TableMap
+from timetoalign.storage.events import EventData
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
+    GroupTimestamp,
+    TimelineGroup,
 )
 
 # region Fixtures
@@ -163,6 +164,48 @@ class TestTimelineGroupCreation:
         assert group.is_locked is True
 
 
+class TestTimelineGroupEvents:
+    """Event aggregation preserves Arrow data and source provenance."""
+
+    def test_get_events_returns_promoted_event_data(self) -> None:
+        """Member-specific fields are null-filled in one EventData table."""
+        first = ContinuousPhysicalTimeline(length=10.0, uid="first")
+        first.add_events([{"start": 1.0, "name": "a"}])
+        second = ContinuousPhysicalTimeline(length=10.0, uid="second")
+        second.add_events([{"start": 2.0, "velocity": 64}])
+
+        events = TimelineGroup(id="group", timelines=[first, second]).get_events()
+
+        assert isinstance(events, EventData)
+        assert events.table.num_rows == 2
+        assert events.table.column("timeline_id").to_pylist() == ["first", "second"]
+        assert events.table.column("name").to_pylist() == ["a", None]
+        assert events.table.column("velocity").to_pylist() == [None, 64]
+
+    def test_get_events_empty_group_returns_empty_event_data(self) -> None:
+        """An empty group has an empty Arrow-backed result."""
+        events = TimelineGroup(id="empty").get_events()
+
+        assert isinstance(events, EventData)
+        assert events.table.num_rows == 0
+        assert events.table.column("timeline_id").to_pylist() == []
+
+    def test_get_events_propagates_timeline_errors(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A member query failure is visible to the group caller."""
+        timeline = ContinuousPhysicalTimeline(length=10.0, uid="broken")
+
+        def fail(**kwargs: object) -> EventData:
+            raise RuntimeError("member query failed")
+
+        monkeypatch.setattr(timeline, "get_events", fail)
+        group = TimelineGroup(id="group", timelines=[timeline])
+
+        with pytest.raises(RuntimeError, match="member query failed"):
+            group.get_events()
+
+
 # endregion
 
 
@@ -221,8 +264,8 @@ class TestAddTimeline:
         # Add score section that maps to audio seconds 45-135
         group.add_timeline(
             score_timeline,
-            start=(45.0, "audio"),
-            end=(135.0, "audio"),
+            start=IdCoordinate(45.0, TimeUnit.seconds, "audio"),
+            end=IdCoordinate(135.0, TimeUnit.seconds, "audio"),
         )
 
         assert group.n_timelines == 3
@@ -520,8 +563,8 @@ class TestGetTimestampAt:
         # Add score that only spans audio 45-135 seconds
         group.add_timeline(
             score_timeline,
-            start=(45.0, "audio"),
-            end=(135.0, "audio"),
+            start=IdCoordinate(45.0, TimeUnit.seconds, "audio"),
+            end=IdCoordinate(135.0, TimeUnit.seconds, "audio"),
         )
 
         # Query at 75 seconds (within score range)
@@ -605,8 +648,8 @@ class TestConvert:
         # Add score that only spans audio 45-135 seconds
         group.add_timeline(
             score_timeline,
-            start=(45.0, "audio"),
-            end=(135.0, "audio"),
+            start=IdCoordinate(45.0, TimeUnit.seconds, "audio"),
+            end=IdCoordinate(135.0, TimeUnit.seconds, "audio"),
         )
 
         # Query at 30 seconds (score not present)
@@ -686,8 +729,8 @@ class TestRangeAndUtilities:
 
         group.add_timeline(
             score_timeline,
-            start=(45.0, "audio"),
-            end=(135.0, "audio"),
+            start=IdCoordinate(45.0, TimeUnit.seconds, "audio"),
+            end=IdCoordinate(135.0, TimeUnit.seconds, "audio"),
         )
 
         score_range = group.get_range("score")
@@ -836,13 +879,13 @@ class TestGroupIntegration:
         # Create group with audio and DGT spanning only 0-150 seconds
         group = TimelineGroup(id="test_group")
         group.add_timeline(audio)
-        group.add_timeline(dgt, end=(150.0, "audio"))
+        group.add_timeline(dgt, end=IdCoordinate(150.0, TimeUnit.seconds, "audio"))
 
         # Score section maps to audio seconds 45-135
         group.add_timeline(
             score,
-            start=(45.0, "audio"),
-            end=(135.0, "audio"),
+            start=IdCoordinate(45.0, TimeUnit.seconds, "audio"),
+            end=IdCoordinate(135.0, TimeUnit.seconds, "audio"),
         )
 
         # Verify timestamps count
@@ -1276,7 +1319,11 @@ class TestTimelineGroupUnitMetadata:
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
         # Add a third timeline which inserts more rows
-        group.add_timeline(score_timeline, start=(45.0, "audio"), end=(135.0, "audio"))
+        group.add_timeline(
+            score_timeline,
+            start=IdCoordinate(45.0, TimeUnit.seconds, "audio"),
+            end=IdCoordinate(135.0, TimeUnit.seconds, "audio"),
+        )
 
         table = group.get_timestamp_table()
 

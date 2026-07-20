@@ -38,8 +38,8 @@ from timetoalign.core.timestamp import (
     TimeIntervalStamp,
     TimeStamp,
 )
-from timetoalign.loader import EventData
 from timetoalign.maps import ConversionMap, InterpolationMap
+from timetoalign.storage import EventData
 
 from .regions import Region
 

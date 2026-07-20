@@ -44,16 +44,7 @@ structures and table metadata.
 
 from __future__ import annotations
 
-from .base import AlignmentLoader, Loader, ManifestData, ManifestLoader
-from .events import EventData
-from .physical import (
-    AudioInfo,
-    AudioLoader,
-    EepNotesLoader,
-    RepoVizzInfo,
-    RepoVizzLoader,
-)
-from .schema import (
+from timetoalign.storage.schema import (
     TEMPORAL_TYPE_INSTANT,
     TEMPORAL_TYPE_INTERVAL,
     ComputedField,
@@ -72,16 +63,18 @@ from .schema import (
     parse_table_metadata,
     struct_to_coordinate,
 )
-from .store import AlignmentStore, DictStore, EventStore, MatchData, SingleStore
+
+from .alignment import MatchfileLoader, TiliaDictStore, TiliaJsonLoader
+from .base import AlignmentLoader, Loader, ManifestData, ManifestLoader
+from .physical import (
+    AudioInfo,
+    AudioLoader,
+    EepNotesLoader,
+    RepoVizzInfo,
+    RepoVizzLoader,
+)
 
 __all__ = [
-    # Main classes
-    "EventData",
-    "EventStore",
-    "SingleStore",
-    "DictStore",
-    "AlignmentStore",
-    "MatchData",
     "ManifestData",
     # Loader ABCs
     "Loader",
@@ -117,25 +110,3 @@ __all__ = [
     "TEMPORAL_TYPE_INSTANT",
     "TEMPORAL_TYPE_INTERVAL",
 ]
-
-
-def __getattr__(name: str):
-    """Lazy imports to avoid circular dependency at module load time.
-
-    MatchfileLoader imports from timetoalign.timelines, which in turn
-    imports from timetoalign.loader.  Deferring the import here breaks
-    the cycle.
-    """
-    if name == "MatchfileLoader":
-        from .alignment import MatchfileLoader
-
-        return MatchfileLoader
-    if name == "TiliaJsonLoader":
-        from .alignment import TiliaJsonLoader
-
-        return TiliaJsonLoader
-    if name == "TiliaDictStore":
-        from .alignment import TiliaDictStore
-
-        return TiliaDictStore
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

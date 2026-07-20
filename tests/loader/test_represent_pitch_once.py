@@ -44,9 +44,9 @@ from timetoalign.core.events import (
     SpecificPitchClassField,
     SpecificPitchField,
 )
-from timetoalign.loader.events import EventData
 from timetoalign.loader.midi.events import MidiEventData, ScoreMidiEventData
 from timetoalign.loader.score.stores.notes import NoteEventData
+from timetoalign.storage.events import EventData
 
 if TYPE_CHECKING:
     from timetoalign.timelines.base import Timeline
@@ -571,7 +571,7 @@ class TestMultiBatchConcatAffordance:
     def _midi_backed_timeline(self) -> "Timeline":
         # A timeline whose events store is a MidiEventData.  SingleStore ->
         # create_timeline keeps the concrete class through prefix_ids.
-        from timetoalign.loader.store import SingleStore
+        from timetoalign.storage.store import SingleStore
 
         data = MidiEventData.from_dicts([_midi_note(0, 60)], TimeUnit.ticks)
         timeline = SingleStore(data, name="notes").create_timeline()

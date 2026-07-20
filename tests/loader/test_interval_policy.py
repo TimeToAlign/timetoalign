@@ -17,8 +17,8 @@ import pytest
 
 from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.core.enums import IntervalPolicy
-from timetoalign.loader import EventData
-from timetoalign.loader.schema import coordinate_to_struct
+from timetoalign.storage import EventData
+from timetoalign.storage.schema import coordinate_to_struct
 from timetoalign.testdata import ensure_data
 
 ensure_data("tabular")
@@ -124,7 +124,7 @@ class TestNormalizeIntervalsRow:
             "end": coordinate_to_struct(3.0),
             "duration": coordinate_to_struct(5.0),
         }
-        with caplog.at_level(logging.WARNING, logger="timetoalign.loader.events"):
+        with caplog.at_level(logging.WARNING, logger="timetoalign.storage.events"):
             EventData._normalize_intervals_row(processed, policy=IntervalPolicy.warn)
         assert _value_of(processed["duration"]) == pytest.approx(2.0)
         assert _value_of(processed["end"]) == pytest.approx(3.0)
@@ -276,7 +276,7 @@ class TestNormalizeIntervalsVectorized:
             "end": _make_coord_array([1.0, 3.0]),
             "duration": _make_coord_array([1.0, 5.0]),
         }
-        with caplog.at_level(logging.WARNING, logger="timetoalign.loader.events"):
+        with caplog.at_level(logging.WARNING, logger="timetoalign.storage.events"):
             result = EventData._normalize_intervals_vectorized(
                 processed, policy=IntervalPolicy.warn
             )

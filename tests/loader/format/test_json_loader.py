@@ -17,7 +17,7 @@ import pyarrow as pa
 import pytest
 
 from timetoalign.loader.format.json import JsonLoader
-from timetoalign.loader.store import DictStore
+from timetoalign.storage.store import DictStore
 
 # region Test data paths
 
@@ -229,7 +229,7 @@ class TestJsonLoaderStore:
 
     def test_store_getitem_returns_event_data(self, wagner_loader: JsonLoader) -> None:
         """Store values should be EventData wrapping pa.Table."""
-        from timetoalign.loader.events import EventData
+        from timetoalign.storage.events import EventData
 
         for key in wagner_loader.keys():
             data = wagner_loader.store[key]

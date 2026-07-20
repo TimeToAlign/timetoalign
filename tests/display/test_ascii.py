@@ -384,7 +384,7 @@ class TestGroupDiagram:
 
     def test_basic_group_output(self) -> None:
         """Basic group renders header, box, and footer."""
-        from timetoalign.alignment import TimelineGroup
+        from timetoalign.timelines import TimelineGroup
 
         tl = DiscreteGraphicalTimeline(length=100, uid="grp_basic")
         group = TimelineGroup(id="test_group", timelines=[tl])
@@ -404,7 +404,7 @@ class TestGroupDiagram:
 
     def test_group_with_multiple_timelines(self) -> None:
         """Group with multiple timelines shows all."""
-        from timetoalign.alignment import TimelineGroup
+        from timetoalign.timelines import TimelineGroup
 
         tl1 = DiscreteGraphicalTimeline(length=100, uid="grp_multi_1", name="tl1")
         tl2 = ContinuousPhysicalTimeline(length=50.0, uid="grp_multi_2", name="tl2")
@@ -418,7 +418,7 @@ class TestGroupDiagram:
 
     def test_group_ascii_mode(self) -> None:
         """Group in ASCII mode uses ASCII box characters."""
-        from timetoalign.alignment import TimelineGroup
+        from timetoalign.timelines import TimelineGroup
 
         tl = DiscreteGraphicalTimeline(length=100, uid="grp_ascii")
         group = TimelineGroup(id="ascii_test", timelines=[tl])
@@ -554,7 +554,7 @@ class TestDiagramMethods:
 
     def test_group_diagram_method(self) -> None:
         """TimelineGroup.diagram() returns same as group_diagram()."""
-        from timetoalign.alignment import TimelineGroup
+        from timetoalign.timelines import TimelineGroup
 
         tl = DiscreteGraphicalTimeline(length=100, uid="meth_grp")
         group = TimelineGroup(id="method_test", timelines=[tl])

@@ -152,7 +152,7 @@ class TestEventStoreErrorHandling:
     def test_from_dicts_allows_null_id(self):
         """from_dicts allows null id (lenient parsing)."""
         from timetoalign.core import TimeUnit
-        from timetoalign.loader import EventData
+        from timetoalign.storage import EventData
 
         # Missing 'id' field - implementation is lenient
         rows = [
@@ -169,7 +169,7 @@ class TestEventStoreErrorHandling:
         Validation happens at higher levels if needed.
         """
         from timetoalign.core import TimeUnit
-        from timetoalign.loader import EventData
+        from timetoalign.storage import EventData
 
         rows = [
             {"id": "n1", "temporal_type": "invalid_type", "event_type": "Note"},

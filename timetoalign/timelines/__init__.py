@@ -86,6 +86,7 @@ from .flow import (
     create_unfolded_timeline,
     load_valid_flows,
 )
+from .groups import GroupTimestamp, TimelineGroup
 from .regions import Region
 from .types import (
     ContinuousGraphicalTimeline,
@@ -104,6 +105,8 @@ from .types import (
 __all__ = [
     # Base
     "Timeline",
+    "TimelineGroup",
+    "GroupTimestamp",
     # Factory
     "create_timeline",
     "get_timeline_class",

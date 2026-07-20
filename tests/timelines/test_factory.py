@@ -19,8 +19,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader import EventData, SingleStore
-from timetoalign.loader.store import EventStore
+from timetoalign.storage import EventData, SingleStore
+from timetoalign.storage.store import EventStore
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,

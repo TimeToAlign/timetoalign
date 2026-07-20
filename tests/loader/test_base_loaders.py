@@ -7,13 +7,10 @@ from pathlib import Path
 from timetoalign.core import TimeUnit
 from timetoalign.loader import (
     AlignmentLoader,
-    AlignmentStore,
-    EventData,
     ManifestData,
     ManifestLoader,
-    MatchData,
-    SingleStore,
 )
+from timetoalign.storage import AlignmentStore, EventData, MatchData, SingleStore
 
 # region ManifestData Tests
 

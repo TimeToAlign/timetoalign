@@ -13,6 +13,17 @@ which implements the central Timeline class and its 6 domain-specific subclasses
 | `timelines/beatgrid.py` | 95% | Excellent |
 | `timelines/regions.py` | 94% | Excellent |
 
+### `test_groups.py` - Timeline Groups
+
+`TimelineGroup` and `GroupTimestamp` are timeline-layer concepts, so their tests
+reside beside the timeline implementation. Boundary tests construct
+`IdCoordinate` values to retain both the reference timeline and its unit; raw
+`(coordinate, timeline_id)` pairs are intentionally outside the accepted
+coordinate contract. Event aggregation tests assert `EventData` results because
+the group preserves Arrow schemas, null-fills fields that are absent from some
+member timelines, and adds a constant `timeline_id` provenance column. DataFrame
+views are tested only through `EventData.to_dataframe()`.
+
 ## Test Files
 
 ### `test_base.py` - Core Timeline Functionality

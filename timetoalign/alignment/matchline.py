@@ -28,9 +28,9 @@ from timetoalign.alignment.graph import MatchGraph, MatchStamp
 
 if TYPE_CHECKING:
     from timetoalign.alignment.claims import MatchClaim
-    from timetoalign.alignment.groups import TimelineGroup
     from timetoalign.alignment.match_format import MatchFileContext
     from timetoalign.core.enums import Domain, TimeUnit
+    from timetoalign.timelines.groups import TimelineGroup
 
 module_logger = logging.getLogger(__name__)
 

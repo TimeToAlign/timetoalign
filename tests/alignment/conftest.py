@@ -17,13 +17,13 @@ import pytest
 from timetoalign.alignment import Agent, AlignmentAnchor, MatchClaim, MatchMetadata
 from timetoalign.alignment.bundle import _reset_bundle_ids
 from timetoalign.alignment.claims import _reset_anchor_ids, _reset_claim_ids
-from timetoalign.alignment.groups import _reset_group_ids
 from timetoalign.core import AgentType, Coordinate, TimeUnit
 from timetoalign.testdata import ensure_data
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
 )
+from timetoalign.timelines.groups import _reset_group_ids
 
 ensure_data("thoresen", "supra", "vienna_1x22", "score")
 

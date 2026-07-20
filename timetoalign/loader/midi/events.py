@@ -28,7 +28,7 @@ import pyarrow as pa
 
 from timetoalign.core.events import EnharmonicPitchField
 from timetoalign.core.fields import SemanticField
-from timetoalign.loader.events import EventData
+from timetoalign.storage.events import EventData
 
 
 class MidiEventData(EventData):
