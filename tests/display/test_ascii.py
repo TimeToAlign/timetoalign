@@ -475,6 +475,8 @@ class TestBundleDiagram:
             timeline_b_ids=["rec-b:cpt1"] * 3,
             coordinate_a=[0.0, 0.1, 0.2],
             coordinate_b=[0.0, 0.1, 0.2],
+            unit_a="seconds",
+            unit_b="seconds",
         )
         bundle.add_match_claim_field(field)
 
@@ -492,6 +494,8 @@ class TestBundleDiagram:
             MatchClaim,
             MatchClaimField,
         )
+        from timetoalign.core.enums import TimeUnit
+        from timetoalign.core.time import Coordinate
 
         bundle = AlignmentBundle(id="mixed_bundle")
         tl_a = ContinuousPhysicalTimeline(length=1.0, uid="rec-a:cpt1")
@@ -507,9 +511,9 @@ class TestBundleDiagram:
                     timeline_b_id="rec-b:cpt1",
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="rec-a:cpt1",
-                        coordinate_a=c,
+                        coordinate_a=Coordinate(c, TimeUnit.seconds),
                         timeline_b_id="rec-b:cpt1",
-                        coordinate_b=c,
+                        coordinate_b=Coordinate(c, TimeUnit.seconds),
                     ),
                 )
                 for c in (0.0, 0.1)
@@ -522,6 +526,8 @@ class TestBundleDiagram:
                 timeline_b_ids=["rec-b:cpt1"] * 3,
                 coordinate_a=[0.2, 0.3, 0.4],
                 coordinate_b=[0.2, 0.3, 0.4],
+                unit_a="seconds",
+                unit_b="seconds",
             )
         )
 
