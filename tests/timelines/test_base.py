@@ -537,37 +537,6 @@ class TestMagicMethods:
 # endregion
 
 
-# region Future API Stubs Tests
-
-
-class TestFutureApiStubs:
-    """Test placeholder methods for future phases."""
-
-    def test_add_match_not_implemented(self):
-        """add_match raises NotImplementedError."""
-        tl = Timeline()
-        with pytest.raises(NotImplementedError, match="AlignmentBundle"):
-            tl.add_match(None)
-
-    def test_add_break_not_implemented(self):
-        """add_break raises NotImplementedError."""
-        tl = Timeline()
-        coord = Coordinate(5.0, TimeUnit.seconds)
-        with pytest.raises(NotImplementedError, match="future phase"):
-            tl.add_break(coord)
-
-    def test_add_jump_not_implemented(self):
-        """add_jump raises NotImplementedError."""
-        tl = Timeline()
-        coord1 = Coordinate(5.0, TimeUnit.seconds)
-        coord2 = Coordinate(10.0, TimeUnit.seconds)
-        with pytest.raises(NotImplementedError, match="future phase"):
-            tl.add_jump(coord1, coord2)
-
-
-# endregion
-
-
 # region Performance Tests
 
 

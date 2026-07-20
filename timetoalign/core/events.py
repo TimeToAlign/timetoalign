@@ -1994,7 +1994,7 @@ class NoteField(SemanticField[Note]):
         the default ``specific_pitch`` semantic field and the raw ``midi``
         number it affords an ``EnharmonicPitch`` view from are both null.
         At Field level, only the ``Note`` struct columns are available;
-        the columnar-separation rule (CLAUDE.md §15) means ``Note.pitch``
+        the columnar-separation rule means ``Note.pitch``
         does NOT exist on the Field's struct.
 
         Per the audit ``Note.is_rest`` is data-shaped, but the pitch data
@@ -2431,29 +2431,3 @@ class ScoreMidiEventField(SemanticField[ScoreMidiEvent]):
     a stable home and to integrate with
     ``EventData.get_field(ScoreMidiEvent)`` dispatch.
     """
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 5. COMPLEX NUMBER STUB — placeholder for future Fourier work
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-class ComplexNumber(BaseModel):
-    """Complex number scalar (placeholder for future Fourier work).
-
-    Storage struct (derived): ``{real: float64, imag: float64}``.  No
-    data-shaped methods yet — the class exists so that the paired
-    ``ComplexField`` has a stable home when the first Fourier call-site
-    arrives.  ``ComplexNumber`` is intentionally NOT exported from
-    ``timetoalign.__init__`` (zero current call-sites; per the type
-    inventory's ``future`` classification).
-    """
-
-    model_config = ConfigDict(frozen=True)
-
-    real: float
-    imag: float
-
-
-class ComplexField(SemanticField[ComplexNumber]):
-    """Vectorized field of complex numbers.  Stub — no data-shaped methods yet."""

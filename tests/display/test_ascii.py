@@ -40,7 +40,7 @@ from timetoalign.display.ascii import (
     group_diagram,
     timeline_diagram,
 )
-from timetoalign.timelines import FlowController
+from timetoalign.timelines import ScoreFlowController
 from timetoalign.timelines.types import (
     ContinuousGraphicalTimeline,
     ContinuousLogicalTimeline,
@@ -1072,7 +1072,7 @@ class _MockMeasureData:
         return len(self._table)
 
 
-def _make_simple_controller() -> FlowController:
+def _make_simple_controller() -> ScoreFlowController:
     """Create a ScoreFlowController with repeats and voltas (6 MCs, 4 sections).
 
     Structure:
@@ -1096,10 +1096,10 @@ def _make_simple_controller() -> FlowController:
         }
     )
     md = _MockMeasureData(table)
-    return FlowController(md)
+    return ScoreFlowController(md)
 
 
-def _make_minimal_controller() -> FlowController:
+def _make_minimal_controller() -> ScoreFlowController:
     """Create a minimal ScoreFlowController (3 MCs, no flow control)."""
     table = pa.table(
         {
@@ -1113,7 +1113,7 @@ def _make_minimal_controller() -> FlowController:
         }
     )
     md = _MockMeasureData(table)
-    return FlowController(md)
+    return ScoreFlowController(md)
 
 
 # endregion

@@ -111,7 +111,7 @@ module_logger = logging.getLogger(__name__)
 
 # region Constants
 
-#: Score-group timeline uids (CLAUDE.md §7: type-based ids, role prefix).
+#: Score-group timeline uids (type-based ids, role prefix).
 _SCORE_CLT_ID = "score:clt1"
 _SCORE_DLT_ID = "score:dlt1"
 

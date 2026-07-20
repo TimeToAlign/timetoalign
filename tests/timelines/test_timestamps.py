@@ -471,7 +471,7 @@ class TestGetTimestamps:
         df = simple_timeline.get_timestamps()
         assert isinstance(df, pd.DataFrame)
 
-    def test_same_data_as_table(self, simple_timeline: Timeline) -> None:
+    def test_filtered_event_coordinates(self, simple_timeline: Timeline) -> None:
         """Returns same data as get_timestamp_table().to_pandas()."""
         # Use include_ids=False since get_timestamp_table() doesn't add ID index
         df1 = simple_timeline.get_timestamps(units=False, include_ids=False)
@@ -675,22 +675,6 @@ class TestGetTimestampTableFiltered:
         # axis values should be doubled in the C-Map field
         for _, row in df.iterrows():
             assert row[cmap.name] == row["axis"] * 2.0
-
-
-class TestGetTimestampsFiltered:
-    """Tests for Timeline.get_timestamps_filtered() convenience method."""
-
-    def test_returns_dataframe(self, simple_timeline: Timeline) -> None:
-        """Returns a pandas DataFrame."""
-        df = simple_timeline.get_timestamps_filtered({"event_type": "Beat"})
-        assert isinstance(df, pd.DataFrame)
-
-    def test_same_data_as_table(self, simple_timeline: Timeline) -> None:
-        """Returns same data as get_timestamp_table_filtered().to_pandas()."""
-        filter_dict = {"event_type": "Beat"}
-        df1 = simple_timeline.get_timestamps_filtered(filter_dict)
-        df2 = simple_timeline.get_timestamp_table_filtered(filter_dict).to_pandas()
-        pd.testing.assert_frame_equal(df1, df2)
 
 
 # endregion

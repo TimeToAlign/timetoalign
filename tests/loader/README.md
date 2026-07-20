@@ -20,11 +20,11 @@ bundles, error handling).
 | `test_parangonada_loader.py` | `ParangonadaLoader` against the parangonada CSV export of the `Beethoven_Eroica_op35-cpjku` dataset (5 performers). Builds one shared multimodal `AlignmentBundle` (1 score group + 5 performer groups) from `part.csv` / `ppart.csv` / `align.csv`, plus measured `Beat` / `Dynamics` feature events (`.beats` / `.dyn`) on each performance's seconds timeline. Zero-tolerance counts (see "Validation logic" below). |
 | `test_listen_here_loader.py` | `ListenHereLoader` against an inline synthetic Listen Here! alignment JSON (built in `tmp_path`). Parses many recordings of one work warped onto a shared equidistant reference grid into one audio-to-audio `AlignmentBundle`: one empty seconds timeline per recording (each its own group) and complete-topology pairwise synchronous claims held columnar in a `MatchClaimField`. Zero-tolerance counts (see "Validation logic" below). |
 | `test_parsing.py` | Format-agnostic parsing helpers |
-| `test_schema.py` | `TableSchema` and field-spec resolution |
+| `test_schema.py` | Loader schema and field-spec resolution |
 | `test_store.py` | `EventStore` low-level operations |
 | `test_tilia_loader.py` | `TiliaJsonLoader` round-trip |
 | `test_mixins.py` | `EventData` field-access mixins — three-strategy field discovery (metadata, default-column, shape-based `matches_pa_field`), `has_field`, `get_field`, `get_fields`, `get_raw`, and the convenience accessors (`get_pitch_field`, `get_harmony_field`). |
-| `test_mixins_wp3.py` | Dispatch additions on `SemanticFieldAccessMixin` — `get_field(ScalarClass)` pydantic-scalar dispatch, `IdCoordinate` vs `Coordinate` discrimination via metadata (`matches_pa_field` rejection contracts), `MultipleFieldsError` on ambiguity + `name=` resolution, and `get_fields_satisfying(ProtocolClass)` Protocol-based grouping (covering `GenericPitchLike` and `TimeScalarLike`). |
+| `test_mixins_semantic_access.py` | `SemanticFieldAccessMixin` dispatch — `get_field(ScalarClass)` pydantic-scalar dispatch, `IdCoordinate` vs `Coordinate` discrimination via metadata (`matches_pa_field` rejection contracts), `MultipleFieldsError` on ambiguity + `name=` resolution, and `get_fields_satisfying(ProtocolClass)` Protocol-based grouping (covering `GenericPitchLike` and `TimeScalarLike`). |
 | `test_field_parsers.py` | The :class:`FieldParser` hierarchy and `resolve_field_parser` universal-resolution dispatcher. Exercises the DataField blueprint mechanism: `IntField`, `FloatField`, `StringField`, `RationalField`, `DenominateNumberField`, and paired SemanticField subclasses all accept `name=` for blueprint construction and expose a uniform `emit(source, name=...)` materialisation. `CompositeFieldParser` (separator + regex strategies, dict + iterable parts) and `CallableFieldParser` (escape hatch) are exercised end-to-end. Resolution-table assertions: every entry (Python type, `pa.DataType`, raw / paired `DataField` subclass, blueprint instance, `FieldParser` instance, callable) routes to the correct producer. |
 | `test_step2_field_specs.py` | Step 2 (`field_specs`) blueprint resolution. Builds a fixture `pa.Table` and a `TabularLoader` subclass with `field_specs = [...]`, verifies that each blueprint matches its declared `source_fields=` entry, that the resulting column receives `b"timetoalign"` metadata (`field_type` = paired class name), that atomic source columns are packed into single-field structs matching the target `pa_schema`, and that unresolvable references raise `KeyError`. Exercises the two currently-supported `source_fields=` shorthands (string for single-source promotion; explicit dict for multi-sub-field mapping) and the negative cases (list shorthand rejected by `resolve_source_fields` today; live-mode SemanticField instances rejected; multi-source dict spec raises `NotImplementedError` at loader-materialisation time). |
 | `test_get_events_properties.py` | The four shapes accepted by `Loader.get_events(properties=...)` — `True`, `False`, a tuple of property names, and the single-string shorthand that normalises to a one-element tuple. |
@@ -42,8 +42,7 @@ bundles, error handling).
 Tests resolve corpus paths via ``timetoalign.testdata.ensure_data("<corpus>")``
 (see ``tests/data/README.md``).  Hardcoded relative ``Path("tests/data/...")``
 constants are forbidden — they break under ``jupytext --execute`` and in CI
-container layouts.  See ``CLAUDE.md`` "Test Data Provisioning" for the
-binding contract.
+container layouts.  See ``tests/data/README.md`` for the binding contract.
 
 ## `PerformancePrecisionLoader` validation logic
 

@@ -37,7 +37,7 @@ Flow API (MeasureUnit architecture):
 - PlaythroughSection: Contiguous group of atomic sections (with typed_measures)
 - Flow: A computed flow (sequence of measure visitations)
 - FlowMap: Attached to timelines for coordinate transformation
-- FlowController: Compute Flow paths from MeasureData
+- ScoreFlowController: Compute Flow paths from MeasureData
 - load_valid_flows: Load all valid flows from a .flow.csv file
 
 Note:
@@ -67,7 +67,6 @@ from .flow import (
     CompleteMeasure,
     CompleteMeasureGroup,
     Flow,
-    FlowController,
     FlowControllerBase,
     FlowDiagnostic,
     FlowMap,
@@ -142,7 +141,6 @@ __all__ = [
     "Flow",
     "FlowMap",
     "FlowMapSection",
-    "FlowController",  # Backwards-compatible alias for ScoreFlowController
     "FlowControllerBase",  # Abstract base class
     "ScoreFlowController",  # Concrete implementation for score data
     "SegmentNameGenerator",  # Customizable atomic-section labelling

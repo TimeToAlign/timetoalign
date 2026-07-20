@@ -3351,50 +3351,6 @@ class Timeline:
             recursion_limit=recursion_limit,
         )
 
-    def get_timestamps_filtered(
-        self,
-        event_filter: dict[str, Any] | pc.Expression,
-        conversion_maps: ConversionMapsSpec = True,
-        recursion_limit: int | None = None,
-        include_boundaries: bool = False,
-    ) -> pd.DataFrame:
-        """Generate timestamps for filtered events as a pandas DataFrame.
-
-        .. deprecated::
-            This method is deprecated. Use ``get_events(**filters)`` combined
-            with ``get_timestamps()`` instead. The ``get_events()`` method
-            now supports arbitrary field filters via ``**kwargs``.
-
-        Convenience wrapper around get_timestamp_table_filtered() for users
-        who prefer working with pandas.
-
-        Args:
-            event_filter: Filter to apply (dict for simple, pc.Expression for complex).
-            conversion_maps: C-Maps to include as fields (see get_timestamp_table).
-            recursion_limit: Maximum depth for child traversal.
-            include_boundaries: If True, include timeline boundary coordinates.
-
-        Returns:
-            pandas DataFrame with timestamps for filtered events.
-
-        Examples:
-            >>> df = timeline.get_timestamps_filtered({"event_type": "Note"})
-            >>> df.head()
-        """
-        warnings.warn(
-            "get_timestamps_filtered() is deprecated. Use get_events(**filters) "
-            "combined with get_timestamps() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        table = self.get_timestamp_table_filtered(
-            event_filter=event_filter,
-            conversion_maps=conversion_maps,
-            recursion_limit=recursion_limit,
-            include_boundaries=include_boundaries,
-        )
-        return table.to_pandas()
-
     def export_to_csv(
         self,
         filepath: str,
@@ -4825,20 +4781,6 @@ class Timeline:
         self._flow_maps[id] = flow_map
         self._logger.debug(f"Added FlowMap '{id}'")
 
-    def attach_flow_map(self, flow_map: "FlowMap", id: str | None = None) -> None:
-        """Deprecated alias for `add_flow_map`.
-
-        .. deprecated::
-            Use :meth:`add_flow_map` instead. This alias will be removed
-            in a future version.
-        """
-        warnings.warn(
-            "attach_flow_map() is deprecated; use add_flow_map() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.add_flow_map(flow_map, id=id)
-
     def get_flow_map(self, id: str = "default") -> "FlowMap | None":
         """Get an attached FlowMap by id.
 
@@ -4916,44 +4858,6 @@ class Timeline:
         if flow_map is None:
             raise ValueError(f"No FlowMap attached with id '{id}'")
         return float(flow_map.fold(coord))
-
-    # endregion
-
-    # region Future API Stubs
-
-    def add_match(self, match: Any) -> None:
-        """Add an alignment Match to this timeline.
-
-        Args:
-            match: The Match to add.
-
-        Raises:
-            NotImplementedError: Alignment is managed via AlignmentBundle.
-        """
-        raise NotImplementedError("Alignment is managed via AlignmentBundle")
-
-    def add_break(self, at: Coordinate) -> None:
-        """Add a Break (contiguity void) at the specified coordinate.
-
-        Args:
-            at: The coordinate for the break.
-
-        Raises:
-            NotImplementedError: Breaks will be implemented in a future phase.
-        """
-        raise NotImplementedError("Breaks will be implemented in a future phase")
-
-    def add_jump(self, from_: Coordinate, to: Coordinate) -> None:
-        """Add a Jump (non-linear contiguity) between coordinates.
-
-        Args:
-            from_: The jump source coordinate.
-            to: The jump target coordinate.
-
-        Raises:
-            NotImplementedError: Jumps will be implemented in a future phase.
-        """
-        raise NotImplementedError("Jumps will be implemented in a future phase")
 
     # endregion
 

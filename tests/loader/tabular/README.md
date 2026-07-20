@@ -11,7 +11,6 @@ This directory contains comprehensive tests for the `timetoalign.loader.tabular`
 | `test_correctness.py` | 11 | ZERO TOLERANCE validation with real specimens |
 | `test_error_handling.py` | 15 | Graceful degradation and error message clarity |
 | `test_struct_columns.py` | 16 | `Field`, `ComputedField`, `ConvertedField` unit tests and JSON-to-struct parsing helper |
-| `test_table_schema.py` | 25 | TableSchema system for semantic column specifications |
 | `test_solo_loader.py` | `SoloLoader` round-trip against the Chopin Nocturne ``.solo`` specimen — see §SoloLoader below |
 | `profile_vectorized.py` | - | Performance profiling script (not a test file) |
 
@@ -222,53 +221,6 @@ When adding tests for new loaders:
 1. Follow the test coverage requirements (15+ tests)
 2. Profile with real specimens and document results
 3. Add to the "Discrepancies Between Loaders" section if behavior differs
-
----
-
-## TableSchema System
-
-The `TableSchema` system (`timetoalign.loader.table_schema`) provides a declarative way to specify how tabular columns map to TimeToAlign! objects.
-
-### Key Classes
-
-| Class | Purpose |
-|-------|---------|
-| `TableSchema` | Main schema container with all specifications |
-| `TimelineDefaults` | Default timeline creation parameters (unit, number_type) |
-| `CoordinateSpec` | Specifies start/end/duration/instant fields with CMapField support |
-| `PartitionSpec` | Groups rows into separate timelines (SEPARATE or CHILDREN mode) |
-| `RegionSpec` | Extracts named TimeIntervals from fields |
-| `MatchSpec` | Specifies fields referencing events on other timelines |
-| `CMapField` | Declares a field as C-Map target (different unit than primary) |
-| `Field` | Accesses nested struct/JSON fields (auto-parses JSON) |
-| `ComputedField` | Computes derived columns via formula or callable |
-| `ConvertedField` | Explicit type conversion/transformation for columns |
-
-### Example Usage
-
-```python
-from timetoalign.loader import TableSchema, CoordinateSpec, CMapField
-from timetoalign.core import TimeUnit
-
-schema = TableSchema(
-    coordinates=CoordinateSpec(
-        start="onset_sec",
-        duration="duration_sec",
-        cmap_fields={"onset_beat": CMapField(target_unit=TimeUnit.quarters)},
-    ),
-)
-results = schema.create_timelines(df)
-```
-
-### Test Coverage (test_table_schema.py)
-
-- `TestTimelineDefaults`: Default values and custom configuration
-- `TestCoordinateSpec`: Interval, duration, instant, and CMap field specs
-- `TestPartitionSpec`: SEPARATE and CHILDREN modes, composite keys
-- `TestTableSchemaBasics`: Minimal schema, reserved fields, role detection
-- `TestTimelineCreation`: Timeline, region, CMap, and instant event creation
-- `TestSerialization`: Dict round-trip and repr output
-- `TestEdgeCases`: Missing source columns, empty DataFrames, null handling
 
 ---
 

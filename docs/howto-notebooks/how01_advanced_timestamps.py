@@ -82,10 +82,10 @@ parent.get_boundary_table().to_pandas()
 # ## Filtered Timestamps
 
 # %%
-parent.get_timestamps_filtered({"event_type": "Note"})
+parent.get_timestamp_table_filtered({"event_type": "Note"}).to_pandas()
 
 # %%
-parent.get_timestamps_filtered({"event_type": "Beat"})
+parent.get_timestamp_table_filtered({"event_type": "Beat"}).to_pandas()
 
 # %% [markdown]
 # ## PyArrow Tables

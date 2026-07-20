@@ -146,7 +146,7 @@ class ScoreLoader(Loader):
 
         if self._store.measures is None or len(self._store.measures) == 0:
             raise ValueError(
-                "Cannot create a FlowController: no measure data has been "
+                "Cannot create a ScoreFlowController: no measure data has been "
                 "loaded.  Load a measures file first (e.g. *.measures.tsv)."
             )
         return ScoreFlowController(self._store.measures, name_generator=name_generator)

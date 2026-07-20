@@ -12,7 +12,7 @@ Unique tests in this module:
 
 Tests that overlap with test_score_parsing_matrix.py have been removed.
 See that file for: CSV existence/mode checks, folded/unfolded counts,
-loader measure counts, and TSV→FlowController flow reproduction.
+loader measure counts, and TSV→ScoreFlowController flow reproduction.
 
 ZERO TOLERANCE VALIDATION POLICY:
 - EXACT counts required (no tolerances)

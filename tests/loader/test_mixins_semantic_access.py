@@ -1,4 +1,4 @@
-"""WP3 additions to the mixin test suite.
+"""Tests for semantic-field access dispatch.
 
 Covers:
 

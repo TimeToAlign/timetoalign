@@ -73,7 +73,7 @@ module_logger = logging.getLogger(__name__)
 
 # region Constants
 
-#: Score timeline uid (CLAUDE.md §7: type-based id with role prefix).
+#: Score timeline uid (type-based id with role prefix).
 _SCORE_TL_ID = "score:clt1"
 
 #: Sentinel for an alignment row the aligner could not locate in audio.

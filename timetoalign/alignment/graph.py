@@ -723,9 +723,6 @@ class MatchGraph:
 
     def get_stamps(
         self,
-        *,
-        expand_groups: bool = False,
-        expand_cmaps: bool = False,
     ) -> list["MatchStamp"]:
         """Get all MatchStamps from the graph.
 
@@ -733,14 +730,6 @@ class MatchGraph:
         all coordinates reachable from that component.
 
         Args:
-            expand_groups: If True, for each coordinate in a stamp that
-                belongs to a Group, add within-group coordinates for all
-                other members. (Requires ``extend_to_groups()`` to have
-                been called first, or group information to be present in
-                the graph.)
-            expand_cmaps: If True, add C-map conversion results to the
-                stamp. (Reserved for future use.)
-
         Returns:
             List of MatchStamps, one per connected component.
         """

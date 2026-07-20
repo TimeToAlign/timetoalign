@@ -15,14 +15,6 @@ which implements the central Timeline class and its 6 domain-specific subclasses
 
 ## Test Files
 
-### `test_timeline_relationships.py` - Unified Verb×Noun API, Regions, SegmentLine, derive()
-
-**~170 tests** covering the unified verb×noun Timeline API (Phases A-D) plus TTA
-architecture harmonization concepts, including 13 real-data tests using Wagner
-Walküre Act III measures. See detailed documentation below in its own section.
-
----
-
 ### `test_base.py` - Core Timeline Functionality
 
 **Purpose:** Validates the fundamental Timeline contract and behavior.
@@ -65,10 +57,8 @@ Walküre Act III measures. See detailed documentation below in its own section.
 7. **Magic Methods Tests** (5 tests)
    - `__len__`, `__repr__`, `__str__`, `__contains__`
 
-8. **Future API Stubs Tests** (5 tests)
+8. **Future API Stubs Tests** (2 tests)
    - `add_conversion_map()`, `convert_to()` raise `NotImplementedError`
-   - `add_match()`, `add_break()`, `add_jump()` raise `NotImplementedError`
-
 9. **Performance Tests** (2 tests)
    - Adding 10,000 events: < 5 seconds
    - Creating 1,000 timelines: < 2 seconds
@@ -392,6 +382,9 @@ pytest tests/timelines/ -v -k "performance"
 architecture harmonization features that distinguish between different timeline
 relationship concepts.
 
+**~170 tests**, including 13 real-data tests using Wagner Walküre Act III
+measures.
+
 **TTA Manuscript Concepts Tested:**
 
 | Concept | Definition | Test Category |
@@ -665,8 +658,8 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement i
 **Current state (Feb 2026):**
 
 - `MeasureUnit` replaces `FlowStep` as the fundamental building block
-- `FlowController.iter_units()` iterates over MeasureUnits
-- `FlowController.iter_sections(mode=None)` defaults to AtomicSections
+- `ScoreFlowController.iter_units()` iterates over MeasureUnits
+- `ScoreFlowController.iter_sections(mode=None)` defaults to AtomicSections
 - `Flow._controller_ref` links Flow to its controller for `iter_units()` access
 - `Flow.steps` removed entirely (section-based only)
 - FlowControlElement fields on `MeasureUnit` (jump_from, jump_to, segno, coda, fine, etc.)
@@ -705,7 +698,7 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement i
      - `VoltaGroup`: Measures under same volta bracket with `volta_number`
      - `CompleteMeasureGroup`: Adjacent CompleteMeasures
      - `OverlengthGroup`: OverlengthMeasures grouped together
-   - `TestBuildGroups`: FlowController grouping algorithm (4 tests)
+   - `TestBuildGroups`: ScoreFlowController grouping algorithm (4 tests)
       - `_build_groups()`: Grouping-step algorithm
      - `_group_voltas()`, `_group_splits()`, `_group_incompletes()`
      - `_group_overlengths()`, `_group_completes()`
@@ -716,7 +709,7 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement i
    - `TestFlowSectionBased`: `from_sections()`, `from_records()`, `to_records()`, `to_csv_rows()`, `is_equivalent()`, `to_mc_sequence()`, `to_atomic_sequence()`, `diff_flows()`, `unfolded_length`
    - `TestFlowCSVLoading`: `Flow.from_csv()`, invalid mode raises, `load_valid_flows()`
 
-5. **FlowController Tests** (6 tests)
+5. **ScoreFlowController Tests** (6 tests)
    - `iter_units()`: Iterate over MeasureUnits
    - `iter_sections(mode=None)`: AtomicSections by default
    - `get_sections()`: Unified API (replaces get_atomic_sections)
@@ -978,7 +971,7 @@ FlowMap approach with structural slicing in QB-space.
 | Class | Tests | Purpose |
 |-------|-------|---------|
 | `TestGetSlice` | 16 | Unit tests for `Timeline.get_slice()` primitive |
-| `TestComputeQBSections` | 8 | QB boundary computation from Flow + FlowController |
+| `TestComputeQBSections` | 8 | QB boundary computation from Flow + ScoreFlowController |
 | `TestSegmentLineAssembly` | 5 | Integration: slice + concatenate into SegmentLine |
 | `TestUnfoldingGoldStandard` | 49 | End-to-end validation against 7 ms3 gold standard specimens |
 | `TestGroupUnfolding` | 10 | Cross-domain unfolding via GroupTimestamp interpolation |

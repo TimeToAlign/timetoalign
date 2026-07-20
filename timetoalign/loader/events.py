@@ -678,8 +678,6 @@ class EventData(SemanticFieldAccessMixin):
             ValueError: If *policy* is ``strict`` and ``end - start !=
                 duration``.
         """
-        from timetoalign.loader.schema import coordinate_to_struct
-
         # ---- Ensure coordinate struct format ----
         for coord_col in ("start", "end", "duration"):
             val = processed.get(coord_col)
@@ -1161,61 +1159,6 @@ class EventData(SemanticFieldAccessMixin):
         schema = schema.with_metadata(metadata)
 
         table = pa.table(processed, schema=schema)
-        return cls(table, unit, number_type)
-
-    @classmethod
-    def from_fields(
-        cls,
-        fields: dict[str, list[Any]],
-        unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
-    ) -> Self:
-        """Legacy from_arrays using row-based coordinate_to_struct.
-
-        DEPRECATED: Use from_arrays() instead for vectorized operations.
-
-        Args:
-            fields: Dict mapping field names to lists of values.
-            unit: The time unit for coordinates.
-            number_type: The number type for coordinates.
-
-        Returns:
-            A new EventData containing the events.
-        """
-        if not fields or not fields.get("id"):
-            return cls.empty(unit, number_type)
-
-        # Convert coordinate fields to struct format
-        n_rows = len(fields["id"])
-        processed = {}
-
-        # Helper to access fields including mapped ones
-        def get_arr(name):
-            if name == "start" and "start" not in fields and "instant" in fields:
-                return fields["instant"]
-            return fields.get(name)
-
-        for field_name in cls.field_names():
-            if field_name in ("start", "end", "duration"):
-                vals = get_arr(field_name)
-                if vals:
-                    processed[field_name] = [
-                        coordinate_to_struct(v) if v is not None else None for v in vals
-                    ]
-                else:
-                    processed[field_name] = [None] * n_rows
-            elif field_name in fields:
-                processed[field_name] = fields[field_name]
-            elif field_name == "name":
-                processed[field_name] = [None] * n_rows
-            else:
-                processed[field_name] = [None] * n_rows
-
-        schema = cls.get_schema(unit, number_type=number_type)
-        metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
-        schema = schema.with_metadata(metadata)
-
-        table = pa.Table.from_pydict(processed, schema=schema)
         return cls(table, unit, number_type)
 
     @classmethod

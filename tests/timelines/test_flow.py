@@ -29,7 +29,7 @@ import pytest
 
 from timetoalign.core.enums import FlowMode, IncompletePosition
 from timetoalign.loader.score import TSVLoader
-from timetoalign.timelines import Flow, FlowController, FlowMap, MeasureUnit
+from timetoalign.timelines import Flow, FlowMap, MeasureUnit, ScoreFlowController
 from timetoalign.timelines.flow import (
     AtomicSection,
     PlaythroughSection,
@@ -42,7 +42,7 @@ from timetoalign.timelines.flow import (
 class _MockMeasureData:
     """Lightweight mock for MeasureData, wrapping a PyArrow table.
 
-    Used in tests that construct FlowController from synthetic measure data
+    Used in tests that construct ScoreFlowController from synthetic measure data
     without going through a full loader pipeline.
     """
 
@@ -673,13 +673,13 @@ class TestMeasureGroup:
 
 
 class TestBuildGroups:
-    """Test FlowController._build_groups() algorithm."""
+    """Test ScoreFlowController._build_groups() algorithm."""
 
     def test_groups_populated_in_atomic_section(self) -> None:
-        """AtomicSection.groups is populated by FlowController."""
+        """AtomicSection.groups is populated by ScoreFlowController."""
         import pyarrow as pa
 
-        from timetoalign.timelines import FlowController
+        from timetoalign.timelines import ScoreFlowController
 
         # Create test data with anacrusis + complete measures
         table = pa.table(
@@ -695,7 +695,7 @@ class TestBuildGroups:
         )
 
         md = _MockMeasureData(table)
-        controller = FlowController(md)
+        controller = ScoreFlowController(md)
 
         sections = controller.get_sections()
         assert len(sections) == 1
@@ -708,7 +708,7 @@ class TestBuildGroups:
         """Every typed_measure belongs to exactly one group."""
         import pyarrow as pa
 
-        from timetoalign.timelines import FlowController
+        from timetoalign.timelines import ScoreFlowController
 
         table = pa.table(
             {
@@ -735,7 +735,7 @@ class TestBuildGroups:
         )
 
         md = _MockMeasureData(table)
-        controller = FlowController(md)
+        controller = ScoreFlowController(md)
 
         sections = controller.get_sections()
         sec = sections[0]
@@ -755,7 +755,7 @@ class TestBuildGroups:
         """VoltaGroups are created for measures with same volta number."""
         import pyarrow as pa
 
-        from timetoalign.timelines import FlowController, VoltaGroup
+        from timetoalign.timelines import ScoreFlowController, VoltaGroup
 
         table = pa.table(
             {
@@ -775,7 +775,7 @@ class TestBuildGroups:
         )
 
         md = _MockMeasureData(table)
-        controller = FlowController(md)
+        controller = ScoreFlowController(md)
 
         # Each volta should be in its own section due to breaks
         sections = controller.get_sections()
@@ -795,7 +795,7 @@ class TestBuildGroups:
         """SplitMeasures are detected when IncompleteMeasures share same mn."""
         import pyarrow as pa
 
-        from timetoalign.timelines import FlowController, SplitMeasure
+        from timetoalign.timelines import ScoreFlowController, SplitMeasure
 
         # WoO71-style split measures: MC 11 and MC 12 both have mn="10"
         table = pa.table(
@@ -816,7 +816,7 @@ class TestBuildGroups:
         )
 
         md = _MockMeasureData(table)
-        controller = FlowController(md)
+        controller = ScoreFlowController(md)
 
         sections = controller.get_sections()
 
@@ -881,7 +881,7 @@ class TestFlowInvariants:
 
     def test_clean_score_yields_no_diagnostics(self) -> None:
         """A well-formed volta score reports no invariant violations."""
-        controller = FlowController(
+        controller = ScoreFlowController(
             _MockMeasureData(_volta_with_following_section_table())
         )
         assert controller.check_invariants() == []
@@ -907,7 +907,7 @@ class TestFlowInvariants:
                 "section_break": [False] * 7,
             }
         )
-        controller = FlowController(_MockMeasureData(table))
+        controller = ScoreFlowController(_MockMeasureData(table))
 
         sections = controller.get_sections()
         by_id = {sec.id: sec for sec in sections}
@@ -944,14 +944,12 @@ class TestAtomicSection:
             mc_start=1,
             mc_end=5,  # Right-open: includes MCs 1-4
             to=("A", "B"),
-            await_to=("C",),
             section_type="leap_end",
         )
         assert sec.id == "A"
         assert sec.mc_start == 1
         assert sec.mc_end == 5
         assert sec.to == ("A", "B")
-        assert sec.await_to == ("C",)
         assert sec.section_type == "leap_end"
 
     def test_mc_range(self) -> None:
@@ -1124,8 +1122,8 @@ class TestFlowSegmentBased:
         """Flow can be created from records."""
         # Right-open: mc_end=5 means MCs 1-4, mc_end=9 means MCs 5-8
         records = [
-            {"mc_start": 1, "mc_end": 5, "atomic_segments": "A"},
-            {"mc_start": 5, "mc_end": 9, "atomic_segments": "B"},
+            {"mc_start": 1, "mc_end": 5, "atomic_sections": "A"},
+            {"mc_start": 5, "mc_end": 9, "atomic_sections": "B"},
         ]
         flow = Flow.from_records(records, FlowMode.default)
 
@@ -1134,10 +1132,10 @@ class TestFlowSegmentBased:
         assert flow.sections[1].atomic_section_ids == ("B",)
 
     def test_from_records_semicolon_separated(self) -> None:
-        """Flow.from_records handles semicolon-separated atomic_segments."""
+        """Flow.from_records handles semicolon-separated atomic_sections."""
         # Right-open: mc_end=9 means MCs 1-8
         records = [
-            {"mc_start": 1, "mc_end": 9, "atomic_segments": "A;B"},
+            {"mc_start": 1, "mc_end": 9, "atomic_sections": "A;B"},
         ]
         flow = Flow.from_records(records, FlowMode.default)
 
@@ -1179,15 +1177,15 @@ class TestFlowSegmentBased:
         # Right-open: mc_end=5 means MCs 1-4, mc_end=9 means MCs 5-8
         flow1 = Flow.from_records(
             [
-                {"mc_start": 1, "mc_end": 5, "atomic_segments": "A"},
-                {"mc_start": 5, "mc_end": 9, "atomic_segments": "B"},
+                {"mc_start": 1, "mc_end": 5, "atomic_sections": "A"},
+                {"mc_start": 5, "mc_end": 9, "atomic_sections": "B"},
             ],
             FlowMode.default,
         )
         flow2 = Flow.from_records(
             [
-                {"mc_start": 1, "mc_end": 5, "atomic_segments": "X"},  # Different ID
-                {"mc_start": 5, "mc_end": 9, "atomic_segments": "Y"},  # Different ID
+                {"mc_start": 1, "mc_end": 5, "atomic_sections": "X"},  # Different ID
+                {"mc_start": 5, "mc_end": 9, "atomic_sections": "Y"},  # Different ID
             ],
             FlowMode.partitura_minimal,  # Different mode
         )
@@ -1198,13 +1196,13 @@ class TestFlowSegmentBased:
         """Flow.is_equivalent returns False for different segment counts."""
         # Right-open: mc_end=9 means MCs 1-8
         flow1 = Flow.from_records(
-            [{"mc_start": 1, "mc_end": 9, "atomic_segments": "A"}],
+            [{"mc_start": 1, "mc_end": 9, "atomic_sections": "A"}],
             FlowMode.default,
         )
         flow2 = Flow.from_records(
             [
-                {"mc_start": 1, "mc_end": 5, "atomic_segments": "A"},
-                {"mc_start": 5, "mc_end": 9, "atomic_segments": "B"},
+                {"mc_start": 1, "mc_end": 5, "atomic_sections": "A"},
+                {"mc_start": 5, "mc_end": 9, "atomic_sections": "B"},
             ],
             FlowMode.default,
         )
@@ -1214,11 +1212,11 @@ class TestFlowSegmentBased:
         """Flow.is_equivalent returns False for different MC ranges."""
         # Right-open: mc_end=5 means MCs 1-4, mc_end=6 means MCs 1-5
         flow1 = Flow.from_records(
-            [{"mc_start": 1, "mc_end": 5, "atomic_segments": "A"}],
+            [{"mc_start": 1, "mc_end": 5, "atomic_sections": "A"}],
             FlowMode.default,
         )
         flow2 = Flow.from_records(
-            [{"mc_start": 1, "mc_end": 6, "atomic_segments": "A"}],  # Different end
+            [{"mc_start": 1, "mc_end": 6, "atomic_sections": "A"}],  # Different end
             FlowMode.default,
         )
         assert not flow1.is_equivalent(flow2)
@@ -1355,11 +1353,11 @@ class TestFlowMode:
 
 # endregion
 
-# region Unit Tests: FlowController
+# region Unit Tests: ScoreFlowController
 
 
-class TestFlowController:
-    """Test FlowController computation logic."""
+class TestScoreFlowController:
+    """Test ScoreFlowController computation logic."""
 
     def test_occurrence_to_suffix(self) -> None:
         """Test suffix generation: 1->a, 2->b, 27->aa."""
@@ -1367,7 +1365,7 @@ class TestFlowController:
 
         # Create minimal MeasureData
         measures = MeasureData.empty()
-        controller = FlowController(measures)
+        controller = ScoreFlowController(measures)
 
         assert controller._occurrence_to_suffix(1) == "a"
         assert controller._occurrence_to_suffix(2) == "b"
@@ -1376,14 +1374,14 @@ class TestFlowController:
         assert controller._occurrence_to_suffix(28) == "ab"
 
     def test_get_sections(self, rachmaninoff_measures_tsv: Path) -> None:
-        """FlowController.get_sections() returns atomic sections by default."""
+        """ScoreFlowController.get_sections() returns atomic sections by default."""
         if not rachmaninoff_measures_tsv.exists():
             pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
 
         loader = TSVLoader()
         loader.load(rachmaninoff_measures_tsv)
 
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
         sections = controller.get_sections()  # mode=None -> atomic sections
 
         # Rachmaninoff has no flow control, should be 1 segment
@@ -1392,14 +1390,14 @@ class TestFlowController:
         assert sections[0].mc_start == 1
 
     def test_get_sections_with_mode(self, rachmaninoff_measures_tsv: Path) -> None:
-        """FlowController.get_sections(mode) returns playthrough sections."""
+        """ScoreFlowController.get_sections(mode) returns playthrough sections."""
         if not rachmaninoff_measures_tsv.exists():
             pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
 
         loader = TSVLoader()
         loader.load(rachmaninoff_measures_tsv)
 
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
         sections = controller.get_sections(FlowMode.default)
 
         # Should return PlaythroughSection objects
@@ -1407,13 +1405,13 @@ class TestFlowController:
         assert hasattr(sections[0], "atomic_section_ids")
 
     def test_from_atomic_sections(self) -> None:
-        """FlowController can be created from atomic sections directly."""
+        """ScoreFlowController can be created from atomic sections directly."""
         # Right-open: mc_end=5 means MCs 1-4, mc_end=9 means MCs 5-8
         sections = [
             AtomicSection(id="A", mc_start=1, mc_end=5, to=("B",)),
             AtomicSection(id="B", mc_start=5, mc_end=9, to=()),
         ]
-        controller = FlowController.from_atomic_sections(sections)
+        controller = ScoreFlowController.from_atomic_sections(sections)
 
         assert controller.get_sections() == sections
 
@@ -1425,7 +1423,7 @@ class TestFlowController:
         loader = TSVLoader()
         loader.load(rachmaninoff_measures_tsv)
 
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
         flow = controller.compute_flow(FlowMode.default)
 
         # Flow should have sections and correct unfolded length
@@ -1468,7 +1466,7 @@ class TestExample1Rachmaninoff:
         loader = TSVLoader()
         loader.load(rachmaninoff_measures_tsv)
 
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
         flow = controller.compute_flow(FlowMode.default)
 
         assert flow.folded_length == 374
@@ -1487,7 +1485,7 @@ class TestExample1Rachmaninoff:
         # Load folded and compute flow
         loader = TSVLoader()
         loader.load(rachmaninoff_measures_tsv)
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
         flow = controller.compute_flow(FlowMode.default)
 
         # Load unfolded gold standard
@@ -1555,7 +1553,7 @@ class TestExample3CouperinMusete:
         loader = TSVLoader()
         loader.load(musete_measures_tsv)
 
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
         flow = controller.compute_flow(FlowMode.default)
 
         assert flow.folded_length == 58
@@ -1574,7 +1572,7 @@ class TestExample3CouperinMusete:
         # Load folded and compute flow
         loader = TSVLoader()
         loader.load(musete_measures_tsv)
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
         flow = controller.compute_flow(FlowMode.default)
 
         # Load unfolded gold standard
@@ -1597,14 +1595,14 @@ class TestFlowMap:
     """Test FlowMap coordinate transformation."""
 
     def test_create_flow_map(self, rachmaninoff_measures_tsv: Path) -> None:
-        """Can create FlowMap from FlowController."""
+        """Can create FlowMap from ScoreFlowController."""
         if not rachmaninoff_measures_tsv.exists():
             pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
 
         loader = TSVLoader()
         loader.load(rachmaninoff_measures_tsv)
 
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
         flow_map = controller.create_flow_map()
 
         assert isinstance(flow_map, FlowMap)
@@ -1627,7 +1625,7 @@ class TestPrintedMode:
         loader = TSVLoader()
         loader.load(rachmaninoff_measures_tsv)
 
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
         flow = controller.compute_flow(FlowMode.printed)
 
         assert flow.mode == FlowMode.printed

@@ -10,7 +10,7 @@ From the design spec (measure_handling_design.md Part 14):
     FlowStep: A single step in a Flow sequence
     Flow: A computed flow (sequence of measure visitations)
     FlowMap: Attached to timelines for coordinate transformation
-    FlowController: Compute Flow paths from MeasureData
+    ScoreFlowController: Compute Flow paths from MeasureData
 
 Terminology:
     - "Flow" is used uniformly instead of "traversal"
@@ -622,7 +622,6 @@ class AtomicSection:
         mc_start: First MC of this section (inclusive).
         mc_end: First MC AFTER this section (exclusive, right-open).
         to: List of possible next section IDs.
-        await_to: Destinations available after a leap (D.C./D.S. patterns).
         section_type: "default", "leap_end", or "leap_start".
 
     Examples:
@@ -643,7 +642,6 @@ class AtomicSection:
     mc_start: int
     mc_end: int
     to: tuple[str, ...] = ()
-    await_to: tuple[str, ...] = ()
     section_type: str = "default"  # "default" | "leap_end" | "leap_start"
     typed_measures: tuple["TypedMeasure", ...] | None = None  # Typing-step output
     groups: tuple["MeasureGroup", ...] | None = None  # Grouping-step output
@@ -677,7 +675,6 @@ class AtomicSection:
             "mc_start": self.mc_start,
             "mc_end": self.mc_end,
             "to": list(self.to),
-            "await_to": list(self.await_to),
             "section_type": self.section_type,
         }
         if self.typed_measures is not None:
@@ -697,8 +694,6 @@ class AtomicSection:
         n = self.mc_count
         measure_word = "measure" if n == 1 else "measures"
         bits = [f"{n} {measure_word}", f"to=[{', '.join(self.to)}]"]
-        if self.await_to:
-            bits.append(f"await=[{', '.join(self.await_to)}]")
         descriptor = self._flow_control_descriptor()
         if descriptor:
             bits.append(descriptor)
@@ -915,14 +910,14 @@ class Flow:
 
     A Flow represents one possible path through a score, accounting for
     repeats, jumps, and voltas. It can be:
-    - Computed by FlowController from MeasureData
+    - Computed by ScoreFlowController from MeasureData
     - Loaded from .flow.csv ground truth
     - Compared using is_equivalent()
 
     Flows are section-based, using `sections` (list of PlaythroughSection)
     for .flow.csv serialization and is_equivalent() comparison.
 
-    Flows computed by FlowController have a controller reference, allowing
+    Flows computed by ScoreFlowController have a controller reference, allowing
     access to MeasureUnits via iter_units(). Flows loaded from CSV are
     "detached" and do not have controller access.
 
@@ -985,7 +980,7 @@ class Flow:
         if ctrl is None:
             raise ValueError(
                 "Flow is detached from controller. "
-                "iter_units() is only available for flows computed by FlowController."
+                "iter_units() is only available for flows computed by ScoreFlowController."
             )
         yield from ctrl.iter_units()
 
@@ -1033,8 +1028,9 @@ class Flow:
             records: List of dicts, each with keys:
                 - mc_start: int (inclusive)
                 - mc_end: int (exclusive, right-open)
-                - atomic_sections: str (semicolon-separated, e.g., "A;B")
-                  (also accepts "atomic_segments" for backwards compatibility)
+                - atomic_sections: str (semicolon-separated, e.g., "A;B");
+                  the persisted flow-CSV format names this column
+                  "atomic_segments", which is accepted as a fallback key
             mode: The FlowMode for this flow.
 
         Returns:
@@ -1042,7 +1038,7 @@ class Flow:
         """
         sections = []
         for rec in records:
-            # Support both old "atomic_segments" and new "atomic_sections" keys
+            # The persisted flow-CSV format names this column "atomic_segments".
             atomic_ids_str = rec.get("atomic_sections", rec.get("atomic_segments", ""))
             atomic_ids = tuple(
                 s.strip() for s in atomic_ids_str.split(";") if s.strip()
@@ -1064,8 +1060,8 @@ class Flow:
             MC ranges use right-open interval convention [mc_start, mc_end).
 
         Args:
-            df: DataFrame with fields: mc_start, mc_end, atomic_sections.
-                (also accepts "atomic_segments" for backwards compatibility)
+            df: DataFrame with fields: mc_start, mc_end, atomic_sections
+                (or its flow-CSV spelling "atomic_segments").
             mode: The FlowMode for this flow.
 
         Returns:
@@ -1655,7 +1651,7 @@ class FlowMap:
 
         See Also:
             `compute_qb_sections`: Computes QB boundaries from a Flow and
-                FlowController.
+                ScoreFlowController.
         """
         if len(qb_sections) != len(flow.sections):
             raise ValueError(
@@ -1691,13 +1687,13 @@ class FlowMap:
 
 # endregion
 
-# region FlowController
+# region Flow controllers
 
 
 class FlowControllerBase(ABC):
     """Abstract base class for computing flow control transformations.
 
-    FlowController is a factory for producing Flows and FlowMaps. It operates
+    A flow controller is a factory for producing Flows and FlowMaps. It operates
     as a background processor that computes flow control transformations but
     is NOT stored on the Timeline itself. Instead, the FlowMaps it produces
     are attached to Timelines.
@@ -1707,7 +1703,7 @@ class FlowControllerBase(ABC):
     - Future: AudioFlowController, VideoFlowController for other media types.
 
     Design Decisions:
-    - FlowController is a factory, NOT stored on Timeline
+    - A flow controller is a factory, NOT stored on Timeline
     - Sparse sections ARE allowed (atomic sections need not cover entire timeline)
     - Unit independence: Flows are sequences of TimeIntervals in ANY unit
 
@@ -1766,7 +1762,7 @@ class FlowControllerBase(ABC):
 
 
 class ScoreFlowController(FlowControllerBase):
-    """FlowController specialized for score data (MeasureData).
+    """Score flow controller specialized for score data (MeasureData).
 
     ScoreFlowController computes Flow paths from MeasureData, which contains
     measure-level flow control information (mc, mn, next[], volta, etc.).
@@ -1813,7 +1809,7 @@ class ScoreFlowController(FlowControllerBase):
         *,
         name_generator: SegmentNameGenerator | None = None,
     ) -> None:
-        """Initialize FlowController from MeasureData.
+        """Initialize the score flow controller from MeasureData.
 
         Args:
             measures: MeasureData containing flow control fields.
@@ -4019,9 +4015,6 @@ class ScoreFlowController(FlowControllerBase):
     # endregion
 
 
-# Backwards compatibility alias
-FlowController = ScoreFlowController
-
 # endregion
 
 # region QB-Space Helpers
@@ -4040,7 +4033,7 @@ def compute_qb_sections(
 
     Args:
         flow: A computed Flow with PlaythroughSections.
-        controller: The FlowController that computed the flow (must have
+        controller: The ScoreFlowController that computed the flow (must have
             MeasureUnit data with ``duration_qb`` for each MC).
 
     Returns:
@@ -4152,10 +4145,9 @@ def create_unfolded_timeline(
     Args:
         source_timeline: The folded source timeline.
         flow: The computed Flow (sequence of sections).
-        flow_controller: The controller that computed the flow.  Required
-            for QB-space boundary computation.  If ``None``, falls back to
-            the Flow's internal section boundaries (MC-number space — legacy,
-            for backward compatibility only).
+        flow_controller: The controller that computed the flow. Required for
+            QB-space boundary computation. If ``None``, the function raises
+            ``ValueError`` because no QB-space boundaries can be computed.
         target_unit: Optional unit for the unfolded timeline. When given,
             ``Timeline.resolve_subclass(target_unit, number_type)`` selects
             the timeline type; otherwise ``type(source_timeline)`` is used.

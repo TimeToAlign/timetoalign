@@ -31,7 +31,7 @@
 # **Learning objectives:**
 #
 # 1. Construct {{< glossary Break >}} and {{< glossary Jump >}} objects by hand
-# 2. Load a score and inspect its flow structure via `FlowController`
+# 2. Load a score and inspect its flow structure via `ScoreFlowController`
 # 3. Compare all `FlowMode` variants and their effect on unfolded length
 # 4. Use `FlowMap.unfold()` and `FlowMap.fold()` for coordinate transformation
 # 5. Attach a `FlowMap` to a {{< glossary Timeline >}} and query it by id
@@ -192,7 +192,7 @@ pd.DataFrame(
 #
 # In practice you never construct {{< glossary Break >}} and {{< glossary Jump >}}
 # objects by hand — they are parsed from score files (MuseScore, MusicXML, TSV).
-# The `FlowController` reads the parsed measure data and exposes the full flow
+# The `ScoreFlowController` reads the parsed measure data and exposes the full flow
 # structure.
 #
 # The score used throughout this guide is Beethoven's **WoO 71** (15 Variations in
@@ -412,7 +412,7 @@ score_tl = loader_full.create_timeline()
 }
 
 # %%
-# Build the FlowController from the same loader's measure store
+# Build the ScoreFlowController from the same loader's measure store
 controller_full = loader_full.create_flow_controller()
 
 # Create and attach the default FlowMap

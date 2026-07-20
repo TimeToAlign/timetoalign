@@ -11,11 +11,10 @@ from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.core.events import EnharmonicPitchField, SpecificPitchField
 from timetoalign.core.fields import SemanticField
 from timetoalign.loader.events import EventData
-from timetoalign.loader.mixins import PitchAccessMixin
 from timetoalign.loader.schema import make_fraction_field
 
 
-class NoteEventData(EventData, PitchAccessMixin):
+class NoteEventData(EventData):
     """EventData for note, rest, and chord events.
 
     Rich temporal schema following TSV gold standard:
@@ -123,9 +122,6 @@ class NoteEventData(EventData, PitchAccessMixin):
         result = self.get_field(EnharmonicPitchField)
         assert isinstance(result, EnharmonicPitchField)
         return result
-
-    # Backward-compat alias
-    pitch_field = enharmonic_pitch_field
 
     @property
     def specific_pitch_field(self) -> SpecificPitchField:

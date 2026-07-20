@@ -244,9 +244,9 @@ print(interval)            # Two-column (start, end) display with '-' for out-of
 
 ---
 
-### `test_field_scalar_parity.py` - Scalar `to(*)` vs Field `convert_to(*)` Parity (WP3)
+### `test_field_scalar_parity.py` - Scalar `to(*)` vs Field `convert_to(*)` Parity
 
-**Purpose:** Verifies that every `@data_shaped` conversion implemented at the `SemanticField` level produces the same scalar values as the per-row scalar dispatch. The field-level `convert_to(*)` MUST be a `pa.compute` expression over the underlying `pa.Array`; iterating over materialised scalars to call `scalar.to()` is forbidden by the WP3 design.
+**Purpose:** Verifies that every `@data_shaped` conversion implemented at the `SemanticField` level produces the same scalar values as the per-row scalar dispatch. The field-level `convert_to(*)` MUST be a `pa.compute` expression over the underlying `pa.Array`; iterating over materialised scalars to call `scalar.to()` is forbidden by the vectorized conversion contract.
 
 **Test Categories:**
 
@@ -345,10 +345,10 @@ Note / Measure — `str()` is a pretty one-liner; `repr()` unchanged:
 
 **Validity Rationale:**
 
-The TimeStamp-uniformity philosophy (CLAUDE.md §4) extends to scalar
+The TimeStamp-uniformity philosophy extends to scalar
 representation: a user must be able to trust that any scalar's `repr()` is a
 short typed form and `str()` is the readable token. Consolidating the rule
-onto `TwelveTETPitchMixin` (CLAUDE.md §10 hierarchy-first) means seven pitch
+onto `TwelveTETPitchMixin` means seven pitch
 scalars share one implementation; the `_repr_parts()` hook makes the
 `ScoreMidiEvent` extension a first-class override rather than fragile string
 surgery over the base repr. The exact-string assertions guard against silent
@@ -367,7 +367,7 @@ renders through the shared `affordance_html` helper.
   - a `Length` row matching the element count;
   - an `Arrow type` row (escaped `struct<…>`);
   - a `Sample` row containing the new scalar reprs (e.g. `Coordinate(0.0,`)
-    — proving the sample uses `repr(field[i])`, the WP5a scalar reprs.
+    — proving the sample uses `repr(field[i])`, the scalar reprs.
 - The `Try` row lists exactly the three affordance snippets
   `field[i] -> <Scalar>`, `field.convert_to(<TargetScalar>)`,
   `field.get_raw()` (each as a `<code>` span, `<`/`>` escaped).

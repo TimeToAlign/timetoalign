@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from timetoalign.loader.score import TSVLoader
-from timetoalign.timelines import FlowController, SegmentNameGenerator
+from timetoalign.timelines import ScoreFlowController, SegmentNameGenerator
 
 # Folded measures TSV for Beethoven Op.18 No.4 iv (repeats + volta brackets).
 # Resolved relative to this test file — the same pattern test_unfolding.py uses
@@ -149,9 +149,9 @@ class TestControllerVoltaLabelling:
 
     def _controller(
         self, name_generator: SegmentNameGenerator | None = None
-    ) -> FlowController:
+    ) -> ScoreFlowController:
         loader = TSVLoader.from_file(OP18_MEASURES)
-        return FlowController(loader.store.measures, name_generator=name_generator)
+        return ScoreFlowController(loader.store.measures, name_generator=name_generator)
 
     def test_default_volta_suffix_ids(self) -> None:
         """Default naming yields volta-suffixed ids (B-style: D, D1, D2)."""

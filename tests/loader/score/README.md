@@ -99,7 +99,7 @@ semantics well enough to reproduce the target traversal.
 
 ```
                     +---------------------------------------------+
-                    |              FlowController                  |
+                    |              ScoreFlowController                  |
                     |                                              |
    Input Sources:   |   +-------------------------------------+   |
                     |   |      Atomic Segment Builder          |   |
@@ -211,7 +211,7 @@ def test_loader_produces_valid_flow(loader, specimen):
 
 | Value | Description | Source | Required in CSV? |
 |-------|-------------|--------|------------------|
-| `atomic` | True atomic sections from FlowController (= mode=None) | `timetoalign v0.1.0` | **Always** |
+| `atomic` | True atomic sections from ScoreFlowController (= mode=None) | `timetoalign v0.1.0` | **Always** |
 | `single` | Single playthrough (last volta only) | `*.measures.tsv` | **Always** |
 | `printed` | All bars as printed (no unfolding) | Computed | Never (deterministic) |
 
@@ -378,7 +378,7 @@ The six volta measures (44, 45, 93, 94, 102, 103) are wrapped in `<ending>` elem
 2. No `RepeatBracket` spanners are created, so `volta_by_offset` remains empty.
 3. The `_compute_next_fields` algorithm sees no volta markers and generates a single-pass flow with 5 sections (260 unfolded measures) instead of the correct 11 sections (291 unfolded measures).
 
-Without volta information, the FlowController cannot construct the branching at measure 43 (volta 1 → MC 44, volta 2 → MC 45), measure 92 (volta 1 → MC 93, volta 2 → MC 94), or measure 101 (volta 1 → MC 102, volta 2 → MC 103).
+Without volta information, the ScoreFlowController cannot construct the branching at measure 43 (volta 1 → MC 44, volta 2 → MC 45), measure 92 (volta 1 → MC 93, volta 2 → MC 94), or measure 101 (volta 1 → MC 102, volta 2 → MC 103).
 
 **Fix:** `Music21Loader._parse_mei_measure_info()` parses the raw MEI XML directly using `xml.etree.ElementTree`. It walks every `<measure>` element, tracking whether it is inside an `<ending>` element, and returns a mapping from measure number to `{volta, start_repeat, end_repeat}`. This correctly recovers:
 - `volta=1` for measures 44, 93, 102
@@ -468,7 +468,7 @@ Located in `tests/data/`:
 
 ## TOP-MOST GOAL
 
-**FlowController must reproduce ALL target flows in `.flow.csv` from ANY loader/format combination.**
+**ScoreFlowController must reproduce ALL target flows in `.flow.csv` from ANY loader/format combination.**
 
 **The major goal: PRODUCE ALL TARGET FLOWS CORRECTLY.**
 
@@ -479,14 +479,14 @@ def test_flowcontroller_reproduces_target_flows(specimen, loader, format):
     # 1. Load target flows from CSV, associating with FlowMode
     target_flows = load_valid_flows(specimen.flow_csv_path)  # {FlowMode: Flow}
 
-    # 2. Load score with loader/format, build FlowController
-    controller = FlowController.from_loader(loader.load(specimen.source_file))
+    # 2. Load score with loader/format, build ScoreFlowController
+    controller = ScoreFlowController.from_loader(loader.load(specimen.source_file))
 
-    # 3. Test if FlowController can reproduce each target flow
+    # 3. Test if ScoreFlowController can reproduce each target flow
     for mode, target in target_flows.items():
         computed = controller.compute_flow(mode=mode)  # mode=None = "default"
         if computed.is_equivalent(target):
-            # SUCCESS: FlowController reproduced this target flow!
+            # SUCCESS: ScoreFlowController reproduced this target flow!
             pass
         else:
             # FAILURE: Document what information was lost
@@ -497,8 +497,8 @@ def test_flowcontroller_reproduces_target_flows(specimen, loader, format):
 
 | Outcome | Meaning | Action |
 |---------|---------|--------|
-| **Reproduces ALL** | FlowController computes default + all queried FlowModes | **HUGE WIN** - the goal |
-| **Reproduces SOME** | FlowController computes a few FlowModes correctly | **WIN** - document which ones |
+| **Reproduces ALL** | ScoreFlowController computes default + all queried FlowModes | **HUGE WIN** - the goal |
+| **Reproduces SOME** | ScoreFlowController computes a few FlowModes correctly | **WIN** - document which ones |
 | **Cannot reproduce ANY** | Information lost in loader/format | **DOCUMENT** what was lost and why |
 
 ### Parser Behavior Summary

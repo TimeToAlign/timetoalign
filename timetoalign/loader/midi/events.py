@@ -29,10 +29,9 @@ import pyarrow as pa
 from timetoalign.core.events import EnharmonicPitchField
 from timetoalign.core.fields import SemanticField
 from timetoalign.loader.events import EventData
-from timetoalign.loader.mixins import PitchAccessMixin
 
 
-class MidiEventData(EventData, PitchAccessMixin):
+class MidiEventData(EventData):
     """EventData for performance MIDI events (mido cross-loader columns).
 
     Carries the seven columns mido can produce on its own: ``pitch``,

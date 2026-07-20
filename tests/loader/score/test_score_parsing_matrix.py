@@ -1,6 +1,6 @@
 """Score Parsing Test Matrix: Comprehensive validation of all loader/format combinations.
 
-TOP-MOST GOAL: FlowController must reproduce ALL target flows from .flow.csv from ANY
+TOP-MOST GOAL: ScoreFlowController must reproduce ALL target flows from .flow.csv from ANY
 loader/format combination. Each success is a HUGE WIN, each failure must be documented.
 
 Test Matrix Coverage:
@@ -302,7 +302,7 @@ class TestMusic21LoaderMusicXML:
             pytest.skip("Music21Loader not available")
 
         from timetoalign.core.enums import FlowMode
-        from timetoalign.timelines import FlowController
+        from timetoalign.timelines import ScoreFlowController
         from timetoalign.timelines.flow import load_valid_flows
 
         # Load valid flows from ground truth
@@ -311,7 +311,7 @@ class TestMusic21LoaderMusicXML:
         # Load and compute flow
         loader = Music21Loader()
         loader.load(xml_path)
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
         computed = controller.compute_flow(FlowMode.default)
 
         # Check if computed matches any valid flow
@@ -416,7 +416,7 @@ class TestMusic21LoaderMEI:
             pytest.skip("Music21Loader not available")
 
         from timetoalign.core.enums import FlowMode
-        from timetoalign.timelines import FlowController
+        from timetoalign.timelines import ScoreFlowController
 
         # Load both formats
         mei_loader = Music21Loader()
@@ -436,8 +436,8 @@ class TestMusic21LoaderMEI:
         xml_loader.load(xml_path)
 
         # Compute flows
-        mei_ctrl = FlowController(mei_loader.store.measures)
-        xml_ctrl = FlowController(xml_loader.store.measures)
+        mei_ctrl = ScoreFlowController(mei_loader.store.measures)
+        xml_ctrl = ScoreFlowController(xml_loader.store.measures)
 
         mei_flow = mei_ctrl.compute_flow(FlowMode.default)
         xml_flow = xml_ctrl.compute_flow(FlowMode.default)
@@ -530,7 +530,7 @@ class TestPartituraLoaderMusicXML:
             pytest.skip("PartituraLoader not available")
 
         from timetoalign.core.enums import FlowMode
-        from timetoalign.timelines import FlowController
+        from timetoalign.timelines import ScoreFlowController
         from timetoalign.timelines.flow import load_valid_flows
 
         # Load valid flows from ground truth
@@ -539,7 +539,7 @@ class TestPartituraLoaderMusicXML:
         # Load and compute flow
         loader = PartituraLoader()
         loader.load(xml_path)
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
         computed = controller.compute_flow(FlowMode.default)
 
         # Check if computed matches any valid flow
@@ -609,15 +609,15 @@ class TestPartituraLoaderMEI:
         )
 
 
-class TestFlowControllerReproducesTargetFlows:
-    """TOP-MOST GOAL: FlowController reproduces ALL target flows from .flow.csv.
+class TestScoreFlowControllerReproducesTargetFlows:
+    """TOP-MOST GOAL: ScoreFlowController reproduces ALL target flows from .flow.csv.
 
     This is the core test that validates the system works end-to-end.
     """
 
     @pytest.mark.parametrize("specimen_name", SPECIMENS.keys())
     def test_tsv_reproduces_valid_flow(self, specimen_name: str) -> None:
-        """TSVLoader -> FlowController reproduces a valid flow from .flow.csv.
+        """TSVLoader -> ScoreFlowController reproduces a valid flow from .flow.csv.
 
         Note: For flow_only specimen, TSV produces the 'ms3' flow (30 MCs) which
         is documented as divergent from the canonical 'default' flow (31 MCs).
@@ -633,7 +633,7 @@ class TestFlowControllerReproducesTargetFlows:
 
         from timetoalign.core.enums import FlowMode
         from timetoalign.loader.score import TSVLoader
-        from timetoalign.timelines import FlowController
+        from timetoalign.timelines import ScoreFlowController
         from timetoalign.timelines.flow import load_valid_flows
 
         # Load all valid flows
@@ -644,7 +644,7 @@ class TestFlowControllerReproducesTargetFlows:
         # Load and compute
         loader = TSVLoader()
         loader.load(tsv_path)
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
         computed = controller.compute_flow(FlowMode.default)
 
         # Check if computed matches ANY valid flow
@@ -677,7 +677,7 @@ class TestFlowControllerReproducesTargetFlows:
 
     @pytest.mark.parametrize("specimen_name", SPECIMENS.keys())
     def test_tsv_reproduces_atomic_flow(self, specimen_name: str) -> None:
-        """TSVLoader -> FlowController reproduces ATOMIC flow."""
+        """TSVLoader -> ScoreFlowController reproduces ATOMIC flow."""
         spec = SPECIMENS[specimen_name]
         tsv_path = get_specimen_path(spec, "tsv")
         csv_path = TARGET_FLOWS_DIR / spec.flow_csv
@@ -689,7 +689,7 @@ class TestFlowControllerReproducesTargetFlows:
 
         from timetoalign.core.enums import FlowMode
         from timetoalign.loader.score import TSVLoader
-        from timetoalign.timelines import FlowController
+        from timetoalign.timelines import ScoreFlowController
         from timetoalign.timelines.flow import load_valid_flows
 
         # Load gold standard
@@ -702,7 +702,7 @@ class TestFlowControllerReproducesTargetFlows:
         # Load and compute
         loader = TSVLoader()
         loader.load(tsv_path)
-        controller = FlowController(loader.store.measures)
+        controller = ScoreFlowController(loader.store.measures)
 
         # Get atomic sections
         atomic_sections = controller.get_sections(mode=None)
@@ -768,11 +768,11 @@ class TestDocumentedDeviations:
         """
         from timetoalign.core.enums import FlowMode
         from timetoalign.loader.score import Music21Loader
-        from timetoalign.timelines import FlowController
+        from timetoalign.timelines import ScoreFlowController
 
         loader = Music21Loader()
         loader.load(get_specimen_path(SPECIMENS["c05n05_musete"], "musicxml"))
-        flow = FlowController(loader.store.measures).compute_flow(FlowMode.default)
+        flow = ScoreFlowController(loader.store.measures).compute_flow(FlowMode.default)
 
         assert len(flow.to_mc_sequence()) == 116
         assert [(s.mc_start, s.mc_end) for s in flow.sections] == [
@@ -786,11 +786,11 @@ class TestDocumentedDeviations:
         """Document: music21 does not reproduce c11n08_Rondeau's D.S. flow."""
         from timetoalign.core.enums import FlowMode
         from timetoalign.loader.score import Music21Loader
-        from timetoalign.timelines import FlowController
+        from timetoalign.timelines import ScoreFlowController
 
         loader = Music21Loader()
         loader.load(get_specimen_path(SPECIMENS["c11n08_Rondeau"], "musicxml"))
-        flow = FlowController(loader.store.measures).compute_flow(FlowMode.default)
+        flow = ScoreFlowController(loader.store.measures).compute_flow(FlowMode.default)
 
         assert len(flow.to_mc_sequence()) == 120
         assert [(s.mc_start, s.mc_end) for s in flow.sections] == [
@@ -811,11 +811,11 @@ class TestDocumentedDeviations:
         """
         from timetoalign.core.enums import FlowMode
         from timetoalign.loader.score import Music21Loader
-        from timetoalign.timelines import FlowController
+        from timetoalign.timelines import ScoreFlowController
 
         loader = Music21Loader()
         loader.load(get_specimen_path(SPECIMENS["flow_only"], "musicxml"))
-        flow = FlowController(loader.store.measures).compute_flow(FlowMode.default)
+        flow = ScoreFlowController(loader.store.measures).compute_flow(FlowMode.default)
 
         assert flow.to_mc_sequence() == [
             1,

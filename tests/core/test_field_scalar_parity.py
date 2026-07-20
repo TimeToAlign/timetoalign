@@ -1,9 +1,8 @@
-"""WP3 — parity tests between scalar ``to(*)`` and field ``convert_to(*)``.
+"""Parity tests between scalar ``to(*)`` and field ``convert_to(*)``.
 
 Verifies that every data-shaped conversion implemented at the
 ``SemanticField`` level produces the same scalar values as the per-row
-scalar dispatch.  Per CLAUDE.md §6 (Coordinate Object Primacy) and the
-workshop_typing_push.md design: the field-level ``convert_to`` MUST be a
+scalar dispatch.  Field-level ``convert_to`` MUST be a
 ``pa.compute`` expression over the underlying ``pa.Array`` and MUST
 NEVER iterate over materialised scalars to call ``scalar.to()``.
 
@@ -357,7 +356,7 @@ class TestParityCheckEnforcement:
 # 5. Re-runs on a slice (``field[1:3]``) to honour the corpus-scale
 #    slicing constraint.
 #
-# Operator semantics (WP2.5):
+# Operator semantics:
 #   * ``Coordinate - Coordinate -> Duration``
 #   * ``Coordinate + Coordinate`` raises
 #   * ``Coordinate + Duration -> Coordinate``

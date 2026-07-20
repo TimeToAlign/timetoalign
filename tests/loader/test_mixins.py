@@ -20,8 +20,6 @@ from timetoalign.core.events import (
 )
 from timetoalign.loader.mixins import (
     HarmonyAccessMixin,
-    MeasureAccessMixin,
-    PitchAccessMixin,
     SemanticFieldAccessMixin,
 )
 
@@ -139,11 +137,6 @@ class _MixinHost(SemanticFieldAccessMixin):
         self._table = table
 
 
-class _PitchHost(PitchAccessMixin):
-    def __init__(self, table: pa.Table) -> None:
-        self._table = table
-
-
 class _HarmonyHost(HarmonyAccessMixin):
     def __init__(self, table: pa.Table) -> None:
         self._table = table
@@ -208,35 +201,35 @@ class TestSemanticFieldAccessMixin:
 
 
 # ---------------------------------------------------------------------------
-# PitchAccessMixin tests
+# SemanticFieldAccessMixin pitch-access tests
 # ---------------------------------------------------------------------------
 
 
-class TestPitchAccessMixin:
+class TestSemanticFieldPitchAccess:
     def test_get_pitch_field_with_type(self) -> None:
-        host = _PitchHost(_make_midi_pitch_table())
+        host = _MixinHost(_make_midi_pitch_table())
         result = host.get_pitch_field(EnharmonicPitchField)
         assert isinstance(result, EnharmonicPitchField)
 
     def test_get_pitch_field_default_priority_sp(self) -> None:
         """When both EP and SP are present, default picks SP (most informative)."""
-        host = _PitchHost(_make_both_pitch_table())
+        host = _MixinHost(_make_both_pitch_table())
         result = host.get_pitch_field()
         assert isinstance(result, SpecificPitchField)
 
     def test_get_pitch_field_default_only_ep(self) -> None:
-        host = _PitchHost(_make_midi_pitch_table())
+        host = _MixinHost(_make_midi_pitch_table())
         result = host.get_pitch_field()
         assert isinstance(result, EnharmonicPitchField)
 
     def test_get_pitch_field_default_only_sp(self) -> None:
-        host = _PitchHost(_make_specific_pitch_table())
+        host = _MixinHost(_make_specific_pitch_table())
         result = host.get_pitch_field()
         assert isinstance(result, SpecificPitchField)
 
     def test_get_pitch_field_raises_no_pitch(self) -> None:
         table = pa.table({"x": pa.array([1])})
-        host = _PitchHost(table)
+        host = _MixinHost(table)
         with pytest.raises(KeyError, match="No pitch field"):
             host.get_pitch_field()
 
@@ -278,25 +271,6 @@ class TestHarmonyAccessMixin:
 
 
 # ---------------------------------------------------------------------------
-# MeasureAccessMixin tests
-# ---------------------------------------------------------------------------
-
-
-class TestMeasureAccessMixin:
-    def test_get_measure_field_raises(self) -> None:
-        table = pa.table({"x": pa.array([1])})
-
-        class _MeasureHost(MeasureAccessMixin):
-            def __init__(self, t: pa.Table) -> None:
-                self._table = t
-
-        host = _MeasureHost(table)
-        with pytest.raises(
-            NotImplementedError, match="MeasureField is not yet defined"
-        ):
-            host.get_measure_field()
-
-
 # ---------------------------------------------------------------------------
 # Integration with EventData
 # ---------------------------------------------------------------------------
@@ -311,24 +285,18 @@ class TestEventDataComposition:
         assert hasattr(NoteEventData, "get_field")
         assert hasattr(NoteEventData, "get_fields")
 
-    def test_measure_data_has_measure_access(self) -> None:
-        from timetoalign.loader.score.stores.measures import MeasureData
-
-        assert hasattr(MeasureData, "get_measure_field")
-        assert hasattr(MeasureData, "has_field")
-
     def test_annotation_event_data_has_harmony_access(self) -> None:
         from timetoalign.loader.score.stores.annotations import AnnotationEventData
 
         assert hasattr(AnnotationEventData, "get_harmony_field")
         assert hasattr(AnnotationEventData, "has_field")
 
-    def test_note_event_data_pitch_field_backward_compat(self) -> None:
+    def test_note_event_data_enharmonic_pitch_field(self) -> None:
         from timetoalign.loader.score.stores.notes import NoteEventData
 
         # Represent once: NoteEventData affords EnharmonicPitch over the raw
         # ``midi`` int column (the source MIDI number), reached via the
-        # ``pitch_field`` convenience property.
+        # ``enharmonic_pitch_field`` accessor.
         store = NoteEventData.from_dicts(
             [
                 {
@@ -339,7 +307,7 @@ class TestEventDataComposition:
                 }
             ],
         )
-        pf = store.pitch_field
+        pf = store.enharmonic_pitch_field
         assert isinstance(pf, EnharmonicPitchField)
         assert pf[0] is not None
         assert pf[0].midi_number == 60

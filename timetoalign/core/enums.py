@@ -751,7 +751,7 @@ class FlowMode(FancyStrEnum):
     Different contexts require different unfoldings:
 
     Deterministic modes (must be identical across all loaders):
-    - atomic: True atomic sections from FlowController (= mode=None)
+    - atomic: True atomic sections from ScoreFlowController (= mode=None)
     - printed: All bars as printed (no unfolding)
     - single: Single playthrough (last volta only)
 

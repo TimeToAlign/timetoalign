@@ -46,7 +46,7 @@ class TestSemanticFieldReprHtml:
 
     def test_sample_uses_scalar_repr(self) -> None:
         html = _coordinate_field(2)._repr_html_()
-        # Sample row renders repr(field[i]) -> the WP5a scalar repr form.
+        # Sample row renders repr(field[i]) in the scalar repr form.
         assert "<b>Sample</b>" in html
         assert "Coordinate(0.0," in html
 

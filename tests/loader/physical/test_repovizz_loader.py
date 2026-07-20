@@ -225,7 +225,7 @@ class TestRepoVizzLoaderXmlMode:
 
         # Get audio group if available
         if "audio" in loader.groups:
-            group = loader.create_group(group_id="audio")
+            group = loader.create_group(category="audio")
             assert group.id == "repovizz:audio"
             assert len(group) > 0
 
@@ -392,7 +392,7 @@ class TestRepoVizzLoaderIntegration:
         loader = RepoVizzLoader.from_file(xml_manifest_path)
 
         if "audio" in loader.groups:
-            group = loader.create_group(group_id="audio")
+            group = loader.create_group(category="audio")
             timelines = list(group)
             assert len(timelines) > 0
             for tl in timelines:

@@ -36,7 +36,6 @@ from timetoalign.timelines import (
     DiscreteLogicalTimeline,
 )
 from timetoalign.timelines.flow import (
-    FlowController,
     ScoreFlowController,
     compute_qb_sections,
     create_unfolded_timeline,
@@ -239,16 +238,16 @@ def timeline_with_child() -> ContinuousLogicalTimeline:
     return parent
 
 
-def _load_controller(tsv_path: Path) -> FlowController:
-    """Load a FlowController from a measures TSV file.
+def _load_controller(tsv_path: Path) -> ScoreFlowController:
+    """Load a ScoreFlowController from a measures TSV file.
 
     Uses the standard two-phase loader pattern:
     1. TSVLoader.load(path) -- file ingestion
-    2. FlowController(loader.store.measures) -- domain object creation
+    2. ScoreFlowController(loader.store.measures) -- domain object creation
     """
     loader = TSVLoader()
     loader.load(tsv_path)
-    return FlowController(loader.store.measures)
+    return ScoreFlowController(loader.store.measures)
 
 
 def _load_gold_standard(unfolded_tsv: Path) -> pd.DataFrame:
@@ -851,7 +850,7 @@ class TestUnfoldingGoldStandard:
 
     def _load_specimen(
         self, specimen: str, data_dir: Path
-    ) -> tuple[FlowController, Any, pd.DataFrame]:
+    ) -> tuple[ScoreFlowController, Any, pd.DataFrame]:
         """Load controller, flow, and gold standard for a specimen.
 
         Returns:

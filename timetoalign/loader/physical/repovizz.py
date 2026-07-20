@@ -1073,7 +1073,6 @@ class RepoVizzLoader(ManifestLoader):
         id: str | None = None,
         name: str | None = None,
         with_notes: bool = False,
-        group_id: str | None = None,  # Deprecated alias for category
     ) -> "TimelineGroup":
         """Create a TimelineGroup containing timelines.
 
@@ -1088,8 +1087,6 @@ class RepoVizzLoader(ManifestLoader):
                 timeline using ``use_conversion_map=True``. This enables
                 automatic coordinate transfer from seconds (notes) to
                 samples (audio). Default: False.
-            group_id: Deprecated alias for ``category``.
-
         Returns:
             A TimelineGroup containing the specified timelines.
 
@@ -1103,19 +1100,7 @@ class RepoVizzLoader(ManifestLoader):
             >>> loader = RepoVizzLoader.from_file("recording.xml")
             >>> group = loader.create_group(id="normal", name="Normal Recording", with_notes=True)
         """
-        import warnings
-
         from timetoalign.alignment.groups import TimelineGroup
-
-        # Handle deprecated group_id parameter
-        if group_id is not None:
-            warnings.warn(
-                "group_id is deprecated, use category instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if category is None:
-                category = group_id
 
         if not self._is_xml_mode:
             # Legacy mode: single timeline group
@@ -1180,9 +1165,9 @@ class RepoVizzLoader(ManifestLoader):
 
                 # Create notes timeline from stored notes EventData
                 notes_data = self._store.notes
-                group_id_str = id or (category or "group")
+                notes_id_prefix = id or (category or "group")
                 notes_store = SingleStore(notes_data, name="notes")
-                notes_tl = notes_store.create_timeline(uid=f"{group_id_str}_notes")
+                notes_tl = notes_store.create_timeline(uid=f"{notes_id_prefix}_notes")
 
                 # Add as child with automatic unit conversion (seconds -> samples)
                 audio_timeline.add_child(notes_tl, offset=0, use_conversion_map=True)

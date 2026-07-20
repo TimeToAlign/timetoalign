@@ -67,7 +67,7 @@ def make_paths(name: str, data_dir: Path = DATA_DIR) -> tuple[Path, Path]:
 
 
 def load_controller(name: str):
-    """Build a ``FlowController`` from the score's measures TSV."""
+    """Build a ``ScoreFlowController`` from the score's measures TSV."""
     _, measures = make_paths(name)
     return TSVLoader.from_file(measures).create_flow_controller()
 

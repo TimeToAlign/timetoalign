@@ -33,7 +33,6 @@ from typing_extensions import Self
 
 from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.loader.events import EventData
-from timetoalign.loader.mixins import MeasureAccessMixin
 
 if TYPE_CHECKING:
     pass
@@ -41,7 +40,7 @@ if TYPE_CHECKING:
 module_logger = logging.getLogger(__name__)
 
 
-class MeasureData(EventData, MeasureAccessMixin):
+class MeasureData(EventData):
     """EventData for measure boundary events.
 
     This schema supports both MeasureMap JSON and measures.tsv formats,

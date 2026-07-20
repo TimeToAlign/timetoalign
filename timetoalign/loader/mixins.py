@@ -28,11 +28,9 @@ Pitch access is uniform: ``get_pitch_field(type, format=)`` lives on the
 base :class:`SemanticFieldAccessMixin` and returns the single
 most-expressive pitch field an EventData affords (including fields
 afforded over a raw atomic column via ``_afforded_fields``).
-``PitchAccessMixin`` is retained as a backward-compatible alias.  The
-remaining domain mixins add their own convenience accessors:
+The remaining domain mixin adds its own convenience accessor:
 
 - ``HarmonyAccessMixin`` -- ``get_harmony_field(type, format=)``
-- ``MeasureAccessMixin`` -- ``get_measure_field(format=)`` (placeholder)
 """
 
 from __future__ import annotations
@@ -1103,23 +1101,6 @@ class SemanticFieldAccessMixin:
 
 
 # ---------------------------------------------------------------------------
-# PitchAccessMixin
-# ---------------------------------------------------------------------------
-
-
-class PitchAccessMixin(SemanticFieldAccessMixin):
-    """Backward-compatible alias for the base pitch accessor.
-
-    :meth:`SemanticFieldAccessMixin.get_pitch_field` now lives on the base
-    field-access mixin so that *every* EventData exposes pitch access
-    uniformly (pitch is afforded uniformly — including over raw atomic
-    columns via :attr:`_afforded_fields`).  This subclass is retained only
-    so that existing ``class X(EventData, PitchAccessMixin)`` declarations
-    keep working; it adds nothing beyond the inherited method.
-    """
-
-
-# ---------------------------------------------------------------------------
 # HarmonyAccessMixin
 # ---------------------------------------------------------------------------
 
@@ -1178,29 +1159,3 @@ class HarmonyAccessMixin(SemanticFieldAccessMixin):
                 if isinstance(field, ht):
                     return field
         return all_harmony_fields[0]
-
-
-# ---------------------------------------------------------------------------
-# MeasureAccessMixin
-# ---------------------------------------------------------------------------
-
-
-class MeasureAccessMixin(SemanticFieldAccessMixin):
-    """Mixin providing measure field access (placeholder).
-
-    ``MeasureField`` is not yet defined; this mixin is a forward-looking
-    placeholder.
-    """
-
-    def get_measure_field(self, *, format: str | None = None) -> Any:
-        """Return the measure field.
-
-        Args:
-            format: Format specifier (reserved for future use).
-
-        Raises:
-            NotImplementedError: Always, until MeasureField is defined.
-        """
-        raise NotImplementedError(
-            "MeasureField is not yet defined in the type hierarchy"
-        )

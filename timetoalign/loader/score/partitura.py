@@ -424,7 +424,7 @@ class PartituraLoader(ScoreLoader):
             # An absent entry means "next sequential MC" (or -1 for the last bar).
             #
             # Repeat structure remains active when navigation markers are present;
-            # the marker fields below let FlowController combine the two kinds of
+            # the marker fields below let ScoreFlowController combine the two kinds of
             # flow control.
             next_mc_map: dict[int, list[int]] = {}
             num_measures = len(measures)
@@ -497,9 +497,7 @@ class PartituraLoader(ScoreLoader):
                 if mc in next_mc_map:
                     mc_next: list[int] | None = next_mc_map[mc]
                 else:
-                    mc_next = (
-                        None  # default: next sequential MC (handled by FlowController)
-                    )
+                    mc_next = None  # default: next sequential MC (handled by ScoreFlowController)
 
                 measure_rows.append(
                     {

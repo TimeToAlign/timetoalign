@@ -6,7 +6,7 @@ pooch-backed wrapper that fetches per-corpus tarballs from the
 The wrapper is the canonical (and only) way for tests, conftests, and
 notebooks to resolve corpus paths.
 
-See ``CLAUDE.md`` "Test Data Provisioning" for the binding contract and
+See ``tests/data/README.md`` for the binding contract and
 ``timetoalign/testdata/__init__.py`` for the implementation.
 
 ## Files
@@ -39,4 +39,4 @@ The contract verified by these tests:
 ## Parallel-safety
 
 Tests use ``tmp_path`` and never share global state, matching the
-``pytest-xdist`` requirement in ``CLAUDE.md`` §12.
+``pytest-xdist`` requirement documented in ``tests/data/README.md``.
