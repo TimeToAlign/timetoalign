@@ -5,8 +5,11 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.alignment import GroupTimestamp, TimelineGroup
+from timetoalign.core import Coordinate
 from timetoalign.core.enums import NumberType, TimeUnit
+from timetoalign.core.timestamp import Stamp
 from timetoalign.loader.events import EventData
+from timetoalign.maps import TableMap
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
@@ -49,7 +52,7 @@ class TestGroupTimestamp:
 
         assert ts["tl1"] == 10.0
         assert ts["tl2"] == 20.0
-        assert ts["tl3"] is None
+        assert ts.get("tl3") is None
         assert ts.row_index == 0
 
     def test_get_method(self) -> None:
@@ -178,8 +181,8 @@ class TestAddTimeline:
         assert group.n_timestamps == 2
 
         # Check timestamps
-        ts_start = group.get_timestamp(0)
-        ts_end = group.get_timestamp(1)
+        ts_start = group.get_timestamp_at_index(0)
+        ts_end = group.get_timestamp_at_index(1)
 
         assert ts_start["dgt1"] == 0.0
         assert ts_end["dgt1"] == 4875.0
@@ -197,8 +200,8 @@ class TestAddTimeline:
         assert group.n_timestamps == 2
 
         # Both should span full extent
-        ts_start = group.get_timestamp(0)
-        ts_end = group.get_timestamp(1)
+        ts_start = group.get_timestamp_at_index(0)
+        ts_end = group.get_timestamp_at_index(1)
 
         assert ts_start["dgt1"] == 0.0
         assert ts_start["audio"] == 0.0
@@ -268,9 +271,9 @@ class TestTimestampAccess:
         """Test getting timestamp by index."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
 
-        ts0 = group.get_timestamp(0)
-        ts1 = group.get_timestamp(1)
-        ts_last = group.get_timestamp(-1)  # Negative indexing
+        ts0 = group.get_timestamp_at_index(0)
+        ts1 = group.get_timestamp_at_index(1)
+        ts_last = group.get_timestamp_at_index(-1)  # Negative indexing
 
         assert ts0["dgt1"] == 0.0
         assert ts1["dgt1"] == 4875.0
@@ -283,7 +286,49 @@ class TestTimestampAccess:
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
 
         with pytest.raises(IndexError):
-            group.get_timestamp(10)
+            group.get_timestamp_at_index(10)
+
+    def test_row_timestamp_stamp_contract(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """A table row exposes the same coordinate contract as other stamps."""
+        dgt_timeline.add_conversion_map(
+            TableMap(
+                x_values=[0.0, 4875.0],
+                y_values=[0.0, 150.0],
+                source_unit=TimeUnit.pixels,
+                target_unit=TimeUnit.seconds,
+                uid="dgt1-seconds",
+            )
+        )
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        gt = group.get_timestamp_at_index(1)
+
+        assert isinstance(gt, Stamp)
+        assert gt.source is group
+        assert gt.source_id == "test_group"
+        assert gt.axis == 4875.0
+        assert gt.get_coordinate("dgt1") == Coordinate(4875.0, TimeUnit.pixels)
+        assert gt["seconds"] == 150.0
+        assert gt.to_dict() == {"dgt1": 4875.0, "audio": 150.0}
+
+    def test_old_timestamp_accessor_is_absent(
+        self, dgt_timeline: DiscreteGraphicalTimeline
+    ) -> None:
+        """The index accessor has an unambiguous name."""
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
+
+        with pytest.raises(AttributeError):
+            group.get_timestamp(0)  # type: ignore[attr-defined]
+
+    def test_group_timestamp_is_exported_at_top_level(self) -> None:
+        """The row timestamp type is available from the package root."""
+        from timetoalign import GroupTimestamp as TopLevelGroupTimestamp
+
+        assert TopLevelGroupTimestamp is GroupTimestamp
 
     def test_timestamps_property(
         self,

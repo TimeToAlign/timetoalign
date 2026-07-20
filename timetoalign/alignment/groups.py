@@ -31,18 +31,20 @@ import pandas as pd
 import pyarrow as pa
 
 from timetoalign.core import CoordinateSpec, IdCoordinate, IdGenerator, resolve_id
-from timetoalign.core.enums import NumberType
+from timetoalign.core.enums import NumberType, TimeUnit
 from timetoalign.core.timestamp import (
     ConversionMapsSpec,
+    Stamp,
     TimeStamp,
     _format_coordinate_value,
 )
+from timetoalign.maps.base import ConversionMap
 from timetoalign.maps.interpolation import InterpolationMap
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from timetoalign.core.enums import ColumnNaming, TimeUnit
+    from timetoalign.core.enums import ColumnNaming
     from timetoalign.display.ascii import Diagram
     from timetoalign.timelines import Timeline
     from timetoalign.timelines.flow import Flow, FlowControllerBase
@@ -63,7 +65,7 @@ def _reset_group_ids() -> None:
 
 
 @dataclass(frozen=True)
-class GroupTimestamp:
+class GroupTimestamp(Stamp):
     """A synchronized instant across all timelines in a group.
 
     This is a view object created from a row in the group's timestamp table.
@@ -78,9 +80,9 @@ class GroupTimestamp:
             -1 indicates an interpolated timestamp (not from a table row).
 
     Examples:
-        >>> ts = group.get_timestamp_at(75.0, "audio:1")
+        >>> ts = group.get_timestamp_at_index(0)
         >>> ts["dgt1:1"]  # Get coordinate for dgt1
-        2437.5
+        0.0
         >>> ts.present_timelines  # Which timelines have values here
         ['dgt1:1', 'audio:1']
 
@@ -91,6 +93,10 @@ class GroupTimestamp:
     coordinates: dict[str, float | None]
     units: dict[str, str] = field(default_factory=dict)
     row_index: int = -1
+    source: TimelineGroup | None = None
+    source_id: str | None = None
+    axis: float | None = None
+    conversion_maps: ConversionMapsSpec = True
 
     def get(self, timeline_id: str, default: float | None = None) -> float | None:
         """Get coordinate for a timeline.
@@ -104,16 +110,106 @@ class GroupTimestamp:
         """
         return self.coordinates.get(timeline_id, default)
 
-    def __getitem__(self, timeline_id: str) -> float | None:
-        """Subscript access: ts["audio:1"].
+    def get_unit(self, unit: TimeUnit) -> float | None:
+        """Get the row coordinate converted to a specific unit.
 
         Args:
-            timeline_id: The timeline to look up.
+            unit: The target unit for conversion.
 
         Returns:
-            The coordinate value, or None if timeline not present at this instant.
+            Converted coordinate, or None if no permitted C-Map is available.
         """
-        return self.coordinates.get(timeline_id)
+        if self.source is None or not self._unit_resolution_enabled(unit):
+            return None
+
+        for timeline_id in [self.source_id, *self.source._get_related_timeline_ids()]:
+            umap = self.source._get_unit_map_for_timeline(timeline_id, unit)
+            if umap is None:
+                continue
+            value = (
+                self.axis if timeline_id == self.source_id else self.get(timeline_id)
+            )
+            if value is None:
+                continue
+            if isinstance(umap, InterpolationMap):
+                return float(umap.forward(value))
+            return float(umap(value))
+        return None
+
+    def to_dict(
+        self,
+        include_children: bool = True,
+        conversion_units: list[TimeUnit] | Literal["all"] | None = None,
+    ) -> dict[str, float | None]:
+        """Materialize the stored row coordinates as a dictionary.
+
+        Args:
+            include_children: Retained for the shared Stamp interface.
+            conversion_units: Retained for the shared Stamp interface.
+
+        Returns:
+            Dictionary mapping timeline IDs to stored coordinate values.
+        """
+        return dict(self.coordinates)
+
+    def _unit_for(self, timeline_id: str) -> TimeUnit | None:
+        """Get the unit associated with a timeline ID in this row."""
+        unit = self.units.get(timeline_id)
+        if unit is None:
+            return None
+        try:
+            return TimeUnit(unit)
+        except ValueError:
+            return None
+
+    def _unit_resolution_enabled(self, unit: TimeUnit) -> bool:
+        """Return whether the conversion-map specification permits a unit."""
+        if self.source is None:
+            return False
+
+        spec = self.conversion_maps
+        if spec is True:
+            return True
+        if spec is False or spec is None:
+            return False
+
+        requested = spec if isinstance(spec, list) else [spec]
+        maps = [
+            self.source._get_unit_map_for_timeline(timeline_id, unit)
+            for timeline_id in [
+                self.source_id,
+                *self.source._get_related_timeline_ids(),
+            ]
+        ]
+        maps = [cmap for cmap in maps if cmap is not None]
+
+        for allowed in requested:
+            if isinstance(allowed, TimeUnit) and allowed == unit:
+                return True
+            if isinstance(allowed, str):
+                try:
+                    if TimeUnit(allowed) == unit:
+                        return True
+                except ValueError:
+                    pass
+                for cmap in maps:
+                    if isinstance(cmap, InterpolationMap):
+                        if allowed == cmap.source_id:
+                            return True
+                    elif allowed in (cmap.id, cmap.name):
+                        return True
+            elif isinstance(allowed, ConversionMap):
+                if allowed.target_unit == unit:
+                    return True
+                if any(
+                    isinstance(cmap, InterpolationMap)
+                    and cmap.source_id == allowed.id
+                    or not isinstance(cmap, InterpolationMap)
+                    and cmap.id == allowed.id
+                    for cmap in maps
+                ):
+                    return True
+        return False
 
     @property
     def present_timelines(self) -> list[str]:
@@ -555,7 +651,7 @@ class TimelineGroup:
             return []
         return [self._row_to_timestamp(i) for i in range(self.n_timestamps)]
 
-    def get_timestamp(self, index: int) -> GroupTimestamp:
+    def get_timestamp_at_index(self, index: int) -> GroupTimestamp:
         """Get a specific timestamp by index.
 
         Args:
@@ -778,42 +874,6 @@ class TimelineGroup:
 
         return df
 
-    def _add_cmap_values_to_timestamp(self, ts: GroupTimestamp) -> GroupTimestamp:
-        """Add C-Map values to a GroupTimestamp.
-
-        For each timeline coordinate in the timestamp, applies all of that
-        timeline's C-Maps and adds the results to the coordinates dict.
-
-        Args:
-            ts: The GroupTimestamp to augment.
-
-        Returns:
-            New GroupTimestamp with C-Map values and units added.
-        """
-        new_coords = dict(ts.coordinates)
-        new_units = dict(ts.units)
-
-        for timeline_id, timeline in self._timelines.items():
-            coord = ts.get(timeline_id)
-            if coord is None:
-                continue
-
-            # Apply each of the timeline's C-Maps
-            for cmap in timeline._conversion_maps.values():
-                try:
-                    converted = float(cmap(coord))
-                    new_coords[cmap.name] = converted
-                    # Add unit from C-Map's target_unit
-                    if cmap.target_unit is not None:
-                        new_units[cmap.name] = cmap.target_unit.value
-                except Exception:
-                    # Skip C-Maps that fail
-                    continue
-
-        return GroupTimestamp(
-            coordinates=new_coords, units=new_units, row_index=ts.row_index
-        )
-
     def get_timestamp_table(
         self,
         timeline_filter: set[str] | None = None,
@@ -1013,7 +1073,16 @@ class TimelineGroup:
                 if unit_bytes:
                     units[field_name] = unit_bytes.decode("utf-8")
 
-        return GroupTimestamp(coordinates=coords, units=units, row_index=index)
+        axis_field = self._timestamp_table.column_names[0]
+        axis = coords[axis_field]
+        return GroupTimestamp(
+            coordinates=coords,
+            units=units,
+            row_index=index,
+            source=self,
+            source_id=self.id,
+            axis=axis,
+        )
 
     # endregion
 

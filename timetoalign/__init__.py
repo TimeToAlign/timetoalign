@@ -102,6 +102,7 @@ from timetoalign.alignment import (
     AlignmentAnchor,
     AlignmentBundle,
     ClaimFilter,
+    GroupTimestamp,
     MatchClaim,
     MatchClaimField,
     MatchFileContext,
@@ -248,6 +249,7 @@ __all__ = [
     # Alignment
     "Agent",
     "AlignmentBundle",
+    "GroupTimestamp",
     "TimelineGroup",
     "AlignmentAnchor",
     "ClaimFilter",

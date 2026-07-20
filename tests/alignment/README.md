@@ -100,6 +100,8 @@ The manuscript states Groups contain timelines with "perfect alignment"--any coo
 | `TestTimelineGroupLocking` | Lock/unlock, `allow_extension` parameter |
 | `TestBackwardCompatibility` | Deprecated `from_reference()` and `iter_timelines()` methods |
 | `TestTimelineGroupUnifiedTimestamp` | Unified TimeStamp API, InterpolationMap-based coordinate resolution |
+| `TestTimestampAccess.test_row_timestamp_stamp_contract` | Group row views share the Stamp contract: exact Coordinate value/unit, unit-name subscript fallback, flat materialization, and group source metadata |
+| `TestTimestampAccess.test_old_timestamp_accessor_is_absent` | The row-index accessor is `get_timestamp_at_index()`; the coordinate-oriented `get_timestamp` name is not available on groups |
 
 ### Key Evidence
 
