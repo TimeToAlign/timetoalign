@@ -81,7 +81,8 @@ GroupTimestamp: |
   A cross-section through a TimelineGroup at a given coordinate. Contains
   one coordinate per timeline in the group plus (optionally) C-map conversion
   values. A MatchStamp is the union of GroupTimestamps from each participating
-  group. Produced by TimelineGroup.get_timestamp_at().
+  group. Produced by TimelineGroup.get_timestamp_at(). Exported from the
+  package root as timetoalign.GroupTimestamp.
 
 DictStore: |
   A generic EventStore subclass holding a dict[str, EventData] with arbitrary
@@ -174,7 +175,10 @@ MatchLine: |
 MatchStamp: |
   The union of TimeStamps from groups synchronously connected by a MatchGraph.
   Contains one coordinate per participating timeline and, with
-  conversion_maps=True (the default), C-map conversion values.
+  conversion_maps=True (the default), C-map conversion values. MatchStamp
+  implements the shared Stamp interface: get() returns a raw coordinate,
+  get_coordinate() returns a unit-bearing Coordinate, present_timelines lists
+  available timelines, and is_interpolated identifies interpolation fallback.
 
 MetricMap: |
   A table-based ConversionMap from a quarter position to its measure count,
@@ -306,7 +310,9 @@ Timeline: |
 TimeStamp: |
   A cross-section through a timeline or group at a given coordinate, capturing
   positions in all connected systems plus values converted by all attached
-  C-maps.
+  C-maps. TimeStamp implements the shared Stamp interface used by
+  GroupTimestamp and MatchStamp, including raw get(), unit-bearing
+  get_coordinate(), present_timelines, and is_interpolated access.
 
 WarpMap: |
   An interpolation-based coordinate mapping derived from a MatchLine; enables

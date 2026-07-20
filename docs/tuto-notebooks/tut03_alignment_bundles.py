@@ -21,11 +21,10 @@
 # performances) using the `MatchfileLoader` to illustrate the pattern.
 
 # %%
-from pathlib import Path
-
 from timetoalign import MatchfileLoader
+from timetoalign.testdata import ensure_data
 
-DATA_DIR = Path(".").resolve().parent.parent / "tests" / "data" / "vienna_1x22"
+DATA_DIR = ensure_data("vienna_1x22")
 
 # %% [markdown]
 # ## Load All Match Files at Once
@@ -63,13 +62,27 @@ score_tl.get_events(event_type="Note").to_dataframe().head()
 # %% [markdown]
 # ## Query Coordinates Across Groups
 #
-# `get_timestamp_at()` returns coordinates on all connected timelines.
+# `get_matchstamp_at()` is the cross-domain resolution method for an
+# `AlignmentBundle`: it accepts a coordinate on any timeline and returns a
+# `MatchStamp` spanning all connected timelines. `MatchStamp` shares the
+# unified stamp interface used by the other timestamp types.
 
 # %%
 perf_id = [uid for uid in bundle.timeline_ids if uid != "score"][0]
 
-ts = bundle.get_timestamp_at(100.0, "score")
-ts
+stamp = bundle.get_matchstamp_at(100.0, "score")
+stamp
+
+# %% [markdown]
+# The returned stamp exposes unit-bearing coordinates through
+# `get_coordinate()`, and `is_interpolated` identifies a WarpMap fallback
+# rather than an exact claim anchor.
+
+# %%
+{
+    "score coordinate": stamp.get_coordinate("score"),
+    "interpolated": stamp.is_interpolated,
+}
 
 # %% [markdown]
 # **Next:** [Flow Control and Grids](tut04_flow_and_grids.ipynb)

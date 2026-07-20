@@ -121,8 +121,9 @@ either:
 These invariants are tested at the unit level and enforced at review. If you
 find yourself wanting to break one, raise it as a discussion before coding.
 
-- **`TimeStamp` is the one and only return type for coordinate resolution.**
-  No parallel "GroupTimestamp" / "BundleTimestamp" / etc. classes.
+- **Coordinate resolution returns a shared stamp type.** `TimeStamp`,
+  `GroupTimestamp`, and `MatchStamp` implement the common `Stamp` interface;
+  each exposes raw and unit-bearing coordinate access consistently.
 - **`Coordinate` and `IdCoordinate` are the canonical input types** for
   every method that takes a coordinate value. Raw numbers are accepted for
   ergonomics; raw numbers are **not** acceptable as return types — every
@@ -229,13 +230,10 @@ Do not use the word "Phase" to refer to these passes in shipped code
 or docs — say "Typing step" / "Grouping step".
 
 **Unified `TimeStamp` architecture.**
-A single `TimeStamp` return type is the canonical result of every
-coordinate resolution call (Timeline ↔ child, TimelineGroup ↔ member).
-`MatchStamp` (used by `MatchClaim` / `AlignmentBundle`) is a sibling
-type, sharing the same interface where applicable. No
-"GroupTimestamp" / "BundleTimestamp" parallel hierarchy. `MatchGraph`
-remains on-demand (see §2.3) — these two rules together pin the
-"one resolution mechanism" invariant.
+`TimeStamp`, `GroupTimestamp`, and `MatchStamp` are the canonical results of
+coordinate resolution for timelines, groups, and bundles respectively. They
+share the same `Stamp` interface for timeline presence, raw coordinates, and
+unit-bearing coordinate access. `MatchGraph` remains on-demand (see §2.3).
 
 ---
 
@@ -505,8 +503,8 @@ A SHA-256 cache (`docs/page/.sync_state.json`) skips notebooks whose
   term. A bare "Timeline" / "ConversionMap" / etc. is a documentation bug.
 - Use `Loader.from_file()` rather than the two-phase `load()` + `create_*()`
   pattern in tutorials. The two-phase form is library-internal.
-- Never demonstrate `AlignmentBundle.transfer()`. The user-facing answer to
-  "how do I convert coordinates?" is always a `TimeStamp` or `MatchStamp`.
+- Coordinate conversion is demonstrated through a `TimeStamp` or
+  `MatchStamp`, which expose the resolved coordinates directly.
 
 ### 6.4 Jupytext and Quarto: Upgrade-Only
 
@@ -576,11 +574,11 @@ A breaking change triggers a **major** version bump. Mark it both ways:
 2. Include a `BREAKING CHANGE:` footer describing the migration.
 
 ```
-refactor!: replace TimelineGroup.get_timestamp_at return type
+refactor!: rename TimelineGroup.get_timestamp row lookup
 
-BREAKING CHANGE: get_timestamp_at now returns TimeStamp instead of the
-removed GroupTimestamp class. Callers using `.coordinates` should switch
-to subscript access (`ts["clt1"]`) or `ts.get(timeline_id)`.
+BREAKING CHANGE: row-index lookups now use get_timestamp_at_index(index).
+The coordinate-resolving get_timestamp_at(coordinate, timeline_id) method
+is unchanged and returns a GroupTimestamp.
 ```
 
 The `!` is what release-please reads to compute the bump; the

@@ -50,6 +50,7 @@ from PIL import Image
 
 from timetoalign import (
     ContinuousPhysicalTimeline,
+    Coordinate,
     DiscreteGraphicalTimeline,
     NumberType,
     RepoVizzLoader,
@@ -675,15 +676,17 @@ dpt16
 #
 # These cross-group claims are the key connection between the Emerson
 # recording and the score group.
+# `AlignmentAnchor` stores unit-bearing `Coordinate` values, so the units are
+# explicit at the claim boundary even though the source data is numeric.
 
 # %%
 emerson_claims = []
 for _, row in ema_df.iterrows():
     anchor = AlignmentAnchor(
         timeline_a_id="clt2_unfolded",
-        coordinate_a=float(row["measure_unfold_start"]),
+        coordinate_a=Coordinate(float(row["measure_unfold_start"]), TimeUnit.quarters),
         timeline_b_id="dpt16",
-        coordinate_b=float(row["seconds_start"]),
+        coordinate_b=Coordinate(float(row["seconds_start"]), TimeUnit.seconds),
     )
     emerson_claims.append(
         MatchClaim(
@@ -700,9 +703,11 @@ for _, row in ema_df.iterrows():
 # Final end boundary
 final_anchor = AlignmentAnchor(
     timeline_a_id="clt2_unfolded",
-    coordinate_a=float(ema_df["measure_unfold_end"].iloc[-1]),
+    coordinate_a=Coordinate(
+        float(ema_df["measure_unfold_end"].iloc[-1]), TimeUnit.quarters
+    ),
     timeline_b_id="dpt16",
-    coordinate_b=float(ema_df["seconds_end"].iloc[-1]),
+    coordinate_b=Coordinate(float(ema_df["seconds_end"].iloc[-1]), TimeUnit.seconds),
 )
 emerson_claims.append(
     MatchClaim(
@@ -864,9 +869,10 @@ transferred = emerson_warpmap.forward(first_fm)
 # %% [markdown]
 # ## 14. Cross-Group Coordinate Transfer
 #
-# The bundle's `get_timestamp_at()` method is the primary interface for
+# The bundle's `get_matchstamp_at()` method is the primary interface for
 # cross-domain coordinate transfer. Given a coordinate on any timeline,
-# it returns corresponding coordinates on all connected timelines —
+# it returns a `MatchStamp` with corresponding coordinates on all connected
+# timelines —
 # regardless of domain. With CLT2\_unfolded bridging the score group
 # and the Emerson MatchClaims, the bundle now reaches all 5 groups.
 
@@ -890,7 +896,22 @@ annotations_df[["start", "name"]].head(15)
 # `TimelineGroup`:
 
 # %%
-bundle.get_timestamp_at(79.0, "clt1", format="nested")
+stamp = bundle.get_matchstamp_at(79.0, "clt1")
+stamp
+
+# %% [markdown]
+# `MatchStamp` belongs to the same unified stamp family as `TimeStamp` and
+# `GroupTimestamp`: `get_coordinate()` returns a unit-bearing coordinate,
+# while `is_interpolated` reports whether resolution used interpolation.
+
+# %%
+{
+    "CLT1 coordinate": stamp.get_coordinate("clt1"),
+    "interpolated": stamp.is_interpolated,
+}
+
+# %%
+bundle.get_matchstamp_at(79.0, "clt1").to_dict(format="nested")
 
 # %% [markdown]
 # Note that the `emerson` group now appears in the output: the
@@ -901,7 +922,7 @@ bundle.get_timestamp_at(79.0, "clt1", format="nested")
 # The flat format is useful for programmatic access:
 
 # %%
-bundle.get_timestamp_at(79.0, "clt1", format="flat")
+bundle.get_matchstamp_at(79.0, "clt1").to_dict(format="flat")
 
 # %% [markdown]
 # ### 14.3 USE CASE B — Reverse Transfer: Emerson to All Groups
@@ -911,7 +932,7 @@ bundle.get_timestamp_at(79.0, "clt1", format="flat")
 # connected timeline — including the three EEP recording groups:
 
 # %%
-bundle.get_timestamp_at(120.0, "dpt16", format="nested")
+bundle.get_matchstamp_at(120.0, "dpt16").to_dict(format="nested")
 
 # %% [markdown]
 # A coordinate at 120 seconds into the Emerson recording is mapped
@@ -934,7 +955,7 @@ section_coords
 # %%
 boundary_df = pd.DataFrame(
     [
-        bundle.get_timestamp_at(float(qb), "clt1", format="flat")
+        bundle.get_matchstamp_at(float(qb), "clt1").to_dict(format="flat")
         for qb in section_coords.values()
     ],
     index=list(section_coords.keys()),
@@ -986,7 +1007,7 @@ boundary_df
 # | `add_timeline()` on a group | Bridge independent alignment networks | 12.1 |
 # | `MatchLine` + `WarpMap` | Explicit construction from MatchClaims | 13.1 |
 # | `AlignmentBundle` | Multi-group cross-domain transfer | 13 |
-# | `get_timestamp_at()` | Universal coordinate transfer | 14 |
+# | `get_matchstamp_at()` | Universal coordinate resolution | 14 |
 # | Reverse transfer | DPT16 -> all groups | 14.3 |
 # | Cascading alignment | EEP <-> Score <-> Emerson via shared group | 12-14 |
 #
