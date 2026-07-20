@@ -223,7 +223,7 @@ pf_sp_built[0], pf_sp_built[1], pf_sp_built[2]
 # output, where the same kind of pitch may live under different column names.
 
 # %%
-blueprint = EnharmonicPitchField(source_fields="midi_pitch")
+blueprint = EnharmonicPitchField(source_fields="midi")
 pf_ep_live = events.get_field(blueprint)
 pf_ep_live[3], pf_ep_live[8]
 
@@ -242,7 +242,7 @@ pf_sp = events.get_field(SpecificPitch)
 (pf_ep[3], pf_sp[3])
 
 # %% [markdown]
-# `get_field(EnharmonicPitch)` discovered the `midi_pitch` column by its
+# `get_field(EnharmonicPitch)` discovered the `midi` column by its
 # scalar *type*, not its name.  Ask twice and you get the identical object:
 
 # %%
@@ -273,10 +273,10 @@ events.has_field(EnharmonicPitchField)
 # Here we force the ambiguity by giving the table a second MIDI-pitch column:
 
 # %%
-mp_field = events.table.schema.field("midi_pitch")
+mp_field = events.table.schema.field("midi")
 table_two = events.table.append_column(
-    pa.field("midi_pitch_2", mp_field.type, metadata=mp_field.metadata),
-    events.table.column("midi_pitch"),
+    pa.field("midi_2", mp_field.type, metadata=mp_field.metadata),
+    events.table.column("midi"),
 )
 events_two = EventData(table_two, unit=events._unit, number_type=events._number_type)
 
@@ -290,7 +290,7 @@ error_hint
 # The `name=` keyword resolves it:
 
 # %%
-events_two.get_field(EnharmonicPitch, name="midi_pitch")[3]
+events_two.get_field(EnharmonicPitch, name="midi")[3]
 
 # %% [markdown]
 # To discover *every* field whose scalar satisfies a Protocol, use
