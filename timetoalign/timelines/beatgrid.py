@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import CoordinateSpec, NumberType, TimeUnit
 from timetoalign.maps import LinearMap
 from timetoalign.maps.meter import BeatInMeasureMap, MetricalPositionMap, MetricMap
 
@@ -256,7 +256,15 @@ class BeatGrid(ContinuousLogicalTimeline):
         )
         self.add_conversion_map(self._metrical_map)
 
-    def measure_at(self, quarters: float | Fraction) -> int:
+    def _resolve_quarter_value(
+        self, quarters: CoordinateSpec
+    ) -> int | float | Fraction:
+        """Resolve a public query coordinate to the native quarter-note axis."""
+        if isinstance(quarters, np.generic):
+            quarters = quarters.item()
+        return self._resolve_axis_value(quarters)
+
+    def measure_at(self, quarters: CoordinateSpec) -> int:
         """Get the measure count (MC) at a given quarter-note position.
 
         Args:
@@ -265,9 +273,10 @@ class BeatGrid(ContinuousLogicalTimeline):
         Returns:
             The measure count (integer, 1-indexed by default).
         """
-        return self._meter_map(float(quarters))
+        quarter_value = self._resolve_quarter_value(quarters)
+        return self._meter_map(float(quarter_value))
 
-    def mn_at(self, quarters: float | Fraction) -> str | None:
+    def mn_at(self, quarters: CoordinateSpec) -> str | None:
         """Get the measure number label (MN) at a given quarter-note position.
 
         Args:
@@ -276,10 +285,11 @@ class BeatGrid(ContinuousLogicalTimeline):
         Returns:
             The measure number label (string like "1", "0", "1a").
         """
-        mc = self._meter_map(float(quarters))
+        quarter_value = self._resolve_quarter_value(quarters)
+        mc = self._meter_map(float(quarter_value))
         return self._meter_map.get_mn(mc)
 
-    def beat_at(self, quarters: float | Fraction) -> Fraction:
+    def beat_at(self, quarters: CoordinateSpec) -> Fraction:
         """Get the beat position within the measure at a given quarter-note position.
 
         Args:
@@ -288,7 +298,8 @@ class BeatGrid(ContinuousLogicalTimeline):
         Returns:
             The beat position as Fraction (1-indexed, e.g., Fraction(3, 2) for beat 1.5).
         """
-        return self._meter_map.beat_in_measure(quarters)
+        quarter_value = self._resolve_quarter_value(quarters)
+        return self._meter_map.beat_in_measure(quarter_value)
 
     def beat_at_float(self, quarters: float | Fraction) -> float:
         """Get the beat position as a float (for backward compatibility).
@@ -301,7 +312,7 @@ class BeatGrid(ContinuousLogicalTimeline):
         """
         return float(self.beat_at(quarters))
 
-    def metrical_position(self, quarters: float | Fraction) -> dict[str, Any]:
+    def metrical_position(self, quarters: CoordinateSpec) -> dict[str, Any]:
         """Get the full metrical position (mc and beat) at a given quarter position.
 
         Args:
@@ -310,8 +321,9 @@ class BeatGrid(ContinuousLogicalTimeline):
         Returns:
             Dictionary with 'mc' (int), 'beat' (Fraction), and 'mn' (str) keys.
         """
-        mc = self._meter_map(float(quarters))
-        beat = self._meter_map.beat_in_measure(quarters)
+        quarter_value = self._resolve_quarter_value(quarters)
+        mc = self._meter_map(float(quarter_value))
+        beat = self._meter_map.beat_in_measure(quarter_value)
         return {"mc": mc, "beat": beat, "mn": self._meter_map.get_mn(mc)}
 
     def quarter_at(

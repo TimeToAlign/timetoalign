@@ -461,6 +461,10 @@ class TestMatchfileLoaderCreateTimelines:
         assert len(tls) == 1
         assert tls[0].id.startswith("perf:")
 
+    def test_id_pattern_no_match(self, p01_loader: MatchfileLoader) -> None:
+        """An unmatched ID pattern returns no timelines."""
+        assert p01_loader.create_timelines(id_pattern=r"^missing:") == []
+
     def test_score_is_first(self, p01_loader: MatchfileLoader):
         """Score timeline is always first."""
         tls = p01_loader.create_timelines()

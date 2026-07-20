@@ -328,5 +328,11 @@ class TestClaimFilterCombined:
         results = [c for c in all_claims if f.matches_claim(c)]
         assert len(results) == 4
 
+    def test_missing_timeline_metadata_fails_unit_filter(self) -> None:
+        """A unit criterion rejects a timeline absent from the metadata lookup."""
+        f = ClaimFilter(include_units={TimeUnit.seconds})
+
+        assert f.matches_timeline("missing", timelines={}) is False
+
 
 # endregion

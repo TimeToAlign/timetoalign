@@ -470,6 +470,11 @@ def test_create_timelines_id_pattern_filters(loader: ParangonadaLoader) -> None:
     assert len(loader.create_timelines(id_pattern=r"^perf:")) == 10
 
 
+def test_create_timelines_id_pattern_no_match(loader: ParangonadaLoader) -> None:
+    """An unmatched ID pattern returns no timelines."""
+    assert loader.create_timelines(id_pattern=r"^missing:") == []
+
+
 def test_create_timeline_unknown_raises(loader: ParangonadaLoader) -> None:
     with pytest.raises(KeyError):
         loader.create_timeline("does_not_exist")

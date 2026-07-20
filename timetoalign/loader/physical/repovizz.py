@@ -1074,7 +1074,7 @@ class RepoVizzLoader(ManifestLoader):
     def create_group(
         self,
         category: str | None = None,
-        ids: list[str] | None = None,
+        entries: list[str] | None = None,
         *,
         id: str | None = None,
         name: str | None = None,
@@ -1084,7 +1084,7 @@ class RepoVizzLoader(ManifestLoader):
 
         Args:
             category: Filter to a specific category ("audio", "mocap", etc.).
-            ids: Specific timeline IDs to include.
+            entries: Specific catalogue entries to include.
             id: Custom ID for the TimelineGroup. Defaults to
                 ``"repovizz:{category or 'all'}"``.
             name: Custom name for the TimelineGroup. Defaults to
@@ -1123,8 +1123,8 @@ class RepoVizzLoader(ManifestLoader):
             raise RuntimeError("No XML manifest loaded. Call load() first.")
 
         # Determine which IDs to include
-        if ids is not None:
-            target_ids = ids
+        if entries is not None:
+            target_entries = entries
         elif category is not None:
             # Filter by category
             valid_groups = self._store.groups
@@ -1132,15 +1132,15 @@ class RepoVizzLoader(ManifestLoader):
                 raise ValueError(
                     f"Unknown category '{category}'. Valid categories: {valid_groups}"
                 )
-            target_ids = [
+            target_entries = [
                 spec["id"]
                 for spec in self._timeline_specs
                 if spec.get("group") == category
             ]
         else:
-            target_ids = self.timeline_ids
+            target_entries = self.timeline_ids
 
-        timelines = list(self.create_timelines(entries=target_ids))
+        timelines = list(self.create_timelines(entries=target_entries))
 
         # Add notes as child of first audio timeline if requested
         if with_notes and self._store.notes is not None:

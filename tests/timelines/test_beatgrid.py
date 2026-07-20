@@ -12,7 +12,8 @@ from fractions import Fraction
 import numpy as np
 import pytest
 
-from timetoalign.core import TimeUnit
+from timetoalign.core import Coordinate, TimeUnit
+from timetoalign.maps import ScalarMap
 from timetoalign.timelines import BeatGrid
 
 
@@ -184,6 +185,59 @@ class TestBeatGridMetricalMaps:
         # MC 26 is beyond the grid (only has 25 measures)
         with pytest.raises(ValueError, match="not found"):
             grid.quarter_at(26, 1)
+
+    def test_coordinate_queries_preserve_native_fraction(self) -> None:
+        """Public metrical queries preserve exact native Fraction input."""
+        grid = BeatGrid(length=Fraction(16), beats_per_measure=4)
+        coordinate = Fraction(5, 2)
+
+        assert grid.measure_at(coordinate) == 1
+        assert grid.mn_at(coordinate) == "1"
+        assert grid.beat_at(coordinate) == Fraction(7, 2)
+        assert grid.metrical_position(coordinate) == {
+            "mc": 1,
+            "beat": Fraction(7, 2),
+            "mn": "1",
+        }
+
+    def test_coordinate_queries_convert_foreign_unit(self) -> None:
+        """Public metrical queries convert foreign coordinates through a C-Map."""
+        grid = BeatGrid(length=Fraction(16), beats_per_measure=4)
+        grid.add_conversion_map(
+            ScalarMap(
+                scalar=480,
+                source_unit=TimeUnit.quarters,
+                target_unit=TimeUnit.ticks,
+            )
+        )
+        coordinate = Coordinate(1200, TimeUnit.ticks)
+
+        assert grid.measure_at(coordinate) == 1
+        assert grid.mn_at(coordinate) == "1"
+        assert grid.beat_at(coordinate) == Fraction(7, 2)
+        assert grid.metrical_position(coordinate) == {
+            "mc": 1,
+            "beat": Fraction(7, 2),
+            "mn": "1",
+        }
+
+    @pytest.mark.parametrize(
+        "method_name", ["measure_at", "mn_at", "beat_at", "metrical_position"]
+    )
+    def test_coordinate_queries_reject_foreign_unit_without_map(
+        self, method_name: str
+    ) -> None:
+        """Public metrical queries reject foreign coordinates without a C-Map."""
+        grid = BeatGrid(length=Fraction(16), beats_per_measure=4, uid="grid")
+        coordinate = Coordinate(1200, TimeUnit.ticks)
+
+        with pytest.raises(ValueError) as exc_info:
+            getattr(grid, method_name)(coordinate)
+
+        assert str(exc_info.value) == (
+            "No C-Map available to convert coordinate from unit 'ticks' to "
+            "'quarters' on timeline 'grid'"
+        )
 
 
 class TestBeatGridMaterialization:

@@ -25,8 +25,12 @@ The tests use exact values to cover raw integer, float, and `Fraction` inputs;
 plain and timeline-qualified coordinates; conflicting IDs; unsupported input
 types; exact preservation of native `Fraction` values; conversion through an
 attached C-Map; missing conversion paths; unknown timeline IDs; and direct-child
-offset arithmetic. This separates the pure core decomposition contract from the
-unit- and hierarchy-aware behavior owned by `Timeline.resolve_coordinate()`.
+offset arithmetic. Child resolution covers scalar and affine foreign-unit maps
+and verifies that conversion precedes the native parent offset. Public routing
+coverage also verifies unknown timeline IDs through `to_dataframe()` and
+conflicting embedded and explicit timeline IDs wherever both forms are accepted.
+This separates the pure core decomposition contract from the unit- and
+hierarchy-aware behavior owned by `Timeline.resolve_coordinate()`.
 
 **Validity Rationale:** A single decomposition shape prevents callers from
 silently discarding unit or timeline metadata, while timeline resolution makes

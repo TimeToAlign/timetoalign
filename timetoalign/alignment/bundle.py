@@ -16,6 +16,7 @@ the add_timeline() API internally.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any
@@ -195,8 +196,8 @@ class AlignmentBundle:
         uid: str | None = None,
         aligned_to: str | None = None,
         as_group: str | None = None,
-        start: IdCoordinate | tuple[float, str] | float | None = None,
-        end: IdCoordinate | tuple[float, str] | float | None = None,
+        start: CoordinateSpec | tuple[float, str] | None = None,
+        end: CoordinateSpec | tuple[float, str] | None = None,
     ) -> "AlignmentBundle":
         """Add a timeline, optionally aligned to an existing timeline.
 
@@ -212,6 +213,7 @@ class AlignmentBundle:
                 is created with the target as reference.
             as_group: Name for the group if creating a new one.
             start: Where this timeline's 0-origin starts in the group.
+                - CoordinateSpec: Coordinate in the aligned_to timeline
                 - IdCoordinate: Coordinate with explicit timeline_id (preferred)
                 - (coord, timeline_id): Legacy tuple form
                 - float: Coordinate in the aligned_to timeline
@@ -497,13 +499,14 @@ class AlignmentBundle:
 
     def _convert_boundary_spec(
         self,
-        spec: IdCoordinate | tuple[float, str] | float | None,
+        spec: CoordinateSpec | tuple[float, str] | None,
         aligned_to: str,
-    ) -> IdCoordinate | tuple[float, str] | float | None:
+    ) -> CoordinateSpec | tuple[float, str] | None:
         """Convert a boundary specification from bundle UIDs to timeline IDs.
 
         Args:
             spec: The boundary specification (start or end).
+                - CoordinateSpec: Uses the aligned_to timeline as context
                 - IdCoordinate: Uses timeline_id attribute as bundle UID (preferred)
                 - (coord, bundle_uid): Legacy tuple form
                 - float: Coordinate in the aligned_to timeline
@@ -528,12 +531,6 @@ class AlignmentBundle:
             actual_tl_id = self._uid_to_timeline_id[bundle_uid]
             return spec.with_timeline(actual_tl_id)
 
-        if isinstance(spec, (int, float)):
-            # Float: assume it refers to the aligned_to timeline
-            # Convert bundle UID to actual timeline ID
-            actual_tl_id = self._uid_to_timeline_id[aligned_to]
-            return (float(spec), actual_tl_id)
-
         if isinstance(spec, tuple):
             coord, bundle_uid = spec
             # Convert bundle UID to actual timeline ID
@@ -545,7 +542,11 @@ class AlignmentBundle:
             actual_tl_id = self._uid_to_timeline_id[bundle_uid]
             return (float(coord), actual_tl_id)
 
-        raise ValueError(f"Invalid boundary specification: {spec}")
+        resolved = resolve_coordinate_spec(spec)
+        actual_tl_id = self._uid_to_timeline_id[aligned_to]
+        if resolved.unit is None:
+            return (float(resolved.value), actual_tl_id)
+        return Coordinate(resolved.value, resolved.unit).with_timeline(actual_tl_id)
 
     # endregion
 
@@ -934,6 +935,29 @@ class AlignmentBundle:
         self._invalidate_warp_cache()
         return self
 
+    def _actual_timeline_lookup(self) -> dict[str, "Timeline"]:
+        """Build an actual timeline ID to timeline metadata lookup."""
+        return {
+            actual_timeline_id: self.timelines[bundle_uid]
+            for bundle_uid, actual_timeline_id in self._uid_to_timeline_id.items()
+        }
+
+    def _actual_id_pattern(self, id_pattern: str | None) -> str | None:
+        """Translate a public UID regex into an exact actual-ID regex."""
+        if id_pattern is None:
+            return None
+
+        public_pattern = re.compile(id_pattern)
+        actual_ids = {
+            actual_timeline_id
+            for bundle_uid, actual_timeline_id in self._uid_to_timeline_id.items()
+            if public_pattern.search(bundle_uid)
+        }
+        if not actual_ids:
+            return r"(?!)"
+        alternatives = "|".join(re.escape(timeline_id) for timeline_id in actual_ids)
+        return rf"^(?:{alternatives})\Z"
+
     def get_match_claims(
         self,
         *,
@@ -956,12 +980,12 @@ class AlignmentBundle:
         non-None criterion. Uses the Unified Filter API.
 
         Args:
-            timeline_id: Return claims involving this timeline.
-            timeline_ids: Return claims involving any of these timelines.
-            id_pattern: Regex pattern matched against timeline IDs via
+            timeline_id: Return claims involving this bundle UID.
+            timeline_ids: Return claims involving any of these bundle UIDs.
+            id_pattern: Regex pattern matched against bundle UIDs via
                 ``re.search()``. Example: ``r"^perf:"`` matches all
                 performance timelines.
-            between: Return claims connecting exactly these two timelines
+            between: Return claims connecting exactly these two bundle UIDs
                 (order-independent).
             synchronous_only: Exclude non-synchronous (NOMATCH) claims.
             nomatch_only: Return only non-synchronous (NOMATCH) claims.
@@ -985,20 +1009,49 @@ class AlignmentBundle:
                 ...     nomatch_only=True,
                 ... )
         """
+        if timeline_id is not None and timeline_id not in self._uid_to_timeline_id:
+            return []
+        if between is not None and any(
+            bundle_uid not in self._uid_to_timeline_id for bundle_uid in between
+        ):
+            return []
+
+        actual_timeline_ids = (
+            {
+                self._uid_to_timeline_id[bundle_uid]
+                for bundle_uid in timeline_ids
+                if bundle_uid in self._uid_to_timeline_id
+            }
+            if timeline_ids is not None
+            else None
+        )
+        actual_between = (
+            (
+                self._uid_to_timeline_id[between[0]],
+                self._uid_to_timeline_id[between[1]],
+            )
+            if between is not None
+            else None
+        )
         filt = ClaimFilter.from_kwargs(
-            timeline_id=timeline_id,
-            timeline_ids=timeline_ids,
-            id_pattern=id_pattern,
-            between=between,
+            timeline_id=(
+                self._uid_to_timeline_id[timeline_id]
+                if timeline_id is not None
+                else None
+            ),
+            timeline_ids=actual_timeline_ids,
+            id_pattern=self._actual_id_pattern(id_pattern),
+            between=actual_between,
             synchronous_only=synchronous_only,
             nomatch_only=nomatch_only,
             include_domains=include_domains,
             include_units=include_units,
         )
+        timeline_lookup = self._actual_timeline_lookup()
         return [
             c
             for c in self.cross_group_claims
-            if filt.matches_claim(c, timelines=self.timelines)
+            if filt.matches_claim(c, timelines=timeline_lookup)
         ]
 
     def _get_or_build_matchgraph(
@@ -1182,8 +1235,8 @@ class AlignmentBundle:
                 ``coordinate`` is an ``IdCoordinate``, in which case the
                 coordinate's own ``timeline_id`` is used.
             conversion_maps: C-map conversions available through unit lookup.
-            timeline_ids: Only include these timelines in the result.
-            id_pattern: Regex filter for timeline IDs in the result.
+            timeline_ids: Only include these bundle UIDs in the result.
+            id_pattern: Regex filter for bundle UIDs in the result.
             include_domains: Only these domains in the result.
             include_units: Only these units in the result.
 
@@ -1268,23 +1321,29 @@ class AlignmentBundle:
             or include_units is not None
         )
         if has_filter:
+            actual_timeline_ids = (
+                {
+                    self._uid_to_timeline_id[bundle_uid]
+                    for bundle_uid in timeline_ids
+                    if bundle_uid in self._uid_to_timeline_id
+                }
+                if timeline_ids is not None
+                else None
+            )
             filt = ClaimFilter.from_kwargs(
-                timeline_ids=timeline_ids,
-                id_pattern=id_pattern,
+                timeline_ids=actual_timeline_ids,
+                id_pattern=self._actual_id_pattern(id_pattern),
                 include_domains=include_domains,
                 include_units=include_units,
             )
-            filter_timelines = dict(self.timelines)
-            filter_timelines.update(
-                {
-                    actual_tl_id: self.timelines[bundle_tl_id]
-                    for bundle_tl_id, actual_tl_id in self._uid_to_timeline_id.items()
-                }
-            )
+            filter_timelines = self._actual_timeline_lookup()
             filtered_coords = {
                 tl_id: coord
                 for tl_id, coord in stamp.coordinates.items()
-                if filt.matches_timeline(tl_id, timelines=filter_timelines)
+                if filt.matches_timeline(
+                    self._uid_to_timeline_id.get(tl_id, tl_id),
+                    timelines=filter_timelines,
+                )
             }
             remaining = set(filtered_coords.keys())
             stamp = MatchStamp(

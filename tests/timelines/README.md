@@ -232,6 +232,8 @@ Graphical) and 2 modalities (Continuous, Discrete). Each type has:
    - `metrical_position()`: Returns `{"measure": N, "beat": B}` dict
    - `quarter_at()`: Inverse lookup (measure, beat) -> quarter coordinate
    - `quarter_at()` validation: Rejects measure < start_measure, beat < 1
+   - Public coordinate queries preserve native `Fraction` values, convert
+     foreign-unit coordinates through attached C-Maps, and reject missing maps
 
 3. **Materialization Tests** (4 tests)
    - `materialize_beats()`: Creates Beat instant events at each beat position
@@ -561,8 +563,11 @@ These tests ensure:
 3. derive() creates proper cross-domain relationships via C-maps
 4. Inverse C-maps enable accurate roundtrip conversions
 5. get_events_at() enables point-in-time queries following [start, end) interval semantics
-6. The unified verb×noun API provides consistent naming across all noun types
-7. Real data from TSVLoader validates the API against production musicological data
+6. Coordinate errors propagate across event range filters, point queries,
+   region and child lookups, length assignment, region creation, and
+   `SegmentLine.get_slice()`
+7. The unified verb×noun API provides consistent naming across all noun types
+8. Real data from TSVLoader validates the API against production musicological data
 
 ---
 

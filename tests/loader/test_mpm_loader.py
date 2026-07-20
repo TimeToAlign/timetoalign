@@ -584,6 +584,12 @@ def test_create_timelines_id_pattern_filters(specimen: dict[str, Any]) -> None:
     assert len(loader.create_timelines(id_pattern=r"^perf:")) == 3
 
 
+def test_create_timelines_id_pattern_no_match(specimen: dict[str, Any]) -> None:
+    """An unmatched ID pattern returns no timelines."""
+    loader = _loaded(specimen["mpr"])
+    assert loader.create_timelines(id_pattern=r"^missing:") == []
+
+
 # endregion
 
 

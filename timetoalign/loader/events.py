@@ -1427,6 +1427,11 @@ class EventData(SemanticFieldAccessMixin):
             max_coord: Maximum coordinate (exclusive), optionally with a unit.
             **kwargs: Exact match filters for other fields (e.g. event_category="note").
 
+        Coordinate bounds are compared against the stored float coordinate
+        representation. Fraction bounds are converted to float for this
+        comparison; integer and float bounds retain their respective types.
+        The minimum remains inclusive and the maximum remains exclusive.
+
         Returns:
             A new EventData with filtered events.
         """
@@ -1451,7 +1456,12 @@ class EventData(SemanticFieldAccessMixin):
                     raise ValueError(
                         f"Coordinate unit mismatch: {resolved_min.unit} vs {self.unit}"
                     )
-                expr = pc.greater_equal(coord_val, resolved_min.value)
+                min_value = (
+                    float(resolved_min.value)
+                    if isinstance(resolved_min.value, Fraction)
+                    else resolved_min.value
+                )
+                expr = pc.greater_equal(coord_val, min_value)
                 mask = expr if mask is None else (mask & expr)
 
             if max_coord is not None:
@@ -1460,7 +1470,12 @@ class EventData(SemanticFieldAccessMixin):
                     raise ValueError(
                         f"Coordinate unit mismatch: {resolved_max.unit} vs {self.unit}"
                     )
-                expr = pc.less(coord_val, resolved_max.value)
+                max_value = (
+                    float(resolved_max.value)
+                    if isinstance(resolved_max.value, Fraction)
+                    else resolved_max.value
+                )
+                expr = pc.less(coord_val, max_value)
                 mask = expr if mask is None else (mask & expr)
 
         # Generic kwargs filtering

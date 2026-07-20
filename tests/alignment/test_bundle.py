@@ -229,6 +229,63 @@ class TestGroupManagement:
 
         assert bundle.get_group_for_timeline("tl1") is None
 
+    def test_add_timeline_with_coordinate_boundaries(self) -> None:
+        """Coordinate boundary forms use the aligned bundle UID as context."""
+        reference = Timeline(
+            length=150.0,
+            unit=TimeUnit.seconds,
+            uid="actual-reference",
+        )
+        section = Timeline(
+            length=100.0,
+            unit=TimeUnit.seconds,
+            uid="actual-section",
+        )
+        bundle = AlignmentBundle()
+        bundle.add_timeline(reference, uid="reference")
+
+        bundle.add_timeline(
+            section,
+            uid="section",
+            aligned_to="reference",
+            start=Coordinate(25.0, TimeUnit.seconds),
+            end=IdCoordinate(125.0, TimeUnit.seconds, "reference"),
+        )
+
+        group = bundle.default_group
+        assert group is not None
+        assert group.get_timestamp_at_index(1).coordinates == {
+            "actual-reference": 25.0,
+            "actual-section": 0.0,
+        }
+        assert group.get_timestamp_at_index(2).coordinates == {
+            "actual-reference": 125.0,
+            "actual-section": 100.0,
+        }
+
+    def test_add_timeline_coordinate_boundary_rejects_wrong_unit(self) -> None:
+        """Bundle Coordinate boundaries validate against the aligned timeline."""
+        reference = Timeline(
+            length=150.0,
+            unit=TimeUnit.seconds,
+            uid="actual-reference",
+        )
+        section = Timeline(
+            length=100.0,
+            unit=TimeUnit.seconds,
+            uid="actual-section",
+        )
+        bundle = AlignmentBundle()
+        bundle.add_timeline(reference, uid="reference")
+
+        with pytest.raises(ValueError, match="No C-Map available"):
+            bundle.add_timeline(
+                section,
+                uid="section",
+                aligned_to="reference",
+                start=Coordinate(25.0, TimeUnit.pixels),
+            )
+
 
 # endregion
 
@@ -565,6 +622,95 @@ def _make_linear_claims(
             )
         )
     return claims
+
+
+def _make_custom_uid_filter_bundle() -> tuple[
+    AlignmentBundle,
+    list[MatchClaim],
+]:
+    """Build a bundle whose public UIDs differ from every claim timeline ID."""
+    score = Timeline(
+        length=100.0,
+        unit=TimeUnit.quarters,
+        uid="timeline-001",
+    )
+    audio = Timeline(
+        length=100.0,
+        unit=TimeUnit.seconds,
+        uid="timeline-002",
+    )
+    other = Timeline(
+        length=100.0,
+        unit=TimeUnit.seconds,
+        uid="timeline-003",
+    )
+    bundle = AlignmentBundle(id="custom_uid_filters")
+    bundle.add_timeline(score, uid="score", as_group="score-group")
+    bundle.add_timeline(audio, uid="audio", as_group="audio-group")
+    bundle.add_timeline(other, uid="other", as_group="other-group")
+
+    def claim(timeline_a: Timeline, timeline_b: Timeline) -> MatchClaim:
+        return MatchClaim(
+            timeline_a_id=timeline_a.id,
+            timeline_b_id=timeline_b.id,
+            start_anchor=AlignmentAnchor(
+                timeline_a_id=timeline_a.id,
+                coordinate_a=Coordinate(0.0, timeline_a.unit),
+                timeline_b_id=timeline_b.id,
+                coordinate_b=Coordinate(0.0, timeline_b.unit),
+            ),
+        )
+
+    claims = [claim(score, audio), claim(score, other), claim(audio, other)]
+    bundle.add_match_claims(claims)
+    return bundle, claims
+
+
+# endregion
+
+
+# region Test: Bundle UID claim filters
+
+
+class TestBundleUidClaimFilters:
+    """Canonical claim and stamp filters use the public bundle UID namespace."""
+
+    def test_claim_selectors_translate_bundle_uids(self) -> None:
+        """Every ID selector returns the claims pinned by public bundle UIDs."""
+        bundle, claims = _make_custom_uid_filter_bundle()
+
+        assert bundle.get_match_claims(timeline_id="score") == claims[:2]
+        assert bundle.get_match_claims(timeline_ids={"audio"}) == [
+            claims[0],
+            claims[2],
+        ]
+        assert bundle.get_match_claims(id_pattern=r"^audio$") == [
+            claims[0],
+            claims[2],
+        ]
+        assert bundle.get_match_claims(between=("score", "audio")) == [claims[0]]
+
+    def test_claim_unit_filter_uses_actual_id_metadata_lookup(self) -> None:
+        """Unit filters resolve actual claim IDs and reject impossible units."""
+        bundle, claims = _make_custom_uid_filter_bundle()
+
+        assert bundle.get_match_claims(include_units={TimeUnit.seconds}) == [claims[2]]
+        assert bundle.get_match_claims(include_units={TimeUnit.pixels}) == []
+
+    def test_matchstamp_timeline_ids_translate_bundle_uids(self) -> None:
+        """Post-hoc stamp filtering applies public UIDs to actual stamp keys."""
+        bundle, _ = _make_custom_uid_filter_bundle()
+
+        stamp = bundle.get_matchstamp_at(
+            0.0,
+            "score",
+            timeline_ids={"score", "audio"},
+        )
+
+        assert stamp.coordinates == {
+            "timeline-001": 0.0,
+            "timeline-002": 0.0,
+        }
 
 
 # endregion

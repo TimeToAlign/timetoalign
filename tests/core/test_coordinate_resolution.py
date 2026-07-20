@@ -2,19 +2,22 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from fractions import Fraction
 
 import pytest
 
 from timetoalign import (
+    AlignmentBundle,
     Coordinate,
     IdCoordinate,
     ResolvedCoordinate,
     Timeline,
+    TimelineGroup,
     TimeUnit,
     resolve_coordinate_spec,
 )
-from timetoalign.maps import ScalarMap
+from timetoalign.maps import LinearMap, ScalarMap
 
 
 @pytest.mark.parametrize("value", [7, 2.5, Fraction(3, 4)])
@@ -104,3 +107,135 @@ def test_timeline_resolves_direct_child_offset_exactly() -> None:
     )
     assert resolved == Coordinate(Fraction(6), TimeUnit.quarters)
     assert isinstance(resolved.value, Fraction)
+
+
+def test_timeline_converts_scalar_child_value_before_native_offset() -> None:
+    """A foreign child-local value is converted before its native offset is added."""
+    parent = Timeline(length=20, unit=TimeUnit.seconds, uid="audio")
+    child = Timeline(length=5, unit=TimeUnit.seconds, uid="child")
+    parent.add_child(child, offset=10)
+    parent.add_conversion_map(
+        ScalarMap(
+            scalar=1000,
+            source_unit=TimeUnit.seconds,
+            target_unit=TimeUnit.milliseconds,
+        )
+    )
+    child_coordinate = IdCoordinate(2000, TimeUnit.milliseconds, "child")
+
+    assert parent.resolve_coordinate(child_coordinate) == Coordinate(
+        12.0, TimeUnit.seconds
+    )
+    dataframe = parent.to_dataframe(
+        coordinates=[child_coordinate], conversion_maps=False
+    )
+    assert dataframe["axis (seconds)"].tolist() == [12.0]
+
+
+def test_timeline_converts_affine_child_value_before_native_offset() -> None:
+    """Affine inverse conversion also precedes the native child offset."""
+    parent = Timeline(length=20, unit=TimeUnit.seconds, uid="audio")
+    child = Timeline(length=5, unit=TimeUnit.seconds, uid="child")
+    parent.add_child(child, offset=10)
+    parent.add_conversion_map(
+        LinearMap(
+            scalar=1000,
+            offset=500,
+            source_unit=TimeUnit.seconds,
+            target_unit=TimeUnit.milliseconds,
+        )
+    )
+
+    assert parent.resolve_coordinate(
+        IdCoordinate(2500, TimeUnit.milliseconds, "child")
+    ) == Coordinate(12.0, TimeUnit.seconds)
+
+
+def test_to_dataframe_rejects_unknown_timeline_id() -> None:
+    """Timestamp dataframes reject coordinates qualified by an unknown timeline."""
+    timeline = Timeline(length=10, unit=TimeUnit.seconds, uid="audio")
+
+    with pytest.raises(ValueError) as exc_info:
+        timeline.to_dataframe(
+            coordinates=[IdCoordinate(2, TimeUnit.seconds, "missing")],
+            conversion_maps=False,
+        )
+
+    assert str(exc_info.value) == (
+        "Timeline ID 'missing' is not this timeline 'audio' or one of its direct children"
+    )
+
+
+GroupCoordinateQuery = Callable[[TimelineGroup, IdCoordinate], object]
+
+
+def _group_get_timestamp(group: TimelineGroup, coord: IdCoordinate) -> object:
+    return group.get_timestamp_at(coord, "audio")
+
+
+def _group_get_timestamps(group: TimelineGroup, coord: IdCoordinate) -> object:
+    return group.get_timestamps_at([coord], "audio")
+
+
+def _group_convert(group: TimelineGroup, coord: IdCoordinate) -> object:
+    return group.convert(coord, source="audio", target="audio")
+
+
+@pytest.mark.parametrize(
+    "query",
+    [_group_get_timestamp, _group_get_timestamps, _group_convert],
+)
+def test_timeline_group_rejects_conflicting_coordinate_id(
+    query: GroupCoordinateQuery,
+) -> None:
+    """Group queries reject an embedded ID that conflicts with the explicit ID."""
+    timeline = Timeline(length=10, unit=TimeUnit.seconds, uid="audio")
+    group = TimelineGroup(id="group", timelines=[timeline])
+    coord = IdCoordinate(2, TimeUnit.seconds, "other")
+
+    with pytest.raises(ValueError) as exc_info:
+        query(group, coord)
+
+    assert str(exc_info.value) == (
+        "Timeline ID 'audio' conflicts with coordinate timeline ID 'other'"
+    )
+
+
+BundleCoordinateQuery = Callable[[AlignmentBundle, IdCoordinate], object]
+
+
+def _bundle_get_matchstamp(bundle: AlignmentBundle, coord: IdCoordinate) -> object:
+    return bundle.get_matchstamp_at(coord, "source")
+
+
+def _bundle_transfer(bundle: AlignmentBundle, coord: IdCoordinate) -> object:
+    return bundle.transfer(coord, "source", "target")
+
+
+def _bundle_transfer_interval(bundle: AlignmentBundle, coord: IdCoordinate) -> object:
+    return bundle.transfer_interval(coord, 4, "source", "target")
+
+
+@pytest.mark.parametrize(
+    "query",
+    [_bundle_get_matchstamp, _bundle_transfer, _bundle_transfer_interval],
+)
+def test_alignment_bundle_rejects_conflicting_coordinate_id(
+    query: BundleCoordinateQuery,
+) -> None:
+    """Bundle queries reject an embedded ID that conflicts with the explicit ID."""
+    bundle = AlignmentBundle(id="bundle")
+    bundle.add_timeline(
+        Timeline(length=10, unit=TimeUnit.seconds, uid="source"), uid="source"
+    )
+    bundle.add_timeline(
+        Timeline(length=10, unit=TimeUnit.seconds, uid="target"), uid="target"
+    )
+    coord = IdCoordinate(2, TimeUnit.seconds, "other")
+
+    with pytest.raises(ValueError) as exc_info:
+        query(bundle, coord)
+
+    assert str(exc_info.value) == (
+        "Timeline ID 'source' conflicts with coordinate timeline ID 'other'"
+    )

@@ -2124,6 +2124,7 @@ class Timeline:
         """
         resolved = resolve_coordinate_spec(coord)
         value = resolved.value
+        child_offset: Coordinate | None = None
 
         if resolved.timeline_id is not None and resolved.timeline_id != self._id:
             if resolved.timeline_id not in self._children:
@@ -2131,26 +2132,29 @@ class Timeline:
                     f"Timeline ID '{resolved.timeline_id}' is not this timeline "
                     f"'{self._id}' or one of its direct children"
                 )
-            value = value + self._child_offsets[resolved.timeline_id].value
+            child_offset = self._child_offsets[resolved.timeline_id]
 
-        if resolved.unit is None or resolved.unit == self._unit:
-            return Coordinate(value, self._unit)
+        native_value = value
+        if resolved.unit is not None and resolved.unit != self._unit:
+            unit_map = self._get_unit_map(resolved.unit)
+            if unit_map is None:
+                raise ValueError(
+                    f"No C-Map available to convert coordinate from unit "
+                    f"'{resolved.unit}' to '{self._unit}' on timeline '{self._id}'"
+                )
+            if not unit_map.is_invertible:
+                raise ValueError(
+                    f"No invertible C-Map available to convert coordinate from unit "
+                    f"'{resolved.unit}' to '{self._unit}' on timeline '{self._id}'"
+                )
+            if isinstance(unit_map, InterpolationMap):
+                native_value = unit_map.inverse(float(value))
+            else:
+                native_value = unit_map.inverse()(value)
 
-        unit_map = self._get_unit_map(resolved.unit)
-        if unit_map is None:
-            raise ValueError(
-                f"No C-Map available to convert coordinate from unit "
-                f"'{resolved.unit}' to '{self._unit}' on timeline '{self._id}'"
-            )
-        if not unit_map.is_invertible:
-            raise ValueError(
-                f"No invertible C-Map available to convert coordinate from unit "
-                f"'{resolved.unit}' to '{self._unit}' on timeline '{self._id}'"
-            )
-        if isinstance(unit_map, InterpolationMap):
-            native_value = unit_map.inverse(float(value))
-        else:
-            native_value = unit_map.inverse()(value)
+        if child_offset is not None:
+            native_value = native_value + child_offset.value
+
         return Coordinate(native_value, self._unit)
 
     def _resolve_axis_value(self, coord: CoordinateSpec) -> int | float | Fraction:

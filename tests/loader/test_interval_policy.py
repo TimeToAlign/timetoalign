@@ -400,6 +400,31 @@ class TestFromDictsIntegration:
         filtered = store.filter(min_coord=Coordinate(1, TimeUnit.seconds))
         assert filtered.table.column("id").to_pylist() == ["n2"]
 
+    def test_filter_fraction_bounds_and_half_open_range(self) -> None:
+        """Fraction bounds select exact rows with inclusive/exclusive limits."""
+        store = EventData.from_dicts(
+            [
+                _make_row(start=0.0, event_id="before"),
+                _make_row(start=0.5, event_id="at_min"),
+                _make_row(start=1.0, event_id="at_max"),
+            ],
+            TimeUnit.seconds,
+        )
+
+        raw = store.filter(min_coord=Fraction(1, 2), max_coord=Fraction(1))
+        coordinate = store.filter(
+            min_coord=Coordinate(Fraction(1, 2), TimeUnit.seconds),
+            max_coord=Coordinate(Fraction(1), TimeUnit.seconds),
+        )
+        integer_and_float = store.filter(min_coord=0, max_coord=1.0)
+
+        assert raw.table.column("id").to_pylist() == ["at_min"]
+        assert coordinate.table.column("id").to_pylist() == ["at_min"]
+        assert integer_and_float.table.column("id").to_pylist() == [
+            "before",
+            "at_min",
+        ]
+
 
 # ---------------------------------------------------------------------------
 # Integration: CsvLoader end-to-end

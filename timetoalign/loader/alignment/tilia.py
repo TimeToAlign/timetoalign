@@ -679,7 +679,7 @@ class TiliaJsonLoader(JsonLoader):
             timeline's components.
 
         Raises:
-            KeyError: If no timeline with *id* exists.
+            KeyError: If no timeline with *uid* exists.
             RuntimeError: If ``load()`` has not been called.
         """
         if not self._timeline_specs:
@@ -714,7 +714,7 @@ class TiliaJsonLoader(JsonLoader):
 
         return [self.create_timeline(tid) for tid in uids]
 
-    def create_group(self, ids: list[str] | None = None) -> "TimelineGroup":
+    def create_group(self, uids: list[str] | None = None) -> "TimelineGroup":
         """Create a ``TimelineGroup`` containing all (or selected) timelines.
 
         This is the primary output method for TiliaJsonLoader.  The
@@ -722,7 +722,7 @@ class TiliaJsonLoader(JsonLoader):
         physical time axis (seconds).
 
         Args:
-            ids: Timeline identifiers to include.  ``None`` (default)
+            uids: Timeline identifiers to include.  ``None`` (default)
                 means all.
 
         Returns:
@@ -736,7 +736,7 @@ class TiliaJsonLoader(JsonLoader):
         if not self._timeline_specs:
             raise RuntimeError("No data loaded. Call load() before create_group().")
 
-        timelines = self.create_timelines(ids)
+        timelines = self.create_timelines(uids)
 
         # Use the source filename (if available) as the group name
         group_name = None

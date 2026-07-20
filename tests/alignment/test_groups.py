@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.alignment import GroupTimestamp, TimelineGroup
-from timetoalign.core import Coordinate
+from timetoalign.core import Coordinate, IdCoordinate
 from timetoalign.core.enums import NumberType, TimeUnit
 from timetoalign.core.timestamp import Stamp
 from timetoalign.loader.events import EventData
@@ -233,6 +233,43 @@ class TestAddTimeline:
         assert score_range is not None
         assert score_range[0] == 0.0
         assert score_range[1] == 100.0
+
+    def test_add_timeline_with_coordinate_boundaries(
+        self,
+        audio_timeline: ContinuousPhysicalTimeline,
+        score_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Coordinate and IdCoordinate boundaries resolve in the reference timeline."""
+        group = TimelineGroup(id="test_group", timelines=[audio_timeline])
+
+        group.add_timeline(
+            score_timeline,
+            start=Coordinate(45.0, TimeUnit.seconds),
+            end=IdCoordinate(135.0, TimeUnit.seconds, "audio"),
+        )
+
+        assert group.get_timestamp_at_index(1).coordinates == {
+            "audio": 45.0,
+            "score": 0.0,
+        }
+        assert group.get_timestamp_at_index(2).coordinates == {
+            "audio": 135.0,
+            "score": 100.0,
+        }
+
+    def test_add_timeline_coordinate_boundary_rejects_wrong_unit(
+        self,
+        audio_timeline: ContinuousPhysicalTimeline,
+        score_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """A Coordinate boundary must convert to the reference timeline unit."""
+        group = TimelineGroup(id="test_group", timelines=[audio_timeline])
+
+        with pytest.raises(ValueError, match="No C-Map available"):
+            group.add_timeline(
+                score_timeline,
+                start=Coordinate(45.0, TimeUnit.pixels),
+            )
 
     def test_add_duplicate_timeline_raises(
         self, dgt_timeline: DiscreteGraphicalTimeline

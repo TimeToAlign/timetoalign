@@ -322,7 +322,7 @@ class TestTiliaGroupCreation:
 
     def test_group_subset(self, bruckner_loader: TiliaJsonLoader) -> None:
         subset = ["BEAT_TIMELINE_3", "HIERARCHY_TIMELINE_0"]
-        group = bruckner_loader.create_group(ids=subset)
+        group = bruckner_loader.create_group(uids=subset)
         assert group.n_timelines == 2
 
 

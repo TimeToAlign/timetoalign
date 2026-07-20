@@ -391,8 +391,8 @@ class TimelineGroup:
         self,
         timeline: "Timeline",
         *,
-        start: IdCoordinate | GroupTimestamp | tuple[float, str] | float | None = None,
-        end: IdCoordinate | GroupTimestamp | tuple[float, str] | float | None = None,
+        start: CoordinateSpec | GroupTimestamp | tuple[float, str] | None = None,
+        end: CoordinateSpec | GroupTimestamp | tuple[float, str] | None = None,
         allow_extension: bool = False,
     ) -> None:
         """Add a timeline (or Child) to the group.
@@ -408,6 +408,7 @@ class TimelineGroup:
             timeline: The timeline or Child to add. If a Child, its 0-origin
                 extent is used. If a Timeline, its full extent (0 to length).
             start: Where this timeline's section STARTS in the group.
+                - CoordinateSpec: Coordinate in the alignment-reference timeline
                 - IdCoordinate: Coordinate with explicit timeline_id (preferred)
                 - GroupTimestamp: Use this existing timestamp
                 - (coord, timeline_id): Legacy tuple form
@@ -1437,7 +1438,7 @@ class TimelineGroup:
 
     def _resolve_boundary(
         self,
-        spec: IdCoordinate | GroupTimestamp | tuple[float, str] | float | None,
+        spec: CoordinateSpec | GroupTimestamp | tuple[float, str] | None,
         is_start: bool,
         new_timeline: "Timeline",
     ) -> dict[str, Any]:
@@ -1485,8 +1486,11 @@ class TimelineGroup:
 
         # IdCoordinate: use timeline_id attribute directly
         if isinstance(spec, IdCoordinate):
+            if spec.timeline_id not in self._timelines:
+                raise KeyError(f"Timeline '{spec.timeline_id}' not in group")
+            native_coord = self._timelines[spec.timeline_id].resolve_coordinate(spec)
             return self._find_or_create_at(
-                float(spec.value), spec.timeline_id, new_timeline, is_start
+                float(native_coord.value), spec.timeline_id, new_timeline, is_start
             )
 
         # (coordinate, timeline_id): find or create (legacy tuple form)
@@ -1494,13 +1498,19 @@ class TimelineGroup:
             coord, tl_id = spec
             return self._find_or_create_at(float(coord), tl_id, new_timeline, is_start)
 
-        # float: need existing timelines to determine context
-        if isinstance(spec, (int, float)):
+        # Unqualified CoordinateSpec: need an existing timeline for context
+        try:
+            resolved = resolve_coordinate_spec(spec)
+        except TypeError as error:
+            raise ValueError(f"Invalid boundary specification: {spec}") from error
+
+        if resolved.timeline_id is None:
             # If only one timeline exists, use that for context
             if len(self._timelines) == 1:
                 tl_id = next(iter(self._timelines.keys()))
+                native_coord = self._timelines[tl_id].resolve_coordinate(spec)
                 return self._find_or_create_at(
-                    float(spec), tl_id, new_timeline, is_start
+                    float(native_coord.value), tl_id, new_timeline, is_start
                 )
             else:
                 raise ValueError(

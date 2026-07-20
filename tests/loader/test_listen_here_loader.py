@@ -199,6 +199,11 @@ def test_create_timelines_id_pattern_filters(loader: ListenHereLoader) -> None:
     assert timelines[0].id == "rec-b:cpt1"
 
 
+def test_create_timelines_id_pattern_no_match(loader: ListenHereLoader) -> None:
+    """An unmatched ID pattern returns no timelines."""
+    assert loader.create_timelines(id_pattern=r"^missing:") == []
+
+
 def test_bundle_uses_columnar_claim_store(loader: ListenHereLoader) -> None:
     # create_bundle hands the MatchClaimField to the columnar store, NOT the
     # per-claim Python list, so the field is never exploded into objects.

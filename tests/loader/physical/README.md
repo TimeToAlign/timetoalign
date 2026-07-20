@@ -34,7 +34,7 @@ dataset.
 - XML manifest creates correct catalogue entries by group (audio, score, descriptors, mocap)
 - Timeline creation with `SamplesToSeconds` conversion map attached
 - Backwards compatibility: CSV files still load with legacy behaviour
-- Group filtering and TimelineGroup creation
+- Group filtering and TimelineGroup creation, including explicit catalogue selection via the `entries` keyword
 - Catalogue entry lookup by ID, name, or partial match
 
 **Specimen Provenance:**

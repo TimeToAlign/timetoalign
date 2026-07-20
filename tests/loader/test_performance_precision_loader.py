@@ -284,6 +284,13 @@ def test_create_timelines_id_pattern_filters(
     assert len(loader.create_timelines(id_pattern=r"^perf:")) == 7
 
 
+def test_create_timelines_id_pattern_no_match(
+    loader: PerformancePrecisionLoader,
+) -> None:
+    """An unmatched ID pattern returns no timelines."""
+    assert loader.create_timelines(id_pattern=r"^missing:") == []
+
+
 def test_create_timeline_by_score_role(loader: PerformancePrecisionLoader) -> None:
     assert loader.create_timeline("score").id == SCORE_TL_ID
 

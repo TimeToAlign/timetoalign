@@ -197,8 +197,7 @@ class ClaimFilter:
     ) -> bool:
         """Check whether a timeline passes domain/unit filters.
 
-        If ``timelines`` dict is not provided and domain/unit filters are
-        active, the timeline passes by default (lenient mode).
+        Domain and unit criteria require metadata for the timeline.
 
         Args:
             timeline_id: The timeline ID to check.
@@ -211,24 +210,20 @@ class ClaimFilter:
             return True
 
         if timelines is None:
-            # Cannot resolve without timeline objects — pass by default
-            return True
+            return False
 
         tl = timelines.get(timeline_id)
         if tl is None:
-            # Unknown timeline — pass by default
-            return True
+            return False
 
+        tl_unit = getattr(tl, "unit", None)
         if self.include_domains is not None:
-            tl_unit = getattr(tl, "unit", None)
-            if tl_unit is not None:
-                tl_domain = getattr(tl_unit, "domain", None)
-                if tl_domain is not None and tl_domain not in self.include_domains:
-                    return False
+            tl_domain = getattr(tl_unit, "domain", None)
+            if tl_domain is None or tl_domain not in self.include_domains:
+                return False
 
         if self.include_units is not None:
-            tl_unit = getattr(tl, "unit", None)
-            if tl_unit is not None and tl_unit not in self.include_units:
+            if tl_unit is None or tl_unit not in self.include_units:
                 return False
 
         return True

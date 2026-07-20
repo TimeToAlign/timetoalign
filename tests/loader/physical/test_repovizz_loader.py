@@ -236,6 +236,13 @@ class TestRepoVizzLoaderXmlMode:
             assert group.id == "repovizz:audio"
             assert len(group) > 0
 
+    def test_create_group_entries(self, xml_manifest_path: Path) -> None:
+        """TimelineGroup accepts explicit catalogue entries."""
+        loader = RepoVizzLoader.from_file(xml_manifest_path)
+        entries = loader.store.audio[:2]
+        group = loader.create_group(entries=entries)
+        assert [timeline.id for timeline in group] == entries
+
     def test_find_descriptor(self, xml_manifest_path: Path) -> None:
         """Descriptor can be found by name."""
         loader = RepoVizzLoader.from_file(xml_manifest_path)
