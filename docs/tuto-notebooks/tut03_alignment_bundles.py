@@ -46,7 +46,7 @@ loader.load(*match_files)
 # ## Create the Bundle
 
 # %%
-bundle = loader.create_alignment_bundle()
+bundle = loader.create_bundle()
 bundle
 
 # %% [markdown]
@@ -68,7 +68,7 @@ score_tl.get_events(event_type="Note").to_dataframe().head()
 # unified stamp interface used by the other timestamp types.
 
 # %%
-perf_id = [uid for uid in bundle.timeline_ids if uid != "score"][0]
+perf_id = [uid for uid in bundle.timeline_ids if uid != score_tl.id][0]
 
 stamp = bundle.get_matchstamp_at(100.0, "score")
 stamp

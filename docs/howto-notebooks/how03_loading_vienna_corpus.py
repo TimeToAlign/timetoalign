@@ -100,7 +100,10 @@ all_timelines = loader.create_timelines()
 # 23 timelines: 1 score + 22 performances. Each performance has a slightly
 # different event count because some pianists omit notes (deletions).
 #
-# Individual timelines are accessed by role shorthand:
+# Individual timelines are accessed by role shorthand. The stored score UID is
+# `score:clt1`; performance UIDs are `perf:<stem>:cpt1` (for example,
+# `perf:Chopin_op10_no3_p01:cpt1`). The shorthand remains convenient for
+# lookup:
 
 # %%
 score = loader.create_timeline(uid="score")
@@ -152,12 +155,12 @@ perf_01.get_timestamp(10000.0)
 #
 # ## Step 4: Create the AlignmentBundle
 #
-# `create_alignment_bundle()` assembles an `AlignmentBundle` from the
+# `create_bundle()` assembles an `AlignmentBundle` from the
 # loaded data. The score goes into its own group; each performance is a
 # standalone timeline; MatchClaims connect them.
 
 # %%
-bundle = loader.create_alignment_bundle()
+bundle = loader.create_bundle()
 bundle
 
 # %% [markdown]
@@ -300,7 +303,7 @@ s0
 # score.get_timestamp(10.0)  # quarters + raw + divs
 #
 # # Assemble the bundle
-# bundle = loader.create_alignment_bundle()
+# bundle = loader.create_bundle()
 #
 # # Query claims and build MatchStamps
 # claims = bundle.cross_group_claims

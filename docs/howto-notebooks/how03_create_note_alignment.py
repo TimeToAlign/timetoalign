@@ -45,8 +45,8 @@ import tempfile
 
 import pandas as pd
 
-from timetoalign import TimeUnit
-from timetoalign.alignment import AlignmentBundle, MatchLine, TimelineGroup
+from timetoalign import Ms3Loader, TimelineGroup, TimeUnit
+from timetoalign.alignment import AlignmentBundle, MatchLine
 from timetoalign.alignment.match_format import MatchFileContext
 from timetoalign.alignment.matching import (
     match_notes_by_attributes,
@@ -54,7 +54,6 @@ from timetoalign.alignment.matching import (
     prepare_eep_notes_for_matching,
 )
 from timetoalign.loader.physical.eep_notes import EepNotesLoader
-from timetoalign.loader.score import TSVLoader
 from timetoalign.testdata import ensure_data
 
 DATA_DIR = ensure_data("score") / "beethoven_op18-4iv_multimodal"
@@ -130,7 +129,7 @@ perf_group
 
 # %%
 # Create the score timeline (quarterbeats)
-score_loader = TSVLoader.from_file(
+score_loader = Ms3Loader.from_file(
     ABC_DIR / "n04op18-4_04.notes.tsv",
     ABC_DIR / "n04op18-4_04.measures.tsv",
 )

@@ -50,9 +50,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from timetoalign import __version__
+from timetoalign import Ms3Loader, __version__
 from timetoalign.core.enums import FlowMode
-from timetoalign.loader.score import TSVLoader
 from timetoalign.timelines.flow import compute_qb_sections
 
 DATA_DIR = Path("~/git/brazilian_flows").expanduser()
@@ -69,7 +68,7 @@ def make_paths(name: str, data_dir: Path = DATA_DIR) -> tuple[Path, Path]:
 def load_controller(name: str):
     """Build a ``ScoreFlowController`` from the score's measures TSV."""
     _, measures = make_paths(name)
-    return TSVLoader.from_file(measures).create_flow_controller()
+    return Ms3Loader.from_file(measures).create_flow_controller()
 
 
 def boundaries_summary(controller) -> dict:
@@ -253,7 +252,7 @@ export_flows(controller, piece_name)
 demo_name = "score_1988-Ciume_e_brincadeira"  # or score_1361-... / score_133-...
 
 notes_demo, measures_demo = make_paths(demo_name)
-loader_demo = TSVLoader.from_file(notes_demo, measures_demo)
+loader_demo = Ms3Loader.from_file(notes_demo, measures_demo)
 controller_demo = loader_demo.create_flow_controller()
 flow_map = controller_demo.create_flow_map()  # DEFAULT mode
 score_tl = loader_demo.create_timeline()

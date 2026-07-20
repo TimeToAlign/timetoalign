@@ -46,6 +46,7 @@ from __future__ import annotations
 import pandas as pd
 import pyarrow as pa
 
+from timetoalign import Ms3Loader
 from timetoalign.core.events import (
     DcmlHarmony,
     DcmlHarmonyField,
@@ -66,7 +67,6 @@ from timetoalign.loader.alignment.parangonada import ParangonadaLoader
 from timetoalign.loader.midi.performance import PerformanceMidiLoader
 from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
-from timetoalign.loader.score.tsv import TSVLoader
 from timetoalign.testdata import ensure_data
 
 VIENNA = ensure_data("vienna_1x22")
@@ -111,7 +111,7 @@ EROICA = PARANGONAR / "Beethoven_Eroica_op35-cpjku"
 #
 # The Chopin Étude Op. 10 No. 3 ships in this corpus as an ms3 TSV note
 # table, a MusicXML score, and as recorded MIDI performances.  Three
-# loaders read the symbolic forms — `TSVLoader`, `Music21Loader`,
+# loaders read the symbolic forms — `Ms3Loader`, `Music21Loader`,
 # `PartituraLoader` — and one reads the performance, `PerformanceMidiLoader`.
 # Every one of them produces an `EventData`, and every `EventData` affords
 # the `EnharmonicPitch` field by scalar type.
@@ -120,7 +120,7 @@ EROICA = PARANGONAR / "Beethoven_Eroica_op35-cpjku"
 # sounding note — MIDI 61, a C♯4.
 
 # %%
-ms3_ep = TSVLoader.from_file(CHOPIN_TSV).get_events().get_field(EnharmonicPitch)
+ms3_ep = Ms3Loader.from_file(CHOPIN_TSV).get_events().get_field(EnharmonicPitch)
 m21_ep = Music21Loader.from_file(CHOPIN_XML).get_events().get_field(EnharmonicPitch)
 ptt_ep = PartituraLoader.from_file(CHOPIN_XML).get_events().get_field(EnharmonicPitch)
 midi_ep = (
@@ -174,7 +174,7 @@ midi_i = next(
 # committed spelling, distinct from D♭4:
 
 # %%
-ms3_sp = TSVLoader.from_file(CHOPIN_TSV).get_events().get_field(SpecificPitch)
+ms3_sp = Ms3Loader.from_file(CHOPIN_TSV).get_events().get_field(SpecificPitch)
 m21_sp = Music21Loader.from_file(CHOPIN_XML).get_events().get_field(SpecificPitch)
 ptt_sp = PartituraLoader.from_file(CHOPIN_XML).get_events().get_field(SpecificPitch)
 

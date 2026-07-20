@@ -32,10 +32,9 @@
 # %%
 from pathlib import Path
 
-from timetoalign import BeatGrid, MatchfileLoader, TimelineGroup
+from timetoalign import BeatGrid, MatchfileLoader, Ms3Loader, TimelineGroup
 from timetoalign.loader.midi.performance import PerformanceMidiLoader
 from timetoalign.loader.score.partitura import PartituraLoader
-from timetoalign.loader.score.tsv import TSVLoader
 from timetoalign.maps import TicksToQuarters
 
 DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data"
@@ -50,7 +49,7 @@ DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data"
 # %%
 pt_loader = PartituraLoader()
 pt_loader.load(DATA_DIR / "vienna_1x22" / "Chopin_op10_no3.musicxml")
-tsv_loader = TSVLoader.from_file(
+tsv_loader = Ms3Loader.from_file(
     DATA_DIR / "vienna_1x22" / "ms3" / "chopin_op10_no3.notes.tsv"
 )
 
@@ -119,7 +118,7 @@ ts
 
 # %%
 match_files = sorted((DATA_DIR / "vienna_1x22").glob("*.match"))
-bundle = MatchfileLoader().load(*match_files).create_alignment_bundle()
+bundle = MatchfileLoader().load(*match_files).create_bundle()
 
 {"timelines": len(bundle.timeline_ids), "groups": len(bundle.group_ids)}
 

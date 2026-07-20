@@ -48,9 +48,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from timetoalign import Coordinate, SegmentNameGenerator, TimeUnit
+from timetoalign import Coordinate, Ms3Loader, SegmentNameGenerator, TimeUnit
 from timetoalign.core.enums import ActivationCondition, FlowControlElement, FlowMode
-from timetoalign.loader.score import TSVLoader
 from timetoalign.timelines.flow import FlowMap, compute_qb_sections
 from timetoalign.timelines.flowcontrol import Break, Jump
 
@@ -70,12 +69,12 @@ NOTES_TSV = (
 )
 
 # %%
-count_through_loader = TSVLoader.from_file(PER_VARIATION_TSV)
+count_through_loader = Ms3Loader.from_file(PER_VARIATION_TSV)
 controller = count_through_loader.create_flow_controller()
 controller
 
 # %%
-per_variation_loader = TSVLoader.from_file(PER_VARIATION_TSV)
+per_variation_loader = Ms3Loader.from_file(PER_VARIATION_TSV)
 controller = per_variation_loader.create_flow_controller()
 controller
 
@@ -200,7 +199,7 @@ pd.DataFrame(
 
 # %%
 # from_file() handles both phases: load + internal state construction
-per_variation_loader = TSVLoader.from_file(PER_VARIATION_TSV)
+per_variation_loader = Ms3Loader.from_file(PER_VARIATION_TSV)
 controller = per_variation_loader.create_flow_controller()
 controller
 
@@ -402,7 +401,7 @@ inverse_map = flow_map.inverse()
 
 # %%
 # Load notes + measures together
-loader_full = TSVLoader.from_file(NOTES_TSV, PER_VARIATION_TSV)
+loader_full = Ms3Loader.from_file(NOTES_TSV, PER_VARIATION_TSV)
 score_tl = loader_full.create_timeline()
 {
     "id": score_tl.id,

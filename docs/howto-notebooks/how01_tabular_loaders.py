@@ -38,9 +38,9 @@
 # ## TL;DR
 #
 # ```python
-# from timetoalign.loader.tabular import Ms3Loader
+# from timetoalign.loader.tabular import TsvLoader
 #
-# loader = Ms3Loader()
+# loader = TsvLoader()
 # loader.load("beethoven.notes.tsv")
 #
 # df = loader.events.to_dataframe()    # Get as DataFrame
@@ -65,15 +65,29 @@ THORESEN = ensure_data("thoresen")
 # %% [markdown]
 # ## Loading Notes from TSV
 #
-# The `Ms3Loader` handles TSV files exported from the ms3 parser, which
-# processes MuseScore files.
+# `TsvLoader` is the generic starting point for a TSV whose columns you
+# control. Declare the coordinate columns and promote the values you want as
+# typed fields. For a standard ms3 score export, use the score `Ms3Loader`
+# instead; it understands its notes, measures, chords, and harmonies facets.
 #
 # **Three lines of code:**
 
 # %%
-from timetoalign.loader.tabular import Ms3Loader  # noqa: E402
+from timetoalign.core import NumberType, TimeUnit  # noqa: E402
+from timetoalign.loader.tabular import TsvLoader  # noqa: E402
 
-loader = Ms3Loader()
+
+class BeethovenNotesLoader(TsvLoader):
+    """Generic TSV configuration for the coordinate and pitch columns used here."""
+
+    start_column = "quarterbeats"
+    duration_column = "duration_qb"
+    _default_unit = TimeUnit.quarters
+    coordinate_type = NumberType.fraction
+    column_specs = {"midi": int, "staff": int, "voice": int}
+
+
+loader = BeethovenNotesLoader()
 loader.load(BEETHOVEN / "WoO71.notes.tsv")
 
 f"{len(loader.events):,} notes loaded"
@@ -132,7 +146,6 @@ pd.read_csv(THORESEN / "thoresen_test.tsv", sep="\t", nrows=3)
 # carried alongside the event so you never lose data, but left untyped:
 
 # %%
-from timetoalign.core import NumberType, TimeUnit  # noqa: E402
 from timetoalign.loader.tabular import TsvLoader  # noqa: E402
 
 
@@ -307,7 +320,7 @@ grouped_tl
 #
 # | Goal | How |
 # |------|-----|
-# | Load a known TSV/CSV format | `Ms3Loader()` (or another built-in) + `loader.load(path)` |
+# | Load an ms3 score TSV | `Ms3Loader()` + `loader.load(path)` |
 # | Map your own columns | Subclass `TsvLoader` / `CsvLoader`, set `start_column` etc. |
 # | Promote a column to a typed field | Name it in `column_specs` (`{"col": int}`) |
 # | Reach a nested JSON value | `Field("column", "nested")` as a coordinate attribute |

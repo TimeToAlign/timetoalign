@@ -115,7 +115,8 @@ to the relevant section of the conceptual model.
 **DictStore**
 :   A generic `EventStore` subclass holding a `dict[str, EventData]` with
     arbitrary keys. Used internally by AlignmentLoaders to store one
-    `EventData` table per timeline-to-be (e.g., `"score"`, `"perf:p01"`).
+    `EventData` table per timeline-to-be (e.g., `"score:clt1"`,
+    `"perf:Chopin_op10_no3_p01:cpt1"`).
     Maintains the uniform `EventStore` interface.
     See the [API reference](reference/DictStore.qmd).
 
@@ -216,7 +217,7 @@ to the relevant section of the conceptual model.
     all `.match` files that share the same score, building a shared score
     timeline on the first file and verifying subsequent files against it.
     Returns an {{< glossary AlignmentBundle >}} directly via
-    `create_alignment_bundle()`. Score goes into its own group; performances
+    `create_bundle()`. Score goes into its own group; performances
     are standalone timelines; {{< glossary MatchClaim >}}s connect score to
     performances.
     See the [API reference](reference/MatchfileLoader.qmd).

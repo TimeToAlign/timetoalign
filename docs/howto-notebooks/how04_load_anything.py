@@ -15,7 +15,7 @@
 
 # %% [markdown]
 # ---
-# ## 1. TSVLoader (ms3-style score TSV)
+# ## 1. Ms3Loader (ms3-style score TSV)
 #
 # Loads `.notes.tsv`, `.measures.tsv`, `.chords.tsv`, `.harmonies.tsv` files
 # produced by the ms3 library.  The `auto_discover=True` flag picks up companion
@@ -33,7 +33,7 @@
 # 4. **Event access**: `get_events()`, `get_event(id)`, `get_events_at(coord)`
 # 5. **Timestamps**: `get_timestamp()`, `get_timestamp_of(id)`, `get_timestamps_of(ids)`
 # 6. **Groups** (where applicable): `create_group()`, group methods
-# 7. **Bundles** (where applicable): `create_alignment_bundle()`, `create_match_claims()`
+# 7. **Bundles** (where applicable): `create_bundle()`, `create_match_claims()`
 
 # %% [markdown]
 # ## Setup
@@ -48,14 +48,14 @@ MIDI_DIR = DATA_DIR / "midi"
 VIENNA_DIR = DATA_DIR / "vienna_1x22"
 
 # %%
-from timetoalign.loader.score.tsv import TSVLoader
+from timetoalign import Ms3Loader
 
 tsv_dir = SCORE_DIR / "flow_control" / "polyrythm_only"
 tsv_notes = sorted(tsv_dir.glob("*polyrhythm_only.notes.tsv"))[0]
 tsv_notes.name
 
 # %%
-tsv_loader = TSVLoader(auto_discover=True)
+tsv_loader = Ms3Loader(auto_discover=True)
 tsv_loader.load(tsv_notes)
 tsv_loader
 
@@ -866,6 +866,12 @@ tilia_loader.store.keys()  # TiliaDictStore
 # %%
 tilia_loader.timeline_ids
 
+# %% [markdown]
+# TiLiA timelines receive stored UIDs in source order: `cpt1`, `cpt2`, and so
+# on. The source timeline name remains available for lookup — for example,
+# `BEAT_TIMELINE_3` can still select that source timeline — but it is not the
+# stored UID.
+
 # %%
 tilia_loader.timeline_specs
 
@@ -925,7 +931,7 @@ tilia_group.get_timeline(tilia_group.timeline_ids[0])
 tilia_group.get_timestamp_at(10, tilia_group.timeline_ids[0])
 
 # %%
-tilia_group.get_events()
+tilia_group.get_events().to_dataframe()
 
 # %%
 tilia_group.get_timestamp_of(tilia_first_event_id)
@@ -940,7 +946,7 @@ tilia_group.get_timestamp_table()
 # ### TiliaJsonLoader: AlignmentBundle with MatchClaim Creation
 
 # %%
-tilia_bundle = tilia_loader.create_alignment_bundle()
+tilia_bundle = tilia_loader.create_bundle()
 tilia_bundle
 
 # %%
@@ -1047,7 +1053,7 @@ match_tl_score.get_timestamp_table()
 # into groups by the AlignmentBundle.
 
 # %%
-match_bundle = match_loader.create_alignment_bundle()
+match_bundle = match_loader.create_bundle()
 match_bundle
 
 # %%

@@ -52,9 +52,11 @@ from timetoalign import (
     ContinuousPhysicalTimeline,
     Coordinate,
     DiscreteGraphicalTimeline,
+    Ms3Loader,
     NumberType,
     RepoVizzLoader,
     TableMap,
+    TimelineGroup,
     TimeUnit,
 )
 from timetoalign.alignment import (
@@ -63,7 +65,6 @@ from timetoalign.alignment import (
     MatchClaim,
     MatchLine,
     MatchMetadata,
-    TimelineGroup,
     WarpMap,
 )
 from timetoalign.alignment.matching import (
@@ -72,7 +73,6 @@ from timetoalign.alignment.matching import (
     prepare_eep_notes_for_matching,
 )
 from timetoalign.core.enums import FlowMode
-from timetoalign.loader.score import TSVLoader
 from timetoalign.testdata import ensure_data
 from timetoalign.timelines.flow import create_unfolded_timeline
 from timetoalign.timelines.types import SegmentLine
@@ -252,7 +252,7 @@ exaggerated_group
 
 # %%
 ABC_DIR = DATA_DIR / "ABC"
-abc_loader = TSVLoader.from_file(
+abc_loader = Ms3Loader.from_file(
     ABC_DIR / "n04op18-4_04.notes.tsv",
     ABC_DIR / "n04op18-4_04.measures.tsv",
     ABC_DIR / "n04op18-4_04.harmonies.tsv",
@@ -382,7 +382,7 @@ dgt1
 
 # %%
 OPENSCORE_DIR = DATA_DIR / "OpenScoreSQ"
-os_loader = TSVLoader.from_file(
+os_loader = Ms3Loader.from_file(
     OPENSCORE_DIR / "sq8913219.notes.tsv",
     OPENSCORE_DIR / "sq8913219.measures.tsv",
 )
@@ -590,12 +590,12 @@ exaggerated_match = match_results["dpt11"]
 # ### 11.1 CLT2: Recordings Edition Score
 #
 # The recordings edition uses the same measure/repeat structure as CLT1 but
-# was encoded independently (ABC v1.0). We load it via TSVLoader and use its
+# was encoded independently (ABC v1.0). We load it via Ms3Loader and use its
 # flow controller to compute the traversal map.
 
 # %%
 REC_DIR = DATA_DIR / "recordings"
-rec_loader = TSVLoader.from_file(
+rec_loader = Ms3Loader.from_file(
     REC_DIR / "Beethoven_Op018No4-04.notes.tsv",
     REC_DIR / "Beethoven_Op018No4-04.measures.tsv",
     REC_DIR / "Beethoven_Op018No4-04.harmonies.tsv",
@@ -860,7 +860,7 @@ emerson_warpmap
 # The first section boundary from ema_df
 first_fm = float(ema_df["measure_unfold_start"].iloc[0])
 first_sec = float(ema_df["seconds_start"].iloc[0])
-transferred = emerson_warpmap.forward(first_fm)
+transferred = emerson_warpmap(first_fm)
 {
     "CLT2_unfolded (floating measures)": first_fm,
     "DPT16 expected (seconds)": first_sec,
@@ -996,7 +996,7 @@ boundary_df
 # | Pattern | Example | Section |
 # |---------|---------|---------|
 # | `build_recording_group()` | Reusable factory for EEP recordings | 2-4 |
-# | `TSVLoader.from_file()` | Load ABC score with notes, measures, annotations | 6 |
+# | `Ms3Loader.from_file()` | Load ABC score with notes, measures, annotations | 6 |
 # | `create_flow_controller()` | Repeat structure + default flow | 6.1 |
 # | `SegmentLine` nesting | OMR pages -> systems -> noteheads | 7 |
 # | Region extraction | OpenScore 4-movement -> movement 4 child | 8 |

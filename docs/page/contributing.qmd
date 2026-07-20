@@ -46,7 +46,7 @@ own build infrastructure and are **not** governed by the rules below.
 
 ### 2.1 Subpackages
 
-The importable package `timetoalign/` is organised into seven subpackages,
+The importable package `timetoalign/` is organised into focused subpackages,
 each with a single responsibility:
 
 | Subpackage    | Responsibility                                                                                    |
@@ -57,7 +57,8 @@ each with a single responsibility:
 | `maps/`       | `ConversionMap` family (`LinearMap`, `TableMap`, `ChainMap`, `PiecewiseMap`, …).                  |
 | `timelines/`  | `Timeline` classes for all six domain × modality combinations, regions, flow control, beat grids. |
 | `alignment/`  | `MatchClaim`, `AlignmentAnchor`, `TimelineGroup`, `AlignmentBundle`, `MatchGraph`, `MatchLine`, `WarpMap`. |
-| `loader/`     | File-format-specific ingestion + the PyArrow-backed `EventData` / `EventStore` storage primitives. |
+| `storage/`    | PyArrow-backed `EventData` / `EventStore` storage primitives. |
+| `loader/`     | File-format-specific ingestion. |
 
 ### 2.2 Import Direction (MANDATORY)
 
@@ -99,18 +100,18 @@ Equivalently:
 #### One documented exception: `timelines` ↔ `loader`
 
 `Timeline` instances own an `EventData` (PyArrow-backed event storage). For
-historical reasons, `EventData` and `EventStore` live under `loader/` because
+historical reasons, `EventData` and `EventStore` are storage types because
 loaders are their primary producer. As a result `timelines/base.py` performs
-**one** runtime import from `loader/`:
+**one** runtime import from `storage/`:
 
 ```python
-from timetoalign.loader import EventData
+from timetoalign.storage import EventData
 ```
 
 All other `timelines → loader` references are deferred (function-local) or
 guarded by `if TYPE_CHECKING:` to avoid the circular import at module load.
-**Do not introduce any new runtime `timelines → loader` imports.** If you
-need additional types from the loader namespace inside a timeline module,
+**Do not introduce any new runtime `timelines → storage` imports.** If you
+need additional types from the storage namespace inside a timeline module,
 either:
 
 1. Put the import inside the function that needs it (deferred), or

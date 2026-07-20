@@ -38,6 +38,7 @@ import tempfile
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from timetoalign import EventData, Ms3Loader
 from timetoalign.core.events import (
     EnharmonicPitch,
     EnharmonicPitchClass,
@@ -53,9 +54,7 @@ from timetoalign.core.fields import (
 )
 from timetoalign.core.protocols import GenericPitchLike, PitchLike
 from timetoalign.core.time import CoordinateField
-from timetoalign.loader.events import EventData
 from timetoalign.loader.mixins import MultipleFieldsError
-from timetoalign.loader.score.tsv import TSVLoader
 from timetoalign.testdata import ensure_data
 
 VIENNA = ensure_data("vienna_1x22")
@@ -146,7 +145,7 @@ sf.field_names
 # rational precision through a Parquet round-trip).
 
 # %%
-events = TSVLoader.from_file(CHOPIN_NOTES).get_events()
+events = Ms3Loader.from_file(CHOPIN_NOTES).get_events()
 raw_start = events.get_raw("start")
 raw_start
 

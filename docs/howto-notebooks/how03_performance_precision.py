@@ -117,9 +117,10 @@ metrical_position_map = loader.metrical_position_map
 #
 # The score is a logical {{< glossary Timeline >}} measured in quarters. It holds
 # every note of the `.solo` score, each placed at its absolute quarter position.
+# Its stored UID is `score:clt1`.
 
 # %%
-score_tl = loader.create_timeline(uid="score")
+score_tl = loader.create_timeline(uid="score:clt1")
 score_tl
 
 # %% [markdown]
@@ -170,14 +171,16 @@ pitch_field = solo.events.get_field(EnharmonicPitch)
 # ## 4. The performance timelines
 #
 # Each recording is a physical {{< glossary Timeline >}} measured in seconds, one
-# event per aligned note onset. They are retrieved by performer key:
+# event per aligned note onset. Their stored UIDs follow
+# `perf:<performer>:cpt1`, so the Ashkenazy recording is
+# `perf:Chopin_Ashkenazy:cpt1`:
 
 # %%
 performer_keys = [tl.name for tl in loader.create_timelines() if tl is not score_tl]
 performer_keys
 
 # %%
-ashkenazy = loader.create_timeline(uid="Chopin_Ashkenazy")
+ashkenazy = loader.create_timeline(uid="perf:Chopin_Ashkenazy:cpt1")
 ashkenazy
 
 # %% [markdown]

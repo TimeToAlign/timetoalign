@@ -54,10 +54,10 @@
 # %%
 import pandas as pd
 
+from timetoalign import Ms3Loader
 from timetoalign.core.events import EnharmonicPitch
 from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
-from timetoalign.loader.score.tsv import TSVLoader
 from timetoalign.testdata import ensure_data
 
 DATA_DIR = ensure_data("vienna_1x22")
@@ -81,7 +81,7 @@ CHOPIN_XML.name, CHOPIN_TSV.name
 
 # %%
 # Load from three different sources
-tsv_loader = TSVLoader()
+tsv_loader = Ms3Loader()
 tsv_loader.load(CHOPIN_TSV)
 
 partitura_loader = PartituraLoader()
@@ -300,7 +300,7 @@ tsv_df.groupby(["staff", "voice"]).size().unstack(fill_value=0)
 # In this tutorial, we learned:
 #
 # 1. **The Loader Pattern**: Create -> Load -> Access Bundle
-# 2. **Three Score Loaders**: TSVLoader, PartituraLoader, Music21Loader
+# 2. **Three Score Loaders**: Ms3Loader, PartituraLoader, Music21Loader
 # 3. **EventStore**: PyArrow-backed, high-performance event storage
 # 4. **Harmonized Schema**: Consistent fields across all loaders
 # 5. **Cross-Validation**: Same piece from different sources yields same note count

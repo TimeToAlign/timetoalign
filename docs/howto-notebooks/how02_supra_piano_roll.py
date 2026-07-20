@@ -67,13 +67,11 @@
 
 # %%
 
-from timetoalign import IdCoordinate, TimeUnit
-from timetoalign.alignment import TimelineGroup
+from timetoalign import IdCoordinate, Ms3Loader, TimelineGroup, TimeUnit
 from timetoalign.core import timestamp_table_to_dataframe
 from timetoalign.loader.graphical.aton import ATONLoader
 from timetoalign.loader.midi import PerformanceMidiLoader
 from timetoalign.loader.physical import AudioLoader
-from timetoalign.loader.score import TSVLoader
 from timetoalign.maps import ScalarMap
 from timetoalign.testdata import ensure_data
 from timetoalign.timelines import ContinuousPhysicalTimeline
@@ -356,7 +354,7 @@ score_tsv_files = sorted(DCML_DIR.glob(f"{SCORE_BASE}.*.tsv"))
 # Load all TSV files at once using `from_file()` with `*` unpacking - one line.
 
 # %%
-score_loader = TSVLoader.from_file(*score_tsv_files)
+score_loader = Ms3Loader.from_file(*score_tsv_files)
 score_loader.store.summary()
 
 # %% [markdown]
