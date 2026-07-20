@@ -26,7 +26,8 @@ from timetoalign.alignment import (
     MatchClaimField,
     TimelineGroup,
 )
-from timetoalign.core import Coordinate, TimeUnit
+from timetoalign.core import Coordinate, IdCoordinate, TimeUnit
+from timetoalign.maps import ScalarMap
 from timetoalign.timelines import Timeline
 
 # region Fixtures
@@ -1261,10 +1262,61 @@ class TestGetMatchstampAtCoordinateParity:
     def test_unsupported_type_raises_type_error(self) -> None:
         """A non-coordinate type raises TypeError."""
         bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
-        with pytest.raises(TypeError, match="coordinate must be"):
+        with pytest.raises(TypeError, match="Unsupported coordinate specification"):
             bundle.get_matchstamp_at("not-a-coordinate")  # type: ignore[arg-type]
-        with pytest.raises(TypeError, match="coordinate must be"):
+        with pytest.raises(TypeError, match="Unsupported coordinate specification"):
             bundle.get_matchstamp_at([1.0])  # type: ignore[arg-type]
+
+    def test_foreign_unit_without_cmap_raises_value_error(self) -> None:
+        """A unit without a source-timeline C-Map is never dropped."""
+        bundle, score_id, _audio_id = _make_xgroup_bundle_with_claims()
+
+        with pytest.raises(ValueError, match="quarters.*seconds"):
+            bundle.get_matchstamp_at(Coordinate(100.0, TimeUnit.quarters), score_id)
+
+    def test_foreign_unit_with_cmap_matches_native_stamp(self) -> None:
+        """A C-Map-backed coordinate resolves before the graph lookup."""
+        source = Timeline(length=10, unit=TimeUnit.seconds, uid="source")
+        target = Timeline(length=10, unit=TimeUnit.seconds, uid="target")
+        source.add_conversion_map(
+            ScalarMap(
+                scalar=1000,
+                source_unit=TimeUnit.seconds,
+                target_unit=TimeUnit.milliseconds,
+            )
+        )
+        bundle = AlignmentBundle(id="cmap-query")
+        bundle.add_timeline(source, uid="source", as_group="source-group")
+        bundle.add_timeline(target, uid="target", as_group="target-group")
+        bundle.add_match_claims(
+            [
+                MatchClaim(
+                    timeline_a_id=source.id,
+                    timeline_b_id=target.id,
+                    start_anchor=AlignmentAnchor(
+                        timeline_a_id=source.id,
+                        coordinate_a=Coordinate(2.5, TimeUnit.seconds),
+                        timeline_b_id=target.id,
+                        coordinate_b=Coordinate(5.0, TimeUnit.seconds),
+                    ),
+                )
+            ]
+        )
+
+        native = bundle.get_matchstamp_at(2.5, "source")
+        converted = bundle.get_matchstamp_at(
+            Coordinate(2500, TimeUnit.milliseconds), "source"
+        )
+        assert converted.coordinates == native.coordinates
+
+    def test_idcoordinate_conflicting_timeline_id_raises_value_error(self) -> None:
+        """An explicit timeline ID cannot conflict with an IdCoordinate."""
+        bundle, score_id, audio_id = _make_xgroup_bundle_with_claims()
+
+        with pytest.raises(ValueError, match="conflicts"):
+            bundle.get_matchstamp_at(
+                IdCoordinate(100.0, TimeUnit.seconds, audio_id), score_id
+            )
 
 
 class TestGetMatchstampRenderingCoordinateParity:
@@ -1321,7 +1373,7 @@ class TestGetMatchstampRenderingCoordinateParity:
     def test_unsupported_type_raises_type_error(self) -> None:
         """A non-coordinate type raises TypeError."""
         bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
-        with pytest.raises(TypeError, match="coordinate must be"):
+        with pytest.raises(TypeError, match="Unsupported coordinate specification"):
             bundle.get_matchstamp_at({"start": 1.0}).to_dict(  # type: ignore[arg-type]
                 format="flat"
             )
@@ -1334,7 +1386,7 @@ class TestTransferCoordinateParity:
     """
 
     def test_transfer_accepts_coordinate(self) -> None:
-        """transfer reduces a Coordinate to its value (endpoints stay positional)."""
+        """transfer resolves a Coordinate in the source timeline's native unit."""
         bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
         from timetoalign.core import Coordinate
         from timetoalign.core.enums import TimeUnit
@@ -1346,12 +1398,11 @@ class TestTransferCoordinateParity:
         )
 
     def test_transfer_accepts_idcoordinate_value_only(self) -> None:
-        """transfer uses an IdCoordinate's value; its timeline_id is informational."""
+        """transfer resolves an IdCoordinate in the named source timeline."""
         bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
         from timetoalign.core import IdCoordinate
         from timetoalign.core.enums import TimeUnit
 
-        # The endpoint is named by from_timeline; the embedded id is ignored.
         result = bundle.transfer(
             IdCoordinate(100.0, TimeUnit.seconds, "score"), "score", "audio"
         )
@@ -1360,11 +1411,11 @@ class TestTransferCoordinateParity:
     def test_transfer_unsupported_type_raises(self) -> None:
         """transfer rejects non-coordinate types."""
         bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
-        with pytest.raises(TypeError, match="coordinate must be"):
+        with pytest.raises(TypeError, match="Unsupported coordinate specification"):
             bundle.transfer("x", "score", "audio")  # type: ignore[arg-type]
 
     def test_transfer_interval_accepts_coordinates(self) -> None:
-        """transfer_interval reduces Coordinate endpoints to values."""
+        """transfer_interval resolves Coordinate endpoints before transfer."""
         bundle, _score_id, _audio_id = _make_xgroup_bundle_with_claims()
         from timetoalign.core import Coordinate
         from timetoalign.core.enums import TimeUnit

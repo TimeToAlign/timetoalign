@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from timetoalign.alignment.groups import TimelineGroup
     from timetoalign.alignment.match_format import MatchFileContext
     from timetoalign.core.enums import Domain, TimeUnit
-    from timetoalign.timelines import Timeline
 
 module_logger = logging.getLogger(__name__)
 
@@ -185,9 +184,8 @@ class MatchLine:
         *,
         groups: dict[str, TimelineGroup] | None = None,
         timeline_to_group: dict[str, str] | None = None,
-        timelines: dict[str, Timeline] | None = None,
-        include_timelines: set[str] | None = None,
-        exclude_timelines: set[str] | None = None,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
         include_domains: set[Domain] | None = None,
         include_units: set[TimeUnit] | None = None,
     ) -> MatchLine:
@@ -205,11 +203,8 @@ class MatchLine:
                 If None, no group extension is performed.
             timeline_to_group: Dict of timeline_id -> group_id.  Required
                 if ``groups`` is provided.
-            timelines: Dict of timeline_id -> Timeline for domain/unit
-                filtering.  Required if ``include_domains`` or
-                ``include_units`` are set.
-            include_timelines: Only extend to these timeline IDs.
-            exclude_timelines: Do not extend to these timeline IDs.
+            timeline_ids: Only extend to these timeline IDs.
+            id_pattern: Regex filter for timeline IDs.
             include_domains: Only extend to timelines in these domains.
             include_units: Only extend to timelines with these units.
 
@@ -222,9 +217,8 @@ class MatchLine:
             graph = graph.extend_to_groups(
                 groups=groups,
                 timeline_to_group=timeline_to_group,
-                timelines=timelines,
-                include_timelines=include_timelines,
-                exclude_timelines=exclude_timelines,
+                timeline_ids=timeline_ids,
+                id_pattern=id_pattern,
                 include_domains=include_domains,
                 include_units=include_units,
             )

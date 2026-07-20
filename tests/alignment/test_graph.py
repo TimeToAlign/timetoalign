@@ -13,6 +13,7 @@ from timetoalign.alignment import (
     Agent,
     AlignmentAnchor,
     MatchClaim,
+    MatchLine,
     MatchMetadata,
     TimelineGroup,
 )
@@ -207,20 +208,23 @@ class TestMatchStamp:
             coordinates={"tl_a": 100.0, "tl_b": 50.0, "tl_c": 25.0},
             anchor_edges=[("tl_a", "tl_b"), ("tl_b", "tl_c")],
         )
-        filtered = stamp.filter_by_timelines(include={"tl_a", "tl_b"})
+        filtered = stamp.filter_by_timelines(
+            timeline_ids={"tl_a", "tl_b"},
+            id_pattern=r"^tl_[ab]$",
+        )
 
         assert filtered.n_timelines == 2
         assert "tl_c" not in filtered.coordinates
         assert len(filtered.anchor_edges) == 1
         assert ("tl_a", "tl_b") in filtered.anchor_edges
 
-    def test_filter_by_timelines_exclude(self) -> None:
-        """Filter stamp to exclude specific timelines."""
+    def test_filter_by_timelines_id_pattern(self) -> None:
+        """Filter stamp with a canonical timeline ID pattern."""
         stamp = MatchStamp(
             coordinates={"tl_a": 100.0, "tl_b": 50.0, "tl_c": 25.0},
             anchor_edges=[("tl_a", "tl_b"), ("tl_b", "tl_c")],
         )
-        filtered = stamp.filter_by_timelines(exclude={"tl_c"})
+        filtered = stamp.filter_by_timelines(id_pattern=r"^(?!tl_c$).*")
 
         assert filtered.n_timelines == 2
         assert "tl_c" not in filtered.coordinates
@@ -590,7 +594,7 @@ class TestMatchGraphGroupExtension:
 class TestMatchGraphFilter:
     """Tests for MatchGraph.filter() method."""
 
-    def test_filter_by_include_timelines(self) -> None:
+    def test_filter_by_timeline_ids(self) -> None:
         """Filter to include only specific timelines."""
         claims = [
             MatchClaim(
@@ -616,13 +620,13 @@ class TestMatchGraphFilter:
         ]
         graph = MatchGraph(claims)
 
-        filtered = graph.filter(include_timelines={"tl_a", "tl_b"})
+        filtered = graph.filter(timeline_ids={"tl_a", "tl_b"})
 
         assert filtered.timeline_ids == {"tl_a", "tl_b"}
         assert filtered.n_edges == 1
 
-    def test_filter_by_exclude_timelines(self) -> None:
-        """Filter to exclude specific timelines."""
+    def test_filter_by_id_pattern(self) -> None:
+        """Filter to exclude a timeline through an ID pattern."""
         claims = [
             MatchClaim(
                 timeline_a_id="tl_a",
@@ -647,7 +651,7 @@ class TestMatchGraphFilter:
         ]
         graph = MatchGraph(claims)
 
-        filtered = graph.filter(exclude_timelines={"tl_c"})
+        filtered = graph.filter(id_pattern=r"^(?!tl_c$).*")
 
         assert "tl_c" not in filtered.timeline_ids
         assert filtered.n_edges == 1
@@ -1165,11 +1169,11 @@ class TestMatchGraphExtendToGroupsFilters:
 
         return claim, groups, timeline_to_group, timelines
 
-    def test_include_timelines_filter(
+    def test_timeline_ids_filter(
         self,
         multi_group_setup: tuple,
     ) -> None:
-        """include_timelines restricts which timelines get implicit claims."""
+        """timeline_ids restricts which timelines get implicit claims."""
         claim, groups, timeline_to_group, timelines = multi_group_setup
         graph = MatchGraph([claim])
 
@@ -1177,7 +1181,7 @@ class TestMatchGraphExtendToGroupsFilters:
         extended = graph.extend_to_groups(
             groups,
             timeline_to_group,
-            include_timelines={"dgt1", "external"},
+            timeline_ids={"dgt1", "external"},
         )
 
         # Audio should NOT be in the graph
@@ -1185,11 +1189,11 @@ class TestMatchGraphExtendToGroupsFilters:
         assert extended.n_nodes == 2
         assert extended.n_edges == 1
 
-    def test_exclude_timelines_filter(
+    def test_id_pattern_filter(
         self,
         multi_group_setup: tuple,
     ) -> None:
-        """exclude_timelines prevents specific timelines from extension."""
+        """id_pattern prevents specific timelines from extension."""
         claim, groups, timeline_to_group, timelines = multi_group_setup
         graph = MatchGraph([claim])
 
@@ -1197,10 +1201,46 @@ class TestMatchGraphExtendToGroupsFilters:
         extended = graph.extend_to_groups(
             groups,
             timeline_to_group,
-            exclude_timelines={"audio"},
+            id_pattern=r"^(?!audio$).*",
         )
 
         assert "audio" not in extended.timeline_ids
+
+    def test_canonical_filters_preserve_pinned_extension_count(
+        self,
+        multi_group_setup: tuple,
+    ) -> None:
+        """Canonical ID filters reproduce the unextended graph count."""
+        claim, groups, timeline_to_group, _timelines = multi_group_setup
+
+        extended = MatchGraph([claim]).extend_to_groups(
+            groups,
+            timeline_to_group,
+            timeline_ids={"dgt1", "external"},
+            id_pattern=r"^(dgt1|external)$",
+        )
+
+        assert extended.n_nodes == 2
+        assert extended.n_edges == 1
+
+    def test_matchline_from_claims_passes_canonical_filters(
+        self,
+        multi_group_setup: tuple,
+    ) -> None:
+        """MatchLine forwards canonical filters to group extension."""
+        claim, groups, timeline_to_group, _timelines = multi_group_setup
+
+        line = MatchLine.from_claims(
+            [claim],
+            source_timeline_id="dgt1",
+            groups=groups,
+            timeline_to_group=timeline_to_group,
+            timeline_ids={"dgt1", "external"},
+            id_pattern=r"^(dgt1|external)$",
+        )
+
+        assert line.n_stamps == 1
+        assert line.stamps[0].coordinates == {"dgt1": 500.0, "external": 25.0}
 
     def test_include_domains_filter(
         self,
@@ -1215,7 +1255,6 @@ class TestMatchGraphExtendToGroupsFilters:
             groups,
             timeline_to_group,
             include_domains={Domain.graphical},
-            timelines=timelines,
         )
 
         # Audio (physical) should NOT be extended into the graph
@@ -1234,7 +1273,6 @@ class TestMatchGraphExtendToGroupsFilters:
             groups,
             timeline_to_group,
             include_units={TimeUnit.pixels},
-            timelines=timelines,
         )
 
         # Audio (seconds) should NOT be extended
@@ -1246,17 +1284,14 @@ class TestMatchGraphFilterPhase64:
 
     def test_filter_by_include_domains(self) -> None:
         """filter() with include_domains removes timelines of wrong domain."""
-        dgt1 = DiscreteGraphicalTimeline(length=1000, unit="pixels", uid="dgt1")
-        audio = ContinuousPhysicalTimeline(length=100.0, unit="seconds", uid="audio")
-
         claim = MatchClaim(
             timeline_a_id="dgt1",
             timeline_b_id="audio",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=Coordinate(500.0, TimeUnit.number),
+                coordinate_a=Coordinate(500.0, TimeUnit.pixels),
                 timeline_b_id="audio",
-                coordinate_b=Coordinate(50.0, TimeUnit.number),
+                coordinate_b=Coordinate(50.0, TimeUnit.seconds),
             ),
         )
         graph = MatchGraph([claim])
@@ -1264,7 +1299,6 @@ class TestMatchGraphFilterPhase64:
         # Filter to only graphical
         filtered = graph.filter(
             include_domains={Domain.graphical},
-            timelines={"dgt1": dgt1, "audio": audio},
         )
 
         # Audio should be removed
@@ -1272,26 +1306,55 @@ class TestMatchGraphFilterPhase64:
         # Graph should have no edges (only dgt1 remains, isolated)
         assert filtered.n_edges == 0
 
+    def test_canonical_id_filters_preserve_pinned_graph_count(self) -> None:
+        """timeline_ids and id_pattern combine with AND semantics."""
+        claims = [
+            MatchClaim(
+                timeline_a_id="tl_a",
+                timeline_b_id="tl_b",
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id="tl_a",
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
+                    timeline_b_id="tl_b",
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
+                ),
+            ),
+            MatchClaim(
+                timeline_a_id="tl_b",
+                timeline_b_id="tl_c",
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id="tl_b",
+                    coordinate_a=Coordinate(50.0, TimeUnit.number),
+                    timeline_b_id="tl_c",
+                    coordinate_b=Coordinate(25.0, TimeUnit.number),
+                ),
+            ),
+        ]
+
+        filtered = MatchGraph(claims).filter(
+            timeline_ids={"tl_a", "tl_b"},
+            id_pattern=r"^tl_[ab]$",
+        )
+
+        assert filtered.n_nodes == 2
+        assert filtered.n_edges == 1
+
     def test_filter_by_include_units(self) -> None:
         """filter() with include_units removes timelines of wrong unit."""
-        dgt1 = DiscreteGraphicalTimeline(length=1000, unit="pixels", uid="dgt1")
-        audio = ContinuousPhysicalTimeline(length=100.0, unit="seconds", uid="audio")
-
         claim = MatchClaim(
             timeline_a_id="dgt1",
             timeline_b_id="audio",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=Coordinate(500.0, TimeUnit.number),
+                coordinate_a=Coordinate(500.0, TimeUnit.pixels),
                 timeline_b_id="audio",
-                coordinate_b=Coordinate(50.0, TimeUnit.number),
+                coordinate_b=Coordinate(50.0, TimeUnit.seconds),
             ),
         )
         graph = MatchGraph([claim])
 
         filtered = graph.filter(
             include_units={TimeUnit.seconds},
-            timelines={"dgt1": dgt1, "audio": audio},
         )
 
         # dgt1 (pixels) should be removed, audio should remain but isolated
@@ -1325,7 +1388,7 @@ class TestMatchGraphFilterPhase64:
         )
         graph = MatchGraph([sync_claim, nomatch_claim, unrelated_nomatch])
 
-        filtered = graph.filter(include_timelines={"tl_a", "tl_b"})
+        filtered = graph.filter(timeline_ids={"tl_a", "tl_b"})
 
         # The sync claim and the nomatch between tl_a and tl_b should remain
         # The nomatch involving tl_c should be dropped

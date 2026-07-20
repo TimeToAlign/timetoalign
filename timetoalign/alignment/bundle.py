@@ -25,6 +25,7 @@ from timetoalign.core import (
     CoordinateSpec,
     IdCoordinate,
     IdGenerator,
+    resolve_coordinate_spec,
     resolve_id,
 )
 
@@ -59,13 +60,13 @@ def _reset_bundle_ids() -> None:
 def _resolve_coordinate_and_timeline(
     coordinate: CoordinateSpec,
     timeline_id: str | None,
-) -> tuple[float, str | None]:
-    """Reduce a coordinate specification to a plain float and resolve its timeline.
+) -> tuple[int | float | Fraction, str | None, "TimeUnit | None"]:
+    """Decompose a coordinate specification and resolve its timeline.
 
     Accepts the three canonical coordinate forms and returns the underlying
-    value as a float alongside the timeline the coordinate lives on. When the
-    coordinate is an ``IdCoordinate`` it carries its own ``timeline_id``, which
-    fills an omitted ``timeline_id`` argument.
+    value, unit, and timeline the coordinate lives on. When the coordinate is
+    an ``IdCoordinate`` it carries its own ``timeline_id``, which fills an
+    omitted ``timeline_id`` argument.
 
     Args:
         coordinate: The query coordinate. One of:
@@ -78,28 +79,15 @@ def _resolve_coordinate_and_timeline(
             ``IdCoordinate``.
 
     Returns:
-        A ``(coord_value, timeline_id)`` tuple. ``timeline_id`` may still be
-        None if a non-Id coordinate was passed without one; callers decide
-        whether that is an error.
+        A ``(coord_value, timeline_id, unit)`` tuple. ``timeline_id`` may
+        still be None if a non-Id coordinate was passed without one; callers
+        decide whether that is an error.
 
     Raises:
         TypeError: If ``coordinate`` is not one of the accepted forms.
     """
-    # IdCoordinate is a subclass of Coordinate, so this check must come first.
-    if isinstance(coordinate, IdCoordinate):
-        if timeline_id is None:
-            timeline_id = coordinate.timeline_id
-        coord_value = float(coordinate.value)
-    elif isinstance(coordinate, Coordinate):
-        coord_value = float(coordinate.value)
-    elif isinstance(coordinate, (int, float, Fraction)):
-        coord_value = float(coordinate)
-    else:
-        raise TypeError(
-            f"coordinate must be int, float, Fraction, Coordinate, or "
-            f"IdCoordinate, got {type(coordinate).__name__}"
-        )
-    return coord_value, timeline_id
+    resolved = resolve_coordinate_spec(coordinate, timeline_id=timeline_id)
+    return resolved.value, resolved.timeline_id, resolved.unit
 
 
 # region AlignmentBundle
@@ -595,11 +583,22 @@ class AlignmentBundle:
         Raises:
             KeyError: If either timeline is not in the bundle.
         """
-        coord, _ = _resolve_coordinate_and_timeline(coord, None)
         if from_timeline not in self.timelines:
             raise KeyError(f"Source timeline '{from_timeline}' not in bundle")
         if to_timeline not in self.timelines:
             raise KeyError(f"Target timeline '{to_timeline}' not in bundle")
+
+        coord_value, _resolved_timeline_id, unit = _resolve_coordinate_and_timeline(
+            coord, from_timeline
+        )
+        if unit is not None:
+            coord = float(
+                self.get_timeline(from_timeline)
+                .resolve_coordinate(Coordinate(coord_value, unit))
+                .value
+            )
+        else:
+            coord = float(coord_value)
 
         # Same timeline: no conversion needed
         if from_timeline == to_timeline:
@@ -705,8 +704,25 @@ class AlignmentBundle:
         Returns:
             Tuple of (start, end) in target timeline, or None if no path.
         """
-        start, _ = _resolve_coordinate_and_timeline(start, None)
-        end, _ = _resolve_coordinate_and_timeline(end, None)
+        start_value, _start_timeline_id, start_unit = _resolve_coordinate_and_timeline(
+            start, from_timeline
+        )
+        end_value, _end_timeline_id, end_unit = _resolve_coordinate_and_timeline(
+            end, from_timeline
+        )
+        source_timeline = self.get_timeline(from_timeline)
+        start = float(
+            source_timeline.resolve_coordinate(
+                Coordinate(start_value, start_unit)
+            ).value
+            if start_unit is not None
+            else start_value
+        )
+        end = float(
+            source_timeline.resolve_coordinate(Coordinate(end_value, end_unit)).value
+            if end_unit is not None
+            else end_value
+        )
         transferred_start = self.transfer(start, from_timeline, to_timeline)
         transferred_end = self.transfer(end, from_timeline, to_timeline)
 
@@ -969,7 +985,7 @@ class AlignmentBundle:
                 ...     nomatch_only=True,
                 ... )
         """
-        filt = ClaimFilter(
+        filt = ClaimFilter.from_kwargs(
             timeline_id=timeline_id,
             timeline_ids=timeline_ids,
             id_pattern=id_pattern,
@@ -1186,7 +1202,7 @@ class AlignmentBundle:
             >>> ms.n_timelines
             23  # score + 22 performers
         """
-        coordinate, timeline_id = _resolve_coordinate_and_timeline(
+        coordinate_value, timeline_id, unit = _resolve_coordinate_and_timeline(
             coordinate, timeline_id
         )
         if timeline_id is None:
@@ -1202,6 +1218,13 @@ class AlignmentBundle:
 
         bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
         actual_timeline_id = self._uid_to_timeline_id.get(bundle_uid, timeline_id)
+        coordinate = float(
+            self.get_timeline(bundle_uid)
+            .resolve_coordinate(Coordinate(coordinate_value, unit))
+            .value
+            if unit is not None
+            else coordinate_value
+        )
 
         try:
             mg = self._get_or_build_matchgraph(actual_timeline_id, coordinate)
@@ -1245,7 +1268,7 @@ class AlignmentBundle:
             or include_units is not None
         )
         if has_filter:
-            filt = ClaimFilter(
+            filt = ClaimFilter.from_kwargs(
                 timeline_ids=timeline_ids,
                 id_pattern=id_pattern,
                 include_domains=include_domains,

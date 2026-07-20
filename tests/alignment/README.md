@@ -71,6 +71,18 @@ The group stores alignment data as a PyArrow table:
 
 Between any two adjacent rows, ALL non-null timelines have bijective linear mapping.
 
+### Coordinate and Filter Canonicalisation
+
+Alignment coordinate-entry APIs preserve ``Coordinate`` and ``IdCoordinate``
+units until the receiving timeline resolves them. Native-unit inputs retain
+their value, C-Map-afforded units convert to the timeline's native unit, and
+unafforded units raise ``ValueError`` rather than being silently reduced to a
+number. An ``IdCoordinate`` must agree with an explicitly supplied timeline
+ID. Graph, match-line, and stamp timeline filters use the common
+``timeline_ids`` and ``id_pattern`` vocabulary; both constraints must pass.
+The tests cover failed and C-Map-backed bundle queries, ID conflicts, and
+equivalent graph, group-extension, match-line, and stamp filtering results.
+
 ### Key Changes from PerfectAlignment
 
 | Before (deprecated) | After |
@@ -728,13 +740,15 @@ The cache is keyed by `(source_group_id, target_group_id)` and invalidated whene
 
 Every coordinate-accepting query method must accept a raw `int`/`float`/
 `Fraction`, a `Coordinate`, or an `IdCoordinate` and resolve all three to the
-same result. For methods that pair a coordinate with the id of the timeline it
-lives on (`get_matchstamp_at`, `get_timestamp_at`), an `IdCoordinate` supplies
-that id, so the `timeline_id` argument becomes optional; passing a non-Id
-coordinate without an explicit `timeline_id` is an error. For methods whose
-endpoints are explicit positional names (`transfer`, `transfer_interval`), the
-coordinate's value is used and any embedded `IdCoordinate.timeline_id` is
-informational only — the endpoint names decide direction.
+same result when their units are native to the receiving timeline. A
+unit-qualified coordinate is resolved through that timeline before graph or
+group lookup: a C-Map may convert an afforded unit, while an unafforded unit
+raises `ValueError`. For methods that pair a coordinate with the id of the
+timeline it lives on (`get_matchstamp_at`, `get_timestamp_at`), an
+`IdCoordinate` supplies that id, so the `timeline_id` argument becomes
+optional; passing a non-Id coordinate without an explicit `timeline_id` is an
+error. An explicit ID and an `IdCoordinate` ID must agree, including for the
+named source endpoints of `transfer` and `transfer_interval`.
 
 These tests reuse the existing `_make_cross_group_bundle()` +
 `_make_linear_claims()` fixtures (no new corpus). The claims map
@@ -751,9 +765,9 @@ method accordingly.
 
 | Test class | Validates |
 |------------|-----------|
-| `TestGetMatchstampAtCoordinateParity` | raw / Coordinate / IdCoordinate-alone agree; `score 100 → audio 50`; missing `timeline_id` ⇒ `ValueError`; non-coordinate type ⇒ `TypeError` |
+| `TestGetMatchstampAtCoordinateParity` | raw / native-unit Coordinate / IdCoordinate-alone agree; C-Map conversion agrees with a native query; unavailable units and conflicting IDs ⇒ `ValueError`; non-coordinate type ⇒ `TypeError` |
 | `TestGetTimestampAtCoordinateParity` | same three forms produce identical whole-dict results; error paths identical |
-| `TestTransferCoordinateParity` | `transfer`/`transfer_interval` reduce Coordinate/IdCoordinate to the value; endpoints stay positional; non-coordinate ⇒ `TypeError` |
+| `TestTransferCoordinateParity` | `transfer`/`transfer_interval` resolve native-unit Coordinate/IdCoordinate inputs through the named source timeline; non-coordinate ⇒ `TypeError` |
 
 The same parity is validated for `TimelineGroup.convert()` in
 `test_groups.py::TestConvert` (`test_convert_accepts_coordinate_objects`,

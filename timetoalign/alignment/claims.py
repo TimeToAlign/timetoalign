@@ -42,7 +42,14 @@ from pydantic import (
     model_validator,
 )
 
-from timetoalign.core import AgentType, Coordinate, IdCoordinate, IdGenerator, TimeUnit
+from timetoalign.core import (
+    AgentType,
+    Coordinate,
+    CoordinateSpec,
+    IdCoordinate,
+    IdGenerator,
+    TimeUnit,
+)
 from timetoalign.core.fields import SemanticField, StructField, register_value_projector
 
 if TYPE_CHECKING:
@@ -777,12 +784,12 @@ class MatchClaim(BaseModel):
         event: dict[str, Any],
         source_tl_id: str,
         target_tl_id: str,
-        target_coord: int | float | Fraction | Coordinate,
+        target_coord: CoordinateSpec,
         *,
         source_unit: TimeUnit | str,
         target_unit: TimeUnit | str | None = None,
         coord_key: str = "start",
-        target_end_coord: int | float | Fraction | Coordinate | None = None,
+        target_end_coord: CoordinateSpec | None = None,
         end_coord_key: str | None = None,
         metadata: MatchMetadata | None = None,
     ) -> "MatchClaim":
@@ -796,11 +803,12 @@ class MatchClaim(BaseModel):
                 and ``name`` fields.
             source_tl_id: Source timeline's ID.
             target_tl_id: Target timeline's ID.
-            target_coord: Projected coordinate on the target timeline.
+            target_coord: Projected coordinate specification on the target timeline.
             source_unit: Unit of the source timeline's coordinates.
             target_unit: Unit of the target timeline's coordinates.
             coord_key: Key for start coordinate in event dict.
-            target_end_coord: Projected end coordinate (creates interval match).
+            target_end_coord: Projected end coordinate specification (creates
+                interval match).
             end_coord_key: Key for end coordinate in event dict.
             metadata: Provenance information.
 
@@ -906,9 +914,9 @@ class MatchClaim(BaseModel):
     def implicit(
         cls,
         tl_a_id: str,
-        coord_a: int | float | Fraction | Coordinate,
+        coord_a: CoordinateSpec,
         tl_b_id: str,
-        coord_b: int | float | Fraction | Coordinate,
+        coord_b: CoordinateSpec,
         *,
         unit_a: TimeUnit | str | None = None,
         unit_b: TimeUnit | str | None = None,
@@ -919,9 +927,9 @@ class MatchClaim(BaseModel):
 
         Args:
             tl_a_id: First timeline's ID.
-            coord_a: Coordinate on timeline A.
+            coord_a: Coordinate specification on timeline A.
             tl_b_id: Second timeline's ID.
-            coord_b: Coordinate on timeline B.
+            coord_b: Coordinate specification on timeline B.
             unit_a: Unit of timeline A's coordinate.
             unit_b: Unit of timeline B's coordinate.
             source_claim: The claim that generated this one.

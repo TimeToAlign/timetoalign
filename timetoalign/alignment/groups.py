@@ -30,7 +30,14 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 
-from timetoalign.core import CoordinateSpec, IdCoordinate, IdGenerator, resolve_id
+from timetoalign.core import (
+    Coordinate,
+    CoordinateSpec,
+    IdCoordinate,
+    IdGenerator,
+    resolve_coordinate_spec,
+    resolve_id,
+)
 from timetoalign.core.enums import NumberType, TimeUnit
 from timetoalign.core.timestamp import (
     ConversionMapsSpec,
@@ -724,24 +731,8 @@ class TimelineGroup:
             >>> ts.axis
             75.0
         """
-        # Extract coordinate value and timeline_id from IdCoordinate if needed
-        from fractions import Fraction
-
-        from timetoalign.core.time import Coordinate
-
-        if isinstance(coordinate, IdCoordinate):
-            if timeline_id is None:
-                timeline_id = coordinate.timeline_id
-            coord_value = float(coordinate.value)
-        elif isinstance(coordinate, Coordinate):
-            coord_value = float(coordinate.value)
-        elif isinstance(coordinate, (int, float, Fraction)):
-            coord_value = float(coordinate)
-        else:
-            raise TypeError(
-                f"coordinate must be int, float, Fraction, Coordinate, or IdCoordinate, "
-                f"got {type(coordinate).__name__}"
-            )
+        resolved = resolve_coordinate_spec(coordinate, timeline_id=timeline_id)
+        timeline_id = resolved.timeline_id
 
         if timeline_id is None:
             raise ValueError(
@@ -750,6 +741,14 @@ class TimelineGroup:
 
         if timeline_id not in self._timelines:
             raise KeyError(f"Timeline '{timeline_id}' not in group")
+
+        coord_value = float(
+            self.get_timeline(timeline_id)
+            .resolve_coordinate(Coordinate(resolved.value, resolved.unit))
+            .value
+            if resolved.unit is not None
+            else resolved.value
+        )
 
         if self._timestamp_table is None:
             raise ValueError(f"Group '{self.id}' has no timestamps")
@@ -829,18 +828,17 @@ class TimelineGroup:
         """
         import pandas as pd
 
-        from timetoalign.core import Coordinate
-
-        def _to_float(c: CoordinateSpec) -> float:
-            """Extract float value from CoordinateSpec."""
-            if isinstance(c, Coordinate):
-                return float(c.value)
-            return float(c)
-
         # Get individual timestamps and convert to dicts
         timestamp_dicts: list[dict[str, float | None]] = []
         for coord in coordinates:
-            coord_float = _to_float(coord)
+            resolved = resolve_coordinate_spec(coord, timeline_id=timeline_id)
+            coord_float = float(
+                self.get_timeline(timeline_id)
+                .resolve_coordinate(Coordinate(resolved.value, resolved.unit))
+                .value
+                if resolved.unit is not None
+                else resolved.value
+            )
             try:
                 ts = self.get_timestamp_at(
                     coord_float, timeline_id, conversion_maps=conversion_maps
@@ -963,34 +961,6 @@ class TimelineGroup:
 
         return table
 
-    def get_timestamps_df(
-        self,
-        timeline_filter: set[str] | None = None,
-        conversion_maps: ConversionMapsSpec = True,
-        *,
-        units: bool = True,
-    ) -> pd.DataFrame:
-        """Convenience wrapper returning pandas DataFrame with units in field names.
-
-        Args:
-            timeline_filter: Only include these timelines as fields.
-            conversion_maps: Whether to include C-Map fields from member timelines.
-                - True (default): Include all attached C-Maps
-                - False/None: No C-Map fields
-            units: If True (default), append units to field names like "name (unit)".
-
-        Returns:
-            pandas DataFrame with timestamp data and units in field names,
-            including C-Map fields if conversion_maps=True.
-        """
-        from timetoalign.core.timestamp import timestamp_table_to_dataframe
-
-        table = self.get_timestamp_table(
-            timeline_filter=timeline_filter,
-            conversion_maps=conversion_maps,
-        )
-        return timestamp_table_to_dataframe(table=table, units=units)
-
     def to_dataframe(
         self,
         timeline_filter: set[str] | None = None,
@@ -1104,9 +1074,9 @@ class TimelineGroup:
 
         Args:
             coordinate: The coordinate value to convert. Accepts a raw
-                int/float/Fraction, a Coordinate, or an IdCoordinate (whose
-                value is used; its timeline_id is informational only here,
-                since the endpoints are named by ``source``/``target``).
+                int/float/Fraction, a Coordinate, or an IdCoordinate. A
+                unit-qualified coordinate is resolved by the source timeline,
+                and an IdCoordinate must agree with ``source``.
             source: Source timeline ID.
             target: Target timeline ID.
             relative_to:
@@ -1125,22 +1095,6 @@ class TimelineGroup:
             >>> group.convert(75.0, source="audio:1", target="dgt1:1")
             2437.5
         """
-        from fractions import Fraction
-
-        from timetoalign.core.time import Coordinate
-
-        # Reduce to a plain float; the endpoint is named by ``source``, so an
-        # IdCoordinate's own timeline_id is informational only here.
-        if isinstance(coordinate, Coordinate):
-            coordinate = float(coordinate.value)
-        elif isinstance(coordinate, (int, float, Fraction)):
-            coordinate = float(coordinate)
-        else:
-            raise TypeError(
-                f"coordinate must be int, float, Fraction, Coordinate, or "
-                f"IdCoordinate, got {type(coordinate).__name__}"
-            )
-
         ts = self.get_timestamp_at(coordinate, source, relative_to=relative_to)
         return ts[target]
 

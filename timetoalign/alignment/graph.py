@@ -26,11 +26,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field, replace
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Literal
 
 import networkx as nx
 
 from timetoalign.alignment.claims import AlignmentAnchor, MatchClaim
+from timetoalign.alignment.filters import ClaimFilter
 from timetoalign.core.enums import Domain, TimeUnit
 from timetoalign.core.time import Coordinate
 from timetoalign.core.timestamp import ConversionMapsSpec, Stamp
@@ -224,23 +226,26 @@ class MatchStamp(Stamp):
 
     def filter_by_timelines(
         self,
-        include: set[str] | None = None,
-        exclude: set[str] | None = None,
+        *,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
     ) -> "MatchStamp":
         """Create filtered stamp with subset of timelines.
 
         Args:
-            include: Only include these timelines (None = all).
-            exclude: Exclude these timelines (None = none).
+            timeline_ids: Only include these timelines (None = all).
+            id_pattern: Regex filter for timeline IDs.
 
         Returns:
             New MatchStamp with filtered timelines.
         """
+        filt = ClaimFilter.from_kwargs(
+            timeline_ids=timeline_ids,
+            id_pattern=id_pattern,
+        )
         filtered_coords = {}
         for tl_id, coord in self.coordinates.items():
-            if include is not None and tl_id not in include:
-                continue
-            if exclude is not None and tl_id in exclude:
+            if not filt.matches_timeline(tl_id):
                 continue
             filtered_coords[tl_id] = coord
 
@@ -589,6 +594,7 @@ class MatchGraph:
         self._graph: nx.Graph = self._build_graph()
         self._logger = module_logger.getChild("MatchGraph")
         self._units = dict(units or {})
+        self._timeline_units = self._collect_timeline_units()
         self._axis = axis
         self._source = source
         self._source_id = source_id
@@ -655,6 +661,19 @@ class MatchGraph:
                 self._add_anchor_edge(G, claim.end_anchor, claim)
 
         return G
+
+    def _collect_timeline_units(self) -> dict[str, TimeUnit]:
+        """Collect the coordinate units recorded by this graph's claims."""
+        timeline_units: dict[str, TimeUnit] = {}
+        for claim in self._claims:
+            for anchor in claim.anchors:
+                timeline_units.setdefault(
+                    anchor.timeline_a_id, anchor.coordinate_a.unit
+                )
+                timeline_units.setdefault(
+                    anchor.timeline_b_id, anchor.coordinate_b.unit
+                )
+        return timeline_units
 
     def _add_anchor_edge(
         self,
@@ -737,9 +756,8 @@ class MatchGraph:
         timeline_to_group: dict[str, str],
         include_inferred: bool = True,
         *,
-        timelines: dict[str, "Timeline"] | None = None,
-        include_timelines: set[str] | None = None,
-        exclude_timelines: set[str] | None = None,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
         include_domains: set[Domain] | None = None,
         include_units: set[TimeUnit] | None = None,
     ) -> "MatchGraph":
@@ -755,15 +773,10 @@ class MatchGraph:
             groups: Dict of group_id -> TimelineGroup.
             timeline_to_group: Dict of timeline_id -> group_id.
             include_inferred: Whether to add inferred edges.
-            timelines: Optional dict of timeline_id -> Timeline for
-                resolving domain/unit filters. Required if
-                ``include_domains`` or ``include_units`` are set.
-            include_timelines: Only extend to these timeline IDs.
-            exclude_timelines: Do not extend to these timeline IDs.
+            timeline_ids: Only extend to these timeline IDs.
+            id_pattern: Regex filter for timeline IDs.
             include_domains: Only extend to timelines in these domains.
-                Requires ``timelines`` parameter.
             include_units: Only extend to timelines with these units.
-                Requires ``timelines`` parameter.
 
         Returns:
             New MatchGraph with extended edges (or self if not extending).
@@ -798,9 +811,12 @@ class MatchGraph:
                 # Apply filters
                 if not self._passes_filters(
                     other_tl_id,
-                    timelines=timelines,
-                    include_timelines=include_timelines,
-                    exclude_timelines=exclude_timelines,
+                    timelines={
+                        member_id: group.get_timeline(member_id)
+                        for member_id in group.timeline_ids
+                    },
+                    timeline_ids=timeline_ids,
+                    id_pattern=id_pattern,
                     include_domains=include_domains,
                     include_units=include_units,
                 ):
@@ -881,13 +897,13 @@ class MatchGraph:
                     return claim
         return None
 
-    @staticmethod
     def _passes_filters(
+        self,
         timeline_id: str,
         *,
         timelines: dict[str, "Timeline"] | None = None,
-        include_timelines: set[str] | None = None,
-        exclude_timelines: set[str] | None = None,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
         include_domains: set[Domain] | None = None,
         include_units: set[TimeUnit] | None = None,
     ) -> bool:
@@ -896,40 +912,25 @@ class MatchGraph:
         Args:
             timeline_id: The timeline ID to check.
             timelines: Dict of timeline_id -> Timeline for metadata.
-            include_timelines: Only these timeline IDs pass.
-            exclude_timelines: These timeline IDs are rejected.
+            timeline_ids: Only these timeline IDs pass.
+            id_pattern: Regex filter for timeline IDs.
             include_domains: Only timelines in these domains pass.
             include_units: Only timelines with these units pass.
 
         Returns:
             True if the timeline passes all filters.
         """
-        if include_timelines is not None and timeline_id not in include_timelines:
-            return False
-        if exclude_timelines is not None and timeline_id in exclude_timelines:
-            return False
-
-        if include_domains is not None or include_units is not None:
-            if timelines is None:
-                # Cannot resolve domain/unit without timeline objects
-                return True
-            tl = timelines.get(timeline_id)
-            if tl is None:
-                return True  # Unknown timeline passes by default
-
-            if include_domains is not None:
-                tl_unit = getattr(tl, "unit", None)
-                if tl_unit is not None:
-                    tl_domain = getattr(tl_unit, "domain", None)
-                    if tl_domain is not None and tl_domain not in include_domains:
-                        return False
-
-            if include_units is not None:
-                tl_unit = getattr(tl, "unit", None)
-                if tl_unit is not None and tl_unit not in include_units:
-                    return False
-
-        return True
+        if timelines is None:
+            timelines = {
+                tl_id: SimpleNamespace(unit=unit)
+                for tl_id, unit in self._timeline_units.items()
+            }
+        return ClaimFilter.from_kwargs(
+            timeline_ids=timeline_ids,
+            id_pattern=id_pattern,
+            include_domains=include_domains,
+            include_units=include_units,
+        ).matches_timeline(timeline_id, timelines=timelines)
 
     @classmethod
     def _from_graph(
@@ -958,6 +959,7 @@ class MatchGraph:
         instance._graph = graph
         instance._logger = module_logger.getChild("MatchGraph")
         instance._units = dict(units or {})
+        instance._timeline_units = instance._collect_timeline_units()
         instance._axis = axis
         instance._source = source
         instance._source_id = source_id
@@ -1143,26 +1145,21 @@ class MatchGraph:
         self,
         synchronous_only: bool = False,
         explicit_only: bool = False,
-        include_timelines: set[str] | None = None,
-        exclude_timelines: set[str] | None = None,
+        *,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
         include_domains: set[Domain] | None = None,
         include_units: set[TimeUnit] | None = None,
-        *,
-        timelines: dict[str, "Timeline"] | None = None,
     ) -> "MatchGraph":
         """Create filtered view of the graph.
 
         Args:
             synchronous_only: Include only synchronous edges.
             explicit_only: Include only explicit edges (no inferred).
-            include_timelines: Only include these timeline IDs.
-            exclude_timelines: Exclude these timeline IDs.
+            timeline_ids: Only include these timeline IDs.
+            id_pattern: Regex filter for timeline IDs.
             include_domains: Only include timelines in these domains.
-                Requires ``timelines`` parameter.
             include_units: Only include timelines with these units.
-                Requires ``timelines`` parameter.
-            timelines: Dict of timeline_id -> Timeline for resolving
-                domain/unit filters.
 
         Returns:
             New MatchGraph with filtered edges/nodes.
@@ -1176,9 +1173,8 @@ class MatchGraph:
             timeline_id = node[0]
             if not self._passes_filters(
                 timeline_id,
-                timelines=timelines,
-                include_timelines=include_timelines,
-                exclude_timelines=exclude_timelines,
+                timeline_ids=timeline_ids,
+                id_pattern=id_pattern,
                 include_domains=include_domains,
                 include_units=include_units,
             ):

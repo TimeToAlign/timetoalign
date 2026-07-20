@@ -568,7 +568,7 @@ class TestRoundTripHow03Notebook:
         # Step 1: Load and match (same as how03)
         eep_loader = EepNotesLoader()
         eep_loader.load(*sorted(NORMAL_DIR.glob("*_align_*.notes")))
-        eep_df = eep_loader.events.to_pandas()
+        eep_df = eep_loader.events.to_dataframe()
 
         abc_df = pd.read_csv(ABC_DIR / "n04op18-4_04_unfolded.notes.tsv", sep="\t")
 

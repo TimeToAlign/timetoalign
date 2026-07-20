@@ -383,15 +383,15 @@ class TestTimestampAccess:
         assert "dgt1" in table.column_names
         assert "audio" not in table.column_names
 
-    def test_get_timestamps_df(
+    def test_to_dataframe(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
     ) -> None:
-        """Test get_timestamps_df() returns pandas DataFrame with units in column names."""
+        """Test to_dataframe() returns pandas DataFrame with units in column names."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
-        df = group.get_timestamps_df()
+        df = group.to_dataframe()
 
         assert len(df) == 2
         # Column names now include units like "dgt1 (pixels)"
@@ -399,7 +399,7 @@ class TestTimestampAccess:
         assert "audio (seconds)" in df.columns
 
         # Test units=False returns raw column names
-        df_no_units = group.get_timestamps_df(units=False)
+        df_no_units = group.to_dataframe(units=False)
         assert "dgt1" in df_no_units.columns
         assert "audio" in df_no_units.columns
 
@@ -611,7 +611,7 @@ class TestConvert:
     ) -> None:
         """convert() raises TypeError for a non-coordinate value."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
-        with pytest.raises(TypeError, match="coordinate must be"):
+        with pytest.raises(TypeError, match="Unsupported coordinate specification"):
             group.convert("x", source="audio", target="dgt1")  # type: ignore[arg-type]
 
 
