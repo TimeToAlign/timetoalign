@@ -61,7 +61,37 @@ This directory contains tests and profiling scripts for the `timetoalign.loader.
 3. **flow_only (ms3 vs canonical)**:
    - Canonical: 31 MCs (human interpretation)
    - ms3: 30 MCs (ambiguous encoding)
-   - music21: FAILS ("badly formed repeats" error)
+   - music21: cannot produce a valid target flow and yields a 17-MC traversal
+
+### Test-Pinned Parser Deviations
+
+The flow-valid matrix compares loaders with the target flows in the `.flow.csv`
+files. The following cases are intentionally excluded from that comparison and
+are pinned exactly by `TestDocumentedDeviations` in the matrix test. These are
+parser limitations: the loaders are reading the source score, but the parser's
+flow model does not represent the notation's D.S./Fine or inferred-repeat
+semantics well enough to reproduce the target traversal.
+
+1. **Music21 / c05n05_musete**: `expandRepeats()` does not follow D.S. al Fine.
+   It produces 116 unfolded MCs in sections
+   `[(1, 17), (1, 32), (17, 59), (32, 59)]`, instead of the 138-MC TSV flow.
+
+2. **Music21 / c11n08_Rondeau**: the parser does not reproduce the score's D.S.
+   traversal. It produces 120 unfolded MCs in sections
+   `[(1, 10), (1, 19), (10, 28), (19, 61), (28, 61)]`, rather than the
+   138-MC target flow.
+
+3. **Music21 / flow_only**: the parser cannot produce any valid target flow
+   for this specimen's D.S./D.C. and volta combination. The resulting flow is
+   17 MCs with sections
+   `[(1, 4), (1, 6), (4, 5), (6, 7), (8, 11), (10, 14)]`.
+
+4. **Partitura / flow_only**: Partitura's region-based model infers seven
+   repeat starts, while the TSV has three explicit starts. That inference
+   produces a 24-MC flow with sections
+   `[(1, 4), (1, 6), (4, 5), (8, 9), (6, 7), (8, 10), (9, 11),
+   (10, 12), (11, 15), (12, 14), (15, 16)]`, which is not one of the target
+   flows.
 
 ---
 

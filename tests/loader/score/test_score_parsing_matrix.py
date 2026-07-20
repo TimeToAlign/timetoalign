@@ -272,9 +272,13 @@ class TestMusic21LoaderMusicXML:
     def test_music21_musicxml_flow_valid(self, specimen_name: str) -> None:
         """Music21Loader produces a valid flow (matches one in .flow.csv).
 
-        Note: music21 may produce a different but valid unfolding for specimens
-        with D.S./D.C. markers (e.g., c05n05_musete, c11n08_Rondeau).
+        D.S./D.C. deviations are pinned in TestDocumentedDeviations.
         """
+        if specimen_name in {"c05n05_musete", "c11n08_Rondeau", "flow_only"}:
+            pytest.skip(
+                "Documented Music21 flow deviation; exact output is asserted "
+                "in TestDocumentedDeviations"
+            )
         spec = SPECIMENS[specimen_name]
         xml_path = get_specimen_path(spec, "musicxml")
         csv_path = TARGET_FLOWS_DIR / spec.flow_csv
@@ -493,7 +497,16 @@ class TestPartituraLoaderMusicXML:
 
     @pytest.mark.parametrize("specimen_name", SPECIMENS.keys())
     def test_partitura_musicxml_flow_valid(self, specimen_name: str) -> None:
-        """PartituraLoader produces a valid flow (matches one in .flow.csv)."""
+        """PartituraLoader produces a valid flow (matches one in .flow.csv).
+
+        Partitura's inferred-repeat deviation for flow_only is pinned in
+        TestDocumentedDeviations.
+        """
+        if specimen_name == "flow_only":
+            pytest.skip(
+                "Documented Partitura inferred-repeat deviation; exact output "
+                "is asserted in TestDocumentedDeviations"
+            )
         spec = SPECIMENS[specimen_name]
         xml_path = get_specimen_path(spec, "musicxml")
         csv_path = TARGET_FLOWS_DIR / spec.flow_csv
@@ -743,28 +756,138 @@ class TestCrossLoaderParity:
 class TestDocumentedDeviations:
     """Document known parser deviations for the README.
 
-    These tests capture expected differences between parsers.
-    They PASS by documenting the deviation, not by asserting equality.
+    These tests capture expected differences between parsers with exact output
+    assertions, so a parser change requires an intentional test update.
     """
 
     def test_c05n05_musete_music21_deviation(self) -> None:
         """Document: music21 ignores D.S. al Fine in c05n05_musete.
 
-        Expected behavior:
-        - ms3/TSV: 138 unfolded MCs (follows D.S. al Fine)
-        - music21: 116 unfolded MCs (ignores D.S., only handles repeats)
+        Music21's exact alternate unfolding is pinned so this remains a
+        documented parser difference rather than an unclassified failure.
         """
-        spec = SPECIMENS["c05n05_musete"]
-        csv_path = TARGET_FLOWS_DIR / spec.flow_csv
-        if not csv_path.exists():
-            pytest.skip("Flow CSV not found")
+        from timetoalign.core.enums import FlowMode
+        from timetoalign.loader.score import Music21Loader
+        from timetoalign.timelines import FlowController
 
-        modes = get_flow_modes(csv_path)
+        loader = Music21Loader()
+        loader.load(get_specimen_path(SPECIMENS["c05n05_musete"], "musicxml"))
+        flow = FlowController(loader.store.measures).compute_flow(FlowMode.default)
 
-        # Document the deviation
-        assert "default" in modes, "default mode required"
-        # The flow.csv shows music21 flow_mode produces different results
-        # (only present when music21's expandRepeats() diverges from default)
+        assert len(flow.to_mc_sequence()) == 116
+        assert [(s.mc_start, s.mc_end) for s in flow.sections] == [
+            (1, 17),
+            (1, 32),
+            (17, 59),
+            (32, 59),
+        ]
+
+    def test_c11n08_rondeau_music21_deviation(self) -> None:
+        """Document: music21 does not reproduce c11n08_Rondeau's D.S. flow."""
+        from timetoalign.core.enums import FlowMode
+        from timetoalign.loader.score import Music21Loader
+        from timetoalign.timelines import FlowController
+
+        loader = Music21Loader()
+        loader.load(get_specimen_path(SPECIMENS["c11n08_Rondeau"], "musicxml"))
+        flow = FlowController(loader.store.measures).compute_flow(FlowMode.default)
+
+        assert len(flow.to_mc_sequence()) == 120
+        assert [(s.mc_start, s.mc_end) for s in flow.sections] == [
+            (1, 10),
+            (1, 19),
+            (10, 28),
+            (19, 61),
+            (28, 61),
+        ]
+
+    def test_flow_only_music21_deviation(self) -> None:
+        """Document: music21 cannot produce a target flow for flow_only.
+
+        music21 drops the D.S. al Coda, coda voltas, and D.C. al Fine
+        markers, so the traversal honours every repeat (including the
+        implicit one-bar repeat at MC 8 and the nested one at MC 10) but
+        runs straight past MC 12 and stops at MC 13 with no jump tail.
+        """
+        from timetoalign.core.enums import FlowMode
+        from timetoalign.loader.score import Music21Loader
+        from timetoalign.timelines import FlowController
+
+        loader = Music21Loader()
+        loader.load(get_specimen_path(SPECIMENS["flow_only"], "musicxml"))
+        flow = FlowController(loader.store.measures).compute_flow(FlowMode.default)
+
+        assert flow.to_mc_sequence() == [
+            1,
+            2,
+            3,
+            1,
+            2,
+            3,
+            4,
+            5,
+            4,
+            6,
+            8,
+            8,
+            9,
+            10,
+            10,
+            11,
+            9,
+            10,
+            10,
+            11,
+            12,
+            13,
+        ]
+        assert [(s.mc_start, s.mc_end) for s in flow.sections] == [
+            (1, 4),
+            (1, 6),
+            (4, 5),
+            (6, 7),
+            (8, 9),
+            (8, 11),
+            (10, 12),
+            (9, 11),
+            (10, 14),
+        ]
+
+    def test_flow_only_partitura_deviation(self) -> None:
+        """Document: Partitura's flow_only repeat structure is malformed.
+
+        Partitura discards the segno and coda directions and infers missing
+        repeat boundaries on this specimen. Its default unfolding is
+        therefore not a meaningful observable; this table pins exactly what
+        the parser delivers at the source.
+        """
+        from timetoalign.loader.score import PartituraLoader
+
+        loader = PartituraLoader()
+        loader.load(get_specimen_path(SPECIMENS["flow_only"], "musicxml"))
+        rows = loader.store.measures._table.to_pylist()
+
+        assert [row["mc"] for row in rows if row["start_repeat"]] == [
+            1,
+            4,
+            6,
+            9,
+            10,
+            11,
+            12,
+        ]
+        assert [row["mc"] for row in rows if row["end_repeat"]] == [
+            3,
+            5,
+            8,
+            9,
+            10,
+            11,
+            14,
+        ]
+        assert [
+            (row["mc"], row["volta"]) for row in rows if row["volta"] is not None
+        ] == [(5, 1), (6, 2), (7, 3), (14, 1), (15, 2)]
 
     def test_flow_only_ms3_deviation(self) -> None:
         """Document: ms3 diverges from canonical in flow_only due to ambiguous encoding.
