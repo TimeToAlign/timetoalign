@@ -448,18 +448,20 @@ score_midi_tl.get_timestamp_table()
 
 # %% [markdown]
 # ---
-# ## 7. TabularLoaders (CsvLoader, TsvLoader, Ms3Loader, LabLoader)
+# ## 7. TabularLoaders (CsvLoader, TsvLoader, LabLoader)
 #
 # Generic tabular loaders with configurable column mapping.
-# `Ms3Loader` is pre-configured for ms3-style annotation TSVs.
+# The score `Ms3Loader` above dispatches ms3 facets by filename into a
+# `ScoreStore`; this section covers the generic tabular loaders.
 
 # %% [markdown]
-# ### 7a. Ms3Loader
+# ### 7a. Ms3Loader score facets
 
 # %%
-from timetoalign.loader.tabular.csv import Ms3Loader
+from timetoalign import Ms3Loader
 
-# Use an ms3-style annotation TSV (unfolded notes)
+# A score-facet filename selects the notes facet in the resulting ScoreStore.
+# Use an ms3-style annotation TSV (unfolded notes).
 ms3_file = (
     SCORE_DIR
     / "flow_control"
@@ -477,13 +479,13 @@ ms3_loader
 ms3_loader.store
 
 # %%
-ms3_loader.events  # EventData (generic, not ScoreEventData)
+ms3_loader.store.notes  # NoteEventData in the ScoreStore
 
 # %%
-ms3_loader.events.schema
+ms3_loader.store.notes.schema
 
 # %%
-ms3_loader.events.to_dataframe().head()
+ms3_loader.store.notes.to_dataframe().head()
 
 # %%
 ms3_tl = ms3_loader.create_timeline()

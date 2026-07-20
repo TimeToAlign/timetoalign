@@ -70,7 +70,7 @@ score_tl.get_events(event_type="Note").to_dataframe().head()
 # %%
 perf_id = [uid for uid in bundle.timeline_ids if uid != score_tl.id][0]
 
-stamp = bundle.get_matchstamp_at(100.0, "score")
+stamp = bundle.get_matchstamp_at(100.0, "score:clt1")
 stamp
 
 # %% [markdown]
@@ -80,7 +80,7 @@ stamp
 
 # %%
 {
-    "score coordinate": stamp.get_coordinate("score"),
+    "score coordinate": stamp.get_coordinate("score:clt1"),
     "interpolated": stamp.is_interpolated,
 }
 

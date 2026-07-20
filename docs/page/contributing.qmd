@@ -55,8 +55,8 @@ each with a single responsibility:
 | `fields/`     | `SemanticField` definitions (Layer 2 of the EventData stack).                                     |
 | `display/`    | ASCII rendering helpers for timelines, groups, bundles, flows.                                    |
 | `maps/`       | `ConversionMap` family (`LinearMap`, `TableMap`, `ChainMap`, `PiecewiseMap`, …).                  |
-| `timelines/`  | `Timeline` classes for all six domain × modality combinations, regions, flow control, beat grids. |
-| `alignment/`  | `MatchClaim`, `AlignmentAnchor`, `TimelineGroup`, `AlignmentBundle`, `MatchGraph`, `MatchLine`, `WarpMap`. |
+| `timelines/`  | `Timeline` classes for all six domain × modality combinations, `TimelineGroup`, regions, flow control, beat grids. |
+| `alignment/`  | `MatchClaim`, `AlignmentAnchor`, `AlignmentBundle`, `MatchGraph`, `MatchLine`, `WarpMap`. |
 | `storage/`    | PyArrow-backed `EventData` / `EventStore` storage primitives. |
 | `loader/`     | File-format-specific ingestion. |
 
@@ -68,11 +68,19 @@ violations create circular-import landmines and are refused at review.
 
 ```
                     ┌──────────────────────────────┐
-       Layer 3 ──▶  │            loader            │
+       Layer 5 ──▶  │            loader            │
+                    └──────────────┬───────────────┘
+                                   │ may import from layers 0–4
+                    ┌──────────────▼───────────────┐
+       Layer 4 ──▶  │          alignment           │
+                    └──────────────┬───────────────┘
+                                   │ may import from layers 0–3
+                    ┌──────────────▼───────────────┐
+       Layer 3 ──▶  │          timelines           │
                     └──────────────┬───────────────┘
                                    │ may import from layers 0–2
                     ┌──────────────▼───────────────┐
-       Layer 2 ──▶  │     timelines     alignment  │
+       Layer 2 ──▶  │           storage            │
                     └──────────────┬───────────────┘
                                    │ may import from layers 0–1
                     ┌──────────────▼───────────────┐
@@ -93,29 +101,26 @@ Equivalently:
 | `fields/`    | nothing internal                                         |
 | `display/`   | nothing internal at runtime (TYPE_CHECKING only)         |
 | `maps/`      | `core`                                                   |
-| `timelines/` | `core`, `maps` (+ documented exception below)            |
-| `alignment/` | `core`, `maps`                                           |
-| `loader/`    | `core`, `maps`, `timelines`, `alignment`                 |
+| `storage/`   | lower layers as needed; owns `EventData` and `EventStore` |
+| `timelines/` | `core`, `maps`, `storage`                                |
+| `alignment/` | lower layers, including `timelines`                       |
+| `loader/`    | all lower layers                                          |
 
-#### One documented exception: `timelines` ↔ `loader`
+#### Storage ownership and timeline dependencies
 
-`Timeline` instances own an `EventData` (PyArrow-backed event storage). For
-historical reasons, `EventData` and `EventStore` are storage types because
-loaders are their primary producer. As a result `timelines/base.py` performs
-**one** runtime import from `storage/`:
+`storage/` is a first-class layer that owns `EventData` and `EventStore`, the
+PyArrow-backed event storage used by timelines and loaders. `Timeline`
+instances therefore import storage types at runtime as part of the normal
+layering:
 
 ```python
 from timetoalign.storage import EventData
 ```
 
-All other `timelines → loader` references are deferred (function-local) or
-guarded by `if TYPE_CHECKING:` to avoid the circular import at module load.
-**Do not introduce any new runtime `timelines → storage` imports.** If you
-need additional types from the storage namespace inside a timeline module,
-either:
-
-1. Put the import inside the function that needs it (deferred), or
-2. Guard it with `if TYPE_CHECKING:` and use a string annotation.
+There is no `timelines`--`loader` import cycle: `loader/` is the upper layer
+and imports downward to construct storage-backed timelines. Runtime imports
+from `timelines/` to `storage/` are legitimate dependencies; keep all imports
+flowing from a higher layer to a lower one.
 
 ### 2.3 Stable Architectural Invariants
 

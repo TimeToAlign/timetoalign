@@ -54,7 +54,7 @@ from timetoalign.core.fields import (
 )
 from timetoalign.core.protocols import GenericPitchLike, PitchLike
 from timetoalign.core.time import CoordinateField
-from timetoalign.loader.mixins import MultipleFieldsError
+from timetoalign.storage import MultipleFieldsError
 from timetoalign.testdata import ensure_data
 
 VIENNA = ensure_data("vienna_1x22")

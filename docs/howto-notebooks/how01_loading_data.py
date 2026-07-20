@@ -166,8 +166,7 @@ pd.DataFrame(schema_info)
 # | `id` | Unique identifier for the event |
 # | `temporal_type` | "instant" or "interval" |
 # | `event_type` | Type of event (Note, Rest, etc.) |
-# | `start`, `end`, `duration` | Temporal coordinates (as structs) |
-# | `duration_float` | Duration as a float for quick queries |
+# | `start`, `end`, `duration` | Temporal coordinates in quarter notes |
 # | `mc`, `mn` | Measure count and measure number |
 # | `specific_pitch` | Fully spelled pitch (step + alter + octave) — the default pitch field |
 # | `midi` | The raw source MIDI pitch as an integer (affords an `EnharmonicPitch` view on request) |
@@ -179,7 +178,8 @@ display_cols = [
     "name",
     "temporal_type",
     "event_type",
-    "duration_float",
+    "start",
+    "duration",
     "mc",
     "mn",
     "octave",
@@ -223,11 +223,11 @@ enharmonic_pitch = notes_store.get_field(EnharmonicPitch)
 
 # %%
 # Duration distribution
-tsv_df["duration_float"].value_counts().sort_index().to_frame("count")
+tsv_df["duration"].value_counts().sort_index().to_frame("count")
 
 # %%
 # Summary statistics
-tsv_df["duration_float"].describe()
+tsv_df["duration"].describe()
 
 # %% [markdown]
 # ## Navigating by Measure
@@ -249,7 +249,7 @@ notes_per_measure.to_frame("notes")
 # %%
 # Get all notes in a specific measure
 measure_5 = tsv_df[tsv_df["mn"] == "5"]
-measure_5[["name", "duration_float", "voice", "staff"]]
+measure_5[["name", "duration", "voice", "staff"]]
 
 # %% [markdown]
 # ## Comparing Loader Outputs
