@@ -33,6 +33,7 @@ import pyarrow as pa
 from timetoalign.core import CoordinateSpec, IdCoordinate, IdGenerator, resolve_id
 from timetoalign.core.enums import NumberType
 from timetoalign.core.timestamp import (
+    ConversionMapsSpec,
     TimeStamp,
     _format_coordinate_value,
 )
@@ -45,10 +46,6 @@ if TYPE_CHECKING:
     from timetoalign.display.ascii import Diagram
     from timetoalign.timelines import Timeline
     from timetoalign.timelines.flow import Flow, FlowControllerBase
-
-# Type alias for flexible conversion_maps parameter (same as Timeline)
-# Accepts: True (all), single cmap/str, or iterable of cmaps/strs
-ConversionMapsSpec = bool | None
 
 module_logger = logging.getLogger(__name__)
 

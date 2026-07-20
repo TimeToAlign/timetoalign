@@ -33,7 +33,11 @@ from timetoalign.core import (
     NumberType,
     TimeUnit,
 )
-from timetoalign.core.timestamp import TimeIntervalStamp, TimeStamp
+from timetoalign.core.timestamp import (
+    ConversionMapsSpec,
+    TimeIntervalStamp,
+    TimeStamp,
+)
 from timetoalign.loader import EventData
 from timetoalign.maps import ConversionMap, InterpolationMap
 
@@ -58,17 +62,6 @@ SEGMENT_EVENT_TYPE = "Segment"
 
 # Traversal order options for iterating children
 TraversalOrder = Literal["sorted", "depth_first", "breadth_first"]
-
-# Type alias for flexible conversion_maps parameter in get_timestamps
-# Accepts: True (all), single cmap/str, or iterable of cmaps/strs
-ConversionMapsSpec = (
-    bool
-    | str
-    | TimeUnit
-    | ConversionMap[Any]
-    | list[ConversionMap[Any] | str | TimeUnit]
-    | None
-)
 
 # endregion
 
@@ -2176,6 +2169,21 @@ class Timeline:
         """
         return self._unit_maps.get(unit)
 
+    def _get_unit_map_for_timeline(
+        self, timeline_id: str, unit: TimeUnit
+    ) -> InterpolationMap | ConversionMap[Any] | None:
+        """Get a C-Map for this timeline when it is the source timeline."""
+        if timeline_id != self._id:
+            return None
+        return self._get_unit_map(unit)
+
+    def _get_number_type_for_timeline(self, timeline_id: str) -> NumberType | None:
+        """Get the numeric representation used by this timeline or child."""
+        if timeline_id == self._id:
+            return self._number_type
+        child = self._children.get(timeline_id)
+        return child.number_type if child is not None else None
+
     def _get_related_timeline_ids(self) -> list[str]:
         """Get IDs of all related timelines (children).
 
@@ -2248,6 +2256,8 @@ class Timeline:
         self,
         coord: CoordinateValue | Coordinate,
         unit: TimeUnit | str | None = None,
+        *,
+        conversion_maps: ConversionMapsSpec = True,
     ) -> TimeStamp:
         """Get a TimeStamp at a specific coordinate.
 
@@ -2262,6 +2272,7 @@ class Timeline:
                 - Coordinate: Must match unit or specify via `unit` param
             unit: If provided, interpret coord as being in this unit.
                 The coordinate is first converted via inverse C-Map.
+            conversion_maps: C-Maps available through the returned stamp.
 
         Returns:
             TimeStamp object for the resolved coordinate.
@@ -2304,6 +2315,7 @@ class Timeline:
             axis=axis,
             source=self,
             source_id=self._id,
+            conversion_maps=conversion_maps,
         )
 
     def get_timestamp_at(
@@ -2328,7 +2340,7 @@ class Timeline:
             get_timestamp: The primary coordinate resolution method.
             timetoalign.TimelineGroup.get_timestamp_at: Group-level version.
         """
-        return self.get_timestamp(coord, unit)
+        return self.get_timestamp(coord, unit=unit)
 
     def get_interval_stamp(
         self,
@@ -2354,8 +2366,8 @@ class Timeline:
             (0.0, 7.5)
         """
         return TimeIntervalStamp(
-            start=self.get_timestamp(start, unit),
-            end=self.get_timestamp(end, unit),
+            start=self.get_timestamp(start, unit=unit),
+            end=self.get_timestamp(end, unit=unit),
         )
 
     def get_timestamp_of(self, event_id: str) -> TimeStamp | TimeIntervalStamp:

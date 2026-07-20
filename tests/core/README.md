@@ -242,6 +242,16 @@ print(interval)            # Two-column (start, end) display with '-' for out-of
 - **TimeIntervalStamp.__str__**: Shows a `-` when one endpoint is out of range for a
   child, making it easy to see events that straddle children.
 
+### `test_stamp_interface.py` - Stamp Family Contract
+
+**Purpose:** Pins the shared `Stamp` contract using `TimeStamp` as its first
+conforming implementation. The exact coordinate values make the `Coordinate`
+return type and its attached `TimeUnit` observable, while the subscript cases
+pin timeline-ID lookup, unit-name fallback, and unknown-key errors. The tests
+also pin `conversion_maps` gating so disabled and allowed-set timestamps cannot
+silently resolve units outside their declared set, and verify the exact
+`to_dict()` materialized shape.
+
 ---
 
 ### `test_field_scalar_parity.py` - Scalar `to(*)` vs Field `convert_to(*)` Parity
