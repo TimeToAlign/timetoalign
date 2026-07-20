@@ -23,6 +23,7 @@ from timetoalign.alignment import (
 )
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
 from timetoalign.alignment.matchline import MatchLine
+from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
@@ -239,9 +240,9 @@ class TestFromClaims:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=200.0,
+                    coordinate_a=Coordinate(200.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=100.0,
+                    coordinate_b=Coordinate(100.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -249,9 +250,9 @@ class TestFromClaims:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=0.0,
+                    coordinate_a=Coordinate(0.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=0.0,
+                    coordinate_b=Coordinate(0.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -259,9 +260,9 @@ class TestFromClaims:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
         ]
@@ -280,9 +281,9 @@ class TestFromClaims:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=0.0,
+                    coordinate_a=Coordinate(0.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=0.0,
+                    coordinate_b=Coordinate(0.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -290,9 +291,9 @@ class TestFromClaims:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -300,9 +301,9 @@ class TestFromClaims:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=200.0,
+                    coordinate_a=Coordinate(200.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=100.0,
+                    coordinate_b=Coordinate(100.0, TimeUnit.number),
                 ),
             ),
         ]
@@ -344,9 +345,9 @@ class TestFromClaims:
                 timeline_b_id="external",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="dgt1",
-                    coordinate_a=0.0,
+                    coordinate_a=Coordinate(0.0, TimeUnit.number),
                     timeline_b_id="external",
-                    coordinate_b=0.0,
+                    coordinate_b=Coordinate(0.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -354,9 +355,9 @@ class TestFromClaims:
                 timeline_b_id="external",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="dgt1",
-                    coordinate_a=500.0,
+                    coordinate_a=Coordinate(500.0, TimeUnit.number),
                     timeline_b_id="external",
-                    coordinate_b=25.0,
+                    coordinate_b=Coordinate(25.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -364,9 +365,9 @@ class TestFromClaims:
                 timeline_b_id="external",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="dgt1",
-                    coordinate_a=1000.0,
+                    coordinate_a=Coordinate(1000.0, TimeUnit.number),
                     timeline_b_id="external",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
         ]
@@ -398,24 +399,25 @@ class TestFromClaims:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=0.0,
+                    coordinate_a=Coordinate(0.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=0.0,
+                    coordinate_b=Coordinate(0.0, TimeUnit.number),
                 ),
             ),
             MatchClaim.nomatch(
                 event={"start": 100.0},
                 source_tl_id="tl_a",
                 target_tl_id="tl_b",
+                unit=TimeUnit.number,
             ),
             MatchClaim(
                 timeline_a_id="tl_a",
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=200.0,
+                    coordinate_a=Coordinate(200.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=100.0,
+                    coordinate_b=Coordinate(100.0, TimeUnit.number),
                 ),
             ),
         ]
@@ -445,9 +447,9 @@ class TestFromGraphs:
                     timeline_b_id="tl_b",
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="tl_a",
-                        coordinate_a=0.0,
+                        coordinate_a=Coordinate(0.0, TimeUnit.number),
                         timeline_b_id="tl_b",
-                        coordinate_b=0.0,
+                        coordinate_b=Coordinate(0.0, TimeUnit.number),
                     ),
                 ),
                 MatchClaim(
@@ -455,9 +457,9 @@ class TestFromGraphs:
                     timeline_b_id="tl_b",
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="tl_a",
-                        coordinate_a=100.0,
+                        coordinate_a=Coordinate(100.0, TimeUnit.number),
                         timeline_b_id="tl_b",
-                        coordinate_b=50.0,
+                        coordinate_b=Coordinate(50.0, TimeUnit.number),
                     ),
                 ),
             ]
@@ -471,9 +473,9 @@ class TestFromGraphs:
                     timeline_b_id="tl_b",
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="tl_a",
-                        coordinate_a=200.0,
+                        coordinate_a=Coordinate(200.0, TimeUnit.number),
                         timeline_b_id="tl_b",
-                        coordinate_b=100.0,
+                        coordinate_b=Coordinate(100.0, TimeUnit.number),
                     ),
                 ),
                 MatchClaim(
@@ -481,9 +483,9 @@ class TestFromGraphs:
                     timeline_b_id="tl_b",
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="tl_a",
-                        coordinate_a=300.0,
+                        coordinate_a=Coordinate(300.0, TimeUnit.number),
                         timeline_b_id="tl_b",
-                        coordinate_b=150.0,
+                        coordinate_b=Coordinate(150.0, TimeUnit.number),
                     ),
                 ),
             ]
@@ -504,9 +506,9 @@ class TestFromGraphs:
                     timeline_b_id="tl_b",
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="tl_a",
-                        coordinate_a=100.0,
+                        coordinate_a=Coordinate(100.0, TimeUnit.number),
                         timeline_b_id="tl_b",
-                        coordinate_b=50.0,
+                        coordinate_b=Coordinate(50.0, TimeUnit.number),
                     ),
                 ),
             ]
@@ -518,9 +520,9 @@ class TestFromGraphs:
                     timeline_b_id="tl_c",
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="tl_a",
-                        coordinate_a=100.0,
+                        coordinate_a=Coordinate(100.0, TimeUnit.number),
                         timeline_b_id="tl_c",
-                        coordinate_b=25.0,
+                        coordinate_b=Coordinate(25.0, TimeUnit.number),
                     ),
                 ),
             ]
@@ -543,9 +545,9 @@ class TestFromGraphs:
                     timeline_b_id="tl_b",
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="tl_a",
-                        coordinate_a=100.0,
+                        coordinate_a=Coordinate(100.0, TimeUnit.number),
                         timeline_b_id="tl_b",
-                        coordinate_b=50.0,
+                        coordinate_b=Coordinate(50.0, TimeUnit.number),
                     ),
                 ),
             ]
@@ -559,9 +561,9 @@ class TestFromGraphs:
                     timeline_b_id="tl_b",
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="tl_a",
-                        coordinate_a=100.0,
+                        coordinate_a=Coordinate(100.0, TimeUnit.number),
                         timeline_b_id="tl_b",
-                        coordinate_b=50.0,
+                        coordinate_b=Coordinate(50.0, TimeUnit.number),
                     ),
                 ),
                 MatchClaim(
@@ -569,9 +571,9 @@ class TestFromGraphs:
                     timeline_b_id="tl_c",
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="tl_b",
-                        coordinate_a=50.0,
+                        coordinate_a=Coordinate(50.0, TimeUnit.number),
                         timeline_b_id="tl_c",
-                        coordinate_b=25.0,
+                        coordinate_b=Coordinate(25.0, TimeUnit.number),
                     ),
                 ),
             ]
@@ -596,9 +598,9 @@ class TestFromGraphs:
                         timeline_b_id="audio",
                         start_anchor=AlignmentAnchor(
                             timeline_a_id="score",
-                            coordinate_a=offset,
+                            coordinate_a=Coordinate(offset, TimeUnit.number),
                             timeline_b_id="audio",
-                            coordinate_b=offset * 0.45,
+                            coordinate_b=Coordinate(offset * 0.45, TimeUnit.number),
                         ),
                     ),
                     MatchClaim(
@@ -606,9 +608,11 @@ class TestFromGraphs:
                         timeline_b_id="audio",
                         start_anchor=AlignmentAnchor(
                             timeline_a_id="score",
-                            coordinate_a=offset + 100.0,
+                            coordinate_a=Coordinate(offset + 100.0, TimeUnit.number),
                             timeline_b_id="audio",
-                            coordinate_b=(offset + 100.0) * 0.45,
+                            coordinate_b=Coordinate(
+                                (offset + 100.0) * 0.45, TimeUnit.number
+                            ),
                         ),
                     ),
                 ]
@@ -642,9 +646,9 @@ class TestFromGraphs:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=0.0,
+                    coordinate_a=Coordinate(0.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=0.0,
+                    coordinate_b=Coordinate(0.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -652,9 +656,9 @@ class TestFromGraphs:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
         ]
@@ -766,9 +770,9 @@ class TestMatchLineIntegration:
                 timeline_b_id="dgt2",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="dgt1",
-                    coordinate_a=0.0,
+                    coordinate_a=Coordinate(0.0, TimeUnit.number),
                     timeline_b_id="dgt2",
-                    coordinate_b=0.0,
+                    coordinate_b=Coordinate(0.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -776,9 +780,9 @@ class TestMatchLineIntegration:
                 timeline_b_id="dgt2",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="dgt1",
-                    coordinate_a=1000.0,
+                    coordinate_a=Coordinate(1000.0, TimeUnit.number),
                     timeline_b_id="dgt2",
-                    coordinate_b=800.0,
+                    coordinate_b=Coordinate(800.0, TimeUnit.number),
                 ),
             ),
         ]

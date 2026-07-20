@@ -453,19 +453,22 @@ class PerformancePrecisionLoader(AlignmentLoader):
                 if time_str == _DANGLING:
                     self._claims.append(
                         MatchClaim.nomatch(
-                            event={"start": float(quarters)},
+                            event={"start": quarters},
                             source_tl_id=_SCORE_TL_ID,
                             target_tl_id=perf_tl_id,
+                            unit=self._score_unit,
                             metadata=meta,
                         )
                     )
                 else:
                     self._claims.append(
                         MatchClaim.from_projection(
-                            event={"start": float(quarters)},
+                            event={"start": quarters},
                             source_tl_id=_SCORE_TL_ID,
                             target_tl_id=perf_tl_id,
                             target_coord=float(time_str),
+                            source_unit=self._score_unit,
+                            target_unit=self._media_unit,
                             coord_key="start",
                             metadata=meta,
                         )

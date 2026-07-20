@@ -296,6 +296,8 @@ class ListenHereLoader(AlignmentLoader):
             timeline_b_ids,
             coordinate_a,
             coordinate_b,
+            unit_a=TimeUnit.seconds,
+            unit_b=TimeUnit.seconds,
             metadata=metadata,
         )
 

@@ -15,7 +15,7 @@ The hierarchy is:
 Design:
     Agent, MatchMetadata, AlignmentAnchor, and MatchClaim are all frozen
     pydantic v2 ``BaseModel`` scalars.  AlignmentAnchor is a pure coordinate
-    pair with no claim semantics; its coordinates are plain ``float`` values.
+    pair with no claim semantics; its coordinates are unit-bearing values.
     Only synchronous MatchClaims produce AlignmentAnchors.  A MatchClaim
     always knows its two timelines via top-level fields.
 
@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator, Sequence
+from fractions import Fraction
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import pyarrow as pa
@@ -41,8 +42,8 @@ from pydantic import (
     model_validator,
 )
 
-from timetoalign.core import AgentType, IdGenerator
-from timetoalign.core.fields import SemanticField, StructField
+from timetoalign.core import AgentType, Coordinate, IdGenerator, TimeUnit
+from timetoalign.core.fields import SemanticField, StructField, register_value_projector
 
 if TYPE_CHECKING:
     from timetoalign.alignment.bundle import AlignmentBundle
@@ -181,6 +182,36 @@ class MatchMetadata(BaseModel):
 # region AlignmentAnchor
 
 
+def _coordinate_to_dict(coordinate: Coordinate) -> dict[str, Any]:
+    """Serialize a coordinate without changing its native numeric value."""
+    return {"value": coordinate.value, "unit": coordinate.unit.value}
+
+
+def _coordinate_from_dict(data: dict[str, Any]) -> Coordinate:
+    """Restore a coordinate from its public or claim-storage dictionary."""
+    numerator = data.get("numerator")
+    denominator = data.get("denominator")
+    value = (
+        Fraction(numerator, denominator)
+        if numerator is not None and denominator is not None
+        else data["value"]
+    )
+    return Coordinate(value, data["unit"])
+
+
+def _event_coordinate_value(raw: Any) -> int | float | Fraction:
+    """Extract an event coordinate while preserving its native numeric value."""
+    if isinstance(raw, Coordinate):
+        return raw.value
+    if isinstance(raw, dict):
+        numerator = raw.get("numerator")
+        denominator = raw.get("denominator")
+        if numerator is not None and denominator is not None:
+            return Fraction(numerator, denominator)
+        return raw["value"]
+    return raw
+
+
 class AlignmentAnchor(BaseModel):
     """A coordinate pair associating one coordinate on timeline A with one
     coordinate on timeline B.
@@ -194,27 +225,27 @@ class AlignmentAnchor(BaseModel):
 
     Attributes:
         timeline_a_id: First timeline's unique identifier.
-        coordinate_a: Coordinate in first timeline (plain ``float``).
+        coordinate_a: Coordinate in first timeline.
         timeline_b_id: Second timeline's unique identifier.
-        coordinate_b: Coordinate in second timeline (plain ``float``).
+        coordinate_b: Coordinate in second timeline.
 
     Examples:
         >>> anchor = AlignmentAnchor(
         ...     timeline_a_id="score:1",
-        ...     coordinate_a=100.0,
+        ...     coordinate_a=Coordinate(100.0, TimeUnit.quarters),
         ...     timeline_b_id="recording:1",
-        ...     coordinate_b=45.5,
+        ...     coordinate_b=Coordinate(45.5, TimeUnit.seconds),
         ... )
         >>> anchor.get_coordinate_for("score:1")
-        100.0
+        Coordinate(100.0, quarters)
     """
 
     model_config = ConfigDict(frozen=True)
 
     timeline_a_id: str
-    coordinate_a: float
+    coordinate_a: Coordinate
     timeline_b_id: str
-    coordinate_b: float
+    coordinate_b: Coordinate
 
     @property
     def timelines(self) -> tuple[str, str]:
@@ -222,11 +253,11 @@ class AlignmentAnchor(BaseModel):
         return (self.timeline_a_id, self.timeline_b_id)
 
     @property
-    def coordinates(self) -> tuple[float, float]:
+    def coordinates(self) -> tuple[Coordinate, Coordinate]:
         """Return tuple of coordinates."""
         return (self.coordinate_a, self.coordinate_b)
 
-    def get_coordinate_for(self, timeline_id: str) -> float | None:
+    def get_coordinate_for(self, timeline_id: str) -> Coordinate | None:
         """Get the coordinate for a specific timeline.
 
         Args:
@@ -271,9 +302,9 @@ class AlignmentAnchor(BaseModel):
         """Serialize to dictionary for storage."""
         return {
             "timeline_a_id": self.timeline_a_id,
-            "coordinate_a": self.coordinate_a,
+            "coordinate_a": _coordinate_to_dict(self.coordinate_a),
             "timeline_b_id": self.timeline_b_id,
-            "coordinate_b": self.coordinate_b,
+            "coordinate_b": _coordinate_to_dict(self.coordinate_b),
         }
 
     @classmethod
@@ -281,15 +312,16 @@ class AlignmentAnchor(BaseModel):
         """Deserialize from dictionary."""
         return cls(
             timeline_a_id=data["timeline_a_id"],
-            coordinate_a=data["coordinate_a"],
+            coordinate_a=_coordinate_from_dict(data["coordinate_a"]),
             timeline_b_id=data["timeline_b_id"],
-            coordinate_b=data["coordinate_b"],
+            coordinate_b=_coordinate_from_dict(data["coordinate_b"]),
         )
 
     def __repr__(self) -> str:
         return (
-            f"AlignmentAnchor({self.timeline_a_id}@{self.coordinate_a:.2f} <-> "
-            f"{self.timeline_b_id}@{self.coordinate_b:.2f})"
+            f"AlignmentAnchor("
+            f"{self.timeline_a_id}@{float(self.coordinate_a.value):.2f} <-> "
+            f"{self.timeline_b_id}@{float(self.coordinate_b.value):.2f})"
         )
 
 
@@ -340,6 +372,8 @@ class MatchClaim(BaseModel):
         ...     tl_a_id="score:1",
         ...     event_b={"id": "e042", "name": "Note C4", "start": 45.5},
         ...     tl_b_id="recording:1",
+        ...     unit_a=TimeUnit.quarters,
+        ...     unit_b=TimeUnit.seconds,
         ... )
         >>> claim.event_a_id
         'e001'
@@ -351,6 +385,7 @@ class MatchClaim(BaseModel):
         ...     event={"id": "orphan", "start": 100.0},
         ...     source_tl_id="score:1",
         ...     target_tl_id="recording:1",
+        ...     unit=TimeUnit.quarters,
         ... )
         >>> claim.start_anchor is None
         True
@@ -370,7 +405,7 @@ class MatchClaim(BaseModel):
     event_a_name: str | None = None
     event_b_id: str | None = None
     event_b_name: str | None = None
-    source_coordinate: float | None = None
+    source_coordinate: Coordinate | None = None
     id: str = ""  # noqa: A003 — auto-generated claim id
 
     # Runtime association with the owning bundle. A private attr is excluded
@@ -458,7 +493,9 @@ class MatchClaim(BaseModel):
         """Return tuple of timeline IDs."""
         return (self.timeline_a_id, self.timeline_b_id)
 
-    def get_coordinates_for(self, timeline_id: str) -> tuple[float, float | None]:
+    def get_coordinates_for(
+        self, timeline_id: str
+    ) -> tuple[Coordinate, Coordinate | None]:
         """Get start and end coordinates for a specific timeline.
 
         Args:
@@ -585,7 +622,7 @@ class MatchClaim(BaseModel):
                 )
             # Delegate to the bundle's cached MatchGraph mechanism
             return effective_bundle.get_matchstamp_at(
-                self.start_anchor.coordinate_a,
+                self.start_anchor.coordinate_a.value,
                 self.timeline_a_id,
                 conversion_maps=conversion_maps,
             )
@@ -594,11 +631,14 @@ class MatchClaim(BaseModel):
             from timetoalign.alignment.graph import MatchStamp
 
             coords = {
-                self.timeline_a_id: self.start_anchor.coordinate_a,
-                self.timeline_b_id: self.start_anchor.coordinate_b,
+                self.timeline_a_id: float(self.start_anchor.coordinate_a.value),
+                self.timeline_b_id: float(self.start_anchor.coordinate_b.value),
             }
             effective_bundle = bundle if bundle is not None else self._bundle
-            units: dict[str, str] = {}
+            units: dict[str, str] = {
+                self.timeline_a_id: self.start_anchor.coordinate_a.unit.value,
+                self.timeline_b_id: self.start_anchor.coordinate_b.unit.value,
+            }
             if effective_bundle is not None:
                 unit_map = effective_bundle._get_unit_map()
                 for timeline_id in coords:
@@ -612,7 +652,7 @@ class MatchClaim(BaseModel):
                 anchor_edges=[(self.timeline_a_id, self.timeline_b_id)],
                 inferred_edges=[],
                 units=units,
-                axis=self.start_anchor.coordinate_a,
+                axis=float(self.start_anchor.coordinate_a.value),
                 source=effective_bundle,
                 source_id=self.timeline_a_id,
                 is_interpolated=False,
@@ -629,6 +669,8 @@ class MatchClaim(BaseModel):
         event_b: dict[str, Any],
         tl_b_id: str,
         *,
+        unit_a: TimeUnit | str,
+        unit_b: TimeUnit | str,
         coord_key: str = "start",
         end_coord_key: str | None = None,
         is_synchronous: bool = True,
@@ -643,6 +685,8 @@ class MatchClaim(BaseModel):
             event_b: Event dict from timeline B (must contain ``coord_key``).
                 May also contain ``id`` and ``name`` fields.
             tl_b_id: Timeline B's ID.
+            unit_a: Unit of timeline A's coordinates.
+            unit_b: Unit of timeline B's coordinates.
             coord_key: Key for start coordinate in event dicts.
             end_coord_key: Key for end coordinate (creates interval match).
             is_synchronous: Whether events are temporally synchronous.
@@ -652,16 +696,13 @@ class MatchClaim(BaseModel):
             A synchronous MatchClaim with 1 or 2 anchors and event info.
         """
 
-        def _extract_coord(event: dict, key: str) -> float:
+        def _extract_coord(event: dict, key: str) -> int | float | Fraction:
             """Extract coordinate value from event dict.
 
             Handles both raw float values and structured coordinate dicts
             with a 'value' key.
             """
-            coord = event[key]
-            if isinstance(coord, dict):
-                return float(coord["value"])
-            return float(coord)
+            return _event_coordinate_value(event[key])
 
         def _extract_str(event: dict, key: str) -> str | None:
             """Extract string value from event dict, returning None if absent."""
@@ -670,18 +711,18 @@ class MatchClaim(BaseModel):
 
         start_anchor = AlignmentAnchor(
             timeline_a_id=tl_a_id,
-            coordinate_a=_extract_coord(event_a, coord_key),
+            coordinate_a=Coordinate(_extract_coord(event_a, coord_key), unit_a),
             timeline_b_id=tl_b_id,
-            coordinate_b=_extract_coord(event_b, coord_key),
+            coordinate_b=Coordinate(_extract_coord(event_b, coord_key), unit_b),
         )
 
         end_anchor = None
         if end_coord_key is not None:
             end_anchor = AlignmentAnchor(
                 timeline_a_id=tl_a_id,
-                coordinate_a=_extract_coord(event_a, end_coord_key),
+                coordinate_a=Coordinate(_extract_coord(event_a, end_coord_key), unit_a),
                 timeline_b_id=tl_b_id,
-                coordinate_b=_extract_coord(event_b, end_coord_key),
+                coordinate_b=Coordinate(_extract_coord(event_b, end_coord_key), unit_b),
             )
 
         return cls(
@@ -703,10 +744,12 @@ class MatchClaim(BaseModel):
         event: dict[str, Any],
         source_tl_id: str,
         target_tl_id: str,
-        target_coord: float,
+        target_coord: int | float | Fraction,
         *,
+        source_unit: TimeUnit | str,
+        target_unit: TimeUnit | str,
         coord_key: str = "start",
-        target_end_coord: float | None = None,
+        target_end_coord: int | float | Fraction | None = None,
         end_coord_key: str | None = None,
         metadata: MatchMetadata | None = None,
     ) -> "MatchClaim":
@@ -721,6 +764,8 @@ class MatchClaim(BaseModel):
             source_tl_id: Source timeline's ID.
             target_tl_id: Target timeline's ID.
             target_coord: Projected coordinate on the target timeline.
+            source_unit: Unit of the source timeline's coordinates.
+            target_unit: Unit of the target timeline's coordinates.
             coord_key: Key for start coordinate in event dict.
             target_end_coord: Projected end coordinate (creates interval match).
             end_coord_key: Key for end coordinate in event dict.
@@ -731,18 +776,22 @@ class MatchClaim(BaseModel):
         """
         start_anchor = AlignmentAnchor(
             timeline_a_id=source_tl_id,
-            coordinate_a=float(event[coord_key]),
+            coordinate_a=Coordinate(
+                _event_coordinate_value(event[coord_key]), source_unit
+            ),
             timeline_b_id=target_tl_id,
-            coordinate_b=target_coord,
+            coordinate_b=Coordinate(target_coord, target_unit),
         )
 
         end_anchor = None
         if target_end_coord is not None and end_coord_key is not None:
             end_anchor = AlignmentAnchor(
                 timeline_a_id=source_tl_id,
-                coordinate_a=float(event[end_coord_key]),
+                coordinate_a=Coordinate(
+                    _event_coordinate_value(event[end_coord_key]), source_unit
+                ),
                 timeline_b_id=target_tl_id,
-                coordinate_b=target_end_coord,
+                coordinate_b=Coordinate(target_end_coord, target_unit),
             )
 
         # Extract event info from source event (target has no event)
@@ -769,6 +818,7 @@ class MatchClaim(BaseModel):
         source_tl_id: str,
         target_tl_id: str,
         *,
+        unit: TimeUnit | str,
         metadata: MatchMetadata | None = None,
     ) -> "MatchClaim":
         """Case (c): An event has no equivalent on the other timeline.
@@ -780,6 +830,7 @@ class MatchClaim(BaseModel):
                 and ``name`` fields.
             source_tl_id: Source timeline's ID.
             target_tl_id: Target timeline's ID.
+            unit: Unit of the source timeline's coordinate.
             metadata: Provenance information.
 
         Returns:
@@ -791,7 +842,9 @@ class MatchClaim(BaseModel):
         event_a_id = str(event["id"]) if event.get("id") is not None else None
         event_a_name = str(event["name"]) if event.get("name") is not None else None
         source_coordinate = (
-            float(event["start"]) if event.get("start") is not None else None
+            Coordinate(_event_coordinate_value(event["start"]), unit)
+            if event.get("start") is not None
+            else None
         )
 
         return cls(
@@ -817,6 +870,8 @@ class MatchClaim(BaseModel):
         tl_b_id: str,
         coord_b: float,
         *,
+        unit_a: TimeUnit | str,
+        unit_b: TimeUnit | str,
         source_claim: "MatchClaim | None" = None,
         metadata: MatchMetadata | None = None,
     ) -> "MatchClaim":
@@ -827,6 +882,8 @@ class MatchClaim(BaseModel):
             coord_a: Coordinate on timeline A.
             tl_b_id: Second timeline's ID.
             coord_b: Coordinate on timeline B.
+            unit_a: Unit of timeline A's coordinate.
+            unit_b: Unit of timeline B's coordinate.
             source_claim: The claim that generated this one.
             metadata: Provenance information.
 
@@ -838,9 +895,9 @@ class MatchClaim(BaseModel):
             timeline_b_id=tl_b_id,
             start_anchor=AlignmentAnchor(
                 timeline_a_id=tl_a_id,
-                coordinate_a=coord_a,
+                coordinate_a=Coordinate(coord_a, unit_a),
                 timeline_b_id=tl_b_id,
-                coordinate_b=coord_b,
+                coordinate_b=Coordinate(coord_b, unit_b),
             ),
             is_synchronous=True,
             is_explicit=False,
@@ -865,7 +922,11 @@ class MatchClaim(BaseModel):
             "event_a_name": self.event_a_name,
             "event_b_id": self.event_b_id,
             "event_b_name": self.event_b_name,
-            "source_coordinate": self.source_coordinate,
+            "source_coordinate": (
+                _coordinate_to_dict(self.source_coordinate)
+                if self.source_coordinate is not None
+                else None
+            ),
         }
         if self.source_claim_id is not None:
             data["source_claim_id"] = self.source_claim_id
@@ -914,7 +975,11 @@ class MatchClaim(BaseModel):
             event_a_name=data.get("event_a_name"),
             event_b_id=data.get("event_b_id"),
             event_b_name=data.get("event_b_name"),
-            source_coordinate=data.get("source_coordinate"),
+            source_coordinate=(
+                _coordinate_from_dict(data["source_coordinate"])
+                if data.get("source_coordinate") is not None
+                else None
+            ),
             id=data.get("id") or "",
         )
 
@@ -947,7 +1012,10 @@ class MatchClaim(BaseModel):
 
         if not self.is_synchronous:
             if self.source_coordinate is not None:
-                timeline_a = f"{self.timeline_a_id}@{self.source_coordinate:.1f}"
+                timeline_a = (
+                    f"{self.timeline_a_id}@"
+                    f"{float(self.source_coordinate.value):.1f}"
+                )
             else:
                 timeline_a = self.timeline_a_id
             return f"MatchClaim({timeline_a} <-> {self.timeline_b_id}{flag_str})"
@@ -957,14 +1025,18 @@ class MatchClaim(BaseModel):
             start_b, end_b = self.get_coordinates_for(self.timeline_b_id)
             return (
                 f"MatchClaim({match_type}: "
-                f"{self.timeline_a_id}[{start_a:.1f}-{end_a:.1f}] <-> "
-                f"{self.timeline_b_id}[{start_b:.1f}-{end_b:.1f}]{flag_str})"
+                f"{self.timeline_a_id}[{float(start_a.value):.1f}-"
+                f"{float(end_a.value):.1f}] <-> "
+                f"{self.timeline_b_id}[{float(start_b.value):.1f}-"
+                f"{float(end_b.value):.1f}]{flag_str})"
             )
         else:
             return (
                 f"MatchClaim({match_type}: "
-                f"{self.timeline_a_id}@{self.start_anchor.coordinate_a:.1f} <-> "
-                f"{self.timeline_b_id}@{self.start_anchor.coordinate_b:.1f}{flag_str})"
+                f"{self.timeline_a_id}@"
+                f"{float(self.start_anchor.coordinate_a.value):.1f} <-> "
+                f"{self.timeline_b_id}@"
+                f"{float(self.start_anchor.coordinate_b.value):.1f}{flag_str})"
             )
 
     def __str__(self) -> str:
@@ -989,9 +1061,9 @@ class MatchClaim(BaseModel):
             elif abs(v) >= 1e6:
                 return str(int(round(v)))
             elif abs(v) >= 1:
-                return f"{v:.6f}".rstrip("0").rstrip(".")
+                return f"{float(v):.6f}".rstrip("0").rstrip(".")
             else:
-                return f"{v:.6f}".rstrip("0").rstrip(".")
+                return f"{float(v):.6f}".rstrip("0").rstrip(".")
 
         def _event_str(ev_id: str | None, ev_name: str | None) -> str | None:
             """Format event info as 'id "name"' or just id/name if one is missing."""
@@ -1021,13 +1093,13 @@ class MatchClaim(BaseModel):
             if self.is_interval and self.end_anchor is not None:
                 lines.append(
                     f"  Timeline A:  {self.timeline_a_id}  "
-                    f"[{_fmt(self.start_anchor.coordinate_a)} -- "
-                    f"{_fmt(self.end_anchor.coordinate_a)}]"
+                    f"[{_fmt(self.start_anchor.coordinate_a.value)} -- "
+                    f"{_fmt(self.end_anchor.coordinate_a.value)}]"
                 )
             else:
                 lines.append(
                     f"  Timeline A:  {self.timeline_a_id}  "
-                    f"@{_fmt(self.start_anchor.coordinate_a)}"
+                    f"@{_fmt(self.start_anchor.coordinate_a.value)}"
                 )
         else:
             lines.append(f"  Timeline A:  {self.timeline_a_id}")
@@ -1042,13 +1114,13 @@ class MatchClaim(BaseModel):
             if self.is_interval and self.end_anchor is not None:
                 lines.append(
                     f"  Timeline B:  {self.timeline_b_id}  "
-                    f"[{_fmt(self.start_anchor.coordinate_b)} -- "
-                    f"{_fmt(self.end_anchor.coordinate_b)}]"
+                    f"[{_fmt(self.start_anchor.coordinate_b.value)} -- "
+                    f"{_fmt(self.end_anchor.coordinate_b.value)}]"
                 )
             else:
                 lines.append(
                     f"  Timeline B:  {self.timeline_b_id}  "
-                    f"@{_fmt(self.start_anchor.coordinate_b)}"
+                    f"@{_fmt(self.start_anchor.coordinate_b.value)}"
                 )
         else:
             lines.append(f"  Timeline B:  {self.timeline_b_id}")
@@ -1086,9 +1158,9 @@ class MatchClaim(BaseModel):
             elif abs(v) >= 1e6:
                 return str(int(round(v)))
             elif abs(v) >= 1:
-                return f"{v:.6f}".rstrip("0").rstrip(".")
+                return f"{float(v):.6f}".rstrip("0").rstrip(".")
             else:
-                return f"{v:.6f}".rstrip("0").rstrip(".")
+                return f"{float(v):.6f}".rstrip("0").rstrip(".")
 
         # Header badge
         if not self.is_synchronous:
@@ -1137,11 +1209,11 @@ class MatchClaim(BaseModel):
         if self.is_synchronous and self.start_anchor is not None:
             if self.is_interval and self.end_anchor is not None:
                 coord_a = (
-                    f"[{_fmt(self.start_anchor.coordinate_a)} &ndash; "
-                    f"{_fmt(self.end_anchor.coordinate_a)}]"
+                    f"[{_fmt(self.start_anchor.coordinate_a.value)} &ndash; "
+                    f"{_fmt(self.end_anchor.coordinate_a.value)}]"
                 )
             else:
-                coord_a = f"@{_fmt(self.start_anchor.coordinate_a)}"
+                coord_a = f"@{_fmt(self.start_anchor.coordinate_a.value)}"
 
             rows.append(
                 f"<tr><td>Timeline A</td>"
@@ -1164,11 +1236,11 @@ class MatchClaim(BaseModel):
         if self.is_synchronous and self.start_anchor is not None:
             if self.is_interval and self.end_anchor is not None:
                 coord_b = (
-                    f"[{_fmt(self.start_anchor.coordinate_b)} &ndash; "
-                    f"{_fmt(self.end_anchor.coordinate_b)}]"
+                    f"[{_fmt(self.start_anchor.coordinate_b.value)} &ndash; "
+                    f"{_fmt(self.end_anchor.coordinate_b.value)}]"
                 )
             else:
-                coord_b = f"@{_fmt(self.start_anchor.coordinate_b)}"
+                coord_b = f"@{_fmt(self.start_anchor.coordinate_b.value)}"
 
             rows.append(
                 f"<tr><td>Timeline B</td>"
@@ -1216,6 +1288,28 @@ class MatchClaim(BaseModel):
 # region MatchClaimField
 
 
+_CLAIM_COORDINATE_TYPE = pa.struct(
+    [
+        pa.field("value", pa.float64(), nullable=True),
+        pa.field("numerator", pa.int64(), nullable=True),
+        pa.field("denominator", pa.int64(), nullable=True),
+        pa.field("unit", pa.string(), nullable=True),
+    ]
+)
+
+
+def _claim_coordinate_projector(
+    _model_cls: type[BaseModel], name: str, _info: object
+) -> list[pa.Field]:
+    """Store a claim coordinate's exact value and unit in each row."""
+    return [pa.field(name, _CLAIM_COORDINATE_TYPE, nullable=True)]
+
+
+register_value_projector(AlignmentAnchor, "coordinate_a", _claim_coordinate_projector)
+register_value_projector(AlignmentAnchor, "coordinate_b", _claim_coordinate_projector)
+register_value_projector(MatchClaim, "source_coordinate", _claim_coordinate_projector)
+
+
 class MatchClaimField(SemanticField[MatchClaim]):
     """A ``SemanticField[MatchClaim]`` columnar store for pairwise claims.
 
@@ -1257,6 +1351,8 @@ class MatchClaimField(SemanticField[MatchClaim]):
         ...     timeline_b_ids=["B", "C", "C"],
         ...     coordinate_a=[0.0, 0.0, 1.0],
         ...     coordinate_b=[10.0, 20.0, 21.0],
+        ...     unit_a=TimeUnit.quarters,
+        ...     unit_b=TimeUnit.seconds,
         ...     metadata=meta,
         ... )
         >>> len(field)
@@ -1292,9 +1388,11 @@ class MatchClaimField(SemanticField[MatchClaim]):
         cls,
         timeline_a_ids: Sequence[str] | pa.Array | pa.ChunkedArray,
         timeline_b_ids: Sequence[str] | pa.Array | pa.ChunkedArray,
-        coordinate_a: Sequence[float] | pa.Array | pa.ChunkedArray,
-        coordinate_b: Sequence[float] | pa.Array | pa.ChunkedArray,
+        coordinate_a: Sequence[int | float | Fraction] | pa.Array | pa.ChunkedArray,
+        coordinate_b: Sequence[int | float | Fraction] | pa.Array | pa.ChunkedArray,
         *,
+        unit_a: TimeUnit | str,
+        unit_b: TimeUnit | str,
         metadata: MatchMetadata | None = None,
     ) -> "MatchClaimField":
         """Build a field directly from parallel columns (the vectorized path).
@@ -1315,8 +1413,10 @@ class MatchClaimField(SemanticField[MatchClaim]):
         Args:
             timeline_a_ids: Timeline-A ids, one per claim.
             timeline_b_ids: Timeline-B ids, one per claim.
-            coordinate_a: Coordinate on timeline A, one per claim (``float64``).
-            coordinate_b: Coordinate on timeline B, one per claim (``float64``).
+            coordinate_a: Coordinate value on timeline A, one per claim.
+            coordinate_b: Coordinate value on timeline B, one per claim.
+            unit_a: Unit applied to every coordinate on timeline A.
+            unit_b: Unit applied to every coordinate on timeline B.
             metadata: Shared provenance for every claim in the field.
 
         Returns:
@@ -1327,8 +1427,8 @@ class MatchClaimField(SemanticField[MatchClaim]):
         """
         tl_a = cls._string_array(timeline_a_ids)
         tl_b = cls._string_array(timeline_b_ids)
-        coord_a = cls._float_array(coordinate_a)
-        coord_b = cls._float_array(coordinate_b)
+        coord_a = cls._coordinate_struct_array(coordinate_a, unit_a)
+        coord_b = cls._coordinate_struct_array(coordinate_b, unit_b)
 
         lengths = {len(tl_a), len(tl_b), len(coord_a), len(coord_b)}
         if len(lengths) != 1:
@@ -1389,18 +1489,20 @@ class MatchClaimField(SemanticField[MatchClaim]):
         if metadata is None:
             metadata = cls._common_metadata(claims)
 
-        timeline_a_ids = [claim.timeline_a_id for claim in claims]
-        timeline_b_ids = [claim.timeline_b_id for claim in claims]
-        coordinate_a = [claim.start_anchor.coordinate_a for claim in claims]
-        coordinate_b = [claim.start_anchor.coordinate_b for claim in claims]
-
-        return cls.from_columns(
-            timeline_a_ids,
-            timeline_b_ids,
-            coordinate_a,
-            coordinate_b,
-            metadata=metadata,
+        tl_a = cls._string_array([claim.timeline_a_id for claim in claims])
+        tl_b = cls._string_array([claim.timeline_b_id for claim in claims])
+        coord_a = cls._coordinate_struct_array(
+            [claim.start_anchor.coordinate_a.value for claim in claims],
+            [claim.start_anchor.coordinate_a.unit for claim in claims],
         )
+        coord_b = cls._coordinate_struct_array(
+            [claim.start_anchor.coordinate_b.value for claim in claims],
+            [claim.start_anchor.coordinate_b.unit for claim in claims],
+        )
+        struct_array = cls._build_struct_array(
+            len(claims), tl_a, tl_b, coord_a, coord_b
+        )
+        return cls._from_struct_array(struct_array, metadata=metadata)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MatchClaimField":
@@ -1421,13 +1523,12 @@ class MatchClaimField(SemanticField[MatchClaim]):
             if metadata_dict is not None
             else None
         )
-        return cls.from_columns(
-            data["timeline_a_id"],
-            data["timeline_b_id"],
-            data["coordinate_a"],
-            data["coordinate_b"],
-            metadata=metadata,
-        )
+        tl_a = cls._string_array(data["timeline_a_id"])
+        tl_b = cls._string_array(data["timeline_b_id"])
+        coord_a = cls._coordinate_struct_array(data["coordinate_a"], data["unit_a"])
+        coord_b = cls._coordinate_struct_array(data["coordinate_b"], data["unit_b"])
+        struct_array = cls._build_struct_array(len(tl_a), tl_a, tl_b, coord_a, coord_b)
+        return cls._from_struct_array(struct_array, metadata=metadata)
 
     @classmethod
     def _from_struct_array(
@@ -1447,8 +1548,8 @@ class MatchClaimField(SemanticField[MatchClaim]):
         n: int,
         timeline_a_id: pa.Array,
         timeline_b_id: pa.Array,
-        coordinate_a: pa.Array,
-        coordinate_b: pa.Array,
+        coordinate_a: pa.StructArray,
+        coordinate_b: pa.StructArray,
     ) -> pa.StructArray:
         """Assemble the derived ``MatchClaim`` struct array, vectorized.
 
@@ -1502,15 +1603,94 @@ class MatchClaimField(SemanticField[MatchClaim]):
         return pa.array(list(values), type=pa.string())
 
     @staticmethod
-    def _float_array(
-        values: Sequence[float] | pa.Array | pa.ChunkedArray,
-    ) -> pa.Array:
-        """Coerce a sequence/array of coordinates into a ``float64`` array."""
+    def _coordinate_struct_array(
+        values: Sequence[int | float | Fraction] | pa.Array | pa.ChunkedArray,
+        units: TimeUnit | str | Sequence[TimeUnit | str],
+    ) -> pa.StructArray:
+        """Build exact-value, per-row-unit coordinate storage."""
         if isinstance(values, pa.ChunkedArray):
             values = values.combine_chunks()
         if isinstance(values, pa.Array):
-            return pc.cast(values, pa.float64())
-        return pa.array(list(values), type=pa.float64())
+            raw_values = values.to_pylist()
+        else:
+            raw_values = list(values)
+
+        if isinstance(units, (TimeUnit, str)):
+            raw_units = [units] * len(raw_values)
+        else:
+            raw_units = list(units)
+        if len(raw_units) != len(raw_values):
+            raise ValueError("Coordinate values and units must have equal length.")
+
+        if isinstance(units, (TimeUnit, str)):
+            try:
+                numeric_array = pa.array(raw_values)
+            except (pa.ArrowInvalid, pa.ArrowTypeError):
+                numeric_array = None
+            if numeric_array is not None and (
+                pa.types.is_integer(numeric_array.type)
+                or pa.types.is_floating(numeric_array.type)
+            ):
+                unit = units if isinstance(units, TimeUnit) else TimeUnit(units)
+                is_integer = pa.types.is_integer(numeric_array.type)
+                return pa.StructArray.from_arrays(
+                    [
+                        pc.cast(numeric_array, pa.float64()),
+                        (
+                            pc.cast(numeric_array, pa.int64())
+                            if is_integer
+                            else pa.nulls(len(numeric_array), pa.int64())
+                        ),
+                        (
+                            pa.array([1] * len(numeric_array), pa.int64())
+                            if is_integer
+                            else pa.nulls(len(numeric_array), pa.int64())
+                        ),
+                        pa.array([unit.value] * len(numeric_array), pa.string()),
+                    ],
+                    fields=list(_CLAIM_COORDINATE_TYPE),
+                    mask=pc.is_null(numeric_array),
+                )
+
+        float_values: list[float | None] = []
+        numerators: list[int | None] = []
+        denominators: list[int | None] = []
+        unit_values: list[str | None] = []
+        null_mask: list[bool] = []
+        for raw, raw_unit in zip(raw_values, raw_units, strict=True):
+            if raw is None:
+                float_values.append(None)
+                numerators.append(None)
+                denominators.append(None)
+                unit_values.append(None)
+                null_mask.append(True)
+                continue
+            if hasattr(raw, "item"):
+                raw = raw.item()
+            float_values.append(float(raw))
+            if isinstance(raw, Fraction):
+                numerators.append(raw.numerator)
+                denominators.append(raw.denominator)
+            elif isinstance(raw, int) and not isinstance(raw, bool):
+                numerators.append(raw)
+                denominators.append(1)
+            else:
+                numerators.append(None)
+                denominators.append(None)
+            unit = raw_unit if isinstance(raw_unit, TimeUnit) else TimeUnit(raw_unit)
+            unit_values.append(unit.value)
+            null_mask.append(False)
+
+        return pa.StructArray.from_arrays(
+            [
+                pa.array(float_values, type=pa.float64()),
+                pa.array(numerators, type=pa.int64()),
+                pa.array(denominators, type=pa.int64()),
+                pa.array(unit_values, type=pa.string()),
+            ],
+            fields=list(_CLAIM_COORDINATE_TYPE),
+            mask=pa.array(null_mask, type=pa.bool_()),
+        )
 
     @staticmethod
     def _common_metadata(claims: list[MatchClaim]) -> MatchMetadata | None:
@@ -1678,14 +1858,24 @@ class MatchClaimField(SemanticField[MatchClaim]):
                 "timeline_b_id": empty,
                 "coordinate_a": empty,
                 "coordinate_b": empty,
+                "unit_a": empty,
+                "unit_b": empty,
             }
         else:
             anchor = data.field("start_anchor")
+            stored_a = anchor.field("coordinate_a").to_pylist()
+            stored_b = anchor.field("coordinate_b").to_pylist()
             columns = {
                 "timeline_a_id": data.field("timeline_a_id").to_pylist(),
                 "timeline_b_id": data.field("timeline_b_id").to_pylist(),
-                "coordinate_a": anchor.field("coordinate_a").to_pylist(),
-                "coordinate_b": anchor.field("coordinate_b").to_pylist(),
+                "coordinate_a": [
+                    _coordinate_from_dict(value).value for value in stored_a
+                ],
+                "coordinate_b": [
+                    _coordinate_from_dict(value).value for value in stored_b
+                ],
+                "unit_a": [value["unit"] for value in stored_a],
+                "unit_b": [value["unit"] for value in stored_b],
             }
         columns["metadata"] = (
             self._metadata.to_dict() if self._metadata is not None else None
@@ -1728,9 +1918,9 @@ class MatchClaimField(SemanticField[MatchClaim]):
             rows.append(
                 f"<tr><td>{i}</td>"
                 f"<td>{html_mod.escape(claim.timeline_a_id)}</td>"
-                f"<td>{anchor.coordinate_a:g}</td>"
+                f"<td>{float(anchor.coordinate_a.value):g}</td>"
                 f"<td>{html_mod.escape(claim.timeline_b_id)}</td>"
-                f"<td>{anchor.coordinate_b:g}</td></tr>"
+                f"<td>{float(anchor.coordinate_b.value):g}</td></tr>"
             )
         if n > head:
             rows.append("<tr><td colspan='5'>&hellip;</td></tr>")

@@ -18,7 +18,7 @@ from timetoalign.alignment import Agent, AlignmentAnchor, MatchClaim, MatchMetad
 from timetoalign.alignment.bundle import _reset_bundle_ids
 from timetoalign.alignment.claims import _reset_anchor_ids, _reset_claim_ids
 from timetoalign.alignment.groups import _reset_group_ids
-from timetoalign.core import AgentType
+from timetoalign.core import AgentType, Coordinate, TimeUnit
 from timetoalign.testdata import ensure_data
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
@@ -213,15 +213,19 @@ def thoresen_segment_claims() -> list[MatchClaim]:
             timeline_b_id="dgt2",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=float(offset_dgt1),
+                coordinate_a=Coordinate(offset_dgt1, TimeUnit.pixels),
                 timeline_b_id="dgt2",
-                coordinate_b=float(offset_dgt2),
+                coordinate_b=Coordinate(offset_dgt2, TimeUnit.pixels),
             ),
             end_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=float(offset_dgt1 + DGT1_SEGMENT_LENGTH),
+                coordinate_a=Coordinate(
+                    offset_dgt1 + DGT1_SEGMENT_LENGTH, TimeUnit.pixels
+                ),
                 timeline_b_id="dgt2",
-                coordinate_b=float(offset_dgt2 + DGT2_SEGMENT_LENGTHS[i]),
+                coordinate_b=Coordinate(
+                    offset_dgt2 + DGT2_SEGMENT_LENGTHS[i], TimeUnit.pixels
+                ),
             ),
             metadata=MatchMetadata(
                 agent=Agent(

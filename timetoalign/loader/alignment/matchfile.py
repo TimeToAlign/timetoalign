@@ -490,6 +490,8 @@ class MatchfileLoader:
                 tl_a_id=score_tl_id,
                 event_b={"start": perf_start, "end": perf_end},
                 tl_b_id=perf_tl_id,
+                unit_a=self._score_unit,
+                unit_b=TimeUnit.ticks,
                 coord_key="start",
                 end_coord_key="end",
                 metadata=MATCH_META,
@@ -513,6 +515,7 @@ class MatchfileLoader:
                 event={"start": score_start},
                 source_tl_id=score_tl_id,
                 target_tl_id=perf_tl_id,
+                unit=self._score_unit,
                 metadata=MATCH_META,
             )
             self._claims.append(claim)

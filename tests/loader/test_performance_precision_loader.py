@@ -256,8 +256,10 @@ def test_ashkenazy_bar_spot_check(bundle) -> None:
     synchronous = [c for c in bar_claims if c.is_synchronous]
     # The first bar row of the file is LABEL 1+0/1 (the first downbeat).
     first = synchronous[0]
-    assert first.start_anchor.coordinate_a == 0.5
-    assert first.start_anchor.coordinate_b == 10.272
+    assert first.start_anchor.coordinate_a.value == Fraction(1, 2)
+    assert first.start_anchor.coordinate_a.unit is TimeUnit.quarters
+    assert first.start_anchor.coordinate_b.value == 10.272
+    assert first.start_anchor.coordinate_b.unit is TimeUnit.seconds
 
 
 # endregion

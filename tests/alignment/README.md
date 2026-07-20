@@ -208,16 +208,21 @@ Both implement the `TimeStampSource` protocol, enabling code reuse.
 
 **Design:** AlignmentAnchor is a **pure coordinate pair** — a neutral record associating one coordinate on timeline A with one coordinate on timeline B. It contains no claim semantics (`is_synchronous`, `is_explicit`, `id` fields were removed). Claim semantics live exclusively on `MatchClaim`.
 
-`AlignmentAnchor` is now a **frozen pydantic v2 `BaseModel`** (the whole claim family — `Agent`, `MatchMetadata`, `AlignmentAnchor`, `MatchClaim` — moved from frozen dataclasses to pydantic scalars). Its coordinates remain plain `float` values.
+`AlignmentAnchor` is a **frozen pydantic v2 `BaseModel`** whose coordinates are
+unit-bearing `Coordinate` values. Tests cover both the public scalar contract and
+the claim-specific Arrow projection: coordinate values retain exact `Fraction`
+representations, each side retains its per-row unit, and mixed-unit anchors survive
+field storage and materialisation without changing their numeric values.
 
 ### Key Evidence
 
 | Test | Validates |
 |------|-----------|
-| `test_basic_creation` | Anchor stores two timeline IDs and two coordinates (no semantic flags) |
+| `test_basic_creation` | Anchor stores two timeline IDs and two required `Coordinate` scalars (no raw-float coercion or semantic flags) |
 | `test_connects` / `test_connects_both` | Query methods correctly identify connected timelines |
-| `test_get_coordinate_for` | Coordinate retrieval by timeline ID |
-| `test_from_dict_roundtrip` | Serialization preserves all fields exactly (no legacy fields) |
+| `test_get_coordinate_for` | Coordinate retrieval preserves the exact value and unit |
+| `test_from_dict_roundtrip` | Nested coordinate dictionaries round-trip exactly (no legacy flat-float shape) |
+| `test_fraction_roundtrip` / mixed-unit field tests | `Fraction(7, 3)` and independent quarters/seconds units survive `MatchClaimField` Arrow storage and materialisation |
 | `test_frozen_model` | Immutability enforced (frozen pydantic model) |
 
 ### Why Immutability Matters
@@ -278,7 +283,7 @@ falls back to the bare timeline id.
 | Test | Validates |
 |------|-----------|
 | `test_repr_non_synchronous` | NOMATCH claim repr carries the `NOMATCH` flag and never the literal "non-synchronous" |
-| `test_repr_nomatch_with_coordinate_exact` | Exact string `MatchClaim(score:clt1@188.8 <-> perf:Chopin_Ashkenazy [NOMATCH])`; `source_coordinate == 188.8` |
+| `test_repr_nomatch_with_coordinate_exact` | Exact string `MatchClaim(score:clt1@188.8 <-> perf:Chopin_Ashkenazy [NOMATCH])`; `source_coordinate.value == 188.8` with the source unit |
 | `test_repr_nomatch_without_coordinate` | No `start` in the event ⇒ `source_coordinate is None` and repr drops the `@coord` segment |
 | `test_nomatch_source_coordinate_roundtrip` | `from_dict(to_dict())` preserves `source_coordinate` and equals the original |
 | `test_repr_synchronous_instant_unchanged` | Regression guard: a synchronous instant repr is byte-for-byte unchanged and its `source_coordinate is None` |
@@ -357,7 +362,9 @@ mirrors how `CoordinateField` carries its `unit` outside the data: the struct
 column's `metadata` sub-field is left null in the bulk path, and `__getitem__`
 injects the field-level metadata into each materialised `MatchClaim`. This
 keeps the store compact (one struct column, no per-row metadata) while the field
-remains a real SemanticField. Anchor coordinates remain plain `float`.
+remains a real SemanticField. Each anchor coordinate is stored as a nested
+`{value, numerator, denominator, unit}` struct so exact rational values and
+per-row units survive materialisation.
 
 ### Scope (v1) — and what raises
 
@@ -393,6 +400,8 @@ f = MatchClaimField.from_columns(
     timeline_b_ids=["B", "C", "C"],
     coordinate_a=[0.0, 0.0, 1.0],
     coordinate_b=[10.0, 20.0, 21.0],
+    unit_a=TimeUnit.quarters,
+    unit_b=TimeUnit.seconds,
     metadata=meta,
 )
 ```

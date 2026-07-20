@@ -24,7 +24,7 @@ from timetoalign.alignment.claims import (
     MatchMetadata,
 )
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
-from timetoalign.core import AgentType
+from timetoalign.core import AgentType, Coordinate, TimeUnit
 from timetoalign.timelines import Timeline
 
 # region Helpers
@@ -71,9 +71,9 @@ def _make_star_bundle():
                     timeline_b_id=perf_id,
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="score:clt1",
-                        coordinate_a=coord_s,
+                        coordinate_a=Coordinate(coord_s, TimeUnit.number),
                         timeline_b_id=perf_id,
-                        coordinate_b=coord_p,
+                        coordinate_b=Coordinate(coord_p, TimeUnit.number),
                     ),
                     is_synchronous=True,
                 )
@@ -186,9 +186,9 @@ class TestMatchGraphGetMatchstamp:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -196,9 +196,9 @@ class TestMatchGraphGetMatchstamp:
                 timeline_b_id="tl_c",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_b",
-                    coordinate_a=50.0,
+                    coordinate_a=Coordinate(50.0, TimeUnit.number),
                     timeline_b_id="tl_c",
-                    coordinate_b=25.0,
+                    coordinate_b=Coordinate(25.0, TimeUnit.number),
                 ),
             ),
         ]
@@ -217,9 +217,9 @@ class TestMatchGraphGetMatchstamp:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -227,9 +227,9 @@ class TestMatchGraphGetMatchstamp:
                 timeline_b_id="tl_d",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_c",
-                    coordinate_a=200.0,
+                    coordinate_a=Coordinate(200.0, TimeUnit.number),
                     timeline_b_id="tl_d",
-                    coordinate_b=75.0,
+                    coordinate_b=Coordinate(75.0, TimeUnit.number),
                 ),
             ),
         ]
@@ -269,9 +269,9 @@ class TestMatchGraphSplitComponents:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
         ]
@@ -289,9 +289,9 @@ class TestMatchGraphSplitComponents:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -299,9 +299,9 @@ class TestMatchGraphSplitComponents:
                 timeline_b_id="tl_d",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_c",
-                    coordinate_a=200.0,
+                    coordinate_a=Coordinate(200.0, TimeUnit.number),
                     timeline_b_id="tl_d",
-                    coordinate_b=75.0,
+                    coordinate_b=Coordinate(75.0, TimeUnit.number),
                 ),
             ),
         ]
@@ -326,9 +326,9 @@ class TestMatchGraphSplitComponents:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
         ]
@@ -354,9 +354,9 @@ class TestMatchGraphStarTopology:
                     timeline_b_id=perf_id,
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="score:clt1",
-                        coordinate_a=0.0,
+                        coordinate_a=Coordinate(0.0, TimeUnit.number),
                         timeline_b_id=perf_id,
-                        coordinate_b=float(i * 10),
+                        coordinate_b=Coordinate(float(i * 10), TimeUnit.number),
                     ),
                 )
             )
@@ -382,9 +382,9 @@ class TestMatchGraphStarTopology:
                     timeline_b_id=perf_id,
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="score:clt1",
-                        coordinate_a=0.0,
+                        coordinate_a=Coordinate(0.0, TimeUnit.number),
                         timeline_b_id=perf_id,
-                        coordinate_b=float(i * 10),
+                        coordinate_b=Coordinate(float(i * 10), TimeUnit.number),
                     ),
                 )
             )
@@ -414,9 +414,9 @@ class TestMatchClaimGetMatchstamp:
             timeline_b_id="perf:dlt1",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="score:clt1",
-                coordinate_a=10.0,
+                coordinate_a=Coordinate(10.0, TimeUnit.number),
                 timeline_b_id="perf:dlt1",
-                coordinate_b=128.0,
+                coordinate_b=Coordinate(128.0, TimeUnit.number),
             ),
         )
         stamp = claim.get_matchstamp(from_graph=False)
@@ -441,9 +441,9 @@ class TestMatchClaimGetMatchstamp:
             timeline_b_id="perf:dlt1",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="score:clt1",
-                coordinate_a=10.0,
+                coordinate_a=Coordinate(10.0, TimeUnit.number),
                 timeline_b_id="perf:dlt1",
-                coordinate_b=128.0,
+                coordinate_b=Coordinate(128.0, TimeUnit.number),
             ),
         )
         with pytest.raises(ValueError, match="bundle is required"):
@@ -497,9 +497,9 @@ class TestMatchGraphCache:
                     timeline_b_id="perf:dlt1",
                     start_anchor=AlignmentAnchor(
                         timeline_a_id="score:clt1",
-                        coordinate_a=99.0,
+                        coordinate_a=Coordinate(99.0, TimeUnit.number),
                         timeline_b_id="perf:dlt1",
-                        coordinate_b=198.0,
+                        coordinate_b=Coordinate(198.0, TimeUnit.number),
                     ),
                 ),
             ]
@@ -716,9 +716,9 @@ class TestMatchClaimDisplay:
             timeline_b_id="perf:dlt1",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="score:clt1",
-                coordinate_a=10.0,
+                coordinate_a=Coordinate(10.0, TimeUnit.number),
                 timeline_b_id="perf:dlt1",
-                coordinate_b=128.0,
+                coordinate_b=Coordinate(128.0, TimeUnit.number),
             ),
         )
         s = str(claim)
@@ -735,15 +735,15 @@ class TestMatchClaimDisplay:
             timeline_b_id="perf:dlt1",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="score:clt1",
-                coordinate_a=0.0,
+                coordinate_a=Coordinate(0.0, TimeUnit.number),
                 timeline_b_id="perf:dlt1",
-                coordinate_b=0.0,
+                coordinate_b=Coordinate(0.0, TimeUnit.number),
             ),
             end_anchor=AlignmentAnchor(
                 timeline_a_id="score:clt1",
-                coordinate_a=10.0,
+                coordinate_a=Coordinate(10.0, TimeUnit.number),
                 timeline_b_id="perf:dlt1",
-                coordinate_b=128.0,
+                coordinate_b=Coordinate(128.0, TimeUnit.number),
             ),
         )
         s = str(claim)
@@ -770,9 +770,9 @@ class TestMatchClaimDisplay:
             timeline_b_id="perf:dlt1",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="score:clt1",
-                coordinate_a=10.0,
+                coordinate_a=Coordinate(10.0, TimeUnit.number),
                 timeline_b_id="perf:dlt1",
-                coordinate_b=128.0,
+                coordinate_b=Coordinate(128.0, TimeUnit.number),
             ),
             metadata=MatchMetadata(
                 agent=Agent(
@@ -795,9 +795,9 @@ class TestMatchClaimDisplay:
             timeline_b_id="tl_b",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="tl_a",
-                coordinate_a=0.0,
+                coordinate_a=Coordinate(0.0, TimeUnit.number),
                 timeline_b_id="tl_b",
-                coordinate_b=0.0,
+                coordinate_b=Coordinate(0.0, TimeUnit.number),
             ),
             is_explicit=False,
             source_claim_id="claim_1",
@@ -814,9 +814,9 @@ class TestMatchClaimDisplay:
             timeline_b_id="perf:dlt1",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="score:clt1",
-                coordinate_a=10.0,
+                coordinate_a=Coordinate(10.0, TimeUnit.number),
                 timeline_b_id="perf:dlt1",
-                coordinate_b=128.0,
+                coordinate_b=Coordinate(128.0, TimeUnit.number),
             ),
         )
         html = claim._repr_html_()
@@ -842,9 +842,9 @@ class TestMatchClaimDisplay:
             timeline_b_id="perf:dlt1",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="score:clt1",
-                coordinate_a=10.0,
+                coordinate_a=Coordinate(10.0, TimeUnit.number),
                 timeline_b_id="perf:dlt1",
-                coordinate_b=128.0,
+                coordinate_b=Coordinate(128.0, TimeUnit.number),
             ),
         )
         html = claim._repr_html_()
@@ -878,6 +878,8 @@ class TestMatchClaimEventStorage:
             tl_a_id="score:clt1",
             event_b=event_b,
             tl_b_id="perf:dlt1",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
 
         assert claim.event_a_id == "e000001"
@@ -893,6 +895,8 @@ class TestMatchClaimEventStorage:
             tl_a_id="tl_a",
             event_b=event_b,
             tl_b_id="tl_b",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
 
         assert claim.event_a_name == "Intro"
@@ -908,6 +912,8 @@ class TestMatchClaimEventStorage:
             tl_a_id="tl_a",
             event_b=event_b,
             tl_b_id="tl_b",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
 
         assert claim.event_a_id is None
@@ -924,6 +930,8 @@ class TestMatchClaimEventStorage:
             source_tl_id="source",
             target_tl_id="target",
             target_coord=10.0,
+            source_unit=TimeUnit.number,
+            target_unit=TimeUnit.number,
         )
 
         assert claim.event_a_id == "e100"
@@ -940,6 +948,7 @@ class TestMatchClaimEventStorage:
             event=event,
             source_tl_id="score",
             target_tl_id="perf",
+            unit=TimeUnit.number,
         )
 
         assert claim.event_a_id == "e999"
@@ -952,6 +961,8 @@ class TestMatchClaimEventStorage:
             tl_a_id="score:clt1",
             event_b={"id": "e042", "start": 128.0},
             tl_b_id="perf:dlt1",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
 
         s = str(claim)
@@ -965,6 +976,8 @@ class TestMatchClaimEventStorage:
             tl_a_id="tl_a",
             event_b={"id": "e002", "name": "Verse 1", "start": 0.0},
             tl_b_id="tl_b",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
 
         s = str(claim)
@@ -978,6 +991,8 @@ class TestMatchClaimEventStorage:
             tl_a_id="score",
             event_b={"id": "note_042", "name": "C4", "start": 128.0},
             tl_b_id="perf",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
 
         html = claim._repr_html_()
@@ -992,6 +1007,8 @@ class TestMatchClaimEventStorage:
             tl_a_id="tl_a",
             event_b={"start": 20.0},
             tl_b_id="tl_b",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
 
         html = claim._repr_html_()
@@ -1005,6 +1022,8 @@ class TestMatchClaimEventStorage:
             tl_a_id="tl_a",
             event_b={"id": "e002", "name": "Note B", "start": 0.0},
             tl_b_id="tl_b",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
 
         d = claim.to_dict()
@@ -1020,6 +1039,8 @@ class TestMatchClaimEventStorage:
             tl_a_id="tl_a",
             event_b={"id": "e002", "name": "Onset", "start": 0.0},
             tl_b_id="tl_b",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
 
         d = original.to_dict()
@@ -1037,9 +1058,9 @@ class TestMatchClaimEventStorage:
             timeline_b_id="tl_b",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="tl_a",
-                coordinate_a=0.0,
+                coordinate_a=Coordinate(0.0, TimeUnit.number),
                 timeline_b_id="tl_b",
-                coordinate_b=0.0,
+                coordinate_b=Coordinate(0.0, TimeUnit.number),
             ),
             event_a_id="ev_a",
             event_a_name="Event A",

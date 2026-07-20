@@ -849,6 +849,8 @@ class AlignmentBundle:
                 tl_a_id=tl_a,
                 event_b=event_b,
                 tl_b_id=tl_b,
+                unit_a=self.timelines[self._timeline_id_to_uid.get(tl_a, tl_a)].unit,
+                unit_b=self.timelines[self._timeline_id_to_uid.get(tl_b, tl_b)].unit,
                 end_coord_key=end_key,
                 is_synchronous=synchronous,
                 metadata=metadata,
@@ -1021,10 +1023,10 @@ class AlignmentBundle:
             anchor = c.start_anchor
             if (
                 anchor.timeline_a_id == timeline_id
-                and anchor.coordinate_a == coordinate
+                and anchor.coordinate_a.value == coordinate
             ) or (
                 anchor.timeline_b_id == timeline_id
-                and anchor.coordinate_b == coordinate
+                and anchor.coordinate_b.value == coordinate
             ):
                 relevant_claims.append(c)
 
@@ -1101,11 +1103,11 @@ class AlignmentBundle:
         anchor = struct.field("start_anchor")
         a_side = pc.and_(
             pc.equal(struct.field("timeline_a_id"), timeline_id),
-            pc.equal(anchor.field("coordinate_a"), coordinate),
+            pc.equal(anchor.field("coordinate_a").field("value"), coordinate),
         )
         b_side = pc.and_(
             pc.equal(struct.field("timeline_b_id"), timeline_id),
-            pc.equal(anchor.field("coordinate_b"), coordinate),
+            pc.equal(anchor.field("coordinate_b").field("value"), coordinate),
         )
         mask = pc.or_(a_side, b_side)
         # Empty mask short-circuit: avoid building a filtered sub-field.
@@ -1672,8 +1674,8 @@ class AlignmentBundle:
             if anchor is None:
                 continue
             c = anchor.get_coordinate_for(timeline_id)
-            if c is not None and c > max_claim_coord:
-                max_claim_coord = c
+            if c is not None and c.value > max_claim_coord:
+                max_claim_coord = float(c.value)
                 if max_claim_coord > 1000:
                     break
 

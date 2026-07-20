@@ -443,8 +443,10 @@ def test_beethoven_claim_coordinates() -> None:
     matches = [
         c
         for c in bundle.get_match_claims()
-        if c.start_anchor.coordinate_a == float(Fraction(360, 720))
-        and c.start_anchor.coordinate_b == expected_seconds
+        if c.start_anchor.coordinate_a.value == Fraction(360, 720)
+        and c.start_anchor.coordinate_a.unit is TimeUnit.quarters
+        and c.start_anchor.coordinate_b.value == expected_seconds
+        and c.start_anchor.coordinate_b.unit is TimeUnit.seconds
     ]
     assert len(matches) == 1
 

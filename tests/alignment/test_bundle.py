@@ -26,6 +26,7 @@ from timetoalign.alignment import (
     MatchClaimField,
     TimelineGroup,
 )
+from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.timelines import Timeline
 
 # region Fixtures
@@ -556,9 +557,9 @@ def _make_linear_claims(
                 timeline_b_id=tl_b_id,
                 start_anchor=AlignmentAnchor(
                     timeline_a_id=tl_a_id,
-                    coordinate_a=coord_a,
+                    coordinate_a=Coordinate(coord_a, TimeUnit.number),
                     timeline_b_id=tl_b_id,
-                    coordinate_b=coord_b,
+                    coordinate_b=Coordinate(coord_b, TimeUnit.number),
                 ),
             )
         )
@@ -677,6 +678,7 @@ class TestCrossGroupTransfer:
                 event={"start": 50.0},
                 source_tl_id=score_tl.id,
                 target_tl_id=audio_tl.id,
+                unit=TimeUnit.number,
             )
         ]
         bundle.add_match_claims(claims)
@@ -694,9 +696,9 @@ class TestCrossGroupTransfer:
                 timeline_b_id=audio_tl.id,
                 start_anchor=AlignmentAnchor(
                     timeline_a_id=score_tl.id,
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id=audio_tl.id,
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             )
         ]
@@ -843,6 +845,7 @@ class TestCommensurabilityWithClaims:
                 event={"start": 50.0},
                 source_tl_id=score_tl.id,
                 target_tl_id=audio_tl.id,
+                unit=TimeUnit.number,
             )
         ]
         bundle.add_match_claims(claims)
@@ -904,9 +907,9 @@ class TestCacheInvalidation:
                 timeline_b_id=audio_tl.id,
                 start_anchor=AlignmentAnchor(
                     timeline_a_id=score_tl.id,
-                    coordinate_a=175.0,
+                    coordinate_a=Coordinate(175.0, TimeUnit.number),
                     timeline_b_id=audio_tl.id,
-                    coordinate_b=87.5,
+                    coordinate_b=Coordinate(87.5, TimeUnit.number),
                 ),
             )
         ]
@@ -932,9 +935,9 @@ class TestCacheInvalidation:
                 timeline_b_id=audio_tl.id,
                 start_anchor=AlignmentAnchor(
                     timeline_a_id=score_tl.id,
-                    coordinate_a=150.0,
+                    coordinate_a=Coordinate(150.0, TimeUnit.number),
                     timeline_b_id=audio_tl.id,
-                    coordinate_b=75.0,
+                    coordinate_b=Coordinate(75.0, TimeUnit.number),
                 ),
             )
         ]
@@ -984,9 +987,9 @@ class TestAddMatchClaims:
                 timeline_b_id=audio_tl.id,
                 start_anchor=AlignmentAnchor(
                     timeline_a_id=score_tl.id,
-                    coordinate_a=150.0,
+                    coordinate_a=Coordinate(150.0, TimeUnit.number),
                     timeline_b_id=audio_tl.id,
-                    coordinate_b=75.0,
+                    coordinate_b=Coordinate(75.0, TimeUnit.number),
                 ),
             )
         ]
@@ -1044,6 +1047,8 @@ class TestAddMatchClaimField:
             timeline_b_ids=[tl_b_id] * 5,
             coordinate_a=[0.0, 50.0, 100.0, 150.0, 200.0],
             coordinate_b=[0.0, 25.0, 50.0, 75.0, 100.0],
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
 
     def test_returns_self_for_chaining(self) -> None:

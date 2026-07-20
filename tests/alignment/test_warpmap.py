@@ -779,9 +779,9 @@ class TestIntegrationWithClaims:
         for s, t in [(0.0, 0.0), (100.0, 50.0), (200.0, 100.0)]:
             anchor = AlignmentAnchor(
                 timeline_a_id="score",
-                coordinate_a=s,
+                coordinate_a=Coordinate(s, TimeUnit.number),
                 timeline_b_id="audio",
-                coordinate_b=t,
+                coordinate_b=Coordinate(t, TimeUnit.number),
             )
             claim = MatchClaim(
                 timeline_a_id="score",

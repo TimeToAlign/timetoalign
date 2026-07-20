@@ -216,20 +216,20 @@ class TestThoresenSegmentClaims:
         prev_end = 0.0
         for claim in thoresen_segment_claims:
             start, end = claim.get_coordinates_for("dgt1")
-            assert start == pytest.approx(
+            assert start.value == pytest.approx(
                 prev_end
             ), f"Gap before segment starting at {start}"
-            prev_end = end
+            prev_end = end.value
         assert prev_end == pytest.approx(DGT1_TOTAL_WIDTH)
 
         # Check DGT2 side
         prev_end = 0.0
         for claim in thoresen_segment_claims:
             start, end = claim.get_coordinates_for("dgt2")
-            assert start == pytest.approx(
+            assert start.value == pytest.approx(
                 prev_end
             ), f"Gap before segment starting at {start}"
-            prev_end = end
+            prev_end = end.value
         assert prev_end == pytest.approx(DGT2_TOTAL_WIDTH)
 
     def test_claim_metadata(self, thoresen_segment_claims: list[MatchClaim]) -> None:

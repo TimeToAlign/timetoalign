@@ -638,8 +638,8 @@ class MatchGraph:
             anchor: The AlignmentAnchor to add.
             claim: The parent MatchClaim for metadata.
         """
-        node_a: GraphNode = (anchor.timeline_a_id, anchor.coordinate_a)
-        node_b: GraphNode = (anchor.timeline_b_id, anchor.coordinate_b)
+        node_a: GraphNode = (anchor.timeline_a_id, float(anchor.coordinate_a.value))
+        node_b: GraphNode = (anchor.timeline_b_id, float(anchor.coordinate_b.value))
 
         G.add_edge(
             node_a,
@@ -795,6 +795,8 @@ class MatchGraph:
                         coord_a=coord,
                         tl_b_id=other_tl_id,
                         coord_b=other_coord,
+                        unit_a=group.get_timeline(timeline_id).unit,
+                        unit_b=group.get_timeline(other_tl_id).unit,
                         source_claim=source_claim,
                     )
                     implicit_claims.append(implicit_claim)
@@ -829,9 +831,15 @@ class MatchGraph:
                 continue
             # Check if this claim's anchors touch this node
             for anchor in claim.anchors:
-                if anchor.timeline_a_id == timeline_id and anchor.coordinate_a == coord:
+                if (
+                    anchor.timeline_a_id == timeline_id
+                    and anchor.coordinate_a.value == coord
+                ):
                     return claim
-                if anchor.timeline_b_id == timeline_id and anchor.coordinate_b == coord:
+                if (
+                    anchor.timeline_b_id == timeline_id
+                    and anchor.coordinate_b.value == coord
+                ):
                     return claim
         return None
 

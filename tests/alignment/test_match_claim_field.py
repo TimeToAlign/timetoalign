@@ -11,6 +11,7 @@ Validation strategy and gold values are documented in
 from __future__ import annotations
 
 import time
+from fractions import Fraction
 
 import pyarrow as pa
 import pytest
@@ -21,7 +22,7 @@ from timetoalign.alignment import (
     MatchClaimField,
     MatchMetadata,
 )
-from timetoalign.core import AgentType
+from timetoalign.core import AgentType, TimeUnit
 from timetoalign.core.fields import SemanticField, derive_arrow_struct
 
 # region Fixtures
@@ -43,6 +44,8 @@ def gold_field(meta: MatchMetadata) -> MatchClaimField:
         timeline_b_ids=["B", "C", "C"],
         coordinate_a=[0.0, 0.0, 1.0],
         coordinate_b=[10.0, 20.0, 21.0],
+        unit_a=TimeUnit.number,
+        unit_b=TimeUnit.number,
         metadata=meta,
     )
 
@@ -66,6 +69,20 @@ class TestFromColumns:
     def test_pa_schema_is_derived(self) -> None:
         assert MatchClaimField.pa_schema == derive_arrow_struct(MatchClaim)
 
+        coordinate_type = (
+            MatchClaimField.pa_schema.field("start_anchor")
+            .type.field("coordinate_a")
+            .type
+        )
+        assert coordinate_type == pa.struct(
+            [
+                pa.field("value", pa.float64()),
+                pa.field("numerator", pa.int64()),
+                pa.field("denominator", pa.int64()),
+                pa.field("unit", pa.string()),
+            ]
+        )
+
     def test_table_single_struct_column(self, gold_field: MatchClaimField) -> None:
         table = gold_field.table
         assert table.num_columns == 1
@@ -86,10 +103,27 @@ class TestFromColumns:
             timeline_b_ids=pa.array(["B", "C"], type=pa.string()),
             coordinate_a=pa.array([0.0, 1.0], type=pa.float64()),
             coordinate_b=pa.array([10.0, 11.0], type=pa.float64()),
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
             metadata=meta,
         )
         assert len(field) == 2
         assert field.table.schema.field("match_claim").type == MatchClaimField.pa_schema
+
+    def test_from_columns_applies_units(self) -> None:
+        field = MatchClaimField.from_columns(
+            ["score"],
+            ["audio"],
+            [Fraction(7, 3)],
+            [1.25],
+            unit_a=TimeUnit.quarters,
+            unit_b=TimeUnit.seconds,
+        )
+        anchor = field[0].start_anchor
+        assert anchor.coordinate_a.value == Fraction(7, 3)
+        assert anchor.coordinate_a.unit is TimeUnit.quarters
+        assert anchor.coordinate_b.value == 1.25
+        assert anchor.coordinate_b.unit is TimeUnit.seconds
 
     def test_from_columns_length_mismatch_raises(self) -> None:
         with pytest.raises(ValueError, match="equal-length"):
@@ -98,6 +132,8 @@ class TestFromColumns:
                 timeline_b_ids=["B", "C"],
                 coordinate_a=[0.0],
                 coordinate_b=[1.0],
+                unit_a=TimeUnit.number,
+                unit_b=TimeUnit.number,
             )
 
     def test_translator_strenum_to_string(self) -> None:
@@ -129,8 +165,8 @@ class TestGetItem:
         assert claim.timeline_b_id == "B"
         assert claim.is_synchronous is True
         assert claim.is_interval is False
-        assert claim.start_anchor.coordinate_a == 0.0
-        assert claim.start_anchor.coordinate_b == 10.0
+        assert claim.start_anchor.coordinate_a.value == 0.0
+        assert claim.start_anchor.coordinate_b.value == 10.0
         assert claim.metadata is meta
 
     def test_getitem_injects_metadata(
@@ -147,8 +183,8 @@ class TestGetItem:
         last = gold_field[-1]
         assert last.timeline_a_id == "B"
         assert last.timeline_b_id == "C"
-        assert last.start_anchor.coordinate_a == 1.0
-        assert last.start_anchor.coordinate_b == 21.0
+        assert last.start_anchor.coordinate_a.value == 1.0
+        assert last.start_anchor.coordinate_b.value == 21.0
 
     def test_getitem_out_of_range_positive(self, gold_field: MatchClaimField) -> None:
         with pytest.raises(IndexError):
@@ -248,6 +284,21 @@ class TestFromClaims:
         rebuilt = MatchClaimField.from_claims(gold_field.to_claims())
         assert rebuilt.table.equals(gold_field.table)
 
+    def test_fraction_and_mixed_units_roundtrip(self) -> None:
+        claim = MatchClaim.from_projection(
+            event={"start": Fraction(7, 3)},
+            source_tl_id="score",
+            target_tl_id="audio",
+            target_coord=1.25,
+            source_unit=TimeUnit.quarters,
+            target_unit=TimeUnit.seconds,
+        )
+        restored = MatchClaimField.from_claims([claim])[0]
+        assert restored.start_anchor.coordinate_a.value == Fraction(7, 3)
+        assert restored.start_anchor.coordinate_a.unit is TimeUnit.quarters
+        assert restored.start_anchor.coordinate_b.value == 1.25
+        assert restored.start_anchor.coordinate_b.unit is TimeUnit.seconds
+
     def test_from_claims_adopts_common_metadata(self) -> None:
         meta = MatchMetadata(
             agent=Agent(name="dtw", type=AgentType.software, identifier="warp")
@@ -258,6 +309,8 @@ class TestFromClaims:
                 source_tl_id="A",
                 target_tl_id="B",
                 target_coord=10.0,
+                source_unit=TimeUnit.number,
+                target_unit=TimeUnit.number,
                 metadata=meta,
             )
             for _ in range(3)
@@ -278,6 +331,8 @@ class TestFromClaims:
                 source_tl_id="A",
                 target_tl_id="B",
                 target_coord=10.0,
+                source_unit=TimeUnit.number,
+                target_unit=TimeUnit.number,
                 metadata=m,
             )
             for m in (m1, m2)
@@ -298,6 +353,8 @@ class TestFromClaims:
                 source_tl_id="A",
                 target_tl_id="B",
                 target_coord=10.0,
+                source_unit=TimeUnit.number,
+                target_unit=TimeUnit.number,
                 metadata=per_claim,
             )
         ]
@@ -309,6 +366,7 @@ class TestFromClaims:
             event={"id": "orphan", "start": 5.0},
             source_tl_id="A",
             target_tl_id="B",
+            unit=TimeUnit.number,
         )
         with pytest.raises(ValueError, match="non-synchronous"):
             MatchClaimField.from_claims([nomatch])
@@ -319,6 +377,8 @@ class TestFromClaims:
             tl_a_id="A",
             event_b={"id": "b", "start": 10.0, "end": 11.0},
             tl_b_id="B",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
             end_coord_key="end",
         )
         assert interval.is_interval
@@ -357,6 +417,8 @@ class TestDictRoundTrip:
             timeline_b_ids=["B"],
             coordinate_a=[0.0],
             coordinate_b=[1.0],
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
         assert field.to_dict()["metadata"] is None
         assert MatchClaimField.from_dict(field.to_dict()).metadata is None
@@ -372,7 +434,9 @@ class TestEdgeCases:
     """Empty fields, repr, exports."""
 
     def test_empty_field(self) -> None:
-        field = MatchClaimField.from_columns([], [], [], [])
+        field = MatchClaimField.from_columns(
+            [], [], [], [], unit_a=TimeUnit.number, unit_b=TimeUnit.number
+        )
         assert len(field) == 0
         assert field.timeline_ids == set()
         assert field.to_claims() == []
@@ -406,6 +470,8 @@ class TestScale:
             timeline_b_ids=["B"] * n,
             coordinate_a=[float(i) for i in range(n)],
             coordinate_b=[float(i) + 0.5 for i in range(n)],
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
         elapsed = time.perf_counter() - start
 
@@ -413,8 +479,8 @@ class TestScale:
         # A generous ceiling: the vectorized path must not build N objects.
         assert elapsed < 1.0
         claim = field[50_000]
-        assert claim.start_anchor.coordinate_a == 50_000.0
-        assert claim.start_anchor.coordinate_b == 50_000.5
+        assert claim.start_anchor.coordinate_a.value == 50_000.0
+        assert claim.start_anchor.coordinate_b.value == 50_000.5
         assert field.timeline_ids == {"A", "B"}
 
 

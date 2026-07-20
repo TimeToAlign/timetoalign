@@ -15,10 +15,10 @@ bundles, error handling).
 | `test_bundle.py` | `AlignmentBundle` produced by alignment loaders |
 | `test_error_handling.py` | Faulty-input behaviour across loaders |
 | `test_interval_policy.py` | Half-open interval semantics on event ingestion |
-| `test_matchfile_loader.py` | `MatchfileLoader` parity against gold standard |
+| `test_matchfile_loader.py` | `MatchfileLoader` parity against gold standard, including quarters-to-seconds claim units while preserving all match values and counts |
 | `test_performance_precision_loader.py` | `PerformancePrecisionLoader` against the CAAMP Chopin Nocturne specimen — composes `SoloLoader` for the `.solo` score (2494 notes), builds the score timeline by resolving every `"<measure>+<offset>"` label to absolute quarters via the `MetricMap`, and emits one physical timeline + three granularities of `MatchClaim` per performer. Zero-tolerance counts (see "Validation logic" below). |
 | `test_parangonada_loader.py` | `ParangonadaLoader` against the parangonada CSV export of the `Beethoven_Eroica_op35-cpjku` dataset (5 performers). Builds one shared multimodal `AlignmentBundle` (1 score group + 5 performer groups) from `part.csv` / `ppart.csv` / `align.csv`, plus measured `Beat` / `Dynamics` feature events (`.beats` / `.dyn`) on each performance's seconds timeline. Zero-tolerance counts (see "Validation logic" below). |
-| `test_listen_here_loader.py` | `ListenHereLoader` against an inline synthetic Listen Here! alignment JSON (built in `tmp_path`). Parses many recordings of one work warped onto a shared equidistant reference grid into one audio-to-audio `AlignmentBundle`: one empty seconds timeline per recording (each its own group) and complete-topology pairwise synchronous claims held columnar in a `MatchClaimField`. Zero-tolerance counts (see "Validation logic" below). |
+| `test_listen_here_loader.py` | `ListenHereLoader` against an inline synthetic Listen Here! alignment JSON (built in `tmp_path`). Parses many recordings of one work warped onto a shared equidistant reference grid into one audio-to-audio `AlignmentBundle`: one empty seconds timeline per recording (each its own group) and complete-topology pairwise synchronous claims held columnar in a `MatchClaimField`. Tests assert that both sides of every bulk-produced anchor materialise with seconds units. Zero-tolerance counts (see "Validation logic" below). |
 | `test_parsing.py` | Format-agnostic parsing helpers |
 | `test_schema.py` | Loader schema and field-spec resolution |
 | `test_store.py` | `EventStore` low-level operations |
@@ -38,6 +38,13 @@ bundles, error handling).
 | `paths/` | Path resolution helpers |
 
 ## Data conventions
+
+Alignment-loader tests treat anchor units as part of the gold-standard meaning of
+every coordinate: score positions use the unit of the score timeline (for example,
+quarters), performance and recording positions use seconds, and discrete score
+positions use their timeline's discrete unit. The migration assertions add unit and
+exact-value checks without changing any established coordinate value, claim count,
+or NOMATCH count.
 
 Tests resolve corpus paths via ``timetoalign.testdata.ensure_data("<corpus>")``
 (see ``tests/data/README.md``).  Hardcoded relative ``Path("tests/data/...")``

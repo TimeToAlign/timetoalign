@@ -586,10 +586,12 @@ class ParangonadaLoader(AlignmentLoader):
             if matchtype == _MATCH:
                 self._claims.append(
                     MatchClaim.from_projection(
-                        event={"start": float(score_q_by_id[partid])},
+                        event={"start": score_q_by_id[partid]},
                         source_tl_id=_SCORE_CLT_ID,
                         target_tl_id=cpt_id,
                         target_coord=float(perf_sec_by_id[ppartid]),
+                        source_unit=TimeUnit.quarters,
+                        target_unit=TimeUnit.seconds,
                         coord_key="start",
                         metadata=meta,
                     )
@@ -597,9 +599,10 @@ class ParangonadaLoader(AlignmentLoader):
             elif matchtype == _SCORE_ONLY:
                 self._claims.append(
                     MatchClaim.nomatch(
-                        event={"start": float(score_q_by_id[partid])},
+                        event={"start": score_q_by_id[partid]},
                         source_tl_id=_SCORE_CLT_ID,
                         target_tl_id=cpt_id,
+                        unit=TimeUnit.quarters,
                         metadata=meta,
                     )
                 )
@@ -609,6 +612,7 @@ class ParangonadaLoader(AlignmentLoader):
                         event={"start": float(perf_sec_by_id[ppartid])},
                         source_tl_id=cpt_id,
                         target_tl_id=_SCORE_CLT_ID,
+                        unit=TimeUnit.seconds,
                         metadata=meta,
                     )
                 )

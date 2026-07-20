@@ -365,8 +365,10 @@ def test_szegedi_align_row_zero_spot_check(bundle) -> None:
         and c.start_anchor is not None
         and c.start_anchor.timeline_a_id == SCORE_CLT_ID
         and c.start_anchor.timeline_b_id == cpt_id
-        and c.start_anchor.coordinate_a == 40.0
-        and c.start_anchor.coordinate_b == 38.183334
+        and c.start_anchor.coordinate_a.value == 40.0
+        and c.start_anchor.coordinate_a.unit is TimeUnit.quarters
+        and c.start_anchor.coordinate_b.value == 38.183334
+        and c.start_anchor.coordinate_b.unit is TimeUnit.seconds
     ]
     assert len(matching) == 1
 
@@ -425,8 +427,10 @@ def test_duplicate_row_yields_duplicate_claim(bundle) -> None:
         and c.start_anchor is not None
         and c.start_anchor.timeline_a_id == SCORE_CLT_ID
         and c.start_anchor.timeline_b_id == cpt_id
-        and c.start_anchor.coordinate_a == src
-        and c.start_anchor.coordinate_b == tgt
+        and c.start_anchor.coordinate_a.value == src
+        and c.start_anchor.coordinate_a.unit is TimeUnit.quarters
+        and c.start_anchor.coordinate_b.value == tgt
+        and c.start_anchor.coordinate_b.unit is TimeUnit.seconds
     ]
     assert len(matching) == 2
 

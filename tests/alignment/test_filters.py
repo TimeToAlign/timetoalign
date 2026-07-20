@@ -25,6 +25,7 @@ from timetoalign.alignment.claims import (
     MatchClaim,
 )
 from timetoalign.alignment.filters import ClaimFilter
+from timetoalign.core import Coordinate, TimeUnit
 
 # region Fixtures
 
@@ -37,9 +38,9 @@ def claim_score_perf1() -> MatchClaim:
         timeline_b_id="perf:dlt1",
         start_anchor=AlignmentAnchor(
             timeline_a_id="score:clt1",
-            coordinate_a=0.0,
+            coordinate_a=Coordinate(0.0, TimeUnit.number),
             timeline_b_id="perf:dlt1",
-            coordinate_b=0.0,
+            coordinate_b=Coordinate(0.0, TimeUnit.number),
         ),
         is_synchronous=True,
     )
@@ -53,9 +54,9 @@ def claim_score_perf5() -> MatchClaim:
         timeline_b_id="perf:dlt5",
         start_anchor=AlignmentAnchor(
             timeline_a_id="score:clt1",
-            coordinate_a=10.0,
+            coordinate_a=Coordinate(10.0, TimeUnit.number),
             timeline_b_id="perf:dlt5",
-            coordinate_b=1280.0,
+            coordinate_b=Coordinate(1280.0, TimeUnit.number),
         ),
         is_synchronous=True,
     )
@@ -79,9 +80,9 @@ def claim_audio_video() -> MatchClaim:
         timeline_b_id="video:dgt1",
         start_anchor=AlignmentAnchor(
             timeline_a_id="audio:cpt1",
-            coordinate_a=45.0,
+            coordinate_a=Coordinate(45.0, TimeUnit.number),
             timeline_b_id="video:dgt1",
-            coordinate_b=1350.0,
+            coordinate_b=Coordinate(1350.0, TimeUnit.number),
         ),
         is_synchronous=True,
     )

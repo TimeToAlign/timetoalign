@@ -34,7 +34,7 @@ from timetoalign.alignment.claims import (
     MatchClaim,
     MatchMetadata,
 )
-from timetoalign.core import AgentType
+from timetoalign.core import AgentType, Coordinate, TimeUnit
 
 module_logger = logging.getLogger(__name__)
 
@@ -127,6 +127,9 @@ def match_notes_by_attributes(
     target_coord_column: str = "start",
     source_timeline_id: str = "source",
     target_timeline_id: str = "target",
+    *,
+    source_unit: TimeUnit | str,
+    target_unit: TimeUnit | str,
     create_claims: bool = True,
     metadata: MatchMetadata | None = None,
 ) -> MatchResult:
@@ -151,6 +154,8 @@ def match_notes_by_attributes(
             to use in MatchClaims (e.g., onset in quarterbeats).
         source_timeline_id: Timeline ID for the source side of MatchClaims.
         target_timeline_id: Timeline ID for the target side of MatchClaims.
+        source_unit: Unit of the source coordinates used in MatchClaims.
+        target_unit: Unit of the target coordinates used in MatchClaims.
         create_claims: If True, generate MatchClaim objects for each match.
         metadata: Optional MatchMetadata to attach to each MatchClaim.
 
@@ -170,6 +175,8 @@ def match_notes_by_attributes(
         ...     target_coord_column="quarterbeats_playthrough",
         ...     source_timeline_id="dpt1_audio",
         ...     target_timeline_id="clt1_score",
+        ...     source_unit=TimeUnit.seconds,
+        ...     target_unit=TimeUnit.quarters,
         ... )
         >>> result.summary()
         {'matched': 3742, 'unmatched_source': 14, 'unmatched_target': 8}
@@ -273,9 +280,9 @@ def match_notes_by_attributes(
         for _, row in matched_df.iterrows():
             anchor = AlignmentAnchor(
                 timeline_a_id=source_timeline_id,
-                coordinate_a=row["source_coord"],
+                coordinate_a=Coordinate(row["source_coord"], source_unit),
                 timeline_b_id=target_timeline_id,
-                coordinate_b=row["target_coord"],
+                coordinate_b=Coordinate(row["target_coord"], target_unit),
             )
             claim = MatchClaim(
                 timeline_a_id=source_timeline_id,

@@ -41,6 +41,7 @@ import pyarrow.compute as pc
 import pytest
 
 from timetoalign.alignment.claims import MatchClaim, MatchClaimField
+from timetoalign.core import TimeUnit
 from timetoalign.loader.alignment import ListenHereLoader
 
 # region Fixtures
@@ -171,8 +172,8 @@ def test_negative_coordinate_kept(loader: ListenHereLoader) -> None:
     struct = field.table.column("match_claim").combine_chunks()
     anchor = struct.field("start_anchor")
     minimum = min(
-        pc.min(anchor.field("coordinate_a")).as_py(),
-        pc.min(anchor.field("coordinate_b")).as_py(),
+        pc.min(anchor.field("coordinate_a").field("value")).as_py(),
+        pc.min(anchor.field("coordinate_b").field("value")).as_py(),
     )
     # rec-b's first grid column is -0.01 (pre-onset extrapolation); the
     # loader stores it as-is, neither clamped nor dropped.
@@ -232,9 +233,14 @@ def test_matchstamp_spans_all_recordings(loader: ListenHereLoader) -> None:
     stamp = bundle.get_matchstamp_at(0.045, "rec-ref:cpt1")
     assert stamp.n_timelines == 3
     # Reference-grid column index 2: rec-a=0.04, rec-b=0.03, rec-ref=0.045.
-    assert stamp.get_coordinate("rec-a:cpt1") == 0.04
-    assert stamp.get_coordinate("rec-b:cpt1") == 0.03
-    assert stamp.get_coordinate("rec-ref:cpt1") == 0.045
+    for timeline_id, expected in {
+        "rec-a:cpt1": 0.04,
+        "rec-b:cpt1": 0.03,
+        "rec-ref:cpt1": 0.045,
+    }.items():
+        coordinate = stamp.get_coordinate(timeline_id)
+        assert coordinate.value == expected
+        assert coordinate.unit is TimeUnit.seconds
 
 
 def test_matchstamp_does_not_explode_field(loader: ListenHereLoader) -> None:
@@ -255,9 +261,14 @@ def test_matchstamp_at_first_grid_coordinate(loader: ListenHereLoader) -> None:
     bundle = loader.create_bundle()
     stamp = bundle.get_matchstamp_at(0.0, "rec-a:cpt1")
     assert stamp.n_timelines == 3
-    assert stamp.get_coordinate("rec-a:cpt1") == 0.0
-    assert stamp.get_coordinate("rec-b:cpt1") == -0.01
-    assert stamp.get_coordinate("rec-ref:cpt1") == 0.0
+    for timeline_id, expected in {
+        "rec-a:cpt1": 0.0,
+        "rec-b:cpt1": -0.01,
+        "rec-ref:cpt1": 0.0,
+    }.items():
+        coordinate = stamp.get_coordinate(timeline_id)
+        assert coordinate.value == expected
+        assert coordinate.unit is TimeUnit.seconds
 
 
 # endregion

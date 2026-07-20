@@ -3,16 +3,18 @@
 The whole claim family is now frozen pydantic v2 models. ``MatchMetadata`` is
 ``{agent: Agent, certainty: float}`` — the old free-form ``decision_criteria``
 / ``created_at`` / ``notes`` / ``algorithm_params`` fields are gone. Anchor
-coordinates remain plain ``float``.
+coordinates are unit-bearing ``Coordinate`` values.
 """
 
 from __future__ import annotations
+
+from fractions import Fraction
 
 import pytest
 from pydantic import ValidationError
 
 from timetoalign.alignment import Agent, AlignmentAnchor, MatchClaim, MatchMetadata
-from timetoalign.core import AgentType
+from timetoalign.core import AgentType, Coordinate, TimeUnit
 
 # region Fixtures
 
@@ -22,9 +24,9 @@ def basic_anchor() -> AlignmentAnchor:
     """Create a basic alignment anchor."""
     return AlignmentAnchor(
         timeline_a_id="score:1",
-        coordinate_a=100.0,
+        coordinate_a=Coordinate(100.0, TimeUnit.quarters),
         timeline_b_id="recording:1",
-        coordinate_b=45.5,
+        coordinate_b=Coordinate(45.5, TimeUnit.seconds),
     )
 
 
@@ -144,23 +146,33 @@ class TestAlignmentAnchor:
         """Test creating an anchor with required fields."""
         anchor = AlignmentAnchor(
             timeline_a_id="tl1",
-            coordinate_a=10.0,
+            coordinate_a=Coordinate(10.0, TimeUnit.number),
             timeline_b_id="tl2",
-            coordinate_b=20.0,
+            coordinate_b=Coordinate(20.0, TimeUnit.number),
         )
 
         assert anchor.timeline_a_id == "tl1"
-        assert anchor.coordinate_a == 10.0
+        assert anchor.coordinate_a.value == 10.0
         assert anchor.timeline_b_id == "tl2"
-        assert anchor.coordinate_b == 20.0
+        assert anchor.coordinate_b.value == 20.0
+
+    def test_raw_float_coordinates_are_rejected(self) -> None:
+        """Anchors require explicit unit-bearing Coordinate values."""
+        with pytest.raises(ValidationError):
+            AlignmentAnchor(
+                timeline_a_id="tl1",
+                coordinate_a=10.0,
+                timeline_b_id="tl2",
+                coordinate_b=20.0,
+            )
 
     def test_no_id_field(self) -> None:
         """Test that AlignmentAnchor has no id field."""
         anchor = AlignmentAnchor(
             timeline_a_id="tl1",
-            coordinate_a=0.0,
+            coordinate_a=Coordinate(0.0, TimeUnit.number),
             timeline_b_id="tl2",
-            coordinate_b=0.0,
+            coordinate_b=Coordinate(0.0, TimeUnit.number),
         )
         assert not hasattr(anchor, "id")
 
@@ -168,9 +180,9 @@ class TestAlignmentAnchor:
         """Test that AlignmentAnchor has no is_explicit or is_synchronous."""
         anchor = AlignmentAnchor(
             timeline_a_id="tl1",
-            coordinate_a=0.0,
+            coordinate_a=Coordinate(0.0, TimeUnit.number),
             timeline_b_id="tl2",
-            coordinate_b=0.0,
+            coordinate_b=Coordinate(0.0, TimeUnit.number),
         )
         assert not hasattr(anchor, "is_explicit")
         assert not hasattr(anchor, "is_synchronous")
@@ -181,13 +193,30 @@ class TestAlignmentAnchor:
 
     def test_coordinates_property(self, basic_anchor: AlignmentAnchor) -> None:
         """Test coordinates property."""
-        assert basic_anchor.coordinates == (100.0, 45.5)
+        assert basic_anchor.coordinates == (
+            Coordinate(100.0, TimeUnit.quarters),
+            Coordinate(45.5, TimeUnit.seconds),
+        )
 
     def test_get_coordinate_for(self, basic_anchor: AlignmentAnchor) -> None:
         """Test getting coordinate for specific timeline."""
-        assert basic_anchor.get_coordinate_for("score:1") == 100.0
-        assert basic_anchor.get_coordinate_for("recording:1") == 45.5
+        score_coordinate = basic_anchor.get_coordinate_for("score:1")
+        recording_coordinate = basic_anchor.get_coordinate_for("recording:1")
+        assert score_coordinate == Coordinate(100.0, TimeUnit.quarters)
+        assert recording_coordinate == Coordinate(45.5, TimeUnit.seconds)
         assert basic_anchor.get_coordinate_for("other") is None
+
+    def test_get_coordinate_for_preserves_fraction_and_unit(self) -> None:
+        anchor = AlignmentAnchor(
+            timeline_a_id="score",
+            coordinate_a=Coordinate(Fraction(7, 3), TimeUnit.quarters),
+            timeline_b_id="audio",
+            coordinate_b=Coordinate(1.25, TimeUnit.seconds),
+        )
+        coordinate = anchor.get_coordinate_for("score")
+        assert coordinate is not None
+        assert coordinate.value == Fraction(7, 3)
+        assert coordinate.unit is TimeUnit.quarters
 
     def test_connects(self, basic_anchor: AlignmentAnchor) -> None:
         """Test connects method."""
@@ -206,9 +235,9 @@ class TestAlignmentAnchor:
         d = basic_anchor.to_dict()
 
         assert d["timeline_a_id"] == "score:1"
-        assert d["coordinate_a"] == 100.0
+        assert d["coordinate_a"] == {"value": 100.0, "unit": "quarters"}
         assert d["timeline_b_id"] == "recording:1"
-        assert d["coordinate_b"] == 45.5
+        assert d["coordinate_b"] == {"value": 45.5, "unit": "seconds"}
         # No is_explicit, is_synchronous, or id in dict
         assert "is_explicit" not in d
         assert "is_synchronous" not in d
@@ -240,15 +269,15 @@ class TestAlignmentAnchor:
         """Test that anchors with same values are equal (value objects)."""
         a1 = AlignmentAnchor(
             timeline_a_id="tl1",
-            coordinate_a=10.0,
+            coordinate_a=Coordinate(10.0, TimeUnit.number),
             timeline_b_id="tl2",
-            coordinate_b=20.0,
+            coordinate_b=Coordinate(20.0, TimeUnit.number),
         )
         a2 = AlignmentAnchor(
             timeline_a_id="tl1",
-            coordinate_a=10.0,
+            coordinate_a=Coordinate(10.0, TimeUnit.number),
             timeline_b_id="tl2",
-            coordinate_b=20.0,
+            coordinate_b=Coordinate(20.0, TimeUnit.number),
         )
         assert a1 == a2
 
@@ -280,15 +309,15 @@ class TestMatchClaim:
         """Test creating interval match (two anchors)."""
         start = AlignmentAnchor(
             timeline_a_id="dgt1",
-            coordinate_a=0.0,
+            coordinate_a=Coordinate(0.0, TimeUnit.number),
             timeline_b_id="dgt2",
-            coordinate_b=0.0,
+            coordinate_b=Coordinate(0.0, TimeUnit.number),
         )
         end = AlignmentAnchor(
             timeline_a_id="dgt1",
-            coordinate_a=975.0,
+            coordinate_a=Coordinate(975.0, TimeUnit.number),
             timeline_b_id="dgt2",
-            coordinate_b=866.0,
+            coordinate_b=Coordinate(866.0, TimeUnit.number),
         )
         claim = MatchClaim(
             timeline_a_id="dgt1",
@@ -324,15 +353,15 @@ class TestMatchClaim:
         """Test error when anchors connect different timelines."""
         start = AlignmentAnchor(
             timeline_a_id="tl1",
-            coordinate_a=0.0,
+            coordinate_a=Coordinate(0.0, TimeUnit.number),
             timeline_b_id="tl2",
-            coordinate_b=0.0,
+            coordinate_b=Coordinate(0.0, TimeUnit.number),
         )
         end = AlignmentAnchor(
             timeline_a_id="tl1",
-            coordinate_a=100.0,
+            coordinate_a=Coordinate(100.0, TimeUnit.number),
             timeline_b_id="tl3",  # Different!
-            coordinate_b=100.0,
+            coordinate_b=Coordinate(100.0, TimeUnit.number),
         )
 
         with pytest.raises(ValueError, match="must connect same timelines"):
@@ -357,9 +386,9 @@ class TestMatchClaim:
         """Test that non-synchronous claims must not have anchors."""
         anchor = AlignmentAnchor(
             timeline_a_id="tl1",
-            coordinate_a=0.0,
+            coordinate_a=Coordinate(0.0, TimeUnit.number),
             timeline_b_id="tl2",
-            coordinate_b=0.0,
+            coordinate_b=Coordinate(0.0, TimeUnit.number),
         )
         with pytest.raises(ValueError, match="must not have anchors"):
             MatchClaim(
@@ -386,9 +415,9 @@ class TestMatchClaim:
         """Test error when anchor timelines don't match claim timelines."""
         anchor = AlignmentAnchor(
             timeline_a_id="tl1",
-            coordinate_a=0.0,
+            coordinate_a=Coordinate(0.0, TimeUnit.number),
             timeline_b_id="tl2",
-            coordinate_b=0.0,
+            coordinate_b=Coordinate(0.0, TimeUnit.number),
         )
         with pytest.raises(ValueError, match="must match claim timelines"):
             MatchClaim(
@@ -415,22 +444,22 @@ class TestMatchClaim:
         )
 
         start, end = claim.get_coordinates_for("score:1")
-        assert start == 100.0
+        assert start.value == 100.0
         assert end is None
 
     def test_get_coordinates_for_interval(self) -> None:
         """Test get_coordinates_for with interval match."""
         start = AlignmentAnchor(
             timeline_a_id="dgt1",
-            coordinate_a=0.0,
+            coordinate_a=Coordinate(0.0, TimeUnit.number),
             timeline_b_id="dgt2",
-            coordinate_b=0.0,
+            coordinate_b=Coordinate(0.0, TimeUnit.number),
         )
         end = AlignmentAnchor(
             timeline_a_id="dgt1",
-            coordinate_a=975.0,
+            coordinate_a=Coordinate(975.0, TimeUnit.number),
             timeline_b_id="dgt2",
-            coordinate_b=866.0,
+            coordinate_b=Coordinate(866.0, TimeUnit.number),
         )
         claim = MatchClaim(
             timeline_a_id="dgt1",
@@ -440,12 +469,12 @@ class TestMatchClaim:
         )
 
         start_coord, end_coord = claim.get_coordinates_for("dgt1")
-        assert start_coord == 0.0
-        assert end_coord == 975.0
+        assert start_coord.value == 0.0
+        assert end_coord.value == 975.0
 
         start_coord, end_coord = claim.get_coordinates_for("dgt2")
-        assert start_coord == 0.0
-        assert end_coord == 866.0
+        assert start_coord.value == 0.0
+        assert end_coord.value == 866.0
 
     def test_get_coordinates_invalid_timeline(
         self, basic_anchor: AlignmentAnchor
@@ -506,15 +535,15 @@ class TestMatchClaim:
         """Test anchors property for interval match."""
         start = AlignmentAnchor(
             timeline_a_id="tl1",
-            coordinate_a=0.0,
+            coordinate_a=Coordinate(0.0, TimeUnit.number),
             timeline_b_id="tl2",
-            coordinate_b=0.0,
+            coordinate_b=Coordinate(0.0, TimeUnit.number),
         )
         end = AlignmentAnchor(
             timeline_a_id="tl1",
-            coordinate_a=100.0,
+            coordinate_a=Coordinate(100.0, TimeUnit.number),
             timeline_b_id="tl2",
-            coordinate_b=100.0,
+            coordinate_b=Coordinate(100.0, TimeUnit.number),
         )
         claim = MatchClaim(
             timeline_a_id="tl1",
@@ -555,16 +584,16 @@ class TestMatchClaim:
             timeline_b_id="recording",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="score",
-                coordinate_a=0.0,
+                coordinate_a=Coordinate(0.0, TimeUnit.number),
                 timeline_b_id="recording",
-                coordinate_b=0.0,
+                coordinate_b=Coordinate(0.0, TimeUnit.number),
             ),
         )
 
         assert claim.is_interval is False
         assert claim.timeline_a_id == "score"
         assert claim.timeline_b_id == "recording"
-        assert claim.start_anchor.coordinate_a == 0.0
+        assert claim.start_anchor.coordinate_a.value == 0.0
 
     def test_interval_factory(self) -> None:
         """Test interval match via direct construction."""
@@ -573,15 +602,15 @@ class TestMatchClaim:
             timeline_b_id="dgt2",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=0.0,
+                coordinate_a=Coordinate(0.0, TimeUnit.number),
                 timeline_b_id="dgt2",
-                coordinate_b=0.0,
+                coordinate_b=Coordinate(0.0, TimeUnit.number),
             ),
             end_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=975.0,
+                coordinate_a=Coordinate(975.0, TimeUnit.number),
                 timeline_b_id="dgt2",
-                coordinate_b=866.0,
+                coordinate_b=Coordinate(866.0, TimeUnit.number),
             ),
         )
 
@@ -589,8 +618,8 @@ class TestMatchClaim:
         assert claim.timeline_a_id == "dgt1"
         assert claim.timeline_b_id == "dgt2"
         start, end = claim.get_coordinates_for("dgt1")
-        assert start == 0.0
-        assert end == 975.0
+        assert start.value == 0.0
+        assert end.value == 975.0
 
     def test_from_events_factory(self) -> None:
         """Test from_events() factory method (case a: event-based)."""
@@ -599,14 +628,16 @@ class TestMatchClaim:
             tl_a_id="score",
             event_b={"start": 45.5},
             tl_b_id="recording",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
         )
 
         assert claim.is_synchronous is True
         assert claim.timeline_a_id == "score"
         assert claim.timeline_b_id == "recording"
         assert claim.start_anchor is not None
-        assert claim.start_anchor.coordinate_a == 100.0
-        assert claim.start_anchor.coordinate_b == 45.5
+        assert claim.start_anchor.coordinate_a.value == 100.0
+        assert claim.start_anchor.coordinate_b.value == 45.5
 
     def test_from_events_with_interval(self) -> None:
         """Test from_events() with end coordinate (case a: interval)."""
@@ -615,13 +646,15 @@ class TestMatchClaim:
             tl_a_id="tl1",
             event_b={"start": 0.0, "end": 200.0},
             tl_b_id="tl2",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
             end_coord_key="end",
         )
 
         assert claim.is_interval is True
         assert claim.end_anchor is not None
-        assert claim.end_anchor.coordinate_a == 100.0
-        assert claim.end_anchor.coordinate_b == 200.0
+        assert claim.end_anchor.coordinate_a.value == 100.0
+        assert claim.end_anchor.coordinate_b.value == 200.0
 
     def test_from_projection_factory(self) -> None:
         """Test from_projection() factory method (case b: projection)."""
@@ -630,14 +663,16 @@ class TestMatchClaim:
             source_tl_id="score",
             target_tl_id="recording",
             target_coord=45.5,
+            source_unit=TimeUnit.number,
+            target_unit=TimeUnit.number,
         )
 
         assert claim.is_synchronous is True
         assert claim.timeline_a_id == "score"
         assert claim.timeline_b_id == "recording"
         assert claim.start_anchor is not None
-        assert claim.start_anchor.coordinate_a == 100.0
-        assert claim.start_anchor.coordinate_b == 45.5
+        assert claim.start_anchor.coordinate_a.value == 100.0
+        assert claim.start_anchor.coordinate_b.value == 45.5
 
     def test_nomatch_factory(self) -> None:
         """Test nomatch() factory method (case c: no match)."""
@@ -645,6 +680,7 @@ class TestMatchClaim:
             event={"start": 100.0},
             source_tl_id="score",
             target_tl_id="recording",
+            unit=TimeUnit.number,
         )
 
         assert claim.is_synchronous is False
@@ -660,13 +696,15 @@ class TestMatchClaim:
             tl_a_id="tl1",
             coord_a=100.0,
             tl_b_id="tl2",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
             coord_b=200.0,
         )
 
         assert claim.is_synchronous is True
         assert claim.is_explicit is False
         assert claim.start_anchor is not None
-        assert claim.start_anchor.coordinate_a == 100.0
+        assert claim.start_anchor.coordinate_a.value == 100.0
         assert claim.timeline_a_id == "tl1"
         assert claim.timeline_b_id == "tl2"
 
@@ -677,15 +715,17 @@ class TestMatchClaim:
             timeline_b_id="tl2",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="tl1",
-                coordinate_a=100.0,
+                coordinate_a=Coordinate(100.0, TimeUnit.number),
                 timeline_b_id="tl2",
-                coordinate_b=200.0,
+                coordinate_b=Coordinate(200.0, TimeUnit.number),
             ),
         )
         implicit = MatchClaim.implicit(
             tl_a_id="tl1",
             coord_a=100.0,
             tl_b_id="tl3",
+            unit_a=TimeUnit.number,
+            unit_b=TimeUnit.number,
             coord_b=300.0,
             source_claim=source,
         )
@@ -716,15 +756,15 @@ class TestMatchClaim:
             timeline_b_id="tl2",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="tl1",
-                coordinate_a=0.0,
+                coordinate_a=Coordinate(0.0, TimeUnit.number),
                 timeline_b_id="tl2",
-                coordinate_b=0.0,
+                coordinate_b=Coordinate(0.0, TimeUnit.number),
             ),
             end_anchor=AlignmentAnchor(
                 timeline_a_id="tl1",
-                coordinate_a=100.0,
+                coordinate_a=Coordinate(100.0, TimeUnit.number),
                 timeline_b_id="tl2",
-                coordinate_b=100.0,
+                coordinate_b=Coordinate(100.0, TimeUnit.number),
             ),
         )
         d = claim.to_dict()
@@ -753,15 +793,15 @@ class TestMatchClaim:
             timeline_b_id="tl2",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="tl1",
-                coordinate_a=0.0,
+                coordinate_a=Coordinate(0.0, TimeUnit.number),
                 timeline_b_id="tl2",
-                coordinate_b=0.0,
+                coordinate_b=Coordinate(0.0, TimeUnit.number),
             ),
             end_anchor=AlignmentAnchor(
                 timeline_a_id="tl1",
-                coordinate_a=100.0,
+                coordinate_a=Coordinate(100.0, TimeUnit.number),
                 timeline_b_id="tl2",
-                coordinate_b=200.0,
+                coordinate_b=Coordinate(200.0, TimeUnit.number),
             ),
             metadata=MatchMetadata(
                 agent=Agent(name="test", type=AgentType.software, identifier="test")
@@ -820,15 +860,15 @@ class TestMatchClaim:
             timeline_b_id="dgt2",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=0.0,
+                coordinate_a=Coordinate(0.0, TimeUnit.number),
                 timeline_b_id="dgt2",
-                coordinate_b=0.0,
+                coordinate_b=Coordinate(0.0, TimeUnit.number),
             ),
             end_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=975.0,
+                coordinate_a=Coordinate(975.0, TimeUnit.number),
                 timeline_b_id="dgt2",
-                coordinate_b=866.0,
+                coordinate_b=Coordinate(866.0, TimeUnit.number),
             ),
         )
         r = repr(claim)
@@ -857,8 +897,9 @@ class TestMatchClaim:
             event={"start": 188.8},
             source_tl_id="score:clt1",
             target_tl_id="perf:Chopin_Ashkenazy",
+            unit=TimeUnit.number,
         )
-        assert claim.source_coordinate == 188.8
+        assert claim.source_coordinate.value == 188.8
         assert repr(claim) == (
             "MatchClaim(score:clt1@188.8 <-> perf:Chopin_Ashkenazy [NOMATCH])"
         )
@@ -869,6 +910,7 @@ class TestMatchClaim:
             event={"id": "orphan"},
             source_tl_id="score:clt1",
             target_tl_id="perf:Chopin_Ashkenazy",
+            unit=TimeUnit.number,
         )
         assert claim.source_coordinate is None
         assert repr(claim) == (
@@ -881,10 +923,11 @@ class TestMatchClaim:
             event={"start": 188.8},
             source_tl_id="score:clt1",
             target_tl_id="perf:Chopin_Ashkenazy",
+            unit=TimeUnit.number,
         )
         restored = MatchClaim.from_dict(claim.to_dict())
         assert restored == claim
-        assert restored.source_coordinate == 188.8
+        assert restored.source_coordinate.value == 188.8
 
     def test_repr_synchronous_instant_unchanged(self) -> None:
         """Regression guard: a synchronous instant repr is unchanged (no NOMATCH)."""
@@ -893,9 +936,9 @@ class TestMatchClaim:
             timeline_b_id="recording:1",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="score:1",
-                coordinate_a=100.0,
+                coordinate_a=Coordinate(100.0, TimeUnit.number),
                 timeline_b_id="recording:1",
-                coordinate_b=45.5,
+                coordinate_b=Coordinate(45.5, TimeUnit.number),
             ),
         )
         assert claim.source_coordinate is None
@@ -933,15 +976,19 @@ class TestClaimIntegration:
                 timeline_b_id="dgt2",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="dgt1",
-                    coordinate_a=float(offset_dgt1),
+                    coordinate_a=Coordinate(float(offset_dgt1), TimeUnit.number),
                     timeline_b_id="dgt2",
-                    coordinate_b=float(offset_dgt2),
+                    coordinate_b=Coordinate(float(offset_dgt2), TimeUnit.number),
                 ),
                 end_anchor=AlignmentAnchor(
                     timeline_a_id="dgt1",
-                    coordinate_a=float(offset_dgt1 + segment_lengths_dgt1[i]),
+                    coordinate_a=Coordinate(
+                        float(offset_dgt1 + segment_lengths_dgt1[i]), TimeUnit.number
+                    ),
                     timeline_b_id="dgt2",
-                    coordinate_b=float(offset_dgt2 + segment_lengths_dgt2[i]),
+                    coordinate_b=Coordinate(
+                        float(offset_dgt2 + segment_lengths_dgt2[i]), TimeUnit.number
+                    ),
                 ),
                 metadata=MatchMetadata(
                     agent=Agent(
@@ -963,18 +1010,18 @@ class TestClaimIntegration:
 
         # Check first segment
         start, end = claims[0].get_coordinates_for("dgt1")
-        assert start == 0.0
-        assert end == 975.0
+        assert start.value == 0.0
+        assert end.value == 975.0
 
         start, end = claims[0].get_coordinates_for("dgt2")
-        assert start == 0.0
-        assert end == 866.0
+        assert start.value == 0.0
+        assert end.value == 866.0
 
         # Check last segment ends at total length
         _, end_dgt1 = claims[4].get_coordinates_for("dgt1")
         _, end_dgt2 = claims[4].get_coordinates_for("dgt2")
-        assert end_dgt1 == 4875.0
-        assert end_dgt2 == 4328.0
+        assert end_dgt1.value == 4875.0
+        assert end_dgt2.value == 4328.0
 
 
 # endregion

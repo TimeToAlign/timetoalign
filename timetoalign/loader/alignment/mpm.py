@@ -1038,10 +1038,12 @@ class MpmLoader(AlignmentLoader):
                 continue
             self._claims.append(
                 MatchClaim.from_projection(
-                    event={"start": float(source_quarters)},
+                    event={"start": source_quarters},
                     source_tl_id=_SCORE_CLT_ID,
                     target_tl_id=_PERF_CPT_ID,
                     target_coord=float(target_seconds),
+                    source_unit=TimeUnit.quarters,
+                    target_unit=TimeUnit.seconds,
                     coord_key="start",
                     metadata=meta,
                 )

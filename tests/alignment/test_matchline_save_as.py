@@ -33,6 +33,7 @@ from timetoalign.alignment.match_format import (
     format_snote_line,
 )
 from timetoalign.alignment.matchline import MatchLine
+from timetoalign.core import TimeUnit
 
 # region Test Data Paths
 
@@ -582,6 +583,8 @@ class TestRoundTripHow03Notebook:
             target_coord_column="quarterbeats_playthrough",
             source_timeline_id="cpt1",
             target_timeline_id="clt1",
+            source_unit=TimeUnit.seconds,
+            target_unit=TimeUnit.quarters,
         )
 
         # Build MatchLine

@@ -35,9 +35,9 @@ def simple_instant_claim() -> MatchClaim:
         timeline_b_id="tl_b",
         start_anchor=AlignmentAnchor(
             timeline_a_id="tl_a",
-            coordinate_a=100.0,
+            coordinate_a=Coordinate(100.0, TimeUnit.number),
             timeline_b_id="tl_b",
-            coordinate_b=50.0,
+            coordinate_b=Coordinate(50.0, TimeUnit.number),
         ),
         metadata=MatchMetadata(
             agent=Agent(name="test", type=AgentType.software, identifier="manual")
@@ -53,15 +53,15 @@ def simple_interval_claim() -> MatchClaim:
         timeline_b_id="tl_b",
         start_anchor=AlignmentAnchor(
             timeline_a_id="tl_a",
-            coordinate_a=0.0,
+            coordinate_a=Coordinate(0.0, TimeUnit.number),
             timeline_b_id="tl_b",
-            coordinate_b=0.0,
+            coordinate_b=Coordinate(0.0, TimeUnit.number),
         ),
         end_anchor=AlignmentAnchor(
             timeline_a_id="tl_a",
-            coordinate_a=100.0,
+            coordinate_a=Coordinate(100.0, TimeUnit.number),
             timeline_b_id="tl_b",
-            coordinate_b=50.0,
+            coordinate_b=Coordinate(50.0, TimeUnit.number),
         ),
         metadata=MatchMetadata(
             agent=Agent(name="test", type=AgentType.software, identifier="manual")
@@ -78,9 +78,9 @@ def three_timeline_claims() -> list[MatchClaim]:
             timeline_b_id="tl_b",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="tl_a",
-                coordinate_a=100.0,
+                coordinate_a=Coordinate(100.0, TimeUnit.number),
                 timeline_b_id="tl_b",
-                coordinate_b=50.0,
+                coordinate_b=Coordinate(50.0, TimeUnit.number),
             ),
         ),
         MatchClaim(
@@ -88,9 +88,9 @@ def three_timeline_claims() -> list[MatchClaim]:
             timeline_b_id="tl_c",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="tl_b",
-                coordinate_a=50.0,
+                coordinate_a=Coordinate(50.0, TimeUnit.number),
                 timeline_b_id="tl_c",
-                coordinate_b=25.0,
+                coordinate_b=Coordinate(25.0, TimeUnit.number),
             ),
         ),
     ]
@@ -394,9 +394,9 @@ class TestMatchGraphStamps:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -404,9 +404,9 @@ class TestMatchGraphStamps:
                 timeline_b_id="tl_d",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_c",
-                    coordinate_a=200.0,
+                    coordinate_a=Coordinate(200.0, TimeUnit.number),
                     timeline_b_id="tl_d",
-                    coordinate_b=75.0,
+                    coordinate_b=Coordinate(75.0, TimeUnit.number),
                 ),
             ),  # Disconnected
         ]
@@ -438,9 +438,9 @@ class TestMatchGraphGroupExtension:
             timeline_b_id="external",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=500.0,
+                coordinate_a=Coordinate(500.0, TimeUnit.number),
                 timeline_b_id="external",
-                coordinate_b=25.0,
+                coordinate_b=Coordinate(25.0, TimeUnit.number),
             ),
         )
         graph = MatchGraph([claim])
@@ -467,9 +467,9 @@ class TestMatchGraphGroupExtension:
             timeline_b_id="external",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=500.0,  # Midpoint of 1000px
+                coordinate_a=Coordinate(500.0, TimeUnit.pixels),  # Midpoint
                 timeline_b_id="external",
-                coordinate_b=25.0,
+                coordinate_b=Coordinate(25.0, TimeUnit.number),
             ),
         )
         graph = MatchGraph([claim])
@@ -496,9 +496,9 @@ class TestMatchGraphGroupExtension:
             timeline_b_id="external",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=500.0,
+                coordinate_a=Coordinate(500.0, TimeUnit.number),
                 timeline_b_id="external",
-                coordinate_b=25.0,
+                coordinate_b=Coordinate(25.0, TimeUnit.number),
             ),
         )
         graph = MatchGraph([claim])
@@ -526,9 +526,9 @@ class TestMatchGraphGroupExtension:
             timeline_b_id="external",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=500.0,
+                coordinate_a=Coordinate(500.0, TimeUnit.number),
                 timeline_b_id="external",
-                coordinate_b=25.0,
+                coordinate_b=Coordinate(25.0, TimeUnit.number),
             ),
         )
         graph = MatchGraph([claim])
@@ -562,9 +562,9 @@ class TestMatchGraphFilter:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -572,9 +572,9 @@ class TestMatchGraphFilter:
                 timeline_b_id="tl_c",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_b",
-                    coordinate_a=50.0,
+                    coordinate_a=Coordinate(50.0, TimeUnit.number),
                     timeline_b_id="tl_c",
-                    coordinate_b=25.0,
+                    coordinate_b=Coordinate(25.0, TimeUnit.number),
                 ),
             ),
         ]
@@ -593,9 +593,9 @@ class TestMatchGraphFilter:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -603,9 +603,9 @@ class TestMatchGraphFilter:
                 timeline_b_id="tl_c",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_b",
-                    coordinate_a=50.0,
+                    coordinate_a=Coordinate(50.0, TimeUnit.number),
                     timeline_b_id="tl_c",
-                    coordinate_b=25.0,
+                    coordinate_b=Coordinate(25.0, TimeUnit.number),
                 ),
             ),
         ]
@@ -624,9 +624,9 @@ class TestMatchGraphFilter:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
                 is_synchronous=True,
             ),
@@ -662,9 +662,9 @@ class TestMatchGraphFilter:
             timeline_b_id="external",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=500.0,
+                coordinate_a=Coordinate(500.0, TimeUnit.number),
                 timeline_b_id="external",
-                coordinate_b=25.0,
+                coordinate_b=Coordinate(25.0, TimeUnit.number),
             ),
         )
         graph = MatchGraph([claim])
@@ -688,9 +688,9 @@ class TestMatchGraphFilter:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
                 is_synchronous=True,
             ),
@@ -815,9 +815,9 @@ class TestMatchGraphNonSynchronousClaims:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
                 is_synchronous=True,
             ),
@@ -825,6 +825,7 @@ class TestMatchGraphNonSynchronousClaims:
                 event={"start": 200.0},
                 source_tl_id="tl_a",
                 target_tl_id="tl_b",
+                unit=TimeUnit.number,
             ),
         ]
         graph = MatchGraph(claims)
@@ -841,15 +842,16 @@ class TestMatchGraphNonSynchronousClaims:
             timeline_b_id="tl_b",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="tl_a",
-                coordinate_a=100.0,
+                coordinate_a=Coordinate(100.0, TimeUnit.number),
                 timeline_b_id="tl_b",
-                coordinate_b=50.0,
+                coordinate_b=Coordinate(50.0, TimeUnit.number),
             ),
         )
         nomatch_claim = MatchClaim.nomatch(
             event={"start": 200.0},
             source_tl_id="tl_a",
             target_tl_id="tl_c",
+            unit=TimeUnit.number,
         )
         graph = MatchGraph([sync_claim, nomatch_claim])
 
@@ -865,11 +867,13 @@ class TestMatchGraphNonSynchronousClaims:
                 event={"start": 100.0},
                 source_tl_id="tl_a",
                 target_tl_id="tl_b",
+                unit=TimeUnit.number,
             ),
             MatchClaim.nomatch(
                 event={"start": 200.0},
                 source_tl_id="tl_c",
                 target_tl_id="tl_d",
+                unit=TimeUnit.number,
             ),
         ]
         graph = MatchGraph(claims)
@@ -901,9 +905,9 @@ class TestMatchGraphGetStamps:
                 timeline_b_id="tl_b",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_a",
-                    coordinate_a=100.0,
+                    coordinate_a=Coordinate(100.0, TimeUnit.number),
                     timeline_b_id="tl_b",
-                    coordinate_b=50.0,
+                    coordinate_b=Coordinate(50.0, TimeUnit.number),
                 ),
             ),
             MatchClaim(
@@ -911,9 +915,9 @@ class TestMatchGraphGetStamps:
                 timeline_b_id="tl_d",
                 start_anchor=AlignmentAnchor(
                     timeline_a_id="tl_c",
-                    coordinate_a=200.0,
+                    coordinate_a=Coordinate(200.0, TimeUnit.number),
                     timeline_b_id="tl_d",
-                    coordinate_b=75.0,
+                    coordinate_b=Coordinate(75.0, TimeUnit.number),
                 ),
             ),  # Disconnected
         ]
@@ -953,9 +957,9 @@ class TestMatchGraphExtendToGroupsImplicitClaims:
             timeline_b_id="external",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=500.0,
+                coordinate_a=Coordinate(500.0, TimeUnit.number),
                 timeline_b_id="external",
-                coordinate_b=25.0,
+                coordinate_b=Coordinate(25.0, TimeUnit.number),
             ),
         )
         graph = MatchGraph([claim])
@@ -988,9 +992,9 @@ class TestMatchGraphExtendToGroupsImplicitClaims:
             timeline_b_id="external",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=500.0,
+                coordinate_a=Coordinate(500.0, TimeUnit.number),
                 timeline_b_id="external",
-                coordinate_b=25.0,
+                coordinate_b=Coordinate(25.0, TimeUnit.number),
             ),
         )
         graph = MatchGraph([claim])
@@ -1042,9 +1046,9 @@ class TestMatchGraphExtendToGroupsImplicitClaims:
             timeline_b_id="tl2",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="tl1",
-                coordinate_a=500.0,
+                coordinate_a=Coordinate(500.0, TimeUnit.number),
                 timeline_b_id="tl2",
-                coordinate_b=400.0,
+                coordinate_b=Coordinate(400.0, TimeUnit.number),
             ),
         )
         graph = MatchGraph([claim])
@@ -1113,9 +1117,9 @@ class TestMatchGraphExtendToGroupsFilters:
             timeline_b_id="external",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=500.0,
+                coordinate_a=Coordinate(500.0, TimeUnit.number),
                 timeline_b_id="external",
-                coordinate_b=25.0,
+                coordinate_b=Coordinate(25.0, TimeUnit.number),
             ),
         )
 
@@ -1214,9 +1218,9 @@ class TestMatchGraphFilterPhase64:
             timeline_b_id="audio",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=500.0,
+                coordinate_a=Coordinate(500.0, TimeUnit.number),
                 timeline_b_id="audio",
-                coordinate_b=50.0,
+                coordinate_b=Coordinate(50.0, TimeUnit.number),
             ),
         )
         graph = MatchGraph([claim])
@@ -1242,9 +1246,9 @@ class TestMatchGraphFilterPhase64:
             timeline_b_id="audio",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="dgt1",
-                coordinate_a=500.0,
+                coordinate_a=Coordinate(500.0, TimeUnit.number),
                 timeline_b_id="audio",
-                coordinate_b=50.0,
+                coordinate_b=Coordinate(50.0, TimeUnit.number),
             ),
         )
         graph = MatchGraph([claim])
@@ -1266,20 +1270,22 @@ class TestMatchGraphFilterPhase64:
             timeline_b_id="tl_b",
             start_anchor=AlignmentAnchor(
                 timeline_a_id="tl_a",
-                coordinate_a=100.0,
+                coordinate_a=Coordinate(100.0, TimeUnit.number),
                 timeline_b_id="tl_b",
-                coordinate_b=50.0,
+                coordinate_b=Coordinate(50.0, TimeUnit.number),
             ),
         )
         nomatch_claim = MatchClaim.nomatch(
             event={"start": 200.0},
             source_tl_id="tl_a",
             target_tl_id="tl_b",
+            unit=TimeUnit.number,
         )
         unrelated_nomatch = MatchClaim.nomatch(
             event={"start": 300.0},
             source_tl_id="tl_a",
             target_tl_id="tl_c",
+            unit=TimeUnit.number,
         )
         graph = MatchGraph([sync_claim, nomatch_claim, unrelated_nomatch])
 
