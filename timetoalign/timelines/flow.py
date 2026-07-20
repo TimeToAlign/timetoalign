@@ -2139,6 +2139,10 @@ class ScoreFlowController(FlowControllerBase):
             expected_next = sorted_mcs[mc_idx + 1]
             if next_mc != expected_next:
                 return True
+        else:
+            # A final measure may still carry a D.C./D.S. continuation.
+            # Only ``-1`` denotes a terminal successor (handled above).
+            return True
 
         return False
 
@@ -3537,9 +3541,10 @@ class ScoreFlowController(FlowControllerBase):
           the MC carrying that marker; an empty ``jump_fwd`` terminates
           the traversal when the trigger fires.
 
-        This algorithm does NOT consult the ms3 ``next`` field — that
-        field is one observable to compare against, not the source of
-        truth.
+        This algorithm does not follow the ms3 ``next`` field as its
+        traversal path. It uses a same-MC successor only to retain a
+        one-bar ``startend`` repeat when a loader has flattened away both
+        repeat flags.
         """
         if not self._units:
             return Flow(
@@ -3581,6 +3586,52 @@ class ScoreFlowController(FlowControllerBase):
             if u.start_repeat or u.coda is not None:
                 current_block_start = u.mc
             enclosing_start[u.mc] = current_block_start
+
+        # Match repeat ends to their active starts, beginning with the
+        # conventional implicit start at the beginning of the piece. After
+        # that initial scope is consumed, an unmatched repeat end starts at
+        # its atomic-section boundary. Some source
+        # formats flatten a one-bar ``startend`` repeat to a self-loop in
+        # ``next`` while leaving both repeat flags unset, so retain that
+        # narrowly defined structural inference as well.
+        atomic_start_by_mc: dict[int, int] = {}
+        for section in self._atomic_sections:
+            for section_mc in range(section.mc_start, section.mc_end):
+                atomic_start_by_mc[section_mc] = section.mc_start
+
+        repeat_start_for_end: dict[int, int] = {}
+        repeat_stack: list[int] = [first_mc]
+        inferred_self_repeats: set[int] = set()
+        for i, u in enumerate(sorted_units):
+            if u.coda is not None and repeat_stack[-1:] != [u.mc]:
+                repeat_stack.append(u.mc)
+            if u.start_repeat and repeat_stack[-1:] != [u.mc]:
+                repeat_stack.append(u.mc)
+
+            if u.end_repeat:
+                repeat_start_for_end[u.mc] = (
+                    repeat_stack[-1]
+                    if repeat_stack
+                    else atomic_start_by_mc.get(u.mc, u.mc)
+                )
+                if repeat_stack:
+                    repeat_stack.pop()
+            elif not u.start_repeat and u.mc in u.next:
+                sequential_next = sorted_mcs[i + 1] if i + 1 < len(sorted_mcs) else -1
+                if sequential_next in u.next:
+                    repeat_start_for_end[u.mc] = u.mc
+                    inferred_self_repeats.add(u.mc)
+
+        repeat_starts = set(repeat_start_for_end.values())
+
+        def _reset_nested_repeats(block_start: int, block_end: int) -> None:
+            """Reset repeat counters strictly nested in a restarting block."""
+            start_i = mc_index[block_start]
+            end_i = mc_index[block_end]
+            for nested_start in repeat_starts:
+                nested_i = mc_index[nested_start]
+                if start_i < nested_i <= end_i:
+                    pass_count[nested_start] = 0
 
         # Volta-containing-fine per block (used to route the al-Fine pass
         # through alternative endings beyond the natural 2-pass limit).
@@ -3666,10 +3717,11 @@ class ScoreFlowController(FlowControllerBase):
                 pc = dest
                 continue
 
-            if unit.end_repeat:
-                blk = enclosing_start[pc]
+            if unit.end_repeat or pc in inferred_self_repeats:
+                blk = repeat_start_for_end[pc]
                 pass_count[blk] += 1
                 if pass_count[blk] < natural_limit:
+                    _reset_nested_repeats(blk, pc)
                     pc = blk
                     continue
 
@@ -3698,6 +3750,7 @@ class ScoreFlowController(FlowControllerBase):
                         seg_blk = enclosing_start.get(segno_mc)
                         if seg_blk is not None:
                             pass_count[seg_blk] = 0
+                            _reset_nested_repeats(seg_blk, pc)
                     pc = target
                     continue
 

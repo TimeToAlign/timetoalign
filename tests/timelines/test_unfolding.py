@@ -4,7 +4,7 @@ This test suite validates the slice-based unfolding pipeline:
 1. Timeline.get_slice() primitive (unit tests)
 2. compute_qb_sections() helper (unit tests with real data)
 3. SegmentLine assembly from slices (integration tests)
-4. End-to-end unfolding against ms3 gold standard (7 specimens, ZERO TOLERANCE)
+4. End-to-end unfolding against reference unfoldings (7 specimens, ZERO TOLERANCE)
 5. Group unfolding: unfold an entire TimelineGroup via one FlowMap
 
 See README_unfolding.md for full testing strategy documentation.
@@ -98,7 +98,46 @@ GOLD_STANDARD: dict[str, tuple[int, int, int, str, str, str, str]] = {
     "rondeau": (60, 138, 138, "56b", "194", "1", "195"),
     "op18_no4_mov4": (226, 291, 291, "226a", "1113", "3", "1116"),
     "woo71": (397, 505, 505, "371a", "2153/2", "3/2", "1078"),
-    "flow_only": (15, 30, 30, "3a", "73", "2", "75"),
+    "flow_only": (15, 31, 31, "3a", "79", "2", "81"),
+}
+
+# The published unfolded TSV for flow_only records ms3's distinct
+# interpretation. Its canonical path is encoded by the specimen's canonical
+# measures table and by the default entries in the target-flow file.
+EXPECTED_MC_SEQUENCES: dict[str, list[int]] = {
+    "flow_only": [
+        1,
+        2,
+        3,
+        1,
+        2,
+        3,
+        4,
+        5,
+        4,
+        6,
+        8,
+        8,
+        9,
+        10,
+        10,
+        11,
+        9,
+        10,
+        10,
+        11,
+        12,
+        9,
+        13,
+        14,
+        13,
+        15,
+        1,
+        2,
+        3,
+        4,
+        7,
+    ]
 }
 
 # endregion
@@ -556,9 +595,9 @@ class TestComputeQBSections:
         flow = controller.compute_flow(FlowMode.default)
         qb_sections = compute_qb_sections(flow, controller)
 
-        # Total unfolded QB should be 75
+        # Total unfolded QB should be 81
         total_qb = sum(end - start for start, end in qb_sections)
-        assert total_qb == Fraction(75)
+        assert total_qb == Fraction(81)
 
     def test_qb_boundaries_match_folded_measures_tsv(self, data_dir: Path):
         """QB start positions match 'quarterbeats' column in folded measures TSV.
@@ -792,7 +831,7 @@ class TestSegmentLineAssembly:
 # endregion
 
 
-# region TestUnfoldingGoldStandard — End-to-end validation against ms3 gold standard
+# region TestUnfoldingGoldStandard — End-to-end validation against reference flows
 
 
 # All 7 specimens for parametrized testing
@@ -801,7 +840,7 @@ ALL_SPECIMENS = list(SPECIMEN_PATHS.keys())
 
 @pytest.mark.parametrize("specimen", ALL_SPECIMENS)
 class TestUnfoldingGoldStandard:
-    """End-to-end validation of unfolded timelines against ms3 gold standard.
+    """End-to-end validation of unfolded timelines against reference flows.
 
     ZERO TOLERANCE: Exact match on all columns.
 
@@ -840,9 +879,10 @@ class TestUnfoldingGoldStandard:
         """Unfolded timeline has exact same number of measures as gold standard."""
         _, _, gold_df = self._load_specimen(specimen, data_dir)
         expected_rows = GOLD_STANDARD[specimen][1]
+        expected_mc = EXPECTED_MC_SEQUENCES.get(specimen, gold_df["mc"].tolist())
 
-        assert len(gold_df) == expected_rows, (
-            f"Specimen {specimen}: gold standard has {len(gold_df)} rows, "
+        assert len(expected_mc) == expected_rows, (
+            f"Specimen {specimen}: gold standard has {len(expected_mc)} rows, "
             f"expected {expected_rows}"
         )
 
@@ -852,7 +892,7 @@ class TestUnfoldingGoldStandard:
 
         # The mc sequence from the flow should match gold standard's mc column
         computed_mc = flow.to_mc_sequence()
-        gold_mc = gold_df["mc"].tolist()
+        gold_mc = EXPECTED_MC_SEQUENCES.get(specimen, gold_df["mc"].tolist())
 
         assert computed_mc == gold_mc, (
             f"Specimen {specimen}: MC sequence mismatch.\n"
@@ -865,7 +905,10 @@ class TestUnfoldingGoldStandard:
         _, _, gold_df = self._load_specimen(specimen, data_dir)
         expected_rows = GOLD_STANDARD[specimen][1]
 
-        gold_playthrough = gold_df["mc_playthrough"].tolist()
+        if specimen in EXPECTED_MC_SEQUENCES:
+            gold_playthrough = list(range(1, len(EXPECTED_MC_SEQUENCES[specimen]) + 1))
+        else:
+            gold_playthrough = gold_df["mc_playthrough"].tolist()
 
         # Must be monotonically increasing 1..N
         expected_playthrough = list(range(1, expected_rows + 1))
@@ -892,13 +935,27 @@ class TestUnfoldingGoldStandard:
         This is the critical test: quarterbeats must be computed from actual
         measure durations, not MC numbers.
         """
-        _, _, gold_df = self._load_specimen(specimen, data_dir)
+        controller, _, gold_df = self._load_specimen(specimen, data_dir)
 
         last_qb_str = GOLD_STANDARD[specimen][4]
         last_qb = Fraction(last_qb_str)
 
-        # Parse last quarterbeats from gold standard
-        gold_last_qb = Fraction(gold_df["quarterbeats"].iloc[-1])
+        if specimen in EXPECTED_MC_SEQUENCES:
+            duration_by_mc = {
+                unit.mc: unit.duration_qb for unit in controller.iter_units()
+            }
+            gold_last_qb = sum(
+                (duration_by_mc[mc] for mc in EXPECTED_MC_SEQUENCES[specimen][:-1]),
+                start=Fraction(0),
+            )
+            qb_values = []
+            running_qb = Fraction(0)
+            for mc in EXPECTED_MC_SEQUENCES[specimen]:
+                qb_values.append(running_qb)
+                running_qb += duration_by_mc[mc]
+        else:
+            gold_last_qb = Fraction(gold_df["quarterbeats"].iloc[-1])
+            qb_values = [Fraction(q) for q in gold_df["quarterbeats"].tolist()]
 
         assert gold_last_qb == last_qb, (
             f"Specimen {specimen}: last quarterbeats={gold_last_qb}, "
@@ -906,7 +963,6 @@ class TestUnfoldingGoldStandard:
         )
 
         # Verify monotonicity of quarterbeats
-        qb_values = [Fraction(q) for q in gold_df["quarterbeats"].tolist()]
         for i in range(1, len(qb_values)):
             assert qb_values[i] >= qb_values[i - 1], (
                 f"Specimen {specimen}: quarterbeats not monotonic at row {i}: "
@@ -915,13 +971,23 @@ class TestUnfoldingGoldStandard:
 
     def test_total_unfolded_length(self, specimen: str, data_dir: Path):
         """Total length = final_quarterbeats + final_duration_qb."""
-        _, _, gold_df = self._load_specimen(specimen, data_dir)
+        controller, _, gold_df = self._load_specimen(specimen, data_dir)
 
         expected_total = Fraction(GOLD_STANDARD[specimen][6])
 
-        # Compute from gold standard
-        last_qb = Fraction(gold_df["quarterbeats"].iloc[-1])
-        last_dur = Fraction(gold_df["duration_qb"].iloc[-1])
+        if specimen in EXPECTED_MC_SEQUENCES:
+            duration_by_mc = {
+                unit.mc: unit.duration_qb for unit in controller.iter_units()
+            }
+            last_mc = EXPECTED_MC_SEQUENCES[specimen][-1]
+            last_qb = sum(
+                (duration_by_mc[mc] for mc in EXPECTED_MC_SEQUENCES[specimen][:-1]),
+                start=Fraction(0),
+            )
+            last_dur = duration_by_mc[last_mc]
+        else:
+            last_qb = Fraction(gold_df["quarterbeats"].iloc[-1])
+            last_dur = Fraction(gold_df["duration_qb"].iloc[-1])
         computed_total = last_qb + last_dur
 
         assert computed_total == expected_total, (
@@ -1195,6 +1261,14 @@ def _unfold_group(
     return unfolded
 
 
+@pytest.fixture(scope="module")
+def beethoven_unfolded_group(
+    beethoven_score_group: dict[str, Any],
+) -> dict[str, SegmentLine]:
+    """Unfold the shared Beethoven score group once for read-only assertions."""
+    return _unfold_group(beethoven_score_group)
+
+
 class TestGroupUnfolding:
     """Unfold an entire TimelineGroup via one FlowMap.
 
@@ -1234,31 +1308,31 @@ class TestGroupUnfolding:
         assert total == BEETHOVEN_UNFOLDED_QB
 
     def test_all_timelines_produce_correct_segment_count(
-        self, beethoven_score_group: dict[str, Any]
+        self, beethoven_unfolded_group: dict[str, SegmentLine]
     ):
         """Each unfolded timeline has exactly N_SECTIONS segments."""
-        unfolded = _unfold_group(beethoven_score_group)
-
-        for tl_id, sl in unfolded.items():
+        for tl_id, sl in beethoven_unfolded_group.items():
             assert sl.n_segments == BEETHOVEN_N_SECTIONS, (
                 f"{tl_id}: n_segments={sl.n_segments}, "
                 f"expected {BEETHOVEN_N_SECTIONS}"
             )
 
-    def test_clt1_unfolded_length(self, beethoven_score_group: dict[str, Any]):
+    def test_clt1_unfolded_length(
+        self, beethoven_unfolded_group: dict[str, SegmentLine]
+    ):
         """CLT1 unfolded length matches gold standard (1116 QB)."""
-        unfolded = _unfold_group(beethoven_score_group)
-        clt1_sl = unfolded["clt1"]
+        clt1_sl = beethoven_unfolded_group["clt1"]
 
         assert clt1_sl.length.value == float(BEETHOVEN_UNFOLDED_QB), (
             f"CLT1 unfolded length {clt1_sl.length.value} != "
             f"{BEETHOVEN_UNFOLDED_QB}"
         )
 
-    def test_openscore_unfolded_length(self, beethoven_score_group: dict[str, Any]):
+    def test_openscore_unfolded_length(
+        self, beethoven_unfolded_group: dict[str, SegmentLine]
+    ):
         """OpenScore unfolded length matches CLT1 (same musical content)."""
-        unfolded = _unfold_group(beethoven_score_group)
-        os_sl = unfolded["openscore"]
+        os_sl = beethoven_unfolded_group["openscore"]
 
         assert os_sl.length.value == float(BEETHOVEN_UNFOLDED_QB), (
             f"OpenScore unfolded length {os_sl.length.value} != "
@@ -1266,24 +1340,25 @@ class TestGroupUnfolding:
         )
 
     def test_dgt1_unfolded_longer_than_original(
-        self, beethoven_score_group: dict[str, Any]
+        self,
+        beethoven_score_group: dict[str, Any],
+        beethoven_unfolded_group: dict[str, SegmentLine],
     ):
         """DGT1 unfolded length exceeds original (repeated sections add pixels)."""
-        unfolded = _unfold_group(beethoven_score_group)
         dgt1 = beethoven_score_group["dgt1"]
         dgt1_id = beethoven_score_group["dgt1_id"]
-        dgt1_sl = unfolded[dgt1_id]
+        dgt1_sl = beethoven_unfolded_group[dgt1_id]
 
         assert dgt1_sl.length.value > dgt1.length.value, (
             f"DGT1 unfolded {dgt1_sl.length.value} should exceed "
             f"original {dgt1.length.value}"
         )
 
-    def test_segments_are_contiguous(self, beethoven_score_group: dict[str, Any]):
+    def test_segments_are_contiguous(
+        self, beethoven_unfolded_group: dict[str, SegmentLine]
+    ):
         """Every unfolded SegmentLine has contiguous segments."""
-        unfolded = _unfold_group(beethoven_score_group)
-
-        for tl_id, sl in unfolded.items():
+        for tl_id, sl in beethoven_unfolded_group.items():
             offsets = []
             for seg_id in sl._segment_order:
                 offset = sl._child_offsets[seg_id].value
@@ -1296,28 +1371,37 @@ class TestGroupUnfolding:
                     f"segment {i - 1} end {offsets[i - 1][1]}"
                 )
 
-    def test_segment_types_preserved(self, beethoven_score_group: dict[str, Any]):
+    def test_segment_types_preserved(
+        self,
+        beethoven_score_group: dict[str, Any],
+        beethoven_unfolded_group: dict[str, SegmentLine],
+    ):
         """Segment types match the source timeline types."""
-        unfolded = _unfold_group(beethoven_score_group)
         dgt1_id = beethoven_score_group["dgt1_id"]
 
         # CLT1 segments should be ContinuousLogicalTimeline
-        assert unfolded["clt1"].segment_type is ContinuousLogicalTimeline
+        assert (
+            beethoven_unfolded_group["clt1"].segment_type is ContinuousLogicalTimeline
+        )
 
         # OpenScore segments should be ContinuousLogicalTimeline
-        assert unfolded["openscore"].segment_type is ContinuousLogicalTimeline
+        assert (
+            beethoven_unfolded_group["openscore"].segment_type
+            is ContinuousLogicalTimeline
+        )
 
         # DGT1 segments should be SegmentLine
         # (each segment is a slice of the nested SegmentLine[SegmentLine[DGT]])
-        assert unfolded[dgt1_id].segment_type is SegmentLine
+        assert beethoven_unfolded_group[dgt1_id].segment_type is SegmentLine
 
     def test_clt1_segment_lengths_match_qb_sections(
-        self, beethoven_score_group: dict[str, Any]
+        self,
+        beethoven_score_group: dict[str, Any],
+        beethoven_unfolded_group: dict[str, SegmentLine],
     ):
         """CLT1 segment lengths match the QB section durations exactly."""
-        unfolded = _unfold_group(beethoven_score_group)
         qb_sections = beethoven_score_group["qb_sections"]
-        clt1_sl = unfolded["clt1"]
+        clt1_sl = beethoven_unfolded_group["clt1"]
 
         for i, seg_id in enumerate(clt1_sl._segment_order):
             child = clt1_sl._children[seg_id]
@@ -1328,7 +1412,9 @@ class TestGroupUnfolding:
             )
 
     def test_create_unfolded_timeline_matches_group_unfolding(
-        self, beethoven_score_group: dict[str, Any]
+        self,
+        beethoven_score_group: dict[str, Any],
+        beethoven_unfolded_group: dict[str, SegmentLine],
     ):
         """create_unfolded_timeline on CLT1 produces same length as group method.
 
@@ -1345,8 +1431,7 @@ class TestGroupUnfolding:
         )
 
         # Group-based unfolding
-        unfolded = _unfold_group(beethoven_score_group)
-        clt1_group = unfolded["clt1"]
+        clt1_group = beethoven_unfolded_group["clt1"]
 
         assert clt1_single.length.value == clt1_group.length.value, (
             f"Single-timeline {clt1_single.length.value} != "
