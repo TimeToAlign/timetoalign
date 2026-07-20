@@ -156,6 +156,13 @@ def _build_extra_field_schema(
 
     new_fields = list(schema)
     for name in extra_field_names:
+        if name == "volta":
+            for row in processed_rows:
+                value = row.get(name)
+                row[name] = int(value) if value is not None else None
+            new_fields.append(pa.field(name, pa.int64(), nullable=True))
+            continue
+
         sample = _first_non_null(processed_rows, name)
 
         if isinstance(sample, dict):

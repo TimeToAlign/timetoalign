@@ -4268,6 +4268,7 @@ def _flatten_segment_line_onto(
         target: The flat target timeline to receive all events.
         include_children: If True, also flatten children from each segment.
     """
+    all_shifted_events: list[dict[str, Any]] = []
     for seg_id in segment_line._segment_order:
         offset = segment_line._child_offsets[seg_id].value
         segment = segment_line._children[seg_id]
@@ -4275,7 +4276,6 @@ def _flatten_segment_line_onto(
         # Copy parent-level events from this segment
         events = list(segment.get_events(include_children=False))
         if events:
-            shifted_events: list[dict[str, Any]] = []
             for event in events:
                 new_event = dict(event)
                 if event.get("temporal_type") == "instant":
@@ -4290,8 +4290,7 @@ def _flatten_segment_line_onto(
                     new_event["start"] = type(start_val)(start_val) + offset
                     new_event["end"] = type(end_val)(end_val) + offset
                     new_event["duration"] = new_event["end"] - new_event["start"]
-                shifted_events.append(new_event)
-            target.add_events(shifted_events, allow_expansion=True)
+                all_shifted_events.append(new_event)
 
         # Recursively flatten children from this segment
         if include_children:
@@ -4318,6 +4317,9 @@ def _flatten_segment_line_onto(
                 except (ValueError, TypeError):
                     # Child may already exist or conflict — skip silently
                     pass
+
+    if all_shifted_events:
+        target.add_events(all_shifted_events, allow_expansion=True)
 
 
 # endregion

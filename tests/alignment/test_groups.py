@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.alignment import GroupTimestamp, TimelineGroup
+from timetoalign.core.enums import NumberType, TimeUnit
+from timetoalign.loader.events import EventData
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
@@ -1163,6 +1165,31 @@ class TestTimelineGroupUnitMetadata:
 # endregion
 
 
+# region EventData field typing
+
+
+def test_event_data_coerces_volta_to_integer() -> None:
+    """Carried volta values retain the ordinal ending-number type."""
+    null_only = EventData.from_dicts(
+        [{"event_type": "Measure", "start": 0, "end": 1, "volta": None}],
+        TimeUnit.quarters,
+        NumberType.fraction,
+    )
+    with_volta = EventData.from_dicts(
+        [{"event_type": "Measure", "start": 1, "end": 2, "volta": "2"}],
+        TimeUnit.quarters,
+        NumberType.fraction,
+    )
+
+    assert str(null_only._table.schema.field("volta").type) == "int64"
+    assert with_volta._table.column("volta").to_pylist() == [2]
+    null_only.extend(with_volta)
+    assert null_only._table.column("volta").to_pylist() == [None, 2]
+
+
+# endregion
+
+
 # region TestTimelineGroupUnfold
 
 
@@ -1245,29 +1272,40 @@ class TestTimelineGroupUnfold:
             "abc_loader": abc_loader,
         }
 
-    def test_unfold_returns_timeline_group(self, score_data):
-        """unfold() returns a TimelineGroup."""
-        group = score_data["group"]
-        result = group.unfold(score_data["flow"], score_data["controller"], "clt1")
-        assert isinstance(result, TimelineGroup)
+    @pytest.fixture(scope="class")
+    def unfolded_group(self, score_data):
+        """Unfold the score group once for flattened-result assertions."""
+        return score_data["group"].unfold(
+            score_data["flow"], score_data["controller"], "clt1"
+        )
 
-    def test_unfold_preserves_timeline_ids(self, score_data):
+    @pytest.fixture(scope="class")
+    def unfolded_segment_lines(self, score_data):
+        """Unfold the score group once as segment lines."""
+        return score_data["group"].unfold(
+            score_data["flow"],
+            score_data["controller"],
+            "clt1",
+            as_segment_lines=True,
+        )
+
+    def test_unfold_returns_timeline_group(self, unfolded_group):
+        """unfold() returns a TimelineGroup."""
+        assert isinstance(unfolded_group, TimelineGroup)
+
+    def test_unfold_preserves_timeline_ids(self, score_data, unfolded_group):
         """Unfolded group has the same timeline IDs as the original."""
         group = score_data["group"]
-        result = group.unfold(score_data["flow"], score_data["controller"], "clt1")
-        assert set(result.timeline_ids) == set(group.timeline_ids)
+        assert set(unfolded_group.timeline_ids) == set(group.timeline_ids)
 
-    def test_unfold_preserves_timeline_count(self, score_data):
+    def test_unfold_preserves_timeline_count(self, score_data, unfolded_group):
         """Unfolded group has the same number of timelines."""
         group = score_data["group"]
-        result = group.unfold(score_data["flow"], score_data["controller"], "clt1")
-        assert result.n_timelines == group.n_timelines
+        assert unfolded_group.n_timelines == group.n_timelines
 
-    def test_unfold_group_name(self, score_data):
+    def test_unfold_group_name(self, unfolded_group):
         """Unfolded group has a descriptive name."""
-        group = score_data["group"]
-        result = group.unfold(score_data["flow"], score_data["controller"], "clt1")
-        assert "unfolded" in result.name.lower()
+        assert "unfolded" in unfolded_group.name.lower()
 
     def test_unfold_custom_name(self, score_data):
         """Custom name is used when specified."""
@@ -1280,58 +1318,33 @@ class TestTimelineGroupUnfold:
         )
         assert result.name == "My Unfolded Group"
 
-    def test_unfold_as_segment_lines_clt1_length(self, score_data):
+    def test_unfold_as_segment_lines_clt1_length(self, unfolded_segment_lines):
         """CLT1 as SegmentLine has exact unfolded length (1116 QB)."""
-        group = score_data["group"]
-        result = group.unfold(
-            score_data["flow"],
-            score_data["controller"],
-            "clt1",
-            as_segment_lines=True,
-        )
-        clt1 = result.get_timeline("clt1")
+        clt1 = unfolded_segment_lines.get_timeline("clt1")
         assert clt1.length.value == self.UNFOLDED_QB
 
-    def test_unfold_as_segment_lines_openscore_length(self, score_data):
+    def test_unfold_as_segment_lines_openscore_length(self, unfolded_segment_lines):
         """OpenScore as SegmentLine has exact unfolded length (1116 QB)."""
-        group = score_data["group"]
-        result = group.unfold(
-            score_data["flow"],
-            score_data["controller"],
-            "clt1",
-            as_segment_lines=True,
-        )
-        openscore = result.get_timeline("openscore")
+        openscore = unfolded_segment_lines.get_timeline("openscore")
         assert openscore.length.value == self.UNFOLDED_QB
 
-    def test_unfold_as_segment_lines_segment_count(self, score_data):
+    def test_unfold_as_segment_lines_segment_count(self, unfolded_segment_lines):
         """Each SegmentLine has exactly N_SECTIONS segments."""
-        group = score_data["group"]
-        result = group.unfold(
-            score_data["flow"],
-            score_data["controller"],
-            "clt1",
-            as_segment_lines=True,
-        )
-        for tl_id in result.timeline_ids:
-            tl = result.get_timeline(tl_id)
+        for tl_id in unfolded_segment_lines.timeline_ids:
+            tl = unfolded_segment_lines.get_timeline(tl_id)
             assert tl.n_segments == self.N_SECTIONS, (
                 f"{tl_id}: n_segments={tl.n_segments}, " f"expected {self.N_SECTIONS}"
             )
 
-    def test_unfold_flattened_has_events(self, score_data):
+    def test_unfold_flattened_has_events(self, unfolded_group):
         """Flattened unfolded CLT1 has note events."""
-        group = score_data["group"]
-        result = group.unfold(score_data["flow"], score_data["controller"], "clt1")
-        clt1 = result.get_timeline("clt1")
+        clt1 = unfolded_group.get_timeline("clt1")
         events = clt1.get_events(event_type="Note", include_children=False)
         assert len(events) > 0
 
-    def test_unfold_reference_has_flow_maps(self, score_data):
+    def test_unfold_reference_has_flow_maps(self, unfolded_group):
         """Reference timeline in unfolded group has FlowMaps attached."""
-        group = score_data["group"]
-        result = group.unfold(score_data["flow"], score_data["controller"], "clt1")
-        clt1 = result.get_timeline("clt1")
+        clt1 = unfolded_group.get_timeline("clt1")
         assert clt1.n_flow_maps >= 2
         assert clt1.has_flow_map("source")
 
@@ -1345,7 +1358,9 @@ class TestTimelineGroupUnfold:
                 "nonexistent",
             )
 
-    def test_unfold_consistency_with_single_timeline(self, score_data):
+    def test_unfold_consistency_with_single_timeline(
+        self, score_data, unfolded_segment_lines
+    ):
         """Group unfold produces same length as create_unfolded_timeline.
 
         Verifies that the group-based approach is consistent with the
@@ -1353,14 +1368,12 @@ class TestTimelineGroupUnfold:
         """
         from timetoalign.timelines.flow import create_unfolded_timeline
 
-        group = score_data["group"]
         controller = score_data["controller"]
         flow = score_data["flow"]
         clt1 = score_data["clt1"]
 
         # Group approach (SegmentLine mode for exact comparison)
-        group_result = group.unfold(flow, controller, "clt1", as_segment_lines=True)
-        group_clt1 = group_result.get_timeline("clt1")
+        group_clt1 = unfolded_segment_lines.get_timeline("clt1")
 
         # Single-timeline approach
         single_clt1 = create_unfolded_timeline(
