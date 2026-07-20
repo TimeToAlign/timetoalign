@@ -212,7 +212,7 @@ szegedi_synchronous = [
     if c.is_synchronous
     and c.connects("perf:1966_Szegedi:cpt1")
     and c.start_anchor is not None
-    and c.start_anchor.coordinate_a == 40.0
+    and float(c.start_anchor.coordinate_a) == 40.0
 ]
 szegedi_synchronous[0]
 
@@ -273,7 +273,7 @@ bundle.get_matchstamp_at(40.0, "score:clt1")
 # them — one per measured beat of the variation. Take Szegedi's:
 
 # %%
-szegedi_beats = szegedi_cpt.get_events().filter(event_type="Beat").to_pandas()
+szegedi_beats = szegedi_cpt.get_events().filter(event_type="Beat").to_dataframe()
 
 szegedi_tempo = szegedi_beats[["start", "measure_number", "beat", "bpm"]].copy()
 szegedi_tempo["onset_sec"] = szegedi_tempo.pop("start").astype(float)
@@ -309,7 +309,7 @@ szegedi_tempo.head(8)
 # as the tempo readings:
 
 # %%
-szegedi_dyn = szegedi_cpt.get_events().filter(event_type="Dynamics").to_pandas()
+szegedi_dyn = szegedi_cpt.get_events().filter(event_type="Dynamics").to_dataframe()
 
 szegedi_dynamics = szegedi_dyn[
     ["start", "measure_number", "beat", "velocity_mean", "velocity_max"]
@@ -337,7 +337,7 @@ for key in bundle.group_ids:
     if not key.startswith("perf:"):
         continue
     cpt = bundle.get_timeline(f"{key}:cpt1")
-    beats = cpt.get_events().filter(event_type="Beat").to_pandas()
+    beats = cpt.get_events().filter(event_type="Beat").to_dataframe()
     bpm = beats["bpm"].astype(float)
     onset = beats["start"].astype(float)
     tempo_by_performer[key.removeprefix("perf:")] = {

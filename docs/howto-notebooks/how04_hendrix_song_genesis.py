@@ -51,7 +51,8 @@
 import pandas as pd
 
 from timetoalign import AlignmentBundle
-from timetoalign.alignment.claims import MatchClaim, MatchMetadata
+from timetoalign.alignment.claims import Agent, MatchClaim, MatchMetadata
+from timetoalign.core.enums import AgentType
 from timetoalign.loader.alignment import TiliaJsonLoader
 from timetoalign.testdata import ensure_data  # noqa: E402
 
@@ -71,7 +72,7 @@ names = ["Studio", "Demo2", "Demo1"]
 timelines = {}
 for name in names:
     loader = TiliaJsonLoader.from_file(DATA_DIR / f"Hendrix_Merman_{name}.json")
-    tl = loader.create_timeline("HIERARCHY_TIMELINE_0")
+    tl = loader.create_timeline(uid="HIERARCHY_TIMELINE_0")
     timelines[name] = tl
 
 timelines
@@ -122,7 +123,13 @@ bundle
 # each of the others (a "star" topology).
 
 # %%
-metadata = MatchMetadata(agent="user", decision_criteria="match_data.csv")
+metadata = MatchMetadata(
+    agent=Agent(
+        name="Hendrix analysis",
+        type=AgentType.human,
+        identifier="match_data.csv",
+    )
+)
 tl_columns = [c for c in df.columns if c not in ("match", "synchronous")]
 
 sync_claims = []
@@ -147,6 +154,7 @@ for _, row in df.iterrows():
                     event={},
                     source_tl_id=tl_name,
                     target_tl_id=other_name,
+                    unit=timelines[tl_name].unit,
                     metadata=metadata,
                 )
                 nomatch_claims.append(sentinel)
@@ -173,6 +181,8 @@ for _, row in df.iterrows():
                 tl_a_id=tl_a_name,
                 event_b=ev_b,
                 tl_b_id=tl_b_name,
+                unit_a=timelines[tl_a_name].unit,
+                unit_b=timelines[tl_b_name].unit,
                 end_coord_key="end",
                 is_synchronous=True,
                 metadata=metadata,

@@ -103,7 +103,7 @@ all_timelines = loader.create_timelines()
 # Individual timelines are accessed by role shorthand:
 
 # %%
-score = loader.create_timeline("score")
+score = loader.create_timeline(uid="score")
 score
 
 # %% [markdown]
@@ -113,7 +113,7 @@ score
 # divisions).
 
 # %%
-perf_01 = loader.create_timeline("perf:p01")
+perf_01 = loader.create_timeline(uid="perf:p01")
 perf_01
 
 # %% [markdown]
@@ -296,7 +296,7 @@ s0
 # loader.load(*sorted(data_dir.glob("*.match")))
 #
 # # Inspect timelines and their TimeStamps
-# score = loader.create_timeline("score")
+# score = loader.create_timeline(uid="score")
 # score.get_timestamp(10.0)  # quarters + raw + divs
 #
 # # Assemble the bundle

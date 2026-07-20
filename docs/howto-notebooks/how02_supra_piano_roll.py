@@ -397,14 +397,14 @@ clt1_score
 # %%
 # Get harmony annotations (from .harmonies.tsv)
 harmonies = score_loader.store.annotations.filter(subtype="Harmony")
-harmonies_df = harmonies.to_pandas()[["name", "text", "start", "mc", "mn"]].head(20)
+harmonies_df = harmonies.to_dataframe()[["name", "text", "start", "mc", "mn"]].head(20)
 harmonies_df
 
 # %%
 # Get chord control events (from .chords.tsv)
 chords = score_loader.store.controls.filter(subtype="Chord")
 if len(chords) > 0:
-    chords_df = chords.to_pandas()[["name", "text", "start", "mc", "mn"]].head(10)
+    chords_df = chords.to_dataframe()[["name", "text", "start", "mc", "mn"]].head(10)
     chords_df
 else:
     {"Chord controls": "No chords loaded (file may not exist)"}
@@ -456,7 +456,7 @@ group
 
 # %%
 # Get the full timestamp table
-group_timestamps = group.get_timestamps_df()
+group_timestamps = group.to_dataframe()
 group_timestamps
 
 # %% [markdown]
@@ -482,13 +482,13 @@ group_timestamps
 # Find the first I chord (tonic) harmony
 i_chords = score_loader.store.annotations.filter(text="I")
 if len(i_chords) > 0:
-    first_i = i_chords.to_pandas().iloc[0]
+    first_i = i_chords.to_dataframe().iloc[0]
     i_chord_qb = float(first_i["start"])
     i_chord_label = first_i["text"]
     i_chord_mc = first_i["mc"]
 else:
     # Fallback if no I chord
-    first_harmony = score_loader.store.annotations.to_pandas().iloc[0]
+    first_harmony = score_loader.store.annotations.to_dataframe().iloc[0]
     i_chord_qb = float(first_harmony["start"])
     i_chord_label = first_harmony["text"]
     i_chord_mc = first_harmony["mc"]
@@ -519,8 +519,8 @@ if harmony_ts["dgt_holes"] is not None:
     # Create IdCoordinate from child timeline - parent auto-offsets!
     child_coord = IdCoordinate(harmony_ts["dgt_holes"], TimeUnit.pixels, "dgt_holes")
 
-    # Parent's get_timestamps() recognizes the child_id and applies offset
-    image_ts = dgt1.get_timestamps(coordinates=[child_coord])
+    # Parent's to_dataframe() recognizes the child_id and applies offset
+    image_ts = dgt1.to_dataframe(coordinates=[child_coord])
     image_ts
 
 # %% [markdown]
@@ -532,7 +532,7 @@ if harmony_ts["dgt_holes"] is not None:
 # %%
 # Get first 10 harmonies
 first_10_harmonies = (
-    score_loader.store.annotations.filter(subtype="Harmony").to_pandas().head(10)
+    score_loader.store.annotations.filter(subtype="Harmony").to_dataframe().head(10)
 )
 
 # DEAD-SIMPLE: Get timestamps for all harmony coordinates in ONE CALL
@@ -554,7 +554,7 @@ child_coords = [
 ]
 
 # Parent timeline auto-applies offset and returns timestamps with C-Maps
-parent_df = dgt1.get_timestamps(coordinates=child_coords)
+parent_df = dgt1.to_dataframe(coordinates=child_coords)
 parent_df
 
 # %% [markdown]

@@ -72,7 +72,7 @@ tsv_loader.store.notes.schema  # PyArrow schema
 tsv_loader.store.measures  # MeasureData
 
 # %%
-tsv_loader.store["notes"].to_pandas().head()
+tsv_loader.store["notes"].to_dataframe().head()
 
 # %%
 tsv_tl = tsv_loader.create_timeline()
@@ -109,7 +109,7 @@ tsv_events_at = tsv_tl.get_events_at(5)
 tsv_events_at
 
 # %%
-tsv_tl.get_timestamps()
+tsv_tl.to_dataframe()
 
 # %%
 tsv_event_ids = [evt["id"] for evt in list(tsv_tl.get_events())[:5]]
@@ -151,7 +151,7 @@ partitura_loader.store.notes.schema
 partitura_loader.store.measures
 
 # %%
-partitura_loader.store["notes"].to_pandas().head()
+partitura_loader.store["notes"].to_dataframe().head()
 
 # %%
 partitura_tl = partitura_loader.create_timeline()
@@ -181,7 +181,7 @@ partitura_tl.get_timestamp_at(10)
 partitura_tl.get_events_at(0)
 
 # %%
-partitura_tl.get_timestamps()
+partitura_tl.to_dataframe()
 
 # %%
 part_event_ids = [evt["id"] for evt in list(partitura_tl.get_events())[:5]]
@@ -254,7 +254,7 @@ music21_tl.get_timestamp_at(10)
 music21_tl.get_events_at(0)
 
 # %%
-music21_tl.get_timestamps()
+music21_tl.to_dataframe()
 
 # %%
 m21_event_ids = [evt["id"] for evt in list(music21_tl.get_events())[:5]]
@@ -294,7 +294,7 @@ mm_loader.store
 mm_loader.store.measures
 
 # %%
-mm_loader.store["measures"].to_pandas().head()
+mm_loader.store["measures"].to_dataframe().head()
 
 # %%
 mm_tl = mm_loader.create_timeline()
@@ -338,7 +338,7 @@ perf_midi_loader.store.notes  # MidiStore typed property -> MidiEventData
 perf_midi_loader.store.notes.schema
 
 # %%
-perf_midi_loader.store["notes"].to_pandas().head()
+perf_midi_loader.store["notes"].to_dataframe().head()
 
 # %%
 perf_midi_tl = perf_midi_loader.create_timeline()
@@ -368,7 +368,7 @@ perf_midi_tl.get_timestamp_at(0.5)
 perf_midi_tl.get_events_at(0)
 
 # %%
-perf_midi_tl.get_timestamps()
+perf_midi_tl.to_dataframe()
 
 # %%
 perf_midi_event_ids = [evt["id"] for evt in list(perf_midi_tl.get_events())[:5]]
@@ -406,7 +406,7 @@ score_midi_loader.store.notes
 score_midi_loader.store.notes.schema
 
 # %%
-score_midi_loader.store["notes"].to_pandas().head()
+score_midi_loader.store["notes"].to_dataframe().head()
 
 # %%
 score_midi_tl = score_midi_loader.create_timeline()
@@ -436,7 +436,7 @@ score_midi_tl.get_timestamp_at(0)
 score_midi_tl.get_events_at(0)
 
 # %%
-score_midi_tl.get_timestamps()
+score_midi_tl.to_dataframe()
 
 # %%
 score_midi_event_ids = [evt["id"] for evt in list(score_midi_tl.get_events())[:5]]
@@ -483,7 +483,7 @@ ms3_loader.events  # EventData (generic, not ScoreEventData)
 ms3_loader.events.schema
 
 # %%
-ms3_loader.events.to_pandas().head()
+ms3_loader.events.to_dataframe().head()
 
 # %%
 ms3_tl = ms3_loader.create_timeline()
@@ -507,7 +507,7 @@ ms3_tl.get_timestamp_of(ms3_first_event_id)
 ms3_tl.get_timestamp_at(0)
 
 # %%
-ms3_tl.get_timestamps()
+ms3_tl.to_dataframe()
 
 # %%
 ms3_event_ids = [evt["id"] for evt in list(ms3_tl.get_events())[:5]]
@@ -540,7 +540,7 @@ csv_loader.events.table.to_pandas()
 csv_loader.events.schema
 
 # %%
-csv_loader.events.to_pandas().head()
+csv_loader.events.to_dataframe().head()
 
 # %%
 csv_tl = csv_loader.create_timeline()
@@ -564,7 +564,7 @@ csv_tl.get_timestamp_of(csv_first_event_id)
 csv_tl.get_timestamp_at(0)
 
 # %%
-csv_tl.get_timestamps()
+csv_tl.to_dataframe()
 
 # %%
 csv_event_ids = [evt["id"] for evt in list(csv_tl.get_events())[:5]]
@@ -652,7 +652,7 @@ eep_loader.events
 eep_loader.events.schema
 
 # %%
-eep_loader.events.to_pandas().head()
+eep_loader.events.to_dataframe().head()
 
 # %%
 eep_tl = eep_loader.create_timeline()
@@ -682,7 +682,7 @@ eep_tl.get_timestamp_at(1.0)
 eep_tl.get_events_at(1.0)
 
 # %%
-eep_tl.get_timestamps()
+eep_tl.to_dataframe()
 
 # %%
 eep_event_ids = [evt["id"] for evt in list(eep_tl.get_events())[:5]]
@@ -875,7 +875,7 @@ tilia_tls = tilia_loader.create_timelines()
 {i: tl for i, tl in enumerate(tilia_tls)}
 
 # %%
-tilia_tl0 = tilia_loader.create_timeline(tilia_loader.timeline_ids[0])
+tilia_tl0 = tilia_loader.create_timeline(uid=tilia_loader.timeline_ids[0])
 tilia_tl0
 
 # %%
@@ -955,11 +955,16 @@ if len(tilia_bundle.timeline_ids) >= 2:
 # %%
 # Create MatchClaims by pairing events from two timelines
 if len(tilia_bundle.timeline_ids) >= 2:
-    tilia_tl_uid_a, tilia_tl_uid_b = tilia_bundle.timeline_ids[:2]
+    tilia_timeline_id_a, tilia_timeline_id_b = tilia_bundle.timeline_ids[:2]
     tilia_evts_a = list(tilia_tl_a.get_events())[:2]
     tilia_evts_b = list(tilia_tl_b.get_events())[:2]
     tilia_pairs = [
-        (tilia_evts_a[0], tilia_tl_uid_a, tilia_evts_b[0], tilia_tl_uid_b),
+        (
+            tilia_evts_a[0],
+            tilia_timeline_id_a,
+            tilia_evts_b[0],
+            tilia_timeline_id_b,
+        ),
     ]
     tilia_new_claims = tilia_bundle.create_match_claims(
         tilia_pairs, synchronous=True, agent="notebook_test"
@@ -1005,7 +1010,7 @@ match_tls = match_loader.create_timelines()
 {tl.id: (tl.n_children, tl.n_events) for tl in match_tls}
 
 # %%
-match_tl_score = match_loader.create_timeline("score")
+match_tl_score = match_loader.create_timeline(uid="score")
 match_tl_score
 
 # %%

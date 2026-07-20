@@ -43,7 +43,7 @@
 # loader = Ms3Loader()
 # loader.load("beethoven.notes.tsv")
 #
-# df = loader.events.to_pandas()       # Get as DataFrame
+# df = loader.events.to_dataframe()    # Get as DataFrame
 # timeline = loader.create_timeline()  # Create Timeline
 # ```
 
@@ -81,10 +81,10 @@ f"{len(loader.events):,} notes loaded"
 # %% [markdown]
 # ## Converting to pandas
 #
-# Use `to_pandas()` to get a DataFrame with clean coordinate values:
+# Use `to_dataframe()` to get a DataFrame with clean coordinate values:
 
 # %%
-loader.events.to_pandas().head()
+loader.events.to_dataframe().head()
 
 # %% [markdown]
 # ## Quick Statistics
@@ -151,7 +151,7 @@ class ThoresenLoader(TsvLoader):
 
 thoresen = ThoresenLoader()
 thoresen.load(THORESEN / "thoresen_test.tsv")
-thoresen.events.to_pandas()
+thoresen.events.to_dataframe()
 
 # %% [markdown]
 # ### Promoting Columns to Typed Fields with `column_specs`
@@ -185,7 +185,7 @@ class ThoresenTypedLoader(TsvLoader):
 
 typed = ThoresenTypedLoader()
 typed.load(THORESEN / "thoresen_test.tsv")
-typed.events.to_pandas()
+typed.events.to_dataframe()
 
 # %% [markdown]
 # That is the entire idea: **columns are a source artefact; fields are a
@@ -242,11 +242,11 @@ graphical.load(THORESEN / "thoresen_test.tsv")
 
 # %%
 # Physical timeline (seconds)
-typed.events.to_pandas()
+typed.events.to_dataframe()
 
 # %%
 # Graphical timeline (pixels)
-graphical.events.to_pandas()
+graphical.events.to_dataframe()
 
 # %% [markdown]
 # ### Creating Timelines

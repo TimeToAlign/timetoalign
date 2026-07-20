@@ -62,7 +62,7 @@ tl.get_child("notes").get_events(
 # child timeline?
 
 # %%
-timestamps_df = tl.get_timestamps()
+timestamps_df = tl.to_dataframe()
 timestamps_df.head(10)
 
 # %% [markdown]

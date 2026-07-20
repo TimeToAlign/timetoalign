@@ -176,7 +176,7 @@ score_clt.get_events().table.slice(0, 5).to_pandas()[
 # `*_label` column. Here the style name `"Meno mosso."` resolves to 100 BPM:
 
 # %%
-tempo_events = score_dlt.get_events().filter(event_type="Tempo").to_pandas()
+tempo_events = score_dlt.get_events().filter(event_type="Tempo").to_dataframe()
 
 tempo_table = tempo_events[["start", "bpm_label", "bpm"]].copy()
 tempo_table["tick"] = tempo_table.pop("start").astype(int)
@@ -192,7 +192,7 @@ tempo_table[["tick", "bpm_label", "bpm"]].head(7)
 # `volume_label`:
 
 # %%
-dynamics_events = score_dlt.get_events().filter(event_type="Dynamics").to_pandas()
+dynamics_events = score_dlt.get_events().filter(event_type="Dynamics").to_dataframe()
 
 dynamics_table = dynamics_events[["start", "volume_label", "volume"]].copy()
 dynamics_table["tick"] = dynamics_table.pop("start").astype(int)
@@ -210,7 +210,7 @@ dynamics_table[["tick", "volume_label", "volume"]].head(6)
 
 # %%
 articulation_events = (
-    score_dlt.get_events().filter(event_type="Articulation").to_pandas()
+    score_dlt.get_events().filter(event_type="Articulation").to_dataframe()
 )
 
 staccato = articulation_events[articulation_events["name"] == "staccato"].copy()
@@ -303,7 +303,7 @@ quarter_half_claims = [
     for c in claims
     if c.is_synchronous
     and c.start_anchor is not None
-    and c.start_anchor.coordinate_a == 0.5
+    and float(c.start_anchor.coordinate_a) == 0.5
 ]
 quarter_half_claims[0]
 

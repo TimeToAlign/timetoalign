@@ -128,9 +128,9 @@ def build_recording_group(xml_path, group_id, group_name, dpt_base):
     n = dpt_base
 
     # 1. Audio (mono as parent, 6 sources as children)
-    audio = rv.create_timeline("mono", tl_uid=f"dpt{n}", name="Audio")
+    audio = rv.create_timeline("mono", uid=f"dpt{n}", name="Audio")
     for src in AUDIO_SOURCES:
-        audio.add_child(rv.create_timeline(src, tl_uid=src), offset=0)
+        audio.add_child(rv.create_timeline(src, uid=src), offset=0)
 
     # 2-4. Essentia descriptors (tonal, lowlevel, rhythm)
     desc_cfgs = [
@@ -142,13 +142,13 @@ def build_recording_group(xml_path, group_id, group_name, dpt_base):
     for desc_type, desc_name, offset in desc_cfgs:
         parent = rv.create_timeline(
             f"{desc_type}.{desc_name}.mono",
-            tl_uid=f"dpt{n + offset}",
+            uid=f"dpt{n + offset}",
             name=desc_type.title(),
         )
         for src in AUDIO_SOURCES:
             parent.add_child(
                 rv.create_timeline(
-                    f"{desc_type}.{desc_name}.{src}", tl_uid=f"{src}_{desc_type}"
+                    f"{desc_type}.{desc_name}.{src}", uid=f"{src}_{desc_type}"
                 ),
                 offset=0,
             )
@@ -157,13 +157,13 @@ def build_recording_group(xml_path, group_id, group_name, dpt_base):
     # 5. MoCap bb_angle (from the DescriptorGroup section of the XML)
     mocap = rv.create_timeline(
         rv.find_descriptor("bb_angle", "vln1"),
-        tl_uid=f"dpt{n + 4}",
+        uid=f"dpt{n + 4}",
         name="MoCap",
     )
     for inst in INSTRUMENTS:
         child = rv.create_timeline(
             rv.find_descriptor("bb_angle", inst),
-            tl_uid=f"{inst}_mocap",
+            uid=f"{inst}_mocap",
         )
         mocap.add_child(child, offset=0)
 
@@ -171,7 +171,7 @@ def build_recording_group(xml_path, group_id, group_name, dpt_base):
     for inst in INSTRUMENTS:
         notes = rv.store.notes_for_instrument(inst)
         if notes and (pickup := audio.get_child(f"pickup_{inst}")):
-            pickup.add_events(notes.to_pandas().to_dict("records"))
+            pickup.add_events(notes.to_dataframe().to_dict("records"))
 
     return TimelineGroup(
         id=group_id,
@@ -485,7 +485,7 @@ score_group_unfolded
 clt1_unfolded = score_group_unfolded.get_timeline("clt1")
 abc_notes_df = clt1_unfolded.get_events(
     event_type="Note", include_children=False
-).to_pandas()
+).to_dataframe()
 
 # Cast types restored from string (EventData stores extra columns as strings)
 abc_notes_df["staff"] = pd.to_numeric(abc_notes_df["staff"], errors="coerce").astype(
@@ -524,7 +524,7 @@ for xml_path, dpt_id in [
     (EXAGGERATED_XML, "dpt11"),
 ]:
     rv = RepoVizzLoader.from_file(xml_path)
-    eep_events = rv.store.notes.to_pandas()
+    eep_events = rv.store.notes.to_dataframe()
     eep_prepared = prepare_eep_notes_for_matching(eep_events)
     match_results[dpt_id] = match_notes_by_attributes(
         eep_prepared,
@@ -534,6 +534,8 @@ for xml_path, dpt_id in [
         target_coord_column="quarterbeats_playthrough",
         source_timeline_id=dpt_id,
         target_timeline_id="clt1",
+        source_unit=TimeUnit.seconds,
+        target_unit=TimeUnit.quarters,
     )
 
 normal_match = match_results["dpt1"]
@@ -635,9 +637,8 @@ single_flow
 
 # %%
 clt2_unfolded = create_unfolded_timeline(
-    clt2, default_flow, flow_controller=rec_controller
+    clt2, default_flow, flow_controller=rec_controller, uid="clt2_unfolded"
 )
-clt2_unfolded._id = "clt2_unfolded"
 clt2_unfolded
 
 # %% [markdown]
@@ -884,7 +885,7 @@ transferred = emerson_warpmap.forward(first_fm)
 # ABC score:
 
 # %%
-annotations_df = clt1.get_child("annotations").get_events().to_pandas()
+annotations_df = clt1.get_child("annotations").get_events().to_dataframe()
 annotations_df[["start", "name"]].head(15)
 
 # %% [markdown]

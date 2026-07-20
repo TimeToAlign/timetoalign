@@ -65,12 +65,12 @@ parent.add_child(child2, offset=60)  # child2 spans [60, 75] on parent
 
 # %%
 coords = [0.0, 15.0, 25.0, 50.0, 65.0, 100.0]
-parent.get_timestamps(coordinates=coords)
+parent.to_dataframe(coordinates=coords)
 
 # %%
 # Efficient numpy array query
 coords = np.linspace(0, 100, 21)
-parent.get_timestamps(coordinates=coords)
+parent.to_dataframe(coordinates=coords)
 
 # %% [markdown]
 # ## Boundary Tables
@@ -79,13 +79,13 @@ parent.get_timestamps(coordinates=coords)
 parent.get_boundary_table().to_pandas()
 
 # %% [markdown]
-# ## Filtered Timestamps
+# ## Filtering Events
 
 # %%
-parent.get_timestamp_table_filtered({"event_type": "Note"}).to_pandas()
+parent.get_events(event_type="Note", include_children=True).to_dataframe()
 
 # %%
-parent.get_timestamp_table_filtered({"event_type": "Beat"}).to_pandas()
+parent.get_events(event_type="Beat", include_children=True).to_dataframe()
 
 # %% [markdown]
 # ## PyArrow Tables

@@ -119,7 +119,7 @@ metrical_position_map = loader.metrical_position_map
 # every note of the `.solo` score, each placed at its absolute quarter position.
 
 # %%
-score_tl = loader.create_timeline("score")
+score_tl = loader.create_timeline(uid="score")
 score_tl
 
 # %% [markdown]
@@ -177,7 +177,7 @@ performer_keys = [tl.name for tl in loader.create_timelines() if tl is not score
 performer_keys
 
 # %%
-ashkenazy = loader.create_timeline("Chopin_Ashkenazy")
+ashkenazy = loader.create_timeline(uid="Chopin_Ashkenazy")
 ashkenazy
 
 # %% [markdown]
@@ -271,7 +271,7 @@ for mc in downbeat_mcs:
     onset_stamp = bundle.get_matchstamp_at(quarters, score_tl.id)
     row = {"score (quarters)": quarters}
     for key in performer_keys:
-        perf_id = loader.create_timeline(key).id
+        perf_id = loader.create_timeline(uid=key).id
         coord = onset_stamp.coordinates.get(perf_id)
         row[key.replace("Chopin_", "")] = (
             round(float(coord), 3) if coord is not None else None

@@ -45,6 +45,7 @@ import tempfile
 
 import pandas as pd
 
+from timetoalign import TimeUnit
 from timetoalign.alignment import AlignmentBundle, MatchLine, TimelineGroup
 from timetoalign.alignment.match_format import MatchFileContext
 from timetoalign.alignment.matching import (
@@ -71,7 +72,7 @@ ABC_DIR = DATA_DIR / "ABC"
 # Performance notes from the Normal recording
 eep_loader = EepNotesLoader()
 eep_loader.load(*sorted(NORMAL_DIR.glob("*_align_*.notes")))
-eep_df = eep_loader.events.to_pandas()
+eep_df = eep_loader.events.to_dataframe()
 
 # Score notes from the unfolded ABC edition
 abc_df = pd.read_csv(ABC_DIR / "n04op18-4_04_unfolded.notes.tsv", sep="\t")
@@ -103,6 +104,8 @@ match_result = match_notes_by_attributes(
     target_coord_column="quarterbeats_playthrough",
     source_timeline_id="cpt1",  # performance timeline (seconds)
     target_timeline_id="clt1",  # score timeline (quarterbeats)
+    source_unit=TimeUnit.seconds,
+    target_unit=TimeUnit.quarters,
 )
 
 match_result.summary()

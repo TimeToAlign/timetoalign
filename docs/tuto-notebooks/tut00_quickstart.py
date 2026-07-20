@@ -80,7 +80,7 @@ score
 # ([Full tutorial](tut01b_children_regions_timestamps.ipynb))
 
 # %%
-score.get_timestamps().head(5)
+score.to_dataframe().head(5)
 
 # %% [markdown]
 # ## 3. Conversion Maps
