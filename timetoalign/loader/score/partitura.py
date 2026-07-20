@@ -320,12 +320,21 @@ class PartituraLoader(ScoreLoader):
             # ===== Extract Endings (Volta) and other flow control markers =====
             # ending_mcs: MC -> volta number (first MC of each ending).
             # ending_after_mcs: MC -> first MC after each ending (from Ending.end.t).
-            # ds_dc_mcs: MCs containing DalSegno/DaCapo/Fine/Segno/Coda markers.
-            #   These indicate complex jump structures that require separate handling;
-            #   repeat blocks containing them are skipped by the simple next[] logic.
+            # Navigation directions in implicit X-measures are attached to the
+            # preceding playable row in the measure-table convention. Target
+            # markers remain on their own row.
             ending_mcs: dict[int, int] = {}  # start MC -> volta number
             ending_after_mcs: dict[int, int] = {}  # start MC -> first MC after ending
-            ds_dc_mcs: set[int] = set()  # MCs with DalSegno/DaCapo/Fine/Segno/Coda
+            marker_names: dict[int, str] = {}
+            jump_bwd: dict[int, str] = {}
+            jump_fwd: dict[int, str] = {}
+            play_until: dict[int, str] = {}
+            fine_mcs: set[int] = set()
+            implicit_mcs = {
+                i + 1
+                for i, measure in enumerate(measures)
+                if str(getattr(measure, "name", "")).startswith("X")
+            }
 
             for obj in flow_markers:
                 marker_mc = get_mc(obj.start.t)
@@ -351,7 +360,20 @@ class PartituraLoader(ScoreLoader):
                         pts.ToCoda,
                     ),
                 ):
-                    ds_dc_mcs.add(marker_mc)
+                    if isinstance(obj, pts.Segno):
+                        marker_names[marker_mc] = "segno"
+                    elif isinstance(obj, pts.Coda):
+                        marker_names[marker_mc] = "coda"
+                    elif isinstance(obj, pts.Fine):
+                        fine_mc = (
+                            marker_mc - 1 if marker_mc in implicit_mcs else marker_mc
+                        )
+                        marker_names[fine_mc] = "fine"
+                        fine_mcs.add(fine_mc)
+                    if isinstance(obj, pts.DaCapo):
+                        jump_bwd[marker_mc] = "start"
+                    elif isinstance(obj, pts.DalSegno):
+                        jump_bwd[marker_mc] = "segno"
 
                 control_rows.append(
                     {
@@ -378,23 +400,44 @@ class PartituraLoader(ScoreLoader):
                     }
                 )
 
+            # Partitura drops MusicXML coda identifiers, but retains the
+            # implicit X2/X3 measures at those destinations. Associate each
+            # such destination with its navigation instruction.
+            coda_index = 0
+            for marker_mc, target in jump_bwd.items():
+                if marker_mc not in implicit_mcs:
+                    continue
+                coda_index += 1
+                coda_name = f"{coda_index + 1}e"
+                marker_names[marker_mc] = coda_name
+                jump_fwd[marker_mc] = coda_name
+                if target == "start":
+                    play_until[marker_mc] = "segno"
+
+            # D.S. directions in these scores return to the Fine section.
+            for marker_mc, target in jump_bwd.items():
+                if target == "segno" and fine_mcs:
+                    play_until[marker_mc] = "fine"
+
             # ===== Derive next[] for each measure from repeat/volta structure =====
             # next_mc_map: MC -> list of possible successor MCs (in visitation order).
             # An absent entry means "next sequential MC" (or -1 for the last bar).
             #
-            # next[] is only derived when the piece contains ONLY simple repeat/volta
-            # structure (no DalSegno/DaCapo/Fine/Segno/Coda markers anywhere).
-            # When complex jump markers are present, the full D.S./D.C./Coda logic
-            # is not yet implemented; leaving next[] absent causes FlowController to
-            # default to a sequential (printed) traversal, which matches the known
-            # Partitura approximation for such pieces.
+            # Repeat structure remains active when navigation markers are present;
+            # the marker fields below let FlowController combine the two kinds of
+            # flow control.
             next_mc_map: dict[int, list[int]] = {}
             num_measures = len(measures)
 
-            # Only compute next[] when no complex jump markers exist in the piece.
-            _active_blocks = [] if ds_dc_mcs else repeat_blocks
+            # Directions in implicit X-measures execute after the preceding
+            # playable measure; other directions stay on their own row.
+            jump_rows = {}
+            for mc, target in jump_bwd.items():
+                row_mc = mc - 1 if mc in implicit_mcs else mc
+                if 1 <= row_mc <= num_measures:
+                    jump_rows[row_mc] = (target, play_until.get(mc))
 
-            for rep_start_mc, rep_after_mc in _active_blocks:
+            for rep_start_mc, rep_after_mc in repeat_blocks:
                 # Collect volta-1 start MCs inside this repeat block.
                 volta1_starts = sorted(
                     mc
@@ -428,6 +471,21 @@ class PartituraLoader(ScoreLoader):
                     if last_v1_mc >= 1 and last_v1_mc <= num_measures:
                         next_mc_map[last_v1_mc] = [rep_start_mc]
 
+            # The flow controller uses a non-sequential next edge to identify
+            # the origin of a D.S. or D.C. jump.  Keep the typed instruction in
+            # the dedicated fields, and mirror its destination here so it is
+            # executable during traversal.
+            segno_mc = next(
+                (mc for mc, name in marker_names.items() if name == "segno"), None
+            )
+            for mc, (target, _until) in jump_rows.items():
+                if mc > num_measures:
+                    continue
+                if target == "segno" and segno_mc is not None:
+                    next_mc_map[mc] = [segno_mc]
+                elif target == "start":
+                    next_mc_map[mc] = [1]
+
             # Process Measures
             for i, m in enumerate(measures):
                 qb_start = cached_beat_frac(m.start.t)
@@ -460,6 +518,15 @@ class PartituraLoader(ScoreLoader):
                         "end_repeat": mc in repeat_end_mcs,
                         "volta": ending_mcs.get(mc),
                         "next": mc_next,
+                        "markers": marker_names.get(mc),
+                        "jump_bwd": jump_rows.get(mc, (None, None))[0],
+                        "jump_fwd": jump_fwd.get(
+                            mc + 1
+                            if mc + 1 in jump_fwd and mc + 1 in implicit_mcs
+                            else mc
+                        ),
+                        "play_until": jump_rows.get(mc, (None, None))[1],
+                        "fine": mc in fine_mcs,
                         "part_id": part_id,
                     }
                 )
