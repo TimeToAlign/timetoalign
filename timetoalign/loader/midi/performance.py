@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import mido
+import numpy as np
+import pyarrow as pa
 
 from timetoalign.core import NumberType, TimeUnit
 
@@ -23,6 +25,8 @@ class PerformanceMidiLoader(MidiLoader):
     It pairs note_on/note_off events into Note intervals and stores control
     changes as Instant events.
     """
+
+    _validate_vectorized = False
 
     @classmethod
     def from_file(
@@ -96,14 +100,16 @@ class PerformanceMidiLoader(MidiLoader):
         """Return the ticks per beat (PPQ) of the loaded file."""
         return self._ticks_per_beat
 
-    def _load_source(self, source: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    def _load_source(
+        self, source: Path
+    ) -> tuple[dict[str, Any], dict[str, pa.ChunkedArray]]:
         """Load a MIDI file using mido.
 
         Args:
             source: Path to the MIDI file.
 
         Returns:
-            Tuple of (metadata, event_rows).
+            Tuple of metadata and vectorized event field arrays.
         """
         try:
             mid = mido.MidiFile(source)
@@ -229,4 +235,31 @@ class PerformanceMidiLoader(MidiLoader):
             "length_seconds": mid.length,
         }
 
-        return metadata, events
+        if not events:
+            return metadata, {}
+        table = pa.Table.from_pylist(events)
+        fields = {name: table.column(name) for name in table.column_names}
+        if "instant" in fields:
+            starts = fields.get("start")
+            start_values = (
+                starts.to_pylist() if starts is not None else [None] * len(events)
+            )
+            instant_values = fields["instant"].to_pylist()
+            fields["start"] = np.asarray(
+                [
+                    start if start is not None else instant
+                    for start, instant in zip(start_values, instant_values)
+                ],
+                dtype=np.float64,
+            )
+            del fields["instant"]
+        for name in ("start", "end", "duration"):
+            if name in fields:
+                values = (
+                    fields[name].to_pylist()
+                    if isinstance(fields[name], (pa.Array, pa.ChunkedArray))
+                    else fields[name].tolist()
+                )
+                dtype = object if any(value is None for value in values) else None
+                fields[name] = np.asarray(values, dtype=dtype)
+        return metadata, fields

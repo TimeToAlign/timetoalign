@@ -11,13 +11,8 @@ The design is forward-compatible with video (3D paths through frame-time
 and 2D pixel space).
 
 Note:
-    For timeline segment-oriented path API with explicit start/end coordinates,
-    see the `timetoalign.loader.paths` module which provides `Path`, `LinearPath`,
-    and `PolylinePath` classes designed for composing into graphical timelines.
-
-    The TimeAxisPath classes in this module operate in "path-local" coordinates
-    (starting at 0), while the Path classes in loader.paths operate in
-    "timeline coordinates" with explicit start_coord/end_coord.
+    The TimeAxisPath classes in this module operate in path-local coordinates
+    (starting at 0) and map directly to image coordinates.
 """
 
 from __future__ import annotations

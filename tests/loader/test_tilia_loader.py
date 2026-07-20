@@ -333,18 +333,18 @@ class TestTiliaGroupCreation:
 
 
 class TestTiliaAlignmentBundle:
-    """create_alignment_bundle() wraps group in a bundle."""
+    """create_bundle() wraps group in a bundle."""
 
     def test_create_bundle(self, bruckner_loader: TiliaJsonLoader) -> None:
-        bundle = bruckner_loader.create_alignment_bundle()
+        bundle = bruckner_loader.create_bundle()
         assert bundle.n_timelines == EXPECTED_N_TIMELINES
 
     def test_bundle_has_one_group(self, bruckner_loader: TiliaJsonLoader) -> None:
-        bundle = bruckner_loader.create_alignment_bundle()
+        bundle = bruckner_loader.create_bundle()
         assert bundle.n_groups == 1
 
     def test_bundle_has_no_claims(self, bruckner_loader: TiliaJsonLoader) -> None:
-        bundle = bruckner_loader.create_alignment_bundle()
+        bundle = bruckner_loader.create_bundle()
         assert len(bundle.cross_group_claims) == 0
 
 
@@ -370,7 +370,7 @@ class TestTiliaErrorHandling:
     def test_create_bundle_before_load_raises(self) -> None:
         loader = TiliaJsonLoader()
         with pytest.raises(RuntimeError, match="No data loaded"):
-            loader.create_alignment_bundle()
+            loader.create_bundle()
 
     def test_repr_before_load(self) -> None:
         loader = TiliaJsonLoader()

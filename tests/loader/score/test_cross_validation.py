@@ -36,10 +36,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from timetoalign.loader.score.ms3 import Ms3Loader
 from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.store import ScoreStore
-from timetoalign.loader.score.tsv import TSVLoader
 
 DATA_DIR = Path(__file__).parents[2] / "data" / "vienna_1x22"
 MS3_DIR = DATA_DIR / "ms3"
@@ -82,7 +82,7 @@ def extract_notes_df(store: ScoreStore, loader_name: str) -> pd.DataFrame:
 @pytest.fixture
 def gold_df():
     """Load TSV gold standard."""
-    loader = TSVLoader().load(CHOPIN_TSV)
+    loader = Ms3Loader().load(CHOPIN_TSV)
     return extract_notes_df(loader.store, "TSV")
 
 

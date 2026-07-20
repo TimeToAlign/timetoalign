@@ -125,25 +125,25 @@ class TestBeethovenWoO71TsvStructure:
         assert not missing, f"Measures TSV missing required columns: {missing}"
 
 
-class TestBeethovenWoO71WithTSVLoader:
-    """Integration tests using TSVLoader (requires ms3 optional dependency).
+class TestBeethovenWoO71WithMs3Loader:
+    """Integration tests using Ms3Loader (requires ms3 optional dependency).
 
-    These tests load the TSV files via our TSVLoader and validate
+    These tests load the TSV files via our Ms3Loader and validate
     that the resulting stores match gold standard counts.
     """
 
     @pytest.fixture
     def tsv_loader(self):
-        """Get TSVLoader if ms3 is available."""
+        """Get Ms3Loader if ms3 is available."""
         try:
-            from timetoalign.loader.score.tsv import TSVLoader
+            from timetoalign.loader.score.ms3 import Ms3Loader
 
-            return TSVLoader()
+            return Ms3Loader()
         except ImportError:
-            pytest.skip("TSVLoader requires ms3. Install with: pip install ms3")
+            pytest.skip("Ms3Loader requires ms3. Install with: pip install ms3")
 
     def test_tsv_loader_notes_count_exact(self, tsv_loader):
-        """TSVLoader note count matches gold standard EXACTLY."""
+        """Ms3Loader note count matches gold standard EXACTLY."""
         if not NOTES_TSV.exists():
             pytest.skip(f"Test data not found: {NOTES_TSV}")
 
@@ -151,7 +151,7 @@ class TestBeethovenWoO71WithTSVLoader:
         store = tsv_loader.store
 
         assert store.notes.count == BEETHOVEN_WOO71_GOLD_NOTES, (
-            f"TSVLoader note count mismatch: got {store.notes.count}, "
+            f"Ms3Loader note count mismatch: got {store.notes.count}, "
             f"expected {BEETHOVEN_WOO71_GOLD_NOTES}"
         )
 

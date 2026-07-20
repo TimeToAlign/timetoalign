@@ -6,6 +6,9 @@ import warnings
 from pathlib import Path
 from typing import Any, ClassVar
 
+import numpy as np
+import pyarrow as pa
+
 # Suppress pkg_resources deprecation warning from partitura
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning, module="partitura.*")
@@ -71,14 +74,16 @@ class ScoreMidiLoader(MidiLoader):
         """Return the ticks per beat (PPQ) of the loaded file."""
         return self._ticks_per_beat
 
-    def _load_source(self, source: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    def _load_source(
+        self, source: Path
+    ) -> tuple[dict[str, Any], dict[str, pa.ChunkedArray]]:
         """Load a MIDI file using partitura.
 
         Args:
             source: Path to the MIDI file.
 
         Returns:
-            Tuple of (metadata, event_rows).
+            Tuple of metadata and vectorized event field arrays.
         """
         # Load score using partitura
         # Note: partitura can return Score, Part, PartGroup, or list
@@ -119,7 +124,7 @@ class ScoreMidiLoader(MidiLoader):
 
         if not parts:
             # Empty score
-            return {"format": "midi", "parser": "partitura", "parts": 0}, []
+            return {"format": "midi", "parser": "partitura", "parts": 0}, {}
 
         # Get PPQ from the first part (partitura stores this in quarter_map logic usually,
         # but for MIDI loading, it's often implicit or stored in the score object if available)
@@ -179,4 +184,11 @@ class ScoreMidiLoader(MidiLoader):
             "ticks_per_beat": self._ticks_per_beat,
         }
 
-        return metadata, events
+        if not events:
+            return metadata, {}
+        table = pa.Table.from_pylist(events)
+        fields = {name: table.column(name) for name in table.column_names}
+        for name in ("start", "end", "duration"):
+            if name in fields:
+                fields[name] = np.asarray(fields[name].to_pylist())
+        return metadata, fields

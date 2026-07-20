@@ -1913,7 +1913,7 @@ class TimelineGroup:
             ValueError: If the flow controller cannot compute QB sections.
 
         Examples:
-            >>> loader = TSVLoader.from_file("notes.tsv", "measures.tsv")
+            >>> loader = Ms3Loader.from_file("notes.tsv", "measures.tsv")
             >>> controller = loader.create_flow_controller()
             >>> flow = controller.compute_flow(FlowMode.default)
             >>> score_group = TimelineGroup(

@@ -7,7 +7,7 @@ dependencies:
 
 * :class:`PartituraLoader` — requires the ``partitura`` extra
 * :class:`Music21Loader` — requires the ``music21`` extra
-* :class:`TSVLoader` — requires the ``ms3`` extra
+* :class:`Ms3Loader` — requires the ``ms3`` extra
 
 If you attempt to import a loader whose dependency is not installed, an
 :exc:`ImportError` is raised with installation instructions.
@@ -45,8 +45,8 @@ except ImportError:
     pass
 
 try:
-    from .tsv import TSVLoader
+    from .ms3 import Ms3Loader
 
-    __all__.append("TSVLoader")
+    __all__.append("Ms3Loader")
 except ImportError:
     pass

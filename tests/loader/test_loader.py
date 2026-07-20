@@ -90,8 +90,8 @@ class TestLoaderLoading:
         class EmptySourceLoader(DummyLoader):
             def _load_source(
                 self, source: Path
-            ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-                return {"format": "empty"}, []
+            ) -> tuple[dict[str, Any], dict[str, list[Any]]]:
+                return {"format": "empty"}, {}
 
         path = tmp_path / "empty.empty"
         path.write_bytes(b"")

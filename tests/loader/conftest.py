@@ -134,8 +134,8 @@ class DummyLoader(Loader):
 
     _default_unit = TimeUnit.ticks
 
-    def _load_source(self, source: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-        """Simulate loading a source file."""
+    def _load_source(self, source: Path) -> tuple[dict[str, Any], dict[str, list[Any]]]:
+        """Simulate loading a source file with vectorized fields."""
         if not source.exists():
             raise FileNotFoundError(f"Source not found: {source}")
 
@@ -144,21 +144,13 @@ class DummyLoader(Loader):
             "format": "dummy",
             "original_path": str(source),
         }
-        events = [
-            {
-                "id": f"{source.stem}_beat_1",
-                "temporal_type": "instant",
-                "event_type": "Beat",
-                "instant": 0,
-            },
-            {
-                "id": f"{source.stem}_note_1",
-                "temporal_type": "interval",
-                "event_type": "Note",
-                "start": 0,
-                "end": 480,
-            },
-        ]
+        events = {
+            "id": [f"{source.stem}_beat_1", f"{source.stem}_note_1"],
+            "temporal_type": ["instant", "interval"],
+            "event_type": ["Beat", "Note"],
+            "start": [0, 0],
+            "end": [None, 480],
+        }
         return metadata, events
 
 

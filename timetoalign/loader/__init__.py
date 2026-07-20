@@ -16,9 +16,10 @@ Loader Taxonomy:
         - IIIFManifestLoader: IIIF manifest -> Graphical dimensions
 
     **AlignmentLoader** - Returns AlignmentStore (events + C-maps + matches):
-        - Ieee1599Loader: IEEE 1599 multimodal alignment
-        - TiliaLoader: TiLiA hierarchical annotations
         - MatchfileLoader: Score-to-performance alignment
+        - TiliaJsonLoader: TiLiA hierarchical annotations
+        - MpmLoader, ParangonadaLoader, PerformancePrecisionLoader,
+          ListenHereLoader: multimodal alignment exports
 
 Classes:
     EventData: PyArrow-based bulk event storage.

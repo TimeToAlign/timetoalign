@@ -349,7 +349,7 @@ class FlowControlElement(FancyStrEnum):
     """Canonical taxonomy of flow control markers in musical scores.
 
     This enum provides a unified vocabulary for flow control across all loaders
-    (MeasureMapLoader, TSVLoader, PartituraLoader, Music21Loader).
+    (MeasureMapLoader, Ms3Loader, PartituraLoader, Music21Loader).
 
     **Design Principles**:
 

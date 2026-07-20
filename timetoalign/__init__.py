@@ -41,7 +41,7 @@ Install with ``pip install -e ".[<extra>]"`` from the repository root.
 +---------------+--------------------------------------+----------------------------------------------+
 | ``music21``   | ``music21``                          | Score parsing via music21 (Music21Loader)    |
 +---------------+--------------------------------------+----------------------------------------------+
-| ``ms3``       | ``ms3``                              | DCML TSV score parsing (TSVLoader)           |
+| ``ms3``       | ``ms3``                              | DCML TSV score parsing (Ms3Loader)           |
 +---------------+--------------------------------------+----------------------------------------------+
 | ``audio``     | ``soundfile``, ``mutagen``           | Audio file loading + MP3/M4A metadata        |
 +---------------+--------------------------------------+----------------------------------------------+
@@ -145,6 +145,7 @@ _DEFERRED_EXPORTS = {
     "EepNotesLoader": ("timetoalign.loader", "EepNotesLoader"),
     "Loader": ("timetoalign.loader", "Loader"),
     "MatchfileLoader": ("timetoalign.loader", "MatchfileLoader"),
+    "Ms3Loader": ("timetoalign.loader.score", "Ms3Loader"),
     "RepoVizzInfo": ("timetoalign.loader", "RepoVizzInfo"),
     "RepoVizzLoader": ("timetoalign.loader", "RepoVizzLoader"),
     "TiliaDictStore": ("timetoalign.loader", "TiliaDictStore"),
@@ -256,6 +257,7 @@ __all__ = [
     "EepNotesLoader",
     # Loader - Alignment
     "MatchfileLoader",
+    "Ms3Loader",
     "TiliaJsonLoader",
     "TiliaDictStore",
     # Timelines

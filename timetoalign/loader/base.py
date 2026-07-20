@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 import numpy as np
 import pyarrow as pa
@@ -32,10 +32,10 @@ from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.display.html import affordance_html, code
 from timetoalign.storage import EventData
 
-# Type alias for _load_source return: supports both vectorized and legacy modes
-LoadSourceResult = Union[
-    tuple[dict[str, Any], dict[str, np.ndarray | pa.Array]],  # Vectorized: field dict
-    tuple[dict[str, Any], list[dict[str, Any]]],  # Legacy: row dicts
+# Event loaders return source metadata and a vectorized field dictionary. Other
+# payload families return their payload directly and use ``_accept_source``.
+LoadSourceResult = tuple[
+    dict[str, Any], dict[str, np.ndarray | pa.Array | pa.ChunkedArray]
 ]
 
 if TYPE_CHECKING:
@@ -44,11 +44,11 @@ if TYPE_CHECKING:
 
 module_logger = logging.getLogger(__name__)
 
-# Type variable for polymorphic loader returns
-T = TypeVar("T")
+# Type variable for polymorphic loader payloads.
+PayloadT = TypeVar("PayloadT")
 
 
-class Loader(ABC):
+class Loader(ABC, Generic[PayloadT]):
     """Abstract base class for loading music representations.
 
     Loader provides a unified interface for loading one or more source files
@@ -118,30 +118,21 @@ class Loader(ABC):
     # region Abstract Methods
 
     @abstractmethod
-    def _load_source(self, source: Path) -> LoadSourceResult:
+    def _load_source(self, source: Path) -> LoadSourceResult | PayloadT:
         """Load a single source file.
 
         Subclasses implement this to parse their specific format.
 
-        VECTORIZED API (preferred):
-            Return (metadata_dict, field_dict) where field_dict contains
-            numpy/pyarrow arrays for each field. This enables zero-iteration
-            table construction.
-
-        LEGACY API (deprecated):
-            Return (metadata_dict, row_dicts) where row_dicts is a list of
-            event dictionaries. This requires row iteration and should be
-            migrated to the vectorized API.
+        Event loaders return ``(metadata_dict, field_dict)`` where
+        ``field_dict`` contains numpy or PyArrow arrays for each field. Other
+        loader families may return their payload directly.
 
         Args:
             source: Path to the source file.
 
         Returns:
-            A tuple of (metadata_dict, event_data):
-            - metadata_dict: File-specific metadata (format, duration, etc.)
-            -             event_data: Either:
-                - dict[str, np.ndarray | pa.Array]: Field arrays (vectorized)
-                - list[dict[str, Any]]: Row dicts (legacy, deprecated)
+            A source result. Event loaders return a tuple of file metadata and
+            vectorized field arrays; payload loaders return their payload.
 
         Raises:
             FileNotFoundError: If the source file doesn't exist.
@@ -268,10 +259,12 @@ class Loader(ABC):
     def create_bundle(self, **kwargs: Any) -> Any:
         """Create an `AlignmentBundle`. Override in subclasses that support bundles.
 
-        Returns:
-            An `AlignmentBundle`, or ``None`` if the loader does not produce bundles.
+        Raises:
+            NotImplementedError: If the concrete loader does not produce bundles.
         """
-        return None
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement create_bundle()."
+        )
 
     # endregion
 
@@ -393,15 +386,43 @@ class Loader(ABC):
 
     # region Loading
 
+    def _accept_source(
+        self,
+        path: Path,
+        source_meta: dict[str, Any],
+        payload: PayloadT | dict[str, np.ndarray | pa.Array | pa.ChunkedArray],
+    ) -> None:
+        """Accept one loaded source using the event payload implementation."""
+        if not isinstance(payload, dict):
+            raise TypeError(
+                f"{self.__class__.__name__} returned an unsupported payload "
+                f"type: {type(payload).__name__}"
+            )
+
+        self._sources.append(path)
+        self._source_metadata.append(source_meta)
+        if not payload:
+            return
+
+        extra_fields = getattr(self, "_extra_schema_fields", None)
+        new_data = self._event_data_class.from_arrays(
+            payload,
+            self._unit,
+            self._number_type,
+            validate=getattr(self, "_validate_vectorized", True),
+            extra_fields=extra_fields,
+            interval_policy=self._interval_policy,
+        )
+        if len(self._events) == 0:
+            self._events = new_data
+        else:
+            self._events.extend(new_data)
+
     def load(self, *sources: Path | str) -> Self:
         """Load one or more source files.
 
         Events from all sources are aggregated into the EventData.
         Metadata for each source is recorded separately.
-
-        Supports both vectorized (field dict) and legacy (row dicts) modes:
-        - Vectorized: _load_source returns dict[str, np.ndarray | pa.Array]
-        - Legacy: _load_source returns list[dict[str, Any]]
 
         Args:
             *sources: Paths to source files.
@@ -416,53 +437,14 @@ class Loader(ABC):
         for source in sources:
             path = Path(source)
 
-            # Get source metadata and event data
-            source_meta, event_data = self._load_source(path)
-
-            # Add loading metadata
+            result = self._load_source(path)
+            if isinstance(result, tuple) and len(result) == 2:
+                source_meta, payload = result
+            else:
+                source_meta, payload = {}, result
             source_meta["path"] = str(path)
             source_meta["loaded_at"] = datetime.now(timezone.utc).isoformat()
-
-            # Track source
-            self._sources.append(path)
-            self._source_metadata.append(source_meta)
-
-            # Add events - detect vectorized vs legacy mode
-            if event_data:
-                if isinstance(event_data, dict):
-                    # VECTORIZED MODE: event_data is field dict
-                    # Use from_arrays for zero-iteration construction
-                    field_dict: dict[str, Any] = event_data
-                    # Check for extra schema fields (e.g., from CoordinateField)
-                    extra_fields = getattr(self, "_extra_schema_fields", None)
-                    new_data = self._event_data_class.from_arrays(
-                        field_dict,
-                        self._unit,
-                        self._number_type,
-                        extra_fields=extra_fields,
-                        interval_policy=self._interval_policy,
-                    )
-                else:
-                    # LEGACY MODE: event_data is list of row dicts
-                    # Use from_dicts (triggers row iteration - deprecated)
-                    module_logger.debug(
-                        f"Using legacy row-based loading for {path.name}. "
-                        "Consider migrating to vectorized API."
-                    )
-                    row_dicts: list[dict[str, Any]] = event_data
-                    new_data = self._event_data_class.from_dicts(
-                        row_dicts,
-                        self._unit,
-                        self._number_type,
-                        interval_policy=self._interval_policy,
-                    )
-
-                # For the first source with events, replace the empty _events
-                # This handles cases where extra fields create a different schema
-                if len(self._events) == 0:
-                    self._events = new_data
-                else:
-                    self._events.extend(new_data)
+            self._accept_source(path, source_meta, payload)
 
         return self
 
@@ -883,7 +865,7 @@ class ManifestData:
 # region ManifestLoader
 
 
-class ManifestLoader(ABC):
+class ManifestLoader(Loader[ManifestData]):
     """Abstract base class for loaders that return ManifestData.
 
     ManifestLoader is for sources that provide dimensional/structural
@@ -911,6 +893,7 @@ class ManifestLoader(ABC):
 
     def __init__(self) -> None:
         """Initialize the ManifestLoader."""
+        super().__init__()
         self._sources: list[Path] = []
         self._manifests: list[ManifestData] = []
         self._logger = module_logger.getChild(self.__class__.__name__)
@@ -936,6 +919,19 @@ class ManifestLoader(ABC):
         ...
 
     # endregion
+
+    def _accept_source(
+        self,
+        path: Path,
+        source_meta: dict[str, Any],
+        payload: ManifestData,
+    ) -> None:
+        """Record one manifest payload from the root lifecycle."""
+        payload.source_path = path
+        self._sources.append(path)
+        self._source_metadata.append(source_meta)
+        self._manifests.append(payload)
+        self._logger.debug(f"Loaded manifest from {path}")
 
     # region Properties
 
@@ -971,16 +967,7 @@ class ManifestLoader(ABC):
             FileNotFoundError: If any source doesn't exist.
             ValueError: If any source is invalid.
         """
-        for source in sources:
-            path = Path(source)
-            manifest = self._load_source(path)
-            manifest.source_path = path
-
-            self._sources.append(path)
-            self._manifests.append(manifest)
-            self._logger.debug(f"Loaded manifest from {path}")
-
-        return self
+        return Loader.load(self, *sources)
 
     def clear(self) -> None:
         """Clear all loaded sources and manifests."""
@@ -1114,13 +1101,13 @@ class ManifestLoader(ABC):
 # region AlignmentLoader
 
 
-class AlignmentLoader(ABC):
+class AlignmentLoader(Loader["AlignmentStore"]):
     """Abstract base class for loaders that return AlignmentStore.
 
     AlignmentLoader is for formats that encode aligned multimodal data:
-    - IEEE 1599 -> score + audio + graphical alignments
     - TiLiA JSON -> hierarchical annotations with alignments
     - Match files -> score-to-performance alignment
+    - MPM, parangonada, Listen Here!, and PerformancePrecision exports
 
     Subclasses must implement:
     - _load_source(): Parse a single source into AlignmentStore
@@ -1131,18 +1118,14 @@ class AlignmentLoader(ABC):
     - Match objects representing alignment claims
 
     Examples:
-        >>> class Ieee1599Loader(AlignmentLoader):
-        ...     def _load_source(self, source: Path) -> AlignmentStore:
-        ...         # Parse IEEE 1599 XML
-        ...         return AlignmentStore(
-        ...             events=event_store,
-        ...             cmaps=[tick_to_seconds_map],
-        ...             matches=match_data,
-        ...         )
+        >>> loader = MatchfileLoader()
+        >>> loader.load("performance.match")
+        >>> bundle = loader.create_bundle()
     """
 
     def __init__(self) -> None:
         """Initialize the AlignmentLoader."""
+        super().__init__()
         self._sources: list[Path] = []
         self._source_metadata: list[dict[str, Any]] = []
         self._store: AlignmentStore | None = None
@@ -1169,6 +1152,21 @@ class AlignmentLoader(ABC):
         ...
 
     # endregion
+
+    def _accept_source(
+        self,
+        path: Path,
+        source_meta: dict[str, Any],
+        payload: "AlignmentStore",
+    ) -> None:
+        """Store or merge one alignment payload from the root lifecycle."""
+        self._sources.append(path)
+        self._source_metadata.append(source_meta)
+        if self._store is None:
+            self._store = payload
+        else:
+            self._store.extend(payload)
+        self._logger.debug(f"Loaded alignment from {path}")
 
     # region Properties
 
@@ -1211,29 +1209,7 @@ class AlignmentLoader(ABC):
             FileNotFoundError: If any source doesn't exist.
             ValueError: If any source is invalid.
         """
-        for source in sources:
-            path = Path(source)
-
-            # Load store from source
-            loaded_store = self._load_source(path)
-
-            # Track metadata
-            source_meta = {
-                "path": str(path),
-                "loaded_at": datetime.now(timezone.utc).isoformat(),
-            }
-            self._sources.append(path)
-            self._source_metadata.append(source_meta)
-
-            # Merge or set store
-            if self._store is None:
-                self._store = loaded_store
-            else:
-                self._store.extend(loaded_store)
-
-            self._logger.debug(f"Loaded alignment from {path}")
-
-        return self
+        return Loader.load(self, *sources)
 
     def clear(self) -> None:
         """Clear all loaded sources and store."""
@@ -1305,10 +1281,12 @@ class AlignmentLoader(ABC):
     def create_bundle(self, **kwargs: Any) -> Any:
         """Create an `AlignmentBundle`. Override in subclasses that support bundles.
 
-        Returns:
-            An `AlignmentBundle`, or ``None`` if not supported.
+        Raises:
+            NotImplementedError: If the concrete loader does not produce bundles.
         """
-        return None
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement create_bundle()."
+        )
 
     # endregion
 

@@ -1474,7 +1474,7 @@ class TestCreateRegionsByGrouping:
     Note: Base EventData only preserves standard schema fields (id, name,
     temporal_type, event_type, start, end, duration). Extra columns like
     'timesig' are dropped. We use 'event_type' for synthetic grouping tests.
-    Real data tests with TSVLoader (MeasureData) preserve all columns.
+    Real data tests with Ms3Loader (MeasureData) preserve all columns.
     """
 
     def test_basic_grouping(self):
@@ -1922,11 +1922,11 @@ class TestContainsRegionsAndChildren:
 # endregion
 
 
-# region Real Data Tests (TSVLoader)
+# region Real Data Tests (Ms3Loader)
 
 
 class TestUnifiedAPIWithRealData:
-    """Test the unified verb×noun API using real score data from TSVLoader.
+    """Test the unified verb×noun API using real score data from Ms3Loader.
 
     Uses the Wagner Walküre Act III measures.tsv which has:
     - 1733 measures
@@ -1963,13 +1963,13 @@ class TestUnifiedAPIWithRealData:
         """
         from pathlib import Path
 
-        from timetoalign.loader.score import TSVLoader
+        from timetoalign.loader.score import Ms3Loader
 
         path = Path(self.WAGNER_PATH)
         if not path.exists():
             pytest.skip(f"Test data not found: {path}")
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(path)
         measures = loader.store.measures
 

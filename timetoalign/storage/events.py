@@ -1019,9 +1019,15 @@ class EventData(SemanticFieldAccessMixin):
                                 )
                                 # Build full array with nulls (VECTORIZED)
                                 # Extract parsed struct fields
-                                parsed_values = parsed.field("value").to_numpy()
-                                parsed_nums = parsed.field("numerator").to_numpy()
-                                parsed_dens = parsed.field("denominator").to_numpy()
+                                parsed_values = parsed.field("value").to_numpy(
+                                    zero_copy_only=False
+                                )
+                                parsed_nums = parsed.field("numerator").to_numpy(
+                                    zero_copy_only=False
+                                )
+                                parsed_dens = parsed.field("denominator").to_numpy(
+                                    zero_copy_only=False
+                                )
 
                                 # Create full arrays with None placeholders (vectorized)
                                 full_values = np.full(n_rows, np.nan, dtype=np.float64)
@@ -1038,14 +1044,20 @@ class EventData(SemanticFieldAccessMixin):
                                     [
                                         pa.array(full_values),
                                         pa.array(
-                                            full_nums.astype(object), type=pa.int64()
+                                            np.where(
+                                                np.isnan(full_nums), None, full_nums
+                                            ).astype(object),
+                                            type=pa.int64(),
                                         ),
                                         pa.array(
-                                            full_dens.astype(object), type=pa.int64()
+                                            np.where(
+                                                np.isnan(full_dens), None, full_dens
+                                            ).astype(object),
+                                            type=pa.int64(),
                                         ),
                                     ],
                                     names=["value", "numerator", "denominator"],
-                                    mask=mask,
+                                    mask=pa.array(mask),
                                 )
                             else:
                                 processed[field_name] = pa.nulls(

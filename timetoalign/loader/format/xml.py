@@ -53,7 +53,7 @@ import pyarrow as pa
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader.base import Loader
+from timetoalign.loader.base import Loader, LoadSourceResult
 from timetoalign.storage.events import EventData
 from timetoalign.storage.store import DictStore
 
@@ -395,7 +395,7 @@ class XmlLoader(Loader):
 
     # region Loading
 
-    def _load_source(self, source: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    def _load_source(self, source: Path) -> LoadSourceResult:
         """Not used directly; ``load()`` is overridden.
 
         ``XmlLoader`` overrides ``load()`` to handle its own XML

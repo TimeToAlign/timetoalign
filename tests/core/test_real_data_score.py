@@ -27,7 +27,7 @@ from timetoalign.core.events import (
     EnharmonicPitch,
     EnharmonicPitchField,
 )
-from timetoalign.loader.score.tsv import TSVLoader
+from timetoalign.loader.score.ms3 import Ms3Loader
 
 # ---------------------------------------------------------------------------
 # Paths to test specimens
@@ -55,7 +55,7 @@ class TestChopinEnharmonicPitchFieldFromTSV:
 
     @pytest.fixture
     def chopin_store(self):
-        loader = TSVLoader().load(CHOPIN_NOTES_TSV)
+        loader = Ms3Loader().load(CHOPIN_NOTES_TSV)
         return loader.store
 
     def test_note_count_exact(self, chopin_store) -> None:
@@ -100,7 +100,7 @@ class TestChopinEnharmonicPitchFieldFromTSV:
 class TestChopinMeasuresFromTSV:
     @pytest.fixture
     def chopin_measure_store(self):
-        loader = TSVLoader().load(CHOPIN_MEASURES_TSV)
+        loader = Ms3Loader().load(CHOPIN_MEASURES_TSV)
         return loader.store
 
     def test_measure_count_exact(self, chopin_measure_store) -> None:
@@ -223,7 +223,7 @@ class TestEnharmonicPitchFieldParquetRoundtrip:
     def test_round_trip(self, tmp_path: Path) -> None:
         parquet_path = tmp_path / "chopin_pitches.parquet"
 
-        loader = TSVLoader().load(CHOPIN_NOTES_TSV)
+        loader = Ms3Loader().load(CHOPIN_NOTES_TSV)
         # The EnharmonicPitch view is afforded over the raw ``midi`` int
         # column (represent once).  Materialise it, then round-trip the
         # afforded {midi_number} struct through Parquet.
@@ -268,12 +268,12 @@ class TestEnharmonicPitchFieldParquetRoundtrip:
 class TestCrossLoaderPitchConsistency:
     @pytest.mark.slow
     def test_cross_loader_pitch_consistency(self) -> None:
-        """Load Chopin via TSVLoader AND Music21Loader, compare midi pitch arrays."""
+        """Load Chopin via Ms3Loader AND Music21Loader, compare midi pitch arrays."""
         pytest.importorskip("music21")
 
         from timetoalign.loader.score.music21 import Music21Loader
 
-        tsv_loader = TSVLoader().load(CHOPIN_NOTES_TSV)
+        tsv_loader = Ms3Loader().load(CHOPIN_NOTES_TSV)
         tsv_df = tsv_loader.store.notes.to_dataframe()
         tsv_notes = tsv_df[tsv_df["event_type"] == "Note"].reset_index(drop=True)
 

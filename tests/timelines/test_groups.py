@@ -1420,7 +1420,7 @@ class TestTimelineGroupUnfold:
         from pathlib import Path
 
         from timetoalign.core.enums import FlowMode
-        from timetoalign.loader.score import TSVLoader
+        from timetoalign.loader.score import Ms3Loader
         from timetoalign.timelines.flow import ScoreFlowController
 
         data_dir = (
@@ -1436,7 +1436,7 @@ class TestTimelineGroupUnfold:
             pytest.skip(f"Beethoven test data not found: {abc_dir}")
 
         # CLT1
-        abc_loader = TSVLoader.from_file(
+        abc_loader = Ms3Loader.from_file(
             abc_dir / "n04op18-4_04.notes.tsv",
             abc_dir / "n04op18-4_04.measures.tsv",
             abc_dir / "n04op18-4_04.harmonies.tsv",
@@ -1444,7 +1444,7 @@ class TestTimelineGroupUnfold:
         clt1 = abc_loader.create_timeline(uid="clt1")
 
         # OpenScore (4th movement only)
-        os_loader = TSVLoader.from_file(
+        os_loader = Ms3Loader.from_file(
             os_dir / "sq8913219.notes.tsv",
             os_dir / "sq8913219.measures.tsv",
         )
@@ -1603,7 +1603,7 @@ class TestScoreLoaderCreateFlowController:
         """Load the Beethoven ABC score."""
         from pathlib import Path
 
-        from timetoalign.loader.score import TSVLoader
+        from timetoalign.loader.score import Ms3Loader
 
         data_dir = (
             Path(__file__).parent.parent
@@ -1615,7 +1615,7 @@ class TestScoreLoaderCreateFlowController:
         if not data_dir.exists():
             pytest.skip(f"Beethoven test data not found: {data_dir}")
 
-        return TSVLoader.from_file(
+        return Ms3Loader.from_file(
             data_dir / "n04op18-4_04.notes.tsv",
             data_dir / "n04op18-4_04.measures.tsv",
         )
@@ -1637,9 +1637,9 @@ class TestScoreLoaderCreateFlowController:
 
     def test_raises_without_measures(self):
         """ValueError when no measure data has been loaded."""
-        from timetoalign.loader.score import TSVLoader
+        from timetoalign.loader.score import Ms3Loader
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         with pytest.raises(ValueError, match="no measure data"):
             loader.create_flow_controller()
 

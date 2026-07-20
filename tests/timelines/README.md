@@ -587,7 +587,7 @@ measures.
     - Returns empty dict when no match
     - Accepts Coordinate object input
 
-22. **Real Data Tests (TSVLoader)** (13 tests)
+22. **Real Data Tests (Ms3Loader)** (13 tests)
     - See "Real Data Validation" section below
 
 23. **Integration Tests** (3 tests)
@@ -613,14 +613,14 @@ These tests ensure:
    region and child lookups, length assignment, region creation, and
    `SegmentLine.get_slice()`
 7. The unified verb×noun API provides consistent naming across all noun types
-8. Real data from TSVLoader validates the API against production musicological data
+8. Real data from Ms3Loader validates the API against production musicological data
 
 ---
 
 ### Real Data Validation (`TestUnifiedAPIWithRealData`)
 
 **Purpose:** Validates the unified verb×noun API using real musicological data from
-Wagner's Walküre Act III (measures.tsv loaded via TSVLoader).
+Wagner's Walküre Act III (measures.tsv loaded via Ms3Loader).
 
 **Test Data Provenance:**
 
@@ -641,7 +641,7 @@ The `wagner_timeline` fixture uses `MeasureData.create_timeline()` which directl
 assigns the MeasureData as the timeline's event store. This preserves all 32 fields
 (including `timesig`, `breaks`, `keysig`) that the base `EventData.from_dicts()`
 would discard (it only keeps the 7 base schema fields). Each test invocation
-creates a fresh `TSVLoader` instance, ensuring no shared state between tests.
+creates a fresh `Ms3Loader` instance, ensuring no shared state between tests.
 
 **Gold Standard Counts (all EXACT, no approximations):**
 
@@ -1094,7 +1094,7 @@ FlowMap approach with structural slicing in QB-space.
 - **Rondeau form** (c11n08): ABACADA return pattern via D.S.-like mechanism.
 
 **Bug Fixes Applied:**
-- `TSVLoader._resolve_quarterbeats()`: Prefers `quarterbeats_all_endings` over `quarterbeats` (fixes 10.5q error for volta first-endings).
+- `Ms3Loader._resolve_quarterbeats()`: Prefers `quarterbeats_all_endings` over `quarterbeats` (fixes 10.5q error for volta first-endings).
 - `SegmentLine.get_slice()`: Override creates with `length=0` and sets final length after children, fixing contiguity validation.
 
 **Coordinate Handling:** EventData stores instant events under `start` (struct dict),

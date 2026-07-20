@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign.loader.score import TSVLoader
+from timetoalign.loader.score import Ms3Loader
 from timetoalign.timelines import ScoreFlowController, SegmentNameGenerator
 
 # Folded measures TSV for Beethoven Op.18 No.4 iv (repeats + volta brackets).
@@ -150,7 +150,7 @@ class TestControllerVoltaLabelling:
     def _controller(
         self, name_generator: SegmentNameGenerator | None = None
     ) -> ScoreFlowController:
-        loader = TSVLoader.from_file(OP18_MEASURES)
+        loader = Ms3Loader.from_file(OP18_MEASURES)
         return ScoreFlowController(loader.store.measures, name_generator=name_generator)
 
     def test_default_volta_suffix_ids(self) -> None:

@@ -147,20 +147,20 @@ class TestFlowCSVValidation:
         ), f"{specimen_name}: Expected {expected} atomic sections, got {actual}"
 
 
-class TestTSVLoaderValidation:
-    """Validate TSVLoader (gold standard) measure counts."""
+class TestMs3LoaderValidation:
+    """Validate Ms3Loader (gold standard) measure counts."""
 
     @pytest.mark.parametrize("specimen_name", SPECIMENS.keys())
     def test_tsv_folded_count(self, specimen_name: str) -> None:
-        """TSVLoader folded measure count is exact."""
+        """Ms3Loader folded measure count is exact."""
         spec = SPECIMENS[specimen_name]
         tsv_path = get_specimen_path(spec, "tsv")
         if tsv_path is None or not tsv_path.exists():
             pytest.skip(f"TSV not found for {specimen_name}")
 
-        from timetoalign.loader.score import TSVLoader
+        from timetoalign.loader.score import Ms3Loader
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(tsv_path)
 
         mc_values = loader.store.measures._table.column("mc").to_pylist()
@@ -617,7 +617,7 @@ class TestScoreFlowControllerReproducesTargetFlows:
 
     @pytest.mark.parametrize("specimen_name", SPECIMENS.keys())
     def test_tsv_reproduces_valid_flow(self, specimen_name: str) -> None:
-        """TSVLoader -> ScoreFlowController reproduces a valid flow from .flow.csv.
+        """Ms3Loader -> ScoreFlowController reproduces a valid flow from .flow.csv.
 
         Note: For flow_only specimen, TSV produces the 'ms3' flow (30 MCs) which
         is documented as divergent from the canonical 'default' flow (31 MCs).
@@ -632,7 +632,7 @@ class TestScoreFlowControllerReproducesTargetFlows:
             pytest.skip(f"Flow CSV not found for {specimen_name}")
 
         from timetoalign.core.enums import FlowMode
-        from timetoalign.loader.score import TSVLoader
+        from timetoalign.loader.score import Ms3Loader
         from timetoalign.timelines import ScoreFlowController
         from timetoalign.timelines.flow import load_valid_flows
 
@@ -642,7 +642,7 @@ class TestScoreFlowControllerReproducesTargetFlows:
             pytest.skip(f"No valid flows in {csv_path}")
 
         # Load and compute
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(tsv_path)
         controller = ScoreFlowController(loader.store.measures)
         computed = controller.compute_flow(FlowMode.default)
@@ -677,7 +677,7 @@ class TestScoreFlowControllerReproducesTargetFlows:
 
     @pytest.mark.parametrize("specimen_name", SPECIMENS.keys())
     def test_tsv_reproduces_atomic_flow(self, specimen_name: str) -> None:
-        """TSVLoader -> ScoreFlowController reproduces ATOMIC flow."""
+        """Ms3Loader -> ScoreFlowController reproduces ATOMIC flow."""
         spec = SPECIMENS[specimen_name]
         tsv_path = get_specimen_path(spec, "tsv")
         csv_path = TARGET_FLOWS_DIR / spec.flow_csv
@@ -688,7 +688,7 @@ class TestScoreFlowControllerReproducesTargetFlows:
             pytest.skip(f"Flow CSV not found for {specimen_name}")
 
         from timetoalign.core.enums import FlowMode
-        from timetoalign.loader.score import TSVLoader
+        from timetoalign.loader.score import Ms3Loader
         from timetoalign.timelines import ScoreFlowController
         from timetoalign.timelines.flow import load_valid_flows
 
@@ -700,7 +700,7 @@ class TestScoreFlowControllerReproducesTargetFlows:
         target = valid_flows[FlowMode.atomic]
 
         # Load and compute
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(tsv_path)
         controller = ScoreFlowController(loader.store.measures)
 
@@ -731,9 +731,9 @@ class TestCrossLoaderParity:
         if mm_path is None or not mm_path.exists():
             pytest.skip(f"MeasureMap not found for {specimen_name}")
 
-        from timetoalign.loader.score import MeasureMapLoader, TSVLoader
+        from timetoalign.loader.score import MeasureMapLoader, Ms3Loader
 
-        tsv_loader = TSVLoader()
+        tsv_loader = Ms3Loader()
         tsv_loader.load(tsv_path)
         tsv_count = len(set(tsv_loader.store.measures._table.column("mc").to_pylist()))
 

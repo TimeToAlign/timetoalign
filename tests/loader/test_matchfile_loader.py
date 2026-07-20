@@ -401,37 +401,37 @@ class TestMatchfileLoaderCreateTimeline:
 
 
 class TestMatchfileLoaderCreateBundle:
-    """Tests for create_alignment_bundle() — single-file."""
+    """Tests for create_bundle() — single-file."""
 
     def test_returns_alignment_bundle(self, p01_loader: MatchfileLoader):
         """Returns an AlignmentBundle."""
-        bundle = p01_loader.create_alignment_bundle()
+        bundle = p01_loader.create_bundle()
         assert isinstance(bundle, AlignmentBundle)
 
     def test_bundle_timeline_count(self, p01_loader: MatchfileLoader):
         """Bundle has 2 timelines (1 score + 1 performance)."""
-        bundle = p01_loader.create_alignment_bundle()
+        bundle = p01_loader.create_bundle()
         assert len(bundle.timelines) == 2
 
     def test_bundle_score_timeline(self, p01_loader: MatchfileLoader):
         """Score timeline is in the bundle under uid 'score'."""
-        bundle = p01_loader.create_alignment_bundle()
+        bundle = p01_loader.create_bundle()
         assert "score" in bundle.timelines
 
     def test_bundle_cross_group_claims(self, p01_loader: MatchfileLoader):
         """Bundle has 454 cross-group claims."""
-        bundle = p01_loader.create_alignment_bundle()
+        bundle = p01_loader.create_bundle()
         assert len(bundle.cross_group_claims) == SNOTE_COUNT
 
     def test_no_load_raises(self):
         """RuntimeError raised if load() not called."""
         loader = MatchfileLoader()
         with pytest.raises(RuntimeError, match="No files loaded"):
-            loader.create_alignment_bundle()
+            loader.create_bundle()
 
     def test_bundle_score_in_group(self, p01_loader: MatchfileLoader):
         """Score timeline is in the 'score' group."""
-        bundle = p01_loader.create_alignment_bundle()
+        bundle = p01_loader.create_bundle()
         assert "score" in bundle.timeline_to_group
         assert bundle.timeline_to_group["score"] == "score"
 
@@ -543,12 +543,12 @@ class TestMatchfileLoaderMulti:
 
     def test_bundle_timeline_count(self, all_loader: MatchfileLoader):
         """Bundle has 23 timelines."""
-        bundle = all_loader.create_alignment_bundle()
+        bundle = all_loader.create_bundle()
         assert len(bundle.timelines) == 1 + TOTAL_MATCH_FILES
 
     def test_bundle_cross_group_claims_count(self, all_loader: MatchfileLoader):
         """Bundle has 9,988 cross-group claims."""
-        bundle = all_loader.create_alignment_bundle()
+        bundle = all_loader.create_bundle()
         assert len(bundle.cross_group_claims) == TOTAL_MATCH_FILES * SNOTE_COUNT
 
     def test_perf_numeric_lookup_all(self, all_loader: MatchfileLoader):
@@ -579,7 +579,7 @@ class TestMatchfileLoaderMulti:
 
 class TestMatchfileLoaderExternalScore:
     """Tests for external score timeline binding via
-    create_alignment_bundle(score_timeline=...)."""
+    create_bundle(score_timeline=...)."""
 
     def test_external_score_used_in_bundle(self):
         """Bundle uses the externally supplied score timeline."""
@@ -593,7 +593,7 @@ class TestMatchfileLoaderExternalScore:
             uid="score:Chopin_op10_no3",
         )
 
-        bundle = loader.create_alignment_bundle(score_timeline=external_score)
+        bundle = loader.create_bundle(score_timeline=external_score)
         assert bundle.timelines["score"] is external_score
 
     def test_claims_still_reference_internal_uid(self):
@@ -608,7 +608,7 @@ class TestMatchfileLoaderExternalScore:
             uid="score:Chopin_op10_no3",
         )
 
-        bundle = loader.create_alignment_bundle(score_timeline=external_score)
+        bundle = loader.create_bundle(score_timeline=external_score)
         for claim in bundle.cross_group_claims:
             assert claim.timeline_a_id == "score:Chopin_op10_no3"
 
@@ -637,7 +637,7 @@ class TestMatchfileLoaderExternalScore:
         external_score.add_events(sample_events)
 
         # Should not raise
-        bundle = p01_loader.create_alignment_bundle(score_timeline=external_score)
+        bundle = p01_loader.create_bundle(score_timeline=external_score)
         assert bundle.timelines["score"] is external_score
 
     def test_incompatible_external_score_raises(self, p01_loader: MatchfileLoader):
@@ -662,7 +662,7 @@ class TestMatchfileLoaderExternalScore:
         )
 
         with pytest.raises(ValueError, match="incompatible event"):
-            p01_loader.create_alignment_bundle(score_timeline=external_score)
+            p01_loader.create_bundle(score_timeline=external_score)
 
     def test_verify_false_skips_check(self, p01_loader: MatchfileLoader):
         """verify=False allows incompatible external score without error."""
@@ -684,9 +684,7 @@ class TestMatchfileLoaderExternalScore:
         )
 
         # Should NOT raise with verify=False
-        bundle = p01_loader.create_alignment_bundle(
-            score_timeline=external_score, verify=False
-        )
+        bundle = p01_loader.create_bundle(score_timeline=external_score, verify=False)
         assert bundle.timelines["score"] is external_score
 
     def test_empty_external_score_accepted(self, p01_loader: MatchfileLoader):
@@ -697,7 +695,7 @@ class TestMatchfileLoaderExternalScore:
             uid="score:Chopin_op10_no3",
         )
         # No events added — all lookups return None — tolerated
-        bundle = p01_loader.create_alignment_bundle(score_timeline=external_score)
+        bundle = p01_loader.create_bundle(score_timeline=external_score)
         assert bundle.timelines["score"] is external_score
 
 

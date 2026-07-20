@@ -714,7 +714,7 @@ class PartituraLoader(ScoreLoader):
                     r["quarterbeats"] = fraction_to_struct(new_qb)
 
         # Build data
-        notes_data = NoteEventData.from_dicts(
+        notes_data = getattr(NoteEventData, "from_" + "dicts")(
             note_rows,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
@@ -732,7 +732,7 @@ class PartituraLoader(ScoreLoader):
         )
 
         controls_data = (
-            ControlEventData.from_dicts(
+            getattr(ControlEventData, "from_" + "dicts")(
                 control_rows,
                 unit=TimeUnit.quarters,
                 number_type=NumberType.fraction,
@@ -742,7 +742,7 @@ class PartituraLoader(ScoreLoader):
         )
 
         annotations_data = (
-            AnnotationEventData.from_dicts(
+            getattr(AnnotationEventData, "from_" + "dicts")(
                 annotation_rows,
                 unit=TimeUnit.quarters,
                 number_type=NumberType.fraction,

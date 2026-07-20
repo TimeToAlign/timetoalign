@@ -3,7 +3,7 @@
 This module tests the MeasureMapLoader implementation, including:
 1. JSON parsing and expansion
 2. Validation rules (MC unique, qstamp monotonic, next valid)
-3. Cross-validation against TSVLoader (measures.tsv gold standard)
+3. Cross-validation against Ms3Loader (measures.tsv gold standard)
 4. Traversal computation
 
 ZERO TOLERANCE VALIDATION POLICY:
@@ -54,13 +54,13 @@ def measuremap_loader():
 
 @pytest.fixture
 def tsv_loader():
-    """Get TSVLoader if ms3 is available."""
+    """Get Ms3Loader if ms3 is available."""
     try:
-        from timetoalign.loader.score import TSVLoader
+        from timetoalign.loader.score import Ms3Loader
 
-        return TSVLoader()
+        return Ms3Loader()
     except ImportError:
-        pytest.skip("TSVLoader requires ms3. Install with: pip install ms3")
+        pytest.skip("Ms3Loader requires ms3. Install with: pip install ms3")
 
 
 class TestMeasureMapLoaderBasic:
@@ -233,7 +233,7 @@ class TestMeasureMapTraversal:
 
 @pytest.mark.skipif(not specimens_available(), reason="Specimen files not found")
 class TestMeasureMapCrossValidation:
-    """Cross-validation: MeasureMapLoader vs TSVLoader.
+    """Cross-validation: MeasureMapLoader vs Ms3Loader.
 
     Per ZERO TOLERANCE VALIDATION POLICY:
     - EXACT counts required
@@ -257,7 +257,7 @@ class TestMeasureMapCrossValidation:
             f"expected {BEETHOVEN_FOLDED_MEASURES}"
         )
         assert tsv_count == BEETHOVEN_FOLDED_MEASURES, (
-            f"TSVLoader returned {tsv_count} measures, "
+            f"Ms3Loader returned {tsv_count} measures, "
             f"expected {BEETHOVEN_FOLDED_MEASURES}"
         )
 

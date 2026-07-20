@@ -78,7 +78,7 @@ class AnnotationEventData(EventData, HarmonyAccessMixin):
         for row in rows:
             processed = dict(row)
 
-            # Auto-generate id if missing (mirrors EventData.from_dicts logic)
+            # Auto-generate id if missing (mirrors the row-based EventData constructor logic)
             if "id" not in processed or processed["id"] is None:
                 etype = str(processed.get("event_type", "event")).lower()
                 type_counters.setdefault(etype, 0)

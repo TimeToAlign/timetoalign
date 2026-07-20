@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 
 from timetoalign.core.enums import FlowMode, IncompletePosition
-from timetoalign.loader.score import TSVLoader
+from timetoalign.loader.score import Ms3Loader
 from timetoalign.timelines import Flow, FlowMap, MeasureUnit, ScoreFlowController
 from timetoalign.timelines.flow import (
     AtomicSection,
@@ -1378,7 +1378,7 @@ class TestScoreFlowController:
         if not rachmaninoff_measures_tsv.exists():
             pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(rachmaninoff_measures_tsv)
 
         controller = ScoreFlowController(loader.store.measures)
@@ -1394,7 +1394,7 @@ class TestScoreFlowController:
         if not rachmaninoff_measures_tsv.exists():
             pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(rachmaninoff_measures_tsv)
 
         controller = ScoreFlowController(loader.store.measures)
@@ -1420,7 +1420,7 @@ class TestScoreFlowController:
         if not rachmaninoff_measures_tsv.exists():
             pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(rachmaninoff_measures_tsv)
 
         controller = ScoreFlowController(loader.store.measures)
@@ -1454,7 +1454,7 @@ class TestExample1Rachmaninoff:
         if not rachmaninoff_measures_tsv.exists():
             pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(rachmaninoff_measures_tsv)
         assert len(loader.store.measures) == 374
 
@@ -1463,7 +1463,7 @@ class TestExample1Rachmaninoff:
         if not rachmaninoff_measures_tsv.exists():
             pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(rachmaninoff_measures_tsv)
 
         controller = ScoreFlowController(loader.store.measures)
@@ -1483,7 +1483,7 @@ class TestExample1Rachmaninoff:
             pytest.skip(f"Test data not found: {rachmaninoff_unfolded_tsv}")
 
         # Load folded and compute flow
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(rachmaninoff_measures_tsv)
         controller = ScoreFlowController(loader.store.measures)
         flow = controller.compute_flow(FlowMode.default)
@@ -1528,7 +1528,7 @@ class TestExample3CouperinMusete:
         if not musete_measures_tsv.exists():
             pytest.skip(f"Test data not found: {musete_measures_tsv}")
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(musete_measures_tsv)
         # Exact count from TSV file (59 rows including header = 58 data rows)
         assert len(loader.store.measures) == 58
@@ -1538,7 +1538,7 @@ class TestExample3CouperinMusete:
         if not musete_measures_tsv.exists():
             pytest.skip(f"Test data not found: {musete_measures_tsv}")
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(musete_measures_tsv)
         summary = loader.store.measures.get_flow_control_summary()
 
@@ -1550,7 +1550,7 @@ class TestExample3CouperinMusete:
         if not musete_measures_tsv.exists():
             pytest.skip(f"Test data not found: {musete_measures_tsv}")
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(musete_measures_tsv)
 
         controller = ScoreFlowController(loader.store.measures)
@@ -1570,7 +1570,7 @@ class TestExample3CouperinMusete:
             pytest.skip(f"Test data not found: {musete_unfolded_tsv}")
 
         # Load folded and compute flow
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(musete_measures_tsv)
         controller = ScoreFlowController(loader.store.measures)
         flow = controller.compute_flow(FlowMode.default)
@@ -1599,7 +1599,7 @@ class TestFlowMap:
         if not rachmaninoff_measures_tsv.exists():
             pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(rachmaninoff_measures_tsv)
 
         controller = ScoreFlowController(loader.store.measures)
@@ -1622,7 +1622,7 @@ class TestPrintedMode:
         if not rachmaninoff_measures_tsv.exists():
             pytest.skip(f"Test data not found: {rachmaninoff_measures_tsv}")
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(rachmaninoff_measures_tsv)
 
         controller = ScoreFlowController(loader.store.measures)

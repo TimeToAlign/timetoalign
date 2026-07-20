@@ -16,6 +16,8 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from timetoalign.loader.base import Loader
+
 from .paths import HorizontalLinePath, TimeAxisPath, VerticalLinePath
 from .segment import GraphicalSegment
 from .source import ImageSource
@@ -27,7 +29,7 @@ if TYPE_CHECKING:
 module_logger = logging.getLogger(__name__)
 
 
-class GraphicalLoader:
+class GraphicalLoader(Loader[GraphicalStore]):
     """Factory for building GraphicalStore objects.
 
     The loader accumulates sources and segments, then builds a store.
@@ -57,11 +59,18 @@ class GraphicalLoader:
         Args:
             metadata: Optional metadata to attach to the store.
         """
+        super().__init__()
         self._sources: list[ImageSource] = []
         self._segments: list[GraphicalSegment] = []
         self._current_offset: float = 0.0
         self._metadata = metadata or {}
         self._logger = module_logger.getChild("GraphicalLoader")
+
+    def _load_source(self, source: Path) -> GraphicalStore:
+        """Reject file loading because graphical sources are structural."""
+        raise NotImplementedError(
+            "GraphicalLoader builds stores through add_* methods."
+        )
 
     # --- Source Addition Methods ---
 

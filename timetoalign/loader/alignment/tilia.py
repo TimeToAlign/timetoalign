@@ -22,7 +22,7 @@ The loader follows the standard two-phase pattern:
 1. ``loader.load(*sources)`` -- parse TiLiA JSON files.
 2. ``loader.create_group()`` -- returns a ``TimelineGroup``.
 3. ``loader.create_timeline(uid)`` -- returns a single timeline.
-4. ``loader.create_alignment_bundle()`` -- convenience wrapper.
+4. ``loader.create_bundle()`` -- convenience wrapper.
 
 The loader's ``.store`` property returns a `TiliaDictStore` with helper
 properties for each TiLiA timeline type:
@@ -469,7 +469,7 @@ class TiliaJsonLoader(JsonLoader):
     1. ``loader.load("Bruckner5_Scherzo.json")``
     2. ``group = loader.create_group()``
     3. ``tl = loader.create_timeline("BEAT_TIMELINE_3")``
-    4. ``bundle = loader.create_alignment_bundle()``
+    4. ``bundle = loader.create_bundle()``
 
     Args:
         media_unit: The ``TimeUnit`` for all timelines.  Default
@@ -751,7 +751,7 @@ class TiliaJsonLoader(JsonLoader):
 
         return group
 
-    def create_alignment_bundle(self) -> "AlignmentBundle":
+    def create_bundle(self) -> "AlignmentBundle":
         """Create an ``AlignmentBundle`` wrapping all timelines in one group.
 
         This is a convenience method.  The bundle contains a single
@@ -766,9 +766,7 @@ class TiliaJsonLoader(JsonLoader):
         from timetoalign.alignment.bundle import AlignmentBundle
 
         if not self._timeline_specs:
-            raise RuntimeError(
-                "No data loaded. Call load() before " "create_alignment_bundle()."
-            )
+            raise RuntimeError("No data loaded. Call load() before " "create_bundle().")
 
         group = self.create_group()
         bundle = AlignmentBundle(name=group.name)

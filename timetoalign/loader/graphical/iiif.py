@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
+from timetoalign.loader.base import Loader
+
 if TYPE_CHECKING:
     from timetoalign.timelines import Timeline
 
@@ -59,7 +61,7 @@ class IIIFManifestInfo:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class IIIFManifestLoader:
+class IIIFManifestLoader(Loader[IIIFManifestInfo]):
     """Load image metadata from IIIF Presentation API manifests.
 
     IIIF manifests contain canvas dimensions that represent image sizes.
@@ -84,9 +86,16 @@ class IIIFManifestLoader:
 
     def __init__(self) -> None:
         """Initialize the loader."""
+        super().__init__()
         self._manifest_info: IIIFManifestInfo | None = None
         self._source_path: Path | None = None
         self._logger = module_logger.getChild("IIIFManifestLoader")
+
+    def _load_source(self, source: Path) -> IIIFManifestInfo:
+        """Reject the event-oriented root lifecycle for IIIF manifests."""
+        raise NotImplementedError(
+            "IIIFManifestLoader uses its manifest-specific load() implementation."
+        )
 
     # region Loading
 

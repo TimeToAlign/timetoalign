@@ -443,8 +443,8 @@ class DictStore(EventStore):
     """Generic EventStore with arbitrary named EventData tables.
 
     Used by AlignmentLoaders that produce a variable number of timelines
-    (e.g., MatchfileLoader: 1 score + N performances; Ieee1599Loader:
-    logic + audio_1 + audio_2 + graphical_1).
+    (e.g., MatchfileLoader: 1 score + N performances; TiliaJsonLoader:
+    one table per annotated timeline).
 
     Maintains the uniform EventStore interface (iteration, keys, items,
     getitem) while supporting any number of named data sources.
@@ -678,7 +678,8 @@ class AlignmentStore:
     - matches: MatchData with alignment claims
 
     This is the return type for AlignmentLoader subclasses that load
-    formats encoding complete alignments (IEEE 1599, TiLiA, etc.).
+    formats encoding complete alignments (TiLiA, MPM, parangonada, and
+    performance-precision exports).
 
     Attributes:
         events: EventStore with events organized by domain/category.

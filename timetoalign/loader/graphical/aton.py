@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
+from timetoalign.loader.base import Loader
+
 if TYPE_CHECKING:
     from timetoalign.core import Coordinate
     from timetoalign.timelines import Timeline
@@ -72,7 +74,7 @@ class ATONHole:
     raw_data: dict[str, str] = field(default_factory=dict)
 
 
-class ATONLoader:
+class ATONLoader(Loader[list[ATONHole]]):
     """Load ATON format files (piano roll analysis data).
 
     ATON (Artistic Text-based Object Notation) is a structured text format
@@ -101,10 +103,15 @@ class ATONLoader:
 
     def __init__(self) -> None:
         """Initialize the loader."""
+        super().__init__()
         self._rollinfo: dict[str, Any] = {}
         self._holes: list[ATONHole] = []
         self._source_path: Path | None = None
         self._logger = module_logger.getChild("ATONLoader")
+
+    def _load_source(self, source: Path) -> list[ATONHole]:
+        """Reject the event-oriented root lifecycle for ATON parsing."""
+        raise NotImplementedError("ATONLoader uses its text-specific load() method.")
 
     @classmethod
     def from_file(cls, path: Path | str) -> Self:

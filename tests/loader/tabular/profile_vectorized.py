@@ -21,7 +21,8 @@ from typing import Any
 
 import numpy as np
 
-from timetoalign.loader.tabular import Ms3Loader, TabularLoader
+from timetoalign.loader.score import Ms3Loader
+from timetoalign.loader.tabular import TabularLoader
 
 # region Profiling Infrastructure
 

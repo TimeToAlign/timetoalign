@@ -145,10 +145,10 @@ All score loaders return a `ScoreStore` containing category-specific data:
 | MusicXML | Music21Loader | `.musicxml` | Valid flow_modes in .flow.csv |
 | MusicXML | PartituraLoader | `.musicxml` | Valid flow_modes in .flow.csv |
 | TSV | partitura.load_dcml() | `.tsv` | Valid flow_modes in .flow.csv |
-| TSV | TSVLoader | `.tsv` | Gold standard |
+| TSV | Ms3Loader | `.tsv` | Gold standard |
 | mm.json | MeasureMapLoader | `.mm.json` | Valid flow_modes in .flow.csv |
 
-**Note**: TSVLoader output from `*_unfolded.measures.tsv` serves as the gold standard (`default` flow_mode).
+**Note**: Ms3Loader output from `*_unfolded.measures.tsv` serves as the gold standard (`default` flow_mode).
 
 ## Test File Organization
 
@@ -240,7 +240,7 @@ We load *Chopin Op. 10 No. 3* using three loaders and verify consistency:
 
 | Loader | Source | Notes | Measures | Controls |
 |--------|--------|-------|----------|----------|
-| TSVLoader | TSV (ms3) | 498 | - | - |
+| Ms3Loader | TSV (ms3) | 498 | - | - |
 | PartituraLoader | MusicXML | 498 | 22 | 27 |
 | Music21Loader | MusicXML | 498+12 rests | 22 | 11 |
 
@@ -434,7 +434,7 @@ Benchmarks on *Chopin Op. 10 No. 3*:
 
 | Loader | Format | Time (avg) | Notes |
 |--------|--------|------------|-------|
-| TSVLoader | TSV (ms3) | ~150 ms | Fastest. Direct load. |
+| Ms3Loader | TSV (ms3) | ~150 ms | Fastest. Direct load. |
 | Music21Loader | MusicXML | ~400 ms | Medium. Object overhead. |
 | PartituraLoader | MusicXML | ~700 ms | Slowest. Detailed analysis. |
 

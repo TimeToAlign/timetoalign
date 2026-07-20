@@ -22,7 +22,23 @@ from pathlib import Path
 import pytest
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.loader.tabular import Ms3Loader
+from timetoalign.loader.tabular import TsvLoader
+
+
+class Ms3TsvFixture(TsvLoader):
+    """Generic TsvLoader configuration for ms3 coordinate gold vectors."""
+
+    id_column = None
+    name_column = "name"
+    start_column = "quarterbeats_all_endings"
+    _fallback_start_column = "quarterbeats"
+    end_column = None
+    duration_column = "duration"
+    event_type_column = None
+    default_event_type = "Note"
+    _default_unit = TimeUnit.quarters
+    coordinate_type = NumberType.fraction
+
 
 # region Test Data Paths
 
@@ -83,7 +99,7 @@ class TestZeroToleranceEventCounts:
         Gold standard: WoO71.notes.tsv from ms3 parser
         Expected: 4753 note events (4754 lines - 1 header)
         """
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
         loader.load(beethoven_notes)
 
         # ZERO TOLERANCE: Exact count required
@@ -100,7 +116,7 @@ class TestZeroToleranceEventCounts:
         Gold standard: WoO71.measures.tsv from ms3 parser
         Expected: 397 measure events (398 lines - 1 header)
         """
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
         loader.load(beethoven_measures)
 
         # ZERO TOLERANCE: Exact count required
@@ -115,7 +131,7 @@ class TestZeroToleranceEventCounts:
         Gold standard: Rachmaninoff notes.tsv from ms3 parser
         Expected: 14315 note events (14316 lines - 1 header)
         """
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
         loader.load(rachmaninoff_notes)
 
         # ZERO TOLERANCE: Exact count required
@@ -142,7 +158,7 @@ class TestZeroToleranceCoordinates:
 
         Gold standard: First data row has quarterbeats=0
         """
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
         loader.load(beethoven_notes)
 
         # Get first event's start coordinate
@@ -165,7 +181,7 @@ class TestZeroToleranceCoordinates:
 
         Gold standard: quarterbeats range from 0 to ~875 (last note start)
         """
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
         loader.load(beethoven_notes)
 
         coord_range = loader.events.coordinate_range()
@@ -188,7 +204,7 @@ class TestZeroToleranceCoordinates:
         Gold standard: ms3 uses exact fractions like 1/2, 3/4, 7/8
         The loader should preserve numerator/denominator exactly.
         """
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
         loader.load(beethoven_notes)
 
         table = loader.events.table
@@ -243,13 +259,13 @@ class TestZeroToleranceTemporalTypes:
         Gold standard: ms3 notes.tsv includes duration_qb column.
         Notes with valid duration should be intervals.
         """
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
         loader.load(beethoven_notes)
 
         types = loader.count_events_by_temporal_type()
 
         # All notes should be intervals (have duration)
-        # The Ms3Loader uses quarterbeats_all_endings column, so all notes
+        # The Ms3TsvFixture uses quarterbeats_all_endings column, so all notes
         # including those in volta brackets have valid start coordinates.
         interval_count = types.get("interval", 0)
         instant_count = types.get("instant", 0)
@@ -264,9 +280,9 @@ class TestZeroToleranceTemporalTypes:
     def test_beethoven_all_note_event_type(self, beethoven_notes: Path) -> None:
         """Validate all events have event_type='Note'.
 
-        Gold standard: Ms3Loader sets default_event_type='Note'.
+        Gold standard: Ms3TsvFixture sets default_event_type='Note'.
         """
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
         loader.load(beethoven_notes)
 
         types = loader.count_events_by_type()
@@ -287,11 +303,11 @@ class TestZeroToleranceUnits:
     """Validate unit metadata is correct."""
 
     def test_ms3_loader_uses_quarters(self, beethoven_notes: Path) -> None:
-        """Validate Ms3Loader uses TimeUnit.quarters.
+        """Validate Ms3TsvFixture uses TimeUnit.quarters.
 
         Gold standard: ms3 quarterbeats are in quarter note units.
         """
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
         loader.load(beethoven_notes)
 
         # ZERO TOLERANCE: Unit must be quarters
@@ -300,11 +316,11 @@ class TestZeroToleranceUnits:
         ), f"Expected TimeUnit.quarters, got {loader.unit}"
 
     def test_ms3_loader_uses_fraction_type(self, beethoven_notes: Path) -> None:
-        """Validate Ms3Loader uses NumberType.fraction.
+        """Validate Ms3TsvFixture uses NumberType.fraction.
 
         Gold standard: ms3 quarterbeats are fractions (1/2, 3/4, etc.)
         """
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
         loader.load(beethoven_notes)
 
         # ZERO TOLERANCE: Number type must be fraction
@@ -329,10 +345,10 @@ class TestCrossFileValidation:
 
         Gold standard: Both files from same ms3 export use quarterbeats.
         """
-        notes_loader = Ms3Loader()
+        notes_loader = Ms3TsvFixture()
         notes_loader.load(beethoven_notes)
 
-        measures_loader = Ms3Loader()
+        measures_loader = Ms3TsvFixture()
         measures_loader.load(beethoven_measures)
 
         # Both should use same unit

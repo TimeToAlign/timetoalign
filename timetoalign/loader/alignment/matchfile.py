@@ -11,7 +11,7 @@ to parse ``.match`` files and produces:
 The loader follows the standard two-phase pattern:
 
 1. ``loader.load(*match_files)`` — parses files, builds internal state.
-2. ``loader.create_alignment_bundle()`` — assembles an ``AlignmentBundle``.
+2. ``loader.create_bundle()`` — assembles an ``AlignmentBundle``.
 3. ``loader.create_timeline(uid)`` — retrieves individual timelines.
 
 See Also:
@@ -62,7 +62,7 @@ MATCH_META = MatchMetadata(
 # region MatchfileLoader
 
 
-class MatchfileLoader:
+class MatchfileLoader(AlignmentLoader):
     """Load Vienna Match (.match) alignment files via partitura.
 
     A single ``MatchfileLoader`` instance is intended to process **all**
@@ -74,7 +74,7 @@ class MatchfileLoader:
     **Usage follows the standard loader two-phase pattern:**
 
     1. ``loader.load(*match_files)`` — parses all files, builds internal state.
-    2. ``loader.create_alignment_bundle()`` — assembles the result.
+    2. ``loader.create_bundle()`` — assembles the result.
     3. ``loader.create_timeline(uid)`` — retrieves individual timelines.
 
     Produces:
@@ -103,7 +103,7 @@ class MatchfileLoader:
 
     **External score timeline:**
     Pass a score timeline previously built by ``PartituraLoader`` via the
-    ``score_timeline=`` parameter of ``create_alignment_bundle()``. The
+    ``score_timeline=`` parameter of ``create_bundle()``. The
     loader verifies compatibility (matching snote IDs and coordinates) and
     references the supplied timeline in all MatchClaims. MatchClaims are
     never rebound after creation.
@@ -126,6 +126,7 @@ class MatchfileLoader:
         score_unit: TimeUnit = TimeUnit.quarters,
         normalize_anacrusis: bool = True,
     ) -> None:
+        super().__init__()
         self._score_unit = score_unit
         self._normalize_anacrusis = normalize_anacrusis
         self._logger = module_logger.getChild("MatchfileLoader")
@@ -149,6 +150,16 @@ class MatchfileLoader:
         self._piece_name: str | None = None
 
     # region Properties
+
+    def _accept_source(
+        self,
+        path: Path,
+        source_meta: dict[str, Any],
+        payload: None,
+    ) -> None:
+        """Record a parsed match file whose payload is held in loader state."""
+        self._sources.append(path)
+        self._source_metadata.append(source_meta)
 
     @property
     def anacrusis_offset(self) -> float:
@@ -208,8 +219,7 @@ class MatchfileLoader:
             if path.suffix.lower() != ".match":
                 raise ValueError(f"Not a .match file: {path}")
 
-            self._sources.append(path)
-            self._load_source(path)
+            super().load(path)
 
         return self
 
@@ -611,7 +621,7 @@ class MatchfileLoader:
                     )
         return mismatches
 
-    def create_alignment_bundle(
+    def create_bundle(
         self,
         score_timeline: "Timeline | None" = None,
         verify: bool = True,
@@ -659,7 +669,7 @@ class MatchfileLoader:
         Examples:
             >>> loader = MatchfileLoader()
             >>> loader.load(*match_files)
-            >>> bundle = loader.create_alignment_bundle()
+            >>> bundle = loader.create_bundle()
             >>> len(bundle.timelines)  # score + 22 performances
             23
         """
@@ -667,7 +677,7 @@ class MatchfileLoader:
 
         if self._score_timeline is None:
             raise RuntimeError(
-                "No files loaded yet. Call load() before " "create_alignment_bundle()."
+                "No files loaded yet. Call load() before " "create_bundle()."
             )
 
         actual_score = (

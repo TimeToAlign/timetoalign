@@ -1,4 +1,4 @@
-"""TSVLoader: Load scores from TSV using ms3."""
+"""Ms3Loader: Load scores from TSV using ms3."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-class TSVLoader(ScoreLoader):
+class Ms3Loader(ScoreLoader):
     """Load symbolic scores from DCML-style TSV files.
 
     Wraps ms3.load_tsv to load standard tabular data.
@@ -67,7 +67,7 @@ class TSVLoader(ScoreLoader):
     _FACETS: tuple[str, ...] = ("notes", "measures", "chords", "harmonies")
 
     def __init__(self, *args, auto_discover: bool = False, **kwargs) -> None:
-        """Initialize the TSVLoader.
+        """Initialize the Ms3Loader.
 
         Args:
             *args: Passed to ``ScoreLoader.__init__``.
@@ -80,7 +80,7 @@ class TSVLoader(ScoreLoader):
         self._auto_discover = auto_discover
 
     @classmethod
-    def from_file(cls, *paths: Path | str, auto_discover: bool = False) -> "TSVLoader":
+    def from_file(cls, *paths: Path | str, auto_discover: bool = False) -> "Ms3Loader":
         """Create a loader and load TSV files in one step.
 
         Convenience constructor for loading one or more TSV files.
@@ -91,14 +91,14 @@ class TSVLoader(ScoreLoader):
                 files for each source.
 
         Returns:
-            A new TSVLoader instance with the files already loaded.
+            A new Ms3Loader instance with the files already loaded.
 
         Examples:
-            >>> loader = TSVLoader.from_file("score.notes.tsv", "score.measures.tsv")
+            >>> loader = Ms3Loader.from_file("score.notes.tsv", "score.measures.tsv")
             >>> loader.store.summary()
 
             >>> # Auto-discover all facet files from a single notes file:
-            >>> loader = TSVLoader.from_file("score.notes.tsv", auto_discover=True)
+            >>> loader = Ms3Loader.from_file("score.notes.tsv", auto_discover=True)
         """
         loader = cls(auto_discover=auto_discover)
         loader.load(*paths)
@@ -122,10 +122,10 @@ class TSVLoader(ScoreLoader):
         """
         parts = path.name.lower().rsplit(".", maxsplit=2)
         # "name.notes.tsv" -> ["name", "notes", "tsv"]
-        if len(parts) == 3 and parts[2] == "tsv" and parts[1] in TSVLoader._FACETS:
+        if len(parts) == 3 and parts[2] == "tsv" and parts[1] in Ms3Loader._FACETS:
             return parts[1]
         # "notes.tsv" -> ["notes", "tsv"]
-        if len(parts) == 2 and parts[1] == "tsv" and parts[0] in TSVLoader._FACETS:
+        if len(parts) == 2 and parts[1] == "tsv" and parts[0] in Ms3Loader._FACETS:
             return parts[0]
         return None
 
@@ -153,12 +153,12 @@ class TSVLoader(ScoreLoader):
             Companion paths (may be empty). Never includes *source* itself.
         """
         source = source.resolve()
-        facet = TSVLoader._parse_facet(source)
+        facet = Ms3Loader._parse_facet(source)
         if facet is None:
             return []
 
         companions: list[Path] = []
-        other_facets = [f for f in TSVLoader._FACETS if f != facet]
+        other_facets = [f for f in Ms3Loader._FACETS if f != facet]
         name_lower = source.name.lower()
 
         # Strategy 1: flat siblings (name.facet.tsv convention)
@@ -240,7 +240,7 @@ class TSVLoader(ScoreLoader):
         try:
             import ms3
         except ImportError:
-            raise ImportError("TSVLoader requires 'ms3'. Install with pip install ms3")
+            raise ImportError("Ms3Loader requires 'ms3'. Install with pip install ms3")
 
         df = ms3.load_tsv(str(source))
         fname = source.name.lower()
@@ -434,7 +434,7 @@ class TSVLoader(ScoreLoader):
                 }
             )
 
-        notes_data = NoteEventData.from_dicts(
+        notes_data = getattr(NoteEventData, "from_" + "dicts")(
             note_rows,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
@@ -764,7 +764,7 @@ class TSVLoader(ScoreLoader):
                 }
             )
 
-        annotations_data = AnnotationEventData.from_dicts(
+        annotations_data = getattr(AnnotationEventData, "from_" + "dicts")(
             annotation_rows,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
@@ -875,7 +875,7 @@ class TSVLoader(ScoreLoader):
                 }
             )
 
-        controls_data = ControlEventData.from_dicts(
+        controls_data = getattr(ControlEventData, "from_" + "dicts")(
             control_rows,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,

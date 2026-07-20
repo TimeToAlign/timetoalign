@@ -6,6 +6,13 @@ This directory tests the loader package end-to-end, covering all formats
 and the shared loader infrastructure (base classes, matchfiles, schemas,
 bundles, error handling).
 
+## Ingestion contract
+
+Loader fixtures return field-oriented arrays so the tests exercise the public
+vectorized loader contract directly. Row dictionaries remain covered by the
+storage constructor tests, but are intentionally not accepted by
+`Loader.load()`.
+
 ## Categories
 
 | File / Subdirectory | What it validates |
@@ -35,7 +42,6 @@ bundles, error handling).
 | `graphical/` | PDF / image loaders |
 | `format/` | Cross-format loaders (JSON, XML, TTL) |
 | `physical/` | Audio loaders and time-coordinate ingestion |
-| `paths/` | Path resolution helpers |
 
 ## Data conventions
 

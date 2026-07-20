@@ -189,14 +189,14 @@ def count_flow_control(measures_table: Any) -> dict[str, int | bool]:
 def tsv_measures():
     """Load measures from TSV (gold standard)."""
     try:
-        from timetoalign.loader.score import TSVLoader
+        from timetoalign.loader.score import Ms3Loader
     except ImportError:
-        pytest.skip("TSVLoader requires ms3. Install with: pip install ms3")
+        pytest.skip("Ms3Loader requires ms3. Install with: pip install ms3")
 
     if not BEETHOVEN_MEASURES_TSV.exists():
         pytest.skip(f"Specimen file not found: {BEETHOVEN_MEASURES_TSV}")
 
-    loader = TSVLoader()
+    loader = Ms3Loader()
     loader.load(BEETHOVEN_MEASURES_TSV)
     return loader.store.measures
 
@@ -314,7 +314,7 @@ class TestGoldStandardVerification:
     """Verify the gold standard flow control counts from TSV.
 
     Note: Folded measure count (397) is verified by test_score_parsing_matrix.py
-    TestTSVLoaderValidation. This class tests flow control field extraction only.
+    TestMs3LoaderValidation. This class tests flow control field extraction only.
     """
 
     def test_tsv_repeat_starts(self, tsv_measures):
@@ -524,14 +524,14 @@ class TestCrossLoaderConsistency:
 def fc_tsv_measures():
     """Load measures from flow_control TSV (gold standard)."""
     try:
-        from timetoalign.loader.score import TSVLoader
+        from timetoalign.loader.score import Ms3Loader
     except ImportError:
-        pytest.skip("TSVLoader requires ms3. Install with: pip install ms3")
+        pytest.skip("Ms3Loader requires ms3. Install with: pip install ms3")
 
     if not FLOW_CONTROL_TSV.exists():
         pytest.skip(f"Specimen file not found: {FLOW_CONTROL_TSV}")
 
-    loader = TSVLoader()
+    loader = Ms3Loader()
     loader.load(FLOW_CONTROL_TSV)
     return loader.store.measures
 

@@ -369,7 +369,7 @@ def get_loader_for_source_file(source_filename: str):
     """Get the appropriate loader class based on source file extension.
 
     Loader is determined by file extension, NOT by flow_mode:
-    - .tsv: TSVLoader
+    - .tsv: Ms3Loader
     - .mm.json, .json: MeasureMapLoader
     - .musicxml, .xml: PartituraLoader (or Music21Loader as fallback)
     - .mei: PartituraLoader (or Music21Loader as fallback)
@@ -384,9 +384,9 @@ def get_loader_for_source_file(source_filename: str):
 
     if ext.endswith(".tsv"):
         try:
-            from timetoalign.loader.score import TSVLoader
+            from timetoalign.loader.score import Ms3Loader
 
-            return TSVLoader
+            return Ms3Loader
         except ImportError:
             return None
 

@@ -10,7 +10,6 @@ Classes:
     CsvLoader: CSV file loader.
     TsvLoader: TSV (tab-separated) file loader.
     LabLoader: Audacity / Praat ``.lab`` file loader.
-    Ms3Loader: ms3 (MuseScore3) TSV file loader.
     SoloLoader: ``.solo`` performance-analysis file loader.
 
 Modules:
@@ -24,7 +23,7 @@ Modules:
 from __future__ import annotations
 
 from .base import TabularLoader
-from .csv import CsvLoader, LabLoader, Ms3Loader, TsvLoader
+from .csv import CsvLoader, LabLoader, TsvLoader
 from .field_parsers import (
     CallableFieldParser,
     CompositeFieldParser,
@@ -38,7 +37,6 @@ __all__ = [
     "CsvLoader",
     "TsvLoader",
     "LabLoader",
-    "Ms3Loader",
     "SoloLoader",
     # FieldParser hierarchy + dispatcher
     "FieldParser",

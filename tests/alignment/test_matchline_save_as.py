@@ -466,7 +466,7 @@ class TestRoundTripMatchfileLoader:
 
         loader = MatchfileLoader()
         loader.load(CHOPIN_P01)
-        bundle = loader.create_alignment_bundle()
+        bundle = loader.create_bundle()
 
         # Get the timeline IDs
         score_tl = loader.create_timeline("score")
@@ -654,7 +654,7 @@ class TestRoundTripHow03Notebook:
         # Step 1: Load the original .match file
         loader = MatchfileLoader()
         loader.load(CHOPIN_P01)
-        bundle = loader.create_alignment_bundle()
+        bundle = loader.create_bundle()
 
         score_tl = loader.create_timeline("score")
 
@@ -686,7 +686,7 @@ class TestRoundTripHow03Notebook:
         # Step 3: Reload the exported file with MatchfileLoader
         reload_loader = MatchfileLoader()
         reload_loader.load(output_path)
-        reload_bundle = reload_loader.create_alignment_bundle()
+        reload_bundle = reload_loader.create_bundle()
 
         reload_sync = [c for c in reload_bundle.get_match_claims() if c.is_synchronous]
 

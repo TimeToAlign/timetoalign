@@ -29,7 +29,7 @@ import pytest
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.core.enums import FlowMode
-from timetoalign.loader.score import TSVLoader
+from timetoalign.loader.score import Ms3Loader
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
@@ -245,10 +245,10 @@ def _load_controller(tsv_path: Path) -> ScoreFlowController:
     """Load a ScoreFlowController from a measures TSV file.
 
     Uses the standard two-phase loader pattern:
-    1. TSVLoader.load(path) -- file ingestion
+    1. Ms3Loader.load(path) -- file ingestion
     2. ScoreFlowController(loader.store.measures) -- domain object creation
     """
-    loader = TSVLoader()
+    loader = Ms3Loader()
     loader.load(tsv_path)
     return ScoreFlowController(loader.store.measures)
 
@@ -1158,7 +1158,7 @@ def _build_openscore(data_dir: Path) -> ContinuousLogicalTimeline:
     movement 4 as a child timeline.
     """
     openscore_dir = data_dir / BEETHOVEN_OPENSCORE_DIR_REL
-    os_loader = TSVLoader.from_file(
+    os_loader = Ms3Loader.from_file(
         openscore_dir / "sq8913219.notes.tsv",
         openscore_dir / "sq8913219.measures.tsv",
     )
@@ -1195,7 +1195,7 @@ def beethoven_score_group() -> dict[str, Any]:
         pytest.skip(f"Beethoven test data not found: {abc_dir}")
 
     # CLT1
-    abc_loader = TSVLoader.from_file(
+    abc_loader = Ms3Loader.from_file(
         abc_dir / "n04op18-4_04.notes.tsv",
         abc_dir / "n04op18-4_04.measures.tsv",
         abc_dir / "n04op18-4_04.harmonies.tsv",

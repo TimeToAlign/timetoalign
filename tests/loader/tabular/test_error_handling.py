@@ -18,7 +18,22 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign.loader.tabular import CsvLoader, Ms3Loader, TabularLoader, TsvLoader
+from timetoalign.core import NumberType, TimeUnit
+from timetoalign.loader.tabular import CsvLoader, TabularLoader, TsvLoader
+
+
+class Ms3TsvFixture(TsvLoader):
+    """Generic TsvLoader configuration for ms3 error cases."""
+
+    id_column = None
+    start_column = "quarterbeats_all_endings"
+    _fallback_start_column = "quarterbeats"
+    duration_column = "duration"
+    event_type_column = None
+    default_event_type = "Note"
+    _default_unit = TimeUnit.quarters
+    coordinate_type = NumberType.fraction
+
 
 # region Missing Column Tests
 
@@ -166,14 +181,13 @@ abc,Note
 
     def test_invalid_fraction_format_error(self, tmp_path: Path) -> None:
         """Validate clear error on invalid fraction format."""
-        # TSV content with tab delimiter (Ms3Loader uses tab)
-        # Ms3Loader uses quarterbeats_all_endings as primary column
+        # TSV content with tab delimiter and explicit ms3 coordinate columns.
         content = "quarterbeats_all_endings\tduration\n1/2/3\t1/4\n1/4\t1/8\n"
 
         path = tmp_path / "invalid_fraction.tsv"
         path.write_text(content)
 
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
 
         with pytest.raises(ValueError) as exc_info:
             loader.load(path)
@@ -184,13 +198,13 @@ abc,Note
     def test_zero_denominator_error(self, tmp_path: Path) -> None:
         """Validate clear error on zero denominator in fractions."""
         # TSV content with tab delimiter
-        # Ms3Loader uses quarterbeats_all_endings as primary column
+        # The configured generic loader uses quarterbeats_all_endings first.
         content = "quarterbeats_all_endings\tduration\n1/0\t1/4\n"
 
         path = tmp_path / "zero_denom.tsv"
         path.write_text(content)
 
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
 
         with pytest.raises(ValueError) as exc_info:
             loader.load(path)
@@ -220,7 +234,7 @@ class TestNullValueHandling:
         path = tmp_path / "null_start.tsv"
         path.write_text(content)
 
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
 
         # Should raise error on null start coordinate
         with pytest.raises(ValueError):
@@ -237,7 +251,7 @@ class TestNullValueHandling:
         path = tmp_path / "null_duration.tsv"
         path.write_text(content)
 
-        loader = Ms3Loader()
+        loader = Ms3TsvFixture()
         loader.load(path)
 
         assert len(loader.events) == 3

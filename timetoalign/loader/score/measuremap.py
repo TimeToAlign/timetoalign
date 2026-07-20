@@ -14,7 +14,7 @@ Key features:
 - Implements expansion rules per MeasureMap paper specification
 - Validates MC uniqueness, qstamp monotonicity, next references
 - Returns ScoreStore for consistency with other ScoreLoaders
-- Enables cross-validation against TSVLoader (measures.tsv)
+- Enables cross-validation against Ms3Loader (measures.tsv)
 
 MeasureMap JSON Schema Properties:
 | Property | Type | Description |

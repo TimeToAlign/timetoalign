@@ -131,7 +131,14 @@ See `PROFILING_REPORT.md` for full details.
 
 ## Known Limitations
 
-### Ms3Loader
+## ms3 coverage ownership
+
+The tabular package no longer owns an ms3 loader. The exact ms3 gold-vector
+tests that remain here use a local `TsvLoader` subclass with explicit generic
+column configuration; score-facet parsing and pitch enrichment are tested by
+the score package's `Ms3Loader` suite.
+
+### Configured TsvLoader
 
 1. **Null start coordinates raise error**: If `quarterbeats` column contains empty values, the fraction parser raises `ValueError`. This is intentional - null start coordinates are invalid for note events.
 
@@ -152,9 +159,9 @@ See `PROFILING_REPORT.md` for full details.
 
 ## Discrepancies Between Loaders
 
-### Ms3Loader vs Generic TsvLoader
+### Configured TsvLoader vs Generic TsvLoader
 
-| Aspect | Ms3Loader | TsvLoader |
+| Aspect | Configured TsvLoader | TsvLoader |
 |--------|-----------|-----------|
 | Start column | `quarterbeats` | `start` |
 | End column | Computed from `duration_qb` | `end` |
@@ -162,7 +169,8 @@ See `PROFILING_REPORT.md` for full details.
 | Time unit | `TimeUnit.quarters` | `TimeUnit.seconds` |
 | Default event type | `"Note"` | `"Event"` |
 
-**Important:** Do NOT use generic `TsvLoader` for ms3 files - use `Ms3Loader` which has the correct column mappings and coordinate parsing.
+The score package's `Ms3Loader` owns ms3 facet dispatch. Generic tabular users
+can provide equivalent column mappings through `TsvLoader` configuration.
 
 ### Null Handling
 

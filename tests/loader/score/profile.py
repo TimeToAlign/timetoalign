@@ -32,9 +32,9 @@ def profile_loader(loader_cls, source, name, loops=5):
 
 def profile_all():
     """Profile all loaders and print ScoreBundle summary."""
+    from timetoalign.loader.score.ms3 import Ms3Loader
     from timetoalign.loader.score.music21 import Music21Loader
     from timetoalign.loader.score.partitura import PartituraLoader
-    from timetoalign.loader.score.tsv import TSVLoader
 
     print("=" * 60)
     print("Score Loader Profiling (Chopin Op. 10 No. 3)")
@@ -42,9 +42,9 @@ def profile_all():
     print()
 
     # TSV
-    print("--- TSVLoader (notes.tsv) ---")
-    profile_loader(TSVLoader, CHOPIN_TSV, "TSVLoader")
-    tsv_bundle = TSVLoader().load(CHOPIN_TSV)
+    print("--- Ms3Loader (notes.tsv) ---")
+    profile_loader(Ms3Loader, CHOPIN_TSV, "Ms3Loader")
+    tsv_bundle = Ms3Loader().load(CHOPIN_TSV)
     print(f"    {tsv_bundle}")
     print()
 

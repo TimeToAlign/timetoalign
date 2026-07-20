@@ -48,7 +48,7 @@ def profile_single_file(path: Path, iterations: int = ITERATIONS_SINGLE) -> dict
         load_times.append(t1 - t0)
 
         t2 = time.perf_counter()
-        bundle = loader.create_alignment_bundle()
+        bundle = loader.create_bundle()
         t3 = time.perf_counter()
         bundle_times.append(t3 - t2)
 
@@ -85,7 +85,7 @@ def profile_multi_file(files: list[Path], iterations: int = ITERATIONS_MULTI) ->
         load_times.append(t1 - t0)
 
         t2 = time.perf_counter()
-        bundle = loader.create_alignment_bundle()
+        bundle = loader.create_bundle()
         t3 = time.perf_counter()
         bundle_times.append(t3 - t2)
 

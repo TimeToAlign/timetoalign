@@ -28,6 +28,8 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
+from timetoalign.loader.base import Loader
+
 if TYPE_CHECKING:
     from timetoalign.maps import SamplesToSeconds
     from timetoalign.timelines import DiscretePhysicalTimeline
@@ -122,7 +124,7 @@ class AudioInfo:
 # region AudioLoader
 
 
-class AudioLoader:
+class AudioLoader(Loader[AudioInfo]):
     """Load audio file metadata for creating physical timelines.
 
     AudioLoader extracts metadata from audio files without loading the actual
@@ -166,9 +168,16 @@ class AudioLoader:
 
     def __init__(self) -> None:
         """Initialize the loader."""
+        super().__init__()
         self._audio_info: AudioInfo | None = None
         self._source_path: Path | None = None
         self._logger = module_logger.getChild("AudioLoader")
+
+    def _load_source(self, source: Path) -> AudioInfo:
+        """Reject the event-oriented root lifecycle for audio metadata."""
+        raise NotImplementedError(
+            "AudioLoader uses its manifest-specific load() implementation."
+        )
 
     # region Loading
 

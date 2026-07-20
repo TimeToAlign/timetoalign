@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
+from timetoalign.loader.score.ms3 import Ms3Loader
 from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.store import ScoreStore
-from timetoalign.loader.score.tsv import TSVLoader
 
 DATA_DIR = Path(__file__).parents[2] / "data" / "vienna_1x22"
 MIDI_SCORE_DIR = Path(__file__).parents[2] / "data" / "midi" / "score"
@@ -24,12 +24,12 @@ def chopin_tsv_notes():
     return MS3_DIR / "chopin_op10_no3.notes.tsv"
 
 
-class TestTSVLoader:
-    """Tests for TSVLoader."""
+class TestMs3Loader:
+    """Tests for Ms3Loader."""
 
     def test_returns_score_store(self, chopin_tsv_notes):
-        """TSVLoader.load() populates ScoreStore."""
-        loader = TSVLoader()
+        """Ms3Loader.load() populates ScoreStore."""
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
         store = loader.store
 
@@ -40,14 +40,14 @@ class TestTSVLoader:
 
     def test_note_count(self, chopin_tsv_notes):
         """TSV gold standard has 498 notes."""
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
         store = loader.store
         assert len(store.notes) == 498
 
     def test_fraction_schema(self, chopin_tsv_notes):
         """Temporal fields use Fraction struct."""
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
         store = loader.store
         first = list(store.notes)[0]
@@ -68,7 +68,7 @@ class TestTSVLoader:
         """
         from timetoalign.core.events import EnharmonicPitch, EnharmonicPitchField
 
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
         store = loader.store
         first = list(store.notes)[0]
@@ -211,7 +211,7 @@ class TestCrossValidation:
 
     def test_mc_onset_populated(self, chopin_xml, chopin_tsv_notes):
         """mc_onset is populated for all loaders."""
-        l1 = TSVLoader()
+        l1 = Ms3Loader()
         l1.load(chopin_tsv_notes)
         tsv = l1.store
 
@@ -405,7 +405,7 @@ class TestScoreStoreParquet:
 
     def test_to_parquet_creates_directory(self, chopin_tsv_notes, tmp_path):
         """to_parquet creates the output directory and writes facet files."""
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
         store = loader.store
 
@@ -418,7 +418,7 @@ class TestScoreStoreParquet:
 
     def test_round_trip_note_count(self, chopin_tsv_notes, tmp_path):
         """Notes survive a round-trip through parquet."""
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
         original = loader.store
 
@@ -430,7 +430,7 @@ class TestScoreStoreParquet:
 
     def test_round_trip_measure_count(self, chopin_tsv_notes, tmp_path):
         """Measures survive a round-trip through parquet."""
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
         original = loader.store
 
@@ -442,7 +442,7 @@ class TestScoreStoreParquet:
 
     def test_round_trip_metadata(self, chopin_tsv_notes, tmp_path):
         """Store-level metadata survives a round-trip."""
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
         original = loader.store
 
@@ -454,7 +454,7 @@ class TestScoreStoreParquet:
 
     def test_round_trip_unit_preserved(self, chopin_tsv_notes, tmp_path):
         """Unit metadata is preserved through the round-trip."""
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
         original = loader.store
 
@@ -466,11 +466,11 @@ class TestScoreStoreParquet:
 
     def test_empty_facets_not_written(self, chopin_tsv_notes, tmp_path):
         """Empty facets are omitted from the directory."""
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
         store = loader.store
 
-        # TSVLoader loading only notes should have no controls/annotations
+        # Ms3Loader loading only notes should have no controls/annotations
         out_dir = tmp_path / "sparse_out"
         store.to_parquet(out_dir)
 
@@ -503,7 +503,7 @@ class TestScoreLoaderParquet:
 
     def test_loader_to_parquet_non_empty(self, chopin_tsv_notes, tmp_path):
         """ScoreLoader.to_parquet writes non-empty files (the original bug)."""
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
 
         out_dir = tmp_path / "loader_out"
@@ -515,26 +515,26 @@ class TestScoreLoaderParquet:
 
     def test_loader_round_trip(self, chopin_tsv_notes, tmp_path):
         """ScoreLoader.from_parquet restores a usable loader."""
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
         original_count = len(loader.store.notes)
 
         out_dir = tmp_path / "loader_rt"
         loader.to_parquet(out_dir)
-        restored = TSVLoader.from_parquet(out_dir)
+        restored = Ms3Loader.from_parquet(out_dir)
 
-        assert isinstance(restored, TSVLoader)
+        assert isinstance(restored, Ms3Loader)
         assert len(restored.store.notes) == original_count
         assert len(restored.events) == original_count
 
     def test_loader_round_trip_events_property(self, chopin_tsv_notes, tmp_path):
         """Restored loader's .events property returns notes (not empty)."""
-        loader = TSVLoader()
+        loader = Ms3Loader()
         loader.load(chopin_tsv_notes)
 
         out_dir = tmp_path / "events_rt"
         loader.to_parquet(out_dir)
-        restored = TSVLoader.from_parquet(out_dir)
+        restored = Ms3Loader.from_parquet(out_dir)
 
         # This is the critical assertion: .events must NOT be empty
         assert len(restored.events) == 498  # Chopin Op.10 No.3 gold standard
