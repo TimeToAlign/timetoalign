@@ -14,7 +14,7 @@ import pytest
 
 from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.maps import ScalarMap
-from timetoalign.timelines import BeatGrid
+from timetoalign.timelines import BeatGrid, Timeline
 
 
 class TestBeatGridBasic:
@@ -155,7 +155,7 @@ class TestBeatGridMetricalMaps:
         )
         grid._meta = {"source": "test"}
 
-        restored = BeatGrid.from_dict(grid.to_dict())
+        restored = Timeline.from_dict(grid.to_dict())
 
         assert type(restored) is BeatGrid
         assert float(restored.length.value) == 16.0

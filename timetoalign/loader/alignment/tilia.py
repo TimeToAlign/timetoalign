@@ -453,8 +453,8 @@ class TiliaJsonLoader(JsonLoader):
 
     Internally, the ``"timelines"`` array is parsed so that each element
     (which has its own ``"kind"`` and ``"components"``) becomes a
-    separate ``pa.Table`` keyed by a generated identifier
-    (``"{kind}_{index}"``).  The underlying ``JsonLoader`` machinery is
+            separate ``pa.Table`` keyed by its source identifier. The underlying
+            ``JsonLoader`` machinery is
     used for normalising each timeline's components into a flat table.
 
     The ``.store`` property returns a `TiliaDictStore` with helper
@@ -468,7 +468,7 @@ class TiliaJsonLoader(JsonLoader):
 
     1. ``loader.load("Bruckner5_Scherzo.json")``
     2. ``group = loader.create_group()``
-    3. ``tl = loader.create_timeline("BEAT_TIMELINE_3")``
+        3. ``tl = loader.create_timeline("BEAT_TIMELINE_3")``
     4. ``bundle = loader.create_bundle()``
 
     Args:
@@ -532,10 +532,10 @@ class TiliaJsonLoader(JsonLoader):
 
     @property
     def timeline_ids(self) -> list[str]:
-        """Identifiers for all parsed timelines.
+        """Type-based identifiers for all parsed timelines.
 
-        Each id follows the pattern ``"{kind}_{index}"`` where *index*
-        is the 0-based position in the original ``"timelines"`` array.
+        IDs are ``cpt1``, ``cpt2``, ... in source order. Source IDs and
+        titles remain accepted by :meth:`create_timeline`.
         """
         return [spec["id"] for spec in self._timeline_specs]
 
@@ -623,7 +623,9 @@ class TiliaJsonLoader(JsonLoader):
                 components = components_raw
 
             # Use tilia_id if available (from v2 format conversion)
-            tl_id = tl_obj.get("_tilia_id", f"{kind}_{idx}")
+            source_id = tl_obj.get("_tilia_id", f"{kind}_{idx}")
+            tl_id = f"cpt{idx + 1}"
+            timeline_name = name or source_id
 
             # Normalise components into a pa.Table
             if components and isinstance(components, list):
@@ -638,13 +640,14 @@ class TiliaJsonLoader(JsonLoader):
             tilia_type = _KIND_TO_TYPE.get(kind)
 
             # Store in the TiliaDictStore
-            self._store.add(tl_id, self._wrap_table(table), kind=tilia_type)
+            self._store.add(source_id, self._wrap_table(table), kind=tilia_type)
 
             self._timeline_specs.append(
                 {
                     "id": tl_id,
+                    "source_id": source_id,
                     "kind": kind,
-                    "name": name,
+                    "name": timeline_name,
                     "n_components": len(components),
                     "ordinal": ordinal,
                     "index": idx,
@@ -655,8 +658,8 @@ class TiliaJsonLoader(JsonLoader):
             self._logger.debug(
                 "Timeline %d: %s (%s) with %d components",
                 idx,
-                tl_id,
-                name,
+                source_id,
+                timeline_name,
                 len(components),
             )
 
@@ -667,9 +670,8 @@ class TiliaJsonLoader(JsonLoader):
     def create_timeline(self, uid: str | int) -> "Timeline":
         """Create a single ``ContinuousPhysicalTimeline`` by uid.
 
-        The *uid* is the timeline identifier from ``timeline_ids``
-        (e.g. ``"BEAT_TIMELINE_3"``).  Alternatively, pass an integer
-        index (as string or int) to select by position.
+        The *uid* may be a type-based ID from ``timeline_ids`` (for example,
+        ``"cpt4"``), the original TiLiA source ID/title, or an integer index.
 
         Args:
             uid: Timeline identifier or integer index.
@@ -798,9 +800,10 @@ class TiliaJsonLoader(JsonLoader):
         1. Integer index (0-indexed).
         2. String-encoded integer index (e.g. ``"3"``).
         3. Exact match on spec ``"id"`` field.
-        4. Exact match on spec ``"name"`` field.
-        5. Partial/regex match on spec ``"id"`` field.
-        6. Partial/regex match on spec ``"name"`` field.
+        4. Exact match on the source ID.
+        5. Exact match on spec ``"name"`` field.
+        6. Partial/regex match on stored ID or source ID.
+        7. Partial/regex match on spec ``"name"`` field.
 
         Args:
             uid: Timeline identifier, name, or integer index.
@@ -833,6 +836,11 @@ class TiliaJsonLoader(JsonLoader):
             if spec["id"] == uid:
                 return spec
 
+        # Try exact match by source id
+        for spec in self._timeline_specs:
+            if spec["source_id"] == uid:
+                return spec
+
         # Try exact match by name
         for spec in self._timeline_specs:
             if spec["name"] == uid:
@@ -840,10 +848,11 @@ class TiliaJsonLoader(JsonLoader):
 
         # Try partial/regex match by id
         all_ids = [s["id"] for s in self._timeline_specs]
+        all_source_ids = [s["source_id"] for s in self._timeline_specs]
         try:
-            resolved_id = resolve_id(uid, all_ids, warn_multiple=True)
+            resolved_id = resolve_id(uid, all_ids + all_source_ids, warn_multiple=True)
             for spec in self._timeline_specs:
-                if spec["id"] == resolved_id:
+                if resolved_id in (spec["id"], spec["source_id"]):
                     return spec
         except KeyError:
             pass
@@ -860,7 +869,7 @@ class TiliaJsonLoader(JsonLoader):
 
         raise KeyError(
             f"No timeline with uid or name matching '{uid}'. "
-            f"Available UIDs: {all_ids}"
+            f"Available UIDs: {all_ids}; source IDs: {all_source_ids}"
         )
 
     def _build_timeline(self, spec: dict[str, Any]) -> ContinuousPhysicalTimeline:

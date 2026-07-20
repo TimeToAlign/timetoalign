@@ -19,6 +19,13 @@ specified via `start`/`end` parameters to `add_timeline()`. Its tests live in
 
 Each test validates a **specific claim** from the manuscript specification. Tests are not exploratory--they verify exact behaviors required by the model.
 
+``WarpMap`` follows the same value-facing vocabulary as the conversion-map
+family: calling the map or ``convert_array`` converts values, while
+``inverse()`` returns a cached map with swapped source and target identities.
+The tests therefore validate inverse values through the returned map and also
+assert reciprocal cache identity, rather than treating ``inverse`` as a
+value-conversion method.
+
 ---
 
 ## Shared Test Fixtures (`conftest.py`)
@@ -737,7 +744,7 @@ _cache_claims_hash: int  # Invalidation key
 
 # On transfer():
 warp = self._get_or_build_warp_map(source_group_id, target_group_id)
-result = warp.forward(source_coord)
+result = warp(source_coord)
 ```
 
 The cache is keyed by `(source_group_id, target_group_id)` and invalidated whenever `add_match_claims()` is called. This avoids redundant `MatchLine.from_claims()` + `WarpMap.from_match_line()` computation for repeated queries.

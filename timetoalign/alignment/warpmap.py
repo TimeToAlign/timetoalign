@@ -8,8 +8,9 @@ system. It is the final step in the alignment pipeline:
 
 A WarpMap wraps an `InterpolationMap` and provides:
 
-- ``forward(coord)``: source coord -> target coord
-- ``inverse(coord)``: target coord -> source coord
+- ``warp(coord)``: source coord -> target coord
+- ``warp.convert_array(coords)``: vectorized source -> target conversion
+- ``warp.inverse()``: a cached target -> source WarpMap
 - ``materialise(source_timeline)``: produce a new Timeline with all
   contents (events, children, regions) warped to the target's
   coordinate system.
@@ -62,9 +63,9 @@ class WarpMap:
 
     Examples:
         >>> warp = WarpMap.from_match_line(match_line, "audio")
-        >>> warp.forward(100.0)   # score coord -> audio coord
+        >>> warp(100.0)           # score coord -> audio coord
         45.5
-        >>> warp.inverse(45.5)    # audio coord -> score coord
+        >>> warp.inverse()(45.5)  # audio coord -> score coord
         100.0
 
     See Also:
@@ -77,6 +78,9 @@ class WarpMap:
     interpolation_map: InterpolationMap = field(repr=False)
     source_unit: "TimeUnit | None" = field(default=None)
     target_unit: "TimeUnit | None" = field(default=None)
+    _inverse_cache: "WarpMap | None" = field(
+        default=None, init=False, repr=False, compare=False
+    )
 
     # region Properties
 
@@ -105,9 +109,9 @@ class WarpMap:
 
     # endregion
 
-    # region Forward / Inverse
+    # region Conversion / Inverse
 
-    def forward(
+    def __call__(
         self, coord: float | NDArray[np.floating[Any]]
     ) -> float | NDArray[np.floating[Any]]:
         """Convert source coordinate(s) to target coordinate(s).
@@ -123,25 +127,35 @@ class WarpMap:
         """
         return self.interpolation_map(coord)
 
-    def inverse(
-        self, coord: float | NDArray[np.floating[Any]]
-    ) -> float | NDArray[np.floating[Any]]:
-        """Convert target coordinate(s) to source coordinate(s).
+    def convert_array(
+        self, values: NDArray[np.floating[Any]]
+    ) -> NDArray[np.floating[Any]]:
+        """Convert an array of source coordinates to target coordinates."""
+        return self.interpolation_map.convert_array(values)
 
-        Uses linear interpolation between anchor points, with linear
-        extrapolation outside the anchor range.
-
-        Args:
-            coord: One or more target coordinates.
+    def inverse(self) -> "WarpMap":
+        """Return the cached inverse map with source and target swapped.
 
         Returns:
-            Corresponding source coordinate(s).
+            A WarpMap converting target coordinates back to source coordinates.
 
         Raises:
             ValueError: If the target coordinates are not strictly
                 monotonic (map is not invertible).
         """
-        return self.interpolation_map.inverse()(coord)
+        if self._inverse_cache is not None:
+            return self._inverse_cache
+
+        inverse_map = type(self)(
+            source_timeline_id=self.target_timeline_id,
+            target_timeline_id=self.source_timeline_id,
+            interpolation_map=self.interpolation_map.inverse(),
+            source_unit=self.target_unit,
+            target_unit=self.source_unit,
+        )
+        object.__setattr__(self, "_inverse_cache", inverse_map)
+        object.__setattr__(inverse_map, "_inverse_cache", self)
+        return inverse_map
 
     # endregion
 
@@ -272,10 +286,10 @@ class WarpMap:
         """Produce a new Timeline with all contents warped to target coordinates.
 
         Creates a complete copy of the source timeline where every
-        coordinate (events, children, regions) is converted via
-        ``forward()``.  The resulting timeline:
+        coordinate (events, children, regions) is converted by calling this
+        map. The resulting timeline:
 
-        - Has length equal to ``forward(source_timeline.length)``
+        - Has length equal to the mapped ``source_timeline.length``
         - Preserves the source's unit (unless ``target_unit`` differs)
         - Contains warped copies of all events
         - Contains warped copies of all children (recursively)
@@ -302,7 +316,7 @@ class WarpMap:
 
         # Determine the target unit and timeline class
         target_unit = self.target_unit or source_timeline.unit
-        warped_length = self.forward(float(source_timeline.length.value))
+        warped_length = self(float(source_timeline.length.value))
 
         # Choose timeline class: if target unit differs, pick the
         # appropriate typed subclass; otherwise mirror the source type.
@@ -374,9 +388,9 @@ class WarpMap:
                     raw = float(val["value"])
                 else:
                     raw = float(val)
-                warped[name] = float(self.forward(raw))
+                warped[name] = float(self(raw))
 
-            # Warp duration: forward(start + duration) - forward(start)
+            # Warp duration from the mapped interval endpoints.
             # This correctly handles non-linear warping.
             if warped.get("duration") is not None:
                 start_val = warped.get("start")
@@ -393,9 +407,9 @@ class WarpMap:
                         orig_start = float(orig_start["value"])
                     else:
                         orig_start = float(orig_start)
-                    warped["duration"] = float(
-                        self.forward(orig_start + dur_raw)
-                    ) - float(self.forward(orig_start))
+                    warped["duration"] = float(self(orig_start + dur_raw)) - float(
+                        self(orig_start)
+                    )
                 else:
                     # Instant event with spurious duration — drop it
                     warped["duration"] = 0.0
@@ -413,7 +427,7 @@ class WarpMap:
         """Warp all children from source to target (recursively).
 
         Each child's offset is warped and its length is scaled to
-        ``forward(offset + child_length) - forward(offset)``. Events
+        the difference between the mapped child endpoints. Events
         within each child are warped relative to the child's new
         coordinate system using a derived sub-WarpMap.
 
@@ -426,8 +440,8 @@ class WarpMap:
             offset_val = float(offset.value)
             child_length = float(child.length.value)
 
-            warped_offset = float(self.forward(offset_val))
-            warped_end = float(self.forward(offset_val + child_length))
+            warped_offset = float(self(offset_val))
+            warped_end = float(self(offset_val + child_length))
             warped_child_length = warped_end - warped_offset
 
             if warped_child_length <= 0:
@@ -445,12 +459,12 @@ class WarpMap:
             # Child-local source coords: [0, child_length]
             # Warped child-local coords: [0, warped_child_length]
             # We need to map through the parent warp:
-            #   warped_local = forward(local + offset) - forward(offset)
+            #   warped_local = map(local + offset) - map(offset)
             n_points = max(self.n_anchors, 2)
             # Sample the child's coordinate range
             child_sample_coords = np.linspace(0.0, child_length, n_points)
             parent_coords = child_sample_coords + offset_val
-            warped_parent = np.array([float(self.forward(c)) for c in parent_coords])
+            warped_parent = np.array([float(self(c)) for c in parent_coords])
             warped_child_local = warped_parent - warped_offset
 
             # Ensure monotonicity (should hold if parent warp is monotonic)
@@ -495,8 +509,8 @@ class WarpMap:
         target_unit = target.unit
 
         for name, region in source._regions.items():
-            warped_start = float(self.forward(float(region.start.value)))
-            warped_end = float(self.forward(float(region.end.value)))
+            warped_start = float(self(float(region.start.value)))
+            warped_end = float(self(float(region.end.value)))
 
             if warped_end <= warped_start:
                 module_logger.warning(

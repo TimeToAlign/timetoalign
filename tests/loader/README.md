@@ -52,6 +52,23 @@ positions use their timeline's discrete unit. The migration assertions add unit 
 exact-value checks without changing any established coordinate value, claim count,
 or NOMATCH count.
 
+Timeline identity assertions use the library's type-based grammar rather than
+source labels. Matchfile score/performance timelines are stored as
+``score:clt1`` and ``perf:<source-stem>:cpt1``; Performance Precision uses
+``score:clt1`` and ``perf:<performer-key>:cpt1``. TiLiA timelines are numbered
+``cpt1``, ``cpt2``, ... in source order. Source filenames, performer keys, and
+TiLiA IDs/titles remain human-readable metadata and lookup inputs, so changing
+these expected IDs tests identity semantics without changing parsed content.
+
+The tabular schema tests retain ``Field`` and ``ComputedField`` because
+``TabularLoader`` uses them for nested coordinate selection and computed
+coordinates. ``parse_json_to_struct`` remains load-bearing because both live
+descriptors use it when a selected nested column arrives as JSON text. Tests
+for ``ConvertedField`` are removed because it had no production consumer after
+the ``column_specs``/``field_specs`` pipeline became authoritative.
+``TableSchema`` is likewise removed without replacement because no loader
+constructed it.
+
 Tests resolve corpus paths via ``timetoalign.testdata.ensure_data("<corpus>")``
 (see ``tests/data/README.md``).  Hardcoded relative ``Path("tests/data/...")``
 constants are forbidden — they break under ``jupytext --execute`` and in CI

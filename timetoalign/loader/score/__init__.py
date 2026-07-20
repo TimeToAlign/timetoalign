@@ -15,6 +15,9 @@ If you attempt to import a loader whose dependency is not installed, an
 
 from __future__ import annotations
 
+from importlib import import_module
+from typing import Any
+
 from .events import ScoreEventType
 from .measuremap import MeasureMapLoader
 from .store import ScoreStore
@@ -36,6 +39,29 @@ try:
     __all__.append("PartituraLoader")
 except ImportError:
     pass
+
+
+_OPTIONAL_LOADERS = {
+    "PartituraLoader": ("partitura", "partitura"),
+    "Music21Loader": ("music21", "music21"),
+    "Ms3Loader": ("ms3", "ms3"),
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Resolve optional score loaders with actionable dependency errors."""
+    target = _OPTIONAL_LOADERS.get(name)
+    if target is None:
+        raise AttributeError(name)
+    module_name, extra = target
+    try:
+        return getattr(import_module(f"{__name__}.{module_name}"), name)
+    except ModuleNotFoundError as exc:
+        raise ImportError(
+            f"{name} requires its optional dependency; install "
+            f"timetoalign[{extra}] to use this loader."
+        ) from exc
+
 
 try:
     from .music21 import Music21Loader

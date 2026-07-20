@@ -25,7 +25,7 @@ from timetoalign.core import CoordinateSpec, NumberType, TimeUnit
 from timetoalign.maps import ConversionMap, LinearMap
 from timetoalign.maps.meter import BeatInMeasureMap, MetricalPositionMap, MetricMap
 
-from .base import SEGMENT_EVENT_TYPE
+from .base import SEGMENT_EVENT_TYPE, Timeline
 from .types import ContinuousLogicalTimeline
 
 if TYPE_CHECKING:
@@ -379,6 +379,13 @@ class BeatGrid(ContinuousLogicalTimeline):
         Returns:
             The reconstructed BeatGrid.
         """
+        class_tag = data.get("class")
+        if class_tag != cls.__name__:
+            raise ValueError(
+                f"Serialized timeline class '{class_tag}' does not match "
+                f"receiving subclass '{cls.__name__}'"
+            )
+
         anacrusis = data.get("anacrusis_quarters")
         grid = cls(
             length=Fraction(data["length"]),
@@ -407,7 +414,7 @@ class BeatGrid(ContinuousLogicalTimeline):
             grid._add_events_unchecked(events)
 
         for child_data in data.get("children", {}).values():
-            child = cls.from_dict(child_data["timeline"])
+            child = Timeline.from_dict(child_data["timeline"])
             grid.add_child(child, offset=child_data["offset"])
 
         for map_data in data.get("conversion_maps", []):

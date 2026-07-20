@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from timetoalign.core import Domain, NumberType, TimeUnit
+from timetoalign.core import Domain, NumberType, TimelineIdGenerator, TimeUnit
 from timetoalign.storage import EventData, EventStore, SingleStore
 from timetoalign.storage.events import (
     _register_timeline_factory as _register_data_factory,
@@ -27,6 +27,15 @@ if TYPE_CHECKING:
     from timetoalign.timelines.base import Timeline
 
 module_logger = logging.getLogger(__name__)
+
+
+def _mint_timeline_id(owner: object, timeline_class: type["Timeline"]) -> str:
+    """Mint the next type-based timeline ID scoped to a data/store owner."""
+    generator = getattr(owner, "_timeline_id_generator", None)
+    if generator is None:
+        generator = TimelineIdGenerator()
+        setattr(owner, "_timeline_id_generator", generator)
+    return generator.next_id(timeline_class)
 
 
 @runtime_checkable
@@ -58,6 +67,8 @@ def create_timeline_from_event_data(
     timeline_class, effective_number_type = _infer_timeline_class_and_number_type(
         data.unit, data.number_type
     )
+    if uid is None:
+        uid = _mint_timeline_id(data, timeline_class)
     coord_range = source.coordinate_range()
     length = coord_range[1] if coord_range else 0
     timeline = timeline_class(
@@ -314,6 +325,8 @@ def create_timeline_from_bundle(
     timeline_class, effective_number_type = _infer_timeline_class_and_number_type(
         first_data.unit, first_data.number_type
     )
+    if uid is None:
+        uid = _mint_timeline_id(store, timeline_class)
 
     # Handle group_by: create children from unique field values
     if group_by is not None:

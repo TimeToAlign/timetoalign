@@ -18,8 +18,7 @@ from timetoalign.core.fields import (
     build_struct_array,
     derive_arrow_struct,
 )
-from timetoalign.core.time import Coordinate
-from timetoalign.storage.schema import struct_to_coordinate
+from timetoalign.core.time import Coordinate, struct_to_coordinate
 
 
 class TestBuildStructArraySpecificPitch:

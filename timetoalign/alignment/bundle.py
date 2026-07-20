@@ -550,7 +550,7 @@ class AlignmentBundle:
         1. If both timelines are in the same group: direct conversion via
            ``TimelineGroup.convert()``.
         2. If in different groups with MatchClaims: builds a ``MatchLine``
-           and ``WarpMap`` (cached) and uses ``WarpMap.forward()`` to
+           and a cached ``WarpMap`` and calls it to
            interpolate the coordinate.
         3. If no path exists: returns ``None``.
 
@@ -609,7 +609,7 @@ class AlignmentBundle:
         warp = self._get_or_build_warp_map(actual_from_id, actual_to_id)
         if warp is not None:
             try:
-                return float(warp.forward(coord))
+                return float(warp(coord))
             except Exception as e:
                 self._logger.warning(
                     "WarpMap forward failed for %s -> %s at %s: %s",
@@ -635,7 +635,7 @@ class AlignmentBundle:
                     )
                     if intermediate is None:
                         continue
-                    return float(warp.forward(float(intermediate)))
+                    return float(warp(float(intermediate)))
                 except Exception:
                     continue
 
@@ -650,7 +650,7 @@ class AlignmentBundle:
                 if warp is None:
                     continue
                 try:
-                    warped = float(warp.forward(coord))
+                    warped = float(warp(coord))
                     conv = self._get_claim_to_native_converter(tgt_other_tl_id)
                     if conv is not None:
                         warped = float(conv(warped))
@@ -1836,7 +1836,7 @@ class AlignmentBundle:
             warp = self._get_or_build_warp_map(source_tl_id, target_tl_id)
             if warp is not None:
                 try:
-                    transferred = float(warp.forward(coordinate))
+                    transferred = float(warp(coordinate))
                     conv = self._get_claim_to_native_converter(target_tl_id)
                     if conv is not None:
                         transferred = float(conv(transferred))
@@ -1863,7 +1863,7 @@ class AlignmentBundle:
                 warp = self._get_or_build_warp_map(src_other_tl_id, target_tl_id)
                 if warp is not None:
                     try:
-                        transferred = float(warp.forward(float(intermediate)))
+                        transferred = float(warp(float(intermediate)))
                         conv = self._get_claim_to_native_converter(target_tl_id)
                         if conv is not None:
                             transferred = float(conv(transferred))

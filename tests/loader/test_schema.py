@@ -7,6 +7,7 @@ from fractions import Fraction
 import pyarrow as pa
 
 from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core.time import struct_to_coordinate
 from timetoalign.loader import (
     TEMPORAL_TYPE_INSTANT,
     TEMPORAL_TYPE_INTERVAL,
@@ -19,7 +20,6 @@ from timetoalign.loader import (
     make_coordinate_type,
     make_table_metadata,
     parse_table_metadata,
-    struct_to_coordinate,
 )
 
 

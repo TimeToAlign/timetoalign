@@ -96,6 +96,30 @@ DISCRETE_UNITS = frozenset(
 )
 
 
+def struct_to_coordinate(
+    struct: dict[str, Any],
+    number_type: NumberType,
+) -> int | float | Fraction:
+    """Convert an Arrow coordinate struct to its requested numeric value.
+
+    Args:
+        struct: Mapping with ``value``, ``numerator``, and ``denominator`` keys.
+        number_type: Numeric representation to return.
+
+    Returns:
+        The coordinate value in the requested numeric representation.
+    """
+    if number_type == NumberType.fraction:
+        if struct["numerator"] is not None and struct["denominator"] is not None:
+            return Fraction(struct["numerator"], struct["denominator"])
+        return Fraction(struct["value"]).limit_denominator()
+    if number_type == NumberType.int:
+        if struct["numerator"] is not None:
+            return int(struct["numerator"])
+        return int(struct["value"])
+    return struct["value"]
+
+
 # ---------------------------------------------------------------------------
 # TimeScalar — abstract base for Coordinate / Duration / Id-variants
 # ---------------------------------------------------------------------------
@@ -1144,8 +1168,6 @@ class TimeScalarField(SemanticField):
         raw_dict = self._raw[i]
         if raw_dict is None:
             return None
-        from timetoalign.storage.schema import struct_to_coordinate
-
         return struct_to_coordinate(raw_dict, self._number_type)
 
     def __getitem__(self, i: int):

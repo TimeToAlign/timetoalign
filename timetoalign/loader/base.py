@@ -28,7 +28,12 @@ import numpy as np
 import pyarrow as pa
 from typing_extensions import Self
 
-from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
+from timetoalign.core import (
+    IntervalPolicy,
+    NumberType,
+    TimelineIdGenerator,
+    TimeUnit,
+)
 from timetoalign.display.html import affordance_html, code
 from timetoalign.storage import EventData
 
@@ -109,6 +114,7 @@ class Loader(ABC, Generic[PayloadT]):
         self._unit = unit or self._default_unit
         self._number_type = number_type
         self._interval_policy = IntervalPolicy(interval_policy)
+        self._timeline_id_generator = TimelineIdGenerator()
         self._sources: list[Path] = []
         self._source_metadata: list[dict[str, Any]] = []
         self._events: EventData = self._event_data_class.empty(
@@ -222,6 +228,16 @@ class Loader(ABC, Generic[PayloadT]):
             >>> loader.load("notes.tsv")
             >>> timeline = loader.create_timeline(uid="my_score")
         """
+        if uid is None:
+            from timetoalign.timelines.factory import (
+                _infer_timeline_class_and_number_type,
+            )
+
+            timeline_class, _ = _infer_timeline_class_and_number_type(
+                self._unit, self._number_type
+            )
+            uid = self._timeline_id_generator.next_id(timeline_class)
+
         return self.store.create_timeline(
             uid=uid,
             store_filters=store_filters,

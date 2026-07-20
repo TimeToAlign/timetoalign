@@ -446,6 +446,17 @@ class TestSerialization:
         restored_child = restored.get_child("child")
         assert restored_child.length.value == 5.0
 
+    def test_concrete_subclass_rejects_mismatched_class_tag(self):
+        """A concrete receiver cannot deserialize another timeline class."""
+        from timetoalign.timelines import ContinuousPhysicalTimeline
+
+        data = Timeline(length=10.0, uid="source").to_dict()
+        with pytest.raises(
+            ValueError,
+            match="Timeline.*ContinuousPhysicalTimeline",
+        ):
+            ContinuousPhysicalTimeline.from_dict(data)
+
 
 # endregion
 

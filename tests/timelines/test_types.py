@@ -49,6 +49,23 @@ class TestAllTimelineTypes:
         tl = TimelineClass(length=sample_length)
         assert tl.unit == default_unit
 
+    @pytest.mark.parametrize(
+        "timeline_class",
+        [
+            ContinuousLogicalTimeline,
+            DiscreteLogicalTimeline,
+            ContinuousPhysicalTimeline,
+            DiscretePhysicalTimeline,
+            ContinuousGraphicalTimeline,
+            DiscreteGraphicalTimeline,
+        ],
+    )
+    def test_base_from_dict_preserves_concrete_type(self, timeline_class):
+        """The serialized class tag dispatches through the base registry."""
+        original = timeline_class(length=8, uid="typed")
+        restored = Timeline.from_dict(original.to_dict())
+        assert type(restored) is timeline_class
+
     def test_default_number_type_is_valid(self, timeline_type_fixture):
         """Default number_type is valid for the timeline type."""
         TimelineClass, default_unit, default_number_type, sample_length = (

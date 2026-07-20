@@ -65,6 +65,16 @@ EXPECTED_TIMELINE_NAMES = [
 EXPECTED_COMPONENT_COUNTS = [33, 14, 5, 1146, 12, 11, 19]
 
 EXPECTED_TIMELINE_IDS = [
+    "cpt1",
+    "cpt2",
+    "cpt3",
+    "cpt4",
+    "cpt5",
+    "cpt6",
+    "cpt7",
+]
+
+EXPECTED_SOURCE_TIMELINE_IDS = [
     "HIERARCHY_TIMELINE_0",
     "MARKER_TIMELINE_1",
     "MARKER_TIMELINE_2",
@@ -126,7 +136,7 @@ class TestTiliaLoading:
 
     def test_tables_created(self, bruckner_loader: TiliaJsonLoader) -> None:
         """Each timeline should have a corresponding pa.Table."""
-        for tl_id in EXPECTED_TIMELINE_IDS:
+        for tl_id in EXPECTED_SOURCE_TIMELINE_IDS:
             table = bruckner_loader.get_table(tl_id)
             assert isinstance(table, pa.Table)
 
@@ -135,7 +145,7 @@ class TestTiliaLoading:
     ) -> None:
         """pa.Table row count should exactly match component count."""
         for tl_id, expected_count in zip(
-            EXPECTED_TIMELINE_IDS, EXPECTED_COMPONENT_COUNTS
+            EXPECTED_SOURCE_TIMELINE_IDS, EXPECTED_COMPONENT_COUNTS
         ):
             table = bruckner_loader.get_table(tl_id)
             assert (
@@ -155,10 +165,10 @@ class TestTiliaStore:
     def test_store_is_tilia_dict_store(self, bruckner_loader: TiliaJsonLoader) -> None:
         assert isinstance(bruckner_loader.store, TiliaDictStore)
 
-    def test_store_keys_match_timeline_ids(
+    def test_store_keys_preserve_source_timeline_ids(
         self, bruckner_loader: TiliaJsonLoader
     ) -> None:
-        assert set(bruckner_loader.store.keys()) == set(EXPECTED_TIMELINE_IDS)
+        assert set(bruckner_loader.store.keys()) == set(EXPECTED_SOURCE_TIMELINE_IDS)
 
     def test_store_len(self, bruckner_loader: TiliaJsonLoader) -> None:
         assert len(bruckner_loader.store) == EXPECTED_N_TIMELINES
@@ -167,7 +177,7 @@ class TestTiliaStore:
         """Store[key] returns EventData wrapping the pa.Table."""
         from timetoalign.storage.events import EventData
 
-        for tl_id in EXPECTED_TIMELINE_IDS:
+        for tl_id in EXPECTED_SOURCE_TIMELINE_IDS:
             data = bruckner_loader.store[tl_id]
             assert isinstance(data, EventData)
 
@@ -232,23 +242,23 @@ class TestTiliaTimelineCreation:
 
     def test_create_timeline_by_id(self, bruckner_loader: TiliaJsonLoader) -> None:
         tl = bruckner_loader.create_timeline("BEAT_TIMELINE_3")
-        assert tl.id == "BEAT_TIMELINE_3"
+        assert tl.id == "cpt4"
         assert tl.name == "Takte"
 
     def test_create_timeline_by_name(self, bruckner_loader: TiliaJsonLoader) -> None:
         tl = bruckner_loader.create_timeline("Takte")
-        assert tl.id == "BEAT_TIMELINE_3"
+        assert tl.id == "cpt4"
 
     def test_create_timeline_by_index(self, bruckner_loader: TiliaJsonLoader) -> None:
         tl = bruckner_loader.create_timeline(0)
-        assert tl.id == "HIERARCHY_TIMELINE_0"
+        assert tl.id == "cpt1"
 
     def test_create_timeline_event_counts(
         self, bruckner_loader: TiliaJsonLoader
     ) -> None:
         """Each timeline should have exactly the expected number of events."""
         for tl_id, expected_count in zip(
-            EXPECTED_TIMELINE_IDS, EXPECTED_COMPONENT_COUNTS
+            EXPECTED_SOURCE_TIMELINE_IDS, EXPECTED_COMPONENT_COUNTS
         ):
             tl = bruckner_loader.create_timeline(tl_id)
             assert tl.n_events == expected_count, (
@@ -264,14 +274,14 @@ class TestTiliaTimelineCreation:
         subset_ids = ["BEAT_TIMELINE_3", "HIERARCHY_TIMELINE_0"]
         timelines = bruckner_loader.create_timelines(uids=subset_ids)
         assert len(timelines) == 2
-        assert timelines[0].id == "BEAT_TIMELINE_3"
-        assert timelines[1].id == "HIERARCHY_TIMELINE_0"
+        assert timelines[0].id == "cpt4"
+        assert timelines[1].id == "cpt1"
 
     def test_timeline_length_matches_media(
         self, bruckner_loader: TiliaJsonLoader
     ) -> None:
         """All timelines should use media_length as their extent."""
-        for tl_id in EXPECTED_TIMELINE_IDS:
+        for tl_id in EXPECTED_SOURCE_TIMELINE_IDS:
             tl = bruckner_loader.create_timeline(tl_id)
             assert float(tl.length.value) == EXPECTED_MEDIA_LENGTH, (
                 f"Timeline '{tl_id}': expected length {EXPECTED_MEDIA_LENGTH}, "
@@ -282,7 +292,7 @@ class TestTiliaTimelineCreation:
         """All timelines should use seconds as their unit."""
         from timetoalign.core import TimeUnit
 
-        for tl_id in EXPECTED_TIMELINE_IDS:
+        for tl_id in EXPECTED_SOURCE_TIMELINE_IDS:
             tl = bruckner_loader.create_timeline(tl_id)
             assert tl.unit == TimeUnit.seconds
 
@@ -379,7 +389,7 @@ class TestTiliaErrorHandling:
     def test_repr_after_load(self, bruckner_loader: TiliaJsonLoader) -> None:
         r = repr(bruckner_loader)
         assert "TiliaJsonLoader(" in r
-        assert "BEAT_TIMELINE_3" in r
+        assert "cpt4" in r
 
 
 # endregion

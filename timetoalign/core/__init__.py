@@ -130,6 +130,7 @@ from .time import (
     TimeScalarField,
     TimeScalarValue,
     resolve_coordinate_spec,
+    struct_to_coordinate,
 )
 from .timestamp import (
     TimeIntervalStamp,
@@ -176,6 +177,7 @@ __all__ = [
     "TimeScalarField",
     "TimeScalarValue",
     "resolve_coordinate_spec",
+    "struct_to_coordinate",
     # DataField hierarchy / schema mechanism
     "DataField",
     "FloatField",

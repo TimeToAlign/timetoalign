@@ -64,6 +64,9 @@ views are tested only through `EventData.to_dataframe()`.
    - `to_dict()` / `from_dict()` roundtrip
    - Children serialized recursively
    - Segment events regenerated on deserialization
+   - Base-class deserialization dispatches the serialized ``class`` tag through
+     the timeline-type registry, preserving each concrete timeline type and
+     rejecting calls through a mismatched concrete subclass
 
 7. **Magic Methods Tests** (5 tests)
    - `__len__`, `__repr__`, `__str__`, `__contains__`

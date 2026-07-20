@@ -49,8 +49,6 @@ from timetoalign.storage.schema import (
     TEMPORAL_TYPE_INSTANT,
     TEMPORAL_TYPE_INTERVAL,
     ComputedField,
-    ConvertedField,
-    CoordinateField,
     Field,
     coordinate_to_struct,
     extend_schema,
@@ -62,7 +60,6 @@ from timetoalign.storage.schema import (
     make_table_metadata,
     parse_json_to_struct,
     parse_table_metadata,
-    struct_to_coordinate,
 )
 
 from .alignment import MatchfileLoader, TiliaDictStore, TiliaJsonLoader
@@ -91,8 +88,6 @@ __all__ = [
     "RepoVizzLoader",
     "RepoVizzInfo",
     "EepNotesLoader",
-    "ConvertedField",
-    "CoordinateField",
     "Field",
     "ComputedField",
     "parse_json_to_struct",
@@ -100,7 +95,6 @@ __all__ = [
     "make_coordinate_type",
     "make_coordinate_field",
     "coordinate_to_struct",
-    "struct_to_coordinate",
     "make_base_schema",
     "get_base_field_names",
     "extend_schema",

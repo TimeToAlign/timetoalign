@@ -231,6 +231,7 @@ class TestTimelineCreation:
         timeline = loaded_regions_loader.create_timeline()
 
         assert timeline is not None
+        assert timeline.id == "cpt1"
         assert timeline.unit == TimeUnit.seconds
         assert timeline.n_events == 6
 

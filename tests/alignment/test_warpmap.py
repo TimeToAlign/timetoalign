@@ -310,7 +310,7 @@ class TestConstruction:
 
         # The duplicate at coord 100 should be averaged to 50.0
         assert warp.n_anchors == 3
-        result = warp.forward(100.0)
+        result = warp(100.0)
         assert result == pytest.approx(50.0)
 
 
@@ -326,44 +326,47 @@ class TestForwardInverse:
     def test_forward_linear(self, linear_match_line: MatchLine) -> None:
         """Linear warp: forward maps correctly."""
         warp = WarpMap.from_match_line(linear_match_line, "audio")
-        assert warp.forward(0.0) == pytest.approx(0.0)
-        assert warp.forward(100.0) == pytest.approx(50.0)
-        assert warp.forward(200.0) == pytest.approx(100.0)
+        assert warp(0.0) == pytest.approx(0.0)
+        assert warp(100.0) == pytest.approx(50.0)
+        assert warp(200.0) == pytest.approx(100.0)
         # Interpolated midpoint
-        assert warp.forward(50.0) == pytest.approx(25.0)
+        assert warp(50.0) == pytest.approx(25.0)
 
     def test_inverse_linear(self, linear_match_line: MatchLine) -> None:
         """Linear warp: inverse maps correctly."""
         warp = WarpMap.from_match_line(linear_match_line, "audio")
-        assert warp.inverse(0.0) == pytest.approx(0.0)
-        assert warp.inverse(50.0) == pytest.approx(100.0)
-        assert warp.inverse(100.0) == pytest.approx(200.0)
+        inverse = warp.inverse()
+        assert inverse(0.0) == pytest.approx(0.0)
+        assert inverse(50.0) == pytest.approx(100.0)
+        assert inverse(100.0) == pytest.approx(200.0)
+        assert warp.inverse() is inverse
+        assert inverse.inverse() is warp
 
     def test_round_trip_precision(self, linear_match_line: MatchLine) -> None:
-        """forward(inverse(x)) == x for linear warp."""
+        """Applying a warp after its inverse recovers linear values."""
         warp = WarpMap.from_match_line(linear_match_line, "audio")
         for val in [0.0, 25.0, 50.0, 75.0, 100.0]:
-            assert warp.forward(warp.inverse(val)) == pytest.approx(val, abs=1e-10)
+            assert warp(warp.inverse()(val)) == pytest.approx(val, abs=1e-10)
 
     def test_round_trip_nonlinear(self, nonlinear_match_line: MatchLine) -> None:
-        """forward(inverse(x)) == x for non-linear warp."""
+        """Applying a warp after its inverse recovers non-linear values."""
         warp = WarpMap.from_match_line(nonlinear_match_line, "audio")
         for val in [0.0, 30.0, 60.0, 80.0, 100.0, 120.0]:
-            assert warp.forward(warp.inverse(val)) == pytest.approx(val, abs=1e-10)
+            assert warp(warp.inverse()(val)) == pytest.approx(val, abs=1e-10)
 
     def test_forward_nonlinear(self, nonlinear_match_line: MatchLine) -> None:
         """Non-linear warp: anchor points map exactly."""
         warp = WarpMap.from_match_line(nonlinear_match_line, "audio")
-        assert warp.forward(0.0) == pytest.approx(0.0)
-        assert warp.forward(100.0) == pytest.approx(60.0)
-        assert warp.forward(200.0) == pytest.approx(100.0)
-        assert warp.forward(300.0) == pytest.approx(120.0)
+        assert warp(0.0) == pytest.approx(0.0)
+        assert warp(100.0) == pytest.approx(60.0)
+        assert warp(200.0) == pytest.approx(100.0)
+        assert warp(300.0) == pytest.approx(120.0)
 
     def test_forward_array(self, linear_match_line: MatchLine) -> None:
-        """forward() accepts numpy arrays."""
+        """convert_array() accepts numpy arrays."""
         warp = WarpMap.from_match_line(linear_match_line, "audio")
         coords = np.array([0.0, 50.0, 100.0, 150.0, 200.0])
-        result = warp.forward(coords)
+        result = warp.convert_array(coords)
         expected = np.array([0.0, 25.0, 50.0, 75.0, 100.0])
         np.testing.assert_allclose(result, expected, atol=1e-10)
 
@@ -371,7 +374,7 @@ class TestForwardInverse:
         """inverse() accepts numpy arrays."""
         warp = WarpMap.from_match_line(linear_match_line, "audio")
         coords = np.array([0.0, 25.0, 50.0, 75.0, 100.0])
-        result = warp.inverse(coords)
+        result = warp.inverse().convert_array(coords)
         expected = np.array([0.0, 50.0, 100.0, 150.0, 200.0])
         np.testing.assert_allclose(result, expected, atol=1e-10)
 
@@ -379,9 +382,9 @@ class TestForwardInverse:
         """Extrapolation extends linearly beyond anchor range."""
         warp = WarpMap.from_match_line(linear_match_line, "audio")
         # Beyond right end: slope is 0.5, so 300 -> 150
-        assert warp.forward(300.0) == pytest.approx(150.0)
+        assert warp(300.0) == pytest.approx(150.0)
         # Beyond left end (negative): slope is 0.5, so -100 -> -50
-        assert warp.forward(-100.0) == pytest.approx(-50.0)
+        assert warp(-100.0) == pytest.approx(-50.0)
 
     def test_is_invertible(self, linear_match_line: MatchLine) -> None:
         """Monotonic target coords -> invertible."""
@@ -535,13 +538,13 @@ class TestMaterialise:
         - [100, 200] -> [60, 100] (ratio 0.4, faster)
 
         A note at [50, 100] spans the slow region:
-          warped start = forward(50) = 30.0
-          warped end = forward(100) = 60.0
+          warped start = warp(50) = 30.0
+          warped end = warp(100) = 60.0
           warped duration = 30.0
 
         A note at [150, 200] spans the fast region:
-          warped start = forward(150) = 80.0
-          warped end = forward(200) = 100.0
+          warped start = warp(150) = 80.0
+          warped end = warp(200) = 100.0
           warped duration = 20.0
         """
         score = ContinuousLogicalTimeline(
@@ -695,7 +698,7 @@ class TestSerialization:
         restored = WarpMap.from_dict(data)
         assert restored.source_unit is None
         assert restored.target_unit is None
-        assert restored.forward(50.0) == pytest.approx(25.0)
+        assert restored(50.0) == pytest.approx(25.0)
 
     def test_to_dict_structure(self, linear_match_line: MatchLine) -> None:
         """to_dict contains expected keys and types."""
@@ -758,10 +761,10 @@ class TestMultiTarget:
         warp_pixels = WarpMap.from_match_line(multi_target_match_line, "pixels")
 
         # Audio: 200 -> 100 (0.5x)
-        assert warp_audio.forward(200.0) == pytest.approx(100.0)
+        assert warp_audio(200.0) == pytest.approx(100.0)
 
         # Pixels: 200 -> 1000 (5x)
-        assert warp_pixels.forward(200.0) == pytest.approx(1000.0)
+        assert warp_pixels(200.0) == pytest.approx(1000.0)
 
 
 # endregion
@@ -794,8 +797,8 @@ class TestIntegrationWithClaims:
         line = MatchLine.from_claims(claims, source_timeline_id="score")
         warp = WarpMap.from_match_line(line, "audio")
 
-        assert warp.forward(50.0) == pytest.approx(25.0)
-        assert warp.inverse(75.0) == pytest.approx(150.0)
+        assert warp(50.0) == pytest.approx(25.0)
+        assert warp.inverse()(75.0) == pytest.approx(150.0)
 
 
 # endregion
@@ -833,12 +836,12 @@ class TestThoresenIntegration:
 
         # Verify boundary points map exactly
         for s, t in zip(dgt2_boundaries, dgt1_boundaries):
-            assert warp.forward(float(s)) == pytest.approx(float(t))
+            assert warp(float(s)) == pytest.approx(float(t))
 
         # Event H is at position 378 within segment 2 of DGT2.
         # Segment 2 of DGT2 starts at 866, so H is at global 866 + 378 = 1244.
         event_h_global = 866 + 378
-        warped_h = warp.forward(float(event_h_global))
+        warped_h = warp(float(event_h_global))
 
         # Segment 2 of DGT2 is [866, 1733] -> DGT1 [967, 1934]
         # 378 / 867 * 967 + 967 = proportional position

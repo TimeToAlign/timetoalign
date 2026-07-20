@@ -403,7 +403,7 @@ class PerformancePrecisionLoader(AlignmentLoader):
         subsets and need not appear as physical events, since claims carry
         their own target coordinates.
         """
-        perf_tl_id = f"perf:{performer_key}"
+        perf_tl_id = f"perf:{performer_key}:cpt1"
         stem = note_file.stem
 
         # Read all three granularity files up front.
@@ -525,9 +525,9 @@ class PerformancePrecisionLoader(AlignmentLoader):
             )
 
         bundle = AlignmentBundle(name=self._name)
-        bundle.add_timeline(self._score_timeline, uid="score", as_group="score")
-        for performer_key, perf_tl in self._performance_timelines.items():
-            bundle.add_timeline(perf_tl, uid=performer_key)
+        bundle.add_timeline(self._score_timeline, uid=_SCORE_TL_ID, as_group="score")
+        for perf_tl in self._performance_timelines.values():
+            bundle.add_timeline(perf_tl, uid=perf_tl.id)
         bundle.add_match_claims(self._claims)
         return bundle
 
@@ -548,7 +548,7 @@ class PerformancePrecisionLoader(AlignmentLoader):
         Args:
             uid: ``"score"`` (or the score uid) for the score timeline; a
                 performer key (``"Chopin_Ashkenazy"``) or its uid
-                (``"perf:Chopin_Ashkenazy"``) for a performance timeline.
+                (``"perf:Chopin_Ashkenazy:cpt1"``) for a performance timeline.
 
         Raises:
             KeyError: If no timeline matches.

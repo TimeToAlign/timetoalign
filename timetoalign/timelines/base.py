@@ -134,6 +134,15 @@ class Timeline:
     # EventData class to use (subclasses can override for domain-specific data)
     _event_data_class: ClassVar[type[EventData]] = EventData
 
+    # Serialized class tag -> timeline subclass. Timeline itself is handled
+    # directly; every subclass registers automatically when defined.
+    _registry: ClassVar[dict[str, type["Timeline"]]] = {}
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Register a timeline subclass under its serialized class tag."""
+        super().__init_subclass__(**kwargs)
+        Timeline._registry[cls.__name__] = cls
+
     # endregion
 
     # region Initialization
@@ -1540,6 +1549,22 @@ class Timeline:
         Returns:
             A new Timeline instance.
         """
+        class_tag = data.get("class")
+        if not isinstance(class_tag, str):
+            raise ValueError("Serialized timeline is missing a string 'class' tag")
+
+        if cls is Timeline and class_tag != Timeline.__name__:
+            timeline_class = Timeline._registry.get(class_tag)
+            if timeline_class is None:
+                raise ValueError(f"Unknown serialized timeline class '{class_tag}'")
+            return timeline_class.from_dict(data)
+
+        if class_tag != cls.__name__:
+            raise ValueError(
+                f"Serialized timeline class '{class_tag}' does not match "
+                f"receiving subclass '{cls.__name__}'"
+            )
+
         timeline = cls(
             length=data["length"],
             unit=data["unit"],
@@ -1570,7 +1595,7 @@ class Timeline:
 
         # Add children
         for child_id, child_data in data.get("children", {}).items():
-            child = cls.from_dict(child_data["timeline"])
+            child = Timeline.from_dict(child_data["timeline"])
             timeline.add_child(child, offset=child_data["offset"])
 
         # Add conversion maps

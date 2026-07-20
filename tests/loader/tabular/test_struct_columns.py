@@ -1,6 +1,6 @@
 """Tests for struct column support in TabularLoader.
 
-Tests the Field, ComputedField, and ConvertedField struct features that enable:
+Tests the Field and ComputedField struct features that enable:
 - JSON string to struct column parsing
 - Struct field access for start/end columns
 - Computed fields from expressions
@@ -16,7 +16,6 @@ import pytest
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader import (
     ComputedField,
-    ConvertedField,
     Field,
     parse_json_to_struct,
 )
@@ -174,45 +173,6 @@ class TestComputedField:
 
         assert "formula='a + b'" in repr(cf1)
         assert "expr=..." in repr(cf2)
-
-
-# endregion
-
-
-# region ConvertedField Struct Tests
-
-
-class TestConvertedFieldStruct:
-    """Tests for ConvertedField with struct types."""
-
-    def test_convertedfield_dict_type(self):
-        """Test ConvertedField with dtype=dict."""
-        ef = ConvertedField("rect_coords", dict, source="rect_coords_json")
-        assert ef.is_struct is True
-        assert ef.dtype is None  # Will be inferred
-        assert ef.source == "rect_coords_json"
-
-    def test_convertedfield_struct_string(self):
-        """Test ConvertedField with dtype='struct'."""
-        ef = ConvertedField("rect_coords", "struct", source="rect_coords_json")
-        assert ef.is_struct is True
-        assert ef.dtype is None
-
-    def test_convertedfield_explicit_schema(self):
-        """Test ConvertedField with explicit struct schema."""
-        ef = ConvertedField(
-            "rect_coords", {"x": int, "y": int, "width": int, "height": int}
-        )
-        assert ef.is_struct is True
-        assert ef.struct_schema == {"x": int, "y": int, "width": int, "height": int}
-        assert pa.types.is_struct(ef.dtype)
-
-    def test_convertedfield_pyarrow_struct(self):
-        """Test ConvertedField with PyArrow struct type."""
-        struct_type = pa.struct([("x", pa.int64()), ("y", pa.int64())])
-        ef = ConvertedField("rect", struct_type, source="rect_json")
-        assert ef.is_struct is True
-        assert ef.dtype == struct_type
 
 
 # endregion
