@@ -12,7 +12,7 @@ The loader follows the standard two-phase pattern:
 
 1. ``loader.load(*match_files)`` — parses files, builds internal state.
 2. ``loader.create_alignment_bundle()`` — assembles an ``AlignmentBundle``.
-3. ``loader.create_timeline(id)`` — retrieves individual timelines.
+3. ``loader.create_timeline(uid)`` — retrieves individual timelines.
 
 See Also:
     timetoalign.AlignmentBundle
@@ -31,6 +31,7 @@ from typing_extensions import Self
 
 from timetoalign.alignment.claims import Agent, MatchClaim, MatchMetadata
 from timetoalign.core import AgentType, TimeUnit, resolve_id
+from timetoalign.loader.base import AlignmentLoader
 from timetoalign.maps.linear import ScalarMap, ShiftMap
 from timetoalign.timelines.types import (
     ContinuousLogicalTimeline,
@@ -74,7 +75,7 @@ class MatchfileLoader:
 
     1. ``loader.load(*match_files)`` — parses all files, builds internal state.
     2. ``loader.create_alignment_bundle()`` — assembles the result.
-    3. ``loader.create_timeline(id)`` — retrieves individual timelines.
+    3. ``loader.create_timeline(uid)`` — retrieves individual timelines.
 
     Produces:
 
@@ -696,7 +697,7 @@ class MatchfileLoader:
 
         return bundle
 
-    def create_timeline(self, id: str) -> "Timeline":
+    def create_timeline(self, uid: str) -> "Timeline":
         """Return a single timeline by uid, role string, or partial/regex match.
 
         Matching precedence:
@@ -708,7 +709,7 @@ class MatchfileLoader:
         6. Partial/regex match on any timeline uid.
 
         Args:
-            id: Timeline uid (e.g. ``"score:Chopin_op10_no3"``), role
+            uid: Timeline uid (e.g. ``"score:Chopin_op10_no3"``), role
                 shorthand (``"score"``, ``"perf:1"``), or partial/regex
                 pattern.
 
@@ -731,21 +732,21 @@ class MatchfileLoader:
             )
 
         # Direct match: "score" role
-        if id == "score":
+        if uid == "score":
             return self._score_timeline
 
         # Direct match: score timeline uid
-        if id == self._score_timeline.id:
+        if uid == self._score_timeline.id:
             return self._score_timeline
 
         # Check performance timelines by uid
         for perf_tl in self._performance_timelines:
-            if id == perf_tl.id:
+            if uid == perf_tl.id:
                 return perf_tl
 
         # Check "perf:N" shorthand (1-indexed)
-        if id.startswith("perf:"):
-            suffix = id[5:]
+        if uid.startswith("perf:"):
+            suffix = uid[5:]
             try:
                 idx = int(suffix) - 1  # 1-indexed to 0-indexed
                 if 0 <= idx < len(self._performance_timelines):
@@ -754,8 +755,8 @@ class MatchfileLoader:
                 pass
 
         # Check "perf:pNN" shorthand
-        if id.startswith("perf:p"):
-            suffix = id[6:]
+        if uid.startswith("perf:p"):
+            suffix = uid[6:]
             try:
                 idx = int(suffix) - 1  # 1-indexed to 0-indexed
                 if 0 <= idx < len(self._performance_timelines):
@@ -768,7 +769,7 @@ class MatchfileLoader:
             tl.id for tl in self._performance_timelines
         ]
         try:
-            resolved_id = resolve_id(id, all_ids, warn_multiple=True)
+            resolved_id = resolve_id(uid, all_ids, warn_multiple=True)
             if resolved_id == self._score_timeline.id:
                 return self._score_timeline
             for perf_tl in self._performance_timelines:
@@ -778,16 +779,19 @@ class MatchfileLoader:
             pass
 
         raise KeyError(
-            f"No timeline with id or role '{id}'. "
+            f"No timeline with uid or role '{uid}'. "
             f"Available: 'score', "
             + ", ".join(f"'{tl.id}'" for tl in self._performance_timelines)
         )
 
-    def create_timelines(self) -> list["Timeline"]:
+    def create_timelines(self, id_pattern: str | None = None) -> list["Timeline"]:
         """Return all timelines produced from loaded data.
 
         For MatchfileLoader: ``[score_timeline, perf_p01, ..., perf_pN]``.
         The score timeline is always first.
+
+        Args:
+            id_pattern: Optional regex pattern to filter timeline IDs.
 
         Returns:
             List of Timeline objects. Empty if ``load()`` has not been
@@ -795,7 +799,8 @@ class MatchfileLoader:
         """
         if self._score_timeline is None:
             return []
-        return [self._score_timeline] + list(self._performance_timelines)
+        timelines = [self._score_timeline] + list(self._performance_timelines)
+        return AlignmentLoader._filter_timelines_by_id_pattern(timelines, id_pattern)
 
     # endregion
 

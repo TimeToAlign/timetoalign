@@ -455,6 +455,12 @@ class TestMatchfileLoaderCreateTimelines:
         tls = p01_loader.create_timelines()
         assert len(tls) == 2
 
+    def test_id_pattern_filters_performance(self, p01_loader: MatchfileLoader):
+        """The single-file fixture has one performance timeline."""
+        tls = p01_loader.create_timelines(id_pattern=r"^perf:")
+        assert len(tls) == 1
+        assert tls[0].id.startswith("perf:")
+
     def test_score_is_first(self, p01_loader: MatchfileLoader):
         """Score timeline is always first."""
         tls = p01_loader.create_timelines()
@@ -525,6 +531,11 @@ class TestMatchfileLoaderMulti:
         """create_timelines() returns 23 (1 score + 22 performances)."""
         tls = all_loader.create_timelines()
         assert len(tls) == 1 + TOTAL_MATCH_FILES
+
+    def test_id_pattern_filters_all_performances(self, all_loader: MatchfileLoader):
+        """The full fixture has exactly 22 performance timelines."""
+        tls = all_loader.create_timelines(id_pattern=r"^perf:")
+        assert len(tls) == TOTAL_MATCH_FILES
 
     def test_bundle_timeline_count(self, all_loader: MatchfileLoader):
         """Bundle has 23 timelines."""

@@ -126,7 +126,7 @@ class RepovizzDictStore(DictStore):
 
     Each property returns a list of catalogue entry IDs for that category,
     enabling lazy loading of specific data types. The actual timeline data
-    is loaded on demand via ``loader.create_timeline(id)``.
+    is loaded on demand via ``loader.create_timeline(entry)``.
 
     Categories correspond to the top-level XML groups:
     - ``.audio`` — Audio file entries (ambient + pickup recordings)
@@ -552,7 +552,7 @@ class RepoVizzLoader(ManifestLoader):
         staff_to_instrument = {1: "vln1", 2: "vln2", 3: "vla", 4: "cello"}
         notes_by_instrument: dict[str, EventData] = {}
 
-        df = combined_notes.to_pandas()
+        df = combined_notes.to_dataframe()
         for staff_num, instrument in staff_to_instrument.items():
             mask = df["staff"] == staff_num
             instrument_df = df.loc[mask].copy()  # type: ignore[arg-type]
@@ -858,6 +858,8 @@ class RepoVizzLoader(ManifestLoader):
 
     def create_timeline(
         self,
+        entry: str | None = None,
+        *,
         uid: str | None = None,
         **kwargs: Any,
     ) -> "DiscretePhysicalTimeline":
@@ -867,30 +869,30 @@ class RepoVizzLoader(ManifestLoader):
         In legacy CSV mode: creates timeline from the loaded CSV.
 
         Args:
-            uid: Entry lookup key or timeline ID. In XML mode, supports:
+            entry: Entry lookup key. In XML mode, supports:
                 - Audio shorthand: "mono", "binaural", "pickup_vln1"
                 - Descriptor pattern: "tonal.ChordsStrength.mono"
                 - Exact xml_id or name
+                In legacy CSV mode, this is an optional timeline ID.
             **kwargs: Additional arguments:
                 - name: Override the timeline's name (defaults to entry's name).
                 - attach_cmap: If True (default), attach a SamplesToSeconds C-map.
-                - tl_uid: Override the timeline's ID (defaults to entry's xml_id).
+            uid: Override the timeline's ID (defaults to entry's xml_id).
 
         Returns:
             A DiscretePhysicalTimeline representing the data.
 
         Raises:
             RuntimeError: If no file has been loaded.
-            KeyError: If uid doesn't match any catalogue entry (XML mode).
+            KeyError: If entry doesn't match any catalogue entry (XML mode).
         """
         name = kwargs.get("name")
         attach_cmap = kwargs.get("attach_cmap", True)
-        tl_uid = kwargs.get("tl_uid")  # Override for the actual timeline ID
 
         if self._is_xml_mode:
-            return self._create_timeline_xml(uid, tl_uid, name, attach_cmap)
+            return self._create_timeline_xml(entry, uid, name, attach_cmap)
         else:
-            return self._create_timeline_csv(tl_uid or uid, name, attach_cmap)
+            return self._create_timeline_csv(uid or entry, name, attach_cmap)
 
     def _create_timeline_csv(
         self,
@@ -989,7 +991,7 @@ class RepoVizzLoader(ManifestLoader):
             return self._timeline_cache[cache_key]
 
         # Determine timeline parameters
-        tl_uid = uid or entry.xml_id
+        timeline_uid = uid or entry.xml_id
         tl_name = name or entry.name
         sample_rate = entry.sample_rate if entry.is_signal else 240.0
         n_samples = entry.n_samples if entry.is_signal else 0
@@ -1025,7 +1027,7 @@ class RepoVizzLoader(ManifestLoader):
             length=n_samples,
             unit=TimeUnit.samples,
             number_type=NumberType.int,
-            uid=tl_uid,
+            uid=timeline_uid,
             name=tl_name,
         )
 
@@ -1042,13 +1044,13 @@ class RepoVizzLoader(ManifestLoader):
         self,
         id_pattern: str | None = None,
         *,
-        ids: list[str] | None = None,
+        entries: list[str] | None = None,
     ) -> list["Timeline"]:
         """Create multiple timelines.
 
         Args:
             id_pattern: Regex pattern to filter timeline IDs.
-            ids: List of timeline identifiers to create. If None, all are created.
+            entries: List of catalogue entries to create. If None, all are created.
 
         Returns:
             List of Timeline objects.
@@ -1056,13 +1058,17 @@ class RepoVizzLoader(ManifestLoader):
         if not self._is_xml_mode:
             return [self.create_timeline()]
 
-        target_ids = ids if ids is not None else self.timeline_ids
+        target_entries = entries if entries is not None else self.timeline_ids
 
         if id_pattern:
             pattern = re.compile(id_pattern)
-            target_ids = [tid for tid in target_ids if pattern.search(tid)]
+            target_entries = [
+                entry for entry in target_entries if pattern.search(entry)
+            ]
 
-        result: list[Timeline] = [self.create_timeline(uid=tid) for tid in target_ids]
+        result: list[Timeline] = [
+            self.create_timeline(entry=entry) for entry in target_entries
+        ]
         return result
 
     def create_group(
@@ -1134,7 +1140,7 @@ class RepoVizzLoader(ManifestLoader):
         else:
             target_ids = self.timeline_ids
 
-        timelines = list(self.create_timelines(ids=target_ids))
+        timelines = list(self.create_timelines(entries=target_ids))
 
         # Add notes as child of first audio timeline if requested
         if with_notes and self._store.notes is not None:

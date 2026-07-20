@@ -21,7 +21,7 @@ The loader follows the standard two-phase pattern:
 
 1. ``loader.load(*sources)`` -- parse TiLiA JSON files.
 2. ``loader.create_group()`` -- returns a ``TimelineGroup``.
-3. ``loader.create_timeline(id)`` -- returns a single timeline.
+3. ``loader.create_timeline(uid)`` -- returns a single timeline.
 4. ``loader.create_alignment_bundle()`` -- convenience wrapper.
 
 The loader's ``.store`` property returns a `TiliaDictStore` with helper
@@ -664,15 +664,15 @@ class TiliaJsonLoader(JsonLoader):
 
     # region Domain Object Creation
 
-    def create_timeline(self, id: str | int) -> "Timeline":
-        """Create a single ``ContinuousPhysicalTimeline`` by id.
+    def create_timeline(self, uid: str | int) -> "Timeline":
+        """Create a single ``ContinuousPhysicalTimeline`` by uid.
 
-        The *id* is the timeline identifier from ``timeline_ids``
+        The *uid* is the timeline identifier from ``timeline_ids``
         (e.g. ``"BEAT_TIMELINE_3"``).  Alternatively, pass an integer
         index (as string or int) to select by position.
 
         Args:
-            id: Timeline identifier or integer index.
+            uid: Timeline identifier or integer index.
 
         Returns:
             A ``ContinuousPhysicalTimeline`` with events from the
@@ -686,7 +686,7 @@ class TiliaJsonLoader(JsonLoader):
             raise RuntimeError("No data loaded. Call load() before create_timeline().")
 
         # Allow integer indexing
-        spec = self._find_spec(id)
+        spec = self._find_spec(uid)
         tl_id = spec["id"]
 
         if tl_id in self._timelines_cache:
@@ -696,11 +696,11 @@ class TiliaJsonLoader(JsonLoader):
         self._timelines_cache[tl_id] = tl
         return tl
 
-    def create_timelines(self, ids: list[str] | None = None) -> list["Timeline"]:
+    def create_timelines(self, uids: list[str] | None = None) -> list["Timeline"]:
         """Create multiple timelines.
 
         Args:
-            ids: List of timeline identifiers to create.  If ``None``
+            uids: List of timeline identifiers to create.  If ``None``
                 (the default), all timelines are created.
 
         Returns:
@@ -709,10 +709,10 @@ class TiliaJsonLoader(JsonLoader):
         if not self._timeline_specs:
             raise RuntimeError("No data loaded. Call load() before create_timelines().")
 
-        if ids is None:
-            ids = self.timeline_ids
+        if uids is None:
+            uids = self.timeline_ids
 
-        return [self.create_timeline(tid) for tid in ids]
+        return [self.create_timeline(tid) for tid in uids]
 
     def create_group(self, ids: list[str] | None = None) -> "TimelineGroup":
         """Create a ``TimelineGroup`` containing all (or selected) timelines.
@@ -793,8 +793,8 @@ class TiliaJsonLoader(JsonLoader):
 
     # region Internal Helpers
 
-    def _find_spec(self, id: str | int) -> dict[str, Any]:
-        """Look up a timeline spec by id, name, or index.
+    def _find_spec(self, uid: str | int) -> dict[str, Any]:
+        """Look up a timeline spec by uid, name, or index.
 
         Matching precedence:
         1. Integer index (0-indexed).
@@ -805,7 +805,7 @@ class TiliaJsonLoader(JsonLoader):
         6. Partial/regex match on spec ``"name"`` field.
 
         Args:
-            id: Timeline identifier, name, or integer index.
+            uid: Timeline identifier, name, or integer index.
 
         Returns:
             The spec dict.
@@ -814,17 +814,17 @@ class TiliaJsonLoader(JsonLoader):
             KeyError: If not found.
         """
         # Try integer index
-        if isinstance(id, int):
-            if 0 <= id < len(self._timeline_specs):
-                return self._timeline_specs[id]
+        if isinstance(uid, int):
+            if 0 <= uid < len(self._timeline_specs):
+                return self._timeline_specs[uid]
             raise KeyError(
-                f"Timeline index {id} out of range "
+                f"Timeline index {uid} out of range "
                 f"(0-{len(self._timeline_specs) - 1})"
             )
 
         # Try string index (e.g. "3")
         try:
-            idx = int(id)
+            idx = int(uid)
             if 0 <= idx < len(self._timeline_specs):
                 return self._timeline_specs[idx]
         except ValueError:
@@ -832,18 +832,18 @@ class TiliaJsonLoader(JsonLoader):
 
         # Try exact match by id
         for spec in self._timeline_specs:
-            if spec["id"] == id:
+            if spec["id"] == uid:
                 return spec
 
         # Try exact match by name
         for spec in self._timeline_specs:
-            if spec["name"] == id:
+            if spec["name"] == uid:
                 return spec
 
         # Try partial/regex match by id
         all_ids = [s["id"] for s in self._timeline_specs]
         try:
-            resolved_id = resolve_id(id, all_ids, warn_multiple=True)
+            resolved_id = resolve_id(uid, all_ids, warn_multiple=True)
             for spec in self._timeline_specs:
                 if spec["id"] == resolved_id:
                     return spec
@@ -853,7 +853,7 @@ class TiliaJsonLoader(JsonLoader):
         # Try partial/regex match by name
         all_names = [s["name"] for s in self._timeline_specs]
         try:
-            resolved_name = resolve_id(id, all_names, warn_multiple=True)
+            resolved_name = resolve_id(uid, all_names, warn_multiple=True)
             for spec in self._timeline_specs:
                 if spec["name"] == resolved_name:
                     return spec
@@ -861,7 +861,8 @@ class TiliaJsonLoader(JsonLoader):
             pass
 
         raise KeyError(
-            f"No timeline with id or name matching '{id}'. " f"Available IDs: {all_ids}"
+            f"No timeline with uid or name matching '{uid}'. "
+            f"Available UIDs: {all_ids}"
         )
 
     def _build_timeline(self, spec: dict[str, Any]) -> ContinuousPhysicalTimeline:

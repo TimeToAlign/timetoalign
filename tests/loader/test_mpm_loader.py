@@ -577,6 +577,13 @@ def test_create_timelines_returns_all(specimen: dict[str, Any]) -> None:
     ]
 
 
+def test_create_timelines_id_pattern_filters(specimen: dict[str, Any]) -> None:
+    """The pinned MPM shape filters to one score CLT and three perf timelines."""
+    loader = _loaded(specimen["mpr"])
+    assert len(loader.create_timelines(id_pattern="clt")) == 1
+    assert len(loader.create_timelines(id_pattern=r"^perf:")) == 3
+
+
 # endregion
 
 

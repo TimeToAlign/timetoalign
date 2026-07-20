@@ -110,7 +110,7 @@ class ListenHereLoader(AlignmentLoader):
 
     1. ``loader.load(alignment_json)`` — parse one alignment JSON file.
     2. ``loader.create_bundle()`` — assemble the AlignmentBundle.
-    3. ``loader.create_timeline(id)`` / ``create_timelines()`` — retrieve
+    3. ``loader.create_timeline(uid)`` / ``create_timelines()`` — retrieve
        individual timelines.
 
     The loader reads the existing alignment; it never runs an aligner.
@@ -420,15 +420,16 @@ class ListenHereLoader(AlignmentLoader):
         """Return one empty seconds timeline per recording, in sorted order.
 
         Args:
-            id_pattern: Unused; present for base-class signature parity.
+            id_pattern: Optional regex pattern to filter timeline IDs.
         """
-        return [self._make_timeline(key) for key in self._keys]
+        timelines = [self._make_timeline(key) for key in self._keys]
+        return self._filter_timelines_by_id_pattern(timelines, id_pattern)
 
-    def create_timeline(self, id: str | None = None, **kwargs: Any) -> "Timeline":
+    def create_timeline(self, uid: str | None = None, **kwargs: Any) -> "Timeline":
         """Return a single recording's seconds timeline by its uid.
 
         Args:
-            id: A timeline uid (``"<stem>:cpt1"``).
+            uid: A timeline uid (``"<stem>:cpt1"``).
 
         Raises:
             KeyError: If no recording matches.
@@ -440,12 +441,12 @@ class ListenHereLoader(AlignmentLoader):
             )
 
         for key in self._keys:
-            if id == self._timeline_uid(key):
+            if uid == self._timeline_uid(key):
                 return self._make_timeline(key)
 
         available = [self._timeline_uid(key) for key in self._keys]
         raise KeyError(
-            f"No timeline with uid '{id}'. Available: "
+            f"No timeline with uid '{uid}'. Available: "
             + ", ".join(f"'{uid}'" for uid in available)
         )
 

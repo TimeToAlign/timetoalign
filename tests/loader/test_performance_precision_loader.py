@@ -276,6 +276,14 @@ def test_create_timelines_returns_eight(loader: PerformancePrecisionLoader) -> N
     assert timelines[0].id == SCORE_TL_ID
 
 
+def test_create_timelines_id_pattern_filters(
+    loader: PerformancePrecisionLoader,
+) -> None:
+    """The pinned 8-timeline bundle has 7 performer timelines."""
+    assert len(loader.create_timelines(id_pattern=r"^score:")) == 1
+    assert len(loader.create_timelines(id_pattern=r"^perf:")) == 7
+
+
 def test_create_timeline_by_score_role(loader: PerformancePrecisionLoader) -> None:
     assert loader.create_timeline("score").id == SCORE_TL_ID
 

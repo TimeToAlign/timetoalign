@@ -15,7 +15,7 @@ from typing import Any
 import pyarrow as pa
 import pytest
 
-from timetoalign.core import TimeUnit
+from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.core.enums import IntervalPolicy
 from timetoalign.loader import EventData
 from timetoalign.loader.schema import coordinate_to_struct
@@ -354,8 +354,8 @@ class TestFromDictsIntegration:
             _make_row(start=1.0, end=2.5, event_id="n2"),
         ]
         store = EventData.from_dicts(rows, TimeUnit.seconds)
-        df = store.to_pandas()
-        # to_pandas() flattens coordinate structs to float64
+        df = store.to_dataframe()
+        # to_dataframe() flattens coordinate structs to float64
         for idx, expected_dur in enumerate([1.0, 1.5]):
             dur_val = df.iloc[idx]["duration"]
             assert dur_val == pytest.approx(expected_dur)
@@ -367,7 +367,7 @@ class TestFromDictsIntegration:
             _make_row(start=1.0, duration=1.5, event_id="n2"),
         ]
         store = EventData.from_dicts(rows, TimeUnit.seconds)
-        df = store.to_pandas()
+        df = store.to_dataframe()
         for idx, expected_end in enumerate([1.0, 2.5]):
             end_val = df.iloc[idx]["end"]
             assert end_val == pytest.approx(expected_end)
@@ -381,6 +381,24 @@ class TestFromDictsIntegration:
             EventData.from_dicts(
                 rows, TimeUnit.seconds, interval_policy=IntervalPolicy.strict
             )
+
+    def test_filter_rejects_wrong_coordinate_unit(self):
+        """Coordinate bounds with another unit fail explicitly."""
+        store = EventData.from_dicts(
+            [_make_row(start=0.0), _make_row(start=1.0, event_id="n2")],
+            TimeUnit.seconds,
+        )
+        with pytest.raises(ValueError, match="ticks.*seconds|seconds.*ticks"):
+            store.filter(min_coord=Coordinate(0, TimeUnit.ticks))
+
+    def test_filter_accepts_matching_coordinate_unit(self):
+        """Coordinate bounds with the EventData unit preserve numeric filtering."""
+        store = EventData.from_dicts(
+            [_make_row(start=0.0), _make_row(start=1.0, event_id="n2")],
+            TimeUnit.seconds,
+        )
+        filtered = store.filter(min_coord=Coordinate(1, TimeUnit.seconds))
+        assert filtered.table.column("id").to_pylist() == ["n2"]
 
 
 # ---------------------------------------------------------------------------
@@ -403,7 +421,7 @@ class TestCsvLoaderIntegration:
 
         loader = CsvLoader()
         loader.load(csv_path)
-        df = loader.events.to_pandas()
+        df = loader.events.to_dataframe()
 
         # The CSV has 5 rows with start and end, no duration column.
         # After normalization, every row must have duration = end - start.

@@ -203,13 +203,18 @@ class TestRepoVizzLoaderXmlMode:
         # Find an audio entry (which has samples)
         audio_ids = loader.store.audio
         if audio_ids:
-            tl = loader.create_timeline(uid=audio_ids[0])
+            tl = loader.create_timeline(entry=audio_ids[0])
             assert isinstance(tl, DiscretePhysicalTimeline)
             assert tl.unit == TimeUnit.samples
             # Audio entry should have samples
             entry = loader.get_entry(audio_ids[0])
             if entry.is_signal:
                 assert tl.length.value == entry.n_samples
+
+            overridden = loader.create_timeline(
+                entry=audio_ids[0], uid="repovizz-entry-roundtrip"
+            )
+            assert overridden.id == "repovizz-entry-roundtrip"
 
     def test_create_timelines_filtered(self, xml_manifest_path: Path) -> None:
         """Multiple timelines can be created with ID pattern filter."""
@@ -218,7 +223,7 @@ class TestRepoVizzLoaderXmlMode:
         # Filter to audio entries only
         audio_ids = loader.store.audio
         if len(audio_ids) >= 2:
-            timelines = loader.create_timelines(ids=audio_ids[:2])
+            timelines = loader.create_timelines(entries=audio_ids[:2])
             assert len(timelines) == 2
 
     def test_create_group(self, xml_manifest_path: Path) -> None:

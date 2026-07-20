@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import html
 import logging
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -1245,13 +1246,13 @@ class AlignmentLoader(ABC):
 
     # region Timeline & Bundle Creation
 
-    def create_timeline(self, id: str | None = None, **kwargs: Any) -> "Timeline":
-        """Create a single Timeline by ID.
+    def create_timeline(self, uid: str | None = None, **kwargs: Any) -> "Timeline":
+        """Create a single Timeline by uid.
 
         Subclasses override this to assemble timelines from loaded data.
 
         Args:
-            id: Timeline identifier. Interpretation is subclass-specific.
+            uid: Timeline identifier. Interpretation is subclass-specific.
             **kwargs: Additional arguments for subclass implementations.
 
         Returns:
@@ -1284,6 +1285,15 @@ class AlignmentLoader(ABC):
             f"{self.__class__.__name__} does not implement create_timelines(). "
             "Subclasses should override this method."
         )
+
+    @staticmethod
+    def _filter_timelines_by_id_pattern(
+        timelines: list["Timeline"], id_pattern: str | None
+    ) -> list["Timeline"]:
+        """Filter timelines by an optional regular expression on their IDs."""
+        return [
+            tl for tl in timelines if id_pattern is None or re.search(id_pattern, tl.id)
+        ]
 
     def create_group(self, **kwargs: Any) -> Any:
         """Create a `TimelineGroup`. Override in subclasses that support groups.

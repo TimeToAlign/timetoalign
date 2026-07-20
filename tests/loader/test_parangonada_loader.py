@@ -464,6 +464,12 @@ def test_create_timelines_returns_twelve(loader: ParangonadaLoader) -> None:
     assert timelines[1].id == SCORE_DLT_ID
 
 
+def test_create_timelines_id_pattern_filters(loader: ParangonadaLoader) -> None:
+    """The pinned 12-timeline bundle has 10 performer timelines."""
+    assert len(loader.create_timelines(id_pattern=r"^score:")) == 2
+    assert len(loader.create_timelines(id_pattern=r"^perf:")) == 10
+
+
 def test_create_timeline_unknown_raises(loader: ParangonadaLoader) -> None:
     with pytest.raises(KeyError):
         loader.create_timeline("does_not_exist")

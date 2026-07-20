@@ -107,7 +107,7 @@ class PerformancePrecisionLoader(AlignmentLoader):
 
     1. ``loader.load(specimen_dir)`` — ingests the whole directory.
     2. ``loader.create_bundle()`` — assembles the AlignmentBundle.
-    3. ``loader.create_timeline(id)`` / ``create_timelines()`` — retrieve
+    3. ``loader.create_timeline(uid)`` / ``create_timelines()`` — retrieve
        individual timelines.
 
     Args:
@@ -535,17 +535,18 @@ class PerformancePrecisionLoader(AlignmentLoader):
         """Return all timelines: ``[score, performer_1, ..., performer_n]``.
 
         Args:
-            id_pattern: Unused; present for base-class signature parity.
+            id_pattern: Optional regex pattern to filter timeline IDs.
         """
         if self._score_timeline is None:
             return []
-        return [self._score_timeline, *self._performance_timelines.values()]
+        timelines = [self._score_timeline, *self._performance_timelines.values()]
+        return self._filter_timelines_by_id_pattern(timelines, id_pattern)
 
-    def create_timeline(self, id: str | None = None, **kwargs: Any) -> "Timeline":
-        """Return a single timeline by id, role, or performer key.
+    def create_timeline(self, uid: str | None = None, **kwargs: Any) -> "Timeline":
+        """Return a single timeline by uid, role, or performer key.
 
         Args:
-            id: ``"score"`` (or the score uid) for the score timeline; a
+            uid: ``"score"`` (or the score uid) for the score timeline; a
                 performer key (``"Chopin_Ashkenazy"``) or its uid
                 (``"perf:Chopin_Ashkenazy"``) for a performance timeline.
 
@@ -558,18 +559,18 @@ class PerformancePrecisionLoader(AlignmentLoader):
                 "No specimen loaded yet. Call load() before create_timeline()."
             )
 
-        if id in ("score", _SCORE_TL_ID):
+        if uid in ("score", _SCORE_TL_ID):
             return self._score_timeline
 
-        if id in self._performance_timelines:
-            return self._performance_timelines[id]
+        if uid in self._performance_timelines:
+            return self._performance_timelines[uid]
 
         for performer_key, perf_tl in self._performance_timelines.items():
-            if id == perf_tl.id:
+            if uid == perf_tl.id:
                 return perf_tl
 
         raise KeyError(
-            f"No timeline with id or role '{id}'. Available: 'score', "
+            f"No timeline with uid or role '{uid}'. Available: 'score', "
             + ", ".join(f"'{k}'" for k in self._performance_timelines)
         )
 

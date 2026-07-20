@@ -153,7 +153,7 @@ class ParangonadaLoader(AlignmentLoader):
 
     1. ``loader.load(dataset_dir)`` — ingest the whole dataset directory.
     2. ``loader.create_bundle()`` — assemble the AlignmentBundle.
-    3. ``loader.create_timeline(id)`` / ``create_timelines()`` — retrieve
+    3. ``loader.create_timeline(uid)`` / ``create_timelines()`` — retrieve
        individual timelines.
 
     The loader reads existing alignments; it never runs an aligner.
@@ -693,7 +693,7 @@ class ParangonadaLoader(AlignmentLoader):
         """Return all timelines: the two score timelines then each performer's.
 
         Args:
-            id_pattern: Unused; present for base-class signature parity.
+            id_pattern: Optional regex pattern to filter timeline IDs.
         """
         if self._score_clt is None or self._score_dlt is None:
             return []
@@ -701,13 +701,13 @@ class ParangonadaLoader(AlignmentLoader):
         for performer_key in self._perf_cpt:
             timelines.append(self._perf_cpt[performer_key])
             timelines.append(self._perf_dpt[performer_key])
-        return timelines
+        return self._filter_timelines_by_id_pattern(timelines, id_pattern)
 
-    def create_timeline(self, id: str | None = None, **kwargs: Any) -> "Timeline":
+    def create_timeline(self, uid: str | None = None, **kwargs: Any) -> "Timeline":
         """Return a single timeline by its uid.
 
         Args:
-            id: A timeline uid — ``"score:clt1"``, ``"score:dlt1"``, or a
+            uid: A timeline uid — ``"score:clt1"``, ``"score:dlt1"``, or a
                 performer timeline uid (``"perf:<key>:cpt1"`` /
                 ``"perf:<key>:dpt1"``).
 
@@ -720,14 +720,14 @@ class ParangonadaLoader(AlignmentLoader):
                 "No dataset loaded yet. Call load() before create_timeline()."
             )
 
-        if id == _SCORE_CLT_ID:
+        if uid == _SCORE_CLT_ID:
             return self._score_clt
-        if id == _SCORE_DLT_ID:
+        if uid == _SCORE_DLT_ID:
             return self._score_dlt
         for performer_key, cpt in self._perf_cpt.items():
-            if id == cpt.id:
+            if uid == cpt.id:
                 return cpt
-            if id == self._perf_dpt[performer_key].id:
+            if uid == self._perf_dpt[performer_key].id:
                 return self._perf_dpt[performer_key]
 
         available = [_SCORE_CLT_ID, _SCORE_DLT_ID]
@@ -735,7 +735,7 @@ class ParangonadaLoader(AlignmentLoader):
             available.append(f"perf:{performer_key}:cpt1")
             available.append(f"perf:{performer_key}:dpt1")
         raise KeyError(
-            f"No timeline with uid '{id}'. Available: "
+            f"No timeline with uid '{uid}'. Available: "
             + ", ".join(f"'{uid}'" for uid in available)
         )
 

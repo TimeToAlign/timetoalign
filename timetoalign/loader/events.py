@@ -30,7 +30,14 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from typing_extensions import Self
 
-from timetoalign.core import Coordinate, IntervalPolicy, NumberType, TimeUnit
+from timetoalign.core import (
+    Coordinate,
+    CoordinateSpec,
+    IntervalPolicy,
+    NumberType,
+    TimeUnit,
+    resolve_coordinate_spec,
+)
 
 from .mixins import SemanticFieldAccessMixin
 from .parsing import ArrayValidator, CoordinateParser
@@ -1130,7 +1137,7 @@ class EventData(SemanticFieldAccessMixin):
                 inferred_fields.append(provided_fields[name])
             else:
                 # For coordinate struct fields, add unit metadata
-                # This enables to_pandas() to properly convert them
+                # This enables dataframe conversion to properly convert them
                 from timetoalign.loader.schema import is_coordinate_type
 
                 if is_coordinate_type(arr.type):
@@ -1405,8 +1412,8 @@ class EventData(SemanticFieldAccessMixin):
         *,
         temporal_type: Literal["instant", "interval"] | None = None,
         event_type: str | None = None,
-        min_coord: float | None = None,
-        max_coord: float | None = None,
+        min_coord: CoordinateSpec | None = None,
+        max_coord: CoordinateSpec | None = None,
         **kwargs: Any,
     ) -> "EventData":
         """Filter events by criteria, returning a new EventData.
@@ -1416,8 +1423,8 @@ class EventData(SemanticFieldAccessMixin):
         Args:
             temporal_type: Filter by "instant" or "interval".
             event_type: Filter by event type name.
-            min_coord: Minimum coordinate (inclusive).
-            max_coord: Maximum coordinate (exclusive).
+            min_coord: Minimum coordinate (inclusive), optionally with a unit.
+            max_coord: Maximum coordinate (exclusive), optionally with a unit.
             **kwargs: Exact match filters for other fields (e.g. event_category="note").
 
         Returns:
@@ -1439,11 +1446,21 @@ class EventData(SemanticFieldAccessMixin):
             coord_val = pc.struct_field(pc.field("start"), "value")
 
             if min_coord is not None:
-                expr = pc.greater_equal(coord_val, min_coord)
+                resolved_min = resolve_coordinate_spec(min_coord)
+                if resolved_min.unit is not None and resolved_min.unit != self.unit:
+                    raise ValueError(
+                        f"Coordinate unit mismatch: {resolved_min.unit} vs {self.unit}"
+                    )
+                expr = pc.greater_equal(coord_val, resolved_min.value)
                 mask = expr if mask is None else (mask & expr)
 
             if max_coord is not None:
-                expr = pc.less(coord_val, max_coord)
+                resolved_max = resolve_coordinate_spec(max_coord)
+                if resolved_max.unit is not None and resolved_max.unit != self.unit:
+                    raise ValueError(
+                        f"Coordinate unit mismatch: {resolved_max.unit} vs {self.unit}"
+                    )
+                expr = pc.less(coord_val, resolved_max.value)
                 mask = expr if mask is None else (mask & expr)
 
         # Generic kwargs filtering
@@ -1628,78 +1645,6 @@ class EventData(SemanticFieldAccessMixin):
         """
         pq.write_table(self._table, path)
 
-    def to_pandas(
-        self,
-        *,
-        raw: bool = False,
-        coordinates: bool = False,
-    ) -> pd.DataFrame:
-        """Convert to a pandas DataFrame.
-
-        By default, coordinate fields (start, end, duration) are converted from
-        the internal struct representation to the appropriate Python number type:
-        - Fraction if numerator/denominator are present
-        - float otherwise
-
-        Args:
-            raw: If True, return the raw PyArrow-to-pandas conversion with struct
-                dicts for coordinate fields. Default False shows cleaned numbers.
-            coordinates: If True, wrap coordinate values in Coordinate objects that
-                include unit information. Only effective when raw=False.
-
-        Returns:
-            A pandas DataFrame with the event data.
-
-        Examples:
-            >>> # Default: clean number format
-            >>> df = events.to_pandas()
-            >>> df.iloc[0]['start']  # Fraction(1, 4) or 0.25
-
-            >>> # Raw struct dicts (for debugging)
-            >>> df = events.to_pandas(raw=True)
-            >>> df.iloc[0]['start']  # {'value': 0.25, 'numerator': 1, 'denominator': 4}
-
-            >>> # Coordinate objects with unit
-            >>> df = events.to_pandas(coordinates=True)
-            >>> df.iloc[0]['start']  # Coordinate(value=Fraction(1, 4), unit=quarters)
-        """
-        df = self._table.to_pandas()
-
-        if raw:
-            return df
-
-        # Detect coordinate fields from schema (struct with value/num/den fields)
-        # This handles both core fields (start, end, duration) and extra
-        # CoordinateField fields
-        from timetoalign.loader.schema import is_coordinate_type
-
-        for pa_field in self._table.schema:
-            field_name = pa_field.name
-            if field_name not in df.columns:
-                continue
-
-            if is_coordinate_type(pa_field.type):
-                # Get unit from field metadata, fall back to EventData unit
-                unit = self._unit
-                if pa_field.metadata:
-                    unit_str = pa_field.metadata.get(b"unit")
-                    if unit_str:
-                        try:
-                            unit = TimeUnit(unit_str.decode("utf-8"))
-                        except ValueError:
-                            pass  # Use default unit
-
-                if coordinates:
-                    # Capture unit in closure for lambda
-                    field_unit = unit
-                    df[field_name] = df[field_name].apply(
-                        lambda s, u=field_unit: self._struct_to_coordinate(s, u)
-                    )
-                else:
-                    df[field_name] = df[field_name].apply(self._struct_to_number)
-
-        return df
-
     def to_dataframe(
         self,
         format: str = "pandas",
@@ -1725,10 +1670,49 @@ class EventData(SemanticFieldAccessMixin):
 
         Examples:
             >>> df = events.to_dataframe()  # pandas DataFrame
+            >>> df.iloc[0]['start']  # Fraction(1, 4) or 0.25
             >>> df = events.to_dataframe("pandas", raw=True)
+            >>> df.iloc[0]['start']  # {'value': 0.25, 'numerator': 1, 'denominator': 4}
+            >>> df = events.to_dataframe(coordinates=True)
+            >>> df.iloc[0]['start']  # Coordinate(value=Fraction(1, 4), unit=quarters)
         """
         if format == "pandas":
-            return self.to_pandas(raw=raw, coordinates=coordinates)
+            df = self._table.to_pandas()
+
+            if raw:
+                return df
+
+            # Detect coordinate fields from schema (struct with value/num/den fields)
+            # This handles both core fields (start, end, duration) and extra
+            # CoordinateField fields.
+            from timetoalign.loader.schema import is_coordinate_type
+
+            for pa_field in self._table.schema:
+                field_name = pa_field.name
+                if field_name not in df.columns:
+                    continue
+
+                if is_coordinate_type(pa_field.type):
+                    # Get unit from field metadata, fall back to EventData unit
+                    unit = self._unit
+                    if pa_field.metadata:
+                        unit_str = pa_field.metadata.get(b"unit")
+                        if unit_str:
+                            try:
+                                unit = TimeUnit(unit_str.decode("utf-8"))
+                            except ValueError:
+                                pass  # Use default unit
+
+                    if coordinates:
+                        # Capture unit in closure for lambda
+                        field_unit = unit
+                        df[field_name] = df[field_name].apply(
+                            lambda s, u=field_unit: self._struct_to_coordinate(s, u)
+                        )
+                    else:
+                        df[field_name] = df[field_name].apply(self._struct_to_number)
+
+            return df
         else:
             raise ValueError(
                 f"Unsupported DataFrame format: {format!r}. "

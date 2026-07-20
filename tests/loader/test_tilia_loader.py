@@ -262,7 +262,7 @@ class TestTiliaTimelineCreation:
 
     def test_create_timelines_subset(self, bruckner_loader: TiliaJsonLoader) -> None:
         subset_ids = ["BEAT_TIMELINE_3", "HIERARCHY_TIMELINE_0"]
-        timelines = bruckner_loader.create_timelines(ids=subset_ids)
+        timelines = bruckner_loader.create_timelines(uids=subset_ids)
         assert len(timelines) == 2
         assert timelines[0].id == "BEAT_TIMELINE_3"
         assert timelines[1].id == "HIERARCHY_TIMELINE_0"
@@ -295,7 +295,7 @@ class TestTiliaTimelineCreation:
     def test_create_timeline_missing_raises(
         self, bruckner_loader: TiliaJsonLoader
     ) -> None:
-        with pytest.raises(KeyError, match="No timeline with id"):
+        with pytest.raises(KeyError, match="No timeline with uid"):
             bruckner_loader.create_timeline("NONEXISTENT_99")
 
 

@@ -192,6 +192,13 @@ def test_bundle_timeline_and_group_counts(loader: ListenHereLoader) -> None:
     assert len(bundle.groups) == 3
 
 
+def test_create_timelines_id_pattern_filters(loader: ListenHereLoader) -> None:
+    """The pinned three-recording shape filters to the rec-b timeline."""
+    timelines = loader.create_timelines(id_pattern=r"^rec-b:")
+    assert len(timelines) == 1
+    assert timelines[0].id == "rec-b:cpt1"
+
+
 def test_bundle_uses_columnar_claim_store(loader: ListenHereLoader) -> None:
     # create_bundle hands the MatchClaimField to the columnar store, NOT the
     # per-claim Python list, so the field is never exploded into objects.

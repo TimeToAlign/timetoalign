@@ -206,7 +206,7 @@ class MpmLoader(AlignmentLoader):
 
     1. ``loader.load(mpr_path)`` — ingest the whole project.
     2. ``loader.create_bundle()`` — assemble the AlignmentBundle.
-    3. ``loader.create_timeline(id)`` / ``create_timelines()`` — retrieve
+    3. ``loader.create_timeline(uid)`` / ``create_timelines()`` — retrieve
        individual timelines.
 
     By default the *first* ``<performance>`` in the ``.mpm`` is used.  Pass
@@ -1099,7 +1099,7 @@ class MpmLoader(AlignmentLoader):
         appended when the project carries a spectrogram.
 
         Args:
-            id_pattern: Unused; present for base-class signature parity.
+            id_pattern: Optional regex pattern to filter timeline IDs.
         """
         if (
             self._score_clt is None
@@ -1116,13 +1116,13 @@ class MpmLoader(AlignmentLoader):
         ]
         if self._perf_dgt is not None:
             timelines.append(self._perf_dgt)
-        return timelines
+        return self._filter_timelines_by_id_pattern(timelines, id_pattern)
 
-    def create_timeline(self, id: str | None = None, **kwargs: Any) -> "Timeline":
+    def create_timeline(self, uid: str | None = None, **kwargs: Any) -> "Timeline":
         """Return a single timeline by its uid.
 
         Args:
-            id: One of ``"score:clt1"`` / ``"score:dlt1"`` / ``"perf:cpt1"``
+            uid: One of ``"score:clt1"`` / ``"score:dlt1"`` / ``"perf:cpt1"``
                 / ``"perf:dpt1"`` / ``"perf:dgt1"`` (the last present only
                 when the project carries a spectrogram).
 
@@ -1142,10 +1142,10 @@ class MpmLoader(AlignmentLoader):
         }
         if self._perf_dgt is not None:
             mapping[_PERF_DGT_ID] = self._perf_dgt
-        if id in mapping:
-            return mapping[id]
+        if uid in mapping:
+            return mapping[uid]
         raise KeyError(
-            f"No timeline with uid '{id}'. Available: "
+            f"No timeline with uid '{uid}'. Available: "
             + ", ".join(f"'{uid}'" for uid in mapping)
         )
 
