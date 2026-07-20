@@ -94,6 +94,7 @@ class Music21Loader(ScoreLoader):
 
             # Get measure list for MC lookup
             measure_list = list(part.getElementsByClass(m21.stream.Measure))
+            mei_skeleton_expanded = False
 
             # ===== MEI sparse skeleton expansion =====
             # MEI files exported by MuseScore use a compact representation where
@@ -101,7 +102,22 @@ class Music21Loader(ScoreLoader):
             # implied (indicated by non-sequential m.number / MEI @n values).
             # Expand any gaps so that every MC from 1..max_n is present.
             if is_mei and measure_list:
+                original_measure_count = len(measure_list)
                 measure_list = self._expand_mei_skeleton(measure_list)
+                mei_skeleton_expanded = len(measure_list) != original_measure_count
+
+            # Full-score MEI keeps every source measure, including unnumbered
+            # boundary measures that carry a repeat start. Sparse MEI skeletons
+            # are expanded by ``@n``, so their metadata must use that number.
+            mei_info_by_mc = (
+                {
+                    info["number"]: info
+                    for info in mei_measure_info.values()
+                    if info["number"] is not None
+                }
+                if is_mei and mei_skeleton_expanded
+                else mei_measure_info
+            )
 
             measure_offsets = [
                 (float(m.offset), i + 1, m) for i, m in enumerate(measure_list)
@@ -141,8 +157,8 @@ class Music21Loader(ScoreLoader):
 
                 # For MEI files, use pre-parsed XML data (music21's MEI parser
                 # drops <ending> elements and doesn't create RepeatBracket spanners).
-                if is_mei and mc in mei_measure_info:
-                    mei_info = mei_measure_info[mc]
+                if is_mei and mc in mei_info_by_mc:
+                    mei_info = mei_info_by_mc[mc]
                     start_repeat = mei_info.get("start_repeat", False)
                     end_repeat = mei_info.get("end_repeat", False)
                     volta = mei_info.get("volta")
@@ -185,8 +201,8 @@ class Music21Loader(ScoreLoader):
                     # Per-measure flags are set from mei_measure_info when available.
                     # The file-level mei_has_any_nav_markers flag covers markers that
                     # appear in unnumbered (skeleton) measures which have no MC entry.
-                    if mc in mei_measure_info:
-                        mei_nav = mei_measure_info[mc]
+                    if mc in mei_info_by_mc:
+                        mei_nav = mei_info_by_mc[mc]
                         has_fine = mei_nav.get("has_fine", False)
                         has_segno = mei_nav.get("has_segno", False)
                         has_coda = mei_nav.get("has_coda", False)
@@ -583,9 +599,9 @@ class Music21Loader(ScoreLoader):
 
         Returns:
             A 2-tuple of:
-            - Mapping from measure number (MEI ``@n``) to a dict containing
-              ``volta``, ``start_repeat``, ``end_repeat``, and navigation
-              marker flags.
+            - Mapping from source measure position to a dict containing its
+              MEI ``@n`` value, ``volta``, ``start_repeat``, ``end_repeat``,
+              and navigation marker flags.
             - ``True`` if any navigation marker was found anywhere in the file.
         """
         try:
@@ -623,8 +639,10 @@ class Music21Loader(ScoreLoader):
             return flags
 
         # Walk every <measure> element, tracking whether it is inside an <ending>
+        measure_index = 0
+
         def _walk(element: ET.Element, current_volta: int | None) -> None:
-            nonlocal has_any_nav_markers
+            nonlocal has_any_nav_markers, measure_index
 
             tag = element.tag.split("}")[-1] if "}" in element.tag else element.tag
 
@@ -638,33 +656,33 @@ class Music21Loader(ScoreLoader):
                     current_volta = None
 
             if tag == "measure":
+                measure_index += 1
                 nav_flags = _nav_flags_for_measure(element)
                 if nav_flags:
                     has_any_nav_markers = True
 
+                left = element.get("left", "")
+                right = element.get("right", "")
                 n_str = element.get("n")
-                if n_str is not None:
-                    try:
-                        n = int(n_str)
-                    except ValueError:
-                        n = None
-                    if n is not None:
-                        left = element.get("left", "")
-                        right = element.get("right", "")
-                        entry: dict[str, Any] = {
-                            "volta": current_volta,
-                            "start_repeat": left == "rptstart",
-                            "end_repeat": right == "rptend",
-                            "has_fine": False,
-                            "has_segno": False,
-                            "has_coda": False,
-                            "has_ds": False,
-                            "has_ds_al_coda": False,
-                            "has_dc": False,
-                            "has_dc_al_fine": False,
-                        }
-                        entry.update(nav_flags)
-                        result[n] = entry
+                try:
+                    number = int(n_str) if n_str is not None else None
+                except ValueError:
+                    number = None
+                entry: dict[str, Any] = {
+                    "number": number,
+                    "volta": current_volta,
+                    "start_repeat": left == "rptstart",
+                    "end_repeat": right == "rptend",
+                    "has_fine": False,
+                    "has_segno": False,
+                    "has_coda": False,
+                    "has_ds": False,
+                    "has_ds_al_coda": False,
+                    "has_dc": False,
+                    "has_dc_al_fine": False,
+                }
+                entry.update(nav_flags)
+                result[measure_index] = entry
 
             for child in element:
                 _walk(child, current_volta)
