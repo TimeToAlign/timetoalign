@@ -1,25 +1,17 @@
-"""BeatGrid: A metrical timeline measured in quarter notes.
+"""BeatGrid: a metrical timeline measured in quarter notes.
 
-A BeatGrid is a ContinuousLogicalTimeline that represents metrical structure
-(measures, beats) using quarter-note coordinates. It can be connected to
-other timelines via TimelineGroups to provide metrical information.
+BeatGrid is the timeline-shaped face of musical meter. It is a
+ContinuousLogicalTimeline whose measure and beat structure is carried by an
+attached meter-map family: MetricMap supplies measure boundaries,
+BeatInMeasureMap supplies beat-in-measure conversion, and MetricalPositionMap
+combines those values.
 
-**Note**: BeatGrid is retained for backward compatibility and simple use cases.
-For more complex meter structures (anacrusis, varying time signatures, repeat
-endings), use the MetricMap-based approach via:
-- `ContinuousPhysicalTimeline.create_metrical_grid()` - convenience method
-- `MetricMap.from_boundaries()` - explicit measure boundaries
-
-Per TTA specification (Section 3.4), children must share the parent's unit.
-Cross-domain relationships (physical-logical) are established via TimelineGroups,
-not parent-child embedding.
-
-Key features:
-- Coordinate system in quarters (Fractions for exact representation)
-- Built-in C-Maps: quarters -> measure_count (int), quarters -> beat_in_measure (Fraction)
-- MetricalPositionMap for {mc, beat, mn} output
-- Optional materialization of Beat and Measure events
-- Factory method for creation from tempo information
+BeatGrid and MetricMap converge as metrical conversion becomes more capable.
+MetricMap already represents irregular measures, anacrusis, and meter changes
+through ``from_boundaries()``; that richer structure is intended to flow into
+BeatGrid over time. BeatGrid keeps the timeline responsibilities of events,
+regions, hierarchy, and cross-domain conversion while exposing metrical queries
+on an exact quarter-note axis.
 """
 
 from __future__ import annotations
@@ -30,9 +22,10 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import numpy as np
 
 from timetoalign.core import CoordinateSpec, NumberType, TimeUnit
-from timetoalign.maps import LinearMap
+from timetoalign.maps import ConversionMap, LinearMap
 from timetoalign.maps.meter import BeatInMeasureMap, MetricalPositionMap, MetricMap
 
+from .base import SEGMENT_EVENT_TYPE
 from .types import ContinuousLogicalTimeline
 
 if TYPE_CHECKING:
@@ -40,22 +33,19 @@ if TYPE_CHECKING:
 
 
 class BeatGrid(ContinuousLogicalTimeline):
-    """A metrical grid as a ContinuousLogicalTimeline in quarters.
+    """A metrical timeline whose native coordinate axis is quarter notes.
 
-    A BeatGrid represents metrical structure: measures, beats, and their
-    numbering. It is designed to be added as a child to any parent timeline
-    (physical, logical, or graphical).
+    BeatGrid delegates measure-boundary lookup to its attached MetricMap,
+    beat-in-measure lookup to its attached BeatInMeasureMap, and combined
+    measure/beat lookup to its attached MetricalPositionMap. Its public beat
+    queries also apply ``beat_unit`` so that a musical beat need not equal a
+    quarter note.
 
-    The coordinate system uses quarter notes (Fractions) for exact rhythmic
-    representation. Built-in C-Maps automatically convert quarters to
-    measure numbers and beat positions.
-
-    **Architecture**: BeatGrid now uses the generalized MetricMap internally,
-    which correctly handles:
-    - Proper integer types for measure counts (MC)
-    - Proper Fraction types for beat positions
-    - Anacrusis (pickup measures)
-    - Varying time signatures (via MetricMap.from_boundaries)
+    BeatGrid and MetricMap are converging representations of meter. BeatGrid
+    provides the Timeline interface; MetricMap provides an increasingly rich
+    conversion model. Irregular measures, anacrusis, and meter changes modeled
+    by ``MetricMap.from_boundaries()`` are intended to become available through
+    BeatGrid as that model develops.
 
     Attributes:
         beats_per_measure: Number of beats per measure.
@@ -64,9 +54,9 @@ class BeatGrid(ContinuousLogicalTimeline):
         quarters_per_measure: Derived: quarters per measure.
 
     C-Maps (automatically created):
-        - quarters -> mc (MetricMap): Integer measure count
-        - quarters -> beat (BeatInMeasureMap): Beat position as Fraction (1-indexed)
-        - quarters -> {mc, beat} (MetricalPositionMap): Combined output
+        - quarters -> mc (MetricMap): Integer measure count.
+        - quarters -> beat (BeatInMeasureMap): Beat position as Fraction.
+        - quarters -> {mc, beat} (MetricalPositionMap): Combined output.
 
     Examples:
         >>> from fractions import Fraction
@@ -299,18 +289,13 @@ class BeatGrid(ContinuousLogicalTimeline):
             The beat position as Fraction (1-indexed, e.g., Fraction(3, 2) for beat 1.5).
         """
         quarter_value = self._resolve_quarter_value(quarters)
-        return self._meter_map.beat_in_measure(quarter_value)
-
-    def beat_at_float(self, quarters: float | Fraction) -> float:
-        """Get the beat position as a float (for backward compatibility).
-
-        Args:
-            quarters: Position in quarter notes.
-
-        Returns:
-            The beat position (1-indexed, may be fractional).
-        """
-        return float(self.beat_at(quarters))
+        mc = self._meter_map(float(quarter_value))
+        measure = self._meter_map.get_measure_info(mc)
+        if measure is None:
+            raise ValueError(f"MC {mc} not found in meter map")
+        return (
+            Fraction(quarter_value) - measure["start"]
+        ) / self._quarters_per_beat + 1
 
     def metrical_position(self, quarters: CoordinateSpec) -> dict[str, Any]:
         """Get the full metrical position (mc and beat) at a given quarter position.
@@ -323,7 +308,7 @@ class BeatGrid(ContinuousLogicalTimeline):
         """
         quarter_value = self._resolve_quarter_value(quarters)
         mc = self._meter_map(float(quarter_value))
-        beat = self._meter_map.beat_in_measure(quarter_value)
+        beat = self.beat_at(quarter_value)
         return {"mc": mc, "beat": beat, "mn": self._meter_map.get_mn(mc)}
 
     def quarter_at(
@@ -341,7 +326,90 @@ class BeatGrid(ContinuousLogicalTimeline):
         Raises:
             ValueError: If measure < start_measure or beat < 1.
         """
-        return self._metrical_map.quarters_at(measure, beat)
+        measure_info = self._meter_map.get_measure_info(measure)
+        if measure_info is None:
+            raise ValueError(f"MC {measure} not found in meter map")
+        return measure_info["start"] + (Fraction(beat) - 1) * self._quarters_per_beat
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the grid and its construction parameters to a dictionary.
+
+        Returns:
+            A dictionary representation that reconstructs the attached meter maps.
+        """
+        data = super().to_dict()
+        data["beats_per_measure"] = self._beats_per_measure
+        data["beat_unit"] = str(self._beat_unit)
+        data["start_measure"] = self._start_measure
+        data["start_mn"] = self._start_mn
+        data["anacrusis_quarters"] = (
+            str(self._anacrusis_quarters)
+            if self._anacrusis_quarters is not None
+            else None
+        )
+        data["tempo_bpm"] = self._tempo_bpm
+        data["start_seconds"] = self._start_seconds
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> BeatGrid:
+        """Create a BeatGrid from a serialized dictionary.
+
+        The constructor recreates the meter-map family. Serialized meter maps
+        are skipped so they are not attached a second time.
+
+        Args:
+            data: Dictionary created by :meth:`to_dict`.
+
+        Returns:
+            The reconstructed BeatGrid.
+        """
+        anacrusis = data.get("anacrusis_quarters")
+        grid = cls(
+            length=Fraction(data["length"]),
+            beats_per_measure=data["beats_per_measure"],
+            beat_unit=Fraction(data["beat_unit"]),
+            start_measure=data["start_measure"],
+            start_mn=data["start_mn"],
+            anacrusis_quarters=Fraction(anacrusis) if anacrusis is not None else None,
+            uid=data["id"],
+            name=data.get("name"),
+        )
+        grid._locked = data.get("locked", False)
+        grid._meta = dict(data.get("meta") or {})
+
+        events = []
+        for serialized_event in data.get("events", []):
+            if serialized_event.get("event_type") == SEGMENT_EVENT_TYPE:
+                continue
+            event = dict(serialized_event)
+            for coord_col in ("instant", "start", "end", "duration"):
+                coord = event.get(coord_col)
+                if isinstance(coord, dict) and "value" in coord:
+                    event[coord_col] = coord["value"]
+            events.append(event)
+        if events:
+            grid._add_events_unchecked(events)
+
+        for child_data in data.get("children", {}).values():
+            child = cls.from_dict(child_data["timeline"])
+            grid.add_child(child, offset=child_data["offset"])
+
+        meter_map_ids = {grid._meter_map.id, grid._beat_map.id, grid._metrical_map.id}
+        for map_data in data.get("conversion_maps", []):
+            if map_data.get("id") in meter_map_ids:
+                continue
+            cmap = ConversionMap.from_dict(map_data)
+            grid.add_conversion_map(cmap)
+            if cmap.target_unit == TimeUnit.seconds:
+                grid._tempo_map = cmap  # type: ignore[assignment]
+
+        tempo_bpm = data.get("tempo_bpm")
+        if tempo_bpm is not None:
+            grid._tempo_bpm = tempo_bpm
+            grid._start_seconds = data.get("start_seconds", 0.0)
+
+        return grid
 
     # region Vectorized Accessors
 

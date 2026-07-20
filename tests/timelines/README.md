@@ -232,8 +232,15 @@ Graphical) and 2 modalities (Continuous, Discrete). Each type has:
    - `metrical_position()`: Returns `{"measure": N, "beat": B}` dict
    - `quarter_at()`: Inverse lookup (measure, beat) -> quarter coordinate
    - `quarter_at()` validation: Rejects measure < start_measure, beat < 1
-   - Public coordinate queries preserve native `Fraction` values, convert
-     foreign-unit coordinates through attached C-Maps, and reject missing maps
+    - Public coordinate queries preserve native `Fraction` values, convert
+      foreign-unit coordinates through attached C-Maps, and reject missing maps
+    - `beat_at()` returns exact `Fraction` values; callers can explicitly convert
+      the result to `float` when needed
+    - 6/8 and 2/2 beat queries scale quarter offsets by `quarters_per_beat`:
+      in 6/8, quarter 1/2 is beat 2 and quarter 5/2 is beat 6; in 2/2,
+      quarter 2 is beat 2
+    - Serialization rebuilds BeatGrid's attached meter maps from its metrical
+      construction parameters, preserving anacrusis labels and tempo state
 
 3. **Materialization Tests** (4 tests)
    - `materialize_beats()`: Creates Beat instant events at each beat position
@@ -298,6 +305,28 @@ Per the TTA model, children must share the parent's measuring unit. A BeatGrid
 Instead, cross-domain relationships are established via:
 - **C-Maps**: The tempo map converts quarters to seconds
 - **Alignment Anchors**: Match objects link events across domains
+
+---
+
+### `test_maps_integration.py` - Conversion Maps on Timelines
+
+**TableMap honesty (`TestTableMapHonesty`):** `add_conversion_map` used to
+wrap every `TableMap` in an `InterpolationMap`, silently converting its
+interpolation `kind` to linear and every `extrapolate` policy to linear
+extrapolation — a timestamp could contradict the very map attached to the
+timeline. Maps are now stored directly, so the tests pin the honest
+behaviour end-to-end: `kind='previous'` step values survive to
+`get_unit()`; `extrapolate='error'` raises for out-of-bounds coordinates;
+`extrapolate='constant'` clips to the exact boundary value. All assertions
+are exact — no `pytest.approx`.
+
+**Timeline + MetricMap round trip
+(`TestTimelineSerializationWithMeterMap`):** `ConversionMap.from_dict`
+previously dispatched through a hand-written table that omitted the meter
+maps, so `Timeline.from_dict()` raised `ValueError: Unknown map type:
+MetricMap` for any timeline carrying one. The registry is now populated by
+`__init_subclass__`; the test attaches a `MetricMap`, round-trips through
+`Timeline.to_dict`/`from_dict`, and asserts `meter(4.0) == 2` exactly.
 
 ---
 

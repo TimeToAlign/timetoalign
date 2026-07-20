@@ -108,13 +108,10 @@ class TestBeatGridMetricalMaps:
         assert grid.measure_at(99) == 25
 
     def test_beat_at_4_4(self):
-        """Test beat position lookup in 4/4.
-
-        Note: beat_at now returns Fraction, not float. Use beat_at_float() for float.
-        """
+        """Test exact beat position lookup in 4/4."""
         grid = BeatGrid(length=Fraction(100, 1), beats_per_measure=4)
 
-        # Beat 1 at measure starts (now returns Fraction)
+        # Beat 1 at measure starts
         assert grid.beat_at(0) == Fraction(1, 1)
         assert grid.beat_at(4) == Fraction(1, 1)
         assert grid.beat_at(96) == Fraction(1, 1)  # Start of measure 25
@@ -128,9 +125,70 @@ class TestBeatGridMetricalMaps:
         assert grid.beat_at(Fraction(1, 2)) == Fraction(3, 2)  # 1.5
         assert grid.beat_at(Fraction(17, 4)) == Fraction(5, 4)  # 4.25 -> beat 1.25
 
-        # Use beat_at_float for backward-compatible float output
-        assert grid.beat_at_float(0) == 1.0
-        assert grid.beat_at_float(0.5) == 1.5
+        assert float(grid.beat_at(0.5)) == 1.5
+
+    def test_beat_at_respects_beat_unit(self) -> None:
+        """Beat lookup scales offsets by the configured musical beat unit."""
+        compound = BeatGrid(length=6, beats_per_measure=6, beat_unit=Fraction(1, 8))
+        alla_breve = BeatGrid(length=8, beats_per_measure=2, beat_unit=Fraction(1, 2))
+
+        assert compound.beat_at(0) == Fraction(1, 1)
+        assert compound.beat_at(Fraction(1, 2)) == Fraction(2, 1)
+        assert compound.beat_at(Fraction(5, 2)) == Fraction(6, 1)
+        assert alla_breve.beat_at(0) == Fraction(1, 1)
+        assert alla_breve.beat_at(2) == Fraction(2, 1)
+        assert compound.quarter_at(1, 2) == Fraction(1, 2)
+        assert alla_breve.quarter_at(1, 2) == Fraction(2, 1)
+
+    def test_serialization_round_trip(self) -> None:
+        """Serialization rebuilds the grid's metrical maps and timeline state."""
+        grid = BeatGrid(length=16, beats_per_measure=4)
+        grid.add_events(
+            [
+                {
+                    "id": "beat",
+                    "temporal_type": "instant",
+                    "event_type": "Beat",
+                    "instant": 0,
+                }
+            ]
+        )
+        grid._meta = {"source": "test"}
+
+        restored = BeatGrid.from_dict(grid.to_dict())
+
+        assert type(restored) is BeatGrid
+        assert float(restored.length.value) == 16.0
+        assert restored.measure_at(4.0) == 2
+        assert restored.beat_at(Fraction(1, 2)) == Fraction(3, 2)
+        assert restored.quarter_at(2) == Fraction(4, 1)
+        assert len(restored._conversion_maps) == len(grid._conversion_maps)
+
+        anacrusis_grid = BeatGrid(
+            length=16,
+            beats_per_measure=4,
+            start_mn="0",
+            anacrusis_quarters=Fraction(1, 1),
+        )
+        restored_anacrusis = BeatGrid.from_dict(anacrusis_grid.to_dict())
+
+        assert restored_anacrusis.mn_at(0) == "0"
+        assert restored_anacrusis.mn_at(1) == "1"
+        assert restored.meta == {"source": "test"}
+        assert len(restored.get_events(event_type="Beat")) == 1
+
+    def test_tempo_serialization_round_trip(self) -> None:
+        """Serialization preserves tempo-driven seconds queries."""
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=120.0,
+            length_quarters=Fraction(16, 1),
+            start_seconds=0.5,
+        )
+
+        restored = BeatGrid.from_dict(grid.to_dict())
+
+        assert restored.tempo_bpm == 120.0
+        np.testing.assert_array_equal(restored.beat_seconds()[:3], [0.5, 1.0, 1.5])
 
     def test_metrical_position(self):
         """Test combined measure/beat lookup.
@@ -316,8 +374,7 @@ class TestBeatGridFromTempo:
             length_seconds=60.0,
         )
 
-        # Should be approximately 120 quarters
-        assert abs(float(grid.length.value) - 120.0) < 0.1
+        assert grid.length.value == Fraction(120, 1)
 
     def test_from_tempo_tempo_map(self):
         """Test that tempo C-Map is created."""
@@ -333,7 +390,7 @@ class TestBeatGridFromTempo:
         # At 120 BPM: 2 beats/second = 2 quarters/second
         # So 1 quarter = 0.5 seconds
         seconds = grid._tempo_map(1.0)
-        assert abs(seconds - 0.5) < 0.001
+        assert seconds == 0.5
 
     def test_from_tempo_validation(self):
         """Test validation of arguments."""
@@ -379,11 +436,11 @@ class TestBeatGridAsChild:
 
         # Verify tempo map converts correctly (maps are callable)
         # At 120 BPM: quarter 0 -> 0.0 seconds
-        assert tempo_map(0) == pytest.approx(0.0)
+        assert tempo_map(0) == 0.0
         # quarter 1 -> 0.5 seconds
-        assert tempo_map(1) == pytest.approx(0.5)
+        assert tempo_map(1) == 0.5
         # quarter 4 (one measure) -> 2.0 seconds
-        assert tempo_map(4) == pytest.approx(2.0)
+        assert tempo_map(4) == 2.0
 
         # The BeatGrid can convert quarters to seconds using the tempo map
         # This demonstrates that cross-domain conversion is done via C-Maps
@@ -470,9 +527,7 @@ class TestBeatGridVectorizedAccessors:
         assert isinstance(seconds, np.ndarray)
         assert len(seconds) == 8
         # Expected: 0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5
-        np.testing.assert_array_almost_equal(
-            seconds, [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]
-        )
+        np.testing.assert_array_equal(seconds, [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5])
 
     def test_beat_seconds_with_offset(self):
         """Test beat_seconds respects start_seconds offset."""
@@ -487,10 +542,9 @@ class TestBeatGridVectorizedAccessors:
         seconds = grid.beat_seconds()
 
         # Expected: 0.092, 0.467, 0.842, 1.217, ...
-        assert seconds[0] == pytest.approx(0.092)
-        assert seconds[1] == pytest.approx(0.467)
-        assert seconds[2] == pytest.approx(0.842)
-        assert seconds[3] == pytest.approx(1.217)
+        np.testing.assert_array_equal(
+            np.round(seconds[:4], 3), [0.092, 0.467, 0.842, 1.217]
+        )
 
     def test_measure_seconds_requires_tempo(self):
         """measure_seconds raises RuntimeError without tempo info."""
@@ -513,7 +567,7 @@ class TestBeatGridVectorizedAccessors:
 
         assert isinstance(seconds, np.ndarray)
         assert len(seconds) == 4
-        np.testing.assert_array_almost_equal(seconds, [0.0, 2.0, 4.0, 6.0])
+        np.testing.assert_array_equal(seconds, [0.0, 2.0, 4.0, 6.0])
 
     def test_measure_seconds_with_offset(self):
         """Test measure_seconds respects start_seconds offset."""
@@ -528,7 +582,7 @@ class TestBeatGridVectorizedAccessors:
         seconds = grid.measure_seconds()
 
         # Expected: 0.092, 1.592, 3.092, 4.592
-        np.testing.assert_array_almost_equal(seconds, [0.092, 1.592, 3.092, 4.592])
+        np.testing.assert_array_equal(seconds, [0.092, 1.592, 3.092, 4.592])
 
     def test_downbeat_seconds_alias(self):
         """downbeat_seconds is an alias for measure_seconds."""
@@ -638,11 +692,13 @@ class TestBeatGridAudioUseCase:
 
         # First 4 beats
         beats = grid.beat_seconds()[:4]
-        np.testing.assert_array_almost_equal(beats, [0.092, 0.467, 0.842, 1.217])
+        np.testing.assert_array_equal(np.round(beats, 3), [0.092, 0.467, 0.842, 1.217])
 
         # First 4 measures
         measures = grid.measure_seconds()[:4]
-        np.testing.assert_array_almost_equal(measures, [0.092, 1.592, 3.092, 4.592])
+        np.testing.assert_array_equal(
+            np.round(measures, 3), [0.092, 1.592, 3.092, 4.592]
+        )
 
     def test_bye_bye_grid(self):
         """Full validation for 'Bye Bye' track."""
@@ -659,7 +715,7 @@ class TestBeatGridAudioUseCase:
 
         # First 4 beats
         beats = grid.beat_seconds()[:4]
-        np.testing.assert_array_almost_equal(beats, [0.035, 0.410, 0.785, 1.160])
+        np.testing.assert_array_equal(np.round(beats, 3), [0.035, 0.410, 0.785, 1.160])
 
     def test_bass_kick_grid(self):
         """Full validation for 'Bass Kick' track."""
@@ -676,7 +732,7 @@ class TestBeatGridAudioUseCase:
 
         # First 4 beats
         beats = grid.beat_seconds()[:4]
-        np.testing.assert_array_almost_equal(beats, [0.061, 0.436, 0.811, 1.186])
+        np.testing.assert_array_equal(np.round(beats, 3), [0.061, 0.436, 0.811, 1.186])
 
     def test_beat_spacing_is_constant(self):
         """Verify constant beat spacing (sanity check for linearity)."""
@@ -691,7 +747,7 @@ class TestBeatGridAudioUseCase:
         # All beat intervals should be exactly 0.375 seconds (60/160)
         intervals = np.diff(beats)
         expected_interval = 60.0 / self.TEMPO_BPM
-        np.testing.assert_array_almost_equal(
+        np.testing.assert_array_equal(
             intervals, np.full_like(intervals, expected_interval)
         )
 
@@ -868,14 +924,14 @@ class TestBeatGridSUPRAValidation:
         )
 
         # Verify dimensions
-        assert abs(float(grid.length.value) - self.TOTAL_QUARTERS) < 1.0
+        assert grid.length.value == Fraction(self.TOTAL_QUARTERS, 1)
         assert grid.n_measures == self.TOTAL_MEASURES
 
         # Verify tempo map converts correctly
         # At 90 BPM: 1.5 quarters/second, so 1 quarter = 0.667 seconds
         seconds_per_quarter = 60.0 / assumed_bpm
         computed_seconds = grid._tempo_map(1.0)
-        assert abs(computed_seconds - seconds_per_quarter) < 0.001
+        assert computed_seconds == seconds_per_quarter
 
     def test_supra_array_operations(self):
         """Test vectorized operations on SUPRA-sized data.
@@ -904,7 +960,7 @@ class TestBeatGridSUPRAValidation:
 
         # Verify pattern: beats should be 1,2,3,4,1,2,3,4,...
         expected_beat_pattern = np.tile([1.0, 2.0, 3.0, 4.0], self.TOTAL_MEASURES)
-        np.testing.assert_array_almost_equal(beats, expected_beat_pattern)
+        np.testing.assert_array_equal(beats, expected_beat_pattern)
 
     def test_supra_metrical_position_array(self):
         """Test combined metrical position lookup on array.
@@ -925,7 +981,7 @@ class TestBeatGridSUPRAValidation:
         expected_beats = np.array([1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 4.0])
 
         np.testing.assert_array_equal(result["mc"], expected_measures)
-        np.testing.assert_array_almost_equal(result["beat"], expected_beats)
+        np.testing.assert_array_equal(result["beat"], expected_beats)
 
     def test_supra_event_materialization(self):
         """Test beat/measure materialization for SUPRA dimensions."""
