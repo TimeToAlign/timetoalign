@@ -176,7 +176,7 @@ def _create_grouped_timeline(
         merged_data = merged_data.concat(data)
 
     # Check that group_by field exists
-    table = merged_data._table
+    table = merged_data.table
     available_names = table.column_names
     if group_by not in available_names:
         raise ValueError(

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import pyarrow as pa
 
+from timetoalign.core import TimeUnit
 from timetoalign.core.enums import FlowMode
 from timetoalign.display.ascii import (
     BOX_CHARS,
@@ -40,6 +41,7 @@ from timetoalign.display.ascii import (
     group_diagram,
     timeline_diagram,
 )
+from timetoalign.storage.events import EventData
 from timetoalign.timelines import ScoreFlowController
 from timetoalign.timelines.types import (
     ContinuousGraphicalTimeline,
@@ -1068,14 +1070,15 @@ class TestDiagramMethodCmapShowParam:
 # region Flow Diagram Test Fixtures
 
 
-class _MockMeasureData:
-    """Minimal mock for MeasureData — only ._table and __len__ required."""
+class _MockMeasureData(EventData):
+    """Minimal mock for MeasureData, wrapping a synthetic PyArrow table.
+
+    Subclassing EventData means it exposes the same public surface
+    (``schema``, ``column_values()``) that ScoreFlowController relies on.
+    """
 
     def __init__(self, tbl: pa.Table) -> None:
-        self._table = tbl
-
-    def __len__(self) -> int:
-        return len(self._table)
+        super().__init__(tbl, unit=TimeUnit.quarters)
 
 
 def _make_simple_controller() -> ScoreFlowController:

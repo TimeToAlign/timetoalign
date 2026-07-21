@@ -246,85 +246,57 @@ class ScoreFlowController(FlowControllerBase):
         if len(self._measures) == 0:
             return
 
-        table = self._measures._table
+        schema_names = self._measures.schema.names
 
         # Get field data
-        mc_vals = table.column("mc").to_pylist()
+        mc_vals = self._measures.column_values("mc")
         mn_vals = (
-            table.column("mn").to_pylist()
-            if "mn" in table.column_names
+            self._measures.column_values("mn")
+            if "mn" in schema_names
             else [str(mc) for mc in mc_vals]
         )
 
-        # Get duration - handle struct type
-        if "duration" in table.column_names:
-            dur_vals = table.column("duration").to_pylist()
-            # Duration is a struct with 'value' field
-            duration_values = []
-            for d in dur_vals:
-                if d is None:
-                    duration_values.append(Fraction(4))
-                elif isinstance(d, dict):
-                    # Handle case where key exists but value is None
-                    val = d.get("value")
-                    duration_values.append(Fraction(val if val is not None else 4))
-                else:
-                    duration_values.append(Fraction(d))
-        elif "actual_length" in table.column_names:
-            al_vals = table.column("actual_length").to_pylist()
+        # Get duration - column_values() decodes the coordinate struct to
+        # an exact Fraction (or falls back to actual_length when the
+        # measure data carries no dedicated duration column).
+        if "duration" in schema_names:
+            duration_values = self._measures.column_values(
+                "duration", default=Fraction(4)
+            )
+        elif "actual_length" in schema_names:
+            al_vals = self._measures.column_values("actual_length")
             duration_values = [Fraction(d) if d else Fraction(4) for d in al_vals]
         else:
             duration_values = [Fraction(4)] * len(mc_vals)
 
         # Get 'next' field
-        next_vals = (
-            table.column("next").to_pylist()
-            if "next" in table.column_names
-            else [None] * len(mc_vals)
-        )
+        next_vals = self._measures.column_values("next")
 
-        # Get 'start' (quarterbeats) - handle struct type
-        if "start" in table.column_names:
-            start_vals = table.column("start").to_pylist()
-            qb_values = []
-            for s in start_vals:
-                if s is None:
-                    qb_values.append(Fraction(0))
-                elif isinstance(s, dict):
-                    # Handle case where key exists but value is None
-                    val = s.get("value")
-                    qb_values.append(Fraction(val if val is not None else 0))
-                else:
-                    qb_values.append(Fraction(s))
-        else:
-            qb_values = [Fraction(0)] * len(mc_vals)
+        # Get 'start' (quarterbeats) - decoded to an exact Fraction.
+        qb_values = self._measures.column_values("start", default=Fraction(0))
 
         # Get FlowControl fields (with safe defaults)
-        def _get_field_safe(name: str, default: Any = None) -> list:
-            """Get field values or return list of defaults."""
-            if name in table.column_names:
-                return table.column(name).to_pylist()
-            return [default] * len(mc_vals)
-
-        volta_vals = _get_field_safe("volta")
-        timesig_vals = _get_field_safe("timesig")
-        start_repeat_vals = _get_field_safe("start_repeat", False)
-        end_repeat_vals = _get_field_safe("end_repeat", False)
-        segno_vals = _get_field_safe("segno")
-        coda_vals = _get_field_safe("coda")
-        fine_vals = _get_field_safe("fine", False)
+        volta_vals = self._measures.column_values("volta")
+        timesig_vals = self._measures.column_values("timesig")
+        start_repeat_vals = self._measures.column_values("start_repeat", default=False)
+        end_repeat_vals = self._measures.column_values("end_repeat", default=False)
+        segno_vals = self._measures.column_values("segno")
+        coda_vals = self._measures.column_values("coda")
+        fine_vals = self._measures.column_values("fine", default=False)
         # ms3 fields carrying marker name and jump targets per measure
-        markers_vals = _get_field_safe("markers")
-        jump_bwd_vals = _get_field_safe("jump_bwd")
-        jump_fwd_vals = _get_field_safe("jump_fwd")
-        play_until_vals = _get_field_safe("play_until")
+        markers_vals = self._measures.column_values("markers")
+        jump_bwd_vals = self._measures.column_values("jump_bwd")
+        jump_fwd_vals = self._measures.column_values("jump_fwd")
+        play_until_vals = self._measures.column_values("play_until")
         # section_break: check 'section_break' field first, then 'breaks' field
-        if "section_break" in table.column_names:
-            section_break_vals = _get_field_safe("section_break", False)
-        elif "breaks" in table.column_names:
+        if "section_break" in schema_names:
+            section_break_vals = self._measures.column_values(
+                "section_break", default=False
+            )
+        elif "breaks" in schema_names:
             # The breaks field may contain compound values like
             # "page & section" or "section & page"; check for substring.
-            breaks_vals = table.column("breaks").to_pylist()
+            breaks_vals = self._measures.column_values("breaks")
             section_break_vals = [
                 "section" in str(b) if b else False for b in breaks_vals
             ]

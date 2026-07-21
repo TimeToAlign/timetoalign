@@ -27,8 +27,10 @@ from pathlib import Path
 
 import pytest
 
+from timetoalign.core import TimeUnit
 from timetoalign.core.enums import FlowMode, IncompletePosition
 from timetoalign.loader.score import Ms3Loader
+from timetoalign.storage.events import EventData
 from timetoalign.timelines import Flow, FlowMap, MeasureUnit, ScoreFlowController
 from timetoalign.timelines.flow import (
     AtomicSection,
@@ -39,18 +41,17 @@ from timetoalign.timelines.flow import (
 # region Test Helpers
 
 
-class _MockMeasureData:
+class _MockMeasureData(EventData):
     """Lightweight mock for MeasureData, wrapping a PyArrow table.
 
     Used in tests that construct ScoreFlowController from synthetic measure data
-    without going through a full loader pipeline.
+    without going through a full loader pipeline. Subclassing EventData means it
+    exposes the same public surface (``schema``, ``column_values()``) that
+    ScoreFlowController relies on.
     """
 
     def __init__(self, tbl):
-        self._table = tbl
-
-    def __len__(self):
-        return len(self._table)
+        super().__init__(tbl, unit=TimeUnit.quarters)
 
 
 # endregion

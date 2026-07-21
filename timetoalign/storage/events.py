@@ -37,6 +37,7 @@ from timetoalign.core import (
     NumberType,
     TimeUnit,
     resolve_coordinate_spec,
+    struct_to_rational,
 )
 
 from .mixins import SemanticFieldAccessMixin
@@ -45,6 +46,7 @@ from .schema import (
     coordinate_to_struct,
     extend_schema,
     get_base_field_names,
+    is_coordinate_type,
     make_base_schema,
     make_table_metadata,
     parse_table_metadata,
@@ -66,6 +68,20 @@ def _register_timeline_factory(
     """Register the timeline-layer constructor used by ``create_timeline``."""
     global _timeline_factory
     _timeline_factory = factory
+
+
+def _has_value_subfield(pa_type: pa.DataType) -> bool:
+    """Return True iff *pa_type* is a struct with a ``value`` sub-field.
+
+    Matches the canonical ``{value, numerator, denominator}`` coordinate
+    struct as well as reduced shapes that carry only ``value`` (e.g. a
+    column built without the fraction components), so
+    :meth:`EventData.column_values` decodes any rational-shaped column,
+    not just the full three-field one.
+    """
+    if not pa.types.is_struct(pa_type):
+        return False
+    return any(pa_type.field(i).name == "value" for i in range(pa_type.num_fields))
 
 
 def _first_non_null(rows: list[dict[str, Any]], name: str) -> Any:
@@ -1177,7 +1193,6 @@ class EventData(SemanticFieldAccessMixin):
             else:
                 # For coordinate struct fields, add unit metadata
                 # This enables dataframe conversion to properly convert them
-                from timetoalign.storage.schema import is_coordinate_type
 
                 if is_coordinate_type(arr.type):
                     # Coordinate field - add unit metadata (use default unit)
@@ -1530,6 +1545,51 @@ class EventData(SemanticFieldAccessMixin):
         filtered = self._table.filter(mask)
         return self.__class__(filtered, self.unit, self.number_type)
 
+    def column_values(self, name: str, *, default: Any = None) -> list[Any]:
+        """Return a column's values as plain, decoded Python objects.
+
+        A rational-shaped column -- any struct column carrying a ``value``
+        sub-field, such as the canonical ``{value, numerator, denominator}``
+        coordinate struct used by ``start``, ``end``, ``duration``, and any
+        extra field sharing that shape -- decodes to an exact `Fraction`
+        via `struct_to_rational`. When a row's struct carries no exact
+        ratio (missing or non-integral numerator/denominator), the float
+        ``value`` member is used instead, wrapped in a `Fraction`. Every
+        other column type is returned via ``to_pylist()`` unchanged,
+        including ``None`` for a null cell -- *default* only substitutes
+        for a null rational-shaped struct or a column absent from this
+        table entirely.
+
+        Args:
+            name: Field name in the underlying table.
+            default: Value substituted for every row when *name* is not a
+                column of this table, and for individual null rational
+                struct cells.
+
+        Returns:
+            A list of per-row values, one for each event.
+        """
+        if name not in self._table.column_names:
+            return [default] * len(self)
+
+        pa_field = self._table.schema.field(name)
+        column = self._table.column(name)
+
+        if not _has_value_subfield(pa_field.type):
+            return column.to_pylist()
+
+        values: list[Any] = []
+        for cell in column.to_pylist():
+            if cell is None:
+                values.append(default)
+                continue
+            try:
+                values.append(struct_to_rational(cell))
+            except (ValueError, TypeError):
+                raw = cell.get("value")
+                values.append(Fraction(raw) if raw is not None else default)
+        return values
+
     def select(self, fields: list[str]) -> pa.Table:
         """Select specific fields from the table.
 
@@ -1725,7 +1785,6 @@ class EventData(SemanticFieldAccessMixin):
             # Detect coordinate fields from schema (struct with value/num/den fields)
             # This handles both core fields (start, end, duration) and extra
             # CoordinateField fields.
-            from timetoalign.storage.schema import is_coordinate_type
 
             for pa_field in self._table.schema:
                 field_name = pa_field.name
