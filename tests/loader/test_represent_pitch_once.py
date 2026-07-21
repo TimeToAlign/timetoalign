@@ -21,6 +21,8 @@ These tests pin, with exact expected values:
    survives ``EventData.extend`` / ``Timeline.add_events`` schema
    promotion across batches (raw column stays ``int64``; the field cache
    is dropped so the affordance re-attaches over the concatenated table).
+8. blueprint resolution uses the same raw-column promotion as class lookup,
+   including the Vienna Chopin notes fixture and its exact first MIDI value.
 
 The validation logic is documented in ``tests/loader/README.md`` under
 "Represent pitch once".
@@ -39,14 +41,17 @@ from timetoalign.core.events import (
     EnharmonicPitchClass,
     EnharmonicPitchField,
     MidiPitch,
+    MidiPitchField,
     SpecificPitch,
     SpecificPitchClass,
     SpecificPitchClassField,
     SpecificPitchField,
 )
 from timetoalign.loader.midi.events import MidiEventData, ScoreMidiEventData
+from timetoalign.loader.score.ms3 import Ms3Loader
 from timetoalign.loader.score.stores.notes import NoteEventData
 from timetoalign.storage.events import EventData
+from timetoalign.testdata import ensure_data
 
 if TYPE_CHECKING:
     from timetoalign.timelines.base import Timeline
@@ -262,6 +267,53 @@ class TestAffordedFieldsMechanism:
         first = events.get_field(EnharmonicPitch)
         second = events.get_field(EnharmonicPitch)
         assert first is second
+
+
+@pytest.fixture
+def vienna_chopin_notes() -> NoteEventData:
+    """Load the 498-row Vienna Chopin notes table used by the tutorial."""
+    data_dir = ensure_data("vienna_1x22")
+    path = data_dir / "ms3" / "chopin_op10_no3.notes.tsv"
+    return Ms3Loader.from_file(path).get_events()
+
+
+class TestBlueprintAffordance:
+    """Blueprints share declared raw-column promotion with class lookup."""
+
+    def test_enharmonic_blueprint_matches_class_path(
+        self, vienna_chopin_notes: NoteEventData
+    ) -> None:
+        events = vienna_chopin_notes
+        class_path = events.get_field(EnharmonicPitch)
+        blueprint_path = events.get_field(EnharmonicPitchField(source_fields="midi"))
+
+        assert len(blueprint_path) == 498
+        assert blueprint_path[0].midi_number == 59  # first pitch is B3
+        assert [blueprint_path[i] for i in range(len(blueprint_path))] == [
+            class_path[i] for i in range(len(class_path))
+        ]
+
+    def test_midi_blueprint_matches_class_path(
+        self, vienna_chopin_notes: NoteEventData
+    ) -> None:
+        events = vienna_chopin_notes
+        class_path = events.get_field(MidiPitch)
+        blueprint_path = events.get_field(MidiPitchField(source_fields="midi"))
+
+        assert len(blueprint_path) == 498
+        assert blueprint_path[0].midi_number == 59
+        assert [blueprint_path[i] for i in range(len(blueprint_path))] == [
+            class_path[i] for i in range(len(class_path))
+        ]
+
+    def test_unpromotable_blueprint_source_stays_type_error(self) -> None:
+        events = NoteEventData(
+            pa.table({"midi": pa.array(["not a MIDI number"])}),
+            TimeUnit.quarters,
+        )
+
+        with pytest.raises(TypeError):
+            events.get_field(EnharmonicPitchField(source_fields="midi"))
 
 
 # ---------------------------------------------------------------------------

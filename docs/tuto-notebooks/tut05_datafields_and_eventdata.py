@@ -33,29 +33,39 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
+from pathlib import Path
 
-import pyarrow as pa
-import pyarrow.parquet as pq
+# The headless verifier runs this script from the notebook directory.  Prefer
+# the repository containing this source over any separately installed
+# timetoalign copy so the tutorial exercises the checked-out implementation.
+_repo_root = Path(__file__).resolve().parents[2]
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
-from timetoalign import EventData, Ms3Loader
-from timetoalign.core.events import (
+import pyarrow as pa  # noqa: E402
+import pyarrow.parquet as pq  # noqa: E402
+
+from timetoalign import Ms3Loader  # noqa: E402
+from timetoalign.core.events import (  # noqa: E402
     EnharmonicPitch,
     EnharmonicPitchClass,
     EnharmonicPitchField,
     SpecificPitch,
     SpecificPitchField,
 )
-from timetoalign.core.fields import (
+from timetoalign.core.fields import (  # noqa: E402
     NumericField,
     StringField,
     StructField,
     build_struct_array,
 )
-from timetoalign.core.protocols import GenericPitchLike, PitchLike
-from timetoalign.core.time import CoordinateField
-from timetoalign.storage import MultipleFieldsError
-from timetoalign.testdata import ensure_data
+from timetoalign.core.protocols import GenericPitchLike, PitchLike  # noqa: E402
+from timetoalign.core.time import CoordinateField  # noqa: E402
+from timetoalign.loader.score.stores.notes import NoteEventData  # noqa: E402
+from timetoalign.storage import MultipleFieldsError  # noqa: E402
+from timetoalign.testdata import ensure_data  # noqa: E402
 
 VIENNA = ensure_data("vienna_1x22")
 CHOPIN_NOTES = VIENNA / "ms3" / "chopin_op10_no3.notes.tsv"
@@ -278,7 +288,18 @@ table_two = events.table.append_column(
     pa.field("midi_2", mp_field.type, metadata=mp_field.metadata),
     events.table.column("midi"),
 )
-events_two = EventData(table_two, unit=events._unit, number_type=events._number_type)
+
+
+class _AmbiguousNoteEventData(NoteEventData):
+    _afforded_fields = {
+        **NoteEventData._afforded_fields,
+        "midi_2": EnharmonicPitchField,
+    }
+
+
+events_two = _AmbiguousNoteEventData(
+    table_two, unit=events._unit, number_type=events._number_type
+)
 
 try:
     events_two.get_field(EnharmonicPitch)

@@ -751,26 +751,69 @@ class SemanticFieldAccessMixin:
                 materialized_cls = afforded_cls
             if column not in column_names:
                 continue
-            pa_field = self._table.schema.field(column)
-            # Only promote a raw atomic column; a struct column with the
-            # target shape is already handled by shape discovery.
-            if pa.types.is_struct(pa_field.type):
-                continue
-            cache_key = (column, materialized_cls.__name__)
-            cached = cache.get(cache_key)
-            if cached is not None:
-                result.append(cached)
-                continue
-            arr = self._table.column(column)
-            if isinstance(arr, pa.ChunkedArray):
-                arr = arr.combine_chunks()
-            try:
-                field = materialized_cls(name=column).emit(arr, name=column)
-            except (TypeError, KeyError, ValueError, pa.ArrowInvalid):
-                continue
-            cache[cache_key] = field
-            result.append(field)
+            field = self._materialize_afforded(
+                column, materialized_cls, cache, raise_on_failure=False
+            )
+            if field is not None:
+                result.append(field)
         return result
+
+    def _materialize_afforded(
+        self,
+        column: str,
+        field_type: type[SemanticField[Any]],
+        cache: dict[tuple[str, str], SemanticField[Any]],
+        *,
+        raise_on_failure: bool,
+    ) -> SemanticField[Any] | None:
+        """Promote one declared raw-column affordance through ``emit()``.
+
+        This is the single raw-column promotion path shared by class-based
+        discovery and source-field blueprints.  A ``None`` result means that
+        *column* is not a declared affordance for *field_type*, or that it is
+        already struct-shaped and should be handled by normal field
+        reconstruction.  Class discovery treats a failed promotion as a
+        non-match; blueprint resolution converts the same failure into the
+        public ``TypeError`` expected for an unpromotable source.
+        """
+        afforded: dict[str, type[SemanticField[Any]]] = getattr(
+            type(self), "_afforded_fields", {}
+        )
+        declared_cls = afforded.get(column)
+        if declared_cls is None:
+            return None
+        if declared_cls is not field_type and not _are_interchangeable_pitch_views(
+            declared_cls, field_type
+        ):
+            return None
+
+        pa_field = self._table.schema.field(column)
+        # Struct columns are handled by metadata/default/shape discovery and
+        # must retain their existing field metadata and schema.
+        if pa.types.is_struct(pa_field.type):
+            return None
+
+        cache_key = (column, field_type.__name__)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        arr = self._table.column(column)
+        if isinstance(arr, pa.ChunkedArray):
+            arr = arr.combine_chunks()
+        try:
+            field = field_type(name=column).emit(arr, name=column)
+        except (TypeError, KeyError, ValueError, pa.ArrowInvalid) as exc:
+            if not raise_on_failure:
+                return None
+            if isinstance(exc, TypeError):
+                raise
+            raise TypeError(
+                f"{field_type.__name__} cannot promote source field "
+                f"{column!r} with type {pa_field.type}"
+            ) from exc
+        cache[cache_key] = field
+        return field
 
     def get_fields_satisfying(self, protocol: type) -> list[SemanticField[Any]]:
         """Return all fields whose ``scalar_cls`` satisfies *protocol*.
@@ -1111,6 +1154,21 @@ class SemanticFieldAccessMixin:
 
         arr = self._table.column(field_name)
         pa_field = self._table.schema.field(field_name)
+
+        # Keep blueprint resolution aligned with class-based affordance
+        # discovery: a declared raw atomic source is packed by the paired
+        # field's ``emit()`` before the normal struct-backed constructor is
+        # attempted.  This also preserves the requested EP/MP view class.
+        if not pa.types.is_struct(pa_field.type):
+            promoted = self._materialize_afforded(
+                field_name,
+                type(blueprint),
+                cache,
+                raise_on_failure=True,
+            )
+            if promoted is not None:
+                return promoted
+
         field = type(blueprint).from_field((arr, pa_field))
         cache[cache_key] = field
         return field

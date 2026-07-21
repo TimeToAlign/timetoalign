@@ -631,6 +631,14 @@ shape), and caches it.  Tested invariants:
   `get_field(MidiPitch)` from the same atomic column;
 - the raw column is left untouched (still queryable as a plain int).
 
+Blueprint parity is part of the same contract: a
+``get_field(EnharmonicPitchField(source_fields="midi"))`` or
+``MidiPitchField`` request must use that declared affordance's ``emit()``
+promotion, not attempt to wrap the raw ``int64`` as a struct directly.  The
+Vienna Chopin notes fixture pins the resulting 498-row fields and exact first
+MIDI number ``59`` for both blueprint and class paths.  A source that cannot
+be promoted (such as a non-numeric string column) remains a ``TypeError``.
+
 **Per-source default pitch type (zero-tolerance affordance pins).**
 `get_pitch_field()` returns the single most-expressive default:
 
