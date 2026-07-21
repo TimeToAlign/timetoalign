@@ -476,8 +476,23 @@ class EventData(SemanticFieldAccessMixin):
 
         # Boolean masks for each situation (vectorized)
         has_start = ~start_is_null
-        has_end = ~end_is_null
-        has_dur = ~dur_is_null
+        temporal_type = processed.get("temporal_type")
+        if temporal_type is None:
+            instant_rows = np.zeros(n, dtype=bool)
+        else:
+            if isinstance(temporal_type, (pa.Array, pa.ChunkedArray)):
+                temporal_values = temporal_type.to_pylist()
+            else:
+                temporal_values = list(temporal_type)
+            instant_rows = np.array(
+                [value == "instant" for value in temporal_values], dtype=bool
+            )
+
+        # Explicit instant events have no interval endpoints.  In particular,
+        # do not let a populated start coordinate manufacture a zero-length
+        # value-only interval during merged-table assembly.
+        has_end = ~end_is_null & ~instant_rows
+        has_dur = ~dur_is_null & ~instant_rows
 
         # Identify rows that are interval events (have start and at least end or dur)
         # is_interval = has_start & (has_end | has_dur)
@@ -535,12 +550,12 @@ class EventData(SemanticFieldAccessMixin):
         out_end_val = end_val.copy()
         out_end_num = end_num.copy()
         out_end_den = end_den.copy()
-        out_end_null = end_is_null.copy()
+        out_end_null = end_is_null.copy() | instant_rows
 
         out_dur_val = dur_val.copy()
         out_dur_num = dur_num.copy()
         out_dur_den = dur_den.copy()
-        out_dur_null = dur_is_null.copy()
+        out_dur_null = dur_is_null.copy() | instant_rows
 
         # Helper: vectorized fraction subtraction a/b - c/d
         def _frac_sub(a_num, a_den, b_num, b_den):
@@ -726,6 +741,11 @@ class EventData(SemanticFieldAccessMixin):
                     processed[coord_col] = coordinate_to_struct(val)
             elif coord_col not in processed:
                 processed[coord_col] = None
+
+        if processed.get("temporal_type") == "instant":
+            processed["end"] = None
+            processed["duration"] = None
+            return processed
 
         # ---- Extract float values ----
         def _float_of(v: Any) -> float | None:

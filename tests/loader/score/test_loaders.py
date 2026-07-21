@@ -153,11 +153,15 @@ class TestMs3Loader:
         assert duration["denominator"] is None
 
     def test_woo71_note_coordinates_are_exact(self):
-        """All WoO71 note starts, durations, and ends carry exact pairs."""
+        """Populated WoO71 note coordinates carry exact pairs."""
         rows = list(Ms3Loader.from_file(WOO71_NOTES).store.notes)
 
         assert len(rows) == 4753
         for row in rows:
+            if row["temporal_type"] == "instant":
+                assert row["end"] is None
+                assert row["duration"] is None
+                continue
             for field in ("start", "duration", "end"):
                 _exact_pair(row[field])
 

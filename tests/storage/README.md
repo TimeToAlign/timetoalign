@@ -14,6 +14,13 @@ null; the float convenience value must not be converted back into a fabricated
 rational.  These assertions protect the authoritative rational pair from
 default `0/1` values during interval filling.
 
+The interval-normalisation regression also checks the explicit temporal type:
+an instant row may have a populated ``start`` coordinate, but its ``end`` and
+``duration`` cells remain null.  Interval rows still receive both coordinates;
+when their inputs are exact, the generated pair is checked with Fraction
+arithmetic.  This is the same vectorized path used while assembling merged
+score tables.
+
 ## Test Files
 
 ### `test_events.py` - `EventData.column_values()`

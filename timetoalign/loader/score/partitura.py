@@ -5,6 +5,7 @@ from __future__ import annotations
 import bisect
 import warnings
 from fractions import Fraction
+from numbers import Integral
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,6 @@ with warnings.catch_warnings():
     import partitura.score as pts
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.core.fields import rational_to_struct, struct_to_rational
 
 from .base import ScoreLoader
 from .store import ScoreStore
@@ -50,6 +50,31 @@ _CONTROL_EVENT_TYPES = (
     pts.Direction,
     pts.Slur,
 )
+
+
+def _coordinate_struct(value: Fraction | float) -> dict[str, Any]:
+    """Return a coordinate struct without inventing a ratio for a float."""
+    if isinstance(value, Fraction):
+        return {
+            "value": float(value),
+            "numerator": value.numerator,
+            "denominator": value.denominator,
+        }
+    return {"value": float(value), "numerator": None, "denominator": None}
+
+
+def _struct_coordinate_value(struct: dict[str, Any]) -> Fraction | float:
+    """Read a coordinate pair, falling back to its value-only projection."""
+    numerator = struct.get("numerator")
+    denominator = struct.get("denominator")
+    if (
+        isinstance(numerator, Integral)
+        and not isinstance(numerator, bool)
+        and isinstance(denominator, Integral)
+        and not isinstance(denominator, bool)
+    ):
+        return Fraction(int(numerator), int(denominator))
+    return float(struct["value"])
 
 
 class PartituraLoader(ScoreLoader):
@@ -156,6 +181,106 @@ class PartituraLoader(ScoreLoader):
             # always returns quarter-note positions regardless of time sig.
             beat_map = part.quarter_map  # divs -> quarter beats
 
+            # Partitura's quarter map is a float interpolation, but its input
+            # positions and quarter durations are integer division counts.
+            # Integrate those exact durations ourselves so rational coordinates
+            # do not depend on reconstructing a Fraction from a float.
+            quarter_duration_changes: list[tuple[int, int]] | None = []
+            for time_value, duration_value in part.quarter_durations():
+                if isinstance(duration_value, Integral) and not isinstance(
+                    duration_value, bool
+                ):
+                    exact_duration = int(duration_value)
+                elif isinstance(duration_value, float) and duration_value.is_integer():
+                    exact_duration = int(duration_value)
+                else:
+                    quarter_duration_changes = None
+                    break
+                quarter_duration_changes.append((int(time_value), exact_duration))
+
+            if quarter_duration_changes:
+                deduplicated_changes: list[tuple[int, int]] = []
+                for change in quarter_duration_changes:
+                    if (
+                        deduplicated_changes
+                        and deduplicated_changes[-1][0] == change[0]
+                    ):
+                        deduplicated_changes[-1] = change
+                    else:
+                        deduplicated_changes.append(change)
+                quarter_duration_changes = deduplicated_changes
+
+            first_div = int(part.first_point.t)
+
+            def exact_quarter_delta(start: int, end: int) -> Fraction | None:
+                """Integrate exact quarter duration between two positions."""
+                if not quarter_duration_changes:
+                    return None
+
+                def duration_at(time_value: int) -> int | None:
+                    current: int | None = None
+                    for change_time, change_duration in quarter_duration_changes:
+                        if change_time > time_value:
+                            break
+                        current = change_duration
+                    return current
+
+                if end < start:
+                    result = exact_quarter_delta(end, start)
+                    return -result if result is not None else None
+
+                current = start
+                result = Fraction(0)
+                duration = duration_at(current)
+                if duration is None or duration == 0:
+                    return None
+                for change_time, change_duration in quarter_duration_changes:
+                    if change_time <= current:
+                        continue
+                    if change_time >= end:
+                        break
+                    result += Fraction(change_time - current, duration)
+                    current = change_time
+                    duration = change_duration
+                    if duration == 0:
+                        return None
+                result += Fraction(end - current, duration)
+                return result
+
+            first_measure = next(
+                (
+                    obj
+                    for obj in part.iter_all(include_subclasses=True)
+                    if isinstance(obj, pts.Measure)
+                ),
+                None,
+            )
+            anacrusis_correction = Fraction(0)
+            if first_measure is not None and first_measure.end is not None:
+                actual_duration = exact_quarter_delta(
+                    int(first_measure.start.t), int(first_measure.end.t)
+                )
+                first_time_signature = next(
+                    (
+                        time_signature
+                        for time_signature in part.time_sigs
+                        if time_signature.start.t <= first_measure.start.t
+                    ),
+                    None,
+                )
+                if actual_duration is not None and first_time_signature is not None:
+                    normal_duration = Fraction(
+                        int(first_time_signature.beats) * 4,
+                        int(first_time_signature.beat_type),
+                    )
+                    if actual_duration < normal_duration:
+                        anacrusis_correction = actual_duration
+
+            def exact_quarter_position(div_val: int) -> Fraction | None:
+                """Return a division position in exact quarter-note units."""
+                delta = exact_quarter_delta(first_div, div_val)
+                return delta - anacrusis_correction if delta is not None else None
+
             # Cache beat_map calls: many notes share divisions or measure starts
             beat_map_cache: dict[int, float] = {}
 
@@ -167,17 +292,18 @@ class PartituraLoader(ScoreLoader):
                     beat_map_cache[div_val] = result
                 return result
 
-            # Cache Fraction conversions: avoid repeated
-            # Fraction(float).limit_denominator(10000)
-            frac_cache: dict[int, Fraction] = {}
+            # Cache exact conversions; a float map is retained only as the
+            # value-only fallback for a genuinely non-rational Partitura map.
+            beat_coordinate_cache: dict[int, Fraction | float] = {}
 
-            def cached_beat_frac(div_val: int) -> Fraction:
-                """Return cached Fraction for beat_map(div_val)."""
-                result = frac_cache.get(div_val)
-                if result is None:
-                    result = Fraction(cached_beat_map(div_val)).limit_denominator(10000)
-                    frac_cache[div_val] = result
-                return result
+            def cached_beat_coordinate(div_val: int) -> Fraction | float:
+                """Return the exact or value-only quarter position."""
+                if div_val not in beat_coordinate_cache:
+                    exact = exact_quarter_position(div_val)
+                    beat_coordinate_cache[div_val] = (
+                        exact if exact is not None else cached_beat_map(div_val)
+                    )
+                return beat_coordinate_cache[div_val]
 
             # ===== Single pass: collect all objects by type =====
             measures_list: list[pts.Measure] = []
@@ -231,7 +357,7 @@ class PartituraLoader(ScoreLoader):
             for m_start in measure_starts:
                 measure_start_qb[m_start] = cached_beat_map(m_start)
                 # Also warm up the Fraction cache for measure starts
-                cached_beat_frac(m_start)
+                cached_beat_coordinate(m_start)
 
             # ===== Extract Flow Control from part.repeats =====
             # repeat_blocks: list of (start_mc, after_mc) tuples.
@@ -246,14 +372,14 @@ class PartituraLoader(ScoreLoader):
                     start_mc = get_mc(rep.start.t)
                     repeat_start_mcs.add(start_mc)
 
-                    qb_start = cached_beat_frac(rep.start.t)
+                    qb_start = cached_beat_coordinate(rep.start.t)
                     control_rows.append(
                         {
                             "id": f"repeat_start_{start_mc}",
                             "name": "RepeatStart",
                             "temporal_type": "instant",
                             "event_type": "RepeatStart",
-                            "quarterbeats": rational_to_struct(qb_start),
+                            "quarterbeats": _coordinate_struct(qb_start),
                             "duration_qb": None,
                             "mc": start_mc,
                             "mn": get_mn(start_mc, rep.start.t),
@@ -295,14 +421,14 @@ class PartituraLoader(ScoreLoader):
                         repeat_end_mcs.add(last_mc_in_repeat)
                         repeat_blocks.append((start_mc, after_mc))
 
-                        qb_end = cached_beat_frac(rep.end.t)
+                        qb_end = cached_beat_coordinate(rep.end.t)
                         control_rows.append(
                             {
                                 "id": f"repeat_end_{last_mc_in_repeat}",
                                 "name": "RepeatEnd",
                                 "temporal_type": "instant",
                                 "event_type": "RepeatEnd",
-                                "quarterbeats": rational_to_struct(qb_end),
+                                "quarterbeats": _coordinate_struct(qb_end),
                                 "duration_qb": None,
                                 "mc": last_mc_in_repeat,
                                 "mn": get_mn(last_mc_in_repeat, rep.end.t),
@@ -338,7 +464,7 @@ class PartituraLoader(ScoreLoader):
 
             for obj in flow_markers:
                 marker_mc = get_mc(obj.start.t)
-                qb = cached_beat_frac(obj.start.t)
+                qb = cached_beat_coordinate(obj.start.t)
 
                 if isinstance(obj, pts.Ending):
                     ending_num = getattr(obj, "number", 1)
@@ -381,7 +507,7 @@ class PartituraLoader(ScoreLoader):
                         "name": type(obj).__name__,
                         "temporal_type": "instant",
                         "event_type": type(obj).__name__,
-                        "quarterbeats": rational_to_struct(qb),
+                        "quarterbeats": _coordinate_struct(qb),
                         "duration_qb": None,
                         "mc": marker_mc,
                         "mn": get_mn(marker_mc, obj.start.t),
@@ -488,8 +614,8 @@ class PartituraLoader(ScoreLoader):
 
             # Process Measures
             for i, m in enumerate(measures):
-                qb_start = cached_beat_frac(m.start.t)
-                qb_end = cached_beat_frac(m.end.t)
+                qb_start = cached_beat_coordinate(m.start.t)
+                qb_end = cached_beat_coordinate(m.end.t)
                 dur = qb_end - qb_start
                 mc = i + 1
 
@@ -506,8 +632,8 @@ class PartituraLoader(ScoreLoader):
                         "name": str(m.number),
                         "temporal_type": "interval",
                         "event_type": "Measure",
-                        "quarterbeats": rational_to_struct(qb_start),
-                        "duration_qb": rational_to_struct(dur),
+                        "quarterbeats": _coordinate_struct(qb_start),
+                        "duration_qb": _coordinate_struct(dur),
                         "mc": mc,
                         "mn": str(m.number),
                         "timesig": None,  # Could extract from part
@@ -539,8 +665,8 @@ class PartituraLoader(ScoreLoader):
                 start_div = obj.start.t
                 dur_div = obj.duration if hasattr(obj, "duration") else 0
 
-                qb_start = cached_beat_frac(start_div)
-                qb_end = cached_beat_frac(start_div + dur_div)
+                qb_start = cached_beat_coordinate(start_div)
+                qb_end = cached_beat_coordinate(start_div + dur_div)
                 dur_qb = qb_end - qb_start
 
                 # MC context
@@ -551,10 +677,7 @@ class PartituraLoader(ScoreLoader):
                 if mc > 0 and mc <= len(measure_starts):
                     m_start_div = measure_starts[mc - 1]
                     # Use cached float values to compute onset, then convert
-                    onset_float = cached_beat_map(start_div) - cached_beat_map(
-                        m_start_div
-                    )
-                    mc_onset = Fraction(onset_float).limit_denominator(10000)
+                    mc_onset = qb_start - cached_beat_coordinate(m_start_div)
                 else:
                     mc_onset = Fraction(0)
 
@@ -602,14 +725,12 @@ class PartituraLoader(ScoreLoader):
                         "name": note_name,
                         "temporal_type": "interval" if dur_qb > 0 else "instant",
                         "event_type": "Rest" if is_rest else "Note",
-                        "quarterbeats": rational_to_struct(qb_start),
-                        "duration_qb": rational_to_struct(dur_qb),
+                        "quarterbeats": _coordinate_struct(qb_start),
+                        "duration_qb": _coordinate_struct(dur_qb),
                         "mc": mc,
                         "mn": mn,
-                        "mc_onset": rational_to_struct(mc_onset),
-                        "mn_onset": rational_to_struct(
-                            mc_onset
-                        ),  # Same as mc_onset for Partitura
+                        "mc_onset": _coordinate_struct(mc_onset),
+                        "mn_onset": _coordinate_struct(mc_onset),
                         "timesig": None,
                         "duration": None,
                         "nominal_duration": None,
@@ -632,17 +753,18 @@ class PartituraLoader(ScoreLoader):
 
             # Process control events (from pre-collected list)
             for obj in control_objects:
-                qb = cached_beat_frac(obj.start.t)
+                qb = cached_beat_coordinate(obj.start.t)
                 obj_mc = get_mc(obj.start.t)
                 control_rows.append(
                     {
                         # ID auto-generated from event_type (class name)
                         "name": obj.__class__.__name__,
-                        "temporal_type": (
-                            "interval" if getattr(obj, "end", None) else "instant"
-                        ),
+                        # Control objects are stored as point events here;
+                        # their Partitura end marker is not exported as an
+                        # interval coordinate.
+                        "temporal_type": "instant",
                         "event_type": obj.__class__.__name__,
-                        "quarterbeats": rational_to_struct(qb),
+                        "quarterbeats": _coordinate_struct(qb),
                         "duration_qb": None,
                         "mc": obj_mc,
                         "mn": get_mn(obj_mc, obj.start.t),
@@ -659,7 +781,7 @@ class PartituraLoader(ScoreLoader):
 
             # Process annotation events (from pre-collected list)
             for obj in annotation_objects:
-                qb = cached_beat_frac(obj.start.t)
+                qb = cached_beat_coordinate(obj.start.t)
                 obj_mc = get_mc(obj.start.t)
                 annotation_rows.append(
                     {
@@ -667,7 +789,7 @@ class PartituraLoader(ScoreLoader):
                         "name": getattr(obj, "text", str(obj)),
                         "temporal_type": "instant",
                         "event_type": "Text",
-                        "quarterbeats": rational_to_struct(qb),
+                        "quarterbeats": _coordinate_struct(qb),
                         "duration_qb": None,
                         "mc": obj_mc,
                         "mn": get_mn(obj_mc, obj.start.t),
@@ -691,25 +813,20 @@ class PartituraLoader(ScoreLoader):
         # compare raw partitura values against stored TTA coordinates can apply
         # the same correction.
         all_onsets = [
-            (
-                float(struct_to_rational(r["quarterbeats"]))
-                if r.get("quarterbeats")
-                else 0.0
-            )
+            _struct_coordinate_value(r["quarterbeats"])
             for r in note_rows
+            if r.get("quarterbeats") is not None
         ]
-        min_qb = min(all_onsets) if all_onsets else 0.0
-        offset: Fraction = (
-            Fraction(-min_qb).limit_denominator(10000) if min_qb < 0 else Fraction(0)
-        )
+        min_qb: Fraction | float = min(all_onsets, default=Fraction(0))
+        offset: Fraction | float = -min_qb if min_qb < 0 else Fraction(0)
         self._anacrusis_offset = float(offset)
 
         if offset:
             for rows in (note_rows, measure_rows, control_rows, annotation_rows):
                 for r in rows:
-                    old_qb = struct_to_rational(r["quarterbeats"])
+                    old_qb = _struct_coordinate_value(r["quarterbeats"])
                     new_qb = old_qb + offset
-                    r["quarterbeats"] = rational_to_struct(new_qb)
+                    r["quarterbeats"] = _coordinate_struct(new_qb)
 
         # Build data
         notes_data = getattr(NoteEventData, "from_" + "dicts")(

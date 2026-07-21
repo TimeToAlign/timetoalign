@@ -13,6 +13,13 @@ which implements the central Timeline class and its 6 domain-specific subclasses
 | `timelines/beatgrid.py` | 95% | Excellent |
 | `timelines/regions.py` | 94% | Excellent |
 
+### Merged Score Event Coordinates
+
+The score-timeline regression inspects the flattened Partitura event table
+directly.  It counts populated ``start``, ``end``, and ``duration`` structs,
+checks that every populated struct has an exact pair, and verifies that all
+instant control and annotation rows keep null ``end`` and ``duration`` cells.
+
 ### `test_groups.py` - Timeline Groups
 
 `TimelineGroup` and `GroupTimestamp` are timeline-layer concepts, so their tests

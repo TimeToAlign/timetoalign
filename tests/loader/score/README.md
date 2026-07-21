@@ -152,6 +152,16 @@ All score loaders return a `ScoreStore` containing category-specific data:
 
 ## Test File Organization
 
+### Partitura Exact Coordinate and Timeline Validation
+
+The Partitura regression tests load the Chopin MusicXML specimen and inspect
+both the category tables and a flattened score timeline.  They require every
+populated coordinate struct to carry a numerator/denominator pair, and they
+require rows marked ``temporal_type="instant"`` to retain null ``end`` and
+``duration`` structs.  The note assertions pin exact quarter-beat Fractions
+for integer division positions, including a dotted figure, and compare those
+values with Partitura's float map within ``1e-6``.
+
 | File | Purpose | Concern |
 |------|---------|---------|
 | `conftest.py` | Shared fixtures: FlowEntry, parse_flow_csv, SpecimenConfig, SPECIMENS, path constants | Test infrastructure |
