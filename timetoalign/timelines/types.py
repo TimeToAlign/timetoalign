@@ -881,8 +881,36 @@ class SegmentLine(Timeline, Generic[T]):
                 must have.  This enables recursive type enforcement
                 (e.g. ``SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]``).
                 Inferred from the first child's ``segment_type`` if not set.
-            **kwargs: Arguments passed to Timeline.__init__.
+            **kwargs: Arguments passed to Timeline.__init__.  When ``unit``
+                is omitted (or ``None``) and a ``segment_type`` is known, it
+                defaults to that class's own ``_default_unit`` rather than to
+                the base Timeline default -- so a
+                ``SegmentLine[ContinuousLogicalTimeline]`` is in quarters, not
+                seconds.  ``number_type`` follows the same rule, but only for
+                segment classes that define their own default.  For
+                ``segment_type=SegmentLine`` the defaults come from
+                ``inner_segment_type`` instead, mirroring
+                :attr:`class_name`.  An explicitly passed ``unit`` or
+                ``number_type`` always wins, and nothing is inferred when
+                ``segment_type`` is ``None``.
         """
+        # Take unit/number_type defaults from the segment class instead of the
+        # base Timeline defaults this class would otherwise inherit.
+        default_source = segment_type
+        if default_source is SegmentLine:
+            default_source = inner_segment_type
+        if default_source is not None:
+            if kwargs.get("unit") is None:
+                kwargs["unit"] = default_source._default_unit
+            # Only adopt a number_type the segment class declares itself; the
+            # value inherited from Timeline carries no intent here, and cannot
+            # be recognised by value alone since subclasses may redeclare it.
+            if kwargs.get("number_type") is None and any(
+                "_default_number_type" in klass.__dict__
+                for klass in default_source.__mro__
+                if klass is not Timeline
+            ):
+                kwargs["number_type"] = default_source._default_number_type
         super().__init__(**kwargs)
         self._segment_order: list[str] = []
         self._segment_type: type[Timeline] | None = segment_type

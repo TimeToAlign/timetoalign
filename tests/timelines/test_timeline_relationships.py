@@ -36,6 +36,7 @@ from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
+    DiscreteLogicalTimeline,
     Region,
     SegmentLine,
     Timeline,
@@ -795,6 +796,49 @@ class TestSegmentLineParameterized:
         assert (
             parent.class_name == "SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]"
         )
+
+    # -- Defaults inherited from the segment type --
+
+    def test_defaults_from_continuous_logical_segment_type(self):
+        """segment_type supplies unit and number_type when both are omitted."""
+        sl = SegmentLine(segment_type=ContinuousLogicalTimeline)
+
+        assert sl.unit == TimeUnit.quarters
+        assert sl.number_type == NumberType.fraction
+
+    def test_defaults_from_discrete_logical_segment_type(self):
+        """A discrete logical segment type yields its own default unit."""
+        sl = SegmentLine(segment_type=DiscreteLogicalTimeline)
+
+        assert sl.unit == TimeUnit.ticks
+        assert sl.number_type == NumberType.int
+
+    def test_defaults_from_inner_segment_type_when_nested(self):
+        """Nested SegmentLine takes its defaults from inner_segment_type."""
+        sl = SegmentLine(
+            segment_type=SegmentLine,
+            inner_segment_type=DiscreteGraphicalTimeline,
+        )
+
+        assert sl.unit == TimeUnit.pixels
+        assert sl.number_type == NumberType.int
+
+    def test_explicit_unit_overrides_segment_type_default(self):
+        """An explicitly passed unit is never overridden by the segment type."""
+        sl = SegmentLine(
+            segment_type=ContinuousLogicalTimeline,
+            unit=TimeUnit.beats,
+        )
+
+        assert sl.unit == TimeUnit.beats
+
+    def test_unparameterized_segment_line_keeps_base_defaults(self):
+        """Without segment_type, the base Timeline defaults still apply."""
+        sl = SegmentLine()
+
+        assert sl.segment_type is None
+        assert sl.unit == TimeUnit.seconds
+        assert sl.number_type == NumberType.float
 
     def test_class_name_non_segmentline_type_unchanged(self):
         """class_name for non-SegmentLine segment_type is unaffected."""
