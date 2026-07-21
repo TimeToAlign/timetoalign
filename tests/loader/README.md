@@ -43,6 +43,29 @@ storage constructor tests, but are intentionally not accepted by
 | `format/` | Cross-format loaders (JSON, XML, TTL) |
 | `physical/` | Audio loaders and time-coordinate ingestion |
 
+## Exact rational coordinates
+
+The score-side loader tests assert the numerator and denominator stored with
+logical coordinates, not only their floating-point convenience values. MS3
+measure starts, durations, and ends are compared with exact `Fraction`
+values from the TSV data. Matchfile score events are checked the same way for
+known normalized onsets, durations, and ends. These assertions ensure that
+rhythmic positions remain exactly addressable after they are placed in
+PyArrow event storage, while performance and recording coordinates retain
+their native numeric representation.
+
+### MS3 coordinate validation logic
+
+MS3 notes and measures use the symbolic `duration` or `act_dur` whole-note
+fraction, multiplied by four, as the authoritative exact duration. A derived
+`duration_qb` value is checked against it within `1e-6`; mismatches use the
+derived value under the same exact-or-value-only float rule. When no
+symbolic duration is available, a binary-rational `duration_qb` is exact only
+when its native float denominator is at most 4096. Other finite floats retain
+their float value with null exact fields. Starts follow the same exact-or-
+value-only rule, and interval ends are asserted from the resulting stored
+coordinates.
+
 ## Data conventions
 
 Alignment-loader tests treat anchor units as part of the gold-standard meaning of

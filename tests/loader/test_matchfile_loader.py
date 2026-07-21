@@ -15,6 +15,7 @@ See tests/data/vienna_1x22/README.md for gold standard values.
 
 from __future__ import annotations
 
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -195,6 +196,51 @@ class TestMatchfileLoaderSingle:
             f"Found negative start coordinates after normalisation: "
             f"{[s for s in starts if s < 0.0]}"
         )
+
+    def test_score_coordinates_preserve_exact_fractions(
+        self, p01_loader: MatchfileLoader
+    ):
+        """Known score positions retain exact normalized beat fractions."""
+        score_tl = p01_loader.create_timeline("score")
+        expected = {
+            "n1": (Fraction(0), Fraction(1, 2), Fraction(1, 2)),
+            "n2": (Fraction(1, 2), Fraction(1, 2), Fraction(1)),
+            "n12": (Fraction(3, 2), Fraction(5, 4), Fraction(11, 4)),
+        }
+
+        for note_id, (start, duration, end) in expected.items():
+            event = score_tl.get_event(note_id)
+            assert event is not None
+            assert (
+                Fraction(event["start"]["numerator"], event["start"]["denominator"])
+                == start
+            )
+            assert (
+                Fraction(
+                    event["duration"]["numerator"], event["duration"]["denominator"]
+                )
+                == duration
+            )
+            assert (
+                Fraction(event["end"]["numerator"], event["end"]["denominator"]) == end
+            )
+
+    def test_score_cache_matches_exact_timeline_coordinates(
+        self, p01_loader: MatchfileLoader
+    ):
+        """The exact score cache and stored timeline use the same pairs."""
+        score_tl = p01_loader.create_timeline("score")
+        for note_id, (cached_start, cached_end) in p01_loader._score_events.items():
+            event = score_tl.get_event(note_id)
+            assert event is not None
+            stored_start = Fraction(
+                event["start"]["numerator"], event["start"]["denominator"]
+            )
+            stored_end = Fraction(
+                event["end"]["numerator"], event["end"]["denominator"]
+            )
+            assert stored_start == cached_start
+            assert stored_end == cached_end
 
     def test_anacrusis_offset(self, p01_loader: MatchfileLoader):
         """Anacrusis offset is 0.5 (the negation of min raw onset -0.5)."""

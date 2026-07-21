@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import math
 from fractions import Fraction
+from numbers import Integral, Real
 from pathlib import Path
 from typing import Any
 
@@ -262,24 +264,121 @@ class Ms3Loader(ScoreLoader):
             return ScoreStore.empty()
 
     def _parse_fraction(self, val: Any) -> Fraction | None:
-        """Parse fraction from TSV value (string like '3/4' or float)."""
-        if val is None or (isinstance(val, float) and pd.isna(val)):
+        """Parse a value when its exact rational representation is trusted.
+
+        Decimal strings are source values and therefore remain exact. Native
+        floats are treated as binary rationals only when their denominator is
+        compact enough to be a faithful symbolic value rather than a derived
+        decimal artifact.
+
+        Args:
+            val: A TSV value to parse.
+
+        Returns:
+            An exact fraction, or ``None`` when the value is missing or
+            should remain value-only.
+        """
+        if val is None:
             return None
+        if isinstance(val, Real):
+            numeric = float(val)
+            if not math.isfinite(numeric):
+                return None
+        elif pd is not None:
+            try:
+                if bool(pd.isna(val)):
+                    return None
+            except (TypeError, ValueError):
+                pass
+
         if isinstance(val, Fraction):
             return val
         if isinstance(val, str):
             if "/" in val:
                 parts = val.split("/")
-                return Fraction(int(parts[0]), int(parts[1]))
+                try:
+                    return Fraction(int(parts[0]), int(parts[1]))
+                except (ValueError, ZeroDivisionError):
+                    return None
             try:
-                return Fraction(val).limit_denominator(10000)
-            except ValueError:
+                return Fraction(val)
+            except (ValueError, ZeroDivisionError):
                 return None
-        if isinstance(val, (int, float)):
-            return Fraction(val).limit_denominator(10000)
+        if isinstance(val, Integral):
+            return Fraction(int(val))
+        if isinstance(val, Real):
+            if numeric.is_integer():
+                return Fraction(int(numeric))
+            numerator, denominator = numeric.as_integer_ratio()
+            if denominator <= 4096:
+                return Fraction(numerator, denominator)
         return None
 
-    def _resolve_quarterbeats(self, row: "pd.Series") -> Fraction | None:
+    def _coordinate_value(self, val: Any) -> Fraction | float | None:
+        """Parse a coordinate exactly, retaining finite inexact floats.
+
+        Args:
+            val: A coordinate value from a TSV row.
+
+        Returns:
+            An exact fraction, a finite float without an exact pair, or None.
+        """
+        exact = self._parse_fraction(val)
+        if exact is not None:
+            return exact
+        if isinstance(val, Real):
+            numeric = float(val)
+            if math.isfinite(numeric):
+                return numeric
+        return None
+
+    @staticmethod
+    def _has_value(val: Any) -> bool:
+        """Return whether a scalar TSV value is present and finite."""
+        if val is None:
+            return False
+        if isinstance(val, Real):
+            return math.isfinite(float(val))
+        if pd is not None:
+            try:
+                return not bool(pd.isna(val))
+            except (TypeError, ValueError):
+                return True
+        return True
+
+    def _resolve_duration(
+        self, row: "pd.Series", exact_column: str
+    ) -> Fraction | float | None:
+        """Resolve a quarter-beat duration from symbolic and derived columns.
+
+        Args:
+            row: A pandas row from an MS3 facet.
+            exact_column: The whole-note symbolic duration column.
+
+        Returns:
+            A quarter-beat duration. Exact values are fractions; inexact
+            values are finite floats; missing values are None unless the
+            derived column itself is absent, preserving the old zero default.
+        """
+        exact_source = self._parse_fraction(row.get(exact_column))
+        has_duration_qb = "duration_qb" in row
+        duration_qb = row.get("duration_qb")
+
+        if exact_source is not None:
+            exact_duration = exact_source * 4
+            if has_duration_qb and self._has_value(duration_qb):
+                derived_float = float(duration_qb)
+                if abs(float(exact_duration) - derived_float) > 1e-6:
+                    return self._coordinate_value(duration_qb)
+            return exact_duration
+
+        if has_duration_qb and self._has_value(duration_qb):
+            return self._coordinate_value(duration_qb)
+        if not has_duration_qb:
+            return Fraction(0)
+        return None
+
+    def _resolve_quarterbeats(self, row: "pd.Series") -> Fraction | float | None:
         """Resolve the quarterbeats coordinate from a TSV row.
 
         Prefers ``quarterbeats_all_endings`` when the column is present
@@ -303,11 +402,11 @@ class Ms3Loader(ScoreLoader):
             provides a usable value.
         """
         # Prefer quarterbeats_all_endings (includes all volta endings)
-        qb_all = self._parse_fraction(row.get("quarterbeats_all_endings"))
+        qb_all = self._coordinate_value(row.get("quarterbeats_all_endings"))
         if qb_all is not None:
             return qb_all
         # Fallback: plain quarterbeats
-        return self._parse_fraction(row.get("quarterbeats"))
+        return self._coordinate_value(row.get("quarterbeats"))
 
     def _load_notes(self, df: pd.DataFrame, source: Path) -> ScoreStore:
         """Load notes TSV into NoteEventData."""
@@ -323,7 +422,7 @@ class Ms3Loader(ScoreLoader):
             # Temporal - Primary (with quarterbeats_all_endings fallback)
             qb = self._resolve_quarterbeats(row)
 
-            dur_qb = self._parse_fraction(row.get("duration_qb", 0))
+            dur_qb = self._resolve_duration(row, "duration")
 
             # Temporal - Measure context
             mc = int(row["mc"]) if pd.notna(row.get("mc")) else None
@@ -385,7 +484,7 @@ class Ms3Loader(ScoreLoader):
                 {
                     "name": str(row.get("name", "")),
                     "temporal_type": (
-                        "interval" if (dur_qb and dur_qb > 0) else "instant"
+                        "interval" if (dur_qb is not None and dur_qb > 0) else "instant"
                     ),
                     "event_type": "Note" if midi is not None else "Rest",
                     # Temporal - core coordinates use coordinate_to_struct
@@ -502,18 +601,15 @@ class Ms3Loader(ScoreLoader):
 
             # ===== Temporal (with quarterbeats_all_endings fallback) =====
             qb = self._resolve_quarterbeats(row)
-            qb_float = float(qb) if qb else 0.0
 
-            dur_qb = self._parse_fraction(row.get("duration_qb", 0))
-            dur_qb_float = float(dur_qb) if dur_qb else 0.0
+            dur_qb = self._resolve_duration(row, "act_dur")
 
             # act_dur is often a fraction string like "1/2" for half a bar
             act_dur = row.get("act_dur")
-            if pd.notna(act_dur):
-                act_dur_frac = self._parse_fraction(act_dur)
-                actual_length = float(act_dur_frac * 4) if act_dur_frac else None
+            if self._has_value(act_dur):
+                actual_length = float(dur_qb) if dur_qb is not None else None
             else:
-                actual_length = dur_qb_float
+                actual_length = float(dur_qb) if dur_qb is not None else 0.0
 
             # mc_offset for split bars
             mc_offset = (
@@ -626,9 +722,20 @@ class Ms3Loader(ScoreLoader):
                     "mn": mn,
                     "mn_int": mn_int,
                     # Temporal
-                    "start": qb_float,
-                    "duration": dur_qb_float,
-                    "end": qb_float + dur_qb_float,
+                    "start": (
+                        coordinate_to_struct(qb)
+                        if qb is not None
+                        else coordinate_to_struct(0)
+                    ),
+                    "duration": (
+                        coordinate_to_struct(dur_qb)
+                        if dur_qb is not None
+                        else coordinate_to_struct(0)
+                    ),
+                    "end": coordinate_to_struct(
+                        (qb if qb is not None else Fraction(0))
+                        + (dur_qb if dur_qb is not None else Fraction(0))
+                    ),
                     "nominal_length": nominal_length,
                     "actual_length": actual_length,
                     "mc_offset": mc_offset,
@@ -708,7 +815,7 @@ class Ms3Loader(ScoreLoader):
             qb = self._resolve_quarterbeats(row)
 
             # Duration (if available)
-            dur_qb = self._parse_fraction(row.get("duration_qb"))
+            dur_qb = self._coordinate_value(row.get("duration_qb"))
 
             # Measure context
             mc = int(row["mc"]) if pd.notna(row.get("mc")) else None
@@ -816,7 +923,7 @@ class Ms3Loader(ScoreLoader):
             qb = self._resolve_quarterbeats(row)
 
             # Duration (if available)
-            dur_qb = self._parse_fraction(row.get("duration_qb"))
+            dur_qb = self._coordinate_value(row.get("duration_qb"))
 
             # Measure context
             mc = int(row["mc"]) if pd.notna(row.get("mc")) else None

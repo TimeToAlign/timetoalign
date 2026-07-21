@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import re
+from fractions import Fraction
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -139,10 +140,11 @@ class MatchfileLoader(AlignmentLoader):
         self._sources: list[Path] = []
 
         # Score event tracking: snote_id -> (start, end) in TTA coords
-        self._score_events: dict[str, tuple[float, float]] = {}
+        self._score_events: dict[str, tuple[Fraction, Fraction]] = {}
 
         # Anacrusis offset (computed from first file)
         self._anacrusis_offset: float = 0.0
+        self._anacrusis_offset_exact = Fraction(0)
 
         # Header info from first file
         self._midi_clock_units: int | None = None
@@ -240,6 +242,51 @@ class MatchfileLoader(AlignmentLoader):
         """
         return raw + offset
 
+    @staticmethod
+    def _read_exact_score_coordinates(
+        path: Path,
+    ) -> dict[str, tuple[Fraction, Fraction]]:
+        """Read exact score onsets and offsets from matchfile text.
+
+        Partitura exposes the score coordinates in its note array as
+        ``float32`` values. The matchfile itself stores those beat values as
+        decimal text, so parsing the source fields directly retains their
+        exact decimal fractions.
+
+        Args:
+            path: Matchfile to read.
+
+        Returns:
+            Mapping from score-note ID to ``(onset, offset)`` fractions.
+
+        Raises:
+            ValueError: If a score-note line cannot be parsed.
+        """
+        number = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)"
+        pattern = re.compile(
+            rf"^snote\((?P<id>[^,]+),.*,(?P<onset>{number}),"
+            rf"(?P<offset>{number}),\["
+        )
+        coordinates: dict[str, tuple[Fraction, Fraction]] = {}
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if not line.startswith("snote("):
+                    continue
+                match = pattern.match(line.strip())
+                if match is None:
+                    raise ValueError(f"Could not parse score coordinates in {path}")
+                score_id = match.group("id")
+                coordinates[score_id] = (
+                    Fraction(match.group("onset")),
+                    Fraction(match.group("offset")),
+                )
+        return coordinates
+
+    @staticmethod
+    def _to_tta_fraction(raw: Fraction, offset: Fraction) -> Fraction:
+        """Convert an exact raw score coordinate to TTA coordinates."""
+        return raw + offset
+
     def _check_or_add_score_event(
         self,
         snote_id: str,
@@ -322,9 +369,17 @@ class MatchfileLoader(AlignmentLoader):
             self._midi_clock_rate = midi_clock_rate
             self._piece_name = piece_name
 
-        # Build note array for score coordinates
+        # Build note array for score metadata and score IDs. The exact beat
+        # coordinates are read from the matchfile source text below because
+        # partitura's note array materialises them as float32 values.
         score_na = pt.compute_note_array(score)
         score_by_id = {score_na[i]["id"]: score_na[i] for i in range(len(score_na))}
+        exact_score_coords = self._read_exact_score_coordinates(path)
+        if set(score_by_id) != set(exact_score_coords):
+            raise ValueError(
+                f"Score IDs from partitura and source differ in {path}: "
+                f"{set(score_by_id) ^ set(exact_score_coords)}"
+            )
 
         # Build lookup for performance notes
         pp = perf[0]  # First (and only) PerformedPart
@@ -338,20 +393,18 @@ class MatchfileLoader(AlignmentLoader):
         # Compute anacrusis offset from raw score onsets (first file only)
         is_first_file = self._score_timeline is None
         if is_first_file:
-            raw_onsets = [float(score_by_id[sid]["onset_beat"]) for sid in score_by_id]
+            raw_onsets = [exact_score_coords[sid][0] for sid in score_by_id]
             min_onset = min(raw_onsets)
-            self._anacrusis_offset = -min_onset if min_onset < 0 else 0.0
+            self._anacrusis_offset_exact = -min_onset if min_onset < 0 else Fraction(0)
+            self._anacrusis_offset = float(self._anacrusis_offset_exact)
 
-        offset = self._anacrusis_offset
+        offset = self._anacrusis_offset_exact
 
         # Step 1: Verify or add score events to the shared timeline
         if is_first_file:
             # Compute timeline length from max offset + duration
-            raw_onsets = [float(score_by_id[sid]["onset_beat"]) for sid in score_by_id]
-            raw_durations = [
-                float(score_by_id[sid]["duration_beat"]) for sid in score_by_id
-            ]
-            max_end = max(onset + dur for onset, dur in zip(raw_onsets, raw_durations))
+            raw_ends = [exact_score_coords[sid][1] for sid in score_by_id]
+            max_end = max(raw_ends)
             timeline_length = max_end + offset
 
             self._score_timeline = ContinuousLogicalTimeline(
@@ -363,15 +416,15 @@ class MatchfileLoader(AlignmentLoader):
 
             # Add all score events to the timeline
             score_event_dicts = []
-            for sid, row in score_by_id.items():
-                onset_raw = float(row["onset_beat"])
-                dur = float(row["duration_beat"])
-                onset_tta = self._to_tta_coord(onset_raw, offset)
-                end_tta = self._to_tta_coord(onset_raw + dur, offset)
+            for sid in score_by_id:
+                onset_raw, end_raw = exact_score_coords[sid]
+                onset_tta = self._to_tta_fraction(onset_raw, offset)
+                end_tta = self._to_tta_fraction(end_raw, offset)
                 score_event_dicts.append(
                     {
                         "id": sid,
                         "start": onset_tta,
+                        "duration": end_tta - onset_tta,
                         "end": end_tta,
                     }
                 )
@@ -409,11 +462,10 @@ class MatchfileLoader(AlignmentLoader):
 
         else:
             # Subsequent file: verify compatibility via _check_or_add_score_event
-            for sid, row in score_by_id.items():
-                onset_raw = float(row["onset_beat"])
-                dur = float(row["duration_beat"])
-                onset_tta = self._to_tta_coord(onset_raw, offset)
-                end_tta = self._to_tta_coord(onset_raw + dur, offset)
+            for sid in score_by_id:
+                onset_raw, end_raw = exact_score_coords[sid]
+                onset_tta = self._to_tta_fraction(onset_raw, offset)
+                end_tta = self._to_tta_fraction(end_raw, offset)
 
                 if not self._check_or_add_score_event(
                     sid, onset_tta, end_tta, path.name

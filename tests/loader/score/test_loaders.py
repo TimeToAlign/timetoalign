@@ -1,5 +1,8 @@
 """Tests for symbolic score loaders (ScoreStore architecture)."""
 
+from __future__ import annotations
+
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -12,6 +15,38 @@ from timetoalign.loader.score.store import ScoreStore
 DATA_DIR = Path(__file__).parents[2] / "data" / "vienna_1x22"
 MIDI_SCORE_DIR = Path(__file__).parents[2] / "data" / "midi" / "score"
 MS3_DIR = DATA_DIR / "ms3"
+WOO71_MEASURES = (
+    Path(__file__).parents[2]
+    / "data"
+    / "score"
+    / "beethoven_woo71"
+    / "WoO71.measures.tsv"
+)
+WOO71_NOTES = WOO71_MEASURES.with_name("WoO71.notes.tsv")
+
+
+def _write_synthetic_notes(
+    path: Path, duration_qb: str, duration: str | None = None
+) -> Path:
+    """Write one minimal MS3 notes row for coordinate validation."""
+    columns = ["mc", "mn", "quarterbeats", "duration_qb", "midi", "name", "octave"]
+    values = ["1", "1", "0", duration_qb, "60", "C4", "4"]
+    if duration is not None:
+        columns.append("duration")
+        values.append(duration)
+    path.write_text(
+        "\t".join(columns) + "\n" + "\t".join(values) + "\n", encoding="utf-8"
+    )
+    return path
+
+
+def _exact_pair(coordinate: dict[str, object]) -> tuple[int, int]:
+    """Return the exact numerator and denominator from a coordinate struct."""
+    numerator = coordinate["numerator"]
+    denominator = coordinate["denominator"]
+    assert isinstance(numerator, int)
+    assert isinstance(denominator, int)
+    return numerator, denominator
 
 
 @pytest.fixture
@@ -56,6 +91,75 @@ class TestMs3Loader:
         assert qb is not None
         assert "numerator" in qb and "denominator" in qb
         assert "value" in qb
+
+    def test_measure_coordinates_preserve_exact_fractions(self):
+        """Known MS3 measures retain exact starts, durations, and ends."""
+        loader = Ms3Loader.from_file(WOO71_MEASURES)
+        rows = {row["id"]: row for row in loader.store.measures}
+        expected = {
+            "mc:00001": (Fraction(0), Fraction(1), Fraction(1)),
+            "mc:00002": (Fraction(1), Fraction(2), Fraction(3)),
+            "mc:00003": (Fraction(3), Fraction(2), Fraction(5)),
+        }
+
+        for measure_id, (start, duration, end) in expected.items():
+            row = rows[measure_id]
+            assert (
+                Fraction(row["start"]["numerator"], row["start"]["denominator"])
+                == start
+            )
+            assert (
+                Fraction(row["duration"]["numerator"], row["duration"]["denominator"])
+                == duration
+            )
+            assert Fraction(row["end"]["numerator"], row["end"]["denominator"]) == end
+
+    def test_triplet_duration_uses_symbolic_fraction(self, tmp_path):
+        """A triplet duration keeps its exact one-third quarter value."""
+        path = _write_synthetic_notes(
+            tmp_path / "triplet.notes.tsv",
+            duration_qb="0.3333333333333333",
+            duration="1/12",
+        )
+
+        row = list(Ms3Loader.from_file(path).store.notes)[0]
+
+        assert _exact_pair(row["duration"]) == (1, 3)
+        assert _exact_pair(row["end"]) == (1, 3)
+
+    def test_binary_rational_duration_without_symbolic_source(self, tmp_path):
+        """A compact native binary duration remains exact without duration."""
+        path = _write_synthetic_notes(
+            tmp_path / "binary_duration.notes.tsv", duration_qb="0.5"
+        )
+
+        row = list(Ms3Loader.from_file(path).store.notes)[0]
+
+        assert _exact_pair(row["duration"]) == (1, 2)
+        assert _exact_pair(row["end"]) == (1, 2)
+
+    def test_pathological_derived_duration_is_value_only(self, tmp_path):
+        """A derived decimal with a large binary denominator has no pair."""
+        path = _write_synthetic_notes(
+            tmp_path / "derived_decimal.notes.tsv",
+            duration_qb="0.3333333333333333",
+        )
+
+        row = list(Ms3Loader.from_file(path).store.notes)[0]
+        duration = row["duration"]
+
+        assert duration["value"] == 0.3333333333333333
+        assert duration["numerator"] is None
+        assert duration["denominator"] is None
+
+    def test_woo71_note_coordinates_are_exact(self):
+        """All WoO71 note starts, durations, and ends carry exact pairs."""
+        rows = list(Ms3Loader.from_file(WOO71_NOTES).store.notes)
+
+        assert len(rows) == 4753
+        for row in rows:
+            for field in ("start", "duration", "end"):
+                _exact_pair(row[field])
 
     def test_pitch_schema(self, chopin_tsv_notes):
         """Pitch is represented once: specific_pitch default + raw midi int.
