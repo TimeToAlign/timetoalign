@@ -45,8 +45,10 @@ LoadSourceResult = tuple[
 ]
 
 if TYPE_CHECKING:
+    from timetoalign.alignment.bundle import AlignmentBundle
     from timetoalign.storage.store import AlignmentStore, EventStore
     from timetoalign.timelines.base import Timeline
+    from timetoalign.timelines.groups import TimelineGroup
 
 module_logger = logging.getLogger(__name__)
 
@@ -140,11 +142,11 @@ class Loader(ABC, Generic[PayloadT]):
         """Create all timelines, optionally filtered by an implementation."""
         return [self.create_timeline()]
 
-    def create_group(self, **kwargs: Any) -> Any:
+    def create_group(self, **kwargs: Any) -> "TimelineGroup | None":
         """Create a timeline group when supported."""
         return None
 
-    def create_bundle(self, **kwargs: Any) -> Any:
+    def create_bundle(self, **kwargs: Any) -> "AlignmentBundle":
         """Create an alignment bundle when supported."""
         raise NotImplementedError(
             f"{self.__class__.__name__} does not implement create_bundle()."
@@ -364,7 +366,7 @@ class EventLoader(Loader[LoadSourceResult]):
         """
         return [self.create_timeline()]
 
-    def create_group(self, **kwargs: Any) -> Any:
+    def create_group(self, **kwargs: Any) -> "TimelineGroup | None":
         """Create a `TimelineGroup`. Override in subclasses that support groups.
 
         Returns:
@@ -372,7 +374,7 @@ class EventLoader(Loader[LoadSourceResult]):
         """
         return None
 
-    def create_bundle(self, **kwargs: Any) -> Any:
+    def create_bundle(self, **kwargs: Any) -> "AlignmentBundle":
         """Create an `AlignmentBundle`. Override in subclasses that support bundles.
 
         Raises:
@@ -1266,7 +1268,7 @@ class AlignmentLoader(Loader["AlignmentStore"]):
             tl for tl in timelines if id_pattern is None or re.search(id_pattern, tl.id)
         ]
 
-    def create_group(self, **kwargs: Any) -> Any:
+    def create_group(self, **kwargs: Any) -> "TimelineGroup | None":
         """Create a `TimelineGroup`. Override in subclasses that support groups.
 
         Returns:
@@ -1274,7 +1276,7 @@ class AlignmentLoader(Loader["AlignmentStore"]):
         """
         return None
 
-    def create_bundle(self, **kwargs: Any) -> Any:
+    def create_bundle(self, **kwargs: Any) -> "AlignmentBundle":
         """Create an `AlignmentBundle`. Override in subclasses that support bundles.
 
         Raises:
