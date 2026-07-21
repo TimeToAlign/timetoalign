@@ -10,12 +10,9 @@ from pathlib import Path
 import pytest
 
 from timetoalign.core import TimeUnit
-from timetoalign.loader.physical.repovizz import (
-    CatalogueEntry,
-    RepovizzDictStore,
-    RepoVizzInfo,
-    RepoVizzLoader,
-)
+from timetoalign.loader.physical.repovizz import RepoVizzInfo, RepoVizzLoader
+from timetoalign.loader.physical.repovizz_catalogue import CatalogueEntry
+from timetoalign.loader.physical.repovizz_store import RepovizzDictStore
 from timetoalign.timelines import DiscretePhysicalTimeline
 
 pytestmark = pytest.mark.slow

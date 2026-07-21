@@ -37,16 +37,18 @@ from __future__ import annotations
 import logging
 import re
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit, resolve_id
+from timetoalign.display.html import code
 from timetoalign.loader.base import ManifestData, ManifestLoader
 from timetoalign.storage.events import EventData
-from timetoalign.storage.store import DictStore
+
+from .repovizz_catalogue import CatalogueEntry, _XmlCatalogueParser
+from .repovizz_store import RepovizzDictStore
 
 if TYPE_CHECKING:
     from timetoalign.timelines import DiscretePhysicalTimeline
@@ -55,193 +57,6 @@ if TYPE_CHECKING:
 
 
 module_logger = logging.getLogger(__name__)
-
-
-# region CatalogueEntry
-
-
-@dataclass(frozen=True)
-class CatalogueEntry:
-    """Metadata for a loadable signal/audio/annotation from an XML manifest.
-
-    This dataclass represents a single loadable item from a RepoVizz
-    (or similar) XML manifest. It captures enough metadata to:
-    1. Identify the item (xml_id, name)
-    2. Categorize it (group, subgroup, file_type)
-    3. Load the data (filename, sample_rate, n_samples)
-    4. Handle special cases (related_ids for MoCap X/Y/Z grouping)
-
-    The class is frozen (immutable) to enable use as dict keys and to
-    ensure catalogue entries don't change after parsing.
-
-    Attributes:
-        xml_id: Unique identifier from the XML (ID attribute).
-        name: Human-readable name from the XML (Name or name attribute).
-        category: Category from the XML (e.g., "Ambient", "Pickup", "AuDesc").
-        group: Top-level group: "audio", "score", "descriptors", "mocap".
-        subgroup: Second-level grouping (e.g., "ambient", "vln1", "MoCap").
-        filename: Data file referenced (None for container elements).
-        file_type: File format: "BWF", "CSV", "NOTES", "txt", "wav", etc.
-        sample_rate: Sampling rate in Hz (0.0 for non-signal entries).
-        n_samples: Number of samples from XML (0 for non-signal entries).
-        frame_size: For multi-dimensional signals (1 for scalar).
-        metadata: Additional attributes from the XML element.
-        related_ids: For MoCapMarker: tuple of (x_id, y_id, z_id) signal IDs.
-    """
-
-    xml_id: str
-    name: str
-    category: str
-    group: str
-    subgroup: str
-    filename: str | None
-    file_type: str
-    sample_rate: float
-    n_samples: int
-    frame_size: int = 1
-    metadata: dict[str, Any] = field(default_factory=dict)
-    related_ids: tuple[str, ...] = ()
-
-    @property
-    def is_signal(self) -> bool:
-        """True if this entry represents a loadable signal (has samples)."""
-        return self.n_samples > 0 and self.sample_rate > 0
-
-    @property
-    def duration_seconds(self) -> float:
-        """Duration in seconds (0 if not a signal)."""
-        if not self.is_signal:
-            return 0.0
-        return self.n_samples / self.sample_rate
-
-
-# endregion
-
-
-# region RepovizzDictStore
-
-
-class RepovizzDictStore(DictStore):
-    """``DictStore`` subclass with category properties for RepoVizz data.
-
-    Each property returns a list of catalogue entry IDs for that category,
-    enabling lazy loading of specific data types. The actual timeline data
-    is loaded on demand via ``loader.create_timeline(entry)``.
-
-    Categories correspond to the top-level XML groups:
-    - ``.audio`` — Audio file entries (ambient + pickup recordings)
-    - ``.score`` — Score annotation entries (.notes files)
-    - ``.descriptors`` — Bowing gesture descriptor entries (CSV)
-    - ``.mocap`` — MoCap marker entries (X/Y/Z grouped)
-    - ``.notes`` — Note events from .notes files (per-instrument)
-
-    Unlike TiliaDictStore which concatenates EventData tables, this store
-    returns ID lists because the data is heterogeneous (different sample
-    rates, different file formats).
-
-    See Also:
-        timetoalign.storage.store.DictStore
-        timetoalign.loader.alignment.tilia.TiliaDictStore
-    """
-
-    def __init__(
-        self,
-        data: dict[str, EventData] | None = None,
-        catalogue: dict[str, CatalogueEntry] | None = None,
-    ) -> None:
-        """Initialize RepovizzDictStore.
-
-        Args:
-            data: Dictionary mapping IDs to EventData tables (lazy-loaded).
-            catalogue: Dictionary mapping IDs to CatalogueEntry metadata.
-        """
-        super().__init__(data)
-        self._catalogue: dict[str, CatalogueEntry] = catalogue or {}
-        self._notes: EventData | None = None
-        self._notes_by_instrument: dict[str, EventData] = {}
-
-    def set_catalogue(self, catalogue: dict[str, CatalogueEntry]) -> None:
-        """Set the catalogue after parsing.
-
-        Args:
-            catalogue: Dict mapping xml_id to CatalogueEntry.
-        """
-        self._catalogue = catalogue
-
-    @property
-    def catalogue(self) -> dict[str, CatalogueEntry]:
-        """The full catalogue of entries."""
-        return self._catalogue
-
-    def _ids_by_group(self, group: str) -> list[str]:
-        """Return IDs for entries in a specific group."""
-        return [e.xml_id for e in self._catalogue.values() if e.group == group]
-
-    @property
-    def audio(self) -> list[str]:
-        """IDs of Audio timeline entries."""
-        return self._ids_by_group("audio")
-
-    @property
-    def score(self) -> list[str]:
-        """IDs of Score annotation entries."""
-        return self._ids_by_group("score")
-
-    @property
-    def descriptors(self) -> list[str]:
-        """IDs of bowing gesture descriptor entries."""
-        return self._ids_by_group("descriptors")
-
-    @property
-    def mocap(self) -> list[str]:
-        """IDs of MoCap marker entries."""
-        return self._ids_by_group("mocap")
-
-    @property
-    def groups(self) -> list[str]:
-        """List of all group names present in the catalogue."""
-        return sorted(set(e.group for e in self._catalogue.values()))
-
-    @property
-    def notes(self) -> EventData | None:
-        """Combined note events from all .notes files."""
-        return self._notes
-
-    def notes_for_instrument(self, instrument: str) -> EventData | None:
-        """Get note events for a specific instrument.
-
-        Args:
-            instrument: Instrument name (vln1, vln2, vla, cello).
-
-        Returns:
-            EventData for the instrument, or None if not found.
-        """
-        return self._notes_by_instrument.get(instrument)
-
-    def set_notes(
-        self,
-        notes: EventData,
-        notes_by_instrument: dict[str, EventData],
-    ) -> None:
-        """Set the notes data after loading.
-
-        Args:
-            notes: Combined EventData from all .notes files.
-            notes_by_instrument: Dict mapping instrument to EventData.
-        """
-        self._notes = notes
-        self._notes_by_instrument = notes_by_instrument
-
-    def __repr__(self) -> str:
-        """Return string representation."""
-        group_counts: dict[str, int] = {}
-        for e in self._catalogue.values():
-            group_counts[e.group] = group_counts.get(e.group, 0) + 1
-        parts = ", ".join(f"{k}={v}" for k, v in sorted(group_counts.items()))
-        return f"RepovizzDictStore({parts or 'empty'})"
-
-
-# endregion
 
 
 # region RepoVizzInfo (legacy CSV support)
@@ -477,29 +292,14 @@ class RepoVizzLoader(ManifestLoader):
         self._xml_root_path = source.parent
         self._is_xml_mode = True
 
-        # Build catalogue from XML
-        catalogue: dict[str, CatalogueEntry] = {}
-        specs: list[dict[str, Any]] = []
-
-        self._walk_xml(root, catalogue, specs, group="", subgroup="")
-
-        self._store.set_catalogue(catalogue)
-        self._timeline_specs = specs
-
-        # Extract top-level metadata
         self._xml_metadata = {
             "root_id": root.get("ID", ""),
             "source_path": str(source),
         }
-
-        # Find METADATA section for title
-        for elem in root.iter():
-            if elem.get("Category") == "METADATA":
-                for child in elem:
-                    if child.get("Category") == "TITLE":
-                        self._xml_metadata["title"] = child.get("Text", "")
-                        break
-                break
+        parser = _XmlCatalogueParser(source.parent, self._xml_metadata, self._logger)
+        catalogue, specs = parser.parse_catalogue(root)
+        self._store.set_catalogue(catalogue)
+        self._timeline_specs = specs
 
         # Load notes from score entries
         self._load_notes(catalogue)
@@ -562,239 +362,6 @@ class RepoVizzLoader(ManifestLoader):
                 )
 
         self._store.set_notes(combined_notes, notes_by_instrument)
-
-    def _walk_xml(
-        self,
-        elem: ET.Element,
-        catalogue: dict[str, CatalogueEntry],
-        specs: list[dict[str, Any]],
-        group: str,
-        subgroup: str,
-    ) -> None:
-        """Recursively walk XML and build catalogue entries.
-
-        Args:
-            elem: Current XML element.
-            catalogue: Dict to populate with CatalogueEntry objects.
-            specs: List to populate with timeline spec dicts.
-            group: Current top-level group name.
-            subgroup: Current second-level group name.
-        """
-        tag = elem.tag
-        category = elem.get("Category", elem.get("category", ""))
-        xml_id = elem.get("ID", elem.get("id", ""))
-        name = elem.get("Name", elem.get("name", ""))
-
-        # Determine current group/subgroup
-        current_group = group
-        current_subgroup = subgroup
-
-        if tag == "Generic":
-            # Update group/subgroup based on category
-            if category in ("AudioGroup", "METADATA"):
-                current_group = "audio" if category == "AudioGroup" else "metadata"
-            elif category == "Score":
-                current_group = "score"
-            elif category == "DescriptorGroup":
-                current_group = "descriptors"
-            elif category == "MoCapGroup":
-                current_group = "mocap"
-            elif category == "MoCapMarker":
-                current_subgroup = name or xml_id
-                # MoCap markers are special — collect X/Y/Z signal children
-                xyz_ids = self._collect_mocap_xyz(elem)
-                if xyz_ids:
-                    entry = CatalogueEntry(
-                        xml_id=xml_id,
-                        name=name,
-                        category=category,
-                        group="mocap",
-                        subgroup=current_subgroup,
-                        filename=None,
-                        file_type="MoCapMarker",
-                        sample_rate=240.0,  # Standard MoCap rate
-                        n_samples=0,  # Will be determined from CSV
-                        related_ids=tuple(xyz_ids),
-                    )
-                    catalogue[xml_id] = entry
-                    specs.append(
-                        {
-                            "id": xml_id,
-                            "name": name,
-                            "group": "mocap",
-                            "entry": entry,
-                        }
-                    )
-            else:
-                # Other Generic categories become subgroups
-                if name:
-                    current_subgroup = name.split()[0].lower()  # e.g., "vln1"
-
-        elif tag == "Audio":
-            entry = self._parse_audio_entry(elem, current_group, current_subgroup)
-            catalogue[entry.xml_id] = entry
-            specs.append(
-                {
-                    "id": entry.xml_id,
-                    "name": entry.name,
-                    "group": "audio",
-                    "entry": entry,
-                }
-            )
-
-        elif tag == "Signal":
-            entry = self._parse_signal_entry(elem, current_group, current_subgroup)
-            catalogue[entry.xml_id] = entry
-            # Only add to specs if it's a top-level signal (not MoCap X/Y/Z)
-            if current_group != "mocap" or category not in ("X", "Y", "Z"):
-                specs.append(
-                    {
-                        "id": entry.xml_id,
-                        "name": entry.name,
-                        "group": entry.group,
-                        "entry": entry,
-                    }
-                )
-
-        elif tag == "Annotation":
-            entry = self._parse_annotation_entry(elem, current_subgroup)
-            catalogue[entry.xml_id] = entry
-            specs.append(
-                {
-                    "id": entry.xml_id,
-                    "name": entry.name,
-                    "group": "score",
-                    "entry": entry,
-                }
-            )
-
-        # Recurse into children
-        for child in elem:
-            self._walk_xml(child, catalogue, specs, current_group, current_subgroup)
-
-    def _collect_mocap_xyz(self, marker_elem: ET.Element) -> list[str]:
-        """Collect X, Y, Z signal IDs from a MoCapMarker element.
-
-        Args:
-            marker_elem: The Generic element with Category="MoCapMarker".
-
-        Returns:
-            List of signal IDs [x_id, y_id, z_id], or empty if not found.
-        """
-        xyz_ids: dict[str, str] = {}
-        for child in marker_elem:
-            if child.tag == "Signal":
-                cat = child.get("Category", child.get("category", ""))
-                xml_id = child.get("ID", child.get("id", ""))
-                if cat in ("X", "Y", "Z") and xml_id:
-                    xyz_ids[cat] = xml_id
-
-        if "X" in xyz_ids and "Y" in xyz_ids and "Z" in xyz_ids:
-            return [xyz_ids["X"], xyz_ids["Y"], xyz_ids["Z"]]
-        return []
-
-    def _parse_audio_entry(
-        self,
-        elem: ET.Element,
-        group: str,
-        subgroup: str,
-    ) -> CatalogueEntry:
-        """Parse an Audio element into a CatalogueEntry."""
-        xml_id = elem.get("ID", elem.get("id", ""))
-        name = elem.get("Name", elem.get("name", ""))
-        filename = elem.get("Filename", elem.get("filename"))
-        category = elem.get("Category", elem.get("category", ""))
-        sample_rate = float(elem.get("SampleRate", elem.get("samplerate", "0")))
-        n_samples = int(elem.get("NumSamples", elem.get("numsamples", "0")))
-        file_type = elem.get("FileType", elem.get("filetype", "BWF"))
-
-        return CatalogueEntry(
-            xml_id=xml_id,
-            name=name,
-            category=category,
-            group="audio",
-            subgroup=subgroup or category.lower(),
-            filename=filename,
-            file_type=file_type,
-            sample_rate=sample_rate,
-            n_samples=n_samples,
-        )
-
-    def _parse_signal_entry(
-        self,
-        elem: ET.Element,
-        group: str,
-        subgroup: str,
-    ) -> CatalogueEntry:
-        """Parse a Signal element into a CatalogueEntry."""
-        xml_id = elem.get("ID", elem.get("id", ""))
-        name = elem.get("Name", elem.get("name", ""))
-        filename = elem.get("Filename", elem.get("filename"))
-        category = elem.get("Category", elem.get("category", ""))
-        sample_rate_str = elem.get("SampleRate", elem.get("samplerate", "")) or "0"
-        sample_rate = float(sample_rate_str) if sample_rate_str else 0.0
-        n_samples_str = elem.get("NumSamples", elem.get("numsamples", "")) or "0"
-        n_samples = int(n_samples_str) if n_samples_str else 0
-        frame_size_str = elem.get("FrameSize", elem.get("framesize", "")) or "1"
-        frame_size = int(frame_size_str) if frame_size_str else 1
-
-        # Determine file type from filename or category
-        file_type = "wav"
-        if filename:
-            if filename.endswith(".csv"):
-                file_type = "CSV"
-            elif filename.endswith(".wav"):
-                file_type = "wav"
-
-        # Determine group from category
-        actual_group = group
-        if category == "AuDesc":
-            actual_group = "audio"  # Audio descriptors stay with audio
-        elif category in ("X", "Y", "Z"):
-            actual_group = "mocap"
-        elif category == "Descriptor" or group == "descriptors":
-            actual_group = "descriptors"
-
-        return CatalogueEntry(
-            xml_id=xml_id,
-            name=name,
-            category=category,
-            group=actual_group,
-            subgroup=subgroup,
-            filename=filename,
-            file_type=file_type,
-            sample_rate=sample_rate,
-            n_samples=n_samples,
-            frame_size=frame_size,
-        )
-
-    def _parse_annotation_entry(
-        self,
-        elem: ET.Element,
-        subgroup: str,
-    ) -> CatalogueEntry:
-        """Parse an Annotation element into a CatalogueEntry."""
-        xml_id = elem.get("ID", elem.get("id", ""))
-        name = elem.get("Name", elem.get("name", ""))
-        filename = elem.get("Filename", elem.get("filename"))
-        category = elem.get("Category", elem.get("category", ""))
-        file_type = elem.get("FileType", elem.get("filetype", "NOTES"))
-
-        return CatalogueEntry(
-            xml_id=xml_id,
-            name=name,
-            category=category,
-            group="score",
-            subgroup=subgroup,
-            filename=filename,
-            file_type=file_type,
-            sample_rate=0.0,
-            n_samples=0,
-        )
-
-    # endregion
-
-    # region Properties
 
     @property
     def store(self) -> RepovizzDictStore:
@@ -1460,22 +1027,30 @@ class RepoVizzLoader(ManifestLoader):
 
     # endregion
 
-    # region Convenience
+    # region HTML Representation
 
-    @classmethod
-    def from_file(cls, *paths: Path | str, **kwargs: Any) -> "RepoVizzLoader":
-        """Load files and return the loader (convenience constructor).
+    def _repr_rows(self) -> list[tuple[str, str]]:
+        """Extend manifest rows with RepoVizz-specific details."""
+        rows = super()._repr_rows()
+        if self._is_xml_mode:
+            rows.append(("Mode", "XML Manifest"))
+            rows.append(("Entries", str(len(self.catalogue))))
+            rows.append(("Groups", code(", ".join(self._store.groups))))
+            title = self._xml_metadata.get("title")
+            if title:
+                rows.append(("Title", code(str(title))))
+        elif self._info is not None:
+            rows.append(("Mode", "Legacy CSV"))
+            rows.append(("Samples", str(self._info.n_samples)))
+            rows.append(("Rate", f"{self._info.frame_rate} Hz"))
+            rows.append(("Duration", f"{self._info.duration_seconds:.2f}s"))
+        else:
+            rows.append(("Status", "Not loaded"))
+        return rows
 
-        Args:
-            *paths: Paths to XML manifest or CSV files.
-            **kwargs: Additional keyword arguments passed to ``__init__``.
-
-        Returns:
-            A RepoVizzLoader with the files already loaded.
-        """
-        loader = cls(**kwargs)
-        loader.load(*paths)
-        return loader
+    def _repr_affordances(self) -> list[str]:
+        """Return useful timeline-construction calls for this loader."""
+        return ["create_timeline()", "create_timelines()", "create_group()"]
 
     # endregion
 
@@ -1494,40 +1069,6 @@ class RepoVizzLoader(ManifestLoader):
                 f"duration={self._info.duration_seconds:.2f}s)"
             )
         return "RepoVizzLoader(not loaded)"
-
-    def _repr_html_(self) -> str:
-        """Rich HTML representation for Jupyter notebooks."""
-        parts = [f"<h4>{self.__class__.__name__}</h4>"]
-        parts.append("<table>")
-
-        if self._is_xml_mode:
-            parts.append("<tr><td><b>Mode</b></td><td>XML Manifest</td></tr>")
-            parts.append(
-                f"<tr><td><b>Entries</b></td><td>{len(self.catalogue)}</td></tr>"
-            )
-            parts.append(
-                f"<tr><td><b>Groups</b></td><td>{', '.join(self._store.groups)}</td></tr>"
-            )
-            if self._xml_metadata.get("title"):
-                parts.append(
-                    f"<tr><td><b>Title</b></td><td>{self._xml_metadata['title']}</td></tr>"
-                )
-        elif self._info:
-            parts.append("<tr><td><b>Mode</b></td><td>Legacy CSV</td></tr>")
-            parts.append(
-                f"<tr><td><b>Samples</b></td><td>{self._info.n_samples}</td></tr>"
-            )
-            parts.append(
-                f"<tr><td><b>Rate</b></td><td>{self._info.frame_rate} Hz</td></tr>"
-            )
-            parts.append(
-                f"<tr><td><b>Duration</b></td><td>{self._info.duration_seconds:.2f}s</td></tr>"
-            )
-        else:
-            parts.append("<tr><td><b>Status</b></td><td>Not loaded</td></tr>")
-
-        parts.append("</table>")
-        return "\n".join(parts)
 
     # endregion
 
