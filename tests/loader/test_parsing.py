@@ -162,7 +162,16 @@ class TestCoordinateParserFraction:
         # 9999/4 = 2499.75, exactly representable in float64
         assert result.field("value")[9999].as_py() == 9999 / 4
 
-    def test_parse_fraction_objects(self):
+    def test_parse_string_fractions_preserves_leading_null(self) -> None:
+        """Preserve null positions while parsing later fraction strings."""
+        arr = np.array([None, "1/4", None, "3/8"], dtype=object)
+        result = CoordinateParser.parse(arr, NumberType.fraction, TimeUnit.quarters)
+
+        assert result.field("value").to_pylist() == [None, 0.25, None, 0.375]
+        assert result.field("numerator").to_pylist() == [None, 1, None, 3]
+        assert result.field("denominator").to_pylist() == [None, 4, None, 8]
+
+    def test_parse_fraction_objects(self) -> None:
         """Parse Fraction objects."""
         arr = np.array([Fraction(1, 4), Fraction(3, 8), Fraction(1, 2)], dtype=object)
         result = CoordinateParser.parse(arr, NumberType.fraction, TimeUnit.quarters)
@@ -176,20 +185,36 @@ class TestCoordinateParserFraction:
         assert nums == [1, 3, 1]
         assert dens == [4, 8, 2]
 
-    def test_parse_numeric_to_fractions(self):
-        """Parse numeric values as fractions with limit_denominator."""
+    def test_parse_fraction_objects_preserves_leading_null(self) -> None:
+        """Preserve null positions while parsing later Fraction objects."""
+        arr = np.array([None, Fraction(1, 4), None, Fraction(3, 8)], dtype=object)
+        result = CoordinateParser.parse(arr, NumberType.fraction, TimeUnit.quarters)
+
+        assert result.to_pylist() == [
+            None,
+            {"value": 0.25, "numerator": 1, "denominator": 4},
+            None,
+            {"value": 0.375, "numerator": 3, "denominator": 8},
+        ]
+
+    def test_parse_numeric_values_without_fabricating_pairs(self) -> None:
+        """Keep floating-point numeric coordinates free of fabricated pairs."""
         arr = np.array([0.25, 0.5, 0.75, 1.0])
         result = CoordinateParser.parse(arr, NumberType.fraction, TimeUnit.quarters)
 
         assert isinstance(result, pa.StructArray)
-        assert len(result) == 4
+        assert result.field("value").to_pylist() == [0.25, 0.5, 0.75, 1.0]
+        assert result.field("numerator").to_pylist() == [None, None, None, None]
+        assert result.field("denominator").to_pylist() == [None, None, None, None]
 
-        nums = result.field("numerator").to_pylist()
-        dens = result.field("denominator").to_pylist()
+    def test_parse_numeric_values_preserves_null_positions(self) -> None:
+        """Preserve null positions while parsing numeric coordinates."""
+        arr = np.array([None, 0.5, None, 1.5], dtype=object)
+        result = CoordinateParser.parse(arr, NumberType.fraction, TimeUnit.quarters)
 
-        # Should produce exact fractions
-        assert nums == [1, 1, 3, 1]
-        assert dens == [4, 2, 4, 1]
+        assert result.field("value").to_pylist() == [None, 0.5, None, 1.5]
+        assert result.field("numerator").to_pylist() == [None, None, None, None]
+        assert result.field("denominator").to_pylist() == [None, None, None, None]
 
     def test_parse_string_fractions_invalid_format(self):
         """Test error on invalid fraction format."""

@@ -17,6 +17,8 @@ from timetoalign.core import (
 )
 from timetoalign.maps import ConversionMap, InterpolationMap
 
+from .coordinate_ops import coordinate_numeric_value, exact_coordinate_value
+
 if TYPE_CHECKING:
     from ..base import Timeline
 
@@ -313,8 +315,15 @@ class ConversionMapsMixin:
         if offset is None:
             return None
         child = self._children[child_id]
-        child_coord = parent_coord - float(offset.value)
-        child_length = float(child.length.value)
+        parent_exact = exact_coordinate_value(parent_coord)
+        offset_exact = exact_coordinate_value(offset.value)
+        if parent_exact is not None and offset_exact is not None:
+            child_coord = parent_exact - offset_exact
+        else:
+            child_coord = float(coordinate_numeric_value(parent_coord)) - float(
+                offset.value
+            )
+        child_length = child.length.value
         if child_coord < 0 or (child_length > 0 and child_coord >= child_length):
             return None
         return child_coord
@@ -337,7 +346,11 @@ class ConversionMapsMixin:
             KeyError: If *child_id* is not a child of this timeline.
         """
         offset = self._child_offsets[child_id]
-        return child_coord + float(offset.value)
+        child_exact = exact_coordinate_value(child_coord)
+        offset_exact = exact_coordinate_value(offset.value)
+        if child_exact is not None and offset_exact is not None:
+            return child_exact + offset_exact
+        return float(coordinate_numeric_value(child_coord)) + float(offset.value)
 
     def _get_interpolation_map(
         self, target_id: str, source_id: str | None = None

@@ -8,6 +8,7 @@ This module validates the complete vectorized loading pipeline:
 
 from __future__ import annotations
 
+from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
@@ -159,6 +160,26 @@ class TestCoordinateTypeParsing:
         assert coord_range is not None
         assert coord_range[0] == pytest.approx(0.0)
         assert coord_range[1] == pytest.approx(4.75)
+
+    def test_duration_float_does_not_claim_exact_end(self, tmp_path: Path) -> None:
+        """Keep an endpoint inexact when only duration is floating-point."""
+
+        class FractionDurationLoader(TabularLoader):
+            start_column = "start"
+            duration_column = "duration"
+            coordinate_type = NumberType.fraction
+            _default_unit = TimeUnit.quarters
+
+        path = tmp_path / "fraction_duration.csv"
+        path.write_text("start,duration,event_type\n7/2,0.75,Note\n")
+
+        loader = FractionDurationLoader()
+        loader.load(path)
+
+        assert loader.events.column_values("end") == [Fraction(4.25)]
+        end = loader.events._table.column("end").combine_chunks()
+        assert end.field("numerator").to_pylist() == [None]
+        assert end.field("denominator").to_pylist() == [None]
 
 
 class TestEventDataFromArrays:

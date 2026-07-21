@@ -269,6 +269,12 @@ class Stamp(ABC):
         unit = self._unit_for(timeline_id)
         if raw is None or unit is None:
             return None
+
+        exact_getter = getattr(self.source, "_get_exact_coordinate_value", None)
+        if exact_getter is not None:
+            exact = exact_getter(timeline_id, self.axis)
+            if exact is not None:
+                return Coordinate(exact, unit)
         return Coordinate(raw, unit)
 
     @property

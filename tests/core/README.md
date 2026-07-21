@@ -16,6 +16,23 @@ This directory contains tests for the `timetoalign.core` module, which provides 
 
 ## Test Files
 
+### `test_fraction_field_arithmetic.py` - Exact Coordinate Arithmetic
+
+**Purpose:** Validates that arithmetic over coordinate and duration fields keeps
+exact rational storage when every participating value has an authoritative
+numerator/denominator pair.
+
+The tests inspect both the materialised numeric result and the underlying Arrow
+struct. Exact rows assert the reduced numerator and denominator as well as the
+float convenience value; mixed rows assert that exact inputs retain pairs while
+rows involving floats have null pair members. Scalar Coordinate/Duration
+operations are checked with exact `Fraction` equality, and float operations are
+checked to ensure arithmetic never fabricates a rational pair from a float.
+
+**Validity Rationale:** The rational pair is the lossless representation used
+for persistence. Checking the pair directly catches precision loss that value
+comparisons alone could hide.
+
 ### `test_coordinate_resolution.py` - Coordinate Input Resolution
 
 **Purpose:** Validates the shared decomposition of public coordinate inputs and

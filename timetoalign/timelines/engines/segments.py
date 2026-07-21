@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any
 
 from timetoalign.core import CoordinateSpec
 
+from .coordinate_ops import coordinate_numeric_value, shift_coordinate
+
 if TYPE_CHECKING:
     from ..flow import FlowMap
     from ..types import SegmentLine
@@ -53,7 +55,7 @@ class SegmentsMixin:
                 f"Need at least 2 boundary coordinates, got {len(boundaries)}"
             )
 
-        coords = [float(self._resolve_axis_value(boundary)) for boundary in boundaries]
+        coords = [self._resolve_axis_value(boundary) for boundary in boundaries]
         for i in range(1, len(coords)):
             if coords[i] <= coords[i - 1]:
                 raise ValueError(
@@ -93,9 +95,9 @@ class SegmentsMixin:
                         val = adj.get(col)
                         if val is not None:
                             if isinstance(val, dict) and "value" in val:
-                                adj[col] = val["value"] - start
+                                adj[col] = shift_coordinate(val, start, subtract=True)
                             else:
-                                adj[col] = float(val) - start
+                                adj[col] = shift_coordinate(val, start, subtract=True)
                     adjusted.append(adj)
                 if adjusted:
                     segment.add_events(adjusted)
@@ -156,9 +158,9 @@ class SegmentsMixin:
                 )
 
         # Build boundaries from regions
-        boundaries = [float(regions[0].start.value)]
+        boundaries = [regions[0].start.value]
         for r in regions:
-            boundaries.append(float(r.end.value))
+            boundaries.append(r.end.value)
 
         # Create the segment line
         sl = self.create_segment_line(boundaries, copy_events=copy_events)
@@ -209,7 +211,7 @@ class SegmentsMixin:
                 f"Available fields: {list(first_event.keys())}"
             )
 
-        runs: list[tuple[Any, float, float]] = []
+        runs: list[tuple[Any, Any, Any]] = []
         value_counts: dict[Any, int] = {}
 
         current_value = None
@@ -221,8 +223,20 @@ class SegmentsMixin:
             if isinstance(val, dict) and "value" in val:
                 val = val["value"]
 
-            ev_start = self._extract_coord_value(event, "start", "instant")
-            ev_end = self._extract_coord_value(event, "end") or ev_start
+            ev_start_value = event.get("start", event.get("instant"))
+            ev_end_value = event.get("end")
+            if ev_end_value is None:
+                ev_end_value = ev_start_value
+            ev_start = (
+                coordinate_numeric_value(ev_start_value)
+                if ev_start_value is not None
+                else None
+            )
+            ev_end = (
+                coordinate_numeric_value(ev_end_value)
+                if ev_end_value is not None
+                else ev_start
+            )
 
             if val != current_value:
                 if current_value is not None:

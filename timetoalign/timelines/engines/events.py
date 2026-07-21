@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from fractions import Fraction
 from typing import Any, Literal
 
 import pyarrow.compute as pc
 
 from timetoalign.core import Coordinate, CoordinateSpec, CoordinateValue
 from timetoalign.storage import EventData
+
+from .coordinate_ops import exact_coordinate_value, shift_coordinate
 
 SEGMENT_EVENT_TYPE = "Segment"
 
@@ -181,14 +184,13 @@ class EventsMixin:
             result = child.get_event(event_id)
             if result is not None:
                 # Adjust coordinates to parent space
-                child_offset = float(self._child_offsets[child_id].value)
+                child_offset = self._child_offsets[child_id].value
                 for coord_key in ("start", "end"):
                     val = result.get(coord_key)
                     if val is not None:
-                        if isinstance(val, dict) and "value" in val:
-                            val = dict(val)
-                            val["value"] = val["value"] + child_offset
-                            result[coord_key] = val
+                        result[coord_key] = shift_coordinate(
+                            val, child_offset, subtract=False
+                        )
                 result.setdefault("source_timeline", child_id)
                 return result
 
@@ -262,7 +264,7 @@ class EventsMixin:
         if include_children and self._children:
             all_rows: list[dict[str, Any]] = list(result)
             for child_id, child in self._children.items():
-                child_offset = float(self._child_offsets[child_id].value)
+                child_offset = self._child_offsets[child_id].value
                 child_events = child.get_events(
                     include_children=True,  # recurse
                 )
@@ -272,12 +274,9 @@ class EventsMixin:
                     for coord_key in ("start", "end"):
                         val = row.get(coord_key)
                         if val is not None:
-                            if isinstance(val, dict) and "value" in val:
-                                val = dict(val)
-                                val["value"] = val["value"] + child_offset
-                                row[coord_key] = val
-                            elif isinstance(val, (int, float)):
-                                row[coord_key] = val + child_offset
+                            row[coord_key] = shift_coordinate(
+                                val, child_offset, subtract=False
+                            )
                     # Tag with source timeline for provenance
                     row.setdefault("source_timeline", child_id)
                     all_rows.append(row)
@@ -297,6 +296,45 @@ class EventsMixin:
             result = result.filter(**field_filters)
 
         return result
+
+    def _get_exact_coordinate_value(
+        self, timeline_id: str, axis: float
+    ) -> Fraction | None:
+        """Find an exact stored coordinate corresponding to a timestamp axis.
+
+        Timestamp tables use float scalars for efficient lookup. This method
+        reconnects an exact event pair to that float at the materialization
+        boundary without deriving a fraction from the float.
+        """
+        if timeline_id == self._id:
+            return self._find_exact_event_coordinate(axis)
+
+        child = self._children.get(timeline_id)
+        if child is None:
+            return None
+
+        child_offset = self._child_offsets[timeline_id].value
+        offset_exact = exact_coordinate_value(child_offset)
+        if offset_exact is None:
+            return None
+        for event in child._events:
+            for field in ("start", "end", "duration"):
+                value = event.get(field)
+                exact = exact_coordinate_value(value)
+                if exact is None or float(exact + offset_exact) != axis:
+                    continue
+                return exact
+        return None
+
+    def _find_exact_event_coordinate(self, axis: float) -> Fraction | None:
+        """Find an exact coordinate pair in this timeline's own events."""
+        for event in self._events:
+            for field in ("start", "end", "duration"):
+                value = event.get(field)
+                exact = exact_coordinate_value(value)
+                if exact is not None and float(exact) == axis:
+                    return exact
+        return None
 
     def _extract_coord_value(
         self,

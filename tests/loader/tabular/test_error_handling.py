@@ -222,12 +222,8 @@ abc,Note
 class TestNullValueHandling:
     """Test handling of null/missing values in data."""
 
-    def test_null_start_values_error(self, tmp_path: Path) -> None:
-        """Validate that null start values raise an error.
-
-        Null start coordinates are invalid for fraction parsing.
-        The loader should raise a clear error rather than silently failing.
-        """
+    def test_null_start_values_are_preserved(self, tmp_path: Path) -> None:
+        """Validate that null start positions remain null during fraction parsing."""
         # TSV content with tab delimiter - second row has null start
         content = "quarterbeats\tduration_qb\tname\n0\t1.0\tnote1\n\t0.5\tnull_start\n1\t1.0\tnote2\n"
 
@@ -236,9 +232,13 @@ class TestNullValueHandling:
 
         loader = Ms3TsvFixture()
 
-        # Should raise error on null start coordinate
-        with pytest.raises(ValueError):
-            loader.load(path)
+        loader.load(path)
+
+        assert len(loader) == 3
+        starts = loader.events._table.column("start").combine_chunks().to_pylist()
+        assert starts[0]["value"] == 0.0
+        assert starts[1] is None
+        assert starts[2]["value"] == 1.0
 
     def test_null_duration_creates_instant(self, tmp_path: Path) -> None:
         """Validate null duration creates instant event."""

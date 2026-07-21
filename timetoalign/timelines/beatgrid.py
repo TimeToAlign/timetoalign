@@ -613,7 +613,7 @@ class BeatGrid(ContinuousLogicalTimeline):
                     "id": f"beat_{len(events)}",
                     "temporal_type": "instant",
                     "event_type": "Beat",
-                    "instant": float(position),
+                    "instant": position,
                     "mc": mc,
                     "mn": mn,
                     "beat": str(beat),  # Store as string to preserve Fraction
@@ -650,8 +650,8 @@ class BeatGrid(ContinuousLogicalTimeline):
                     "name": f"M{info['mn']}",
                     "temporal_type": "interval",
                     "event_type": "Measure",
-                    "start": float(info["start"]),
-                    "end": float(info["end"]),
+                    "start": info["start"],
+                    "end": info["end"],
                     "mc": info["mc"],
                     "mn": info["mn"],
                 }

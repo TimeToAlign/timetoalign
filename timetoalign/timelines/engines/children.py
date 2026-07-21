@@ -11,6 +11,11 @@ from timetoalign.core.timestamp import ConversionMapsSpec
 from timetoalign.maps import ConversionMap
 
 from ..regions import Region
+from .coordinate_ops import (
+    coordinate_numeric_value,
+    shift_coordinate,
+    subtract_coordinates,
+)
 
 if TYPE_CHECKING:
     from ..base import Timeline
@@ -585,10 +590,9 @@ class ChildrenMixin:
             for coord_col in ("instant", "start", "end"):
                 val = adjusted.get(coord_col)
                 if val is not None:
-                    if isinstance(val, dict) and "value" in val:
-                        adjusted[coord_col] = val["value"] - region.start.value
-                    else:
-                        adjusted[coord_col] = float(val) - region.start.value
+                    adjusted[coord_col] = shift_coordinate(
+                        val, region.start.value, subtract=True
+                    )
             adjusted_events.append(adjusted)
 
         if adjusted_events:
@@ -731,13 +735,10 @@ class ChildrenMixin:
                 start_dict = ev.get("start")
                 if start_dict is None:
                     continue
-                coord = (
-                    start_dict["value"] if isinstance(start_dict, dict) else start_dict
-                )
+                coord = coordinate_numeric_value(start_dict)
                 # Left-inclusive, right-exclusive: start <= coord < end
                 if coord >= start_f and coord < end_f:
-                    shifted = coord - start_f
-                    ev["start"] = shifted
+                    ev["start"] = shift_coordinate(start_dict, start, subtract=True)
                     adjusted_events.append(ev)
 
             elif temporal == "interval":
@@ -745,37 +746,29 @@ class ChildrenMixin:
                 ev_end_dict = ev.get("end")
                 if ev_start_dict is None or ev_end_dict is None:
                     continue
-                ev_start = (
-                    ev_start_dict["value"]
-                    if isinstance(ev_start_dict, dict)
-                    else ev_start_dict
-                )
-                ev_end = (
-                    ev_end_dict["value"]
-                    if isinstance(ev_end_dict, dict)
-                    else ev_end_dict
-                )
+                ev_start = coordinate_numeric_value(ev_start_dict)
+                ev_end = coordinate_numeric_value(ev_end_dict)
 
                 if truncate_events:
                     # Clip to [start, end)
-                    clipped_start = max(ev_start, start_f)
-                    clipped_end = min(ev_end, end_f)
+                    clipped_start = max(ev_start, coordinate_numeric_value(start))
+                    clipped_end = min(ev_end, coordinate_numeric_value(end))
 
                     if clipped_start >= clipped_end:
                         continue  # Fully outside
 
-                    shifted_start = clipped_start - start_f
-                    shifted_end = clipped_end - start_f
-                    ev["start"] = shifted_start
-                    ev["end"] = shifted_end
-                    ev["duration"] = shifted_end - shifted_start
+                    ev["start"] = shift_coordinate(clipped_start, start, subtract=True)
+                    ev["end"] = shift_coordinate(clipped_end, start, subtract=True)
+                    ev["duration"] = subtract_coordinates(ev["end"], ev["start"])
                     adjusted_events.append(ev)
                 else:
                     # Only include fully contained intervals
                     if ev_start >= start_f and ev_end <= end_f:
-                        ev["start"] = ev_start - start_f
-                        ev["end"] = ev_end - start_f
-                        ev["duration"] = (ev_end - start_f) - (ev_start - start_f)
+                        ev["start"] = shift_coordinate(
+                            ev_start_dict, start, subtract=True
+                        )
+                        ev["end"] = shift_coordinate(ev_end_dict, start, subtract=True)
+                        ev["duration"] = subtract_coordinates(ev["end"], ev["start"])
                         adjusted_events.append(ev)
 
         if adjusted_events:

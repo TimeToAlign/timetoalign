@@ -1104,7 +1104,7 @@ class TabularLoader(EventLoader):
 
                 dur_values = np.empty(n, dtype=object)
                 for i in range(n):
-                    if num[i] is None or den[i] is None:
+                    if pd.isna(num[i]) or pd.isna(den[i]):
                         dur_values[i] = None
                     else:
                         dur_values[i] = Fraction(int(num[i]), int(den[i]))
@@ -1142,6 +1142,7 @@ class TabularLoader(EventLoader):
 
         num_valid = ~pd.isna(parsed_num_arr)
         den_valid = ~pd.isna(parsed_den_arr)
+        pair_valid = num_valid & den_valid
 
         if num_valid.any():
             dur_num_full[valid_indices[num_valid]] = parsed_num_arr[num_valid].astype(
@@ -1162,7 +1163,8 @@ class TabularLoader(EventLoader):
 
         # Vectorized fraction addition: a/b + c/d = (a*d + c*b) / (b*d)
         start_has_frac = ~pd.isna(start_num) & ~pd.isna(start_den)
-        dur_has_frac = valid_dur_mask.copy()
+        dur_has_frac = np.zeros(n, dtype=bool)
+        dur_has_frac[valid_indices] = pair_valid
         both_frac_mask = start_has_frac & dur_has_frac & valid_end_mask
 
         s_num = np.where(pd.isna(start_num), 0, start_num).astype(np.int64)
@@ -1195,9 +1197,9 @@ class TabularLoader(EventLoader):
 
         # Also store duration in columns
         dur_null_mask = ~valid_dur_mask
-        dur_num_has_value = np.zeros(n, dtype=bool)
-        dur_num_has_value[valid_indices] = num_valid
-        dur_num_null_full = ~dur_num_has_value
+        dur_num_has_pair = np.zeros(n, dtype=bool)
+        dur_num_has_pair[valid_indices] = pair_valid
+        dur_num_null_full = ~dur_num_has_pair
 
         columns["duration"] = pa.StructArray.from_arrays(
             [
@@ -1248,9 +1250,6 @@ class TabularLoader(EventLoader):
 
         # Parse valid values (vectorized)
         valid_values = values[valid_mask]
-        if valid_values.dtype == object:
-            valid_values = valid_values.astype(np.float64)
-
         parsed = CoordinateParser.parse(valid_values, self.coordinate_type, self._unit)
 
         # Extract parsed arrays (vectorized)
@@ -1279,9 +1278,10 @@ class TabularLoader(EventLoader):
 
         struct_null_mask = ~valid_mask
 
-        num_has_value = np.zeros(n, dtype=bool)
-        num_has_value[valid_indices] = num_valid_in_parsed
-        num_null_mask = ~num_has_value
+        pair_valid = num_valid_in_parsed & den_valid_in_parsed
+        num_has_pair = np.zeros(n, dtype=bool)
+        num_has_pair[valid_indices] = pair_valid
+        num_null_mask = ~num_has_pair
 
         value_pa = pa.array(value_arr, mask=struct_null_mask, type=pa.float64())
         num_pa = pa.array(num_arr, mask=num_null_mask, type=pa.int64())

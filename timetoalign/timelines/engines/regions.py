@@ -8,6 +8,7 @@ from typing import Any
 from timetoalign.core import CoordinateSpec
 
 from ..regions import Region
+from .coordinate_ops import coordinate_numeric_value
 
 
 class RegionsMixin:
@@ -190,7 +191,7 @@ class RegionsMixin:
                 f"Need at least 2 boundary coordinates, got {len(boundaries)}"
             )
 
-        coords = [float(self._resolve_axis_value(boundary)) for boundary in boundaries]
+        coords = [self._resolve_axis_value(boundary) for boundary in boundaries]
         for i in range(1, len(coords)):
             if coords[i] <= coords[i - 1]:
                 raise ValueError(
@@ -270,7 +271,7 @@ class RegionsMixin:
             )
 
         # Build runs of adjacent equal values
-        runs: list[tuple[Any, float, float]] = []  # (value, start, end)
+        runs: list[tuple[Any, Any, Any]] = []  # (value, start, end)
         value_counts: dict[Any, int] = {}
 
         current_value = None
@@ -283,8 +284,20 @@ class RegionsMixin:
             if isinstance(val, dict) and "value" in val:
                 val = val["value"]
 
-            ev_start = self._extract_coord_value(event, "start", "instant")
-            ev_end = self._extract_coord_value(event, "end") or ev_start
+            ev_start_value = event.get("start", event.get("instant"))
+            ev_end_value = event.get("end")
+            if ev_end_value is None:
+                ev_end_value = ev_start_value
+            ev_start = (
+                coordinate_numeric_value(ev_start_value)
+                if ev_start_value is not None
+                else None
+            )
+            ev_end = (
+                coordinate_numeric_value(ev_end_value)
+                if ev_end_value is not None
+                else ev_start
+            )
 
             if val != current_value:
                 # Close previous run
@@ -385,28 +398,28 @@ class RegionsMixin:
         match_fn = self._resolve_predicate(predicate)
 
         # Find split coordinates
-        split_coords: list[float] = []
+        split_coords: list[Any] = []
         events_sorted = self._sorted_event_dicts()
 
         for event in events_sorted:
             if match_fn(event):
                 # Use end coordinate for intervals, start for instants
-                coord = self._extract_coord_value(event, "end")
-                if coord is None:
-                    coord = self._extract_coord_value(event, "start", "instant")
-                if coord is not None:
-                    split_coords.append(coord)
+                coord_value = event.get("end")
+                if coord_value is None:
+                    coord_value = event.get("start", event.get("instant"))
+                if coord_value is not None:
+                    split_coords.append(coordinate_numeric_value(coord_value))
 
         # Deduplicate and sort
         split_coords = sorted(set(split_coords))
 
         # Build boundary list
-        boundaries: list[float] = []
+        boundaries: list[Any] = []
         if include_before_first:
-            boundaries.append(float(self.origin.value))
+            boundaries.append(self.origin.value)
         boundaries.extend(split_coords)
         if include_after_last:
-            boundaries.append(float(self.length.value))
+            boundaries.append(self.length.value)
 
         # Deduplicate again (split point might coincide with origin/end)
         boundaries = sorted(set(boundaries))

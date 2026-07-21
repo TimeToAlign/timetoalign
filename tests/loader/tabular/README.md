@@ -60,6 +60,16 @@ No manual `os.unlink()` or `tempfile.NamedTemporaryFile(delete=False)` patterns 
 
 ## Validation Logic
 
+### Exact Coordinate Completion
+
+Loader tests verify that computed interval endpoints retain a numerator and
+denominator only when both the start and duration carry a complete exact pair.
+Exact pairs are compared as `Fraction` values with zero tolerance.  Rows that
+use floating-point coordinates, or mix exact and floating-point operands,
+retain their float convenience values while leaving computed rational fields
+null.  This prevents parser defaults such as `0/1` from being mistaken for
+source precision.
+
 ### How We Know the Parser is Correct
 
 1. **EXACT COUNT VALIDATION**: Event counts are validated against the source file line counts minus header. For example:
@@ -140,7 +150,7 @@ the score package's `Ms3Loader` suite.
 
 ### Configured TsvLoader
 
-1. **Null start coordinates raise error**: If `quarterbeats` column contains empty values, the fraction parser raises `ValueError`. This is intentional - null start coordinates are invalid for note events.
+1. **Null start coordinates stay null**: If `quarterbeats` contains empty values, the fraction parser preserves those positions as null coordinate structs. The corresponding events are treated as instants when no valid interval endpoint can be computed.
 
 2. **Sibling-file variants silently skip missing columns**: `column_specs` lookups against the source DataFrame return `None` when a named column is absent (a measures.tsv lacks the `staff` / `voice` / `chord_id` columns that notes.tsv carries).  Positional specs (integer source keys) are NOT skipped — a missing positional index is a hard `IndexError`.
 
@@ -176,7 +186,7 @@ can provide equivalent column mappings through `TsvLoader` configuration.
 
 | Scenario | Behavior |
 |----------|----------|
-| Null `quarterbeats` (start) | Raises `ValueError` (fraction parser cannot handle NaN) |
+| Null `quarterbeats` (start) | Preserved as a null coordinate; the event is instant when no endpoint is available |
 | Null `duration_qb` (duration) | Event becomes "instant" (no end coordinate) |
 | Null `end` column | Event becomes "instant" |
 

@@ -30,6 +30,39 @@ missing columns remain null-filled. DataFrame views are tested only through
 
 ## Test Files
 
+### `test_fraction_generation.py` - Exact Logical Coordinate Generation
+
+These tests generate fraction-typed metrical timelines and inspect the stored
+PyArrow coordinate structs. Beat and measure event coordinates must retain the
+exact numerator/denominator pairs derived from the musical positions, including
+fractional positions such as `Fraction(3, 2)`. The tests also verify that
+`Timeline.from_events()` preserves an exact maximum coordinate as the timeline
+length. These assertions protect the rational fields that downstream alignment
+and serialization use; the convenience float field alone is not sufficient.
+
+### `test_fraction_engines.py` - Exact Coordinate Propagation
+
+These tests exercise exact coordinate handling across nested timelines and
+segment-based copies. Event coordinates entered as `Fraction` values are
+stored as Arrow coordinate structs with a float projection and an authoritative
+numerator/denominator pair. When an event is shifted by a child offset or a
+segment start, the tests assert the resulting `Fraction` values and the exact
+stored pairs, so the float projection and rational pair are updated together.
+
+The event checks also reject any returned coordinate struct whose float value
+does not equal the value represented by its pair. This protects both the
+single-event lookup path and the bulk event path, including instant and
+interval coordinate fields. Segment extraction and region-based child creation
+are checked independently: each must subtract the exact segment or region
+start while preserving the resulting rational representation in the copied
+event data.
+
+The timestamp checks distinguish the two public surfaces: `Stamp.get()`
+continues to return a raw float, while `get_coordinate()` returns the exact
+`Fraction` represented by a stored coordinate for a fraction-typed timeline.
+An interpolated timestamp remains marked with `is_interpolated=True` and is
+allowed to expose a float because interpolation is inherently float-based.
+
 ### `test_base.py` - Core Timeline Functionality
 
 **Purpose:** Validates the fundamental Timeline contract and behavior.

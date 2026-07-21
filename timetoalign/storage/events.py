@@ -559,7 +559,8 @@ class EventData(SemanticFieldAccessMixin):
             return (r_num // g), (r_den // g)
 
         def _has_frac(num_arr, den_arr):
-            return ~pd.isna(num_arr) & ~pd.isna(den_arr)
+            """Return the rows whose rational pair is complete."""
+            return (~pd.isna(num_arr)) & (~pd.isna(den_arr))
 
         # 1) Rows with end but no duration -> compute duration = end - start
         need_dur = has_start & has_end & ~has_dur
@@ -626,7 +627,8 @@ class EventData(SemanticFieldAccessMixin):
         ):
             """Build a coordinate StructArray from numpy arrays."""
             # Fraction fields are null wherever the struct is null or source had no frac
-            frac_null = null_mask | pd.isna(frac_source_num) | pd.isna(frac_source_den)
+            frac_present = (~pd.isna(frac_source_num)) & (~pd.isna(frac_source_den))
+            frac_null = null_mask | ~frac_present
             # Convert to safe int arrays
             safe_num = np.where(pd.isna(num), 0, num).astype(np.int64)
             safe_den = np.where(pd.isna(den), 1, den).astype(np.int64)
@@ -743,6 +745,26 @@ class EventData(SemanticFieldAccessMixin):
                 return None
             return Fraction(num, den)
 
+        def _add_or_float(
+            left: Any, right: Any, left_val: float, right_val: float
+        ) -> Any:
+            """Add exact operands as fractions and otherwise use their values."""
+            left_frac = _fraction_of(left)
+            right_frac = _fraction_of(right)
+            if left_frac is not None and right_frac is not None:
+                return left_frac + right_frac
+            return left_val + right_val
+
+        def _sub_or_float(
+            left: Any, right: Any, left_val: float, right_val: float
+        ) -> Any:
+            """Subtract exact operands as fractions and otherwise use their values."""
+            left_frac = _fraction_of(left)
+            right_frac = _fraction_of(right)
+            if left_frac is not None and right_frac is not None:
+                return left_frac - right_frac
+            return left_val - right_val
+
         start_val = _float_of(processed.get("start"))
         end_val = _float_of(processed.get("end"))
         dur_val = _float_of(processed.get("duration"))
@@ -777,33 +799,73 @@ class EventData(SemanticFieldAccessMixin):
         if has_start:
             if policy == IntervalPolicy.prefer_end:
                 if has_end:
-                    processed["duration"] = coordinate_to_struct(end_val - start_val)
+                    processed["duration"] = coordinate_to_struct(
+                        _sub_or_float(
+                            processed.get("end"),
+                            processed.get("start"),
+                            end_val,
+                            start_val,
+                        )
+                    )
                 elif has_dur:
-                    processed["end"] = coordinate_to_struct(start_val + dur_val)
+                    processed["end"] = coordinate_to_struct(
+                        _add_or_float(
+                            processed.get("start"),
+                            processed.get("duration"),
+                            start_val,
+                            dur_val,
+                        )
+                    )
             elif policy == IntervalPolicy.prefer_duration:
                 if has_dur:
-                    processed["end"] = coordinate_to_struct(start_val + dur_val)
+                    processed["end"] = coordinate_to_struct(
+                        _add_or_float(
+                            processed.get("start"),
+                            processed.get("duration"),
+                            start_val,
+                            dur_val,
+                        )
+                    )
                 elif has_end:
-                    processed["duration"] = coordinate_to_struct(end_val - start_val)
+                    processed["duration"] = coordinate_to_struct(
+                        _sub_or_float(
+                            processed.get("end"),
+                            processed.get("start"),
+                            end_val,
+                            start_val,
+                        )
+                    )
             else:
                 # warn / strict: prefer end when both present, otherwise fill
                 if has_end and not has_dur:
-                    processed["duration"] = coordinate_to_struct(end_val - start_val)
+                    processed["duration"] = coordinate_to_struct(
+                        _sub_or_float(
+                            processed.get("end"),
+                            processed.get("start"),
+                            end_val,
+                            start_val,
+                        )
+                    )
                 elif has_dur and not has_end:
-                    processed["end"] = coordinate_to_struct(start_val + dur_val)
+                    processed["end"] = coordinate_to_struct(
+                        _add_or_float(
+                            processed.get("start"),
+                            processed.get("duration"),
+                            start_val,
+                            dur_val,
+                        )
+                    )
                 elif has_end and has_dur:
                     # Recompute duration from end (prefer end); stay exact
                     # when both endpoints carry exact ratios.
-                    start_frac = _fraction_of(processed.get("start"))
-                    end_frac = _fraction_of(processed.get("end"))
-                    if start_frac is not None and end_frac is not None:
-                        processed["duration"] = coordinate_to_struct(
-                            end_frac - start_frac
+                    processed["duration"] = coordinate_to_struct(
+                        _sub_or_float(
+                            processed.get("end"),
+                            processed.get("start"),
+                            end_val,
+                            start_val,
                         )
-                    else:
-                        processed["duration"] = coordinate_to_struct(
-                            end_val - start_val
-                        )
+                    )
 
         # ---- Infer temporal_type ----
         if "temporal_type" not in processed or processed["temporal_type"] is None:
@@ -1661,41 +1723,30 @@ class EventData(SemanticFieldAccessMixin):
 
         use_fraction = self._number_type == NumberType.fraction
 
-        # Get min/max iteratively to avoid PyArrow chunked_array type issues
-        min_val = None
-        max_val = None
-
+        # Decode the authoritative pair before comparing fraction coordinates.
+        # Float-only coordinates remain floats; they are never promoted to a
+        # guessed Fraction merely because the table's number type is fraction.
+        coordinate_values: list[float | Fraction] = []
         for field_name in ["start", "end"]:
-            try:
-                arr = self._table.column(field_name)
-                # Check for null field
-                if arr.null_count == len(arr):
+            for cell in self._table.column(field_name).to_pylist():
+                if cell is None or cell.get("value") is None:
                     continue
 
-                vals = pc.struct_field(arr, "value")
-                vals = pc.drop_null(vals)
+                value: float | Fraction = cell["value"]
+                if use_fraction:
+                    numerator = cell.get("numerator")
+                    denominator = cell.get("denominator")
+                    if numerator is not None and denominator is not None:
+                        try:
+                            value = Fraction(numerator, denominator)
+                        except (TypeError, ValueError, ZeroDivisionError):
+                            pass
+                coordinate_values.append(value)
 
-                if len(vals) > 0:
-                    curr_min = pc.min(vals).as_py()
-                    curr_max = pc.max(vals).as_py()
-
-                    if min_val is None or curr_min < min_val:
-                        min_val = curr_min
-                    if max_val is None or curr_max > max_val:
-                        max_val = curr_max
-            except (ValueError, TypeError, KeyError):
-                continue
-
-        if min_val is None:
+        if not coordinate_values:
             return None
 
-        if use_fraction:
-            return (
-                Fraction(min_val).limit_denominator(10000),
-                Fraction(max_val).limit_denominator(10000),
-            )
-
-        return (min_val, max_val)
+        return min(coordinate_values), max(coordinate_values)
 
     def event_types(self) -> list[str]:
         """Get the list of unique event types.

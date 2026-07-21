@@ -213,7 +213,7 @@ class CoordinateParser:
         Handles three cases (all vectorized):
         1. String-encoded fractions: "num/den"
         2. Fraction objects: extract numerator/denominator
-        3. Numeric values: convert to Fraction with limit_denominator
+        3. Numeric values: retain floats without fabricating a pair
 
         Args:
             arr: Array containing fractions in various formats.
@@ -224,8 +224,11 @@ class CoordinateParser:
         Raises:
             ValueError: If fraction format is invalid.
         """
-        # Determine type by inspecting first non-null element
-        first_val = arr[0] if len(arr) > 0 else None
+        # Determine type by inspecting the first non-null element.  A leading
+        # null must not hide the representation used by later coordinates.
+        null_mask = pd.isna(arr)
+        non_null_indices = np.flatnonzero(~null_mask)
+        first_val = arr[non_null_indices[0]] if len(non_null_indices) else None
 
         if first_val is None:
             # All null array
@@ -244,6 +247,7 @@ class CoordinateParser:
                     pa.nulls(n, type=pa.int64()),
                 ],
                 fields=list(coord_type),
+                mask=pa.array(null_mask),
             )
 
         # Case 1: String-encoded fractions "num/den"
@@ -384,9 +388,16 @@ class CoordinateParser:
         Returns:
             StructArray with parsed fractions.
         """
-        # Vectorized extraction of numerator/denominator
-        get_num = np.vectorize(lambda f: f.numerator, otypes=[np.int64])
-        get_den = np.vectorize(lambda f: f.denominator, otypes=[np.int64])
+        null_mask = pd.isna(arr)
+
+        # Extract through safe placeholders so null positions remain null in
+        # every child field and in the enclosing coordinate struct.
+        get_num = np.vectorize(
+            lambda f: 0 if pd.isna(f) else f.numerator, otypes=[np.int64]
+        )
+        get_den = np.vectorize(
+            lambda f: 1 if pd.isna(f) else f.denominator, otypes=[np.int64]
+        )
 
         numerators = get_num(arr)
         denominators = get_den(arr)
@@ -405,37 +416,60 @@ class CoordinateParser:
 
         return pa.StructArray.from_arrays(
             [
-                pa.array(values, type=pa.float64()),
-                pa.array(numerators, type=pa.int64()),
-                pa.array(denominators, type=pa.int64()),
+                pa.array(values, type=pa.float64(), mask=null_mask),
+                pa.array(numerators, type=pa.int64(), mask=null_mask),
+                pa.array(denominators, type=pa.int64(), mask=null_mask),
             ],
             fields=list(coord_type),
+            mask=pa.array(null_mask),
         )
 
     @staticmethod
     def _parse_numeric_to_fractions(arr: np.ndarray) -> pa.StructArray:
-        """Convert numeric array to fractions with limit_denominator (vectorized).
+        """Parse numeric coordinates without fabricating exact fractions.
 
-        Strategy:
-        - Use fractions.Fraction.limit_denominator(10000)
-        - Vectorize the conversion
-        - Extract num/den vectorized
+        Integer inputs are exact by construction.  Floating-point inputs are
+        retained as float values with null numerator and denominator fields;
+        their binary representation is not promoted to a rational pair.
 
         Args:
             arr: Numeric array (int or float).
 
         Returns:
-            StructArray with converted fractions.
+            StructArray with exact pairs only for integer elements.
         """
-        # Vectorized conversion to Fraction
-        to_frac = np.vectorize(
-            lambda x: Fraction(x).limit_denominator(10000), otypes=[object]
+        null_mask = pd.isna(arr)
+        values = np.asarray(arr, dtype=object)
+        safe_values = np.where(null_mask, np.nan, values).astype(np.float64)
+
+        non_null_values = values[~null_mask]
+        inferred_dtype = pd.api.types.infer_dtype(non_null_values, skipna=True)
+        exact_mask = (~null_mask) & (
+            np.issubdtype(arr.dtype, np.integer) or inferred_dtype == "integer"
         )
 
-        fractions = to_frac(arr)
+        numerators = np.zeros(len(arr), dtype=np.int64)
+        denominators = np.ones(len(arr), dtype=np.int64)
+        if exact_mask.any():
+            numerators[exact_mask] = np.asarray(values[exact_mask], dtype=np.int64)
 
-        # Now extract num/den vectorized
-        return CoordinateParser._parse_fraction_objects(fractions)
+        coord_type = pa.struct(
+            [
+                pa.field("value", pa.float64(), nullable=True),
+                pa.field("numerator", pa.int64(), nullable=True),
+                pa.field("denominator", pa.int64(), nullable=True),
+            ]
+        )
+        pair_null_mask = ~exact_mask
+        return pa.StructArray.from_arrays(
+            [
+                pa.array(safe_values, type=pa.float64(), mask=null_mask),
+                pa.array(numerators, type=pa.int64(), mask=pair_null_mask),
+                pa.array(denominators, type=pa.int64(), mask=pair_null_mask),
+            ],
+            fields=list(coord_type),
+            mask=pa.array(null_mask),
+        )
 
 
 # endregion

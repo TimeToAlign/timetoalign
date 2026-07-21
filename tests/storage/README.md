@@ -3,6 +3,17 @@
 This directory contains tests for `timetoalign.storage`, the PyArrow-backed
 event storage layer (`EventData`, `EventStore` and its subclasses).
 
+## Fraction Fidelity Validation
+
+Interval completion is checked with exact rational expectations whenever every
+operand carries a numerator and denominator.  Tests cover both row-oriented
+`from_dicts` construction and the vectorized `from_arrays` path, including
+addition and subtraction results such as `7/2 + 3/4 = 17/4`.  Float-only and
+mixed exact/inexact inputs must leave computed numerator and denominator fields
+null; the float convenience value must not be converted back into a fabricated
+rational.  These assertions protect the authoritative rational pair from
+default `0/1` values during interval filling.
+
 ## Test Files
 
 ### `test_events.py` - `EventData.column_values()`

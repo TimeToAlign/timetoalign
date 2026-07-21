@@ -412,14 +412,16 @@ class Timeline(
             return cls.empty(unit=unit, number_type=number_type, **kwargs)
 
         # Calculate max coordinate to determine length
-        max_coord = 0.0
+        max_coord: Any = 0
         for row in rows:
             if row.get("instant") is not None:
-                max_coord = max(max_coord, float(row["instant"]))
+                max_coord = max(max_coord, cls._coord_to_value(row["instant"]))
             if row.get("end") is not None:
-                max_coord = max(max_coord, float(row["end"]))
+                max_coord = max(max_coord, cls._coord_to_value(row["end"]))
             elif row.get("start") is not None and row.get("duration") is not None:
-                max_coord = max(max_coord, float(row["start"]) + float(row["duration"]))
+                start = cls._coord_to_value(row["start"])
+                duration = cls._coord_to_value(row["duration"])
+                max_coord = max(max_coord, start + duration)
 
         timeline = cls(length=max_coord, unit=unit, number_type=number_type, **kwargs)
         timeline._add_events_unchecked(rows)
@@ -659,6 +661,18 @@ class Timeline(
     # endregion
 
     # region Event Management
+
+    @staticmethod
+    def _coord_to_value(value: Any) -> Any:
+        """Return a coordinate value without discarding an exact ratio."""
+        if isinstance(value, dict):
+            if (
+                value.get("numerator") is not None
+                and value.get("denominator") is not None
+            ):
+                return wire_to_rational(value)
+            return value["value"]
+        return value
 
     @staticmethod
     def _coord_to_float(value: Any) -> float:

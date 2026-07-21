@@ -946,6 +946,95 @@ def _build_denominated_struct(value_arr: pa.Array) -> pa.StructArray:
     )
 
 
+def _field_arithmetic_struct(
+    left: TimeScalarField,
+    other: TimeScalarField | TimeScalar | int | float | Fraction,
+    operation: str,
+) -> pa.StructArray:
+    """Compute field arithmetic while retaining exact rational rows.
+
+    A row is exact only when every operand has an authoritative rational pair,
+    or is an integer/Fraction scalar. Float operands deliberately use only the
+    convenience values and produce null pair members.
+    """
+    left_rows = left.to_pyarrow().to_pylist()
+    if isinstance(other, TimeScalarField):
+        right_rows: list[Any] = other.to_pyarrow().to_pylist()
+        operands: list[tuple[Any, Any]] = list(zip(left_rows, right_rows))
+    else:
+        value = other.value if isinstance(other, TimeScalar) else other
+        operands = [(row, value) for row in left_rows]
+
+    def apply(left_value: Any, right_value: Any) -> Any:
+        if operation == "add":
+            return left_value + right_value
+        if operation == "subtract":
+            return left_value - right_value
+        if operation == "multiply":
+            return left_value * right_value
+        if operation == "divide":
+            return left_value / right_value
+        if operation == "floor_divide":
+            return left_value // right_value
+        raise ValueError(f"Unknown field arithmetic operation: {operation}")
+
+    rows: list[dict[str, Any] | None] = []
+    for left_row, right_row in operands:
+        if left_row is None or right_row is None:
+            rows.append(None)
+            continue
+
+        left_pair = (
+            left_row["numerator"] is not None and left_row["denominator"] is not None
+        )
+        if isinstance(right_row, dict):
+            right_pair = (
+                right_row["numerator"] is not None
+                and right_row["denominator"] is not None
+            )
+            right_value = (
+                Fraction(right_row["numerator"], right_row["denominator"])
+                if right_pair
+                else right_row["value"]
+            )
+        else:
+            right_pair = isinstance(right_row, (int, Fraction)) and not isinstance(
+                right_row, bool
+            )
+            right_value = right_row
+
+        left_value = (
+            Fraction(left_row["numerator"], left_row["denominator"])
+            if left_pair
+            else left_row["value"]
+        )
+        result = apply(left_value, right_value)
+        if left_pair and right_pair:
+            exact = Fraction(result)
+            rows.append(
+                {
+                    "value": float(exact),
+                    "numerator": exact.numerator,
+                    "denominator": exact.denominator,
+                }
+            )
+        else:
+            rows.append(
+                {"value": float(result), "numerator": None, "denominator": None}
+            )
+
+    return pa.array(
+        rows,
+        type=pa.struct(
+            [
+                pa.field("value", pa.float64()),
+                pa.field("numerator", pa.int64()),
+                pa.field("denominator", pa.int64()),
+            ]
+        ),
+    )
+
+
 def _coord_field_from_value(
     value_arr: pa.Array,
     unit: Any,
@@ -953,7 +1042,11 @@ def _coord_field_from_value(
     timeline_id: str | None,
 ) -> CoordinateField | IdCoordinateField:
     """Construct a CoordinateField (or IdCoordinateField) from a value column."""
-    struct = _build_denominated_struct(value_arr)
+    struct = (
+        value_arr
+        if pa.types.is_struct(value_arr.type)
+        else _build_denominated_struct(value_arr)
+    )
     pa_field = pa.field(
         "value" if timeline_id is None else "id_value",
         struct.type,
@@ -971,7 +1064,11 @@ def _dur_field_from_value(
     timeline_id: str | None,
 ) -> DurationField | IdDurationField:
     """Construct a DurationField (or IdDurationField) from a value column."""
-    struct = _build_denominated_struct(value_arr)
+    struct = (
+        value_arr
+        if pa.types.is_struct(value_arr.type)
+        else _build_denominated_struct(value_arr)
+    )
     pa_field = pa.field(
         "value" if timeline_id is None else "id_value",
         struct.type,
@@ -1006,7 +1103,7 @@ def _scalar_binop_value_and_id(
                 f"{type(other).__name__} with mismatched timeline_id: "
                 f"{self_tl!r} vs {other_tl!r}"
             )
-        return float(other.value), self_tl or other_tl
+        return other.value, self_tl or other_tl
     if isinstance(other, TimeScalarField):
         if self.unit != other.unit:
             raise TypeError(
@@ -1023,7 +1120,7 @@ def _scalar_binop_value_and_id(
             )
         return other._value_array(), self_tl or other_tl
     if isinstance(other, Fraction):
-        return float(other), self_tl
+        return other, self_tl
     if isinstance(other, (int, float)) and not isinstance(other, bool):
         return other, self_tl
     raise TypeError(f"Cannot {op} {type(self).__name__} with {type(other).__name__}")
@@ -1521,20 +1618,20 @@ class CoordinateField(TimeScalarField):
                 "Cannot add two Coordinate fields; subtract them to obtain a Duration"
             )
         v, tl = _scalar_binop_value_and_id(self, other, "add")
-        new_value = pc.add(self._value_array(), v)
+        new_value = _field_arithmetic_struct(self, other, "add")
         return _coord_field_from_value(new_value, self._unit, self._number_type, tl)
 
     def __sub__(self, other: object) -> CoordinateField | DurationField:
         if isinstance(other, (Coordinate, CoordinateField)):
             v, tl = _scalar_binop_value_and_id(self, other, "subtract")
-            new_value = pc.subtract(self._value_array(), v)
+            new_value = _field_arithmetic_struct(self, other, "subtract")
             return _dur_field_from_value(new_value, self._unit, self._number_type, tl)
         if isinstance(other, (Duration, DurationField)):
             v, tl = _scalar_binop_value_and_id(self, other, "subtract")
-            new_value = pc.subtract(self._value_array(), v)
+            new_value = _field_arithmetic_struct(self, other, "subtract")
             return _coord_field_from_value(new_value, self._unit, self._number_type, tl)
         v, tl = _scalar_binop_value_and_id(self, other, "subtract")
-        new_value = pc.subtract(self._value_array(), v)
+        new_value = _field_arithmetic_struct(self, other, "subtract")
         return _coord_field_from_value(new_value, self._unit, self._number_type, tl)
 
     def __mul__(self, scalar: object) -> CoordinateField:
@@ -1548,7 +1645,7 @@ class CoordinateField(TimeScalarField):
             raise TypeError(
                 f"Cannot multiply CoordinateField by {type(scalar).__name__}"
             )
-        new_value = pc.multiply(self._value_array(), float(scalar))
+        new_value = _field_arithmetic_struct(self, scalar, "multiply")
         return _coord_field_from_value(
             new_value,
             self._unit,
@@ -1571,7 +1668,7 @@ class CoordinateField(TimeScalarField):
             raise TypeError(f"Cannot divide CoordinateField by {type(scalar).__name__}")
         if scalar == 0:
             raise ZeroDivisionError("Cannot divide CoordinateField by zero")
-        new_value = pc.divide(self._value_array(), float(scalar))
+        new_value = _field_arithmetic_struct(self, scalar, "divide")
         return _coord_field_from_value(
             new_value,
             self._unit,
@@ -1592,7 +1689,7 @@ class CoordinateField(TimeScalarField):
             )
         if scalar == 0:
             raise ZeroDivisionError("Cannot divide CoordinateField by zero")
-        new_value = pc.floor(pc.divide(self._value_array(), float(scalar)))
+        new_value = _field_arithmetic_struct(self, scalar, "floor_divide")
         return _coord_field_from_value(
             new_value,
             self._unit,
@@ -1765,14 +1862,14 @@ class DurationField(TimeScalarField):
                 "use 'coord + dur' instead"
             )
         v, tl = _scalar_binop_value_and_id(self, other, "add")
-        new_value = pc.add(self._value_array(), v)
+        new_value = _field_arithmetic_struct(self, other, "add")
         return _dur_field_from_value(new_value, self._unit, self._number_type, tl)
 
     def __sub__(self, other: object) -> DurationField:
         if isinstance(other, (Coordinate, CoordinateField)):
             raise TypeError("Cannot subtract a Coordinate from a Duration field")
         v, tl = _scalar_binop_value_and_id(self, other, "subtract")
-        new_value = pc.subtract(self._value_array(), v)
+        new_value = _field_arithmetic_struct(self, other, "subtract")
         return _dur_field_from_value(new_value, self._unit, self._number_type, tl)
 
     def __mul__(self, scalar: object) -> DurationField:
@@ -1783,7 +1880,7 @@ class DurationField(TimeScalarField):
             )
         if isinstance(scalar, bool) or not isinstance(scalar, (int, float, Fraction)):
             raise TypeError(f"Cannot multiply DurationField by {type(scalar).__name__}")
-        new_value = pc.multiply(self._value_array(), float(scalar))
+        new_value = _field_arithmetic_struct(self, scalar, "multiply")
         return _dur_field_from_value(
             new_value,
             self._unit,
@@ -1804,7 +1901,7 @@ class DurationField(TimeScalarField):
             raise TypeError(f"Cannot divide DurationField by {type(scalar).__name__}")
         if scalar == 0:
             raise ZeroDivisionError("Cannot divide DurationField by zero")
-        new_value = pc.divide(self._value_array(), float(scalar))
+        new_value = _field_arithmetic_struct(self, scalar, "divide")
         return _dur_field_from_value(
             new_value,
             self._unit,
@@ -1824,7 +1921,7 @@ class DurationField(TimeScalarField):
             )
         if scalar == 0:
             raise ZeroDivisionError("Cannot divide DurationField by zero")
-        new_value = pc.floor(pc.divide(self._value_array(), float(scalar)))
+        new_value = _field_arithmetic_struct(self, scalar, "floor_divide")
         return _dur_field_from_value(
             new_value,
             self._unit,
