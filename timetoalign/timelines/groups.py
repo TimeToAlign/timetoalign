@@ -1941,10 +1941,11 @@ class TimelineGroup:
         """
         from timetoalign.timelines.flow import (
             FlowMap,
-            _flatten_segment_line_onto,
             compute_qb_sections,
         )
         from timetoalign.timelines.types import SegmentLine
+
+        from .flow.unfolding import _flatten_segment_line_onto
 
         if reference_timeline_id not in self._timelines:
             raise KeyError(
