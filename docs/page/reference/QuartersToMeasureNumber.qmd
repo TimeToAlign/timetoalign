@@ -1,0 +1,113 @@
+# QuartersToMeasureNumber { #timetoalign.QuartersToMeasureNumber }
+
+```python
+QuartersToMeasureNumber(
+    boundaries,
+    mns,
+    source_unit=TimeUnit.quarters,
+    uid=None,
+    name=None,
+)
+```
+
+Map quarters to measure number labels (no interpolation).
+
+Given a quarter position, returns the MN label (e.g., "1", "19a", "0")
+of the measure containing that position.
+
+This is NOT a coordinate conversion map - it returns string labels,
+not numeric coordinates. Therefore target_unit is None.
+
+MN labels are strings because they may contain suffixes (e.g., "19a", "19b"
+for split bars, or "0" for anacrusis).
+
+Examples:
+    >>> cmap = QuartersToMeasureNumber(
+    ...     boundaries=[0, 4, 8, 12],
+    ...     mns=["1", "2", "3", "4"],
+    ... )
+    >>> cmap(0.0)    # Start of M1
+    '1'
+    >>> cmap(3.5)    # Still in M1 (assuming 4 quarters/measure)
+    '1'
+    >>> cmap(4.0)    # Start of M2
+    '2'
+
+    >>> # From MetricMap
+    >>> cmap = QuartersToMeasureNumber.from_metric_map(meter)
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [mns](#timetoalign.QuartersToMeasureNumber.mns) | The measure number labels. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_dict](#timetoalign.QuartersToMeasureNumber.from_dict) | Deserialize from dictionary. |
+| [from_measure_data](#timetoalign.QuartersToMeasureNumber.from_measure_data) | Create from MeasureData (loaded from TSV/JSON). |
+| [from_metric_map](#timetoalign.QuartersToMeasureNumber.from_metric_map) | Create from a MetricMap. |
+| [to_dict](#timetoalign.QuartersToMeasureNumber.to_dict) | Serialize to dictionary. |
+| [to_floating_measures](#timetoalign.QuartersToMeasureNumber.to_floating_measures) | Convert string MN labels to floating-point measure map. |
+
+### from_dict { #timetoalign.QuartersToMeasureNumber.from_dict }
+
+```python
+QuartersToMeasureNumber.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+### from_measure_data { #timetoalign.QuartersToMeasureNumber.from_measure_data }
+
+```python
+QuartersToMeasureNumber.from_measure_data(measures)
+```
+
+Create from MeasureData (loaded from TSV/JSON).
+
+Args:
+    measures: MeasureData with measure events.
+
+Returns:
+    QuartersToMeasureNumber map.
+
+### from_metric_map { #timetoalign.QuartersToMeasureNumber.from_metric_map }
+
+```python
+QuartersToMeasureNumber.from_metric_map(meter)
+```
+
+Create from a MetricMap.
+
+Args:
+    meter: MetricMap with measure boundary information.
+
+Returns:
+    QuartersToMeasureNumber map.
+
+### to_dict { #timetoalign.QuartersToMeasureNumber.to_dict }
+
+```python
+QuartersToMeasureNumber.to_dict()
+```
+
+Serialize to dictionary.
+
+### to_floating_measures { #timetoalign.QuartersToMeasureNumber.to_floating_measures }
+
+```python
+QuartersToMeasureNumber.to_floating_measures()
+```
+
+Convert string MN labels to floating-point measure map.
+
+Non-numeric suffixes (e.g., "a" in "19a") are stripped with a warning.
+
+Returns:
+    QuartersToFloatingMeasures map with interpolation.
+
+Raises:
+    ValueError: If any MN label cannot be parsed to a number.

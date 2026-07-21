@@ -1,0 +1,227 @@
+# GraphicalLoader { #timetoalign.loader.graphical.GraphicalLoader }
+
+```python
+loader.graphical.GraphicalLoader(metadata=None)
+```
+
+Factory for building GraphicalStore objects.
+
+The loader accumulates sources and segments, then builds a store.
+This provides a fluent interface for constructing graphical timelines.
+
+Examples:
+    >>> loader = GraphicalLoader()
+    >>> idx = loader.add_image("score.png")
+    >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=100, name="system_1")
+    >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=200, name="system_2")
+    >>> store = loader.store
+
+    >>> # From PDF
+    >>> import pymupdf
+    >>> doc = pymupdf.open("score.pdf")
+    >>> loader = GraphicalLoader()
+    >>> idx = loader.add_pdf_page(doc, 0)
+    >>> loader.add_horizontal_segment(idx, x0=50, x1=550, y=100, name="page1")
+
+Attributes:
+    metadata: Optional metadata dictionary attached to the store.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [current_offset](#timetoalign.loader.graphical.GraphicalLoader.current_offset) | Current offset for the next contiguous segment. |
+| [n_segments](#timetoalign.loader.graphical.GraphicalLoader.n_segments) | Number of segments added. |
+| [n_sources](#timetoalign.loader.graphical.GraphicalLoader.n_sources) | Number of sources added. |
+| [store](#timetoalign.loader.graphical.GraphicalLoader.store) | Build and return a new ``GraphicalStore``. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [add_horizontal_segment](#timetoalign.loader.graphical.GraphicalLoader.add_horizontal_segment) | Add a horizontal line segment (convenience method). |
+| [add_image](#timetoalign.loader.graphical.GraphicalLoader.add_image) | Add an image file as a source. |
+| [add_image_source](#timetoalign.loader.graphical.GraphicalLoader.add_image_source) | Add a pre-constructed ImageSource. |
+| [add_pdf_embedded_image](#timetoalign.loader.graphical.GraphicalLoader.add_pdf_embedded_image) | Add an embedded PDF image as a source. |
+| [add_pdf_page](#timetoalign.loader.graphical.GraphicalLoader.add_pdf_page) | Add a PDF page (rendered as image) as a source. |
+| [add_segment](#timetoalign.loader.graphical.GraphicalLoader.add_segment) | Add a segment with arbitrary path. |
+| [add_vertical_segment](#timetoalign.loader.graphical.GraphicalLoader.add_vertical_segment) | Add a vertical line segment (convenience method). |
+| [build](#timetoalign.loader.graphical.GraphicalLoader.build) | Alias for :pyattr:`store`. |
+| [clear](#timetoalign.loader.graphical.GraphicalLoader.clear) | Clear all sources and segments. |
+| [reset_offset](#timetoalign.loader.graphical.GraphicalLoader.reset_offset) | Reset the current offset for contiguous segment addition. |
+
+### add_horizontal_segment { #timetoalign.loader.graphical.GraphicalLoader.add_horizontal_segment }
+
+```python
+loader.graphical.GraphicalLoader.add_horizontal_segment(
+    source_index,
+    x0,
+    x1,
+    y,
+    name=None,
+    offset=None,
+    tolerance=10.0,
+)
+```
+
+Add a horizontal line segment (convenience method).
+
+This is the most common case for musical scores and spectrograms.
+
+Args:
+    source_index: Index of the source image.
+    x0: Starting x coordinate (left edge).
+    x1: Ending x coordinate (right edge).
+    y: Fixed y coordinate (vertical position).
+    name: Optional human-readable name.
+    offset: Timeline offset. If None, appends contiguously.
+    tolerance: Distance tolerance for coordinate conversion.
+
+Returns:
+    The created GraphicalSegment.
+
+### add_image { #timetoalign.loader.graphical.GraphicalLoader.add_image }
+
+```python
+loader.graphical.GraphicalLoader.add_image(path)
+```
+
+Add an image file as a source.
+
+Args:
+    path: Path to the image file.
+
+Returns:
+    Index of the added source (for use in add_segment).
+
+Raises:
+    FileNotFoundError: If file doesn't exist.
+    ValueError: If format is not supported.
+
+### add_image_source { #timetoalign.loader.graphical.GraphicalLoader.add_image_source }
+
+```python
+loader.graphical.GraphicalLoader.add_image_source(source)
+```
+
+Add a pre-constructed ImageSource.
+
+Args:
+    source: The ImageSource to add.
+
+Returns:
+    Index of the added source.
+
+### add_pdf_embedded_image { #timetoalign.loader.graphical.GraphicalLoader.add_pdf_embedded_image }
+
+```python
+loader.graphical.GraphicalLoader.add_pdf_embedded_image(doc, xref)
+```
+
+Add an embedded PDF image as a source.
+
+Args:
+    doc: An open pymupdf Document.
+    xref: Cross-reference number of the image.
+
+Returns:
+    Index of the added source.
+
+### add_pdf_page { #timetoalign.loader.graphical.GraphicalLoader.add_pdf_page }
+
+```python
+loader.graphical.GraphicalLoader.add_pdf_page(doc, page_index, dpi=150)
+```
+
+Add a PDF page (rendered as image) as a source.
+
+Args:
+    doc: An open pymupdf Document.
+    page_index: Zero-based page index.
+    dpi: Resolution for rendering.
+
+Returns:
+    Index of the added source.
+
+### add_segment { #timetoalign.loader.graphical.GraphicalLoader.add_segment }
+
+```python
+loader.graphical.GraphicalLoader.add_segment(
+    source_index,
+    path,
+    name=None,
+    offset=None,
+)
+```
+
+Add a segment with arbitrary path.
+
+Args:
+    source_index: Index of the source image.
+    path: TimeAxisPath defining the time axis geometry.
+    name: Optional human-readable name.
+    offset: Timeline offset. If None, appends contiguously.
+
+Returns:
+    The created GraphicalSegment.
+
+Raises:
+    IndexError: If source_index is invalid.
+
+### add_vertical_segment { #timetoalign.loader.graphical.GraphicalLoader.add_vertical_segment }
+
+```python
+loader.graphical.GraphicalLoader.add_vertical_segment(
+    source_index,
+    x,
+    y0,
+    y1,
+    name=None,
+    offset=None,
+    tolerance=10.0,
+)
+```
+
+Add a vertical line segment (convenience method).
+
+Args:
+    source_index: Index of the source image.
+    x: Fixed x coordinate.
+    y0: Starting y coordinate (top).
+    y1: Ending y coordinate (bottom).
+    name: Optional human-readable name.
+    offset: Timeline offset. If None, appends contiguously.
+    tolerance: Distance tolerance for coordinate conversion.
+
+Returns:
+    The created GraphicalSegment.
+
+### build { #timetoalign.loader.graphical.GraphicalLoader.build }
+
+```python
+loader.graphical.GraphicalLoader.build()
+```
+
+Alias for :pyattr:`store`.
+
+Returns:
+    GraphicalStore containing all sources and segments.
+
+### clear { #timetoalign.loader.graphical.GraphicalLoader.clear }
+
+```python
+loader.graphical.GraphicalLoader.clear()
+```
+
+Clear all sources and segments.
+
+### reset_offset { #timetoalign.loader.graphical.GraphicalLoader.reset_offset }
+
+```python
+loader.graphical.GraphicalLoader.reset_offset(offset=0.0)
+```
+
+Reset the current offset for contiguous segment addition.
+
+Args:
+    offset: New offset value (default 0.0).

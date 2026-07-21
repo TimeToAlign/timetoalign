@@ -1,0 +1,49 @@
+# CoordinateField { #timetoalign.CoordinateField }
+
+```python
+CoordinateField(raw=None, unit=None, number_type=None, *, source_fields=None)
+```
+
+Semantic field for coordinate fields.
+
+Wraps a ``StructField`` containing the coordinate struct
+``{value: float64, numerator: int64, denominator: int64}`` and adds
+semantic identity: unit, domain, number_type.
+
+Pairs with :class:`Coordinate`.
+
+Examples:
+    >>> import pyarrow as pa
+    >>> from timetoalign.core.enums import TimeUnit, NumberType
+    >>> from timetoalign.core.time import CoordinateField
+    >>> arr = pa.array(
+    ...     [{"value": 1.5, "numerator": 3, "denominator": 2}],
+    ...     type=pa.struct([
+    ...         pa.field("value", pa.float64()),
+    ...         pa.field("numerator", pa.int64()),
+    ...         pa.field("denominator", pa.int64()),
+    ...     ]),
+    ... )
+    >>> cf = CoordinateField.from_field(arr, unit=TimeUnit.seconds, number_type=NumberType.float)
+    >>> cf[0]
+    Coordinate(1.5, seconds)
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [matches_pa_field](#timetoalign.CoordinateField.matches_pa_field) | Reject ``IdCoordinateField`` shapes — they live in a sibling class. |
+
+### matches_pa_field { #timetoalign.CoordinateField.matches_pa_field }
+
+```python
+CoordinateField.matches_pa_field(pa_field)
+```
+
+Reject ``IdCoordinateField`` shapes — they live in a sibling class.
+
+The base ``SemanticField.matches_pa_field`` is shape-OR-metadata.
+Since ``IdCoordinateField`` has the same struct shape, this method
+explicitly rejects ``pa.Field`` whose metadata advertises
+``"IdCoordinateField"``; structural shape matches still resolve to
+``CoordinateField`` for backward compatibility with non-Id fields.

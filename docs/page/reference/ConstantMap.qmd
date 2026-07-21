@@ -1,0 +1,81 @@
+# ConstantMap { #timetoalign.ConstantMap }
+
+```python
+ConstantMap(value, source_unit=None, uid=None, name=None)
+```
+
+A ConversionMap that returns a constant value for any input.
+
+Used to associate a fixed label (e.g., a filename) with every coordinate
+on a timeline. Typically used inside a `timetoalign.CombinationMap` to
+pair a numeric conversion (pixels to seconds) with a string label
+(source image filename).
+
+The constant value can be of any type, though strings are the most
+common use case. The map has no source or target unit by default.
+
+Attributes:
+    value: The constant value returned for every input.
+
+Examples:
+    >>> cmap = ConstantMap(value="page1.jpeg", name="filename")
+    >>> cmap(42.0)
+    'page1.jpeg'
+    >>> cmap(np.array([1.0, 2.0, 3.0]))
+    array(['page1.jpeg', 'page1.jpeg', 'page1.jpeg'], dtype=object)
+
+See Also:
+    timetoalign.CombinationMap
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [is_invertible](#timetoalign.ConstantMap.is_invertible) | ConstantMap is not invertible (many-to-one mapping). |
+| [value](#timetoalign.ConstantMap.value) | The constant value returned for every input. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_dict](#timetoalign.ConstantMap.from_dict) | Deserialize from dictionary. |
+| [inverse](#timetoalign.ConstantMap.inverse) | ConstantMap cannot be inverted. |
+| [to_dict](#timetoalign.ConstantMap.to_dict) | Serialize to dictionary. |
+
+### from_dict { #timetoalign.ConstantMap.from_dict }
+
+```python
+ConstantMap.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+Args:
+    data: Dictionary representation with at least a 'value' key.
+
+Returns:
+    A ConstantMap instance.
+
+### inverse { #timetoalign.ConstantMap.inverse }
+
+```python
+ConstantMap.inverse()
+```
+
+ConstantMap cannot be inverted.
+
+Raises:
+    NotImplementedError: Always, as a constant function has no
+        well-defined inverse.
+
+### to_dict { #timetoalign.ConstantMap.to_dict }
+
+```python
+ConstantMap.to_dict()
+```
+
+Serialize to dictionary.
+
+A ``Fraction`` constant is encoded as the canonical rational wire
+dict; every other constant (the common case is a string label)
+is emitted as-is and must therefore already be JSON-native.

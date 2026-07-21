@@ -1,0 +1,84 @@
+# MeasureMapLoader { #timetoalign.loader.score.MeasureMapLoader }
+
+```python
+loader.score.MeasureMapLoader(**kwargs)
+```
+
+Load MeasureMap JSON files into ScoreStore.
+
+MeasureMapLoader parses the MeasureMap JSON format (as specified in the
+MeasureMap paper) and returns a ScoreStore with populated MeasureData.
+
+The loader handles:
+- Compressed MeasureMap (minimal entries, defaults inferred)
+- Expanded MeasureMap (all fields explicit)
+- Validation of structure (MC unique, qstamp monotonic, next valid)
+
+Attributes:
+    unit: Always TimeUnit.quarters (MeasureMap uses quarter beats).
+    expanded_data: The fully expanded measure list after loading.
+
+Examples:
+    >>> loader = MeasureMapLoader()
+    >>> loader.load("WoO71.measures.mm.json")
+    >>> print(len(loader.store.measures))  # Number of measures
+    240
+
+    >>> # Access flow control summary
+    >>> summary = loader.store.measures.get_flow_control_summary()
+    >>> print(f"Repeats: {summary['repeat_starts']} starts, {summary['repeat_ends']} ends")
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [expanded_data](#timetoalign.loader.score.MeasureMapLoader.expanded_data) | The fully expanded measure data after loading. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [compute_default_traversal](#timetoalign.loader.score.MeasureMapLoader.compute_default_traversal) | Compute the default traversal sequence from the expanded data. |
+| [get_traversal_summary](#timetoalign.loader.score.MeasureMapLoader.get_traversal_summary) | Get summary of the default traversal. |
+
+### compute_default_traversal { #timetoalign.loader.score.MeasureMapLoader.compute_default_traversal }
+
+```python
+loader.score.MeasureMapLoader.compute_default_traversal()
+```
+
+Compute the default traversal sequence from the expanded data.
+
+The algorithm follows the 'next' field, using visit counts to
+choose which branch to take at repeat points.
+
+From the design spec:
+```python
+sequence = []
+current_mc = 1
+visit_counts = defaultdict(int)
+
+while current_mc != -1:
+    bar = get_bar_by_mc(mm_data, current_mc)
+    sequence.append(bar["ID"])
+    next_options = bar["next"]
+    visit_counts[current_mc] += 1
+    idx = min(visit_counts[current_mc] - 1, len(next_options) - 1)
+    current_mc = next_options[idx]
+
+return TraversalMap(sequence=sequence)
+```
+
+Returns:
+    List of MC values in traversal order.
+
+### get_traversal_summary { #timetoalign.loader.score.MeasureMapLoader.get_traversal_summary }
+
+```python
+loader.score.MeasureMapLoader.get_traversal_summary()
+```
+
+Get summary of the default traversal.
+
+Returns:
+    Dict with traversal statistics.

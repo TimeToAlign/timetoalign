@@ -1,7 +1,7 @@
-# PhysicalTimeline { #timetoalign.PhysicalTimeline }
+# PhysicalTimeline { #timetoalign.timelines.PhysicalTimeline }
 
 ```python
-PhysicalTimeline(
+timelines.PhysicalTimeline(
     length=0,
     unit=None,
     number_type=None,

@@ -18,8 +18,8 @@ present with different coordinates) are rejected with a warning.
 **Usage follows the standard loader two-phase pattern:**
 
 1. ``loader.load(*match_files)`` — parses all files, builds internal state.
-2. ``loader.create_alignment_bundle()`` — assembles the result.
-3. ``loader.create_timeline(id)`` — retrieves individual timelines.
+2. ``loader.create_bundle()`` — assembles the result.
+3. ``loader.create_timeline(uid)`` — retrieves individual timelines.
 
 Produces:
 
@@ -47,7 +47,7 @@ file itself and never hardcoded.
 
 **External score timeline:**
 Pass a score timeline previously built by ``PartituraLoader`` via the
-``score_timeline=`` parameter of ``create_alignment_bundle()``. The
+``score_timeline=`` parameter of ``create_bundle()``. The
 loader verifies compatibility (matching snote IDs and coordinates) and
 references the supplied timeline in all MatchClaims. MatchClaims are
 never rebound after creation.
@@ -76,15 +76,15 @@ Args:
 
 | Name | Description |
 | --- | --- |
-| [create_alignment_bundle](#timetoalign.loader.alignment.matchfile.MatchfileLoader.create_alignment_bundle) | Assemble an AlignmentBundle from the loaded data. |
+| [create_bundle](#timetoalign.loader.alignment.matchfile.MatchfileLoader.create_bundle) | Assemble an AlignmentBundle from the loaded data. |
 | [create_timeline](#timetoalign.loader.alignment.matchfile.MatchfileLoader.create_timeline) | Return a single timeline by uid, role string, or partial/regex match. |
 | [create_timelines](#timetoalign.loader.alignment.matchfile.MatchfileLoader.create_timelines) | Return all timelines produced from loaded data. |
 | [load](#timetoalign.loader.alignment.matchfile.MatchfileLoader.load) | Load one or more .match files. |
 
-### create_alignment_bundle { #timetoalign.loader.alignment.matchfile.MatchfileLoader.create_alignment_bundle }
+### create_bundle { #timetoalign.loader.alignment.matchfile.MatchfileLoader.create_bundle }
 
 ```python
-loader.alignment.matchfile.MatchfileLoader.create_alignment_bundle(
+loader.alignment.matchfile.MatchfileLoader.create_bundle(
     score_timeline=None,
     verify=True,
 )
@@ -133,14 +133,14 @@ Raises:
 Examples:
     >>> loader = MatchfileLoader()
     >>> loader.load(*match_files)
-    >>> bundle = loader.create_alignment_bundle()
+    >>> bundle = loader.create_bundle()
     >>> len(bundle.timelines)  # score + 22 performances
     23
 
 ### create_timeline { #timetoalign.loader.alignment.matchfile.MatchfileLoader.create_timeline }
 
 ```python
-loader.alignment.matchfile.MatchfileLoader.create_timeline(id)
+loader.alignment.matchfile.MatchfileLoader.create_timeline(uid)
 ```
 
 Return a single timeline by uid, role string, or partial/regex match.
@@ -154,7 +154,7 @@ Matching precedence:
 6. Partial/regex match on any timeline uid.
 
 Args:
-    id: Timeline uid (e.g. ``"score:Chopin_op10_no3"``), role
+    uid: Timeline uid (e.g. ``"score:clt1"``), role
         shorthand (``"score"``, ``"perf:1"``), or partial/regex
         pattern.
 
@@ -166,21 +166,24 @@ Raises:
     RuntimeError: If ``load()`` has not been called yet.
 
 Examples:
-    >>> loader.create_timeline("score")          # Role shorthand
-    >>> loader.create_timeline("perf:1")         # First performance
-    >>> loader.create_timeline("Chopin")         # Partial match
-    >>> loader.create_timeline(r"^perf:.*p01")   # Regex match
+    >>> loader.create_timeline("score")               # -> score:clt1
+    >>> loader.create_timeline("perf:1")              # First performance
+    >>> loader.create_timeline("perf:p01")            # Same shorthand
+    >>> loader.create_timeline(r"^perf:.*p01:dlt1$")  # Stored-ID regex
 
 ### create_timelines { #timetoalign.loader.alignment.matchfile.MatchfileLoader.create_timelines }
 
 ```python
-loader.alignment.matchfile.MatchfileLoader.create_timelines()
+loader.alignment.matchfile.MatchfileLoader.create_timelines(id_pattern=None)
 ```
 
 Return all timelines produced from loaded data.
 
 For MatchfileLoader: ``[score_timeline, perf_p01, ..., perf_pN]``.
 The score timeline is always first.
+
+Args:
+    id_pattern: Optional regex pattern to filter timeline IDs.
 
 Returns:
     List of Timeline objects. Empty if ``load()`` has not been

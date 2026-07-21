@@ -1,0 +1,27 @@
+# NoteRecord { #timetoalign.alignment.NoteRecord }
+
+```python
+alignment.NoteRecord(
+    id,
+    midi_pitch,
+    onset_tick,
+    offset_tick,
+    velocity,
+    channel=0,
+    track=0,
+)
+```
+
+Performance note record for ``.match`` format export.
+
+Each field corresponds to a positional element in the ``note(...)``
+Prolog-style term.
+
+Attributes:
+    id: Performance note identifier (e.g. ``"n0"``).
+    midi_pitch: MIDI pitch number (0–127).
+    onset_tick: MIDI onset tick.
+    offset_tick: MIDI offset tick.
+    velocity: MIDI velocity (0–127).
+    channel: MIDI channel (default 0).
+    track: MIDI track (default 0).

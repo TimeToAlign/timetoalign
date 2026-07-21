@@ -1,0 +1,34 @@
+# PartituraLoader { #timetoalign.loader.score.PartituraLoader }
+
+```python
+loader.score.PartituraLoader(
+    force_note_ids=True,
+    silence_warnings=False,
+    **kwargs,
+)
+```
+
+Load symbolic scores using partitura.
+
+Supports MusicXML (fully typed) and MIDI (quantized).
+Returns ScoreStore with category-specific data.
+
+All TTA timelines start at coordinate 0.  When partitura reports negative
+quarter-beat onsets (anacrusis notes that precede the first full measure),
+this loader shifts every event coordinate so that the earliest onset maps
+to 0.0.  The magnitude of that shift is available as
+:attr:`anacrusis_offset` and is also stored in
+``ScoreStore.metadata["anacrusis_offset"]`` so that downstream consumers
+(e.g. ``MatchfileLoader``) can apply the same correction when comparing
+raw partitura coordinates against this loader's stored values.
+
+The shift is equivalent to the offset of a ``ShiftMap`` whose forward
+direction is ``raw_partitura_coord → TTA_coord`` (i.e. adding the offset).
+Its ``InverseMap`` (subtracting the offset) converts TTA coordinates back
+to raw partitura space when needed.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [anacrusis_offset](#timetoalign.loader.score.PartituraLoader.anacrusis_offset) | Quarter-beat shift applied to normalise anacrusis coordinates. |

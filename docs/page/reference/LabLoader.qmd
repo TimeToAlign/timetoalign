@@ -1,0 +1,19 @@
+# LabLoader { #timetoalign.loader.tabular.LabLoader }
+
+```python
+loader.tabular.LabLoader(unit=None, number_type=None, **kwargs)
+```
+
+Loader for Audacity/Praat label files (.lab, .txt).
+
+Lab files are tab-separated with columns: start, end, label.
+Common in speech/music annotation workflows.
+
+File Format:
+    start_time\tend_time\tlabel
+    0.0\t1.5\tverse
+    1.5\t3.0\tchorus
+
+Examples:
+    >>> loader = LabLoader()
+    >>> loader.load("regions.lab")

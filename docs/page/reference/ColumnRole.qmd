@@ -1,0 +1,9 @@
+# ColumnRole { #timetoalign.ColumnRole }
+
+```python
+ColumnRole()
+```
+
+Semantic role of a column in the table.
+
+Used for automatic role inference when columns are not explicitly specified.

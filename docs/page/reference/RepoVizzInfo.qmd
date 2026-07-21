@@ -1,7 +1,7 @@
-# RepoVizzInfo { #timetoalign.RepoVizzInfo }
+# RepoVizzInfo { #timetoalign.loader.RepoVizzInfo }
 
 ```python
-RepoVizzInfo(n_samples, frame_rate, metadata, source_path=None)
+loader.RepoVizzInfo(n_samples, frame_rate, metadata, source_path=None)
 ```
 
 Parsed metadata from a RepoVizz CSV file (legacy mode).
@@ -17,4 +17,4 @@ Attributes:
 
 | Name | Description |
 | --- | --- |
-| [duration_seconds](#timetoalign.RepoVizzInfo.duration_seconds) | Duration in seconds. |
+| [duration_seconds](#timetoalign.loader.RepoVizzInfo.duration_seconds) | Duration in seconds. |

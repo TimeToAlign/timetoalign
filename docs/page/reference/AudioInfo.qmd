@@ -1,7 +1,7 @@
-# AudioInfo { #timetoalign.AudioInfo }
+# AudioInfo { #timetoalign.loader.AudioInfo }
 
 ```python
-AudioInfo(
+loader.AudioInfo(
     n_samples,
     sample_rate,
     channels,
@@ -34,6 +34,6 @@ Attributes:
 
 | Name | Description |
 | --- | --- |
-| [is_mono](#timetoalign.AudioInfo.is_mono) | Whether the audio is mono (single channel). |
-| [is_stereo](#timetoalign.AudioInfo.is_stereo) | Whether the audio is stereo (two channels). |
-| [length_in_samples](#timetoalign.AudioInfo.length_in_samples) | Alias for n_samples, matching timeline terminology. |
+| [is_mono](#timetoalign.loader.AudioInfo.is_mono) | Whether the audio is mono (single channel). |
+| [is_stereo](#timetoalign.loader.AudioInfo.is_stereo) | Whether the audio is stereo (two channels). |
+| [length_in_samples](#timetoalign.loader.AudioInfo.length_in_samples) | Alias for n_samples, matching timeline terminology. |

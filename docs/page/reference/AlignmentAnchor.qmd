@@ -1,7 +1,7 @@
-# AlignmentAnchor { #timetoalign.AlignmentAnchor }
+# AlignmentAnchor { #timetoalign.alignment.AlignmentAnchor }
 
 ```python
-AlignmentAnchor()
+alignment.AlignmentAnchor()
 ```
 
 A coordinate pair associating one coordinate on timeline A with one
@@ -16,41 +16,41 @@ Non-synchronous claims (conceptual matches, NOMATCH) have no anchors.
 
 Attributes:
     timeline_a_id: First timeline's unique identifier.
-    coordinate_a: Coordinate in first timeline (plain ``float``).
+    coordinate_a: Coordinate in first timeline.
     timeline_b_id: Second timeline's unique identifier.
-    coordinate_b: Coordinate in second timeline (plain ``float``).
+    coordinate_b: Coordinate in second timeline.
 
 Examples:
     >>> anchor = AlignmentAnchor(
     ...     timeline_a_id="score:1",
-    ...     coordinate_a=100.0,
+    ...     coordinate_a=Coordinate(100.0, TimeUnit.quarters),
     ...     timeline_b_id="recording:1",
-    ...     coordinate_b=45.5,
+    ...     coordinate_b=Coordinate(45.5, TimeUnit.seconds),
     ... )
     >>> anchor.get_coordinate_for("score:1")
-    100.0
+    Coordinate(100.0, quarters)
 
 ## Attributes
 
 | Name | Description |
 | --- | --- |
-| [coordinates](#timetoalign.AlignmentAnchor.coordinates) | Return tuple of coordinates. |
-| [timelines](#timetoalign.AlignmentAnchor.timelines) | Return tuple of timeline IDs. |
+| [coordinates](#timetoalign.alignment.AlignmentAnchor.coordinates) | Return tuple of coordinates. |
+| [timelines](#timetoalign.alignment.AlignmentAnchor.timelines) | Return tuple of timeline IDs. |
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
-| [connects](#timetoalign.AlignmentAnchor.connects) | Check if this anchor connects to a specific timeline. |
-| [connects_both](#timetoalign.AlignmentAnchor.connects_both) | Check if this anchor connects two specific timelines. |
-| [from_dict](#timetoalign.AlignmentAnchor.from_dict) | Deserialize from dictionary. |
-| [get_coordinate_for](#timetoalign.AlignmentAnchor.get_coordinate_for) | Get the coordinate for a specific timeline. |
-| [to_dict](#timetoalign.AlignmentAnchor.to_dict) | Serialize to dictionary for storage. |
+| [connects](#timetoalign.alignment.AlignmentAnchor.connects) | Check if this anchor connects to a specific timeline. |
+| [connects_both](#timetoalign.alignment.AlignmentAnchor.connects_both) | Check if this anchor connects two specific timelines. |
+| [from_dict](#timetoalign.alignment.AlignmentAnchor.from_dict) | Deserialize from dictionary. |
+| [get_coordinate_for](#timetoalign.alignment.AlignmentAnchor.get_coordinate_for) | Get the coordinate for a specific timeline. |
+| [to_dict](#timetoalign.alignment.AlignmentAnchor.to_dict) | Serialize to dictionary for storage. |
 
-### connects { #timetoalign.AlignmentAnchor.connects }
+### connects { #timetoalign.alignment.AlignmentAnchor.connects }
 
 ```python
-AlignmentAnchor.connects(timeline_id)
+alignment.AlignmentAnchor.connects(timeline_id)
 ```
 
 Check if this anchor connects to a specific timeline.
@@ -61,10 +61,10 @@ Args:
 Returns:
     True if the anchor involves this timeline.
 
-### connects_both { #timetoalign.AlignmentAnchor.connects_both }
+### connects_both { #timetoalign.alignment.AlignmentAnchor.connects_both }
 
 ```python
-AlignmentAnchor.connects_both(timeline_a_id, timeline_b_id)
+alignment.AlignmentAnchor.connects_both(timeline_a_id, timeline_b_id)
 ```
 
 Check if this anchor connects two specific timelines.
@@ -76,18 +76,18 @@ Args:
 Returns:
     True if the anchor connects exactly these two timelines.
 
-### from_dict { #timetoalign.AlignmentAnchor.from_dict }
+### from_dict { #timetoalign.alignment.AlignmentAnchor.from_dict }
 
 ```python
-AlignmentAnchor.from_dict(data)
+alignment.AlignmentAnchor.from_dict(data)
 ```
 
 Deserialize from dictionary.
 
-### get_coordinate_for { #timetoalign.AlignmentAnchor.get_coordinate_for }
+### get_coordinate_for { #timetoalign.alignment.AlignmentAnchor.get_coordinate_for }
 
 ```python
-AlignmentAnchor.get_coordinate_for(timeline_id)
+alignment.AlignmentAnchor.get_coordinate_for(timeline_id)
 ```
 
 Get the coordinate for a specific timeline.
@@ -98,10 +98,10 @@ Args:
 Returns:
     The coordinate, or None if timeline not in this anchor.
 
-### to_dict { #timetoalign.AlignmentAnchor.to_dict }
+### to_dict { #timetoalign.alignment.AlignmentAnchor.to_dict }
 
 ```python
-AlignmentAnchor.to_dict()
+alignment.AlignmentAnchor.to_dict()
 ```
 
 Serialize to dictionary for storage.

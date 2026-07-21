@@ -1,7 +1,7 @@
-# RepoVizzLoader { #timetoalign.RepoVizzLoader }
+# RepoVizzLoader { #timetoalign.loader.RepoVizzLoader }
 
 ```python
-RepoVizzLoader()
+loader.RepoVizzLoader()
 ```
 
 Load RepoVizz XML manifests or single CSV files for creating physical timelines.
@@ -54,53 +54,51 @@ See Also:
 
 | Name | Description |
 | --- | --- |
-| [catalogue](#timetoalign.RepoVizzLoader.catalogue) | The full catalogue of entries (XML mode only). |
-| [duration_seconds](#timetoalign.RepoVizzLoader.duration_seconds) | Duration in seconds (legacy CSV mode only). |
-| [frame_rate](#timetoalign.RepoVizzLoader.frame_rate) | Sampling rate in Hz (legacy CSV mode only). |
-| [groups](#timetoalign.RepoVizzLoader.groups) | List of all group names present (XML mode only). |
-| [info](#timetoalign.RepoVizzLoader.info) | Return parsed RepoVizz metadata (legacy CSV mode only). |
-| [is_xml_mode](#timetoalign.RepoVizzLoader.is_xml_mode) | True if loader is in XML manifest mode, False for legacy CSV. |
-| [n_samples](#timetoalign.RepoVizzLoader.n_samples) | Number of data samples (legacy CSV mode only). |
-| [store](#timetoalign.RepoVizzLoader.store) | The ``RepovizzDictStore`` containing catalogue and cached data. |
-| [timeline_ids](#timetoalign.RepoVizzLoader.timeline_ids) | Identifiers for all loadable timelines (XML mode only). |
-| [timeline_specs](#timetoalign.RepoVizzLoader.timeline_specs) | Metadata dicts for each loadable timeline (XML mode only). |
+| [catalogue](#timetoalign.loader.RepoVizzLoader.catalogue) | The full catalogue of entries (XML mode only). |
+| [duration_seconds](#timetoalign.loader.RepoVizzLoader.duration_seconds) | Duration in seconds (legacy CSV mode only). |
+| [frame_rate](#timetoalign.loader.RepoVizzLoader.frame_rate) | Sampling rate in Hz (legacy CSV mode only). |
+| [groups](#timetoalign.loader.RepoVizzLoader.groups) | List of all group names present (XML mode only). |
+| [info](#timetoalign.loader.RepoVizzLoader.info) | Return parsed RepoVizz metadata (legacy CSV mode only). |
+| [is_xml_mode](#timetoalign.loader.RepoVizzLoader.is_xml_mode) | True if loader is in XML manifest mode, False for legacy CSV. |
+| [n_samples](#timetoalign.loader.RepoVizzLoader.n_samples) | Number of data samples (legacy CSV mode only). |
+| [store](#timetoalign.loader.RepoVizzLoader.store) | The ``RepovizzDictStore`` containing catalogue and cached data. |
+| [timeline_ids](#timetoalign.loader.RepoVizzLoader.timeline_ids) | Identifiers for all loadable timelines (XML mode only). |
+| [timeline_specs](#timetoalign.loader.RepoVizzLoader.timeline_specs) | Metadata dicts for each loadable timeline (XML mode only). |
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
-| [clear](#timetoalign.RepoVizzLoader.clear) | Clear all loaded data. |
-| [create_group](#timetoalign.RepoVizzLoader.create_group) | Create a TimelineGroup containing timelines. |
-| [create_timeline](#timetoalign.RepoVizzLoader.create_timeline) | Create a DiscretePhysicalTimeline from a catalogue entry. |
-| [create_timelines](#timetoalign.RepoVizzLoader.create_timelines) | Create multiple timelines. |
-| [find_audio](#timetoalign.RepoVizzLoader.find_audio) | Find an audio entry by source name. |
-| [find_audio_descriptor](#timetoalign.RepoVizzLoader.find_audio_descriptor) | Find an audio descriptor entry (Essentia features). |
-| [find_descriptor](#timetoalign.RepoVizzLoader.find_descriptor) | Find a descriptor entry by name. |
-| [find_signal](#timetoalign.RepoVizzLoader.find_signal) | Find a signal entry by name pattern. |
-| [from_file](#timetoalign.RepoVizzLoader.from_file) | Load files and return the loader (convenience constructor). |
-| [get_entry](#timetoalign.RepoVizzLoader.get_entry) | Get a catalogue entry by ID. |
-| [get_sample_rate_for_descriptor_type](#timetoalign.RepoVizzLoader.get_sample_rate_for_descriptor_type) | Get the sample rate for a descriptor type. |
-| [load](#timetoalign.RepoVizzLoader.load) | Load one or more source files. |
+| [clear](#timetoalign.loader.RepoVizzLoader.clear) | Clear all loaded data. |
+| [create_group](#timetoalign.loader.RepoVizzLoader.create_group) | Create a TimelineGroup containing timelines. |
+| [create_timeline](#timetoalign.loader.RepoVizzLoader.create_timeline) | Create a DiscretePhysicalTimeline from a catalogue entry. |
+| [create_timelines](#timetoalign.loader.RepoVizzLoader.create_timelines) | Create multiple timelines. |
+| [find_audio](#timetoalign.loader.RepoVizzLoader.find_audio) | Find an audio entry by source name. |
+| [find_audio_descriptor](#timetoalign.loader.RepoVizzLoader.find_audio_descriptor) | Find an audio descriptor entry (Essentia features). |
+| [find_descriptor](#timetoalign.loader.RepoVizzLoader.find_descriptor) | Find a descriptor entry by name. |
+| [find_signal](#timetoalign.loader.RepoVizzLoader.find_signal) | Find a signal entry by name pattern. |
+| [get_entry](#timetoalign.loader.RepoVizzLoader.get_entry) | Get a catalogue entry by ID. |
+| [get_sample_rate_for_descriptor_type](#timetoalign.loader.RepoVizzLoader.get_sample_rate_for_descriptor_type) | Get the sample rate for a descriptor type. |
+| [load](#timetoalign.loader.RepoVizzLoader.load) | Load one or more source files. |
 
-### clear { #timetoalign.RepoVizzLoader.clear }
+### clear { #timetoalign.loader.RepoVizzLoader.clear }
 
 ```python
-RepoVizzLoader.clear()
+loader.RepoVizzLoader.clear()
 ```
 
 Clear all loaded data.
 
-### create_group { #timetoalign.RepoVizzLoader.create_group }
+### create_group { #timetoalign.loader.RepoVizzLoader.create_group }
 
 ```python
-RepoVizzLoader.create_group(
+loader.RepoVizzLoader.create_group(
     category=None,
-    ids=None,
+    entries=None,
     *,
     id=None,
     name=None,
     with_notes=False,
-    group_id=None,
 )
 ```
 
@@ -108,7 +106,7 @@ Create a TimelineGroup containing timelines.
 
 Args:
     category: Filter to a specific category ("audio", "mocap", etc.).
-    ids: Specific timeline IDs to include.
+    entries: Specific catalogue entries to include.
     id: Custom ID for the TimelineGroup. Defaults to
         ``"repovizz:{category or 'all'}"``.
     name: Custom name for the TimelineGroup. Defaults to
@@ -117,8 +115,6 @@ Args:
         timeline using ``use_conversion_map=True``. This enables
         automatic coordinate transfer from seconds (notes) to
         samples (audio). Default: False.
-    group_id: Deprecated alias for ``category``.
-
 Returns:
     A TimelineGroup containing the specified timelines.
 
@@ -132,10 +128,10 @@ Examples:
     >>> loader = RepoVizzLoader.from_file("recording.xml")
     >>> group = loader.create_group(id="normal", name="Normal Recording", with_notes=True)
 
-### create_timeline { #timetoalign.RepoVizzLoader.create_timeline }
+### create_timeline { #timetoalign.loader.RepoVizzLoader.create_timeline }
 
 ```python
-RepoVizzLoader.create_timeline(uid=None, **kwargs)
+loader.RepoVizzLoader.create_timeline(entry=None, *, uid=None, **kwargs)
 ```
 
 Create a DiscretePhysicalTimeline from a catalogue entry.
@@ -144,41 +140,42 @@ In XML mode: looks up the entry and creates a timeline with its metadata.
 In legacy CSV mode: creates timeline from the loaded CSV.
 
 Args:
-    uid: Entry lookup key or timeline ID. In XML mode, supports:
+    entry: Entry lookup key. In XML mode, supports:
         - Audio shorthand: "mono", "binaural", "pickup_vln1"
         - Descriptor pattern: "tonal.ChordsStrength.mono"
         - Exact xml_id or name
+        In legacy CSV mode, this is an optional timeline ID.
     **kwargs: Additional arguments:
         - name: Override the timeline's name (defaults to entry's name).
         - attach_cmap: If True (default), attach a SamplesToSeconds C-map.
-        - tl_uid: Override the timeline's ID (defaults to entry's xml_id).
+    uid: Override the timeline's ID (defaults to entry's xml_id).
 
 Returns:
     A DiscretePhysicalTimeline representing the data.
 
 Raises:
     RuntimeError: If no file has been loaded.
-    KeyError: If uid doesn't match any catalogue entry (XML mode).
+    KeyError: If entry doesn't match any catalogue entry (XML mode).
 
-### create_timelines { #timetoalign.RepoVizzLoader.create_timelines }
+### create_timelines { #timetoalign.loader.RepoVizzLoader.create_timelines }
 
 ```python
-RepoVizzLoader.create_timelines(id_pattern=None, *, ids=None)
+loader.RepoVizzLoader.create_timelines(id_pattern=None, *, entries=None)
 ```
 
 Create multiple timelines.
 
 Args:
     id_pattern: Regex pattern to filter timeline IDs.
-    ids: List of timeline identifiers to create. If None, all are created.
+    entries: List of catalogue entries to create. If None, all are created.
 
 Returns:
     List of Timeline objects.
 
-### find_audio { #timetoalign.RepoVizzLoader.find_audio }
+### find_audio { #timetoalign.loader.RepoVizzLoader.find_audio }
 
 ```python
-RepoVizzLoader.find_audio(source)
+loader.RepoVizzLoader.find_audio(source)
 ```
 
 Find an audio entry by source name.
@@ -190,10 +187,14 @@ Args:
 Returns:
     The matching entry ID, or None if not found.
 
-### find_audio_descriptor { #timetoalign.RepoVizzLoader.find_audio_descriptor }
+### find_audio_descriptor { #timetoalign.loader.RepoVizzLoader.find_audio_descriptor }
 
 ```python
-RepoVizzLoader.find_audio_descriptor(descriptor_type, descriptor_name, source)
+loader.RepoVizzLoader.find_audio_descriptor(
+    descriptor_type,
+    descriptor_name,
+    source,
+)
 ```
 
 Find an audio descriptor entry (Essentia features).
@@ -210,10 +211,10 @@ Args:
 Returns:
     The matching entry ID, or None if not found.
 
-### find_descriptor { #timetoalign.RepoVizzLoader.find_descriptor }
+### find_descriptor { #timetoalign.loader.RepoVizzLoader.find_descriptor }
 
 ```python
-RepoVizzLoader.find_descriptor(descriptor_name, instrument=None)
+loader.RepoVizzLoader.find_descriptor(descriptor_name, instrument=None)
 ```
 
 Find a descriptor entry by name.
@@ -230,10 +231,10 @@ Args:
 Returns:
     The matching entry ID, or None if not found.
 
-### find_signal { #timetoalign.RepoVizzLoader.find_signal }
+### find_signal { #timetoalign.loader.RepoVizzLoader.find_signal }
 
 ```python
-RepoVizzLoader.find_signal(name_pattern, source=None)
+loader.RepoVizzLoader.find_signal(name_pattern, source=None)
 ```
 
 Find a signal entry by name pattern.
@@ -245,25 +246,10 @@ Args:
 Returns:
     The matching entry ID, or None if not found.
 
-### from_file { #timetoalign.RepoVizzLoader.from_file }
+### get_entry { #timetoalign.loader.RepoVizzLoader.get_entry }
 
 ```python
-RepoVizzLoader.from_file(*paths, **kwargs)
-```
-
-Load files and return the loader (convenience constructor).
-
-Args:
-    *paths: Paths to XML manifest or CSV files.
-    **kwargs: Additional keyword arguments passed to ``__init__``.
-
-Returns:
-    A RepoVizzLoader with the files already loaded.
-
-### get_entry { #timetoalign.RepoVizzLoader.get_entry }
-
-```python
-RepoVizzLoader.get_entry(id)
+loader.RepoVizzLoader.get_entry(id)
 ```
 
 Get a catalogue entry by ID.
@@ -279,10 +265,10 @@ Returns:
 Raises:
     KeyError: If not found.
 
-### get_sample_rate_for_descriptor_type { #timetoalign.RepoVizzLoader.get_sample_rate_for_descriptor_type }
+### get_sample_rate_for_descriptor_type { #timetoalign.loader.RepoVizzLoader.get_sample_rate_for_descriptor_type }
 
 ```python
-RepoVizzLoader.get_sample_rate_for_descriptor_type(descriptor_type)
+loader.RepoVizzLoader.get_sample_rate_for_descriptor_type(descriptor_type)
 ```
 
 Get the sample rate for a descriptor type.
@@ -293,10 +279,10 @@ Args:
 Returns:
     Sample rate in Hz.
 
-### load { #timetoalign.RepoVizzLoader.load }
+### load { #timetoalign.loader.RepoVizzLoader.load }
 
 ```python
-RepoVizzLoader.load(*sources)
+loader.RepoVizzLoader.load(*sources)
 ```
 
 Load one or more source files.

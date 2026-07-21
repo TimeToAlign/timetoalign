@@ -1,7 +1,7 @@
-# ClaimFilter { #timetoalign.ClaimFilter }
+# ClaimFilter { #timetoalign.alignment.ClaimFilter }
 
 ```python
-ClaimFilter(
+alignment.ClaimFilter(
     timeline_id=None,
     timeline_ids=None,
     id_pattern=None,
@@ -54,14 +54,14 @@ Attributes:
 
 | Name | Description |
 | --- | --- |
-| [from_kwargs](#timetoalign.ClaimFilter.from_kwargs) | Create a ClaimFilter from keyword arguments. |
-| [matches_claim](#timetoalign.ClaimFilter.matches_claim) | Test whether a MatchClaim passes all filter criteria. |
-| [matches_timeline](#timetoalign.ClaimFilter.matches_timeline) | Test whether a single timeline ID passes the filter criteria. |
+| [from_kwargs](#timetoalign.alignment.ClaimFilter.from_kwargs) | Create a ClaimFilter from keyword arguments. |
+| [matches_claim](#timetoalign.alignment.ClaimFilter.matches_claim) | Test whether a MatchClaim passes all filter criteria. |
+| [matches_timeline](#timetoalign.alignment.ClaimFilter.matches_timeline) | Test whether a single timeline ID passes the filter criteria. |
 
-### from_kwargs { #timetoalign.ClaimFilter.from_kwargs }
+### from_kwargs { #timetoalign.alignment.ClaimFilter.from_kwargs }
 
 ```python
-ClaimFilter.from_kwargs(
+alignment.ClaimFilter.from_kwargs(
     timeline_id=None,
     timeline_ids=None,
     id_pattern=None,
@@ -91,10 +91,10 @@ Args:
 Returns:
     A new ClaimFilter.
 
-### matches_claim { #timetoalign.ClaimFilter.matches_claim }
+### matches_claim { #timetoalign.alignment.ClaimFilter.matches_claim }
 
 ```python
-ClaimFilter.matches_claim(claim, *, timelines=None)
+alignment.ClaimFilter.matches_claim(claim, *, timelines=None)
 ```
 
 Test whether a MatchClaim passes all filter criteria.
@@ -108,10 +108,10 @@ Args:
 Returns:
     True if the claim passes all filters.
 
-### matches_timeline { #timetoalign.ClaimFilter.matches_timeline }
+### matches_timeline { #timetoalign.alignment.ClaimFilter.matches_timeline }
 
 ```python
-ClaimFilter.matches_timeline(timeline_id, *, timelines=None)
+alignment.ClaimFilter.matches_timeline(timeline_id, *, timelines=None)
 ```
 
 Test whether a single timeline ID passes the filter criteria.

@@ -1,7 +1,7 @@
-# GraphicalTimeline { #timetoalign.GraphicalTimeline }
+# GraphicalTimeline { #timetoalign.timelines.GraphicalTimeline }
 
 ```python
-GraphicalTimeline(
+timelines.GraphicalTimeline(
     length=0,
     unit=None,
     number_type=None,

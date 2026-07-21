@@ -1,0 +1,23 @@
+# MidiLoader { #timetoalign.loader.midi.MidiLoader }
+
+```python
+loader.midi.MidiLoader(
+    unit=None,
+    number_type=NumberType.float,
+    interval_policy=IntervalPolicy.warn,
+)
+```
+
+Abstract base class for MIDI loaders.
+
+Subclasses must implement:
+- _load_source(): Parse MIDI file into event rows
+- ticks_per_beat: Property returning PPQ
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [events](#timetoalign.loader.midi.MidiLoader.events) | The MidiEventData containing all loaded events. |
+| [store](#timetoalign.loader.midi.MidiLoader.store) | Return a MidiStore wrapping the loader's events. |
+| [ticks_per_beat](#timetoalign.loader.midi.MidiLoader.ticks_per_beat) | Return the ticks per beat (PPQ) if available. |

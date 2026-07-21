@@ -17,7 +17,7 @@ per performance, linked by cross-group :class:`MatchClaim` instances.
 
 1. ``loader.load(dataset_dir)`` — ingest the whole dataset directory.
 2. ``loader.create_bundle()`` — assemble the AlignmentBundle.
-3. ``loader.create_timeline(id)`` / ``create_timelines()`` — retrieve
+3. ``loader.create_timeline(uid)`` / ``create_timelines()`` — retrieve
    individual timelines.
 
 The loader reads existing alignments; it never runs an aligner.
@@ -57,7 +57,7 @@ Raises:
 
 ```python
 loader.alignment.parangonada.ParangonadaLoader.create_timeline(
-    id=None,
+    uid=None,
     **kwargs,
 )
 ```
@@ -65,7 +65,7 @@ loader.alignment.parangonada.ParangonadaLoader.create_timeline(
 Return a single timeline by its uid.
 
 Args:
-    id: A timeline uid — ``"score:clt1"``, ``"score:dlt1"``, or a
+    uid: A timeline uid — ``"score:clt1"``, ``"score:dlt1"``, or a
         performer timeline uid (``"perf:<key>:cpt1"`` /
         ``"perf:<key>:dpt1"``).
 
@@ -82,7 +82,7 @@ loader.alignment.parangonada.ParangonadaLoader.create_timelines(id_pattern=None)
 Return all timelines: the two score timelines then each performer's.
 
 Args:
-    id_pattern: Unused; present for base-class signature parity.
+    id_pattern: Optional regex pattern to filter timeline IDs.
 
 ### load { #timetoalign.loader.alignment.parangonada.ParangonadaLoader.load }
 

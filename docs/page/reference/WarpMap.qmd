@@ -1,7 +1,7 @@
-# WarpMap { #timetoalign.WarpMap }
+# WarpMap { #timetoalign.alignment.WarpMap }
 
 ```python
-WarpMap(
+alignment.WarpMap(
     source_timeline_id,
     target_timeline_id,
     interpolation_map,
@@ -32,9 +32,9 @@ Attributes:
 
 Examples:
     >>> warp = WarpMap.from_match_line(match_line, "audio")
-    >>> warp.forward(100.0)   # score coord -> audio coord
+    >>> warp(100.0)           # score coord -> audio coord
     45.5
-    >>> warp.inverse(45.5)    # audio coord -> score coord
+    >>> warp.inverse()(45.5)  # audio coord -> score coord
     100.0
 
 See Also:
@@ -45,44 +45,35 @@ See Also:
 
 | Name | Description |
 | --- | --- |
-| [is_invertible](#timetoalign.WarpMap.is_invertible) | Whether the inverse mapping is defined. |
-| [n_anchors](#timetoalign.WarpMap.n_anchors) | Number of anchor points used for interpolation. |
-| [source_coords](#timetoalign.WarpMap.source_coords) | The source coordinate anchor points (read-only). |
-| [target_coords](#timetoalign.WarpMap.target_coords) | The target coordinate anchor points (read-only). |
+| [is_invertible](#timetoalign.alignment.WarpMap.is_invertible) | Whether the inverse mapping is defined. |
+| [n_anchors](#timetoalign.alignment.WarpMap.n_anchors) | Number of anchor points used for interpolation. |
+| [source_coords](#timetoalign.alignment.WarpMap.source_coords) | The source coordinate anchor points (read-only). |
+| [target_coords](#timetoalign.alignment.WarpMap.target_coords) | The target coordinate anchor points (read-only). |
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
-| [forward](#timetoalign.WarpMap.forward) | Convert source coordinate(s) to target coordinate(s). |
-| [from_coordinate_pairs](#timetoalign.WarpMap.from_coordinate_pairs) | Build a WarpMap from explicit coordinate arrays. |
-| [from_dict](#timetoalign.WarpMap.from_dict) | Deserialize from dictionary. |
-| [from_match_line](#timetoalign.WarpMap.from_match_line) | Build a WarpMap from a MatchLine's coordinate pairs. |
-| [inverse](#timetoalign.WarpMap.inverse) | Convert target coordinate(s) to source coordinate(s). |
-| [materialise](#timetoalign.WarpMap.materialise) | Produce a new Timeline with all contents warped to target coordinates. |
-| [to_dict](#timetoalign.WarpMap.to_dict) | Serialize to dictionary. |
+| [convert_array](#timetoalign.alignment.WarpMap.convert_array) | Convert an array of source coordinates to target coordinates. |
+| [from_coordinate_pairs](#timetoalign.alignment.WarpMap.from_coordinate_pairs) | Build a WarpMap from explicit coordinate arrays. |
+| [from_dict](#timetoalign.alignment.WarpMap.from_dict) | Deserialize from dictionary. |
+| [from_match_line](#timetoalign.alignment.WarpMap.from_match_line) | Build a WarpMap from a MatchLine's coordinate pairs. |
+| [inverse](#timetoalign.alignment.WarpMap.inverse) | Return the cached inverse map with source and target swapped. |
+| [materialise](#timetoalign.alignment.WarpMap.materialise) | Produce a new Timeline with all contents warped to target coordinates. |
+| [to_dict](#timetoalign.alignment.WarpMap.to_dict) | Serialize to dictionary. |
 
-### forward { #timetoalign.WarpMap.forward }
+### convert_array { #timetoalign.alignment.WarpMap.convert_array }
 
 ```python
-WarpMap.forward(coord)
+alignment.WarpMap.convert_array(values)
 ```
 
-Convert source coordinate(s) to target coordinate(s).
+Convert an array of source coordinates to target coordinates.
 
-Uses linear interpolation between anchor points, with linear
-extrapolation outside the anchor range.
-
-Args:
-    coord: One or more source coordinates.
-
-Returns:
-    Corresponding target coordinate(s).
-
-### from_coordinate_pairs { #timetoalign.WarpMap.from_coordinate_pairs }
+### from_coordinate_pairs { #timetoalign.alignment.WarpMap.from_coordinate_pairs }
 
 ```python
-WarpMap.from_coordinate_pairs(
+alignment.WarpMap.from_coordinate_pairs(
     source_timeline_id,
     target_timeline_id,
     source_coords,
@@ -115,10 +106,10 @@ Raises:
     ValueError: If fewer than 2 coordinate pairs, or if
         source_coords are not strictly increasing.
 
-### from_dict { #timetoalign.WarpMap.from_dict }
+### from_dict { #timetoalign.alignment.WarpMap.from_dict }
 
 ```python
-WarpMap.from_dict(data)
+alignment.WarpMap.from_dict(data)
 ```
 
 Deserialize from dictionary.
@@ -129,10 +120,10 @@ Args:
 Returns:
     A new WarpMap.
 
-### from_match_line { #timetoalign.WarpMap.from_match_line }
+### from_match_line { #timetoalign.alignment.WarpMap.from_match_line }
 
 ```python
-WarpMap.from_match_line(
+alignment.WarpMap.from_match_line(
     match_line,
     target_timeline_id,
     *,
@@ -162,40 +153,34 @@ Raises:
     ValueError: If ``target_timeline_id`` is not in the
         MatchLine's target timelines.
 
-### inverse { #timetoalign.WarpMap.inverse }
+### inverse { #timetoalign.alignment.WarpMap.inverse }
 
 ```python
-WarpMap.inverse(coord)
+alignment.WarpMap.inverse()
 ```
 
-Convert target coordinate(s) to source coordinate(s).
-
-Uses linear interpolation between anchor points, with linear
-extrapolation outside the anchor range.
-
-Args:
-    coord: One or more target coordinates.
+Return the cached inverse map with source and target swapped.
 
 Returns:
-    Corresponding source coordinate(s).
+    A WarpMap converting target coordinates back to source coordinates.
 
 Raises:
     ValueError: If the target coordinates are not strictly
         monotonic (map is not invertible).
 
-### materialise { #timetoalign.WarpMap.materialise }
+### materialise { #timetoalign.alignment.WarpMap.materialise }
 
 ```python
-WarpMap.materialise(source_timeline)
+alignment.WarpMap.materialise(source_timeline)
 ```
 
 Produce a new Timeline with all contents warped to target coordinates.
 
 Creates a complete copy of the source timeline where every
-coordinate (events, children, regions) is converted via
-``forward()``.  The resulting timeline:
+coordinate (events, children, regions) is converted by calling this
+map. The resulting timeline:
 
-- Has length equal to ``forward(source_timeline.length)``
+- Has length equal to the mapped ``source_timeline.length``
 - Preserves the source's unit (unless ``target_unit`` differs)
 - Contains warped copies of all events
 - Contains warped copies of all children (recursively)
@@ -212,10 +197,10 @@ Raises:
     ValueError: If ``source_timeline.id`` does not match
         ``self.source_timeline_id``.
 
-### to_dict { #timetoalign.WarpMap.to_dict }
+### to_dict { #timetoalign.alignment.WarpMap.to_dict }
 
 ```python
-WarpMap.to_dict()
+alignment.WarpMap.to_dict()
 ```
 
 Serialize to dictionary.

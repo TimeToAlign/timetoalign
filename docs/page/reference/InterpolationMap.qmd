@@ -1,0 +1,157 @@
+# InterpolationMap { #timetoalign.InterpolationMap }
+
+```python
+InterpolationMap(
+    source_coords,
+    target_coords,
+    source_id,
+    target_id,
+    source_unit=None,
+    target_unit=None,
+    uid=None,
+    name=None,
+)
+```
+
+Bidirectional coordinate mapping using numpy.interp.
+
+Provides O(log n) coordinate conversion without table lookup.
+Used for:
+- Timeline <-> Group relationships
+- WarpMap alignment warping
+
+The map is bidirectional: calling the map converts source -> target,
+and ``inverse()`` returns a new map that converts target -> source.
+
+Attributes:
+    source_coords: Sorted source axis coordinates (float64). Read-only:
+        the array is copied on construction and marked non-writable, so
+        in-place mutation raises ``ValueError`` instead of silently
+        desynchronizing the cached inverse.
+    target_coords: Corresponding target values (float64). Read-only, for
+        the same reason as source_coords.
+    source_id: Timeline/C-Map ID for source.
+    target_id: Timeline/C-Map ID for target.
+
+Examples:
+    >>> # Simple offset relationship: child at offset 10 in parent
+    >>> imap = InterpolationMap(
+    ...     source_coords=np.array([0.0, 100.0]),  # child coords
+    ...     target_coords=np.array([10.0, 110.0]),  # parent coords
+    ...     source_id="child:1",
+    ...     target_id="parent:1",
+    ... )
+    >>> imap(50.0)  # child 50 -> parent 60
+    60.0
+    >>> imap.inverse()(60.0)  # parent 60 -> child 50
+    50.0
+
+    >>> # Tempo map: ticks to seconds
+    >>> imap = InterpolationMap(
+    ...     source_coords=np.array([0.0, 480.0, 960.0]),
+    ...     target_coords=np.array([0.0, 0.5, 1.5]),
+    ...     source_id="ticks",
+    ...     target_id="seconds",
+    ... )
+    >>> imap(240.0)  # 240 ticks -> 0.25 seconds
+    0.25
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [is_invertible](#timetoalign.InterpolationMap.is_invertible) | Whether this map can be inverted. |
+| [n_anchors](#timetoalign.InterpolationMap.n_anchors) | Number of anchor points. |
+| [source_max](#timetoalign.InterpolationMap.source_max) | Maximum source coordinate. |
+| [source_min](#timetoalign.InterpolationMap.source_min) | Minimum source coordinate. |
+| [target_max](#timetoalign.InterpolationMap.target_max) | Maximum target coordinate. |
+| [target_min](#timetoalign.InterpolationMap.target_min) | Minimum target coordinate. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_dict](#timetoalign.InterpolationMap.from_dict) | Deserialize from dictionary. |
+| [identity](#timetoalign.InterpolationMap.identity) | Create an identity map (output = input). |
+| [inverse](#timetoalign.InterpolationMap.inverse) | Return the inverse map (target -> source). |
+| [matches_selector](#timetoalign.InterpolationMap.matches_selector) | Return whether a user conversion-map selector addresses this map. |
+| [to_dict](#timetoalign.InterpolationMap.to_dict) | Serialize the map to a dictionary. |
+
+### from_dict { #timetoalign.InterpolationMap.from_dict }
+
+```python
+InterpolationMap.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+Args:
+    data: Dictionary representation.
+
+Returns:
+    A new InterpolationMap instance.
+
+### identity { #timetoalign.InterpolationMap.identity }
+
+```python
+InterpolationMap.identity(start=0.0, end=1.0, timeline_id='identity')
+```
+
+Create an identity map (output = input).
+
+Useful for testing or placeholder mappings.
+
+Args:
+    start: Start coordinate.
+    end: End coordinate.
+    timeline_id: ID to use for both source and target.
+
+Returns:
+    InterpolationMap where map(x) == x.
+
+### inverse { #timetoalign.InterpolationMap.inverse }
+
+```python
+InterpolationMap.inverse()
+```
+
+Return the inverse map (target -> source).
+
+The inverse is cached: repeated calls return the same instance,
+and the returned map's own ``inverse()`` returns back the original.
+
+Returns:
+    A new InterpolationMap with source and target swapped.
+
+Raises:
+    ValueError: If target_coords are not strictly monotonic.
+
+### matches_selector { #timetoalign.InterpolationMap.matches_selector }
+
+```python
+InterpolationMap.matches_selector(key)
+```
+
+Return whether a user conversion-map selector addresses this map.
+
+In addition to the id/name match provided by the family base class,
+group converter maps are addressed by their source timeline id in
+conversion-map specifications, since InterpolationMap instances are
+auto-generated and have no meaningful user-facing id or name.
+
+Args:
+    key: A selector string from a conversion-map specification.
+
+Returns:
+    True if key equals this map's id, name, or source_id.
+
+### to_dict { #timetoalign.InterpolationMap.to_dict }
+
+```python
+InterpolationMap.to_dict()
+```
+
+Serialize the map to a dictionary.
+
+Returns:
+    Dictionary representation of the map.

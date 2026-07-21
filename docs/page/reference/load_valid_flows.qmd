@@ -1,0 +1,20 @@
+# load_valid_flows { #timetoalign.timelines.load_valid_flows }
+
+```python
+timelines.load_valid_flows(csv_path)
+```
+
+Load all valid flows from a .flow.csv file, grouped by flow_mode.
+
+Args:
+    csv_path: Path to the .flow.csv file.
+
+Returns:
+    Dict mapping FlowMode to Flow for each unique flow_mode in the CSV.
+    Skips unknown flow_modes and ERROR entries.
+
+Examples:
+    >>> flows = load_valid_flows(Path("tests/data/target_flows/specimen.flow.csv"))
+    >>> default_flow = flows[FlowMode.default]
+    >>> for mode, flow in flows.items():
+    ...     print(f"{mode.value}: {len(flow.sections)} sections")

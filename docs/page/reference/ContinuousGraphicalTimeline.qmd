@@ -1,7 +1,7 @@
-# ContinuousGraphicalTimeline { #timetoalign.ContinuousGraphicalTimeline }
+# ContinuousGraphicalTimeline { #timetoalign.timelines.ContinuousGraphicalTimeline }
 
 ```python
-ContinuousGraphicalTimeline(
+timelines.ContinuousGraphicalTimeline(
     length=0,
     unit=None,
     number_type=None,

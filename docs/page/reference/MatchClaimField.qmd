@@ -1,7 +1,13 @@
-# MatchClaimField { #timetoalign.MatchClaimField }
+# MatchClaimField { #timetoalign.alignment.MatchClaimField }
 
 ```python
-MatchClaimField(raw=None, *, source_fields=None, name=None, metadata=None)
+alignment.MatchClaimField(
+    raw=None,
+    *,
+    source_fields=None,
+    name=None,
+    metadata=None,
+)
 ```
 
 A ``SemanticField[MatchClaim]`` columnar store for pairwise claims.
@@ -44,6 +50,8 @@ Examples:
     ...     timeline_b_ids=["B", "C", "C"],
     ...     coordinate_a=[0.0, 0.0, 1.0],
     ...     coordinate_b=[10.0, 20.0, 21.0],
+    ...     unit_a=TimeUnit.quarters,
+    ...     unit_b=TimeUnit.seconds,
     ...     metadata=meta,
     ... )
     >>> len(field)
@@ -55,26 +63,26 @@ Examples:
 
 | Name | Description |
 | --- | --- |
-| [metadata](#timetoalign.MatchClaimField.metadata) | Shared provenance applied to every materialised claim. |
-| [table](#timetoalign.MatchClaimField.table) | The backing single-column :class:`pyarrow.Table`. |
-| [timeline_ids](#timetoalign.MatchClaimField.timeline_ids) | The distinct timeline ids appearing in either id column. |
+| [metadata](#timetoalign.alignment.MatchClaimField.metadata) | Shared provenance applied to every materialised claim. |
+| [table](#timetoalign.alignment.MatchClaimField.table) | The backing single-column :class:`pyarrow.Table`. |
+| [timeline_ids](#timetoalign.alignment.MatchClaimField.timeline_ids) | The distinct timeline ids appearing in either id column. |
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
-| [connecting](#timetoalign.MatchClaimField.connecting) | Return the claims that involve ``timeline_id`` on either side. |
-| [filter](#timetoalign.MatchClaimField.filter) | Return a filtered view following the unified-filter spirit. |
-| [from_claims](#timetoalign.MatchClaimField.from_claims) | Build a field from existing :class:`MatchClaim` objects. |
-| [from_columns](#timetoalign.MatchClaimField.from_columns) | Build a field directly from parallel columns (the vectorized path). |
-| [from_dict](#timetoalign.MatchClaimField.from_dict) | Deserialize a field from a plain dictionary. |
-| [to_claims](#timetoalign.MatchClaimField.to_claims) | Materialise every row into a list of :class:`MatchClaim` objects. |
-| [to_dict](#timetoalign.MatchClaimField.to_dict) | Serialize to a plain dictionary (inverse of :meth:`from_dict`). |
+| [connecting](#timetoalign.alignment.MatchClaimField.connecting) | Return the claims that involve ``timeline_id`` on either side. |
+| [filter](#timetoalign.alignment.MatchClaimField.filter) | Return a filtered view following the unified-filter spirit. |
+| [from_claims](#timetoalign.alignment.MatchClaimField.from_claims) | Build a field from existing :class:`MatchClaim` objects. |
+| [from_columns](#timetoalign.alignment.MatchClaimField.from_columns) | Build a field directly from parallel columns (the vectorized path). |
+| [from_dict](#timetoalign.alignment.MatchClaimField.from_dict) | Deserialize a field from a plain dictionary. |
+| [to_claims](#timetoalign.alignment.MatchClaimField.to_claims) | Materialise every row into a list of :class:`MatchClaim` objects. |
+| [to_dict](#timetoalign.alignment.MatchClaimField.to_dict) | Serialize to a plain dictionary (inverse of :meth:`from_dict`). |
 
-### connecting { #timetoalign.MatchClaimField.connecting }
+### connecting { #timetoalign.alignment.MatchClaimField.connecting }
 
 ```python
-MatchClaimField.connecting(timeline_id)
+alignment.MatchClaimField.connecting(timeline_id)
 ```
 
 Return the claims that involve ``timeline_id`` on either side.
@@ -89,10 +97,10 @@ Args:
 Returns:
     A new :class:`MatchClaimField` holding only the matching rows.
 
-### filter { #timetoalign.MatchClaimField.filter }
+### filter { #timetoalign.alignment.MatchClaimField.filter }
 
 ```python
-MatchClaimField.filter(timeline_id=None, timeline_ids=None)
+alignment.MatchClaimField.filter(timeline_id=None, timeline_ids=None)
 ```
 
 Return a filtered view following the unified-filter spirit.
@@ -111,10 +119,10 @@ Returns:
     a copy is returned. When both are given the two conditions are
     combined with logical AND.
 
-### from_claims { #timetoalign.MatchClaimField.from_claims }
+### from_claims { #timetoalign.alignment.MatchClaimField.from_claims }
 
 ```python
-MatchClaimField.from_claims(claims, *, metadata=None)
+alignment.MatchClaimField.from_claims(claims, *, metadata=None)
 ```
 
 Build a field from existing :class:`MatchClaim` objects.
@@ -140,15 +148,17 @@ Raises:
     ValueError: If any claim is non-synchronous (NOMATCH), lacks a
         start anchor, or is an interval (carries an end anchor).
 
-### from_columns { #timetoalign.MatchClaimField.from_columns }
+### from_columns { #timetoalign.alignment.MatchClaimField.from_columns }
 
 ```python
-MatchClaimField.from_columns(
+alignment.MatchClaimField.from_columns(
     timeline_a_ids,
     timeline_b_ids,
     coordinate_a,
     coordinate_b,
     *,
+    unit_a,
+    unit_b,
     metadata=None,
 )
 ```
@@ -171,8 +181,10 @@ metadata is injected on read, the id is generated on materialise).
 Args:
     timeline_a_ids: Timeline-A ids, one per claim.
     timeline_b_ids: Timeline-B ids, one per claim.
-    coordinate_a: Coordinate on timeline A, one per claim (``float64``).
-    coordinate_b: Coordinate on timeline B, one per claim (``float64``).
+    coordinate_a: Coordinate value on timeline A, one per claim.
+    coordinate_b: Coordinate value on timeline B, one per claim.
+    unit_a: Unit applied to every coordinate on timeline A.
+    unit_b: Unit applied to every coordinate on timeline B.
     metadata: Shared provenance for every claim in the field.
 
 Returns:
@@ -181,10 +193,10 @@ Returns:
 Raises:
     ValueError: If the four inputs do not all have the same length.
 
-### from_dict { #timetoalign.MatchClaimField.from_dict }
+### from_dict { #timetoalign.alignment.MatchClaimField.from_dict }
 
 ```python
-MatchClaimField.from_dict(data)
+alignment.MatchClaimField.from_dict(data)
 ```
 
 Deserialize a field from a plain dictionary.
@@ -198,10 +210,10 @@ Args:
 Returns:
     A new :class:`MatchClaimField`.
 
-### to_claims { #timetoalign.MatchClaimField.to_claims }
+### to_claims { #timetoalign.alignment.MatchClaimField.to_claims }
 
 ```python
-MatchClaimField.to_claims()
+alignment.MatchClaimField.to_claims()
 ```
 
 Materialise every row into a list of :class:`MatchClaim` objects.
@@ -212,10 +224,10 @@ is provided for convenience and round-tripping, not for hot paths.
 Returns:
     A list of synchronous instant claims, one per row.
 
-### to_dict { #timetoalign.MatchClaimField.to_dict }
+### to_dict { #timetoalign.alignment.MatchClaimField.to_dict }
 
 ```python
-MatchClaimField.to_dict()
+alignment.MatchClaimField.to_dict()
 ```
 
 Serialize to a plain dictionary (inverse of :meth:`from_dict`).

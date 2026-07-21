@@ -20,7 +20,7 @@ spectrogram is present) graphical domains.
 
 1. ``loader.load(mpr_path)`` — ingest the whole project.
 2. ``loader.create_bundle()`` — assemble the AlignmentBundle.
-3. ``loader.create_timeline(id)`` / ``create_timelines()`` — retrieve
+3. ``loader.create_timeline(uid)`` / ``create_timelines()`` — retrieve
    individual timelines.
 
 By default the *first* ``<performance>`` in the ``.mpm`` is used.  Pass
@@ -66,13 +66,13 @@ Raises:
 ### create_timeline { #timetoalign.loader.alignment.mpm.MpmLoader.create_timeline }
 
 ```python
-loader.alignment.mpm.MpmLoader.create_timeline(id=None, **kwargs)
+loader.alignment.mpm.MpmLoader.create_timeline(uid=None, **kwargs)
 ```
 
 Return a single timeline by its uid.
 
 Args:
-    id: One of ``"score:clt1"`` / ``"score:dlt1"`` / ``"perf:cpt1"``
+    uid: One of ``"score:clt1"`` / ``"score:dlt1"`` / ``"perf:cpt1"``
         / ``"perf:dpt1"`` / ``"perf:dgt1"`` (the last present only
         when the project carries a spectrogram).
 
@@ -93,7 +93,7 @@ The performance group always contributes ``perf:cpt1`` and
 appended when the project carries a spectrogram.
 
 Args:
-    id_pattern: Unused; present for base-class signature parity.
+    id_pattern: Optional regex pattern to filter timeline IDs.
 
 ### load { #timetoalign.loader.alignment.mpm.MpmLoader.load }
 

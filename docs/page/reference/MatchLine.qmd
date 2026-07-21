@@ -1,7 +1,7 @@
-# MatchLine { #timetoalign.MatchLine }
+# MatchLine { #timetoalign.alignment.MatchLine }
 
 ```python
-MatchLine(source_timeline_id, stamps=list())
+alignment.MatchLine(source_timeline_id, stamps=list())
 ```
 
 Ordered sequence of MatchStamps for a source timeline.
@@ -33,33 +33,32 @@ See Also:
 
 | Name | Description |
 | --- | --- |
-| [n_stamps](#timetoalign.MatchLine.n_stamps) | Number of stamps in this MatchLine. |
-| [source_coordinates](#timetoalign.MatchLine.source_coordinates) | Sorted list of coordinates on the source timeline. |
+| [n_stamps](#timetoalign.alignment.MatchLine.n_stamps) | Number of stamps in this MatchLine. |
+| [source_coordinates](#timetoalign.alignment.MatchLine.source_coordinates) | Sorted list of coordinates on the source timeline. |
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
-| [from_claims](#timetoalign.MatchLine.from_claims) | Build a MatchLine from claims via a MatchGraph. |
-| [from_dict](#timetoalign.MatchLine.from_dict) | Deserialize from dictionary. |
-| [from_graphs](#timetoalign.MatchLine.from_graphs) | Build a MatchLine from multiple MatchGraphs. |
-| [get_coordinate_pairs](#timetoalign.MatchLine.get_coordinate_pairs) | Extract (source_coord, target_coord) pairs for a target timeline. |
-| [save_as](#timetoalign.MatchLine.save_as) | Export this MatchLine to a file. |
-| [target_timeline_ids](#timetoalign.MatchLine.target_timeline_ids) | All target timelines appearing in at least 2 stamps. |
-| [to_dict](#timetoalign.MatchLine.to_dict) | Serialize to dictionary for storage. |
+| [from_claims](#timetoalign.alignment.MatchLine.from_claims) | Build a MatchLine from claims via a MatchGraph. |
+| [from_dict](#timetoalign.alignment.MatchLine.from_dict) | Deserialize from dictionary. |
+| [from_graphs](#timetoalign.alignment.MatchLine.from_graphs) | Build a MatchLine from multiple MatchGraphs. |
+| [get_coordinate_pairs](#timetoalign.alignment.MatchLine.get_coordinate_pairs) | Extract (source_coord, target_coord) pairs for a target timeline. |
+| [save_as](#timetoalign.alignment.MatchLine.save_as) | Export this MatchLine to a file. |
+| [target_timeline_ids](#timetoalign.alignment.MatchLine.target_timeline_ids) | All target timelines appearing in at least 2 stamps. |
+| [to_dict](#timetoalign.alignment.MatchLine.to_dict) | Serialize to dictionary for storage. |
 
-### from_claims { #timetoalign.MatchLine.from_claims }
+### from_claims { #timetoalign.alignment.MatchLine.from_claims }
 
 ```python
-MatchLine.from_claims(
+alignment.MatchLine.from_claims(
     claims,
     source_timeline_id,
     *,
     groups=None,
     timeline_to_group=None,
-    timelines=None,
-    include_timelines=None,
-    exclude_timelines=None,
+    timeline_ids=None,
+    id_pattern=None,
     include_domains=None,
     include_units=None,
 )
@@ -79,21 +78,18 @@ Args:
         If None, no group extension is performed.
     timeline_to_group: Dict of timeline_id -> group_id.  Required
         if ``groups`` is provided.
-    timelines: Dict of timeline_id -> Timeline for domain/unit
-        filtering.  Required if ``include_domains`` or
-        ``include_units`` are set.
-    include_timelines: Only extend to these timeline IDs.
-    exclude_timelines: Do not extend to these timeline IDs.
+    timeline_ids: Only extend to these timeline IDs.
+    id_pattern: Regex filter for timeline IDs.
     include_domains: Only extend to timelines in these domains.
     include_units: Only extend to timelines with these units.
 
 Returns:
     A MatchLine with stamps sorted by source coordinate.
 
-### from_dict { #timetoalign.MatchLine.from_dict }
+### from_dict { #timetoalign.alignment.MatchLine.from_dict }
 
 ```python
-MatchLine.from_dict(data)
+alignment.MatchLine.from_dict(data)
 ```
 
 Deserialize from dictionary.
@@ -104,10 +100,10 @@ Args:
 Returns:
     A new MatchLine.
 
-### from_graphs { #timetoalign.MatchLine.from_graphs }
+### from_graphs { #timetoalign.alignment.MatchLine.from_graphs }
 
 ```python
-MatchLine.from_graphs(graphs, source_timeline_id)
+alignment.MatchLine.from_graphs(graphs, source_timeline_id)
 ```
 
 Build a MatchLine from multiple MatchGraphs.
@@ -126,10 +122,10 @@ Returns:
     A MatchLine with merged, deduplicated stamps sorted by
     source coordinate.
 
-### get_coordinate_pairs { #timetoalign.MatchLine.get_coordinate_pairs }
+### get_coordinate_pairs { #timetoalign.alignment.MatchLine.get_coordinate_pairs }
 
 ```python
-MatchLine.get_coordinate_pairs(target_timeline_id)
+alignment.MatchLine.get_coordinate_pairs(target_timeline_id)
 ```
 
 Extract (source_coord, target_coord) pairs for a target timeline.
@@ -149,10 +145,10 @@ Raises:
     ValueError: If ``target_timeline_id`` equals
         ``source_timeline_id``.
 
-### save_as { #timetoalign.MatchLine.save_as }
+### save_as { #timetoalign.alignment.MatchLine.save_as }
 
 ```python
-MatchLine.save_as(filepath, *, format='match', context=None)
+alignment.MatchLine.save_as(filepath, *, format='match', context=None)
 ```
 
 Export this MatchLine to a file.
@@ -175,10 +171,10 @@ Examples:
     >>> line.save_as("output.match")  # minimal placeholder export
     >>> line.save_as("output.match", context=ctx)  # rich export
 
-### target_timeline_ids { #timetoalign.MatchLine.target_timeline_ids }
+### target_timeline_ids { #timetoalign.alignment.MatchLine.target_timeline_ids }
 
 ```python
-MatchLine.target_timeline_ids()
+alignment.MatchLine.target_timeline_ids()
 ```
 
 All target timelines appearing in at least 2 stamps.
@@ -190,10 +186,10 @@ Returns:
     Set of timeline IDs (excluding the source) that appear
     in >= 2 stamps.
 
-### to_dict { #timetoalign.MatchLine.to_dict }
+### to_dict { #timetoalign.alignment.MatchLine.to_dict }
 
 ```python
-MatchLine.to_dict()
+alignment.MatchLine.to_dict()
 ```
 
 Serialize to dictionary for storage.

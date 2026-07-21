@@ -50,6 +50,7 @@ Examples:
 | [convert_array](#timetoalign.ConversionMap.convert_array) | Convert an array of values. |
 | [from_dict](#timetoalign.ConversionMap.from_dict) | Deserialize a map from a dictionary. |
 | [inverse](#timetoalign.ConversionMap.inverse) | Return the inverse of this map. |
+| [matches_selector](#timetoalign.ConversionMap.matches_selector) | Return whether a user conversion-map selector addresses this map. |
 | [then](#timetoalign.ConversionMap.then) | Compose this map with another (this first, then other). |
 | [to_dict](#timetoalign.ConversionMap.to_dict) | Serialize the map to a dictionary. |
 
@@ -92,6 +93,10 @@ ConversionMap.from_dict(data)
 
 Deserialize a map from a dictionary.
 
+Dispatches to the concrete subclass named by ``data["type"]`` using
+the self-registering class registry populated by
+``__init_subclass__``.
+
 Args:
     data: Dictionary representation.
 
@@ -99,7 +104,9 @@ Returns:
     A ConversionMap instance.
 
 Raises:
-    ValueError: If the type is unknown.
+    ValueError: If the type is missing or unknown.
+    TypeError: If the registered class does not override from_dict,
+        which would otherwise recurse indefinitely.
 
 ### inverse { #timetoalign.ConversionMap.inverse }
 
@@ -114,6 +121,24 @@ Returns:
 
 Raises:
     NotImplementedError: If the map is not invertible.
+
+### matches_selector { #timetoalign.ConversionMap.matches_selector }
+
+```python
+ConversionMap.matches_selector(key)
+```
+
+Return whether a user conversion-map selector addresses this map.
+
+Subclasses that are addressed by other identifiers (for example,
+InterpolationMap by its source timeline id) should override this
+and extend the match.
+
+Args:
+    key: A selector string from a conversion-map specification.
+
+Returns:
+    True if key equals this map's id or name.
 
 ### then { #timetoalign.ConversionMap.then }
 
@@ -137,7 +162,14 @@ ConversionMap.to_dict()
 
 Serialize the map to a dictionary.
 
-Subclasses should call super().to_dict() and add their parameters.
+Subclasses should call super().to_dict() and add their parameters;
+rational parameters go through
+:func:`~timetoalign.core.rational_to_wire` so that the whole
+dictionary stays JSON-serializable.
+
+The map's ``name`` is always emitted, and every subclass
+``from_dict`` passes it back to the constructor, so a custom name
+survives the round trip.
 
 Returns:
     Dictionary representation of the map.

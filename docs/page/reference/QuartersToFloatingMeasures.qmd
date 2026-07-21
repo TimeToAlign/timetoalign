@@ -1,0 +1,126 @@
+# QuartersToFloatingMeasures { #timetoalign.QuartersToFloatingMeasures }
+
+```python
+QuartersToFloatingMeasures(
+    x_values,
+    y_values,
+    source_unit=TimeUnit.quarters,
+    target_unit=TimeUnit.floating_measures,
+    uid=None,
+    name=None,
+)
+```
+
+Map quarters to measure coordinates (with linear interpolation).
+
+Returns continuous measure coordinates where:
+- 1.0 = start of measure 1
+- 1.5 = halfway through measure 1
+- 2.0 = start of measure 2
+
+This IS a coordinate conversion map: it converts from quarters to
+measures (TimeUnit.measures).
+
+This is useful for visualization (e.g., piano roll x-axis in measures)
+and for interpolating positions within measures.
+
+Examples:
+    >>> cmap = QuartersToFloatingMeasures(
+    ...     x_values=[0, 4, 8, 12],
+    ...     y_values=[1.0, 2.0, 3.0, 4.0],
+    ... )
+    >>> cmap(0.0)    # Start of M1
+    1.0
+    >>> cmap(2.0)    # Halfway through M1 (4 quarters/measure)
+    1.5
+    >>> cmap(4.0)    # Start of M2
+    2.0
+
+    >>> # From MetricMap
+    >>> cmap = QuartersToFloatingMeasures.from_metric_map(meter)
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_dict](#timetoalign.QuartersToFloatingMeasures.from_dict) | Deserialize from dictionary. |
+| [from_measure_data](#timetoalign.QuartersToFloatingMeasures.from_measure_data) | Create from MeasureData (loaded from TSV/JSON). |
+| [from_metric_map](#timetoalign.QuartersToFloatingMeasures.from_metric_map) | Create from a MetricMap. |
+| [inverse](#timetoalign.QuartersToFloatingMeasures.inverse) | Return the inverse map (measures -> quarters). |
+| [to_dict](#timetoalign.QuartersToFloatingMeasures.to_dict) | Serialize to dictionary. |
+| [to_measure_number_map](#timetoalign.QuartersToFloatingMeasures.to_measure_number_map) | Convert to non-interpolating measure number map. |
+
+### from_dict { #timetoalign.QuartersToFloatingMeasures.from_dict }
+
+```python
+QuartersToFloatingMeasures.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+### from_measure_data { #timetoalign.QuartersToFloatingMeasures.from_measure_data }
+
+```python
+QuartersToFloatingMeasures.from_measure_data(measures)
+```
+
+Create from MeasureData (loaded from TSV/JSON).
+
+Args:
+    measures: MeasureData with measure events.
+
+Returns:
+    QuartersToFloatingMeasures map.
+
+### from_metric_map { #timetoalign.QuartersToFloatingMeasures.from_metric_map }
+
+```python
+QuartersToFloatingMeasures.from_metric_map(meter)
+```
+
+Create from a MetricMap.
+
+Uses MN integers (or MC if MN not available) as measure numbers.
+Adds a final extrapolation point for the end of the last measure.
+
+Args:
+    meter: MetricMap with measure boundary information.
+
+Returns:
+    QuartersToFloatingMeasures map.
+
+### inverse { #timetoalign.QuartersToFloatingMeasures.inverse }
+
+```python
+QuartersToFloatingMeasures.inverse()
+```
+
+Return the inverse map (measures -> quarters).
+
+Returns:
+    A TableMap converting measures to quarters.
+
+Raises:
+    NotImplementedError: If not invertible (should not happen for this map).
+
+### to_dict { #timetoalign.QuartersToFloatingMeasures.to_dict }
+
+```python
+QuartersToFloatingMeasures.to_dict()
+```
+
+Serialize to dictionary.
+
+### to_measure_number_map { #timetoalign.QuartersToFloatingMeasures.to_measure_number_map }
+
+```python
+QuartersToFloatingMeasures.to_measure_number_map(mns=None)
+```
+
+Convert to non-interpolating measure number map.
+
+Args:
+    mns: MN labels to use. If None, uses floor(y_value) as string.
+
+Returns:
+    QuartersToMeasureNumber with the same boundaries.

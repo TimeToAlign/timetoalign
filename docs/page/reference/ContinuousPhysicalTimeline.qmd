@@ -1,7 +1,7 @@
-# ContinuousPhysicalTimeline { #timetoalign.ContinuousPhysicalTimeline }
+# ContinuousPhysicalTimeline { #timetoalign.timelines.ContinuousPhysicalTimeline }
 
 ```python
-ContinuousPhysicalTimeline(
+timelines.ContinuousPhysicalTimeline(
     length=0,
     unit=None,
     number_type=None,
@@ -30,13 +30,13 @@ share the parent's unit; cross-domain relationships use groups).
 
 | Name | Description |
 | --- | --- |
-| [create_metrical_grid](#timetoalign.ContinuousPhysicalTimeline.create_metrical_grid) | Create a metrical grid timeline with automatic beat/measure computation. |
-| [create_metrical_region](#timetoalign.ContinuousPhysicalTimeline.create_metrical_region) | Create a metrical grid for an existing region. |
+| [create_metrical_grid](#timetoalign.timelines.ContinuousPhysicalTimeline.create_metrical_grid) | Create a metrical grid timeline with automatic beat/measure computation. |
+| [create_metrical_region](#timetoalign.timelines.ContinuousPhysicalTimeline.create_metrical_region) | Create a metrical grid for an existing region. |
 
-### create_metrical_grid { #timetoalign.ContinuousPhysicalTimeline.create_metrical_grid }
+### create_metrical_grid { #timetoalign.timelines.ContinuousPhysicalTimeline.create_metrical_grid }
 
 ```python
-ContinuousPhysicalTimeline.create_metrical_grid(
+timelines.ContinuousPhysicalTimeline.create_metrical_grid(
     first_beat_at,
     tempo_bpm,
     beats_per_measure=4,
@@ -129,10 +129,10 @@ Examples:
     ...     anacrusis_quarters=Fraction(1, 1),  # 1 beat pickup
     ... )
 
-### create_metrical_region { #timetoalign.ContinuousPhysicalTimeline.create_metrical_region }
+### create_metrical_region { #timetoalign.timelines.ContinuousPhysicalTimeline.create_metrical_region }
 
 ```python
-ContinuousPhysicalTimeline.create_metrical_region(
+timelines.ContinuousPhysicalTimeline.create_metrical_region(
     region_name,
     tempo_bpm,
     beats_per_measure=4,

@@ -1,0 +1,134 @@
+# FlowMap { #timetoalign.timelines.FlowMap }
+
+```python
+timelines.FlowMap(flow, id='', _sections=list(), _target_boundaries=list())
+```
+
+Coordinate transformation map for flow control.
+
+FlowMap encodes one specific Flow and enables bidirectional coordinate
+conversion between source (with flow control) and target (linearized) timelines:
+- Source -> Target conversion (1:N, since repeats duplicate coordinates)
+- Target -> Source lookup (N:1, always unique)
+
+FlowMap stores sections for efficient lookup:
+- `_sections`: List of FlowMapSection objects
+- `_target_boundaries`: Sorted list of target section starts for binary search
+
+Attributes:
+    flow: The computed Flow.
+    id: Identifier for this FlowMap (defaults to flow.mode.value).
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [n_sections](#timetoalign.timelines.FlowMap.n_sections) | Number of sections in this FlowMap. |
+| [total_target_length](#timetoalign.timelines.FlowMap.total_target_length) | Total length of the target timeline. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [fold](#timetoalign.timelines.FlowMap.fold) | Map target coordinate back to source coordinate. |
+| [from_qb_sections](#timetoalign.timelines.FlowMap.from_qb_sections) | Create a FlowMap with QB-space source coordinates. |
+| [inverse](#timetoalign.timelines.FlowMap.inverse) | Create the inverse FlowMap (target -> source becomes source -> target). |
+| [unfold](#timetoalign.timelines.FlowMap.unfold) | Map source coordinate to target coordinates. |
+
+### fold { #timetoalign.timelines.FlowMap.fold }
+
+```python
+timelines.FlowMap.fold(coord)
+```
+
+Map target coordinate back to source coordinate.
+
+The target timeline has unique coordinates, so this always returns
+a single value.
+
+Args:
+    coord: Coordinate in target timeline.
+
+Returns:
+    Coordinate in source timeline.
+
+Raises:
+    ValueError: If coordinate is outside the flow range.
+
+Examples:
+    >>> # Target coord 6 maps back to source coord 3
+    >>> flow_map.fold(6)
+    Fraction(3)
+
+### from_qb_sections { #timetoalign.timelines.FlowMap.from_qb_sections }
+
+```python
+timelines.FlowMap.from_qb_sections(flow, qb_sections, *, id='')
+```
+
+Create a FlowMap with QB-space source coordinates.
+
+Unlike the default constructor which derives source coordinates from
+MC numbers (integers), this factory accepts pre-computed quarterbeat
+boundaries.  This is the correct approach for scores with non-uniform
+measure durations, where MC-number space != QB-coordinate space.
+
+Args:
+    flow: The computed Flow (retained for metadata and inverse ops).
+    qb_sections: List of ``(qb_start, qb_end)`` tuples giving the
+        quarterbeat boundaries of each section in the **folded**
+        source timeline.  Must have the same length as ``flow.sections``.
+    id: Optional identifier.  Defaults to ``flow.mode.value``.
+
+Returns:
+    FlowMap with sections in QB-space.
+
+Raises:
+    ValueError: If ``len(qb_sections) != len(flow.sections)``.
+
+See Also:
+    `compute_qb_sections`: Computes QB boundaries from a Flow and
+        ScoreFlowController.
+
+### inverse { #timetoalign.timelines.FlowMap.inverse }
+
+```python
+timelines.FlowMap.inverse()
+```
+
+Create the inverse FlowMap (target -> source becomes source -> target).
+
+The inverse FlowMap swaps the source and target coordinate systems.
+This is useful for attaching to a target timeline to enable
+tracing back to the original source.
+
+Note:
+    The inverse FlowMap's unfold() returns coordinates in the original
+    source space, which may yield multiple results if the source coord
+    is visited multiple times.
+
+Returns:
+    A new FlowMap with inverted sections.
+
+### unfold { #timetoalign.timelines.FlowMap.unfold }
+
+```python
+timelines.FlowMap.unfold(coord)
+```
+
+Map source coordinate to target coordinates.
+
+Since a source coordinate may be visited multiple times (due to repeats),
+this returns a list of all corresponding target coordinates.
+
+Args:
+    coord: Coordinate in source timeline.
+
+Returns:
+    List of coordinates in target timeline. Empty list if coord
+    is not within any section.
+
+Examples:
+    >>> # Source coord 3 appears twice due to repeat
+    >>> flow_map.unfold(3)
+    [Fraction(2), Fraction(6)]

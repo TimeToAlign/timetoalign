@@ -1,0 +1,110 @@
+# MatchFileContext { #timetoalign.alignment.MatchFileContext }
+
+```python
+alignment.MatchFileContext(
+    piece='',
+    composer='',
+    performer='',
+    score_filename='',
+    midi_filename='',
+    midi_clock_units=480,
+    midi_clock_rate=500000,
+    score_notes=dict(),
+    perf_notes=dict(),
+    score_properties=list(),
+    deletions=list(),
+    insertions=list(),
+)
+```
+
+Supplementary data required for ``.match`` file export.
+
+This context object bridges the gap between the coordinate-only
+:class:`~timetoalign.MatchStamp` data and the rich note-level data
+required by the Vienna ``.match`` format.  It is typically constructed
+via :meth:`from_dataframes` or assembled manually.
+
+Attributes:
+    piece: Piece name for the ``info(piece,...)`` header.
+    composer: Composer name for the ``info(composer,...)`` header.
+    performer: Performer name for the ``info(performer,...)`` header.
+    score_filename: Score file name for the header.
+    midi_filename: MIDI file name for the header.
+    midi_clock_units: MIDI clock units (divisions per quarter note).
+    midi_clock_rate: MIDI clock rate in microseconds per quarter note.
+    score_notes: Lookup from score coordinate to list of
+        :class:`SnoteRecord` objects at that coordinate.
+    perf_notes: Lookup from performance coordinate to list of
+        :class:`NoteRecord` objects at that coordinate.
+    score_properties: Pre-formatted ``scoreprop(...)`` lines.
+    deletions: Score notes with no performance match.
+    insertions: Performance notes with no score match.
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_dataframes](#timetoalign.alignment.MatchFileContext.from_dataframes) | Build a :class:`MatchFileContext` from score and performance DataFrames. |
+
+### from_dataframes { #timetoalign.alignment.MatchFileContext.from_dataframes }
+
+```python
+alignment.MatchFileContext.from_dataframes(
+    score_df,
+    perf_df,
+    match_result=None,
+    *,
+    piece='',
+    composer='',
+    performer='',
+    score_filename='',
+    midi_filename='',
+    midi_clock_units=480,
+    midi_clock_rate=500000,
+    score_coord_column='quarterbeats_playthrough',
+    perf_coord_column='start',
+    score_pitch_column='pitch',
+    perf_pitch_column='pitch',
+    score_staff_column='staff',
+    score_duration_column='duration_qb',
+    score_measure_column='mc',
+    score_beat_column='beat',
+    score_offset_column='mc_onset',
+)
+```
+
+Build a :class:`MatchFileContext` from score and performance DataFrames.
+
+This factory is designed for the how03 use case: matching EEP
+performance notes against unfolded ABC score notes.  It constructs
+:class:`SnoteRecord` and :class:`NoteRecord` objects from DataFrame
+columns, keyed by their coordinates for lookup during export.
+
+Args:
+    score_df: Score notes DataFrame (e.g. from ``prepare_abc_notes_for_matching``).
+        Must contain the ``score_coord_column`` and note attribute columns.
+    perf_df: Performance notes DataFrame (e.g. from ``prepare_eep_notes_for_matching``).
+        Must contain the ``perf_coord_column`` and ``pitch`` column.
+    match_result: Optional :class:`~timetoalign.alignment.matching.MatchResult`.
+        If provided, unmatched target notes are recorded as deletions
+        and unmatched source notes as insertions.
+    piece: Piece name for the header.
+    composer: Composer name for the header.
+    performer: Performer name for the header.
+    score_filename: Score file name for the header.
+    midi_filename: MIDI file name for the header.
+    midi_clock_units: MIDI divisions per quarter note.
+    midi_clock_rate: Microseconds per quarter note.
+    score_coord_column: Column in *score_df* with the score coordinate.
+    perf_coord_column: Column in *perf_df* with the performance coordinate.
+    score_pitch_column: Column in *score_df* with the pitch name.
+    perf_pitch_column: Column in *perf_df* with the pitch name.
+    score_staff_column: Column in *score_df* with the staff number.
+    score_duration_column: Column in *score_df* with note duration
+        (in quarter-beats).  Falls back to ``"duration"`` if missing.
+    score_measure_column: Column in *score_df* with measure number.
+    score_beat_column: Column in *score_df* with beat number.
+    score_offset_column: Column in *score_df* with beat offset.
+
+Returns:
+    A populated :class:`MatchFileContext`.

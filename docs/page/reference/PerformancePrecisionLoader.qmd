@@ -19,7 +19,7 @@ quarter-note positions.
 
 1. ``loader.load(specimen_dir)`` — ingests the whole directory.
 2. ``loader.create_bundle()`` — assembles the AlignmentBundle.
-3. ``loader.create_timeline(id)`` / ``create_timelines()`` — retrieve
+3. ``loader.create_timeline(uid)`` / ``create_timelines()`` — retrieve
    individual timelines.
 
 Args:
@@ -40,7 +40,7 @@ Args:
 | Name | Description |
 | --- | --- |
 | [create_bundle](#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_bundle) | Assemble an AlignmentBundle from the loaded specimen. |
-| [create_timeline](#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline) | Return a single timeline by id, role, or performer key. |
+| [create_timeline](#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline) | Return a single timeline by uid, role, or performer key. |
 | [create_timelines](#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines) | Return all timelines: ``[score, performer_1, ..., performer_n]``. |
 | [load](#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load) | Ingest a whole Performance Precision specimen directory. |
 
@@ -65,17 +65,17 @@ Raises:
 
 ```python
 loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline(
-    id=None,
+    uid=None,
     **kwargs,
 )
 ```
 
-Return a single timeline by id, role, or performer key.
+Return a single timeline by uid, role, or performer key.
 
 Args:
-    id: ``"score"`` (or the score uid) for the score timeline; a
+    uid: ``"score"`` (or the score uid) for the score timeline; a
         performer key (``"Chopin_Ashkenazy"``) or its uid
-        (``"perf:Chopin_Ashkenazy"``) for a performance timeline.
+        (``"perf:Chopin_Ashkenazy:cpt1"``) for a performance timeline.
 
 Raises:
     KeyError: If no timeline matches.
@@ -92,7 +92,7 @@ loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelin
 Return all timelines: ``[score, performer_1, ..., performer_n]``.
 
 Args:
-    id_pattern: Unused; present for base-class signature parity.
+    id_pattern: Optional regex pattern to filter timeline IDs.
 
 ### load { #timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load }
 

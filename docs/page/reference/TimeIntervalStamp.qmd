@@ -1,0 +1,125 @@
+# TimeIntervalStamp { #timetoalign.TimeIntervalStamp }
+
+```python
+TimeIntervalStamp(start, end)
+```
+
+An interval defined by start and end TimeStamps.
+
+Provides facilities for zipping corresponding (start, end) pairs
+across all related timelines.
+
+Attributes:
+    start: TimeStamp at interval start.
+    end: TimeStamp at interval end.
+
+Examples:
+    >>> interval = timeline.get_interval_stamp(0.0, 10.0)
+    >>> interval.duration  # On axis timeline
+    10.0
+    >>> interval.get_interval("child:1")  # (start, end) tuple
+    (0.0, 7.5)
+    >>> interval.get_duration("child:1")
+    7.5
+
+    >>> # Get all intervals at once
+    >>> interval.zip_intervals()
+    {'tl:1': (0.0, 10.0), 'child:1': (0.0, 7.5)}
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [duration](#timetoalign.TimeIntervalStamp.duration) | Duration on the axis timeline. |
+| [source](#timetoalign.TimeIntervalStamp.source) | The source Timeline/Group. |
+| [source_id](#timetoalign.TimeIntervalStamp.source_id) | ID of the source. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [get_coordinate_interval](#timetoalign.TimeIntervalStamp.get_coordinate_interval) | Get (start, end) as proper Coordinate objects. |
+| [get_duration](#timetoalign.TimeIntervalStamp.get_duration) | Get duration on a specific timeline. |
+| [get_interval](#timetoalign.TimeIntervalStamp.get_interval) | Get (start, end) pair for a specific timeline. |
+| [get_unit_interval](#timetoalign.TimeIntervalStamp.get_unit_interval) | Get (start, end) pair for a specific unit. |
+| [zip_intervals](#timetoalign.TimeIntervalStamp.zip_intervals) | Get all (start, end) pairs across timelines. |
+
+### get_coordinate_interval { #timetoalign.TimeIntervalStamp.get_coordinate_interval }
+
+```python
+TimeIntervalStamp.get_coordinate_interval(timeline_id)
+```
+
+Get (start, end) as proper Coordinate objects.
+
+Unlike get_interval() which returns floats, this returns Coordinates
+with the correct TimeUnit attached.
+
+Args:
+    timeline_id: The timeline to get interval for.
+
+Returns:
+    Tuple of (start, end) Coordinates, or None if not reachable.
+
+Examples:
+    >>> interval = timeline.get_interval_stamp(10.0, 50.0)
+    >>> start, end = interval.get_coordinate_interval("child:1")
+    >>> start.unit
+    <TimeUnit.seconds: 'seconds'>
+
+### get_duration { #timetoalign.TimeIntervalStamp.get_duration }
+
+```python
+TimeIntervalStamp.get_duration(timeline_id)
+```
+
+Get duration on a specific timeline.
+
+Args:
+    timeline_id: The timeline to get duration for.
+
+Returns:
+    Duration (end - start), or None if timeline not reachable.
+
+### get_interval { #timetoalign.TimeIntervalStamp.get_interval }
+
+```python
+TimeIntervalStamp.get_interval(timeline_id)
+```
+
+Get (start, end) pair for a specific timeline.
+
+Args:
+    timeline_id: The timeline to get interval for.
+
+Returns:
+    Tuple of (start, end) coordinates, or None if timeline not reachable.
+
+### get_unit_interval { #timetoalign.TimeIntervalStamp.get_unit_interval }
+
+```python
+TimeIntervalStamp.get_unit_interval(unit)
+```
+
+Get (start, end) pair for a specific unit.
+
+Args:
+    unit: The target unit.
+
+Returns:
+    Tuple of (start, end) in the target unit, or None if no C-Map.
+
+### zip_intervals { #timetoalign.TimeIntervalStamp.zip_intervals }
+
+```python
+TimeIntervalStamp.zip_intervals(timeline_ids=None, include_units=None)
+```
+
+Get all (start, end) pairs across timelines.
+
+Args:
+    timeline_ids: Specific timelines to include (None = all).
+    include_units: C-Map units to include as well.
+
+Returns:
+    Dict mapping timeline_id/unit to (start, end) tuple.

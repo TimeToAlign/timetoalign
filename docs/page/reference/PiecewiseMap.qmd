@@ -1,7 +1,14 @@
 # PiecewiseMap { #timetoalign.PiecewiseMap }
 
 ```python
-PiecewiseMap(breaks, maps, source_unit=None, target_unit=None, uid=None)
+PiecewiseMap(
+    breaks,
+    maps,
+    source_unit=None,
+    target_unit=None,
+    uid=None,
+    name=None,
+)
 ```
 
 Map defined by different maps on different intervals.

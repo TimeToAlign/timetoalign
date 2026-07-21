@@ -9,6 +9,7 @@ TableMap(
     source_unit=None,
     target_unit=None,
     uid=None,
+    name=None,
 )
 ```
 

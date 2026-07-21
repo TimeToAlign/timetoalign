@@ -1,0 +1,30 @@
+# ScoreMidiLoader { #timetoalign.loader.midi.score.ScoreMidiLoader }
+
+```python
+loader.midi.score.ScoreMidiLoader(
+    part_voice_assign_mode=0,
+    quantization_unit=None,
+    estimate_voice_info=False,
+    estimate_key=False,
+    assign_note_ids=True,
+    unit=None,
+    number_type=NumberType.float,
+    **kwargs,
+)
+```
+
+Load score MIDI files using partitura.
+
+This loader uses partitura's sophisticated MIDI parsing to extract structural
+information like voices, parts, and specific pitches (optional). It is ideal
+for quantized MIDI files representing scores.
+
+Emits a :class:`ScoreMidiEventData` (the wider 10-column schema)
+because partitura supplies the score-only ``voice``, ``staff`` and
+``part_id`` columns on top of the cross-loader seven.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [ticks_per_beat](#timetoalign.loader.midi.score.ScoreMidiLoader.ticks_per_beat) | Return the ticks per beat (PPQ) of the loaded file. |

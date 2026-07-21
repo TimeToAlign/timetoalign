@@ -1,0 +1,321 @@
+# Flow { #timetoalign.timelines.Flow }
+
+```python
+timelines.Flow(
+    sections=list(),
+    mode=FlowMode.default,
+    folded_length=0,
+    id='',
+    source_metadata=dict(),
+    _controller_ref=None,
+)
+```
+
+A computed flow (sequence of measure visitations).
+
+A Flow represents one possible path through a score, accounting for
+repeats, jumps, and voltas. It can be:
+- Computed by ScoreFlowController from MeasureData
+- Loaded from .flow.csv ground truth
+- Compared using is_equivalent()
+
+Flows are section-based, using `sections` (list of PlaythroughSection)
+for .flow.csv serialization and is_equivalent() comparison.
+
+Flows computed by ScoreFlowController have a controller reference, allowing
+access to MeasureUnits via iter_units(). Flows loaded from CSV are
+"detached" and do not have controller access.
+
+Note:
+    MC ranges use the **right-open interval convention** [mc_start, mc_end),
+    consistent with partitura and the TTA manuscript.
+
+Attributes:
+    sections: The sequence of PlaythroughSection objects.
+    mode: The FlowMode used to compute this flow.
+    folded_length: Number of unique MCs (measures in printed score).
+    id: Identifier for this flow (defaults to mode.value).
+    source_metadata: Optional metadata from the source MeasureData.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [controller](#timetoalign.timelines.Flow.controller) | Get the ScoreFlowController that created this Flow, if still alive. |
+| [has_repeats](#timetoalign.timelines.Flow.has_repeats) | Whether the flow contains repeated measures. |
+| [total_quarterbeats](#timetoalign.timelines.Flow.total_quarterbeats) | Total duration of the unfolded sequence in quarter beats. |
+| [unfolded_length](#timetoalign.timelines.Flow.unfolded_length) | Number of measure visitations in the unfolded sequence. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [diagram](#timetoalign.timelines.Flow.diagram) | Show playthrough section sequence for this flow. |
+| [diff_diagram](#timetoalign.timelines.Flow.diff_diagram) | Show side-by-side comparison of this flow with another. |
+| [diff_flows](#timetoalign.timelines.Flow.diff_flows) | Show differences between this flow and another using sequence alignment. |
+| [from_csv](#timetoalign.timelines.Flow.from_csv) | Load Flow for specific mode from .flow.csv file. |
+| [from_dataframe](#timetoalign.timelines.Flow.from_dataframe) | Create Flow from DataFrame with mc_start, mc_end, atomic_sections fields. |
+| [from_records](#timetoalign.timelines.Flow.from_records) | Create Flow from list of dicts with mc_start, mc_end, atomic_sections. |
+| [from_sections](#timetoalign.timelines.Flow.from_sections) | Create a Flow from PlaythroughSections. |
+| [is_equivalent](#timetoalign.timelines.Flow.is_equivalent) | Compare by zipped (mc_start, mc_end) ranges. |
+| [iter_units](#timetoalign.timelines.Flow.iter_units) | Iterate over MeasureUnits via the controller. |
+| [to_atomic_sequence](#timetoalign.timelines.Flow.to_atomic_sequence) | Return flattened sequence of atomic section IDs. |
+| [to_csv_rows](#timetoalign.timelines.Flow.to_csv_rows) | Export as .flow.csv format rows. |
+| [to_dataframe](#timetoalign.timelines.Flow.to_dataframe) | Convert to pandas DataFrame with section information. |
+| [to_mc_sequence](#timetoalign.timelines.Flow.to_mc_sequence) | Return the sequence of MCs in traversal order. |
+| [to_records](#timetoalign.timelines.Flow.to_records) | Export as list of dicts (section-based). |
+
+### diagram { #timetoalign.timelines.Flow.diagram }
+
+```python
+timelines.Flow.diagram(
+    width=70,
+    unicode=True,
+    show_mcs=False,
+    show_reasons=True,
+)
+```
+
+Show playthrough section sequence for this flow.
+
+Args:
+    width: Total width of the diagram in characters.
+    unicode: Use Unicode characters (True) or ASCII fallback (False).
+    show_mcs: Whether to expand MC sequences per section.
+    show_reasons: Whether to annotate why each section starts.
+
+Returns:
+    Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
+
+### diff_diagram { #timetoalign.timelines.Flow.diff_diagram }
+
+```python
+timelines.Flow.diff_diagram(other, width=80, unicode=True)
+```
+
+Show side-by-side comparison of this flow with another.
+
+Args:
+    other: Another Flow to compare with.
+    width: Total width of the diagram in characters.
+    unicode: Use Unicode characters (True) or ASCII fallback (False).
+
+Returns:
+    Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
+
+### diff_flows { #timetoalign.timelines.Flow.diff_flows }
+
+```python
+timelines.Flow.diff_flows(other)
+```
+
+Show differences between this flow and another using sequence alignment.
+
+Uses difflib to produce a human-readable diff of atomic sequences.
+
+Args:
+    other: Another Flow to compare against.
+
+Returns:
+    String showing the alignment/diff between the two flows.
+
+### from_csv { #timetoalign.timelines.Flow.from_csv }
+
+```python
+timelines.Flow.from_csv(path, mode)
+```
+
+Load Flow for specific mode from .flow.csv file.
+
+Filters CSV to rows matching the given flow_mode.
+
+Note:
+    MC ranges use right-open interval convention [mc_start, mc_end).
+
+Args:
+    path: Path to the .flow.csv file.
+    mode: The FlowMode to load.
+
+Returns:
+    New Flow instance with sections populated.
+
+Raises:
+    ValueError: If no entries found for the given mode.
+
+### from_dataframe { #timetoalign.timelines.Flow.from_dataframe }
+
+```python
+timelines.Flow.from_dataframe(df, mode)
+```
+
+Create Flow from DataFrame with mc_start, mc_end, atomic_sections fields.
+
+Note:
+    MC ranges use right-open interval convention [mc_start, mc_end).
+
+Args:
+    df: DataFrame with fields: mc_start, mc_end, atomic_sections
+        (or its flow-CSV spelling "atomic_segments").
+    mode: The FlowMode for this flow.
+
+Returns:
+    New Flow instance with sections populated.
+
+### from_records { #timetoalign.timelines.Flow.from_records }
+
+```python
+timelines.Flow.from_records(records, mode)
+```
+
+Create Flow from list of dicts with mc_start, mc_end, atomic_sections.
+
+Note:
+    MC ranges use right-open interval convention [mc_start, mc_end).
+
+Args:
+    records: List of dicts, each with keys:
+        - mc_start: int (inclusive)
+        - mc_end: int (exclusive, right-open)
+        - atomic_sections: str (semicolon-separated, e.g., "A;B");
+          the persisted flow-CSV format names this column
+          "atomic_segments", which is accepted as a fallback key
+    mode: The FlowMode for this flow.
+
+Returns:
+    New Flow instance with sections populated.
+
+### from_sections { #timetoalign.timelines.Flow.from_sections }
+
+```python
+timelines.Flow.from_sections(sections, mode, folded_length=None)
+```
+
+Create a Flow from PlaythroughSections.
+
+Args:
+    sections: List of PlaythroughSection objects.
+    mode: The FlowMode for this flow.
+    folded_length: Number of unique MCs. If None, computed from sections.
+
+Returns:
+    New Flow instance with sections populated.
+
+### is_equivalent { #timetoalign.timelines.Flow.is_equivalent }
+
+```python
+timelines.Flow.is_equivalent(other)
+```
+
+Compare by zipped (mc_start, mc_end) ranges.
+
+Two flows are equivalent if they have the same number of sections
+and each corresponding section has matching mc_start and mc_end.
+
+Note: atomic_section_ids are NOT compared - only MC ranges matter.
+
+Args:
+    other: Another Flow to compare against.
+
+Returns:
+    True if flows are equivalent, False otherwise.
+
+### iter_units { #timetoalign.timelines.Flow.iter_units }
+
+```python
+timelines.Flow.iter_units()
+```
+
+Iterate over MeasureUnits via the controller.
+
+This provides access to the folded score skeleton (one MeasureUnit
+per MeasureData row).
+
+Yields:
+    MeasureUnit objects in MC order.
+
+Raises:
+    ValueError: If Flow is detached from controller (e.g., loaded from CSV).
+
+Examples:
+    >>> flow = controller.compute_flow()
+    >>> for unit in flow.iter_units():
+    ...     print(f"MC {unit.mc}: next={unit.next}")
+
+### to_atomic_sequence { #timetoalign.timelines.Flow.to_atomic_sequence }
+
+```python
+timelines.Flow.to_atomic_sequence()
+```
+
+Return flattened sequence of atomic section IDs.
+
+This provides a canonical representation of the flow as a sequence
+of atomic section traversals. Useful for comparing flows and debugging.
+
+Returns:
+    List of atomic section IDs in traversal order.
+
+Examples:
+    >>> flow = Flow.from_sections([
+    ...     PlaythroughSection(1, 17, ("A", "B")),
+    ...     PlaythroughSection(17, 32, ("C",)),
+    ...     PlaythroughSection(6, 17, ("B",)),
+    ... ], FlowMode.default)
+    >>> flow.to_atomic_sequence()
+    ['A', 'B', 'C', 'B']
+
+### to_csv_rows { #timetoalign.timelines.Flow.to_csv_rows }
+
+```python
+timelines.Flow.to_csv_rows(source_file, software_version)
+```
+
+Export as .flow.csv format rows.
+
+Returns list of dicts with keys:
+    flow_mode, source_file, software_version, mc_start, mc_end, atomic_sections
+
+Args:
+    source_file: The file that was parsed to produce this flow.
+    software_version: Software name and version for reproducibility.
+
+Returns:
+    List of dicts ready for CSV writing.
+
+### to_dataframe { #timetoalign.timelines.Flow.to_dataframe }
+
+```python
+timelines.Flow.to_dataframe()
+```
+
+Convert to pandas DataFrame with section information.
+
+Returns:
+    DataFrame with fields: mc_start, mc_end, atomic_sections
+    for each PlaythroughSection.
+
+Note:
+    This returns section-level data. For per-MC data, use
+    iter_units() with controller access.
+
+### to_mc_sequence { #timetoalign.timelines.Flow.to_mc_sequence }
+
+```python
+timelines.Flow.to_mc_sequence()
+```
+
+Return the sequence of MCs in traversal order.
+
+Returns:
+    List of MC values in the order they are visited (right-open intervals).
+
+### to_records { #timetoalign.timelines.Flow.to_records }
+
+```python
+timelines.Flow.to_records()
+```
+
+Export as list of dicts (section-based).
+
+Returns:
+    List of dicts with keys: mc_start, mc_end, atomic_sections.

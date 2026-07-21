@@ -16,7 +16,7 @@ instant :class:`MatchClaim` rows held columnar in a :class:`MatchClaimField`.
 
 1. ``loader.load(alignment_json)`` — parse one alignment JSON file.
 2. ``loader.create_bundle()`` — assemble the AlignmentBundle.
-3. ``loader.create_timeline(id)`` / ``create_timelines()`` — retrieve
+3. ``loader.create_timeline(uid)`` / ``create_timelines()`` — retrieve
    individual timelines.
 
 The loader reads the existing alignment; it never runs an aligner.
@@ -68,13 +68,16 @@ Raises:
 ### create_timeline { #timetoalign.loader.alignment.listen_here.ListenHereLoader.create_timeline }
 
 ```python
-loader.alignment.listen_here.ListenHereLoader.create_timeline(id=None, **kwargs)
+loader.alignment.listen_here.ListenHereLoader.create_timeline(
+    uid=None,
+    **kwargs,
+)
 ```
 
 Return a single recording's seconds timeline by its uid.
 
 Args:
-    id: A timeline uid (``"<stem>:cpt1"``).
+    uid: A timeline uid (``"<stem>:cpt1"``).
 
 Raises:
     KeyError: If no recording matches.
@@ -89,7 +92,7 @@ loader.alignment.listen_here.ListenHereLoader.create_timelines(id_pattern=None)
 Return one empty seconds timeline per recording, in sorted order.
 
 Args:
-    id_pattern: Unused; present for base-class signature parity.
+    id_pattern: Optional regex pattern to filter timeline IDs.
 
 ### get_field { #timetoalign.loader.alignment.listen_here.ListenHereLoader.get_field }
 
@@ -100,7 +103,7 @@ loader.alignment.listen_here.ListenHereLoader.get_field(selector)
 Return the complete-topology pairwise claim field.
 
 The loader's alignment is reached through the uniform field API, the
-same way any :class:`~timetoalign.loader.mixins.SemanticFieldAccessMixin`
+same way any :class:`~timetoalign.storage.mixins.SemanticFieldAccessMixin`
 surfaces a semantic view:
 
     >>> field = loader.get_field(MatchClaim)

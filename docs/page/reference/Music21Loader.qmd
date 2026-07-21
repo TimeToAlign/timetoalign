@@ -1,0 +1,30 @@
+# Music21Loader { #timetoalign.loader.score.Music21Loader }
+
+```python
+loader.score.Music21Loader(**kwargs)
+```
+
+Load symbolic scores using music21.
+
+Returns ScoreStore with category-specific data.
+Uses recursive element parsing to extract:
+- Notes/Rests (with chord expansion)
+- Measures (structure)
+- Controls (dynamics, tempo, etc.)
+- Annotations (text)
+
+All TTA timelines start at coordinate 0.  When music21 reports negative
+quarter-beat offsets (anacrusis notes preceding the first full measure),
+this loader shifts every event coordinate so the earliest onset maps to
+0.0.  The magnitude of that shift is exposed via :attr:`anacrusis_offset`
+and stored in ``ScoreStore.metadata["anacrusis_offset"]``.
+
+See ``PartituraLoader`` for the full rationale; both loaders apply the
+same convention so that score timelines built from either source are
+directly comparable and compatible with ``MatchfileLoader``.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [anacrusis_offset](#timetoalign.loader.score.Music21Loader.anacrusis_offset) | Quarter-beat shift applied to normalise anacrusis coordinates. |

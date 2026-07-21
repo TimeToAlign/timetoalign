@@ -1,7 +1,7 @@
-# DiscreteGraphicalTimeline { #timetoalign.DiscreteGraphicalTimeline }
+# DiscreteGraphicalTimeline { #timetoalign.timelines.DiscreteGraphicalTimeline }
 
 ```python
-DiscreteGraphicalTimeline(
+timelines.DiscreteGraphicalTimeline(
     length=0,
     unit=None,
     number_type=None,

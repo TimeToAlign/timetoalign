@@ -37,10 +37,17 @@ import sys
 import tempfile
 from pathlib import Path
 
-# The headless verifier runs this script from the notebook directory.  Prefer
-# the repository containing this source over any separately installed
-# timetoalign copy so the tutorial exercises the checked-out implementation.
-_repo_root = Path(__file__).resolve().parents[2]
+# The headless verifier runs this script from the notebook directory. Prefer
+# the repository containing this source over any separately installed copy.
+_cwd = Path.cwd().resolve()
+_repo_root = next(
+    (
+        parent
+        for parent in (_cwd, *_cwd.parents)
+        if (parent / "timetoalign" / "__init__.py").exists()
+    ),
+    _cwd,
+)
 if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 

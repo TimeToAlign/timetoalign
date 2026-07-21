@@ -1,0 +1,88 @@
+# Ms3Loader { #timetoalign.loader.score.Ms3Loader }
+
+```python
+loader.score.Ms3Loader(*args, auto_discover=False, **kwargs)
+```
+
+Load symbolic scores from DCML-style TSV files.
+
+Wraps ms3.load_tsv to load standard tabular data.
+Returns a ScoreStore with category-specific data.
+
+Unlike single-file loaders (PartituraLoader, Music21Loader), TSV corpora
+store each facet (notes, measures, chords, harmonies) in a separate file.
+By default the loader loads exactly the files it is given. Pass
+``auto_discover=True`` to have it locate companion facet files
+automatically.
+
+Auto-discovery uses two strategies:
+
+1. **Flat siblings** (ms3 convention): for ``name.notes.tsv``, look for
+   ``name.measures.tsv``, ``name.chords.tsv``, ``name.harmonies.tsv``
+   in the same directory.
+2. **Facet directories** (DCML corpus convention): if the file sits in a
+   directory whose name matches a facet (e.g., ``notes/``), look for
+   sibling directories named after the other facets and find a file
+   with the same stem there.
+
+TSV columns (notes.tsv gold standard):
+- mc, mn: Measure count/number
+- quarterbeats: Continuous logical time (Fraction string)
+- duration_qb: Duration in quarter beats (float)
+- mc_onset, mn_onset: Measure-relative offsets (Fraction string)
+- timesig: Time signature context
+- staff, voice: Part context
+- duration, nominal_duration, scalar: Symbolic duration
+- tpc, midi, name, octave: Pitch info
+- tied, gracenote, chord_id: Note attributes
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_file](#timetoalign.loader.score.Ms3Loader.from_file) | Create a loader and load TSV files in one step. |
+| [load](#timetoalign.loader.score.Ms3Loader.load) | Load one or more TSV source files. |
+
+### from_file { #timetoalign.loader.score.Ms3Loader.from_file }
+
+```python
+loader.score.Ms3Loader.from_file(*paths, auto_discover=False)
+```
+
+Create a loader and load TSV files in one step.
+
+Convenience constructor for loading one or more TSV files.
+
+Args:
+    *paths: Paths to TSV files (notes, measures, harmonies, chords).
+    auto_discover: If True, automatically locate companion facet
+        files for each source.
+
+Returns:
+    A new Ms3Loader instance with the files already loaded.
+
+Examples:
+    >>> loader = Ms3Loader.from_file("score.notes.tsv", "score.measures.tsv")
+    >>> loader.store.summary()
+
+    >>> # Auto-discover all facet files from a single notes file:
+    >>> loader = Ms3Loader.from_file("score.notes.tsv", auto_discover=True)
+
+### load { #timetoalign.loader.score.Ms3Loader.load }
+
+```python
+loader.score.Ms3Loader.load(*sources)
+```
+
+Load one or more TSV source files.
+
+When ``auto_discover`` is enabled, each source file is expanded to
+include its companion facet files (measures, chords, harmonies,
+etc.) before loading. Files that have already been loaded (or that
+appear more than once in the expanded set) are silently skipped.
+
+Args:
+    *sources: Paths to TSV files.
+
+Returns:
+    Self, for method chaining.

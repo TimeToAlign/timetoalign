@@ -1,7 +1,7 @@
-# DiscreteLogicalTimeline { #timetoalign.DiscreteLogicalTimeline }
+# DiscreteLogicalTimeline { #timetoalign.timelines.DiscreteLogicalTimeline }
 
 ```python
-DiscreteLogicalTimeline(
+timelines.DiscreteLogicalTimeline(
     length=0,
     unit=None,
     number_type=None,

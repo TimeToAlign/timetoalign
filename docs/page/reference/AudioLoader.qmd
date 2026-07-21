@@ -1,7 +1,7 @@
-# AudioLoader { #timetoalign.AudioLoader }
+# AudioLoader { #timetoalign.loader.AudioLoader }
 
 ```python
-AudioLoader()
+loader.AudioLoader()
 ```
 
 Load audio file metadata for creating physical timelines.
@@ -38,7 +38,8 @@ Examples:
     Coordinate(7938048, samples)
 
     >>> # The timeline has a SamplesToSeconds C-map attached
-    >>> timeline.convert(44100, target_unit="seconds")
+    >>> from timetoalign.core import TimeUnit
+    >>> timeline.get_timestamp(44100).get_unit(TimeUnit.seconds)
     1.0
 
 Attributes:
@@ -48,27 +49,26 @@ Attributes:
 
 | Name | Description |
 | --- | --- |
-| [audio_info](#timetoalign.AudioLoader.audio_info) | Return parsed audio metadata. |
-| [channels](#timetoalign.AudioLoader.channels) | Number of audio channels. |
-| [duration_seconds](#timetoalign.AudioLoader.duration_seconds) | Duration in seconds. |
-| [format](#timetoalign.AudioLoader.format) | Audio format (e.g., 'WAV', 'FLAC', 'MP3'). |
-| [n_samples](#timetoalign.AudioLoader.n_samples) | Total number of samples (frames) in the audio file. |
-| [sample_rate](#timetoalign.AudioLoader.sample_rate) | Sample rate in Hz. |
-| [source_path](#timetoalign.AudioLoader.source_path) | Path to the loaded audio file. |
+| [audio_info](#timetoalign.loader.AudioLoader.audio_info) | Return parsed audio metadata. |
+| [channels](#timetoalign.loader.AudioLoader.channels) | Number of audio channels. |
+| [duration_seconds](#timetoalign.loader.AudioLoader.duration_seconds) | Duration in seconds. |
+| [format](#timetoalign.loader.AudioLoader.format) | Audio format (e.g., 'WAV', 'FLAC', 'MP3'). |
+| [n_samples](#timetoalign.loader.AudioLoader.n_samples) | Total number of samples (frames) in the audio file. |
+| [sample_rate](#timetoalign.loader.AudioLoader.sample_rate) | Sample rate in Hz. |
+| [source_path](#timetoalign.loader.AudioLoader.source_path) | Path to the loaded audio file. |
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
-| [create_samples_to_seconds_map](#timetoalign.AudioLoader.create_samples_to_seconds_map) | Create a SamplesToSeconds conversion map for this audio. |
-| [create_timeline](#timetoalign.AudioLoader.create_timeline) | Create a DiscretePhysicalTimeline from the loaded audio. |
-| [from_file](#timetoalign.AudioLoader.from_file) | Load an audio file and return the loader (convenience constructor). |
-| [load](#timetoalign.AudioLoader.load) | Load audio file metadata. |
+| [create_samples_to_seconds_map](#timetoalign.loader.AudioLoader.create_samples_to_seconds_map) | Create a SamplesToSeconds conversion map for this audio. |
+| [create_timeline](#timetoalign.loader.AudioLoader.create_timeline) | Create a DiscretePhysicalTimeline from the loaded audio. |
+| [from_file](#timetoalign.loader.AudioLoader.from_file) | Load an audio file and return the loader (convenience constructor). |
 
-### create_samples_to_seconds_map { #timetoalign.AudioLoader.create_samples_to_seconds_map }
+### create_samples_to_seconds_map { #timetoalign.loader.AudioLoader.create_samples_to_seconds_map }
 
 ```python
-AudioLoader.create_samples_to_seconds_map()
+loader.AudioLoader.create_samples_to_seconds_map()
 ```
 
 Create a SamplesToSeconds conversion map for this audio.
@@ -79,10 +79,10 @@ Returns:
 Raises:
     RuntimeError: If no audio file has been loaded.
 
-### create_timeline { #timetoalign.AudioLoader.create_timeline }
+### create_timeline { #timetoalign.loader.AudioLoader.create_timeline }
 
 ```python
-AudioLoader.create_timeline(uid=None, name=None, attach_cmap=True)
+loader.AudioLoader.create_timeline(uid=None, name=None, attach_cmap=True)
 ```
 
 Create a DiscretePhysicalTimeline from the loaded audio.
@@ -110,13 +110,14 @@ Examples:
     <TimeUnit.samples: 'samples'>
 
     >>> # Convert sample coordinates to seconds
-    >>> timeline.convert(44100, target_unit="seconds")
+    >>> from timetoalign.core import TimeUnit
+    >>> timeline.get_timestamp(44100).get_unit(TimeUnit.seconds)
     1.0
 
-### from_file { #timetoalign.AudioLoader.from_file }
+### from_file { #timetoalign.loader.AudioLoader.from_file }
 
 ```python
-AudioLoader.from_file(path)
+loader.AudioLoader.from_file(path)
 ```
 
 Load an audio file and return the loader (convenience constructor).
@@ -130,21 +131,3 @@ Returns:
 Examples:
     >>> loader = AudioLoader.from_file("song.wav")
     >>> print(loader.duration_seconds)
-
-### load { #timetoalign.AudioLoader.load }
-
-```python
-AudioLoader.load(path)
-```
-
-Load audio file metadata.
-
-Args:
-    path: Path to the audio file.
-
-Returns:
-    Self, for method chaining.
-
-Raises:
-    FileNotFoundError: If the file doesn't exist.
-    ValueError: If the file format is not supported or cannot be read.

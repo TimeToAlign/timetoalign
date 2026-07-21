@@ -1,7 +1,7 @@
-# BeatGrid { #timetoalign.BeatGrid }
+# BeatGrid { #timetoalign.timelines.BeatGrid }
 
 ```python
-BeatGrid(
+timelines.BeatGrid(
     length,
     beats_per_measure=4,
     beat_unit=Fraction(1, 4),
@@ -13,22 +13,19 @@ BeatGrid(
 )
 ```
 
-A metrical grid as a ContinuousLogicalTimeline in quarters.
+A metrical timeline whose native coordinate axis is quarter notes.
 
-A BeatGrid represents metrical structure: measures, beats, and their
-numbering. It is designed to be added as a child to any parent timeline
-(physical, logical, or graphical).
+BeatGrid delegates measure-boundary lookup to its attached MetricMap,
+beat-in-measure lookup to its attached BeatInMeasureMap, and combined
+measure/beat lookup to its attached MetricalPositionMap. Its public beat
+queries also apply ``beat_unit`` so that a musical beat need not equal a
+quarter note.
 
-The coordinate system uses quarter notes (Fractions) for exact rhythmic
-representation. Built-in C-Maps automatically convert quarters to
-measure numbers and beat positions.
-
-**Architecture**: BeatGrid now uses the generalized MetricMap internally,
-which correctly handles:
-- Proper integer types for measure counts (MC)
-- Proper Fraction types for beat positions
-- Anacrusis (pickup measures)
-- Varying time signatures (via MetricMap.from_boundaries)
+BeatGrid and MetricMap are converging representations of meter. BeatGrid
+provides the Timeline interface; MetricMap provides an increasingly rich
+conversion model. Irregular measures, anacrusis, and meter changes modeled
+by ``MetricMap.from_boundaries()`` are intended to become available through
+BeatGrid as that model develops.
 
 Attributes:
     beats_per_measure: Number of beats per measure.
@@ -37,9 +34,9 @@ Attributes:
     quarters_per_measure: Derived: quarters per measure.
 
 C-Maps (automatically created):
-    - quarters -> mc (MetricMap): Integer measure count
-    - quarters -> beat (BeatInMeasureMap): Beat position as Fraction (1-indexed)
-    - quarters -> {mc, beat} (MetricalPositionMap): Combined output
+    - quarters -> mc (MetricMap): Integer measure count.
+    - quarters -> beat (BeatInMeasureMap): Beat position as Fraction.
+    - quarters -> {mc, beat} (MetricalPositionMap): Combined output.
 
 Examples:
     >>> from fractions import Fraction
@@ -71,43 +68,44 @@ Examples:
 
 | Name | Description |
 | --- | --- |
-| [beat_unit](#timetoalign.BeatGrid.beat_unit) | Note value of one beat (fraction of whole note). |
-| [beats_per_measure](#timetoalign.BeatGrid.beats_per_measure) | Number of beats per measure. |
-| [meter_map](#timetoalign.BeatGrid.meter_map) | The underlying MetricMap (for advanced access). |
-| [n_beats](#timetoalign.BeatGrid.n_beats) | Total number of beats in this grid. |
-| [n_measures](#timetoalign.BeatGrid.n_measures) | Number of complete measures in this grid. |
-| [quarters_per_beat](#timetoalign.BeatGrid.quarters_per_beat) | Quarter notes per beat. |
-| [quarters_per_measure](#timetoalign.BeatGrid.quarters_per_measure) | Quarter notes per measure. |
-| [start_measure](#timetoalign.BeatGrid.start_measure) | MC (measure count) of the first measure. |
-| [start_mn](#timetoalign.BeatGrid.start_mn) | MN (measure number label) of the first measure. |
-| [tempo_bpm](#timetoalign.BeatGrid.tempo_bpm) | Tempo in BPM, if created via from_tempo(). |
+| [beat_unit](#timetoalign.timelines.BeatGrid.beat_unit) | Note value of one beat (fraction of whole note). |
+| [beats_per_measure](#timetoalign.timelines.BeatGrid.beats_per_measure) | Number of beats per measure. |
+| [meter_map](#timetoalign.timelines.BeatGrid.meter_map) | The underlying MetricMap (for advanced access). |
+| [n_beats](#timetoalign.timelines.BeatGrid.n_beats) | Total number of beats in this grid. |
+| [n_measures](#timetoalign.timelines.BeatGrid.n_measures) | Number of complete measures in this grid. |
+| [quarters_per_beat](#timetoalign.timelines.BeatGrid.quarters_per_beat) | Quarter notes per beat. |
+| [quarters_per_measure](#timetoalign.timelines.BeatGrid.quarters_per_measure) | Quarter notes per measure. |
+| [start_measure](#timetoalign.timelines.BeatGrid.start_measure) | MC (measure count) of the first measure. |
+| [start_mn](#timetoalign.timelines.BeatGrid.start_mn) | MN (measure number label) of the first measure. |
+| [tempo_bpm](#timetoalign.timelines.BeatGrid.tempo_bpm) | Tempo in BPM, if created via from_tempo(). |
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
-| [beat_at](#timetoalign.BeatGrid.beat_at) | Get the beat position within the measure at a given quarter-note position. |
-| [beat_at_float](#timetoalign.BeatGrid.beat_at_float) | Get the beat position as a float (for backward compatibility). |
-| [beat_at_seconds](#timetoalign.BeatGrid.beat_at_seconds) | Get the beat number within the measure at a given time in seconds. |
-| [beat_quarters](#timetoalign.BeatGrid.beat_quarters) | All beat positions in quarters. Vectorized O(1). |
-| [beat_seconds](#timetoalign.BeatGrid.beat_seconds) | All beat times in seconds. Vectorized O(1). |
-| [downbeat_seconds](#timetoalign.BeatGrid.downbeat_seconds) | Alias for measure_seconds(). All downbeat times in seconds. |
-| [export_to_csv](#timetoalign.BeatGrid.export_to_csv) | Export BeatGrid data to a CSV file. |
-| [from_tempo](#timetoalign.BeatGrid.from_tempo) | Create a BeatGrid from tempo information. |
-| [materialize_beats](#timetoalign.BeatGrid.materialize_beats) | Add Beat events to this timeline at each beat position. |
-| [materialize_measures](#timetoalign.BeatGrid.materialize_measures) | Add Measure events to this timeline at each measure boundary. |
-| [measure_at](#timetoalign.BeatGrid.measure_at) | Get the measure count (MC) at a given quarter-note position. |
-| [measure_at_seconds](#timetoalign.BeatGrid.measure_at_seconds) | Get the measure number at a given time in seconds. |
-| [measure_quarters](#timetoalign.BeatGrid.measure_quarters) | All measure start positions in quarters. Vectorized O(1). |
-| [measure_seconds](#timetoalign.BeatGrid.measure_seconds) | All measure start times in seconds. Vectorized O(1). |
-| [metrical_position](#timetoalign.BeatGrid.metrical_position) | Get the full metrical position (mc and beat) at a given quarter position. |
-| [mn_at](#timetoalign.BeatGrid.mn_at) | Get the measure number label (MN) at a given quarter-note position. |
-| [quarter_at](#timetoalign.BeatGrid.quarter_at) | Get the quarter-note position for a given measure and beat. |
+| [beat_at](#timetoalign.timelines.BeatGrid.beat_at) | Get the beat position within the measure at a given quarter-note position. |
+| [beat_at_seconds](#timetoalign.timelines.BeatGrid.beat_at_seconds) | Get the beat number within the measure at a given time in seconds. |
+| [beat_quarters](#timetoalign.timelines.BeatGrid.beat_quarters) | All beat positions in quarters. Vectorized O(1). |
+| [beat_seconds](#timetoalign.timelines.BeatGrid.beat_seconds) | All beat times in seconds. Vectorized O(1). |
+| [downbeat_seconds](#timetoalign.timelines.BeatGrid.downbeat_seconds) | Alias for measure_seconds(). All downbeat times in seconds. |
+| [export_to_csv](#timetoalign.timelines.BeatGrid.export_to_csv) | Export BeatGrid data to a CSV file. |
+| [from_dict](#timetoalign.timelines.BeatGrid.from_dict) | Create a BeatGrid from a serialized dictionary. |
+| [from_tempo](#timetoalign.timelines.BeatGrid.from_tempo) | Create a BeatGrid from tempo information. |
+| [materialize_beats](#timetoalign.timelines.BeatGrid.materialize_beats) | Add Beat events to this timeline at each beat position. |
+| [materialize_measures](#timetoalign.timelines.BeatGrid.materialize_measures) | Add Measure events to this timeline at each measure boundary. |
+| [measure_at](#timetoalign.timelines.BeatGrid.measure_at) | Get the measure count (MC) at a given quarter-note position. |
+| [measure_at_seconds](#timetoalign.timelines.BeatGrid.measure_at_seconds) | Get the measure number at a given time in seconds. |
+| [measure_quarters](#timetoalign.timelines.BeatGrid.measure_quarters) | All measure start positions in quarters. Vectorized O(1). |
+| [measure_seconds](#timetoalign.timelines.BeatGrid.measure_seconds) | All measure start times in seconds. Vectorized O(1). |
+| [metrical_position](#timetoalign.timelines.BeatGrid.metrical_position) | Get the full metrical position (mc and beat) at a given quarter position. |
+| [mn_at](#timetoalign.timelines.BeatGrid.mn_at) | Get the measure number label (MN) at a given quarter-note position. |
+| [quarter_at](#timetoalign.timelines.BeatGrid.quarter_at) | Get the quarter-note position for a given measure and beat. |
+| [to_dict](#timetoalign.timelines.BeatGrid.to_dict) | Convert the grid and its construction parameters to a dictionary. |
 
-### beat_at { #timetoalign.BeatGrid.beat_at }
+### beat_at { #timetoalign.timelines.BeatGrid.beat_at }
 
 ```python
-BeatGrid.beat_at(quarters)
+timelines.BeatGrid.beat_at(quarters)
 ```
 
 Get the beat position within the measure at a given quarter-note position.
@@ -118,24 +116,10 @@ Args:
 Returns:
     The beat position as Fraction (1-indexed, e.g., Fraction(3, 2) for beat 1.5).
 
-### beat_at_float { #timetoalign.BeatGrid.beat_at_float }
+### beat_at_seconds { #timetoalign.timelines.BeatGrid.beat_at_seconds }
 
 ```python
-BeatGrid.beat_at_float(quarters)
-```
-
-Get the beat position as a float (for backward compatibility).
-
-Args:
-    quarters: Position in quarter notes.
-
-Returns:
-    The beat position (1-indexed, may be fractional).
-
-### beat_at_seconds { #timetoalign.BeatGrid.beat_at_seconds }
-
-```python
-BeatGrid.beat_at_seconds(seconds)
+timelines.BeatGrid.beat_at_seconds(seconds)
 ```
 
 Get the beat number within the measure at a given time in seconds.
@@ -150,10 +134,10 @@ Raises:
     RuntimeError: If no tempo information is available.
     ValueError: If seconds is before the first beat.
 
-### beat_quarters { #timetoalign.BeatGrid.beat_quarters }
+### beat_quarters { #timetoalign.timelines.BeatGrid.beat_quarters }
 
 ```python
-BeatGrid.beat_quarters()
+timelines.BeatGrid.beat_quarters()
 ```
 
 All beat positions in quarters. Vectorized O(1).
@@ -166,10 +150,10 @@ Examples:
     >>> grid.beat_quarters()
     array([ 0.,  1.,  2.,  3.,  4.,  5., ...])
 
-### beat_seconds { #timetoalign.BeatGrid.beat_seconds }
+### beat_seconds { #timetoalign.timelines.BeatGrid.beat_seconds }
 
 ```python
-BeatGrid.beat_seconds()
+timelines.BeatGrid.beat_seconds()
 ```
 
 All beat times in seconds. Vectorized O(1).
@@ -188,18 +172,24 @@ Examples:
     >>> grid.beat_seconds()[:4]
     array([0.5 , 1.0 , 1.5 , 2.0 ])
 
-### downbeat_seconds { #timetoalign.BeatGrid.downbeat_seconds }
+### downbeat_seconds { #timetoalign.timelines.BeatGrid.downbeat_seconds }
 
 ```python
-BeatGrid.downbeat_seconds()
+timelines.BeatGrid.downbeat_seconds()
 ```
 
 Alias for measure_seconds(). All downbeat times in seconds.
 
-### export_to_csv { #timetoalign.BeatGrid.export_to_csv }
+### export_to_csv { #timetoalign.timelines.BeatGrid.export_to_csv }
 
 ```python
-BeatGrid.export_to_csv(filepath, *, format='default', labels='beats', **kwargs)
+timelines.BeatGrid.export_to_csv(
+    filepath,
+    *,
+    format='default',
+    labels='beats',
+    **kwargs,
+)
 ```
 
 Export BeatGrid data to a CSV file.
@@ -244,10 +234,29 @@ Examples:
     >>> grid.export_to_csv("data.csv", format="default")
     120
 
-### from_tempo { #timetoalign.BeatGrid.from_tempo }
+### from_dict { #timetoalign.timelines.BeatGrid.from_dict }
 
 ```python
-BeatGrid.from_tempo(
+timelines.BeatGrid.from_dict(data)
+```
+
+Create a BeatGrid from a serialized dictionary.
+
+The constructor recreates the meter-map family; the serialized
+``conversion_maps`` list contains only the maps attached beyond that
+family (for example, a ``from_tempo`` tempo map or a user-attached
+map), so every entry is restored via ``ConversionMap.from_dict``.
+
+Args:
+    data: Dictionary created by :meth:`to_dict`.
+
+Returns:
+    The reconstructed BeatGrid.
+
+### from_tempo { #timetoalign.timelines.BeatGrid.from_tempo }
+
+```python
+timelines.BeatGrid.from_tempo(
     tempo_bpm,
     beats_per_measure=4,
     beat_unit=Fraction(1, 4),
@@ -304,10 +313,10 @@ Examples:
     >>> grid.measure_seconds()[:4]
     array([0.092, 1.592, 3.092, 4.592])
 
-### materialize_beats { #timetoalign.BeatGrid.materialize_beats }
+### materialize_beats { #timetoalign.timelines.BeatGrid.materialize_beats }
 
 ```python
-BeatGrid.materialize_beats(include_downbeats_only=False)
+timelines.BeatGrid.materialize_beats(include_downbeats_only=False)
 ```
 
 Add Beat events to this timeline at each beat position.
@@ -318,10 +327,10 @@ Args:
 Returns:
     Number of beat events created.
 
-### materialize_measures { #timetoalign.BeatGrid.materialize_measures }
+### materialize_measures { #timetoalign.timelines.BeatGrid.materialize_measures }
 
 ```python
-BeatGrid.materialize_measures()
+timelines.BeatGrid.materialize_measures()
 ```
 
 Add Measure events to this timeline at each measure boundary.
@@ -331,10 +340,10 @@ Creates IntervalEvents for each complete measure.
 Returns:
     Number of measure events created.
 
-### measure_at { #timetoalign.BeatGrid.measure_at }
+### measure_at { #timetoalign.timelines.BeatGrid.measure_at }
 
 ```python
-BeatGrid.measure_at(quarters)
+timelines.BeatGrid.measure_at(quarters)
 ```
 
 Get the measure count (MC) at a given quarter-note position.
@@ -345,10 +354,10 @@ Args:
 Returns:
     The measure count (integer, 1-indexed by default).
 
-### measure_at_seconds { #timetoalign.BeatGrid.measure_at_seconds }
+### measure_at_seconds { #timetoalign.timelines.BeatGrid.measure_at_seconds }
 
 ```python
-BeatGrid.measure_at_seconds(seconds)
+timelines.BeatGrid.measure_at_seconds(seconds)
 ```
 
 Get the measure number at a given time in seconds.
@@ -363,10 +372,10 @@ Raises:
     RuntimeError: If no tempo information is available.
     ValueError: If seconds is before the first beat.
 
-### measure_quarters { #timetoalign.BeatGrid.measure_quarters }
+### measure_quarters { #timetoalign.timelines.BeatGrid.measure_quarters }
 
 ```python
-BeatGrid.measure_quarters()
+timelines.BeatGrid.measure_quarters()
 ```
 
 All measure start positions in quarters. Vectorized O(1).
@@ -379,10 +388,10 @@ Examples:
     >>> grid.measure_quarters()
     array([ 0.,  4.,  8., 12.])
 
-### measure_seconds { #timetoalign.BeatGrid.measure_seconds }
+### measure_seconds { #timetoalign.timelines.BeatGrid.measure_seconds }
 
 ```python
-BeatGrid.measure_seconds()
+timelines.BeatGrid.measure_seconds()
 ```
 
 All measure start times in seconds. Vectorized O(1).
@@ -402,10 +411,10 @@ Examples:
     >>> grid.measure_seconds()[:4]
     array([0.5 , 2.5 , 4.5 , 6.5 ])
 
-### metrical_position { #timetoalign.BeatGrid.metrical_position }
+### metrical_position { #timetoalign.timelines.BeatGrid.metrical_position }
 
 ```python
-BeatGrid.metrical_position(quarters)
+timelines.BeatGrid.metrical_position(quarters)
 ```
 
 Get the full metrical position (mc and beat) at a given quarter position.
@@ -416,10 +425,10 @@ Args:
 Returns:
     Dictionary with 'mc' (int), 'beat' (Fraction), and 'mn' (str) keys.
 
-### mn_at { #timetoalign.BeatGrid.mn_at }
+### mn_at { #timetoalign.timelines.BeatGrid.mn_at }
 
 ```python
-BeatGrid.mn_at(quarters)
+timelines.BeatGrid.mn_at(quarters)
 ```
 
 Get the measure number label (MN) at a given quarter-note position.
@@ -430,10 +439,10 @@ Args:
 Returns:
     The measure number label (string like "1", "0", "1a").
 
-### quarter_at { #timetoalign.BeatGrid.quarter_at }
+### quarter_at { #timetoalign.timelines.BeatGrid.quarter_at }
 
 ```python
-BeatGrid.quarter_at(measure, beat=Fraction(1, 1))
+timelines.BeatGrid.quarter_at(measure, beat=Fraction(1, 1))
 ```
 
 Get the quarter-note position for a given measure and beat.
@@ -447,3 +456,21 @@ Returns:
 
 Raises:
     ValueError: If measure < start_measure or beat < 1.
+
+### to_dict { #timetoalign.timelines.BeatGrid.to_dict }
+
+```python
+timelines.BeatGrid.to_dict()
+```
+
+Convert the grid and its construction parameters to a dictionary.
+
+The three metrical maps created by ``__init__`` (meter, beat-in-
+measure, and metrical-position maps) are excluded from the
+serialized ``conversion_maps`` list, since ``from_dict`` rebuilds
+them from the construction parameters instead. Any other attached
+conversion map (for example, a tempo map from ``from_tempo`` or a
+user-attached map) is serialized normally.
+
+Returns:
+    A dictionary representation that reconstructs the attached meter maps.

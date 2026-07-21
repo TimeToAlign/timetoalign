@@ -1,7 +1,7 @@
 # ChainMap { #timetoalign.ChainMap }
 
 ```python
-ChainMap(maps, *, uid=None)
+ChainMap(maps, *, uid=None, name=None)
 ```
 
 Composition of multiple maps: f(g(h(x))).

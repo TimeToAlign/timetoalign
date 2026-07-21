@@ -1,7 +1,7 @@
-# MatchMetadata { #timetoalign.MatchMetadata }
+# MatchMetadata { #timetoalign.alignment.MatchMetadata }
 
 ```python
-MatchMetadata()
+alignment.MatchMetadata()
 ```
 
 Provenance information for a match claim.
@@ -31,21 +31,21 @@ Examples:
 
 | Name | Description |
 | --- | --- |
-| [from_dict](#timetoalign.MatchMetadata.from_dict) | Deserialize from dictionary (``agent`` rebuilt via ``Agent``). |
-| [to_dict](#timetoalign.MatchMetadata.to_dict) | Serialize to dictionary for storage. |
+| [from_dict](#timetoalign.alignment.MatchMetadata.from_dict) | Deserialize from dictionary (``agent`` rebuilt via ``Agent``). |
+| [to_dict](#timetoalign.alignment.MatchMetadata.to_dict) | Serialize to dictionary for storage. |
 
-### from_dict { #timetoalign.MatchMetadata.from_dict }
+### from_dict { #timetoalign.alignment.MatchMetadata.from_dict }
 
 ```python
-MatchMetadata.from_dict(data)
+alignment.MatchMetadata.from_dict(data)
 ```
 
 Deserialize from dictionary (``agent`` rebuilt via ``Agent``).
 
-### to_dict { #timetoalign.MatchMetadata.to_dict }
+### to_dict { #timetoalign.alignment.MatchMetadata.to_dict }
 
 ```python
-MatchMetadata.to_dict()
+alignment.MatchMetadata.to_dict()
 ```
 
 Serialize to dictionary for storage.

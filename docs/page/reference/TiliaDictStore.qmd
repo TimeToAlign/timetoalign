@@ -22,7 +22,7 @@ Examples:
     >>> loader.store.beat       # all beat tables concatenated
 
 See Also:
-    timetoalign.loader.store.DictStore
+    timetoalign.storage.store.DictStore
 
 ## Attributes
 

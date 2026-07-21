@@ -1,0 +1,37 @@
+# SnoteRecord { #timetoalign.alignment.SnoteRecord }
+
+```python
+alignment.SnoteRecord(
+    id,
+    pitch_name,
+    modifier,
+    octave,
+    measure,
+    beat,
+    offset,
+    duration,
+    onset_in_beats,
+    offset_in_beats,
+    attributes=list(),
+)
+```
+
+Score note record for ``.match`` format export.
+
+Each field corresponds to a positional element in the ``snote(...)``
+Prolog-style term.  See the Vienna match specification for semantics.
+
+Attributes:
+    id: Score note identifier (e.g. ``"n1"``).
+    pitch_name: Note name without accidental (e.g. ``"B"``).
+    modifier: Accidental modifier: ``"n"`` (natural), ``"#"`` (sharp),
+        ``"b"`` (flat), ``"bb"`` (double flat), ``"x"`` (double sharp).
+    octave: Scientific octave number (e.g. 3).
+    measure: Measure number (1-indexed).
+    beat: Beat number within the measure (1-indexed).
+    offset: Symbolic offset within the beat (e.g. ``"0"``, ``"1/16"``).
+    duration: Symbolic duration (e.g. ``"1/8"``, ``"1/4"``).
+    onset_in_beats: Onset position in quarter-beats (may be negative
+        for anacrusis).
+    offset_in_beats: End position in quarter-beats.
+    attributes: Extra attributes (e.g. ``["v1", "staff1"]``).

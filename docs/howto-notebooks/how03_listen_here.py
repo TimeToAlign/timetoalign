@@ -212,7 +212,7 @@ stamp
 {
     "timelines in the stamp": stamp.n_timelines,
     "seconds per recording": {
-        tl_id: round(stamp.get_coordinate(tl_id), 2)
+        tl_id: round(stamp.get_coordinate(tl_id).value, 2)
         for tl_id in sorted(stamp.coordinates)
     },
 }

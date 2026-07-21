@@ -1,0 +1,27 @@
+# FlowMapSection { #timetoalign.timelines.FlowMapSection }
+
+```python
+timelines.FlowMapSection(source_start, source_end, target_start)
+```
+
+A section mapping in a FlowMap.
+
+Represents one contiguous section that maps from a source coordinate range
+to a target coordinate range. Used internally by FlowMap for coordinate
+transformation.
+
+In the context of flow control:
+- Source coordinates: The "folded" timeline (with repeats/jumps compressed)
+- Target coordinates: The "unfolded" timeline (linear playthrough order)
+
+Attributes:
+    source_start: Start coordinate in source timeline (inclusive).
+    source_end: End coordinate in source timeline (exclusive).
+    target_start: Start coordinate in target timeline.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [duration](#timetoalign.timelines.FlowMapSection.duration) | Duration of this section. |
+| [target_end](#timetoalign.timelines.FlowMapSection.target_end) | End coordinate in target timeline. |

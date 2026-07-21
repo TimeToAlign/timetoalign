@@ -149,33 +149,81 @@ quartodoc:
   render_interlinks: true
   sections:
     - title: Core Types
-      desc: Fundamental types for coordinates, units, and domains.
+      desc: Fundamental types for coordinates, units, domains, and cross-section timestamps.
       contents:
         - Coordinate
+        - CoordinateField
+        - Coord
         - CoordinateSpec
         - CoordinateValue
         - IdCoordinate
+        - OptionalCoordinate
+        - ResolvedCoordinate
+        - resolve_coordinate_spec
         - Domain
         - TimeUnit
         - NumberType
         - EventType
+        - ColumnNaming
+        - ColumnRole
         - ScopedId
         - IdGenerator
+        - TimeStamp
+        - TimeIntervalStamp
+        - name: GroupTimestamp
+          package: timetoalign.timelines
 
     - title: Timelines
       desc: Timeline classes for all six domain/modality combinations.
       contents:
-        - Timeline
-        - ContinuousLogicalTimeline
-        - DiscreteLogicalTimeline
-        - ContinuousPhysicalTimeline
-        - DiscretePhysicalTimeline
-        - ContinuousGraphicalTimeline
-        - DiscreteGraphicalTimeline
-        - LogicalTimeline
-        - PhysicalTimeline
-        - GraphicalTimeline
-        - BeatGrid
+        - name: Timeline
+          package: timetoalign.timelines
+        - name: ContinuousLogicalTimeline
+          package: timetoalign.timelines
+        - name: DiscreteLogicalTimeline
+          package: timetoalign.timelines
+        - name: ContinuousPhysicalTimeline
+          package: timetoalign.timelines
+        - name: DiscretePhysicalTimeline
+          package: timetoalign.timelines
+        - name: ContinuousGraphicalTimeline
+          package: timetoalign.timelines
+        - name: DiscreteGraphicalTimeline
+          package: timetoalign.timelines
+        - name: LogicalTimeline
+          package: timetoalign.timelines
+        - name: PhysicalTimeline
+          package: timetoalign.timelines
+        - name: GraphicalTimeline
+          package: timetoalign.timelines
+        - name: BeatGrid
+          package: timetoalign.timelines
+
+    - title: Flow Control
+      desc: Score flow-graph traversal, atomic-section labelling, and structural diagnostics.
+      contents:
+        - name: Flow
+          package: timetoalign.timelines
+        - name: FlowMap
+          package: timetoalign.timelines
+        - name: FlowMapSection
+          package: timetoalign.timelines
+        - name: FlowControllerBase
+          package: timetoalign.timelines
+        - name: ScoreFlowController
+          package: timetoalign.timelines
+        - name: SegmentNameGenerator
+          package: timetoalign.timelines
+        - name: AtomicSection
+          package: timetoalign.timelines
+        - name: PlaythroughSection
+          package: timetoalign.timelines
+        - name: FlowDiagnostic
+          package: timetoalign.timelines
+        - name: load_valid_flows
+          package: timetoalign.timelines
+        - name: create_unfolded_timeline
+          package: timetoalign.timelines
 
     - title: Conversion Maps
       desc: Functions for transforming coordinates between units.
@@ -186,38 +234,104 @@ quartodoc:
         - ShiftMap
         - TableMap
         - ChainMap
+        - ConstantMap
+        - IntervalToConstantMap
+        - InterpolationMap
         - PiecewiseMap
         - SecondsToSamples
+        - QuartersToFloatingMeasures
+        - QuartersToMeasureNumber
 
     - title: Alignment
       desc: Classes for connecting and aligning timelines.
       contents:
-        - TimelineGroup
-        - AlignmentBundle
-        - AlignmentAnchor
-        - MatchClaim
-        - MatchClaimField
-        - MatchMetadata
-        - MatchGraph
-        - MatchStamp
-        - MatchLine
-        - WarpMap
-        - ClaimFilter
+        - name: TimelineGroup
+          package: timetoalign.timelines
+        - name: AlignmentBundle
+          package: timetoalign.alignment
+        - name: AlignmentAnchor
+          package: timetoalign.alignment
+        - name: MatchClaim
+          package: timetoalign.alignment
+        - name: MatchClaimField
+          package: timetoalign.alignment
+        - name: MatchMetadata
+          package: timetoalign.alignment
+        - name: Agent
+          package: timetoalign.alignment
+        - name: MatchGraph
+          package: timetoalign.alignment
+        - name: MatchStamp
+          package: timetoalign.alignment
+        - name: MatchLine
+          package: timetoalign.alignment
+        - name: WarpMap
+          package: timetoalign.alignment
+        - name: ClaimFilter
+          package: timetoalign.alignment
+        - name: MatchFileContext
+          package: timetoalign.alignment
+        - name: NoteRecord
+          package: timetoalign.alignment
+        - name: SnoteRecord
+          package: timetoalign.alignment
         - TimelineIdGenerator
 
     - title: Loaders
       desc: Data ingestion from various file formats.
       contents:
-        - Loader
+        - name: Loader
+          package: timetoalign.loader
         - EventData
         - EventStore
         - SingleStore
         - DictStore
-        - AudioLoader
-        - AudioInfo
-        - RepoVizzLoader
-        - RepoVizzInfo
-        - EepNotesLoader
+        - name: EventLoader
+          package: timetoalign.loader
+        - name: AudioLoader
+          package: timetoalign.loader
+        - name: AudioInfo
+          package: timetoalign.loader
+        - name: RepoVizzLoader
+          package: timetoalign.loader
+        - name: RepoVizzInfo
+          package: timetoalign.loader
+        - name: EepNotesLoader
+          package: timetoalign.loader
+        - name: CsvLoader
+          package: timetoalign.loader.tabular
+        - name: TsvLoader
+          package: timetoalign.loader.tabular
+        - name: LabLoader
+          package: timetoalign.loader.tabular
+        - name: SoloLoader
+          package: timetoalign.loader.tabular
+        - name: TabularLoader
+          package: timetoalign.loader.tabular
+        - name: JsonLoader
+          package: timetoalign.loader.format
+        - name: XmlLoader
+          package: timetoalign.loader.format
+        - name: Music21Loader
+          package: timetoalign.loader.score
+        - name: PartituraLoader
+          package: timetoalign.loader.score
+        - name: Ms3Loader
+          package: timetoalign.loader.score
+        - name: MeasureMapLoader
+          package: timetoalign.loader.score
+        - name: MidiLoader
+          package: timetoalign.loader.midi
+        - name: PerformanceMidiLoader
+          package: timetoalign.loader.midi.performance
+        - name: ScoreMidiLoader
+          package: timetoalign.loader.midi.score
+        - name: GraphicalLoader
+          package: timetoalign.loader.graphical
+        - name: IIIFManifestLoader
+          package: timetoalign.loader.graphical
+        - name: ATONLoader
+          package: timetoalign.loader.graphical.aton
         - name: MatchfileLoader
           package: timetoalign.loader.alignment.matchfile
         - name: TiliaJsonLoader

@@ -1,7 +1,7 @@
-# LogicalTimeline { #timetoalign.LogicalTimeline }
+# LogicalTimeline { #timetoalign.timelines.LogicalTimeline }
 
 ```python
-LogicalTimeline(
+timelines.LogicalTimeline(
     length=0,
     unit=None,
     number_type=None,

@@ -1,0 +1,154 @@
+# JsonLoader { #timetoalign.loader.format.JsonLoader }
+
+```python
+loader.format.JsonLoader(
+    principal_keys=None,
+    *,
+    sep='.',
+    resolve_lookups=True,
+    **kwargs,
+)
+```
+
+Configurable JSON normaliser producing flat ``pa.Table`` objects.
+
+``JsonLoader`` parses one or more JSON files and normalises their
+nested structures into flat PyArrow tables stored in a
+`timetoalign.storage.store.DictStore`.
+
+**Principal keys** determine which top-level arrays become tables:
+
+- If *principal_keys* is given (a list of strings, possibly dotted
+  for nested paths like ``"cueData.hotCuePoints"``), only those keys
+  are normalised.
+- If *principal_keys* is ``None`` (the default), every top-level key
+  whose value is a list of dicts is auto-detected and normalised.
+
+Non-principal top-level keys whose values are lists of dicts are kept
+as *lookup tables* and used to resolve foreign-key fields (fields
+ending in ``_id``) automatically.  For example, if ``annotations``
+rows contain ``image_id`` and there is a top-level ``images`` array,
+the loader appends ``image.file_name``, ``image.width``, etc. to the
+annotations table.
+
+Scalar top-level keys (like ``"width": 604``) are stored as table-
+level metadata on every resulting ``pa.Table``.
+
+Follows the standard two-phase pattern:
+
+1. ``loader.load(*sources)`` -- parse JSON files.
+2. ``loader.get_table(key)`` -- retrieve a normalised table.
+
+Args:
+    principal_keys: List of keys to normalise.  ``None`` for auto-detect.
+    sep: Separator for flattened nested key names.  Default ``"."``.
+    resolve_lookups: Whether to resolve ``*_id`` foreign keys.  Default ``True``.
+
+Examples:
+    Auto-detect all array keys::
+
+        loader = JsonLoader()
+        loader.load("Wagner_WWV086B_140.json")
+        for name in loader.store.keys():
+            print(name, loader.get_table(name).num_rows)
+
+    Specify principal key::
+
+        loader = JsonLoader(principal_keys=["audio"])
+        loader.load("dj_studio_data.json")
+        assert loader.get_table("audio").num_rows == 3
+
+    Nested principal key::
+
+        loader = JsonLoader(principal_keys=["hotCuePoints"])
+        loader.load("dj_studio_data.json")
+        # Collects hotCuePoints from audio[*].cueData.hotCuePoints
+
+See Also:
+    timetoalign.storage.store.DictStore
+    timetoalign.loader.base.Loader
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [file_metadata](#timetoalign.loader.format.JsonLoader.file_metadata) | Scalar top-level metadata from the JSON file. |
+| [raw_data](#timetoalign.loader.format.JsonLoader.raw_data) | The raw parsed JSON data from the last loaded file. |
+| [store](#timetoalign.loader.format.JsonLoader.store) | The ``DictStore`` containing all normalised tables. |
+| [tables](#timetoalign.loader.format.JsonLoader.tables) | Dict mapping key names to normalised ``pa.Table`` objects. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [clear](#timetoalign.loader.format.JsonLoader.clear) | Clear all loaded data. |
+| [get_table](#timetoalign.loader.format.JsonLoader.get_table) | Retrieve a normalised table by key name. |
+| [keys](#timetoalign.loader.format.JsonLoader.keys) | Return the list of available table key names. |
+| [load](#timetoalign.loader.format.JsonLoader.load) | Load one or more JSON files. |
+| [load_dict](#timetoalign.loader.format.JsonLoader.load_dict) | Load from an already-parsed Python dict. |
+
+### clear { #timetoalign.loader.format.JsonLoader.clear }
+
+```python
+loader.format.JsonLoader.clear()
+```
+
+Clear all loaded data.
+
+### get_table { #timetoalign.loader.format.JsonLoader.get_table }
+
+```python
+loader.format.JsonLoader.get_table(key)
+```
+
+Retrieve a normalised table by key name.
+
+Args:
+    key: The principal key name.
+
+Returns:
+    A ``pa.Table`` with one row per element.
+
+Raises:
+    KeyError: If *key* was not normalised.
+
+### keys { #timetoalign.loader.format.JsonLoader.keys }
+
+```python
+loader.format.JsonLoader.keys()
+```
+
+Return the list of available table key names.
+
+### load { #timetoalign.loader.format.JsonLoader.load }
+
+```python
+loader.format.JsonLoader.load(*sources)
+```
+
+Load one or more JSON files.
+
+For multiple files the tables are concatenated (same keys) or
+added (new keys).
+
+Args:
+    *sources: Paths to JSON files.
+
+Returns:
+    Self, for method chaining.
+
+### load_dict { #timetoalign.loader.format.JsonLoader.load_dict }
+
+```python
+loader.format.JsonLoader.load_dict(data)
+```
+
+Load from an already-parsed Python dict.
+
+Convenient for programmatic use or testing.
+
+Args:
+    data: A parsed JSON structure (dict).
+
+Returns:
+    Self, for method chaining.

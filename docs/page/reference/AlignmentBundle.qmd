@@ -1,7 +1,7 @@
-# AlignmentBundle { #timetoalign.AlignmentBundle }
+# AlignmentBundle { #timetoalign.alignment.AlignmentBundle }
 
 ```python
-AlignmentBundle(
+alignment.AlignmentBundle(
     id='',
     name=None,
     timelines=dict(),
@@ -55,58 +55,50 @@ Note:
     The bundle translates between these two namespaces transparently.
 
 Examples:
-    Basic usage with explicit timelines:
-
-        >>> bundle = AlignmentBundle()
-        >>> bundle.add_timeline(score_timeline, uid="score")
-        >>> bundle.add_timeline(audio_timeline, uid="audio", aligned_to="score")
-        >>> bundle.transfer(100.0, "score", "audio")
-        45.5
-
-    Cross-group transfer via MatchClaims:
-
-        >>> bundle.add_match_claims(match_results.match_claims)
-        >>> bundle.transfer(79.0, "clt1", "dpt1")  # score -> audio
-        1234567.0
+    >>> bundle = AlignmentBundle()
+    >>> bundle.add_timeline(score_timeline, uid="score")
+    >>> bundle.add_timeline(audio_timeline, uid="audio", aligned_to="score")
+    >>> stamp = bundle.get_matchstamp_at(100.0, "score")
+    >>> stamp.get("audio")
+    45.5
 
 ## Attributes
 
 | Name | Description |
 | --- | --- |
-| [default_group](#timetoalign.AlignmentBundle.default_group) | Get the single group or primary group. |
-| [group_ids](#timetoalign.AlignmentBundle.group_ids) | List of all group IDs in the bundle. |
-| [n_groups](#timetoalign.AlignmentBundle.n_groups) | Number of groups in this bundle. |
-| [n_timelines](#timetoalign.AlignmentBundle.n_timelines) | Number of timelines in this bundle. |
-| [timeline_ids](#timetoalign.AlignmentBundle.timeline_ids) | List of all timeline IDs in the bundle. |
+| [default_group](#timetoalign.alignment.AlignmentBundle.default_group) | Get the single group or primary group. |
+| [group_ids](#timetoalign.alignment.AlignmentBundle.group_ids) | List of all group IDs in the bundle. |
+| [n_groups](#timetoalign.alignment.AlignmentBundle.n_groups) | Number of groups in this bundle. |
+| [n_timelines](#timetoalign.alignment.AlignmentBundle.n_timelines) | Number of timelines in this bundle. |
+| [timeline_ids](#timetoalign.alignment.AlignmentBundle.timeline_ids) | List of all timeline IDs in the bundle. |
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
-| [add_group](#timetoalign.AlignmentBundle.add_group) | Add a pre-built TimelineGroup with all its timelines at once. |
-| [add_match_claim_field](#timetoalign.AlignmentBundle.add_match_claim_field) | Add a columnar ``MatchClaimField`` of cross-group claims. |
-| [add_match_claims](#timetoalign.AlignmentBundle.add_match_claims) | Add MatchClaims connecting timelines across different groups. |
-| [add_timeline](#timetoalign.AlignmentBundle.add_timeline) | Add a timeline, optionally aligned to an existing timeline. |
-| [are_commensurable](#timetoalign.AlignmentBundle.are_commensurable) | Check if two timelines can be connected via transfer. |
-| [create_match_claims](#timetoalign.AlignmentBundle.create_match_claims) | Create MatchClaims from a list of event pairs. |
-| [diagram](#timetoalign.AlignmentBundle.diagram) | Generate ASCII diagram for this bundle. |
-| [get_group](#timetoalign.AlignmentBundle.get_group) | Get a group by ID. |
-| [get_group_for_timeline](#timetoalign.AlignmentBundle.get_group_for_timeline) | Get the group containing a timeline. |
-| [get_match_claims](#timetoalign.AlignmentBundle.get_match_claims) | Query MatchClaims connecting timelines across groups. |
-| [get_matchstamp_at](#timetoalign.AlignmentBundle.get_matchstamp_at) | Get a cross-group MatchStamp at a coordinate on a timeline. |
-| [get_matchstamp_table](#timetoalign.AlignmentBundle.get_matchstamp_table) | Get a PyArrow table of MatchStamps for alignment queries. |
-| [get_matchstamps](#timetoalign.AlignmentBundle.get_matchstamps) | Get MatchStamps for a list of MatchClaims. |
-| [get_timeline](#timetoalign.AlignmentBundle.get_timeline) | Get a timeline by ID. |
-| [get_timelines](#timetoalign.AlignmentBundle.get_timelines) | Get multiple timelines by their IDs. |
-| [get_timestamp_at](#timetoalign.AlignmentBundle.get_timestamp_at) | Get a cross-group timestamp at a coordinate on a given timeline. |
-| [summary](#timetoalign.AlignmentBundle.summary) | Get a summary of the bundle contents. |
-| [transfer](#timetoalign.AlignmentBundle.transfer) | Transfer a coordinate from one timeline to another. |
-| [transfer_interval](#timetoalign.AlignmentBundle.transfer_interval) | Transfer an interval from one timeline to another. |
+| [add_group](#timetoalign.alignment.AlignmentBundle.add_group) | Add a pre-built TimelineGroup with all its timelines at once. |
+| [add_match_claim_field](#timetoalign.alignment.AlignmentBundle.add_match_claim_field) | Add a columnar ``MatchClaimField`` of cross-group claims. |
+| [add_match_claims](#timetoalign.alignment.AlignmentBundle.add_match_claims) | Add MatchClaims connecting timelines across different groups. |
+| [add_timeline](#timetoalign.alignment.AlignmentBundle.add_timeline) | Add a timeline, optionally aligned to an existing timeline. |
+| [are_commensurable](#timetoalign.alignment.AlignmentBundle.are_commensurable) | Check if two timelines can be connected via transfer. |
+| [create_match_claims](#timetoalign.alignment.AlignmentBundle.create_match_claims) | Create MatchClaims from a list of event pairs. |
+| [diagram](#timetoalign.alignment.AlignmentBundle.diagram) | Generate ASCII diagram for this bundle. |
+| [get_group](#timetoalign.alignment.AlignmentBundle.get_group) | Get a group by ID. |
+| [get_group_for_timeline](#timetoalign.alignment.AlignmentBundle.get_group_for_timeline) | Get the group containing a timeline. |
+| [get_match_claims](#timetoalign.alignment.AlignmentBundle.get_match_claims) | Query MatchClaims connecting timelines across groups. |
+| [get_matchstamp_at](#timetoalign.alignment.AlignmentBundle.get_matchstamp_at) | Get a cross-group MatchStamp at a coordinate on a timeline. |
+| [get_matchstamp_table](#timetoalign.alignment.AlignmentBundle.get_matchstamp_table) | Get a PyArrow table of MatchStamps for alignment queries. |
+| [get_matchstamps](#timetoalign.alignment.AlignmentBundle.get_matchstamps) | Get MatchStamps for a list of MatchClaims. |
+| [get_timeline](#timetoalign.alignment.AlignmentBundle.get_timeline) | Get a timeline by ID. |
+| [get_timelines](#timetoalign.alignment.AlignmentBundle.get_timelines) | Get multiple timelines by their IDs. |
+| [summary](#timetoalign.alignment.AlignmentBundle.summary) | Get a summary of the bundle contents. |
+| [transfer](#timetoalign.alignment.AlignmentBundle.transfer) | Transfer a coordinate from one timeline to another. |
+| [transfer_interval](#timetoalign.alignment.AlignmentBundle.transfer_interval) | Transfer an interval from one timeline to another. |
 
-### add_group { #timetoalign.AlignmentBundle.add_group }
+### add_group { #timetoalign.alignment.AlignmentBundle.add_group }
 
 ```python
-AlignmentBundle.add_group(group, *, uid_map=None)
+alignment.AlignmentBundle.add_group(group, *, uid_map=None)
 ```
 
 Add a pre-built TimelineGroup with all its timelines at once.
@@ -137,10 +129,10 @@ Examples:
 
         >>> bundle.add_group(grp, uid_map={"dpt:1": "audio", "dpt:2": "midi"})
 
-### add_match_claim_field { #timetoalign.AlignmentBundle.add_match_claim_field }
+### add_match_claim_field { #timetoalign.alignment.AlignmentBundle.add_match_claim_field }
 
 ```python
-AlignmentBundle.add_match_claim_field(claim_field)
+alignment.AlignmentBundle.add_match_claim_field(claim_field)
 ```
 
 Add a columnar ``MatchClaimField`` of cross-group claims.
@@ -164,10 +156,10 @@ Args:
 Returns:
     self (for method chaining)
 
-### add_match_claims { #timetoalign.AlignmentBundle.add_match_claims }
+### add_match_claims { #timetoalign.alignment.AlignmentBundle.add_match_claims }
 
 ```python
-AlignmentBundle.add_match_claims(claims)
+alignment.AlignmentBundle.add_match_claims(claims)
 ```
 
 Add MatchClaims connecting timelines across different groups.
@@ -178,7 +170,7 @@ notes).  They enable cross-group coordinate transfer via
 ``MatchLine`` → ``WarpMap``.
 
 WarpMaps are built lazily on first ``transfer()`` or
-``get_timestamp_at()`` call, so adding claims is cheap.
+``get_matchstamp_at()`` call, so adding claims is cheap.
 
 Args:
     claims: List of MatchClaim objects.  Each synchronous claim
@@ -187,10 +179,10 @@ Args:
 Returns:
     self (for method chaining)
 
-### add_timeline { #timetoalign.AlignmentBundle.add_timeline }
+### add_timeline { #timetoalign.alignment.AlignmentBundle.add_timeline }
 
 ```python
-AlignmentBundle.add_timeline(
+alignment.AlignmentBundle.add_timeline(
     timeline,
     *,
     uid=None,
@@ -215,8 +207,8 @@ Args:
         is created with the target as reference.
     as_group: Name for the group if creating a new one.
     start: Where this timeline's 0-origin starts in the group.
+        - CoordinateSpec: Coordinate in the aligned_to timeline
         - IdCoordinate: Coordinate with explicit timeline_id (preferred)
-        - (coord, timeline_id): Legacy tuple form
         - float: Coordinate in the aligned_to timeline
         - None: Use group's current start (default for linear alignment)
     end: Where this timeline's end (length) aligns in the group.
@@ -248,10 +240,10 @@ Examples:
         ...     end=IdCoordinate(293119.0, TimeUnit.pixels, "dgt1"),
         ... )
 
-### are_commensurable { #timetoalign.AlignmentBundle.are_commensurable }
+### are_commensurable { #timetoalign.alignment.AlignmentBundle.are_commensurable }
 
 ```python
-AlignmentBundle.are_commensurable(timeline_a, timeline_b)
+alignment.AlignmentBundle.are_commensurable(timeline_a, timeline_b)
 ```
 
 Check if two timelines can be connected via transfer.
@@ -266,10 +258,10 @@ Args:
 Returns:
     True if coordinates can be transferred between them.
 
-### create_match_claims { #timetoalign.AlignmentBundle.create_match_claims }
+### create_match_claims { #timetoalign.alignment.AlignmentBundle.create_match_claims }
 
 ```python
-AlignmentBundle.create_match_claims(
+alignment.AlignmentBundle.create_match_claims(
     event_pairs,
     *,
     synchronous=True,
@@ -313,10 +305,10 @@ Examples:
     >>> len(claims)
     2
 
-### diagram { #timetoalign.AlignmentBundle.diagram }
+### diagram { #timetoalign.alignment.AlignmentBundle.diagram }
 
 ```python
-AlignmentBundle.diagram(
+alignment.AlignmentBundle.diagram(
     width=80,
     show_children=True,
     max_children=6,
@@ -351,10 +343,10 @@ Examples:
 
       MatchClaims: 5
 
-### get_group { #timetoalign.AlignmentBundle.get_group }
+### get_group { #timetoalign.alignment.AlignmentBundle.get_group }
 
 ```python
-AlignmentBundle.get_group(uid)
+alignment.AlignmentBundle.get_group(uid)
 ```
 
 Get a group by ID.
@@ -379,10 +371,10 @@ Examples:
     >>> bundle.get_group("score")            # Substring match
     >>> bundle.get_group(r"^perf")           # Regex match
 
-### get_group_for_timeline { #timetoalign.AlignmentBundle.get_group_for_timeline }
+### get_group_for_timeline { #timetoalign.alignment.AlignmentBundle.get_group_for_timeline }
 
 ```python
-AlignmentBundle.get_group_for_timeline(timeline_id)
+alignment.AlignmentBundle.get_group_for_timeline(timeline_id)
 ```
 
 Get the group containing a timeline.
@@ -393,10 +385,10 @@ Args:
 Returns:
     The TimelineGroup containing the timeline, or None if standalone.
 
-### get_match_claims { #timetoalign.AlignmentBundle.get_match_claims }
+### get_match_claims { #timetoalign.alignment.AlignmentBundle.get_match_claims }
 
 ```python
-AlignmentBundle.get_match_claims(
+alignment.AlignmentBundle.get_match_claims(
     timeline_id=None,
     timeline_ids=None,
     id_pattern=None,
@@ -418,12 +410,12 @@ Filters are combined with AND logic: a claim must satisfy every
 non-None criterion. Uses the Unified Filter API.
 
 Args:
-    timeline_id: Return claims involving this timeline.
-    timeline_ids: Return claims involving any of these timelines.
-    id_pattern: Regex pattern matched against timeline IDs via
+    timeline_id: Return claims involving this bundle UID.
+    timeline_ids: Return claims involving any of these bundle UIDs.
+    id_pattern: Regex pattern matched against bundle UIDs via
         ``re.search()``. Example: ``r"^perf:"`` matches all
         performance timelines.
-    between: Return claims connecting exactly these two timelines
+    between: Return claims connecting exactly these two bundle UIDs
         (order-independent).
     synchronous_only: Exclude non-synchronous (NOMATCH) claims.
     nomatch_only: Return only non-synchronous (NOMATCH) claims.
@@ -447,10 +439,10 @@ Examples:
         ...     nomatch_only=True,
         ... )
 
-### get_matchstamp_at { #timetoalign.AlignmentBundle.get_matchstamp_at }
+### get_matchstamp_at { #timetoalign.alignment.AlignmentBundle.get_matchstamp_at }
 
 ```python
-AlignmentBundle.get_matchstamp_at(
+alignment.AlignmentBundle.get_matchstamp_at(
     coordinate,
     timeline_id=None,
     *,
@@ -483,10 +475,9 @@ Args:
     timeline_id: Bundle UID of the source timeline. Required unless
         ``coordinate`` is an ``IdCoordinate``, in which case the
         coordinate's own ``timeline_id`` is used.
-    conversion_maps: Include C-map conversions. Reserved for
-        future use (currently ignored).
-    timeline_ids: Only include these timelines in the result.
-    id_pattern: Regex filter for timeline IDs in the result.
+    conversion_maps: C-map conversions available through unit lookup.
+    timeline_ids: Only include these bundle UIDs in the result.
+    id_pattern: Regex filter for bundle UIDs in the result.
     include_domains: Only these domains in the result.
     include_units: Only these units in the result.
 
@@ -505,10 +496,14 @@ Examples:
     >>> ms.n_timelines
     23  # score + 22 performers
 
-### get_matchstamp_table { #timetoalign.AlignmentBundle.get_matchstamp_table }
+### get_matchstamp_table { #timetoalign.alignment.AlignmentBundle.get_matchstamp_table }
 
 ```python
-AlignmentBundle.get_matchstamp_table(claims=None, *, timeline_filter=None)
+alignment.AlignmentBundle.get_matchstamp_table(
+    claims=None,
+    *,
+    timeline_filter=None,
+)
 ```
 
 Get a PyArrow table of MatchStamps for alignment queries.
@@ -533,10 +528,10 @@ Examples:
     >>> table.column_names
     ['score:clt1', 'perf:dlt1', 'perf:dlt2', ...]
 
-### get_matchstamps { #timetoalign.AlignmentBundle.get_matchstamps }
+### get_matchstamps { #timetoalign.alignment.AlignmentBundle.get_matchstamps }
 
 ```python
-AlignmentBundle.get_matchstamps(claims=None, *, from_graph=True)
+alignment.AlignmentBundle.get_matchstamps(claims=None, *, from_graph=True)
 ```
 
 Get MatchStamps for a list of MatchClaims.
@@ -562,10 +557,10 @@ Examples:
     >>> stamps[0].n_timelines
     23
 
-### get_timeline { #timetoalign.AlignmentBundle.get_timeline }
+### get_timeline { #timetoalign.alignment.AlignmentBundle.get_timeline }
 
 ```python
-AlignmentBundle.get_timeline(uid)
+alignment.AlignmentBundle.get_timeline(uid)
 ```
 
 Get a timeline by ID.
@@ -591,10 +586,10 @@ Examples:
     >>> bundle.get_timeline("score")         # Substring match
     >>> bundle.get_timeline(r"^perf:")       # Regex match
 
-### get_timelines { #timetoalign.AlignmentBundle.get_timelines }
+### get_timelines { #timetoalign.alignment.AlignmentBundle.get_timelines }
 
 ```python
-AlignmentBundle.get_timelines(ids)
+alignment.AlignmentBundle.get_timelines(ids)
 ```
 
 Get multiple timelines by their IDs.
@@ -617,73 +612,10 @@ Examples:
     >>> len(timelines)
     3
 
-### get_timestamp_at { #timetoalign.AlignmentBundle.get_timestamp_at }
+### summary { #timetoalign.alignment.AlignmentBundle.summary }
 
 ```python
-AlignmentBundle.get_timestamp_at(
-    coordinate,
-    timeline_id=None,
-    *,
-    format='prefix',
-)
-```
-
-Get a cross-group timestamp at a coordinate on a given timeline.
-
-This is the primary method for cross-domain coordinate transfer.
-Given a coordinate on one timeline, it returns the corresponding
-coordinates on ALL connected timelines across ALL groups.
-
-The method:
-
-1. Finds the group containing the source timeline.
-2. Gets the within-group timestamp (via ``group.get_timestamp_at()``).
-3. For each connected group (via ``MatchLine``/``WarpMap`` from
-   MatchClaims), transfers the coordinate and gets the
-   within-group timestamp.
-4. Returns all coordinates in the requested format.
-
-Args:
-    coordinate: The query coordinate on the source timeline. Can be:
-
-        - int/float/Fraction: Raw value, ``timeline_id`` required.
-        - Coordinate: Value with unit, ``timeline_id`` required.
-        - IdCoordinate: Value with unit AND timeline_id
-          (``timeline_id`` param optional).
-    timeline_id: ID of the source timeline (bundle UID). Required
-        unless ``coordinate`` is an ``IdCoordinate``, in which case
-        the coordinate's own ``timeline_id`` is used.
-    format: Output format:
-        - ``"prefix"`` (default): ``{"group/timeline": coord, ...}``
-        - ``"nested"``: ``{"group": {"timeline": coord, ...}, ...}``
-        - ``"flat"``: ``{"timeline": coord, ...}``
-
-Returns:
-    Dict of coordinates across all connected groups and timelines.
-    Timelines that cannot be reached return None values.
-
-Raises:
-    TypeError: If coordinate is not int/float/Fraction/Coordinate/
-        IdCoordinate.
-    ValueError: If timeline_id is None and coordinate is not an
-        IdCoordinate.
-    KeyError: If timeline_id is not in the bundle.
-
-Examples:
-    >>> ts = bundle.get_timestamp_at(50.0, "clt1_score", format="prefix")
-    >>> ts
-    {'score/clt1_score': 50.0, 'score/dgt1': 45000.0,
-     'normal/dpt1': 23456789, ...}
-
-    >>> ts = bundle.get_timestamp_at(50.0, "clt1_score", format="nested")
-    >>> ts
-    {'score': {'clt1_score': 50.0, 'dgt1': 45000.0},
-     'normal': {'dpt1': 23456789, ...}, ...}
-
-### summary { #timetoalign.AlignmentBundle.summary }
-
-```python
-AlignmentBundle.summary()
+alignment.AlignmentBundle.summary()
 ```
 
 Get a summary of the bundle contents.
@@ -694,10 +626,10 @@ Keys and timeline lists are sorted for order-independence.
 Returns:
     Dictionary with bundle information.
 
-### transfer { #timetoalign.AlignmentBundle.transfer }
+### transfer { #timetoalign.alignment.AlignmentBundle.transfer }
 
 ```python
-AlignmentBundle.transfer(coord, from_timeline, to_timeline)
+alignment.AlignmentBundle.transfer(coord, from_timeline, to_timeline)
 ```
 
 Transfer a coordinate from one timeline to another.
@@ -707,7 +639,7 @@ Automatically determines the conversion path:
 1. If both timelines are in the same group: direct conversion via
    ``TimelineGroup.convert()``.
 2. If in different groups with MatchClaims: builds a ``MatchLine``
-   and ``WarpMap`` (cached) and uses ``WarpMap.forward()`` to
+   and a cached ``WarpMap`` and calls it to
    interpolate the coordinate.
 3. If no path exists: returns ``None``.
 
@@ -726,10 +658,15 @@ Returns:
 Raises:
     KeyError: If either timeline is not in the bundle.
 
-### transfer_interval { #timetoalign.AlignmentBundle.transfer_interval }
+### transfer_interval { #timetoalign.alignment.AlignmentBundle.transfer_interval }
 
 ```python
-AlignmentBundle.transfer_interval(start, end, from_timeline, to_timeline)
+alignment.AlignmentBundle.transfer_interval(
+    start,
+    end,
+    from_timeline,
+    to_timeline,
+)
 ```
 
 Transfer an interval from one timeline to another.

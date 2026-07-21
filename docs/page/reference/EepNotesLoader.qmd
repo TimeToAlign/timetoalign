@@ -1,7 +1,7 @@
-# EepNotesLoader { #timetoalign.EepNotesLoader }
+# EepNotesLoader { #timetoalign.loader.EepNotesLoader }
 
 ```python
-EepNotesLoader(unit=None, number_type=None, **kwargs)
+loader.EepNotesLoader(unit=None, number_type=None, **kwargs)
 ```
 
 Loader for EEP ``.notes`` alignment files.

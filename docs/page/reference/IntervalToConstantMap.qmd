@@ -1,0 +1,105 @@
+# IntervalToConstantMap { #timetoalign.IntervalToConstantMap }
+
+```python
+IntervalToConstantMap(
+    boundaries,
+    values,
+    source_unit=None,
+    target_unit=None,
+    uid=None,
+    name=None,
+)
+```
+
+Interval-to-constant map: each interval [x_i, x_{i+1}) maps to value_i.
+
+Unlike TableMap, IntervalToConstantMap does not interpolate. A coordinate x
+returns the value associated with the interval that contains x.
+
+Values can be any type (string, int, float, etc.). This is NOT a coordinate
+conversion map when values are non-numeric (e.g., string labels).
+
+This is useful for:
+- Measure number lookup (quarters -> MN label)
+- Region/section lookup (coordinate -> section name)
+- Any step-function relationship
+
+Attributes:
+    boundaries: Sorted x-coordinates defining interval starts.
+    values: Value for each interval (len = len(boundaries)).
+
+Examples:
+    >>> # Map quarters to section names
+    >>> section_map = IntervalToConstantMap(
+    ...     boundaries=[0, 16, 32, 48],
+    ...     values=["Intro", "Verse", "Chorus", "Outro"],
+    ...     source_unit="quarters",
+    ... )
+    >>> section_map(20)
+    'Verse'
+    >>> section_map(40)
+    'Chorus'
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [boundaries](#timetoalign.IntervalToConstantMap.boundaries) | The interval start positions. |
+| [is_invertible](#timetoalign.IntervalToConstantMap.is_invertible) | IntervalToConstantMap is NOT invertible (many-to-one). |
+| [values](#timetoalign.IntervalToConstantMap.values) | The values for each interval. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_dict](#timetoalign.IntervalToConstantMap.from_dict) | Deserialize from dictionary. |
+| [inverse](#timetoalign.IntervalToConstantMap.inverse) | IntervalToConstantMap is not invertible. |
+| [to_dict](#timetoalign.IntervalToConstantMap.to_dict) | Serialize to dictionary. |
+| [to_table_map](#timetoalign.IntervalToConstantMap.to_table_map) | Convert to TableMap for numeric values. |
+
+### from_dict { #timetoalign.IntervalToConstantMap.from_dict }
+
+```python
+IntervalToConstantMap.from_dict(data)
+```
+
+Deserialize from dictionary.
+
+### inverse { #timetoalign.IntervalToConstantMap.inverse }
+
+```python
+IntervalToConstantMap.inverse()
+```
+
+IntervalToConstantMap is not invertible.
+
+Raises:
+    NotImplementedError: Always.
+
+### to_dict { #timetoalign.IntervalToConstantMap.to_dict }
+
+```python
+IntervalToConstantMap.to_dict()
+```
+
+Serialize to dictionary.
+
+### to_table_map { #timetoalign.IntervalToConstantMap.to_table_map }
+
+```python
+IntervalToConstantMap.to_table_map(kind=InterpolationKind.previous)
+```
+
+Convert to TableMap for numeric values.
+
+This allows using TableMap operations on interval data when values are
+numeric.
+
+Args:
+    kind: Interpolation kind. Default is "previous" (step function).
+
+Returns:
+    TableMap with the same boundaries and values.
+
+Raises:
+    TypeError: If values are not numeric.

@@ -1,327 +1,89 @@
-# Loader { #timetoalign.Loader }
+# Loader { #timetoalign.loader.Loader }
 
 ```python
-Loader(
-    unit=None,
-    number_type=NumberType.float,
-    interval_policy=IntervalPolicy.warn,
-)
+loader.Loader()
 ```
 
-Abstract base class for loading music representations.
+Shared lifecycle for all loader families.
 
-Loader provides a unified interface for loading one or more source files
-and aggregating their events into an EventData. Metadata about the sources
-is stored in the PyArrow table's schema metadata for determinism.
-
-Subclasses must implement:
-- _load_source(): Parse a single source file into event rows
-- _default_unit: The default time unit for this loader type
-
-Attributes:
-    events: The EventData containing all loaded events.
-    sources: List of loaded source file paths.
-    unit: The time unit for coordinates.
-    number_type: The number type for coordinates.
-
-Examples:
-    >>> # Subclass implementation
-    >>> class MidiLoader(Loader):
-    ...     _default_unit = TimeUnit.ticks
-    ...     _event_data_class = EventData
-    ...
-    ...     def _load_source(self, path):
-    ...         # Parse MIDI file, return (metadata_dict, event_rows)
-    ...         return {"format": "midi"}, [{"id": "n1", ...}]
-    >>>
-    >>> loader = MidiLoader()
-    >>> loader.load("piece.mid")
-    >>> print(loader.event_summary())
+The root owns source tracking, the ``load`` template, convenience
+construction, and timeline-creation surfaces. Payload-specific state and
+APIs belong to subclasses such as :class:`EventLoader`,
+:class:`ManifestLoader`, and :class:`AlignmentLoader`.
 
 ## Attributes
 
 | Name | Description |
 | --- | --- |
-| [events](#timetoalign.Loader.events) | The EventData containing all loaded events. |
-| [metadata](#timetoalign.Loader.metadata) | Aggregated metadata from all sources. |
-| [number_type](#timetoalign.Loader.number_type) | The number type for coordinates. |
-| [sources](#timetoalign.Loader.sources) | List of loaded source file paths. |
-| [store](#timetoalign.Loader.store) | Return an EventStore wrapping the loader's events. |
-| [unit](#timetoalign.Loader.unit) | The time unit for coordinates. |
+| [metadata](#timetoalign.loader.Loader.metadata) | Aggregated source metadata. |
+| [sources](#timetoalign.loader.Loader.sources) | List of loaded source paths. |
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
-| [clear](#timetoalign.Loader.clear) | Clear all loaded sources and events. |
-| [count_events_by_temporal_type](#timetoalign.Loader.count_events_by_temporal_type) | Count events grouped by temporal_type (instant/interval). |
-| [count_events_by_type](#timetoalign.Loader.count_events_by_type) | Count events grouped by event_type. |
-| [create_bundle](#timetoalign.Loader.create_bundle) | Create an `AlignmentBundle`. Override in subclasses that support bundles. |
-| [create_cmap](#timetoalign.Loader.create_cmap) | Create a ConversionMap from two coordinate fields. |
-| [create_group](#timetoalign.Loader.create_group) | Create a `TimelineGroup`. Override in subclasses that support groups. |
-| [create_timeline](#timetoalign.Loader.create_timeline) | Create a Timeline from the loaded events. |
-| [create_timelines](#timetoalign.Loader.create_timelines) | Create all timelines, optionally filtered by regex pattern. |
-| [event_summary](#timetoalign.Loader.event_summary) | Get a summary of loaded events. |
-| [from_file](#timetoalign.Loader.from_file) | Load one or more files and return the loader (convenience constructor). |
-| [from_parquet](#timetoalign.Loader.from_parquet) | Load a Loader from a Parquet file. |
-| [get_events](#timetoalign.Loader.get_events) | Return an EventData assembled from loaded data. |
-| [load](#timetoalign.Loader.load) | Load one or more source files. |
-| [to_parquet](#timetoalign.Loader.to_parquet) | Save the loaded events to a Parquet file. |
+| [clear](#timetoalign.loader.Loader.clear) | Clear shared source state. |
+| [create_bundle](#timetoalign.loader.Loader.create_bundle) | Create an alignment bundle when supported. |
+| [create_group](#timetoalign.loader.Loader.create_group) | Create a timeline group when supported. |
+| [create_timeline](#timetoalign.loader.Loader.create_timeline) | Create a timeline from the loaded payload. |
+| [create_timelines](#timetoalign.loader.Loader.create_timelines) | Create all timelines, optionally filtered by an implementation. |
+| [from_file](#timetoalign.loader.Loader.from_file) | Instantiate the loader, load *paths*, and return it. |
+| [load](#timetoalign.loader.Loader.load) | Load and accept one or more sources through the shared template. |
 
-### clear { #timetoalign.Loader.clear }
+### clear { #timetoalign.loader.Loader.clear }
 
 ```python
-Loader.clear()
+loader.Loader.clear()
 ```
 
-Clear all loaded sources and events.
+Clear shared source state.
 
-### count_events_by_temporal_type { #timetoalign.Loader.count_events_by_temporal_type }
+### create_bundle { #timetoalign.loader.Loader.create_bundle }
 
 ```python
-Loader.count_events_by_temporal_type()
+loader.Loader.create_bundle(**kwargs)
 ```
 
-Count events grouped by temporal_type (instant/interval).
+Create an alignment bundle when supported.
 
-Returns:
-    Dict mapping "instant"/"interval" to counts.
-
-### count_events_by_type { #timetoalign.Loader.count_events_by_type }
+### create_group { #timetoalign.loader.Loader.create_group }
 
 ```python
-Loader.count_events_by_type()
+loader.Loader.create_group(**kwargs)
 ```
 
-Count events grouped by event_type.
+Create a timeline group when supported.
 
-Returns:
-    Dict mapping event type names to counts.
-
-### create_bundle { #timetoalign.Loader.create_bundle }
+### create_timeline { #timetoalign.loader.Loader.create_timeline }
 
 ```python
-Loader.create_bundle(**kwargs)
+loader.Loader.create_timeline(uid=None, **kwargs)
 ```
 
-Create an `AlignmentBundle`. Override in subclasses that support bundles.
+Create a timeline from the loaded payload.
 
-Returns:
-    An `AlignmentBundle`, or ``None`` if the loader does not produce bundles.
+Concrete loader families implement payload-specific construction.
 
-### create_cmap { #timetoalign.Loader.create_cmap }
+### create_timelines { #timetoalign.loader.Loader.create_timelines }
 
 ```python
-Loader.create_cmap(source_field, target_field, *, map_type=None, **kwargs)
+loader.Loader.create_timelines(id_pattern=None)
 ```
 
-Create a ConversionMap from two coordinate fields.
+Create all timelines, optionally filtered by an implementation.
 
-This method creates a C-Map from loaded coordinate data, enabling
-conversion between different coordinate systems (e.g., seconds to pixels).
-
-Both fields must contain coordinate data (either core coordinates like
-'start'/'end', or CoordinateField extra fields).
-
-Args:
-    source_field: Name of the source coordinate field.
-    target_field: Name of the target coordinate field.
-    map_type: The map class to create. Defaults to TableMap.
-        Supported: TableMap, LinearMap, ScalarMap.
-    **kwargs: Additional arguments passed to the map constructor.
-        For TableMap: kind, extrapolate
-        For LinearMap: (computed automatically from data)
-
-Returns:
-    A ConversionMap instance.
-
-Raises:
-    ValueError: If fields don't exist or aren't coordinate fields.
-    ValueError: If insufficient data points for the map type.
-
-Examples:
-    >>> # Load data with dual coordinates
-    >>> loader.load("data.tsv")
-
-    >>> # Create TableMap (default) from start -> x_pixels
-    >>> cmap = loader.create_cmap("start", "x_pixels")
-
-    >>> # Create LinearMap (fits y = ax + b to data)
-    >>> cmap = loader.create_cmap("start", "x_pixels", map_type=LinearMap)
-
-    >>> # TableMap with custom interpolation
-    >>> cmap = loader.create_cmap("start", "x_pixels", kind="cubic")
-
-### create_group { #timetoalign.Loader.create_group }
+### from_file { #timetoalign.loader.Loader.from_file }
 
 ```python
-Loader.create_group(**kwargs)
+loader.Loader.from_file(*paths, **kwargs)
 ```
 
-Create a `TimelineGroup`. Override in subclasses that support groups.
+Instantiate the loader, load *paths*, and return it.
 
-Returns:
-    A `TimelineGroup`, or ``None`` if the loader does not produce groups.
-
-### create_timeline { #timetoalign.Loader.create_timeline }
+### load { #timetoalign.loader.Loader.load }
 
 ```python
-Loader.create_timeline(
-    uid=None,
-    store_filters=None,
-    include_stores=None,
-    exclude_stores=None,
-    flatten=False,
-)
+loader.Loader.load(*sources)
 ```
 
-Create a Timeline from the loaded events.
-
-Convenience method that delegates to self.store.create_timeline().
-
-Args:
-    uid: Unique ID for the parent timeline. Auto-generated if None.
-    store_filters: Per-data filter kwargs to apply before timeline
-        creation. Example: {"notes": {"event_type": "Note"}}.
-    include_stores: Only include these data (default: all non-empty).
-    exclude_stores: Exclude these data from the timeline.
-    flatten: If True, merge all events into a single parent timeline.
-
-Returns:
-    A Timeline containing the loaded events.
-
-Examples:
-    >>> loader = Ms3Loader()
-    >>> loader.load("notes.tsv")
-    >>> timeline = loader.create_timeline(uid="my_score")
-
-### create_timelines { #timetoalign.Loader.create_timelines }
-
-```python
-Loader.create_timelines(id_pattern=None)
-```
-
-Create all timelines, optionally filtered by regex pattern.
-
-The default implementation returns a single-element list with
-``create_timeline()``. Subclasses with multi-timeline output
-(e.g., ``TiliaJsonLoader``, ``MatchfileLoader``) override this.
-
-Args:
-    id_pattern: Optional regex pattern to filter timeline IDs.
-
-Returns:
-    List of `Timeline` objects.
-
-### event_summary { #timetoalign.Loader.event_summary }
-
-```python
-Loader.event_summary()
-```
-
-Get a summary of loaded events.
-
-Returns:
-    Dict with event counts, types, coordinate range, etc.
-
-### from_file { #timetoalign.Loader.from_file }
-
-```python
-Loader.from_file(*paths, **kwargs)
-```
-
-Load one or more files and return the loader (convenience constructor).
-
-This combines instantiation and loading into a single call.
-
-Args:
-    *paths: Paths to source files.
-    **kwargs: Additional keyword arguments passed to ``__init__``.
-
-Returns:
-    A new Loader instance with the files already loaded.
-
-Examples:
-    >>> loader = Ms3Loader.from_file("notes.tsv")
-    >>> len(loader.events)
-    42
-
-### from_parquet { #timetoalign.Loader.from_parquet }
-
-```python
-Loader.from_parquet(path)
-```
-
-Load a Loader from a Parquet file.
-
-Note: This creates a new Loader with the EventData loaded,
-but source paths may not be accessible for re-loading.
-
-Args:
-    path: Path to the Parquet file.
-
-Returns:
-    A new Loader with events loaded from the file.
-
-### get_events { #timetoalign.Loader.get_events }
-
-```python
-Loader.get_events(properties=True)
-```
-
-Return an EventData assembled from loaded data.
-
-This is the primary access method for the loader-first pipeline.
-It assembles EventData from the loaded data, with control over
-which property fields are included.
-
-Args:
-    properties: Controls which non-field-spec data fields to include.
-        - ``True``: Include all property fields (default).
-        - ``False``: Only include semantic-field fields (start, end,
-          duration, pitch, etc.) and core fields (id, name,
-          event_type, temporal_type).
-        - Single string: shorthand for a one-element tuple — include
-          only the named property field.
-        - Tuple of strings: Include only the named property fields.
-
-Returns:
-    An ``EventData`` containing the assembled events.
-
-### load { #timetoalign.Loader.load }
-
-```python
-Loader.load(*sources)
-```
-
-Load one or more source files.
-
-Events from all sources are aggregated into the EventData.
-Metadata for each source is recorded separately.
-
-Supports both vectorized (field dict) and legacy (row dicts) modes:
-- Vectorized: _load_source returns dict[str, np.ndarray | pa.Array]
-- Legacy: _load_source returns list[dict[str, Any]]
-
-Args:
-    *sources: Paths to source files.
-
-Returns:
-    Self, for method chaining.
-
-Raises:
-    FileNotFoundError: If any source doesn't exist.
-    ValueError: If any source is invalid.
-
-### to_parquet { #timetoalign.Loader.to_parquet }
-
-```python
-Loader.to_parquet(path)
-```
-
-Save the loaded events to a Parquet file.
-
-The metadata (including source info) is preserved in the file.
-
-Args:
-    path: Path to write the Parquet file.
+Load and accept one or more sources through the shared template.

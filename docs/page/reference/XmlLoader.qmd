@@ -1,0 +1,163 @@
+# XmlLoader { #timetoalign.loader.format.XmlLoader }
+
+```python
+loader.format.XmlLoader(
+    principal_tags=None,
+    *,
+    sep='.',
+    include_text=True,
+    propagate_ancestors=True,
+)
+```
+
+Configurable XML normaliser producing flat ``pa.Table`` objects.
+
+``XmlLoader`` parses one or more XML files and normalises their
+nested element structures into flat PyArrow tables stored in a
+`timetoalign.storage.store.DictStore`.
+
+**Principal tags** determine which element types become tables:
+
+- If *principal_tags* is given (a list of tag names), only elements
+  with those tags are collected and normalised.
+- If *principal_tags* is ``None`` (the default), tags appearing at
+  least twice in the document are auto-detected as principal.
+
+Each element's attributes become fields.  Nested child elements are
+flattened with dot-separated field names.  Ancestor attributes are
+propagated downward with ``parent_<tag>_<attr>`` prefixes.
+
+Follows the standard two-phase pattern:
+
+1. ``loader.load(*sources)`` -- parse XML files.
+2. ``loader.get_table(tag)`` -- retrieve a normalised table.
+
+Args:
+    principal_tags: List of element tags to normalise.  ``None`` for
+        auto-detect.
+    sep: Separator for flattened nested key names.  Default ``"."``.
+    include_text: Whether to include element text as ``_text`` field.
+        Default ``True``.
+    propagate_ancestors: Whether to propagate ancestor attributes.
+        Default ``True``.
+
+Examples:
+    Auto-detect all repeated tags::
+
+        loader = XmlLoader()
+        loader.load("data.xml")
+        for tag in loader.store.keys():
+            print(tag, loader.get_table(tag).num_rows)
+
+    Specify principal tags::
+
+        loader = XmlLoader(principal_tags=["Signal", "Audio"])
+        loader.load("manifest.xml")
+        assert loader.get_table("Signal").num_rows > 0
+
+See Also:
+    timetoalign.storage.store.DictStore
+    timetoalign.loader.base.Loader
+    timetoalign.loader.format.json.JsonLoader
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [file_metadata](#timetoalign.loader.format.XmlLoader.file_metadata) | Metadata from the root element's attributes. |
+| [raw_root](#timetoalign.loader.format.XmlLoader.raw_root) | The raw parsed XML root element from the last loaded file. |
+| [store](#timetoalign.loader.format.XmlLoader.store) | The ``DictStore`` containing all normalised tables. |
+| [tables](#timetoalign.loader.format.XmlLoader.tables) | Dict mapping tag names to normalised ``pa.Table`` objects. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [clear](#timetoalign.loader.format.XmlLoader.clear) | Clear all loaded data. |
+| [get_table](#timetoalign.loader.format.XmlLoader.get_table) | Retrieve a normalised table by element tag. |
+| [keys](#timetoalign.loader.format.XmlLoader.keys) | Return the list of available table tag names. |
+| [load](#timetoalign.loader.format.XmlLoader.load) | Load one or more XML files. |
+| [load_element](#timetoalign.loader.format.XmlLoader.load_element) | Load from an already-parsed Element tree. |
+| [load_string](#timetoalign.loader.format.XmlLoader.load_string) | Load from an XML string. |
+
+### clear { #timetoalign.loader.format.XmlLoader.clear }
+
+```python
+loader.format.XmlLoader.clear()
+```
+
+Clear all loaded data.
+
+### get_table { #timetoalign.loader.format.XmlLoader.get_table }
+
+```python
+loader.format.XmlLoader.get_table(tag)
+```
+
+Retrieve a normalised table by element tag.
+
+Args:
+    tag: The principal tag name.
+
+Returns:
+    A ``pa.Table`` with one row per element.
+
+Raises:
+    KeyError: If *tag* was not normalised.
+
+### keys { #timetoalign.loader.format.XmlLoader.keys }
+
+```python
+loader.format.XmlLoader.keys()
+```
+
+Return the list of available table tag names.
+
+### load { #timetoalign.loader.format.XmlLoader.load }
+
+```python
+loader.format.XmlLoader.load(*sources)
+```
+
+Load one or more XML files.
+
+For multiple files the tables are concatenated (same tags) or
+added (new tags).
+
+Args:
+    *sources: Paths to XML files.
+
+Returns:
+    Self, for method chaining.
+
+### load_element { #timetoalign.loader.format.XmlLoader.load_element }
+
+```python
+loader.format.XmlLoader.load_element(root)
+```
+
+Load from an already-parsed Element tree.
+
+Convenient for programmatic use or testing.
+
+Args:
+    root: An XML Element.
+
+Returns:
+    Self, for method chaining.
+
+### load_string { #timetoalign.loader.format.XmlLoader.load_string }
+
+```python
+loader.format.XmlLoader.load_string(xml_string)
+```
+
+Load from an XML string.
+
+Convenient for programmatic use or testing.
+
+Args:
+    xml_string: A valid XML string.
+
+Returns:
+    Self, for method chaining.

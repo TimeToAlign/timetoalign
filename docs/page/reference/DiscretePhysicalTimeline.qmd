@@ -1,7 +1,7 @@
-# DiscretePhysicalTimeline { #timetoalign.DiscretePhysicalTimeline }
+# DiscretePhysicalTimeline { #timetoalign.timelines.DiscretePhysicalTimeline }
 
 ```python
-DiscretePhysicalTimeline(
+timelines.DiscretePhysicalTimeline(
     length=0,
     unit=None,
     number_type=None,

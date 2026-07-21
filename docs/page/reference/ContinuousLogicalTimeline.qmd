@@ -1,7 +1,7 @@
-# ContinuousLogicalTimeline { #timetoalign.ContinuousLogicalTimeline }
+# ContinuousLogicalTimeline { #timetoalign.timelines.ContinuousLogicalTimeline }
 
 ```python
-ContinuousLogicalTimeline(
+timelines.ContinuousLogicalTimeline(
     length=0,
     unit=None,
     number_type=None,

@@ -1,0 +1,18 @@
+# resolve_coordinate_spec { #timetoalign.resolve_coordinate_spec }
+
+```python
+resolve_coordinate_spec(spec, *, timeline_id=None)
+```
+
+Decompose a coordinate specification without converting its unit.
+
+Args:
+    spec: Coordinate specification to decompose.
+    timeline_id: Optional timeline ID for otherwise unqualified input.
+
+Returns:
+    The numeric value and any timeline or unit metadata.
+
+Raises:
+    ValueError: If an explicit timeline ID conflicts with an IdCoordinate.
+    TypeError: If spec is not a supported coordinate specification.

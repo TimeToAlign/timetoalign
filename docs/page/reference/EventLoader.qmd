@@ -1,0 +1,284 @@
+# EventLoader { #timetoalign.loader.EventLoader }
+
+```python
+loader.EventLoader(
+    unit=None,
+    number_type=NumberType.float,
+    interval_policy=IntervalPolicy.warn,
+)
+```
+
+Abstract base class for event-producing loaders.
+
+Loader provides a unified interface for loading one or more source files
+and aggregating their events into an EventData. Metadata about the sources
+is stored in the PyArrow table's schema metadata for determinism.
+
+Subclasses must implement:
+- _load_source(): Parse a single source file into event rows
+- _default_unit: The default time unit for this loader type
+
+Attributes:
+    events: The EventData containing all loaded events.
+    sources: List of loaded source file paths.
+    unit: The time unit for coordinates.
+    number_type: The number type for coordinates.
+
+Examples:
+    >>> # Subclass implementation
+    >>> class MidiLoader(Loader):
+    ...     _default_unit = TimeUnit.ticks
+    ...     _event_data_class = EventData
+    ...
+    ...     def _load_source(self, path):
+    ...         # Parse MIDI file, return (metadata_dict, event_rows)
+    ...         return {"format": "midi"}, [{"id": "n1", ...}]
+    >>>
+    >>> loader = MidiLoader()
+    >>> loader.load("piece.mid")
+    >>> print(loader.event_summary())
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [events](#timetoalign.loader.EventLoader.events) | The EventData containing all loaded events. |
+| [metadata](#timetoalign.loader.EventLoader.metadata) | Aggregated metadata from all sources. |
+| [number_type](#timetoalign.loader.EventLoader.number_type) | The number type for coordinates. |
+| [sources](#timetoalign.loader.EventLoader.sources) | List of loaded source file paths. |
+| [store](#timetoalign.loader.EventLoader.store) | Return an EventStore wrapping the loader's events. |
+| [unit](#timetoalign.loader.EventLoader.unit) | The time unit for coordinates. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [clear](#timetoalign.loader.EventLoader.clear) | Clear all loaded sources and events. |
+| [count_events_by_temporal_type](#timetoalign.loader.EventLoader.count_events_by_temporal_type) | Count events grouped by temporal_type (instant/interval). |
+| [count_events_by_type](#timetoalign.loader.EventLoader.count_events_by_type) | Count events grouped by event_type. |
+| [create_bundle](#timetoalign.loader.EventLoader.create_bundle) | Create an `AlignmentBundle`. Override in subclasses that support bundles. |
+| [create_cmap](#timetoalign.loader.EventLoader.create_cmap) | Create a ConversionMap from two coordinate fields. |
+| [create_group](#timetoalign.loader.EventLoader.create_group) | Create a `TimelineGroup`. Override in subclasses that support groups. |
+| [create_timeline](#timetoalign.loader.EventLoader.create_timeline) | Create a Timeline from the loaded events. |
+| [create_timelines](#timetoalign.loader.EventLoader.create_timelines) | Create all timelines, optionally filtered by regex pattern. |
+| [event_summary](#timetoalign.loader.EventLoader.event_summary) | Get a summary of loaded events. |
+| [from_parquet](#timetoalign.loader.EventLoader.from_parquet) | Load a Loader from a Parquet file. |
+| [get_events](#timetoalign.loader.EventLoader.get_events) | Return an EventData assembled from loaded data. |
+| [to_parquet](#timetoalign.loader.EventLoader.to_parquet) | Save the loaded events to a Parquet file. |
+
+### clear { #timetoalign.loader.EventLoader.clear }
+
+```python
+loader.EventLoader.clear()
+```
+
+Clear all loaded sources and events.
+
+### count_events_by_temporal_type { #timetoalign.loader.EventLoader.count_events_by_temporal_type }
+
+```python
+loader.EventLoader.count_events_by_temporal_type()
+```
+
+Count events grouped by temporal_type (instant/interval).
+
+Returns:
+    Dict mapping "instant"/"interval" to counts.
+
+### count_events_by_type { #timetoalign.loader.EventLoader.count_events_by_type }
+
+```python
+loader.EventLoader.count_events_by_type()
+```
+
+Count events grouped by event_type.
+
+Returns:
+    Dict mapping event type names to counts.
+
+### create_bundle { #timetoalign.loader.EventLoader.create_bundle }
+
+```python
+loader.EventLoader.create_bundle(**kwargs)
+```
+
+Create an `AlignmentBundle`. Override in subclasses that support bundles.
+
+Raises:
+    NotImplementedError: If the concrete loader does not produce bundles.
+
+### create_cmap { #timetoalign.loader.EventLoader.create_cmap }
+
+```python
+loader.EventLoader.create_cmap(
+    source_field,
+    target_field,
+    *,
+    map_type=None,
+    **kwargs,
+)
+```
+
+Create a ConversionMap from two coordinate fields.
+
+This method creates a C-Map from loaded coordinate data, enabling
+conversion between different coordinate systems (e.g., seconds to pixels).
+
+Both fields must contain coordinate data (either core coordinates like
+'start'/'end', or CoordinateField extra fields).
+
+Args:
+    source_field: Name of the source coordinate field.
+    target_field: Name of the target coordinate field.
+    map_type: The map class to create. Defaults to TableMap.
+        Supported: TableMap, LinearMap, ScalarMap.
+    **kwargs: Additional arguments passed to the map constructor.
+        For TableMap: kind, extrapolate
+        For LinearMap: (computed automatically from data)
+
+Returns:
+    A ConversionMap instance.
+
+Raises:
+    ValueError: If fields don't exist or aren't coordinate fields.
+    ValueError: If insufficient data points for the map type.
+
+Examples:
+    >>> # Load data with dual coordinates
+    >>> loader.load("data.tsv")
+
+    >>> # Create TableMap (default) from start -> x_pixels
+    >>> cmap = loader.create_cmap("start", "x_pixels")
+
+    >>> # Create LinearMap (fits y = ax + b to data)
+    >>> cmap = loader.create_cmap("start", "x_pixels", map_type=LinearMap)
+
+    >>> # TableMap with custom interpolation
+    >>> cmap = loader.create_cmap("start", "x_pixels", kind="cubic")
+
+### create_group { #timetoalign.loader.EventLoader.create_group }
+
+```python
+loader.EventLoader.create_group(**kwargs)
+```
+
+Create a `TimelineGroup`. Override in subclasses that support groups.
+
+Returns:
+    A `TimelineGroup`, or ``None`` if the loader does not produce groups.
+
+### create_timeline { #timetoalign.loader.EventLoader.create_timeline }
+
+```python
+loader.EventLoader.create_timeline(
+    uid=None,
+    store_filters=None,
+    include_stores=None,
+    exclude_stores=None,
+    flatten=False,
+)
+```
+
+Create a Timeline from the loaded events.
+
+Convenience method that delegates to self.store.create_timeline().
+
+Args:
+    uid: Unique ID for the parent timeline. Auto-generated if None.
+    store_filters: Per-data filter kwargs to apply before timeline
+        creation. Example: {"notes": {"event_type": "Note"}}.
+    include_stores: Only include these data (default: all non-empty).
+    exclude_stores: Exclude these data from the timeline.
+    flatten: If True, merge all events into a single parent timeline.
+
+Returns:
+    A Timeline containing the loaded events.
+
+Examples:
+    >>> loader = Ms3Loader()
+    >>> loader.load("notes.tsv")
+    >>> timeline = loader.create_timeline(uid="my_score")
+
+### create_timelines { #timetoalign.loader.EventLoader.create_timelines }
+
+```python
+loader.EventLoader.create_timelines(id_pattern=None)
+```
+
+Create all timelines, optionally filtered by regex pattern.
+
+The default implementation returns a single-element list with
+``create_timeline()``. Subclasses with multi-timeline output
+(e.g., ``TiliaJsonLoader``, ``MatchfileLoader``) override this.
+
+Args:
+    id_pattern: Optional regex pattern to filter timeline IDs.
+
+Returns:
+    List of `Timeline` objects.
+
+### event_summary { #timetoalign.loader.EventLoader.event_summary }
+
+```python
+loader.EventLoader.event_summary()
+```
+
+Get a summary of loaded events.
+
+Returns:
+    Dict with event counts, types, coordinate range, etc.
+
+### from_parquet { #timetoalign.loader.EventLoader.from_parquet }
+
+```python
+loader.EventLoader.from_parquet(path)
+```
+
+Load a Loader from a Parquet file.
+
+Note: This creates a new Loader with the EventData loaded,
+but source paths may not be accessible for re-loading.
+
+Args:
+    path: Path to the Parquet file.
+
+Returns:
+    A new Loader with events loaded from the file.
+
+### get_events { #timetoalign.loader.EventLoader.get_events }
+
+```python
+loader.EventLoader.get_events(properties=True)
+```
+
+Return an EventData assembled from loaded data.
+
+This is the primary access method for the loader-first pipeline.
+It assembles EventData from the loaded data, with control over
+which property fields are included.
+
+Args:
+    properties: Controls which non-field-spec data fields to include.
+        - ``True``: Include all property fields (default).
+        - ``False``: Only include semantic-field fields (start, end,
+          duration, pitch, etc.) and core fields (id, name,
+          event_type, temporal_type).
+        - Single string: shorthand for a one-element tuple — include
+          only the named property field.
+        - Tuple of strings: Include only the named property fields.
+
+Returns:
+    An ``EventData`` containing the assembled events.
+
+### to_parquet { #timetoalign.loader.EventLoader.to_parquet }
+
+```python
+loader.EventLoader.to_parquet(path)
+```
+
+Save the loaded events to a Parquet file.
+
+The metadata (including source info) is preserved in the file.
+
+Args:
+    path: Path to write the Parquet file.

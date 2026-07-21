@@ -1,0 +1,95 @@
+# GroupTimestamp { #timetoalign.timelines.GroupTimestamp }
+
+```python
+timelines.GroupTimestamp(
+    coordinates,
+    units=dict(),
+    row_index=-1,
+    source=None,
+    source_id=None,
+    axis=None,
+    conversion_maps=True,
+)
+```
+
+A synchronized instant across all timelines in a group.
+
+This is a view object created from a row in the group's timestamp table.
+Not stored directly - the table is the source of truth.
+
+Attributes:
+    coordinates: Dictionary mapping timeline/cmap IDs to coordinates.
+        None values indicate the timeline is not present at this instant.
+    units: Dictionary mapping timeline/cmap IDs to their unit strings.
+        Used for display purposes.
+    row_index: Index of this timestamp in the source table.
+        -1 indicates an interpolated timestamp (not from a table row).
+
+Examples:
+    >>> ts = group.get_timestamp_at_index(0)
+    >>> ts["dgt1:1"]  # Get coordinate for dgt1
+    0.0
+    >>> ts.present_timelines  # Which timelines have values here
+    ['dgt1:1', 'audio:1']
+
+See Also:
+    TimeStamp: The unified timestamp class from ``timetoalign.core``.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [is_interpolated](#timetoalign.timelines.GroupTimestamp.is_interpolated) | True if this timestamp was interpolated (not from a table row). |
+| [present_timelines](#timetoalign.timelines.GroupTimestamp.present_timelines) | Timeline IDs that have coordinates at this instant. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [get](#timetoalign.timelines.GroupTimestamp.get) | Get coordinate for a timeline. |
+| [get_unit](#timetoalign.timelines.GroupTimestamp.get_unit) | Get the row coordinate converted to a specific unit. |
+| [to_dict](#timetoalign.timelines.GroupTimestamp.to_dict) | Materialize the stored row coordinates as a dictionary. |
+
+### get { #timetoalign.timelines.GroupTimestamp.get }
+
+```python
+timelines.GroupTimestamp.get(timeline_id, default=None)
+```
+
+Get coordinate for a timeline.
+
+Args:
+    timeline_id: The timeline to look up.
+    default: Value to return if timeline not in coordinates.
+
+Returns:
+    The coordinate value, or default if not found.
+
+### get_unit { #timetoalign.timelines.GroupTimestamp.get_unit }
+
+```python
+timelines.GroupTimestamp.get_unit(unit)
+```
+
+Get the row coordinate converted to a specific unit.
+
+Args:
+    unit: The target unit for conversion.
+
+Returns:
+    Converted coordinate, or None if no permitted C-Map is available.
+
+### to_dict { #timetoalign.timelines.GroupTimestamp.to_dict }
+
+```python
+timelines.GroupTimestamp.to_dict(include_children=True, conversion_units=None)
+```
+
+Materialize the stored row coordinates as a dictionary.
+
+Args:
+    include_children: Retained for the shared Stamp interface.
+    conversion_units: Retained for the shared Stamp interface.
+
+Returns:
+    Dictionary mapping timeline IDs to stored coordinate values.

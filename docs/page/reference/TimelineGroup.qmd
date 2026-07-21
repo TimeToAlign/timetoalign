@@ -1,7 +1,13 @@
-# TimelineGroup { #timetoalign.TimelineGroup }
+# TimelineGroup { #timetoalign.timelines.TimelineGroup }
 
 ```python
-TimelineGroup(id=None, name=None, timelines=None, is_locked=False, meta=None)
+timelines.TimelineGroup(
+    id=None,
+    name=None,
+    timelines=None,
+    is_locked=False,
+    meta=None,
+)
 ```
 
 Container for commensurable timelines.
@@ -33,10 +39,11 @@ Examples:
     >>> group.add_timeline(dgt1)
 
     >>> # Add with explicit boundaries
+    >>> from timetoalign import IdCoordinate, TimeUnit
     >>> group.add_timeline(
     ...     score_section,
-    ...     start=(45.0, "audio:1"),
-    ...     end=(135.0, "audio:1"),
+    ...     start=IdCoordinate(45.0, TimeUnit.seconds, "audio:1"),
+    ...     end=IdCoordinate(135.0, TimeUnit.seconds, "audio:1"),
     ... )
 
     >>> # Convert coordinates via timestamp lookup
@@ -47,40 +54,39 @@ Examples:
 
 | Name | Description |
 | --- | --- |
-| [is_locked](#timetoalign.TimelineGroup.is_locked) | Whether the group is locked. |
-| [n_timelines](#timetoalign.TimelineGroup.n_timelines) | Number of timelines in the group. |
-| [n_timestamps](#timetoalign.TimelineGroup.n_timestamps) | Number of boundary timestamps. |
-| [timeline_ids](#timetoalign.TimelineGroup.timeline_ids) | IDs of all member timelines. |
-| [timestamps](#timetoalign.TimelineGroup.timestamps) | All boundary timestamps as view objects. |
+| [is_locked](#timetoalign.timelines.TimelineGroup.is_locked) | Whether the group is locked. |
+| [n_timelines](#timetoalign.timelines.TimelineGroup.n_timelines) | Number of timelines in the group. |
+| [n_timestamps](#timetoalign.timelines.TimelineGroup.n_timestamps) | Number of boundary timestamps. |
+| [timeline_ids](#timetoalign.timelines.TimelineGroup.timeline_ids) | IDs of all member timelines. |
+| [timestamps](#timetoalign.timelines.TimelineGroup.timestamps) | All boundary timestamps as view objects. |
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
-| [add_timeline](#timetoalign.TimelineGroup.add_timeline) | Add a timeline (or Child) to the group. |
-| [convert](#timetoalign.TimelineGroup.convert) | Convert a coordinate from one timeline to another. |
-| [diagram](#timetoalign.TimelineGroup.diagram) | Generate ASCII diagram for this group. |
-| [get_events](#timetoalign.TimelineGroup.get_events) | Get events from all timelines in the group, concatenated. |
-| [get_range](#timetoalign.TimelineGroup.get_range) | Get the coordinate range for a timeline in the group. |
-| [get_timeline](#timetoalign.TimelineGroup.get_timeline) | Get a timeline by ID. |
-| [get_timestamp](#timetoalign.TimelineGroup.get_timestamp) | Get a specific timestamp by index. |
-| [get_timestamp_at](#timetoalign.TimelineGroup.get_timestamp_at) | Get a TimeStamp at a specific coordinate. |
-| [get_timestamp_of](#timetoalign.TimelineGroup.get_timestamp_of) | Get the TimeStamp for a specific event by its ID. |
-| [get_timestamp_table](#timetoalign.TimelineGroup.get_timestamp_table) | Get the timestamp table (or a filtered subset). |
-| [get_timestamps_at](#timetoalign.TimelineGroup.get_timestamps_at) | Get timestamps at multiple coordinates - the batch version of get_timestamp_at. |
-| [get_timestamps_df](#timetoalign.TimelineGroup.get_timestamps_df) | Convenience wrapper returning pandas DataFrame with units in field names. |
-| [get_timestamps_of](#timetoalign.TimelineGroup.get_timestamps_of) | Get timestamps for multiple events. |
-| [lock](#timetoalign.TimelineGroup.lock) | Lock the group to prevent extension. |
-| [remove_timeline](#timetoalign.TimelineGroup.remove_timeline) | Remove a timeline from the group. |
-| [summary](#timetoalign.TimelineGroup.summary) | Get a summary of the group. |
-| [to_dataframe](#timetoalign.TimelineGroup.to_dataframe) | Generate timestamps as a pandas DataFrame with formatted field names. |
-| [unfold](#timetoalign.TimelineGroup.unfold) | Unfold ALL timelines in this group via a single flow. |
-| [unlock](#timetoalign.TimelineGroup.unlock) | Unlock the group to allow extension. |
+| [add_timeline](#timetoalign.timelines.TimelineGroup.add_timeline) | Add a timeline (or Child) to the group. |
+| [convert](#timetoalign.timelines.TimelineGroup.convert) | Convert a coordinate from one timeline to another. |
+| [diagram](#timetoalign.timelines.TimelineGroup.diagram) | Generate ASCII diagram for this group. |
+| [get_events](#timetoalign.timelines.TimelineGroup.get_events) | Get events from all timelines in the group, concatenated. |
+| [get_range](#timetoalign.timelines.TimelineGroup.get_range) | Get the coordinate range for a timeline in the group. |
+| [get_timeline](#timetoalign.timelines.TimelineGroup.get_timeline) | Get a timeline by ID. |
+| [get_timestamp_at](#timetoalign.timelines.TimelineGroup.get_timestamp_at) | Get a TimeStamp at a specific coordinate. |
+| [get_timestamp_at_index](#timetoalign.timelines.TimelineGroup.get_timestamp_at_index) | Get a specific timestamp by index. |
+| [get_timestamp_of](#timetoalign.timelines.TimelineGroup.get_timestamp_of) | Get the TimeStamp for a specific event by its ID. |
+| [get_timestamp_table](#timetoalign.timelines.TimelineGroup.get_timestamp_table) | Get the timestamp table (or a filtered subset). |
+| [get_timestamps_at](#timetoalign.timelines.TimelineGroup.get_timestamps_at) | Get timestamps at multiple coordinates - the batch version of get_timestamp_at. |
+| [get_timestamps_of](#timetoalign.timelines.TimelineGroup.get_timestamps_of) | Get timestamps for multiple events. |
+| [lock](#timetoalign.timelines.TimelineGroup.lock) | Lock the group to prevent extension. |
+| [remove_timeline](#timetoalign.timelines.TimelineGroup.remove_timeline) | Remove a timeline from the group. |
+| [summary](#timetoalign.timelines.TimelineGroup.summary) | Get a summary of the group. |
+| [to_dataframe](#timetoalign.timelines.TimelineGroup.to_dataframe) | Generate timestamps as a pandas DataFrame with formatted field names. |
+| [unfold](#timetoalign.timelines.TimelineGroup.unfold) | Unfold ALL timelines in this group via a single flow. |
+| [unlock](#timetoalign.timelines.TimelineGroup.unlock) | Unlock the group to allow extension. |
 
-### add_timeline { #timetoalign.TimelineGroup.add_timeline }
+### add_timeline { #timetoalign.timelines.TimelineGroup.add_timeline }
 
 ```python
-TimelineGroup.add_timeline(
+timelines.TimelineGroup.add_timeline(
     timeline,
     *,
     start=None,
@@ -102,9 +108,9 @@ Args:
     timeline: The timeline or Child to add. If a Child, its 0-origin
         extent is used. If a Timeline, its full extent (0 to length).
     start: Where this timeline's section STARTS in the group.
-        - IdCoordinate: Coordinate with explicit timeline_id (preferred)
+        - CoordinateSpec: Coordinate in the alignment-reference timeline
+        - IdCoordinate: Coordinate with explicit timeline_id
         - GroupTimestamp: Use this existing timestamp
-        - (coord, timeline_id): Legacy tuple form
         - float: Coordinate (only if single timeline in group)
         - None: Use group's current start, or 0 if empty
     end: Where this timeline's section ENDS in the group.
@@ -141,10 +147,16 @@ Examples:
     ...     allow_extension=True,
     ... )
 
-### convert { #timetoalign.TimelineGroup.convert }
+### convert { #timetoalign.timelines.TimelineGroup.convert }
 
 ```python
-TimelineGroup.convert(coordinate, source, target, *, relative_to='group')
+timelines.TimelineGroup.convert(
+    coordinate,
+    source,
+    target,
+    *,
+    relative_to='group',
+)
 ```
 
 Convert a coordinate from one timeline to another.
@@ -154,9 +166,9 @@ coordinate and returns the target timeline's coordinate from it.
 
 Args:
     coordinate: The coordinate value to convert. Accepts a raw
-        int/float/Fraction, a Coordinate, or an IdCoordinate (whose
-        value is used; its timeline_id is informational only here,
-        since the endpoints are named by ``source``/``target``).
+        int/float/Fraction, a Coordinate, or an IdCoordinate. A
+        unit-qualified coordinate is resolved by the source timeline,
+        and an IdCoordinate must agree with ``source``.
     source: Source timeline ID.
     target: Target timeline ID.
     relative_to:
@@ -175,10 +187,10 @@ Examples:
     >>> group.convert(75.0, source="audio:1", target="dgt1:1")
     2437.5
 
-### diagram { #timetoalign.TimelineGroup.diagram }
+### diagram { #timetoalign.timelines.TimelineGroup.diagram }
 
 ```python
-TimelineGroup.diagram(
+timelines.TimelineGroup.diagram(
     width=70,
     show_children=True,
     max_children=6,
@@ -208,17 +220,18 @@ Examples:
     └────────────────────────────────────────────────────────────┘
     Timestamps: 2
 
-### get_events { #timetoalign.TimelineGroup.get_events }
+### get_events { #timetoalign.timelines.TimelineGroup.get_events }
 
 ```python
-TimelineGroup.get_events(timeline_id=None, **kwargs)
+timelines.TimelineGroup.get_events(timeline_id=None, **kwargs)
 ```
 
 Get events from all timelines in the group, concatenated.
 
 Collects events from all member timelines (or a specific one) and
-concatenates them into a single DataFrame. Each row includes a
-``timeline_id`` field identifying the source timeline.
+concatenates their Arrow tables into a single EventData. Each row includes a
+``timeline_id`` field identifying the source timeline. A member-provided
+``timeline_id`` column is discarded because group membership is authoritative.
 
 Args:
     timeline_id: If provided, only return events from this timeline.
@@ -227,24 +240,26 @@ Args:
         (e.g., ``min_coord``, ``max_coord``, ``event_type``).
 
 Returns:
-    DataFrame with events from all (or specified) timelines. Includes
+    EventData with events from all (or specified) timelines. Includes
     a ``timeline_id`` field and standard event fields (``start``,
     ``end``, ``event_type``, etc.).
 
 Examples:
     >>> # Get all events from all timelines
-    >>> df = group.get_events()
+    >>> df = group.get_events().to_dataframe()
 
     >>> # Get events from a specific timeline
-    >>> df = group.get_events(timeline_id="clt1")
+    >>> df = group.get_events(timeline_id="clt1").to_dataframe()
 
     >>> # Get events with filters
-    >>> df = group.get_events(event_type="Note", min_coord=0.0, max_coord=100.0)
+    >>> df = group.get_events(
+    ...     event_type="Note", min_coord=0.0, max_coord=100.0
+    ... ).to_dataframe()
 
-### get_range { #timetoalign.TimelineGroup.get_range }
+### get_range { #timetoalign.timelines.TimelineGroup.get_range }
 
 ```python
-TimelineGroup.get_range(timeline_id, relative_to='group')
+timelines.TimelineGroup.get_range(timeline_id, relative_to='group')
 ```
 
 Get the coordinate range for a timeline in the group.
@@ -256,10 +271,10 @@ Args:
 Returns:
     (start, end) tuple, or None if timeline not in group.
 
-### get_timeline { #timetoalign.TimelineGroup.get_timeline }
+### get_timeline { #timetoalign.timelines.TimelineGroup.get_timeline }
 
 ```python
-TimelineGroup.get_timeline(timeline_id)
+timelines.TimelineGroup.get_timeline(timeline_id)
 ```
 
 Get a timeline by ID.
@@ -285,27 +300,10 @@ Examples:
     >>> group.get_timeline("notes")          # Substring match
     >>> group.get_timeline(r"^score:")       # Regex match
 
-### get_timestamp { #timetoalign.TimelineGroup.get_timestamp }
+### get_timestamp_at { #timetoalign.timelines.TimelineGroup.get_timestamp_at }
 
 ```python
-TimelineGroup.get_timestamp(index)
-```
-
-Get a specific timestamp by index.
-
-Args:
-    index: The row index in the timestamp table.
-
-Returns:
-    The GroupTimestamp at that index.
-
-Raises:
-    IndexError: If index is out of range.
-
-### get_timestamp_at { #timetoalign.TimelineGroup.get_timestamp_at }
-
-```python
-TimelineGroup.get_timestamp_at(
+timelines.TimelineGroup.get_timestamp_at(
     coordinate,
     timeline_id=None,
     *,
@@ -361,10 +359,27 @@ Examples:
     >>> ts.axis
     75.0
 
-### get_timestamp_of { #timetoalign.TimelineGroup.get_timestamp_of }
+### get_timestamp_at_index { #timetoalign.timelines.TimelineGroup.get_timestamp_at_index }
 
 ```python
-TimelineGroup.get_timestamp_of(event_id)
+timelines.TimelineGroup.get_timestamp_at_index(index)
+```
+
+Get a specific timestamp by index.
+
+Args:
+    index: The row index in the timestamp table.
+
+Returns:
+    The GroupTimestamp at that index.
+
+Raises:
+    IndexError: If index is out of range.
+
+### get_timestamp_of { #timetoalign.timelines.TimelineGroup.get_timestamp_of }
+
+```python
+timelines.TimelineGroup.get_timestamp_of(event_id)
 ```
 
 Get the TimeStamp for a specific event by its ID.
@@ -389,10 +404,13 @@ Examples:
     >>> ts.get_unit(TimeUnit.seconds)  # C-Map conversion
     45.5
 
-### get_timestamp_table { #timetoalign.TimelineGroup.get_timestamp_table }
+### get_timestamp_table { #timetoalign.timelines.TimelineGroup.get_timestamp_table }
 
 ```python
-TimelineGroup.get_timestamp_table(timeline_filter=None, conversion_maps=True)
+timelines.TimelineGroup.get_timestamp_table(
+    timeline_filter=None,
+    conversion_maps=True,
+)
 ```
 
 Get the timestamp table (or a filtered subset).
@@ -408,10 +426,10 @@ Returns:
     plus C-Map fields if conversion_maps=True.
     Returns empty table if group has no timestamps.
 
-### get_timestamps_at { #timetoalign.TimelineGroup.get_timestamps_at }
+### get_timestamps_at { #timetoalign.timelines.TimelineGroup.get_timestamps_at }
 
 ```python
-TimelineGroup.get_timestamps_at(
+timelines.TimelineGroup.get_timestamps_at(
     coordinates,
     timeline_id,
     *,
@@ -443,34 +461,10 @@ Examples:
     >>> df.columns
     Index(['clt1_score (quarterbeats)', 'dgt_holes (pixels)', ...])
 
-### get_timestamps_df { #timetoalign.TimelineGroup.get_timestamps_df }
+### get_timestamps_of { #timetoalign.timelines.TimelineGroup.get_timestamps_of }
 
 ```python
-TimelineGroup.get_timestamps_df(
-    timeline_filter=None,
-    conversion_maps=True,
-    *,
-    units=True,
-)
-```
-
-Convenience wrapper returning pandas DataFrame with units in field names.
-
-Args:
-    timeline_filter: Only include these timelines as fields.
-    conversion_maps: Whether to include C-Map fields from member timelines.
-        - True (default): Include all attached C-Maps
-        - False/None: No C-Map fields
-    units: If True (default), append units to field names like "name (unit)".
-
-Returns:
-    pandas DataFrame with timestamp data and units in field names,
-    including C-Map fields if conversion_maps=True.
-
-### get_timestamps_of { #timetoalign.TimelineGroup.get_timestamps_of }
-
-```python
-TimelineGroup.get_timestamps_of(event_ids)
+timelines.TimelineGroup.get_timestamps_of(event_ids)
 ```
 
 Get timestamps for multiple events.
@@ -491,18 +485,18 @@ Examples:
     >>> df.columns
     Index(['clt1', 'audio', 'dgt1'])
 
-### lock { #timetoalign.TimelineGroup.lock }
+### lock { #timetoalign.timelines.TimelineGroup.lock }
 
 ```python
-TimelineGroup.lock()
+timelines.TimelineGroup.lock()
 ```
 
 Lock the group to prevent extension.
 
-### remove_timeline { #timetoalign.TimelineGroup.remove_timeline }
+### remove_timeline { #timetoalign.timelines.TimelineGroup.remove_timeline }
 
 ```python
-TimelineGroup.remove_timeline(timeline_id)
+timelines.TimelineGroup.remove_timeline(timeline_id)
 ```
 
 Remove a timeline from the group.
@@ -519,10 +513,10 @@ Returns:
 Raises:
     KeyError: If timeline_id is not in the group.
 
-### summary { #timetoalign.TimelineGroup.summary }
+### summary { #timetoalign.timelines.TimelineGroup.summary }
 
 ```python
-TimelineGroup.summary()
+timelines.TimelineGroup.summary()
 ```
 
 Get a summary of the group.
@@ -530,10 +524,10 @@ Get a summary of the group.
 Returns:
     Dictionary with group information.
 
-### to_dataframe { #timetoalign.TimelineGroup.to_dataframe }
+### to_dataframe { #timetoalign.timelines.TimelineGroup.to_dataframe }
 
 ```python
-TimelineGroup.to_dataframe(
+timelines.TimelineGroup.to_dataframe(
     timeline_filter=None,
     conversion_maps=True,
     *,
@@ -577,10 +571,10 @@ Examples:
     >>> df.columns
     Index(['audio', 'dgt1', 'pixels_to_beats'])
 
-### unfold { #timetoalign.TimelineGroup.unfold }
+### unfold { #timetoalign.timelines.TimelineGroup.unfold }
 
 ```python
-TimelineGroup.unfold(
+timelines.TimelineGroup.unfold(
     flow,
     flow_controller,
     reference_timeline_id,
@@ -631,7 +625,7 @@ Raises:
     ValueError: If the flow controller cannot compute QB sections.
 
 Examples:
-    >>> loader = TSVLoader.from_file("notes.tsv", "measures.tsv")
+    >>> loader = Ms3Loader.from_file("notes.tsv", "measures.tsv")
     >>> controller = loader.create_flow_controller()
     >>> flow = controller.compute_flow(FlowMode.default)
     >>> score_group = TimelineGroup(
@@ -639,10 +633,10 @@ Examples:
     ... )
     >>> unfolded = score_group.unfold(flow, controller, "clt1")
 
-### unlock { #timetoalign.TimelineGroup.unlock }
+### unlock { #timetoalign.timelines.TimelineGroup.unlock }
 
 ```python
-TimelineGroup.unlock()
+timelines.TimelineGroup.unlock()
 ```
 
 Unlock the group to allow extension.

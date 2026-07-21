@@ -1,0 +1,20 @@
+# SoloLoader { #timetoalign.loader.tabular.SoloLoader }
+
+```python
+loader.tabular.SoloLoader(unit=None, number_type=None, **kwargs)
+```
+
+Loader for ``.solo`` performance-precision specimen files.
+
+The loader operates header-less on a tab-separated source and
+routes the canonical start coordinate through the synthesised
+``measure_number`` + ``mn_onset`` pair produced by Step 1; the
+canonical ``duration`` column is also produced by Step 1 (as a
+:class:`DenominateNumberField` bound to ``TimeUnit.quarters``).
+
+The loader does NOT (currently) reconcile measure-number into a
+flat-quarter coordinate — measures are second-order time units
+and resolution against a :class:`MetricMap` is out of scope.  The
+``start`` coordinate is therefore left null; callers that need
+flat-quarter onsets should consume ``mn_onset`` directly and
+consult their measure map.

@@ -1,0 +1,65 @@
+# PerformanceMidiLoader { #timetoalign.loader.midi.performance.PerformanceMidiLoader }
+
+```python
+loader.midi.performance.PerformanceMidiLoader(
+    parse_durations=True,
+    on0_means_off=True,
+    include_controls=True,
+    include_program_changes=True,
+    unit=None,
+    number_type=NumberType.float,
+    **kwargs,
+)
+```
+
+Load performance MIDI files using mido.
+
+This loader parses raw MIDI messages, preserving the performance characteristics
+(timing, velocity, control changes) without attempting structural analysis.
+
+It pairs note_on/note_off events into Note intervals and stores control
+changes as Instant events.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [ticks_per_beat](#timetoalign.loader.midi.performance.PerformanceMidiLoader.ticks_per_beat) | Return the ticks per beat (PPQ) of the loaded file. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_file](#timetoalign.loader.midi.performance.PerformanceMidiLoader.from_file) | Create a loader and load a MIDI file in one step. |
+
+### from_file { #timetoalign.loader.midi.performance.PerformanceMidiLoader.from_file }
+
+```python
+loader.midi.performance.PerformanceMidiLoader.from_file(
+    path,
+    *,
+    parse_durations=True,
+    on0_means_off=True,
+    include_controls=True,
+    include_program_changes=True,
+)
+```
+
+Create a loader and load a MIDI file in one step.
+
+Convenience constructor for loading a single file.
+
+Args:
+    path: Path to the MIDI file.
+    parse_durations: Whether to pair note_on/off into intervals.
+    on0_means_off: Treat note_on with velocity 0 as note_off.
+    include_controls: Include Control Change events.
+    include_program_changes: Include Program Change events.
+
+Returns:
+    A new PerformanceMidiLoader instance with the file already loaded.
+
+Examples:
+    >>> loader = PerformanceMidiLoader.from_file("performance.mid")
+    >>> loader.ticks_per_beat
+    480

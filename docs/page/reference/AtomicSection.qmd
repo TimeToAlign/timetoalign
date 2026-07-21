@@ -1,0 +1,68 @@
+# AtomicSection { #timetoalign.timelines.AtomicSection }
+
+```python
+timelines.AtomicSection(
+    id,
+    mc_start,
+    mc_end,
+    to=(),
+    section_type='default',
+    typed_measures=None,
+    groups=None,
+)
+```
+
+Smallest indivisible traversal unit (similar to partitura's segment model).
+
+Atomic sections are derived from:
+- partitura's add_segments()/get_segments() for MusicXML/MEI
+- next[] array analysis for TSV/MeasureMap
+
+Section IDs (A, B, C, ...) form a canonical reference for mapping all
+flow modes. The atomic flow mode defines these canonical sections.
+
+Note:
+    MC ranges use the **right-open interval convention** [mc_start, mc_end),
+    consistent with partitura and the TTA manuscript. For example, mc_start=1
+    and mc_end=5 means measures 1, 2, 3, 4 (four measures total).
+
+Attributes:
+    id: Letter identifier (A, B, C...) from partitura or generated.
+    mc_start: First MC of this section (inclusive).
+    mc_end: First MC AFTER this section (exclusive, right-open).
+    to: List of possible next section IDs.
+    section_type: "default", "leap_end", or "leap_start".
+
+Examples:
+    >>> sec = AtomicSection(
+    ...     id="A",
+    ...     mc_start=1,
+    ...     mc_end=5,  # Right-open: includes MCs 1,2,3,4
+    ...     to=("A", "B"),
+    ...     section_type="leap_end",
+    ... )
+    >>> sec.mc_range
+    (1, 5)
+    >>> sec.mc_count
+    4
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [mc_count](#timetoalign.timelines.AtomicSection.mc_count) | Number of MCs in this section (right-open: end - start). |
+| [mc_range](#timetoalign.timelines.AtomicSection.mc_range) | Return (mc_start, mc_end) tuple (right-open interval). |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [to_dict](#timetoalign.timelines.AtomicSection.to_dict) | Convert to dictionary for serialization. |
+
+### to_dict { #timetoalign.timelines.AtomicSection.to_dict }
+
+```python
+timelines.AtomicSection.to_dict()
+```
+
+Convert to dictionary for serialization.

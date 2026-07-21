@@ -1,0 +1,29 @@
+# CsvLoader { #timetoalign.loader.tabular.CsvLoader }
+
+```python
+loader.tabular.CsvLoader(unit=None, number_type=None, **kwargs)
+```
+
+Loader for CSV (comma-separated values) files.
+
+CsvLoader provides a general-purpose CSV loader with sensible defaults.
+Customize by subclassing or by passing configuration to __init__.
+
+Default Configuration:
+    - Delimiter: comma (,)
+    - Start column: "start"
+    - End column: "end" (if present)
+    - ID column: "id" (if present, else auto-generated)
+    - Coordinate unit: seconds
+    - Coordinate type: float
+
+Examples:
+    >>> loader = CsvLoader()
+    >>> loader.load("events.csv")
+    >>> print(loader.events.count)
+
+    >>> # Custom configuration via subclass
+    >>> class MyLoader(CsvLoader):
+    ...     start_column = "onset_time"
+    ...     end_column = "offset_time"
+    ...     column_specs = {"pitch": int, "velocity": int}

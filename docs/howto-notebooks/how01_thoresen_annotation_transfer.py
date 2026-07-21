@@ -51,6 +51,7 @@ import json
 import pandas as pd
 
 from timetoalign import (
+    Agent,
     AlignmentBundle,
     ConstantMap,
     DiscreteGraphicalTimeline,
@@ -58,7 +59,9 @@ from timetoalign import (
     MatchClaim,
     MatchMetadata,
     ScalarMap,
+    TimeUnit,
 )
+from timetoalign.core import AgentType
 from timetoalign.testdata import ensure_data  # noqa: E402
 from timetoalign.timelines import SegmentLine
 
@@ -357,15 +360,20 @@ for event_id in event_ids:
 
     # Create the MatchClaim
     claim = MatchClaim.from_projection(
-        event={"start": dgt2_start, "end": dgt2_end},
+        event={"id": event_id, "name": event_id, "start": dgt2_start, "end": dgt2_end},
         source_tl_id="dgt2",
         target_tl_id="dgt1",
         target_coord=dgt1_start,
+        source_unit=TimeUnit.pixels,
+        target_unit=TimeUnit.pixels,
         target_end_coord=dgt1_end,
         end_coord_key="end",
         metadata=MatchMetadata(
-            agent="thoresen_analysis",
-            decision_criteria="coordinate_projection_via_shared_physical_timeline",
+            agent=Agent(
+                name="Thoresen analysis",
+                type=AgentType.human,
+                identifier="coordinate_projection_via_shared_physical_timeline",
+            ),
             certainty=1.0,
         ),
     )
@@ -384,7 +392,7 @@ for event_id in event_ids:
         }
     )
 
-print(f"Created {len(claims)} MatchClaims")
+{"claims": len(claims)}
 
 # %%
 # Add claims to the bundle
@@ -405,24 +413,23 @@ claims[0]
 
 # %%
 # Find the claim for Event H (rect_h2)
-claim_h = next(c for c in claims if c.start_anchor.coordinate_a == stamp_h.start.axis)
+claim_h = next(c for c in claims if c.event_a_id == "rect_h2")
 matchstamp_h_start = claim_h.get_matchstamp(from_graph=False)
-print("Event H MatchStamp -- start anchor:")
-print(matchstamp_h_start)
+matchstamp_h_start
 
 # %%
 # The end anchor can be queried the same way by creating a fresh claim
 # from just the end anchor, or we can read the coordinates directly:
-print("\nEvent H correspondence (start):")
-print(
-    f"  DGT2: {claim_h.start_anchor.coordinate_a} px"
-    f" -> DGT1: {claim_h.start_anchor.coordinate_b:.1f} px"
-)
-print("Event H correspondence (end):")
-print(
-    f"  DGT2: {claim_h.end_anchor.coordinate_a} px"
-    f" -> DGT1: {claim_h.end_anchor.coordinate_b:.1f} px"
-)
+{
+    "start": {
+        "DGT2 px": claim_h.start_anchor.coordinate_a.value,
+        "DGT1 px": round(claim_h.start_anchor.coordinate_b.value, 1),
+    },
+    "end": {
+        "DGT2 px": claim_h.end_anchor.coordinate_a.value,
+        "DGT1 px": round(claim_h.end_anchor.coordinate_b.value, 1),
+    },
+}
 
 # %% [markdown]
 # ### All 11 MatchClaims as a DataFrame

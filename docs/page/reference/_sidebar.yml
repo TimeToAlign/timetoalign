@@ -4,15 +4,25 @@ website:
     - reference/index.qmd
     - contents:
       - reference/Coordinate.qmd
+      - reference/CoordinateField.qmd
+      - reference/Coord.qmd
       - reference/CoordinateSpec.qmd
       - reference/CoordinateValue.qmd
       - reference/IdCoordinate.qmd
+      - reference/OptionalCoordinate.qmd
+      - reference/ResolvedCoordinate.qmd
+      - reference/resolve_coordinate_spec.qmd
       - reference/Domain.qmd
       - reference/TimeUnit.qmd
       - reference/NumberType.qmd
       - reference/EventType.qmd
+      - reference/ColumnNaming.qmd
+      - reference/ColumnRole.qmd
       - reference/ScopedId.qmd
       - reference/IdGenerator.qmd
+      - reference/TimeStamp.qmd
+      - reference/TimeIntervalStamp.qmd
+      - reference/GroupTimestamp.qmd
       section: Core Types
     - contents:
       - reference/Timeline.qmd
@@ -28,14 +38,32 @@ website:
       - reference/BeatGrid.qmd
       section: Timelines
     - contents:
+      - reference/Flow.qmd
+      - reference/FlowMap.qmd
+      - reference/FlowMapSection.qmd
+      - reference/FlowControllerBase.qmd
+      - reference/ScoreFlowController.qmd
+      - reference/SegmentNameGenerator.qmd
+      - reference/AtomicSection.qmd
+      - reference/PlaythroughSection.qmd
+      - reference/FlowDiagnostic.qmd
+      - reference/load_valid_flows.qmd
+      - reference/create_unfolded_timeline.qmd
+      section: Flow Control
+    - contents:
       - reference/ConversionMap.qmd
       - reference/ScalarMap.qmd
       - reference/LinearMap.qmd
       - reference/ShiftMap.qmd
       - reference/TableMap.qmd
       - reference/ChainMap.qmd
+      - reference/ConstantMap.qmd
+      - reference/IntervalToConstantMap.qmd
+      - reference/InterpolationMap.qmd
       - reference/PiecewiseMap.qmd
       - reference/SecondsToSamples.qmd
+      - reference/QuartersToFloatingMeasures.qmd
+      - reference/QuartersToMeasureNumber.qmd
       section: Conversion Maps
     - contents:
       - reference/TimelineGroup.qmd
@@ -44,11 +72,15 @@ website:
       - reference/MatchClaim.qmd
       - reference/MatchClaimField.qmd
       - reference/MatchMetadata.qmd
+      - reference/Agent.qmd
       - reference/MatchGraph.qmd
       - reference/MatchStamp.qmd
       - reference/MatchLine.qmd
       - reference/WarpMap.qmd
       - reference/ClaimFilter.qmd
+      - reference/MatchFileContext.qmd
+      - reference/NoteRecord.qmd
+      - reference/SnoteRecord.qmd
       - reference/TimelineIdGenerator.qmd
       section: Alignment
     - contents:
@@ -57,11 +89,29 @@ website:
       - reference/EventStore.qmd
       - reference/SingleStore.qmd
       - reference/DictStore.qmd
+      - reference/EventLoader.qmd
       - reference/AudioLoader.qmd
       - reference/AudioInfo.qmd
       - reference/RepoVizzLoader.qmd
       - reference/RepoVizzInfo.qmd
       - reference/EepNotesLoader.qmd
+      - reference/CsvLoader.qmd
+      - reference/TsvLoader.qmd
+      - reference/LabLoader.qmd
+      - reference/SoloLoader.qmd
+      - reference/TabularLoader.qmd
+      - reference/JsonLoader.qmd
+      - reference/XmlLoader.qmd
+      - reference/Music21Loader.qmd
+      - reference/PartituraLoader.qmd
+      - reference/Ms3Loader.qmd
+      - reference/MeasureMapLoader.qmd
+      - reference/MidiLoader.qmd
+      - reference/PerformanceMidiLoader.qmd
+      - reference/ScoreMidiLoader.qmd
+      - reference/GraphicalLoader.qmd
+      - reference/IIIFManifestLoader.qmd
+      - reference/ATONLoader.qmd
       - reference/MatchfileLoader.qmd
       - reference/TiliaJsonLoader.qmd
       - reference/TiliaDictStore.qmd

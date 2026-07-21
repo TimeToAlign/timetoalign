@@ -1,0 +1,7 @@
+# ResolvedCoordinate { #timetoalign.ResolvedCoordinate }
+
+```python
+ResolvedCoordinate()
+```
+
+Decomposed form of a CoordinateSpec input.

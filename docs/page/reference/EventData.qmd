@@ -49,6 +49,7 @@ Examples:
 
 | Name | Description |
 | --- | --- |
+| [column_values](#timetoalign.EventData.column_values) | Return a column's values as plain, decoded Python objects. |
 | [concat](#timetoalign.EventData.concat) | Concatenate with other EventData, returning a new EventData. |
 | [coordinate_range](#timetoalign.EventData.coordinate_range) | Get the min and max coordinates across all events. |
 | [count_by](#timetoalign.EventData.count_by) | Count events grouped by a field's values. |
@@ -61,16 +62,43 @@ Examples:
 | [from_arrays](#timetoalign.EventData.from_arrays) | Create EventData from field-oriented arrays (VECTORIZED). |
 | [from_dataframe](#timetoalign.EventData.from_dataframe) | Create EventData from a pandas DataFrame. |
 | [from_dicts](#timetoalign.EventData.from_dicts) | Create EventData from a list of row dictionaries. |
-| [from_fields](#timetoalign.EventData.from_fields) | Legacy from_arrays using row-based coordinate_to_struct. |
 | [from_parquet](#timetoalign.EventData.from_parquet) | Load EventData from a Parquet file. |
 | [get_schema](#timetoalign.EventData.get_schema) | Get the canonical PyArrow schema for this EventData class. |
 | [prefix_ids](#timetoalign.EventData.prefix_ids) | Return a new EventData with all event IDs prefixed. |
 | [select](#timetoalign.EventData.select) | Select specific fields from the table. |
 | [summary](#timetoalign.EventData.summary) | Get a comprehensive summary of the store. |
 | [to_dataframe](#timetoalign.EventData.to_dataframe) | Convert to a DataFrame in the specified format. |
-| [to_pandas](#timetoalign.EventData.to_pandas) | Convert to a pandas DataFrame. |
 | [to_parquet](#timetoalign.EventData.to_parquet) | Save the EventData to a Parquet file. |
 | [where](#timetoalign.EventData.where) | Filter with a custom PyArrow compute expression. |
+
+### column_values { #timetoalign.EventData.column_values }
+
+```python
+EventData.column_values(name, *, default=None)
+```
+
+Return a column's values as plain, decoded Python objects.
+
+A rational-shaped column -- any struct column carrying a ``value``
+sub-field, such as the canonical ``{value, numerator, denominator}``
+coordinate struct used by ``start``, ``end``, ``duration``, and any
+extra field sharing that shape -- decodes to an exact `Fraction`
+via `struct_to_rational`. When a row's struct carries no exact
+ratio (missing or non-integral numerator/denominator), the float
+``value`` member is used instead, wrapped in a `Fraction`. Every
+other column type is returned via ``to_pylist()`` unchanged,
+including ``None`` for a null cell -- *default* only substitutes
+for a null rational-shaped struct or a column absent from this
+table entirely.
+
+Args:
+    name: Field name in the underlying table.
+    default: Value substituted for every row when *name* is not a
+        column of this table, and for individual null rational
+        struct cells.
+
+Returns:
+    A list of per-row values, one for each event.
 
 ### concat { #timetoalign.EventData.concat }
 
@@ -211,9 +239,14 @@ All criteria are AND-ed together.
 Args:
     temporal_type: Filter by "instant" or "interval".
     event_type: Filter by event type name.
-    min_coord: Minimum coordinate (inclusive).
-    max_coord: Maximum coordinate (exclusive).
+    min_coord: Minimum coordinate (inclusive), optionally with a unit.
+    max_coord: Maximum coordinate (exclusive), optionally with a unit.
     **kwargs: Exact match filters for other fields (e.g. event_category="note").
+
+Coordinate bounds are compared against the stored float coordinate
+representation. Fraction bounds are converted to float for this
+comparison; integer and float bounds retain their respective types.
+The minimum remains inclusive and the maximum remains exclusive.
 
 Returns:
     A new EventData with filtered events.
@@ -344,24 +377,6 @@ Examples:
     ...     {"event_type": "Note", "start": 0, "end": 0.5},
     ... ], unit=TimeUnit.seconds)
 
-### from_fields { #timetoalign.EventData.from_fields }
-
-```python
-EventData.from_fields(fields, unit, number_type=NumberType.float)
-```
-
-Legacy from_arrays using row-based coordinate_to_struct.
-
-DEPRECATED: Use from_arrays() instead for vectorized operations.
-
-Args:
-    fields: Dict mapping field names to lists of values.
-    unit: The time unit for coordinates.
-    number_type: The number type for coordinates.
-
-Returns:
-    A new EventData containing the events.
-
 ### from_parquet { #timetoalign.EventData.from_parquet }
 
 ```python
@@ -468,41 +483,10 @@ Raises:
 
 Examples:
     >>> df = events.to_dataframe()  # pandas DataFrame
-    >>> df = events.to_dataframe("pandas", raw=True)
-
-### to_pandas { #timetoalign.EventData.to_pandas }
-
-```python
-EventData.to_pandas(raw=False, coordinates=False)
-```
-
-Convert to a pandas DataFrame.
-
-By default, coordinate fields (start, end, duration) are converted from
-the internal struct representation to the appropriate Python number type:
-- Fraction if numerator/denominator are present
-- float otherwise
-
-Args:
-    raw: If True, return the raw PyArrow-to-pandas conversion with struct
-        dicts for coordinate fields. Default False shows cleaned numbers.
-    coordinates: If True, wrap coordinate values in Coordinate objects that
-        include unit information. Only effective when raw=False.
-
-Returns:
-    A pandas DataFrame with the event data.
-
-Examples:
-    >>> # Default: clean number format
-    >>> df = events.to_pandas()
     >>> df.iloc[0]['start']  # Fraction(1, 4) or 0.25
-
-    >>> # Raw struct dicts (for debugging)
-    >>> df = events.to_pandas(raw=True)
+    >>> df = events.to_dataframe("pandas", raw=True)
     >>> df.iloc[0]['start']  # {'value': 0.25, 'numerator': 1, 'denominator': 4}
-
-    >>> # Coordinate objects with unit
-    >>> df = events.to_pandas(coordinates=True)
+    >>> df = events.to_dataframe(coordinates=True)
     >>> df.iloc[0]['start']  # Coordinate(value=Fraction(1, 4), unit=quarters)
 
 ### to_parquet { #timetoalign.EventData.to_parquet }

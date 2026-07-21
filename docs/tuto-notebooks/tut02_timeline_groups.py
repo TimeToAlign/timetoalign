@@ -20,24 +20,23 @@
 # transferred between them --- once they share a `TimelineGroup`.
 
 # %%
-from pathlib import Path
-
 from timetoalign import TimelineGroup
 from timetoalign.loader.midi.performance import PerformanceMidiLoader
 from timetoalign.loader.score.partitura import PartituraLoader
+from timetoalign.testdata import ensure_data
 
-DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data"
+DATA_DIR = ensure_data("midi")
 
 # %% [markdown]
 # ## Load a Score and a Performance
 
 # %%
 _pt = PartituraLoader()
-_pt.load(DATA_DIR / "midi" / "score" / "rachmaninoff_piano.mid")
+_pt.load(DATA_DIR / "score" / "rachmaninoff_piano.mid")
 score_tl = _pt.create_timeline(uid="score")
 
 perf_tl = PerformanceMidiLoader.from_file(
-    DATA_DIR / "midi" / "performance" / "rachmaninoff_perf.mid"
+    DATA_DIR / "performance" / "rachmaninoff_perf.mid"
 ).create_timeline(uid="performance")
 
 {
@@ -81,8 +80,8 @@ partial = TimelineGroup(id="partial")
 partial.add_timeline(score_tl)
 partial.add_timeline(
     perf_tl,
-    start=(8.0, "score"),
-    end=(20.0, "score"),
+    start=score_tl.make_coordinate(8.0).with_timeline("score"),
+    end=score_tl.make_coordinate(20.0).with_timeline("score"),
 )
 partial
 

@@ -8,13 +8,13 @@ Loader for TiLiA JSON annotation exports.
 
 Parses a TiLiA ``.tla`` or ``.json`` file and produces one
 `ContinuousPhysicalTimeline` (seconds) per annotated timeline in
-the file.  The primary output is a `timetoalign.alignment.groups.TimelineGroup`
+the file.  The primary output is a `timetoalign.timelines.groups.TimelineGroup`
 containing all timelines, accessible via ``create_group()``.
 
 Internally, the ``"timelines"`` array is parsed so that each element
 (which has its own ``"kind"`` and ``"components"``) becomes a
-separate ``pa.Table`` keyed by a generated identifier
-(``"{kind}_{index}"``).  The underlying ``JsonLoader`` machinery is
+        separate ``pa.Table`` keyed by its source identifier. The underlying
+        ``JsonLoader`` machinery is
 used for normalising each timeline's components into a flat table.
 
 The ``.store`` property returns a `TiliaDictStore` with helper
@@ -28,8 +28,8 @@ properties for each TiLiA timeline type::
 
 1. ``loader.load("Bruckner5_Scherzo.json")``
 2. ``group = loader.create_group()``
-3. ``tl = loader.create_timeline("BEAT_TIMELINE_3")``
-4. ``bundle = loader.create_alignment_bundle()``
+    3. ``tl = loader.create_timeline("BEAT_TIMELINE_3")``
+4. ``bundle = loader.create_bundle()``
 
 Args:
     media_unit: The ``TimeUnit`` for all timelines.  Default
@@ -48,7 +48,7 @@ Examples:
 
 See Also:
     timetoalign.loader.format.json.JsonLoader
-    timetoalign.alignment.groups.TimelineGroup
+    timetoalign.timelines.groups.TimelineGroup
     TiliaDictStore
 
 ## Attributes
@@ -57,7 +57,7 @@ See Also:
 | --- | --- |
 | [media_length](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.media_length) | Media length in seconds (from ``media_metadata.media length``). |
 | [store](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.store) | The ``TiliaDictStore`` containing all normalised timeline tables. |
-| [timeline_ids](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.timeline_ids) | Identifiers for all parsed timelines. |
+| [timeline_ids](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.timeline_ids) | Type-based identifiers for all parsed timelines. |
 | [timeline_specs](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.timeline_specs) | Metadata dicts for each parsed timeline. |
 
 ## Methods
@@ -65,9 +65,9 @@ See Also:
 | Name | Description |
 | --- | --- |
 | [clear](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.clear) | Clear all loaded data, including timeline specs and cache. |
-| [create_alignment_bundle](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_alignment_bundle) | Create an ``AlignmentBundle`` wrapping all timelines in one group. |
+| [create_bundle](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_bundle) | Create an ``AlignmentBundle`` wrapping all timelines in one group. |
 | [create_group](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group) | Create a ``TimelineGroup`` containing all (or selected) timelines. |
-| [create_timeline](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline) | Create a single ``ContinuousPhysicalTimeline`` by id. |
+| [create_timeline](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline) | Create a single ``ContinuousPhysicalTimeline`` by uid. |
 | [create_timelines](#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines) | Create multiple timelines. |
 
 ### clear { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.clear }
@@ -78,10 +78,10 @@ loader.alignment.tilia.TiliaJsonLoader.clear()
 
 Clear all loaded data, including timeline specs and cache.
 
-### create_alignment_bundle { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_alignment_bundle }
+### create_bundle { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_bundle }
 
 ```python
-loader.alignment.tilia.TiliaJsonLoader.create_alignment_bundle()
+loader.alignment.tilia.TiliaJsonLoader.create_bundle()
 ```
 
 Create an ``AlignmentBundle`` wrapping all timelines in one group.
@@ -98,7 +98,7 @@ Raises:
 ### create_group { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group }
 
 ```python
-loader.alignment.tilia.TiliaJsonLoader.create_group(ids=None)
+loader.alignment.tilia.TiliaJsonLoader.create_group(uids=None)
 ```
 
 Create a ``TimelineGroup`` containing all (or selected) timelines.
@@ -108,7 +108,7 @@ group is built with all member timelines mapped to the same
 physical time axis (seconds).
 
 Args:
-    ids: Timeline identifiers to include.  ``None`` (default)
+    uids: Timeline identifiers to include.  ``None`` (default)
         means all.
 
 Returns:
@@ -120,36 +120,35 @@ Raises:
 ### create_timeline { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline }
 
 ```python
-loader.alignment.tilia.TiliaJsonLoader.create_timeline(id)
+loader.alignment.tilia.TiliaJsonLoader.create_timeline(uid)
 ```
 
-Create a single ``ContinuousPhysicalTimeline`` by id.
+Create a single ``ContinuousPhysicalTimeline`` by uid.
 
-The *id* is the timeline identifier from ``timeline_ids``
-(e.g. ``"BEAT_TIMELINE_3"``).  Alternatively, pass an integer
-index (as string or int) to select by position.
+The *uid* may be a type-based ID from ``timeline_ids`` (for example,
+``"cpt4"``), the original TiLiA source ID/title, or an integer index.
 
 Args:
-    id: Timeline identifier or integer index.
+    uid: Timeline identifier or integer index.
 
 Returns:
     A ``ContinuousPhysicalTimeline`` with events from the
     timeline's components.
 
 Raises:
-    KeyError: If no timeline with *id* exists.
+    KeyError: If no timeline with *uid* exists.
     RuntimeError: If ``load()`` has not been called.
 
 ### create_timelines { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines }
 
 ```python
-loader.alignment.tilia.TiliaJsonLoader.create_timelines(ids=None)
+loader.alignment.tilia.TiliaJsonLoader.create_timelines(uids=None)
 ```
 
 Create multiple timelines.
 
 Args:
-    ids: List of timeline identifiers to create.  If ``None``
+    uids: List of timeline identifiers to create.  If ``None``
         (the default), all timelines are created.
 
 Returns:

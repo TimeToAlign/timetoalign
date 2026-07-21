@@ -1,0 +1,114 @@
+# TimeStamp { #timetoalign.TimeStamp }
+
+```python
+TimeStamp(axis, source, source_id, row_index=-1, conversion_maps=True)
+```
+
+A synchronized instant across a timeline hierarchy.
+
+Lightweight object that computes coordinates on access via InterpolationMaps.
+Works identically for Timeline (with children) and TimelineGroup (with members).
+
+The TimeStamp represents a cross-section through the timeline structure at
+a specific axis coordinate. All related timelines' coordinates can be
+retrieved via get() or subscript access.
+
+Attributes:
+    axis: The root/reference coordinate value.
+    source: The Timeline or TimelineGroup this timestamp belongs to.
+    source_id: ID of the source (for serialization).
+    row_index: If from a table row, the index. -1 if interpolated.
+
+Examples:
+    >>> ts = timeline.get_timestamp(5.0)
+    >>> ts.axis  # The root coordinate
+    5.0
+    >>> ts["child:1"]  # Get coordinate on child timeline
+    2.5
+    >>> ts.get("child:2", default=0.0)  # With default
+    0.0
+
+    >>> # Convert to different unit
+    >>> ts.get_unit(TimeUnit.seconds)
+    10.5
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [is_interpolated](#timetoalign.TimeStamp.is_interpolated) | True if this timestamp was computed via interpolation. |
+| [present_timelines](#timetoalign.TimeStamp.present_timelines) | Timeline IDs that have coordinates at this instant. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [get](#timetoalign.TimeStamp.get) | Get coordinate on another timeline. |
+| [get_unit](#timetoalign.TimeStamp.get_unit) | Get coordinate converted to a specific unit. |
+| [to_dict](#timetoalign.TimeStamp.to_dict) | Materialize all coordinates as a dictionary. |
+
+### get { #timetoalign.TimeStamp.get }
+
+```python
+TimeStamp.get(timeline_id, default=None)
+```
+
+Get coordinate on another timeline.
+
+Returns ``default`` (None) when the queried coordinate falls
+outside the related timeline's span -- for instance, asking a
+child whose parent-side interval is ``[10, 30)`` for the
+coordinate at axis 5.
+
+For `Timeline` sources, child coordinates are resolved via exact
+offset arithmetic (no interpolation). For `TimelineGroup` sources,
+coordinates are resolved via `InterpolationMap`.
+
+Args:
+    timeline_id: The timeline to get coordinate for.
+    default: Value to return if timeline not reachable or out of span.
+
+Returns:
+    Coordinate on the target timeline, or *default* if not
+    reachable or the axis is outside the target's span.
+
+### get_unit { #timetoalign.TimeStamp.get_unit }
+
+```python
+TimeStamp.get_unit(unit)
+```
+
+Get coordinate converted to a specific unit.
+
+Works with any map registered by ``add_conversion_map``, called
+directly regardless of concrete type (``TableMap``, ``ScalarMap``,
+``LinearMap``, ``InterpolationMap``, ...).
+
+For TimelineGroup sources, searches ALL member timelines for the C-Map,
+first trying the source timeline, then others. This ensures that
+timestamps always show C-Map conversions regardless of which timeline
+is queried.
+
+Args:
+    unit: The target unit for conversion.
+
+Returns:
+    Converted coordinate, or None if no C-Map available.
+
+### to_dict { #timetoalign.TimeStamp.to_dict }
+
+```python
+TimeStamp.to_dict(include_children=True, conversion_units=None)
+```
+
+Materialize all coordinates as a dictionary.
+
+Args:
+    include_children: Include child/member timeline coordinates.
+    conversion_units: C-Map target units to include.
+        - None: No C-Map conversions
+        - "all": All available C-Maps
+        - list: Specific units only
+
+Returns:
+    Dict mapping timeline_id/unit_name to coordinate value.
