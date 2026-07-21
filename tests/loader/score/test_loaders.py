@@ -227,7 +227,7 @@ class TestCrossValidation:
             first = list(store.notes)[0]
             mc_onset = first.get("mc_onset")
             assert mc_onset is not None, f"{name}: mc_onset is None"
-            assert "num" in mc_onset, f"{name}: mc_onset missing num"
+            assert "numerator" in mc_onset, f"{name}: mc_onset missing numerator"
 
 
 # ---------------------------------------------------------------------------

@@ -10,7 +10,8 @@ from typing import Any
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.storage.schema import coordinate_to_struct, fraction_to_struct
+from timetoalign.core.fields import rational_to_struct
+from timetoalign.storage.schema import coordinate_to_struct
 
 from .base import ScoreLoader
 from .store import ScoreStore
@@ -399,24 +400,24 @@ class Ms3Loader(ScoreLoader):
                     ),
                     "mc": mc,
                     "mn": mn,
-                    # Extra fraction fields use fraction_to_struct (num/den format)
+                    # Extra fraction fields use the canonical rational struct
                     "mc_onset": (
-                        fraction_to_struct(mc_onset) if mc_onset is not None else None
+                        rational_to_struct(mc_onset) if mc_onset is not None else None
                     ),
                     "mn_onset": (
-                        fraction_to_struct(mn_onset) if mn_onset is not None else None
+                        rational_to_struct(mn_onset) if mn_onset is not None else None
                     ),
                     "timesig": timesig,
                     "duration": (
-                        fraction_to_struct(duration) if duration is not None else None
+                        rational_to_struct(duration) if duration is not None else None
                     ),
                     "nominal_duration": (
-                        fraction_to_struct(nominal_duration)
+                        rational_to_struct(nominal_duration)
                         if nominal_duration is not None
                         else None
                     ),
                     "scalar": (
-                        fraction_to_struct(scalar) if scalar is not None else None
+                        rational_to_struct(scalar) if scalar is not None else None
                     ),
                     # Pitch — specific_pitch is the sole default semantic
                     # pitch field; ``midi`` is the redundant raw number.
@@ -754,10 +755,10 @@ class Ms3Loader(ScoreLoader):
                     "mc": mc,
                     "mn": mn,
                     "mc_onset": (
-                        fraction_to_struct(mc_onset) if mc_onset is not None else None
+                        rational_to_struct(mc_onset) if mc_onset is not None else None
                     ),
                     "mn_onset": (
-                        fraction_to_struct(mn_onset) if mn_onset is not None else None
+                        rational_to_struct(mn_onset) if mn_onset is not None else None
                     ),
                     # Context
                     "staff": staff,
@@ -864,10 +865,10 @@ class Ms3Loader(ScoreLoader):
                     "mc": mc,
                     "mn": mn,
                     "mc_onset": (
-                        fraction_to_struct(mc_onset) if mc_onset is not None else None
+                        rational_to_struct(mc_onset) if mc_onset is not None else None
                     ),
                     "mn_onset": (
-                        fraction_to_struct(mn_onset) if mn_onset is not None else None
+                        rational_to_struct(mn_onset) if mn_onset is not None else None
                     ),
                     # Context
                     "staff": staff,

@@ -14,8 +14,6 @@ existing ``test_mixins.py`` test scaffolding.
 
 from __future__ import annotations
 
-import json
-
 import pyarrow as pa
 import pytest
 
@@ -25,6 +23,10 @@ from timetoalign.core.events import (
     EnharmonicPitchField,
     SpecificPitch,
     SpecificPitchField,
+)
+from timetoalign.core.fields import (
+    TIMETOALIGN_METADATA_KEY,
+    metadata_blob_from_dict,
 )
 from timetoalign.core.protocols import GenericPitchLike, TimeScalarLike
 from timetoalign.core.time import (
@@ -41,14 +43,11 @@ from timetoalign.storage.mixins import (
     SemanticFieldAccessMixin,
 )
 
-_TIMETOALIGN_KEY = b"timetoalign"
-
 
 def _inject_metadata(pa_field: pa.Field, field_type: str, **extra: str) -> pa.Field:
-    meta = {"field_type": field_type, **extra}
-    blob = json.dumps(meta).encode("utf-8")
+    blob = metadata_blob_from_dict({"field_type": field_type, **extra})
     existing = pa_field.metadata or {}
-    merged = {**existing, _TIMETOALIGN_KEY: blob}
+    merged = {**existing, TIMETOALIGN_METADATA_KEY: blob}
     return pa_field.with_metadata(merged)
 
 

@@ -147,7 +147,7 @@ def _build_extra_field_schema(
     * **struct-shaped** values (a ``dict`` sample) become a real
       ``pa.struct`` column whose type is inferred from the dicts.  When the
       inferred struct matches a paired ``SemanticField``'s ``pa_schema``,
-      the field is stamped with the ``b"timetoalign"`` ``field_type``
+      the field is stamped with the ``TIMETOALIGN_METADATA_KEY`` ``field_type``
       metadata blob so ``get_field()`` round-trips the semantic type
       directly (no reliance on shape discovery).
     * **list-shaped** values become a ``pa.list_`` column.
@@ -702,15 +702,7 @@ class EventData(SemanticFieldAccessMixin):
             val = processed.get(coord_col)
             if val is not None:
                 if isinstance(val, dict):
-                    if "num" in val and "value" not in val:
-                        # Legacy fraction_to_struct format -> coordinate format
-                        from fractions import Fraction
-
-                        frac = Fraction(val["num"], val["den"])
-                        processed[coord_col] = coordinate_to_struct(frac)
-                    elif "value" in val:
-                        pass  # Already coordinate struct
-                    else:
+                    if "value" not in val:
                         processed[coord_col] = coordinate_to_struct(val)
                 else:
                     processed[coord_col] = coordinate_to_struct(val)
@@ -1327,7 +1319,7 @@ class EventData(SemanticFieldAccessMixin):
         ]
 
         # Enumerate reachable semantic fields best-effort from the table
-        # schema's b"timetoalign" field_type metadata (the same source
+        # schema's TIMETOALIGN_METADATA_KEY field_type metadata (the same source
         # get_field uses). Columns with no paired field are skipped.
         registry = _get_field_type_map()
         field_items: list[str] = []

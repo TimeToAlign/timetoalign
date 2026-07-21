@@ -37,7 +37,7 @@ PyArrow storage shape (identical for Coordinate, Duration, IdCoordinate,
 IdDuration): the scalar's ``value`` is denormalised into a struct
 ``{value: float64, numerator: int64, denominator: int64}`` so that
 rational precision survives Parquet round-trips.  ``unit`` and
-``timeline_id`` live in ``pa.Field.metadata`` (the ``b"timetoalign"``
+``timeline_id`` live in ``pa.Field.metadata`` (the ``TIMETOALIGN_METADATA_KEY``
 JSON blob), NOT in the struct.
 
 Paired-field hierarchy::
@@ -54,14 +54,14 @@ Paired-field hierarchy::
 The inner raw field is a ``DenominateNumberField`` (a ``RationalField``
 with a single bound ``unit``) carrying the denormalised
 ``{value, numerator, denominator}`` struct.  ``unit`` lives in the
-field's ``b"timetoalign"`` metadata blob; ``timeline_id`` lives there
+field's ``TIMETOALIGN_METADATA_KEY`` metadata blob; ``timeline_id`` lives there
 too for the Id-variants.
 """
 
 from __future__ import annotations
 
 from fractions import Fraction
-from typing import Any, NamedTuple, Union
+from typing import Any, ClassVar, NamedTuple, Union
 
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -71,10 +71,11 @@ from .enums import Domain, NumberType, TimeUnit
 from .fields import (
     TIMETOALIGN_METADATA_KEY,
     DenominateNumberField,
+    ScalarVocabulary,
     SemanticField,
     StructField,
     data_shaped,
-    metadata_blob_from_dict,
+    parse_metadata_blob,
     register_value_projector,
 )
 
@@ -125,7 +126,7 @@ def struct_to_coordinate(
 # ---------------------------------------------------------------------------
 
 
-class TimeScalar(BaseModel):
+class TimeScalar(ScalarVocabulary, BaseModel):
     """Abstract base for ``Coordinate`` / ``Duration`` and their Id-variants.
 
     Holds the (value, unit) pair plus all shared mechanics: validators,
@@ -245,9 +246,9 @@ class TimeScalar(BaseModel):
         return type(self).__name__
 
     def metadata_dict(self) -> dict[str, str]:
-        """Default metadata payload — subclasses override to set ``field_type``."""
+        """Return the discriminator plus the (unit, domain, number_type) triple."""
         return {
-            "field_type": f"{type(self).__name__}Field",
+            **super().metadata_dict(),
             "unit": self.unit.value,
             "domain": self.domain.value,
             "number_type": self.number_type.name,
@@ -447,14 +448,6 @@ class Coordinate(TimeScalar):
     def semantic_type(self) -> str:
         return "Coordinate"
 
-    def metadata_dict(self) -> dict[str, str]:
-        return {
-            "field_type": "CoordinateField",
-            "unit": self.unit.value,
-            "domain": self.domain.value,
-            "number_type": self.number_type.name,
-        }
-
     # -- arithmetic ---------------------------------------------------------
 
     @data_shaped
@@ -582,14 +575,6 @@ class Duration(TimeScalar):
     def semantic_type(self) -> str:
         return "Duration"
 
-    def metadata_dict(self) -> dict[str, str]:
-        return {
-            "field_type": "DurationField",
-            "unit": self.unit.value,
-            "domain": self.domain.value,
-            "number_type": self.number_type.name,
-        }
-
     # -- arithmetic ---------------------------------------------------------
 
     @data_shaped
@@ -710,6 +695,11 @@ class IdCoordinate(Coordinate, IdTimeScalar):
     ``IdCoordinate - IdCoordinate → IdDuration`` when the ids match).
     """
 
+    # An IdCoordinate is stored by CoordinateField (the timeline id lives
+    # in field metadata, not in the row), so the discriminator is the
+    # plain coordinate one rather than the derived "IdCoordinateField".
+    field_type_name: ClassVar[str] = "CoordinateField"
+
     def __init__(
         self,
         value: TimeScalarValue | None = None,
@@ -763,6 +753,10 @@ class IdDuration(Duration, IdTimeScalar):
     Produced by ``Coordinate - Coordinate`` (with at least one operand
     being an ``IdCoordinate``) and ``IdDuration ± Duration``.
     """
+
+    # Mirrors IdCoordinate: stored by DurationField, with the timeline id
+    # carried in field metadata rather than derived into the name.
+    field_type_name: ClassVar[str] = "DurationField"
 
     def __init__(
         self,
@@ -934,7 +928,7 @@ def _build_denominated_struct(value_arr: pa.Array) -> pa.StructArray:
     """Wrap a numeric ``pa.Array`` back into the canonical denormalised struct.
 
     Output: ``{value: float64, numerator: int64 (null), denominator: int64 (null)}``
-    — matches ``_RATIONAL_STRUCT_TYPE``.  Used by Field-level arithmetic
+    — matches ``RATIONAL_STRUCT_TYPE``.  Used by Field-level arithmetic
     to package a freshly-computed ``value`` column into the storage shape
     expected by ``DenominateNumberField``.
     """
@@ -1147,19 +1141,13 @@ class TimeScalarField(SemanticField):
         return type(self).__name__.removesuffix("Field")
 
     def metadata_dict(self) -> dict[str, str]:
+        """Return the discriminator plus the (unit, domain, number_type) triple."""
         return {
-            "field_type": type(self).__name__,
+            **super().metadata_dict(),
             "unit": self.unit.value,
             "domain": self.domain.value,
             "number_type": self._number_type.name,
         }
-
-    def to_field(self) -> pa.Field:
-        """Return a ``pa.Field`` with the ``b"timetoalign"`` metadata blob injected."""
-        meta_blob = metadata_blob_from_dict(self.metadata_dict())
-        existing = self._field.metadata or {}
-        merged = {**existing, TIMETOALIGN_METADATA_KEY: meta_blob}
-        return self._field.with_metadata(merged)
 
     # -- materialisation ----------------------------------------------------
 
@@ -1216,16 +1204,11 @@ class TimeScalarField(SemanticField):
         nt_override: Any,
     ) -> tuple[Any, Any]:
         """Extract unit and number_type from a ``pa.Field``'s metadata."""
-        import json
-
-        meta: dict[str, str] = {}
+        meta: dict[str, Any] = {}
         raw_meta = pa_field.metadata
         if raw_meta:
             if TIMETOALIGN_METADATA_KEY in raw_meta:
-                blob = raw_meta[TIMETOALIGN_METADATA_KEY]
-                if isinstance(blob, bytes):
-                    blob = blob.decode("utf-8")
-                meta = json.loads(blob)
+                meta = parse_metadata_blob(raw_meta[TIMETOALIGN_METADATA_KEY])
             else:
                 meta = {
                     (k.decode("utf-8") if isinstance(k, bytes) else k): (
@@ -1359,8 +1342,8 @@ class TimeScalarField(SemanticField):
                 field = candidates[0]
             elif len(candidates) == 0:
                 raise ValueError(
-                    "No struct field with b'timetoalign' metadata found in table; "
-                    "pass field= explicitly"
+                    "No struct field carrying a timetoalign metadata blob found in "
+                    "table; pass field= explicitly"
                 )
             else:
                 raise ValueError(
@@ -1519,14 +1502,6 @@ class CoordinateField(TimeScalarField):
     def semantic_type(self) -> str:
         return "Coordinate"
 
-    def metadata_dict(self) -> dict[str, str]:
-        return {
-            "field_type": "CoordinateField",
-            "unit": self._unit.value,
-            "domain": self.domain.value,
-            "number_type": self._number_type.name,
-        }
-
     def __getitem__(self, i: int) -> Coordinate | None:
         value = self._materialise_value(i)
         if value is None:
@@ -1641,16 +1616,11 @@ class CoordinateField(TimeScalarField):
             pa_field.metadata is not None
             and TIMETOALIGN_METADATA_KEY in pa_field.metadata
         ):
-            import json as _json
-
-            blob = pa_field.metadata[TIMETOALIGN_METADATA_KEY]
-            if isinstance(blob, bytes):
-                blob = blob.decode("utf-8")
             try:
-                meta = _json.loads(blob)
+                meta = parse_metadata_blob(pa_field.metadata[TIMETOALIGN_METADATA_KEY])
             except (ValueError, UnicodeDecodeError):
                 meta = {}
-            if isinstance(meta, dict):
+            if meta:
                 ft = meta.get("field_type")
                 if ft == "IdCoordinateField":
                     return False
@@ -1668,7 +1638,7 @@ class IdCoordinateField(CoordinateField):
     """Coordinate field annotated with a ``timeline_id``.
 
     On-disk struct shape is identical to :class:`CoordinateField`; the
-    timeline id lives in field metadata (the ``b"timetoalign"`` blob)
+    timeline id lives in field metadata (the ``TIMETOALIGN_METADATA_KEY`` blob)
     and on the live instance.  Materialised scalars are
     :class:`IdCoordinate`.
     """
@@ -1699,13 +1669,8 @@ class IdCoordinateField(CoordinateField):
         return "IdCoordinate"
 
     def metadata_dict(self) -> dict[str, str]:
-        return {
-            "field_type": "IdCoordinateField",
-            "unit": self._unit.value,
-            "domain": self.domain.value,
-            "number_type": self._number_type.name,
-            "timeline_id": self._timeline_id,
-        }
+        """Extend the inherited payload with this field's bound timeline id."""
+        return {**super().metadata_dict(), "timeline_id": self._timeline_id}
 
     def __getitem__(self, i: int) -> IdCoordinate | None:
         value = self._materialise_value(i)
@@ -1749,7 +1714,7 @@ class IdCoordinateField(CoordinateField):
 
         Id-variants share their struct shape with their non-Id parent, so
         pure structural matching cannot distinguish them.  The
-        ``b"timetoalign"`` JSON blob's ``field_type`` key is the
+        ``TIMETOALIGN_METADATA_KEY`` JSON blob's ``field_type`` key is the
         authoritative discriminator (already injected by ``metadata_dict``
         at the SemanticField boundary).
         """
@@ -1758,16 +1723,9 @@ class IdCoordinateField(CoordinateField):
             or TIMETOALIGN_METADATA_KEY not in pa_field.metadata
         ):
             return False
-        import json as _json
-
-        blob = pa_field.metadata[TIMETOALIGN_METADATA_KEY]
-        if isinstance(blob, bytes):
-            blob = blob.decode("utf-8")
         try:
-            meta = _json.loads(blob)
+            meta = parse_metadata_blob(pa_field.metadata[TIMETOALIGN_METADATA_KEY])
         except (ValueError, UnicodeDecodeError):
-            return False
-        if not isinstance(meta, dict):
             return False
         return meta.get("field_type") == "IdCoordinateField"
 
@@ -1790,14 +1748,6 @@ class DurationField(TimeScalarField):
     @property
     def semantic_type(self) -> str:
         return "Duration"
-
-    def metadata_dict(self) -> dict[str, str]:
-        return {
-            "field_type": "DurationField",
-            "unit": self._unit.value,
-            "domain": self.domain.value,
-            "number_type": self._number_type.name,
-        }
 
     def __getitem__(self, i: int) -> Duration | None:
         value = self._materialise_value(i)
@@ -1888,16 +1838,11 @@ class DurationField(TimeScalarField):
             pa_field.metadata is not None
             and TIMETOALIGN_METADATA_KEY in pa_field.metadata
         ):
-            import json as _json
-
-            blob = pa_field.metadata[TIMETOALIGN_METADATA_KEY]
-            if isinstance(blob, bytes):
-                blob = blob.decode("utf-8")
             try:
-                meta = _json.loads(blob)
+                meta = parse_metadata_blob(pa_field.metadata[TIMETOALIGN_METADATA_KEY])
             except (ValueError, UnicodeDecodeError):
                 meta = {}
-            if isinstance(meta, dict):
+            if meta:
                 ft = meta.get("field_type")
                 if ft == "IdDurationField":
                     return False
@@ -1945,13 +1890,8 @@ class IdDurationField(DurationField):
         return "IdDuration"
 
     def metadata_dict(self) -> dict[str, str]:
-        return {
-            "field_type": "IdDurationField",
-            "unit": self._unit.value,
-            "domain": self.domain.value,
-            "number_type": self._number_type.name,
-            "timeline_id": self._timeline_id,
-        }
+        """Extend the inherited payload with this field's bound timeline id."""
+        return {**super().metadata_dict(), "timeline_id": self._timeline_id}
 
     def __getitem__(self, i: int) -> IdDuration | None:
         value = self._materialise_value(i)
@@ -1997,16 +1937,9 @@ class IdDurationField(DurationField):
             or TIMETOALIGN_METADATA_KEY not in pa_field.metadata
         ):
             return False
-        import json as _json
-
-        blob = pa_field.metadata[TIMETOALIGN_METADATA_KEY]
-        if isinstance(blob, bytes):
-            blob = blob.decode("utf-8")
         try:
-            meta = _json.loads(blob)
+            meta = parse_metadata_blob(pa_field.metadata[TIMETOALIGN_METADATA_KEY])
         except (ValueError, UnicodeDecodeError):
-            return False
-        if not isinstance(meta, dict):
             return False
         return meta.get("field_type") == "IdDurationField"
 
@@ -2035,20 +1968,15 @@ def _resolve_timeline_id(source: Any, override: str | None) -> str:
 
     if pa_field is not None and pa_field.metadata:
         if TIMETOALIGN_METADATA_KEY in pa_field.metadata:
-            import json
-
-            blob = pa_field.metadata[TIMETOALIGN_METADATA_KEY]
-            if isinstance(blob, bytes):
-                blob = blob.decode("utf-8")
             try:
-                meta = json.loads(blob)
+                meta = parse_metadata_blob(pa_field.metadata[TIMETOALIGN_METADATA_KEY])
             except (ValueError, UnicodeDecodeError):
                 meta = {}
-            tl_id = meta.get("timeline_id") if isinstance(meta, dict) else None
+            tl_id = meta.get("timeline_id")
             if isinstance(tl_id, str) and tl_id:
                 return tl_id
 
     raise ValueError(
         "timeline_id is required for Id-variant fields; pass it explicitly "
-        "or store it in the field's b'timetoalign' metadata blob."
+        "or store it in the field's timetoalign metadata blob."
     )

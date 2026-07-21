@@ -10,7 +10,7 @@ from typing_extensions import Self
 from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.storage.events import EventData
 from timetoalign.storage.mixins import HarmonyAccessMixin
-from timetoalign.storage.schema import make_fraction_field
+from timetoalign.storage.schema import make_rational_field
 
 if TYPE_CHECKING:
     pass
@@ -35,8 +35,8 @@ class AnnotationEventData(EventData, HarmonyAccessMixin):
         # Measure context
         pa.field("mc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("mn", pa.string(), nullable=True),
-        make_fraction_field("mc_onset", nullable=True),
-        make_fraction_field("mn_onset", nullable=True),
+        make_rational_field("mc_onset", nullable=True),
+        make_rational_field("mn_onset", nullable=True),
         # Annotation specifics
         pa.field("subtype", pa.string(), nullable=True),  # TextBox, Rehearsal, etc.
         pa.field("text", pa.string(), nullable=False),

@@ -19,6 +19,12 @@ import pyarrow as pa
 import pyarrow.compute as pc
 
 from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core.fields import (
+    RATIONAL_STRUCT_TYPE,
+    TIMETOALIGN_METADATA_KEY,
+    metadata_blob_from_dict,
+    parse_metadata_blob,
+)
 
 # region Coordinate Schema
 
@@ -52,21 +58,16 @@ def make_coordinate_type(unit: TimeUnit) -> pa.StructType:
     )
 
 
-# Fraction struct for temporal fields (quarterbeats, duration, etc.)
-FRACTION_TYPE = pa.struct(
-    [
-        pa.field("num", pa.int64(), nullable=False),
-        pa.field("den", pa.int64(), nullable=False),
-    ]
-)
-
-
-def make_fraction_field(
+def make_rational_field(
     name: str,
     nullable: bool = True,
     metadata: dict[str, str] | None = None,
 ) -> pa.Field:
-    """Create a Fraction field with optional metadata.
+    """Create a rational-valued field with optional metadata.
+
+    The column type is the canonical
+    :data:`~timetoalign.core.fields.RATIONAL_STRUCT_TYPE`; build its row
+    values with :func:`~timetoalign.core.fields.rational_to_struct`.
 
     Args:
         name: The field name.
@@ -74,43 +75,12 @@ def make_fraction_field(
         metadata: Additional metadata (e.g., unit, number_type).
 
     Returns:
-        A PyArrow field with FRACTION_TYPE.
+        A PyArrow field with RATIONAL_STRUCT_TYPE.
     """
     meta = {"number_type": "fraction"}
     if metadata:
         meta.update(metadata)
-    return pa.field(name, FRACTION_TYPE, nullable=nullable, metadata=meta)
-
-
-def fraction_to_struct(frac: Fraction | int | float) -> dict[str, int]:
-    """Convert a Fraction to struct dict for PyArrow.
-
-    Args:
-        frac: A Fraction, int, or float.
-
-    Returns:
-        Dict with 'num' and 'den' keys.
-    """
-    if isinstance(frac, Fraction):
-        return {"num": frac.numerator, "den": frac.denominator}
-    elif isinstance(frac, int):
-        return {"num": frac, "den": 1}
-    else:
-        # Convert float to Fraction with reasonable denominator
-        f = Fraction(frac).limit_denominator(10000)
-        return {"num": f.numerator, "den": f.denominator}
-
-
-def struct_to_fraction(struct: dict[str, int]) -> Fraction:
-    """Convert a struct dict back to a Fraction.
-
-    Args:
-        struct: Dict with 'num' and 'den' keys.
-
-    Returns:
-        A Fraction.
-    """
-    return Fraction(struct["num"], struct["den"])
+    return pa.field(name, RATIONAL_STRUCT_TYPE, nullable=nullable, metadata=meta)
 
 
 def make_coordinate_field(
@@ -309,7 +279,9 @@ def make_table_metadata(
 ) -> dict[bytes, bytes]:
     """Create metadata dict for a PyArrow table schema.
 
-    The metadata is JSON-encoded for deterministic serialization.
+    Table-level counterpart of the per-field stamp: the payload is
+    encoded by :func:`~timetoalign.core.fields.metadata_blob_from_dict`,
+    so it lands under the same key and carries the same version stamp.
 
     Args:
         unit: The time unit for coordinates.
@@ -321,9 +293,7 @@ def make_table_metadata(
     Returns:
         A dict suitable for PyArrow schema metadata.
     """
-    import json
-
-    metadata = {
+    metadata: dict[str, Any] = {
         "timetoalign_version": "0.1.0",
         "unit": str(unit),
         "number_type": str(number_type),
@@ -333,7 +303,7 @@ def make_table_metadata(
     if extra:
         metadata.update(extra)
 
-    return {b"timetoalign": json.dumps(metadata, sort_keys=True).encode()}
+    return {TIMETOALIGN_METADATA_KEY: metadata_blob_from_dict(metadata)}
 
 
 def parse_table_metadata(schema: pa.Schema) -> dict[str, Any]:
@@ -344,11 +314,13 @@ def parse_table_metadata(schema: pa.Schema) -> dict[str, Any]:
 
     Returns:
         The parsed metadata dict, or empty dict if not found.
-    """
-    import json
 
-    if schema.metadata and b"timetoalign" in schema.metadata:
-        return json.loads(schema.metadata[b"timetoalign"].decode())
+    Raises:
+        ValueError: If the blob is present but unversioned or newer than
+            this build understands.
+    """
+    if schema.metadata:
+        return parse_metadata_blob(schema.metadata.get(TIMETOALIGN_METADATA_KEY))
     return {}
 
 

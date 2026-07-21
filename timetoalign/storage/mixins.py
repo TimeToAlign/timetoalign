@@ -43,6 +43,7 @@ import pyarrow as pa
 from pydantic import BaseModel
 
 from timetoalign.core.fields import (
+    TIMETOALIGN_METADATA_KEY,
     DataField,
     MapField,
     NumericField,
@@ -50,6 +51,7 @@ from timetoalign.core.fields import (
     StringField,
     StructField,
     _GenericField,
+    parse_metadata_blob,
 )
 
 
@@ -60,9 +62,6 @@ class MultipleFieldsError(KeyError):
     column names in the message; the caller can resolve the ambiguity
     by passing ``name="<col>"`` to ``get_field``.
     """
-
-
-_TIMETOALIGN_KEY = b"timetoalign"
 
 
 def _are_interchangeable_pitch_views(
@@ -266,18 +265,25 @@ def _get_field_class_for_scalar(
 
 
 def _parse_field_type_metadata(pa_field: pa.Field) -> str | None:
-    """Extract the ``field_type`` string from a PyArrow field's metadata."""
+    """Extract the ``field_type`` string from a PyArrow field's metadata.
+
+    Returns ``None`` when the field carries no Time To Align! blob at
+    all, or when the blob is not decodable JSON.  A blob that *is*
+    readable but violates the payload contract (missing or too-new
+    ``version``) propagates the ``ValueError`` raised by
+    :func:`~timetoalign.core.fields.parse_metadata_blob`.
+    """
     meta = pa_field.metadata
     if not meta:
         return None
-    blob = meta.get(_TIMETOALIGN_KEY)
+    blob = meta.get(TIMETOALIGN_METADATA_KEY)
     if blob is None:
         return None
     try:
-        parsed = json.loads(blob)
-        return parsed.get("field_type")
-    except (json.JSONDecodeError, TypeError):
+        parsed = parse_metadata_blob(blob)
+    except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
         return None
+    return parsed.get("field_type")
 
 
 def _reconstruct_field(
@@ -386,7 +392,7 @@ def _discover_by_shape(
     :py:meth:`SemanticFieldAccessMixin.get_fields`, after metadata-based
     and ``_default_field_name``-based lookup both yield nothing.  It catches
     fields produced by loaders that have not (yet) injected
-    ``b"timetoalign"`` metadata onto raw struct fields
+    TTA metadata onto raw struct fields
     (e.g. ``midi_pitch`` / ``specific_pitch`` on TSV-loaded score notes).
 
     Args:
@@ -633,14 +639,14 @@ class SemanticFieldAccessMixin:
 
         Discovery uses three strategies, applied in order:
 
-        1. **Metadata-based**: fields carrying ``b"timetoalign"`` JSON
-           metadata with a ``field_type`` entry.
+        1. **Metadata-based**: fields carrying a ``field_type`` entry in
+           their ``TIMETOALIGN_METADATA_KEY`` blob.
         2. **Default-field-name fallback**: tries to match *field_type*'s
            ``_default_field_name`` against table fields.
         3. **Shape-based fallback**: scans all fields and constructs the
            field via ``cls.matches_pa_field()`` and ``cls.from_field()``.
            This catches loader output that has not (yet) injected
-           ``b"timetoalign"`` metadata — e.g. raw ``midi_pitch`` /
+           TTA metadata — e.g. raw ``midi_pitch`` /
            ``specific_pitch`` struct fields from the TSV loader.
 
         Returns the first non-empty result; never falls through to a

@@ -11,7 +11,7 @@ from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.core.events import EnharmonicPitchField, SpecificPitchField
 from timetoalign.core.fields import SemanticField
 from timetoalign.storage.events import EventData
-from timetoalign.storage.schema import make_fraction_field
+from timetoalign.storage.schema import make_rational_field
 
 
 class NoteEventData(EventData):
@@ -46,8 +46,8 @@ class NoteEventData(EventData):
         # Temporal - Measure context
         pa.field("mc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("mn", pa.string(), nullable=True),
-        make_fraction_field("mc_onset", nullable=True),
-        make_fraction_field("mn_onset", nullable=True),
+        make_rational_field("mc_onset", nullable=True),
+        make_rational_field("mn_onset", nullable=True),
         # Pitch — represented once.  SpecificPitch is the sole default
         # semantic pitch field (schema derived from the paired Field's
         # pydantic model, see core/events.py).

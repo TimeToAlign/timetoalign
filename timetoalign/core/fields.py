@@ -717,7 +717,67 @@ class _GenericField(DataField):
         return cls(data, field)
 
 
-class SemanticField(DataField, Generic[T]):
+class _VocabularyOwner:
+    """Shared derivation of the ``field_type`` metadata vocabulary entry.
+
+    ``field_type`` is the discriminator that lets a reader map a stored
+    column back onto the :class:`SemanticField` subclass that owns it, so
+    the strings are part of the on-disk contract.  They are derived from
+    the class name — never hand-written — with
+    :attr:`field_type_name` as the escape hatch for the handful of
+    classes whose stored name differs from their own.
+
+    Attributes:
+        field_type_name: Explicit override of the derived name.  Set it
+            on a subclass whose stored vocabulary entry is not
+            ``<ClassName><suffix>``; leave it ``None`` otherwise.
+    """
+
+    field_type_name: ClassVar[str | None] = None
+
+    _FIELD_TYPE_SUFFIX: ClassVar[str] = ""
+    """Appended to the class name when deriving the vocabulary entry."""
+
+    @classmethod
+    def field_type(cls) -> str:
+        """Return the ``field_type`` vocabulary entry for this class."""
+        if cls.field_type_name is not None:
+            return cls.field_type_name
+        return f"{cls.__name__}{cls._FIELD_TYPE_SUFFIX}"
+
+    def metadata_dict(self) -> dict[str, str]:
+        """Return the metadata payload describing this object.
+
+        Subclasses that carry more than the discriminator extend the
+        base payload rather than rebuilding it::
+
+            def metadata_dict(self) -> dict[str, str]:
+                return {**super().metadata_dict(), "unit": self.unit.value}
+        """
+        return {"field_type": type(self).field_type()}
+
+
+class FieldVocabulary(_VocabularyOwner):
+    """Vocabulary owner for :class:`SemanticField` subclasses.
+
+    A field's ``field_type`` is its own class name (``CoordinateField``,
+    ``NoteField``, …).
+    """
+
+
+class ScalarVocabulary(_VocabularyOwner):
+    """Vocabulary owner for the pydantic scalars paired with fields.
+
+    A scalar records the name of the *field* that stores it, so the
+    derived entry is ``<ScalarName>Field`` (``Coordinate`` →
+    ``"CoordinateField"``).  Scalars that are stored by an inherited
+    field class pin :attr:`~_VocabularyOwner.field_type_name` explicitly.
+    """
+
+    _FIELD_TYPE_SUFFIX: ClassVar[str] = "Field"
+
+
+class SemanticField(DataField, FieldVocabulary, Generic[T]):
     """A DataField that wraps a raw field and adds semantic identity.
 
     ``SemanticField[T]`` is the strictly-typed bridge between a pydantic
@@ -956,6 +1016,21 @@ class SemanticField(DataField, Generic[T]):
             f"{type(self).__name__}(name={self.name!r}, "
             f"raw={type(self._raw).__name__}, len={length})"
         )
+
+    def to_field(self) -> pa.Field:
+        """Return the ``pa.Field`` descriptor carrying the versioned TTA blob.
+
+        Every SemanticField stamps exactly once, here: the payload from
+        :meth:`metadata_dict` is encoded by
+        :func:`metadata_blob_from_dict` and written under
+        :data:`TIMETOALIGN_METADATA_KEY`.  Metadata entries owned by
+        anyone else are carried over untouched.
+        """
+        metadata = dict(self._field.metadata or {})
+        metadata[TIMETOALIGN_METADATA_KEY] = metadata_blob_from_dict(
+            self.metadata_dict()
+        )
+        return self._field.with_metadata(metadata)
 
     def _repr_rows(self) -> list[tuple[str, str]]:
         """Prepend the scalar-type row to the base Length/Arrow/Sample rows."""
@@ -1852,14 +1927,20 @@ def _is_coordinate_like(tp: type) -> bool:
     return False
 
 
-_RATIONAL_STRUCT_TYPE: pa.StructType = pa.struct(
+RATIONAL_STRUCT_TYPE: pa.StructType = pa.struct(
     [
         pa.field("value", pa.float64(), nullable=True),
         pa.field("numerator", pa.int64(), nullable=True),
         pa.field("denominator", pa.int64(), nullable=True),
     ]
 )
-"""Canonical denormalised storage shape for a rational number."""
+"""Canonical denormalised storage shape for a rational number.
+
+Every rational-valued column in the library uses this struct — there is
+no second ``{num, den}`` shape.  ``value`` is the float64 projection
+used for fast comparisons; ``numerator`` / ``denominator`` carry the
+exact ratio (both null when the source was an inexact float).
+"""
 
 
 _FRACTION_RE = re.compile(r"^\s*(-?\d+)\s*/\s*(-?\d+)\s*$")
@@ -1901,6 +1982,64 @@ def _parse_rational_pair(value: Any) -> tuple[int, int]:
     raise TypeError(f"cannot parse {type(value).__name__} as a rational")
 
 
+def rational_to_struct(value: Any) -> dict[str, Any]:
+    """Convert a single rational-ish value into the canonical struct dict.
+
+    This is the row-wise counterpart of :func:`build_coordinate_struct_array`
+    and the only supported way to hand-build a value for a column typed
+    :data:`RATIONAL_STRUCT_TYPE`.
+
+    Args:
+        value: A ``Fraction``, ``int``, ``float``, or a string — either
+            ``"<numerator>/<denominator>"`` or a plain numeric literal.
+
+    Returns:
+        A dict with the ``value`` / ``numerator`` / ``denominator`` keys
+        of :data:`RATIONAL_STRUCT_TYPE`.
+
+    Raises:
+        ValueError: If a string cannot be read as a rational.
+        TypeError: If *value* is of an unsupported type.
+    """
+    numerator, denominator = _parse_rational_pair(value)
+    return {
+        "value": numerator / denominator,
+        "numerator": numerator,
+        "denominator": denominator,
+    }
+
+
+def struct_to_rational(struct: dict[str, Any]) -> Fraction:
+    """Recover the exact ``Fraction`` from a canonical rational struct dict.
+
+    The float ``value`` member is deliberately ignored: it is a lossy
+    projection, so a struct without an exact ratio has no exact
+    ``Fraction`` to return.
+
+    Args:
+        struct: A dict shaped like :data:`RATIONAL_STRUCT_TYPE`.
+
+    Returns:
+        ``Fraction(numerator, denominator)``.
+
+    Raises:
+        ValueError: If either component is missing, non-integral, or the
+            denominator is zero.
+    """
+    components: list[int] = []
+    for label in ("numerator", "denominator"):
+        component = struct.get(label)
+        if not isinstance(component, int) or isinstance(component, bool):
+            raise ValueError(
+                f"rational struct {label} must be an integer, got {component!r}"
+            )
+        components.append(component)
+    numerator, denominator = components
+    if denominator == 0:
+        raise ValueError("rational struct denominator must be non-zero")
+    return Fraction(numerator, denominator)
+
+
 def _build_rational_struct(
     source: pa.Array | pa.ChunkedArray, *, name: str
 ) -> tuple[pa.StructArray, pa.Field]:
@@ -1932,7 +2071,7 @@ def _build_rational_struct(
         dens[i] = den
         values[i] = num / den if den != 0 else float("nan")
 
-    struct_type = _RATIONAL_STRUCT_TYPE
+    struct_type = RATIONAL_STRUCT_TYPE
     if null_mask.any():
         value_pa = pa.array(values, mask=null_mask, type=pa.float64())
         num_pa = pa.array(nums, mask=null_mask, type=pa.int64())
@@ -2017,7 +2156,7 @@ def build_coordinate_struct_array(
         )
 
     builder = StructArrayBuilder.from_schema_and_extractors(
-        _RATIONAL_STRUCT_TYPE,
+        RATIONAL_STRUCT_TYPE,
         {
             "value": _value_extractor,
             "numerator": _numerator_extractor,
@@ -2032,36 +2171,62 @@ def build_coordinate_struct_array(
 # ═══════════════════════════════════════════════════════════════════════════
 
 TIMETOALIGN_METADATA_KEY: bytes = b"timetoalign"
-"""The bytes key used inside ``pa.Field.metadata`` for the TTA blob."""
+"""The bytes key used inside ``pa.Field.metadata`` for the TTA blob.
+
+This module is the **sole** owner of the key: nothing else in the
+library spells the byte string out.  Import this constant instead.
+"""
+
+TIMETOALIGN_BLOB_VERSION: int = 1
+"""Schema version of the payload stored under :data:`TIMETOALIGN_METADATA_KEY`.
+
+Every blob written by :func:`metadata_blob_from_dict` or
+:func:`metadata_blob_for_model` carries this number under the
+``"version"`` key, and :func:`parse_metadata_blob` refuses any blob that
+lacks it or declares a newer version than this build understands.  Bump
+the constant whenever the payload's meaning changes.
+"""
+
+_BLOB_VERSION_KEY: str = "version"
+"""Payload key holding :data:`TIMETOALIGN_BLOB_VERSION`."""
 
 
 @lru_cache(maxsize=None)
 def _cached_json_schema_bytes(model_cls: type[BaseModel]) -> bytes:
-    """Return ``model_json_schema()`` serialised to UTF-8 bytes."""
-    return json.dumps(model_cls.model_json_schema(), sort_keys=True).encode("utf-8")
+    """Return the versioned ``model_json_schema()`` serialised to UTF-8 bytes."""
+    payload = dict(model_cls.model_json_schema())
+    payload[_BLOB_VERSION_KEY] = TIMETOALIGN_BLOB_VERSION
+    return json.dumps(payload, sort_keys=True).encode("utf-8")
 
 
 def metadata_blob_for_model(model_cls: type[BaseModel]) -> bytes:
-    """Return the JSON-encoded ``model_json_schema()`` bytes for a model.
+    """Return the JSON-encoded, versioned ``model_json_schema()`` for a model.
 
     This is the **payload** that lives under
-    ``pa.Field.metadata[b"timetoalign"]``.  It is identical for every
-    ``pa.Field`` carrying the same scalar type and is cached so repeated
-    calls return the same bytes object.
+    ``pa.Field.metadata[TIMETOALIGN_METADATA_KEY]``.  It is identical for
+    every ``pa.Field`` carrying the same scalar type and is cached so
+    repeated calls return the same bytes object.  The model's JSONSchema
+    is emitted verbatim except for the added
+    ``"version": TIMETOALIGN_BLOB_VERSION`` entry.
     """
     return _cached_json_schema_bytes(model_cls)
 
 
 def metadata_blob_from_dict(payload: dict[str, Any]) -> bytes:
-    """Return JSON-encoded UTF-8 bytes from an arbitrary payload dict.
+    """Return versioned, JSON-encoded UTF-8 bytes from a payload dict.
 
     Used by SemanticField subclasses (Coordinate, Duration) to keep
     their per-instance payload shape (which records the *runtime*
     ``unit``) while still routing through the unified metadata helper.
     Migrated scalars whose schema is entirely pydantic-derived can use
     :func:`metadata_blob_for_model` directly.
+
+    ``"version"`` is injected (overwriting any caller-supplied entry) so
+    that no unversioned blob can leave this module.
     """
-    return json.dumps(payload, sort_keys=True).encode("utf-8")
+    return json.dumps(
+        {**payload, _BLOB_VERSION_KEY: TIMETOALIGN_BLOB_VERSION}, sort_keys=True
+    ).encode("utf-8")
 
 
 def parquet_metadata_for_model(
@@ -2073,8 +2238,9 @@ def parquet_metadata_for_model(
 
     The returned dict is suitable for passing directly into
     ``pa.field(..., metadata=...)`` or ``pa.Field.with_metadata(...)``.
-    Always contains the ``b"timetoalign"`` key with the JSONSchema
-    payload; *extra* entries are merged in if provided.
+    Always contains the :data:`TIMETOALIGN_METADATA_KEY` entry with the
+    versioned JSONSchema payload; *extra* entries are merged in if
+    provided.
     """
     metadata: dict[bytes, bytes] = {
         TIMETOALIGN_METADATA_KEY: metadata_blob_for_model(model_cls)
@@ -2085,15 +2251,24 @@ def parquet_metadata_for_model(
 
 
 def parse_metadata_blob(blob: bytes | str | None) -> dict[str, Any]:
-    """Parse a ``b"timetoalign"`` payload back into a dict.
+    """Parse a :data:`TIMETOALIGN_METADATA_KEY` payload back into a dict.
+
+    The ``"version"`` entry is validated and kept in the result, so a
+    caller can round-trip the dict straight back through
+    :func:`metadata_blob_from_dict`.
 
     Args:
         blob: The bytes (or already-decoded string) stored under
-            ``b"timetoalign"`` in ``pa.Field.metadata``.  ``None`` returns
-            an empty dict.
+            :data:`TIMETOALIGN_METADATA_KEY` in ``pa.Field.metadata``.
+            ``None`` (or empty) returns an empty dict.
 
     Returns:
-        The decoded JSONSchema dictionary, or ``{}`` if *blob* is empty.
+        The decoded payload dictionary, or ``{}`` if *blob* is empty.
+
+    Raises:
+        ValueError: If the payload is not a JSON object, carries no
+            integer ``"version"``, or declares a version newer than
+            :data:`TIMETOALIGN_BLOB_VERSION`.
     """
     if blob is None:
         return {}
@@ -2101,7 +2276,25 @@ def parse_metadata_blob(blob: bytes | str | None) -> dict[str, Any]:
         blob = blob.decode("utf-8")
     if not blob:
         return {}
-    return json.loads(blob)
+    payload = json.loads(blob)
+    if not isinstance(payload, dict):
+        raise ValueError(
+            f"Time To Align! metadata blob must be a JSON object, got "
+            f"{type(payload).__name__}"
+        )
+    version = payload.get(_BLOB_VERSION_KEY)
+    if not isinstance(version, int) or isinstance(version, bool):
+        raise ValueError(
+            "Time To Align! metadata blob carries no integer "
+            f"{_BLOB_VERSION_KEY!r} entry; every blob must be written by "
+            "metadata_blob_from_dict() or metadata_blob_for_model()"
+        )
+    if version > TIMETOALIGN_BLOB_VERSION:
+        raise ValueError(
+            f"Time To Align! metadata blob declares version {version}, but this "
+            f"build understands at most {TIMETOALIGN_BLOB_VERSION}"
+        )
+    return payload
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2150,8 +2343,8 @@ class RationalField(NumberField):
        as independent views of the same storage.
     """
 
-    PA_SCHEMA: ClassVar[pa.StructType] = _RATIONAL_STRUCT_TYPE
-    _blueprint_pa_type: ClassVar[pa.DataType] = _RATIONAL_STRUCT_TYPE
+    PA_SCHEMA: ClassVar[pa.StructType] = RATIONAL_STRUCT_TYPE
+    _blueprint_pa_type: ClassVar[pa.DataType] = RATIONAL_STRUCT_TYPE
 
     def __init__(
         self,
@@ -2269,14 +2462,11 @@ class DenominateNumberField(RationalField):
             return _coerce_time_unit(override)
         raw_meta = pa_field.metadata
         if raw_meta and TIMETOALIGN_METADATA_KEY in raw_meta:
-            blob = raw_meta[TIMETOALIGN_METADATA_KEY]
             try:
-                if isinstance(blob, bytes):
-                    blob = blob.decode("utf-8")
-                payload = json.loads(blob)
-            except (UnicodeDecodeError, json.JSONDecodeError):
+                payload = parse_metadata_blob(raw_meta[TIMETOALIGN_METADATA_KEY])
+            except (UnicodeDecodeError, ValueError):
                 payload = {}
-            unit = payload.get("unit") if isinstance(payload, dict) else None
+            unit = payload.get("unit")
             if unit is not None:
                 return _coerce_time_unit(unit)
         raise ValueError(
@@ -2314,8 +2504,9 @@ class DenominateNumberField(RationalField):
         """Parse a source column as fractions and stamp unit metadata.
 
         Equivalent to :meth:`RationalField.emit` followed by attaching
-        the blueprint's bound :attr:`unit` as a ``b"timetoalign"``
-        metadata blob (``{"unit": ...}``) on the emitted field.
+        the blueprint's bound :attr:`unit` as a versioned
+        :data:`TIMETOALIGN_METADATA_KEY` blob (``{"unit": ...}``) on the
+        emitted field.
         """
         if not self.is_empty:
             raise TypeError(

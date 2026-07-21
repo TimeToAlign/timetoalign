@@ -11,7 +11,7 @@ from typing import Any
 import music21 as m21
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.storage.schema import fraction_to_struct
+from timetoalign.core.fields import rational_to_struct, struct_to_rational
 
 from .base import ScoreLoader
 from .store import ScoreStore
@@ -271,8 +271,8 @@ class Music21Loader(ScoreLoader):
                         "name": info["mn"],
                         "temporal_type": "interval",
                         "event_type": "Measure",
-                        "quarterbeats": fraction_to_struct(info["qb"]),
-                        "duration_qb": fraction_to_struct(info["dur"]),
+                        "quarterbeats": rational_to_struct(info["qb"]),
+                        "duration_qb": rational_to_struct(info["dur"]),
                         "mc": info["mc"],
                         "mn": info["mn"],
                         "timesig": None,
@@ -352,17 +352,17 @@ class Music21Loader(ScoreLoader):
                             "name": obj.__class__.__name__,
                             "temporal_type": "instant",
                             "event_type": obj.__class__.__name__,
-                            "quarterbeats": fraction_to_struct(qb),
+                            "quarterbeats": rational_to_struct(qb),
                             "duration_qb": None,
                             "mc": mc,
                             "mn": mn,
                             "mc_onset": (
-                                fraction_to_struct(mc_onset)
+                                rational_to_struct(mc_onset)
                                 if mc_onset is not None
                                 else None
                             ),
                             "mn_onset": (
-                                fraction_to_struct(mc_onset)
+                                rational_to_struct(mc_onset)
                                 if mc_onset is not None
                                 else None
                             ),
@@ -385,17 +385,17 @@ class Music21Loader(ScoreLoader):
                             "name": getattr(obj, "content", str(obj)),
                             "temporal_type": "instant",
                             "event_type": "TextExpression",
-                            "quarterbeats": fraction_to_struct(qb),
+                            "quarterbeats": rational_to_struct(qb),
                             "duration_qb": None,
                             "mc": mc,
                             "mn": mn,
                             "mc_onset": (
-                                fraction_to_struct(mc_onset)
+                                rational_to_struct(mc_onset)
                                 if mc_onset is not None
                                 else None
                             ),
                             "mn_onset": (
-                                fraction_to_struct(mc_onset)
+                                rational_to_struct(mc_onset)
                                 if mc_onset is not None
                                 else None
                             ),
@@ -415,7 +415,7 @@ class Music21Loader(ScoreLoader):
         # metadata so downstream consumers can apply the same correction.
         all_onsets = [
             (
-                float(Fraction(r["quarterbeats"]["num"], r["quarterbeats"]["den"]))
+                float(struct_to_rational(r["quarterbeats"]))
                 if r.get("quarterbeats")
                 else 0.0
             )
@@ -430,11 +430,9 @@ class Music21Loader(ScoreLoader):
         if m21_offset:
             for rows in (note_rows, measure_rows, control_rows, annotation_rows):
                 for r in rows:
-                    old_qb = Fraction(
-                        r["quarterbeats"]["num"], r["quarterbeats"]["den"]
-                    )
+                    old_qb = struct_to_rational(r["quarterbeats"])
                     new_qb = old_qb + m21_offset
-                    r["quarterbeats"] = fraction_to_struct(new_qb)
+                    r["quarterbeats"] = rational_to_struct(new_qb)
 
         # Build data
         notes_data = getattr(NoteEventData, "from_" + "dicts")(
@@ -543,12 +541,12 @@ class Music21Loader(ScoreLoader):
             "name": note_name,
             "temporal_type": "interval" if dur_qb > 0 else "instant",
             "event_type": "Rest" if is_rest else "Note",
-            "quarterbeats": fraction_to_struct(qb),
-            "duration_qb": fraction_to_struct(dur_qb),
+            "quarterbeats": rational_to_struct(qb),
+            "duration_qb": rational_to_struct(dur_qb),
             "mc": mc,
             "mn": mn,
-            "mc_onset": fraction_to_struct(mc_onset),
-            "mn_onset": fraction_to_struct(mc_onset),
+            "mc_onset": rational_to_struct(mc_onset),
+            "mn_onset": rational_to_struct(mc_onset),
             "timesig": None,
             "duration": None,
             "nominal_duration": None,

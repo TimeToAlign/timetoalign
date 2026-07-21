@@ -47,6 +47,7 @@ from timetoalign.core.events import (
     SpecificPitchClassField,
     SpecificPitchField,
 )
+from timetoalign.core.fields import TIMETOALIGN_METADATA_KEY, parse_metadata_blob
 from timetoalign.loader.midi.events import MidiEventData, ScoreMidiEventData
 from timetoalign.loader.score.ms3 import Ms3Loader
 from timetoalign.loader.score.stores.notes import NoteEventData
@@ -56,17 +57,13 @@ from timetoalign.testdata import ensure_data
 if TYPE_CHECKING:
     from timetoalign.timelines.base import Timeline
 
-_TIMETOALIGN_KEY = b"timetoalign"
-
 
 def _field_type_meta(table: pa.Table, name: str) -> str | None:
     """Return the ``field_type`` recorded in a column's timetoalign blob."""
-    import json
-
     meta = table.schema.field(name).metadata
-    if not meta or _TIMETOALIGN_KEY not in meta:
+    if not meta or TIMETOALIGN_METADATA_KEY not in meta:
         return None
-    return json.loads(meta[_TIMETOALIGN_KEY]).get("field_type")
+    return parse_metadata_blob(meta[TIMETOALIGN_METADATA_KEY]).get("field_type")
 
 
 # ---------------------------------------------------------------------------

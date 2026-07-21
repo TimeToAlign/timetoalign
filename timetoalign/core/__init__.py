@@ -85,15 +85,19 @@ from .events import (
     figbass_to_inversion,
 )
 from .fields import (
+    RATIONAL_STRUCT_TYPE,
+    TIMETOALIGN_BLOB_VERSION,
     TIMETOALIGN_METADATA_KEY,
     DataField,
     DenominateNumberField,
+    FieldVocabulary,
     FloatField,
     IntField,
     MapField,
     NumberField,
     NumericField,
     RationalField,
+    ScalarVocabulary,
     SemanticField,
     StringField,
     StructArrayBuilder,
@@ -106,8 +110,10 @@ from .fields import (
     metadata_blob_from_dict,
     parquet_metadata_for_model,
     parse_metadata_blob,
+    rational_to_struct,
     register_value_projector,
     resolve_source_fields,
+    struct_to_rational,
 )
 from .ids import IdGenerator, ScopedId, TimelineIdGenerator, resolve_id, resolve_ids
 from .time import (
@@ -193,6 +199,10 @@ __all__ = [
     # Semantic bridge + store builder + translator helpers
     "SemanticField",
     "StructArrayBuilder",
+    "RATIONAL_STRUCT_TYPE",
+    "FieldVocabulary",
+    "ScalarVocabulary",
+    "TIMETOALIGN_BLOB_VERSION",
     "TIMETOALIGN_METADATA_KEY",
     "build_coordinate_struct_array",
     "build_struct_array",
@@ -202,8 +212,10 @@ __all__ = [
     "metadata_blob_from_dict",
     "parquet_metadata_for_model",
     "parse_metadata_blob",
+    "rational_to_struct",
     "register_value_projector",
     "resolve_source_fields",
+    "struct_to_rational",
     # Pitch scalars + paired Fields
     "EnharmonicPitch",
     "EnharmonicPitchClass",

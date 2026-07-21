@@ -55,13 +55,13 @@ def extract_notes_df(store: ScoreStore, loader_name: str) -> pd.DataFrame:
     # Filter to Notes only (exclude Rests for fair comparison)
     df = df[df["event_type"] == "Note"].reset_index(drop=True)
 
-    # Flatten Fraction structs to floats for comparison
+    # Flatten rational structs to floats for comparison
     for col in ["quarterbeats", "duration_qb", "mc_onset", "mn_onset"]:
         if col in df.columns:
             df[f"{col}_float"] = df[col].apply(
                 lambda x: (
-                    x["num"] / x["den"]
-                    if isinstance(x, dict) and x.get("den")
+                    x["numerator"] / x["denominator"]
+                    if isinstance(x, dict) and x.get("denominator")
                     else None
                 )
             )

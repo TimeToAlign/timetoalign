@@ -29,6 +29,7 @@ import pyarrow.compute as pc
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 from .fields import (
+    ScalarVocabulary,
     SemanticField,
     data_shaped,
     register_value_projector,
@@ -206,7 +207,7 @@ class EnharmonicPitchClass(TwelveTETPitchMixin, BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "EnharmonicPitchClassField",
+            **super().metadata_dict(),
             "pitch_type": "epc",
         }
 
@@ -314,7 +315,7 @@ class GenericPitchClass(TwelveTETPitchMixin, BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "GenericPitchClassField",
+            **super().metadata_dict(),
             "pitch_type": "gpc",
         }
 
@@ -416,7 +417,7 @@ class GenericPitch(TwelveTETPitchMixin, BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "GenericPitchField",
+            **super().metadata_dict(),
             "pitch_type": "gp",
         }
 
@@ -571,7 +572,7 @@ class SpecificPitchClass(TwelveTETPitchMixin, BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "SpecificPitchClassField",
+            **super().metadata_dict(),
             "pitch_type": "spc",
         }
 
@@ -792,7 +793,7 @@ class EnharmonicPitch(TwelveTETPitchMixin, BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "EnharmonicPitchField",
+            **super().metadata_dict(),
             "pitch_type": "ep",
         }
 
@@ -925,7 +926,7 @@ class MidiPitch(EnharmonicPitch):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "MidiPitchField",
+            **super().metadata_dict(),
             "pitch_type": "ep",
         }
 
@@ -1050,7 +1051,7 @@ class SpecificPitch(TwelveTETPitchMixin, BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "SpecificPitchField",
+            **super().metadata_dict(),
             "pitch_type": "sp",
         }
 
@@ -1404,7 +1405,7 @@ class DcmlStorageSchema:
 # ---------------------------------------------------------------------------
 
 
-class HarmonyLabel(BaseModel):
+class HarmonyLabel(ScalarVocabulary, BaseModel):
     """Root harmony scalar.
 
     Pydantic v2 ``BaseModel``, frozen.  Minimal: label + standard.
@@ -1421,7 +1422,7 @@ class HarmonyLabel(BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "HarmonyLabelField",
+            **super().metadata_dict(),
             "standard": self.standard,
         }
 
@@ -1446,7 +1447,7 @@ class HarmonyLabelField(SemanticField[HarmonyLabel]):
     """Columnar wrapper for ``HarmonyLabel`` (paired Field)."""
 
 
-class PitchBasedHarmony(BaseModel):
+class PitchBasedHarmony(ScalarVocabulary, BaseModel):
     """Harmony with root and bass (OHR model)."""
 
     model_config = ConfigDict(frozen=True)
@@ -1462,7 +1463,7 @@ class PitchBasedHarmony(BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "PitchBasedHarmonyField",
+            **super().metadata_dict(),
             "standard": self.standard,
         }
 
@@ -1499,7 +1500,7 @@ class PitchBasedHarmonyField(SemanticField[PitchBasedHarmony]):
     """Columnar wrapper for ``PitchBasedHarmony`` (paired Field)."""
 
 
-class WesternTertianHarmony(BaseModel):
+class WesternTertianHarmony(ScalarVocabulary, BaseModel):
     """Western tertian chord."""
 
     model_config = ConfigDict(frozen=True)
@@ -1517,7 +1518,7 @@ class WesternTertianHarmony(BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "WesternTertianHarmonyField",
+            **super().metadata_dict(),
             "standard": self.standard,
         }
 
@@ -1565,7 +1566,7 @@ class WesternTertianHarmonyField(SemanticField[WesternTertianHarmony]):
     """Columnar wrapper for ``WesternTertianHarmony`` (paired Field)."""
 
 
-class RomanNumeralHarmony(BaseModel):
+class RomanNumeralHarmony(ScalarVocabulary, BaseModel):
     """Roman-numeral analysis."""
 
     model_config = ConfigDict(frozen=True)
@@ -1586,7 +1587,7 @@ class RomanNumeralHarmony(BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "RomanNumeralHarmonyField",
+            **super().metadata_dict(),
             "standard": self.standard,
         }
 
@@ -1640,7 +1641,7 @@ class RomanNumeralHarmonyField(SemanticField[RomanNumeralHarmony]):
     """Columnar wrapper for ``RomanNumeralHarmony`` (paired Field)."""
 
 
-class DcmlHarmony(BaseModel):
+class DcmlHarmony(ScalarVocabulary, BaseModel):
     """DCML harmony annotation.  ``standard`` pinned to ``Literal["dcml"]``."""
 
     model_config = ConfigDict(frozen=True)
@@ -1663,7 +1664,7 @@ class DcmlHarmony(BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "DcmlHarmonyField",
+            **super().metadata_dict(),
             "standard": "dcml",
         }
 
@@ -1810,7 +1811,7 @@ class DcmlHarmonyField(SemanticField[DcmlHarmony]):
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-class Note(BaseModel):
+class Note(ScalarVocabulary, BaseModel):
     """A single note or rest event.
 
     ``Note.pitch`` is annotated ``EnharmonicPitch | SpecificPitch | None``
@@ -1858,7 +1859,7 @@ class Note(BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "NoteField",
+            **super().metadata_dict(),
             "has_pitch": str(self.pitch is not None).lower(),
         }
 
@@ -2016,7 +2017,7 @@ class NoteField(SemanticField[Note]):
 # ---------------------------------------------------------------------------
 
 
-class Measure(BaseModel):
+class Measure(ScalarVocabulary, BaseModel):
     """A single measure boundary event."""
 
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
@@ -2074,7 +2075,7 @@ class Measure(BaseModel):
 
     def metadata_dict(self) -> dict[str, str]:
         return {
-            "field_type": "MeasureField",
+            **super().metadata_dict(),
             "time_signature": f"{self.time_signature[0]}/{self.time_signature[1]}",
         }
 

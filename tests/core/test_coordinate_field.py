@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from fractions import Fraction
 
 import pyarrow as pa
@@ -10,7 +9,12 @@ import pyarrow.parquet as pq
 import pytest
 
 from timetoalign.core.enums import Domain, NumberType, TimeUnit
-from timetoalign.core.fields import StructField
+from timetoalign.core.fields import (
+    TIMETOALIGN_METADATA_KEY,
+    StructField,
+    metadata_blob_from_dict,
+    parse_metadata_blob,
+)
 from timetoalign.core.protocols import CoordinateLike, SemanticTypeLike
 from timetoalign.core.time import Coordinate, CoordinateField
 from timetoalign.storage.schema import coordinate_to_struct, make_coordinate_type
@@ -100,9 +104,9 @@ class TestConstruction:
             "onset",
             coord_type,
             metadata={
-                b"timetoalign": json.dumps(
+                TIMETOALIGN_METADATA_KEY: metadata_blob_from_dict(
                     {"unit": "ticks", "number_type": "int"}
-                ).encode()
+                )
             },
         )
         cf = CoordinateField.from_field(pa_field)
@@ -117,9 +121,9 @@ class TestConstruction:
             "time",
             coord_type,
             metadata={
-                b"timetoalign": json.dumps(
+                TIMETOALIGN_METADATA_KEY: metadata_blob_from_dict(
                     {"unit": "seconds", "number_type": "float"}
-                ).encode()
+                )
             },
         )
         cf = CoordinateField.from_field((arr, pa_field))
@@ -128,7 +132,7 @@ class TestConstruction:
         assert cf.number_type == NumberType.float
 
     def test_from_pa_field_with_tta_metadata(self) -> None:
-        """Reconstruct from pa.Field that has b"timetoalign" JSON blob (Parquet round-trip)."""
+        """Reconstruct from a pa.Field carrying the TTA blob (Parquet round-trip)."""
         meta_dict = {
             "field_type": "CoordinateField",
             "unit": "quarters",
@@ -139,7 +143,7 @@ class TestConstruction:
         pa_field = pa.field(
             "onset",
             coord_type,
-            metadata={b"timetoalign": json.dumps(meta_dict).encode()},
+            metadata={TIMETOALIGN_METADATA_KEY: metadata_blob_from_dict(meta_dict)},
         )
         cf = CoordinateField.from_field(pa_field)
         assert cf.unit == TimeUnit.quarters
@@ -292,7 +296,7 @@ class TestSerialization:
     """Tests for CoordinateField serialization."""
 
     def test_to_field_injects_metadata(self) -> None:
-        """Verify to_field() produces pa.Field with b"timetoalign" JSON blob."""
+        """Verify to_field() produces a pa.Field carrying the TTA JSON blob."""
         arr, _ = _make_coord_array(TimeUnit.quarters, [Fraction(3, 4)])
         cf = CoordinateField.from_field(
             arr, unit=TimeUnit.quarters, number_type=NumberType.fraction
@@ -301,8 +305,8 @@ class TestSerialization:
 
         assert isinstance(pa_field, pa.Field)
         raw_meta = pa_field.metadata
-        assert b"timetoalign" in raw_meta
-        blob = json.loads(raw_meta[b"timetoalign"].decode("utf-8"))
+        assert TIMETOALIGN_METADATA_KEY in raw_meta
+        blob = parse_metadata_blob(raw_meta[TIMETOALIGN_METADATA_KEY])
         assert blob["field_type"] == "CoordinateField"
         assert blob["unit"] == "quarters"
         assert blob["domain"] == "logical"

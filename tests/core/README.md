@@ -428,6 +428,52 @@ renders through the shared `affordance_html` helper.
 
 ---
 
+### `test_parquet_metadata.py` - Versioned metadata blob, single ownership
+
+**Purpose:** Pins the contract of the Arrow-metadata vocabulary that travels
+with every Time To Align!-written `pa.Field` and table schema.
+`core/fields.py` is its sole owner: it defines the metadata key, the blob
+version, the two writers (`metadata_blob_from_dict`,
+`metadata_blob_for_model`) and the one parser (`parse_metadata_blob`).
+
+**What we validate:**
+
+1. **Version injection.** Both writers stamp
+   `"version": TIMETOALIGN_BLOB_VERSION` into every payload they encode —
+   the dict writer even when the caller supplied no `version`, and the model
+   writer alongside the model's JSONSchema. `parse_metadata_blob` returns the
+   `version` entry as part of the payload, so a parsed dict can be re-encoded
+   unchanged.
+2. **Version-less rejection.** A hand-rolled blob with no `version` key, a
+   non-integer `version`, or a `version` greater than
+   `TIMETOALIGN_BLOB_VERSION` raises `ValueError`. There are no
+   compatibility shims: every blob in circulation comes from one of the two
+   writers. Absent (`None`) and empty blobs still parse to `{}`.
+3. **Single ownership.** The byte string `b"timetoalign"` is spelled out in
+   `timetoalign/core/fields.py` and nowhere else in the package — every other
+   module imports `TIMETOALIGN_METADATA_KEY`. A test walks the package source
+   to enforce this, in either quote style and including prose: an error
+   message that spells the key out is a second source of truth too, so those
+   name the constant instead.
+4. **Hierarchy-wide stamping.** `SemanticField.to_field()` stamps the blob for
+   every field in the hierarchy exactly once, deriving `field_type` from the
+   class rather than from hand-written literals, and carries over metadata
+   entries owned by anyone else untouched.
+5. **Canonical-struct round-trip.** `rational_to_struct` /
+   `struct_to_rational` are the row-wise pair for
+   `RATIONAL_STRUCT_TYPE` (`{value, numerator, denominator}`), the library's
+   only rational shape. Round-trips return the **exact** `Fraction`
+   (`Fraction(3, 4)`, not `0.75`) because the parser reads the integer
+   components and ignores the lossy float projection; a struct whose
+   components are not integers raises `ValueError`.
+
+**Validity Rationale:** A single owner plus a required version means a stored
+table can always be interpreted, and a future payload change is a bump rather
+than a guessing game. One rational struct means a reader never has to sniff
+between two key spellings to recover an exact ratio.
+
+---
+
 ## Running Tests
 
 ```bash

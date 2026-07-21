@@ -34,6 +34,7 @@ from __future__ import annotations
 from typing import Protocol, TypeVar, runtime_checkable
 
 from .enums import Domain, NumberType, TimeUnit
+from .fields import ScalarVocabulary
 
 V = TypeVar("V", covariant=True)
 
@@ -567,7 +568,7 @@ class DcmlHarmonyLike(RomanNumeralHarmonyLike, Protocol):
 # region Pitch Mixin
 
 
-class TwelveTETPitchMixin:
+class TwelveTETPitchMixin(ScalarVocabulary):
     """Concrete mixin adding 12-TET pitch methods.
 
     Not a Protocol -- a mixin that provides a unified ``.to()`` dispatch

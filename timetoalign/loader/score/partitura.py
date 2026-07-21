@@ -16,7 +16,7 @@ with warnings.catch_warnings():
     import partitura.score as pts
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.storage.schema import fraction_to_struct
+from timetoalign.core.fields import rational_to_struct, struct_to_rational
 
 from .base import ScoreLoader
 from .store import ScoreStore
@@ -253,7 +253,7 @@ class PartituraLoader(ScoreLoader):
                             "name": "RepeatStart",
                             "temporal_type": "instant",
                             "event_type": "RepeatStart",
-                            "quarterbeats": fraction_to_struct(qb_start),
+                            "quarterbeats": rational_to_struct(qb_start),
                             "duration_qb": None,
                             "mc": start_mc,
                             "mn": get_mn(start_mc, rep.start.t),
@@ -302,7 +302,7 @@ class PartituraLoader(ScoreLoader):
                                 "name": "RepeatEnd",
                                 "temporal_type": "instant",
                                 "event_type": "RepeatEnd",
-                                "quarterbeats": fraction_to_struct(qb_end),
+                                "quarterbeats": rational_to_struct(qb_end),
                                 "duration_qb": None,
                                 "mc": last_mc_in_repeat,
                                 "mn": get_mn(last_mc_in_repeat, rep.end.t),
@@ -381,7 +381,7 @@ class PartituraLoader(ScoreLoader):
                         "name": type(obj).__name__,
                         "temporal_type": "instant",
                         "event_type": type(obj).__name__,
-                        "quarterbeats": fraction_to_struct(qb),
+                        "quarterbeats": rational_to_struct(qb),
                         "duration_qb": None,
                         "mc": marker_mc,
                         "mn": get_mn(marker_mc, obj.start.t),
@@ -506,8 +506,8 @@ class PartituraLoader(ScoreLoader):
                         "name": str(m.number),
                         "temporal_type": "interval",
                         "event_type": "Measure",
-                        "quarterbeats": fraction_to_struct(qb_start),
-                        "duration_qb": fraction_to_struct(dur),
+                        "quarterbeats": rational_to_struct(qb_start),
+                        "duration_qb": rational_to_struct(dur),
                         "mc": mc,
                         "mn": str(m.number),
                         "timesig": None,  # Could extract from part
@@ -602,12 +602,12 @@ class PartituraLoader(ScoreLoader):
                         "name": note_name,
                         "temporal_type": "interval" if dur_qb > 0 else "instant",
                         "event_type": "Rest" if is_rest else "Note",
-                        "quarterbeats": fraction_to_struct(qb_start),
-                        "duration_qb": fraction_to_struct(dur_qb),
+                        "quarterbeats": rational_to_struct(qb_start),
+                        "duration_qb": rational_to_struct(dur_qb),
                         "mc": mc,
                         "mn": mn,
-                        "mc_onset": fraction_to_struct(mc_onset),
-                        "mn_onset": fraction_to_struct(
+                        "mc_onset": rational_to_struct(mc_onset),
+                        "mn_onset": rational_to_struct(
                             mc_onset
                         ),  # Same as mc_onset for Partitura
                         "timesig": None,
@@ -642,7 +642,7 @@ class PartituraLoader(ScoreLoader):
                             "interval" if getattr(obj, "end", None) else "instant"
                         ),
                         "event_type": obj.__class__.__name__,
-                        "quarterbeats": fraction_to_struct(qb),
+                        "quarterbeats": rational_to_struct(qb),
                         "duration_qb": None,
                         "mc": obj_mc,
                         "mn": get_mn(obj_mc, obj.start.t),
@@ -667,7 +667,7 @@ class PartituraLoader(ScoreLoader):
                         "name": getattr(obj, "text", str(obj)),
                         "temporal_type": "instant",
                         "event_type": "Text",
-                        "quarterbeats": fraction_to_struct(qb),
+                        "quarterbeats": rational_to_struct(qb),
                         "duration_qb": None,
                         "mc": obj_mc,
                         "mn": get_mn(obj_mc, obj.start.t),
@@ -692,7 +692,7 @@ class PartituraLoader(ScoreLoader):
         # the same correction.
         all_onsets = [
             (
-                float(Fraction(r["quarterbeats"]["num"], r["quarterbeats"]["den"]))
+                float(struct_to_rational(r["quarterbeats"]))
                 if r.get("quarterbeats")
                 else 0.0
             )
@@ -707,11 +707,9 @@ class PartituraLoader(ScoreLoader):
         if offset:
             for rows in (note_rows, measure_rows, control_rows, annotation_rows):
                 for r in rows:
-                    old_qb = Fraction(
-                        r["quarterbeats"]["num"], r["quarterbeats"]["den"]
-                    )
+                    old_qb = struct_to_rational(r["quarterbeats"])
                     new_qb = old_qb + offset
-                    r["quarterbeats"] = fraction_to_struct(new_qb)
+                    r["quarterbeats"] = rational_to_struct(new_qb)
 
         # Build data
         notes_data = getattr(NoteEventData, "from_" + "dicts")(

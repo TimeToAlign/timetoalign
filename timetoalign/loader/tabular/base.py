@@ -85,13 +85,13 @@ def _producer_name(producer: DataField | FieldParser) -> str | None:
 
 
 def _merge_field_type_metadata(pa_field: pa.Field, field_type: str) -> pa.Field:
-    """Return *pa_field* with a ``b"timetoalign"`` blob carrying ``field_type``.
+    """Return *pa_field* with a TTA blob carrying ``field_type``.
 
-    If *pa_field* already carries a ``b"timetoalign"`` payload (e.g.
-    ``DenominateNumberField.emit()`` writes ``{"unit": ...}``), the
+    If *pa_field* already carries a ``TIMETOALIGN_METADATA_KEY`` payload
+    (e.g. ``DenominateNumberField.emit()`` writes ``{"unit": ...}``), the
     existing payload is preserved and ``"field_type"`` is added /
-    overwritten on top.  Any non-``b"timetoalign"`` metadata entries are
-    passed through unchanged.
+    overwritten on top.  Metadata entries under any other key are passed
+    through unchanged.
     """
     existing = dict(pa_field.metadata or {})
     payload: dict[str, Any] = {}
@@ -350,8 +350,8 @@ class TabularLoader(EventLoader):
         """Run Step 1: ``column_specs`` → emitted :class:`DataField`s.
 
         Each emitted field is written into *columns* (as a ``pa.Array``)
-        and its ``pa.Field`` (with a ``b"timetoalign"`` ``field_type``
-        blob) is appended to ``self._extra_schema_fields``.  The
+        and its ``pa.Field`` (with a ``field_type`` blob under
+        ``TIMETOALIGN_METADATA_KEY``) is appended to ``self._extra_schema_fields``.  The
         metadata stamp lets downstream filtering (``get_events(properties=False)``)
         recognise column-spec emissions as *fields* rather than raw
         property columns.  Any metadata the producer's ``emit()`` had
@@ -844,7 +844,7 @@ class TabularLoader(EventLoader):
         ``event_type_column``).  Every other source column is added to
         *columns* under its original name.
 
-        No ``b"timetoalign"`` metadata is attached — unconsumed source
+        No TTA metadata is attached — unconsumed source
         columns are property columns, not fields, and
         ``get_events(properties=False)`` is expected to drop them.
         """

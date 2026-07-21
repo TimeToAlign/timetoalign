@@ -9,7 +9,7 @@ from typing_extensions import Self
 
 from timetoalign.core import IntervalPolicy, NumberType, TimeUnit
 from timetoalign.storage.events import EventData
-from timetoalign.storage.schema import make_fraction_field
+from timetoalign.storage.schema import make_rational_field
 
 if TYPE_CHECKING:
     pass
@@ -37,8 +37,8 @@ class ControlEventData(EventData):
         # Measure context
         pa.field("mc", pa.int64(), nullable=True, metadata={"number_type": "int64"}),
         pa.field("mn", pa.string(), nullable=True),
-        make_fraction_field("mc_onset", nullable=True),
-        make_fraction_field("mn_onset", nullable=True),
+        make_rational_field("mc_onset", nullable=True),
+        make_rational_field("mn_onset", nullable=True),
         # Control specifics
         pa.field("subtype", pa.string(), nullable=False),  # Dynamic, Tempo, Pedal, etc.
         pa.field("value", pa.float64(), nullable=True),  # BPM, velocity, etc.

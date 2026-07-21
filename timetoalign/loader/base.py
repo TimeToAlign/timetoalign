@@ -34,6 +34,7 @@ from timetoalign.core import (
     TimelineIdGenerator,
     TimeUnit,
 )
+from timetoalign.core.fields import TIMETOALIGN_METADATA_KEY
 from timetoalign.display.html import affordance_html, code
 from timetoalign.storage import EventData
 
@@ -475,7 +476,7 @@ class EventLoader(Loader[LoadSourceResult]):
         # Also include any fields with timetoalign metadata (semantic fields)
         for i in range(len(table.schema)):
             pa_field = table.schema.field(i)
-            if pa_field.metadata and b"timetoalign" in pa_field.metadata:
+            if pa_field.metadata and TIMETOALIGN_METADATA_KEY in pa_field.metadata:
                 spec_names.add(pa_field.name)
 
         keep = core_names | spec_names
