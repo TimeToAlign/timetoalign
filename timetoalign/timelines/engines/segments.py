@@ -1,0 +1,462 @@
+"""Provide segment line and flow map operations for timeline instances."""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
+
+from timetoalign.core import CoordinateSpec
+
+if TYPE_CHECKING:
+    from ..flow import FlowMap
+    from ..types import SegmentLine
+
+
+class SegmentsMixin:
+    """Provide segment line and flow map operations for timeline instances."""
+
+    _flow_maps: dict[str, "FlowMap"]
+
+    def create_segment_line(
+        self,
+        boundaries: Sequence[CoordinateSpec],
+        *,
+        copy_events: bool = True,
+    ) -> "SegmentLine":
+        """Create a SegmentLine by segmenting at boundary coordinates.
+
+        Given k+1 sorted coordinates, produces a new SegmentLine with k
+        contiguous segments. Each segment's class matches self's class.
+
+        Does NOT modify self. Returns a new independent SegmentLine.
+
+        Args:
+            boundaries: k+1 monotonically increasing coordinates.
+            copy_events: Copy events into their respective segments.
+
+        Returns:
+            A new SegmentLine with k segments.
+
+        Raises:
+            ValueError: If fewer than 2 boundaries or not monotonically
+                increasing.
+
+        Examples:
+            >>> measures = audio_tl.create_segment_line(
+            ...     [0.0] + measure_times.tolist() + [float(audio_tl.length)]
+            ... )
+        """
+        from ..types import SegmentLine
+
+        if len(boundaries) < 2:
+            raise ValueError(
+                f"Need at least 2 boundary coordinates, got {len(boundaries)}"
+            )
+
+        coords = [float(self._resolve_axis_value(boundary)) for boundary in boundaries]
+        for i in range(1, len(coords)):
+            if coords[i] <= coords[i - 1]:
+                raise ValueError(
+                    f"Boundaries must be monotonically increasing: "
+                    f"boundaries[{i - 1}]={coords[i - 1]} >= "
+                    f"boundaries[{i}]={coords[i]}"
+                )
+
+        sl = SegmentLine(
+            segment_type=self.__class__,
+            length=0,
+            unit=self._unit,
+            number_type=self._number_type,
+        )
+
+        for i in range(len(coords) - 1):
+            start = coords[i]
+            end = coords[i + 1]
+            length = end - start
+
+            segment = self.__class__(
+                length=length,
+                unit=self._unit,
+                number_type=self._number_type,
+                name=f"segment_{i}",
+            )
+
+            if copy_events:
+                events_in_range = self.get_events(
+                    min_coord=start,
+                    max_coord=end,
+                )
+                adjusted = []
+                for event in events_in_range:
+                    adj = dict(event)
+                    for col in ("instant", "start", "end"):
+                        val = adj.get(col)
+                        if val is not None:
+                            if isinstance(val, dict) and "value" in val:
+                                adj[col] = val["value"] - start
+                            else:
+                                adj[col] = float(val) - start
+                    adjusted.append(adj)
+                if adjusted:
+                    segment.add_events(adjusted)
+
+            sl.append_segment(segment)
+
+        return sl
+
+    def create_segment_line_from_regions(
+        self,
+        region_names: Sequence[str] | None = None,
+        *,
+        copy_events: bool = True,
+    ) -> "SegmentLine":
+        """Create a SegmentLine from contiguous regions.
+
+        Validates that regions are contiguous and non-overlapping
+        (each region's end == next region's start).
+
+        Does NOT modify self.
+
+        Args:
+            region_names: Ordered region names. None = all regions sorted
+                by start coordinate.
+            copy_events: Copy events into segments.
+
+        Returns:
+            A new SegmentLine.
+
+        Raises:
+            ValueError: If regions are not contiguous or empty.
+
+        Examples:
+            >>> tl.create_regions_by_grouping("timesig")
+            >>> seg_line = tl.create_segment_line_from_regions()
+        """
+        if region_names is None:
+            # Sort regions by start coordinate
+            sorted_regions = sorted(
+                self._regions.values(), key=lambda r: float(r.start.value)
+            )
+            region_names = [r.name for r in sorted_regions]
+
+        if not region_names:
+            raise ValueError("No regions to create segment line from")
+
+        regions = [self.get_region(name) for name in region_names]
+
+        # Validate contiguity
+        for i in range(1, len(regions)):
+            prev_end = float(regions[i - 1].end.value)
+            curr_start = float(regions[i].start.value)
+            if abs(prev_end - curr_start) > 1e-10:
+                raise ValueError(
+                    f"Regions are not contiguous: '{regions[i - 1].name}' "
+                    f"ends at {prev_end} but '{regions[i].name}' starts "
+                    f"at {curr_start}"
+                )
+
+        # Build boundaries from regions
+        boundaries = [float(regions[0].start.value)]
+        for r in regions:
+            boundaries.append(float(r.end.value))
+
+        # Create the segment line
+        sl = self.create_segment_line(boundaries, copy_events=copy_events)
+
+        # Rename segments to match region names
+        for i, seg_id in enumerate(sl._segment_order):
+            sl._children[seg_id]._name = regions[i].name
+
+        return sl
+
+    def create_segment_line_by_grouping(
+        self,
+        field: str,
+        *,
+        copy_events: bool = True,
+        name_format: str = "{value}",
+    ) -> "SegmentLine":
+        """Create a SegmentLine by grouping adjacent events on a field value.
+
+        Groups must form contiguous, non-overlapping spans. This is validated
+        and raises if not satisfied.
+
+        Does NOT modify self. Does NOT add intermediate regions to self.
+
+        Args:
+            field: Event field to group by.
+            copy_events: Copy events into segments.
+            name_format: Format string for segment names.
+
+        Returns:
+            A new SegmentLine.
+
+        Raises:
+            ValueError: If groups are not contiguous.
+
+        Examples:
+            >>> systems = page.create_segment_line_by_grouping("spacing_run_id")
+        """
+        # Build runs (same logic as create_regions_by_grouping but temporary)
+        events_sorted = self._sorted_event_dicts()
+        if not events_sorted:
+            raise ValueError("No events to group")
+
+        first_event = events_sorted[0]
+        if field not in first_event:
+            raise ValueError(
+                f"Field '{field}' not found in events. "
+                f"Available fields: {list(first_event.keys())}"
+            )
+
+        runs: list[tuple[Any, float, float]] = []
+        value_counts: dict[Any, int] = {}
+
+        current_value = None
+        run_start = 0.0
+        run_end = 0.0
+
+        for event in events_sorted:
+            val = event.get(field)
+            if isinstance(val, dict) and "value" in val:
+                val = val["value"]
+
+            ev_start = self._extract_coord_value(event, "start", "instant")
+            ev_end = self._extract_coord_value(event, "end") or ev_start
+
+            if val != current_value:
+                if current_value is not None:
+                    runs.append((current_value, run_start, run_end))
+                current_value = val
+                run_start = ev_start if ev_start is not None else 0.0
+                run_end = ev_end if ev_end is not None else run_start
+            else:
+                if ev_end is not None:
+                    run_end = max(run_end, ev_end)
+
+        if current_value is not None:
+            runs.append((current_value, run_start, run_end))
+
+        # Validate contiguity
+        for i in range(1, len(runs)):
+            prev_end = runs[i - 1][2]
+            curr_start = runs[i][1]
+            if abs(prev_end - curr_start) > 1e-10:
+                raise ValueError(
+                    f"Groups are not contiguous: group "
+                    f"'{runs[i - 1][0]}' ends at {prev_end} but group "
+                    f"'{runs[i][0]}' starts at {curr_start}"
+                )
+
+        # Build boundaries
+        if not runs:
+            raise ValueError("No groups found")
+
+        boundaries = [runs[0][1]]
+        for _, _, end in runs:
+            boundaries.append(end)
+
+        sl = self.create_segment_line(boundaries, copy_events=copy_events)
+
+        # Rename segments
+        for i, seg_id in enumerate(sl._segment_order):
+            value_counts.setdefault(runs[i][0], 0)
+            value_counts[runs[i][0]] += 1
+            seg_name = name_format.format(
+                value=runs[i][0],
+                i=i,
+                n=i + 1,
+                run=value_counts[runs[i][0]],
+            )
+            sl._children[seg_id]._name = seg_name
+
+        return sl
+
+    def create_segment_line_by_splitting(
+        self,
+        predicate: str | dict[str, Any] | Callable[[dict], bool],
+        *,
+        copy_events: bool = True,
+        names: Sequence[str] | None = None,
+        name_format: str = "{prefix}_{n}",
+        prefix: str = "section",
+        include_before_first: bool = True,
+        include_after_last: bool = True,
+    ) -> "SegmentLine":
+        """Create a SegmentLine by splitting at events matching a predicate.
+
+        Shortcut for finding split points and creating a SegmentLine directly.
+        Does NOT modify self (no intermediate regions are created).
+
+        The predicate follows the same semantics as
+        :meth:`create_regions_by_splitting`.
+
+        Args:
+            predicate: Column name, filter dict, or callable identifying
+                split-point events.
+            copy_events: Copy events into segments.
+            names: Explicit segment names.
+            name_format: Format string for segment names.
+            prefix: Prefix for auto-generated names.
+            include_before_first: Include segment before first split point.
+            include_after_last: Include segment after last split point.
+
+        Returns:
+            A new SegmentLine.
+
+        Examples:
+            >>> sl = tl.create_segment_line_by_splitting(
+            ...     {"breaks": "section"}, prefix="movement"
+            ... )
+        """
+        match_fn = self._resolve_predicate(predicate)
+
+        split_coords: list[float] = []
+        events_sorted = self._sorted_event_dicts()
+
+        for event in events_sorted:
+            if match_fn(event):
+                coord = self._extract_coord_value(event, "end")
+                if coord is None:
+                    coord = self._extract_coord_value(event, "start", "instant")
+                if coord is not None:
+                    split_coords.append(coord)
+
+        split_coords = sorted(set(split_coords))
+
+        boundaries: list[float] = []
+        if include_before_first:
+            boundaries.append(float(self.origin.value))
+        boundaries.extend(split_coords)
+        if include_after_last:
+            boundaries.append(float(self.length.value))
+
+        boundaries = sorted(set(boundaries))
+
+        if len(boundaries) < 2:
+            raise ValueError("Not enough split points to create segments")
+
+        sl = self.create_segment_line(boundaries, copy_events=copy_events)
+
+        # Rename segments
+        n_segments = sl.n_segments
+        if names is not None:
+            if len(names) != n_segments:
+                raise ValueError(f"Expected {n_segments} names, got {len(names)}")
+            seg_names = list(names)
+        else:
+            seg_names = [
+                name_format.format(prefix=prefix, i=i, n=i + 1)
+                for i in range(n_segments)
+            ]
+
+        for i, seg_id in enumerate(sl._segment_order):
+            sl._children[seg_id]._name = seg_names[i]
+
+        return sl
+
+    def add_flow_map(self, flow_map: "FlowMap", id: str | None = None) -> None:
+        """Add a FlowMap to this timeline.
+
+        FlowMaps enable coordinate transformation for timelines with flow
+        control (repeats, jumps, D.S., D.C., etc.). They are created by
+        `timetoalign.ScoreFlowController` and added to the timeline for
+        later use.
+
+        Design Decision: Timelines store FlowMaps, NOT FlowControllers.
+        FlowControllers are factories that produce FlowMaps.
+
+        Args:
+            flow_map: The FlowMap to add.
+            id: Identifier for this FlowMap. If None, uses flow_map.id.
+                Common values: "default", "atomic", "single".
+
+        Examples:
+            >>> controller = ScoreFlowController(measure_data)
+            >>> flow_map = controller.create_flow_map()
+            >>> timeline.add_flow_map(flow_map)
+            >>> timeline.get_flow_map("default")  # Retrieve later
+            FlowMap(default: 5 sections)
+        """
+        if id is None:
+            id = flow_map.id
+        self._flow_maps[id] = flow_map
+        self._logger.debug(f"Added FlowMap '{id}'")
+
+    def get_flow_map(self, id: str = "default") -> "FlowMap | None":
+        """Get an attached FlowMap by id.
+
+        Args:
+            id: Identifier of the FlowMap. Default is "default".
+
+        Returns:
+            The FlowMap if found, None otherwise.
+        """
+        return self._flow_maps.get(id)
+
+    def has_flow_map(self, id: str = "default") -> bool:
+        """Check if a FlowMap with the given id is attached.
+
+        Args:
+            id: Identifier to check.
+
+        Returns:
+            True if a FlowMap with that id exists.
+        """
+        return id in self._flow_maps
+
+    def list_flow_maps(self) -> list[str]:
+        """List all attached FlowMap ids.
+
+        Returns:
+            List of id strings.
+        """
+        return list(self._flow_maps.keys())
+
+    @property
+    def n_flow_maps(self) -> int:
+        """Number of attached FlowMaps."""
+        return len(self._flow_maps)
+
+    def unfold(self, coord: CoordinateSpec, id: str = "default") -> list[float]:
+        """Convert a folded coordinate to unfolded coordinates.
+
+        Convenience method that delegates to the attached FlowMap.
+        Since repeats can cause a folded coordinate to appear multiple times
+        in the unfolded timeline, this returns a list.
+
+        Args:
+            coord: Coordinate in the folded timeline.
+            id: Which FlowMap to use.
+
+        Returns:
+            List of coordinates in the unfolded timeline.
+
+        Raises:
+            ValueError: If no FlowMap with the given id is attached.
+        """
+        flow_map = self._flow_maps.get(id)
+        if flow_map is None:
+            raise ValueError(f"No FlowMap attached with id '{id}'")
+        return [float(c) for c in flow_map.unfold(self._resolve_axis_value(coord))]
+
+    def fold(self, coord: CoordinateSpec, id: str = "default") -> float:
+        """Convert an unfolded coordinate to a folded coordinate.
+
+        Convenience method that delegates to the attached FlowMap.
+
+        Args:
+            coord: Coordinate in the unfolded timeline.
+            id: Which FlowMap to use.
+
+        Returns:
+            Coordinate in the folded timeline.
+
+        Raises:
+            ValueError: If no FlowMap with the given id is attached,
+                        or if the coordinate is outside the flow range.
+        """
+        flow_map = self._flow_maps.get(id)
+        if flow_map is None:
+            raise ValueError(f"No FlowMap attached with id '{id}'")
+        return float(flow_map.fold(self._resolve_axis_value(coord)))

@@ -1,0 +1,514 @@
+"""Provide coordinate conversion operations for timeline instances."""
+
+from __future__ import annotations
+
+from fractions import Fraction
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
+
+from timetoalign.core import (
+    Coordinate,
+    CoordinateSpec,
+    CoordinateValue,
+    NumberType,
+    TimeUnit,
+    resolve_coordinate_spec,
+)
+from timetoalign.maps import ConversionMap, InterpolationMap
+
+if TYPE_CHECKING:
+    from ..base import Timeline
+
+SEGMENT_EVENT_TYPE = "Segment"
+
+
+class ConversionMapsMixin:
+    """Provide coordinate conversion operations for timeline instances."""
+
+    @property
+    def n_conversion_maps(self) -> int:
+        """Number of attached conversion maps."""
+        return len(self._conversion_maps)
+
+    def add_conversion_map(self, cmap: ConversionMap[Any]) -> None:
+        """Add a ConversionMap to this timeline.
+
+        Any map with a ``target_unit`` is automatically registered in the
+        unified timestamp system so that :meth:`get_timestamp` can resolve
+        coordinates in that unit. The map is stored as-is: ``TableMap``
+        instances honor their own ``kind`` (nearest/previous/next/linear)
+        and ``extrapolate`` policy directly, and analytical maps (e.g.
+        ``ScalarMap``, ``LinearMap``) are likewise stored directly.
+
+        Args:
+            cmap: The ConversionMap to add.
+
+        Raises:
+            ValueError: If the map's source unit is incompatible.
+        """
+        if cmap.source_unit is not None and cmap.source_unit != self._unit:
+            raise ValueError(
+                f"Map source unit '{cmap.source_unit}' does not match "
+                f"timeline unit '{self._unit}'"
+            )
+        self._conversion_maps[cmap.id] = cmap
+
+        # Register in the unified timestamp system for unit-based lookup
+        if cmap.target_unit is not None:
+            self._unit_maps[cmap.target_unit] = cmap
+
+        self._logger.debug(f"Added conversion map '{cmap.id}'")
+
+    def get_conversion_map(
+        self, target_unit: TimeUnit | str
+    ) -> ConversionMap[Any] | None:
+        """Get a conversion map by target unit **or** by name/id.
+
+        When *target_unit* is a valid `TimeUnit` value (or an alias such as
+        ``"seconds"``), the method returns the first attached map whose
+        ``target_unit`` matches.
+
+        When *target_unit* is a string that does **not** correspond to any
+        ``TimeUnit`` member, the method falls back to a name-based lookup:
+        it searches first by ``cmap.id``, then by ``cmap.name``.  This is
+        useful for maps where source and target units are identical (e.g. a
+        ``ShiftMap`` named ``"raw_quarters"`` that maps normalised quarters
+        back to raw partitura quarters).
+
+        Args:
+            target_unit: A ``TimeUnit`` member, a unit alias string, or a
+                conversion-map name/id string.
+
+        Returns:
+            A matching ``ConversionMap``, or ``None`` if not found.
+
+        Examples:
+            >>> timeline.get_conversion_map(TimeUnit.seconds)
+            ScalarMap(...)
+            >>> timeline.get_conversion_map("raw_quarters")
+            ShiftMap(offset=-0.5, ...)
+        """
+        # Attempt unit-based lookup first
+        try:
+            target = TimeUnit(target_unit)
+        except ValueError:
+            pass
+        else:
+            for cmap in self._conversion_maps.values():
+                if cmap.target_unit == target:
+                    return cmap
+            return None
+
+        # Fallback: name/id-based lookup (target_unit is a plain string)
+        name = str(target_unit)
+        # Direct id lookup (O(1) — _conversion_maps is keyed by cmap.id)
+        if name in self._conversion_maps:
+            return self._conversion_maps[name]
+        # Fallback to name attribute scan
+        for cmap in self._conversion_maps.values():
+            if cmap.name == name:
+                return cmap
+        return None
+
+    def convert_to(
+        self,
+        values: CoordinateValue | Coordinate | np.ndarray,
+        target_unit: TimeUnit | str,
+    ) -> Coordinate | np.ndarray:
+        """Convert coordinates to another unit using attached C-Maps.
+
+        Args:
+            values: Coordinate value(s) to convert. Can be:
+                - Scalar (int, float, Fraction): Returns a Coordinate object
+                - Coordinate: Returns a Coordinate object
+                - numpy array: Returns a numpy array of converted values
+            target_unit: Target unit.
+
+        Returns:
+            - For scalar/Coordinate input: Coordinate object in the target unit
+            - For array input: numpy array of converted values
+
+        Raises:
+            ValueError: If no suitable map is found.
+
+        Examples:
+            >>> timeline.add_conversion_map(ScalarMap(scalar=1/300, ...))
+            >>> coord = timeline.convert_to(15343, "inches")
+            >>> coord
+            Coordinate(51.1, inches)
+            >>> arr = timeline.convert_to(np.array([100, 200]), "inches")
+            >>> arr
+            array([0.333, 0.666])
+        """
+        target = TimeUnit(target_unit)
+        cmap = self.get_conversion_map(target)
+        if cmap is None:
+            raise ValueError(
+                f"No conversion map found from '{self._unit}' to '{target}'"
+            )
+        converted_value = cmap(values)
+
+        # Return array for array input, Coordinate for scalar input
+        if isinstance(values, np.ndarray):
+            return converted_value
+        return Coordinate(converted_value, target)
+
+    def derive(
+        self,
+        target_unit: TimeUnit | str,
+        name: str | None = None,
+        copy_events: bool = False,
+    ) -> "Timeline":
+        """Create a derivative timeline in a different unit via C-Map conversion.
+
+        From TTA manuscript (Section 3.3):
+        "A ConversionMap implies the presence of a derived timeline in the
+        target unit. The derive() method makes this implicit timeline explicit."
+
+        The derived timeline:
+        - Has coordinates in the target unit
+        - Has length equal to the converted source length
+        - Automatically has an inverse C-Map back to the source unit
+        - Optionally copies and converts events from the source
+
+        This operation creates a NEW timeline, NOT a child timeline.
+        The source and derived timelines have different units, so per TTA
+        specification, they cannot be parent-child (children must share
+        the parent's unit). Use TimelineGroup to connect them.
+
+        Args:
+            target_unit: The unit for the derived timeline.
+            name: Optional name for the derived timeline.
+            copy_events: If True, copy and convert events to the derived timeline.
+
+        Returns:
+            A new Timeline in the target unit.
+
+        Raises:
+            ValueError: If no C-Map exists for the target unit.
+            ValueError: If C-Map is not invertible (needed for roundtrip).
+
+        Examples:
+            >>> # Create physical timeline with tempo C-Map
+            >>> audio = ContinuousPhysicalTimeline(length=60.0)
+            >>> audio.add_conversion_map(LinearMap(2.0, 0.0,
+            ...     source_unit=TimeUnit.seconds, target_unit=TimeUnit.quarters))
+            >>> # Derive a logical timeline
+            >>> score = audio.derive(TimeUnit.quarters, name="score")
+            >>> score.unit
+            TimeUnit.quarters
+            >>> score.length
+            Coordinate(120.0, quarters)  # 60 seconds * 2 q/s
+        """
+        target = TimeUnit(target_unit) if isinstance(target_unit, str) else target_unit
+
+        # Get the C-Map for this conversion
+        cmap = self.get_conversion_map(target)
+        if cmap is None:
+            raise ValueError(
+                f"No C-Map from '{self._unit}' to '{target}'. "
+                f"Add a ConversionMap with add_conversion_map() first."
+            )
+
+        # Convert length
+        derived_length = cmap(self._length.value)
+
+        # Determine appropriate Timeline class for target domain
+        from ..types import get_timeline_class
+
+        target_domain = target.domain.name.lower()
+        # Determine discrete vs continuous based on target unit
+        # Ticks, samples, frames, pixels are discrete
+        discrete_units = {
+            TimeUnit.ticks,
+            TimeUnit.samples,
+            TimeUnit.frames,
+            TimeUnit.pixels,
+        }
+        is_discrete = target in discrete_units
+
+        try:
+            derived_class = get_timeline_class(target_domain, discrete=is_discrete)
+        except ValueError:
+            # Fallback to base Timeline if domain lookup fails
+            derived_class = Timeline
+
+        # Create derived timeline
+        derived = derived_class(
+            length=derived_length,
+            unit=target,
+            name=name or f"{self._id}_derived",
+        )
+
+        # Add inverse C-Map if available (for roundtrip conversion)
+        if cmap.is_invertible:
+            inverse = cmap.inverse()
+            derived.add_conversion_map(inverse)
+        else:
+            self._logger.warning(
+                f"C-Map '{cmap.id}' is not invertible. "
+                f"The derived timeline will not have a C-Map back to '{self._unit}'."
+            )
+
+        # Copy and convert events if requested
+        if copy_events:
+            converted_events = []
+            for event in self._events:
+                # Skip segment events
+                if event.get("event_type") == SEGMENT_EVENT_TYPE:
+                    continue
+
+                converted = dict(event)
+                for coord_col in ("instant", "start", "end"):
+                    val = converted.get(coord_col)
+                    if val is not None:
+                        # Handle coordinate struct or raw value
+                        if isinstance(val, dict) and "value" in val:
+                            converted[coord_col] = float(cmap(val["value"]))
+                        else:
+                            converted[coord_col] = float(cmap(val))
+
+                # Convert duration if present
+                if converted.get("duration") is not None:
+                    duration_val = converted["duration"]
+                    if isinstance(duration_val, dict) and "value" in duration_val:
+                        # Duration needs to be converted using rate, not absolute value
+                        # For linear maps: derived_duration = source_duration * scalar
+                        converted["duration"] = float(
+                            cmap(duration_val["value"])
+                        ) - float(cmap(0))
+                    else:
+                        converted["duration"] = float(cmap(duration_val)) - float(
+                            cmap(0)
+                        )
+
+                converted_events.append(converted)
+
+            if converted_events:
+                derived.add_events(converted_events)
+
+        self._logger.debug(
+            f"Derived timeline '{derived.id}' in {target} from '{self._id}'"
+        )
+
+        return derived
+
+    def _get_child_coordinate(self, child_id: str, parent_coord: float) -> float | None:
+        """Convert a parent coordinate to a child coordinate via exact offset arithmetic.
+
+        ``child_coord = parent_coord - offset``
+
+        Returns None if *parent_coord* falls outside the child's
+        ``[offset, offset + length)`` span.
+
+        Args:
+            child_id: The child timeline ID.
+            parent_coord: Coordinate on this (parent) timeline.
+
+        Returns:
+            Coordinate on the child timeline, or None if out of bounds.
+        """
+        offset = self._child_offsets.get(child_id)
+        if offset is None:
+            return None
+        child = self._children[child_id]
+        child_coord = parent_coord - float(offset.value)
+        child_length = float(child.length.value)
+        if child_coord < 0 or (child_length > 0 and child_coord >= child_length):
+            return None
+        return child_coord
+
+    def _get_parent_coordinate_from_child(
+        self, child_id: str, child_coord: float
+    ) -> float:
+        """Convert a child coordinate to a parent coordinate via exact offset arithmetic.
+
+        ``parent_coord = child_coord + offset``
+
+        Args:
+            child_id: The child timeline ID.
+            child_coord: Coordinate on the child timeline.
+
+        Returns:
+            Coordinate on this (parent) timeline.
+
+        Raises:
+            KeyError: If *child_id* is not a child of this timeline.
+        """
+        offset = self._child_offsets[child_id]
+        return child_coord + float(offset.value)
+
+    def _get_interpolation_map(
+        self, target_id: str, source_id: str | None = None
+    ) -> InterpolationMap | None:
+        """Get InterpolationMap for coordinate conversion to target.
+
+        This method is part of the `TimeStampSource` protocol.
+
+        For parent-child relationships, returns None: child coordinates are
+        resolved via exact offset arithmetic in ``_get_child_coordinate()``
+        instead. InterpolationMaps are only used by `TimelineGroup` for
+        inter-member conversions and, for unit-based conversions, by
+        ``_get_unit_map`` (which returns whichever ConversionMap type was
+        registered, not necessarily an InterpolationMap).
+
+        Args:
+            target_id: Target timeline ID.
+            source_id: Source timeline ID (ignored for Timeline, always self).
+
+        Returns:
+            None. Child conversion uses offset arithmetic.
+        """
+        return None
+
+    def _get_unit_map(self, unit: TimeUnit) -> ConversionMap[Any] | None:
+        """Get a map for unit-based conversion.
+
+        Returns whichever ``ConversionMap`` was registered by
+        :meth:`add_conversion_map` for this unit, called directly regardless
+        of its concrete type (``TableMap``, ``ScalarMap``, ``LinearMap``,
+        ...).
+
+        This method is part of the TimeStampSource protocol.
+
+        Args:
+            unit: Target unit.
+
+        Returns:
+            A map for conversion, or None if no C-Map available.
+        """
+        return self._unit_maps.get(unit)
+
+    def _get_unit_map_for_timeline(
+        self, timeline_id: str, unit: TimeUnit
+    ) -> ConversionMap[Any] | None:
+        """Get a C-Map for this timeline when it is the source timeline."""
+        if timeline_id != self._id:
+            return None
+        return self._get_unit_map(unit)
+
+    def _get_number_type_for_timeline(self, timeline_id: str) -> NumberType | None:
+        """Get the numeric representation used by this timeline or child."""
+        if timeline_id == self._id:
+            return self._number_type
+        child = self._children.get(timeline_id)
+        return child.number_type if child is not None else None
+
+    def _get_related_timeline_ids(self) -> list[str]:
+        """Get IDs of all related timelines (children).
+
+        This method is part of the TimeStampSource protocol.
+
+        Returns:
+            List of child timeline IDs.
+        """
+        return list(self._children.keys())
+
+    def _get_available_units(self) -> list[TimeUnit]:
+        """Get all units available via C-Maps.
+
+        This method is part of the TimeStampSource protocol.
+
+        Returns:
+            List of target units available for conversion.
+        """
+        return list(self._unit_maps.keys())
+
+    def _get_unit_for_timeline(self, timeline_id: str) -> TimeUnit | None:
+        """Get the TimeUnit for a timeline in the hierarchy.
+
+        This method is part of the TimeStampSource protocol. It enables
+        TimeStamp to construct proper Coordinate objects with correct units.
+
+        Args:
+            timeline_id: The timeline ID to look up.
+
+        Returns:
+            The TimeUnit for the timeline, or None if not found.
+        """
+        if timeline_id == self._id:
+            return self._unit
+
+        # Check children
+        if timeline_id in self._children:
+            return self._children[timeline_id].unit
+
+        return None
+
+    def _contains_coordinate(
+        self, timeline_id: str, axis: float, source_id: str | None = None
+    ) -> bool:
+        """Check whether *axis* falls within the span of a child timeline.
+
+        A child embedded at *offset* with *length* spans
+        ``[offset, offset + length)`` on this (parent) timeline.
+
+        This method is part of the TimeStampSource protocol.
+
+        Args:
+            timeline_id: Child timeline ID.
+            axis: Coordinate on the parent (source) timeline.
+            source_id: Source timeline ID (ignored for Timeline, used by TimelineGroup).
+
+        Returns:
+            True if *axis* is inside the child's span, or if
+            *timeline_id* is the source itself.
+        """
+        if timeline_id == self._id:
+            return True
+        if timeline_id not in self._child_offsets:
+            return False
+        offset = float(self._child_offsets[timeline_id].value)
+        length = float(self._children[timeline_id].length.value)
+        return offset <= axis < offset + length
+
+    def resolve_coordinate(self, coord: CoordinateSpec) -> Coordinate:
+        """Resolve a coordinate into this timeline's coordinate system.
+
+        Args:
+            coord: Numeric, unit-qualified, or timeline-qualified coordinate.
+
+        Returns:
+            A coordinate expressed in this timeline's native unit.
+
+        Raises:
+            ValueError: If a timeline ID is unknown or no unit conversion path exists.
+        """
+        resolved = resolve_coordinate_spec(coord)
+        value = resolved.value
+        child_offset: Coordinate | None = None
+
+        if resolved.timeline_id is not None and resolved.timeline_id != self._id:
+            if resolved.timeline_id not in self._children:
+                raise ValueError(
+                    f"Timeline ID '{resolved.timeline_id}' is not this timeline "
+                    f"'{self._id}' or one of its direct children"
+                )
+            child_offset = self._child_offsets[resolved.timeline_id]
+
+        native_value = value
+        if resolved.unit is not None and resolved.unit != self._unit:
+            unit_map = self._get_unit_map(resolved.unit)
+            if unit_map is None:
+                raise ValueError(
+                    f"No C-Map available to convert coordinate from unit "
+                    f"'{resolved.unit}' to '{self._unit}' on timeline '{self._id}'"
+                )
+            try:
+                inverse_map = unit_map.inverse()
+            except (NotImplementedError, ValueError):
+                raise ValueError(
+                    f"No invertible C-Map available to convert coordinate from unit "
+                    f"'{resolved.unit}' to '{self._unit}' on timeline '{self._id}'"
+                ) from None
+            native_value = inverse_map(value)
+
+        if child_offset is not None:
+            native_value = native_value + child_offset.value
+
+        return Coordinate(native_value, self._unit)
+
+    def _resolve_axis_value(self, coord: CoordinateSpec) -> int | float | Fraction:
+        """Resolve a coordinate and return its native numeric value."""
+        return self.resolve_coordinate(coord).value
