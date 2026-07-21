@@ -25,6 +25,8 @@ from timetoalign.core import (
     Domain,
     NumberType,
     TimeUnit,
+    rational_to_wire,
+    wire_to_rational,
 )
 from timetoalign.maps import ConversionMap
 from timetoalign.storage import EventData
@@ -706,13 +708,19 @@ class Timeline(
     def to_dict(self) -> dict[str, Any]:
         """Convert timeline to a dictionary for serialization.
 
+        Coordinate-valued members — ``length`` and every child
+        ``offset`` — are emitted as the canonical rational wire dict
+        (:func:`~timetoalign.core.rational_to_wire`), so the result is
+        JSON-serializable whatever the timeline's number type, and
+        ``Fraction`` coordinates survive the round trip exactly.
+
         Returns:
-            A dictionary representation of the timeline.
+            A JSON-serializable dictionary representation of the timeline.
         """
         children_data = {}
         for child_id, child in self._children.items():
             children_data[child_id] = {
-                "offset": self._child_offsets[child_id].value,
+                "offset": rational_to_wire(self._child_offsets[child_id].value),
                 "timeline": child.to_dict(),
             }
 
@@ -722,7 +730,7 @@ class Timeline(
             "class": self.class_name,
             "unit": str(self._unit),
             "number_type": str(self._number_type),
-            "length": self._length.value,
+            "length": rational_to_wire(self._length.value),
             "locked": self._locked,
             "meta": self._meta,
             "events": list(self._events),
@@ -735,6 +743,13 @@ class Timeline(
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
         """Create a Timeline from a dictionary.
+
+        Every rational wire dict in *data* — ``length``, the child
+        ``offset``s, and the event coordinate structs — is decoded by
+        :func:`~timetoalign.core.wire_to_rational`, so an exact ratio
+        comes back as a ``Fraction`` and an inexact one as a ``float``.
+        Feeding the result back through :meth:`to_dict` reproduces the
+        input dictionary.
 
         Args:
             data: Dictionary from to_dict().
@@ -759,7 +774,7 @@ class Timeline(
             )
 
         timeline = cls(
-            length=data["length"],
+            length=wire_to_rational(data["length"]),
             unit=data["unit"],
             number_type=data["number_type"],
             uid=data["id"],
@@ -768,19 +783,17 @@ class Timeline(
             meta=data.get("meta"),
         )
 
-        # Add events (filter out segment events - they'll be recreated)
-        # Events from to_dict have coordinate structs, need to extract values
+        # Add events (filter out segment events - they'll be recreated).
+        # Event coordinates arrive as rational wire dicts; decode them
+        # back to the numbers the EventData builder expects.
         events = []
         for e in data.get("events", []):
             if e.get("event_type") == SEGMENT_EVENT_TYPE:
                 continue
-            # Convert coordinate structs back to raw values
             event = dict(e)
             for coord_col in ("instant", "start", "end", "duration"):
-                if coord_col in event and event[coord_col] is not None:
-                    coord_struct = event[coord_col]
-                    if isinstance(coord_struct, dict) and "value" in coord_struct:
-                        event[coord_col] = coord_struct["value"]
+                if event.get(coord_col) is not None:
+                    event[coord_col] = wire_to_rational(event[coord_col])
             events.append(event)
 
         if events:
@@ -789,7 +802,7 @@ class Timeline(
         # Add children
         for child_id, child_data in data.get("children", {}).items():
             child = Timeline.from_dict(child_data["timeline"])
-            timeline.add_child(child, offset=child_data["offset"])
+            timeline.add_child(child, offset=wire_to_rational(child_data["offset"]))
 
         # Add conversion maps
         for map_data in data.get("conversion_maps", []):

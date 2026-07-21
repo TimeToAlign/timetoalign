@@ -7,12 +7,14 @@ to every coordinate on a timeline, typically inside a CombinationMap.
 
 from __future__ import annotations
 
+from fractions import Fraction
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
 
 from ..core.enums import TimeUnit
+from ..core.fields import is_rational_wire, rational_to_wire, wire_to_rational
 from ..core.time import CoordinateValue
 from .base import ConversionMap
 
@@ -114,9 +116,18 @@ class ConstantMap(ConversionMap[Any]):
         )
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize to dictionary."""
+        """Serialize to dictionary.
+
+        A ``Fraction`` constant is encoded as the canonical rational wire
+        dict; every other constant (the common case is a string label)
+        is emitted as-is and must therefore already be JSON-native.
+        """
         d = super().to_dict()
-        d["value"] = self._value
+        d["value"] = (
+            rational_to_wire(self._value)
+            if isinstance(self._value, Fraction)
+            else self._value
+        )
         return d
 
     @classmethod
@@ -129,8 +140,9 @@ class ConstantMap(ConversionMap[Any]):
         Returns:
             A ConstantMap instance.
         """
+        raw = data["value"]
         return cls(
-            value=data["value"],
+            value=wire_to_rational(raw) if is_rational_wire(raw) else raw,
             source_unit=data.get("source_unit"),
             uid=data.get("id"),
             name=data.get("name"),

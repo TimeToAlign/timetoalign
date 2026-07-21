@@ -78,6 +78,7 @@ class RotationMap(ConversionMap[float]):
         source_unit: TimeUnit | str | None = None,
         target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a RotationMap.
 
@@ -89,6 +90,7 @@ class RotationMap(ConversionMap[float]):
             source_unit: The unit of input coordinates.
             target_unit: The unit of output coordinates.
             uid: Optional explicit ID.
+            name: Human-readable name for this map. Defaults to the map's ID.
 
         Raises:
             ValueError: If period is not positive.
@@ -100,6 +102,7 @@ class RotationMap(ConversionMap[float]):
             source_unit=source_unit,
             target_unit=target_unit,
             uid=uid,
+            name=name,
         )
         self._period = float(period)
         self._scale = float(scale)
@@ -171,6 +174,7 @@ class RotationMap(ConversionMap[float]):
             source_unit=data.get("source_unit"),
             target_unit=data.get("target_unit"),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:
@@ -237,6 +241,7 @@ class FloorMap(ConversionMap[int]):
         source_unit: TimeUnit | str | None = None,
         target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a FloorMap.
 
@@ -247,6 +252,7 @@ class FloorMap(ConversionMap[int]):
             source_unit: The unit of input coordinates.
             target_unit: The unit of output coordinates.
             uid: Optional explicit ID.
+            name: Human-readable name for this map. Defaults to the map's ID.
 
         Raises:
             ValueError: If divisor is not positive.
@@ -258,6 +264,7 @@ class FloorMap(ConversionMap[int]):
             source_unit=source_unit,
             target_unit=target_unit,
             uid=uid,
+            name=name,
         )
         self._divisor = float(divisor)
         self._base = int(base)
@@ -322,6 +329,7 @@ class FloorMap(ConversionMap[int]):
             source_unit=data.get("source_unit"),
             target_unit=data.get("target_unit"),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:

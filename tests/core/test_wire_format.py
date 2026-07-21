@@ -1,0 +1,459 @@
+"""Tests for the canonical rational wire format shared by every ``to_dict``.
+
+Three contracts are exercised here:
+
+1. the codec itself (``rational_to_wire`` / ``wire_to_rational`` /
+   ``is_rational_wire``);
+2. the fixpoint guarantee — ``from_dict(json.loads(json.dumps(x.to_dict())))``
+   reproduces ``x.to_dict()`` — for timelines and maps, including exact
+   ``Fraction`` recovery and conversion-map name round-trips;
+3. JSON-safety of every ``to_dict`` in the library that a caller is
+   expected to persist.
+"""
+
+from __future__ import annotations
+
+import json
+from fractions import Fraction
+from typing import Any, Callable
+
+import pytest
+
+from timetoalign.alignment import AlignmentBundle
+from timetoalign.alignment.claims import (
+    Agent,
+    AlignmentAnchor,
+    MatchClaim,
+    MatchMetadata,
+)
+from timetoalign.alignment.graph import MatchGraph
+from timetoalign.alignment.matchline import MatchLine
+from timetoalign.alignment.warpmap import WarpMap
+from timetoalign.core import AgentType, Coordinate, TimeUnit
+from timetoalign.core.fields import (
+    is_rational_wire,
+    rational_to_wire,
+    wire_to_rational,
+)
+from timetoalign.maps import (
+    ChainMap,
+    CombinationMap,
+    ConstantMap,
+    ConversionMap,
+    FloorMap,
+    InterpolationMap,
+    LinearMap,
+    PiecewiseMap,
+    QuartersToTicks,
+    RotationMap,
+    SamplesToSeconds,
+    ScalarMap,
+    SecondsToSamples,
+    ShiftMap,
+    TableMap,
+    TicksToQuarters,
+)
+from timetoalign.maps.interval import (
+    IntervalToConstantMap,
+    QuartersToFloatingMeasures,
+    QuartersToMeasureNumber,
+)
+from timetoalign.maps.meter import BeatInMeasureMap, MetricalPositionMap, MetricMap
+from timetoalign.timelines import BeatGrid, Timeline
+from timetoalign.timelines.flow.measures import MeasureUnit
+from timetoalign.timelines.flow.sections import AtomicSection, PlaythroughSection
+
+# region Fixtures
+
+
+def _fraction_timeline() -> Timeline:
+    """A quarters timeline whose length, offset, and events are exact."""
+    timeline = Timeline(
+        length=Fraction(10, 3),
+        unit=TimeUnit.quarters,
+        number_type="fraction",
+        uid="parent",
+    )
+    timeline.add_events([{"instant": Fraction(1, 3), "event_type": "Note"}])
+    child = Timeline(
+        length=Fraction(1, 1),
+        unit=TimeUnit.quarters,
+        number_type="fraction",
+        uid="child",
+    )
+    timeline.add_child(child, offset=Fraction(5, 3))
+    return timeline
+
+
+def _float_timeline() -> Timeline:
+    """A seconds timeline with inexact coordinates throughout."""
+    timeline = Timeline(length=10.0, unit=TimeUnit.seconds, uid="clock")
+    timeline.add_events([{"start": 0.1, "end": 0.3, "event_type": "Note"}])
+    timeline.add_child(
+        Timeline(length=2.0, unit=TimeUnit.seconds, uid="tick"), offset=4.5
+    )
+    return timeline
+
+
+def _beatgrid() -> BeatGrid:
+    """A BeatGrid with an anacrusis, so every rational slot is populated."""
+    return BeatGrid(
+        length=Fraction(9, 1),
+        beats_per_measure=4,
+        beat_unit=Fraction(1, 4),
+        anacrusis_quarters=Fraction(1, 1),
+    )
+
+
+def _meter_map() -> MetricMap:
+    return MetricMap.from_uniform(4, Fraction(4, 1))
+
+
+def _conversion_maps() -> list[ConversionMap[Any]]:
+    """One live instance of every registered ConversionMap subclass."""
+    meter = _meter_map()
+    return [
+        LinearMap(scalar=Fraction(1, 3), offset=Fraction(5, 3)),
+        ScalarMap(scalar=Fraction(2, 3)),
+        ShiftMap(offset=Fraction(1, 7)),
+        ConstantMap(value=Fraction(3, 4)),
+        TableMap(x_values=[Fraction(0), Fraction(1, 3)], y_values=[0.0, 1.0]),
+        IntervalToConstantMap(
+            boundaries=[Fraction(0), Fraction(1, 3)], values=["a", "b"]
+        ),
+        QuartersToMeasureNumber(boundaries=[Fraction(0), Fraction(4)], mns=["1", "2"]),
+        QuartersToFloatingMeasures(
+            x_values=[Fraction(0), Fraction(4)], y_values=[1.0, 2.0]
+        ),
+        meter,
+        BeatInMeasureMap(meter),
+        MetricalPositionMap(meter),
+        ChainMap([ScalarMap(scalar=2.0), ShiftMap(offset=1.0)]),
+        PiecewiseMap(
+            breaks=[Fraction(0), Fraction(1, 2), Fraction(1)],
+            maps=[ScalarMap(scalar=1.0), ScalarMap(scalar=2.0)],
+        ),
+        CombinationMap([("a", ScalarMap(scalar=1.0))]),
+        RotationMap(period=4.0),
+        FloorMap(divisor=4.0),
+        TicksToQuarters(),
+        QuartersToTicks(),
+        SamplesToSeconds(),
+        SecondsToSamples(),
+        InterpolationMap(
+            source_coords=[0.0, 1.0],
+            target_coords=[0.0, 2.0],
+            source_id="a",
+            target_id="b",
+        ),
+    ]
+
+
+def _claim() -> MatchClaim:
+    """A synchronous claim whose A-side coordinate is exact."""
+    return MatchClaim.from_events(
+        event_a={"id": "e1", "name": "Note C4", "start": Fraction(1, 3)},
+        tl_a_id="score",
+        event_b={"id": "e2", "name": "Note C4", "start": 45.5},
+        tl_b_id="audio",
+        unit_a=TimeUnit.quarters,
+        unit_b=TimeUnit.seconds,
+    )
+
+
+def _measure_unit() -> MeasureUnit:
+    return MeasureUnit(
+        mc=1,
+        mn="1",
+        duration_qb=Fraction(4),
+        next=(2,),
+        timesig="4/4",
+        timesig_duration_qb=Fraction(4),
+    )
+
+
+# endregion
+
+# region Codec
+
+
+class TestRationalWireDict:
+    """The three-key wire dict is the only encoding of a rational."""
+
+    def test_fraction_carries_its_exact_ratio(self) -> None:
+        assert rational_to_wire(Fraction(10, 3)) == {
+            "value": 10 / 3,
+            "numerator": 10,
+            "denominator": 3,
+        }
+
+    def test_float_encodes_with_a_null_ratio(self) -> None:
+        assert rational_to_wire(2.5) == {
+            "value": 2.5,
+            "numerator": None,
+            "denominator": None,
+        }
+
+    def test_int_encodes_with_a_null_ratio(self) -> None:
+        assert rational_to_wire(7) == {
+            "value": 7.0,
+            "numerator": None,
+            "denominator": None,
+        }
+
+    def test_exact_ratio_decodes_to_a_fraction(self) -> None:
+        decoded = wire_to_rational(rational_to_wire(Fraction(1, 3)))
+        assert decoded == Fraction(1, 3)
+        assert isinstance(decoded, Fraction)
+
+    def test_null_ratio_decodes_to_a_float(self) -> None:
+        decoded = wire_to_rational(rational_to_wire(2.5))
+        assert decoded == 2.5
+        assert isinstance(decoded, float)
+
+    @pytest.mark.parametrize("value", [Fraction(-7, 9), Fraction(0, 1), Fraction(5, 1)])
+    def test_round_trip_is_exact(self, value: Fraction) -> None:
+        assert wire_to_rational(rational_to_wire(value)) == value
+
+    def test_wire_dict_is_json_native(self) -> None:
+        wire = rational_to_wire(Fraction(10, 3))
+        assert json.loads(json.dumps(wire)) == wire
+
+    def test_is_rational_wire_recognises_the_shape(self) -> None:
+        assert is_rational_wire(rational_to_wire(Fraction(1, 2)))
+        assert is_rational_wire(rational_to_wire(1.5))
+        assert not is_rational_wire({"value": 1.0})
+        assert not is_rational_wire("page1.jpeg")
+        assert not is_rational_wire(1.0)
+
+    def test_non_numeric_input_is_rejected(self) -> None:
+        with pytest.raises(TypeError):
+            rational_to_wire("3/4")  # type: ignore[arg-type]
+
+    def test_stale_string_encoding_is_rejected(self) -> None:
+        with pytest.raises(TypeError):
+            wire_to_rational("3/4")  # type: ignore[arg-type]
+
+    def test_dict_without_a_usable_value_is_rejected(self) -> None:
+        with pytest.raises(ValueError):
+            wire_to_rational({"value": None, "numerator": None, "denominator": None})
+
+
+# endregion
+
+# region Timelines
+
+
+class TestTimelineWireFormat:
+    """``length``, child ``offset``s, and event coordinates share one shape."""
+
+    def test_fraction_length_keeps_its_components(self) -> None:
+        data = _fraction_timeline().to_dict()
+        assert data["length"]["numerator"] == 10
+        assert data["length"]["denominator"] == 3
+
+    def test_fraction_offset_keeps_its_components(self) -> None:
+        data = _fraction_timeline().to_dict()
+        offset = data["children"]["child"]["offset"]
+        assert offset["numerator"] == 5
+        assert offset["denominator"] == 3
+
+    def test_float_length_has_a_null_ratio(self) -> None:
+        data = _float_timeline().to_dict()
+        assert data["length"] == {
+            "value": 10.0,
+            "numerator": None,
+            "denominator": None,
+        }
+
+    def test_event_coordinate_survives_json_exactly(self) -> None:
+        restored = Timeline.from_dict(
+            json.loads(json.dumps(_fraction_timeline().to_dict()))
+        )
+        coordinate = wire_to_rational(list(restored.events)[0]["start"])
+        assert coordinate == Fraction(1, 3)
+        assert isinstance(coordinate, Fraction)
+
+    def test_length_and_offset_survive_json_exactly(self) -> None:
+        restored = Timeline.from_dict(
+            json.loads(json.dumps(_fraction_timeline().to_dict()))
+        )
+        assert restored.length.value == Fraction(10, 3)
+        assert restored.get_child_offset("child").value == Fraction(5, 3)
+
+    @pytest.mark.parametrize(
+        "factory", [_fraction_timeline, _float_timeline], ids=["fraction", "float"]
+    )
+    def test_to_dict_is_a_json_fixpoint(self, factory: Callable[[], Timeline]) -> None:
+        data = factory().to_dict()
+        assert Timeline.from_dict(json.loads(json.dumps(data))).to_dict() == data
+
+    def test_beatgrid_to_dict_is_a_json_fixpoint(self) -> None:
+        data = _beatgrid().to_dict()
+        assert BeatGrid.from_dict(json.loads(json.dumps(data))).to_dict() == data
+
+    def test_beatgrid_rationals_use_the_wire_dict(self) -> None:
+        data = _beatgrid().to_dict()
+        assert data["beat_unit"]["denominator"] == 4
+        assert data["anacrusis_quarters"]["numerator"] == 1
+
+
+# endregion
+
+# region Maps
+
+
+class TestMapWireFormat:
+    """Every map serializes rationals and its name the same way."""
+
+    @pytest.mark.parametrize("cmap", _conversion_maps(), ids=lambda m: type(m).__name__)
+    def test_custom_name_round_trips(self, cmap: ConversionMap[Any]) -> None:
+        data = dict(cmap.to_dict(), name="my-map")
+        assert ConversionMap.from_dict(json.loads(json.dumps(data))).name == "my-map"
+
+    @pytest.mark.parametrize("cmap", _conversion_maps(), ids=lambda m: type(m).__name__)
+    def test_name_is_always_emitted(self, cmap: ConversionMap[Any]) -> None:
+        assert cmap.to_dict()["name"] == cmap.name
+
+    def test_linear_map_keeps_exact_fractions(self) -> None:
+        data = LinearMap(scalar=Fraction(1, 3), offset=Fraction(5, 3)).to_dict()
+        assert data["scalar"] == {
+            "value": 1 / 3,
+            "numerator": 1,
+            "denominator": 3,
+        }
+        restored = LinearMap.from_dict(json.loads(json.dumps(data)))
+        assert restored.scalar == Fraction(1, 3)
+        assert restored.offset == Fraction(5, 3)
+
+    def test_constant_map_keeps_an_exact_fraction(self) -> None:
+        cmap = ConstantMap(value=Fraction(3, 4), name="tuplet")
+        data = json.loads(json.dumps(cmap.to_dict()))
+        restored = ConstantMap.from_dict(data)
+        assert restored.value == Fraction(3, 4)
+        assert isinstance(restored.value, Fraction)
+        assert restored.name == "tuplet"
+
+    def test_constant_map_passes_a_label_through(self) -> None:
+        cmap = ConstantMap(value="page1.jpeg", name="filename")
+        restored = ConstantMap.from_dict(json.loads(json.dumps(cmap.to_dict())))
+        assert restored.value == "page1.jpeg"
+
+    def test_table_map_keeps_exact_fractions(self) -> None:
+        table = TableMap(x_values=[Fraction(0), Fraction(1, 3)], y_values=[0.0, 1.0])
+        restored = TableMap.from_dict(json.loads(json.dumps(table.to_dict())))
+        assert restored.to_dict()["x_values"][1]["denominator"] == 3
+
+    def test_metric_map_keeps_exact_fractions(self) -> None:
+        data = json.loads(json.dumps(_meter_map().to_dict()))
+        restored = MetricMap.from_dict(data)
+        assert restored.to_dict() == data
+
+
+# endregion
+
+# region JSON safety
+
+
+def _stamp_cases() -> list[tuple[str, dict[str, Any]]]:
+    """``to_dict`` payloads of the stamp family, keyed by a readable id."""
+    timeline = _float_timeline()
+    bundle = AlignmentBundle(id="wire")
+    bundle.add_timeline(timeline, uid="clock", as_group="clock-group")
+    matchstamp = bundle.get_matchstamp_at(4.5, "clock")
+    return [
+        ("TimeStamp", timeline.get_timestamp(4.5).to_dict()),
+        ("MatchStamp.flat", matchstamp.to_dict(format="flat")),
+        ("MatchStamp.prefix", matchstamp.to_dict(format="prefix")),
+        ("MatchStamp.nested", matchstamp.to_dict(format="nested")),
+        ("MatchStamp.graph", matchstamp.to_dict(format="graph")),
+    ]
+
+
+def _json_safety_cases() -> list[tuple[str, dict[str, Any]]]:
+    """Every ``to_dict`` payload a caller is expected to persist."""
+    claim = _claim()
+    anchor = claim.start_anchor
+    assert anchor is not None
+    agent = Agent(name="dtw", type=AgentType.software, identifier="v2")
+    graph = MatchGraph([claim])
+    cases: list[tuple[str, dict[str, Any]]] = [
+        ("Timeline.fraction", _fraction_timeline().to_dict()),
+        ("Timeline.float", _float_timeline().to_dict()),
+        ("BeatGrid", _beatgrid().to_dict()),
+        ("Agent", agent.to_dict()),
+        ("MatchMetadata", MatchMetadata(agent=agent, certainty=0.85).to_dict()),
+        ("AlignmentAnchor", anchor.to_dict()),
+        ("MatchClaim", claim.to_dict()),
+        ("MatchGraph", graph.to_dict()),
+        (
+            "MatchLine",
+            MatchLine(source_timeline_id="score", stamps=graph.get_stamps()).to_dict(),
+        ),
+        (
+            "WarpMap",
+            WarpMap.from_coordinate_pairs(
+                source_timeline_id="score",
+                target_timeline_id="audio",
+                source_coords=[0.0, 1.0],
+                target_coords=[0.0, 2.0],
+                source_unit=TimeUnit.quarters,
+                target_unit=TimeUnit.seconds,
+            ).to_dict(),
+        ),
+        ("MeasureUnit", _measure_unit().to_dict()),
+        (
+            "AtomicSection",
+            AtomicSection(id="A", mc_start=1, mc_end=5, to=("A", "B")).to_dict(),
+        ),
+        (
+            "PlaythroughSection",
+            PlaythroughSection(
+                mc_start=1, mc_end=9, atomic_section_ids=("A", "B")
+            ).to_dict(),
+        ),
+    ]
+    cases.extend((type(cmap).__name__, cmap.to_dict()) for cmap in _conversion_maps())
+    cases.extend(_stamp_cases())
+    return cases
+
+
+_JSON_CASES = _json_safety_cases()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [case for _, case in _JSON_CASES],
+    ids=[name for name, _ in _JSON_CASES],
+)
+def test_to_dict_is_json_serializable(payload: dict[str, Any]) -> None:
+    """No ``to_dict`` may leak a Fraction, a Coordinate, or any other
+    non-JSON object into its output."""
+    assert json.loads(json.dumps(payload)) is not None
+
+
+class TestClaimWireFormat:
+    """The claim family round-trips through its pydantic-backed codec."""
+
+    def test_claim_coordinate_survives_json_exactly(self) -> None:
+        claim = _claim()
+        restored = MatchClaim.from_dict(json.loads(json.dumps(claim.to_dict())))
+        assert restored.start_anchor is not None
+        assert restored.start_anchor.coordinate_a.value == Fraction(1, 3)
+
+    def test_claim_to_dict_is_a_json_fixpoint(self) -> None:
+        data = _claim().to_dict()
+        assert MatchClaim.from_dict(json.loads(json.dumps(data))).to_dict() == data
+
+    def test_anchor_to_dict_is_a_json_fixpoint(self) -> None:
+        anchor = AlignmentAnchor(
+            timeline_a_id="score",
+            coordinate_a=Coordinate(Fraction(1, 3), TimeUnit.quarters),
+            timeline_b_id="audio",
+            coordinate_b=Coordinate(45.5, TimeUnit.seconds),
+        )
+        data = anchor.to_dict()
+        assert AlignmentAnchor.from_dict(json.loads(json.dumps(data))).to_dict() == data
+
+
+# endregion

@@ -361,6 +361,7 @@ class InterpolationMap(ConversionMap[float]):
             source_unit=data.get("source_unit"),
             target_unit=data.get("target_unit"),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     # endregion

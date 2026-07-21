@@ -6,13 +6,13 @@ with interpolation for values between them.
 
 from __future__ import annotations
 
-from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
 
 from ..core.enums import ExtrapolationPolicy, InterpolationKind, TimeUnit
+from ..core.fields import rational_to_wire, wire_to_rational
 from ..core.time import CoordinateValue
 from .base import ConversionMap
 
@@ -66,6 +66,7 @@ class TableMap(ConversionMap[CoordinateValue]):
         source_unit: TimeUnit | str | None = None,
         target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a TableMap.
 
@@ -78,6 +79,7 @@ class TableMap(ConversionMap[CoordinateValue]):
             source_unit: The unit of input coordinates.
             target_unit: The unit of output coordinates.
             uid: Optional explicit ID.
+            name: Human-readable name for this map. Defaults to the map's ID.
 
         Raises:
             ValueError: If x_values and y_values have different lengths.
@@ -88,6 +90,7 @@ class TableMap(ConversionMap[CoordinateValue]):
             source_unit=source_unit,
             target_unit=target_unit,
             uid=uid,
+            name=name,
         )
 
         # Validate inputs
@@ -314,15 +317,8 @@ class TableMap(ConversionMap[CoordinateValue]):
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         d = super().to_dict()
-
-        # Serialize values, converting Fractions to strings
-        def serialize_value(v: CoordinateValue) -> float | str:
-            if isinstance(v, Fraction):
-                return str(v)
-            return float(v)
-
-        d["x_values"] = [serialize_value(v) for v in self._x_original]
-        d["y_values"] = [serialize_value(v) for v in self._y_original]
+        d["x_values"] = [rational_to_wire(v) for v in self._x_original]
+        d["y_values"] = [rational_to_wire(v) for v in self._y_original]
         d["kind"] = self._kind.name
         d["extrapolate"] = self._extrapolate.name
         return d
@@ -330,23 +326,15 @@ class TableMap(ConversionMap[CoordinateValue]):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> TableMap:
         """Deserialize from dictionary."""
-
-        def parse_value(v: float | str) -> CoordinateValue:
-            if isinstance(v, str):
-                return Fraction(v)
-            return v
-
-        x_values = [parse_value(v) for v in data["x_values"]]
-        y_values = [parse_value(v) for v in data["y_values"]]
-
         return cls(
-            x_values=x_values,
-            y_values=y_values,
+            x_values=[wire_to_rational(v) for v in data["x_values"]],
+            y_values=[wire_to_rational(v) for v in data["y_values"]],
             kind=data.get("kind", "linear"),
             extrapolate=data.get("extrapolate", "extrapolate"),
             source_unit=data.get("source_unit"),
             target_unit=data.get("target_unit"),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:

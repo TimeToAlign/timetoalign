@@ -73,6 +73,13 @@ missing columns remain null-filled. DataFrame views are tested only through
      rejecting calls through a mismatched concrete subclass
    - Duplicate serialized class tags reject registration by a different class;
      registering the already-recorded class remains idempotent
+   - `length` and every child `offset` are emitted as the **rational wire
+     dict** (`{value, numerator, denominator}`), the one JSON encoding of a
+     rational number in this library; the same shape carries the event
+     coordinates, so a `Fraction` timeline serializes to JSON and comes back
+     exact. The format and its fixpoint guarantee are specified in
+     `tests/core/README.md` (`test_wire_format.py`), which also holds the
+     exact-value tests for timeline lengths, offsets, and BeatGrid.
 
 7. **Magic Methods Tests** (5 tests)
    - `__len__`, `__repr__`, `__str__`, `__contains__`

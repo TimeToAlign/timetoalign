@@ -2040,6 +2040,97 @@ def struct_to_rational(struct: dict[str, Any]) -> Fraction:
     return Fraction(numerator, denominator)
 
 
+def rational_to_wire(value: Fraction | int | float) -> dict[str, Any]:
+    """Encode a coordinate value as the canonical rational wire dict.
+
+    This is the JSON-serializable counterpart of
+    :func:`rational_to_struct`: it accepts the inexact half of the
+    coordinate domain as well, and marks it as inexact rather than
+    inventing a ratio for it.  Every ``to_dict`` in the library that
+    emits a rational-valued number emits *this* shape — there is no
+    second encoding (no bare ``Fraction``, no ``"n/d"`` string).
+
+    * A ``Fraction`` keeps its exact ratio in ``numerator`` /
+      ``denominator`` alongside the float projection.
+    * Any other number encodes as ``{"value": float(x), "numerator":
+      None, "denominator": None}`` — the null ratio is what tells
+      :func:`wire_to_rational` to hand back a plain ``float``.
+
+    Args:
+        value: The coordinate value to encode.
+
+    Returns:
+        A dict with the ``value`` / ``numerator`` / ``denominator`` keys
+        of :data:`RATIONAL_STRUCT_TYPE`, containing only JSON-native
+        scalars.
+
+    Raises:
+        TypeError: If *value* is not a real number.
+    """
+    if isinstance(value, Fraction):
+        return rational_to_struct(value)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"cannot encode {type(value).__name__} as a rational")
+    return {"value": float(value), "numerator": None, "denominator": None}
+
+
+def is_rational_wire(value: Any) -> bool:
+    """Return True if *value* is shaped like a rational wire dict.
+
+    For the handful of slots whose payload is genuinely open-ended (a
+    :class:`~timetoalign.maps.constant.ConstantMap` value, say, which is
+    usually a string label but may be a number): the wire dict is
+    self-describing, so a reader can tell an encoded rational from any
+    other JSON value without a type tag alongside it.
+
+    Args:
+        value: Any decoded JSON value.
+
+    Returns:
+        ``True`` when *value* is a dict carrying exactly the three
+        :data:`RATIONAL_STRUCT_TYPE` keys.
+    """
+    return isinstance(value, dict) and set(value) == {
+        "value",
+        "numerator",
+        "denominator",
+    }
+
+
+def wire_to_rational(wire: dict[str, Any]) -> Fraction | float:
+    """Decode a canonical rational wire dict back to a Python number.
+
+    The inverse of :func:`rational_to_wire`, and the only supported
+    reader of the wire shape: an exact ratio comes back as a
+    ``Fraction``, an inexact value as a ``float``.  Decoding is
+    deliberately total over the shape and rejects everything else, so a
+    stale encoding surfaces as a ``TypeError`` at the boundary instead
+    of a silently wrong number downstream.
+
+    Args:
+        wire: A dict as produced by :func:`rational_to_wire`.
+
+    Returns:
+        ``Fraction(numerator, denominator)`` when both ratio members are
+        present, otherwise ``float(value)``.
+
+    Raises:
+        TypeError: If *wire* is not a dict.
+        ValueError: If the dict carries neither an exact ratio nor a
+            usable ``value``.
+    """
+    if not isinstance(wire, dict):
+        raise TypeError(
+            f"expected a rational wire dict, got {type(wire).__name__}: {wire!r}"
+        )
+    if wire.get("numerator") is not None and wire.get("denominator") is not None:
+        return struct_to_rational(wire)
+    value = wire.get("value")
+    if value is None or isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"rational wire dict has no usable 'value': {wire!r}")
+    return float(value)
+
+
 def _build_rational_struct(
     source: pa.Array | pa.ChunkedArray, *, name: str
 ) -> tuple[pa.StructArray, pa.Field]:

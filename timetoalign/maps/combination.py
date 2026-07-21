@@ -75,6 +75,7 @@ class CombinationMap(ConversionMap[dict[str, Any]]):
         *,
         source_unit: TimeUnit | str | None = None,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a CombinationMap.
 
@@ -84,6 +85,7 @@ class CombinationMap(ConversionMap[dict[str, Any]]):
             source_unit: The unit of input coordinates. If not specified,
                         uses the source_unit of the first sub-map.
             uid: Optional explicit ID.
+            name: Human-readable name for this map. Defaults to the map's ID.
 
         Raises:
             ValueError: If maps is empty.
@@ -108,14 +110,14 @@ class CombinationMap(ConversionMap[dict[str, Any]]):
             resolved_source_unit = first_map.source_unit
 
         # Validate source units are compatible
-        for name, m in self._maps.items():
+        for sub_name, m in self._maps.items():
             if (
                 m.source_unit is not None
                 and resolved_source_unit is not None
                 and m.source_unit != TimeUnit(resolved_source_unit)
             ):
                 raise ValueError(
-                    f"Sub-map '{name}' has source_unit {m.source_unit}, "
+                    f"Sub-map '{sub_name}' has source_unit {m.source_unit}, "
                     f"expected {resolved_source_unit}"
                 )
 
@@ -124,6 +126,7 @@ class CombinationMap(ConversionMap[dict[str, Any]]):
             source_unit=resolved_source_unit,
             target_unit=None,
             uid=uid,
+            name=name,
         )
 
     @property
@@ -215,6 +218,7 @@ class CombinationMap(ConversionMap[dict[str, Any]]):
             maps=maps,
             source_unit=data.get("source_unit"),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:

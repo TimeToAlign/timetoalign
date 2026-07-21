@@ -38,6 +38,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     PrivateAttr,
+    field_serializer,
     field_validator,
     model_validator,
 )
@@ -50,7 +51,13 @@ from timetoalign.core import (
     IdGenerator,
     TimeUnit,
 )
-from timetoalign.core.fields import SemanticField, StructField, register_value_projector
+from timetoalign.core.fields import (
+    SemanticField,
+    StructField,
+    rational_to_wire,
+    register_value_projector,
+    wire_to_rational,
+)
 
 if TYPE_CHECKING:
     from timetoalign.alignment.bundle import AlignmentBundle
@@ -103,20 +110,12 @@ class Agent(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain dictionary (``type`` as its string value)."""
-        return {
-            "name": self.name,
-            "type": str(self.type),
-            "identifier": self.identifier,
-        }
+        return self.model_dump(mode="json")
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Agent":
         """Deserialize from a dictionary (``type`` coerced to ``AgentType``)."""
-        return cls(
-            name=data["name"],
-            type=data["type"],
-            identifier=data["identifier"],
-        )
+        return cls.model_validate(data)
 
 
 # endregion
@@ -165,22 +164,12 @@ class MatchMetadata(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary for storage."""
-        return {
-            "agent": self.agent.to_dict(),
-            "certainty": self.certainty,
-        }
+        return self.model_dump(mode="json")
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MatchMetadata":
         """Deserialize from dictionary (``agent`` rebuilt via ``Agent``)."""
-        agent_data = data["agent"]
-        agent = (
-            agent_data if isinstance(agent_data, Agent) else Agent.from_dict(agent_data)
-        )
-        return cls(
-            agent=agent,
-            certainty=data.get("certainty", 1.0),
-        )
+        return cls.model_validate(data)
 
 
 # endregion
@@ -190,26 +179,13 @@ class MatchMetadata(BaseModel):
 
 
 def _coordinate_to_dict(coordinate: Coordinate) -> dict[str, Any]:
-    """Serialize a coordinate with JSON-safe and exact numeric fields."""
-    value = coordinate.value
-    return {
-        "value": float(value),
-        "numerator": value.numerator if isinstance(value, Fraction) else None,
-        "denominator": value.denominator if isinstance(value, Fraction) else None,
-        "unit": coordinate.unit.value,
-    }
+    """Serialize a coordinate as the rational wire dict plus its unit."""
+    return {**rational_to_wire(coordinate.value), "unit": coordinate.unit.value}
 
 
 def _coordinate_from_dict(data: dict[str, Any]) -> Coordinate:
     """Restore a coordinate from its public or claim-storage dictionary."""
-    numerator = data.get("numerator")
-    denominator = data.get("denominator")
-    value = (
-        Fraction(numerator, denominator)
-        if numerator is not None and denominator is not None
-        else data["value"]
-    )
-    return Coordinate(value, data["unit"])
+    return Coordinate(wire_to_rational(data), data["unit"])
 
 
 def _coordinate_from_input(
@@ -244,11 +220,7 @@ def _event_coordinate_value(raw: Any) -> int | float | Fraction:
     if isinstance(raw, Coordinate):
         return raw.value
     if isinstance(raw, dict):
-        numerator = raw.get("numerator")
-        denominator = raw.get("denominator")
-        if numerator is not None and denominator is not None:
-            return Fraction(numerator, denominator)
-        return raw["value"]
+        return wire_to_rational(raw)
     return raw
 
 
@@ -338,24 +310,27 @@ class AlignmentAnchor(BaseModel):
             timeline_b_id,
         }
 
+    @field_serializer("coordinate_a", "coordinate_b")
+    def _serialize_coordinate(self, coordinate: Coordinate) -> dict[str, Any]:
+        """Emit a coordinate as the rational wire dict plus its unit."""
+        return _coordinate_to_dict(coordinate)
+
+    @field_validator("coordinate_a", "coordinate_b", mode="before")
+    @classmethod
+    def _parse_coordinate(cls, value: Any) -> Any:
+        """Accept the serialized coordinate dict as well as a Coordinate."""
+        if isinstance(value, dict) and "unit" in value:
+            return _coordinate_from_dict(value)
+        return value
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary for storage."""
-        return {
-            "timeline_a_id": self.timeline_a_id,
-            "coordinate_a": _coordinate_to_dict(self.coordinate_a),
-            "timeline_b_id": self.timeline_b_id,
-            "coordinate_b": _coordinate_to_dict(self.coordinate_b),
-        }
+        return self.model_dump(mode="json")
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AlignmentAnchor":
         """Deserialize from dictionary."""
-        return cls(
-            timeline_a_id=data["timeline_a_id"],
-            coordinate_a=_coordinate_from_dict(data["coordinate_a"]),
-            timeline_b_id=data["timeline_b_id"],
-            coordinate_b=_coordinate_from_dict(data["coordinate_b"]),
-        )
+        return cls.model_validate(data)
 
     def __repr__(self) -> str:
         return (
@@ -369,6 +344,30 @@ class AlignmentAnchor(BaseModel):
 
 
 # region MatchClaim
+
+
+_CLAIM_KEY_ORDER: tuple[str, ...] = (
+    "id",
+    "timeline_a_id",
+    "timeline_b_id",
+    "start_anchor",
+    "end_anchor",
+    "is_explicit",
+    "is_synchronous",
+    "metadata",
+    "event_a_id",
+    "event_a_name",
+    "event_b_id",
+    "event_b_name",
+    "source_coordinate",
+    "source_claim_id",
+)
+"""Key order of the stored :meth:`MatchClaim.to_dict` shape.
+
+``model_dump`` emits fields in declaration order; the stored dictionary
+predates that order and is pinned here so the two can diverge without
+either becoming the accident.
+"""
 
 
 class MatchClaim(BaseModel):
@@ -958,81 +957,62 @@ class MatchClaim(BaseModel):
 
     # endregion
 
+    @field_serializer("source_coordinate")
+    def _serialize_source_coordinate(
+        self, coordinate: Coordinate | None
+    ) -> dict[str, Any] | None:
+        """Emit the NOMATCH coordinate as the rational wire dict plus unit."""
+        return None if coordinate is None else _coordinate_to_dict(coordinate)
+
+    @field_validator("source_coordinate", mode="before")
+    @classmethod
+    def _parse_source_coordinate(cls, value: Any) -> Any:
+        """Accept the serialized coordinate dict as well as a Coordinate."""
+        if isinstance(value, dict) and "unit" in value:
+            return _coordinate_from_dict(value)
+        return value
+
     def to_dict(self) -> dict[str, Any]:
-        """Serialize to dictionary for storage."""
-        data: dict[str, Any] = {
-            "id": self.id,
-            "timeline_a_id": self.timeline_a_id,
-            "timeline_b_id": self.timeline_b_id,
-            "start_anchor": self.start_anchor.to_dict() if self.start_anchor else None,
-            "end_anchor": self.end_anchor.to_dict() if self.end_anchor else None,
-            "is_explicit": self.is_explicit,
-            "is_synchronous": self.is_synchronous,
-            "metadata": self.metadata.to_dict() if self.metadata else None,
-            "event_a_id": self.event_a_id,
-            "event_a_name": self.event_a_name,
-            "event_b_id": self.event_b_id,
-            "event_b_name": self.event_b_name,
-            "source_coordinate": (
-                _coordinate_to_dict(self.source_coordinate)
-                if self.source_coordinate is not None
-                else None
-            ),
-        }
-        if self.source_claim_id is not None:
-            data["source_claim_id"] = self.source_claim_id
-        return data
+        """Serialize to dictionary for storage.
+
+        The values come straight from ``model_dump``; only the key order
+        and the omission of an absent ``source_claim_id`` are applied on
+        top, since both are part of the stored shape.
+        """
+        dumped = self.model_dump(mode="json")
+        if dumped["source_claim_id"] is None:
+            del dumped["source_claim_id"]
+        return {key: dumped[key] for key in _CLAIM_KEY_ORDER if key in dumped}
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MatchClaim":
-        """Deserialize from dictionary."""
-        start_anchor = (
-            AlignmentAnchor.from_dict(data["start_anchor"])
-            if data.get("start_anchor")
-            else None
-        )
-        end_anchor = (
-            AlignmentAnchor.from_dict(data["end_anchor"])
-            if data.get("end_anchor")
-            else None
-        )
+        """Deserialize from dictionary.
 
-        # Derive timeline IDs: prefer top-level fields, fall back to anchor
-        tl_a = data.get("timeline_a_id")
-        tl_b = data.get("timeline_b_id")
-        if tl_a is None and start_anchor is not None:
-            tl_a = start_anchor.timeline_a_id
-        if tl_b is None and start_anchor is not None:
-            tl_b = start_anchor.timeline_b_id
-        if tl_a is None or tl_b is None:
+        Two normalisations precede validation: an absent timeline ID is
+        taken from the start anchor, and a missing or null ``id`` becomes
+        the empty string that triggers ID generation.
+        """
+        payload = dict(data)
+        for slot in ("start_anchor", "end_anchor", "metadata"):
+            if not payload.get(slot):
+                payload[slot] = None
+        anchor = payload.get("start_anchor")
+        for own_key, anchor_key in (
+            ("timeline_a_id", "timeline_a_id"),
+            ("timeline_b_id", "timeline_b_id"),
+        ):
+            if payload.get(own_key) is not None:
+                continue
+            if isinstance(anchor, AlignmentAnchor):
+                payload[own_key] = getattr(anchor, anchor_key)
+            elif isinstance(anchor, dict):
+                payload[own_key] = anchor.get(anchor_key)
+        if payload.get("timeline_a_id") is None or payload.get("timeline_b_id") is None:
             raise ValueError(
                 "Cannot deserialize MatchClaim: missing timeline IDs and no anchor."
             )
-
-        return cls(
-            timeline_a_id=tl_a,
-            timeline_b_id=tl_b,
-            start_anchor=start_anchor,
-            end_anchor=end_anchor,
-            is_explicit=data.get("is_explicit", True),
-            is_synchronous=data.get("is_synchronous", True),
-            metadata=(
-                MatchMetadata.from_dict(data["metadata"])
-                if data.get("metadata")
-                else None
-            ),
-            source_claim_id=data.get("source_claim_id"),
-            event_a_id=data.get("event_a_id"),
-            event_a_name=data.get("event_a_name"),
-            event_b_id=data.get("event_b_id"),
-            event_b_name=data.get("event_b_name"),
-            source_coordinate=(
-                _coordinate_from_dict(data["source_coordinate"])
-                if data.get("source_coordinate") is not None
-                else None
-            ),
-            id=data.get("id") or "",
-        )
+        payload["id"] = payload.get("id") or ""
+        return cls.model_validate(payload)
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> "MatchClaim":

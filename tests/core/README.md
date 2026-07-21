@@ -474,6 +474,64 @@ between two key spellings to recover an exact ratio.
 
 ---
 
+### `test_wire_format.py` - The rational wire dict
+
+**Purpose:** Pins the JSON wire format shared by every `to_dict` in the
+library. `RATIONAL_STRUCT_TYPE` is how a rational is stored in Arrow; the
+**rational wire dict** is how the same number is stored in JSON, and
+`core/fields.py` owns both.
+
+**The shape.** Every rational-valued number in a `to_dict` payload is the
+three-key dict
+
+```json
+{"value": 3.3333333333333335, "numerator": 10, "denominator": 3}
+```
+
+`rational_to_wire` writes it and `wire_to_rational` reads it. A `Fraction`
+keeps its exact ratio; anything else encodes as `{"value": x, "numerator":
+null, "denominator": null}` and decodes back to a plain `float`. The null
+ratio is the *only* marker of inexactness — the float `value` is a lossy
+projection and is never consulted when the ratio is present.
+`is_rational_wire` recognises the shape for the few slots (a `ConstantMap`
+value) whose payload is genuinely open-ended.
+
+There is exactly one encoding. `Fraction` objects are never emitted raw, and
+the `"n/d"` strings the maps used to write are gone — `wire_to_rational`
+rejects a string rather than parsing it, so a stale payload fails at the
+boundary instead of silently becoming something else.
+
+**What we validate:**
+
+1. **Codec.** Exact ratios survive `rational_to_wire` → `json` →
+   `wire_to_rational`; floats and ints encode with a null ratio and decode as
+   `float`; non-numeric input and stale string encodings raise.
+2. **Fixpoint guarantee.** For a timeline, a `BeatGrid`, a map, an
+   `AlignmentAnchor`, and a `MatchClaim`,
+   `X.from_dict(json.loads(json.dumps(x.to_dict()))) .to_dict() == x.to_dict()`.
+   The dictionary is the fixed point, so a payload can be written, read, and
+   written again without drifting.
+3. **Exactness.** `Fraction(10, 3)` as a timeline length, `Fraction(5, 3)` as
+   a child offset, `Fraction(1, 3)` as an event coordinate, and
+   `Fraction(3, 4)` as a `ConstantMap` value all come back with their
+   numerator and denominator intact.
+4. **Name round-trip.** `ConversionMap.to_dict` always emits `name`, and
+   every subclass `from_dict` passes it back to the constructor, so a custom
+   name survives serialization for every registered map class.
+5. **JSON safety.** A parametrized sweep asserts `json.dumps` succeeds on the
+   `to_dict` output of `Timeline`, `BeatGrid`, every `ConversionMap`
+   subclass, `WarpMap`, `MatchLine`, `MatchGraph`, all four `MatchStamp`
+   formats, `TimeStamp`, the claim classes, `MeasureUnit`, and the section
+   dicts.
+
+**Validity Rationale:** A serialization format that raises `TypeError` on
+`json.dumps` for one number type and silently loses precision for another is
+two bugs wearing one coat. Pinning a single encoding, and asserting the
+fixpoint rather than merely "it round-trips", makes both failure modes
+regressions rather than discoveries.
+
+---
+
 ## Running Tests
 
 ```bash

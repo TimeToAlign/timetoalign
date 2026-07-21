@@ -71,6 +71,7 @@ class TicksToQuarters(ScalarMap):
         return cls(
             ppq=data.get("ppq", 480),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:
@@ -134,6 +135,7 @@ class QuartersToTicks(ScalarMap):
         return cls(
             ppq=data.get("ppq", 480),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:
@@ -202,6 +204,7 @@ class SamplesToSeconds(ScalarMap):
         return cls(
             sample_rate=data.get("sample_rate", 44100),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:
@@ -265,6 +268,7 @@ class SecondsToSamples(ScalarMap):
         return cls(
             sample_rate=data.get("sample_rate", 44100),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:

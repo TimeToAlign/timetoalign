@@ -8,12 +8,12 @@ This module provides maps that perform affine transformations:
 
 from __future__ import annotations
 
-from fractions import Fraction
 from typing import TYPE_CHECKING, Any
 
 from numpy.typing import NDArray
 
 from ..core.enums import TimeUnit
+from ..core.fields import rational_to_wire, wire_to_rational
 from ..core.time import CoordinateValue
 from .base import ConversionMap
 
@@ -146,36 +146,20 @@ class LinearMap(ConversionMap[CoordinateValue]):
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         d = super().to_dict()
-        d["scalar"] = (
-            float(self._scalar)
-            if not isinstance(self._scalar, Fraction)
-            else str(self._scalar)
-        )
-        d["offset"] = (
-            float(self._offset)
-            if not isinstance(self._offset, Fraction)
-            else str(self._offset)
-        )
+        d["scalar"] = rational_to_wire(self._scalar)
+        d["offset"] = rational_to_wire(self._offset)
         return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> LinearMap:
         """Deserialize from dictionary."""
-        scalar = data.get("scalar", 1.0)
-        offset = data.get("offset", 0.0)
-
-        # Handle Fraction strings
-        if isinstance(scalar, str):
-            scalar = Fraction(scalar)
-        if isinstance(offset, str):
-            offset = Fraction(offset)
-
         return cls(
-            scalar=scalar,
-            offset=offset,
+            scalar=wire_to_rational(data["scalar"]) if "scalar" in data else 1.0,
+            offset=wire_to_rational(data["offset"]) if "offset" in data else 0.0,
             source_unit=data.get("source_unit"),
             target_unit=data.get("target_unit"),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:
@@ -269,25 +253,18 @@ class ScalarMap(ConversionMap[CoordinateValue]):
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         d = super().to_dict()
-        d["scalar"] = (
-            float(self._scalar)
-            if not isinstance(self._scalar, Fraction)
-            else str(self._scalar)
-        )
+        d["scalar"] = rational_to_wire(self._scalar)
         return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ScalarMap:
         """Deserialize from dictionary."""
-        scalar = data.get("scalar", 1.0)
-        if isinstance(scalar, str):
-            scalar = Fraction(scalar)
-
         return cls(
-            scalar=scalar,
+            scalar=wire_to_rational(data["scalar"]) if "scalar" in data else 1.0,
             source_unit=data.get("source_unit"),
             target_unit=data.get("target_unit"),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:
@@ -377,25 +354,18 @@ class ShiftMap(ConversionMap[CoordinateValue]):
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         d = super().to_dict()
-        d["offset"] = (
-            float(self._offset)
-            if not isinstance(self._offset, Fraction)
-            else str(self._offset)
-        )
+        d["offset"] = rational_to_wire(self._offset)
         return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ShiftMap:
         """Deserialize from dictionary."""
-        offset = data.get("offset", 0.0)
-        if isinstance(offset, str):
-            offset = Fraction(offset)
-
         return cls(
-            offset=offset,
+            offset=wire_to_rational(data["offset"]) if "offset" in data else 0.0,
             source_unit=data.get("source_unit"),
             target_unit=data.get("target_unit"),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:

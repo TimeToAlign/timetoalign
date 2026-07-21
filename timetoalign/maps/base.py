@@ -325,7 +325,14 @@ class ConversionMap(ABC, Generic[T]):
     def to_dict(self) -> dict[str, Any]:
         """Serialize the map to a dictionary.
 
-        Subclasses should call super().to_dict() and add their parameters.
+        Subclasses should call super().to_dict() and add their parameters;
+        rational parameters go through
+        :func:`~timetoalign.core.rational_to_wire` so that the whole
+        dictionary stays JSON-serializable.
+
+        The map's ``name`` is always emitted, and every subclass
+        ``from_dict`` passes it back to the constructor, so a custom name
+        survives the round trip.
 
         Returns:
             Dictionary representation of the map.
@@ -333,6 +340,7 @@ class ConversionMap(ABC, Generic[T]):
         return {
             "type": self.__class__.__name__,
             "id": self._id,
+            "name": self._name,
             "source_unit": self._source_unit.name if self._source_unit else None,
             "target_unit": self._target_unit.name if self._target_unit else None,
         }

@@ -21,7 +21,13 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 
-from timetoalign.core import CoordinateSpec, NumberType, TimeUnit
+from timetoalign.core import (
+    CoordinateSpec,
+    NumberType,
+    TimeUnit,
+    rational_to_wire,
+    wire_to_rational,
+)
 from timetoalign.maps import ConversionMap, LinearMap
 from timetoalign.maps.meter import BeatInMeasureMap, MetricalPositionMap, MetricMap
 
@@ -352,11 +358,11 @@ class BeatGrid(ContinuousLogicalTimeline):
             if map_data.get("id") not in meter_map_ids
         ]
         data["beats_per_measure"] = self._beats_per_measure
-        data["beat_unit"] = str(self._beat_unit)
+        data["beat_unit"] = rational_to_wire(self._beat_unit)
         data["start_measure"] = self._start_measure
         data["start_mn"] = self._start_mn
         data["anacrusis_quarters"] = (
-            str(self._anacrusis_quarters)
+            rational_to_wire(self._anacrusis_quarters)
             if self._anacrusis_quarters is not None
             else None
         )
@@ -388,12 +394,14 @@ class BeatGrid(ContinuousLogicalTimeline):
 
         anacrusis = data.get("anacrusis_quarters")
         grid = cls(
-            length=Fraction(data["length"]),
+            length=Fraction(wire_to_rational(data["length"])),
             beats_per_measure=data["beats_per_measure"],
-            beat_unit=Fraction(data["beat_unit"]),
+            beat_unit=Fraction(wire_to_rational(data["beat_unit"])),
             start_measure=data["start_measure"],
             start_mn=data["start_mn"],
-            anacrusis_quarters=Fraction(anacrusis) if anacrusis is not None else None,
+            anacrusis_quarters=(
+                Fraction(wire_to_rational(anacrusis)) if anacrusis is not None else None
+            ),
             uid=data["id"],
             name=data.get("name"),
         )
@@ -406,16 +414,15 @@ class BeatGrid(ContinuousLogicalTimeline):
                 continue
             event = dict(serialized_event)
             for coord_col in ("instant", "start", "end", "duration"):
-                coord = event.get(coord_col)
-                if isinstance(coord, dict) and "value" in coord:
-                    event[coord_col] = coord["value"]
+                if event.get(coord_col) is not None:
+                    event[coord_col] = wire_to_rational(event[coord_col])
             events.append(event)
         if events:
             grid._add_events_unchecked(events)
 
         for child_data in data.get("children", {}).values():
             child = Timeline.from_dict(child_data["timeline"])
-            grid.add_child(child, offset=child_data["offset"])
+            grid.add_child(child, offset=wire_to_rational(child_data["offset"]))
 
         for map_data in data.get("conversion_maps", []):
             cmap = ConversionMap.from_dict(map_data)

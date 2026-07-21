@@ -27,6 +27,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from timetoalign.core.enums import TimeUnit
+from timetoalign.core.fields import rational_to_wire, wire_to_rational
 from timetoalign.core.time import CoordinateValue
 from timetoalign.maps.base import ConversionMap
 from timetoalign.maps.combination import CombinationMap
@@ -101,6 +102,7 @@ class MetricMap(ConversionMap[int]):
         source_unit: TimeUnit | str = TimeUnit.quarters,
         target_unit: TimeUnit | str = TimeUnit.floating_measures,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a MetricMap from explicit boundary data.
 
@@ -114,6 +116,7 @@ class MetricMap(ConversionMap[int]):
             source_unit: Source coordinate unit (default: quarters).
             target_unit: Target unit (default: measures).
             uid: Optional explicit ID.
+            name: Human-readable name for this map. Defaults to the map's ID.
 
         Raises:
             ValueError: If arrays have different lengths or are empty.
@@ -123,6 +126,7 @@ class MetricMap(ConversionMap[int]):
             source_unit=source_unit,
             target_unit=target_unit,
             uid=uid,
+            name=name,
         )
 
         if not (len(starts) == len(mcs) == len(mns) == len(lengths)):
@@ -275,26 +279,24 @@ class MetricMap(ConversionMap[int]):
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         d = super().to_dict()
-        d["starts"] = [str(s) for s in self._starts_frac]
+        d["starts"] = [rational_to_wire(s) for s in self._starts_frac]
         d["mcs"] = [int(mc) for mc in self._mcs]
         d["mns"] = self._mns
-        d["lengths"] = [str(ln) for ln in self._lengths_frac]
+        d["lengths"] = [rational_to_wire(ln) for ln in self._lengths_frac]
         return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> MetricMap:
         """Deserialize from dictionary."""
-        starts = [Fraction(s) for s in data["starts"]]
-        lengths = [Fraction(ln) for ln in data["lengths"]]
-
         return cls(
-            starts=starts,
+            starts=[Fraction(wire_to_rational(s)) for s in data["starts"]],
             mcs=data["mcs"],
             mns=data["mns"],
-            lengths=lengths,
+            lengths=[Fraction(wire_to_rational(ln)) for ln in data["lengths"]],
             source_unit=data.get("source_unit", TimeUnit.quarters),
             target_unit=data.get("target_unit", TimeUnit.floating_measures),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     @classmethod
@@ -536,6 +538,7 @@ class BeatInMeasureMap(ConversionMap[Fraction]):
         source_unit: TimeUnit | str = TimeUnit.quarters,
         target_unit: TimeUnit | str = TimeUnit.beats,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a BeatInMeasureMap.
 
@@ -544,11 +547,13 @@ class BeatInMeasureMap(ConversionMap[Fraction]):
             source_unit: Source coordinate unit (default: quarters).
             target_unit: Target unit (default: beats).
             uid: Optional explicit ID.
+            name: Human-readable name for this map. Defaults to the map's ID.
         """
         super().__init__(
             source_unit=source_unit,
             target_unit=target_unit,
             uid=uid,
+            name=name,
         )
         self._meter_map = meter_map
 
@@ -602,6 +607,7 @@ class BeatInMeasureMap(ConversionMap[Fraction]):
             source_unit=data.get("source_unit", TimeUnit.quarters),
             target_unit=data.get("target_unit", TimeUnit.beats),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:
@@ -639,12 +645,14 @@ class MetricalPositionMap(CombinationMap):
         meter_map: MetricMap,
         *,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a MetricalPositionMap.
 
         Args:
             meter_map: The MetricMap providing measure structure.
             uid: Optional explicit ID.
+            name: Human-readable name for this map. Defaults to the map's ID.
         """
         self._meter_map = meter_map
         beat_map = BeatInMeasureMap(meter_map)
@@ -653,6 +661,7 @@ class MetricalPositionMap(CombinationMap):
             maps={"mc": meter_map, "beat": beat_map},
             source_unit=TimeUnit.quarters,
             uid=uid,
+            name=name,
         )
 
     @property
@@ -706,7 +715,7 @@ class MetricalPositionMap(CombinationMap):
     def from_dict(cls, data: dict[str, Any]) -> MetricalPositionMap:
         """Deserialize from dictionary."""
         meter_map = MetricMap.from_dict(data["meter_map"])
-        return cls(meter_map, uid=data.get("id"))
+        return cls(meter_map, uid=data.get("id"), name=data.get("name"))
 
     def __repr__(self) -> str:
         return f"MetricalPositionMap(n_measures={self._meter_map.n_measures})"

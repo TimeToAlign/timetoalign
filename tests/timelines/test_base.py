@@ -414,7 +414,11 @@ class TestSerialization:
         assert data["id"] == "test_tl"
         assert data["class"] == "Timeline"
         assert data["unit"] == "seconds"
-        assert data["length"] == 10.0
+        assert data["length"] == {
+            "value": 10.0,
+            "numerator": None,
+            "denominator": None,
+        }
         assert data["locked"] is False
 
     def test_to_dict_with_events(self, mixed_event_rows: list[dict[str, Any]]):
@@ -433,7 +437,11 @@ class TestSerialization:
 
         data = parent.to_dict()
         assert "child" in data["children"]
-        assert data["children"]["child"]["offset"] == 10.0
+        assert data["children"]["child"]["offset"] == {
+            "value": 10.0,
+            "numerator": None,
+            "denominator": None,
+        }
         assert data["children"]["child"]["timeline"]["id"] == "child"
 
     def test_from_dict_roundtrip(self, mixed_event_rows: list[dict[str, Any]]):

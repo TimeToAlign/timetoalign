@@ -233,7 +233,7 @@ class EnharmonicPitchClass(TwelveTETPitchMixin, BaseModel):
         return cls(pitch_class=int(pc))
 
     def to_dict(self) -> dict[str, object]:
-        return {"pitch_class": self.pitch_class}
+        return self.model_dump()
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, int):
@@ -819,7 +819,7 @@ class EnharmonicPitch(TwelveTETPitchMixin, BaseModel):
         return f"{_EP_LABELS[self.pitch_class]}{self.octave}"
 
     def to_dict(self) -> dict[str, object]:
-        return {"midi_number": self.midi_number}
+        return self.model_dump()
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> EnharmonicPitch | None:
@@ -1081,12 +1081,9 @@ class SpecificPitch(TwelveTETPitchMixin, BaseModel):
         return f"{self.step}{alter_str}{self.octave}"
 
     def to_dict(self) -> dict[str, object]:
+        """Return the declared and computed fields plus the derived labels."""
         return {
-            "step": self.step,
-            "alter": self.alter,
-            "octave": self.octave,
-            "cents": self.cents,
-            "fifths": self.fifths,
+            **self.model_dump(),
             "midi_number": self.midi_number,
             "pitch_class": self.pitch_class,
             "label": self.get(),
@@ -1427,7 +1424,7 @@ class HarmonyLabel(ScalarVocabulary, BaseModel):
         }
 
     def to_dict(self) -> dict[str, object]:
-        return {"label": self.label, "standard": self.standard}
+        return self.model_dump()
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> HarmonyLabel | None:
@@ -1468,12 +1465,7 @@ class PitchBasedHarmony(ScalarVocabulary, BaseModel):
         }
 
     def to_dict(self) -> dict[str, object]:
-        return {
-            "label": self.label,
-            "standard": self.standard,
-            "root": self.root,
-            "bass": self.bass,
-        }
+        return self.model_dump()
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> PitchBasedHarmony | None:
@@ -1523,14 +1515,7 @@ class WesternTertianHarmony(ScalarVocabulary, BaseModel):
         }
 
     def to_dict(self) -> dict[str, object]:
-        return {
-            "label": self.label,
-            "standard": self.standard,
-            "root": self.root,
-            "bass": self.bass,
-            "chord_type": self.chord_type,
-            "inversion": self.inversion,
-        }
+        return self.model_dump()
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> WesternTertianHarmony | None:
@@ -1592,17 +1577,7 @@ class RomanNumeralHarmony(ScalarVocabulary, BaseModel):
         }
 
     def to_dict(self) -> dict[str, object]:
-        return {
-            "label": self.label,
-            "standard": self.standard,
-            "root": self.root,
-            "bass": self.bass,
-            "chord_type": self.chord_type,
-            "inversion": self.inversion,
-            "numeral": self.numeral,
-            "localkey": self.localkey,
-            "globalkey": self.globalkey,
-        }
+        return self.model_dump()
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> RomanNumeralHarmony | None:

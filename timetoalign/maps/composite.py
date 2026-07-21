@@ -14,6 +14,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ..core.enums import TimeUnit
+from ..core.fields import rational_to_wire, wire_to_rational
 from ..core.time import CoordinateValue
 from .base import ConversionMap
 
@@ -48,12 +49,14 @@ class ChainMap(ConversionMap[CoordinateValue]):
         maps: Sequence[ConversionMap[Any]],
         *,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a ChainMap.
 
         Args:
             maps: Sequence of maps. Must not be empty.
             uid: Optional explicit ID.
+            name: Human-readable name for this map. Defaults to the map's ID.
 
         Raises:
             ValueError: If maps is empty.
@@ -81,6 +84,7 @@ class ChainMap(ConversionMap[CoordinateValue]):
             source_unit=maps[0].source_unit,
             target_unit=maps[-1].target_unit,
             uid=uid,
+            name=name,
         )
         self._maps = list(maps)
 
@@ -156,6 +160,7 @@ class ChainMap(ConversionMap[CoordinateValue]):
         return cls(
             maps=maps,
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:
@@ -191,6 +196,7 @@ class PiecewiseMap(ConversionMap[CoordinateValue]):
         source_unit: TimeUnit | str | None = None,
         target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a PiecewiseMap.
 
@@ -200,6 +206,7 @@ class PiecewiseMap(ConversionMap[CoordinateValue]):
             source_unit: Input unit.
             target_unit: Output unit.
             uid: Explicit ID.
+            name: Human-readable name for this map. Defaults to the map's ID.
 
         Raises:
             ValueError: If lengths mismatch or breaks are not sorted.
@@ -220,6 +227,7 @@ class PiecewiseMap(ConversionMap[CoordinateValue]):
             source_unit=source_unit,
             target_unit=target_unit,
             uid=uid,
+            name=name,
         )
 
         self._breaks = np.array(breaks_float, dtype=np.float64)
@@ -353,9 +361,7 @@ class PiecewiseMap(ConversionMap[CoordinateValue]):
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         d = super().to_dict()
-        d["breaks"] = (
-            self._breaks_orig
-        )  # Should handle Fraction serialization if needed
+        d["breaks"] = [rational_to_wire(b) for b in self._breaks_orig]
         d["maps"] = [m.to_dict() for m in self._maps]
         return d
 
@@ -366,14 +372,14 @@ class PiecewiseMap(ConversionMap[CoordinateValue]):
 
         maps_data = data.get("maps", [])
         maps = [ConversionMap.from_dict(m_data) for m_data in maps_data]
-        breaks = data.get("breaks", [])
 
         return cls(
-            breaks=breaks,
+            breaks=[wire_to_rational(b) for b in data.get("breaks", [])],
             maps=maps,
             source_unit=data.get("source_unit"),
             target_unit=data.get("target_unit"),
             uid=data.get("id"),
+            name=data.get("name"),
         )
 
     def __repr__(self) -> str:

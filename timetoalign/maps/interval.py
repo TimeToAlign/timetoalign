@@ -20,6 +20,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from timetoalign.core.enums import ExtrapolationPolicy, InterpolationKind, TimeUnit
+from timetoalign.core.fields import rational_to_wire, wire_to_rational
 from timetoalign.core.time import CoordinateValue
 from timetoalign.maps.base import ConversionMap
 from timetoalign.maps.table import TableMap
@@ -180,32 +181,16 @@ class IntervalToConstantMap(ConversionMap[T], Generic[T]):
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         d = super().to_dict()
-
-        # Serialize boundaries, converting Fractions to strings
-        def serialize_value(v: CoordinateValue) -> float | str:
-            if isinstance(v, Fraction):
-                return str(v)
-            return float(v)
-
-        d["boundaries"] = [serialize_value(v) for v in self._boundaries_original]
+        d["boundaries"] = [rational_to_wire(v) for v in self._boundaries_original]
         d["values"] = list(self._values)
         return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> IntervalToConstantMap[Any]:
         """Deserialize from dictionary."""
-
-        def parse_boundary(v: float | str) -> CoordinateValue:
-            if isinstance(v, str):
-                return Fraction(v)
-            return v
-
-        boundaries = [parse_boundary(v) for v in data["boundaries"]]
-        values = data["values"]
-
         return cls(
-            boundaries=boundaries,
-            values=values,
+            boundaries=[wire_to_rational(v) for v in data["boundaries"]],
+            values=data["values"],
             source_unit=data.get("source_unit"),
             target_unit=data.get("target_unit"),
             uid=data.get("id"),
@@ -433,18 +418,9 @@ class QuartersToMeasureNumber(IntervalToConstantMap[str]):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> QuartersToMeasureNumber:
         """Deserialize from dictionary."""
-
-        def parse_boundary(v: float | str) -> CoordinateValue:
-            if isinstance(v, str) and "/" in v:
-                return Fraction(v)
-            return float(v)
-
-        boundaries = [parse_boundary(v) for v in data["boundaries"]]
-        mns = [str(v) for v in data["values"]]
-
         return cls(
-            boundaries=boundaries,
-            mns=mns,
+            boundaries=[wire_to_rational(v) for v in data["boundaries"]],
+            mns=[str(v) for v in data["values"]],
             source_unit=data.get("source_unit", TimeUnit.quarters),
             uid=data.get("id"),
             name=data.get("name"),
@@ -698,18 +674,9 @@ class QuartersToFloatingMeasures(TableMap):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> QuartersToFloatingMeasures:
         """Deserialize from dictionary."""
-
-        def parse_value(v: float | str) -> CoordinateValue:
-            if isinstance(v, str):
-                return Fraction(v)
-            return v
-
-        x_values = [parse_value(v) for v in data["x_values"]]
-        y_values = [float(v) for v in data["y_values"]]
-
         return cls(
-            x_values=x_values,
-            y_values=y_values,
+            x_values=[wire_to_rational(v) for v in data["x_values"]],
+            y_values=[float(wire_to_rational(v)) for v in data["y_values"]],
             source_unit=data.get("source_unit", TimeUnit.quarters),
             target_unit=data.get("target_unit", TimeUnit.floating_measures),
             uid=data.get("id"),
