@@ -176,6 +176,33 @@ class TestNormalizeIntervalsRow:
         end = _value_of(processed["end"])
         assert end == pytest.approx(0.75)
 
+    # ---- Exact recomputation when both end and duration are present ----
+
+    def test_both_present_exact_fractions_recomputes_duration_exactly(self):
+        """warn: recomputed duration keeps the exact ratio when start/end do."""
+        processed = {
+            "start": coordinate_to_struct(Fraction(1, 3)),
+            "end": coordinate_to_struct(Fraction(3, 1)),
+            "duration": coordinate_to_struct(Fraction(1, 2)),  # inconsistent
+        }
+        EventData._normalize_intervals_row(processed, policy=IntervalPolicy.warn)
+        dur = processed["duration"]
+        assert dur["numerator"] == 8
+        assert dur["denominator"] == 3
+
+    def test_both_present_mixed_exactness_falls_back_to_float(self):
+        """warn: a float endpoint keeps the recomputation inexact."""
+        processed = {
+            "start": coordinate_to_struct(Fraction(1, 3)),
+            "end": coordinate_to_struct(3.0),  # no exact ratio
+            "duration": coordinate_to_struct(Fraction(1, 2)),  # inconsistent
+        }
+        EventData._normalize_intervals_row(processed, policy=IntervalPolicy.warn)
+        dur = processed["duration"]
+        assert dur["numerator"] is None
+        assert dur["denominator"] is None
+        assert dur["value"] == pytest.approx(3.0 - 1 / 3)
+
 
 # ---------------------------------------------------------------------------
 # Vectorized path: EventData.from_arrays

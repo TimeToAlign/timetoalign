@@ -733,6 +733,16 @@ class EventData(SemanticFieldAccessMixin):
                 return v.get("value")
             return float(v)
 
+        # ---- Extract exact Fraction, when the struct carries one ----
+        def _fraction_of(v: Any) -> Fraction | None:
+            if not isinstance(v, dict):
+                return None
+            num = v.get("numerator")
+            den = v.get("denominator")
+            if num is None or den is None:
+                return None
+            return Fraction(num, den)
+
         start_val = _float_of(processed.get("start"))
         end_val = _float_of(processed.get("end"))
         dur_val = _float_of(processed.get("duration"))
@@ -782,8 +792,18 @@ class EventData(SemanticFieldAccessMixin):
                 elif has_dur and not has_end:
                     processed["end"] = coordinate_to_struct(start_val + dur_val)
                 elif has_end and has_dur:
-                    # Recompute duration from end (prefer end)
-                    processed["duration"] = coordinate_to_struct(end_val - start_val)
+                    # Recompute duration from end (prefer end); stay exact
+                    # when both endpoints carry exact ratios.
+                    start_frac = _fraction_of(processed.get("start"))
+                    end_frac = _fraction_of(processed.get("end"))
+                    if start_frac is not None and end_frac is not None:
+                        processed["duration"] = coordinate_to_struct(
+                            end_frac - start_frac
+                        )
+                    else:
+                        processed["duration"] = coordinate_to_struct(
+                            end_val - start_val
+                        )
 
         # ---- Infer temporal_type ----
         if "temporal_type" not in processed or processed["temporal_type"] is None:

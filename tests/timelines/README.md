@@ -157,6 +157,17 @@ These tests verify the fundamental Timeline contract from the TTA manuscript:
    - `allow_expansion=True` works with unit conversion
    - Converted copy is locked, original is not
 
+8. **Segment Duration Exactness Tests** (2 tests)
+   - `add_child` records the segment event's `duration` from the child's
+     `length`. When both the segment's `start` and `end` carry an exact
+     ratio (`numerator`/`denominator` populated, i.e. an int or `Fraction`
+     coordinate), `duration` is recomputed via exact `Fraction` arithmetic
+     rather than a float `end - start` subtraction, so an integral length
+     (`Fraction(2, 1)`) and a non-integral one (`Fraction(7, 3)`) both
+     round-trip through `parent.to_dict()["events"][0]["duration"]` as the
+     exact rational wire dict (`rational_to_wire`) for the child's length —
+     not a rounded float projection.
+
 **Validity Rationale:**
 
 The TTA model specifies that timelines can contain nested "children" (segments)

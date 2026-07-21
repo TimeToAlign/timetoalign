@@ -20,10 +20,11 @@ Validity Rationale:
 from __future__ import annotations
 
 import time
+from fractions import Fraction
 
 import pytest
 
-from timetoalign.core import Coordinate, TimeUnit
+from timetoalign.core import Coordinate, NumberType, TimeUnit, rational_to_wire
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
@@ -180,6 +181,46 @@ class TestAddChild:
 
         stored_offset = parent.get_child_offset(child.id)
         assert stored_offset.value == 10.0
+
+
+class TestAddChildDurationExactness:
+    """Segment event duration stays an exact ratio for exact child lengths."""
+
+    def test_integral_fraction_length_duration_is_exact(self):
+        """A Fraction(2, 1) child length round-trips as an exact ratio."""
+        parent = Timeline(
+            length=Fraction(10, 1),
+            unit=TimeUnit.seconds,
+            number_type=NumberType.fraction,
+        )
+        child = Timeline(
+            length=Fraction(2, 1),
+            unit=TimeUnit.seconds,
+            number_type=NumberType.fraction,
+            uid="child",
+        )
+        parent.add_child(child, offset=Fraction(0, 1))
+
+        duration = parent.to_dict()["events"][0]["duration"]
+        assert duration == rational_to_wire(Fraction(2, 1))
+
+    def test_non_integral_fraction_length_duration_is_exact(self):
+        """A Fraction(7, 3) child length round-trips as an exact ratio."""
+        parent = Timeline(
+            length=Fraction(10, 1),
+            unit=TimeUnit.seconds,
+            number_type=NumberType.fraction,
+        )
+        child = Timeline(
+            length=Fraction(7, 3),
+            unit=TimeUnit.seconds,
+            number_type=NumberType.fraction,
+            uid="child",
+        )
+        parent.add_child(child, offset=Fraction(0, 1))
+
+        duration = parent.to_dict()["events"][0]["duration"]
+        assert duration == rational_to_wire(Fraction(7, 3))
 
 
 # endregion

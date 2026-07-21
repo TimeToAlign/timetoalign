@@ -27,7 +27,14 @@ from timetoalign.core.fields import (
     rational_to_struct,
     struct_to_rational,
 )
-from timetoalign.core.time import Coordinate, CoordinateField, IdCoordinateField
+from timetoalign.core.time import (
+    Coordinate,
+    CoordinateField,
+    DurationField,
+    IdCoordinateField,
+    IdDurationField,
+    _resolve_timeline_id,
+)
 
 
 class TestMetadataBlobForModel:
@@ -221,6 +228,51 @@ class TestHierarchyWideStamping:
         assert md["field_type"] == "CoordinateField"
 
 
+class TestVersionErrorPropagation:
+    """A version violation must surface as ``ValueError``, not a swallowed mismatch.
+
+    ``matches_pa_field`` and ``_resolve_timeline_id`` used to catch the
+    broad ``(ValueError, UnicodeDecodeError)`` pair around
+    ``parse_metadata_blob``, a leftover from when the body was a bare
+    ``json.loads``. ``parse_metadata_blob`` now raises ``ValueError`` on
+    purpose for version violations, so that error must propagate instead
+    of being treated as "no decodable blob".
+    """
+
+    @staticmethod
+    def _future_version_field(field_type: str) -> pa.Field:
+        blob = json.dumps({"field_type": field_type, "version": 999999}).encode("utf-8")
+        return pa.field(
+            "coord", RATIONAL_STRUCT_TYPE, metadata={TIMETOALIGN_METADATA_KEY: blob}
+        )
+
+    def test_coordinate_field_future_version_raises(self) -> None:
+        pa_field = self._future_version_field("IdCoordinateField")
+        with pytest.raises(ValueError, match="declares version 999999"):
+            CoordinateField.matches_pa_field(pa_field)
+
+    def test_id_coordinate_field_future_version_raises(self) -> None:
+        pa_field = self._future_version_field("IdCoordinateField")
+        with pytest.raises(ValueError, match="declares version 999999"):
+            IdCoordinateField.matches_pa_field(pa_field)
+
+    def test_duration_field_future_version_raises(self) -> None:
+        pa_field = self._future_version_field("IdDurationField")
+        with pytest.raises(ValueError, match="declares version 999999"):
+            DurationField.matches_pa_field(pa_field)
+
+    def test_id_duration_field_future_version_raises(self) -> None:
+        pa_field = self._future_version_field("IdDurationField")
+        with pytest.raises(ValueError, match="declares version 999999"):
+            IdDurationField.matches_pa_field(pa_field)
+
+    def test_resolve_timeline_id_surfaces_version_error(self) -> None:
+        """The version diagnostic wins over the generic missing-id message."""
+        pa_field = self._future_version_field("IdCoordinateField")
+        with pytest.raises(ValueError, match="declares version 999999"):
+            _resolve_timeline_id(pa_field, None)
+
+
 class TestCanonicalRationalStruct:
     """§5: one struct shape, exact Fraction round-trip."""
 
@@ -231,7 +283,7 @@ class TestCanonicalRationalStruct:
             "denominator",
         ]
 
-    def test_fraction_to_struct_exact(self) -> None:
+    def test_rational_to_struct_exact(self) -> None:
         assert rational_to_struct(Fraction(3, 4)) == {
             "value": 0.75,
             "numerator": 3,

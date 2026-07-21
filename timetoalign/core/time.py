@@ -60,6 +60,7 @@ too for the Id-variants.
 
 from __future__ import annotations
 
+import json
 from fractions import Fraction
 from typing import Any, ClassVar, NamedTuple, Union
 
@@ -1618,7 +1619,7 @@ class CoordinateField(TimeScalarField):
         ):
             try:
                 meta = parse_metadata_blob(pa_field.metadata[TIMETOALIGN_METADATA_KEY])
-            except (ValueError, UnicodeDecodeError):
+            except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
                 meta = {}
             if meta:
                 ft = meta.get("field_type")
@@ -1725,7 +1726,7 @@ class IdCoordinateField(CoordinateField):
             return False
         try:
             meta = parse_metadata_blob(pa_field.metadata[TIMETOALIGN_METADATA_KEY])
-        except (ValueError, UnicodeDecodeError):
+        except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
             return False
         return meta.get("field_type") == "IdCoordinateField"
 
@@ -1840,7 +1841,7 @@ class DurationField(TimeScalarField):
         ):
             try:
                 meta = parse_metadata_blob(pa_field.metadata[TIMETOALIGN_METADATA_KEY])
-            except (ValueError, UnicodeDecodeError):
+            except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
                 meta = {}
             if meta:
                 ft = meta.get("field_type")
@@ -1939,7 +1940,7 @@ class IdDurationField(DurationField):
             return False
         try:
             meta = parse_metadata_blob(pa_field.metadata[TIMETOALIGN_METADATA_KEY])
-        except (ValueError, UnicodeDecodeError):
+        except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
             return False
         return meta.get("field_type") == "IdDurationField"
 
@@ -1970,7 +1971,7 @@ def _resolve_timeline_id(source: Any, override: str | None) -> str:
         if TIMETOALIGN_METADATA_KEY in pa_field.metadata:
             try:
                 meta = parse_metadata_blob(pa_field.metadata[TIMETOALIGN_METADATA_KEY])
-            except (ValueError, UnicodeDecodeError):
+            except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
                 meta = {}
             tl_id = meta.get("timeline_id")
             if isinstance(tl_id, str) and tl_id:
