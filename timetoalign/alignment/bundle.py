@@ -127,6 +127,14 @@ class AlignmentBundle:
             materialising the full claim list.
 
     Note:
+        The two claim stores are interchangeable as far as queries are
+        concerned: every reader consults both, so a bundle whose claims live
+        in a ``MatchClaimField`` answers exactly as a bundle holding the same
+        claims in the Python list.  What differs is cost — ``MatchClaimField``
+        queries stay vectorized, and ``get_claim_fields()`` is the accessor
+        that keeps them that way.
+
+    Note:
         The bundle maintains a UID mapping layer. Users interact with bundle UIDs
         (e.g., "tl1", "tl2"), while groups internally use the actual timeline.id.
         The bundle translates between these two namespaces transparently.
@@ -741,7 +749,7 @@ class AlignmentBundle:
             return True
 
         # Check for cross-group path via claims
-        if not self.cross_group_claims:
+        if self.n_cross_group_claims == 0:
             return False
 
         actual_a = self._uid_to_timeline_id.get(timeline_a, timeline_a)
@@ -771,7 +779,12 @@ class AlignmentBundle:
             if a_side and b_side:
                 return True
 
-        return False
+        # Columnar stores answer the same question with one vectorized pass,
+        # without materialising a claim.
+        return any(
+            claim_field.connects_groups(group_a_tl_ids, group_b_tl_ids)
+            for claim_field in self.cross_group_claim_fields
+        )
 
     # endregion
 
@@ -920,6 +933,19 @@ class AlignmentBundle:
         self._invalidate_warp_cache()
         return self
 
+    @property
+    def n_cross_group_claims(self) -> int:
+        """Total cross-group claims across BOTH claim stores.
+
+        Sums the per-claim Python list and the row counts of every columnar
+        ``MatchClaimField``.  The field contribution is a row count, so no
+        claim is materialised — this is the cheap way to ask "does this
+        bundle carry any alignment at all?".
+        """
+        return len(self.cross_group_claims) + sum(
+            len(claim_field) for claim_field in self.cross_group_claim_fields
+        )
+
     def _actual_timeline_lookup(self) -> dict[str, "Timeline"]:
         """Build an actual timeline ID to timeline metadata lookup."""
         return {
@@ -964,6 +990,13 @@ class AlignmentBundle:
         Filters are combined with AND logic: a claim must satisfy every
         non-None criterion. Uses the Unified Filter API.
 
+        Both claim stores are queried: the per-claim Python list and every
+        columnar ``MatchClaimField``. The columnar matches are filtered
+        vectorized but then **materialised**, one ``MatchClaim`` per surviving
+        row — for a dense pairwise alignment that is O(n) Python objects. Use
+        :meth:`get_claim_fields` when the columnar answer suffices, or narrow
+        the query first.
+
         Args:
             timeline_id: Return claims involving this bundle UID.
             timeline_ids: Return claims involving any of these bundle UIDs.
@@ -994,12 +1027,117 @@ class AlignmentBundle:
                 ...     nomatch_only=True,
                 ... )
         """
-        if timeline_id is not None and timeline_id not in self._uid_to_timeline_id:
+        filt = self._actual_claim_filter(
+            timeline_id=timeline_id,
+            timeline_ids=timeline_ids,
+            id_pattern=id_pattern,
+            between=between,
+            synchronous_only=synchronous_only,
+            nomatch_only=nomatch_only,
+            include_domains=include_domains,
+            include_units=include_units,
+        )
+        if filt is None:
             return []
+
+        timeline_lookup = self._actual_timeline_lookup()
+        claims = [
+            c
+            for c in self.cross_group_claims
+            if filt.matches_claim(c, timelines=timeline_lookup)
+        ]
+        for claim_field in self._filtered_claim_fields(filt, timeline_lookup):
+            claims.extend(claim_field.to_claims())
+        return claims
+
+    def get_claim_fields(
+        self,
+        *,
+        timeline_id: str | None = None,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
+        between: tuple[str, str] | None = None,
+        synchronous_only: bool = False,
+        nomatch_only: bool = False,
+        include_domains: set["Domain"] | None = None,
+        include_units: set["TimeUnit"] | None = None,
+    ) -> list[MatchClaimField]:
+        """Query the columnar claim stores, materialising nothing.
+
+        This is the scalable counterpart of :meth:`get_match_claims` for
+        bundles whose claims live in a ``MatchClaimField`` — a dense pairwise
+        alignment can hold hundreds of thousands of claims, and turning each
+        one into a Python object costs orders of magnitude more than the
+        columnar answer.  Every filter is applied as a vectorized PyArrow
+        mask, and the result is a list of *filtered fields*, one per store
+        that still has rows.
+
+        The filter parameters are exactly those of :meth:`get_match_claims`
+        and carry the same meaning.  Because a ``MatchClaimField`` holds
+        synchronous claims only, ``synchronous_only`` is a no-op here and
+        ``nomatch_only`` returns nothing.
+
+        Args:
+            timeline_id: Keep claims involving this bundle UID.
+            timeline_ids: Keep claims involving any of these bundle UIDs.
+            id_pattern: Regex matched against bundle UIDs via ``re.search()``.
+            between: Keep claims connecting exactly these two bundle UIDs
+                (order-independent).
+            synchronous_only: No-op (every stored claim is synchronous).
+            nomatch_only: Returns an empty list.
+            include_domains: Only timelines in these domains.
+            include_units: Only timelines with these units.
+
+        Returns:
+            Filtered ``MatchClaimField`` objects, empty stores dropped.
+
+        Examples:
+            >>> fields = bundle.get_claim_fields(timeline_id="rec-a:cpt1")
+            >>> sum(len(f) for f in fields)
+            66780
+        """
+        filt = self._actual_claim_filter(
+            timeline_id=timeline_id,
+            timeline_ids=timeline_ids,
+            id_pattern=id_pattern,
+            between=between,
+            synchronous_only=synchronous_only,
+            nomatch_only=nomatch_only,
+            include_domains=include_domains,
+            include_units=include_units,
+        )
+        if filt is None:
+            return []
+        return self._filtered_claim_fields(filt, self._actual_timeline_lookup())
+
+    def _actual_claim_filter(
+        self,
+        *,
+        timeline_id: str | None,
+        timeline_ids: set[str] | None,
+        id_pattern: str | None,
+        between: tuple[str, str] | None,
+        synchronous_only: bool,
+        nomatch_only: bool,
+        include_domains: set["Domain"] | None,
+        include_units: set["TimeUnit"] | None,
+    ) -> ClaimFilter | None:
+        """Translate public-UID filter kwargs into an actual-ID ``ClaimFilter``.
+
+        Claims are keyed on actual timeline IDs while the public query API
+        speaks bundle UIDs, so every ID-shaped criterion is translated here
+        once, for both claim stores.
+
+        Returns:
+            The translated filter, or ``None`` when a required UID is unknown
+            to the bundle and no claim can possibly match.
+        """
+        if timeline_id is not None and timeline_id not in self._uid_to_timeline_id:
+            return None
         if between is not None and any(
             bundle_uid not in self._uid_to_timeline_id for bundle_uid in between
         ):
-            return []
+            return None
 
         actual_timeline_ids = (
             {
@@ -1018,7 +1156,7 @@ class AlignmentBundle:
             if between is not None
             else None
         )
-        filt = ClaimFilter.from_kwargs(
+        return ClaimFilter.from_kwargs(
             timeline_id=(
                 self._uid_to_timeline_id[timeline_id]
                 if timeline_id is not None
@@ -1032,12 +1170,35 @@ class AlignmentBundle:
             include_domains=include_domains,
             include_units=include_units,
         )
-        timeline_lookup = self._actual_timeline_lookup()
-        return [
-            c
-            for c in self.cross_group_claims
-            if filt.matches_claim(c, timelines=timeline_lookup)
-        ]
+
+    def _filtered_claim_fields(
+        self,
+        filt: ClaimFilter,
+        timeline_lookup: dict[str, "Timeline"],
+    ) -> list[MatchClaimField]:
+        """Apply an actual-ID ``ClaimFilter`` to every columnar claim store.
+
+        The domain/unit criteria are resolved into a set of passing timeline
+        IDs (the fields hold IDs, not timeline metadata); everything else maps
+        straight onto ``MatchClaimField.filter``.  Stores that filter down to
+        zero rows are dropped.
+        """
+        if not self.cross_group_claim_fields:
+            return []
+        within = filt.domain_unit_timeline_ids(timeline_lookup)
+        filtered = (
+            claim_field.filter(
+                timeline_id=filt.timeline_id,
+                timeline_ids=filt.timeline_ids,
+                id_pattern=filt.id_pattern,
+                between=filt.between,
+                within=within,
+                synchronous_only=filt.synchronous_only,
+                nomatch_only=filt.nomatch_only,
+            )
+            for claim_field in self.cross_group_claim_fields
+        )
+        return [claim_field for claim_field in filtered if len(claim_field) > 0]
 
     def _get_or_build_matchgraph(
         self,
@@ -1087,9 +1248,7 @@ class AlignmentBundle:
         # ... then query each columnar field vectorized, materialising only
         # the matched rows (never the whole field).
         for claim_field in self.cross_group_claim_fields:
-            relevant_claims.extend(
-                self._claims_at_from_field(claim_field, timeline_id, coordinate)
-            )
+            relevant_claims.extend(claim_field.at(timeline_id, coordinate).to_claims())
 
         if not relevant_claims:
             raise ValueError(
@@ -1132,60 +1291,6 @@ class AlignmentBundle:
             self._matchgraph_cache[(node_tl, node_coord)] = mg
 
         return mg
-
-    @staticmethod
-    def _claims_at_from_field(
-        claim_field: MatchClaimField,
-        timeline_id: str,
-        coordinate: float,
-    ) -> list[MatchClaim]:
-        """Return the field's claims touching ``(timeline_id, coordinate)``.
-
-        The match is a vectorized PyArrow boolean mask over the field's struct
-        column — rows where ``timeline_a_id == timeline_id`` and
-        ``coordinate_a == coordinate``, OR the symmetric
-        ``timeline_b_id == timeline_id`` and ``coordinate_b == coordinate``.
-        Only the masked rows are materialised into :class:`MatchClaim`
-        objects (the field's shared metadata is injected as usual); the rest of
-        the field is never touched.
-
-        Coordinate matching is **exact float equality** — a query coordinate
-        must land on a grid column carried by the field, matching the per-claim
-        Python-list path above.
-
-        Args:
-            claim_field: The columnar field to filter.
-            timeline_id: The timeline the queried coordinate lives on.
-            coordinate: The exact coordinate value.
-
-        Returns:
-            The matched claims (possibly empty).
-        """
-        import pyarrow.compute as pc
-
-        struct = claim_field.table.column(MatchClaimField._COLUMN_NAME)
-        struct = struct.combine_chunks()
-        if len(struct) == 0:
-            return []
-
-        anchor = struct.field("start_anchor")
-        a_side = pc.and_(
-            pc.equal(struct.field("timeline_a_id"), timeline_id),
-            pc.equal(anchor.field("coordinate_a").field("value"), coordinate),
-        )
-        b_side = pc.and_(
-            pc.equal(struct.field("timeline_b_id"), timeline_id),
-            pc.equal(anchor.field("coordinate_b").field("value"), coordinate),
-        )
-        mask = pc.or_(a_side, b_side)
-        # Empty mask short-circuit: avoid building a filtered sub-field.
-        if pc.sum(pc.cast(mask, "int64")).as_py() == 0:
-            return []
-        matched = type(claim_field)._from_struct_array(
-            struct.filter(mask),
-            metadata=claim_field.metadata,
-        )
-        return matched.to_claims()
 
     def get_matchstamp_at(
         self,
@@ -1460,7 +1565,10 @@ class AlignmentBundle:
 
         Args:
             claims: List of MatchClaims to get stamps for. If None, uses
-                all cross_group_claims.
+                every cross-group claim in the bundle — the per-claim list
+                and every columnar ``MatchClaimField`` (see
+                :meth:`get_match_claims`, which materialises the columnar
+                rows).
             from_graph: If True (default), return full MatchStamps from the
                 MatchGraph (all connected timelines). If False, return
                 reduced 2-timeline stamps.
@@ -1477,7 +1585,7 @@ class AlignmentBundle:
             23
         """
         if claims is None:
-            claims = self.cross_group_claims
+            claims = self.get_match_claims()
 
         stamps = []
         for claim in claims:
@@ -1492,21 +1600,47 @@ class AlignmentBundle:
         claims: list[MatchClaim] | None = None,
         *,
         timeline_filter: set[str] | None = None,
+        from_graph: bool = False,
     ) -> "pa.Table":
         """Get a PyArrow table of MatchStamps for alignment queries.
 
         Analogous to ``get_timestamp_table()`` but for cross-group alignment.
-        Each row represents one MatchClaim/coordinate; fields are timeline IDs
-        with their coordinate values.
+        Fields are timeline IDs holding their coordinate values; what a *row*
+        is depends on ``from_graph``:
+
+        - ``from_graph=False`` (default) — one row per synchronous claim.  A
+          pairwise claim fills exactly two cells and leaves the rest null, so
+          a dense pairwise alignment produces one sparse row per claim.
+        - ``from_graph=True`` — one row per connected component of the
+          ``(timeline_id, coordinate)`` graph the claims induce.  The pairwise
+          rows above collapse into the *cross-section* they describe: one row
+          per aligned instant, every participating timeline filled.
+
+        When ``claims`` is None both claim stores are read: the per-claim
+        Python list and every columnar ``MatchClaimField``.  The columnar
+        stores are read four Arrow columns at a time — no ``MatchClaim`` is
+        ever materialised — which is what keeps a hundreds-of-thousands-of-rows
+        alignment tabulable.
 
         Args:
-            claims: List of MatchClaims to tabulate. If None, uses all
-                cross_group_claims.
+            claims: List of MatchClaims to tabulate.  If None, uses every
+                cross-group claim in the bundle (both stores).  When given,
+                only those claims are tabulated.
             timeline_filter: Only include these timeline fields.
+            from_graph: Collapse claims into one row per connected component
+                instead of one row per claim.
 
         Returns:
-            PyArrow Table with one row per synchronous claim, one field
-            per timeline. Non-synchronous claims are excluded.
+            PyArrow Table with one field per timeline.  Non-synchronous claims
+            are excluded.  Empty input yields an empty table.
+
+        Note:
+            Collapsed rows are ordered by the coordinate on the
+            lexicographically smallest timeline ID present in the component,
+            then by that ID — a total order, since two components can never
+            share a ``(timeline_id, coordinate)`` node.  A component that
+            somehow carries two coordinates for one timeline (which a
+            well-formed alignment never does) keeps the smaller one.
 
         Examples:
             >>> table = bundle.get_matchstamp_table()
@@ -1514,45 +1648,142 @@ class AlignmentBundle:
             100
             >>> table.column_names
             ['score:clt1', 'perf:dlt1', 'perf:dlt2', ...]
+            >>> bundle.get_matchstamp_table(from_graph=True).num_rows
+            25
         """
         import pyarrow as pa
 
-        if claims is None:
-            claims = self.cross_group_claims
+        list_claims = self.cross_group_claims if claims is None else claims
+        claim_fields = [] if claims is not None else self.cross_group_claim_fields
 
-        # Collect all timeline IDs first
         all_tl_ids: set[str] = set()
         rows: list[dict[str, float | None]] = []
+        # Bulk (timeline_a_id, timeline_b_id, coordinate_a, coordinate_b)
+        # column reads, one per columnar store, scattered without dicts.
+        bulk_columns: list[tuple[list[str], list[str], list[float], list[float]]] = []
 
-        for claim in claims:
-            if not claim.is_synchronous or claim.start_anchor is None:
-                continue
+        if from_graph:
+            rows = self._collapsed_claim_rows(list_claims, claim_fields)
+            for row in rows:
+                all_tl_ids.update(row)
+        else:
+            for claim in list_claims:
+                if not claim.is_synchronous or claim.start_anchor is None:
+                    continue
 
-            # Get reduced stamp (2 timelines only, for efficiency)
-            stamp = claim.get_matchstamp(bundle=self, from_graph=False)
-            if stamp is None:
-                continue
+                # Get reduced stamp (2 timelines only, for efficiency)
+                stamp = claim.get_matchstamp(bundle=self, from_graph=False)
+                if stamp is None:
+                    continue
 
-            row = dict(stamp.coordinates)
-            rows.append(row)
-            all_tl_ids.update(stamp.coordinates.keys())
+                row = dict(stamp.coordinates)
+                rows.append(row)
+                all_tl_ids.update(stamp.coordinates.keys())
 
-        if not rows:
+            bulk_columns = [
+                claim_field.coordinate_pairs() for claim_field in claim_fields
+            ]
+            for ids_a, ids_b, _, _ in bulk_columns:
+                all_tl_ids.update(ids_a)
+                all_tl_ids.update(ids_b)
+            all_tl_ids.discard(None)
+
+        n_rows = len(rows) + sum(len(ids_a) for ids_a, _, _, _ in bulk_columns)
+        if n_rows == 0:
             return pa.table({})
 
         # Apply timeline filter if provided
         if timeline_filter is not None:
             all_tl_ids = all_tl_ids & timeline_filter
 
-        # Build table with consistent fields
-        sorted_ids = sorted(all_tl_ids)
-        field_lists: dict[str, list[float | None]] = {tl: [] for tl in sorted_ids}
+        # Build table with consistent fields, scattering each claim into its
+        # two cells rather than probing every field of every row.
+        field_lists: dict[str, list[float | None]] = {
+            tl_id: [None] * n_rows for tl_id in sorted(all_tl_ids)
+        }
+        for position, row in enumerate(rows):
+            for tl_id, value in row.items():
+                column = field_lists.get(tl_id)
+                if column is not None:
+                    column[position] = value
 
-        for row in rows:
-            for tl_id in sorted_ids:
-                field_lists[tl_id].append(row.get(tl_id))
+        offset = len(rows)
+        for ids_a, ids_b, coordinates_a, coordinates_b in bulk_columns:
+            for position in range(len(ids_a)):
+                column = field_lists.get(ids_a[position])
+                if column is not None:
+                    column[offset + position] = coordinates_a[position]
+                column = field_lists.get(ids_b[position])
+                if column is not None:
+                    column[offset + position] = coordinates_b[position]
+            offset += len(ids_a)
 
         return pa.table(field_lists)
+
+    def _collapsed_claim_rows(
+        self,
+        claims: list[MatchClaim],
+        claim_fields: list[MatchClaimField],
+    ) -> list[dict[str, float | None]]:
+        """Collapse pairwise claims into one row per aligned instant.
+
+        Each synchronous claim is an edge between the nodes
+        ``(timeline_a_id, coordinate_a)`` and ``(timeline_b_id, coordinate_b)``.
+        A union-find over those edges recovers the connected components, and
+        each component becomes one row mapping every participating timeline to
+        its coordinate.  Columnar stores contribute their edges through a bulk
+        four-column read, so no ``MatchClaim`` is materialised.
+
+        Args:
+            claims: Per-claim edge source (non-synchronous claims ignored).
+            claim_fields: Columnar edge sources.
+
+        Returns:
+            One row per component, ordered as documented on
+            :meth:`get_matchstamp_table`.
+        """
+        parent: dict[tuple[str, float], tuple[str, float]] = {}
+
+        def find(node: tuple[str, float]) -> tuple[str, float]:
+            root = node
+            while parent[root] != root:
+                root = parent[root]
+            while parent[node] != root:
+                parent[node], node = root, parent[node]
+            return root
+
+        def union(node_a: tuple[str, float], node_b: tuple[str, float]) -> None:
+            parent.setdefault(node_a, node_a)
+            parent.setdefault(node_b, node_b)
+            root_a, root_b = find(node_a), find(node_b)
+            if root_a != root_b:
+                parent[root_b] = root_a
+
+        for claim in claims:
+            if not claim.is_synchronous or claim.start_anchor is None:
+                continue
+            anchor = claim.start_anchor
+            union(
+                (claim.timeline_a_id, float(anchor.coordinate_a.value)),
+                (claim.timeline_b_id, float(anchor.coordinate_b.value)),
+            )
+        for claim_field in claim_fields:
+            ids_a, ids_b, coordinates_a, coordinates_b = claim_field.coordinate_pairs()
+            for position in range(len(ids_a)):
+                union(
+                    (ids_a[position], coordinates_a[position]),
+                    (ids_b[position], coordinates_b[position]),
+                )
+
+        components: dict[tuple[str, float], dict[str, float | None]] = {}
+        for node in parent:
+            timeline_id, coordinate = node
+            row = components.setdefault(find(node), {})
+            carried = row.get(timeline_id)
+            if carried is None or coordinate < carried:
+                row[timeline_id] = coordinate
+
+        return sorted(components.values(), key=lambda row: (row[min(row)], min(row)))
 
     def _invalidate_warp_cache(self) -> None:
         """Clear the WarpMap, MatchLine, and MatchGraph caches, forcing rebuild on next access."""
@@ -1588,9 +1819,18 @@ class AlignmentBundle:
         if source_tl_id in self._matchline_cache:
             return self._matchline_cache[source_tl_id]
 
+        # Columnar stores contribute only the rows that actually touch this
+        # source. ``connecting`` is a vectorized mask, so a dense pairwise
+        # field is cut to its source slice — for R recordings that is 2/R of
+        # the rows — before anything is materialised, and the resulting
+        # MatchLine is then cached per source.
+        claims = list(self.cross_group_claims)
+        for claim_field in self.cross_group_claim_fields:
+            claims.extend(claim_field.connecting(source_tl_id).to_claims())
+
         try:
             match_line = MatchLine.from_claims(
-                claims=self.cross_group_claims,
+                claims=claims,
                 source_timeline_id=source_tl_id,
             )
         except Exception as e:
@@ -1623,11 +1863,15 @@ class AlignmentBundle:
         Returns:
             WarpMap for the pair, or None if insufficient data.
         """
-        if not self.cross_group_claims:
+        if self.n_cross_group_claims == 0:
             return None
 
-        # Check cache validity
-        claims_hash = id(self.cross_group_claims) + len(self.cross_group_claims)
+        # Check cache validity. The hash must move when EITHER store changes,
+        # so it folds in the total claim count and the identity of each
+        # columnar store alongside the list's own identity.
+        claims_hash = id(self.cross_group_claims) + self.n_cross_group_claims
+        for claim_field in self.cross_group_claim_fields:
+            claims_hash += id(claim_field)
         if claims_hash != self._cache_claims_hash:
             self._warp_map_cache.clear()
             self._matchline_cache.clear()
@@ -1776,6 +2020,12 @@ class AlignmentBundle:
                 max_claim_coord = float(c.value)
                 if max_claim_coord > 1000:
                     break
+
+        # Columnar stores answer the same question with a masked pc.max.
+        for claim_field in self.cross_group_claim_fields:
+            field_max = claim_field.max_coordinate(timeline_id)
+            if field_max is not None and field_max > max_claim_coord:
+                max_claim_coord = field_max
 
         if max_claim_coord == 0:
             self._claim_converter_cache[timeline_id] = None

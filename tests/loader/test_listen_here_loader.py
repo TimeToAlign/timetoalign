@@ -22,6 +22,10 @@ It verifies:
   bundle's Python claim list stays empty while the field is the store;
 - a ``get_matchstamp_at`` headline read returning all recordings'
   coordinates at one reference instant via the columnar query path;
+- every other bundle claim reader answering the columnar store with
+  exact values (claim counts, filtered queries, the vectorized
+  ``get_claim_fields``, both matchstamp-table modes, commensurability,
+  and a ``MatchLine`` → ``WarpMap`` transfer);
 - the bare-array ``body.audio`` value form (``length == max(times)``);
 - field-level ``MatchMetadata`` (agent from ``header.createdBy``,
   identifier ``dtw_chroma_alignment``); and
@@ -281,6 +285,80 @@ def test_matchstamp_at_first_grid_coordinate(loader: ListenHereLoader) -> None:
         coordinate = stamp.get_coordinate(timeline_id)
         assert coordinate.value == expected
         assert coordinate.unit is TimeUnit.seconds
+
+
+# endregion
+
+
+# region Columnar bundle answers every claim query
+
+
+def test_bundle_claim_count(loader: ListenHereLoader) -> None:
+    # The bundle's claim count spans both stores, so a columnar bundle
+    # reports its real total rather than its empty Python list.
+    assert loader.create_bundle().n_cross_group_claims == 15
+
+
+def test_bundle_get_match_claims(loader: ListenHereLoader) -> None:
+    bundle = loader.create_bundle()
+    claims = bundle.get_match_claims()
+    assert len(claims) == 15
+    assert all(claim.is_synchronous for claim in claims)
+
+
+def test_bundle_get_match_claims_filtered(loader: ListenHereLoader) -> None:
+    bundle = loader.create_bundle()
+    # rec-a pairs with the two other recordings at all 5 grid columns.
+    assert len(bundle.get_match_claims(timeline_id="rec-a:cpt1")) == 10
+    assert len(bundle.get_match_claims(between=("rec-a:cpt1", "rec-b:cpt1"))) == 5
+
+
+def test_bundle_get_claim_fields(loader: ListenHereLoader) -> None:
+    # The vectorized accessor answers the same query without materialising.
+    bundle = loader.create_bundle()
+    assert [len(f) for f in bundle.get_claim_fields()] == [15]
+    assert [len(f) for f in bundle.get_claim_fields(timeline_id="rec-a:cpt1")] == [10]
+    assert bundle.get_claim_fields(timeline_id="missing:cpt1") == []
+
+
+def test_bundle_matchstamp_table_per_claim(loader: ListenHereLoader) -> None:
+    table = loader.create_bundle().get_matchstamp_table()
+    assert table.num_rows == 15
+    assert table.column_names == ["rec-a:cpt1", "rec-b:cpt1", "rec-ref:cpt1"]
+    # Every row is one pairwise claim: exactly two filled cells.
+    for row in table.to_pylist():
+        assert sum(value is not None for value in row.values()) == 2
+
+
+def test_bundle_matchstamp_table_from_graph(loader: ListenHereLoader) -> None:
+    # The 15 pairwise rows collapse into the 5 reference-grid cross-sections.
+    table = loader.create_bundle().get_matchstamp_table(from_graph=True)
+    assert table.num_rows == 5
+    assert table.column_names == ["rec-a:cpt1", "rec-b:cpt1", "rec-ref:cpt1"]
+    assert table.to_pylist() == [
+        {"rec-a:cpt1": 0.00, "rec-b:cpt1": -0.01, "rec-ref:cpt1": 0.000},
+        {"rec-a:cpt1": 0.02, "rec-b:cpt1": 0.01, "rec-ref:cpt1": 0.025},
+        {"rec-a:cpt1": 0.04, "rec-b:cpt1": 0.03, "rec-ref:cpt1": 0.045},
+        {"rec-a:cpt1": 0.06, "rec-b:cpt1": 0.05, "rec-ref:cpt1": 0.065},
+        {"rec-a:cpt1": 0.08, "rec-b:cpt1": 0.07, "rec-ref:cpt1": 0.085},
+    ]
+
+
+def test_bundle_are_commensurable(loader: ListenHereLoader) -> None:
+    bundle = loader.create_bundle()
+    assert bundle.are_commensurable("rec-a:cpt1", "rec-b:cpt1") is True
+    assert bundle.are_commensurable("rec-b:cpt1", "rec-ref:cpt1") is True
+    assert bundle.are_commensurable("rec-a:cpt1", "missing:cpt1") is False
+
+
+def test_bundle_transfer(loader: ListenHereLoader) -> None:
+    # The MatchLine -> WarpMap path over the columnar store: grid column 1.
+    bundle = loader.create_bundle()
+    assert bundle.transfer(0.02, "rec-a:cpt1", "rec-b:cpt1") == 0.01
+
+
+def test_bundle_diagram_reports_claim_count(loader: ListenHereLoader) -> None:
+    assert "MatchClaims: 15" in str(loader.create_bundle().diagram())
 
 
 # endregion

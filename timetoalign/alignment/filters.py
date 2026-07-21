@@ -190,6 +190,38 @@ class ClaimFilter:
 
         return True
 
+    def domain_unit_timeline_ids(
+        self,
+        timelines: dict[str, Timeline] | None,
+    ) -> set[str] | None:
+        """Resolve the domain/unit criteria into the set of ids that pass.
+
+        ``include_domains`` / ``include_units`` are the only criteria that
+        need per-timeline metadata. Resolving them once into a plain set of
+        timeline ids lets a columnar store — which holds ids but no timeline
+        metadata — apply the same restriction vectorized.
+
+        The set carries the same semantics ``matches_claim`` applies: a claim
+        passes only when **both** of its timelines are in it.
+
+        Args:
+            timelines: Dict of timeline_id -> Timeline for resolution.
+
+        Returns:
+            ``None`` when neither criterion is set (no restriction), else the
+            set of timeline ids satisfying both criteria (empty when
+            ``timelines`` is None, mirroring ``matches_claim``).
+        """
+        if self.include_domains is None and self.include_units is None:
+            return None
+        if timelines is None:
+            return set()
+        return {
+            timeline_id
+            for timeline_id in timelines
+            if self._timeline_passes_domain_unit(timeline_id, timelines)
+        }
+
     def _timeline_passes_domain_unit(
         self,
         timeline_id: str,

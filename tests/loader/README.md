@@ -804,6 +804,25 @@ million Python claims.  Tests pin this by asserting
 ``len(bundle.cross_group_claim_fields) == 1`` while the matchstamp read still
 succeeds.
 
+Which store a bundle uses must not change **what** it answers, only how fast.
+So the loader-produced bundle is also tested on the readers that a columnar
+bundle previously left unanswered, all with exact values:
+
+| Test | Validates |
+|------|-----------|
+| `test_bundle_claim_count` | `n_cross_group_claims == 15` (spans both stores) |
+| `test_bundle_get_match_claims` | 15 claims, all synchronous |
+| `test_bundle_get_match_claims_filtered` | `timeline_id="rec-a:cpt1"` → 10; `between=("rec-a:cpt1","rec-b:cpt1")` → 5 |
+| `test_bundle_get_claim_fields` | the vectorized accessor selects `[15]` / `[10]`, and `[]` for an unknown UID |
+| `test_bundle_matchstamp_table_per_claim` | 15 rows × 3 columns, exactly two filled cells per row |
+| `test_bundle_matchstamp_table_from_graph` | the 15 pairwise rows collapse into the 5 reference-grid cross-sections, exact coordinates, ordered by the `rec-a` coordinate |
+| `test_bundle_are_commensurable` | all recording pairs commensurable; an absent ID is not |
+| `test_bundle_transfer` | `transfer(0.02, "rec-a:cpt1", "rec-b:cpt1") == 0.01` — the `MatchLine` → `WarpMap` path over the columnar store |
+| `test_bundle_diagram_reports_claim_count` | `diagram()` reports `MatchClaims: 15` |
+
+The general two-store parity contract is documented in
+``tests/alignment/README.md`` ("Claim-Store Parity").
+
 ### The synthetic specimen
 
 Committed tests use an **inline synthetic** ``alignment.json`` written to

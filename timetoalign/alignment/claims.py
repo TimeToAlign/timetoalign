@@ -28,6 +28,7 @@ Design:
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Iterator, Sequence
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -1828,37 +1829,210 @@ class MatchClaimField(SemanticField[MatchClaim]):
         mask = self._involves_mask(timeline_id)
         return self._filtered(mask)
 
+    def at(self, timeline_id: str, coordinate: float) -> "MatchClaimField":
+        """Return the claims anchored at ``(timeline_id, coordinate)``.
+
+        The selection is a vectorized PyArrow boolean mask over the struct
+        column — rows where ``timeline_a_id == timeline_id`` and the anchor's
+        ``coordinate_a`` equals ``coordinate``, OR the symmetric
+        ``timeline_b_id`` / ``coordinate_b`` pair.  No claim is materialised
+        and the rest of the field is never touched; the shared metadata
+        carries over.
+
+        Coordinate matching is **exact float equality** — a query coordinate
+        must land on a value the field actually carries.  There is no
+        tolerance and no nearest-value fallback, so the result agrees with a
+        per-claim scan of the same claims.
+
+        Args:
+            timeline_id: The timeline the queried coordinate lives on.
+            coordinate: The exact coordinate value on that timeline.
+
+        Returns:
+            A new :class:`MatchClaimField` holding only the matching rows
+            (possibly empty).
+        """
+        data = self._raw.data
+        if data is None or len(data) == 0:
+            return self._empty()
+        mask = pc.or_(
+            pc.and_(
+                pc.equal(data.field("timeline_a_id"), timeline_id),
+                pc.equal(self._anchor_values("a"), coordinate),
+            ),
+            pc.and_(
+                pc.equal(data.field("timeline_b_id"), timeline_id),
+                pc.equal(self._anchor_values("b"), coordinate),
+            ),
+        )
+        # Empty-mask short-circuit: skip building a filtered sub-field.
+        if pc.sum(pc.cast(mask, "int64")).as_py() == 0:
+            return self._empty()
+        return self._filtered(mask)
+
     def filter(
         self,
         *,
         timeline_id: str | None = None,
         timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
+        between: tuple[str, str] | None = None,
+        within: set[str] | None = None,
+        synchronous_only: bool = False,
+        nomatch_only: bool = False,
     ) -> "MatchClaimField":
-        """Return a filtered view following the unified-filter spirit.
+        """Return a filtered view following the unified filter API.
 
-        Both arguments are vectorized; no claim is materialised. The shared
-        metadata carries over.
+        Every criterion is a vectorized boolean mask over the struct column;
+        no claim is materialised and the shared metadata carries over.  All
+        non-default criteria are combined with logical AND.
+
+        ``include_domains`` / ``include_units`` are deliberately absent: they
+        need per-timeline metadata (domain, unit) that this store does not
+        hold.  A caller that owns that metadata — an
+        :class:`~timetoalign.alignment.bundle.AlignmentBundle`, say — resolves
+        them into the set of timeline ids that pass and hands that set to
+        ``within``.
 
         Args:
             timeline_id: Keep rows involving this exact id on either side
                 (equivalent to :meth:`connecting`).
             timeline_ids: Keep rows involving **any** id in this set on either
                 side.
+            id_pattern: Keep rows involving any id matching this regex
+                (``re.search`` against the field's :attr:`timeline_ids`).
+            between: Keep rows connecting exactly these two ids
+                (order-independent).
+            within: Keep rows whose **both** ids are in this set.  This is the
+                primitive behind domain- and unit-restricted queries.
+            synchronous_only: A no-op — every row in this store is a
+                synchronous claim by class invariant.
+            nomatch_only: Returns an **empty** field, for the same reason.
 
         Returns:
-            A new :class:`MatchClaimField`. When both arguments are ``None``,
-            a copy is returned. When both are given the two conditions are
-            combined with logical AND.
+            A new :class:`MatchClaimField`.  With no criteria set, a copy of
+            the whole field is returned.
+
+        Raises:
+            ValueError: If ``synchronous_only`` and ``nomatch_only`` are both
+                set.
         """
-        mask: pa.Array | None = None
-        if timeline_id is not None:
-            mask = self._involves_mask(timeline_id)
-        if timeline_ids is not None:
-            any_mask = self._involves_any_mask(timeline_ids)
-            mask = any_mask if mask is None else pc.and_(mask, any_mask)
-        if mask is None:
-            return self._from_struct_array(self._raw.data, metadata=self._metadata)
+        if synchronous_only and nomatch_only:
+            raise ValueError("synchronous_only and nomatch_only are mutually exclusive")
+        if nomatch_only:
+            return self._empty()
+
+        data = self._raw.data
+        masks: list[pa.Array] = []
+        if data is not None and len(data) > 0:
+            if timeline_id is not None:
+                masks.append(self._involves_mask(timeline_id))
+            if timeline_ids is not None:
+                masks.append(self._involves_any_mask(timeline_ids))
+            if id_pattern is not None:
+                pattern = re.compile(id_pattern)
+                masks.append(
+                    self._involves_any_mask(
+                        {tid for tid in self.timeline_ids if pattern.search(tid)}
+                    )
+                )
+            if between is not None:
+                masks.append(self._between_mask(*between))
+            if within is not None:
+                masks.append(self._within_mask(within))
+
+        if not masks:
+            return self._from_struct_array(data, metadata=self._metadata)
+        mask = masks[0]
+        for extra in masks[1:]:
+            mask = pc.and_(mask, extra)
         return self._filtered(mask)
+
+    def connects_groups(self, group_a_ids: set[str], group_b_ids: set[str]) -> bool:
+        """Whether any claim spans the two given sets of timeline ids.
+
+        True when at least one row has one side in ``group_a_ids`` and the
+        other side in ``group_b_ids``.  The test is a vectorized mask reduced
+        with :func:`pyarrow.compute.any`; no claim is materialised, so it
+        answers commensurability over a million-row field in one pass.
+
+        Args:
+            group_a_ids: Timeline ids on one side.
+            group_b_ids: Timeline ids on the other side.
+
+        Returns:
+            True if some claim connects the two sets.
+        """
+        data = self._raw.data
+        if data is None or len(data) == 0:
+            return False
+        column_a = data.field("timeline_a_id")
+        column_b = data.field("timeline_b_id")
+        set_a = self._id_value_set(group_a_ids)
+        set_b = self._id_value_set(group_b_ids)
+        mask = pc.or_(
+            pc.and_(
+                pc.is_in(column_a, value_set=set_a),
+                pc.is_in(column_b, value_set=set_b),
+            ),
+            pc.and_(
+                pc.is_in(column_a, value_set=set_b),
+                pc.is_in(column_b, value_set=set_a),
+            ),
+        )
+        return pc.any(mask).as_py() is True
+
+    def max_coordinate(self, timeline_id: str) -> float | None:
+        """The largest coordinate this field carries for ``timeline_id``.
+
+        Both anchor sides are scanned vectorized with :func:`pyarrow.compute.max`;
+        no claim is materialised.
+
+        Args:
+            timeline_id: The timeline to look up.
+
+        Returns:
+            The maximum coordinate value carried for that timeline, or
+            ``None`` if the timeline does not appear in this field.
+        """
+        data = self._raw.data
+        if data is None or len(data) == 0:
+            return None
+        largest: float | None = None
+        for side in ("a", "b"):
+            mask = pc.equal(data.field(f"timeline_{side}_id"), timeline_id)
+            values = pc.filter(self._anchor_values(side), mask)
+            if len(values) == 0:
+                continue
+            side_max = pc.max(values).as_py()
+            if side_max is not None and (largest is None or side_max > largest):
+                largest = side_max
+        return None if largest is None else float(largest)
+
+    def coordinate_pairs(
+        self,
+    ) -> tuple[list[str], list[str], list[float], list[float]]:
+        """Read the four defining columns in bulk, materialising no claim.
+
+        This is the read a tabular consumer wants: the two timeline ids and
+        the two anchor coordinates of every row, as four parallel Python
+        lists pulled straight off the Arrow columns.  Materialising the rows
+        as :class:`MatchClaim` objects instead costs orders of magnitude more
+        for the same information.
+
+        Returns:
+            ``(timeline_a_ids, timeline_b_ids, coordinates_a, coordinates_b)``,
+            all of length ``len(self)``.
+        """
+        data = self._raw.data
+        if data is None or len(data) == 0:
+            return [], [], [], []
+        return (
+            data.field("timeline_a_id").to_pylist(),
+            data.field("timeline_b_id").to_pylist(),
+            self._anchor_values("a").to_pylist(),
+            self._anchor_values("b").to_pylist(),
+        )
 
     def to_claims(self) -> list[MatchClaim]:
         """Materialise every row into a list of :class:`MatchClaim` objects.
@@ -1913,10 +2087,26 @@ class MatchClaimField(SemanticField[MatchClaim]):
         )
         return columns
 
+    def _empty(self) -> "MatchClaimField":
+        """Return a zero-row field of this schema, keeping the metadata."""
+        data = self._raw.data
+        empty = pa.array([], type=self.pa_schema) if data is None else data.slice(0, 0)
+        return self._from_struct_array(empty, metadata=self._metadata)
+
     def _filtered(self, mask: pa.Array) -> "MatchClaimField":
         """Return a new field with the struct array filtered by ``mask``."""
         filtered = self._raw.data.filter(mask)
         return self._from_struct_array(filtered, metadata=self._metadata)
+
+    def _anchor_values(self, side: str) -> pa.Array:
+        """The stored anchor coordinate values on ``side`` (``"a"`` / ``"b"``)."""
+        anchor = self._raw.data.field("start_anchor")
+        return anchor.field(f"coordinate_{side}").field("value")
+
+    @staticmethod
+    def _id_value_set(timeline_ids: set[str]) -> pa.Array:
+        """A deterministic ``string`` value set for :func:`pyarrow.compute.is_in`."""
+        return pa.array(sorted(timeline_ids), type=pa.string())
 
     def _involves_mask(self, timeline_id: str) -> pa.Array:
         """Boolean mask: rows where either id sub-field equals ``timeline_id``."""
@@ -1929,10 +2119,35 @@ class MatchClaimField(SemanticField[MatchClaim]):
     def _involves_any_mask(self, timeline_ids: set[str]) -> pa.Array:
         """Boolean mask: rows involving any id in ``timeline_ids``."""
         data = self._raw.data
-        wanted = pa.array(sorted(timeline_ids), type=pa.string())
+        wanted = self._id_value_set(timeline_ids)
         return pc.or_(
             pc.is_in(data.field("timeline_a_id"), value_set=wanted),
             pc.is_in(data.field("timeline_b_id"), value_set=wanted),
+        )
+
+    def _within_mask(self, timeline_ids: set[str]) -> pa.Array:
+        """Boolean mask: rows whose BOTH id sub-fields are in ``timeline_ids``."""
+        data = self._raw.data
+        wanted = self._id_value_set(timeline_ids)
+        return pc.and_(
+            pc.is_in(data.field("timeline_a_id"), value_set=wanted),
+            pc.is_in(data.field("timeline_b_id"), value_set=wanted),
+        )
+
+    def _between_mask(self, timeline_a_id: str, timeline_b_id: str) -> pa.Array:
+        """Boolean mask: rows connecting exactly the two ids, either way round."""
+        data = self._raw.data
+        column_a = data.field("timeline_a_id")
+        column_b = data.field("timeline_b_id")
+        return pc.or_(
+            pc.and_(
+                pc.equal(column_a, timeline_a_id),
+                pc.equal(column_b, timeline_b_id),
+            ),
+            pc.and_(
+                pc.equal(column_a, timeline_b_id),
+                pc.equal(column_b, timeline_a_id),
+            ),
         )
 
     def _repr_html_(self) -> str:

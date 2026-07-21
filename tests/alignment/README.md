@@ -467,6 +467,144 @@ the metadata shape and the field's internal column layout changed.
 | `test_top_level_export` | `MatchClaimField` importable from `timetoalign` and `timetoalign.alignment` |
 | `test_translator_strenum_to_string` | `derive_arrow_struct(MatchMetadata)` has a string `type` sub-field inside the `agent` struct |
 
+### Vectorized query primitives
+
+Every bundle-level claim query is composed from primitives that live **on the
+field**, so the answer is computed over Arrow columns and no `MatchClaim` is
+built unless the caller asks for one. These are the primitives, tested against
+the canonical gold vector above (three rows, `A↔B`, `A↔C`, `B↔C`).
+
+| Test | Validates |
+|------|-----------|
+| `test_at_matches_a_side` | `f.at("A", 0.0)` has `len == 2` (rows 0 and 1) |
+| `test_at_matches_b_side` | `f.at("C", 20.0)` has `len == 1`, the `A↔C` row |
+| `test_at_exact_equality_only` | `f.at("A", 0.0000001)` is empty — no tolerance, no nearest-value fallback |
+| `test_at_unknown_timeline_empty` | `f.at("Z", 0.0)` is empty; metadata still carries over |
+| `test_at_on_empty_field` | `at` on a zero-row field returns a zero-row field |
+| `test_filter_id_pattern` | `filter(id_pattern=r"^A$")` has `len == 2` (rows 0 and 1) |
+| `test_filter_id_pattern_no_match` | `filter(id_pattern=r"^Z")` is empty |
+| `test_filter_between_order_independent` | `filter(between=("A","B"))` == `filter(between=("B","A"))`, `len == 1` |
+| `test_filter_within_requires_both_sides` | `filter(within={"A","B"})` has `len == 1` — `A↔C` and `B↔C` are excluded because only one side is in the set |
+| `test_filter_synchronous_only_is_noop` | `filter(synchronous_only=True)` has `len == 3` (class invariant) |
+| `test_filter_nomatch_only_is_empty` | `filter(nomatch_only=True)` has `len == 0` (class invariant) |
+| `test_filter_mutually_exclusive_raises` | both flags together raise `ValueError` |
+| `test_filter_combines_with_and` | `filter(timeline_id="A", between=("A","C"))` has `len == 1` |
+| `test_connects_groups_true` | `connects_groups({"A"}, {"C"})` is True |
+| `test_connects_groups_order_independent` | `connects_groups({"C"}, {"A"})` is True |
+| `test_connects_groups_false` | `connects_groups({"A"}, {"Z"})` is False |
+| `test_connects_groups_empty_field` | False on a zero-row field |
+| `test_max_coordinate_a_side` / `_b_side` | `max_coordinate("A") == 0.0`, `max_coordinate("C") == 21.0` |
+| `test_max_coordinate_spans_both_sides` | `max_coordinate("B") == 10.0` (b-side row 0 = 10.0 beats a-side row 2 = 1.0) |
+| `test_max_coordinate_unknown_timeline` | `max_coordinate("Z") is None` |
+| `test_coordinate_pairs` | the four bulk lists are exactly `["A","A","B"]`, `["B","C","C"]`, `[0.0,0.0,1.0]`, `[10.0,20.0,21.0]` |
+| `test_coordinate_pairs_empty` | four empty lists on a zero-row field |
+
+`within` is the vectorized primitive behind domain- and unit-restricted
+queries. `include_domains` / `include_units` cannot live on the field itself —
+they need each timeline's domain and unit, which the store does not hold — so
+the bundle resolves them into the set of timeline IDs that pass and hands that
+set to `within`. The **both sides must be in the set** semantics is not a
+choice: it is what `ClaimFilter.matches_claim` already applies to the Python
+list, and parity demands the two agree.
+
+---
+
+## Claim-Store Parity (`test_claim_store_parity.py`)
+
+### What We're Validating
+
+`AlignmentBundle` has two claim stores — the per-claim Python list
+`cross_group_claims` and the columnar `cross_group_claim_fields`. The contract
+is that **which store a claim lives in is invisible to every reader**: a bundle
+holding a set of claims in the list and a bundle holding the *same* claims in a
+`MatchClaimField` must answer every public getter identically. Only cost
+differs.
+
+This matters because a loader may legitimately choose either store, and a
+columnar loader must not silently lose query capability. A reader that consults
+only one store is a bug, and this suite is what catches it.
+
+### Fixture Topology
+
+Three timelines, one group each (so every claim is cross-group), spanning two
+domains so that domain/unit filters bite:
+
+| Bundle UID | Class | Unit | Domain |
+|------------|-------|------|--------|
+| `score:clt1` | `ContinuousLogicalTimeline` | `quarters` | logical |
+| `perf:cpt1` | `ContinuousPhysicalTimeline` | `seconds` | physical |
+| `perf:cpt2` | `ContinuousPhysicalTimeline` | `seconds` | physical |
+
+Bundle UIDs equal the actual timeline IDs, sidestepping the UID/actual-ID
+key-space split so that a parity failure is never confused with a key-space
+artefact.
+
+The claim topology is **complete pairwise at three aligned instants** — every
+pair claims at every instant, 3 pairs × 3 instants = **9 synchronous instant
+claims**:
+
+| Instant | `score:clt1` | `perf:cpt1` | `perf:cpt2` |
+|---------|--------------|-------------|-------------|
+| 0 | 0.0 | 1.0 | 2.0 |
+| 1 | 4.0 | 3.0 | 5.0 |
+| 2 | 8.0 | 6.5 | 9.0 |
+
+Each instant is therefore one connected component spanning **all three**
+timelines, so `from_graph=True` collapses 9 pairwise rows into 3 cross-section
+rows — a non-trivial collapse, not an identity.
+
+The same nine claims are built twice by a factory (fresh objects each time, so
+the two bundles never share a claim's `set_bundle` association) and handed to:
+
+- `bundle_list` — via `add_match_claims(claims)`
+- `bundle_field` — via `add_match_claim_field(MatchClaimField.from_claims(claims))`
+
+### Comparison Rule
+
+Claim **identity** is not comparable across the two constructions: claims
+materialised out of a field are rebuilt from the struct row, so their generated
+`id` differs from the original objects', and the field carries provenance once
+at field level rather than per claim. What must be identical is the *alignment
+content*. Every claim comparison therefore runs on the normalised key
+
+```python
+(timeline_a_id, timeline_b_id, coordinate_a, coordinate_b, is_synchronous)
+```
+
+sorted, so ordering differences between the two stores also cannot mask a
+difference in content. Coordinate values are compared exactly (no tolerance) —
+both paths carry the same `float` through, so anything else is a defect.
+
+### Key Evidence (exact, zero-tolerance)
+
+| Test | Validates |
+|------|-----------|
+| `test_n_cross_group_claims` | both bundles report `9` |
+| `test_store_placement` | `bundle_list` has 9 list claims / 0 fields; `bundle_field` has 0 list claims / 1 field of 9 rows (proves the fixture actually tests two different layouts) |
+| `test_get_match_claims_unfiltered` | both return 9 claims with equal normalised keys |
+| `test_get_match_claims_filtered[…]` | one case per filter kwarg — `timeline_id`, `timeline_ids`, `id_pattern`, `between`, `synchronous_only`, `nomatch_only`, `include_domains`, `include_units`, and an unknown-UID case — equal normalised keys for each, with the exact expected count pinned per case |
+| `test_get_claim_fields_row_count_matches_claims` | for every filter case, `sum(len(f) for f in bundle_field.get_claim_fields(**kw))` equals `len(bundle_list.get_match_claims(**kw))` — the vectorized accessor and the materialising one agree |
+| `test_get_claim_fields_empty_on_list_bundle` | a list-only bundle returns `[]` (nothing to serve columnar) |
+| `test_get_claim_fields_drops_empty_fields` | a filter matching no row yields `[]`, not a zero-row field |
+| `test_get_matchstamps` | equal sorted coordinate maps, 9 stamps each |
+| `test_matchstamp_table_per_claim` | both: `num_rows == 9`, `column_names == ["perf:cpt1", "perf:cpt2", "score:clt1"]`, and identical `to_pylist()` — each row exactly two non-null cells |
+| `test_matchstamp_table_from_graph` | both: `num_rows == 3`, same 3 columns, all 9 cells filled, rows in the documented order (instant 0, 1, 2) with the exact coordinates of the topology table above |
+| `test_matchstamp_table_timeline_filter` | `timeline_filter={"score:clt1"}` yields a 1-column table in both modes for both bundles |
+| `test_are_commensurable` | all three timeline pairs are commensurable in both bundles; a non-member ID is not |
+| `test_get_matchstamp_at` | at each of the three instants, both bundles return a stamp spanning all 3 timelines with the exact coordinates of the topology table |
+| `test_transfer_round_trip` | `transfer(4.0, "score:clt1", "perf:cpt1") == 3.0` in both bundles, and the reverse direction returns `4.0` — exercising the `MatchLine` → `WarpMap` path that was dead for columnar bundles |
+| `test_diagram_reports_claim_count` | `bundle.diagram()` reports `MatchClaims: 9` for both |
+
+### Collapsed-Row Ordering
+
+`from_graph=True` must be deterministic or the table is not comparable at all.
+Components are ordered by the coordinate on the lexicographically smallest
+timeline ID present in the component, then by that ID. This is a total order:
+two components can never share a `(timeline_id, coordinate)` node, since
+sharing one would have unioned them. `test_matchstamp_table_from_graph` pins
+the resulting row order explicitly rather than sorting the result, so a change
+in the ordering rule fails the suite instead of passing silently.
+
 ### Scale sanity (vectorized path, no Python objects)
 
 `test_scale_builds_columnar` builds a field of **100 000** rows via

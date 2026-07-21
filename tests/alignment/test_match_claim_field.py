@@ -270,6 +270,137 @@ class TestFilters:
         filtered = gold_field.filter(timeline_ids={"A", "B"})
         assert len(filtered) == 3
 
+    def test_filter_id_pattern(self, gold_field: MatchClaimField) -> None:
+        filtered = gold_field.filter(id_pattern=r"^A$")
+        assert len(filtered) == 2
+
+    def test_filter_id_pattern_no_match(self, gold_field: MatchClaimField) -> None:
+        assert len(gold_field.filter(id_pattern=r"^Z")) == 0
+
+    def test_filter_between_order_independent(
+        self, gold_field: MatchClaimField
+    ) -> None:
+        forward = gold_field.filter(between=("A", "B"))
+        reverse = gold_field.filter(between=("B", "A"))
+        assert len(forward) == 1
+        assert forward.table.equals(reverse.table)
+
+    def test_filter_within_requires_both_sides(
+        self, gold_field: MatchClaimField
+    ) -> None:
+        # A<->C and B<->C each have one side outside the set, so only A<->B
+        # survives. This is the semantics of a domain/unit-restricted query.
+        filtered = gold_field.filter(within={"A", "B"})
+        assert len(filtered) == 1
+        assert (filtered[0].timeline_a_id, filtered[0].timeline_b_id) == ("A", "B")
+
+    def test_filter_synchronous_only_is_noop(self, gold_field: MatchClaimField) -> None:
+        assert len(gold_field.filter(synchronous_only=True)) == 3
+
+    def test_filter_nomatch_only_is_empty(self, gold_field: MatchClaimField) -> None:
+        empty = gold_field.filter(nomatch_only=True)
+        assert len(empty) == 0
+        assert empty.metadata is gold_field.metadata
+
+    def test_filter_mutually_exclusive_raises(
+        self, gold_field: MatchClaimField
+    ) -> None:
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            gold_field.filter(synchronous_only=True, nomatch_only=True)
+
+    def test_filter_combines_with_and(self, gold_field: MatchClaimField) -> None:
+        # timeline_id="A" -> rows 0,1; between=("A","C") -> row 1.
+        filtered = gold_field.filter(timeline_id="A", between=("A", "C"))
+        assert len(filtered) == 1
+        assert (filtered[0].timeline_a_id, filtered[0].timeline_b_id) == ("A", "C")
+
+
+class TestAt:
+    """Exact-coordinate row selection."""
+
+    def test_at_matches_a_side(self, gold_field: MatchClaimField) -> None:
+        selected = gold_field.at("A", 0.0)
+        assert len(selected) == 2
+        pairs = {
+            (selected[i].timeline_a_id, selected[i].timeline_b_id)
+            for i in range(len(selected))
+        }
+        assert pairs == {("A", "B"), ("A", "C")}
+
+    def test_at_matches_b_side(self, gold_field: MatchClaimField) -> None:
+        selected = gold_field.at("C", 20.0)
+        assert len(selected) == 1
+        assert (selected[0].timeline_a_id, selected[0].timeline_b_id) == ("A", "C")
+
+    def test_at_exact_equality_only(self, gold_field: MatchClaimField) -> None:
+        # No tolerance, no nearest-value fallback.
+        assert len(gold_field.at("A", 0.0000001)) == 0
+
+    def test_at_unknown_timeline_empty(
+        self, gold_field: MatchClaimField, meta: MatchMetadata
+    ) -> None:
+        empty = gold_field.at("Z", 0.0)
+        assert len(empty) == 0
+        assert empty.metadata is meta
+
+    def test_at_on_empty_field(self) -> None:
+        field = MatchClaimField.from_columns(
+            [], [], [], [], unit_a=TimeUnit.number, unit_b=TimeUnit.number
+        )
+        assert len(field.at("A", 0.0)) == 0
+
+
+class TestConnectsGroups:
+    """Vectorized cross-set connectivity."""
+
+    def test_connects_groups_true(self, gold_field: MatchClaimField) -> None:
+        assert gold_field.connects_groups({"A"}, {"C"}) is True
+
+    def test_connects_groups_order_independent(
+        self, gold_field: MatchClaimField
+    ) -> None:
+        assert gold_field.connects_groups({"C"}, {"A"}) is True
+
+    def test_connects_groups_false(self, gold_field: MatchClaimField) -> None:
+        assert gold_field.connects_groups({"A"}, {"Z"}) is False
+
+    def test_connects_groups_empty_field(self) -> None:
+        field = MatchClaimField.from_columns(
+            [], [], [], [], unit_a=TimeUnit.number, unit_b=TimeUnit.number
+        )
+        assert field.connects_groups({"A"}, {"B"}) is False
+
+
+class TestBulkReads:
+    """Column reads that never materialise a claim."""
+
+    def test_max_coordinate_a_side(self, gold_field: MatchClaimField) -> None:
+        assert gold_field.max_coordinate("A") == 0.0
+
+    def test_max_coordinate_b_side(self, gold_field: MatchClaimField) -> None:
+        assert gold_field.max_coordinate("C") == 21.0
+
+    def test_max_coordinate_spans_both_sides(self, gold_field: MatchClaimField) -> None:
+        # B appears as coordinate_b=10.0 (row 0) and coordinate_a=1.0 (row 2).
+        assert gold_field.max_coordinate("B") == 10.0
+
+    def test_max_coordinate_unknown_timeline(self, gold_field: MatchClaimField) -> None:
+        assert gold_field.max_coordinate("Z") is None
+
+    def test_coordinate_pairs(self, gold_field: MatchClaimField) -> None:
+        assert gold_field.coordinate_pairs() == (
+            ["A", "A", "B"],
+            ["B", "C", "C"],
+            [0.0, 0.0, 1.0],
+            [10.0, 20.0, 21.0],
+        )
+
+    def test_coordinate_pairs_empty(self) -> None:
+        field = MatchClaimField.from_columns(
+            [], [], [], [], unit_a=TimeUnit.number, unit_b=TimeUnit.number
+        )
+        assert field.coordinate_pairs() == ([], [], [], [])
+
 
 # endregion
 
