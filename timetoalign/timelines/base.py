@@ -35,12 +35,16 @@ from .engines import (
     ChildrenMixin,
     ConversionMapsMixin,
     EventsMixin,
+    ExternalReferencesMixin,
     RegionsMixin,
     SegmentsMixin,
     TabularExportMixin,
 )
 from .engines import children as _children_engine
 from .engines import conversion as _conversion_engine
+from .engines import (
+    empty_external_reference_table,
+)
 from .regions import Region
 
 if TYPE_CHECKING:
@@ -64,6 +68,7 @@ TraversalOrder = Literal["sorted", "depth_first", "breadth_first"]
 
 class Timeline(
     EventsMixin,
+    ExternalReferencesMixin,
     ChildrenMixin,
     ConversionMapsMixin,
     TabularExportMixin,
@@ -220,6 +225,9 @@ class Timeline(
 
         # Event storage
         self._events = self._event_data_class.empty(self._unit, self._number_type)
+
+        # Incoming external references (annotations pointing at own events)
+        self._external_references = empty_external_reference_table()
 
         # Child timeline storage
         self._children: dict[str, Timeline] = {}
@@ -719,8 +727,18 @@ class Timeline(
 
     # region Serialization
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(
+        self,
+        *,
+        events: bool = False,
+        external_references: bool = False,
+    ) -> dict[str, Any]:
         """Convert timeline to a dictionary for serialization.
+
+        The default output describes the timeline's structure only: the
+        ``"events"`` and ``"external_references"`` keys are **absent**
+        unless explicitly requested, which keeps the payload small for the
+        common case of persisting a hierarchy rather than its contents.
 
         Coordinate-valued members — ``length`` and every child
         ``offset`` — are emitted as the canonical rational wire dict
@@ -728,17 +746,35 @@ class Timeline(
         JSON-serializable whatever the timeline's number type, and
         ``Fraction`` coordinates survive the round trip exactly.
 
+        Args:
+            events: If True, include an ``"events"`` key holding this
+                timeline's event rows.
+            external_references: If True, include an
+                ``"external_references"`` key holding the reference table
+                as a list of row dicts (``access_points`` as a nested list
+                of ``{"uri": ..., "kind": ...}`` dicts). Included even
+                when the table is empty.
+
         Returns:
             A JSON-serializable dictionary representation of the timeline.
+
+        Examples:
+            >>> "events" in tl.to_dict()
+            False
+            >>> "events" in tl.to_dict(events=True)
+            True
         """
         children_data = {}
         for child_id, child in self._children.items():
             children_data[child_id] = {
                 "offset": rational_to_wire(self._child_offsets[child_id].value),
-                "timeline": child.to_dict(),
+                "timeline": child.to_dict(
+                    events=events,
+                    external_references=external_references,
+                ),
             }
 
-        return {
+        data: dict[str, Any] = {
             "id": self._id,
             "name": self._name,
             "class": self.class_name,
@@ -747,12 +783,18 @@ class Timeline(
             "length": rational_to_wire(self._length.value),
             "locked": self._locked,
             "meta": self._meta,
-            "events": list(self._events),
             "children": children_data,
             "conversion_maps": [
                 cmap.to_dict() for cmap in self._conversion_maps.values()
             ],
         }
+
+        if events:
+            data["events"] = list(self._events)
+        if external_references:
+            data["external_references"] = self._external_references.to_pylist()
+
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
@@ -762,8 +804,14 @@ class Timeline(
         ``offset``s, and the event coordinate structs — is decoded by
         :func:`~timetoalign.core.wire_to_rational`, so an exact ratio
         comes back as a ``Fraction`` and an inexact one as a ``float``.
-        Feeding the result back through :meth:`to_dict` reproduces the
-        input dictionary.
+        Feeding the result back through :meth:`to_dict` with the same
+        flags reproduces the input dictionary.
+
+        The ``"events"`` and ``"external_references"`` keys are optional:
+        a dictionary produced without them reconstructs a timeline with
+        zero events and an empty reference table. External references are
+        restored without event validation, so a payload carrying
+        references but no events round-trips intact.
 
         Args:
             data: Dictionary from to_dict().
@@ -813,6 +861,12 @@ class Timeline(
         if events:
             timeline._add_events_unchecked(events)
 
+        # Restore incoming external references. Validation is skipped: the
+        # payload may legitimately carry references without events.
+        references = data.get("external_references")
+        if references:
+            timeline.add_external_references(references, validate=False)
+
         # Add children
         for child_id, child_data in data.get("children", {}).items():
             child = Timeline.from_dict(child_data["timeline"])
@@ -837,9 +891,9 @@ class Timeline(
         when working with generic ``Timeline`` instances that should carry
         domain-specific type information.
 
-        Note: Only the timeline object itself is re-typed. Events, children,
-        conversion maps, regions, and metadata are preserved. Children are
-        transferred as-is (not recursively re-typed).
+        Note: Only the timeline object itself is re-typed. Events, external
+        references, children, conversion maps, regions, and metadata are
+        preserved. Children are transferred as-is (not recursively re-typed).
 
         Returns:
             A Timeline instance of the appropriate typed subclass, or ``self``
@@ -888,6 +942,10 @@ class Timeline(
                 events.append(dict(event))
             if events:
                 typed._add_events_unchecked(events)
+
+        # Transfer external references (Arrow tables are immutable, so the
+        # table object can be shared between the two timelines)
+        typed._external_references = self._external_references
 
         # Transfer children
         for child_id, child in self._children.items():

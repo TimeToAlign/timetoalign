@@ -337,7 +337,12 @@ class BeatGrid(ContinuousLogicalTimeline):
             raise ValueError(f"MC {measure} not found in meter map")
         return measure_info["start"] + (Fraction(beat) - 1) * self._quarters_per_beat
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(
+        self,
+        *,
+        events: bool = False,
+        external_references: bool = False,
+    ) -> dict[str, Any]:
         """Convert the grid and its construction parameters to a dictionary.
 
         The three metrical maps created by ``__init__`` (meter, beat-in-
@@ -347,10 +352,19 @@ class BeatGrid(ContinuousLogicalTimeline):
         conversion map (for example, a tempo map from ``from_tempo`` or a
         user-attached map) is serialized normally.
 
+        Args:
+            events: If True, include the ``"events"`` key (beat events and
+                any other events added to the grid).
+            external_references: If True, include the
+                ``"external_references"`` key, even when empty.
+
         Returns:
             A dictionary representation that reconstructs the attached meter maps.
         """
-        data = super().to_dict()
+        data = super().to_dict(
+            events=events,
+            external_references=external_references,
+        )
         meter_map_ids = {self._meter_map.id, self._beat_map.id, self._metrical_map.id}
         data["conversion_maps"] = [
             map_data
@@ -419,6 +433,10 @@ class BeatGrid(ContinuousLogicalTimeline):
             events.append(event)
         if events:
             grid._add_events_unchecked(events)
+
+        references = data.get("external_references")
+        if references:
+            grid.add_external_references(references, validate=False)
 
         for child_data in data.get("children", {}).values():
             child = Timeline.from_dict(child_data["timeline"])

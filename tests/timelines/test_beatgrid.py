@@ -155,7 +155,7 @@ class TestBeatGridMetricalMaps:
         )
         grid._meta = {"source": "test"}
 
-        restored = Timeline.from_dict(grid.to_dict())
+        restored = Timeline.from_dict(grid.to_dict(events=True))
 
         assert type(restored) is BeatGrid
         assert float(restored.length.value) == 16.0

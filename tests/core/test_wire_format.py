@@ -268,7 +268,7 @@ class TestTimelineWireFormat:
 
     def test_event_coordinate_survives_json_exactly(self) -> None:
         restored = Timeline.from_dict(
-            json.loads(json.dumps(_fraction_timeline().to_dict()))
+            json.loads(json.dumps(_fraction_timeline().to_dict(events=True)))
         )
         coordinate = wire_to_rational(list(restored.events)[0]["start"])
         assert coordinate == Fraction(1, 3)
@@ -285,12 +285,14 @@ class TestTimelineWireFormat:
         "factory", [_fraction_timeline, _float_timeline], ids=["fraction", "float"]
     )
     def test_to_dict_is_a_json_fixpoint(self, factory: Callable[[], Timeline]) -> None:
-        data = factory().to_dict()
-        assert Timeline.from_dict(json.loads(json.dumps(data))).to_dict() == data
+        data = factory().to_dict(events=True, external_references=True)
+        restored = Timeline.from_dict(json.loads(json.dumps(data)))
+        assert restored.to_dict(events=True, external_references=True) == data
 
     def test_beatgrid_to_dict_is_a_json_fixpoint(self) -> None:
-        data = _beatgrid().to_dict()
-        assert BeatGrid.from_dict(json.loads(json.dumps(data))).to_dict() == data
+        data = _beatgrid().to_dict(events=True, external_references=True)
+        restored = BeatGrid.from_dict(json.loads(json.dumps(data)))
+        assert restored.to_dict(events=True, external_references=True) == data
 
     def test_beatgrid_rationals_use_the_wire_dict(self) -> None:
         data = _beatgrid().to_dict()
@@ -378,9 +380,15 @@ def _json_safety_cases() -> list[tuple[str, dict[str, Any]]]:
     agent = Agent(name="dtw", type=AgentType.software, identifier="v2")
     graph = MatchGraph([claim])
     cases: list[tuple[str, dict[str, Any]]] = [
-        ("Timeline.fraction", _fraction_timeline().to_dict()),
-        ("Timeline.float", _float_timeline().to_dict()),
-        ("BeatGrid", _beatgrid().to_dict()),
+        (
+            "Timeline.fraction",
+            _fraction_timeline().to_dict(events=True, external_references=True),
+        ),
+        (
+            "Timeline.float",
+            _float_timeline().to_dict(events=True, external_references=True),
+        ),
+        ("BeatGrid", _beatgrid().to_dict(events=True, external_references=True)),
         ("Agent", agent.to_dict()),
         ("MatchMetadata", MatchMetadata(agent=agent, certainty=0.85).to_dict()),
         ("AlignmentAnchor", anchor.to_dict()),

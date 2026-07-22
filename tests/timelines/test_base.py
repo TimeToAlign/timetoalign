@@ -422,10 +422,10 @@ class TestSerialization:
         assert data["locked"] is False
 
     def test_to_dict_with_events(self, mixed_event_rows: list[dict[str, Any]]):
-        """to_dict includes events."""
+        """to_dict(events=True) includes events."""
         tl = Timeline(length=10.0)
         tl.add_events(mixed_event_rows)
-        data = tl.to_dict()
+        data = tl.to_dict(events=True)
 
         assert len(data["events"]) == 7
 
@@ -449,7 +449,7 @@ class TestSerialization:
         original = Timeline(length=10.0, uid="original")
         original.add_events(mixed_event_rows)
 
-        data = original.to_dict()
+        data = original.to_dict(events=True)
         restored = Timeline.from_dict(data)
 
         assert restored.id == original.id

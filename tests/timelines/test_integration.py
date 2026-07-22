@@ -477,7 +477,7 @@ class TestComplexHierarchy:
         root.add_child(child, offset=10.0)
 
         # Serialize
-        data = root.to_dict()
+        data = root.to_dict(events=True)
 
         # Deserialize
         restored = ContinuousPhysicalTimeline.from_dict(data)

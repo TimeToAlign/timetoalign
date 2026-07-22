@@ -105,7 +105,9 @@ allowed to expose a float because interpolation is inherently float-based.
    - Locked timelines reject expansion
 
 6. **Serialization Tests** (5 tests)
-   - `to_dict()` / `from_dict()` roundtrip
+   - `to_dict()` / `from_dict()` roundtrip; `to_dict()` omits events by
+     default, so the event-bearing cases pass `events=True` explicitly
+     (see `test_external_references.py` for the full flag matrix)
    - Children serialized recursively
    - Segment events regenerated on deserialization
    - Base-class deserialization dispatches the serialized ``class`` tag through
@@ -137,6 +139,135 @@ These tests verify the fundamental Timeline contract from the TTA manuscript:
 - Events are stored efficiently in an EventStore (PyArrow-backed)
 - Timelines can expand (if unlocked) but cannot contract below content
 - Coordinates are validated against the timeline's unit
+
+---
+
+### `test_external_references.py` - Incoming External References and `to_dict()` Flags
+
+**Purpose:** Validates the per-timeline table of *incoming* external
+references — annotations living outside TimeToAlign that point **at** this
+timeline's events — and the serialization flags that decide whether events
+and references appear in `to_dict()` output.
+
+**Test Categories:** schema (12 tests), adding and normalization (12),
+malformed-row rejection (12), event-id validation (10), the `to_dict()` flag
+matrix (12), child forwarding (6), `from_dict` tolerance (5), and round-trip
+(7) — 76 tests in total.
+
+#### Canonical Arrow schema
+
+`Timeline.external_references` always returns a `pa.Table`, never `None`.
+An untouched timeline returns a zero-row table carrying exactly this schema:
+
+| column | Arrow type | nullable |
+|---|---|---|
+| `event_id` | `string` | no |
+| `external_id` | `string` | no |
+| `access_points` | `list<struct<uri: string, kind: string>>` | no |
+| `comment` | `string` | yes |
+
+`event_id` names an event of *this* timeline; `external_id` is the identifier
+the annotation carries inside the external resource; `access_points` holds the
+locators that resolve that resource, with `kind` an open vocabulary
+(`"relative_path"` and `"url"` are the usual values, but any string is
+accepted). The access-point list may be empty, but the cell is never null.
+Both struct fields are non-nullable. The tests assert the schema field by
+field, including nullability, so a silent type drift fails.
+
+#### `add_external_references()` normalization
+
+Rows may be given as dicts or as a `pa.Table`; a table is read through
+`to_pylist()` so both inputs follow one validation path. Per row:
+
+- `access_points` omitted or `None` → stored as `[]`.
+- `comment` omitted → stored as `None`.
+- Unknown columns raise `ValueError` naming every unknown key. Unknown keys
+  inside an access point raise `ValueError` the same way.
+- `event_id` and `external_id` must be `str`; `comment` must be `str` or
+  `None`; `uri` and `kind` must both be `str`. Anything else raises
+  `ValueError` naming the row index and the offending field.
+- A non-mapping row, or a non-mapping access point, raises `TypeError`.
+
+Calls append: two calls of one row each and one call of two rows produce the
+same two-row table. The method returns `self`, so calls chain.
+
+#### Validation `KeyError` contract
+
+With `validate=True` (the default) every `event_id` must appear in this
+timeline's **own** event table (`Timeline.events`) — child events do not
+count, because the column is defined as an event of this timeline. When one
+or more ids are absent the call raises `KeyError` whose message names **all**
+missing ids, sorted and quoted, in a single message of the form:
+
+```
+Timeline 'spine' has no event(s) with id: 'ghost_a', 'ghost_b'
+```
+
+Validation runs before anything is appended, so a rejected call leaves the
+table byte-for-byte unchanged. `validate=False` skips the check entirely and
+accepts ids that name no event — the escape hatch deserialization uses.
+
+#### `to_dict()` flag matrix
+
+`to_dict(*, events: bool = False, external_references: bool = False)`. Both
+keys are **absent** unless requested; requesting `external_references` emits
+the key even when the table is empty. The four combinations are asserted
+exactly:
+
+| `events` | `external_references` | `"events"` key | `"external_references"` key |
+|---|---|---|---|
+| `False` | `False` | absent | absent |
+| `True` | `False` | present | absent |
+| `False` | `True` | absent | present (may be `[]`) |
+| `True` | `True` | present | present |
+
+The remaining keys are identical in all four cases: `id`, `name`, `class`,
+`unit`, `number_type`, `length`, `locked`, `meta`, `children`,
+`conversion_maps`. The tests assert that exact key set for the default call.
+
+Reference rows serialize as plain dicts with `access_points` a nested list of
+`{"uri": ..., "kind": ...}` dicts, so the payload is JSON-safe; JSON safety of
+the whole timeline payload is covered by `tests/core/test_wire_format.py`.
+
+#### Child flag forwarding
+
+`children` recursion forwards **both** flags unchanged. A parent serialized
+with `events=True, external_references=False` yields children that carry
+`"events"` and lack `"external_references"`, and so on for every combination.
+The tests check a two-level hierarchy (parent → child → grandchild) so
+forwarding is verified through more than one recursion step. Each level emits
+its own rows: a reference added to the child appears in the child payload
+only. An `"events"` list also carries the `Segment` bookkeeping event that
+`add_child()` records — the expected ids spell it out, since `from_dict()`
+skips and regenerates it.
+
+#### Round-trip
+
+`from_dict()` tolerates absent `"events"` and `"external_references"` keys: a
+default payload reconstructs a timeline with zero events and an empty
+reference table, and the structural fields (id, length, children, offsets,
+conversion maps) still round-trip. When `"external_references"` is present it
+is restored with `validate=False`, so a payload carrying references but no
+events round-trips intact — the restored table equals the original via
+`pa.Table.equals`. Re-serializing with the same flags reproduces the input
+dictionary (the fixpoint guarantee stated in `tests/core/README.md`).
+
+The rational wire format for `length`, child `offset`s, and event coordinates
+is untouched by these flags.
+
+`to_typed()` carries the reference table over to the re-typed instance; Arrow
+tables are immutable, so the same table object is shared.
+
+**Validity Rationale:**
+
+The direction is deliberately incoming: a timeline records what points at it,
+never what it points to, so any number of independent external tools can
+annotate the same events without the timeline knowing about them. Keeping the
+table on the Timeline base class (an engine mixin, like events and regions)
+means every timeline in a hierarchy carries its own references, addressed by
+its own event ids. Slimming `to_dict()` keeps structural serialization cheap
+for large hierarchies, where the event rows dominate the payload; callers that
+need contents opt in.
 
 ---
 

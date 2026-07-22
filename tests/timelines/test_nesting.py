@@ -201,7 +201,7 @@ class TestAddChildDurationExactness:
         )
         parent.add_child(child, offset=Fraction(0, 1))
 
-        duration = parent.to_dict()["events"][0]["duration"]
+        duration = parent.to_dict(events=True)["events"][0]["duration"]
         assert duration == rational_to_wire(Fraction(2, 1))
 
     def test_non_integral_fraction_length_duration_is_exact(self):
@@ -219,7 +219,7 @@ class TestAddChildDurationExactness:
         )
         parent.add_child(child, offset=Fraction(0, 1))
 
-        duration = parent.to_dict()["events"][0]["duration"]
+        duration = parent.to_dict(events=True)["events"][0]["duration"]
         assert duration == rational_to_wire(Fraction(7, 3))
 
 
