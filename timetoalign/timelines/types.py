@@ -164,14 +164,8 @@ DISCRETE_PHYSICAL_UNITS: frozenset[TimeUnit] = frozenset(
     {TimeUnit.samples, TimeUnit.frames}
 )
 
-# ``pixels`` belongs to both graphical sets: a raster grid is a discrete
-# lattice, but a coordinate stated *on* that grid may still be fractional
-# (a page-image box at x=992.96), and rounding it away would destroy a value
-# the source states exactly.  The number type — not the unit — decides which
-# timeline a pixel coordinate lands on.
 CONTINUOUS_GRAPHICAL_UNITS: frozenset[TimeUnit] = frozenset(
     {
-        TimeUnit.pixels,
         TimeUnit.meters,
         TimeUnit.centimeters,
         TimeUnit.millimeters,
@@ -738,12 +732,11 @@ class ContinuousGraphicalTimeline(ContinuousMixin, GraphicalTimeline):
     """A graphical timeline with continuous coordinates.
 
     Used for visualization where real-valued positions are needed
-    (e.g., a note head at x=12.75 centimeters, or a page-image box whose
-    left edge the source states as x=992.96 pixels).
+    (e.g., a note head at x=12.75 centimeters).
 
     Default unit: centimeters.
     Default number type: float.
-    Allowed units: pixels, meters, centimeters, millimeters, inches, points.
+    Allowed units: meters, centimeters, millimeters, inches, points.
     """
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = CONTINUOUS_GRAPHICAL_UNITS

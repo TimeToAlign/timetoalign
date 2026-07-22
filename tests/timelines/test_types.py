@@ -40,6 +40,182 @@ from timetoalign.timelines import (
 class TestAllTimelineTypes:
     """Parametrized tests for all 6 timeline types."""
 
+    @pytest.mark.parametrize(
+        ("timeline_class", "legal_unit", "legal_length", "illegal_unit"),
+        [
+            (
+                ContinuousLogicalTimeline,
+                TimeUnit.quarters,
+                Fraction(4, 1),
+                TimeUnit.ticks,
+            ),
+            (DiscreteLogicalTimeline, TimeUnit.ticks, 480, TimeUnit.seconds),
+            (ContinuousPhysicalTimeline, TimeUnit.seconds, 4.0, TimeUnit.samples),
+            (DiscretePhysicalTimeline, TimeUnit.samples, 4, TimeUnit.seconds),
+            (
+                ContinuousGraphicalTimeline,
+                TimeUnit.centimeters,
+                4.0,
+                TimeUnit.pixels,
+            ),
+            (DiscreteGraphicalTimeline, TimeUnit.pixels, 4, TimeUnit.seconds),
+        ],
+    )
+    def test_leaf_unit_contracts(
+        self,
+        timeline_class,
+        legal_unit,
+        legal_length,
+        illegal_unit,
+    ):
+        """Each leaf type accepts its unit and rejects a forbidden one."""
+        timeline = timeline_class(length=legal_length, unit=legal_unit)
+        assert timeline.unit is legal_unit
+
+        with pytest.raises(ValueError) as error:
+            timeline_class(length=legal_length, unit=illegal_unit)
+
+        assert type(error.value) is ValueError
+        message = str(error.value)
+        assert timeline_class.__name__ in message
+        assert str(illegal_unit) in message
+        assert "Allowed units:" in message
+
+    @pytest.mark.parametrize(
+        ("timeline_class", "unit", "number_type", "length"),
+        [
+            (ContinuousLogicalTimeline, TimeUnit.beats, NumberType.float, 4.0),
+            (
+                ContinuousLogicalTimeline,
+                TimeUnit.beats,
+                NumberType.fraction,
+                Fraction(4, 1),
+            ),
+            (ContinuousLogicalTimeline, TimeUnit.quarters, NumberType.float, 4.0),
+            (
+                ContinuousLogicalTimeline,
+                TimeUnit.quarters,
+                NumberType.fraction,
+                Fraction(4, 1),
+            ),
+            (
+                ContinuousLogicalTimeline,
+                TimeUnit.floating_measures,
+                NumberType.float,
+                4.0,
+            ),
+            (
+                ContinuousLogicalTimeline,
+                TimeUnit.floating_measures,
+                NumberType.fraction,
+                Fraction(4, 1),
+            ),
+            (ContinuousLogicalTimeline, TimeUnit.number, NumberType.float, 4.0),
+            (
+                ContinuousLogicalTimeline,
+                TimeUnit.number,
+                NumberType.fraction,
+                Fraction(4, 1),
+            ),
+            (DiscreteLogicalTimeline, TimeUnit.ticks, NumberType.int, 4),
+            (ContinuousPhysicalTimeline, TimeUnit.seconds, NumberType.float, 4.0),
+            (
+                ContinuousPhysicalTimeline,
+                TimeUnit.seconds,
+                NumberType.fraction,
+                Fraction(4, 1),
+            ),
+            (
+                ContinuousPhysicalTimeline,
+                TimeUnit.milliseconds,
+                NumberType.float,
+                4.0,
+            ),
+            (
+                ContinuousPhysicalTimeline,
+                TimeUnit.milliseconds,
+                NumberType.fraction,
+                Fraction(4, 1),
+            ),
+            (ContinuousPhysicalTimeline, TimeUnit.minutes, NumberType.float, 4.0),
+            (
+                ContinuousPhysicalTimeline,
+                TimeUnit.minutes,
+                NumberType.fraction,
+                Fraction(4, 1),
+            ),
+            (DiscretePhysicalTimeline, TimeUnit.samples, NumberType.int, 4),
+            (DiscretePhysicalTimeline, TimeUnit.frames, NumberType.int, 4),
+            (ContinuousGraphicalTimeline, TimeUnit.meters, NumberType.float, 4.0),
+            (
+                ContinuousGraphicalTimeline,
+                TimeUnit.meters,
+                NumberType.fraction,
+                Fraction(4, 1),
+            ),
+            (
+                ContinuousGraphicalTimeline,
+                TimeUnit.centimeters,
+                NumberType.float,
+                4.0,
+            ),
+            (
+                ContinuousGraphicalTimeline,
+                TimeUnit.centimeters,
+                NumberType.fraction,
+                Fraction(4, 1),
+            ),
+            (
+                ContinuousGraphicalTimeline,
+                TimeUnit.millimeters,
+                NumberType.float,
+                4.0,
+            ),
+            (
+                ContinuousGraphicalTimeline,
+                TimeUnit.millimeters,
+                NumberType.fraction,
+                Fraction(4, 1),
+            ),
+            (ContinuousGraphicalTimeline, TimeUnit.inches, NumberType.float, 4.0),
+            (
+                ContinuousGraphicalTimeline,
+                TimeUnit.inches,
+                NumberType.fraction,
+                Fraction(4, 1),
+            ),
+            (ContinuousGraphicalTimeline, TimeUnit.points, NumberType.float, 4.0),
+            (
+                ContinuousGraphicalTimeline,
+                TimeUnit.points,
+                NumberType.fraction,
+                Fraction(4, 1),
+            ),
+            (DiscreteGraphicalTimeline, TimeUnit.pixels, NumberType.int, 4),
+        ],
+    )
+    def test_leaf_legal_combinations_round_trip(
+        self,
+        timeline_class,
+        unit,
+        number_type,
+        length,
+    ):
+        """Every legal leaf unit and number type survives a round trip."""
+        original = timeline_class(
+            length=length,
+            unit=unit,
+            number_type=number_type,
+            uid="typed",
+        )
+
+        restored = Timeline.from_dict(original.to_dict())
+
+        assert type(restored) is timeline_class
+        assert restored.unit is unit
+        assert restored.number_type is number_type
+        assert restored.length.value == length
+
     def test_default_unit_is_valid(self, timeline_type_fixture):
         """Default unit is valid for the timeline type."""
         TimelineClass, default_unit, default_number_type, sample_length = (
@@ -274,20 +450,10 @@ class TestGraphicalTimeline:
         with pytest.raises(ValueError, match="does not allow number_type"):
             ContinuousGraphicalTimeline(length=100, number_type=NumberType.int)
 
-    def test_continuous_graphical_accepts_pixels(self):
-        """Pixels pair with float coordinates: a page coordinate may be sub-pixel."""
-        tl = ContinuousGraphicalTimeline(length=1206.4, unit=TimeUnit.pixels)
-
-        assert tl.unit == TimeUnit.pixels
-        assert tl.number_type == NumberType.float
-        assert tl.length.value == 1206.4
-
-    def test_continuous_graphical_stores_sub_pixel_coordinates_verbatim(self):
-        """A box the source states at x=992.96 pixels is not rounded."""
-        tl = ContinuousGraphicalTimeline(length=1206.4, unit=TimeUnit.pixels)
-        tl.add_events([{"event_type": "Box", "start": 992.96, "end": 1206.4}])
-
-        assert tl.events.table.column("start").to_pylist()[0]["value"] == 992.96
+    def test_continuous_graphical_rejects_pixels(self):
+        """Pixels belong exclusively to discrete graphical timelines."""
+        with pytest.raises(ValueError, match="does not allow unit"):
+            ContinuousGraphicalTimeline(length=1206.4, unit=TimeUnit.pixels)
 
     def test_continuous_graphical_rejects_non_graphical_units(self):
         """The domain still holds: seconds are not a graphical unit."""

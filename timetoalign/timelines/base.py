@@ -194,7 +194,9 @@ class Timeline(
             unit = self._default_unit
         elif isinstance(unit, str):
             unit = TimeUnit(unit)
-        self._validate_unit(unit)
+        # Validate against the concrete runtime class so each leaf type's unit
+        # contract is enforced by the shared base constructor.
+        type(self)._validate_unit(unit)
         self._unit = unit
 
         # Resolve number_type
@@ -271,7 +273,7 @@ class Timeline(
             ValueError: If unit is not in _allowed_units.
         """
         if cls._allowed_units is not None and unit not in cls._allowed_units:
-            allowed = ", ".join(str(u) for u in cls._allowed_units)
+            allowed = ", ".join(sorted(str(u) for u in cls._allowed_units))
             raise ValueError(
                 f"{cls.__name__} does not allow unit '{unit}'. "
                 f"Allowed units: {allowed}"
