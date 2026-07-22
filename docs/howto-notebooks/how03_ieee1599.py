@@ -46,13 +46,13 @@
 # 1. Load the document in one call and read its title.
 # 2. The spine, in ticks — a cumulative virtual-time axis — and the LOS
 #    layer of notes and rests sitting at spine coordinates.
-# 3. The graphical editions, in pixels, and the audio tracks, in seconds.
+# 3. The graphical editions as accolade `SegmentLine`s, in pixels, and the
+#    audio tracks, in seconds.
 # 4. The projections, reached through the uniform
 #    {{< glossary MatchClaimField >}} API, and the cross-section they
 #    describe over spine coordinates.
 # 5. The structural layer: a Petri-net analysis carried as external
 #    references on the spine.
-# 6. Serialization: a slim manifest by default, the annotations on request.
 
 # %% [markdown]
 # ## Setup
@@ -62,6 +62,7 @@ from __future__ import annotations
 
 import pyarrow.compute as pc
 
+from timetoalign import IntervalToConstantMap
 from timetoalign.alignment.claims import MatchClaim
 from timetoalign.loader.alignment.ieee1599 import Ieee1599Loader
 from timetoalign.testdata import ensure_data
@@ -96,9 +97,9 @@ loader
 # %% [markdown]
 # `create_bundle()` builds the {{< glossary AlignmentBundle >}}: six
 # standalone timelines — the spine, the LOS layer, two engraved editions and
-# two audio tracks — tied together by the projection claims. No
-# {{< glossary TimelineGroup >}} is needed: the claims alone carry the
-# connectivity.
+# two audio tracks — tied together by the MatchClaims. Each timeline lives in
+# its own {{< glossary TimelineGroup >}}; MatchClaims carry the connections
+# between those groups.
 
 # %%
 bundle = loader.create_bundle()
@@ -122,7 +123,7 @@ spine = bundle.get_timeline(loader.spine_uid)
 spine
 
 # %%
-spine.get_events().table.slice(0, 5).to_pandas()[["id", "event_type", "start", "hpos"]]
+spine.get_events().table.slice(0, 5).to_pandas()
 
 # %% [markdown]
 # ### The LOS layer: notes and rests at spine coordinates
@@ -148,30 +149,23 @@ los
 # pitch as a step, octave and accidental, e.g. the first is F♯6:
 
 # %%
-notes = los.get_events().filter(event_type="Note").to_dataframe()
-notes[
-    [
-        "id",
-        "start",
-        "step",
-        "octave",
-        "actual_accidental",
-        "duration_num",
-        "duration_den",
-    ]
-].head(5)
+notes = los.get_events(event_type="Note").to_dataframe()
+notes.head(5)
 
 # %% [markdown]
 # ---
 #
 # ## 3. Editions in pixels, tracks in seconds
 #
-# ### Per-edition graphical timelines
+# ### Per-edition graphical SegmentLines
 #
 # Each ``<graphic_instance_group>`` — one engraved edition of the score — is
-# its own `ContinuousGraphicalTimeline`. A page's ``graphic_event`` boxes are
-# interval events spanning ``upper_left_x`` to ``lower_right_x``, kept
-# unscaled in the ``pixels`` the document itself declares:
+# its own `SegmentLine[DiscreteGraphicalTimeline]`, in unit ``pixels``. Its
+# x coordinates zig-zag along the spine: when a new system begins beyond half
+# of the preceding page's x-span, the reset starts a new accolade. Each
+# accolade is one contiguous segment on the edition's `SegmentLine`; the two
+# editions each have 18 segments, distributed 4 + 5 + 5 + 4 across their four
+# pages.
 
 # %%
 for uid in loader.edition_uids:
@@ -180,9 +174,46 @@ for uid in loader.edition_uids:
 
 # %%
 edition = bundle.get_timeline(loader.edition_uids[0])
-edition.get_events().table.slice(0, 3).to_pandas()[
-    ["id", "start", "end", "event_ref", "file_name", "position_in_group"]
-]
+graphical_events = edition.get_events().to_dataframe()
+graphical_events.head()
+
+# %% [markdown]
+# The edition's segments are the individual accolades. `list_segments()`
+# preserves their spine order, while `get_segment_by_index()` exposes each
+# segment's global offset and its page-local graphical timeline:
+
+# %%
+print(f"{edition.class_name}: {edition.n_segments} accolade segments")
+for index, segment_id in enumerate(edition.list_segments()):
+    offset, accolade = edition.get_segment_by_index(index)
+    print(f"{index + 1:>2}: {segment_id} at x={offset.value}, length={accolade.length}")
+
+# %% [markdown]
+# An `IntervalToConstantMap` on the edition resolves any of these unfolded
+# x coordinates to the page-image ``file_name`` that contains it. The first
+# graphical event provides one such coordinate:
+
+# %%
+page_image_map = next(
+    cmap
+    for cmap in edition._conversion_maps.values()
+    if isinstance(cmap, IntervalToConstantMap)
+)
+first_graphical_event = graphical_events.iloc[0]
+page_image_map(first_graphical_event["start"])
+
+# %% [markdown]
+# Graphical geometry is kept as one nested ``bbox`` struct rather than split
+# coordinate columns. Its ``ul`` and ``lr`` members preserve the upper-left
+# and lower-right pixel coordinates of the graphical event:
+
+# %%
+bbox = first_graphical_event["bbox"]
+{
+    "bbox": bbox,
+    "ul": bbox["ul"],
+    "lr": bbox["lr"],
+}
 
 # %% [markdown]
 # ### Per-track audio timelines
@@ -198,7 +229,7 @@ for uid in loader.track_uids:
 
 # %%
 track = bundle.get_timeline(loader.track_uids[0])
-track.get_events().table.slice(0, 3).to_pandas()[["id", "start", "event_ref"]]
+track.get_events().table.slice(0, 3).to_pandas()
 
 # %% [markdown]
 # ---
@@ -220,11 +251,21 @@ field = loader.get_field(MatchClaim)
 }
 
 # %% [markdown]
-# Indexing the field materialises one claim on demand — here, the LOS
-# layer's very first event against the spine's origin:
+# The `MatchClaimField` remains columnar; its table has one struct column.
+# Showing its head makes that stored representation visible before any
+# individual `MatchClaim` is materialised:
 
 # %%
-field[0]
+field.table.to_pandas().head()
+
+# %% [markdown]
+# Indexing the field materialises one `MatchClaim` on demand. This
+# mid-document row is more illustrative than the first row because it shows
+# an ordinary in-document correspondence rather than the special opening
+# coordinate:
+
+# %%
+field[len(field) // 2]
 
 # %% [markdown]
 # ### The cross-section over spine coordinates
@@ -280,42 +321,18 @@ unmapped = refs.filter(pc.equal(pc.list_value_length(refs["access_points"]), 0))
 unmapped.to_pandas()
 
 # %% [markdown]
-# ---
-#
-# ## 6. Serialization: a slim manifest by default
-#
-# `Timeline.to_dict()` defaults to the timeline's structure only — no events,
-# no external references — which keeps a serialized hierarchy small for the
-# common case:
-
-# %%
-sorted(spine.to_dict().keys())
-
-# %% [markdown]
-# The analytical annotations are rendered only on request, with
-# ``external_references=True``:
-
-# %%
-manifest = spine.to_dict(external_references=True)
-
-{
-    "rows": len(manifest["external_references"]),
-    "first_row": manifest["external_references"][0],
-}
-
-# %% [markdown]
 # ## Recap
 #
 # | What the bundle expresses | How |
 # |---|---|
 # | The spine, a cumulative VTU axis | `spine:dlt1`, `DiscreteLogicalTimeline`, ``ticks`` |
 # | Notes, rests, lyrics at spine coordinates | `los:dlt2`, verbatim `duration_num`/`duration_den` |
-# | Engraved editions, page-image boxes | one `ContinuousGraphicalTimeline` per edition, ``pixels`` |
+# | Engraved editions, page-image boxes | one `SegmentLine[DiscreteGraphicalTimeline]`
+# |   per edition: 18 accolade segments, an `IntervalToConstantMap` to page images, ``pixels`` |
 # | Audio recordings | one `ContinuousPhysicalTimeline` per track, ``seconds`` |
 # | Every projection onto the spine | one columnar {{< glossary MatchClaimField >}} via `loader.get_field(MatchClaim)` |
 # | The cross-section over spine coordinates | `bundle.get_matchstamp_table(from_graph=True)` |
 # | The Petri-net analysis | `spine.external_references` — segment → place, resolved without opening any `.pnml` |
-# | A slim manifest, annotations on request | `spine.to_dict()` vs. `spine.to_dict(external_references=True)` |
 #
 # One IEEE 1599 document — one spine, several projections, one analytical
 # annotation layer — loaded into a single {{< glossary AlignmentBundle >}}
