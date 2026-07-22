@@ -12,8 +12,6 @@ import pytest
 
 from timetoalign.loader.graphical.aton import ATONHole, ATONLoader
 
-pytestmark = pytest.mark.slow
-
 # Test data directory
 SUPRA_DIR = Path(__file__).parent.parent.parent / "data" / "supra"
 ATON_FILE = SUPRA_DIR / "image" / "fd660zf8362_analysis.txt"
@@ -45,6 +43,7 @@ def loaded_supra_loader() -> ATONLoader:
 class TestATONLoading:
     """Tests for loading ATON files."""
 
+    @pytest.mark.slow
     def test_load_supra_aton(self, supra_aton_path: Path) -> None:
         """SUPRA ATON file loads without error."""
         loader = ATONLoader()
@@ -70,6 +69,7 @@ class TestATONLoading:
 # region Test: SUPRA ROLLINFO Metadata (EXACT VALUES)
 
 
+@pytest.mark.slow
 class TestSUPRAROLLINFO:
     """Tests for SUPRA ROLLINFO metadata extraction.
 
@@ -126,6 +126,7 @@ class TestSUPRAROLLINFO:
 # region Test: SUPRA Hole Parsing
 
 
+@pytest.mark.slow
 class TestSUPRAHoleParsing:
     """Tests for SUPRA hole block parsing.
 
@@ -186,6 +187,7 @@ class TestSUPRAHoleParsing:
 # region Test: Query Methods
 
 
+@pytest.mark.slow
 class TestQueryMethods:
     """Tests for hole query methods."""
 
@@ -239,6 +241,7 @@ class TestUnloadedState:
         loader = ATONLoader()
         assert "not loaded" in repr(loader)
 
+    @pytest.mark.slow
     def test_repr_after_load(self, loaded_supra_loader: ATONLoader) -> None:
         """Repr shows counts after loading."""
         repr_str = repr(loaded_supra_loader)
@@ -261,6 +264,7 @@ class TestSourcePathTracking:
         loader = ATONLoader()
         assert loader.source_path is None
 
+    @pytest.mark.slow
     def test_source_path_after_load(self, supra_aton_path: Path) -> None:
         """Source path is set after loading."""
         loader = ATONLoader()
@@ -278,6 +282,7 @@ class TestSourcePathTracking:
 class TestSpecificHoleValues:
     """Tests for specific hole values to verify parsing correctness."""
 
+    @pytest.mark.slow
     def test_first_hole_detailed(self, loaded_supra_loader: ATONLoader) -> None:
         """First hole has expected values from ATON file.
 

@@ -15,8 +15,6 @@ from timetoalign.loader.physical.repovizz_catalogue import CatalogueEntry
 from timetoalign.loader.physical.repovizz_store import RepovizzDictStore
 from timetoalign.timelines import DiscretePhysicalTimeline
 
-pytestmark = pytest.mark.slow
-
 # region Test Data Paths
 
 
@@ -223,6 +221,7 @@ class TestRepoVizzLoaderXmlMode:
             timelines = loader.create_timelines(entries=audio_ids[:2])
             assert len(timelines) == 2
 
+    @pytest.mark.slow
     def test_create_group(self, xml_manifest_path: Path) -> None:
         """TimelineGroup can be created from XML loader."""
         loader = RepoVizzLoader.from_file(xml_manifest_path)
@@ -398,6 +397,7 @@ class TestRepoVizzLoaderIntegration:
             # They may have similar structure
             assert loader1.groups == loader2.groups
 
+    @pytest.mark.slow
     def test_timeline_group_iteration(self, xml_manifest_path: Path) -> None:
         """TimelineGroup from loader can be iterated."""
         loader = RepoVizzLoader.from_file(xml_manifest_path)

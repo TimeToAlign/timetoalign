@@ -27,7 +27,6 @@ CHOPIN_MAX_PITCH = 59
 CHOPIN_MAX_PITCH_COUNT = 50
 
 
-@pytest.mark.slow
 class TestMidiHarmonization:
     """Compare PerformanceMidiLoader and ScoreMidiLoader on the same file.
 
@@ -35,6 +34,7 @@ class TestMidiHarmonization:
     a parsing bug, not a "loader difference" to be tolerated.
     """
 
+    @pytest.mark.slow
     def test_compare_supra_raw(self, supra_raw_path: Path) -> None:
         """Compare parsing of raw piano roll data.
 

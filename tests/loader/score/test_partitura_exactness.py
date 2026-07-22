@@ -7,6 +7,7 @@ from pathlib import Path
 
 import partitura as pt
 import partitura.score as pts
+import pytest
 
 from timetoalign.loader.score import PartituraLoader
 
@@ -89,6 +90,7 @@ def test_chopin_division_positions_are_exact_and_match_float_map() -> None:
         assert abs(float(exact) - (float_map_value + loader.anacrusis_offset)) < 1e-6
 
 
+@pytest.mark.slow
 def test_partitura_exact_coordinates_agree_on_both_specimens() -> None:
     """Exact division integration agrees with Partitura's float map."""
     for path in (CHOPIN_XML, BEETHOVEN_XML):

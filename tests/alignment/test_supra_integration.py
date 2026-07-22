@@ -24,8 +24,6 @@ from timetoalign.loader.graphical.aton import ATONLoader
 from timetoalign.loader.graphical.iiif import IIIFManifestLoader
 from timetoalign.timelines import Timeline
 
-pytestmark = pytest.mark.slow
-
 # Test data directory
 SUPRA_DIR = Path(__file__).parent.parent / "data" / "supra"
 
@@ -95,6 +93,7 @@ class TestSUPRADataLoading:
         assert iiif_loader.width == 4096
         assert iiif_loader.height == 299400
 
+    @pytest.mark.slow
     def test_aton_metadata_exact(self, aton_loader: ATONLoader) -> None:
         """ATON loader extracts exact metadata."""
         assert aton_loader.musical_holes == 30092
@@ -104,6 +103,7 @@ class TestSUPRADataLoading:
         assert aton_loader.last_hole.value == 293119
         assert aton_loader.musical_length.value == 277776
 
+    @pytest.mark.slow
     def test_aton_musical_length_calculation(self, aton_loader: ATONLoader) -> None:
         """Musical length equals last_hole - first_hole."""
         expected = aton_loader.last_hole.value - aton_loader.first_hole.value
@@ -123,6 +123,7 @@ class TestSUPRATimelineCreation:
         """Image timeline has correct length."""
         assert image_timeline.length.value == 299400
 
+    @pytest.mark.slow
     def test_holes_timeline_length(self, holes_timeline: Timeline) -> None:
         """Holes timeline has correct length."""
         assert holes_timeline.length.value == 277776
@@ -134,6 +135,7 @@ class TestSUPRATimelineCreation:
 # region Test: AlignmentBundle Integration
 
 
+@pytest.mark.slow
 class TestSUPRAAlignmentBundle:
     """Tests for SUPRA workflow using AlignmentBundle with partial alignment.
 
@@ -259,6 +261,7 @@ class TestSUPRAOrderIndependence:
     Uses the timestamp-based API with start/end parameters for partial alignment.
     """
 
+    @pytest.mark.slow
     def test_order_1_image_first(
         self,
         aton_loader: ATONLoader,
@@ -285,6 +288,7 @@ class TestSUPRAOrderIndependence:
         expected = 15343.0 + (100000.0 / 277776.0) * (293119.0 - 15343.0)
         assert result == expected  # Same floating-point computation
 
+    @pytest.mark.slow
     def test_order_both_produce_same_result(
         self,
         aton_loader: ATONLoader,
@@ -401,6 +405,7 @@ class TestSUPRAOrderIndependence:
 # region Test: Summary
 
 
+@pytest.mark.slow
 class TestSUPRASummary:
     """Tests for bundle summary with SUPRA data.
 

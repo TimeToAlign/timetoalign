@@ -549,6 +549,7 @@ class TestRoundTripHow03Notebook:
     -> reload via MatchfileLoader -> verify alignment claims are preserved.
     """
 
+    @pytest.mark.slow
     def test_notebook_roundtrip(self, tmp_path: Path) -> None:
         """Full how03 workflow: match -> export -> reload -> verify."""
         if not NORMAL_DIR.exists() or not ABC_DIR.exists():

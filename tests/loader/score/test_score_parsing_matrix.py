@@ -391,7 +391,17 @@ class TestMusic21LoaderMEI:
             f"Actual: {actual}"
         )
 
-    @pytest.mark.parametrize("specimen_name", SPECIMENS.keys())
+    @pytest.mark.parametrize(
+        "specimen_name",
+        [
+            (
+                pytest.param(name, marks=pytest.mark.slow)
+                if name == "c05n05_musete"
+                else name
+            )
+            for name in SPECIMENS
+        ],
+    )
     def test_music21_mei_matches_musicxml(self, specimen_name: str) -> None:
         """Music21Loader MEI produces same flow as MusicXML."""
         spec = SPECIMENS[specimen_name]
@@ -760,6 +770,7 @@ class TestDocumentedDeviations:
     assertions, so a parser change requires an intentional test update.
     """
 
+    @pytest.mark.slow
     def test_c05n05_musete_music21_deviation(self) -> None:
         """Document: music21 ignores D.S. al Fine in c05n05_musete.
 
@@ -782,6 +793,7 @@ class TestDocumentedDeviations:
             (32, 59),
         ]
 
+    @pytest.mark.slow
     def test_c11n08_rondeau_music21_deviation(self) -> None:
         """Document: music21 does not reproduce c11n08_Rondeau's D.S. flow."""
         from timetoalign.core.enums import FlowMode

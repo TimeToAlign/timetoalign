@@ -909,7 +909,6 @@ class TestMatchfileLoaderCheckOrAddScoreEvent:
 # region TestPerPerformerDeletionCounts
 
 
-@pytest.mark.slow
 class TestPerPerformerDeletionCounts:
     """Validate exact per-performer deletion and match counts.
 
@@ -926,7 +925,14 @@ class TestPerPerformerDeletionCounts:
 
     @pytest.mark.parametrize(
         "performer,expected_deletions",
-        list(DELETION_COUNTS.items()),
+        [
+            (
+                pytest.param(performer, expected, marks=pytest.mark.slow)
+                if performer in {"p04", "p10", "p15", "p21"}
+                else (performer, expected)
+            )
+            for performer, expected in DELETION_COUNTS.items()
+        ],
     )
     def test_per_performer_deletion_count(
         self, performer: str, expected_deletions: int
@@ -944,7 +950,14 @@ class TestPerPerformerDeletionCounts:
 
     @pytest.mark.parametrize(
         "performer,expected_deletions",
-        list(DELETION_COUNTS.items()),
+        [
+            (
+                pytest.param(performer, expected, marks=pytest.mark.slow)
+                if performer == "p05"
+                else (performer, expected)
+            )
+            for performer, expected in DELETION_COUNTS.items()
+        ],
     )
     def test_per_performer_matched_count(self, performer: str, expected_deletions: int):
         """Each performer's matched count = SNOTE_COUNT - deletions."""
@@ -959,16 +972,19 @@ class TestPerPerformerDeletionCounts:
             f"got {len(sync_claims)}"
         )
 
+    @pytest.mark.slow
     def test_total_deletions_across_all_performers(self, all_loader: MatchfileLoader):
         """Total NOMATCH claims across all 22 files = 113."""
         nomatch_claims = [c for c in all_loader._claims if not c.is_synchronous]
         assert len(nomatch_claims) == TOTAL_DELETIONS
 
+    @pytest.mark.slow
     def test_total_matched_across_all_performers(self, all_loader: MatchfileLoader):
         """Total synchronous claims across all 22 files = 9875."""
         sync_claims = [c for c in all_loader._claims if c.is_synchronous]
         assert len(sync_claims) == TOTAL_MATCHED
 
+    @pytest.mark.slow
     def test_p08_highest_deletion_count(self, all_loader: MatchfileLoader):
         """p08 has the most deletions (20) — outlier validation."""
         # Find claims referencing p08's performance timeline
@@ -980,6 +996,7 @@ class TestPerPerformerDeletionCounts:
         nomatch_p08 = [c for c in p08_claims if not c.is_synchronous]
         assert len(nomatch_p08) == 20
 
+    @pytest.mark.slow
     def test_p12_lowest_deletion_count(self, all_loader: MatchfileLoader):
         """p12 has the fewest deletions (1) — outlier validation."""
         p12_claims = [
@@ -997,7 +1014,6 @@ class TestPerPerformerDeletionCounts:
 # region TestMatchfileLoaderPerfPNNShorthand
 
 
-@pytest.mark.slow
 class TestMatchfileLoaderPerfPNNShorthand:
     """Tests for the perf:pNN shorthand in create_timeline()."""
 
@@ -1006,6 +1022,7 @@ class TestMatchfileLoaderPerfPNNShorthand:
         tl = p01_loader.create_timeline("perf:p01")
         assert tl.id == "perf:Chopin_op10_no3_p01:dlt1"
 
+    @pytest.mark.slow
     def test_perf_p_shorthands_all_22(self, all_loader: MatchfileLoader):
         """'perf:p01' through 'perf:p22' all resolve for the 22-file set."""
         for i in range(1, TOTAL_MATCH_FILES + 1):
@@ -1013,6 +1030,7 @@ class TestMatchfileLoaderPerfPNNShorthand:
             assert tl is not None
             assert isinstance(tl, DiscreteLogicalTimeline)
 
+    @pytest.mark.slow
     def test_perf_p_shorthand_matches_numeric(self, all_loader: MatchfileLoader):
         """'perf:pNN' and 'perf:N' resolve to the same timeline."""
         for i in range(1, TOTAL_MATCH_FILES + 1):

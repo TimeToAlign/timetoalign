@@ -142,7 +142,10 @@ class TestAtomicSegmentValidation:
     [
         "c05n05_musete.flow.csv",
         "out_of_the_flow_experience-polyrhythm_only.flow.csv",
-        "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.flow.csv",
+        pytest.param(
+            "Piano_Concerto_No._2_Opus_18_1st_Movement__Rachmaninoff.flow.csv",
+            marks=pytest.mark.slow,
+        ),
     ],
 )
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")

@@ -266,7 +266,6 @@ class TestEnharmonicPitchFieldParquetRoundtrip:
 
 
 class TestCrossLoaderPitchConsistency:
-    @pytest.mark.slow
     def test_cross_loader_pitch_consistency(self) -> None:
         """Load Chopin via Ms3Loader AND Music21Loader, compare midi pitch arrays."""
         pytest.importorskip("music21")

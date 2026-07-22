@@ -142,6 +142,7 @@ class TestBeethovenWoO71WithMs3Loader:
         except ImportError:
             pytest.skip("Ms3Loader requires ms3. Install with: pip install ms3")
 
+    @pytest.mark.slow
     def test_tsv_loader_notes_count_exact(self, tsv_loader):
         """Ms3Loader note count matches gold standard EXACTLY."""
         if not NOTES_TSV.exists():

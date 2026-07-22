@@ -2130,6 +2130,7 @@ class TestUnifiedAPIWithRealData:
         assert child.n_events == 216
         assert wagner_timeline.has_child(child.id)
 
+    @pytest.mark.slow
     def test_create_children_from_regions_all(self, wagner_timeline):
         """create_children_from_regions creates children for all timesig regions."""
         wagner_timeline.create_regions_by_grouping("timesig")

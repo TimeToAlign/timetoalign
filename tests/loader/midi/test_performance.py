@@ -16,6 +16,7 @@ from timetoalign.timelines import TimelineGroup
 class TestPerformanceMidiLoader:
     """Tests for loading performance MIDI files."""
 
+    @pytest.mark.slow
     def test_load_piano_roll_raw(self, supra_raw_path: Path) -> None:
         """Can load raw piano roll MIDI."""
         if not supra_raw_path.exists():

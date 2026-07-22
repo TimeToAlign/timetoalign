@@ -246,6 +246,7 @@ class TestPartituraLoader:
         assert "numerator" in qb and "denominator" in qb
         assert "value" in qb
 
+    @pytest.mark.slow
     def test_midi_loads_without_type_error(self):
         """Regression: MIDI files must load without TypeError (#18).
 

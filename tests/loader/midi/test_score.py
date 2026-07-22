@@ -10,6 +10,7 @@ from timetoalign.loader.midi import MidiEventData, ScoreMidiEventData, ScoreMidi
 class TestScoreMidiLoader:
     """Tests for loading score MIDI files."""
 
+    @pytest.mark.slow
     def test_load_beethoven_quartet(self, beethoven_score_path: Path) -> None:
         """Can load multi-part score MIDI."""
         if not beethoven_score_path.exists():
@@ -42,6 +43,7 @@ class TestScoreMidiLoader:
         with pytest.raises(EOFError):
             loader.load(empty_file)
 
+    @pytest.mark.slow
     def test_score_emits_wide_schema(self, beethoven_score_path: Path) -> None:
         """Score MIDI emits the wider 10-extra-column schema.
 
