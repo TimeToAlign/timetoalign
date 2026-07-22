@@ -14,7 +14,7 @@ listing:
 These tutorials take you from zero to a working multimodal alignment,
 introducing one concept at a time.  Each notebook uses real-world data
 from the project's specimen collection and can be run locally after
-installing the library with `pip install -e ".[tutorial]"` from the repository root.
+installing the library with `pip install "timetoalign[tutorial]"`.
 
 **Prerequisites:** Python 3.12+, basic familiarity with Jupyter notebooks.
 

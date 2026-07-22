@@ -114,11 +114,10 @@ For the full specification, see the [Conceptual Model](concepts.qmd).
 
 ## Getting Started
 
-The `timetoalign` library is under active development. To install the
-current development version:
+The `timetoalign` library is available on PyPI. To install it:
 
 ```bash
-pip install -e path/to/timetoalign
+pip install timetoalign
 ```
 
 The library requires Python 3.12 or later.
@@ -126,7 +125,7 @@ The library requires Python 3.12 or later.
 
 ## Project Links
 
-- **Source Code**: [GitHub](https://github.com/TimeToAlign)
+- **Source Code**: [GitHub](https://github.com/timetoalign/timetoalign)
 - **Specimen Collection**: Real-world datasets used in the tutorials and
   the accompanying TISMIR manuscript.
 - **TISMIR Manuscript**: The model and its five demonstration scenarios are

@@ -2,11 +2,12 @@
 
 A Python library for representing and aligning musical timelines.
 
+**Documentation:** https://timetoalign.github.io/ · **Source:** https://github.com/timetoalign/timetoalign
+
 ## Installation
 
 ```bash
-cd timetoalign
-pip install -e .                # Core only — lightweight
+pip install timetoalign         # Core only — lightweight
 ```
 
 The core install pulls in only PyArrow, pandas, NetworkX, and
@@ -16,7 +17,7 @@ plotting, or Jupyter support, install one of the [optional extras](#optional-dep
 described below.  To run the **tutorial notebooks** (see below), for example:
 
 ```bash
-pip install -e ".[tutorial]"    # Loaders + plotting + Jupyter
+pip install "timetoalign[tutorial]"    # Loaders + plotting + Jupyter
 ```
 
 ### Optional Dependencies
@@ -24,7 +25,7 @@ pip install -e ".[tutorial]"    # Loaders + plotting + Jupyter
 TimeToAlign! organises its optional dependencies into *atomic* extras
 (one concern each) and *composite* extras (convenience bundles that
 include several atomic ones).  You can mix and match freely:
-`pip install -e ".[midi,plot]"` is perfectly valid.
+`pip install "timetoalign[midi,plot]"` is perfectly valid.
 
 #### Atomic extras
 
@@ -65,17 +66,24 @@ dev  ⊃  all  ⊃  tutorial  ⊃  loaders  ⊃  { midi, scores, audio, graphica
 
 #### Examples
 
-From the repository root:
+```bash
+pip install timetoalign                  # Core only
+pip install "timetoalign[midi]"          # Core + MIDI loading
+pip install "timetoalign[partitura]"     # Core + partitura score parsing
+pip install "timetoalign[scores]"        # Core + all score-loader backends
+pip install "timetoalign[loaders]"       # Core + every loader
+pip install "timetoalign[tutorial]"      # Loaders + plotting + Jupyter
+pip install "timetoalign[all]"           # All runtime features
+```
+
+### Development install
+
+Contributing or running the test suite requires an editable, source
+install with the `dev` extra:
 
 ```bash
-pip install -e .                         # Core only
-pip install -e ".[midi]"                 # Core + MIDI loading
-pip install -e ".[partitura]"            # Core + partitura score parsing
-pip install -e ".[scores]"               # Core + all score-loader backends
-pip install -e ".[loaders]"              # Core + every loader
-pip install -e ".[tutorial]"             # Loaders + plotting + Jupyter
-pip install -e ".[all]"                  # All runtime features
-pip install -e ".[dev]"                  # Editable install + everything + dev tooling
+git clone https://github.com/timetoalign/timetoalign.git
+pip install -e "./timetoalign[dev]"      # Editable install + everything + dev tooling
 ```
 
 ## Quick Start
