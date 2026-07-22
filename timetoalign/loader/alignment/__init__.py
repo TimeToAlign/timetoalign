@@ -17,6 +17,9 @@ Loaders:
     MpmLoader: MPM-Toolbox MSM+MPM+MPR triples (notated score + modelled
         performance markup + observed alignment) ingested as one
         multimodal AlignmentBundle.
+    Ieee1599Loader: IEEE 1599 XML documents (spine + logic / notational /
+        audio layers) ingested as one multimodal AlignmentBundle in which
+        every layer is aligned to the spine.
 
 Stores:
     TiliaDictStore: DictStore subclass with TiLiA timeline type properties.
@@ -24,6 +27,7 @@ Stores:
 
 from __future__ import annotations
 
+from .ieee1599 import Ieee1599Loader
 from .listen_here import ListenHereLoader
 from .matchfile import MatchfileLoader
 from .mpm import MpmLoader
@@ -32,6 +36,7 @@ from .performance_precision import PerformancePrecisionLoader
 from .tilia import TiliaDictStore, TiliaJsonLoader
 
 __all__ = [
+    "Ieee1599Loader",
     "ListenHereLoader",
     "MatchfileLoader",
     "MpmLoader",
