@@ -22,10 +22,13 @@ It verifies:
 - the ``from_graph`` cross-section: one row per connected component, spine
   column non-null and unique, asserted cell by cell on the animals specimen;
 - fidelity spot-checks — verbatim ``num``/``den`` durations, ``<undefined/>``
-  accidentals, ties, tuplets, lyrics, and media references recorded whether or
-  not the file exists; and
-- the loader contract (one document per loader, cached timeline building, uid
-  filtering, no timeline groups, ``get_field`` selector behaviour).
+  accidentals, ties, tuplets, lyrics, ``<track_general>`` descriptions, and
+  media references recorded whether or not the file exists; and
+- the loader contract (one document per loader through every ingest method,
+  cached timeline building, uid filtering, no timeline groups, ``get_field``
+  selector behaviour).
+
+The ``<structural>`` layer has its own module, ``test_ieee1599_structural.py``.
 
 All counts and coordinates are exact per the Zero Tolerance Validation
 Policy.  Validation logic is documented in
@@ -37,6 +40,7 @@ from __future__ import annotations
 from fractions import Fraction
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree
 
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -269,19 +273,20 @@ class TestTimelineIdentity:
         assert (spine.unit, spine.number_type) == (TimeUnit.ticks, NumberType.int)
         assert (los.unit, los.number_type) == (TimeUnit.ticks, NumberType.int)
         assert (edition.unit, edition.number_type) == (
-            TimeUnit.points,
+            TimeUnit.pixels,
             NumberType.float,
         )
         assert (track.unit, track.number_type) == (TimeUnit.seconds, NumberType.float)
 
-    def test_graphical_timeline_keeps_fractional_coordinates(
-        self, ieee1599_loader
-    ) -> None:
+    def test_graphical_timeline_keeps_fractional_pixels(self, ieee1599_loader) -> None:
         """Page-image boxes are not integral everywhere, so they stay continuous."""
         edition = ieee1599_loader("animals").create_timeline("farm_picture:cgt1")
 
         assert isinstance(edition, ContinuousGraphicalTimeline)
+        assert edition.unit == TimeUnit.pixels
+        assert edition.number_type == NumberType.float
         assert edition.length.value == 1206.4
+        assert 992.96 in _coordinates(edition)
 
     def test_graphical_timeline_records_the_declared_measurement_unit(
         self, ieee1599_loader
@@ -538,13 +543,26 @@ class TestAudioLayer:
         assert _coordinate(pig) == 6.5
         assert pig["file_name"] == "audio_files/animals_eng.mp3"
 
-    def test_performers_are_recorded(self, ieee1599_loader) -> None:
-        """``<performer>`` metadata reaches the timeline."""
+    def test_track_general_is_recorded(self, ieee1599_loader) -> None:
+        """``<track_general>`` reaches the timeline whole and verbatim."""
         track = ieee1599_loader("gymnopedie").create_timeline(
             "satie_gymnopedie1_coleman:cpt1"
         )
 
         assert track.meta["performers"] == [{"name": "Chase Coleman", "type": "piano"}]
+        assert track.meta["notes"] == "Chase Coleman"
+        # The specimen states no ``<recordings>`` for this track, so no key.
+        assert "recordings" not in track.meta
+
+    def test_track_without_a_general_section(self, ieee1599_loader) -> None:
+        """Nothing is invented for a track that describes itself no further."""
+        track = ieee1599_loader("khomus").create_timeline("khomus_audio:cpt1")
+
+        assert track.meta["performers"] == [
+            {"name": "Audio performance", "type": "khomus"}
+        ]
+        assert "notes" not in track.meta
+        assert "recordings" not in track.meta
 
     def test_declared_format_may_contradict_the_extension(
         self, ieee1599_loader, ieee1599_dir
@@ -624,7 +642,7 @@ class TestClaims:
         "layer, unit",
         [
             ("los", TimeUnit.ticks),
-            ("notational", TimeUnit.points),
+            ("notational", TimeUnit.pixels),
             ("audio", TimeUnit.seconds),
         ],
     )
@@ -773,7 +791,14 @@ class TestLoaderContract:
         """Curated layer tables, not the generic tag auto-flatten."""
         loader = ieee1599_loader("gymnopedie")
 
-        assert loader.keys() == ["spine", "los", "staff_list", "notational", "audio"]
+        assert loader.keys() == [
+            "spine",
+            "los",
+            "staff_list",
+            "notational",
+            "audio",
+            "structural",
+        ]
         assert loader.store["notational"].table.num_rows == 764
         assert loader.store["audio"].table.num_rows == 764
 
@@ -825,6 +850,33 @@ class TestLoaderContract:
             loader.load(ieee1599_path("khomus"))
         with pytest.raises(ValueError, match="exactly one"):
             Ieee1599Loader().load(ieee1599_path("animals"), ieee1599_path("khomus"))
+
+    def test_string_and_element_ingest_share_the_guard(self, ieee1599_path) -> None:
+        """Every door into the parse is one document wide, not just ``load()``."""
+        xml = ieee1599_path("khomus").read_text(encoding="utf-8-sig")
+        loader = Ieee1599Loader.from_file(ieee1599_path("animals"))
+
+        with pytest.raises(ValueError, match="already holds"):
+            loader.load_string(xml)
+        with pytest.raises(ValueError, match="already holds"):
+            loader.load_element(ElementTree.fromstring(xml))
+        assert loader.timeline_uids == [
+            "spine:dlt1",
+            "los:dlt2",
+            "farm_picture:cgt1",
+            "coloring_page:cgt2",
+            "animal_shapes:cgt3",
+            "animals_eng:cpt1",
+            "animals_ita:cpt2",
+        ]
+
+    def test_string_ingest_accepts_a_first_document(self, ieee1599_path) -> None:
+        """The guard refuses a second document, not the first one."""
+        xml = ieee1599_path("animals").read_text(encoding="utf-8-sig")
+        loader = Ieee1599Loader().load_string(xml)
+
+        assert loader.spine_uid == "spine:dlt1"
+        assert len(loader) == 59
 
     def test_methods_before_load(self) -> None:
         """The two-phase contract is enforced, not assumed."""
@@ -940,6 +992,16 @@ class TestLargeSpecimens:
         }
         assert bundle.n_cross_group_claims == 25280
         assert bundle.get_matchstamp_table(from_graph=True).num_rows == 30
+
+    def test_serie_track_recordings(self, ieee1599_loader) -> None:
+        """The only specimen with ``<recordings>`` keeps their attributes."""
+        track = ieee1599_loader("serie").create_timeline("serie_9_8_sito:cpt1")
+
+        assert track.meta["recordings"] == [{"date": "1988", "studio_name": "LIM"}]
+        assert track.meta["notes"] == (
+            "Computer music master produced at LIM by Antonio José Rodriguez "
+            "Selles and Goffredo Haus (1988)"
+        )
 
     def test_bach_shape(self, ieee1599_loader, ieee1599_bundle) -> None:
         """Three editions, four recordings, 140 ties."""

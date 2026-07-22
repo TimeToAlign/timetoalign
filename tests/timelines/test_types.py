@@ -274,10 +274,25 @@ class TestGraphicalTimeline:
         with pytest.raises(ValueError, match="does not allow number_type"):
             ContinuousGraphicalTimeline(length=100, number_type=NumberType.int)
 
-    def test_continuous_graphical_rejects_pixels(self):
-        """ContinuousGraphicalTimeline rejects discrete units."""
+    def test_continuous_graphical_accepts_pixels(self):
+        """Pixels pair with float coordinates: a page coordinate may be sub-pixel."""
+        tl = ContinuousGraphicalTimeline(length=1206.4, unit=TimeUnit.pixels)
+
+        assert tl.unit == TimeUnit.pixels
+        assert tl.number_type == NumberType.float
+        assert tl.length.value == 1206.4
+
+    def test_continuous_graphical_stores_sub_pixel_coordinates_verbatim(self):
+        """A box the source states at x=992.96 pixels is not rounded."""
+        tl = ContinuousGraphicalTimeline(length=1206.4, unit=TimeUnit.pixels)
+        tl.add_events([{"event_type": "Box", "start": 992.96, "end": 1206.4}])
+
+        assert tl.events.table.column("start").to_pylist()[0]["value"] == 992.96
+
+    def test_continuous_graphical_rejects_non_graphical_units(self):
+        """The domain still holds: seconds are not a graphical unit."""
         with pytest.raises(ValueError, match="does not allow unit"):
-            ContinuousGraphicalTimeline(length=1920, unit=TimeUnit.pixels)
+            ContinuousGraphicalTimeline(length=10.0, unit=TimeUnit.seconds)
 
     def test_discrete_graphical_default_int(self):
         """DiscreteGraphicalTimeline defaults to int coordinates."""

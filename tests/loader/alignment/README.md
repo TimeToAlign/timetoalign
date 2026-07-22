@@ -14,6 +14,7 @@ module level so the corpus is materialised once, before collection.
 | File | What it validates |
 |------|-------------------|
 | `test_ieee1599.py` | `Ieee1599Loader` against all six IEEE 1599 specimens — spine delta accumulation, the four projection layers, verbatim media references, and the spine-hub claim topology. Zero-tolerance counts and coordinates (see below). |
+| `test_ieee1599_structural.py` | The `<structural>` layer of the gymnopédie specimen — the segment ↔ Petri-net-place resolution and the `external_references` rows it produces on the spine. Exact row counts and exact resolutions (see below). |
 
 Fast lane: gymnopédie, animals, khomus.  The three large specimens
 (pazzariello, serie, bach) carry `@pytest.mark.slow` and run under
@@ -80,7 +81,7 @@ what `event_ref` resolves against.
 |---|---|---|
 | `<spine>` | `spine:dlt1` (`DiscreteLogicalTimeline`) | ticks, int |
 | `<los>` notes/rests/lyrics | `los:dlt2` (`DiscreteLogicalTimeline`) | ticks, int |
-| each `<graphic_instance_group>` | `<role>:cgt<n>` (`ContinuousGraphicalTimeline`) | points, float |
+| each `<graphic_instance_group>` | `<role>:cgt<n>` (`ContinuousGraphicalTimeline`) | pixels, float |
 | each `<track>` | `<role>:cpt<n>` (`ContinuousPhysicalTimeline`) | seconds, float |
 
 Roles are asserted exactly, because they encode the sanitisation rule
@@ -100,14 +101,15 @@ noteheads from 288 chords).
 
 Every `<graphic_instance>` declares `measurement_unit="pixels"`, and the
 coordinates are not integral everywhere (`animals` has `upper_left_x="992.96"`,
-and its `farm_picture` timeline `length` is asserted as `1206.4`).  The
-timeline types pair `TimeUnit.pixels` exclusively with the integer-valued
-`DiscreteGraphicalTimeline`, so the boxes are carried unscaled on a
-`ContinuousGraphicalTimeline` in `points` — the continuous graphical unit that
-coincides with the pixel at 72 dpi — and the declared `measurement_unit` is
-asserted to survive per page in `timeline.meta["pages"]`.  A test asserts both
-the class and the fractional length, so a future switch to a genuinely
-pixel-valued continuous timeline is a one-line change here.
+and its `farm_picture` timeline `length` is asserted as `1206.4`).  The boxes
+are therefore carried unscaled on a `ContinuousGraphicalTimeline` whose unit is
+the `pixels` the document itself declares — `TimeUnit.pixels` pairs with float
+coordinates on the continuous type and with int coordinates on
+`DiscreteGraphicalTimeline`, so nothing has to be rescaled or rounded to be
+representable (see `tests/timelines/test_types.py`).  A test asserts the class,
+the unit, the `float` number type and the fractional length together, and the
+declared `measurement_unit` is asserted to survive per page in
+`timeline.meta["pages"]`.
 
 Graphic events are interval events from `upper_left_x` to `lower_right_x`, with
 `upper_left_y` / `lower_right_y`, the page `file_name` and `position_in_group`
@@ -129,7 +131,8 @@ los_events = noteheads + rests + lyric syllables
 
 with no term for `<staff_list>` clefs / key signatures / time signatures (they
 reference spine events but are not note/rest/lyric content) and none for the
-`<structural>` layer (not represented yet).
+`<structural>` layer (it states references into external resources, not
+coordinates, so it produces `external_references` rows and no claim at all).
 
 | specimen | spine | los = nh + rest + syl | graphic | track | claims |
 |---|---|---|---|---|---|
@@ -151,16 +154,108 @@ are of unequal completeness (3509 × 4 + 3507 + 852 = 18395); and animals'
 
 The claims are held **columnar** — one `MatchClaimField` for the whole
 document, built with `MatchClaimField.from_columns`, never one `MatchClaim`
-object per row.  The three layers are measured in ticks, points and seconds
+object per row.  The three layers are measured in ticks, pixels and seconds
 respectively, which one field can hold because the coordinate storage carries a
 unit *per row*; the tests materialise the first claim of each layer and assert
-its `coordinate_a.unit` (ticks / points / seconds) against `coordinate_b.unit`
+its `coordinate_a.unit` (ticks / pixels / seconds) against `coordinate_b.unit`
 (always ticks, always `spine:dlt1`).  Per-layer row counts are recovered by
 counting the field's `timeline_a_id` column against the loader's `los_uid` /
 `edition_uids` / `track_uids`, which is what the arithmetic above is asserted
 through.  The bundle holds exactly one claim field and its per-claim Python
 list stays empty (`cross_group_claims == []`) while `n_cross_group_claims`
 reports the totals above.
+
+### Structural layer → `external_references` on the spine
+
+Only the gymnopédie specimen has a `<structural>` layer.  It states two
+independent analyses of the same piece, each in two halves that have to be
+joined to mean anything:
+
+```xml
+<analysis id="Analisi_1" author="Simone Delle Fave">
+  <segmentation>
+    <segment id="Analisi_1_L1_A">
+      <segment_event event_ref="part_1_voice0_measure1_ev0"/>   <!-- ×32 -->
+```
+```xml
+<petri_nets>
+  <petri_net file_name="Analisi_1/L1.pnml">
+    <place place_ref="p2" segment_ref="Analisi_1_L1_A"/>
+```
+
+A `<segment>` names the spine events it covers; a `<place>` names the segment
+one node of one Petri net models.  Joining the two on the segment id answers
+"which Petri-net node models this spine event", which is a reference *into* an
+external resource rather than a timing statement — so it is carried as
+`external_references` on the spine timeline, not as claims and not as events.
+
+**Resolution rule.** For every `<segment_event>`, look up the `<place>` entries
+whose `segment_ref` is the enclosing segment's id and emit one row per
+*(segment_event, place)* pair:
+
+| column | value |
+|---|---|
+| `event_id` | the `<segment_event>`'s `event_ref` (a spine event id) |
+| `external_id` | the `<place>`'s `place_ref`, e.g. `p2` |
+| `access_points` | `[{"uri": <the enclosing petri_net's file_name>, "kind": "relative_path"}]` |
+| `comment` | the segment id, e.g. `Analisi_1_L1_A` |
+
+A segment no `<place>` names still contributes one row per event, with
+`external_id` = the segment id, `access_points` = `[]` and
+`comment` = `"segment without petri-net node"`; the segmentation is stated by
+the document and survives whole even where the Petri-net modelling does not
+cover it.  The `.pnml` files are never opened and their paths are never
+resolved against disk — the whole mapping is in the XML, and the `file_name` is
+recorded verbatim (`Analisi_1/L3_RS_I.pnml`, `Analisi_2/L3-RS-C.pnml`: the two
+analyses do not even agree on a separator).
+
+**Exact-count arithmetic.** The specimen states
+
+| | Analisi_1 | Analisi_2 | total |
+|---|---|---|---|
+| `<segment>` | 49 | 46 | **95** |
+| `<segment_event>` | 892 | 903 | **1795** |
+| `<petri_net>` | 19 | 10 | **29** |
+| `<place>` | 49 | 48 | **97** |
+
+The 97 places carry 97 *distinct* `segment_ref` values, so no segment is named
+by two places and the per-segment multiplier is never greater than one.  Of
+those 97, 94 name a segment that exists; three do not and therefore resolve to
+nothing at all:
+
+* `Analisi_1_L3_RS__23` (place `p2` of `Analisi_1/L3_RS_I.pnml`) — a typo for
+  the segment `Analisi_1_L3_RS_I_23`, whose `I` it drops;
+* `Analisi_2_L3_RS_C_15` and `Analisi_2_L3_RS_C_16` (places `p9` / `p8` of
+  `Analisi_2/L3-RS-C.pnml`) — segment ids the segmentation never defines.
+
+That leaves exactly one of the 95 segments unmapped — `Analisi_1_L3_RS_I_23`,
+the victim of the typo, which covers a single event — so the fallback path is
+exercised by the specimen rather than only by construction.  With every
+multiplier equal to one, the total is simply the number of `<segment_event>`
+elements:
+
+```
+rows = Σ over segments (segment_events × max(places, 1))
+     = 1794 × 1  (94 mapped segments)  +  1 × 1  (the unmapped one)
+     = 1795      = 892 (Analisi_1) + 903 (Analisi_2)
+```
+
+Asserted exactly: **1795** rows, of which **exactly one** has empty
+`access_points`; **32** rows for `Analisi_1_L1_A`, all with `external_id`
+`p2` and access point `Analisi_1/L1.pnml`; **10** rows for
+`Analisi_2_L2_RS_B`, all with `external_id` `p4` and access point
+`Analisi_2/L2-RS.pnml`.  The rows name **376** distinct spine events — the 6
+spine events missing from the 382 are the clef / key-signature / time-signature
+events, which no segment covers.  Both analyses contribute (892 + 903), the
+same rows appear in the loader's curated `structural` store table, and the
+spine reaches them identically whether it is built by `create_timeline()` or by
+`create_bundle()`.
+
+`spine.to_dict(external_references=True)` renders all 1795 rows with their
+nested access points; plain `to_dict()` omits the key entirely.  The five
+specimens without a `<structural>` layer have no `structural` store table and
+their spine's `external_references` is an empty table carrying the canonical
+schema.
 
 ### Cross-section (`get_matchstamp_table(from_graph=True)`)
 
@@ -208,6 +303,11 @@ appear as `14.25`.
 * **Tuplets** (pazzariello, exactly 51) keep all four `tuplet_ratio` integers.
 * **Lyrics** (animals 8, pazzariello 129) keep their text and their `hyphen`
   attribute.
+* **Track descriptions** reach the timeline whole: a `<track_general>`'s
+  `<performers>`, its `<recordings>` attributes and its free-text `<notes>` are
+  kept verbatim in `meta`, and a key is absent when the document does not state
+  it (gymnopédie's Coleman track notes read `Chase Coleman` and it has no
+  `<recordings>`; pazzariello has no `<track_general>` at all).
 * **Media references** are recorded verbatim and never resolved: khomus
   declares `file_format="video_avi"` for a `.mp4`, and every one of bach's
   media files is absent from disk — a test asserts both the recorded name and
@@ -218,8 +318,12 @@ appear as `14.25`.
 
 ### Loader contract
 
-`load()` accepts exactly one document (one spine, one bundle) and refuses a
-second, `create_timeline(uid)` builds once and returns the cached timeline,
+The loader accepts exactly one document (one spine, one bundle) and refuses a
+second by whichever door it arrives at — `load()`, and equally the inherited
+`load_string()` and `load_element()`, which would otherwise re-enter the parse
+and suffix a second document's timelines onto the first's.  All three raise the
+same `ValueError`, and a test drives each of them.  `create_timeline(uid)`
+builds once and returns the cached timeline,
 `create_timelines(id_pattern=...)` filters by uid regex, `create_group()`
 returns `None`, and `get_field(MatchClaim)` follows the selector pattern: both
 `MatchClaim` and `MatchClaimField` resolve to the document's single claim

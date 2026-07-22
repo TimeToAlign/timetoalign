@@ -23,9 +23,12 @@ IEEE 1599 construct           Time To Align! representation
 ``<logic><los>`` notes,       ONE ``DiscreteLogicalTimeline`` ``los:dlt2``,
 rests and lyric syllables     unit ``ticks``
 ``<notational>`` per          ONE ``ContinuousGraphicalTimeline`` per
-``graphic_instance_group``    group, page-image coordinates
+``graphic_instance_group``    group, unit ``pixels``
 ``<audio>`` per ``<track>``   ONE ``ContinuousPhysicalTimeline``,
                               unit ``seconds``
+``<structural>`` per          one ``external_references`` row on the
+``<segment_event>``           spine timeline, naming the Petri-net place
+                              that segment maps to
 every ``event_ref``           one synchronous ``MatchClaim``, projection
                               timeline against the spine, all of them in
                               one columnar ``MatchClaimField``
@@ -49,6 +52,21 @@ temporal position); graphic events are interval events spanning
 ``upper_left_x`` to ``lower_right_x``; track events are instants at
 ``start_time`` seconds.
 
+**The structural layer.**  An ``<analysis>`` partitions the spine into
+``<segment>`` elements, each listing the spine events it covers as
+``<segment_event event_ref="…"/>``; a sibling ``<petri_nets>`` block names the
+``.pnml`` files that model those segments, a ``<place place_ref="p2"
+segment_ref="…"/>`` binding one place of one net to one segment.  That is a
+reference *into* an external resource, not a timing statement, so it is carried
+as :attr:`~timetoalign.timelines.base.Timeline.external_references` on the
+spine: one row per ``(segment_event, place)`` pair, whose ``event_id`` is the
+spine event, whose ``external_id`` is the ``place_ref``, whose single access
+point is the net's ``file_name`` with kind ``relative_path``, and whose
+``comment`` is the segment id.  A segment no place names keeps its row —
+``external_id`` the segment id, no access point, ``comment`` ``"segment without
+petri-net node"`` — so the segmentation survives whole even where the
+Petri-net modelling is incomplete.
+
 **Fidelity rules.**  Notated durations are kept as the verbatim ``num`` /
 ``den`` integer pair (``duration_num`` / ``duration_den``) rather than a
 reduced :class:`~fractions.Fraction`, so that ``4/4`` does not silently become
@@ -57,24 +75,21 @@ reduced :class:`~fractions.Fraction`, so that ``4/4`` does not silently become
 ``"undefined"``, never dropped and never inferred.  Media files are never
 opened: ``file_name`` and ``file_format`` are recorded verbatim even when the
 file is absent from disk, and even when the format label contradicts the
-extension (``video_avi`` naming a ``.mp4``).
+extension (``video_avi`` naming a ``.mp4``).  ``.pnml`` files are not opened
+either — a Petri net's places are cross-referenced from the IEEE 1599 document
+itself, so the whole mapping is read there and no path is ever resolved.
+Page-image coordinates are kept as stated: the document measures them in
+pixels (``measurement_unit="pixels"`` on every ``<graphic_instance>``) and
+they are not integral in every specimen (``upper_left_x="992.96"``), so they
+are carried unscaled on a
+:class:`~timetoalign.timelines.types.ContinuousGraphicalTimeline` in
+``pixels``, with the declared ``measurement_unit`` kept per page.
 
 **Known limitations.**
 
-* IEEE 1599 declares its page-image coordinates in pixels
-  (``measurement_unit="pixels"`` on every ``<graphic_instance>``), and they
-  are not integral in every specimen (``upper_left_x="992.96"``).  The
-  timeline types pair ``TimeUnit.pixels`` exclusively with the integer-valued
-  :class:`~timetoalign.timelines.types.DiscreteGraphicalTimeline`, whose
-  rounding would destroy a coordinate the document states exactly, so the
-  boxes are carried verbatim — unscaled — on a
-  :class:`~timetoalign.timelines.types.ContinuousGraphicalTimeline` in
-  ``points``, the continuous graphical unit that coincides with the pixel at
-  72 dpi.  The declared ``measurement_unit`` is kept per page, so the
-  document's own wording survives a round trip.
-* The ``<structural>`` layer (``<analysis>`` segmentations and ``<petri_nets>``)
-  is parsed by nothing yet; it is skipped with a debug log line pending the
-  timeline-level external-reference mechanism it needs.
+* An ``<analysis>`` that describes timeline events rather than spine segments
+  has no representation here: the structural layer is read only through the
+  ``<segment>`` / ``<place>`` chain that resolves to spine events.
 * ``<staff_list>`` clefs, key signatures and time signatures reference spine
   events but are not note/rest/lyric content; they are kept in the curated
   ``staff_list`` store table and do not become timeline events or claims.
@@ -135,12 +150,18 @@ _AGENT_IDENTIFIER = "ieee1599_event_ref"
 
 #: Document sections this loader represents.  Anything else is logged and
 #: skipped (see the module docstring's limitations).
-_KNOWN_SECTIONS = frozenset({"general", "logic", "notational", "audio"})
+_KNOWN_SECTIONS = frozenset({"general", "logic", "notational", "audio", "structural"})
 
-#: The unit graphic-event boxes are carried in.  The document measures them in
-#: pixels, which the timeline types admit only with integer coordinates; the
-#: values are stored unscaled (see the module docstring's limitations).
-_GRAPHIC_UNIT = TimeUnit.points
+#: The unit graphic-event boxes are carried in — the one the document itself
+#: declares.  Values are stored unscaled and fractional coordinates are kept.
+_GRAPHIC_UNIT = TimeUnit.pixels
+
+#: Access-point kind of a ``<petri_net>`` ``file_name``: a path relative to
+#: the IEEE 1599 document, never resolved against the file system.
+_PETRI_NET_ACCESS_KIND = "relative_path"
+
+#: ``comment`` of a segment that no ``<place>`` names.
+_UNMAPPED_SEGMENT_COMMENT = "segment without petri-net node"
 
 # endregion
 
@@ -168,6 +189,8 @@ class _TrackSpec:
     file_name: str
     attributes: dict[str, Any] = field(default_factory=dict)
     performers: list[dict[str, Any]] = field(default_factory=list)
+    recordings: list[dict[str, Any]] = field(default_factory=list)
+    notes: str | None = None
     rows: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -255,10 +278,11 @@ class Ieee1599Loader(XmlLoader):
 
     The parse phase fills a
     :class:`~timetoalign.storage.store.DictStore` with one curated table per
-    layer — ``spine``, ``los``, ``staff_list``, ``notational``, ``audio`` —
-    rather than the generic tag-flattening its ``XmlLoader`` base performs;
-    the layers are too differently shaped for one auto-detected schema to
-    describe them.
+    layer — ``spine``, ``los``, ``staff_list``, ``notational``, ``audio``,
+    ``structural`` — rather than the generic tag-flattening its ``XmlLoader``
+    base performs; the layers are too differently shaped for one
+    auto-detected schema to describe them.  A layer the document does not
+    state gets no table.
 
     Examples:
         >>> loader = Ieee1599Loader.from_file("gymnopedie_01.xml")
@@ -285,6 +309,8 @@ class Ieee1599Loader(XmlLoader):
         self._spine_rows: list[dict[str, Any]] = []
         self._los_rows: list[dict[str, Any]] = []
         self._staff_rows: list[dict[str, Any]] = []
+        #: External-reference rows the ``<structural>`` layer states.
+        self._structural_rows: list[dict[str, Any]] = []
         self._editions: list[_EditionSpec] = []
         self._tracks: list[_TrackSpec] = []
         self._claim_field: MatchClaimField | None = None
@@ -315,15 +341,59 @@ class Ieee1599Loader(XmlLoader):
                 "Ieee1599Loader ingests exactly one IEEE 1599 document per "
                 f"loader; got {len(sources)} sources."
             )
-        if self._spine_uid is not None:
-            raise ValueError(
-                "This Ieee1599Loader already holds "
-                f"{self._sources[0].name if self._sources else 'a document'}. "
-                "Each IEEE 1599 document is a self-contained bundle: use a "
-                "new loader, or call clear() first."
-            )
+        self._reject_second_document()
         self._name = Path(sources[0]).stem
         return super().load(*sources)
+
+    def load_string(self, xml_string: str) -> Self:
+        """Ingest exactly one IEEE 1599 document from an XML string.
+
+        Args:
+            xml_string: A complete ``<ieee1599>`` document.
+
+        Returns:
+            Self, for method chaining.
+
+        Raises:
+            ValueError: If this loader has already ingested a document.
+        """
+        self._reject_second_document()
+        return super().load_string(xml_string)
+
+    def load_element(self, root: ET.Element) -> Self:
+        """Ingest exactly one already-parsed ``<ieee1599>`` element.
+
+        Args:
+            root: The ``<ieee1599>`` root element.
+
+        Returns:
+            Self, for method chaining.
+
+        Raises:
+            ValueError: If this loader has already ingested a document.
+        """
+        self._reject_second_document()
+        return super().load_element(root)
+
+    def _reject_second_document(self) -> None:
+        """Guard every ingest path against a second document.
+
+        One IEEE 1599 document is one self-contained work with its own spine;
+        a second one parsed into the same loader would suffix its timeline
+        uids onto the first one's and claim against the wrong spine, so it is
+        refused however it arrives — as a path, a string or an element.
+
+        Raises:
+            ValueError: If a document is already held.
+        """
+        if self._spine_uid is None:
+            return
+        held = self._sources[0].name if self._sources else self._name or "a document"
+        raise ValueError(
+            f"This Ieee1599Loader already holds {held}. Each IEEE 1599 "
+            "document is a self-contained bundle: use a new loader, or call "
+            "clear() first."
+        )
 
     def clear(self) -> None:
         """Discard the loaded document and every derived artefact."""
@@ -335,6 +405,7 @@ class Ieee1599Loader(XmlLoader):
         self._spine_rows.clear()
         self._los_rows.clear()
         self._staff_rows.clear()
+        self._structural_rows.clear()
         self._editions.clear()
         self._tracks.clear()
         self._claim_field = None
@@ -357,6 +428,7 @@ class Ieee1599Loader(XmlLoader):
         self._read_los(root)
         self._read_notational(root)
         self._read_audio(root)
+        self._read_structural(root)
         self._log_skipped_sections(root)
         self._store_tables()
         self._build_claim_field()
@@ -680,13 +752,16 @@ class Ieee1599Loader(XmlLoader):
         """Read one physical timeline per ``<track>``.
 
         ``track_event`` start times are seconds.  The referenced media file is
-        never opened: its name, declared formats and performers are recorded
-        verbatim, whether or not the file exists and whether or not the
-        declared ``file_format`` matches the extension.
+        never opened: its name, declared formats and its whole
+        ``<track_general>`` description are recorded verbatim, whether or not
+        the file exists and whether or not the declared ``file_format``
+        matches the extension.
         """
         for track in root.findall("./audio/track"):
             file_name = track.get("file_name") or "track"
             role = self._claim_role(Path(file_name).stem)
+            general = track.find("track_general")
+            notes = None if general is None else general.find("notes")
             spec = _TrackSpec(
                 uid=self._timeline_id_generator.next_id_with_role(
                     ContinuousPhysicalTimeline, role
@@ -701,6 +776,13 @@ class Ieee1599Loader(XmlLoader):
                     {"name": performer.get("name"), "type": performer.get("type")}
                     for performer in track.findall("./track_general//performer")
                 ],
+                recordings=[
+                    dict(recording.attrib)
+                    for recording in track.findall(
+                        "./track_general/recordings/recording"
+                    )
+                ],
+                notes=None if notes is None else _text_or_none(notes),
                 rows=[],
             )
             for indexing in track.findall("track_indexing"):
@@ -726,6 +808,99 @@ class Ieee1599Loader(XmlLoader):
                     )
             spec.rows = _prune_columns(spec.rows)
             self._tracks.append(spec)
+
+    def _read_structural(self, root: ET.Element) -> None:
+        """Resolve ``<analysis>`` segmentations against the Petri-net places.
+
+        The document states the mapping in two halves: a ``<segment>`` lists
+        the spine events it covers, and a ``<place>`` inside a ``<petri_net>``
+        binds a place of that net to a segment.  Joining them on the segment
+        id gives, for each spine event, the Petri-net node that models it —
+        one external-reference row per ``(segment_event, place)`` pair, so a
+        segment two places name yields two rows per event.
+
+        Nothing is read from disk: a ``<petri_net>``'s ``file_name`` becomes
+        the row's access-point uri verbatim, and the ``.pnml`` file it names
+        is never opened.
+        """
+        structural = root.find("structural")
+        if structural is None:
+            return
+
+        places = self._read_petri_net_places(structural)
+        for analysis in structural.findall("analysis"):
+            for segment in analysis.findall("./segmentation/segment"):
+                segment_id = segment.get("id")
+                if segment_id is None:
+                    self._logger.debug("Skipping <segment> without an id.")
+                    continue
+                for event in segment.findall("segment_event"):
+                    event_ref = event.get("event_ref")
+                    if self._coordinate_of(event_ref, "segment_event") is None:
+                        continue
+                    self._structural_rows.extend(
+                        self._structural_row(event_ref, segment_id, place)
+                        for place in places.get(segment_id) or [None]
+                    )
+
+    def _read_petri_net_places(
+        self, structural: ET.Element
+    ) -> dict[str, list[tuple[str, str]]]:
+        """Map each segment id onto the Petri-net places that name it.
+
+        Args:
+            structural: The ``<structural>`` element.
+
+        Returns:
+            Segment id -> the ``(place_ref, petri-net file_name)`` pairs whose
+            ``segment_ref`` is that segment, in document order.  A
+            ``segment_ref`` naming no segment of this document simply never
+            gets looked up.
+        """
+        places: dict[str, list[tuple[str, str]]] = {}
+        for net in structural.findall("./petri_nets/petri_net"):
+            file_name = net.get("file_name")
+            for place in net.findall("place"):
+                place_ref = place.get("place_ref")
+                segment_ref = place.get("segment_ref")
+                if place_ref is None or segment_ref is None or file_name is None:
+                    self._logger.debug(
+                        "Skipping <place> without place_ref, segment_ref or a "
+                        "petri-net file_name."
+                    )
+                    continue
+                places.setdefault(segment_ref, []).append((place_ref, file_name))
+        return places
+
+    @staticmethod
+    def _structural_row(
+        event_ref: str, segment_id: str, place: tuple[str, str] | None
+    ) -> dict[str, Any]:
+        """Build one external-reference row for one spine event.
+
+        Args:
+            event_ref: The spine event id the ``<segment_event>`` names.
+            segment_id: The enclosing ``<segment>``'s id.
+            place: The ``(place_ref, file_name)`` pair the segment maps to, or
+                ``None`` when no ``<place>`` names it.
+
+        Returns:
+            One row of the canonical external-reference schema.
+        """
+        if place is None:
+            return {
+                "event_id": event_ref,
+                "external_id": segment_id,
+                "access_points": [],
+                "comment": _UNMAPPED_SEGMENT_COMMENT,
+            }
+        place_ref, file_name = place
+        return {
+            "event_id": event_ref,
+            "external_id": place_ref,
+            "access_points": [{"uri": file_name, "kind": _PETRI_NET_ACCESS_KIND}],
+            "comment": segment_id,
+        }
 
     def _log_skipped_sections(self, root: ET.Element) -> None:
         """Log every top-level section this loader does not represent."""
@@ -802,6 +977,12 @@ class Ieee1599Loader(XmlLoader):
             ],
             TimeUnit.seconds,
             NumberType.float,
+        )
+        # The structural layer states references, not coordinates; the table
+        # is unit-less in substance and carries the spine's own unit only
+        # because ``EventData`` demands one.
+        self._add_table(
+            "structural", self._structural_rows, TimeUnit.ticks, NumberType.int
         )
 
     def _add_table(
@@ -1035,7 +1216,7 @@ class Ieee1599Loader(XmlLoader):
     def _build_timeline(self, uid: str) -> "Timeline":
         """Build the timeline identified by *uid* from its curated rows."""
         if uid == self._spine_uid:
-            return self._build_logical(uid, "Spine", self._spine_rows)
+            return self._build_spine(uid)
         if uid == self._los_uid:
             return self._build_logical(
                 uid, "Logically organised symbols", self._los_rows
@@ -1049,6 +1230,20 @@ class Ieee1599Loader(XmlLoader):
         raise KeyError(
             f"No timeline with uid {uid!r}. Available: {self.timeline_uids}."
         )
+
+    def _build_spine(self, uid: str) -> DiscreteLogicalTimeline:
+        """Build the spine timeline and attach its external references.
+
+        The ``<structural>`` layer points *at* spine events, so its rows ride
+        on the spine wherever it is built — through ``create_timeline`` or
+        through ``create_bundle``, which reaches the same cached timeline.
+        Every ``event_id`` is a spine event id resolved during the parse, so
+        the addition is validated rather than trusted.
+        """
+        timeline = self._build_logical(uid, "Spine", self._spine_rows)
+        if self._structural_rows:
+            timeline.add_external_references(self._structural_rows)
+        return timeline
 
     def _build_logical(
         self, uid: str, name: str, rows: list[dict[str, Any]]
@@ -1069,8 +1264,9 @@ class Ieee1599Loader(XmlLoader):
     def _build_graphical(self, spec: _EditionSpec) -> ContinuousGraphicalTimeline:
         """Build one edition's graphical timeline from its graphic-event boxes.
 
-        The coordinates are the document's own page-image numbers, unscaled;
-        the unit each page declares them in is kept in ``meta["pages"]``.
+        The coordinates are the document's own page-image numbers in pixels,
+        unscaled and fractional where the document states them so; the unit
+        each page declares is kept per page in ``meta["pages"]``.
         """
         length = max((row["end"] for row in spec.rows), default=0.0)
         timeline = ContinuousGraphicalTimeline(
@@ -1086,19 +1282,30 @@ class Ieee1599Loader(XmlLoader):
         return timeline
 
     def _build_physical(self, spec: _TrackSpec) -> ContinuousPhysicalTimeline:
-        """Build one track's seconds timeline from its track events."""
+        """Build one track's seconds timeline from its track events.
+
+        The track's ``<track_general>`` description — its performers, its
+        ``<recordings>`` attributes and its free-text ``<notes>`` — is carried
+        verbatim in ``meta``; a key is present only when the document states
+        it.
+        """
         length = max((row["instant"] for row in spec.rows), default=0.0)
+        meta: dict[str, Any] = {
+            "file_name": spec.file_name,
+            "performers": spec.performers,
+            **spec.attributes,
+        }
+        if spec.recordings:
+            meta["recordings"] = spec.recordings
+        if spec.notes is not None:
+            meta["notes"] = spec.notes
         timeline = ContinuousPhysicalTimeline(
             length=length,
             unit=TimeUnit.seconds,
             number_type=NumberType.float,
             uid=spec.uid,
             name=Path(spec.file_name).stem,
-            meta={
-                "file_name": spec.file_name,
-                "performers": spec.performers,
-                **spec.attributes,
-            },
+            meta=meta,
         )
         if spec.rows:
             timeline.add_events(spec.rows)
