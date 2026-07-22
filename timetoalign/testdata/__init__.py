@@ -58,12 +58,15 @@ below to point at the new release.
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import logging
 import os
 import shutil
 import tarfile
 import threading
 from pathlib import Path
+from typing import Iterator
 
 _LOG = logging.getLogger(__name__)
 
@@ -150,6 +153,10 @@ _POOCH = pooch.create(
     env="TTA_TESTDATA_CACHE",
 )
 
+#: Guards the critical section against concurrent *threads* in this process.
+#: A ``threading.Lock`` is not visible to other processes, so it is paired
+#: with :func:`_corpus_file_lock` below for cross-process (e.g. pytest-xdist)
+#: safety; see that function's docstring for the split rationale.
 _EXTRACT_LOCK = threading.Lock()
 
 
@@ -211,10 +218,20 @@ def _ensure_one(name: str) -> Path:
     expected_digest = REGISTRY[archive_name].removeprefix("sha256:")
     marker = target_dir / ".tta_testdata_hash"
 
-    if _looks_ready(target_dir, marker, expected_digest):
+    # trust_unmarked=False: this call runs before the file lock is
+    # acquired, so a concurrent process elsewhere may be mid-(re)extraction
+    # of this exact corpus. Such a process holds a not-yet-complete
+    # target_dir (payload written, sentinel not yet renamed into place),
+    # which is indistinguishable from a genuine developer checkout by
+    # shape alone. Trusting it here would hand back an incomplete
+    # directory. Once the lock is held, no peer can be mid-extraction, so
+    # the recheck below is free to trust that shape again.
+    if _looks_ready(target_dir, marker, expected_digest, trust_unmarked=False):
         return target_dir
 
-    with _EXTRACT_LOCK:
+    with _EXTRACT_LOCK, _corpus_file_lock(name):
+        # Double-check: another process may have finished extracting while
+        # this one was blocked on the file lock.
         if _looks_ready(target_dir, marker, expected_digest):
             return target_dir
 
@@ -231,12 +248,69 @@ def _ensure_one(name: str) -> Path:
                 f"Archive {archive_name} did not produce expected directory "
                 f"{target_dir}. Did the tarball layout change?"
             )
-        marker.write_text(expected_digest, encoding="utf-8")
+
+        # Write the sentinel only after a complete extraction, and do so
+        # atomically (write-then-rename) so a process killed mid-write never
+        # leaves a corrupt-but-present marker for another process to trip
+        # over.
+        tmp_marker = marker.with_name(f"{marker.name}.tmp{os.getpid()}")
+        tmp_marker.write_text(expected_digest, encoding="utf-8")
+        tmp_marker.replace(marker)
 
     return target_dir
 
 
-def _looks_ready(target_dir: Path, marker: Path, expected_digest: str) -> bool:
+@contextlib.contextmanager
+def _corpus_file_lock(name: str) -> Iterator[None]:
+    """Hold an exclusive, cross-process lock on the ``name`` corpus.
+
+    ``threading.Lock`` only excludes other threads *within this
+    interpreter*; it is invisible to sibling processes. Under
+    ``pytest-xdist`` (or any other multi-process caller) several workers can
+    import a conftest that calls :func:`ensure_data` at the same instant,
+    see the corpus not yet extracted, and race each other's
+    ``rmtree``/extract of the same directory — the observed failure mode is
+    a partially extracted corpus with a sentinel that was still written as
+    valid. This uses ``fcntl.flock`` on a dedicated lock file to serialize
+    the whole check-sentinel -> fetch -> rmtree -> extract -> write-sentinel
+    critical section across processes.
+
+    The lock file is scoped **per corpus** (``DATA_DIR/.<name>.lock``)
+    rather than one lock for all of :data:`DATA_DIR`, so that concurrent
+    ``ensure_data()`` calls for *different* corpora — the common case when
+    several test modules each own a distinct corpus — do not serialize
+    against each other. Only callers racing on the *same* corpus block.
+
+    ``flock`` is POSIX-only, matching this project's CI (Linux only); the
+    lock file itself is intentionally never removed, since deleting it
+    while another process holds it open would defeat the lock.
+
+    Args:
+        name: Corpus name, as passed to :func:`ensure_data`.
+
+    Yields:
+        None. The lock is held for the duration of the ``with`` block.
+    """
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    lock_path = DATA_DIR / f".{name}.lock"
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
+
+
+def _looks_ready(
+    target_dir: Path,
+    marker: Path,
+    expected_digest: str,
+    *,
+    trust_unmarked: bool = True,
+) -> bool:
     """Return True iff ``target_dir`` should be trusted without re-extracting.
 
     A directory is trusted in one of two cases:
@@ -254,24 +328,50 @@ def _looks_ready(target_dir: Path, marker: Path, expected_digest: str) -> bool:
       correct data here on purpose).  This path emits a single
       ``logging.WARNING`` (channel ``timetoalign.testdata``) advising
       the caller that contents are not verified against the release
-      digest.
+      digest. Only consulted when ``trust_unmarked`` is True.
 
     Returns ``False`` when ``target_dir`` does not exist, is empty, or
     holds only the sentinel file with no payload data.  Deleting
     ``target_dir`` is the way to force a re-fetch.
+
+    This is called both under :func:`_corpus_file_lock` and, as a fast
+    path, before it is acquired. That fast-path call is inherently
+    unsynchronized: another process may be mid-``rmtree``/extract of the
+    same ``target_dir`` while this call is inspecting it.
+
+    * A mid-flight disappearance of ``target_dir`` or ``marker`` raises
+      ``FileNotFoundError`` from the underlying filesystem calls; that is
+      caught and treated as "not ready" — correct, since the corpus
+      genuinely is not in a trustworthy state at that instant — and the
+      caller falls through to (re-)acquire the lock.
+    * A mid-flight extraction can also leave ``target_dir`` holding *some*
+      payload with no sentinel yet (the sentinel is written last, and
+      atomically, only once extraction fully succeeds) — a shape
+      indistinguishable, by content alone, from a genuine developer
+      checkout. ``trust_unmarked=False`` disables the developer-checkout
+      fallback for exactly this reason: the caller passes it for the
+      fast, unsynchronized pre-lock check, where "no sentinel, but some
+      files" cannot be trusted to mean "this is a checkout" rather than
+      "a peer process is still writing this directory". Once inside
+      :func:`_corpus_file_lock`, no peer can be concurrently extracting,
+      so the recheck there uses the default (``True``) and may trust that
+      shape.
     """
     if not target_dir.is_dir():
         return False
 
-    has_payload = any(p for p in target_dir.iterdir() if p.name != marker.name)
+    try:
+        has_payload = any(p for p in target_dir.iterdir() if p.name != marker.name)
 
-    if marker.is_file():
-        if marker.read_text(encoding="utf-8").strip() != expected_digest:
+        if marker.is_file():
+            if marker.read_text(encoding="utf-8").strip() != expected_digest:
+                return False
+            # Sentinel matches AND payload is present
+            return has_payload
+
+        if not has_payload or not trust_unmarked:
             return False
-        # Sentinel matches AND payload is present
-        return has_payload
-
-    if not has_payload:
+    except FileNotFoundError:
         return False
 
     _LOG.warning(
