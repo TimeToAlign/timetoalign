@@ -193,7 +193,7 @@ tl.add_events(
     ]
 )
 
-data = tl.to_dict()
+data = tl.to_dict(events=True)
 {"keys": list(data.keys()), "events": len(data["events"])}
 
 # %%

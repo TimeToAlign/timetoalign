@@ -52,6 +52,7 @@ from timetoalign import (
     ContinuousPhysicalTimeline,
     Coordinate,
     DiscreteGraphicalTimeline,
+    IdCoordinate,
     Ms3Loader,
     NumberType,
     RepoVizzLoader,
@@ -60,6 +61,7 @@ from timetoalign import (
     TimeUnit,
 )
 from timetoalign.alignment import (
+    Agent,
     AlignmentAnchor,
     AlignmentBundle,
     MatchClaim,
@@ -72,6 +74,7 @@ from timetoalign.alignment.matching import (
     prepare_abc_notes_for_matching,
     prepare_eep_notes_for_matching,
 )
+from timetoalign.core import AgentType
 from timetoalign.core.enums import FlowMode
 from timetoalign.testdata import ensure_data
 from timetoalign.timelines.flow import create_unfolded_timeline
@@ -695,8 +698,11 @@ for _, row in ema_df.iterrows():
             timeline_b_id="dpt16",
             start_anchor=anchor,
             metadata=MatchMetadata(
-                agent="dataset",
-                decision_criteria="measure_map_audio",
+                agent=Agent(
+                    name="dataset",
+                    type=AgentType.software,
+                    identifier="measure_map_audio",
+                ),
             ),
         )
     )
@@ -716,8 +722,11 @@ emerson_claims.append(
         timeline_b_id="dpt16",
         start_anchor=final_anchor,
         metadata=MatchMetadata(
-            agent="dataset",
-            decision_criteria="measure_map_audio",
+            agent=Agent(
+                name="dataset",
+                type=AgentType.software,
+                identifier="measure_map_audio",
+            ),
         ),
     )
 )
@@ -751,8 +760,8 @@ len(emerson_claims)
 clt1_unfolded = score_group_unfolded.get_timeline("clt1")
 score_group_unfolded.add_timeline(
     clt2_unfolded,
-    start=(0.0, "clt1"),
-    end=(float(clt1_unfolded.length.value), "clt1"),
+    start=IdCoordinate(0.0, TimeUnit.quarters, "clt1"),
+    end=IdCoordinate(float(clt1_unfolded.length.value), TimeUnit.quarters, "clt1"),
 )
 score_group_unfolded
 
