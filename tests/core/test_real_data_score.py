@@ -15,6 +15,7 @@ Schema invariants pinned here (represent pitch exactly once):
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -33,7 +34,7 @@ from timetoalign.loader.score.ms3 import Ms3Loader
 # Paths to test specimens
 # ---------------------------------------------------------------------------
 
-DATA_DIR = Path(__file__).parents[1] / "data"
+DATA_DIR = Path(os.environ.get("TTA_TESTDATA_DIR", Path(__file__).parents[1] / "data"))
 VIENNA_DIR = DATA_DIR / "vienna_1x22"
 MS3_DIR = VIENNA_DIR / "ms3"
 

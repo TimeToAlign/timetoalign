@@ -9,6 +9,7 @@ Architectural decision log).
 
 Sections (in file order):
 
+* Graphical scalars + paired Fields (1 pair)
 * Pitch scalars + paired Fields (7 pairs)
 * Harmony scalars + paired Fields (5 pairs) — plus the DCML import
   schemas (``DcmlStorageSchema`` etc.) and the ``Inversion`` enum.
@@ -26,11 +27,18 @@ from typing import Any, ClassVar, Literal
 
 import pyarrow as pa
 import pyarrow.compute as pc
-from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from .fields import (
     ScalarVocabulary,
     SemanticField,
+    build_struct_array,
     data_shaped,
     register_value_projector,
 )
@@ -166,6 +174,81 @@ def _parse_octave_from_sp(sp: str | None, step: str) -> int:
     except (ValueError, IndexError):
         pass
     return 4
+
+
+# ---------------------------------------------------------------------------
+# BoundingBox + BoundingBoxField
+# ---------------------------------------------------------------------------
+
+
+class BoundingBox(BaseModel):
+    """Axis-aligned rectangular extent in image coordinates.
+
+    ``ul`` and ``lr`` are the upper-left and lower-right corners. Image
+    coordinates are assumed: x grows rightward and y grows downward.
+    Storage struct (derived): ``{ul: {x: float64, y: float64}, lr: {x:
+    float64, y: float64}}``.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    class Point(BaseModel):
+        """A two-dimensional point in image coordinates."""
+
+        model_config = ConfigDict(frozen=True)
+
+        x: float
+        y: float
+
+    ul: Point
+    lr: Point
+
+    @model_validator(mode="after")
+    def _validate_corners(self) -> BoundingBox:
+        """Require lower-right coordinates to be at or beyond upper-left."""
+        if self.lr.x < self.ul.x:
+            raise ValueError("BoundingBox.lr.x must be greater than or equal to ul.x")
+        if self.lr.y < self.ul.y:
+            raise ValueError("BoundingBox.lr.y must be greater than or equal to ul.y")
+        return self
+
+    @classmethod
+    def from_corners(
+        cls,
+        ulx: int | float,
+        uly: int | float,
+        lrx: int | float,
+        lry: int | float,
+    ) -> BoundingBox:
+        """Construct a bounding box from upper-left and lower-right corners."""
+        return cls(ul={"x": ulx, "y": uly}, lr={"x": lrx, "y": lry})
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> BoundingBox | None:
+        """Materialize a bounding box scalar from an Arrow struct row."""
+        if row.get("ul") is None or row.get("lr") is None:
+            return None
+        return cls.model_validate(row)
+
+
+class BoundingBoxField(SemanticField[BoundingBox]):
+    """Columnar wrapper for ``BoundingBox`` (paired Field)."""
+
+    @classmethod
+    def from_field(cls, source: Any, **kw: Any) -> BoundingBoxField:
+        """Construct from standard field sources or bounding-box scalars."""
+        if isinstance(source, list):
+            if any(
+                value is not None and not isinstance(value, BoundingBox)
+                for value in source
+            ):
+                raise TypeError(
+                    "BoundingBoxField list ingestion requires BoundingBox values"
+                )
+            array = build_struct_array(BoundingBox, source)
+            field = pa.field(kw.pop("name", "bounding_box"), cls.pa_schema)
+            return super().from_field((array, field), **kw)
+        return super().from_field(source, **kw)
 
 
 # ---------------------------------------------------------------------------

@@ -10,6 +10,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from timetoalign.core.events import BoundingBox
+
 from .paths import TimeAxisPath
 
 module_logger = logging.getLogger(__name__)
@@ -152,11 +154,11 @@ class GraphicalSegment:
         # Convert to global timeline coordinate
         return self.timeline_offset + local_coord
 
-    def get_image_bounds(self) -> tuple[float, float, float, float]:
+    def get_image_bounds(self) -> BoundingBox:
         """Get bounding box of the path in image coordinates.
 
         Returns:
-            (x_min, y_min, x_max, y_max) in image pixels.
+            Bounding box with upper-left and lower-right image corners.
         """
         # Sample path to find bounds
         x_min = float("inf")
@@ -181,7 +183,7 @@ class GraphicalSegment:
             x_max += self.region[0]
             y_max += self.region[1]
 
-        return (x_min, y_min, x_max, y_max)
+        return BoundingBox.from_corners(x_min, y_min, x_max, y_max)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary.

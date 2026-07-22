@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
+from timetoalign.core.events import BoundingBox
 from timetoalign.loader.base import Loader
 
 if TYPE_CHECKING:
@@ -72,6 +73,21 @@ class ATONHole:
     hpixcor: float = 0.0
     major_axis: int = 0
     raw_data: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def bounding_box(self) -> BoundingBox:
+        """Return this hole's axis-aligned image-coordinate bounding box.
+
+        ATON stores an upper-left origin plus row/column extents. The
+        lower-right corner is therefore the origin plus the extent; image y
+        coordinates grow downward.
+        """
+        return BoundingBox.from_corners(
+            self.origin_col,
+            self.origin_row,
+            self.origin_col + self.width_col,
+            self.origin_row + self.width_row,
+        )
 
 
 class ATONLoader(Loader[list[ATONHole]]):

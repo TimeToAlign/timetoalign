@@ -7,6 +7,7 @@ All expected values are EXACT per the ZERO TOLERANCE validation policy.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -17,7 +18,10 @@ from timetoalign.loader.graphical.iiif import (
 )
 
 # Test data directory
-SUPRA_DIR = Path(__file__).parent.parent.parent / "data" / "supra"
+TESTDATA_DIR = Path(
+    os.environ.get("TTA_TESTDATA_DIR", Path(__file__).parent.parent.parent / "data")
+)
+SUPRA_DIR = TESTDATA_DIR / "supra"
 IIIF_MANIFEST = SUPRA_DIR / "image" / "ifff_manifest.json"
 
 

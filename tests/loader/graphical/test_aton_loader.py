@@ -6,14 +6,19 @@ All expected values are EXACT per the ZERO TOLERANCE validation policy.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
 
+from timetoalign.core.events import BoundingBox
 from timetoalign.loader.graphical.aton import ATONHole, ATONLoader
 
 # Test data directory
-SUPRA_DIR = Path(__file__).parent.parent.parent / "data" / "supra"
+TESTDATA_DIR = Path(
+    os.environ.get("TTA_TESTDATA_DIR", Path(__file__).parent.parent.parent / "data")
+)
+SUPRA_DIR = TESTDATA_DIR / "supra"
 ATON_FILE = SUPRA_DIR / "image" / "fd660zf8362_analysis.txt"
 
 
@@ -321,9 +326,7 @@ class TestSpecificHoleValues:
 
 # region Test: Minimal Synthetic ATON (Fast Tests)
 
-MINIMAL_ATON_FILE = (
-    Path(__file__).parent.parent.parent / "data" / "fixtures" / "aton" / "minimal.aton"
-)
+MINIMAL_ATON_FILE = TESTDATA_DIR / "fixtures" / "aton" / "minimal.aton"
 
 
 @pytest.fixture
@@ -396,6 +399,7 @@ class TestMinimalATON:
         assert first.origin_col == 200
         assert first.width_row == 20
         assert first.width_col == 15
+        assert first.bounding_box == BoundingBox.from_corners(200, 100, 215, 120)
         assert first.centroid_row == 110.5
         assert first.centroid_col == 207.5
         assert first.area == 280
