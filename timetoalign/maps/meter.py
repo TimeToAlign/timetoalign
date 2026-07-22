@@ -203,6 +203,23 @@ class MetricMap(ConversionMap[int]):
             "end": self._starts_frac[idx] + self._lengths_frac[idx],
         }
 
+    def quarters_at(self, mc: int) -> Fraction:
+        """Get the downbeat quarter position for a given measure count.
+
+        Args:
+            mc: Measure Count (1-indexed monotonic).
+
+        Returns:
+            Quarter position of the measure's start (downbeat) as Fraction.
+
+        Raises:
+            ValueError: If MC is not found in the meter map.
+        """
+        info = self.get_measure_info(mc)
+        if info is None:
+            raise ValueError(f"MC {mc} not found in meter map")
+        return info["start"]
+
     def _convert_scalar(self, value: CoordinateValue, **kwargs: Any) -> int:
         """Find the MC for a given quarter position.
 
@@ -682,16 +699,12 @@ class MetricalPositionMap(CombinationMap):
         Raises:
             ValueError: If MC is not found in the meter map.
         """
-        info = self._meter_map.get_measure_info(mc)
-        if info is None:
-            raise ValueError(f"MC {mc} not found in meter map")
-
         beat_frac = Fraction(beat) if not isinstance(beat, Fraction) else beat
 
         # Beat offset from measure start (beat 1 = offset 0)
         beat_offset = beat_frac - Fraction(1, 1)
 
-        return info["start"] + beat_offset
+        return self._meter_map.quarters_at(mc) + beat_offset
 
     def mn_at(self, quarters: float | Fraction) -> str | None:
         """Get the Measure Number label at a quarter position.

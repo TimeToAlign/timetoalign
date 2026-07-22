@@ -190,10 +190,20 @@ corpus) — zero-tolerance, exact values only:
 - last measure length == `Fraction(6)` (212.5 − 206.5)
 - a timemap with no `measureOn` entries raises `ValueError`
 
+#### MetricMap.quarters_at
+
+`MetricMap.quarters_at(mc)` returns a measure's downbeat quarter position
+directly — the reverse of `MetricMap.__call__` (quarters -> MC), and the
+same value `get_measure_info(mc)["start"]` already exposed, now reachable
+without building the `dict`. Validated against the same specimen boundaries
+(`quarters_at(1)`, `quarters_at(2)`, `quarters_at(3)`); an unknown MC raises
+`ValueError`.
+
 #### MetricalPositionMap reverse lookup
 
 `MetricalPositionMap(meter_map).quarters_at(mc, beat)` returns the
-quarter position of a measure's beat.  Validated against the same specimen
+quarter position of a measure's beat, computed as
+`meter_map.quarters_at(mc) + (beat - 1)`. Validated against the same specimen
 boundaries (e.g. `quarters_at(2)` == `starts[1]` == the downbeat of MC 2),
 and `mn_at(quarters)` returns the measure-number label at a position.
 

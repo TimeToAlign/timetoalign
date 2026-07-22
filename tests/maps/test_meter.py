@@ -78,6 +78,27 @@ class TestFromVerovioTimemap:
 # endregion
 
 
+# region MetricMap.quarters_at
+
+
+class TestMetricMapQuartersAt:
+    """Validate the MC -> downbeat quarters reverse lookup on MetricMap itself."""
+
+    def test_quarters_at_downbeats(self) -> None:
+        mm = MetricMap.from_verovio_timemap(TIMEMAP_PATH)
+        assert mm.quarters_at(1) == Fraction(0)
+        assert mm.quarters_at(2) == Fraction(1, 2)
+        assert mm.quarters_at(3) == Fraction(13, 2)
+
+    def test_unknown_mc_raises(self) -> None:
+        mm = MetricMap.from_verovio_timemap(TIMEMAP_PATH)
+        with pytest.raises(ValueError, match="not found"):
+            mm.quarters_at(999)
+
+
+# endregion
+
+
 # region MetricalPositionMap reverse lookup
 
 
