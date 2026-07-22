@@ -12,9 +12,9 @@ It verifies:
   ``tests/loader/alignment/README.md``), with source event ids verbatim;
 - one LOS timeline carrying notes (one event per notehead), rests and lyric
   syllables at the VTU coordinate of the spine event they reference;
-- one continuous graphical timeline per edition (interval events spanning
-  ``upper_left_x`` … ``lower_right_x``) and one seconds physical timeline per
-  track (instants at ``start_time``);
+- one integer-pixel graphical SegmentLine per edition, with discrete graphical
+  accolade children and raw bounding-box structs, and one seconds physical
+  timeline per track (instants at ``start_time``);
 - exact timeline uids, whose role component encodes the sanitisation rule;
 - the columnar claim topology — one ``MatchClaimField`` for the whole document,
   reached through ``loader.get_field(MatchClaim)``, carrying a unit per row and
@@ -25,8 +25,8 @@ It verifies:
   accidentals, ties, tuplets, lyrics, ``<track_general>`` descriptions, and
   media references recorded whether or not the file exists; and
 - the loader contract (one document per loader through every ingest method,
-  cached timeline building, uid filtering, no timeline groups, ``get_field``
-  selector behaviour).
+  cached timeline building, uid filtering, singleton timeline groups,
+  ``get_field`` selector behaviour).
 
 The ``<structural>`` layer has its own module, ``test_ieee1599_structural.py``.
 
@@ -49,10 +49,12 @@ import pytest
 from timetoalign.alignment.claims import MatchClaim, MatchClaimField
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.alignment import Ieee1599Loader
+from timetoalign.maps.interval import IntervalToConstantMap
 from timetoalign.timelines.types import (
-    ContinuousGraphicalTimeline,
     ContinuousPhysicalTimeline,
+    DiscreteGraphicalTimeline,
     DiscreteLogicalTimeline,
+    SegmentLine,
 )
 
 # region Helpers
@@ -77,6 +79,11 @@ def _coordinate(event: dict[str, Any], key: str = "start") -> float:
 def _coordinates(timeline: Any, key: str = "start") -> list[float]:
     """Return every event's coordinate on *timeline*, in storage order."""
     return [entry["value"] for entry in timeline.events.table.column(key).to_pylist()]
+
+
+def _graphical_events(timeline: SegmentLine[DiscreteGraphicalTimeline]) -> pa.Table:
+    """Return graphical child events in their parent SegmentLine coordinates."""
+    return timeline.get_events().table
 
 
 def _projection_ids(loader: Ieee1599Loader) -> list[str]:
@@ -240,8 +247,8 @@ class TestTimelineIdentity:
         assert ieee1599_loader("gymnopedie").timeline_uids == [
             "spine:dlt1",
             "los:dlt2",
-            "eng_montreal_les_editions_outremontaises_2006:cgt1",
-            "eng_transcription_2012:cgt2",
+            "eng_montreal_les_editions_outremontaises_2006:dgt1",
+            "eng_transcription_2012:dgt2",
             "satie_gymnopedie1_coleman:cpt1",
             "satie_gymnopedie1_pfaul:cpt2",
         ]
@@ -251,9 +258,9 @@ class TestTimelineIdentity:
         assert ieee1599_loader("animals").timeline_uids == [
             "spine:dlt1",
             "los:dlt2",
-            "farm_picture:cgt1",
-            "coloring_page:cgt2",
-            "animal_shapes:cgt3",
+            "farm_picture:dgt1",
+            "coloring_page:dgt2",
+            "animal_shapes:dgt3",
             "animals_eng:cpt1",
             "animals_ita:cpt2",
         ]
@@ -263,50 +270,52 @@ class TestTimelineIdentity:
         loader = ieee1599_loader("animals")
         spine = loader.create_timeline("spine:dlt1")
         los = loader.create_timeline("los:dlt2")
-        edition = loader.create_timeline("farm_picture:cgt1")
+        edition = loader.create_timeline("farm_picture:dgt1")
         track = loader.create_timeline("animals_eng:cpt1")
 
         assert isinstance(spine, DiscreteLogicalTimeline)
         assert isinstance(los, DiscreteLogicalTimeline)
-        assert isinstance(edition, ContinuousGraphicalTimeline)
+        assert isinstance(edition, SegmentLine)
+        assert edition.segment_type is DiscreteGraphicalTimeline
         assert isinstance(track, ContinuousPhysicalTimeline)
         assert (spine.unit, spine.number_type) == (TimeUnit.ticks, NumberType.int)
         assert (los.unit, los.number_type) == (TimeUnit.ticks, NumberType.int)
-        assert (edition.unit, edition.number_type) == (
-            TimeUnit.pixels,
-            NumberType.float,
-        )
+        assert (edition.unit, edition.number_type) == (TimeUnit.pixels, NumberType.int)
         assert (track.unit, track.number_type) == (TimeUnit.seconds, NumberType.float)
 
-    def test_graphical_timeline_keeps_fractional_pixels(self, ieee1599_loader) -> None:
-        """Page-image boxes are not integral everywhere, so they stay continuous."""
-        edition = ieee1599_loader("animals").create_timeline("farm_picture:cgt1")
+    def test_graphical_timeline_rounds_pixels_and_keeps_source_value(
+        self, ieee1599_loader
+    ) -> None:
+        """Discrete coordinates use half-even rounding while source text remains."""
+        edition = ieee1599_loader("animals").create_timeline("farm_picture:dgt1")
+        cow = _rows(_graphical_events(edition), event_ref="event_cow")[0]
 
-        assert isinstance(edition, ContinuousGraphicalTimeline)
         assert edition.unit == TimeUnit.pixels
-        assert edition.number_type == NumberType.float
-        assert edition.length.value == 1206.4
-        assert 992.96 in _coordinates(edition)
+        assert edition.number_type == NumberType.int
+        assert _coordinate(cow) == 993.0
+        assert cow["source_upper_left_x"] == "992.96"
 
     def test_graphical_timeline_records_the_declared_measurement_unit(
         self, ieee1599_loader
     ) -> None:
         """The document says ``pixels``; that wording is kept per page."""
-        edition = ieee1599_loader("animals").create_timeline("farm_picture:cgt1")
+        edition = ieee1599_loader("animals").create_timeline("farm_picture:dgt1")
 
         assert [page["measurement_unit"] for page in edition.meta["pages"]] == [
             "pixels"
         ]
 
-    def test_bundle_holds_every_timeline_and_no_group(
+    def test_bundle_holds_every_timeline_in_its_own_group(
         self, ieee1599_loader, ieee1599_bundle
     ) -> None:
-        """All timelines are standalone; the claims carry the connectivity."""
+        """Claims relate singleton groups rather than extending one group."""
         loader = ieee1599_loader("gymnopedie")
         bundle = ieee1599_bundle("gymnopedie")
 
         assert list(bundle.timelines) == loader.timeline_uids
-        assert bundle.groups == {}
+        assert set(bundle.groups) == set(loader.timeline_uids)
+        assert all(group.n_timelines == 1 for group in bundle.groups.values())
+        assert bundle.timeline_to_group == {uid: uid for uid in loader.timeline_uids}
         assert loader.create_group() is None
 
 
@@ -441,23 +450,23 @@ class TestLosLayer:
 
 
 class TestNotationalLayer:
-    """One graphical timeline per edition; boxes as interval events."""
+    """One graphical SegmentLine per edition; boxes as interval events."""
 
     @pytest.mark.parametrize(
         "specimen, uid, n_events, length",
         [
             (
                 "gymnopedie",
-                "eng_montreal_les_editions_outremontaises_2006:cgt1",
+                "eng_montreal_les_editions_outremontaises_2006:dgt1",
                 382,
-                447.0,
+                7686.0,
             ),
-            ("gymnopedie", "eng_transcription_2012:cgt2", 382, 428.0),
-            ("animals", "farm_picture:cgt1", 8, 1206.4),
-            ("animals", "coloring_page:cgt2", 6, 968.0),
-            ("animals", "animal_shapes:cgt3", 13, 990.75),
-            ("khomus", "original_score:cgt1", 39, 1943.0),
-            ("khomus", "finale_transcription:cgt2", 39, 4372.0),
+            ("gymnopedie", "eng_transcription_2012:dgt2", 382, 7356.0),
+            ("animals", "farm_picture:dgt1", 8, 2807.0),
+            ("animals", "coloring_page:dgt2", 6, 968.0),
+            ("animals", "animal_shapes:dgt3", 13, 991.0),
+            ("khomus", "original_score:dgt1", 39, 7418.0),
+            ("khomus", "finale_transcription:dgt2", 39, 16926.0),
         ],
     )
     def test_edition_shape(
@@ -468,29 +477,31 @@ class TestNotationalLayer:
         n_events: int,
         length: float,
     ) -> None:
-        """Every page of an edition lands on that edition's one timeline."""
+        """Every graphical event remains on its edition's SegmentLine."""
         edition = ieee1599_loader(specimen).create_timeline(uid)
 
-        assert edition.n_events == n_events
+        assert _graphical_events(edition).num_rows == n_events
         assert edition.length.value == length
 
     def test_box_becomes_an_interval_event(self, ieee1599_loader) -> None:
-        """``upper_left_x`` … ``lower_right_x``, the rest as fields."""
-        edition = ieee1599_loader("animals").create_timeline("farm_picture:cgt1")
-        cow = _rows(edition.events.table, event_ref="event_cow")[0]
+        """The raw integer box is one nested struct, not flat box columns."""
+        edition = ieee1599_loader("animals").create_timeline("farm_picture:dgt1")
+        events = _graphical_events(edition)
+        cow = _rows(events, event_ref="event_cow")[0]
 
         assert cow["temporal_type"] == "interval"
-        assert _coordinate(cow, "start") == 992.96
-        assert _coordinate(cow, "end") == 1206.4
-        assert cow["upper_left_y"] == 263.32
-        assert cow["lower_right_y"] == 448.92
+        assert _coordinate(cow, "start") == 993.0
+        assert _coordinate(cow, "end") == 1206.0
+        assert cow["bbox"] == {"ul": {"x": 993, "y": 263}, "lr": {"x": 1206, "y": 449}}
+        assert "upper_left_y" not in events.column_names
+        assert "lower_right_y" not in events.column_names
         assert cow["file_name"] == "score_files/farm_picture/animal_colors.jpg"
 
     def test_pages_are_identified_on_every_box(self, ieee1599_loader) -> None:
         """Four pages per gymnopédie edition, recoverable per box."""
         loader = ieee1599_loader("gymnopedie")
         edition = loader.create_timeline(
-            "eng_montreal_les_editions_outremontaises_2006:cgt1"
+            "eng_montreal_les_editions_outremontaises_2006:dgt1"
         )
         pages = edition.meta["pages"]
 
@@ -498,12 +509,97 @@ class TestNotationalLayer:
         assert pages[0]["file_name"] == (
             "score/Montreal/IMSLP01599-Satie_Gymnopedies-1.png"
         )
-        assert set(edition.events.table.column("position_in_group").to_pylist()) == {
+        assert set(
+            _graphical_events(edition).column("position_in_group").to_pylist()
+        ) == {
             1,
             2,
             3,
             4,
         }
+
+    def test_gymnopedie_accolades_are_pinned(self, ieee1599_loader) -> None:
+        """The half-span rule finds 4, 5, 5, 4 systems on every edition."""
+        loader = ieee1599_loader("gymnopedie")
+        counts = []
+        for uid in loader.edition_uids:
+            edition = loader.create_timeline(uid)
+            per_page: dict[int, int] = {}
+            for _, _, segment in edition.iter_segments():
+                page = segment.meta["page"]["position_in_group"]
+                per_page[page] = per_page.get(page, 0) + 1
+            counts.append((edition.n_segments, list(per_page.values())))
+
+        assert counts == [(18, [4, 5, 5, 4]), (18, [4, 5, 5, 4])]
+
+    def test_gymnopedie_first_drop_starts_the_second_accolade(
+        self, ieee1599_loader
+    ) -> None:
+        """The first page's first >half-span reset ends the first accolade."""
+        edition = ieee1599_loader("gymnopedie").create_timeline(
+            "eng_montreal_les_editions_outremontaises_2006:dgt1"
+        )
+        _, first = edition.get_segment_by_index(0)
+        _, second = edition.get_segment_by_index(1)
+        first_rows = first.events.table.to_pylist()
+        second_rows = second.events.table.to_pylist()
+
+        assert first.length.value == 426
+        assert len(first_rows) == 22
+        assert first_rows[-1]["start"]["value"] == 411.0
+        assert second_rows[0]["start"]["value"] == 53.0
+        assert 411 - 53 > (422 - 49) / 2
+
+    def test_page_file_map_resolves_each_gymnopedie_page(self, ieee1599_loader) -> None:
+        """Every page's first accolade maps to its verbatim image file name."""
+        edition = ieee1599_loader("gymnopedie").create_timeline(
+            "eng_montreal_les_editions_outremontaises_2006:dgt1"
+        )
+        page_starts: dict[int, tuple[float, str]] = {}
+        for _, offset, segment in edition.iter_segments():
+            page = segment.meta["page"]
+            page_starts.setdefault(
+                page["position_in_group"],
+                (
+                    offset.value
+                    + segment.events.table.to_pylist()[0]["start"]["value"],
+                    page["file_name"],
+                ),
+            )
+        cmap = edition.get_conversion_map("file_name")
+
+        assert isinstance(cmap, IntervalToConstantMap)
+        assert [
+            (coordinate, cmap(coordinate)) for coordinate, _ in page_starts.values()
+        ] == [
+            (50.0, "score/Montreal/IMSLP01599-Satie_Gymnopedies-1.png"),
+            (1749.0, "score/Montreal/IMSLP01599-Satie_Gymnopedies-2.png"),
+            (3943.0, "score/Montreal/IMSLP01599-Satie_Gymnopedies-3.png"),
+            (6007.0, "score/Montreal/IMSLP01599-Satie_Gymnopedies-4.png"),
+        ]
+
+    @pytest.mark.parametrize(
+        "specimen, segment_counts",
+        [
+            ("gymnopedie", [18, 18]),
+            ("animals", [3, 1, 1]),
+            ("khomus", [4, 4]),
+            ("pazzariello", [34, 14]),
+            ("serie", [463]),
+            ("bach", [48, 48, 24]),
+        ],
+    )
+    def test_every_specimen_loads_its_segmented_editions(
+        self, ieee1599_loader, specimen: str, segment_counts: list[int]
+    ) -> None:
+        """All six IEEE 1599 specimens load with their observed accolades."""
+        loader = ieee1599_loader(specimen)
+        bundle = loader.create_bundle()
+
+        assert [
+            loader.create_timeline(uid).n_segments for uid in loader.edition_uids
+        ] == (segment_counts)
+        assert len(bundle.groups) == len(loader.timeline_uids)
 
 
 class TestAudioLayer:
@@ -664,7 +760,7 @@ class TestClaims:
         claim = loader.get_field(MatchClaim)[_first_claim_index(loader, "notational")]
 
         assert claim.timeline_a_id == (
-            "eng_montreal_les_editions_outremontaises_2006:cgt1"
+            "eng_montreal_les_editions_outremontaises_2006:dgt1"
         )
         assert claim.start_anchor.coordinate_a.value == 50.0
         assert claim.start_anchor.coordinate_b.value == 0
@@ -691,9 +787,9 @@ class TestCrossSection:
     @pytest.mark.parametrize(
         "specimen, n_rows, n_spine_coordinates",
         [
-            ("gymnopedie", 50, 188),
+            ("gymnopedie", 188, 188),
             ("animals", 8, 8),
-            ("khomus", 36, 38),
+            ("khomus", 38, 38),
         ],
     )
     def test_row_count(
@@ -733,8 +829,8 @@ class TestCrossSection:
             {
                 "spine:dlt1": 0.0,
                 "los:dlt2": 0.0,
-                "eng_montreal_les_editions_outremontaises_2006:cgt1": 49.0,
-                "eng_transcription_2012:cgt2": 75.0,
+                "eng_montreal_les_editions_outremontaises_2006:dgt1": 49.0,
+                "eng_transcription_2012:dgt2": 75.0,
                 "satie_gymnopedie1_coleman:cpt1": 2.46,
                 "satie_gymnopedie1_pfaul:cpt2": 0.5,
             }
@@ -746,33 +842,33 @@ class TestCrossSection:
         by_spine = {row["spine:dlt1"]: row for row in table.to_pylist()}
 
         assert sorted(by_spine) == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
-        # The cow: depicted twice in "Animal shapes", the collapse keeping the
-        # smaller of its two boxes (14.25 rather than 159.0).
+        # The cow: depicted twice in "Animal shapes", the collapse keeps the
+        # smaller rounded box coordinate (14 rather than 159).
         assert by_spine[0.0] == {
             "spine:dlt1": 0.0,
             "los:dlt2": 0.0,
-            "farm_picture:cgt1": 992.96,
-            "coloring_page:cgt2": 234.08,
-            "animal_shapes:cgt3": 14.25,
+            "farm_picture:dgt1": 993.0,
+            "coloring_page:dgt2": 234.0,
+            "animal_shapes:dgt3": 14.0,
             "animals_eng:cpt1": 0.0,
             "animals_ita:cpt2": 0.0,
         }
         # The dog: absent from "Animal shapes"? No — absent from the colouring
         # page, which does not depict it.
-        assert by_spine[2.0]["coloring_page:cgt2"] is None
-        assert by_spine[2.0]["animal_shapes:cgt3"] == 704.25
+        assert by_spine[2.0]["coloring_page:dgt2"] is None
+        assert by_spine[2.0]["animal_shapes:dgt3"] == 704.0
         # The cat: absent from the colouring page too.
-        assert by_spine[5.0]["coloring_page:cgt2"] is None
+        assert by_spine[5.0]["coloring_page:dgt2"] is None
         # The pig and the sheep are missing from "Animal shapes".
-        assert by_spine[1.0]["animal_shapes:cgt3"] is None
-        assert by_spine[3.0]["animal_shapes:cgt3"] is None
+        assert by_spine[1.0]["animal_shapes:dgt3"] is None
+        assert by_spine[3.0]["animal_shapes:dgt3"] is None
         # The duck, last event: both recordings and all three pictures.
         assert by_spine[7.0] == {
             "spine:dlt1": 7.0,
             "los:dlt2": 7.0,
-            "farm_picture:cgt1": 315.52,
-            "coloring_page:cgt2": 387.2,
-            "animal_shapes:cgt3": 21.75,
+            "farm_picture:dgt1": 2656.0,
+            "coloring_page:dgt2": 387.0,
+            "animal_shapes:dgt3": 22.0,
             "animals_eng:cpt1": 39.0,
             "animals_ita:cpt2": 37.5,
         }
@@ -863,9 +959,9 @@ class TestLoaderContract:
         assert loader.timeline_uids == [
             "spine:dlt1",
             "los:dlt2",
-            "farm_picture:cgt1",
-            "coloring_page:cgt2",
-            "animal_shapes:cgt3",
+            "farm_picture:dgt1",
+            "coloring_page:dgt2",
+            "animal_shapes:dgt3",
             "animals_eng:cpt1",
             "animals_ita:cpt2",
         ]
@@ -925,8 +1021,8 @@ class TestLargeSpecimens:
         assert loader.timeline_uids == [
             "spine:dlt1",
             "los:dlt2",
-            "musescore_transcription:cgt1",
-            "partitura_autografa:cgt2",
+            "musescore_transcription:dgt1",
+            "partitura_autografa:dgt2",
             "recording_01:cpt1",
         ]
         assert _claims_per_layer(loader) == {
@@ -935,7 +1031,7 @@ class TestLargeSpecimens:
             "audio": 616,
         }
         assert bundle.n_cross_group_claims == 2848
-        assert bundle.get_matchstamp_table(from_graph=True).num_rows == 208
+        assert bundle.get_matchstamp_table(from_graph=True).num_rows == 294
 
     def test_pazzariello_undefined_accidentals(self, ieee1599_loader) -> None:
         """``<undefined/>`` is recorded as such — never dropped, never inferred."""
@@ -975,8 +1071,8 @@ class TestLargeSpecimens:
         bundle = ieee1599_bundle("serie")
 
         assert loader.create_timeline("spine:dlt1").n_events == 3509
-        assert loader.edition_uids == ["serie_in_9_8:cgt1"]
-        assert len(loader.create_timeline("serie_in_9_8:cgt1").meta["pages"]) == 28
+        assert loader.edition_uids == ["serie_in_9_8:dgt1"]
+        assert len(loader.create_timeline("serie_in_9_8:dgt1").meta["pages"]) == 28
         assert [loader.create_timeline(uid).n_events for uid in loader.track_uids] == [
             3509,
             3509,
@@ -991,7 +1087,7 @@ class TestLargeSpecimens:
             "audio": 18395,
         }
         assert bundle.n_cross_group_claims == 25280
-        assert bundle.get_matchstamp_table(from_graph=True).num_rows == 30
+        assert bundle.get_matchstamp_table(from_graph=True).num_rows == 1154
 
     def test_serie_track_recordings(self, ieee1599_loader) -> None:
         """The only specimen with ``<recordings>`` keeps their attributes."""
@@ -1011,9 +1107,9 @@ class TestLargeSpecimens:
 
         assert loader.create_timeline("spine:dlt1").n_events == 1144
         assert loader.edition_uids == [
-            "transcription:cgt1",
-            "breitkopf_und_hartel_1878:cgt2",
-            "leipzig_ca_1750:cgt3",
+            "transcription:dgt1",
+            "breitkopf_und_hartel_1878:dgt2",
+            "leipzig_ca_1750:dgt3",
         ]
         assert los.filter(pc.equal(los.column("tie"), True)).num_rows == 140
         assert _claims_per_layer(loader) == {
@@ -1022,7 +1118,7 @@ class TestLargeSpecimens:
             "audio": 4576,
         }
         assert bundle.n_cross_group_claims == 9105
-        assert bundle.get_matchstamp_table(from_graph=True).num_rows == 38
+        assert bundle.get_matchstamp_table(from_graph=True).num_rows == 571
 
     def test_bach_media_references_are_dangling(
         self, ieee1599_loader, ieee1599_path

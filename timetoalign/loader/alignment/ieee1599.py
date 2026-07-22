@@ -22,8 +22,9 @@ IEEE 1599 construct           Time To Align! representation
                               unit ``ticks``, ``NumberType.int``
 ``<logic><los>`` notes,       ONE ``DiscreteLogicalTimeline`` ``los:dlt2``,
 rests and lyric syllables     unit ``ticks``
-``<notational>`` per          ONE ``ContinuousGraphicalTimeline`` per
-``graphic_instance_group``    group, unit ``pixels``
+``<notational>`` per          ONE ``SegmentLine`` of
+``graphic_instance_group``    ``DiscreteGraphicalTimeline`` accolades per
+                              group, unit ``pixels``
 ``<audio>`` per ``<track>``   ONE ``ContinuousPhysicalTimeline``,
                               unit ``seconds``
 ``<structural>`` per          one ``external_references`` row on the
@@ -48,9 +49,8 @@ way back out.
 ``event_ref`` as a field *and* contributes one synchronous claim tying its own
 coordinate to the referenced spine event's VTU coordinate.  LOS events sit at
 the VTU coordinate of the event they reference (that reference *is* their
-temporal position); graphic events are interval events spanning
-``upper_left_x`` to ``lower_right_x``; track events are instants at
-``start_time`` seconds.
+temporal position); graphic events are integer-pixel interval events in their
+edition SegmentLine; track events are instants at ``start_time`` seconds.
 
 **The structural layer.**  An ``<analysis>`` partitions the spine into
 ``<segment>`` elements, each listing the spine events it covers as
@@ -78,12 +78,13 @@ file is absent from disk, and even when the format label contradicts the
 extension (``video_avi`` naming a ``.mp4``).  ``.pnml`` files are not opened
 either — a Petri net's places are cross-referenced from the IEEE 1599 document
 itself, so the whole mapping is read there and no path is ever resolved.
-Page-image coordinates are kept as stated: the document measures them in
-pixels (``measurement_unit="pixels"`` on every ``<graphic_instance>``) and
-they are not integral in every specimen (``upper_left_x="992.96"``), so they
-are carried unscaled on a
-:class:`~timetoalign.timelines.types.ContinuousGraphicalTimeline` in
-``pixels``, with the declared ``measurement_unit`` kept per page.
+Page-image coordinates are measured in pixels (``measurement_unit="pixels"``
+on every ``<graphic_instance>``). They are rounded to integer pixels using
+round-half-even for the graphical SegmentLine and its child timelines; the
+verbatim ``upper_left_x`` attribute remains in the
+``source_upper_left_x`` event field. Each graphical event's integer box is a
+raw ``bbox`` struct with ``ul`` / ``lr`` and ``x`` / ``y`` members. The page
+image file name is available from the SegmentLine's interval-to-constant map.
 
 **Known limitations.**
 
@@ -110,12 +111,12 @@ import re
 import unicodedata
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 import numpy as np
 import pyarrow as pa
-from typing_extensions import Self
 
 from timetoalign.alignment.claims import (
     Agent,
@@ -127,11 +128,13 @@ from timetoalign.core import AgentType, NumberType, TimeUnit
 from timetoalign.core.fields import SemanticField
 from timetoalign.display.html import code
 from timetoalign.loader.format.xml import XmlLoader
+from timetoalign.maps.interval import IntervalToConstantMap
 from timetoalign.storage.events import EventData
 from timetoalign.timelines.types import (
-    ContinuousGraphicalTimeline,
     ContinuousPhysicalTimeline,
+    DiscreteGraphicalTimeline,
     DiscreteLogicalTimeline,
+    SegmentLine,
 )
 
 if TYPE_CHECKING:
@@ -152,8 +155,7 @@ _AGENT_IDENTIFIER = "ieee1599_event_ref"
 #: skipped (see the module docstring's limitations).
 _KNOWN_SECTIONS = frozenset({"general", "logic", "notational", "audio", "structural"})
 
-#: The unit graphic-event boxes are carried in — the one the document itself
-#: declares.  Values are stored unscaled and fractional coordinates are kept.
+#: The unit graphic-event boxes declare in the IEEE 1599 document.
 _GRAPHIC_UNIT = TimeUnit.pixels
 
 #: Access-point kind of a ``<petri_net>`` ``file_name``: a path relative to
@@ -177,6 +179,16 @@ class _EditionSpec:
     role: str
     description: str
     pages: list[dict[str, Any]] = field(default_factory=list)
+    rows: list[dict[str, Any]] = field(default_factory=list)
+    segments: list[_GraphicSegmentSpec] = field(default_factory=list)
+    claim_coordinates: list[int] = field(default_factory=list)
+
+
+@dataclass
+class _GraphicSegmentSpec:
+    """One contiguous accolade from one graphic-instance page."""
+
+    page: dict[str, Any]
     rows: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -217,6 +229,16 @@ def _float_or_none(value: str | None) -> float | None:
     try:
         return float(value)
     except ValueError:
+        return None
+
+
+def _rounded_pixel(value: str | None) -> int | None:
+    """Round one XML pixel coordinate to an integer with half-even semantics."""
+    if value is None:
+        return None
+    try:
+        return int(Decimal(value).to_integral_value(rounding=ROUND_HALF_EVEN))
+    except (InvalidOperation, ValueError):
         return None
 
 
@@ -314,7 +336,7 @@ class Ieee1599Loader(XmlLoader):
         self._editions: list[_EditionSpec] = []
         self._tracks: list[_TrackSpec] = []
         self._claim_field: MatchClaimField | None = None
-        self._timeline_cache: dict[str, "Timeline"] = {}
+        self._timeline_cache: dict[str, Timeline] = {}
         self._name: str | None = None
 
     # region Loading
@@ -687,19 +709,20 @@ class Ieee1599Loader(XmlLoader):
         return fields
 
     def _read_notational(self, root: ET.Element) -> None:
-        """Read one edition per ``<graphic_instance_group>``.
+        """Read one graphical SegmentLine per ``<graphic_instance_group>``.
 
-        A group's ``<graphic_instance>`` elements are the pages of one
-        edition; their ``graphic_event`` boxes all land on that edition's
-        single timeline, each keeping its page ``file_name`` and
-        ``position_in_group`` so the page a box belongs to stays recoverable.
+        An edition's pages contain a document-ordered stream of graphical
+        event boxes. Each page begins a new accolade; within a page, a drop in
+        ``upper_left_x`` greater than half that page's observed x-span begins
+        another accolade. This follows the engraved systems rather than the
+        interleaved part order within one system.
         """
         for group in root.findall("./notational/graphic_instance_group"):
             description = group.get("description") or "edition"
             role = self._claim_role(description)
             spec = _EditionSpec(
                 uid=self._timeline_id_generator.next_id_with_role(
-                    ContinuousGraphicalTimeline, role
+                    DiscreteGraphicalTimeline, role
                 ),
                 role=role,
                 description=description,
@@ -707,46 +730,88 @@ class Ieee1599Loader(XmlLoader):
                 rows=[],
             )
             for instance in group.findall("graphic_instance"):
-                file_name = instance.get("file_name")
-                position = _int_or_none(instance.get("position_in_group"))
-                spec.pages.append(
-                    {
-                        "file_name": file_name,
-                        "position_in_group": position,
-                        "encoding_format": instance.get("encoding_format"),
-                        "file_format": instance.get("file_format"),
-                        "measurement_unit": instance.get("measurement_unit"),
-                    }
-                )
-                for graphic in instance.findall("graphic_event"):
-                    event_ref = graphic.get("event_ref")
-                    if self._coordinate_of(event_ref, "graphic_event") is None:
-                        continue
-                    start = _float_or_none(graphic.get("upper_left_x"))
-                    end = _float_or_none(graphic.get("lower_right_x"))
-                    if start is None or end is None:
-                        self._logger.debug(
-                            "<graphic_event> for %r without a horizontal extent; "
-                            "skipped.",
-                            event_ref,
-                        )
-                        continue
-                    spec.rows.append(
-                        {
-                            "event_type": "GraphicEvent",
-                            "start": start,
-                            "end": end,
-                            "event_ref": event_ref,
-                            "upper_left_y": _float_or_none(graphic.get("upper_left_y")),
-                            "lower_right_y": _float_or_none(
-                                graphic.get("lower_right_y")
-                            ),
-                            "file_name": file_name,
-                            "position_in_group": position,
-                        }
-                    )
+                self._read_graphic_instance(instance, spec)
+            self._set_graphic_claim_coordinates(spec)
             spec.rows = _prune_columns(spec.rows)
             self._editions.append(spec)
+
+    @staticmethod
+    def _set_graphic_claim_coordinates(spec: _EditionSpec) -> None:
+        """Set each graphic claim's parent-SegmentLine x coordinate."""
+        offset = 0
+        for segment in spec.segments:
+            for row in segment.rows:
+                spec.claim_coordinates.append(offset + row["start"])
+            offset += max((row["end"] for row in segment.rows), default=0)
+
+    def _read_graphic_instance(self, instance: ET.Element, spec: _EditionSpec) -> None:
+        """Read one page and split its graphical events into accolades."""
+        page = {
+            "file_name": instance.get("file_name"),
+            "position_in_group": _int_or_none(instance.get("position_in_group")),
+            "encoding_format": instance.get("encoding_format"),
+            "file_format": instance.get("file_format"),
+            "measurement_unit": instance.get("measurement_unit"),
+        }
+        spec.pages.append(page)
+        graphics = list(instance.findall("graphic_event"))
+        ulx_values = [
+            value
+            for graphic in graphics
+            if (value := _float_or_none(graphic.get("upper_left_x"))) is not None
+        ]
+        if not ulx_values:
+            return
+        half_span = (max(ulx_values) - min(ulx_values)) / 2
+        segment: _GraphicSegmentSpec | None = None
+        previous_ulx: float | None = None
+
+        for graphic in graphics:
+            ulx = _float_or_none(graphic.get("upper_left_x"))
+            if ulx is None:
+                continue
+            if previous_ulx is None or previous_ulx - ulx > half_span:
+                segment = _GraphicSegmentSpec(page=page)
+                spec.segments.append(segment)
+            previous_ulx = ulx
+            assert segment is not None
+
+            event_ref = graphic.get("event_ref")
+            if self._coordinate_of(event_ref, "graphic_event") is None:
+                continue
+            row = self._graphic_row(graphic, page)
+            if row is None:
+                continue
+            segment.rows.append(row)
+            spec.rows.append(row)
+
+    def _graphic_row(
+        self, graphic: ET.Element, page: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """Build one graphical event with an integer raw bounding-box struct."""
+        ulx = _rounded_pixel(graphic.get("upper_left_x"))
+        uly = _rounded_pixel(graphic.get("upper_left_y"))
+        lrx = _rounded_pixel(graphic.get("lower_right_x"))
+        lry = _rounded_pixel(graphic.get("lower_right_y"))
+        if None in (ulx, uly, lrx, lry):
+            self._logger.debug(
+                "<graphic_event> for %r without a complete box; skipped.",
+                graphic.get("event_ref"),
+            )
+            return None
+        assert (
+            ulx is not None and uly is not None and lrx is not None and lry is not None
+        )
+        return {
+            "event_type": "GraphicEvent",
+            "start": ulx,
+            "end": lrx,
+            "event_ref": graphic.get("event_ref"),
+            "bbox": {"ul": {"x": ulx, "y": uly}, "lr": {"x": lrx, "y": lry}},
+            "source_upper_left_x": graphic.get("upper_left_x"),
+            "file_name": page["file_name"],
+            "position_in_group": page["position_in_group"],
+        }
 
     def _read_audio(self, root: ET.Element) -> None:
         """Read one physical timeline per ``<track>``.
@@ -865,8 +930,7 @@ class Ieee1599Loader(XmlLoader):
                 segment_ref = place.get("segment_ref")
                 if place_ref is None or segment_ref is None or file_name is None:
                     self._logger.debug(
-                        "Skipping <place> without place_ref, segment_ref or a "
-                        "petri-net file_name."
+                        "Skipping <place> without place_ref, segment_ref or a petri-net file_name."
                     )
                     continue
                 places.setdefault(segment_ref, []).append((place_ref, file_name))
@@ -966,7 +1030,7 @@ class Ieee1599Loader(XmlLoader):
                 for row in spec.rows
             ],
             _GRAPHIC_UNIT,
-            NumberType.float,
+            NumberType.int,
         )
         self._add_table(
             "audio",
@@ -1025,11 +1089,26 @@ class Ieee1599Loader(XmlLoader):
             ),
             certainty=1.0,
         )
-        blocks: list[tuple[str | None, list[dict[str, Any]], str, TimeUnit]] = [
-            (self._los_uid, self._los_rows, "instant", TimeUnit.ticks),
-            *((spec.uid, spec.rows, "start", _GRAPHIC_UNIT) for spec in self._editions),
+        blocks: list[
+            tuple[str | None, list[dict[str, Any]], list[int | float], TimeUnit]
+        ] = [
+            (
+                self._los_uid,
+                self._los_rows,
+                [row["instant"] for row in self._los_rows],
+                TimeUnit.ticks,
+            ),
             *(
-                (spec.uid, spec.rows, "instant", TimeUnit.seconds)
+                (spec.uid, spec.rows, spec.claim_coordinates, _GRAPHIC_UNIT)
+                for spec in self._editions
+            ),
+            *(
+                (
+                    spec.uid,
+                    spec.rows,
+                    [row["instant"] for row in spec.rows],
+                    TimeUnit.seconds,
+                )
                 for spec in self._tracks
             ),
         ]
@@ -1038,12 +1117,12 @@ class Ieee1599Loader(XmlLoader):
         units: list[TimeUnit] = []
         projection: list[float] = []
         spine: list[int] = []
-        for uid, rows, coordinate_key, unit in blocks:
+        for uid, rows, coordinates, unit in blocks:
             if uid is None or not rows:
                 continue
             timeline_ids.extend([uid] * len(rows))
             units.extend([unit] * len(rows))
-            projection.extend(row[coordinate_key] for row in rows)
+            projection.extend(coordinates)
             spine.extend(self._spine_coordinates[row["event_ref"]] for row in rows)
         if not timeline_ids:
             return
@@ -1143,19 +1222,17 @@ class Ieee1599Loader(XmlLoader):
 
     # region Domain Object Creation
 
-    def create_bundle(self, **kwargs: Any) -> "AlignmentBundle":
+    def create_bundle(self, **kwargs: Any) -> AlignmentBundle:
         """Assemble the AlignmentBundle from the parsed document.
 
-        Every timeline is added standalone — the connectivity is carried by
-        the claims, which relate each projection to the spine, so no
-        `TimelineGroup` is needed to express it.  The claim field is added
-        columnar with
+        Each timeline occupies its own singleton TimelineGroup. The claims
+        relate those groups through the spine and are added columnar with
         :meth:`~timetoalign.alignment.bundle.AlignmentBundle.add_match_claim_field`
         rather than exploded into claim objects.
 
         Returns:
-            An ``AlignmentBundle`` with one spine timeline, one LOS timeline,
-            one timeline per edition and per track, and the projection claims.
+            An ``AlignmentBundle`` with one group per timeline and the
+            projection claims.
 
         Raises:
             RuntimeError: If ``load()`` has not been called yet.
@@ -1169,12 +1246,12 @@ class Ieee1599Loader(XmlLoader):
 
         bundle = AlignmentBundle(name=self._name)
         for timeline in self.create_timelines():
-            bundle.add_timeline(timeline, uid=timeline.id)
+            bundle.add_timeline(timeline, uid=timeline.id, as_group=timeline.id)
         if self._claim_field is not None:
             bundle.add_match_claim_field(self._claim_field)
         return bundle
 
-    def create_timelines(self, id_pattern: str | None = None) -> "list[Timeline]":
+    def create_timelines(self, id_pattern: str | None = None) -> list[Timeline]:
         """Return every timeline: spine, LOS, editions, tracks.
 
         Args:
@@ -1187,7 +1264,7 @@ class Ieee1599Loader(XmlLoader):
             if id_pattern is None or re.search(id_pattern, timeline.id)
         ]
 
-    def create_timeline(self, uid: str | None = None, **kwargs: Any) -> "Timeline":
+    def create_timeline(self, uid: str | None = None, **kwargs: Any) -> Timeline:
         """Return one timeline by uid, building it once and caching it.
 
         Args:
@@ -1213,7 +1290,7 @@ class Ieee1599Loader(XmlLoader):
         self._timeline_cache[uid] = timeline
         return timeline
 
-    def _build_timeline(self, uid: str) -> "Timeline":
+    def _build_timeline(self, uid: str) -> Timeline:
         """Build the timeline identified by *uid* from its curated rows."""
         if uid == self._spine_uid:
             return self._build_spine(uid)
@@ -1261,24 +1338,52 @@ class Ieee1599Loader(XmlLoader):
             timeline.add_events(rows)
         return timeline
 
-    def _build_graphical(self, spec: _EditionSpec) -> ContinuousGraphicalTimeline:
-        """Build one edition's graphical timeline from its graphic-event boxes.
+    def _build_graphical(
+        self, spec: _EditionSpec
+    ) -> SegmentLine[DiscreteGraphicalTimeline]:
+        """Build an edition as contiguous, integer-pixel graphical accolades.
 
-        The coordinates are the document's own page-image numbers in pixels,
-        unscaled and fractional where the document states them so; the unit
-        each page declares is kept per page in ``meta["pages"]``.
+        Each child keeps the source page's pixel coordinates. The parent
+        concatenates those child coordinate spaces, so graphical claims use
+        the corresponding SegmentLine coordinate. A page-file interval map on
+        the parent resolves every accolade coordinate to the page image that
+        contains it.
         """
-        length = max((row["end"] for row in spec.rows), default=0.0)
-        timeline = ContinuousGraphicalTimeline(
-            length=length,
+        timeline: SegmentLine[DiscreteGraphicalTimeline] = SegmentLine(
+            segment_type=DiscreteGraphicalTimeline,
+            length=0,
             unit=_GRAPHIC_UNIT,
-            number_type=NumberType.float,
+            number_type=NumberType.int,
             uid=spec.uid,
             name=spec.description,
             meta={"description": spec.description, "pages": spec.pages},
         )
-        if spec.rows:
-            timeline.add_events(spec.rows)
+        boundaries: list[int] = []
+        file_names: list[str | None] = []
+        for index, segment_spec in enumerate(spec.segments, start=1):
+            if not segment_spec.rows:
+                continue
+            segment = DiscreteGraphicalTimeline(
+                length=max(row["end"] for row in segment_spec.rows),
+                unit=_GRAPHIC_UNIT,
+                number_type=NumberType.int,
+                uid=f"{spec.uid}_segment{index}",
+                name=f"accolade_{index}",
+                meta={"page": segment_spec.page},
+            )
+            segment.add_events(segment_spec.rows)
+            boundaries.append(timeline.length.value)
+            file_names.append(segment_spec.page["file_name"])
+            timeline.append_segment(segment)
+        if boundaries:
+            timeline.add_conversion_map(
+                IntervalToConstantMap(
+                    boundaries=boundaries,
+                    values=file_names,
+                    source_unit=_GRAPHIC_UNIT,
+                    name="file_name",
+                )
+            )
         return timeline
 
     def _build_physical(self, spec: _TrackSpec) -> ContinuousPhysicalTimeline:
