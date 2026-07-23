@@ -284,6 +284,19 @@ class TestConstruction:
                 "src", "tgt", [0.0, 100.0, 50.0], [0.0, 50.0, 25.0]
             )
 
+    def test_from_coordinate_pairs_rejects_ambiguous_duplicate_source(self) -> None:
+        """A repeated source location cannot select different target times."""
+        with pytest.raises(
+            ValueError,
+            match=r"source timeline 'edition'.*get_matchstamp_at\(\)",
+        ):
+            WarpMap.from_coordinate_pairs(
+                "edition",
+                "spine",
+                [0.0, 50.0, 50.0, 100.0],
+                [0.0, 0.0, 22272.0, 44544.0],
+            )
+
     def test_chord_deduplication(self) -> None:
         """Duplicate source coordinates are averaged."""
         stamps = [
@@ -312,6 +325,47 @@ class TestConstruction:
         assert warp.n_anchors == 3
         result = warp(100.0)
         assert result == pytest.approx(50.0)
+
+    def test_from_match_line_rejects_ambiguous_duplicate_source(self) -> None:
+        """Repeated graphical positions cannot define an interpolation."""
+        line = MatchLine(
+            source_timeline_id="edition",
+            stamps=[
+                MatchStamp(
+                    coordinates={"edition": 0.0, "spine": 0.0},
+                    anchor_edges=[("edition", "spine")],
+                ),
+                MatchStamp(
+                    coordinates={"edition": 50.0, "spine": 0.0},
+                    anchor_edges=[("edition", "spine")],
+                ),
+                MatchStamp(
+                    coordinates={"edition": 50.0, "spine": 22272.0},
+                    anchor_edges=[("edition", "spine")],
+                ),
+                MatchStamp(
+                    coordinates={"edition": 100.0, "spine": 44544.0},
+                    anchor_edges=[("edition", "spine")],
+                ),
+            ],
+        )
+
+        with pytest.raises(
+            ValueError,
+            match=r"source timeline 'edition'.*get_matchstamp_at\(\)",
+        ):
+            WarpMap.from_match_line(line, "spine")
+
+    def test_monotone_duplicate_source_still_averages_exactly(self) -> None:
+        """Compatible duplicate anchors retain the established chord behavior."""
+        warp = WarpMap.from_coordinate_pairs(
+            "score",
+            "audio",
+            [0.0, 100.0, 100.0, 200.0],
+            [0.0, 48.0, 52.0, 100.0],
+        )
+
+        assert warp(100.0) == 50.0
 
 
 # endregion

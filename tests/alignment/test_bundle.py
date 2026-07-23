@@ -25,6 +25,8 @@ from timetoalign.alignment import (
     MatchClaim,
     MatchClaimField,
 )
+from timetoalign.alignment.graph import MatchStamp
+from timetoalign.alignment.matchline import MatchLine
 from timetoalign.core import Coordinate, IdCoordinate, TimeUnit
 from timetoalign.maps import ScalarMap
 from timetoalign.timelines import Timeline, TimelineGroup
@@ -732,6 +734,48 @@ class TestCrossGroupTransfer:
         # score coord 100 -> audio coord 50 (linear interpolation)
         result = bundle.transfer(100.0, "score", "audio")
         assert result == 50.0
+
+    def test_transfer_surfaces_ambiguous_warp_error(self) -> None:
+        """Ambiguous source coordinates are not converted to a false value."""
+        bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
+        line = MatchLine(
+            source_timeline_id=score_tl.id,
+            stamps=[
+                MatchStamp(
+                    coordinates={score_tl.id: 0.0, audio_tl.id: 0.0},
+                    anchor_edges=[(score_tl.id, audio_tl.id)],
+                ),
+                MatchStamp(
+                    coordinates={score_tl.id: 50.0, audio_tl.id: 0.0},
+                    anchor_edges=[(score_tl.id, audio_tl.id)],
+                ),
+                MatchStamp(
+                    coordinates={score_tl.id: 50.0, audio_tl.id: 22272.0},
+                    anchor_edges=[(score_tl.id, audio_tl.id)],
+                ),
+            ],
+        )
+        bundle._matchline_cache[score_tl.id] = line
+        bundle._cache_claims_hash = id(bundle.cross_group_claims) + 1
+        bundle._warp_map_cache.clear()
+        bundle.cross_group_claims.append(
+            MatchClaim(
+                timeline_a_id=score_tl.id,
+                timeline_b_id=audio_tl.id,
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id=score_tl.id,
+                    coordinate_a=Coordinate(0.0, TimeUnit.number),
+                    timeline_b_id=audio_tl.id,
+                    coordinate_b=Coordinate(0.0, TimeUnit.number),
+                ),
+            )
+        )
+
+        with pytest.raises(
+            ValueError,
+            match=r"source timeline 'score_t'.*get_matchstamp_at\(\)",
+        ):
+            bundle.transfer(50.0, "score", "audio")
 
     def test_direct_cross_group_transfer_boundary_zero(self) -> None:
         """Transfer at coordinate 0 (boundary)."""

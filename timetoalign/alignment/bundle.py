@@ -35,7 +35,7 @@ from .claims import MatchClaim, MatchClaimField
 from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
 from .matchline import MatchLine
-from .warpmap import WarpMap
+from .warpmap import AmbiguousWarpMapError, WarpMap
 
 if TYPE_CHECKING:
     import pyarrow as pa
@@ -1895,6 +1895,8 @@ class AlignmentBundle:
         # Build WarpMap
         try:
             warp = WarpMap.from_match_line(match_line, target_tl_id)
+        except AmbiguousWarpMapError:
+            raise
         except ValueError as e:
             self._logger.debug(
                 "Failed to build WarpMap %s -> %s: %s",

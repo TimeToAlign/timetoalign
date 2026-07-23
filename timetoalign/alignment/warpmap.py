@@ -39,6 +39,18 @@ if TYPE_CHECKING:
 module_logger = logging.getLogger(__name__)
 
 
+class AmbiguousWarpMapError(ValueError):
+    """Raised when a source coordinate has incompatible target values."""
+
+
+# Repeated anchors from chords can differ slightly while still describing one
+# location. Larger spreads mean that the source coordinate is not a function
+# of the target coordinate system (for example, page x positions reused on
+# successive systems).
+_AMBIGUITY_ABSOLUTE_TOLERANCE = 5.0
+_AMBIGUITY_RELATIVE_TOLERANCE = 0.01
+
+
 @dataclass(frozen=True)
 class WarpMap:
     """Bidirectional coordinate warping derived from alignment data.
@@ -161,6 +173,42 @@ class WarpMap:
 
     # region Factory Methods
 
+    @staticmethod
+    def _deduplicate_coordinate_pairs(
+        source_coords: NDArray[np.floating[Any]],
+        target_coords: NDArray[np.floating[Any]],
+        *,
+        source_timeline_id: str,
+    ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
+        """Average compatible duplicate sources or reject ambiguous ones."""
+        unique_sources, inverse = np.unique(source_coords, return_inverse=True)
+        if len(unique_sources) == len(source_coords):
+            return source_coords, target_coords
+
+        target_span = float(np.ptp(target_coords))
+        tolerance = max(
+            _AMBIGUITY_ABSOLUTE_TOLERANCE,
+            _AMBIGUITY_RELATIVE_TOLERANCE * target_span,
+        )
+        deduped_targets = np.empty(len(unique_sources), dtype=np.float64)
+        for index, source_coord in enumerate(unique_sources):
+            targets = target_coords[inverse == index]
+            minimum = float(np.min(targets))
+            maximum = float(np.max(targets))
+            spread = maximum - minimum
+            if spread > tolerance:
+                raise AmbiguousWarpMapError(
+                    f"Ambiguous WarpMap source timeline '{source_timeline_id}': "
+                    f"source coordinate {source_coord:g} maps to materially "
+                    f"different target coordinates ({minimum:g} to {maximum:g}; "
+                    f"spread {spread:g} exceeds tolerance {tolerance:g}). "
+                    "A single interpolated value is undefined; exact graph "
+                    "lookups via get_matchstamp_at() remain the supported path."
+                )
+            deduped_targets[index] = float(np.mean(targets))
+
+        return unique_sources, deduped_targets
+
     @classmethod
     def from_match_line(
         cls,
@@ -173,9 +221,9 @@ class WarpMap:
         """Build a WarpMap from a MatchLine's coordinate pairs.
 
         Extracts ``(source_coord, target_coord)`` pairs from the
-        MatchLine for the given target timeline, deduplicates by source
-        coordinate (averaging target values for chords), and constructs
-        the interpolation map.
+        MatchLine for the given target timeline, deduplicates compatible
+        chord coordinates, and constructs the interpolation map. A repeated
+        source coordinate with materially different targets is rejected.
 
         Args:
             match_line: The MatchLine providing ordered stamps.
@@ -199,28 +247,11 @@ class WarpMap:
                 f"Available targets: {match_line.target_timeline_ids()}"
             )
 
-        # Deduplicate: chords may produce multiple pairs at the same
-        # source coordinate.  Average target values.
-        deduped: dict[float, list[float]] = {}
-        for src, tgt in pairs:
-            deduped.setdefault(src, []).append(tgt)
-
-        src_arr = np.array(sorted(deduped.keys()), dtype=np.float64)
-        tgt_arr = np.array([np.mean(deduped[s]) for s in src_arr], dtype=np.float64)
-
-        imap = InterpolationMap(
-            source_coords=src_arr,
-            target_coords=tgt_arr,
-            source_id=match_line.source_timeline_id,
-            target_id=target_timeline_id,
-            source_unit=source_unit,
-            target_unit=target_unit,
-        )
-
-        return cls(
+        return cls.from_coordinate_pairs(
             source_timeline_id=match_line.source_timeline_id,
             target_timeline_id=target_timeline_id,
-            interpolation_map=imap,
+            source_coords=[source for source, _ in pairs],
+            target_coords=[target for _, target in pairs],
             source_unit=source_unit,
             target_unit=target_unit,
         )
@@ -246,7 +277,10 @@ class WarpMap:
         Args:
             source_timeline_id: ID of the source timeline.
             target_timeline_id: ID of the target timeline.
-            source_coords: Sorted source coordinates (strictly increasing).
+            source_coords: Source coordinates. Duplicate coordinates are
+                averaged when their targets are compatible; otherwise they
+                raise an ambiguity error. Remaining coordinates must be
+                strictly increasing.
             target_coords: Corresponding target coordinates.
             source_unit: Unit of the source timeline (optional).
             target_unit: Unit of the target timeline (optional).
@@ -255,11 +289,22 @@ class WarpMap:
             A new WarpMap.
 
         Raises:
-            ValueError: If fewer than 2 coordinate pairs, or if
-                source_coords are not strictly increasing.
+            ValueError: If fewer than 2 coordinate pairs, if source
+                coordinates are ambiguous, or if the remaining source
+                coordinates are not strictly increasing.
         """
         src_arr = np.asarray(source_coords, dtype=np.float64)
         tgt_arr = np.asarray(target_coords, dtype=np.float64)
+        if len(src_arr) != len(tgt_arr):
+            raise ValueError(
+                "source_coords and target_coords must have same length, "
+                f"got {len(src_arr)} and {len(tgt_arr)}"
+            )
+        src_arr, tgt_arr = cls._deduplicate_coordinate_pairs(
+            src_arr,
+            tgt_arr,
+            source_timeline_id=source_timeline_id,
+        )
 
         imap = InterpolationMap(
             source_coords=src_arr,
