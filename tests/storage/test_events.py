@@ -178,3 +178,49 @@ class TestIntervalFractionFidelity:
 
         assert data.column_values("end") == [Fraction(17, 4), Fraction(4.25)]
         assert self._pairs(data, "end") == [(17, 4), (None, None)]
+
+
+class TestHead:
+    """`EventData.head()` — pandas-style leading-row preview."""
+
+    @staticmethod
+    def _data(count: int = 6) -> EventData:
+        return EventData.from_dicts(
+            [{"event_type": "Beat", "instant": Fraction(i, 4)} for i in range(count)],
+            unit=TimeUnit.quarters,
+        )
+
+    def test_default_returns_first_five_rows(self) -> None:
+        df = self._data(6).head()
+        assert len(df) == 5
+        assert list(df["event_type"]) == ["Beat"] * 5
+
+    def test_explicit_n_returns_that_many_rows(self) -> None:
+        df = self._data(6).head(3)
+        assert len(df) == 3
+        assert list(df["start"]) == [Fraction(0, 4), Fraction(1, 4), Fraction(2, 4)]
+
+    def test_n_larger_than_count_returns_all_rows(self) -> None:
+        data = self._data(3)
+        assert len(data.head(10)) == 3
+
+    def test_non_positive_n_returns_empty_frame(self) -> None:
+        assert len(self._data(6).head(0)) == 0
+        assert len(self._data(6).head(-2)) == 0
+
+    def test_equivalent_to_to_dataframe_head(self) -> None:
+        # head(n) is the redundancy target for `.to_dataframe().head(n)`
+        # (and for the raw `.table.slice(0, n).to_pandas()` idiom): the
+        # preview must match the leading rows of the full conversion.
+        data = self._data(6)
+        from pandas.testing import assert_frame_equal
+
+        assert_frame_equal(
+            data.head(4).reset_index(drop=True),
+            data.to_dataframe().head(4).reset_index(drop=True),
+        )
+
+    def test_coordinate_columns_render_as_numbers(self) -> None:
+        # Not raw struct dicts — the same conversion `to_dataframe` applies.
+        df = self._data(2).head()
+        assert list(df["start"]) == [Fraction(0, 4), Fraction(1, 4)]

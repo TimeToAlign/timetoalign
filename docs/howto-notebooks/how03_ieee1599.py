@@ -123,7 +123,7 @@ spine = bundle.get_timeline(loader.spine_uid)
 spine
 
 # %%
-spine.get_events().table.slice(0, 5).to_pandas()
+spine.get_events().head(5)
 
 # %% [markdown]
 # ### The LOS layer: notes and rests at spine coordinates
@@ -229,7 +229,7 @@ for uid in loader.track_uids:
 
 # %%
 track = bundle.get_timeline(loader.track_uids[0])
-track.get_events().table.slice(0, 3).to_pandas()
+track.get_events().head(3)
 
 # %% [markdown]
 # ---

@@ -1909,6 +1909,31 @@ class EventData(SemanticFieldAccessMixin):
                 f"Supported formats: 'pandas'"
             )
 
+    def head(self, n: int = 5) -> pd.DataFrame:
+        """Return the first ``n`` events as a pandas DataFrame.
+
+        A pandas-style preview of the stored rows. Coordinate columns render
+        as their native numbers — the same conversion :meth:`to_dataframe`
+        applies — so ``events.head()`` shows the leading events directly,
+        without reaching for the raw PyArrow table.
+
+        Args:
+            n: Number of leading events to include. Values larger than the
+                event count return every event; ``n <= 0`` returns an empty
+                frame.
+
+        Returns:
+            A pandas DataFrame of the first ``n`` events.
+
+        Examples:
+            >>> events.head()      # first five events
+            >>> events.head(3)     # first three events
+        """
+        preview = type(self)(
+            self._table.slice(0, max(n, 0)), self._unit, self._number_type
+        )
+        return preview.to_dataframe()
+
     def _struct_to_number(self, struct: dict | None) -> Any:
         """Convert a coordinate struct to a native Python number.
 

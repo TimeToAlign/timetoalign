@@ -61,3 +61,28 @@ values without reaching into `EventData`'s private `_table`.
   `default`-filled list sized to the event count, not an exception.
 - **Plain passthrough**: non-coordinate columns (e.g. `event_type`) are
   returned unchanged from `to_pylist()`.
+
+### `test_events.py` - `EventData.head()`
+
+**Purpose:** Validates the pandas-style leading-row preview that replaces
+the verbose `.table.slice(0, n).to_pandas()` idiom.
+
+**Contract:**
+
+- `head(n=5)` returns the first `n` events as a pandas DataFrame, using the
+  same coordinate conversion as `to_dataframe()` (native numbers, not raw
+  struct dicts).
+- `n` larger than the event count returns every event; `n <= 0` returns an
+  empty frame.
+- `head(n)` equals the leading `n` rows of `to_dataframe()` (checked with
+  `pandas.testing.assert_frame_equal`).
+
+**Test Categories:**
+- **Default arity**: `head()` returns exactly five rows.
+- **Explicit arity**: `head(n)` returns `n` rows with exact `Fraction`
+  coordinates.
+- **Over-count / non-positive `n`**: saturates to the full table / yields
+  an empty frame.
+- **Conversion equivalence**: `head(n)` matches `to_dataframe().head(n)`.
+- **Numeric rendering**: coordinate columns decode to `Fraction`, never
+  raw struct dicts.
