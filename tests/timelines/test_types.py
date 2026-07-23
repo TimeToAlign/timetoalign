@@ -21,6 +21,7 @@ from fractions import Fraction
 import pytest
 
 from timetoalign.core import Domain, NumberType, TimeUnit
+from timetoalign.maps.linear import ScalarMap
 from timetoalign.timelines import (
     ContinuousGraphicalTimeline,
     ContinuousLogicalTimeline,
@@ -31,6 +32,7 @@ from timetoalign.timelines import (
     GraphicalTimeline,
     LogicalTimeline,
     PhysicalTimeline,
+    SegmentLine,
     Timeline,
 )
 
@@ -289,6 +291,177 @@ class TestAllTimelineTypes:
 
         tl.add_events(events)
         assert tl.n_events == 3
+
+
+# endregion
+
+
+# region Serialized Type Parameters
+
+
+class TestSerializedTypeParameters:
+    """Parameterized timeline serialization tests."""
+
+    @pytest.mark.parametrize(
+        ("segment_class", "length", "event_instant", "target_unit"),
+        [
+            (DiscreteGraphicalTimeline, 10, 3, TimeUnit.points),
+            (
+                ContinuousLogicalTimeline,
+                Fraction(4, 1),
+                Fraction(1, 1),
+                TimeUnit.beats,
+            ),
+        ],
+    )
+    def test_parameterized_segment_line_round_trip(
+        self,
+        segment_class,
+        length,
+        event_instant,
+        target_unit,
+    ):
+        """SegmentLine tags restore their registered segment type hierarchy."""
+        original = SegmentLine(
+            length=0,
+            unit=segment_class._default_unit,
+            number_type=segment_class._default_number_type,
+            segment_type=segment_class,
+            uid="segments",
+        )
+        for index in range(2):
+            segment = segment_class(length=length, uid=f"segment_{index}")
+            segment.add_events(
+                [
+                    {
+                        "id": f"event_{index}",
+                        "temporal_type": "instant",
+                        "event_type": "Marker",
+                        "instant": event_instant,
+                    }
+                ]
+            )
+            segment.add_conversion_map(
+                ScalarMap(
+                    scalar=2,
+                    source_unit=segment.unit,
+                    target_unit=target_unit,
+                    uid=f"map_{index}",
+                )
+            )
+            original.append_segment(segment)
+
+        data = original.to_dict(events=True)
+        restored = Timeline.from_dict(data)
+
+        assert data["class"] == f"SegmentLine[{segment_class.__name__}]"
+        assert isinstance(restored, SegmentLine)
+        assert restored.segment_type is segment_class
+        assert restored.n_segments == original.n_segments == 2
+        assert [type(segment) for _, _, segment in restored.iter_segments()] == [
+            segment_class,
+            segment_class,
+        ]
+        assert [segment.n_events for _, _, segment in restored.iter_segments()] == [
+            1,
+            1,
+        ]
+        assert [
+            segment.to_dict(events=True)["events"][0]["id"]
+            for _, _, segment in restored.iter_segments()
+        ] == ["event_0", "event_1"]
+        assert [
+            segment.to_dict(events=True)["events"][0]["start"]["value"]
+            for _, _, segment in restored.iter_segments()
+        ] == [float(event_instant), float(event_instant)]
+        assert [
+            segment.get_conversion_map(target_unit).id
+            for _, _, segment in restored.iter_segments()
+        ] == ["map_0", "map_1"]
+
+    def test_parameterized_segment_line_rejects_unregistered_inner_class(self):
+        """An unknown segment type identifies both the type and full tag."""
+        data = SegmentLine(
+            length=0,
+            segment_type=DiscreteGraphicalTimeline,
+        ).to_dict()
+        data["class"] = "SegmentLine[UnregisteredSegmentTimeline]"
+
+        with pytest.raises(ValueError) as error:
+            Timeline.from_dict(data)
+
+        assert str(error.value) == (
+            "Unknown serialized timeline class 'UnregisteredSegmentTimeline' "
+            "in parameterized tag 'SegmentLine[UnregisteredSegmentTimeline]'"
+        )
+
+    def test_nested_parameterized_segment_line_round_trip(self):
+        """Nested SegmentLine tags restore both levels of segment type."""
+        original = SegmentLine(
+            length=0,
+            segment_type=SegmentLine,
+            inner_segment_type=DiscreteGraphicalTimeline,
+            uid="systems",
+        )
+        system = SegmentLine(
+            length=0,
+            segment_type=DiscreteGraphicalTimeline,
+            uid="system_0",
+        )
+        segment = DiscreteGraphicalTimeline(length=10, uid="measure_0")
+        segment.add_events(
+            [
+                {
+                    "id": "marker_0",
+                    "temporal_type": "instant",
+                    "event_type": "Marker",
+                    "instant": 3,
+                }
+            ]
+        )
+        segment.add_conversion_map(
+            ScalarMap(
+                scalar=2,
+                source_unit=TimeUnit.pixels,
+                target_unit=TimeUnit.points,
+                uid="pixels_to_points",
+            )
+        )
+        system.append_segment(segment)
+        original.append_segment(system)
+
+        restored = Timeline.from_dict(original.to_dict(events=True))
+
+        assert restored.class_name == (
+            "SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]"
+        )
+        assert restored.segment_type is SegmentLine
+        assert restored._inner_segment_type is DiscreteGraphicalTimeline
+        assert restored.n_segments == 1
+        _, restored_system = restored.get_segment_by_index(0)
+        assert isinstance(restored_system, SegmentLine)
+        assert restored_system.segment_type is DiscreteGraphicalTimeline
+        assert restored_system.n_segments == 1
+        _, restored_segment = restored_system.get_segment_by_index(0)
+        assert restored_segment.n_events == 1
+        assert (
+            restored_segment.get_conversion_map(TimeUnit.points).id
+            == "pixels_to_points"
+        )
+
+    def test_continuous_graphical_pixels_legacy_payload_error(self):
+        """Legacy continuous graphical pixel payloads name their valid replacement."""
+        data = DiscreteGraphicalTimeline(length=16, uid="legacy").to_dict()
+        data["class"] = "ContinuousGraphicalTimeline"
+
+        with pytest.raises(ValueError) as error:
+            Timeline.from_dict(data)
+
+        assert str(error.value) == (
+            "Serialized ContinuousGraphicalTimeline payload uses unit 'pixels', "
+            "which is discrete-only. This payload predates unit enforcement; "
+            "use DiscreteGraphicalTimeline instead."
+        )
 
 
 # endregion

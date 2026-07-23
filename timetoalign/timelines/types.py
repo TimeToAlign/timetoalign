@@ -743,6 +743,16 @@ class ContinuousGraphicalTimeline(ContinuousMixin, GraphicalTimeline):
     _default_unit: ClassVar[TimeUnit] = TimeUnit.centimeters
     _default_number_type: ClassVar[NumberType] = NumberType.float
 
+    @classmethod
+    def _validate_serialized_payload(cls, data: dict[str, Any]) -> None:
+        """Explain legacy graphical payloads that predate unit validation."""
+        if data.get("unit") == str(TimeUnit.pixels):
+            raise ValueError(
+                "Serialized ContinuousGraphicalTimeline payload uses unit 'pixels', "
+                "which is discrete-only. This payload predates unit enforcement; "
+                "use DiscreteGraphicalTimeline instead."
+            )
+
 
 # endregion
 
@@ -915,6 +925,42 @@ class SegmentLine(Timeline, Generic[T]):
         self._segment_order: list[str] = []
         self._segment_type: type[Timeline] | None = segment_type
         self._inner_segment_type: type[Timeline] | None = inner_segment_type
+
+    @classmethod
+    def _from_dict_init_kwargs(
+        cls, type_parameters: tuple[type[Timeline], ...]
+    ) -> dict[str, Any]:
+        """Restore segment type parameters encoded in the class tag."""
+        if not type_parameters:
+            return {}
+
+        segment_type = type_parameters[0]
+        if segment_type is SegmentLine:
+            if len(type_parameters) != 2:
+                raise ValueError(
+                    "Serialized SegmentLine tag must contain exactly one inner "
+                    "segment type"
+                )
+            return {
+                "segment_type": segment_type,
+                "inner_segment_type": type_parameters[1],
+            }
+
+        if len(type_parameters) != 1:
+            raise ValueError(
+                "Serialized SegmentLine tag may only nest a parameterized "
+                "SegmentLine"
+            )
+        return {"segment_type": segment_type}
+
+    @classmethod
+    def _from_dict_initial_length(cls, data: dict[str, Any]) -> int:
+        """Start empty so restored segments can be appended contiguously."""
+        return 0
+
+    def _finalize_from_dict(self, data: dict[str, Any]) -> None:
+        """Restore the serialized length after rebuilding the segments."""
+        self._length = self._make_coordinate(Timeline._from_dict_initial_length(data))
 
     @property
     def segment_type(self) -> type[Timeline] | None:

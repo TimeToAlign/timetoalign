@@ -158,6 +158,82 @@ class Timeline(
             )
         Timeline._registry[tag] = cls
 
+    @classmethod
+    def _resolve_serialized_class_hierarchy(
+        cls, class_tag: str
+    ) -> tuple[type["Timeline"], ...]:
+        """Resolve a serialized class tag and any type parameters it carries.
+
+        Parameterized tags use the same nested bracket notation as
+        :attr:`SegmentLine.class_name`, for example
+        ``SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]``.  The
+        returned tuple is ordered from outermost class to innermost parameter.
+        """
+        bracket_start = class_tag.find("[")
+        if bracket_start == -1:
+            timeline_class = (
+                Timeline
+                if class_tag == Timeline.__name__
+                else Timeline._registry.get(class_tag)
+            )
+            if timeline_class is None:
+                raise ValueError(f"Unknown serialized timeline class '{class_tag}'")
+            return (timeline_class,)
+
+        outer_tag = class_tag[:bracket_start]
+        if not outer_tag or not class_tag.endswith("]"):
+            raise ValueError(f"Unknown serialized timeline class '{class_tag}'")
+
+        depth = 0
+        for index, char in enumerate(class_tag[bracket_start:], start=bracket_start):
+            if char == "[":
+                depth += 1
+            elif char == "]":
+                depth -= 1
+                if depth == 0 and index != len(class_tag) - 1:
+                    raise ValueError(f"Unknown serialized timeline class '{class_tag}'")
+                if depth < 0:
+                    raise ValueError(f"Unknown serialized timeline class '{class_tag}'")
+        if depth != 0:
+            raise ValueError(f"Unknown serialized timeline class '{class_tag}'")
+
+        outer_hierarchy = Timeline._resolve_serialized_class_hierarchy(outer_tag)
+        if len(outer_hierarchy) != 1:
+            raise ValueError(f"Unknown serialized timeline class '{class_tag}'")
+
+        inner_start = bracket_start + 1
+        inner_tag = class_tag[inner_start:-1]
+        try:
+            inner_hierarchy = Timeline._resolve_serialized_class_hierarchy(inner_tag)
+        except ValueError as error:
+            raise ValueError(f"{error} in parameterized tag '{class_tag}'") from error
+
+        return outer_hierarchy + inner_hierarchy
+
+    @classmethod
+    def _from_dict_init_kwargs(
+        cls, type_parameters: tuple[type["Timeline"], ...]
+    ) -> dict[str, Any]:
+        """Return constructor arguments encoded by a serialized class tag."""
+        if type_parameters:
+            raise ValueError(
+                f"Serialized timeline class '{cls.__name__}' does not accept "
+                "type parameters"
+            )
+        return {}
+
+    @classmethod
+    def _from_dict_initial_length(cls, data: dict[str, Any]) -> CoordinateValue:
+        """Return the length to use while reconstructing a payload."""
+        return wire_to_rational(data["length"])
+
+    def _finalize_from_dict(self, data: dict[str, Any]) -> None:
+        """Restore state that must be set after children are added."""
+
+    @classmethod
+    def _validate_serialized_payload(cls, data: dict[str, Any]) -> None:
+        """Validate compatibility rules specific to serialized payloads."""
+
     # endregion
 
     # region Initialization
@@ -825,26 +901,29 @@ class Timeline(
         if not isinstance(class_tag, str):
             raise ValueError("Serialized timeline is missing a string 'class' tag")
 
-        if cls is Timeline and class_tag != Timeline.__name__:
-            timeline_class = Timeline._registry.get(class_tag)
-            if timeline_class is None:
-                raise ValueError(f"Unknown serialized timeline class '{class_tag}'")
+        class_hierarchy = Timeline._resolve_serialized_class_hierarchy(class_tag)
+        timeline_class, *type_parameters = class_hierarchy
+
+        if cls is Timeline and timeline_class is not Timeline:
             return timeline_class.from_dict(data)
 
-        if class_tag != cls.__name__:
+        if timeline_class is not cls:
             raise ValueError(
                 f"Serialized timeline class '{class_tag}' does not match "
                 f"receiving subclass '{cls.__name__}'"
             )
 
+        cls._validate_serialized_payload(data)
+
         timeline = cls(
-            length=wire_to_rational(data["length"]),
+            length=cls._from_dict_initial_length(data),
             unit=data["unit"],
             number_type=data["number_type"],
             uid=data["id"],
             name=data.get("name"),
-            locked=data.get("locked", False),
+            locked=False,
             meta=data.get("meta"),
+            **cls._from_dict_init_kwargs(tuple(type_parameters)),
         )
 
         # Add events (filter out segment events - they'll be recreated).
@@ -878,6 +957,9 @@ class Timeline(
         for map_data in data.get("conversion_maps", []):
             cmap = ConversionMap.from_dict(map_data)
             timeline.add_conversion_map(cmap)
+
+        timeline._finalize_from_dict(data)
+        timeline._locked = data.get("locked", False)
 
         return timeline
 
