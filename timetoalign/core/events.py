@@ -20,6 +20,7 @@ Sections (in file order):
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from enum import IntEnum
@@ -40,6 +41,7 @@ from .fields import (
     SemanticField,
     build_struct_array,
     data_shaped,
+    install_paired_field_registry,
     register_value_projector,
 )
 from .ids import ScopedId
@@ -181,7 +183,7 @@ def _parse_octave_from_sp(sp: str | None, step: str) -> int:
 # ---------------------------------------------------------------------------
 
 
-class BoundingBox(BaseModel):
+class BoundingBox(ScalarVocabulary, BaseModel):
     """Axis-aligned rectangular extent in image coordinates.
 
     ``ul`` and ``lr`` are the upper-left and lower-right corners. Image
@@ -206,6 +208,9 @@ class BoundingBox(BaseModel):
     @model_validator(mode="after")
     def _validate_corners(self) -> BoundingBox:
         """Require lower-right coordinates to be at or beyond upper-left."""
+        coordinates = (self.ul.x, self.ul.y, self.lr.x, self.lr.y)
+        if not all(math.isfinite(coordinate) for coordinate in coordinates):
+            raise ValueError("BoundingBox coordinates must be finite")
         if self.lr.x < self.ul.x:
             raise ValueError("BoundingBox.lr.x must be greater than or equal to ul.x")
         if self.lr.y < self.ul.y:
@@ -249,6 +254,32 @@ class BoundingBoxField(SemanticField[BoundingBox]):
             field = pa.field(kw.pop("name", "bounding_box"), cls.pa_schema)
             return super().from_field((array, field), **kw)
         return super().from_field(source, **kw)
+
+    @classmethod
+    def matches_pa_field(cls, pa_field: pa.Field) -> bool:
+        """Accept canonical boxes and raw integer/float corner structs."""
+        if super().matches_pa_field(pa_field):
+            return True
+        if not pa.types.is_struct(pa_field.type):
+            return False
+        corners = {field.name: field.type for field in pa_field.type}
+        if set(corners) != {"ul", "lr"}:
+            return False
+        for corner in corners.values():
+            if not pa.types.is_struct(corner):
+                return False
+            coordinates = {field.name: field.type for field in corner}
+            if set(coordinates) != {"x", "y"}:
+                return False
+            if not all(
+                pa.types.is_integer(coordinate) or pa.types.is_floating(coordinate)
+                for coordinate in coordinates.values()
+            ):
+                return False
+        return True
+
+
+install_paired_field_registry()
 
 
 # ---------------------------------------------------------------------------

@@ -6,7 +6,9 @@ import pyarrow as pa
 import pytest
 from pydantic import ValidationError
 
+from timetoalign.core.enums import TimeUnit
 from timetoalign.core.events import BoundingBox, BoundingBoxField
+from timetoalign.storage.events import EventData
 
 
 class TestBoundingBox:
@@ -20,6 +22,16 @@ class TestBoundingBox:
             "ul": {"x": 1.0, "y": 2.5},
             "lr": {"x": 30.0, "y": 40.5},
         }
+
+    @pytest.mark.parametrize("invalid", [float("nan"), float("inf")])
+    def test_rejects_non_finite_coordinates(self, invalid: float) -> None:
+        """All bounding-box coordinates must be finite."""
+        with pytest.raises(ValueError, match="finite"):
+            BoundingBox.from_corners(0, 0, invalid, 1)
+
+    def test_from_corners_accepts_finite_floats(self) -> None:
+        """Finite float coordinates remain valid."""
+        assert BoundingBox.from_corners(0.25, 0.5, 1.75, 2.0).lr.x == 1.75
 
     @pytest.mark.parametrize(
         ("corners", "coordinate"),
@@ -81,3 +93,22 @@ class TestBoundingBoxField:
         )
 
         assert field[0] == expected
+
+    def test_event_data_resolves_raw_bbox_struct_by_scalar(self) -> None:
+        """Raw bounding-box structs afford their paired semantic field."""
+        data = EventData.from_dicts(
+            [
+                {
+                    "bbox": {
+                        "ul": {"x": 0, "y": 0},
+                        "lr": {"x": 1, "y": 1},
+                    }
+                }
+            ],
+            unit=TimeUnit.seconds,
+        )
+
+        field = data.get_field(BoundingBox)
+
+        assert isinstance(field, BoundingBoxField)
+        assert field[0] == BoundingBox.from_corners(0, 0, 1, 1)
