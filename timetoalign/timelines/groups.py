@@ -1282,19 +1282,90 @@ class TimelineGroup:
             The C-Map (InterpolationMap or ConversionMap), or None if not found.
         """
         timeline = self._timelines.get(timeline_id)
-        if timeline is None:
-            return None
-        return timeline._get_unit_map(unit)
+        if timeline is not None:
+            return timeline._get_unit_map(unit)
+        # Member-descendant: locate the owning member and delegate.
+        for member in self._timelines.values():
+            descendant = member._find_descendant(timeline_id)
+            if descendant is not None:
+                return descendant._get_unit_map(unit)
+        return None
 
     def _get_related_timeline_ids(self) -> list[str]:
-        """Get IDs of all related timelines (members).
+        """Get IDs of the direct member timelines.
 
-        This method is part of the TimeStampSource protocol.
+        This method is part of the TimeStampSource protocol. It reports only
+        the members; their descendants are reached through
+        :meth:`_get_descendant_timeline_ids`.
 
         Returns:
             List of member timeline IDs.
         """
         return list(self._timelines.keys())
+
+    def _get_descendant_timeline_ids(self) -> list[str]:
+        """Get IDs of every member and member-descendant timeline.
+
+        This method is part of the TimeStampSource protocol. Timestamps use it
+        to surface conversions from the full subtree of each member.
+        """
+        ids: list[str] = []
+        for member_id, member in self._timelines.items():
+            ids.append(member_id)
+            ids.extend(member._get_descendant_timeline_ids())
+        return ids
+
+    def _get_conversion_maps_for_timeline(
+        self, timeline_id: str
+    ) -> "list[ConversionMap[Any]]":
+        """Get every conversion map attached to a member or its descendants.
+
+        This method is part of the TimeStampSource protocol. It returns C-Maps
+        of all kinds, including those with no ``target_unit``, so timestamps
+        expose label and structured-value maps across the whole subtree.
+        """
+        timeline = self._timelines.get(timeline_id)
+        if timeline is None:
+            for member in self._timelines.values():
+                timeline = member._find_descendant(timeline_id)
+                if timeline is not None:
+                    break
+        if timeline is None:
+            return []
+        return list(timeline._conversion_maps.values())
+
+    def _descendant_coordinate(
+        self, timeline_id: str, axis: float, source_id: str
+    ) -> float | None:
+        """Resolve a coordinate on a member-descendant of this group.
+
+        The axis (on *source_id*) is transferred to the owning member via the
+        group's InterpolationMap, then into the descendant via the member's
+        exact offset arithmetic. Returns None if the owning member is not
+        reachable at *axis*, or the coordinate leaves the descendant's span.
+
+        Direct members are resolved by ``TimeStamp.get`` (with its own
+        reachability guard), so this method handles member-descendants only.
+        """
+        if timeline_id in self._timelines:
+            return None
+        for member_id, member in self._timelines.items():
+            if member._find_descendant(timeline_id) is None:
+                continue
+            if member_id == source_id:
+                member_coord: float = axis
+            else:
+                if not self._contains_coordinate(member_id, axis, source_id):
+                    return None
+                imap = self._get_interpolation_map(member_id, source_id=source_id)
+                if imap is None:
+                    return None
+                if imap.source_id == source_id:
+                    member_coord = float(imap(axis))
+                else:
+                    member_coord = float(imap.inverse()(axis))
+            return member._get_child_coordinate(timeline_id, member_coord)
+        return None
 
     def _get_available_units(self) -> list["TimeUnit"]:
         """Get all units available via C-Maps from member timelines.
@@ -1324,6 +1395,10 @@ class TimelineGroup:
         """
         if timeline_id in self._timelines:
             return self._timelines[timeline_id].unit
+        for member in self._timelines.values():
+            descendant = member._find_descendant(timeline_id)
+            if descendant is not None:
+                return descendant._unit
         return None
 
     def _contains_coordinate(

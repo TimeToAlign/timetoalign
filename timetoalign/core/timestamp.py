@@ -104,6 +104,27 @@ def _format_coordinate_value(value: float, unit_str: str = "") -> str:
         return f"{value:.6f}".rstrip("0").rstrip(".") + suffix
 
 
+def _format_stamp_value(value: Any, unit_str: str = "") -> str:
+    """Format any C-Map output for display.
+
+    Numeric outputs reuse :func:`_format_coordinate_value` (optionally
+    suffixed with a unit); every other output -- string labels, mappings,
+    tuples -- renders via ``str`` so structured conversions surface intact.
+
+    Args:
+        value: The C-Map output to format.
+        unit_str: Unit appended to numeric values (empty for label maps).
+
+    Returns:
+        A display string, never in scientific notation for numeric values.
+    """
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, (int, float)):
+        return _format_coordinate_value(float(value), unit_str)
+    return str(value)
+
+
 # endregion
 
 
@@ -146,11 +167,30 @@ class TimeStampSource(Protocol):
         ...
 
     def _get_related_timeline_ids(self) -> list[str]:
-        """Get IDs of all related timelines (children/members)."""
+        """Get IDs of the direct related timelines (children/members)."""
+        ...
+
+    def _get_descendant_timeline_ids(self) -> list[str]:
+        """Get IDs of every timeline in the subtree (descendants/members).
+
+        Unlike ``_get_related_timeline_ids`` (direct relations only), this
+        reaches the full subtree so a timestamp can surface conversions
+        registered at any depth.
+        """
+        ...
+
+    def _get_conversion_maps_for_timeline(
+        self, timeline_id: str
+    ) -> "list[ConversionMap[Any]]":
+        """Get every conversion map attached to a timeline in the subtree.
+
+        Returns C-Maps of all kinds, including those with no ``target_unit``
+        (label and structured-value maps), so timestamps expose them.
+        """
         ...
 
     def _get_available_units(self) -> list["TimeUnit"]:
-        """Get all units available via C-Maps."""
+        """Get all units available via C-Maps across the subtree."""
         ...
 
     def _get_unit_for_timeline(self, timeline_id: str) -> "TimeUnit | None":
@@ -287,20 +327,38 @@ class Stamp(ABC):
             unit = TimeUnit.seconds
         return Coordinate(self.axis, unit)
 
-    def __getitem__(self, key: str) -> float | None:
-        """Get a timeline coordinate or a converted unit by name.
+    def get_conversion(self, key: str) -> Any:
+        """Get the raw output of a conversion map addressed by name/selector.
 
-        Timeline IDs are tried first, followed by unit-name resolution.
+        Base implementation resolves nothing; stamps backed by a timeline
+        subtree override this to expose every attached C-Map -- including
+        label and structured-value maps -- by name, id, selector, or
+        target-unit name.
 
         Args:
-            key: Timeline ID or unit name.
+            key: A conversion-map name, id, selector, or target-unit name.
 
         Returns:
-            The resolved coordinate, or None for an existing unit with no map.
+            The C-Map's output at this instant, or None if unreachable.
+        """
+        return None
+
+    def __getitem__(self, key: str) -> Any:
+        """Get a timeline coordinate, a converted unit, or a C-Map output.
+
+        Resolution order: timeline ID, then unit name, then conversion-map
+        name/selector. This makes every attached C-Map -- numeric or not --
+        reachable by subscript.
+
+        Args:
+            key: Timeline ID, unit name, or conversion-map name/selector.
+
+        Returns:
+            The resolved coordinate, unit conversion, or C-Map output. None
+            for an existing timeline/unit that has no value at this instant.
 
         Raises:
-            KeyError: If key is neither a timeline ID nor a unit name, or if
-                unit resolution is disabled for that unit.
+            KeyError: If key names nothing reachable at this instant.
         """
         result = self.get(key)
         if result is not None:
@@ -311,21 +369,34 @@ class Stamp(ABC):
         try:
             unit = TimeUnit(key)
         except ValueError:
+            conversion = self.get_conversion(key)
+            if conversion is not None:
+                return conversion
             raise KeyError(key) from None
 
-        if not self._unit_resolution_enabled(unit):
-            raise KeyError(key)
-        return self.get_unit(unit)
+        if self._unit_resolution_enabled(unit):
+            unit_value = self.get_unit(unit)
+            if unit_value is not None:
+                return unit_value
+        conversion = self.get_conversion(key)
+        if conversion is not None:
+            return conversion
+        raise KeyError(key)
 
     def _unit_resolution_enabled(self, unit: TimeUnit) -> bool:
         """Return whether the stamp's conversion-map spec permits a unit."""
         return True
 
     def _is_timeline_id(self, key: str) -> bool:
-        """Return whether key names the source or a related timeline."""
-        if key == self.source_id or self.source is None:
+        """Return whether key names the source or a subtree timeline."""
+        if self.source is None:
             return key == self.source_id
-        return key in self.source._get_related_timeline_ids()  # type: ignore[attr-defined]
+        if key == self.source_id:
+            return True
+        if key in self.source._get_related_timeline_ids():  # type: ignore[attr-defined]
+            return True
+        getter = getattr(self.source, "_get_descendant_timeline_ids", None)
+        return getter is not None and key in getter()
 
 
 # endregion
@@ -435,10 +506,10 @@ class TimeStamp(Stamp):
         directly regardless of concrete type (``TableMap``, ``ScalarMap``,
         ``LinearMap``, ``InterpolationMap``, ...).
 
-        For TimelineGroup sources, searches ALL member timelines for the C-Map,
-        first trying the source timeline, then others. This ensures that
-        timestamps always show C-Map conversions regardless of which timeline
-        is queried.
+        Searches the source and every descendant/member timeline for a C-Map
+        with this target unit, evaluating it at the timeline's own coordinate.
+        A timestamp therefore surfaces unit conversions registered at any
+        depth of the hierarchy, not just on the queried timeline.
 
         Args:
             unit: The target unit for conversion.
@@ -449,36 +520,174 @@ class TimeStamp(Stamp):
         if not self._unit_resolution_enabled(unit):
             return None
 
-        for timeline_id in [self.source_id, *self.source._get_related_timeline_ids()]:
+        for timeline_id in self._surfaceable_ids():
             umap = self.source._get_unit_map_for_timeline(timeline_id, unit)
             if umap is None:
                 continue
-            value = (
-                self.axis if timeline_id == self.source_id else self.get(timeline_id)
-            )
+            value = self._coordinate_on(timeline_id)
             if value is None:
                 continue
             return float(umap(value))
+        return None
+
+    def _surfaceable_ids(self) -> list[str]:
+        """Timeline IDs whose C-Maps this stamp surfaces: source, then subtree.
+
+        The source comes first, followed by every descendant (Timeline) or
+        member and member-descendant (TimelineGroup). Deeper relations are
+        gathered via ``_get_descendant_timeline_ids`` when the source exposes
+        it, otherwise the direct relations are used.
+        """
+        ids = [self.source_id]
+        getter = getattr(self.source, "_get_descendant_timeline_ids", None)
+        related = (
+            getter() if getter is not None else self.source._get_related_timeline_ids()
+        )
+        for timeline_id in related:
+            if timeline_id not in ids:
+                ids.append(timeline_id)
+        return ids
+
+    def _coordinate_on(self, timeline_id: str) -> float | None:
+        """Resolve this stamp's coordinate on *timeline_id* (source or subtree).
+
+        Falls back to the source's ``_descendant_coordinate`` when ``get``
+        cannot resolve a member-descendant directly (TimelineGroup case).
+        """
+        if timeline_id == self.source_id:
+            return self.axis
+        value = self.get(timeline_id)
+        if value is not None:
+            return value
+        resolver = getattr(self.source, "_descendant_coordinate", None)
+        if resolver is not None:
+            return resolver(timeline_id, self.axis, self.source_id)
+        return None
+
+    def _conversion_map_enabled(self, cmap: "ConversionMap[Any]") -> bool:
+        """Return whether the stamp's ``conversion_maps`` spec surfaces *cmap*."""
+        spec = self.conversion_maps
+        if spec is True:
+            return True
+        if spec is False or spec is None:
+            return False
+
+        requested = spec if isinstance(spec, list) else [spec]
+        for allowed in requested:
+            if isinstance(allowed, TimeUnit):
+                if cmap.target_unit == allowed:
+                    return True
+            elif isinstance(allowed, str):
+                try:
+                    if cmap.target_unit is not None and TimeUnit(allowed) == (
+                        cmap.target_unit
+                    ):
+                        return True
+                except ValueError:
+                    pass
+                if cmap.matches_selector(allowed):
+                    return True
+            elif isinstance(allowed, ConversionMap):
+                if allowed is cmap or allowed.id == cmap.id:
+                    return True
+        return False
+
+    def _conversion_rows(self) -> list[tuple[str, Any, str]]:
+        """Surface every C-Map across the cross-section.
+
+        Returns ``(label, value, suffix)`` for each conversion map attached to
+        the source or any descendant present at this axis, evaluated at that
+        timeline's coordinate. ``label`` is the map's target-unit name when it
+        has one, else the map's name; labels that collide across owners are
+        qualified with the owning timeline id. ``suffix`` is the unit appended
+        to numeric values in displays (empty for label/structured maps).
+        """
+        getter = getattr(self.source, "_get_conversion_maps_for_timeline", None)
+        if getter is None:
+            return []
+
+        collected: list[tuple[str, Any, str, str]] = []  # (label, value, suffix, owner)
+        for timeline_id in self._surfaceable_ids():
+            coord = self._coordinate_on(timeline_id)
+            if coord is None:
+                continue
+            for cmap in getter(timeline_id):
+                if not self._conversion_map_enabled(cmap):
+                    continue
+                try:
+                    value = cmap(coord)
+                except Exception:
+                    # A display cross-section never propagates a single map's
+                    # evaluation failure (e.g. a coordinate outside a map's
+                    # domain): that map is simply omitted from the row set.
+                    continue
+                if cmap.target_unit is not None:
+                    label = cmap.target_unit.value
+                    suffix = cmap.target_unit.value
+                else:
+                    label = cmap.name
+                    suffix = ""
+                collected.append((label, value, suffix, timeline_id))
+
+        counts: dict[str, int] = {}
+        for label, _value, _suffix, _owner in collected:
+            counts[label] = counts.get(label, 0) + 1
+
+        rows: list[tuple[str, Any, str]] = []
+        for label, value, suffix, owner in collected:
+            final_label = label if counts[label] == 1 else f"{owner}:{label}"
+            rows.append((final_label, value, suffix))
+        return rows
+
+    def get_conversion(self, key: str) -> Any:
+        """Get the raw output of a conversion map addressed by name/selector.
+
+        Searches the source and every descendant/member present at this axis
+        for a C-Map whose name, id, selector, or target-unit name is *key*, and
+        evaluates it at that timeline's coordinate.
+
+        Args:
+            key: A conversion-map name, id, selector, or target-unit name.
+
+        Returns:
+            The C-Map's output at this instant, or None if unreachable.
+        """
+        getter = getattr(self.source, "_get_conversion_maps_for_timeline", None)
+        if getter is None:
+            return None
+        for timeline_id in self._surfaceable_ids():
+            coord = self._coordinate_on(timeline_id)
+            if coord is None:
+                continue
+            for cmap in getter(timeline_id):
+                if not self._conversion_map_enabled(cmap):
+                    continue
+                matches = cmap.matches_selector(key) or cmap.name == key
+                if not matches and cmap.target_unit is not None:
+                    matches = cmap.target_unit.value == key
+                if matches:
+                    return cmap(coord)
         return None
 
     def to_dict(
         self,
         include_children: bool = True,
         conversion_units: list["TimeUnit"] | Literal["all"] | None = None,
-    ) -> dict[str, float | None]:
+    ) -> dict[str, Any]:
         """Materialize all coordinates as a dictionary.
 
         Args:
             include_children: Include child/member timeline coordinates.
-            conversion_units: C-Map target units to include.
+            conversion_units: C-Map conversions to include.
                 - None: No C-Map conversions
-                - "all": All available C-Maps
+                - "all": Every C-Map across the subtree, of every kind
+                  (unit conversions, labels, structured values)
                 - list: Specific units only
 
         Returns:
-            Dict mapping timeline_id/unit_name to coordinate value.
+            Dict mapping timeline_id/unit_name/cmap-label to value.
         """
-        result: dict[str, float | None] = {self.source_id: self.axis}
+        result: dict[str, Any] = {self.source_id: self.axis}
 
         # Add child/member coordinates
         if include_children:
@@ -487,8 +696,8 @@ class TimeStamp(Stamp):
 
         # Add C-Map conversions
         if conversion_units == "all":
-            for unit in self.source._get_available_units():
-                result[unit.name] = self.get_unit(unit)
+            for label, value, _suffix in self._conversion_rows():
+                result[label] = value
         elif conversion_units:
             for unit in conversion_units:
                 result[unit.name] = self.get_unit(unit)
@@ -510,10 +719,7 @@ class TimeStamp(Stamp):
         requested = spec if isinstance(spec, list) else [spec]
         maps = [
             self.source._get_unit_map_for_timeline(timeline_id, unit)
-            for timeline_id in [
-                self.source_id,
-                *self.source._get_related_timeline_ids(),
-            ]
+            for timeline_id in self._surfaceable_ids()
         ]
         maps = [cmap for cmap in maps if cmap is not None]
 
@@ -605,11 +811,9 @@ class TimeStamp(Stamp):
                     (tid, _format_coordinate_value(val, t_unit.value if t_unit else ""))
                 )
 
-        # C-Map conversions
-        for unit in self.source._get_available_units():
-            val = self.get_unit(unit)
-            if val is not None:
-                entries.append((unit.value, _format_coordinate_value(val, unit.value)))
+        # C-Map conversions (all kinds, across the whole subtree)
+        for label, value, suffix in self._conversion_rows():
+            entries.append((label, _format_stamp_value(value, suffix)))
 
         # Align fields
         if entries:
@@ -658,15 +862,14 @@ class TimeStamp(Stamp):
                     f"<td><em>child</em></td></tr>"
                 )
 
-        # Add C-Map conversions
-        for unit in self.source._get_available_units():
-            val = self.get_unit(unit)
-            if val is not None:
-                rows.append(
-                    f"<tr><td style='color: #666;'>{html.escape(unit.value)}</td>"
-                    f"<td style='text-align: right;'>{_fmt_html(val, unit.value)}</td>"
-                    f"<td style='color: #666;'><em>cmap</em></td></tr>"
-                )
+        # Add C-Map conversions (all kinds, across the whole subtree)
+        for label, value, suffix in self._conversion_rows():
+            rows.append(
+                f"<tr><td style='color: #666;'>{html.escape(label)}</td>"
+                f"<td style='text-align: right;'>"
+                f"{html.escape(_format_stamp_value(value, suffix))}</td>"
+                f"<td style='color: #666;'><em>cmap</em></td></tr>"
+            )
 
         interp_badge = (
             " <span style='background: #ffeb3b; padding: 0 4px; "
@@ -686,7 +889,7 @@ class TimeStamp(Stamp):
             f"</tr></thead>"
             f"<tbody>{''.join(rows)}</tbody>"
             f"</table>"
-            f"{affordance_line(['ts.get(<tl_id>)', 'ts.get_unit(<unit>)'])}"
+            f"{affordance_line(['ts.get(<tl_id>)', 'ts.get_unit(<unit>)', 'ts[<cmap>]'])}"
             f"</div>"
         )
 
@@ -935,20 +1138,32 @@ class TimeIntervalStamp:
             suffix = t_unit.value if t_unit else ""
             rows.append((tid, _fmt(s, suffix), _fmt(e, suffix), suffix))
 
-        # C-Map units
-        for cmap_unit in self.source._get_available_units():
-            s = self.start.get_unit(cmap_unit)
-            e = self.end.get_unit(cmap_unit)
-            if s is None and e is None:
-                continue
-            rows.append(
-                (
-                    cmap_unit.value,
-                    _fmt(s, cmap_unit.value),
-                    _fmt(e, cmap_unit.value),
-                    "",
-                )
-            )
+        # C-Map conversions (all kinds, across the whole subtree)
+        def _fmt_any(value: object | None, suffix: str) -> str:
+            """Format a C-Map endpoint; ``None`` becomes ``-``."""
+            if value is None:
+                return "-"
+            if isinstance(value, bool):
+                return str(value)
+            if isinstance(value, (int, float)):
+                return _fmt(value, suffix)
+            return str(value)
+
+        start_rows = {
+            label: (value, suffix)
+            for label, value, suffix in self.start._conversion_rows()
+        }
+        end_rows = {
+            label: (value, suffix)
+            for label, value, suffix in self.end._conversion_rows()
+        }
+        ordered_labels = list(start_rows) + [
+            label for label in end_rows if label not in start_rows
+        ]
+        for label in ordered_labels:
+            s_val, suffix = start_rows.get(label, (None, end_rows[label][1]))
+            e_val = end_rows.get(label, (None, ""))[0]
+            rows.append((label, _fmt_any(s_val, suffix), _fmt_any(e_val, suffix), ""))
 
         # Align fields
         if rows:

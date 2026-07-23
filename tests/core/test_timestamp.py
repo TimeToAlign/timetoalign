@@ -9,8 +9,8 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.core import TimeIntervalStamp, TimeUnit
-from timetoalign.maps import TableMap
-from timetoalign.timelines import Timeline
+from timetoalign.maps import IntervalToConstantMap, TableMap
+from timetoalign.timelines import Timeline, TimelineGroup
 
 
 class TestTimeStampBasics:
@@ -642,3 +642,223 @@ class TestTimeStampReprHtml:
             "<code>ts.get_unit(&lt;unit&gt;)</code>" in html
         )
         assert html.index("</table>") < html.index("Try:")
+
+
+class TestTimeStampCrossSectionConversions:
+    """Timestamps surface every C-Map across the whole subtree (Contract §4).
+
+    A timestamp is a cross-section, so it must expose ALL attached conversion
+    maps -- including maps with no ``target_unit`` (labels, structured values)
+    and maps registered on any descendant -- not merely the ``TimeUnit``-keyed
+    subset. Exact expected values only (Contract §12).
+    """
+
+    @staticmethod
+    def _parent_with_label_child() -> tuple[Timeline, Timeline]:
+        """Parent [0,40) with a child at offset 10 carrying a label map.
+
+        Child coordinate ``x`` maps: ``[0,5) -> {"page": 1}``,
+        ``[5,12) -> {"page": 2}``, ``[12,20) -> {"page": 3}``.
+        """
+        parent = Timeline(length=40, unit=TimeUnit.quarters, uid="p")
+        child = Timeline(length=20, unit=TimeUnit.quarters, uid="c")
+        parent.add_child(child, offset=10)
+        child.add_conversion_map(
+            IntervalToConstantMap(
+                boundaries=[0, 5, 12],
+                values=[{"page": 1}, {"page": 2}, {"page": 3}],
+                source_unit=TimeUnit.quarters,
+                name="pages",
+            )
+        )
+        return parent, child
+
+    def test_non_unit_map_on_source_surfaces(self):
+        """A ``target_unit``-less map on the source surfaces everywhere."""
+        tl = Timeline(length=40, unit=TimeUnit.quarters, uid="tl")
+        tl.add_conversion_map(
+            IntervalToConstantMap(
+                boundaries=[0, 20],
+                values=["intro", "main"],
+                source_unit=TimeUnit.quarters,
+                name="section",
+            )
+        )
+        ts = tl.get_timestamp(25)  # [20, .) -> "main"
+
+        assert ts["section"] == "main"
+        assert ts.get_conversion("section") == "main"
+        assert ts.to_dict(conversion_units="all")["section"] == "main"
+        rendered = str(ts)
+        assert "section" in rendered
+        assert "main" in rendered
+
+    def test_direct_child_map_surfaces_on_parent(self):
+        """A label map on a direct child surfaces on the parent's timestamp."""
+        parent, _child = self._parent_with_label_child()
+        ts = parent.get_timestamp(17)  # 17 -> child 7 -> [5,12) -> {"page": 2}
+
+        assert ts["pages"] == {"page": 2}
+        assert ts.get_conversion("pages") == {"page": 2}
+        assert ts.to_dict(conversion_units="all")["pages"] == {"page": 2}
+
+    def test_grandchild_map_surfaces(self):
+        """A label map on a grandchild surfaces via composed offset arithmetic."""
+        parent, child = self._parent_with_label_child()
+        grand = Timeline(length=8, unit=TimeUnit.quarters, uid="g")
+        child.add_child(grand, offset=3)
+        grand.add_conversion_map(
+            IntervalToConstantMap(
+                boundaries=[0, 4],
+                values=["A", "B"],
+                source_unit=TimeUnit.quarters,
+                name="accolade",
+            )
+        )
+        ts = parent.get_timestamp(17)  # 17 -> child 7 -> grand 4 -> [4, .) -> "B"
+
+        assert ts.get(grand.id) == 4.0
+        assert ts["accolade"] == "B"
+        assert ts.to_dict(conversion_units="all")["accolade"] == "B"
+
+    def test_descendant_unit_map_surfaces_via_get_unit(self):
+        """A ``TimeUnit`` map on a child surfaces through the parent's get_unit."""
+        parent = Timeline(length=40, unit=TimeUnit.quarters, uid="p2")
+        child = Timeline(length=20, unit=TimeUnit.quarters, uid="c2")
+        parent.add_child(child, offset=10)
+        child.add_conversion_map(
+            TableMap(
+                x_values=[0, 20],
+                y_values=[0.0, 10.0],  # child 10 -> 5.0 seconds
+                source_unit=TimeUnit.quarters,
+                target_unit=TimeUnit.seconds,
+            )
+        )
+        ts = parent.get_timestamp(20)  # child coordinate 10
+
+        assert TimeUnit.seconds in parent._get_available_units()
+        assert ts.get_unit(TimeUnit.seconds) == pytest.approx(5.0)
+        assert ts["seconds"] == pytest.approx(5.0)
+
+    def test_non_numeric_value_not_coerced(self):
+        """Structured/label outputs render as themselves, never through float."""
+        parent, _child = self._parent_with_label_child()
+        ts = parent.get_timestamp(11)  # child 1 -> [0,5) -> {"page": 1}
+
+        assert ts["pages"] == {"page": 1}
+        assert "{'page': 1}" in str(ts)
+
+    def test_collision_qualified_by_owner(self):
+        """Two children present at one axis, same label, are qualified by owner."""
+        parent = Timeline(length=40, unit=TimeUnit.quarters, uid="root")
+        left = Timeline(length=20, unit=TimeUnit.quarters, uid="left")
+        right = Timeline(length=20, unit=TimeUnit.quarters, uid="right")
+        # Overlapping spans: left [0,20), right [5,25); axis 10 is inside both.
+        parent.add_child(left, offset=0)
+        parent.add_child(right, offset=5)
+        for child in (left, right):
+            child.add_conversion_map(
+                IntervalToConstantMap(
+                    boundaries=[0],
+                    values=[child.id],
+                    source_unit=TimeUnit.quarters,
+                    name="tag",
+                )
+            )
+        ts = parent.get_timestamp(10)  # both children present -> label collision
+        rendered = str(ts)
+        assert "left:tag" in rendered
+        assert "right:tag" in rendered
+        assert ts.get_conversion("tag") == "left"  # first owner in subtree order
+
+    def test_conversion_maps_false_suppresses(self):
+        """conversion_maps=False surfaces no conversions at all."""
+        tl = Timeline(length=40, unit=TimeUnit.quarters, uid="tl")
+        tl.add_conversion_map(
+            IntervalToConstantMap(
+                boundaries=[0],
+                values=["x"],
+                source_unit=TimeUnit.quarters,
+                name="lbl",
+            )
+        )
+        ts = tl.get_timestamp(10, conversion_maps=False)
+
+        assert ts.get_conversion("lbl") is None
+        assert ts.to_dict(conversion_units="all") == {"tl": 10.0}
+        with pytest.raises(KeyError):
+            ts["lbl"]
+
+    def test_selector_list_surfaces_only_matching_maps(self):
+        """conversion_maps=[selector] surfaces only the maps it names."""
+        tl = Timeline(length=40, unit=TimeUnit.quarters, uid="tl")
+        tl.add_conversion_map(
+            IntervalToConstantMap(
+                boundaries=[0],
+                values=["shown"],
+                source_unit=TimeUnit.quarters,
+                name="wanted",
+            )
+        )
+        tl.add_conversion_map(
+            IntervalToConstantMap(
+                boundaries=[0],
+                values=["hidden"],
+                source_unit=TimeUnit.quarters,
+                name="other",
+            )
+        )
+        ts = tl.get_timestamp(10, conversion_maps=["wanted"])
+
+        assert ts.to_dict(conversion_units="all") == {"tl": 10.0, "wanted": "shown"}
+        assert ts.get_conversion("wanted") == "shown"
+        assert ts.get_conversion("other") is None
+        with pytest.raises(KeyError):
+            ts["other"]
+
+    def test_unknown_subscript_raises_keyerror(self):
+        """An unknown subscript key raises KeyError."""
+        tl = Timeline(length=40, unit=TimeUnit.quarters, uid="tl")
+        ts = tl.get_timestamp(10)
+
+        with pytest.raises(KeyError):
+            ts["does_not_exist"]
+
+    def test_group_member_map_surfaces(self):
+        """A label map on a group member surfaces on the group's timestamp."""
+        audio = Timeline(length=100, unit=TimeUnit.seconds, uid="audio")
+        score = Timeline(length=40, unit=TimeUnit.quarters, uid="score")
+        score.add_conversion_map(
+            IntervalToConstantMap(
+                boundaries=[0, 20],
+                values=["intro", "main"],
+                source_unit=TimeUnit.quarters,
+                name="section",
+            )
+        )
+        group = TimelineGroup(name="g", timelines=[audio, score])
+        ts = group.get_timestamp_at(25, "score")  # score 25 -> "main"
+
+        assert ts["section"] == "main"
+        assert ts.get_conversion("section") == "main"
+
+    def test_group_member_descendant_map_surfaces(self):
+        """A map on a member's child surfaces on the group's timestamp."""
+        audio = Timeline(length=100, unit=TimeUnit.seconds, uid="audio2")
+        score = Timeline(length=40, unit=TimeUnit.quarters, uid="score2")
+        phrase = Timeline(length=10, unit=TimeUnit.quarters, uid="phrase2")
+        score.add_child(phrase, offset=15)
+        phrase.add_conversion_map(
+            IntervalToConstantMap(
+                boundaries=[0, 5],
+                values=["x", "y"],
+                source_unit=TimeUnit.quarters,
+                name="phraselabel",
+            )
+        )
+        group = TimelineGroup(name="g", timelines=[audio, score])
+        ts = group.get_timestamp_at(
+            22, "score2"
+        )  # score 22 -> phrase 7 -> [5,.) -> "y"
+
+        assert ts["phraselabel"] == "y"

@@ -241,13 +241,42 @@ The ID system ensures:
 
 6. **TimeStampSource Protocol** (4 tests)
    - Timeline implements required methods
-   - `_get_related_timeline_ids()` returns child IDs
-   - `_get_available_units()` returns C-Map targets
+   - `_get_related_timeline_ids()` returns direct child IDs
+   - `_get_descendant_timeline_ids()` returns the full subtree
+   - `_get_available_units()` aggregates C-Map targets across the subtree
 
 7. **TimeStampReprHtml** (2 tests)
    - `_repr_html_` still renders the coordinate cross-section table
    - `_repr_html_` appends an affordance `Try` footer after the table
      surfacing the real accessors (`ts.get(<tl_id>)` / `ts.get_unit(<unit>)`)
+
+8. **TimeStampCrossSectionConversions** — every C-Map surfaces, at any depth
+   - A conversion map with **no `target_unit`** (a label or structured-value
+     map such as `IntervalToConstantMap`) surfaces in `__str__`, `to_dict`,
+     subscript, and `get_conversion` — not only `TimeUnit`-targeted maps. This
+     is the core-contract requirement: a timestamp is a cross-section, so it
+     exposes ALL attached conversions, not just the numeric-unit subset.
+   - A C-Map registered on a **direct child** surfaces on the parent's
+     timestamp, evaluated at the child's own coordinate.
+   - A C-Map registered on a **grandchild** (deeper descendant) likewise
+     surfaces, evaluated at the descendant coordinate reached by exact,
+     composed offset arithmetic. A stop-at-direct-children design would still
+     hide these — the whole subtree is walked.
+   - **Non-numeric outputs render intact**: a mapping/label value appears as
+     itself (e.g. `{'page': 2}`, `'B'`), never coerced through `float`.
+   - **Subscript by map name/selector**: `ts["<cmap-name>"]` returns the raw
+     C-Map output; an unknown key raises `KeyError`.
+   - **Collision qualification**: when two present timelines expose the same
+     label, both are qualified as `"{owner_id}:{label}"`.
+   - **`conversion_maps` gating** still applies — `conversion_maps=False`
+     suppresses every surfaced conversion; a selector list surfaces only the
+     matching maps.
+
+   Design change recorded here (Contract §4 "C-Map visibility"): the earlier
+   `TimeUnit`-only surfacing hid non-unit maps and every descendant's maps.
+   `add_conversion_map` still indexes `TimeUnit`-targeted maps in `_unit_maps`
+   for `convert_to`/`get_conversion_map`, but timestamps now surface the full
+   `_conversion_maps` set across the subtree via `_conversion_rows()`.
 
 **Validity Rationale:**
 

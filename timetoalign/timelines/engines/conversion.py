@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fractions import Fraction
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterator
 
 import numpy as np
 
@@ -313,6 +313,16 @@ class ConversionMapsMixin:
         """
         offset = self._child_offsets.get(child_id)
         if offset is None:
+            # Not a direct child: descend into whichever direct child owns
+            # *child_id* deeper in the subtree, composing offsets exactly at
+            # each level. Returns None if the coordinate leaves any span.
+            for cid, child in self._children.items():
+                if child._find_descendant(child_id) is None:
+                    continue
+                direct_coord = self._get_child_coordinate(cid, parent_coord)
+                if direct_coord is None:
+                    return None
+                return child._get_child_coordinate(child_id, direct_coord)
             return None
         child = self._children[child_id]
         parent_exact = exact_coordinate_value(parent_coord)
@@ -396,40 +406,93 @@ class ConversionMapsMixin:
     def _get_unit_map_for_timeline(
         self, timeline_id: str, unit: TimeUnit
     ) -> ConversionMap[Any] | None:
-        """Get a C-Map for this timeline when it is the source timeline."""
-        if timeline_id != self._id:
+        """Get a unit C-Map attached to this timeline or any descendant.
+
+        A timestamp is a cross-section, so a C-Map registered on a child
+        (or deeper descendant) is reachable through the ancestor whose
+        ``get_timestamp`` produced the stamp.
+        """
+        timeline = self._find_descendant(timeline_id)
+        if timeline is None:
             return None
-        return self._get_unit_map(unit)
+        return timeline._get_unit_map(unit)
 
     def _get_number_type_for_timeline(self, timeline_id: str) -> NumberType | None:
-        """Get the numeric representation used by this timeline or child."""
-        if timeline_id == self._id:
-            return self._number_type
-        child = self._children.get(timeline_id)
-        return child.number_type if child is not None else None
+        """Get the numeric representation used by this timeline or a descendant."""
+        timeline = self._find_descendant(timeline_id)
+        return timeline._number_type if timeline is not None else None
 
     def _get_related_timeline_ids(self) -> list[str]:
-        """Get IDs of all related timelines (children).
+        """Get IDs of the direct child timelines.
 
-        This method is part of the TimeStampSource protocol.
+        This method is part of the TimeStampSource protocol. It reports only
+        the immediate children (the rows a timestamp lists as its
+        cross-section); deeper descendants are reached through
+        :meth:`_get_descendant_timeline_ids`.
 
         Returns:
-            List of child timeline IDs.
+            List of direct child timeline IDs.
         """
         return list(self._children.keys())
 
-    def _get_available_units(self) -> list[TimeUnit]:
-        """Get all units available via C-Maps.
+    def _iter_descendants(self) -> "Iterator[tuple[str, Timeline]]":
+        """Yield ``(id, timeline)`` for every descendant, depth-first."""
+        for child_id, child in self._children.items():
+            yield child_id, child
+            yield from child._iter_descendants()
 
-        This method is part of the TimeStampSource protocol.
+    def _find_descendant(self, timeline_id: str) -> "Timeline | None":
+        """Return this timeline or the descendant with *timeline_id*, else None."""
+        if timeline_id == self._id:
+            return self  # type: ignore[return-value]
+        for descendant_id, descendant in self._iter_descendants():
+            if descendant_id == timeline_id:
+                return descendant
+        return None
+
+    def _get_descendant_timeline_ids(self) -> list[str]:
+        """Get IDs of every descendant timeline (children, recursively).
+
+        This method is part of the TimeStampSource protocol. Timestamps use
+        it to surface conversions from the full subtree, not just the direct
+        children reported by :meth:`_get_related_timeline_ids`.
+        """
+        return [descendant_id for descendant_id, _ in self._iter_descendants()]
+
+    def _get_conversion_maps_for_timeline(
+        self, timeline_id: str
+    ) -> list[ConversionMap[Any]]:
+        """Get every conversion map attached to a timeline in the subtree.
+
+        This method is part of the TimeStampSource protocol. Unlike
+        :meth:`_get_unit_map_for_timeline`, it returns C-Maps of *all* kinds
+        -- including those with no ``target_unit`` (label and structured-value
+        maps) -- so a timestamp exposes them as a full cross-section.
+        """
+        timeline = self._find_descendant(timeline_id)
+        if timeline is None:
+            return []
+        return list(timeline._conversion_maps.values())
+
+    def _get_available_units(self) -> list[TimeUnit]:
+        """Get all target units available via C-Maps across the subtree.
+
+        This method is part of the TimeStampSource protocol. It aggregates the
+        target units of this timeline and every descendant so that unit-based
+        conversions surface regardless of which level registered the C-Map.
 
         Returns:
             List of target units available for conversion.
         """
-        return list(self._unit_maps.keys())
+        units: list[TimeUnit] = list(self._unit_maps.keys())
+        for _, descendant in self._iter_descendants():
+            for unit in descendant._unit_maps.keys():
+                if unit not in units:
+                    units.append(unit)
+        return units
 
     def _get_unit_for_timeline(self, timeline_id: str) -> TimeUnit | None:
-        """Get the TimeUnit for a timeline in the hierarchy.
+        """Get the TimeUnit for a timeline anywhere in the subtree.
 
         This method is part of the TimeStampSource protocol. It enables
         TimeStamp to construct proper Coordinate objects with correct units.
@@ -440,14 +503,8 @@ class ConversionMapsMixin:
         Returns:
             The TimeUnit for the timeline, or None if not found.
         """
-        if timeline_id == self._id:
-            return self._unit
-
-        # Check children
-        if timeline_id in self._children:
-            return self._children[timeline_id].unit
-
-        return None
+        timeline = self._find_descendant(timeline_id)
+        return timeline._unit if timeline is not None else None
 
     def _contains_coordinate(
         self, timeline_id: str, axis: float, source_id: str | None = None
@@ -470,11 +527,21 @@ class ConversionMapsMixin:
         """
         if timeline_id == self._id:
             return True
-        if timeline_id not in self._child_offsets:
-            return False
-        offset = float(self._child_offsets[timeline_id].value)
-        length = float(self._children[timeline_id].length.value)
-        return offset <= axis < offset + length
+        if timeline_id in self._child_offsets:
+            offset = float(self._child_offsets[timeline_id].value)
+            length = float(self._children[timeline_id].length.value)
+            return offset <= axis < offset + length
+        # Deeper descendant: the axis must stay inside every span on the way
+        # down. Find the direct child that owns *timeline_id* and recurse.
+        for cid, child in self._children.items():
+            if child._find_descendant(timeline_id) is None:
+                continue
+            offset = float(self._child_offsets[cid].value)
+            length = float(child.length.value)
+            if not (offset <= axis < offset + length):
+                return False
+            return child._contains_coordinate(timeline_id, axis - offset, child._id)
+        return False
 
     def resolve_coordinate(self, coord: CoordinateSpec) -> Coordinate:
         """Resolve a coordinate into this timeline's coordinate system.
