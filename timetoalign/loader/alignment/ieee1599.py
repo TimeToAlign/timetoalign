@@ -81,10 +81,11 @@ itself, so the whole mapping is read there and no path is ever resolved.
 Page-image coordinates are measured in pixels (``measurement_unit="pixels"``
 on every ``<graphic_instance>``). They are rounded to integer pixels using
 round-half-even for the graphical SegmentLine and its child timelines; the
-verbatim ``upper_left_x`` attribute remains in the
-``source_upper_left_x`` event field. Each graphical event's integer box is a
-raw ``bbox`` struct with ``ul`` / ``lr`` and ``x`` / ``y`` members. The page
-image file name is available from the SegmentLine's interval-to-constant map.
+verbatim source box is retained as the float ``source_bbox`` event field when
+any of its four coordinates is fractional; it is omitted when all four are
+integral. Each graphical event's integer box is a raw ``bbox`` struct with
+``ul`` / ``lr`` and ``x`` / ``y`` members. The page image file name is
+available from the SegmentLine's interval-to-constant map.
 
 **Known limitations.**
 
@@ -276,6 +277,90 @@ def _table_from_rows(rows: list[dict[str, Any]]) -> pa.Table:
     return pa.table({key: [row[key] for row in rows] for key in rows[0]})
 
 
+_BOX_SCHEMA = pa.struct(
+    [
+        pa.field(
+            "ul", pa.struct([pa.field("x", pa.int64()), pa.field("y", pa.int64())])
+        ),
+        pa.field(
+            "lr", pa.struct([pa.field("x", pa.int64()), pa.field("y", pa.int64())])
+        ),
+    ]
+)
+
+_SOURCE_BOX_SCHEMA = pa.struct(
+    [
+        pa.field(
+            "ul", pa.struct([pa.field("x", pa.float64()), pa.field("y", pa.float64())])
+        ),
+        pa.field(
+            "lr", pa.struct([pa.field("x", pa.float64()), pa.field("y", pa.float64())])
+        ),
+    ]
+)
+
+_EMPTY_CURATED_SCHEMAS = {
+    "spine": pa.schema(
+        [
+            pa.field("id", pa.string()),
+            pa.field("event_type", pa.string()),
+            pa.field("instant", pa.int64()),
+            pa.field("hpos", pa.int64()),
+        ]
+    ),
+    "los": pa.schema(
+        [
+            pa.field("event_type", pa.string()),
+            pa.field("instant", pa.int64()),
+            pa.field("event_ref", pa.string()),
+            pa.field("part", pa.string()),
+            pa.field("staff", pa.string()),
+            pa.field("voice", pa.string()),
+            pa.field("measure", pa.string()),
+            pa.field("notehead_index", pa.int64()),
+            pa.field("duration_num", pa.int64()),
+            pa.field("duration_den", pa.int64()),
+            pa.field("tuplet_enter_num", pa.int64()),
+            pa.field("tuplet_enter_den", pa.int64()),
+            pa.field("tuplet_in_num", pa.int64()),
+            pa.field("tuplet_in_den", pa.int64()),
+            pa.field("augmentation_dots", pa.int64()),
+            pa.field("step", pa.string()),
+            pa.field("octave", pa.int64()),
+            pa.field("actual_accidental", pa.string()),
+            pa.field("printed_accidental", pa.string()),
+            pa.field("tie", pa.bool_()),
+            pa.field("text", pa.string()),
+            pa.field("hyphen", pa.string()),
+        ]
+    ),
+    "notational": pa.schema(
+        [
+            pa.field("timeline_uid", pa.string()),
+            pa.field("edition", pa.string()),
+            pa.field("event_type", pa.string()),
+            pa.field("start", pa.int64()),
+            pa.field("end", pa.int64()),
+            pa.field("event_ref", pa.string()),
+            pa.field("bbox", _BOX_SCHEMA),
+            pa.field("source_bbox", _SOURCE_BOX_SCHEMA),
+            pa.field("file_name", pa.string()),
+            pa.field("position_in_group", pa.int64()),
+        ]
+    ),
+    "audio": pa.schema(
+        [
+            pa.field("timeline_uid", pa.string()),
+            pa.field("track", pa.string()),
+            pa.field("event_type", pa.string()),
+            pa.field("instant", pa.float64()),
+            pa.field("event_ref", pa.string()),
+            pa.field("file_name", pa.string()),
+        ]
+    ),
+}
+
+
 # endregion
 
 
@@ -304,7 +389,8 @@ class Ieee1599Loader(XmlLoader):
     ``structural`` — rather than the generic tag-flattening its ``XmlLoader``
     base performs; the layers are too differently shaped for one
     auto-detected schema to describe them.  A layer the document does not
-    state gets no table.
+    state gets no table, except that ``spine``, ``los``, ``notational`` and
+    ``audio`` are always present with their stable schema, even when empty.
 
     Examples:
         >>> loader = Ieee1599Loader.from_file("gymnopedie_01.xml")
@@ -733,6 +819,12 @@ class Ieee1599Loader(XmlLoader):
                 self._read_graphic_instance(instance, spec)
             self._set_graphic_claim_coordinates(spec)
             spec.rows = _prune_columns(spec.rows)
+            if spec.rows:
+                keys = spec.rows[0].keys()
+                for segment in spec.segments:
+                    segment.rows = [
+                        {key: row[key] for key in keys} for row in segment.rows
+                    ]
             self._editions.append(spec)
 
     @staticmethod
@@ -788,7 +880,7 @@ class Ieee1599Loader(XmlLoader):
     def _graphic_row(
         self, graphic: ET.Element, page: dict[str, Any]
     ) -> dict[str, Any] | None:
-        """Build one graphical event with an integer raw bounding-box struct."""
+        """Build one graphical event with integer and conditional source boxes."""
         ulx = _rounded_pixel(graphic.get("upper_left_x"))
         uly = _rounded_pixel(graphic.get("upper_left_y"))
         lrx = _rounded_pixel(graphic.get("lower_right_x"))
@@ -802,16 +894,33 @@ class Ieee1599Loader(XmlLoader):
         assert (
             ulx is not None and uly is not None and lrx is not None and lry is not None
         )
-        return {
+        source_coordinates = tuple(
+            _float_or_none(graphic.get(name))
+            for name in (
+                "upper_left_x",
+                "upper_left_y",
+                "lower_right_x",
+                "lower_right_y",
+            )
+        )
+        assert all(value is not None for value in source_coordinates)
+        source_ulx, source_uly, source_lrx, source_lry = source_coordinates
+        row: dict[str, Any] = {
             "event_type": "GraphicEvent",
             "start": ulx,
             "end": lrx,
             "event_ref": graphic.get("event_ref"),
             "bbox": {"ul": {"x": ulx, "y": uly}, "lr": {"x": lrx, "y": lry}},
-            "source_upper_left_x": graphic.get("upper_left_x"),
+            "source_bbox": None,
             "file_name": page["file_name"],
             "position_in_group": page["position_in_group"],
         }
+        if any(value % 1 for value in source_coordinates):
+            row["source_bbox"] = {
+                "ul": {"x": source_ulx, "y": source_uly},
+                "lr": {"x": source_lrx, "y": source_lry},
+            }
+        return row
 
     def _read_audio(self, root: ET.Element) -> None:
         """Read one physical timeline per ``<track>``.
@@ -1019,8 +1128,20 @@ class Ieee1599Loader(XmlLoader):
 
     def _store_tables(self) -> None:
         """Publish one curated table per layer into the ``DictStore``."""
-        self._add_table("spine", self._spine_rows, TimeUnit.ticks, NumberType.int)
-        self._add_table("los", self._los_rows, TimeUnit.ticks, NumberType.int)
+        self._add_table(
+            "spine",
+            self._spine_rows,
+            TimeUnit.ticks,
+            NumberType.int,
+            empty_schema=_EMPTY_CURATED_SCHEMAS["spine"],
+        )
+        self._add_table(
+            "los",
+            self._los_rows,
+            TimeUnit.ticks,
+            NumberType.int,
+            empty_schema=_EMPTY_CURATED_SCHEMAS["los"],
+        )
         self._add_table("staff_list", self._staff_rows, TimeUnit.ticks, NumberType.int)
         self._add_table(
             "notational",
@@ -1031,6 +1152,7 @@ class Ieee1599Loader(XmlLoader):
             ],
             _GRAPHIC_UNIT,
             NumberType.int,
+            empty_schema=_EMPTY_CURATED_SCHEMAS["notational"],
         )
         self._add_table(
             "audio",
@@ -1041,6 +1163,7 @@ class Ieee1599Loader(XmlLoader):
             ],
             TimeUnit.seconds,
             NumberType.float,
+            empty_schema=_EMPTY_CURATED_SCHEMAS["audio"],
         )
         # The structural layer states references, not coordinates; the table
         # is unit-less in substance and carries the spine's own unit only
@@ -1055,9 +1178,18 @@ class Ieee1599Loader(XmlLoader):
         rows: list[dict[str, Any]],
         unit: TimeUnit,
         number_type: NumberType,
+        empty_schema: pa.Schema | None = None,
     ) -> None:
         """Wrap one curated row set as ``EventData`` under *name*."""
         if not rows:
+            if empty_schema is None:
+                return
+            self._store.add(
+                name,
+                EventData(
+                    pa.Table.from_pylist([], schema=empty_schema), unit, number_type
+                ),
+            )
             return
         self._store.add(name, EventData(_table_from_rows(rows), unit, number_type))
 

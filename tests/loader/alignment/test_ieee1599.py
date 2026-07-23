@@ -283,17 +283,21 @@ class TestTimelineIdentity:
         assert (edition.unit, edition.number_type) == (TimeUnit.pixels, NumberType.int)
         assert (track.unit, track.number_type) == (TimeUnit.seconds, NumberType.float)
 
-    def test_graphical_timeline_rounds_pixels_and_keeps_source_value(
+    def test_graphical_timeline_rounds_pixels_and_keeps_source_bbox(
         self, ieee1599_loader
     ) -> None:
-        """Discrete coordinates use half-even rounding while source text remains."""
+        """Discrete coordinates round while fractional source values remain."""
         edition = ieee1599_loader("animals").create_timeline("farm_picture:dgt1")
         cow = _rows(_graphical_events(edition), event_ref="event_cow")[0]
 
         assert edition.unit == TimeUnit.pixels
         assert edition.number_type == NumberType.int
         assert _coordinate(cow) == 993.0
-        assert cow["source_upper_left_x"] == "992.96"
+        assert cow["source_bbox"] == {
+            "ul": {"x": 992.96, "y": 263.32},
+            "lr": {"x": 1206.4, "y": 448.92},
+        }
+        assert "source_upper_left_x" not in _graphical_events(edition).column_names
 
     def test_graphical_timeline_records_the_declared_measurement_unit(
         self, ieee1599_loader
@@ -496,6 +500,14 @@ class TestNotationalLayer:
         assert "upper_left_y" not in events.column_names
         assert "lower_right_y" not in events.column_names
         assert cow["file_name"] == "score_files/farm_picture/animal_colors.jpg"
+
+    def test_integral_boxes_omit_the_source_bbox(self, ieee1599_loader) -> None:
+        """Verbatim boxes are stored only when rounding would lose precision."""
+        edition = ieee1599_loader("gymnopedie").create_timeline(
+            "eng_montreal_les_editions_outremontaises_2006:dgt1"
+        )
+
+        assert "source_bbox" not in _graphical_events(edition).column_names
 
     def test_pages_are_identified_on_every_box(self, ieee1599_loader) -> None:
         """Four pages per gymnopédie edition, recoverable per box."""
@@ -973,6 +985,70 @@ class TestLoaderContract:
 
         assert loader.spine_uid == "spine:dlt1"
         assert len(loader) == 59
+
+    def test_empty_curated_layers_have_stable_tables(self) -> None:
+        """The four primary layers exist even when their XML content is empty."""
+        loader = Ieee1599Loader().load_string(
+            "<ieee1599><logic><spine /></logic><notational /><audio /></ieee1599>"
+        )
+
+        assert loader.keys() == ["spine", "los", "notational", "audio"]
+        assert {name: table.table.num_rows for name, table in loader.store.items()} == {
+            "spine": 0,
+            "los": 0,
+            "notational": 0,
+            "audio": 0,
+        }
+        assert loader.store["spine"].table.schema.names == [
+            "id",
+            "event_type",
+            "instant",
+            "hpos",
+        ]
+        assert loader.store["los"].table.schema.names == [
+            "event_type",
+            "instant",
+            "event_ref",
+            "part",
+            "staff",
+            "voice",
+            "measure",
+            "notehead_index",
+            "duration_num",
+            "duration_den",
+            "tuplet_enter_num",
+            "tuplet_enter_den",
+            "tuplet_in_num",
+            "tuplet_in_den",
+            "augmentation_dots",
+            "step",
+            "octave",
+            "actual_accidental",
+            "printed_accidental",
+            "tie",
+            "text",
+            "hyphen",
+        ]
+        assert loader.store["notational"].table.schema.names == [
+            "timeline_uid",
+            "edition",
+            "event_type",
+            "start",
+            "end",
+            "event_ref",
+            "bbox",
+            "source_bbox",
+            "file_name",
+            "position_in_group",
+        ]
+        assert loader.store["audio"].table.schema.names == [
+            "timeline_uid",
+            "track",
+            "event_type",
+            "instant",
+            "event_ref",
+            "file_name",
+        ]
 
     def test_methods_before_load(self) -> None:
         """The two-phase contract is enforced, not assumed."""
