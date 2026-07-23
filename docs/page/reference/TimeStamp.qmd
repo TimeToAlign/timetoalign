@@ -44,6 +44,7 @@ Examples:
 | Name | Description |
 | --- | --- |
 | [get](#timetoalign.TimeStamp.get) | Get coordinate on another timeline. |
+| [get_conversion](#timetoalign.TimeStamp.get_conversion) | Get the raw output of a conversion map addressed by name/selector. |
 | [get_unit](#timetoalign.TimeStamp.get_unit) | Get coordinate converted to a specific unit. |
 | [to_dict](#timetoalign.TimeStamp.to_dict) | Materialize all coordinates as a dictionary. |
 
@@ -72,6 +73,24 @@ Returns:
     Coordinate on the target timeline, or *default* if not
     reachable or the axis is outside the target's span.
 
+### get_conversion { #timetoalign.TimeStamp.get_conversion }
+
+```python
+TimeStamp.get_conversion(key)
+```
+
+Get the raw output of a conversion map addressed by name/selector.
+
+Searches the source and every descendant/member present at this axis
+for a C-Map whose name, id, selector, or target-unit name is *key*, and
+evaluates it at that timeline's coordinate.
+
+Args:
+    key: A conversion-map name, id, selector, or target-unit name.
+
+Returns:
+    The C-Map's output at this instant, or None if unreachable.
+
 ### get_unit { #timetoalign.TimeStamp.get_unit }
 
 ```python
@@ -84,10 +103,10 @@ Works with any map registered by ``add_conversion_map``, called
 directly regardless of concrete type (``TableMap``, ``ScalarMap``,
 ``LinearMap``, ``InterpolationMap``, ...).
 
-For TimelineGroup sources, searches ALL member timelines for the C-Map,
-first trying the source timeline, then others. This ensures that
-timestamps always show C-Map conversions regardless of which timeline
-is queried.
+Searches the source and every descendant/member timeline for a C-Map
+with this target unit, evaluating it at the timeline's own coordinate.
+A timestamp therefore surfaces unit conversions registered at any
+depth of the hierarchy, not just on the queried timeline.
 
 Args:
     unit: The target unit for conversion.
@@ -105,10 +124,11 @@ Materialize all coordinates as a dictionary.
 
 Args:
     include_children: Include child/member timeline coordinates.
-    conversion_units: C-Map target units to include.
+    conversion_units: C-Map conversions to include.
         - None: No C-Map conversions
-        - "all": All available C-Maps
+        - "all": Every C-Map across the subtree, of every kind
+          (unit conversions, labels, structured values)
         - list: Specific units only
 
 Returns:
-    Dict mapping timeline_id/unit_name to coordinate value.
+    Dict mapping timeline_id/unit_name/cmap-label to value.

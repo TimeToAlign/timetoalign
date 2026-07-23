@@ -94,6 +94,8 @@ website:
               href: howto/how03_mpm_toolbox.ipynb
             - text: "How to Load an Audio-to-Audio Alignment (Listen Here!)"
               href: howto/how03_listen_here.ipynb
+            - text: "How to Load an IEEE 1599 Document"
+              href: howto/how03_ieee1599.ipynb
         - section: "In-depth Topics"
           contents:
             - text: "How to Encode Song Genesis (Hendrix)"

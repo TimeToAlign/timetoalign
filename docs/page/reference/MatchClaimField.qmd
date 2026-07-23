@@ -71,13 +71,45 @@ Examples:
 
 | Name | Description |
 | --- | --- |
+| [at](#timetoalign.alignment.MatchClaimField.at) | Return the claims anchored at ``(timeline_id, coordinate)``. |
 | [connecting](#timetoalign.alignment.MatchClaimField.connecting) | Return the claims that involve ``timeline_id`` on either side. |
-| [filter](#timetoalign.alignment.MatchClaimField.filter) | Return a filtered view following the unified-filter spirit. |
+| [connects_groups](#timetoalign.alignment.MatchClaimField.connects_groups) | Whether any claim spans the two given sets of timeline ids. |
+| [coordinate_pairs](#timetoalign.alignment.MatchClaimField.coordinate_pairs) | Read the four defining columns in bulk, materialising no claim. |
+| [filter](#timetoalign.alignment.MatchClaimField.filter) | Return a filtered view following the unified filter API. |
 | [from_claims](#timetoalign.alignment.MatchClaimField.from_claims) | Build a field from existing :class:`MatchClaim` objects. |
 | [from_columns](#timetoalign.alignment.MatchClaimField.from_columns) | Build a field directly from parallel columns (the vectorized path). |
 | [from_dict](#timetoalign.alignment.MatchClaimField.from_dict) | Deserialize a field from a plain dictionary. |
+| [max_coordinate](#timetoalign.alignment.MatchClaimField.max_coordinate) | The largest coordinate this field carries for ``timeline_id``. |
 | [to_claims](#timetoalign.alignment.MatchClaimField.to_claims) | Materialise every row into a list of :class:`MatchClaim` objects. |
 | [to_dict](#timetoalign.alignment.MatchClaimField.to_dict) | Serialize to a plain dictionary (inverse of :meth:`from_dict`). |
+
+### at { #timetoalign.alignment.MatchClaimField.at }
+
+```python
+alignment.MatchClaimField.at(timeline_id, coordinate)
+```
+
+Return the claims anchored at ``(timeline_id, coordinate)``.
+
+The selection is a vectorized PyArrow boolean mask over the struct
+column — rows where ``timeline_a_id == timeline_id`` and the anchor's
+``coordinate_a`` equals ``coordinate``, OR the symmetric
+``timeline_b_id`` / ``coordinate_b`` pair.  No claim is materialised
+and the rest of the field is never touched; the shared metadata
+carries over.
+
+Coordinate matching is **exact float equality** — a query coordinate
+must land on a value the field actually carries.  There is no
+tolerance and no nearest-value fallback, so the result agrees with a
+per-claim scan of the same claims.
+
+Args:
+    timeline_id: The timeline the queried coordinate lives on.
+    coordinate: The exact coordinate value on that timeline.
+
+Returns:
+    A new :class:`MatchClaimField` holding only the matching rows
+    (possibly empty).
 
 ### connecting { #timetoalign.alignment.MatchClaimField.connecting }
 
@@ -97,27 +129,93 @@ Args:
 Returns:
     A new :class:`MatchClaimField` holding only the matching rows.
 
+### connects_groups { #timetoalign.alignment.MatchClaimField.connects_groups }
+
+```python
+alignment.MatchClaimField.connects_groups(group_a_ids, group_b_ids)
+```
+
+Whether any claim spans the two given sets of timeline ids.
+
+True when at least one row has one side in ``group_a_ids`` and the
+other side in ``group_b_ids``.  The test is a vectorized mask reduced
+with :func:`pyarrow.compute.any`; no claim is materialised, so it
+answers commensurability over a million-row field in one pass.
+
+Args:
+    group_a_ids: Timeline ids on one side.
+    group_b_ids: Timeline ids on the other side.
+
+Returns:
+    True if some claim connects the two sets.
+
+### coordinate_pairs { #timetoalign.alignment.MatchClaimField.coordinate_pairs }
+
+```python
+alignment.MatchClaimField.coordinate_pairs()
+```
+
+Read the four defining columns in bulk, materialising no claim.
+
+This is the read a tabular consumer wants: the two timeline ids and
+the two anchor coordinates of every row, as four parallel Python
+lists pulled straight off the Arrow columns.  Materialising the rows
+as :class:`MatchClaim` objects instead costs orders of magnitude more
+for the same information.
+
+Returns:
+    ``(timeline_a_ids, timeline_b_ids, coordinates_a, coordinates_b)``,
+    all of length ``len(self)``.
+
 ### filter { #timetoalign.alignment.MatchClaimField.filter }
 
 ```python
-alignment.MatchClaimField.filter(timeline_id=None, timeline_ids=None)
+alignment.MatchClaimField.filter(
+    timeline_id=None,
+    timeline_ids=None,
+    id_pattern=None,
+    between=None,
+    within=None,
+    synchronous_only=False,
+    nomatch_only=False,
+)
 ```
 
-Return a filtered view following the unified-filter spirit.
+Return a filtered view following the unified filter API.
 
-Both arguments are vectorized; no claim is materialised. The shared
-metadata carries over.
+Every criterion is a vectorized boolean mask over the struct column;
+no claim is materialised and the shared metadata carries over.  All
+non-default criteria are combined with logical AND.
+
+``include_domains`` / ``include_units`` are deliberately absent: they
+need per-timeline metadata (domain, unit) that this store does not
+hold.  A caller that owns that metadata — an
+:class:`~timetoalign.alignment.bundle.AlignmentBundle`, say — resolves
+them into the set of timeline ids that pass and hands that set to
+``within``.
 
 Args:
     timeline_id: Keep rows involving this exact id on either side
         (equivalent to :meth:`connecting`).
     timeline_ids: Keep rows involving **any** id in this set on either
         side.
+    id_pattern: Keep rows involving any id matching this regex
+        (``re.search`` against the field's :attr:`timeline_ids`).
+    between: Keep rows connecting exactly these two ids
+        (order-independent).
+    within: Keep rows whose **both** ids are in this set.  This is the
+        primitive behind domain- and unit-restricted queries.
+    synchronous_only: A no-op — every row in this store is a
+        synchronous claim by class invariant.
+    nomatch_only: Returns an **empty** field, for the same reason.
 
 Returns:
-    A new :class:`MatchClaimField`. When both arguments are ``None``,
-    a copy is returned. When both are given the two conditions are
-    combined with logical AND.
+    A new :class:`MatchClaimField`.  With no criteria set, a copy of
+    the whole field is returned.
+
+Raises:
+    ValueError: If ``synchronous_only`` and ``nomatch_only`` are both
+        set.
 
 ### from_claims { #timetoalign.alignment.MatchClaimField.from_claims }
 
@@ -209,6 +307,24 @@ Args:
 
 Returns:
     A new :class:`MatchClaimField`.
+
+### max_coordinate { #timetoalign.alignment.MatchClaimField.max_coordinate }
+
+```python
+alignment.MatchClaimField.max_coordinate(timeline_id)
+```
+
+The largest coordinate this field carries for ``timeline_id``.
+
+Both anchor sides are scanned vectorized with :func:`pyarrow.compute.max`;
+no claim is materialised.
+
+Args:
+    timeline_id: The timeline to look up.
+
+Returns:
+    The maximum coordinate value carried for that timeline, or
+    ``None`` if the timeline does not appear in this field.
 
 ### to_claims { #timetoalign.alignment.MatchClaimField.to_claims }
 

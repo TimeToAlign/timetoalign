@@ -315,6 +315,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">How to Load an Audio-to-Audio Alignment (Listen Here!)</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../howto/how03_ieee1599.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">How to Load an IEEE 1599 Document</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -398,7 +404,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="how-to-encode-song-genesis-relationships-hendrix" class="level1">
 <h1>How to Encode Song Genesis Relationships (Hendrix)</h1>
-<p>This notebook demonstrates how to encode <strong>conceptual and temporal relationships</strong> between multiple versions of a work using <button class="glossary" title="">MatchClaim</button> objects, <button class="glossary" title="">MatchGraph</button> structures, and the <strong>NOMATCH</strong> sentinel.</p>
+<p>This notebook demonstrates how to encode <strong>conceptual and temporal relationships</strong> between multiple versions of a work using <button class="glossary" title="">MatchClaim</button> objects, <button class="glossary" title="An auxiliary structure formed by extending MatchClaims through shared coordinates; may be viewed as a hyperedge connecting multiple coordinates from different timelines. Connected components yield MatchStamps. Each Match box M1–M15 in the Hendrix figure is a MatchGraph.">MatchGraph</button> structures, and the <strong>NOMATCH</strong> sentinel.</p>
 <p>The use case comes from a genesis study of Jimi Hendrix’s <em>1983… (A Merman I Should Turn to Be)</em>, comparing three versions:</p>
 <ul>
 <li><strong>Studio</strong> – the studio recording from <em>Electric Ladyland</em> (CPT1)</li>
@@ -458,7 +464,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="load-the-match-data" class="level2">
 <h2 class="anchored" data-anchor-id="load-the-match-data">2. Load the Match Data</h2>
-<p>The file <code>match_data.csv</code> is a tab-separated table recording which sections correspond across the three versions. Each row represents a <button class="glossary" title="">MatchGraph</button> (M1–M15).</p>
+<p>The file <code>match_data.csv</code> is a tab-separated table recording which sections correspond across the three versions. Each row represents a <button class="glossary" title="An auxiliary structure formed by extending MatchClaims through shared coordinates; may be viewed as a hyperedge connecting multiple coordinates from different timelines. Connected components yield MatchStamps. Each Match box M1–M15 in the Hendrix figure is a MatchGraph.">MatchGraph</button> (M1–M15).</p>
 <ul>
 <li>Cells contain the <strong>event name</strong> (section label) on the respective timeline.</li>
 <li>The value <code>NOMATCH</code> explicitly records that a section has no equivalent in that version.</li>

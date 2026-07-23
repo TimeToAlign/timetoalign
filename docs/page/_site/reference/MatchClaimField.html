@@ -845,11 +845,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
+  <li><a href="#timetoalign.alignment.MatchClaimField.at" id="toc-timetoalign.alignment.MatchClaimField.at" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchClaimField.at">at</a></li>
   <li><a href="#timetoalign.alignment.MatchClaimField.connecting" id="toc-timetoalign.alignment.MatchClaimField.connecting" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchClaimField.connecting">connecting</a></li>
+  <li><a href="#timetoalign.alignment.MatchClaimField.connects_groups" id="toc-timetoalign.alignment.MatchClaimField.connects_groups" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchClaimField.connects_groups">connects_groups</a></li>
+  <li><a href="#timetoalign.alignment.MatchClaimField.coordinate_pairs" id="toc-timetoalign.alignment.MatchClaimField.coordinate_pairs" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchClaimField.coordinate_pairs">coordinate_pairs</a></li>
   <li><a href="#timetoalign.alignment.MatchClaimField.filter" id="toc-timetoalign.alignment.MatchClaimField.filter" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchClaimField.filter">filter</a></li>
   <li><a href="#timetoalign.alignment.MatchClaimField.from_claims" id="toc-timetoalign.alignment.MatchClaimField.from_claims" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchClaimField.from_claims">from_claims</a></li>
   <li><a href="#timetoalign.alignment.MatchClaimField.from_columns" id="toc-timetoalign.alignment.MatchClaimField.from_columns" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchClaimField.from_columns">from_columns</a></li>
   <li><a href="#timetoalign.alignment.MatchClaimField.from_dict" id="toc-timetoalign.alignment.MatchClaimField.from_dict" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchClaimField.from_dict">from_dict</a></li>
+  <li><a href="#timetoalign.alignment.MatchClaimField.max_coordinate" id="toc-timetoalign.alignment.MatchClaimField.max_coordinate" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchClaimField.max_coordinate">max_coordinate</a></li>
   <li><a href="#timetoalign.alignment.MatchClaimField.to_claims" id="toc-timetoalign.alignment.MatchClaimField.to_claims" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchClaimField.to_claims">to_claims</a></li>
   <li><a href="#timetoalign.alignment.MatchClaimField.to_dict" id="toc-timetoalign.alignment.MatchClaimField.to_dict" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchClaimField.to_dict">to_dict</a></li>
   </ul></li>
@@ -914,24 +918,40 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </thead>
 <tbody>
 <tr class="odd">
+<td><a href="#timetoalign.alignment.MatchClaimField.at">at</a></td>
+<td>Return the claims anchored at <code>(timeline_id, coordinate)</code>.</td>
+</tr>
+<tr class="even">
 <td><a href="#timetoalign.alignment.MatchClaimField.connecting">connecting</a></td>
 <td>Return the claims that involve <code>timeline_id</code> on either side.</td>
 </tr>
+<tr class="odd">
+<td><a href="#timetoalign.alignment.MatchClaimField.connects_groups">connects_groups</a></td>
+<td>Whether any claim spans the two given sets of timeline ids.</td>
+</tr>
 <tr class="even">
-<td><a href="#timetoalign.alignment.MatchClaimField.filter">filter</a></td>
-<td>Return a filtered view following the unified-filter spirit.</td>
+<td><a href="#timetoalign.alignment.MatchClaimField.coordinate_pairs">coordinate_pairs</a></td>
+<td>Read the four defining columns in bulk, materialising no claim.</td>
 </tr>
 <tr class="odd">
+<td><a href="#timetoalign.alignment.MatchClaimField.filter">filter</a></td>
+<td>Return a filtered view following the unified filter API.</td>
+</tr>
+<tr class="even">
 <td><a href="#timetoalign.alignment.MatchClaimField.from_claims">from_claims</a></td>
 <td>Build a field from existing :class:<code>MatchClaim</code> objects.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.alignment.MatchClaimField.from_columns">from_columns</a></td>
 <td>Build a field directly from parallel columns (the vectorized path).</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.alignment.MatchClaimField.from_dict">from_dict</a></td>
 <td>Deserialize a field from a plain dictionary.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.alignment.MatchClaimField.max_coordinate">max_coordinate</a></td>
+<td>The largest coordinate this field carries for <code>timeline_id</code>.</td>
 </tr>
 <tr class="even">
 <td><a href="#timetoalign.alignment.MatchClaimField.to_claims">to_claims</a></td>
@@ -943,25 +963,59 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
+<section id="timetoalign.alignment.MatchClaimField.at" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchClaimField.at">at</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.at(timeline_id, coordinate)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return the claims anchored at <code>(timeline_id, coordinate)</code>.</p>
+<p>The selection is a vectorized PyArrow boolean mask over the struct column — rows where <code>timeline_a_id == timeline_id</code> and the anchor’s <code>coordinate_a</code> equals <code>coordinate</code>, OR the symmetric <code>timeline_b_id</code> / <code>coordinate_b</code> pair. No claim is materialised and the rest of the field is never touched; the shared metadata carries over.</p>
+<p>Coordinate matching is <strong>exact float equality</strong> — a query coordinate must land on a value the field actually carries. There is no tolerance and no nearest-value fallback, so the result agrees with a per-claim scan of the same claims.</p>
+<p>Args: timeline_id: The timeline the queried coordinate lives on. coordinate: The exact coordinate value on that timeline.</p>
+<p>Returns: A new :class:<code>MatchClaimField</code> holding only the matching rows (possibly empty).</p>
+</section>
 <section id="timetoalign.alignment.MatchClaimField.connecting" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchClaimField.connecting">connecting</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.connecting(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.connecting(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return the claims that involve <code>timeline_id</code> on either side.</p>
 <p>The filter is a vectorized boolean mask over the struct’s id sub-fields; no claim is materialised. The shared metadata carries over.</p>
 <p>Args: timeline_id: The exact timeline id to match against either column.</p>
 <p>Returns: A new :class:<code>MatchClaimField</code> holding only the matching rows.</p>
 </section>
+<section id="timetoalign.alignment.MatchClaimField.connects_groups" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchClaimField.connects_groups">connects_groups</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.connects_groups(group_a_ids, group_b_ids)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Whether any claim spans the two given sets of timeline ids.</p>
+<p>True when at least one row has one side in <code>group_a_ids</code> and the other side in <code>group_b_ids</code>. The test is a vectorized mask reduced with :func:<code>pyarrow.compute.any</code>; no claim is materialised, so it answers commensurability over a million-row field in one pass.</p>
+<p>Args: group_a_ids: Timeline ids on one side. group_b_ids: Timeline ids on the other side.</p>
+<p>Returns: True if some claim connects the two sets.</p>
+</section>
+<section id="timetoalign.alignment.MatchClaimField.coordinate_pairs" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchClaimField.coordinate_pairs">coordinate_pairs</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.coordinate_pairs()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Read the four defining columns in bulk, materialising no claim.</p>
+<p>This is the read a tabular consumer wants: the two timeline ids and the two anchor coordinates of every row, as four parallel Python lists pulled straight off the Arrow columns. Materialising the rows as :class:<code>MatchClaim</code> objects instead costs orders of magnitude more for the same information.</p>
+<p>Returns: <code>(timeline_a_ids, timeline_b_ids, coordinates_a, coordinates_b)</code>, all of length <code>len(self)</code>.</p>
+</section>
 <section id="timetoalign.alignment.MatchClaimField.filter" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchClaimField.filter">filter</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.<span class="bu">filter</span>(timeline_id<span class="op">=</span><span class="va">None</span>, timeline_ids<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Return a filtered view following the unified-filter spirit.</p>
-<p>Both arguments are vectorized; no claim is materialised. The shared metadata carries over.</p>
-<p>Args: timeline_id: Keep rows involving this exact id on either side (equivalent to :meth:<code>connecting</code>). timeline_ids: Keep rows involving <strong>any</strong> id in this set on either side.</p>
-<p>Returns: A new :class:<code>MatchClaimField</code>. When both arguments are <code>None</code>, a copy is returned. When both are given the two conditions are combined with logical AND.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.<span class="bu">filter</span>(</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    timeline_ids<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    id_pattern<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    between<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    within<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    synchronous_only<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    nomatch_only<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return a filtered view following the unified filter API.</p>
+<p>Every criterion is a vectorized boolean mask over the struct column; no claim is materialised and the shared metadata carries over. All non-default criteria are combined with logical AND.</p>
+<p><code>include_domains</code> / <code>include_units</code> are deliberately absent: they need per-timeline metadata (domain, unit) that this store does not hold. A caller that owns that metadata — an :class:<code>~timetoalign.alignment.bundle.AlignmentBundle</code>, say — resolves them into the set of timeline ids that pass and hands that set to <code>within</code>.</p>
+<p>Args: timeline_id: Keep rows involving this exact id on either side (equivalent to :meth:<code>connecting</code>). timeline_ids: Keep rows involving <strong>any</strong> id in this set on either side. id_pattern: Keep rows involving any id matching this regex (<code>re.search</code> against the field’s :attr:<code>timeline_ids</code>). between: Keep rows connecting exactly these two ids (order-independent). within: Keep rows whose <strong>both</strong> ids are in this set. This is the primitive behind domain- and unit-restricted queries. synchronous_only: A no-op — every row in this store is a synchronous claim by class invariant. nomatch_only: Returns an <strong>empty</strong> field, for the same reason.</p>
+<p>Returns: A new :class:<code>MatchClaimField</code>. With no criteria set, a copy of the whole field is returned.</p>
+<p>Raises: ValueError: If <code>synchronous_only</code> and <code>nomatch_only</code> are both set.</p>
 </section>
 <section id="timetoalign.alignment.MatchClaimField.from_claims" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchClaimField.from_claims">from_claims</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.from_claims(claims, <span class="op">*</span>, metadata<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.from_claims(claims, <span class="op">*</span>, metadata<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Build a field from existing :class:<code>MatchClaim</code> objects.</p>
 <p>Every claim must be a synchronous instant (<code>is_synchronous is True</code>, <code>start_anchor</code> present, <code>end_anchor is None</code>) per the v1 scope.</p>
 <p>If <code>metadata</code> is <code>None</code> and all claims share one identical :class:<code>MatchMetadata</code> (by equality), that metadata is adopted as the field-level provenance; otherwise the field’s metadata stays <code>None</code> (no per-row metadata is ever stored).</p>
@@ -971,16 +1025,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.alignment.MatchClaimField.from_columns" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchClaimField.from_columns">from_columns</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.from_columns(</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    timeline_a_ids,</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    timeline_b_ids,</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    coordinate_a,</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    coordinate_b,</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    unit_a,</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    unit_b,</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    metadata<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.from_columns(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    timeline_a_ids,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    timeline_b_ids,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    coordinate_a,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    coordinate_b,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    unit_a,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    unit_b,</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    metadata<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Build a field directly from parallel columns (the vectorized path).</p>
 <p>This is the constructor a bulk producer (e.g.&nbsp;an alignment loader) uses. It assembles the derived <code>MatchClaim</code> struct column straight from the parallel inputs with :meth:<code>pyarrow.StructArray.from_arrays</code> and <strong>never</strong> materialises a single :class:<code>MatchClaim</code> Python object, so it scales to millions of rows.</p>
 <p>Each row is a synchronous instant claim: <code>timeline_a_id</code> / <code>timeline_b_id</code> and the <code>start_anchor</code> sub-struct are filled from the inputs; <code>is_synchronous</code> and <code>is_explicit</code> are <code>True</code>; <code>end_anchor</code> / event ids / names / <code>source_coordinate</code> / <code>metadata</code> / <code>source_claim_id</code> / <code>id</code> are left null (the shared metadata is injected on read, the id is generated on materialise).</p>
@@ -990,22 +1044,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.alignment.MatchClaimField.from_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchClaimField.from_dict">from_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Deserialize a field from a plain dictionary.</p>
 <p>Inverse of :meth:<code>to_dict</code>.</p>
 <p>Args: data: A mapping with the four column lists and an optional <code>metadata</code> dict.</p>
 <p>Returns: A new :class:<code>MatchClaimField</code>.</p>
 </section>
+<section id="timetoalign.alignment.MatchClaimField.max_coordinate" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchClaimField.max_coordinate">max_coordinate</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.max_coordinate(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The largest coordinate this field carries for <code>timeline_id</code>.</p>
+<p>Both anchor sides are scanned vectorized with :func:<code>pyarrow.compute.max</code>; no claim is materialised.</p>
+<p>Args: timeline_id: The timeline to look up.</p>
+<p>Returns: The maximum coordinate value carried for that timeline, or <code>None</code> if the timeline does not appear in this field.</p>
+</section>
 <section id="timetoalign.alignment.MatchClaimField.to_claims" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchClaimField.to_claims">to_claims</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.to_claims()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.to_claims()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Materialise every row into a list of :class:<code>MatchClaim</code> objects.</p>
 <p>This is <code>O(n)</code> and defeats the columnar purpose for large sets; it is provided for convenience and round-tripping, not for hot paths.</p>
 <p>Returns: A list of synchronous instant claims, one per row.</p>
 </section>
 <section id="timetoalign.alignment.MatchClaimField.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchClaimField.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaimField.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Serialize to a plain dictionary (inverse of :meth:<code>from_dict</code>).</p>
 <p>The id and coordinate columns are emitted as plain Python lists (read directly from the struct sub-fields); the metadata is emitted via :meth:<code>MatchMetadata.to_dict</code> (or <code>None</code>).</p>
 <p>Returns: A round-trippable mapping.</p>

@@ -846,6 +846,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.TimeStamp.get" id="toc-timetoalign.TimeStamp.get" class="nav-link" data-scroll-target="#timetoalign.TimeStamp.get">get</a></li>
+  <li><a href="#timetoalign.TimeStamp.get_conversion" id="toc-timetoalign.TimeStamp.get_conversion" class="nav-link" data-scroll-target="#timetoalign.TimeStamp.get_conversion">get_conversion</a></li>
   <li><a href="#timetoalign.TimeStamp.get_unit" id="toc-timetoalign.TimeStamp.get_unit" class="nav-link" data-scroll-target="#timetoalign.TimeStamp.get_unit">get_unit</a></li>
   <li><a href="#timetoalign.TimeStamp.to_dict" id="toc-timetoalign.TimeStamp.to_dict" class="nav-link" data-scroll-target="#timetoalign.TimeStamp.to_dict">to_dict</a></li>
   </ul></li>
@@ -906,10 +907,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Get coordinate on another timeline.</td>
 </tr>
 <tr class="even">
+<td><a href="#timetoalign.TimeStamp.get_conversion">get_conversion</a></td>
+<td>Get the raw output of a conversion map addressed by name/selector.</td>
+</tr>
+<tr class="odd">
 <td><a href="#timetoalign.TimeStamp.get_unit">get_unit</a></td>
 <td>Get coordinate converted to a specific unit.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.TimeStamp.to_dict">to_dict</a></td>
 <td>Materialize all coordinates as a dictionary.</td>
 </tr>
@@ -924,21 +929,29 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Args: timeline_id: The timeline to get coordinate for. default: Value to return if timeline not reachable or out of span.</p>
 <p>Returns: Coordinate on the target timeline, or <em>default</em> if not reachable or the axis is outside the target’s span.</p>
 </section>
+<section id="timetoalign.TimeStamp.get_conversion" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.TimeStamp.get_conversion">get_conversion</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.get_conversion(key)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Get the raw output of a conversion map addressed by name/selector.</p>
+<p>Searches the source and every descendant/member present at this axis for a C-Map whose name, id, selector, or target-unit name is <em>key</em>, and evaluates it at that timeline’s coordinate.</p>
+<p>Args: key: A conversion-map name, id, selector, or target-unit name.</p>
+<p>Returns: The C-Map’s output at this instant, or None if unreachable.</p>
+</section>
 <section id="timetoalign.TimeStamp.get_unit" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.TimeStamp.get_unit">get_unit</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.get_unit(unit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.get_unit(unit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get coordinate converted to a specific unit.</p>
 <p>Works with any map registered by <code>add_conversion_map</code>, called directly regardless of concrete type (<code>TableMap</code>, <code>ScalarMap</code>, <code>LinearMap</code>, <code>InterpolationMap</code>, …).</p>
-<p>For TimelineGroup sources, searches ALL member timelines for the C-Map, first trying the source timeline, then others. This ensures that timestamps always show C-Map conversions regardless of which timeline is queried.</p>
+<p>Searches the source and every descendant/member timeline for a C-Map with this target unit, evaluating it at the timeline’s own coordinate. A timestamp therefore surfaces unit conversions registered at any depth of the hierarchy, not just on the queried timeline.</p>
 <p>Args: unit: The target unit for conversion.</p>
 <p>Returns: Converted coordinate, or None if no C-Map available.</p>
 </section>
 <section id="timetoalign.TimeStamp.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.TimeStamp.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.to_dict(include_children<span class="op">=</span><span class="va">True</span>, conversion_units<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.to_dict(include_children<span class="op">=</span><span class="va">True</span>, conversion_units<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Materialize all coordinates as a dictionary.</p>
-<p>Args: include_children: Include child/member timeline coordinates. conversion_units: C-Map target units to include. - None: No C-Map conversions - “all”: All available C-Maps - list: Specific units only</p>
-<p>Returns: Dict mapping timeline_id/unit_name to coordinate value.</p>
+<p>Args: include_children: Include child/member timeline coordinates. conversion_units: C-Map conversions to include. - None: No C-Map conversions - “all”: Every C-Map across the subtree, of every kind (unit conversions, labels, structured values) - list: Specific units only</p>
+<p>Returns: Dict mapping timeline_id/unit_name/cmap-label to value.</p>
 
 
 </section>

@@ -460,7 +460,7 @@ Raises:
 ### to_dict { #timetoalign.timelines.BeatGrid.to_dict }
 
 ```python
-timelines.BeatGrid.to_dict()
+timelines.BeatGrid.to_dict(events=False, external_references=False)
 ```
 
 Convert the grid and its construction parameters to a dictionary.
@@ -471,6 +471,12 @@ serialized ``conversion_maps`` list, since ``from_dict`` rebuilds
 them from the construction parameters instead. Any other attached
 conversion map (for example, a tempo map from ``from_tempo`` or a
 user-attached map) is serialized normally.
+
+Args:
+    events: If True, include the ``"events"`` key (beat events and
+        any other events added to the grid).
+    external_references: If True, include the
+        ``"external_references"`` key, even when empty.
 
 Returns:
     A dictionary representation that reconstructs the attached meter maps.

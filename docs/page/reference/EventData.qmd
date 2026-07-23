@@ -64,6 +64,7 @@ Examples:
 | [from_dicts](#timetoalign.EventData.from_dicts) | Create EventData from a list of row dictionaries. |
 | [from_parquet](#timetoalign.EventData.from_parquet) | Load EventData from a Parquet file. |
 | [get_schema](#timetoalign.EventData.get_schema) | Get the canonical PyArrow schema for this EventData class. |
+| [head](#timetoalign.EventData.head) | Return the first ``n`` events as a pandas DataFrame. |
 | [prefix_ids](#timetoalign.EventData.prefix_ids) | Return a new EventData with all event IDs prefixed. |
 | [select](#timetoalign.EventData.select) | Select specific fields from the table. |
 | [summary](#timetoalign.EventData.summary) | Get a comprehensive summary of the store. |
@@ -412,6 +413,31 @@ Args:
 
 Returns:
     The complete schema including base and extra fields.
+
+### head { #timetoalign.EventData.head }
+
+```python
+EventData.head(n=5)
+```
+
+Return the first ``n`` events as a pandas DataFrame.
+
+A pandas-style preview of the stored rows. Coordinate columns render
+as their native numbers — the same conversion :meth:`to_dataframe`
+applies — so ``events.head()`` shows the leading events directly,
+without reaching for the raw PyArrow table.
+
+Args:
+    n: Number of leading events to include. Values larger than the
+        event count return every event; ``n <= 0`` returns an empty
+        frame.
+
+Returns:
+    A pandas DataFrame of the first ``n`` events.
+
+Examples:
+    >>> events.head()      # first five events
+    >>> events.head(3)     # first three events
 
 ### prefix_ids { #timetoalign.EventData.prefix_ids }
 

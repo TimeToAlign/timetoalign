@@ -163,8 +163,14 @@ Every rational wire dict in *data* — ``length``, the child
 ``offset``s, and the event coordinate structs — is decoded by
 :func:`~timetoalign.core.wire_to_rational`, so an exact ratio
 comes back as a ``Fraction`` and an inexact one as a ``float``.
-Feeding the result back through :meth:`to_dict` reproduces the
-input dictionary.
+Feeding the result back through :meth:`to_dict` with the same
+flags reproduces the input dictionary.
+
+The ``"events"`` and ``"external_references"`` keys are optional:
+a dictionary produced without them reconstructs a timeline with
+zero events and an empty reference table. External references are
+restored without event validation, so a payload carrying
+references but no events round-trips intact.
 
 Args:
     data: Dictionary from to_dict().
@@ -279,10 +285,15 @@ Returns:
 ### to_dict { #timetoalign.timelines.Timeline.to_dict }
 
 ```python
-timelines.Timeline.to_dict()
+timelines.Timeline.to_dict(events=False, external_references=False)
 ```
 
 Convert timeline to a dictionary for serialization.
+
+The default output describes the timeline's structure only: the
+``"events"`` and ``"external_references"`` keys are **absent**
+unless explicitly requested, which keeps the payload small for the
+common case of persisting a hierarchy rather than its contents.
 
 Coordinate-valued members — ``length`` and every child
 ``offset`` — are emitted as the canonical rational wire dict
@@ -290,8 +301,23 @@ Coordinate-valued members — ``length`` and every child
 JSON-serializable whatever the timeline's number type, and
 ``Fraction`` coordinates survive the round trip exactly.
 
+Args:
+    events: If True, include an ``"events"`` key holding this
+        timeline's event rows.
+    external_references: If True, include an
+        ``"external_references"`` key holding the reference table
+        as a list of row dicts (``access_points`` as a nested list
+        of ``{"uri": ..., "kind": ...}`` dicts). Included even
+        when the table is empty.
+
 Returns:
     A JSON-serializable dictionary representation of the timeline.
+
+Examples:
+    >>> "events" in tl.to_dict()
+    False
+    >>> "events" in tl.to_dict(events=True)
+    True
 
 ### to_typed { #timetoalign.timelines.Timeline.to_typed }
 
@@ -310,9 +336,9 @@ This is useful after deserialization (e.g., ``Timeline.from_dict()``) or
 when working with generic ``Timeline`` instances that should carry
 domain-specific type information.
 
-Note: Only the timeline object itself is re-typed. Events, children,
-conversion maps, regions, and metadata are preserved. Children are
-transferred as-is (not recursively re-typed).
+Note: Only the timeline object itself is re-typed. Events, external
+references, children, conversion maps, regions, and metadata are
+preserved. Children are transferred as-is (not recursively re-typed).
 
 Returns:
     A Timeline instance of the appropriate typed subclass, or ``self``

@@ -1191,9 +1191,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.timelines.BeatGrid.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.BeatGrid.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>timelines.BeatGrid.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>timelines.BeatGrid.to_dict(events<span class="op">=</span><span class="va">False</span>, external_references<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Convert the grid and its construction parameters to a dictionary.</p>
 <p>The three metrical maps created by <code>__init__</code> (meter, beat-in- measure, and metrical-position maps) are excluded from the serialized <code>conversion_maps</code> list, since <code>from_dict</code> rebuilds them from the construction parameters instead. Any other attached conversion map (for example, a tempo map from <code>from_tempo</code> or a user-attached map) is serialized normally.</p>
+<p>Args: events: If True, include the <code>"events"</code> key (beat events and any other events added to the grid). external_references: If True, include the <code>"external_references"</code> key, even when empty.</p>
 <p>Returns: A dictionary representation that reconstructs the attached meter maps.</p>
 
 

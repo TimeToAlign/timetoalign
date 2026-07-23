@@ -204,7 +204,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>A <strong>generalised cross-domain model</strong> for musical timelines and their alignments, grounded in three temporal domains (physical, logical, graphical) in both continuous and discrete variants.</li>
 <li>A <strong>working Python library</strong> (<code>timetoalign</code>) implementing this model with typed timelines, loaders for common formats, conversion maps, and alignment primitives.</li>
 </ol>
-<p>The model represents coordinate systems as nodes in a graph, connected by <button class="glossary" title="A typed function attached to a timeline that maps each coordinate to exactly one value (coordinate, label, or filename); also permits inverse conversion back to the timeline’s own unit. Also called C-map.">ConversionMap</button>s within a timeline and <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (the authoring agent and a certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension). Held individually, or columnar at scale in a MatchClaimField.">MatchClaim</button> objects across timelines. This structure enables coordinate transfer, annotation propagation, and alignment queries across arbitrarily many representations of the same musical content.</p>
+<p>The model represents coordinate systems as nodes in a graph, connected by <button class="glossary" title="">ConversionMap</button>s within a timeline and <button class="glossary" title="">MatchClaim</button> objects across timelines. This structure enables coordinate transfer, annotation propagation, and alignment queries across arbitrarily many representations of the same musical content.</p>
 </section>
 <section id="documentation-structure" class="level2">
 <h2 class="anchored" data-anchor-id="documentation-structure">Documentation Structure</h2>
@@ -299,14 +299,14 @@ Table&nbsp;1: The six timeline types arising from three domains and two number t
 </section>
 <section id="getting-started" class="level2">
 <h2 class="anchored" data-anchor-id="getting-started">Getting Started</h2>
-<p>The <code>timetoalign</code> library is under active development. To install the current development version:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="at">-e</span> path/to/timetoalign</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>timetoalign</code> library is available on PyPI. To install it:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install timetoalign</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The library requires Python 3.12 or later.</p>
 </section>
 <section id="project-links" class="level2">
 <h2 class="anchored" data-anchor-id="project-links">Project Links</h2>
 <ul>
-<li><strong>Source Code</strong>: <a href="https://github.com/TimeToAlign">GitHub</a></li>
+<li><strong>Source Code</strong>: <a href="https://github.com/timetoalign/timetoalign">GitHub</a></li>
 <li><strong>Specimen Collection</strong>: Real-world datasets used in the tutorials and the accompanying TISMIR manuscript.</li>
 <li><strong>TISMIR Manuscript</strong>: The model and its five demonstration scenarios are described in a manuscript currently under review.</li>
 </ul>

@@ -860,6 +860,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.EventData.from_dicts" id="toc-timetoalign.EventData.from_dicts" class="nav-link" data-scroll-target="#timetoalign.EventData.from_dicts">from_dicts</a></li>
   <li><a href="#timetoalign.EventData.from_parquet" id="toc-timetoalign.EventData.from_parquet" class="nav-link" data-scroll-target="#timetoalign.EventData.from_parquet">from_parquet</a></li>
   <li><a href="#timetoalign.EventData.get_schema" id="toc-timetoalign.EventData.get_schema" class="nav-link" data-scroll-target="#timetoalign.EventData.get_schema">get_schema</a></li>
+  <li><a href="#timetoalign.EventData.head" id="toc-timetoalign.EventData.head" class="nav-link" data-scroll-target="#timetoalign.EventData.head">head</a></li>
   <li><a href="#timetoalign.EventData.prefix_ids" id="toc-timetoalign.EventData.prefix_ids" class="nav-link" data-scroll-target="#timetoalign.EventData.prefix_ids">prefix_ids</a></li>
   <li><a href="#timetoalign.EventData.select" id="toc-timetoalign.EventData.select" class="nav-link" data-scroll-target="#timetoalign.EventData.select">select</a></li>
   <li><a href="#timetoalign.EventData.summary" id="toc-timetoalign.EventData.summary" class="nav-link" data-scroll-target="#timetoalign.EventData.summary">summary</a></li>
@@ -995,26 +996,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Get the canonical PyArrow schema for this EventData class.</td>
 </tr>
 <tr class="even">
+<td><a href="#timetoalign.EventData.head">head</a></td>
+<td>Return the first <code>n</code> events as a pandas DataFrame.</td>
+</tr>
+<tr class="odd">
 <td><a href="#timetoalign.EventData.prefix_ids">prefix_ids</a></td>
 <td>Return a new EventData with all event IDs prefixed.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.EventData.select">select</a></td>
 <td>Select specific fields from the table.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.EventData.summary">summary</a></td>
 <td>Get a comprehensive summary of the store.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.EventData.to_dataframe">to_dataframe</a></td>
 <td>Convert to a DataFrame in the specified format.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.EventData.to_parquet">to_parquet</a></td>
 <td>Save the EventData to a Parquet file.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.EventData.where">where</a></td>
 <td>Filter with a custom PyArrow compute expression.</td>
 </tr>
@@ -1175,9 +1180,18 @@ interval_policy: How to handle end/duration inconsistencies.
 <p>Args: unit: The time unit for coordinate fields. number_type: The number type for coordinate fields.</p>
 <p>Returns: The complete schema including base and extra fields.</p>
 </section>
+<section id="timetoalign.EventData.head" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.EventData.head">head</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>EventData.head(n<span class="op">=</span><span class="dv">5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return the first <code>n</code> events as a pandas DataFrame.</p>
+<p>A pandas-style preview of the stored rows. Coordinate columns render as their native numbers — the same conversion :meth:<code>to_dataframe</code> applies — so <code>events.head()</code> shows the leading events directly, without reaching for the raw PyArrow table.</p>
+<p>Args: n: Number of leading events to include. Values larger than the event count return every event; <code>n &lt;= 0</code> returns an empty frame.</p>
+<p>Returns: A pandas DataFrame of the first <code>n</code> events.</p>
+<p>Examples: &gt;&gt;&gt; events.head() # first five events &gt;&gt;&gt; events.head(3) # first three events</p>
+</section>
 <section id="timetoalign.EventData.prefix_ids" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.prefix_ids">prefix_ids</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>EventData.prefix_ids(prefix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>EventData.prefix_ids(prefix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return a new EventData with all event IDs prefixed.</p>
 <p>Prepends <code>prefix:</code> to every event ID. Used when events are placed onto a timeline so that IDs become globally unique and informative, e.g.&nbsp;<code>clt1:note:000001</code>.</p>
 <p>If the IDs already start with the prefix, they are left unchanged.</p>
@@ -1186,20 +1200,20 @@ interval_policy: How to handle end/duration inconsistencies.
 </section>
 <section id="timetoalign.EventData.select" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.select">select</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>EventData.select(fields)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>EventData.select(fields)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Select specific fields from the table.</p>
 <p>Args: fields: List of field names to select.</p>
 <p>Returns: A PyArrow table with only the selected fields.</p>
 </section>
 <section id="timetoalign.EventData.summary" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.summary">summary</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>EventData.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>EventData.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a comprehensive summary of the store.</p>
 <p>Returns: Dict with count, temporal type counts, event type counts, coordinate range, unit, and number type.</p>
 </section>
 <section id="timetoalign.EventData.to_dataframe" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.to_dataframe">to_dataframe</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>EventData.to_dataframe(<span class="bu">format</span><span class="op">=</span><span class="st">'pandas'</span>, <span class="op">*</span>, raw<span class="op">=</span><span class="va">False</span>, coordinates<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>EventData.to_dataframe(<span class="bu">format</span><span class="op">=</span><span class="st">'pandas'</span>, <span class="op">*</span>, raw<span class="op">=</span><span class="va">False</span>, coordinates<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Convert to a DataFrame in the specified format.</p>
 <p>Higher-level method that dispatches to format-specific implementations. Currently supports pandas; polars support can be added later.</p>
 <p>Args: format: DataFrame format (“pandas”). Default “pandas”. raw: If True, return raw conversion with struct dicts for coordinates. coordinates: If True, wrap values in Coordinate objects with unit info.</p>
@@ -1209,13 +1223,13 @@ interval_policy: How to handle end/duration inconsistencies.
 </section>
 <section id="timetoalign.EventData.to_parquet" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.to_parquet">to_parquet</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>EventData.to_parquet(path)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>EventData.to_parquet(path)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Save the EventData to a Parquet file.</p>
 <p>Args: path: Path to write the Parquet file.</p>
 </section>
 <section id="timetoalign.EventData.where" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.where">where</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>EventData.where(expression)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>EventData.where(expression)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Filter with a custom PyArrow compute expression.</p>
 <p>Args: expression: A PyArrow compute expression.</p>
 <p>Returns: A new EventData with filtered events.</p>

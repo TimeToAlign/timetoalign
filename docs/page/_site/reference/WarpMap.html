@@ -965,9 +965,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Build a WarpMap from explicit coordinate arrays.</p>
 <p>This lower-level constructor is useful when coordinate pairs are already available (e.g.&nbsp;from a Parquet file or external alignment tool) and do not need to be extracted from a MatchLine.</p>
-<p>Args: source_timeline_id: ID of the source timeline. target_timeline_id: ID of the target timeline. source_coords: Sorted source coordinates (strictly increasing). target_coords: Corresponding target coordinates. source_unit: Unit of the source timeline (optional). target_unit: Unit of the target timeline (optional).</p>
+<p>Args: source_timeline_id: ID of the source timeline. target_timeline_id: ID of the target timeline. source_coords: Source coordinates. Duplicate coordinates are averaged when their targets are compatible; otherwise they raise an ambiguity error. Remaining coordinates must be strictly increasing. target_coords: Corresponding target coordinates. source_unit: Unit of the source timeline (optional). target_unit: Unit of the target timeline (optional).</p>
 <p>Returns: A new WarpMap.</p>
-<p>Raises: ValueError: If fewer than 2 coordinate pairs, or if source_coords are not strictly increasing.</p>
+<p>Raises: ValueError: If fewer than 2 coordinate pairs, if source coordinates are ambiguous, or if the remaining source coordinates are not strictly increasing.</p>
 </section>
 <section id="timetoalign.alignment.WarpMap.from_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.WarpMap.from_dict">from_dict</h3>
@@ -986,7 +986,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    target_unit<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Build a WarpMap from a MatchLine’s coordinate pairs.</p>
-<p>Extracts <code>(source_coord, target_coord)</code> pairs from the MatchLine for the given target timeline, deduplicates by source coordinate (averaging target values for chords), and constructs the interpolation map.</p>
+<p>Extracts <code>(source_coord, target_coord)</code> pairs from the MatchLine for the given target timeline, deduplicates compatible chord coordinates, and constructs the interpolation map. A repeated source coordinate with materially different targets is rejected.</p>
 <p>Args: match_line: The MatchLine providing ordered stamps. target_timeline_id: The target timeline to warp towards. source_unit: Unit of the source timeline (optional). target_unit: Unit of the target timeline (optional).</p>
 <p>Returns: A new WarpMap.</p>
 <p>Raises: ValueError: If fewer than 2 coordinate pairs are available. ValueError: If <code>target_timeline_id</code> is not in the MatchLine’s target timelines.</p>

@@ -1047,7 +1047,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.Timeline.from_dict">from_dict</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>timelines.Timeline.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a Timeline from a dictionary.</p>
-<p>Every rational wire dict in <em>data</em> — <code>length</code>, the child <code>offset</code>s, and the event coordinate structs — is decoded by :func:<code>~timetoalign.core.wire_to_rational</code>, so an exact ratio comes back as a <code>Fraction</code> and an inexact one as a <code>float</code>. Feeding the result back through :meth:<code>to_dict</code> reproduces the input dictionary.</p>
+<p>Every rational wire dict in <em>data</em> — <code>length</code>, the child <code>offset</code>s, and the event coordinate structs — is decoded by :func:<code>~timetoalign.core.wire_to_rational</code>, so an exact ratio comes back as a <code>Fraction</code> and an inexact one as a <code>float</code>. Feeding the result back through :meth:<code>to_dict</code> with the same flags reproduces the input dictionary.</p>
+<p>The <code>"events"</code> and <code>"external_references"</code> keys are optional: a dictionary produced without them reconstructs a timeline with zero events and an empty reference table. External references are restored without event validation, so a payload carrying references but no events round-trips intact.</p>
 <p>Args: data: Dictionary from to_dict().</p>
 <p>Returns: A new Timeline instance.</p>
 </section>
@@ -1097,10 +1098,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.timelines.Timeline.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.Timeline.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>timelines.Timeline.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>timelines.Timeline.to_dict(events<span class="op">=</span><span class="va">False</span>, external_references<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Convert timeline to a dictionary for serialization.</p>
+<p>The default output describes the timeline’s structure only: the <code>"events"</code> and <code>"external_references"</code> keys are <strong>absent</strong> unless explicitly requested, which keeps the payload small for the common case of persisting a hierarchy rather than its contents.</p>
 <p>Coordinate-valued members — <code>length</code> and every child <code>offset</code> — are emitted as the canonical rational wire dict (:func:<code>~timetoalign.core.rational_to_wire</code>), so the result is JSON-serializable whatever the timeline’s number type, and <code>Fraction</code> coordinates survive the round trip exactly.</p>
+<p>Args: events: If True, include an <code>"events"</code> key holding this timeline’s event rows. external_references: If True, include an <code>"external_references"</code> key holding the reference table as a list of row dicts (<code>access_points</code> as a nested list of <code>{"uri": ..., "kind": ...}</code> dicts). Included even when the table is empty.</p>
 <p>Returns: A JSON-serializable dictionary representation of the timeline.</p>
+<p>Examples: &gt;&gt;&gt; “events” in tl.to_dict() False &gt;&gt;&gt; “events” in tl.to_dict(events=True) True</p>
 </section>
 <section id="timetoalign.timelines.Timeline.to_typed" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.Timeline.to_typed">to_typed</h3>
@@ -1108,7 +1112,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Return this timeline re-instantiated as the appropriate typed subclass.</p>
 <p>Uses the timeline’s unit and number type to determine the correct concrete subclass (e.g., <code>ContinuousPhysicalTimeline</code> for seconds/float). If the timeline is already an instance of the correct subclass, returns <code>self</code> unchanged.</p>
 <p>This is useful after deserialization (e.g., <code>Timeline.from_dict()</code>) or when working with generic <code>Timeline</code> instances that should carry domain-specific type information.</p>
-<p>Note: Only the timeline object itself is re-typed. Events, children, conversion maps, regions, and metadata are preserved. Children are transferred as-is (not recursively re-typed).</p>
+<p>Note: Only the timeline object itself is re-typed. Events, external references, children, conversion maps, regions, and metadata are preserved. Children are transferred as-is (not recursively re-typed).</p>
 <p>Returns: A Timeline instance of the appropriate typed subclass, or <code>self</code> if it is already the correct type.</p>
 <p>Examples: &gt;&gt;&gt; tl = Timeline(length=10.0, unit=TimeUnit.seconds) &gt;&gt;&gt; typed = tl.to_typed() &gt;&gt;&gt; type(typed).__name__ ‘ContinuousPhysicalTimeline’ &gt;&gt;&gt; typed.is_continuous True</p>
 <pre><code>&gt;&gt;&gt; # Already typed -- returns self

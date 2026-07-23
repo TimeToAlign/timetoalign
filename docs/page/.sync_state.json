@@ -4,16 +4,16 @@
   "how01_coordinate_math.py": "64c0765bc4ef38864d9879d1c1bc9ac8dd74a37642d0c96e45ffe2711a35c4a7",
   "how01_advanced_cmaps.py": "00698add53468d2c8ca921032ec374b4b90f17dbe923c7c2d6aa19c37d0affd5",
   "how01_advanced_timestamps.py": "1006861896b501d3315b5c240cb7671169b98ea3d3c69c8da6214000f2069c02",
-  "how01_manual_timeline_construction.py": "d33baca0a9533c1e791cb5e9903507959638cc2a37ab26e603eba223391d66e9",
-  "how01_graphical_timelines.py": "51de3d4f6237b62e3038a09880ddf8207a284921aeb06d94e5b52be49e9ab4cb",
+  "how01_manual_timeline_construction.py": "7a584700d7dd72a7a24461877ba9a407f493023c9f6e277857716d3925deaf9f",
+  "how01_graphical_timelines.py": "0a38613e6de689ba2ff7fc1d9f6c9557a2b77b49e5554da358c0fba1ea8d242e",
   "tut01b_children_regions_timestamps.py": "075113a4b6832e6570e0b477c8d2b156537b173644d6796bcf3ee74dac8e1738",
   "tut02_timeline_groups.py": "658a31f75b3f6f3ea36a7faa7c128601f1cbe93ff3fe87a29c83b7e4c8917e7d",
   "tut03_alignment_bundles.py": "2a96712097b91cf6d5de51d1e7b2d526aa9820bbb61d1201ab915434e1f042f5",
-  "how01_loading_data.py": "8a9bdd8c34c5ab698deba77c235e830f6d9fabf31126a6ee8cc2a1b321bacb54",
+  "how01_loading_data.py": "6b1088fbc57e51f3a7bbd6869ffb321ff2d2a1d2a988daaf90d3d3e896021ea8",
   "how01_tabular_loaders.py": "b725dfb8298a8cab84698e0596e68b97e28ad29b5d0fe406c38af76c78d3d023",
   "how01_beat_grids.py": "4b6e726ab976e258b78517cea02480217043d53d2e051fb680e0395d00138dcd",
   "how02_supra_piano_roll.py": "7cc150b3c06eb7e4f8d9ae345b5e49f2beede43b628205e2a4051371abd560b8",
-  "how03_beethoven_multimodal.py": "ba1bb904c2f0efb702a9d4fbd532f351d0e39286378763a422bae9e1476ec3a6",
+  "how03_beethoven_multimodal.py": "17be11309bbdfd233f3f36300873df321d4909cd87108ebd6b4cf2961eeb560f",
   "how03_loading_vienna_corpus.py": "6d61290769e04ebdf66aa422c23bb7dbcf15606f7828c114cf5415a61358cc77",
   "tut00_quickstart.py": "87e6f7b324902b3d2039bae46b89af877d7b216ddf6b8341aaee6c02fe4a555f",
   "how03_create_note_alignment.py": "c0d44065a5c978154bbe23fef213cbd1dab08edebd771622d28634aed5de5b93",
@@ -28,5 +28,6 @@
   "how03_performance_precision.py": "3a01576ca7306a7ccf99e991e90faa84dc922d29e6e10d9bf96243157ced2580",
   "tut06_pitch_and_harmony.py": "5879d3fca506c52e4a35d404334ed058054be8107aa82d1fe5c5676c87b0a35a",
   "how04_loading_csv.py": "82a0be75da62d68ea75ec9f80502f62c3304ac2a76666cdb1d03e3fc3d68d27c",
-  "tut05_datafields_and_eventdata.py": "04e80bfad1226355e26633670478fe880786da2f86b521cf2fc219f792bb6987"
+  "tut05_datafields_and_eventdata.py": "04e80bfad1226355e26633670478fe880786da2f86b521cf2fc219f792bb6987",
+  "how03_ieee1599.py": "c481ea1ce03c8bb7ef8a3bd9ca78f0bfcabdc69e5dc52df0db4a688407d1eda5"
 }

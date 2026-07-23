@@ -50,6 +50,14 @@ Attributes:
         materialising the full claim list.
 
 Note:
+    The two claim stores are interchangeable as far as queries are
+    concerned: every reader consults both, so a bundle whose claims live
+    in a ``MatchClaimField`` answers exactly as a bundle holding the same
+    claims in the Python list.  What differs is cost — ``MatchClaimField``
+    queries stay vectorized, and ``get_claim_fields()`` is the accessor
+    that keeps them that way.
+
+Note:
     The bundle maintains a UID mapping layer. Users interact with bundle UIDs
     (e.g., "tl1", "tl2"), while groups internally use the actual timeline.id.
     The bundle translates between these two namespaces transparently.
@@ -68,6 +76,7 @@ Examples:
 | --- | --- |
 | [default_group](#timetoalign.alignment.AlignmentBundle.default_group) | Get the single group or primary group. |
 | [group_ids](#timetoalign.alignment.AlignmentBundle.group_ids) | List of all group IDs in the bundle. |
+| [n_cross_group_claims](#timetoalign.alignment.AlignmentBundle.n_cross_group_claims) | Total cross-group claims across BOTH claim stores. |
 | [n_groups](#timetoalign.alignment.AlignmentBundle.n_groups) | Number of groups in this bundle. |
 | [n_timelines](#timetoalign.alignment.AlignmentBundle.n_timelines) | Number of timelines in this bundle. |
 | [timeline_ids](#timetoalign.alignment.AlignmentBundle.timeline_ids) | List of all timeline IDs in the bundle. |
@@ -83,6 +92,7 @@ Examples:
 | [are_commensurable](#timetoalign.alignment.AlignmentBundle.are_commensurable) | Check if two timelines can be connected via transfer. |
 | [create_match_claims](#timetoalign.alignment.AlignmentBundle.create_match_claims) | Create MatchClaims from a list of event pairs. |
 | [diagram](#timetoalign.alignment.AlignmentBundle.diagram) | Generate ASCII diagram for this bundle. |
+| [get_claim_fields](#timetoalign.alignment.AlignmentBundle.get_claim_fields) | Query the columnar claim stores, materialising nothing. |
 | [get_group](#timetoalign.alignment.AlignmentBundle.get_group) | Get a group by ID. |
 | [get_group_for_timeline](#timetoalign.alignment.AlignmentBundle.get_group_for_timeline) | Get the group containing a timeline. |
 | [get_match_claims](#timetoalign.alignment.AlignmentBundle.get_match_claims) | Query MatchClaims connecting timelines across groups. |
@@ -343,6 +353,55 @@ Examples:
 
       MatchClaims: 5
 
+### get_claim_fields { #timetoalign.alignment.AlignmentBundle.get_claim_fields }
+
+```python
+alignment.AlignmentBundle.get_claim_fields(
+    timeline_id=None,
+    timeline_ids=None,
+    id_pattern=None,
+    between=None,
+    synchronous_only=False,
+    nomatch_only=False,
+    include_domains=None,
+    include_units=None,
+)
+```
+
+Query the columnar claim stores, materialising nothing.
+
+This is the scalable counterpart of :meth:`get_match_claims` for
+bundles whose claims live in a ``MatchClaimField`` — a dense pairwise
+alignment can hold hundreds of thousands of claims, and turning each
+one into a Python object costs orders of magnitude more than the
+columnar answer.  Every filter is applied as a vectorized PyArrow
+mask, and the result is a list of *filtered fields*, one per store
+that still has rows.
+
+The filter parameters are exactly those of :meth:`get_match_claims`
+and carry the same meaning.  Because a ``MatchClaimField`` holds
+synchronous claims only, ``synchronous_only`` is a no-op here and
+``nomatch_only`` returns nothing.
+
+Args:
+    timeline_id: Keep claims involving this bundle UID.
+    timeline_ids: Keep claims involving any of these bundle UIDs.
+    id_pattern: Regex matched against bundle UIDs via ``re.search()``.
+    between: Keep claims connecting exactly these two bundle UIDs
+        (order-independent).
+    synchronous_only: No-op (every stored claim is synchronous).
+    nomatch_only: Returns an empty list.
+    include_domains: Only timelines in these domains.
+    include_units: Only timelines with these units.
+
+Returns:
+    Filtered ``MatchClaimField`` objects, empty stores dropped.
+
+Examples:
+    >>> fields = bundle.get_claim_fields(timeline_id="rec-a:cpt1")
+    >>> sum(len(f) for f in fields)
+    66780
+
 ### get_group { #timetoalign.alignment.AlignmentBundle.get_group }
 
 ```python
@@ -408,6 +467,13 @@ claims.
 
 Filters are combined with AND logic: a claim must satisfy every
 non-None criterion. Uses the Unified Filter API.
+
+Both claim stores are queried: the per-claim Python list and every
+columnar ``MatchClaimField``. The columnar matches are filtered
+vectorized but then **materialised**, one ``MatchClaim`` per surviving
+row — for a dense pairwise alignment that is O(n) Python objects. Use
+:meth:`get_claim_fields` when the columnar answer suffices, or narrow
+the query first.
 
 Args:
     timeline_id: Return claims involving this bundle UID.
@@ -503,23 +569,49 @@ alignment.AlignmentBundle.get_matchstamp_table(
     claims=None,
     *,
     timeline_filter=None,
+    from_graph=False,
 )
 ```
 
 Get a PyArrow table of MatchStamps for alignment queries.
 
 Analogous to ``get_timestamp_table()`` but for cross-group alignment.
-Each row represents one MatchClaim/coordinate; fields are timeline IDs
-with their coordinate values.
+Fields are timeline IDs holding their coordinate values; what a *row*
+is depends on ``from_graph``:
+
+- ``from_graph=False`` (default) — one row per synchronous claim.  A
+  pairwise claim fills exactly two cells and leaves the rest null, so
+  a dense pairwise alignment produces one sparse row per claim.
+- ``from_graph=True`` — one row per connected component of the
+  ``(timeline_id, coordinate)`` graph the claims induce.  The pairwise
+  rows above collapse into the *cross-section* they describe: one row
+  per aligned instant, every participating timeline filled.
+
+When ``claims`` is None both claim stores are read: the per-claim
+Python list and every columnar ``MatchClaimField``.  The columnar
+stores are read four Arrow columns at a time — no ``MatchClaim`` is
+ever materialised — which is what keeps a hundreds-of-thousands-of-rows
+alignment tabulable.
 
 Args:
-    claims: List of MatchClaims to tabulate. If None, uses all
-        cross_group_claims.
+    claims: List of MatchClaims to tabulate.  If None, uses every
+        cross-group claim in the bundle (both stores).  When given,
+        only those claims are tabulated.
     timeline_filter: Only include these timeline fields.
+    from_graph: Collapse claims into one row per connected component
+        instead of one row per claim.
 
 Returns:
-    PyArrow Table with one row per synchronous claim, one field
-    per timeline. Non-synchronous claims are excluded.
+    PyArrow Table with one field per timeline.  Non-synchronous claims
+    are excluded.  Empty input yields an empty table.
+
+Note:
+    Collapsed rows are ordered by the coordinate on the
+    lexicographically smallest timeline ID present in the component,
+    then by that ID — a total order, since two components can never
+    share a ``(timeline_id, coordinate)`` node.  A component that
+    somehow carries two coordinates for one timeline (which a
+    well-formed alignment never does) keeps the smaller one.
 
 Examples:
     >>> table = bundle.get_matchstamp_table()
@@ -527,6 +619,8 @@ Examples:
     100
     >>> table.column_names
     ['score:clt1', 'perf:dlt1', 'perf:dlt2', ...]
+    >>> bundle.get_matchstamp_table(from_graph=True).num_rows
+    25
 
 ### get_matchstamps { #timetoalign.alignment.AlignmentBundle.get_matchstamps }
 
@@ -541,7 +635,10 @@ at once. Uses the bundle's caching mechanism for efficient retrieval.
 
 Args:
     claims: List of MatchClaims to get stamps for. If None, uses
-        all cross_group_claims.
+        every cross-group claim in the bundle — the per-claim list
+        and every columnar ``MatchClaimField`` (see
+        :meth:`get_match_claims`, which materialises the columnar
+        rows).
     from_graph: If True (default), return full MatchStamps from the
         MatchGraph (all connected timelines). If False, return
         reduced 2-timeline stamps.

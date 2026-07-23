@@ -315,6 +315,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">How to Load an Audio-to-Audio Alignment (Listen Here!)</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../howto/how03_ieee1599.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">How to Load an IEEE 1599 Document</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -402,8 +408,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ol type="1">
 <li>Load the whole specimen in one call.</li>
 <li>Inspect the measure structure recovered from the timemap.</li>
-<li>Read the score <button class="glossary" title="A positive coordinate axis defined by an origin and a measuring unit; continuous (real) or discrete (integer). Accommodates events and potentially Child timelines.">Timeline</button> (in quarters) and see how a <code>measure+offset</code> label resolves.</li>
-<li>Read the per-performer <button class="glossary" title="A positive coordinate axis defined by an origin and a measuring unit; continuous (real) or discrete (integer). Accommodates events and potentially Child timelines.">Timeline</button>s (in seconds).</li>
+<li>Read the score <button class="glossary" title="">Timeline</button> (in quarters) and see how a <code>measure+offset</code> label resolves.</li>
+<li>Read the per-performer <button class="glossary" title="">Timeline</button>s (in seconds).</li>
 <li>Inspect the <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (the authoring agent and a certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension). Held individually, or columnar at scale in a MatchClaimField.">MatchClaim</button>s, tagged by granularity.</li>
 <li>Compare the performers’ timing through the <button class="glossary" title="A collection of TimelineGroups with inter-group MatchClaim connections; provides coordinate transfer via offset arithmetic, interpolation, and WarpMaps.">AlignmentBundle</button>.</li>
 </ol>
@@ -462,7 +468,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="the-measure-structure" class="level2">
 <h2 class="anchored" data-anchor-id="the-measure-structure">2. The measure structure</h2>
-<p>The Verovio timemap records each measure’s absolute position in quarter notes. The loader walks it into a <button class="glossary" title="A table-based ConversionMap from a quarter position to its measure count, built from explicit measure-boundary anchors rather than a uniform measure length. Correctly handles anacrusis (incomplete first measure), irregular measures, varying time signatures, and repeat structure. Built directly from a Verovio timemap via MetricMap.from_verovio_timemap(). Not invertible (many quarters map to the same measure).">MetricMap</button> — a <button class="glossary" title="A typed function attached to a timeline that maps each coordinate to exactly one value (coordinate, label, or filename); also permits inverse conversion back to the timeline’s own unit. Also called C-map.">ConversionMap</button> from a quarter position to its measure count — and exposes it directly:</p>
+<p>The Verovio timemap records each measure’s absolute position in quarter notes. The loader walks it into a <button class="glossary" title="">MetricMap</button> — a <button class="glossary" title="A typed function attached to a timeline that maps each coordinate to exactly one value (coordinate, label, or filename); also permits inverse conversion back to the timeline’s own unit. Also called C-map.">ConversionMap</button> from a quarter position to its measure count — and exposes it directly:</p>
 <div id="14888b40" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:41:01.028875Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:41:01.028579Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:41:01.033660Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:41:01.032695Z&quot;}}" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>metric_map <span class="op">=</span> loader.metric_map</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>metric_map</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -492,7 +498,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="the-score-timeline" class="level2">
 <h2 class="anchored" data-anchor-id="the-score-timeline">3. The score timeline</h2>
-<p>The score is a logical <button class="glossary" title="A positive coordinate axis defined by an origin and a measuring unit; continuous (real) or discrete (integer). Accommodates events and potentially Child timelines.">Timeline</button> measured in quarters. It holds every note of the <code>.solo</code> score, each placed at its absolute quarter position. Its stored UID is <code>score:clt1</code>.</p>
+<p>The score is a logical <button class="glossary" title="">Timeline</button> measured in quarters. It holds every note of the <code>.solo</code> score, each placed at its absolute quarter position. Its stored UID is <code>score:clt1</code>.</p>
 <div id="12c8daf5" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:41:01.044721Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:41:01.044460Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:41:01.059905Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:41:01.058789Z&quot;}}" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>score_tl <span class="op">=</span> loader.create_timeline(uid<span class="op">=</span><span class="st">"score:clt1"</span>)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>score_tl</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -541,7 +547,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>A <button class="glossary" title="A cross-section through a timeline or group at a given coordinate, capturing positions in all connected systems plus values converted by all attached C-maps. TimeStamp implements the shared Stamp interface used by GroupTimestamp and MatchStamp, including raw get(), unit-bearing get_coordinate(), present_timelines, and is_interpolated access.">TimeStamp</button> is the primary way to query the score timeline at a coordinate — here the downbeat of the first full measure, half a quarter in:</p>
+<p>A <button class="glossary" title="">TimeStamp</button> is the primary way to query the score timeline at a coordinate — here the downbeat of the first full measure, half a quarter in:</p>
 <div id="302eb54b" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:41:01.079595Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:41:01.079356Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:41:01.084040Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:41:01.083095Z&quot;}}" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>score_tl.get_timestamp(Fraction(<span class="dv">1</span>, <span class="dv">2</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="7">
@@ -587,7 +593,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="the-performance-timelines" class="level2">
 <h2 class="anchored" data-anchor-id="the-performance-timelines">4. The performance timelines</h2>
-<p>Each recording is a physical <button class="glossary" title="A positive coordinate axis defined by an origin and a measuring unit; continuous (real) or discrete (integer). Accommodates events and potentially Child timelines.">Timeline</button> measured in seconds, one event per aligned note onset. Their stored UIDs follow <code>perf:&lt;performer&gt;:cpt1</code>, so the Ashkenazy recording is <code>perf:Chopin_Ashkenazy:cpt1</code>:</p>
+<p>Each recording is a physical <button class="glossary" title="">Timeline</button> measured in seconds, one event per aligned note onset. Their stored UIDs follow <code>perf:&lt;performer&gt;:cpt1</code>, so the Ashkenazy recording is <code>perf:Chopin_Ashkenazy:cpt1</code>:</p>
 <div id="a13a3792" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:41:01.156246Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:41:01.155990Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:41:01.161799Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:41:01.160492Z&quot;}}" data-execution_count="9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>performer_keys <span class="op">=</span> [tl.name <span class="cf">for</span> tl <span class="kw">in</span> loader.create_timelines() <span class="cf">if</span> tl <span class="kw">is</span> <span class="kw">not</span> score_tl]</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>performer_keys</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>

@@ -54,9 +54,34 @@ Attributes:
 
 | Name | Description |
 | --- | --- |
+| [domain_unit_timeline_ids](#timetoalign.alignment.ClaimFilter.domain_unit_timeline_ids) | Resolve the domain/unit criteria into the set of ids that pass. |
 | [from_kwargs](#timetoalign.alignment.ClaimFilter.from_kwargs) | Create a ClaimFilter from keyword arguments. |
 | [matches_claim](#timetoalign.alignment.ClaimFilter.matches_claim) | Test whether a MatchClaim passes all filter criteria. |
 | [matches_timeline](#timetoalign.alignment.ClaimFilter.matches_timeline) | Test whether a single timeline ID passes the filter criteria. |
+
+### domain_unit_timeline_ids { #timetoalign.alignment.ClaimFilter.domain_unit_timeline_ids }
+
+```python
+alignment.ClaimFilter.domain_unit_timeline_ids(timelines)
+```
+
+Resolve the domain/unit criteria into the set of ids that pass.
+
+``include_domains`` / ``include_units`` are the only criteria that
+need per-timeline metadata. Resolving them once into a plain set of
+timeline ids lets a columnar store — which holds ids but no timeline
+metadata — apply the same restriction vectorized.
+
+The set carries the same semantics ``matches_claim`` applies: a claim
+passes only when **both** of its timelines are in it.
+
+Args:
+    timelines: Dict of timeline_id -> Timeline for resolution.
+
+Returns:
+    ``None`` when neither criterion is set (no restriction), else the
+    set of timeline ids satisfying both criteria (empty when
+    ``timelines`` is None, mirroring ``matches_claim``).
 
 ### from_kwargs { #timetoalign.alignment.ClaimFilter.from_kwargs }
 
