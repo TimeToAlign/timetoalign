@@ -30,8 +30,10 @@ and produces a single :class:`~timetoalign.alignment.bundle.AlignmentBundle`:
   :class:`~timetoalign.timelines.types.DiscretePhysicalTimeline`
   (``<stem>:dpt1``) per recording, each in its **own** group, with
   ``length`` converted from that recording's stored ``duration``.  The recordings
-  carry **no symbolic events** — the timelines hold only a length and a unit;
-  all alignment lives in the cross-group claim field; and
+  carry one point event for each source-grid time.  Its integer sample
+  coordinate supports the alignment, while its ``seconds`` field preserves the
+  verbatim JSON value; all pairwise alignment lives in the cross-group claim
+  field; and
 * the complete-topology pairwise claims, reached through the uniform field
   API ``loader.get_field(MatchClaim)`` -> :class:`MatchClaimField`.
 
@@ -132,6 +134,7 @@ class ListenHereLoader(AlignmentLoader):
         self._durations: dict[str, float] = {}
         self._sample_rates: dict[str, int] = {}
         self._sample_rate_provenance: dict[str, str] = {}
+        self._times_by_key: dict[str, list[float]] = {}
         self._claim_field: MatchClaimField | None = None
         self._name: str | None = None
         # The reference recording key (``header.ref``): the grid origin.
@@ -209,6 +212,7 @@ class ListenHereLoader(AlignmentLoader):
             )
 
         self._keys = keys
+        self._times_by_key = times_by_key
         self._name = path.stem
         self._ref = ref
         agent = header.get("createdBy", _DEFAULT_AGENT)
@@ -418,7 +422,7 @@ class ListenHereLoader(AlignmentLoader):
     def create_bundle(self) -> "AlignmentBundle":
         """Assemble the AlignmentBundle from the loaded alignment.
 
-        Each recording becomes an empty samples
+        Each recording becomes a samples
         :class:`DiscretePhysicalTimeline` in its own group, and the complete
         pairwise claim field is added to the bundle **columnar**.
 
@@ -454,7 +458,7 @@ class ListenHereLoader(AlignmentLoader):
         return bundle
 
     def create_timelines(self, id_pattern: str | None = None) -> list["Timeline"]:
-        """Return one empty samples timeline per recording, in sorted order.
+        """Return one samples timeline per recording, in sorted order.
 
         Args:
             id_pattern: Optional regex pattern to filter timeline IDs.
@@ -488,7 +492,7 @@ class ListenHereLoader(AlignmentLoader):
         )
 
     def _make_timeline(self, key: str) -> DiscretePhysicalTimeline:
-        """Build the empty samples timeline for one recording key."""
+        """Build one samples timeline with faithful source-time events."""
         stem = self._stems[key]
         sample_rate = self._sample_rates[key]
         timeline = DiscretePhysicalTimeline(
@@ -500,6 +504,16 @@ class ListenHereLoader(AlignmentLoader):
                 "sample_rate": sample_rate,
                 "sample_rate_provenance": self._sample_rate_provenance[key],
             },
+        )
+        timeline.add_events(
+            [
+                {
+                    "event_type": "ListenHerePoint",
+                    "instant": int(round(seconds * sample_rate)),
+                    "seconds": np.float64(seconds),
+                }
+                for seconds in self._times_by_key[key]
+            ]
         )
         timeline.add_conversion_map(SamplesToSeconds(sample_rate=sample_rate))
         return timeline
@@ -518,8 +532,8 @@ class ListenHereLoader(AlignmentLoader):
         The base :class:`AlignmentLoader` count row is replaced by the
         claim count (see :meth:`_repr_count_row`); the data lives in the
         assembled timelines and the claim field, not the unpopulated
-        per-source ``AlignmentStore``.  One empty samples timeline per
-        recording, each in its own group.
+        per-source ``AlignmentStore``.  One samples timeline per recording,
+        each in its own group.
         """
         rows = super()._repr_rows()
         n_recordings = len(self._keys)

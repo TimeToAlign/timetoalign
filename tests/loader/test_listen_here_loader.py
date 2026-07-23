@@ -14,8 +14,9 @@ It verifies:
   reached through the uniform ``loader.get_field(MatchClaim)`` API (the
   ``loader.claim_field`` property is gone);
 - the loader repr names the reference recording (``header.ref``);
-- one empty samples timeline per recording, each in its own group, with
-  ``length`` converted from the recording's stored ``duration``;
+- one samples timeline per recording, each in its own group, with source-time
+  events, verbatim ``seconds`` fields, and ``length`` converted from the
+  recording's stored ``duration``;
 - faithful preservation of negative pre-onset warp coordinates (never
   clamped or dropped);
 - a columnar ``create_bundle`` that never explodes the field — the
@@ -42,6 +43,7 @@ import json
 import wave
 from pathlib import Path
 
+import pyarrow as pa
 import pyarrow.compute as pc
 import pytest
 
@@ -238,10 +240,18 @@ def test_bundle_timeline_uids(loader: ListenHereLoader) -> None:
     }
 
 
-def test_bundle_timelines_are_empty(loader: ListenHereLoader) -> None:
+def test_timeline_events_retain_source_seconds(loader: ListenHereLoader) -> None:
     bundle = loader.create_bundle()
-    for timeline in bundle.timelines.values():
-        assert len(timeline.events) == 0
+    timeline = bundle.timelines["rec-b:dpt1"]
+    assert len(timeline.events) == 5
+    assert timeline.events.table.column("seconds").to_pylist() == [
+        -0.01,
+        0.01,
+        0.03,
+        0.05,
+        0.07,
+    ]
+    assert pa.types.is_float64(timeline.events.table.schema.field("seconds").type)
 
 
 def test_recording_timelines_are_discrete_samples(loader: ListenHereLoader) -> None:
@@ -260,6 +270,13 @@ def test_assumed_sample_rate_is_recorded(loader: ListenHereLoader) -> None:
     timeline = loader.create_bundle().timelines["rec-a:dpt1"]
     assert timeline.meta["sample_rate"] == 44100
     assert timeline.meta["sample_rate_provenance"] == "assumed"
+    assert timeline.events.table.column("seconds").to_pylist() == [
+        0.0,
+        0.02,
+        0.04,
+        0.06,
+        0.08,
+    ]
 
 
 def test_audio_file_sample_rate_converts_coordinates(tmp_path: Path) -> None:
@@ -284,11 +301,39 @@ def test_audio_file_sample_rate_converts_coordinates(tmp_path: Path) -> None:
         assert timeline.meta["sample_rate"] == 48000
         assert timeline.meta["sample_rate_provenance"] == "file"
         assert timeline.get_conversion_map(TimeUnit.seconds)(960) == 0.02
+        assert timeline.events.table.column("seconds").to_pylist() == (
+            [0.0, 0.02, 0.04] if timeline.id == "rec-a:dpt1" else [0.0, 0.01, 0.03]
+        )
 
     claim = loader.get_field(MatchClaim)[1]
     assert claim.start_anchor.coordinate_a.value == 960
     assert claim.start_anchor.coordinate_b.value == 480
     assert claim.start_anchor.coordinate_a.unit is TimeUnit.samples
+
+
+def test_claim_source_seconds_are_recoverable_exactly(tmp_path: Path) -> None:
+    path = _write_spec(
+        tmp_path,
+        {
+            "header": {"ref": "rec-a.mp3"},
+            "body": {
+                "audio": {
+                    "rec-a.mp3": {"times": [0.0, 0.001], "duration": 0.001},
+                    "rec-b.mp3": {"times": [0.0, 0.001], "duration": 0.001},
+                }
+            },
+        },
+    )
+    loader = ListenHereLoader.from_file(path)
+    bundle = loader.create_bundle()
+    claim = loader.get_field(MatchClaim)[1]
+    timeline = bundle.timelines[claim.timeline_a_id]
+    starts = timeline.events.table.column("start").combine_chunks().field("value")
+    index = pc.index(starts, int(claim.start_anchor.coordinate_a.value)).as_py()
+
+    assert claim.start_anchor.coordinate_a.value == 44
+    assert timeline.get_conversion_map(TimeUnit.seconds)(44) != 0.001
+    assert timeline.events.table.column("seconds")[index].as_py() == 0.001
 
 
 # endregion
