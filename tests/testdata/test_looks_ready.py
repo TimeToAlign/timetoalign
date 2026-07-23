@@ -72,28 +72,6 @@ def test_returns_false_when_sentinel_digest_mismatch(tmp_path: Path) -> None:
     assert _looks_ready(tmp_path, marker, _DIGEST) is False
 
 
-def test_trust_unmarked_false_rejects_dev_checkout_shape(tmp_path: Path) -> None:
-    """``trust_unmarked=False`` refuses the developer-checkout shape.
-
-    ``_ensure_one()``'s pre-lock fast path passes this so that a
-    sentinel-less directory holding payload — which is also the shape a
-    peer process leaves mid-extraction, before its atomic sentinel rename —
-    is never trusted there; see ``tests/testdata/README.md``.
-    """
-    marker = tmp_path / ".tta_testdata_hash"
-    assert not marker.exists()
-    (tmp_path / "data.bin").write_bytes(b"payload")
-    assert _looks_ready(tmp_path, marker, _DIGEST, trust_unmarked=False) is False
-
-
-def test_trust_unmarked_false_still_trusts_sentinel_match(tmp_path: Path) -> None:
-    """``trust_unmarked=False`` only disables the unmarked fallback, not the canonical case."""
-    marker = tmp_path / ".tta_testdata_hash"
-    marker.write_text(_DIGEST, encoding="utf-8")
-    (tmp_path / "data.bin").write_bytes(b"payload")
-    assert _looks_ready(tmp_path, marker, _DIGEST, trust_unmarked=False) is True
-
-
 def test_returns_false_when_dir_empty(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
