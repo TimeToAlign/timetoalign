@@ -241,12 +241,60 @@ class TestTimelineRegionManagement:
         with pytest.raises(ValueError, match="already exists"):
             tl.add_region("Chorus", start=70, end=90)
 
-    def test_add_region_on_locked_timeline_raises(self):
-        """add_region raises RuntimeError on locked timeline."""
+    def test_add_region_on_locked_timeline_succeeds(self):
+        """add_region works on a locked timeline; regions are pure annotations.
+
+        Length-locking guards a timeline's own coordinate contract with its
+        parent (``set length``), not the addition of named annotations within
+        the existing coordinate space. Creating a region changes nothing
+        structural, so it must succeed on a locked timeline.
+        """
         tl = Timeline(length=100, unit=TimeUnit.seconds, locked=True)
 
-        with pytest.raises(RuntimeError, match="locked"):
-            tl.add_region("Test", start=0, end=10)
+        region = tl.add_region("Test", start=0, end=10)
+
+        assert region.name == "Test"
+        assert float(region.start.value) == 0.0
+        assert float(region.end.value) == 10.0
+        assert tl.get_region("Test") is region
+
+    def test_create_region_on_locked_timeline_succeeds(self):
+        """create_region works on a locked timeline with exact bounds."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds, locked=True)
+
+        region = tl.create_region("A", start=0, end=40)
+
+        assert region.name == "A"
+        assert float(region.start.value) == 0.0
+        assert float(region.end.value) == 40.0
+        assert tl.get_region("A") is region
+
+    def test_create_regions_from_boundaries_on_locked_timeline_succeeds(self):
+        """create_regions_from_boundaries works on a locked timeline."""
+        tl = Timeline(length=100, unit=TimeUnit.seconds, locked=True)
+
+        regions = tl.create_regions_from_boundaries([0, 40, 100], prefix="sec")
+
+        assert [r.name for r in regions] == ["sec_1", "sec_2"]
+        assert [(float(r.start.value), float(r.end.value)) for r in regions] == [
+            (0.0, 40.0),
+            (40.0, 100.0),
+        ]
+
+    def test_create_regions_by_splitting_on_locked_timeline_succeeds(self):
+        """create_regions_by_splitting works on a locked timeline.
+
+        With no split-point events, the whole timeline becomes one region.
+        """
+        tl = Timeline(length=100, unit=TimeUnit.seconds, locked=True)
+
+        regions = tl.create_regions_by_splitting("breaks", prefix="mov")
+
+        assert [r.name for r in regions] == ["mov_1"]
+        assert (float(regions[0].start.value), float(regions[0].end.value)) == (
+            0.0,
+            100.0,
+        )
 
 
 # endregion

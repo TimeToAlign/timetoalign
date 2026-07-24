@@ -223,8 +223,11 @@ to the relevant section of the conceptual model.
     See [Foundations](concepts.qmd#foundations).
 
 **Locked**
-:   A timeline state preventing the addition of {{< glossary Instant >}}s
-    after the last time-point. {{< glossary Child >}} timelines are
+:   A timeline state that fixes its coordinate axis: no
+    {{< glossary Instant >}}s may be added after the last time-point, so its
+    length cannot change. Locking governs the coordinate axis only ---
+    non-structural annotations such as {{< glossary Region >}}s may still be
+    added to a locked timeline. {{< glossary Child >}} timelines are
     automatically locked when embedded in a parent.
     See [Nested timelines](concepts.qmd#nested-timelines).
 

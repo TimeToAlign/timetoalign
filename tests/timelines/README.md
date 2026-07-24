@@ -668,14 +668,28 @@ measures.
    - Rejects mismatched units
    - Immutability (frozen dataclass)
 
-2. **Timeline Region Management Tests** (9 tests)
+2. **Timeline Region Management Tests** (12 tests)
    - add_region() returns Region object
    - get_region() returns Region object (updated from dict)
    - get_region() raises KeyError if not found (updated from None)
    - has_region(), iter_regions(), list_regions()
    - n_regions property
    - Duplicate name rejection
-   - Locked timeline rejection
+   - **Region creation succeeds on a locked timeline.** Length-locking guards
+     a timeline's own coordinate contract with its parent (`set length`), not
+     the addition of named annotations within the existing coordinate space.
+     Regions are pure annotations that change nothing structural — they are
+     strictly less structural than children, and child creation is already
+     unguarded on a locked timeline. So `add_region`, `create_region`,
+     `create_regions_from_boundaries`, and `create_regions_by_splitting` all
+     succeed on a `locked=True` timeline with exact bounds/names: `add_region`
+     and `create_region` produce the requested `[start, end)` region;
+     `create_regions_from_boundaries([0, 40, 100], prefix="sec")` yields
+     `sec_1 [0, 40)` and `sec_2 [40, 100)`; and
+     `create_regions_by_splitting("breaks", prefix="mov")` on an event-free
+     timeline yields the single whole-span region `mov_1 [0, 100)`. (Distinct
+     from `create_child_from_region`, which remains lock-guarded — see the
+     create_child_from_region group below.)
 
 3. **Phase A — create_region() / add_region() overloaded** (5 tests)
    - `create_region(name, start, end)` creates and registers a Region

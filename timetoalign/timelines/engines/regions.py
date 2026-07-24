@@ -43,7 +43,6 @@ class RegionsMixin:
         Raises:
             ValueError: If region name already exists, end < start, or
                 arguments are inconsistent.
-            RuntimeError: If timeline is locked.
 
         Examples:
             >>> # New API — attach a pre-existing Region
@@ -76,10 +75,7 @@ class RegionsMixin:
         Raises:
             ValueError: If a region with the same name already exists or
                 the region's unit does not match the timeline's unit.
-            RuntimeError: If timeline is locked.
         """
-        self._check_not_locked("add region")
-
         if region.unit != self._unit:
             raise ValueError(
                 f"Region unit '{region.unit}' does not match "
@@ -120,14 +116,11 @@ class RegionsMixin:
 
         Raises:
             ValueError: If name already exists or end < start.
-            RuntimeError: If timeline is locked.
 
         Examples:
             >>> tl.create_region("Chorus", 10.0, 30.0)
             >>> tl.create_region("Verse", 30.0, 50.0, meta={"repeat": 2})
         """
-        self._check_not_locked("create region")
-
         if name in self._regions:
             raise ValueError(f"Region '{name}' already exists")
 
@@ -174,7 +167,6 @@ class RegionsMixin:
         Raises:
             ValueError: If fewer than 2 boundaries or not monotonically
                 increasing.
-            RuntimeError: If timeline is locked.
 
         Examples:
             >>> tl.create_regions_from_boundaries(
@@ -184,8 +176,6 @@ class RegionsMixin:
             [Region('movement_1', 0-30), Region('movement_2', 30-60),
              Region('movement_3', 60-90)]
         """
-        self._check_not_locked("create regions from boundaries")
-
         if len(boundaries) < 2:
             raise ValueError(
                 f"Need at least 2 boundary coordinates, got {len(boundaries)}"
@@ -248,15 +238,12 @@ class RegionsMixin:
 
         Raises:
             ValueError: If field does not exist in events.
-            RuntimeError: If timeline is locked.
 
         Examples:
             >>> # Time-signature regions (adjacent grouping)
             >>> tl.create_regions_by_grouping("timesig")
             [Region('4/4', 0-64), Region('3/4', 64-88), Region('4/4', 88-120)]
         """
-        self._check_not_locked("create regions by grouping")
-
         # Collect events sorted by start coordinate
         events_sorted = self._sorted_event_dicts()
         if not events_sorted:
@@ -380,9 +367,6 @@ class RegionsMixin:
         Returns:
             List of contiguous Region objects in coordinate order.
 
-        Raises:
-            RuntimeError: If timeline is locked.
-
         Examples:
             >>> # Split at section breaks
             >>> tl.create_regions_by_splitting("breaks", prefix="movement")
@@ -392,8 +376,6 @@ class RegionsMixin:
             ...     {"breaks": "section"}, prefix="movement"
             ... )
         """
-        self._check_not_locked("create regions by splitting")
-
         # Resolve predicate to a callable
         match_fn = self._resolve_predicate(predicate)
 

@@ -151,8 +151,11 @@ Length: |
   timeline cannot extend its length.
 
 Locked: |
-  A timeline state preventing the addition of Instants after the last time-point.
-  Child timelines are automatically locked when embedded in a parent.
+  A timeline state that fixes its coordinate axis: no Instants may be added
+  after the last time-point, so its length cannot change. Locking governs the
+  coordinate axis only — non-structural annotations such as Regions may still be
+  added to a locked timeline. Child timelines are automatically locked when
+  embedded in a parent.
 
 MatchfileLoader: |
   Loader for Vienna Match (.match) alignment files. Uses the standard two-phase
