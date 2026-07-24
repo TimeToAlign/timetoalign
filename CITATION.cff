@@ -1,0 +1,61 @@
+cff-version: 1.2.0
+message: If you use this software, please cite the article below (see preferred-citation).
+title: Time To Align!
+type: software
+repository-code: https://github.com/timetoalign/timetoalign
+url: https://timetoalign.github.io/
+license: MIT
+authors:
+  - family-names: Hentschel
+    given-names: Johannes
+preferred-citation:
+  type: article
+  title: Time to Align! Modelling Musical Timelines for Music Information Retrieval and Digital Musicology
+  journal: Transactions of the International Society for Music Information Retrieval
+  year: 2026
+  volume: 9
+  issue: 1
+  start: 384
+  end: 404
+  doi: 10.5334/tismir.296
+  authors:
+    - family-names: Hentschel
+      given-names: Johannes
+    - family-names: Berndt
+      given-names: Axel
+    - family-names: Cancino-Chacón
+      given-names: Carlos
+    - family-names: Dixon
+      given-names: Simon
+    - family-names: Foo
+      given-names: Anne
+    - family-names: Gotham
+      given-names: Mark
+    - family-names: Hu
+      given-names: Patricia
+    - family-names: Köster
+      given-names: Maik
+    - family-names: Martins
+      given-names: Felipe D.
+    - family-names: Mauro
+      given-names: Davide A.
+    - family-names: Müller
+      given-names: Meinard
+    - family-names: Neuwirth
+      given-names: Markus
+    - family-names: Pacha
+      given-names: Alexander
+    - family-names: Page
+      given-names: Kevin R.
+    - family-names: Peter
+      given-names: Silvan
+    - family-names: Polyakov
+      given-names: Egor
+    - family-names: Pugin
+      given-names: Laurent
+    - family-names: Weigl
+      given-names: David M.
+    - family-names: Weiß
+      given-names: Christof
+    - family-names: Widmer
+      given-names: Gerhard

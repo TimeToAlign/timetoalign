@@ -1,5 +1,9 @@
 # TimeToAlign!
 
+[![DOI](https://img.shields.io/badge/DOI-10.5334%2Ftismir.296-blue)](https://doi.org/10.5334/tismir.296)
+
+This library is described in the TISMIR article *Time to Align! Modelling Musical Timelines for Music Information Retrieval and Digital Musicology* (2026): https://doi.org/10.5334/tismir.296.
+
 A Python library for representing and aligning musical timelines.
 
 **Documentation:** https://timetoalign.github.io/ · **Source:** https://github.com/timetoalign/timetoalign
@@ -266,6 +270,25 @@ tox -e lint
 | TimeStamp           | A cross-section through a timeline hierarchy, comprising the root coordinate, synchronous Child coordinates, and all ConversionMap results.                                               |
 | TraversalMap        | A sequence of TimeIntervals representing a specific traversal path through a timeline (handling Jumps and repeats). Also called T-map.                                                    |
 | WarpMap             | A derived timeline where coordinates are re-adjusted based on AlignmentAnchors to align with another timeline.                                                                            |
+
+## Citing
+
+If you use Time To Align!, please cite:
+
+Hentschel, Johannes; Berndt, Axel; Cancino-Chacón, Carlos; Dixon, Simon; Foo, Anne; Gotham, Mark; Hu, Patricia; Köster, Maik; Martins, Felipe D.; Mauro, Davide A.; Müller, Meinard; Neuwirth, Markus; Pacha, Alexander; Page, Kevin R.; Peter, Silvan; Polyakov, Egor; Pugin, Laurent; Weigl, David M.; Weiß, Christof; and Widmer, Gerhard. 2026. "Time to Align! Modelling Musical Timelines for Music Information Retrieval and Digital Musicology." *Transactions of the International Society for Music Information Retrieval* 9 (1): 384--404. https://doi.org/10.5334/tismir.296.
+
+```bibtex
+@article{Hentschel2026TimeToAlign,
+  author  = {Hentschel, Johannes and Berndt, Axel and Cancino-Chacón, Carlos and Dixon, Simon and Foo, Anne and Gotham, Mark and Hu, Patricia and Köster, Maik and Martins, Felipe D. and Mauro, Davide A. and Müller, Meinard and Neuwirth, Markus and Pacha, Alexander and Page, Kevin R. and Peter, Silvan and Polyakov, Egor and Pugin, Laurent and Weigl, David M. and Weiß, Christof and Widmer, Gerhard},
+  title   = {Time to Align! Modelling Musical Timelines for Music Information Retrieval and Digital Musicology},
+  journal = {Transactions of the International Society for Music Information Retrieval},
+  year    = {2026},
+  volume  = {9},
+  number  = {1},
+  pages   = {384--404},
+  doi     = {10.5334/tismir.296}
+}
+```
 
 ## License
 
