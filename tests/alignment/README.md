@@ -4,7 +4,7 @@ This document explains **why** the test suite provides evidence that the alignme
 
 ## Test Philosophy
 
-The alignment module implements the TTA manuscript's multi-level hierarchy:
+The alignment module implements TimeToAlign's multi-level hierarchy:
 
 ```
 AlignmentAnchor (atomic) -> MatchClaim (low) -> MatchGraph (mid) -> MatchLine (high)
@@ -17,7 +17,7 @@ AlignmentAnchor (atomic) -> MatchClaim (low) -> MatchGraph (mid) -> MatchLine (h
 specified via `start`/`end` parameters to `add_timeline()`. Its tests live in
 `tests/timelines/test_groups.py`; alignment tests cover consumers of groups.
 
-Each test validates a **specific claim** from the manuscript specification. Tests are not exploratory--they verify exact behaviors required by the model.
+Each test validates a **specific claim** from the TimeToAlign model. Tests are not exploratory--they verify exact behaviors required by the model.
 
 ``WarpMap`` follows the same value-facing vocabulary as the conversion-map
 family: calling the map or ``convert_array`` converts values, while
@@ -190,7 +190,7 @@ needs at least two anchors), which keeps the out-of-support counts exact.
 
 ### What We're Validating
 
-The manuscript states Groups contain timelines with "perfect alignment"--any coordinate in one timeline maps to exactly one coordinate in every other timeline.
+Groups contain timelines with "perfect alignment"--any coordinate in one timeline maps to exactly one coordinate in every other timeline.
 
 ### Key Test Classes
 
@@ -775,9 +775,9 @@ def test_thoresen_poc_setup(self):
     """
 ```
 
-This test validates that the Group infrastructure can model the Thoresen proof-of-concept from the manuscript. It creates two independent groups (DGT1+audio, DGT2+audio) and verifies coordinate conversions match expected values. The `dgt1_timeline`, `dgt2_timeline`, and `audio_timeline` fixtures are provided by `conftest.py`.
+This test validates that the Group infrastructure can model the Thoresen proof-of-concept discussed in the TISMIR article (https://doi.org/10.5334/tismir.296). It creates two independent groups (DGT1+audio, DGT2+audio) and verifies coordinate conversions match expected values. The `dgt1_timeline`, `dgt2_timeline`, and `audio_timeline` fixtures are provided by `conftest.py`.
 
-**Why exact values**: The pixel counts (4875, 4328) and segment lengths come from the manuscript (constants centralised in `conftest.py`). The test verifies that our implementation produces the same results the manuscript describes.
+**Why exact values**: The pixel counts (4875, 4328) and segment lengths come from the published Thoresen example (constants centralised in `conftest.py`). The test verifies that our implementation produces the same results described there.
 
 ### Thoresen Segment Claims (`test_anchors.py::TestClaimIntegration`)
 
@@ -926,7 +926,7 @@ This validates the Hendrix M6-M9 use case from the conceptual model: multiple Ma
 
 ### What We're Validating
 
-`AlignmentBundle` uses the `MatchLine` → `WarpMap` pipeline (replacing the earlier ad-hoc `TableMap`-based WarpMap dictionary). The bundle lazily builds `WarpMap` objects on first cross-group `transfer()` call and caches them, invalidating the cache when `add_match_claims()` is called.
+`AlignmentBundle` uses the `MatchLine` → `WarpMap` pipeline. The bundle lazily builds `WarpMap` objects on first cross-group `transfer()` call and caches them, invalidating the cache when `add_match_claims()` is called.
 
 ### Key Test Classes
 

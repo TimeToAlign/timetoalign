@@ -16,7 +16,7 @@ loader measure counts, and TSV→ScoreFlowController flow reproduction.
 
 ZERO TOLERANCE VALIDATION POLICY:
 - EXACT counts required (no tolerances)
-- mc_end is RIGHT-OPEN (aligns with TTA manuscript TimeInterval definition)
+- mc_end is RIGHT-OPEN (aligns with TimeToAlign's TimeInterval definition)
 - Every mismatch must be investigated
 """
 

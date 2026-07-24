@@ -164,9 +164,8 @@ class ConversionMapsMixin:
     ) -> "Timeline":
         """Create a derivative timeline in a different unit via C-Map conversion.
 
-        From TTA manuscript (Section 3.3):
-        "A ConversionMap implies the presence of a derived timeline in the
-        target unit. The derive() method makes this implicit timeline explicit."
+        A ConversionMap implies the presence of a derived timeline in the
+        target unit. The derive() method makes this implicit timeline explicit.
 
         The derived timeline:
         - Has coordinates in the target unit

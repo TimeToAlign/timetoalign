@@ -43,7 +43,7 @@ Flow API (MeasureUnit architecture):
 Note:
     MC ranges in AtomicSection and PlaythroughSection use the right-open
     interval convention [mc_start, mc_end), consistent with partitura and
-    the TTA manuscript.
+    TimeToAlign's TimeInterval model.
 
 Public API:
 - Timeline: Base class

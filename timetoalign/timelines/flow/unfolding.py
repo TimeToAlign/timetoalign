@@ -121,9 +121,9 @@ def create_unfolded_timeline(
     Computes QB-space boundaries for each `PlaythroughSection` in the Flow,
     extracts a slice from the source timeline at each boundary, and appends
     the slices, in target (unfolded) order, as children of a new timeline of
-    the source's concrete type. This is the TTA manuscript's conceptual model:
-    unfolding = assembling a new timeline by selecting and concatenating
-    contiguous portions of the folded source.
+    the source's concrete type. Unfolding assembles a new timeline by selecting
+    and concatenating contiguous portions of the folded source. See the
+    Conceptual Model documentation (https://timetoalign.github.io/concepts.html).
 
     The returned timeline has:
 
@@ -139,10 +139,9 @@ def create_unfolded_timeline(
       coordinates remain reachable via
       ``get_events(include_children=True)``.
 
-    Design decision: replaces the earlier FlowMap-based per-event
-    coordinate remapping with structural slicing.  The previous
-    approach operated in MC-number space and produced wrong coordinates
-    for scores with non-uniform measure durations.
+    Unfolding uses structural slicing because QB-space section boundaries
+    preserve correct coordinates for scores with non-uniform measure
+    durations.
 
     Args:
         source_timeline: The folded source timeline.

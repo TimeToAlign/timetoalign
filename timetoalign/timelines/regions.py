@@ -4,9 +4,8 @@ This module provides the Region class, which represents a named part of a
 timeline defined by a TimeInterval. Regions are NOT timelines themselves -
 they cannot hold events or C-maps.
 
-From TTA manuscript (Section 3.5):
-"A Region is a named part of a timeline that is defined by a TimeInterval.
-Regions are useful for referring to parts of a timeline by name."
+A Region is a named part of a timeline that is defined by a TimeInterval.
+Regions are useful for referring to parts of a timeline by name.
 
 Use ``Timeline.create_child_from_region()`` to create a Child timeline
 from a Region.
@@ -26,10 +25,7 @@ from timetoalign.core import Coordinate, TimeUnit
 class Region:
     """A named part of a timeline defined by a TimeInterval.
 
-    From TTA manuscript (Section 3.5):
-    "A Region is a named part of a timeline that is defined by a
-    TimeInterval. Regions are useful for referring to parts of a
-    timeline by name."
+    Regions are useful for referring to parts of a timeline by name.
 
     IMPORTANT: Regions are NOT timelines. They cannot hold events or C-maps.
     Use ``Timeline.create_child_from_region(name)`` to create a Child

@@ -2087,11 +2087,11 @@ class NoteField(SemanticField[Note]):
         the columnar-separation rule means ``Note.pitch``
         does NOT exist on the Field's struct.
 
-        Per the audit ``Note.is_rest`` is data-shaped, but the pitch data
-        lives outside the ``Note`` struct in the represent-once TTA layout
-        — so this method must be invoked on a higher-level container that
-        knows about the separated pitch columns.  Until that container
-        exists, the mirror raises with a clear message.
+        ``Note.is_rest`` is data-shaped, but the pitch data lives outside the
+        ``Note`` struct in the represent-once TTA layout — so this method must
+        be invoked on a higher-level container that knows about the separated
+        pitch columns. Until that container exists, the mirror raises with a
+        clear message.
         """
         raise NotImplementedError(
             "NoteField.is_rest requires access to the represent-once pitch "

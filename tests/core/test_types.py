@@ -146,8 +146,7 @@ class TestCoordinateProperties:
         """Boolean values are rejected at Coordinate construction.
 
         With the pydantic v2 BaseModel implementation, the validator
-        rejects bool eagerly at construction (a stricter and earlier
-        rejection than the pre-migration ``number_type``-only check).
+        rejects bool eagerly at construction before ``number_type`` handling.
         """
         with pytest.raises(Exception, match="Boolean values"):
             Coordinate(True, TimeUnit.ticks)  # type: ignore[arg-type]

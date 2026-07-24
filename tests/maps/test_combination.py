@@ -1,7 +1,7 @@
 """Tests for CombinationMap (multi-output maps).
 
 CombinationMap yields multiple outputs from multiple C-Maps applied to the
-same input, as defined in the TTA manuscript.
+same input.
 """
 
 import numpy as np

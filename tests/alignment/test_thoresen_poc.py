@@ -1,7 +1,7 @@
 """Thoresen Proof of Concept - Integration Test Scaffold.
 
 This test validates the alignment infrastructure using the Thoresen example
-from the TTA manuscript (Figures in tta_appendix.tex).
+discussed in the TISMIR article (https://doi.org/10.5334/tismir.296).
 
 The example involves two graphical analyses of the same musical content:
 - DGT1 (Thoresen 2009): 5 equal-width segments (single image, 5 systems)

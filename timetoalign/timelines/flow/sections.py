@@ -44,8 +44,9 @@ class AtomicSection:
 
     Note:
         MC ranges use the **right-open interval convention** [mc_start, mc_end),
-        consistent with partitura and the TTA manuscript. For example, mc_start=1
-        and mc_end=5 means measures 1, 2, 3, 4 (four measures total).
+        consistent with partitura and TimeToAlign's TimeInterval model. For
+        example, mc_start=1 and mc_end=5 means measures 1, 2, 3, 4 (four
+        measures total).
 
     Attributes:
         id: Letter identifier (A, B, C...) from partitura or generated.
@@ -257,8 +258,9 @@ class PlaythroughSection:
 
     Note:
         MC ranges use the **right-open interval convention** [mc_start, mc_end),
-        consistent with partitura and the TTA manuscript. For example, mc_start=1
-        and mc_end=9 means measures 1, 2, 3, 4, 5, 6, 7, 8 (eight measures total).
+        consistent with partitura and TimeToAlign's TimeInterval model. For
+        example, mc_start=1 and mc_end=9 means measures 1, 2, 3, 4, 5, 6, 7, 8
+        (eight measures total).
 
     Attributes:
         mc_start: First MC of this playthrough section (inclusive).
@@ -353,7 +355,7 @@ class Flow:
 
     Note:
         MC ranges use the **right-open interval convention** [mc_start, mc_end),
-        consistent with partitura and the TTA manuscript.
+        consistent with partitura and TimeToAlign's TimeInterval model.
 
     Attributes:
         sections: The sequence of PlaythroughSection objects.

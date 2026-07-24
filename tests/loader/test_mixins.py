@@ -1,8 +1,8 @@
 """Tests for ``SemanticFieldAccessMixin`` and domain mixins.
 
-The paired-Object/ObjectField redesign replaced the earlier umbrella
-pitch / harmony Field classes with one paired ``XField(SemanticField[X])``
-per scalar.  These tests verify the mixin dispatch on the paired classes.
+The paired Object/ObjectField API uses one paired
+``XField(SemanticField[X])`` per scalar. These tests verify the mixin dispatch
+on the paired classes.
 """
 
 from __future__ import annotations

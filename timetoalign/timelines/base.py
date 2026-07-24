@@ -320,9 +320,7 @@ class Timeline(
         self._unit_maps: dict[TimeUnit, ConversionMap[Any]] = {}
 
         # Region storage (named TimeIntervals)
-        # From TTA manuscript: "A Region is a named part of a timeline that is
-        # defined by a TimeInterval. Regions are useful for referring to parts
-        # of a timeline by name."
+        # A Region is a named part of a timeline defined by a TimeInterval.
         self._regions: dict[str, Region] = {}
 
         # FlowMap storage (coordinate transformations for flow control)

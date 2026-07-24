@@ -17,8 +17,7 @@ See ``tests/data/README.md`` for the binding contract and
 
 ## Why these tests
 
-Two failure modes observed during earlier type-hierarchy work
-motivated this contract:
+Two failure modes motivate this contract:
 
 * **Sentinel without content** — ``.tta_testdata_hash`` matched the
   expected digest but the directory had been emptied of data files;

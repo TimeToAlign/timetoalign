@@ -10,10 +10,9 @@ These maps handle idiosyncratic measure structures including:
 - Repeat endings (MN=1a, MN=1b)
 - Non-contiguous measure sequences (da capo, dal segno)
 
-From the TTA manuscript:
-"A dataset expressing events in terms of measure number and beats could be modeled
+A dataset expressing events in terms of measure number and beats can be modeled
 as a concatenation of measure timelines relative to which the events can be added
-according to their beat coordinates."
+according to their beat coordinates.
 """
 
 from __future__ import annotations

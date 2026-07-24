@@ -64,8 +64,8 @@ values without reaching into `EventData`'s private `_table`.
 
 ### `test_events.py` - `EventData.head()`
 
-**Purpose:** Validates the pandas-style leading-row preview that replaces
-the verbose `.table.slice(0, n).to_pandas()` idiom.
+**Purpose:** Validates the pandas-style leading-row preview returned by
+`EventData.head()`.
 
 **Contract:**
 

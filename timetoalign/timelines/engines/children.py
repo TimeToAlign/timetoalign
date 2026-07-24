@@ -39,9 +39,8 @@ class ChildrenMixin:
     ) -> None:
         """Validate that a timeline can be added as a child.
 
-        From the TTA manuscript (Section 3.4 - Nested Timelines):
-        "A timeline can accommodate not only events but also other timelines,
-        called Children, as long as they use the same measuring unit."
+        A timeline can accommodate events and other timelines, called
+        Children, as long as they use the same measuring unit.
 
         For cross-domain relationships (e.g., physical to logical), use
         TimelineGroup instead of parent-child nesting.
@@ -181,9 +180,8 @@ class ChildrenMixin:
         The child timeline will be locked after being added.
         Parent-child coordinate conversion uses exact offset arithmetic.
 
-        From the TTA manuscript (Section 3.4 - Nested Timelines):
-        "A timeline can accommodate not only events but also other timelines,
-        called Children, as long as they use the same measuring unit."
+        A timeline can accommodate events and other timelines, called
+        Children, as long as they use the same measuring unit.
 
         When the child uses a different unit than the parent, set
         ``use_conversion_map`` to automatically convert the child to the
@@ -265,9 +263,8 @@ class ChildrenMixin:
             child = Timeline(length=length, unit=parent.unit, uid=uid, name=name)
             parent.add_child(child, offset=offset)
 
-        From the TTA manuscript (Section 3.4 - Nested Timelines):
-        "A timeline can accommodate not only events but also other timelines,
-        called Children, as long as they use the same measuring unit."
+        A timeline can accommodate events and other timelines, called
+        Children, as long as they use the same measuring unit.
 
         Args:
             length: Length of the child timeline (in parent's unit). Can be a
@@ -673,8 +670,8 @@ class ChildrenMixin:
         The returned timeline has its coordinate origin at 0, with all
         coordinates shifted by -start.
 
-        From the TTA manuscript: slicing creates a new timeline that is a
-        structural copy of the specified interval of the source.
+        Slicing creates a new timeline that is a structural copy of the
+        specified interval of the source.
 
         Args:
             start: Start coordinate (inclusive).

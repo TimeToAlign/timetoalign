@@ -761,7 +761,7 @@ MC 8 has an end-repeat barline but no preceding start-repeat. In conventional no
 
 ---
 
-### Additional Specimens (Pending Audit)
+### Additional Specimens (Pending Validation)
 
 The following specimens require collaborative ground truth creation:
 

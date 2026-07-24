@@ -8,8 +8,8 @@ the loader reads that as an alignment whose hub is the spine.
 It verifies:
 
 - the spine's **relative** ``timing`` / ``hpos`` deltas accumulating into
-  absolute VTU coordinates (the load-bearing reading — see
-  ``tests/loader/alignment/README.md``), with source event ids verbatim;
+  absolute VTU coordinates (see ``tests/loader/alignment/README.md``), with
+  source event ids verbatim;
 - one LOS timeline carrying notes (one event per notehead), rests and lyric
   syllables at the VTU coordinate of the spine event they reference;
 - one integer-pixel graphical SegmentLine per edition, with discrete graphical

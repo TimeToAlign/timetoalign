@@ -41,9 +41,9 @@ if TYPE_CHECKING:
 class MetricalResult:
     """Result of creating a metrical timeline from a physical timeline.
 
-    Per TTA specification (Section 3.4), children must share the parent's unit.
-    Cross-domain relationships (physical-logical) are established via
-    TimelineGroups with bidirectional C-Maps, not parent-child embedding.
+    Children must share the parent's unit. Cross-domain relationships
+    (physical-logical) are established via TimelineGroups with bidirectional
+    C-Maps, not parent-child embedding.
 
     Attributes:
         grid: The created ContinuousLogicalTimeline (in quarters).
@@ -285,12 +285,12 @@ class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
         They do NOT need to know the total length in quarters - the library
         computes that automatically.
 
-        Per TTA specification (Section 3.4 - Nested Timelines): "A timeline can
-        accommodate other timelines as Children, as long as they use the same
-        measuring unit." Therefore, a logical timeline (quarters) cannot be a
-        child of a physical timeline (seconds). Instead, this method creates
-        a standalone ContinuousLogicalTimeline and connects it to this physical
-        timeline via a TimelineGroup with bidirectional linear interpolation.
+        A timeline can accommodate other timelines as Children when they use
+        the same measuring unit. Therefore, a logical timeline (quarters)
+        cannot be a child of a physical timeline (seconds). Instead, this
+        method creates a standalone ContinuousLogicalTimeline and connects it
+        to this physical timeline via a TimelineGroup with bidirectional linear
+        interpolation.
 
         The returned MetricalResult provides convenient access to:
         - The created grid (ContinuousLogicalTimeline in quarters)
@@ -830,10 +830,9 @@ class SegmentLine(Timeline, Generic[T]):
     SegmentLine provides additional convenience methods for
     segment-based access patterns and C-map concatenation.
 
-    From TTA manuscript (Section 3.4):
-    "When all Children of the same parent timeline ('siblings') are
-    contiguous with each other, we call them Segments and the parent
-    a SegmentLine."
+    When all Children of the same parent timeline (siblings) are
+    contiguous with each other, they are Segments and the parent is a
+    SegmentLine.
 
     The key advantage of SegmentLine is that C-maps from individual
     segments can be concatenated into a single PiecewiseMap, enabling
@@ -1380,11 +1379,9 @@ class SegmentLine(Timeline, Generic[T]):
         The resulting map converts SegmentLine coordinates to the
         cumulative target unit coordinates.
 
-        From manuscript (Section 3.4):
-        "The main technical reason why a contiguous subtype is useful is
-        that it allows us to concatenate local coordinate systems by
-        cumulatively summing segment lengths, but also to apply the same
-        operation to the segments' C-maps."
+        Segment contiguity allows local coordinate systems to be concatenated
+        by cumulatively summing segment lengths, and allows the same operation
+        to be applied to the segments' C-maps.
 
         Args:
             target_unit: The target unit all segment C-maps must convert to.
@@ -1440,10 +1437,8 @@ class SegmentLine(Timeline, Generic[T]):
     ) -> "SegmentLine":
         """Create a SegmentLine by segmenting an existing timeline.
 
-        From manuscript (Section 3.4):
-        "A special case of partitioning is segmentation, which is the
-        creation of one or several Segments from two or more segmentation
-        points on a timeline."
+        Segmentation is a special case of partitioning: it creates one or
+        several Segments from two or more segmentation points on a timeline.
 
         Note: The segmented timeline is NOT modified. A new SegmentLine
         is created with copies of the relevant portions.

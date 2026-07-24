@@ -1129,10 +1129,9 @@ def _scalar_binop_value_and_id(
 class TimeScalarField(SemanticField):
     """Abstract parent for ``Coordinate`` / ``Duration`` (+ Id) semantic fields.
 
-    Consolidates the shared ``from_field`` / ``from_table`` / ``__repr__``
-    machinery that previously lived twice on ``CoordinateField`` and
-    ``DurationField``.  Concrete subclasses set ``scalar_cls`` (which
-    drives ``pa_schema`` caching through
+    Provides the shared ``from_field`` / ``from_table`` / ``__repr__``
+    machinery for ``CoordinateField`` and ``DurationField``. Concrete
+    subclasses set ``scalar_cls`` (which drives ``pa_schema`` caching through
     ``SemanticField.__init_subclass__``), then optionally override
     ``semantic_type``, ``metadata_dict``, and ``__getitem__``.
 

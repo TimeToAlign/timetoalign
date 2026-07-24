@@ -5,7 +5,8 @@ This module provides pytest fixtures for alignment testing, including:
 - Thoresen graphical timeline bundles (DGT1, DGT2)
 - Thoresen test data constants
 
-Test data is in tests/data/thoresen/ and comes from the manuscript.
+Test data is in tests/data/thoresen/ and comes from the published Thoresen
+example.
 """
 
 from __future__ import annotations

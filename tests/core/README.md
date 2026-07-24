@@ -140,7 +140,7 @@ The Coordinate class is the atomic unit for all temporal positioning in TTA. Tes
 
 **Validity Rationale:**
 
-The enum types enforce the TTA manuscript's domain model:
+The enum types enforce TimeToAlign's domain model:
 - Three domains (Logical, Physical, Graphical)
 - Each domain has discrete and continuous variants
 - Units must be compatible within operations
@@ -272,11 +272,10 @@ The ID system ensures:
      suppresses every surfaced conversion; a selector list surfaces only the
      matching maps.
 
-   Design change recorded here (Contract §4 "C-Map visibility"): the earlier
-   `TimeUnit`-only surfacing hid non-unit maps and every descendant's maps.
-   `add_conversion_map` still indexes `TimeUnit`-targeted maps in `_unit_maps`
-   for `convert_to`/`get_conversion_map`, but timestamps now surface the full
+   Contract §4 ("C-Map visibility"): timestamps surface the full
    `_conversion_maps` set across the subtree via `_conversion_rows()`.
+   `add_conversion_map` still indexes `TimeUnit`-targeted maps in `_unit_maps`
+   for `convert_to`/`get_conversion_map`.
 
 **Validity Rationale:**
 
@@ -307,7 +306,7 @@ print(interval)            # Two-column (start, end) display with '-' for out-of
 
 - **Child bounds checking**: `TimeStamp.get(child_id)` returns `None` when the queried
   coordinate falls outside the child's `[offset, offset+length)` span, per the TTA
-  manuscript's left-inclusive, right-exclusive interval convention.
+  left-inclusive, right-exclusive interval convention.
 - **TimeIntervalStamp.__str__**: Shows a `-` when one endpoint is out of range for a
   child, making it easy to see events that straddle children.
 

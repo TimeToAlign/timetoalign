@@ -1,7 +1,8 @@
 """Alignment data structures for TimeToAlign!
 
 This module provides the core alignment infrastructure for cross-timeline
-synchronization as described in the TTA manuscript.
+synchronization. See the Conceptual Model documentation
+(https://timetoalign.github.io/concepts.html).
 
 Public API:
 - AlignmentBundle: Primary entry point for alignment workflows

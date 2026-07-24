@@ -527,7 +527,7 @@ class TestMsmShapedAffordsEpAndSpc:
 
 
 # ---------------------------------------------------------------------------
-# 7. Multi-batch concat re-affordance (the represent-once load-bearing risk)
+# 7. Multi-batch concat re-affordance (the key represent-once risk)
 # ---------------------------------------------------------------------------
 
 

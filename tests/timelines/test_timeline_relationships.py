@@ -1,21 +1,19 @@
 """Tests for Timeline Relationship Concepts: Region, SegmentLine, derive().
 
-This module tests the architecture harmonization features that clarify the TTA
-manuscript's distinction between:
+This module tests the relationship concepts that distinguish between:
 - **Region**: A named TimeInterval (NOT a timeline)
 - **Child**: A timeline nested in a parent (same unit)
 - **Segment**: A Child that is contiguous with siblings
 - **SegmentLine**: A parent where ALL children are Segments
 - **Derivative**: A new timeline created via C-map conversion (different unit)
 
-From TTA Manuscript (Section 3.4-3.5):
-"A Region is a named part of a timeline that is defined by a TimeInterval.
-Regions are useful for referring to parts of a timeline by name."
+A Region is a named part of a timeline that is defined by a TimeInterval.
+Regions are useful for referring to parts of a timeline by name.
 
-"When all Children of the same parent timeline ('siblings') are contiguous
-with each other, we call them Segments and the parent a SegmentLine."
+When all Children of the same parent timeline (siblings) are contiguous
+with each other, they are Segments and the parent is a SegmentLine.
 
-"A ConversionMap implies the presence of a derived timeline in the target unit."
+A ConversionMap implies the presence of a derived timeline in the target unit.
 
 Validity Rationale:
     These tests verify:

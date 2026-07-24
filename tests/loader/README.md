@@ -85,7 +85,7 @@ these expected IDs tests identity semantics without changing parsed content.
 
 The tabular schema tests retain ``Field`` and ``ComputedField`` because
 ``TabularLoader`` uses them for nested coordinate selection and computed
-coordinates. ``parse_json_to_struct`` remains load-bearing because both live
+coordinates. ``parse_json_to_struct`` remains required because both live
 descriptors use it when a selected nested column arrives as JSON text. Tests
 for ``ConvertedField`` are removed because it had no production consumer after
 the ``column_specs``/``field_specs`` pipeline became authoritative.
@@ -141,7 +141,7 @@ quarter `0`; a `1+0/1` note resolves to `1/2`.
 rows splitting 480 *aligned* (synchronous claims) + 79 *dangling*
 (`TIME == "N"`, NOMATCH claims); the bar file has 32 rows (all
 synchronous); the beat file has 376 rows (all synchronous).  These are the
-true data-row counts — earlier `wc -l` figures (560/33/377) included the
+true data-row counts; raw `wc -l` figures (560/33/377) include the
 ``LABEL,TIME,FRAME`` header.
 
 **Totals across 7 performers:** 6769 MatchClaims = 6216 synchronous + 553
@@ -698,7 +698,7 @@ first-note MIDI number 59 for both views.
   element-wise on the spelled-source fixture.
 
 **Multi-batch concat re-affordance (`TestMultiBatchConcatAffordance`).**
-This is the load-bearing risk the represent-once model carries: a
+This validates the key represent-once model risk: a
 number-only source stores pitch as a bare `int64` and *affords* the
 `EnharmonicPitch` view over it on demand, rather than materialising a
 pitch struct.  The view must therefore survive the multi-batch ingestion

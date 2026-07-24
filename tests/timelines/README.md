@@ -134,7 +134,7 @@ allowed to expose a float because interpolation is inherently float-based.
 
 **Validity Rationale:**
 
-These tests verify the fundamental Timeline contract from the TTA manuscript:
+These tests verify the fundamental Timeline contract:
 - A Timeline is a positive coordinate axis with an origin (zero) and measuring unit
 - Events are stored efficiently in an EventStore (PyArrow-backed)
 - Timelines can expand (if unlocked) but cannot contract below content
@@ -404,7 +404,7 @@ that share the same coordinate type. These tests verify:
 
 **Validity Rationale:**
 
-The TTA manuscript defines 6 timeline types across 3 domains (Logical, Physical,
+TimeToAlign defines 6 timeline types across 3 domains (Logical, Physical,
 Graphical) and 2 modalities (Continuous, Discrete). Each type has:
 - Restricted allowed units (domain-specific)
 - Appropriate default unit and number_type
@@ -631,7 +631,7 @@ relationship concepts.
 **~170 tests**, including 13 real-data tests using Wagner Walküre Act III
 measures.
 
-**TTA Manuscript Concepts Tested:**
+**TimeToAlign Concepts Tested:**
 
 | Concept | Definition | Test Category |
 |---------|------------|---------------|
@@ -809,11 +809,11 @@ measures.
 
 **Validity Rationale:**
 
-From TTA Manuscript (Section 3.4-3.5):
-- "A Region is a named part of a timeline that is defined by a TimeInterval."
-- "When all Children of the same parent timeline are contiguous, we call them
-  Segments and the parent a SegmentLine."
-- "A ConversionMap implies the presence of a derived timeline in the target unit."
+TimeToAlign concepts validated here:
+- A Region is a named part of a timeline that is defined by a TimeInterval.
+- When all Children of the same parent timeline are contiguous, they are
+  Segments and the parent is a SegmentLine.
+- A ConversionMap implies the presence of a derived timeline in the target unit.
 
 These tests ensure:
 1. Region is NOT a Timeline (immutable dataclass, no events/C-maps)
@@ -895,10 +895,10 @@ The Flow API uses a **MeasureUnit-based architecture** with FlowControlElement i
 - `flow_control_types`: Tuple of FlowControlElement.value strings for serialization
 - `to_dict()` / `from_dict()`: Round-trip serialization support
 
-**Naming Rationale**: Named "Section" (not "Segment") to avoid confusion with TTA manuscript's `Segment` concept (a child timeline contiguous with siblings). These are flow control concepts, not timeline children.
+**Naming Rationale**: Named "Section" (not "Segment") to avoid confusion with TimeToAlign's `Segment` concept (a child timeline contiguous with siblings). These are flow control concepts, not timeline children.
 
 **Interval Convention**: Uses **right-open** `[mc_start, mc_end)` intervals, aligning with:
-- TTA manuscript TimeInterval definition (left-inclusive, right-exclusive)
+- TimeToAlign TimeInterval definition (left-inclusive, right-exclusive)
 - Python `range()` semantics
 - partitura convention
 
@@ -1468,5 +1468,5 @@ All tests follow these principles:
 5. **Roundtrip Tests**: Verify serialization preserves data
 
 Each test class includes a docstring explaining its validity rationale,
-linking back to specific requirements from the TTA manuscript and the
+linking back to specific requirements from the TimeToAlign model and the
 project's engineering standards.

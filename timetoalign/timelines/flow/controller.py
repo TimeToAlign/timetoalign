@@ -1292,8 +1292,8 @@ class ScoreFlowController(FlowControllerBase):
                         # Add boundary at the sequential next MC too
                         boundaries.add(sequential_next)
 
-            # Boundary after section_break markers (a section break voids contiguity)
-            # Per TTA manuscript: TimeIntervals cannot span a coordinate containing a Break
+            # Boundary after section_break markers (a section break voids contiguity).
+            # TimeIntervals cannot span a coordinate containing a Break.
             if bar.get("section_break"):
                 # The section break is AT this MC, so the new section starts at next MC
                 if i < len(sorted_mcs) - 1:

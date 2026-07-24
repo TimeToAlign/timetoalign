@@ -1,11 +1,9 @@
 """Tests for ``timetoalign.core.events`` — paired Object/ObjectField API.
 
-The paired-Object/ObjectField redesign replaced the earlier umbrella
-``PitchField`` / ``HarmonyField`` / ``DcmlLabelField`` etc. with one
-paired ``XField(SemanticField[X])`` per scalar.  Each paired class
-derives its ``pa_schema`` from ``T``'s pydantic model at
-subclass-declaration time and exposes ``from_field`` / ``__getitem__``
-via the ``SemanticField`` base.
+The paired Object/ObjectField API uses one paired
+``XField(SemanticField[X])`` per scalar. Each paired class derives its
+``pa_schema`` from ``T``'s pydantic model at subclass-declaration time and
+exposes ``from_field`` / ``__getitem__`` via the ``SemanticField`` base.
 
 This module pins the paired-class surface: schema derivation,
 materialisation, parquet round-trip, and blueprint construction.

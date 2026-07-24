@@ -93,10 +93,13 @@ class FancyStrEnum(StrEnum):
 class Domain(FancyStrEnum):
     """The temporal domain of a timeline.
 
-    Based on the TTA manuscript's three-domain model:
+    TimeToAlign distinguishes three temporal domains:
     - logical: Logical time domain (conceptualizing, reading)
     - physical: Physical time domain (hearing, seeing dynamic)
     - graphical: Graphical time domain (seeing static, spatial)
+
+    See the Conceptual Model documentation
+    (https://timetoalign.github.io/concepts.html).
     """
 
     logical = auto()
@@ -329,7 +332,6 @@ class NumberType(Enum):
 class EventType(FancyStrEnum):
     """Whether an event is an instant or interval.
 
-    From the TTA manuscript:
     - instant: Zero duration, associated with a single coordinate
     - interval: Has duration, defined by start and end coordinates
     """
@@ -414,7 +416,8 @@ class FlowControlElement(FancyStrEnum):
        indicating which ending it belongs to. The repeat_end jump evaluates which
        volta to take based on pass count.
 
-    **Taxonomy** (from TTA manuscript and MeasureMap paper):
+    **Taxonomy** (aligned with the Conceptual Model documentation and
+    MeasureMap paper):
 
     **Repeat Markers**:
     - repeat_start: Structural marker (||:) - target for repeat_end jumps
@@ -664,7 +667,7 @@ class FlowControlElement(FancyStrEnum):
 
     @property
     def is_break(self) -> bool:
-        """Whether this marker voids contiguity (from TTA manuscript).
+        """Whether this marker voids contiguity.
 
         Note: repeat_end MAY also void contiguity when it coincides with
         an end-type barline, but this is context-dependent and not

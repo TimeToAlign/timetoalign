@@ -1,17 +1,17 @@
 """Flow Control Events: Break and Jump for timeline traversal.
 
 This module provides the Break and Jump classes that control the flow of
-time through a timeline. From the TTA manuscript (Section 3.3-3.4):
+time through a timeline.
 
-**Break**: "A break is a control event that voids the contiguity at the
-Instant where it is located."
+**Break**: A break is a control event that voids the contiguity at the
+Instant where it is located.
 - Prevents TimeIntervals from spanning its coordinate
 - Cannot be inserted at coordinates already spanned by a TimeInterval
   (unless the spanning element "adopts" the break)
 
-**Jump**: "A jump is a control event defined by two Instants: a JumpFrom
+**Jump**: A jump is a control event defined by two Instants: a JumpFrom
 and a JumpTo Instant. When active, it makes any event located or starting
-at JumpTo contiguous with any event ending at JumpFrom."
+at JumpTo contiguous with any event ending at JumpFrom.
 - Creates contiguity between non-adjacent coordinates
 - Has activation conditions (e.g., "on Nth pass")
 
@@ -51,9 +51,7 @@ module_logger = logging.getLogger(__name__)
 class Break:
     """A control event that voids contiguity at a specific coordinate.
 
-    From TTA manuscript (Section 3.3):
-    "A break is a control event that voids the contiguity at the Instant
-    where it is located."
+    A break voids contiguity at the Instant where it is located.
 
     Constraints:
     - A Break cannot be added at coordinates already spanned by a
@@ -155,10 +153,9 @@ class Break:
 class Jump:
     """A control event that creates contiguity between non-adjacent coordinates.
 
-    From TTA manuscript (Section 3.4):
-    "A jump is a control event defined by two Instants: a JumpFrom and a
-    JumpTo Instant. When active, it makes any event located or starting
-    at JumpTo contiguous with any event ending at JumpFrom."
+    A jump is defined by two Instants: a JumpFrom and a JumpTo Instant. When
+    active, it makes any event located or starting at JumpTo contiguous with
+    any event ending at JumpFrom.
 
     Target Resolution:
         Jump instructions reference target markers by NAME, not just type.
