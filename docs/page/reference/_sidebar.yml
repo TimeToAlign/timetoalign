@@ -68,8 +68,10 @@ website:
     - contents:
       - reference/TimelineGroup.qmd
       - reference/AlignmentBundle.qmd
+      - reference/SupportPolicy.qmd
       - reference/AlignmentAnchor.qmd
       - reference/MatchClaim.qmd
+      - reference/ClaimType.qmd
       - reference/MatchClaimField.qmd
       - reference/MatchMetadata.qmd
       - reference/Agent.qmd

@@ -10,6 +10,7 @@ alignment.AlignmentBundle(
     meta=dict(),
     cross_group_claims=list(),
     cross_group_claim_fields=list(),
+    support_policy=SupportPolicy.omit,
     _uid_to_timeline_id=dict(),
     _timeline_id_to_uid=dict(),
     _warp_map_cache=dict(),
@@ -92,13 +93,14 @@ Examples:
 | [are_commensurable](#timetoalign.alignment.AlignmentBundle.are_commensurable) | Check if two timelines can be connected via transfer. |
 | [create_match_claims](#timetoalign.alignment.AlignmentBundle.create_match_claims) | Create MatchClaims from a list of event pairs. |
 | [diagram](#timetoalign.alignment.AlignmentBundle.diagram) | Generate ASCII diagram for this bundle. |
+| [from_bundles](#timetoalign.alignment.AlignmentBundle.from_bundles) | Merge multiple bundles' groups, standalone timelines, and claims. |
 | [get_claim_fields](#timetoalign.alignment.AlignmentBundle.get_claim_fields) | Query the columnar claim stores, materialising nothing. |
 | [get_group](#timetoalign.alignment.AlignmentBundle.get_group) | Get a group by ID. |
 | [get_group_for_timeline](#timetoalign.alignment.AlignmentBundle.get_group_for_timeline) | Get the group containing a timeline. |
 | [get_match_claims](#timetoalign.alignment.AlignmentBundle.get_match_claims) | Query MatchClaims connecting timelines across groups. |
 | [get_matchstamp_at](#timetoalign.alignment.AlignmentBundle.get_matchstamp_at) | Get a cross-group MatchStamp at a coordinate on a timeline. |
 | [get_matchstamp_table](#timetoalign.alignment.AlignmentBundle.get_matchstamp_table) | Get a PyArrow table of MatchStamps for alignment queries. |
-| [get_matchstamps](#timetoalign.alignment.AlignmentBundle.get_matchstamps) | Get MatchStamps for a list of MatchClaims. |
+| [get_matchstamps](#timetoalign.alignment.AlignmentBundle.get_matchstamps) | Get MatchStamps for a list of MatchClaims or query coordinates. |
 | [get_timeline](#timetoalign.alignment.AlignmentBundle.get_timeline) | Get a timeline by ID. |
 | [get_timelines](#timetoalign.alignment.AlignmentBundle.get_timelines) | Get multiple timelines by their IDs. |
 | [summary](#timetoalign.alignment.AlignmentBundle.summary) | Get a summary of the bundle contents. |
@@ -288,11 +290,16 @@ events. Each tuple specifies two events and their timeline IDs.
 Args:
     event_pairs: List of tuples, each containing:
         ``(event_a, timeline_a_id, event_b, timeline_b_id)``.
-        Events must have at least a ``start`` key with a coordinate.
-        If both events also have an ``end`` key, the resulting
-        `MatchClaim` will be an interval match (with both
-        ``start_anchor`` and ``end_anchor``).
+        ``event_a``/``event_b`` are each one of:
+        an event dict (must have at least a ``start`` key with a
+        coordinate; an ``end`` key on both sides produces an
+        interval match), the ``id`` string of an existing event on
+        the paired timeline (resolved via ``Timeline.get_event()``),
+        or ``None``. Exactly one of ``event_a``/``event_b`` may be
+        ``None``, producing a NOMATCH claim for the other side's
+        event. The forms may be mixed within a pair.
     synchronous: Whether the matches are temporally synchronous.
+        Ignored for NOMATCH pairs, which are always non-synchronous.
     agent: Name of the agent creating the claims (for provenance).
     agent_identifier: The agent's stable identifier — a version string
         for a software agent or a URI for a human agent (e.g.
@@ -304,16 +311,19 @@ Returns:
     the bundle's ``cross_group_claims``.
 
 Raises:
-    ValueError: If event dicts are missing required keys.
+    ValueError: If event dicts are missing required keys, an event
+        id string doesn't resolve to an existing event, or both
+        ``event_a`` and ``event_b`` are ``None``.
 
 Examples:
     >>> pairs = [
     ...     ({"start": 0.0}, "score", {"start": 45.5}, "audio"),
-    ...     ({"start": 10.0}, "score", {"start": 55.0}, "audio"),
+    ...     ("note:000010", "score", "note:000042", "audio"),
+    ...     ("note:000099", "score", None, "audio"),  # NOMATCH
     ... ]
     >>> claims = bundle.create_match_claims(pairs, agent="manual_alignment")
     >>> len(claims)
-    2
+    3
 
 ### diagram { #timetoalign.alignment.AlignmentBundle.diagram }
 
@@ -352,6 +362,41 @@ Examples:
       Timestamps: 2
 
       MatchClaims: 5
+
+### from_bundles { #timetoalign.alignment.AlignmentBundle.from_bundles }
+
+```python
+alignment.AlignmentBundle.from_bundles(bundles, *, id='', name=None)
+```
+
+Merge multiple bundles' groups, standalone timelines, and claims.
+
+Registers every group and standalone timeline from each source
+bundle into a new bundle, preserving each source's bundle-UID
+namespace, and carries over every cross-group ``MatchClaim`` (both
+the per-claim list and any columnar ``MatchClaimField`` stores)
+unchanged. Groups from different source bundles remain distinct —
+merging does not itself align timelines across bundles. Add
+cross-group MatchClaims (e.g. via :meth:`create_match_claims`)
+afterwards to align them.
+
+Args:
+    bundles: The bundles to merge, in order.
+    id: Explicit ID for the merged bundle. Auto-generated if omitted.
+    name: Optional human-readable name for the merged bundle.
+
+Returns:
+    A new AlignmentBundle containing every group, standalone
+    timeline, and cross-group claim from ``bundles``.
+
+Raises:
+    ValueError: If two source bundles share a group ID, or a
+        timeline UID collision would occur across bundles.
+
+Examples:
+    >>> merged = AlignmentBundle.from_bundles([score_bundle, audio_bundle])
+    >>> merged.groups.keys() == score_bundle.groups.keys() | audio_bundle.groups.keys()
+    True
 
 ### get_claim_fields { #timetoalign.alignment.AlignmentBundle.get_claim_fields }
 
@@ -512,7 +557,8 @@ alignment.AlignmentBundle.get_matchstamp_at(
     coordinate,
     timeline_id=None,
     *,
-    conversion_maps=True,
+    support_policy=None,
+    conversion_maps=False,
     timeline_ids=None,
     id_pattern=None,
     include_domains=None,
@@ -526,10 +572,19 @@ This is the primary interface for cross-domain coordinate transfer.
 Given a coordinate on one timeline, returns coordinates on ALL
 connected timelines across ALL groups.
 
-The method:
-1. Builds (or retrieves from cache) the MatchGraph for this
-   coordinate's connected component.
-2. Returns the graph's MatchStamp.
+The stamp is the **transitive cross-group union** reachable from the
+query. Exact-anchor coordinates from the coordinate's MatchGraph are
+overlaid first (exact wins over interpolated), then the assembly walks
+outward across groups to closure: every reached timeline expands into
+its own group (by interpolation) and warps into not-yet-reached groups
+(by WarpMap). ``is_interpolated`` is ``False`` exactly when the query
+node itself carries an explicit anchor.
+
+A timeline whose transferred coordinate falls outside alignment
+support — the entering coordinate lies outside the transferring
+WarpMap's source-anchor hull, or the produced coordinate would fall
+outside ``[0, length]`` — is handled by ``support_policy``. No policy
+ever yields a negative coordinate or one beyond a timeline's length.
 
 Args:
     coordinate: The query coordinate. Can be:
@@ -541,7 +596,14 @@ Args:
     timeline_id: Bundle UID of the source timeline. Required unless
         ``coordinate`` is an ``IdCoordinate``, in which case the
         coordinate's own ``timeline_id`` is used.
-    conversion_maps: C-map conversions available through unit lookup.
+    support_policy: How to treat out-of-support timelines
+        (``omit`` / ``clamp`` / ``extrapolate``). Accepts a
+        :class:`~timetoalign.core.SupportPolicy` or its string name.
+        ``None`` (the default) uses the bundle's ``support_policy``
+        setting, itself ``omit`` by default. The query timeline's own
+        coordinate is never dropped, clamped, or altered.
+    conversion_maps: C-map conversions available through unit lookup
+        and display. Opt-in: defaults to ``False``.
     timeline_ids: Only include these bundle UIDs in the result.
     id_pattern: Regex filter for bundle UIDs in the result.
     include_domains: Only these domains in the result.
@@ -568,8 +630,11 @@ Examples:
 alignment.AlignmentBundle.get_matchstamp_table(
     claims=None,
     *,
+    coordinates=None,
+    timeline_id=None,
     timeline_filter=None,
     from_graph=False,
+    conversion_maps=False,
 )
 ```
 
@@ -593,17 +658,41 @@ stores are read four Arrow columns at a time — no ``MatchClaim`` is
 ever materialised — which is what keeps a hundreds-of-thousands-of-rows
 alignment tabulable.
 
+When ``coordinates`` is given instead of ``claims``, each coordinate is
+resolved through :meth:`get_matchstamp_at` and becomes exactly one
+row — a full transitive cross-section, every reached timeline filled —
+in input order. ``from_graph`` does not apply on this path (the stamps
+are already collapsed cross-sections) and is ignored.
+
 Args:
     claims: List of MatchClaims to tabulate.  If None, uses every
         cross-group claim in the bundle (both stores).  When given,
-        only those claims are tabulated.
+        only those claims are tabulated.  Mutually exclusive with
+        ``coordinates``.
+    coordinates: Query coordinates to resolve through
+        :meth:`get_matchstamp_at`, one row per coordinate in input
+        order. Each element is a raw ``int``/``float``/``Fraction`` or
+        ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate``
+        (carrying its own timeline). Mutually exclusive with ``claims``.
+    timeline_id: Source timeline for the ``coordinates`` batch; may be
+        ``None`` when every element is an ``IdCoordinate``. Ignored on
+        the ``claims`` path.
     timeline_filter: Only include these timeline fields.
     from_graph: Collapse claims into one row per connected component
-        instead of one row per claim.
+        instead of one row per claim.  Ignored on the ``coordinates``
+        path.
+    conversion_maps: C-map conversions to add as derived columns, one
+        per (timeline, enabled unit-conversion map). Opt-in: defaults
+        to ``False``. Only numeric unit-conversion maps (a
+        ``target_unit`` set) become columns; label/structured maps
+        appear in stamp display but never as table columns.
 
 Returns:
     PyArrow Table with one field per timeline.  Non-synchronous claims
     are excluded.  Empty input yields an empty table.
+
+Raises:
+    ValueError: If both ``claims`` and ``coordinates`` are given.
 
 Note:
     Collapsed rows are ordered by the coordinate on the
@@ -621,31 +710,62 @@ Examples:
     ['score:clt1', 'perf:dlt1', 'perf:dlt2', ...]
     >>> bundle.get_matchstamp_table(from_graph=True).num_rows
     25
+    >>> bundle.get_matchstamp_table(
+    ...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
+    ... ).num_rows
+    2
 
 ### get_matchstamps { #timetoalign.alignment.AlignmentBundle.get_matchstamps }
 
 ```python
-alignment.AlignmentBundle.get_matchstamps(claims=None, *, from_graph=True)
+alignment.AlignmentBundle.get_matchstamps(
+    claims=None,
+    *,
+    coordinates=None,
+    timeline_id=None,
+    from_graph=True,
+    conversion_maps=False,
+)
 ```
 
-Get MatchStamps for a list of MatchClaims.
+Get MatchStamps for a list of MatchClaims or query coordinates.
 
 Convenience method for retrieving MatchStamps for multiple claims
 at once. Uses the bundle's caching mechanism for efficient retrieval.
+
+When ``coordinates`` is given instead of ``claims``, each coordinate is
+resolved through :meth:`get_matchstamp_at` — the coordinate-first entry
+point for callers who hold coordinates rather than ``MatchClaim``
+objects. Input order is preserved and every coordinate yields exactly
+one stamp (a full transitive cross-section).
 
 Args:
     claims: List of MatchClaims to get stamps for. If None, uses
         every cross-group claim in the bundle — the per-claim list
         and every columnar ``MatchClaimField`` (see
         :meth:`get_match_claims`, which materialises the columnar
-        rows).
+        rows). Mutually exclusive with ``coordinates``.
+    coordinates: Query coordinates to resolve through
+        :meth:`get_matchstamp_at`, one stamp per coordinate in input
+        order. Each element is a raw ``int``/``float``/``Fraction`` or
+        ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate``
+        (carrying its own timeline). Mutually exclusive with ``claims``.
+    timeline_id: Source timeline for the ``coordinates`` batch; may be
+        ``None`` when every element is an ``IdCoordinate``. Ignored on
+        the ``claims`` path.
     from_graph: If True (default), return full MatchStamps from the
         MatchGraph (all connected timelines). If False, return
-        reduced 2-timeline stamps.
+        reduced 2-timeline stamps. Ignored on the ``coordinates``
+        path, where each stamp is already a full cross-section.
+    conversion_maps: C-map conversions available through unit lookup
+        and display. Opt-in: defaults to ``False``.
 
 Returns:
     List of MatchStamp objects. Non-synchronous claims yield None
     entries (filtered out).
+
+Raises:
+    ValueError: If both ``claims`` and ``coordinates`` are given.
 
 Examples:
     >>> stamps = bundle.get_matchstamps()
@@ -653,6 +773,11 @@ Examples:
     100
     >>> stamps[0].n_timelines
     23
+    >>> coord_stamps = bundle.get_matchstamps(
+    ...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
+    ... )
+    >>> coord_stamps[1].get("score:clt1")
+    50.0
 
 ### get_timeline { #timetoalign.alignment.AlignmentBundle.get_timeline }
 

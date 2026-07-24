@@ -1,7 +1,14 @@
 # ScalarMap { #timetoalign.ScalarMap }
 
 ```python
-ScalarMap(scalar=1.0, source_unit=None, target_unit=None, uid=None, name=None)
+ScalarMap(
+    scalar=1.0,
+    *,
+    source_unit=None,
+    target_unit=None,
+    uid=None,
+    name=None,
+)
 ```
 
 Pure scaling transformation: y = scalar * x.

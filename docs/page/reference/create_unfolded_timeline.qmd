@@ -9,26 +9,31 @@ timelines.create_unfolded_timeline(
     uid=None,
     target_unit=None,
     include_children=True,
-    as_segment_line=False,
 )
 ```
 
 Create an unfolded timeline from a folded source via structural slicing.
 
 Computes QB-space boundaries for each `PlaythroughSection` in the Flow,
-extracts slices from the source timeline at those boundaries, and
-concatenates the slices into a new `SegmentLine`.  This is the TTA
-manuscript's conceptual model: unfolding = assembling a new SegmentLine
-by selecting and concatenating contiguous portions of the folded source.
+extracts a slice from the source timeline at each boundary, and appends
+the slices, in target (unfolded) order, as children of a new timeline of
+the source's concrete type. This is the TTA manuscript's conceptual model:
+unfolding = assembling a new timeline by selecting and concatenating
+contiguous portions of the folded source.
 
 The returned timeline has:
 
-- Correct QB-space coordinates (not MC-number space)
-- A reverse FlowMap attached (id="source") for folded ↔ unfolded conversion
-- A forward FlowMap attached (id="forward_{flow.id}")
-- Events structurally copied via `Timeline.get_slice()`, including
-  truncation of interval events at section boundaries
-- Children recursively sliced (when *include_children* is True)
+- The same concrete class as *source_timeline* (unless *target_unit*
+  selects another), with correct QB-space coordinates.
+- One appended child per playthrough section, each named after the
+  section (repeats add a ``-rend2``, ``-rend3`` … suffix).
+- A matching Region per child, in unfolded coordinates.
+- A reverse FlowMap attached (id ``"source"``) for folded ↔ unfolded
+  conversion, and a forward FlowMap (id ``f"forward_{flow.id}"``).
+- Events structurally copied via `Timeline.get_slice()` (including
+  truncation of interval events at section boundaries); the flattened
+  coordinates remain reachable via
+  ``get_events(include_children=True)``.
 
 Design decision: replaces the earlier FlowMap-based per-event
 coordinate remapping with structural slicing.  The previous
@@ -46,17 +51,12 @@ Args:
         ``Timeline.resolve_subclass(target_unit, number_type)`` selects
         the timeline type; otherwise ``type(source_timeline)`` is used.
     include_children: If True (default), child timelines are
-        recursively sliced and included in each segment.
-    as_segment_line: If True, return the `SegmentLine` directly
-        (one segment per playthrough section).  If False (default),
-        flatten into a plain timeline of the source's concrete class.
+        recursively sliced and included in each section.
 
 Returns:
-    New Timeline (or SegmentLine if *as_segment_line* is True) with:
-
-    - Events structurally copied and reordered per flow
-    - Reverse FlowMap attached (id="source")
-    - Forward FlowMap attached (id="forward_{flow.id}")
+    New Timeline of the source's concrete type, with one appended child
+    (plus matching Region) per playthrough section, a reverse FlowMap
+    (id ``"source"``), and a forward FlowMap (id ``f"forward_{flow.id}"``).
 
 Raises:
     ValueError: If *flow_controller* is None and QB-space boundaries
@@ -74,4 +74,3 @@ Examples:
 See Also:
     `compute_qb_sections`: Computes QB boundaries from Flow + controller.
     `Timeline.get_slice`: Extracts a portion of a timeline.
-    `SegmentLine`: Container for contiguous timeline segments.

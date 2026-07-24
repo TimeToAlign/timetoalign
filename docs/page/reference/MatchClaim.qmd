@@ -68,7 +68,11 @@ Examples:
 | --- | --- |
 | [anchors](#timetoalign.alignment.MatchClaim.anchors) | Get all anchors in this claim (0, 1, or 2). |
 | [bundle](#timetoalign.alignment.MatchClaim.bundle) | The AlignmentBundle this claim belongs to, if set. |
+| [claim_type](#timetoalign.alignment.MatchClaim.claim_type) | The semantic kind of this claim, derived from its structure. |
+| [is_anonymous](#timetoalign.alignment.MatchClaim.is_anonymous) | Whether this anchors two coordinates with no event identity. |
+| [is_conceptual](#timetoalign.alignment.MatchClaim.is_conceptual) | Whether this is a structural correspondence with no anchors. |
 | [is_interval](#timetoalign.alignment.MatchClaim.is_interval) | Whether this is an interval match (has end anchor). |
+| [is_nomatch](#timetoalign.alignment.MatchClaim.is_nomatch) | Whether a named event is claimed to have no counterpart. |
 | [timelines](#timetoalign.alignment.MatchClaim.timelines) | Return tuple of timeline IDs. |
 
 ## Methods
@@ -249,7 +253,7 @@ Raises:
 alignment.MatchClaim.get_matchstamp(
     bundle=None,
     from_graph=True,
-    conversion_maps=True,
+    conversion_maps=False,
 )
 ```
 
@@ -272,6 +276,7 @@ Args:
         connected groups. If False, return a reduced 2-timeline
         MatchStamp.
     conversion_maps: C-map conversions available through unit lookup.
+        Opt-in: defaults to ``False``.
 
 Returns:
     MatchStamp with coordinates, or None if this claim is

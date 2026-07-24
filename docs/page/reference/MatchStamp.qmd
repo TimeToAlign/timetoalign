@@ -10,7 +10,7 @@ alignment.MatchStamp(
     source=None,
     source_id=None,
     is_interpolated=False,
-    conversion_maps=True,
+    conversion_maps=False,
 )
 ```
 
@@ -32,7 +32,8 @@ Attributes:
     source: Bundle that produced the stamp.
     source_id: Timeline ID used for the query.
     is_interpolated: Whether the stamp used interpolated transfer.
-    conversion_maps: Conversion maps available to unit lookup.
+    conversion_maps: Conversion maps available to unit lookup and display.
+        Opt-in: defaults to ``False``.
 
 Examples:
     >>> stamp = MatchStamp(

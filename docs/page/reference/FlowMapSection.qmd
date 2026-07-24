@@ -1,7 +1,7 @@
 # FlowMapSection { #timetoalign.timelines.FlowMapSection }
 
 ```python
-timelines.FlowMapSection(source_start, source_end, target_start)
+timelines.FlowMapSection(source_start, source_end, target_start, label=None)
 ```
 
 A section mapping in a FlowMap.
@@ -18,6 +18,10 @@ Attributes:
     source_start: Start coordinate in source timeline (inclusive).
     source_end: End coordinate in source timeline (exclusive).
     target_start: Start coordinate in target timeline.
+    label: Identity of the section — the source region/section name it was
+        built from, or ``None`` when the section names nothing (e.g. built
+        from a bare coordinate pair). Unfolding uses this to name the
+        child timeline and Region it produces for the section.
 
 ## Attributes
 

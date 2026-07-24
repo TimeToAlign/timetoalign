@@ -65,6 +65,7 @@ Examples:
 | Name | Description |
 | --- | --- |
 | [add_timeline](#timetoalign.timelines.TimelineGroup.add_timeline) | Add a timeline (or Child) to the group. |
+| [apply_flow](#timetoalign.timelines.TimelineGroup.apply_flow) | Unfold ALL timelines in this group via a single flow. |
 | [convert](#timetoalign.timelines.TimelineGroup.convert) | Convert a coordinate from one timeline to another. |
 | [diagram](#timetoalign.timelines.TimelineGroup.diagram) | Generate ASCII diagram for this group. |
 | [get_events](#timetoalign.timelines.TimelineGroup.get_events) | Get events from all timelines in the group, concatenated. |
@@ -80,7 +81,6 @@ Examples:
 | [remove_timeline](#timetoalign.timelines.TimelineGroup.remove_timeline) | Remove a timeline from the group. |
 | [summary](#timetoalign.timelines.TimelineGroup.summary) | Get a summary of the group. |
 | [to_dataframe](#timetoalign.timelines.TimelineGroup.to_dataframe) | Generate timestamps as a pandas DataFrame with formatted field names. |
-| [unfold](#timetoalign.timelines.TimelineGroup.unfold) | Unfold ALL timelines in this group via a single flow. |
 | [unlock](#timetoalign.timelines.TimelineGroup.unlock) | Unlock the group to allow extension. |
 
 ### add_timeline { #timetoalign.timelines.TimelineGroup.add_timeline }
@@ -146,6 +146,69 @@ Examples:
     ...     end=IdCoordinate(200.0, TimeUnit.seconds, "extended_audio:1"),
     ...     allow_extension=True,
     ... )
+
+### apply_flow { #timetoalign.timelines.TimelineGroup.apply_flow }
+
+```python
+timelines.TimelineGroup.apply_flow(
+    flow,
+    flow_controller,
+    reference_timeline_id,
+    *,
+    include_children=True,
+    name=None,
+)
+```
+
+Unfold ALL timelines in this group via a single flow.
+
+Uses the flow controller's repeat structure to compute section
+boundaries in the reference timeline's coordinate space, then
+resolves those boundaries into every other timeline's coordinates
+via the group's interpolation maps. Each member is unfolded along its
+own resolved played spans: a new timeline of the member's **same
+concrete type** with one appended child (plus a matching named Region)
+per section, in unfolded coordinates.
+
+This is the group-level equivalent of
+`timetoalign.timelines.flow.create_unfolded_timeline`, but
+applied to every member at once. It shares the append-children
+assembly via `unfold_via_flowmap`, so each member's children and
+Regions carry the same per-section names as the single-timeline path
+(repeats suffixed ``-rend2``, ``-rend3`` …).
+
+Args:
+    flow: The computed ``Flow`` (from ``controller.compute_flow()``).
+    flow_controller: The ``FlowControllerBase`` that produced the flow.
+        Required to convert flow sections to quarter-beat coordinates.
+    reference_timeline_id: ID of the timeline whose coordinate space
+        the flow is defined in (typically the score CLT).  Section
+        boundaries are resolved here first, then mapped to all other
+        timelines.
+    include_children: Whether to recursively slice child timelines
+        within each section.
+    name: Name for the returned group.  Defaults to
+        ``f"{self.name} (unfolded)"``.
+
+Returns:
+    A new ``TimelineGroup`` containing the unfolded timelines. Each
+    member keeps its original timeline ID, is the same concrete type as
+    its source, and carries one appended child and Region per section.
+    The reference timeline additionally carries a reverse FlowMap
+    (id ``"source"``) and a forward FlowMap (id ``f"forward_{flow.id}"``).
+
+Raises:
+    KeyError: If ``reference_timeline_id`` is not in the group.
+    ValueError: If the flow controller cannot compute QB sections.
+
+Examples:
+    >>> loader = Ms3Loader.from_file("notes.tsv", "measures.tsv")
+    >>> controller = loader.create_flow_controller()
+    >>> flow = controller.compute_flow(FlowMode.default)
+    >>> score_group = TimelineGroup(
+    ...     id="score", timelines=[clt1, dgt1, openscore]
+    ... )
+    >>> unfolded = score_group.apply_flow(flow, controller, "clt1")
 
 ### convert { #timetoalign.timelines.TimelineGroup.convert }
 
@@ -570,68 +633,6 @@ Examples:
     >>> df = group.to_dataframe(units=False)
     >>> df.columns
     Index(['audio', 'dgt1', 'pixels_to_beats'])
-
-### unfold { #timetoalign.timelines.TimelineGroup.unfold }
-
-```python
-timelines.TimelineGroup.apply_flow(
-    flow,
-    flow_controller,
-    reference_timeline_id,
-    *,
-    include_children=True,
-    as_segment_lines=False,
-    name=None,
-)
-```
-
-Unfold ALL timelines in this group via a single flow.
-
-Uses the flow controller's repeat structure to compute section
-boundaries in the reference timeline's coordinate space, then
-resolves those boundaries into every other timeline's coordinates
-via the group's interpolation maps.  Each timeline is sliced at
-the corresponding coordinates and the slices are assembled into
-contiguous ``SegmentLine`` objects (or flattened into plain
-timelines).
-
-This is the group-level equivalent of
-`timetoalign.timelines.flow.create_unfolded_timeline`, but
-applied to every member at once.
-
-Args:
-    flow: The computed ``Flow`` (from ``controller.compute_flow()``).
-    flow_controller: The ``FlowControllerBase`` that produced the flow.
-        Required to convert flow sections to quarter-beat coordinates.
-    reference_timeline_id: ID of the timeline whose coordinate space
-        the flow is defined in (typically the score CLT).  Section
-        boundaries are resolved here first, then mapped to all other
-        timelines.
-    include_children: Whether to recursively slice child timelines
-        within each section.
-    as_segment_lines: If True, each unfolded timeline is a
-        ``SegmentLine`` (one segment per section).  If False (default),
-        events are flattened into a single timeline of the source's
-        concrete type.
-    name: Name for the returned group.  Defaults to
-        ``f"{self.name} (unfolded)"``.
-
-Returns:
-    A new ``TimelineGroup`` containing the unfolded timelines.
-    Each timeline retains its original ID.
-
-Raises:
-    KeyError: If ``reference_timeline_id`` is not in the group.
-    ValueError: If the flow controller cannot compute QB sections.
-
-Examples:
-    >>> loader = Ms3Loader.from_file("notes.tsv", "measures.tsv")
-    >>> controller = loader.create_flow_controller()
-    >>> flow = controller.compute_flow(FlowMode.default)
-    >>> score_group = TimelineGroup(
-    ...     id="score", timelines=[clt1, dgt1, openscore]
-    ... )
-    >>> unfolded = score_group.unfold(flow, controller, "clt1")
 
 ### unlock { #timetoalign.timelines.TimelineGroup.unlock }
 
