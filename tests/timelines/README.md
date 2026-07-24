@@ -1107,16 +1107,20 @@ target.
 The module-private helpers in `timetoalign/timelines/flow/sections.py` are
 duck-typed (no hard imports of `Timeline`/`Region`/`Coordinate`). `_as_interval`
 recognises descriptors in strict priority order and each variant yields an
-**exact** `(Fraction, Fraction)` pair:
+**exact** `(Fraction, Fraction, label)` triple. The `label` is a best-effort
+identity — a region name for a `str` or a `Region`, the `name`/`id` for a
+`Timeline`, and `None` for a bare coordinate pair or a nameless event — carried
+through so unfolding can name the child timeline and Region it derives from
+each span:
 
-| Input | Recognised as | Expected `(start, end)` |
-|-------|---------------|-------------------------|
-| `(0, 123)` (raw ints) | 2-element sequence | `(Fraction(0), Fraction(123))` |
-| `(Coordinate(0), Coordinate(129))` | 2-element sequence | `(Fraction(0), Fraction(129))` |
-| `Region(start=0, end=123)` | has `.start`/`.end` | `(Fraction(0), Fraction(123))` |
-| a `Timeline` of length 200 | has `.origin`/`.length` | `(Fraction(0), Fraction(200))` |
-| `Note(start=0, end=123)` interval event | has `.start`/`.end` | `(Fraction(0), Fraction(123))` |
-| `"A8_1"` with a `resolve` callable | `str` → resolved region | `(Fraction(0), Fraction(123))` |
+| Input | Recognised as | Expected `(start, end, label)` |
+|-------|---------------|--------------------------------|
+| `(0, 123)` (raw ints) | 2-element sequence | `(Fraction(0), Fraction(123), None)` |
+| `(Coordinate(0), Coordinate(129))` | 2-element sequence | `(Fraction(0), Fraction(129), None)` |
+| `Region("A8_1", start=0, end=123)` | has `.start`/`.end` | `(Fraction(0), Fraction(123), "A8_1")` |
+| a `Timeline` of length 200 | has `.origin`/`.length` | `(Fraction(0), Fraction(200), tl.name)` |
+| `Note(start=0, end=123)` interval event | has `.start`/`.end` | `(Fraction(0), Fraction(123), None)` |
+| `"A8_1"` with a `resolve` callable | `str` → resolved region | `(Fraction(0), Fraction(123), "A8_1")` |
 | `"A8_1"` with `resolve=None` | `str`, no resolver | raises `ValueError` |
 
 `_coerce_intervals` disambiguates singleton-vs-collection by trying the whole
@@ -1135,10 +1139,10 @@ All assertions are exact `Fraction` equality — no ranges, no `pytest.approx`.
 
 #### Interval-built `FlowMap`
 
-Sections are built directly from the coerced `(start, end)` ranges with a
-**cumulative target position** (identical math to `from_qb_sections`), and
-`flow` is `None`. For the two motivating spans `[0, 123)` and `[129, 252)`
-(length 252):
+Sections are built directly from the coerced `(start, end, label)` ranges with
+a **cumulative target position** (identical math to `from_qb_sections`), each
+section carrying its `label`, and `flow` is `None`. For the two motivating
+spans `[0, 123)` and `[129, 252)` (length 252):
 
 | Query | Method | Exact result | Derivation |
 |-------|--------|--------------|------------|
@@ -1181,42 +1185,45 @@ convenience methods delegate with the exact values above
 (`tl.unfold_coordinate(150, "A8") == [144.0]`,
 `tl.unfold_coordinate(125, "A8") == []`, `tl.fold(144, "A8") == 150.0`).
 
-#### `Timeline.unfold` — the unfolded timeline
+#### `Timeline.apply_flow` — the unfolded timeline
 
 `unfold_coordinate` maps a single folded coordinate to a list of unfolded
-coordinates; `unfold(id)` instead yields the whole unfolded **timeline**. It
-slices the source at each section of the attached FlowMap via
-`Timeline.get_slice` (which rebases each slice by `-start`) and concatenates the
-slices, in target order, onto a `SegmentLine` (the default) whose segment
-offsets accumulate as `0` then `123`. With `as_segment_line=False` the slices
-are flattened into a single timeline of the source's concrete type. The result
-carries a reverse FlowMap (id `"source"`) and the forward FlowMap
-(id `f"forward_{id}"`).
+coordinates; `apply_flow(id)` instead yields the whole unfolded **timeline**.
+It slices the source at each section of the attached FlowMap via
+`Timeline.get_slice` (which rebases each slice by `-start`) and **appends** the
+slices, in target order, as children of a new timeline of the source's **same
+concrete type**, whose child offsets accumulate as `0` then `123`. Each section
+also becomes a matching named Region in unfolded (target) coordinates. Section
+events live in the appended children; the flattened coordinates remain reachable
+via `get_events(include_children=True)`. The result carries a reverse FlowMap
+(id `"source"`) and the forward FlowMap (id `f"forward_{id}"`). Each child and
+Region takes the section's name (a repeat is suffixed `-rend2`, `-rend3`, …).
 
 The fixture is a length-252 source with played spans `A8_1` `[0, 123)` and
 `A8_2` `[129, 252)`, instants `e10` at absolute 10 (span 1) and `e140` at
 absolute 140 (span 2), and a nested child at offset 40 (span `[40, 60)`, inside
-span 1) carrying instant `c5` at local 5. `sl = source.unfold("A8")` and
-`flat = source.unfold("A8", as_segment_line=False)` give the exact values:
+span 1) carrying instant `c5` at local 5. `r = source.apply_flow("A8")` gives
+the exact values:
 
 | Query | Exact result | Derivation |
 |-------|--------------|------------|
-| `isinstance(sl, SegmentLine)` | `True` | default is a SegmentLine |
-| `sl.n_segments` | `2` | one segment per played span |
-| `float(sl.length.value)` | `246.0` | `123 + (252 - 129)` |
-| segment 0 / segment 1 length | `123.0` / `123.0` | span lengths |
-| `e10` in segment 0 | `Fraction(10)` | slice `[0, 123)`: `10 - 0` |
-| `e140` in segment 1 | `Fraction(11)` | slice `[129, 252)`: `140 - 129` |
-| child offset in segment 0 | `40.0` | `40 - 0`; segment 1 has no children |
-| child `c5` local coord | `Fraction(5)` | slice `[0, 20)`: `5 - 0` |
-| `sl.get_flow_map("source")` | not `None` | reverse FlowMap attached |
-| `sl.has_flow_map("forward_A8")` | `True` | forward FlowMap attached |
-| `type(flat) is ContinuousLogicalTimeline` | `True` | flattened to source type |
-| `float(flat.length.value)` | `246.0` | same target length |
-| flattened `e10` | `10.0` | section offset 0: `10 + 0` |
-| flattened `e140` | `134.0` | section offset 123: `11 + 123` |
-| flattened child offset / `c5` | `40.0` / `5.0` | offset `40 + 0`, event local 5 |
-| `source.unfold("nope")` | raises `ValueError` | no FlowMap attached with that id |
+| `type(r) is ContinuousLogicalTimeline` | `True` | same concrete type as source |
+| `r.length.value` | `Fraction(246)` | `123 + (252 - 129)` |
+| `r.n_children` | `2` | one appended child per played span |
+| `r.list_children()` | `["A8_1", "A8_2"]` | children named after the spans |
+| child `A8_1` / `A8_2` offset | `Fraction(0)` / `Fraction(123)` | cumulative span lengths |
+| child `A8_1` / `A8_2` length | `Fraction(123)` / `Fraction(123)` | span lengths |
+| `e10` in child `A8_1` | `Fraction(10)` | slice `[0, 123)`: `10 - 0` |
+| `e140` in child `A8_2` | `Fraction(11)` | slice `[129, 252)`: `140 - 129` |
+| `A8_1` sub-child offset | `Fraction(40)` | `40 - 0`; `A8_2` has no sub-children |
+| sub-child `c5` local coord | `Fraction(5)` | slice `[0, 20)`: `5 - 0` |
+| `r.list_regions()` | `["A8_1", "A8_2"]` | one Region per section |
+| region `A8_1` / `A8_2` | `[0, 123)` / `[123, 246)` | contiguous target coords |
+| `r.get_flow_map("source")` labels | `["A8_1", "A8_2"]` | reverse FlowMap carries labels |
+| `r.has_flow_map("forward_A8")` | `True` | forward FlowMap attached |
+| `get_events(include_children=True)` | `e10@10`, `c5@45`, `e140@134` (each once) | flattened parent-space coords |
+| `["A8_1", "A8_1"]` flow → children/regions | `["A8_1", "A8_1-rend2"]` | repeat gets a `-rend2` suffix |
+| `source.apply_flow("nope")` | raises `ValueError` | no FlowMap attached with that id |
 
 ---
 
@@ -1353,16 +1360,16 @@ local coordinates equal the axis because its offset is zero.
 **Purpose:** Validates the slice-based unfolding pipeline that replaces the buggy MC-space
 FlowMap approach with structural slicing in QB-space.
 
-**90 tests** (80 single-timeline + 10 group unfolding) across 6 test classes:
+**Test classes** validating the pipeline:
 
-| Class | Tests | Purpose |
-|-------|-------|---------|
-| `TestGetSlice` | 16 | Unit tests for `Timeline.get_slice()` primitive |
-| `TestComputeQBSections` | 8 | QB boundary computation from Flow + ScoreFlowController |
-| `TestSegmentLineAssembly` | 5 | Integration: slice + concatenate into SegmentLine |
-| `TestCreateUnfoldedTimelineIdentity` | 2 | Explicit uid on flat and SegmentLine results |
-| `TestUnfoldingGoldStandard` | 49 | End-to-end validation against 7 ms3 gold standard specimens |
-| `TestGroupUnfolding` | 10 | Cross-domain unfolding via GroupTimestamp interpolation |
+| Class | Purpose |
+|-------|---------|
+| `TestGetSlice` | Unit tests for `Timeline.get_slice()` primitive |
+| `TestComputeQBSections` | QB boundary computation from Flow + ScoreFlowController |
+| `TestSegmentLineAssembly` | Integration: slice + concatenate into a SegmentLine (this module's own manual helper) |
+| `TestCreateUnfoldedTimelineIdentity` | Explicit uid on the same-type unfolded timeline |
+| `TestUnfoldingGoldStandard` | End-to-end validation against 7 ms3 gold standard specimens |
+| `TestGroupUnfolding` | Cross-domain unfolding via GroupTimestamp interpolation |
 
 **Testing Pyramid:**
 

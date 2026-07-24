@@ -469,7 +469,7 @@ section_boundary_table
 # ### 9.2 Unfolding the Entire Score Group
 #
 # The score has repeats and volta brackets. Rather than unfolding each
-# timeline individually, `TimelineGroup.unfold()` does it in one call:
+# timeline individually, `TimelineGroup.apply_flow()` does it in one call:
 # the flow controller's section boundaries are resolved via the group's
 # interpolation maps, so every timeline — regardless of domain — is
 # sliced and reassembled in playthrough order.
@@ -1010,7 +1010,7 @@ boundary_df
 # | `SegmentLine` nesting | OMR pages -> systems -> noteheads | 7 |
 # | Region extraction | OpenScore 4-movement -> movement 4 child | 8 |
 # | Cross-domain timestamps | Quarters -> pixels -> page number | 9.1 |
-# | `TimelineGroup.unfold()` | Unfold entire group via one flow | 9.2 |
+# | `TimelineGroup.apply_flow()` | Unfold entire group via one flow | 9.2 |
 # | `match_notes_by_attributes()` | EEP <-> ABC note matching (from unfolded TL) | 10 |
 # | `create_unfolded_timeline()` | Unfold a single timeline | 11.3 |
 # | `MatchClaim` + `AlignmentAnchor` | Section-boundary alignment (alpha-kappa) | 11.5 |

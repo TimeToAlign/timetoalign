@@ -416,7 +416,10 @@ class Field:
             ValueError: If the field path is invalid or JSON parsing fails.
         """
         if self.column not in table.column_names:
-            raise KeyError(f"Column '{self.column}' not found in table")
+            raise KeyError(
+                f"Column '{self.column}' not found in table. "
+                f"Available columns: {table.column_names}"
+            )
 
         array = table.column(self.column).combine_chunks()
 
@@ -598,7 +601,10 @@ class ComputedField:
         parts = ref.split(".")
 
         if parts[0] not in table.column_names:
-            raise KeyError(f"Column '{parts[0]}' not found in table")
+            raise KeyError(
+                f"Column '{parts[0]}' not found in table. "
+                f"Available columns: {table.column_names}"
+            )
 
         array = table.column(parts[0]).combine_chunks()
 

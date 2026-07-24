@@ -405,7 +405,10 @@ class Stamp(ABC):
             conversion = self.get_conversion(key)
             if conversion is not None:
                 return conversion
-            raise KeyError(key) from None
+            raise KeyError(
+                f"{key!r} names no timeline, unit, or conversion map on this "
+                f"stamp. Present timelines: {self.present_timelines}"
+            ) from None
 
         if self._unit_resolution_enabled(unit):
             unit_value = self.get_unit(unit)
@@ -414,7 +417,10 @@ class Stamp(ABC):
         conversion = self.get_conversion(key)
         if conversion is not None:
             return conversion
-        raise KeyError(key)
+        raise KeyError(
+            f"{key!r} names no timeline, unit, or conversion map on this "
+            f"stamp. Present timelines: {self.present_timelines}"
+        )
 
     def _unit_resolution_enabled(self, unit: TimeUnit) -> bool:
         """Return whether the stamp's conversion-map spec permits a unit."""

@@ -507,13 +507,16 @@ Three kinds of derived timelines play a central role in alignment:
     ({{< glossary Break >}}s and {{< glossary Jump >}}s), or assembled directly
     from any interval descriptions---{{< glossary Region >}}s, coordinate pairs,
     {{< glossary Timeline >}}s, or interval events, given singly or as a
-    collection. Its intervals can be partitioned and concatenated, yielding a
-    new {{< glossary SegmentLine >}} reflecting the traversal---i.e.,
-    **unfolding** the score into performance order.
+    collection. Its intervals can be partitioned and concatenated, **unfolding**
+    the score into performance order: this materialises a new timeline of the
+    source's own type whose played spans are appended as named children, each
+    recorded as a {{< glossary Region >}} in performance coordinates.
 
     For example, a score with a repeat and a *dal segno al coda* has a
     FlowMap like [A, B, A, B, C, D] where some regions appear more than
-    once. The resulting SegmentLine is a new timeline in performance order.
+    once. The unfolded timeline replays those spans as children in that order,
+    a span played twice appearing as two children (the second suffixed
+    `-rend2`, following the Verovio rendering-order convention).
 
 **Converted timeline**
 :   A timeline whose coordinates have been transformed to another unit via

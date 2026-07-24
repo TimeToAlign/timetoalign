@@ -482,7 +482,10 @@ class TimelineGroup:
             KeyError: If timeline_id is not in the group.
         """
         if timeline_id not in self._timelines:
-            raise KeyError(f"Timeline '{timeline_id}' not in group '{self.id}'")
+            raise KeyError(
+                f"Timeline '{timeline_id}' not in group '{self.id}'. "
+                f"Available timelines: {self.timeline_ids}"
+            )
 
         timeline = self._timelines.pop(timeline_id)
         self._remove_timeline_field(timeline_id)
@@ -754,7 +757,10 @@ class TimelineGroup:
             )
 
         if timeline_id not in self._timelines:
-            raise KeyError(f"Timeline '{timeline_id}' not in group")
+            raise KeyError(
+                f"Timeline '{timeline_id}' not in group. "
+                f"Available timelines: {self.timeline_ids}"
+            )
 
         coord_value = float(
             self.get_timeline(timeline_id)
@@ -1186,7 +1192,10 @@ class TimelineGroup:
                 coord = event["start"]["value"]
                 return self.get_timestamp_at(coord, tl_id)
 
-        raise KeyError(f"Event {event_id!r} not found in any timeline in group")
+        raise KeyError(
+            f"Event {event_id!r} not found in any timeline in group. "
+            f"Searched timelines: {self.timeline_ids}"
+        )
 
     def get_timestamps_of(self, event_ids: Sequence[str]) -> pd.DataFrame:
         """Get timestamps for multiple events.
@@ -1575,7 +1584,10 @@ class TimelineGroup:
         # IdCoordinate: use timeline_id attribute directly
         if isinstance(spec, IdCoordinate):
             if spec.timeline_id not in self._timelines:
-                raise KeyError(f"Timeline '{spec.timeline_id}' not in group")
+                raise KeyError(
+                    f"Timeline '{spec.timeline_id}' not in group. "
+                    f"Available timelines: {self.timeline_ids}"
+                )
             native_coord = self._timelines[spec.timeline_id].resolve_coordinate(spec)
             return self._find_or_create_at(
                 float(native_coord.value), spec.timeline_id, new_timeline, is_start
@@ -1622,7 +1634,10 @@ class TimelineGroup:
             Boundary specification dict.
         """
         if timeline_id not in self._timelines:
-            raise KeyError(f"Timeline '{timeline_id}' not in group")
+            raise KeyError(
+                f"Timeline '{timeline_id}' not in group. "
+                f"Available timelines: {self.timeline_ids}"
+            )
 
         if self._timestamp_table is None:
             raise ValueError("Cannot find timestamp in empty group")
@@ -1956,14 +1971,13 @@ class TimelineGroup:
 
     # region Unfolding
 
-    def unfold(
+    def apply_flow(
         self,
         flow: "Flow",
         flow_controller: "FlowControllerBase",
         reference_timeline_id: str,
         *,
         include_children: bool = True,
-        as_segment_lines: bool = False,
         name: str | None = None,
     ) -> "TimelineGroup":
         """Unfold ALL timelines in this group via a single flow.
@@ -1971,14 +1985,17 @@ class TimelineGroup:
         Uses the flow controller's repeat structure to compute section
         boundaries in the reference timeline's coordinate space, then
         resolves those boundaries into every other timeline's coordinates
-        via the group's interpolation maps.  Each timeline is sliced at
-        the corresponding coordinates and the slices are assembled into
-        contiguous ``SegmentLine`` objects (or flattened into plain
-        timelines).
+        via the group's interpolation maps. Each member is unfolded along its
+        own resolved played spans: a new timeline of the member's **same
+        concrete type** with one appended child (plus a matching named Region)
+        per section, in unfolded coordinates.
 
         This is the group-level equivalent of
         `timetoalign.timelines.flow.create_unfolded_timeline`, but
-        applied to every member at once.
+        applied to every member at once. It shares the append-children
+        assembly via `unfold_via_flowmap`, so each member's children and
+        Regions carry the same per-section names as the single-timeline path
+        (repeats suffixed ``-rend2``, ``-rend3`` …).
 
         Args:
             flow: The computed ``Flow`` (from ``controller.compute_flow()``).
@@ -1990,16 +2007,15 @@ class TimelineGroup:
                 timelines.
             include_children: Whether to recursively slice child timelines
                 within each section.
-            as_segment_lines: If True, each unfolded timeline is a
-                ``SegmentLine`` (one segment per section).  If False (default),
-                events are flattened into a single timeline of the source's
-                concrete type.
             name: Name for the returned group.  Defaults to
                 ``f"{self.name} (unfolded)"``.
 
         Returns:
-            A new ``TimelineGroup`` containing the unfolded timelines.
-            Each timeline retains its original ID.
+            A new ``TimelineGroup`` containing the unfolded timelines. Each
+            member keeps its original timeline ID, is the same concrete type as
+            its source, and carries one appended child and Region per section.
+            The reference timeline additionally carries a reverse FlowMap
+            (id ``"source"``) and a forward FlowMap (id ``f"forward_{flow.id}"``).
 
         Raises:
             KeyError: If ``reference_timeline_id`` is not in the group.
@@ -2014,43 +2030,33 @@ class TimelineGroup:
             ... )
             >>> unfolded = score_group.apply_flow(flow, controller, "clt1")
         """
-        from timetoalign.timelines.flow import (
-            FlowMap,
-            compute_qb_sections,
-        )
-        from timetoalign.timelines.types import SegmentLine
+        from timetoalign.timelines.flow import FlowMap, compute_qb_sections
 
-        from .flow.unfolding import _flatten_segment_line_onto
+        from .flow.unfolding import unfold_via_flowmap
 
         if reference_timeline_id not in self._timelines:
             raise KeyError(
                 f"Reference timeline '{reference_timeline_id}' not in group. "
-                f"Available: {self.timeline_ids}"
+                f"Available timelines: {self.timeline_ids}"
             )
 
-        # 1. Compute section boundaries in QB space
+        # 1. Section boundaries in QB space, plus the labelled reference map
+        #    (its section labels name the children/Regions every member gets).
         qb_sections = compute_qb_sections(flow, flow_controller)
+        reference_map = FlowMap.from_qb_sections(flow, qb_sections, id=flow.id)
+        labels = [sec.label for sec in reference_map._sections]
 
-        # 2. Build a FlowMap for the reference timeline
-        forward_map = FlowMap.from_qb_sections(flow, qb_sections)
-
-        # 3. Create empty SegmentLines for each timeline
-        timelines = {tl_id: tl for tl_id, tl in self._timelines.items()}
-        unfolded_sls: dict[str, SegmentLine] = {}
-        for tl_id, tl in timelines.items():
-            unfolded_sls[tl_id] = SegmentLine(
-                segment_type=type(tl),
-                length=0,
-                unit=tl.unit,
-                number_type=tl.number_type,
-            )
-
-        # 4. Iterate section-wise: resolve boundaries via group timestamps
+        # 2. Resolve each section's boundaries into every member's coordinate
+        #    space via the group's timestamps, collecting per-member played
+        #    spans as (start, end, label) triples in target order.
+        member_spans: dict[str, list[tuple[Any, Any, str | None]]] = {
+            tl_id: [] for tl_id in self._timelines
+        }
         for i, (qb_start, qb_end) in enumerate(qb_sections):
             start_ts = self.get_timestamp_at(float(qb_start), reference_timeline_id)
             end_ts = self.get_timestamp_at(float(qb_end), reference_timeline_id)
 
-            for tl_id, tl in timelines.items():
+            for tl_id in self._timelines:
                 coord_start = start_ts[tl_id]
                 coord_end = end_ts[tl_id]
                 if coord_start is None or coord_end is None:
@@ -2060,43 +2066,22 @@ class TimelineGroup:
                         f"'{reference_timeline_id}' "
                         f"(start={coord_start}, end={coord_end})"
                     )
+                member_spans[tl_id].append((coord_start, coord_end, labels[i]))
 
-                seg = tl.get_slice(
-                    coord_start,
-                    coord_end,
-                    truncate_events=True,
-                    include_children=include_children,
-                )
-                unfolded_sls[tl_id].append_segment(seg, name=f"section_{i}")
-
-        # 5. If not as_segment_lines, flatten each SegmentLine
+        # 3. Unfold each member along its own played spans, reusing the shared
+        #    append-children assembly (same-type result, appended children +
+        #    Regions), preserving each member's original timeline id.
         result_timelines = []
-        for tl_id, sl in unfolded_sls.items():
-            source_tl = timelines[tl_id]
-            if as_segment_lines:
-                sl._id = tl_id
-                result_timelines.append(sl)
-            else:
-                target_cls = type(source_tl)
-                flat = target_cls(
-                    length=float(sl.length.value),
-                    unit=sl.unit,
-                    number_type=sl.number_type,
-                    uid=tl_id,
-                    name=f"{source_tl.name}_unfolded" if source_tl.name else None,
+        for tl_id, tl in self._timelines.items():
+            member_map = FlowMap(id=flow.id)
+            member_map._build_from_intervals(member_spans[tl_id])
+            result_timelines.append(
+                unfold_via_flowmap(
+                    tl, member_map, uid=tl_id, include_children=include_children
                 )
-                _flatten_segment_line_onto(sl, flat, include_children)
-                result_timelines.append(flat)
+            )
 
-        # 6. Add FlowMaps to the reference timeline
-        reverse_map = forward_map.inverse()
-        for tl in result_timelines:
-            if tl.id == reference_timeline_id:
-                tl.add_flow_map(reverse_map, id="source")
-                tl.add_flow_map(forward_map, id=f"forward_{flow.id}")
-                break
-
-        # 7. Assemble the new group
+        # 4. Assemble the new group.
         group_name = name if name is not None else f"{self.name} (unfolded)"
         return TimelineGroup(
             id=f"{self.id}_unfolded" if self.id else None,

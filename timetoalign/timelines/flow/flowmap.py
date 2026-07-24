@@ -26,11 +26,16 @@ class FlowMapSection:
         source_start: Start coordinate in source timeline (inclusive).
         source_end: End coordinate in source timeline (exclusive).
         target_start: Start coordinate in target timeline.
+        label: Identity of the section — the source region/section name it was
+            built from, or ``None`` when the section names nothing (e.g. built
+            from a bare coordinate pair). Unfolding uses this to name the
+            child timeline and Region it produces for the section.
     """
 
     source_start: Fraction
     source_end: Fraction
     target_start: Fraction
+    label: str | None = None
 
     @property
     def duration(self) -> Fraction:
@@ -119,25 +124,31 @@ class FlowMap:
         intervals = _coerce_intervals(source, resolve=resolve)
         self._build_from_intervals(intervals)
 
-    def _build_from_intervals(self, intervals: list[tuple[Fraction, Fraction]]) -> None:
-        """Build section tables from ``(start, end)`` source ranges.
+    def _build_from_intervals(
+        self, intervals: list[tuple[Fraction, Fraction, str | None]]
+    ) -> None:
+        """Build section tables from ``(start, end, label)`` source ranges.
 
         Each interval becomes one FlowMapSection whose target position is the
         cumulative sum of preceding interval durations, so the played spans
-        concatenate contiguously in the target (unfolded) axis.
+        concatenate contiguously in the target (unfolded) axis. The interval's
+        label is carried onto the section so unfolding can name the child
+        timeline and Region it derives from the span.
 
         Args:
-            intervals: The ``(start, end)`` source ranges, in target order.
+            intervals: The ``(start, end, label)`` source ranges, in target
+                order.
         """
         target_position = Fraction(0)
 
-        for source_start, source_end in intervals:
+        for source_start, source_end, label in intervals:
             section_duration = source_end - source_start
             self._sections.append(
                 FlowMapSection(
                     source_start=source_start,
                     source_end=source_end,
                     target_start=target_position,
+                    label=label,
                 )
             )
             self._target_boundaries.append(target_position)
@@ -158,12 +169,14 @@ class FlowMap:
             source_start = Fraction(sec.mc_start)
             source_end = Fraction(sec.mc_end)
             section_duration = source_end - source_start
+            label = "+".join(sec.atomic_section_ids) or None
 
             self._sections.append(
                 FlowMapSection(
                     source_start=source_start,
                     source_end=source_end,
                     target_start=target_position,
+                    label=label,
                 )
             )
             self._target_boundaries.append(target_position)
@@ -271,6 +284,7 @@ class FlowMap:
                     source_start=sec.target_start,
                     source_end=sec.target_end,
                     target_start=sec.source_start,
+                    label=sec.label,
                 )
             )
 
@@ -339,13 +353,15 @@ class FlowMap:
 
         target_position = Fraction(0)
 
-        for qb_start, qb_end in qb_sections:
+        for (qb_start, qb_end), sec in zip(qb_sections, flow.sections):
             section_duration = qb_end - qb_start
+            label = "+".join(sec.atomic_section_ids) or None
             fm._sections.append(
                 FlowMapSection(
                     source_start=qb_start,
                     source_end=qb_end,
                     target_start=target_position,
+                    label=label,
                 )
             )
             fm._target_boundaries.append(target_position)

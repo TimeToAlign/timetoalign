@@ -329,7 +329,10 @@ class AlignmentBundle:
         if aligned_to is not None:
             # Align to existing timeline
             if aligned_to not in self.timelines:
-                raise KeyError(f"Cannot align to '{aligned_to}': not in bundle")
+                raise KeyError(
+                    f"Cannot align to '{aligned_to}': not in bundle. "
+                    f"Available timelines: {list(self.timelines.keys())}"
+                )
 
             # Get or create group for the target timeline
             if aligned_to in self.timeline_to_group:
@@ -636,9 +639,15 @@ class AlignmentBundle:
             KeyError: If either timeline is not in the bundle.
         """
         if from_timeline not in self.timelines:
-            raise KeyError(f"Source timeline '{from_timeline}' not in bundle")
+            raise KeyError(
+                f"Source timeline '{from_timeline}' not in bundle. "
+                f"Available timelines: {list(self.timelines.keys())}"
+            )
         if to_timeline not in self.timelines:
-            raise KeyError(f"Target timeline '{to_timeline}' not in bundle")
+            raise KeyError(
+                f"Target timeline '{to_timeline}' not in bundle. "
+                f"Available timelines: {list(self.timelines.keys())}"
+            )
 
         coord_value, _resolved_timeline_id, unit = _resolve_coordinate_and_timeline(
             coord, from_timeline
@@ -1492,7 +1501,10 @@ class AlignmentBundle:
             timeline_id not in self.timelines
             and timeline_id not in self._timeline_id_to_uid
         ):
-            raise KeyError(f"Timeline '{timeline_id}' not in bundle")
+            raise KeyError(
+                f"Timeline '{timeline_id}' not in bundle. "
+                f"Available timelines: {list(self.timelines.keys())}"
+            )
 
         bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
         actual_timeline_id = self._uid_to_timeline_id.get(bundle_uid, timeline_id)

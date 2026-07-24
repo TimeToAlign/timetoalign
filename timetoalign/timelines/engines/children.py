@@ -308,6 +308,57 @@ class ChildrenMixin:
         self.add_child(child, offset=offset, allow_expansion=allow_expansion)
         return child
 
+    def append_child(
+        self,
+        child: Timeline,
+        *,
+        name: str | None = None,
+        uid: str | None = None,
+        allow_expansion: bool = True,
+    ) -> None:
+        """Append a child timeline at the current end of this timeline.
+
+        The child is placed at ``offset = self.length``, so successive calls
+        stack children end-to-end. Because the child is a fresh, unlocked
+        timeline, its identity may be set here: *uid* becomes the child's ID
+        (the key under which it is stored and retrieved) and *name* its
+        human-readable name — both applied before the child is locked by
+        :meth:`add_child`.
+
+        Args:
+            child: The timeline to append. Must be fresh (parentless) and
+                share this timeline's unit.
+            name: Human-readable name for the child. Applied when given.
+            uid: Identifier for the child; also the key for
+                :meth:`get_child`. Applied when given.
+            allow_expansion: If True (default), expand this timeline to make
+                room for the appended child.
+
+        Raises:
+            TypeError: If child is not a Timeline.
+            ValueError: If units don't match.
+            RuntimeError: If this timeline is locked.
+
+        Examples:
+            >>> parent = ContinuousLogicalTimeline(length=0)
+            >>> parent.append_child(
+            ...     ContinuousLogicalTimeline(length=8), uid="A", name="A"
+            ... )
+            >>> parent.append_child(
+            ...     ContinuousLogicalTimeline(length=8), uid="B", name="B"
+            ... )
+            >>> parent.list_children()
+            ['A', 'B']
+            >>> float(parent.get_child_offset("B").value)
+            8.0
+        """
+        offset = self.length
+        if uid is not None:
+            child._id = uid
+        if name is not None:
+            child._name = name
+        self.add_child(child, offset, allow_expansion=allow_expansion)
+
     def get_child(self, child_id: str) -> Timeline:
         """Retrieve a child timeline by ID.
 
@@ -321,7 +372,10 @@ class ChildrenMixin:
             KeyError: If no child with that ID exists.
         """
         if child_id not in self._children:
-            raise KeyError(f"No child with ID '{child_id}'")
+            raise KeyError(
+                f"No child with ID '{child_id}'. "
+                f"Available children: {list(self._children.keys())}"
+            )
         return self._children[child_id]
 
     def get_child_offset(self, child_id: str) -> Coordinate:
@@ -337,7 +391,10 @@ class ChildrenMixin:
             KeyError: If no child with that ID exists.
         """
         if child_id not in self._child_offsets:
-            raise KeyError(f"No child with ID '{child_id}'")
+            raise KeyError(
+                f"No child with ID '{child_id}'. "
+                f"Available children: {list(self._child_offsets.keys())}"
+            )
         return self._child_offsets[child_id]
 
     def iter_children(
@@ -468,7 +525,10 @@ class ChildrenMixin:
         """
         region = self._regions.get(region_name)
         if region is None:
-            raise KeyError(f"Region '{region_name}' not found on timeline '{self._id}'")
+            raise KeyError(
+                f"Region '{region_name}' not found on timeline '{self._id}'. "
+                f"Available regions: {list(self._regions.keys())}"
+            )
 
         self._check_not_locked("create child from region")
 
@@ -718,8 +778,11 @@ class ChildrenMixin:
             truncate_events: If True, clip straddling intervals. If False,
                 only include fully-contained intervals.
         """
-        # Get all events (excluding segments, which are managed via children)
-        all_events = self.get_events()
+        # Get this timeline's own events only. Children are copied separately
+        # by _copy_children_to_slice, so pulling their events up here would
+        # double-count them (once at the slice's parent level, once inside the
+        # recursively-sliced child).
+        all_events = self.get_events(include_children=False)
 
         # Convert start/end to float for comparison with PyArrow struct values
         start_f = float(start)

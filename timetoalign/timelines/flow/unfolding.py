@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from fractions import Fraction
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from .flowmap import FlowMap
 
@@ -11,7 +12,6 @@ if TYPE_CHECKING:
     from timetoalign.core import TimeUnit
 
     from ..base import Timeline
-    from ..types import SegmentLine
     from .controller import FlowControllerBase, ScoreFlowController
     from .sections import Flow
 
@@ -115,24 +115,29 @@ def create_unfolded_timeline(
     uid: str | None = None,
     target_unit: "TimeUnit | str | None" = None,
     include_children: bool = True,
-    as_segment_line: bool = False,
 ) -> "Timeline":
     """Create an unfolded timeline from a folded source via structural slicing.
 
     Computes QB-space boundaries for each `PlaythroughSection` in the Flow,
-    extracts slices from the source timeline at those boundaries, and
-    concatenates the slices into a new `SegmentLine`.  This is the TTA
-    manuscript's conceptual model: unfolding = assembling a new SegmentLine
-    by selecting and concatenating contiguous portions of the folded source.
+    extracts a slice from the source timeline at each boundary, and appends
+    the slices, in target (unfolded) order, as children of a new timeline of
+    the source's concrete type. This is the TTA manuscript's conceptual model:
+    unfolding = assembling a new timeline by selecting and concatenating
+    contiguous portions of the folded source.
 
     The returned timeline has:
 
-    - Correct QB-space coordinates (not MC-number space)
-    - A reverse FlowMap attached (id="source") for folded ↔ unfolded conversion
-    - A forward FlowMap attached (id="forward_{flow.id}")
-    - Events structurally copied via `Timeline.get_slice()`, including
-      truncation of interval events at section boundaries
-    - Children recursively sliced (when *include_children* is True)
+    - The same concrete class as *source_timeline* (unless *target_unit*
+      selects another), with correct QB-space coordinates.
+    - One appended child per playthrough section, each named after the
+      section (repeats add a ``-rend2``, ``-rend3`` … suffix).
+    - A matching Region per child, in unfolded coordinates.
+    - A reverse FlowMap attached (id ``"source"``) for folded ↔ unfolded
+      conversion, and a forward FlowMap (id ``f"forward_{flow.id}"``).
+    - Events structurally copied via `Timeline.get_slice()` (including
+      truncation of interval events at section boundaries); the flattened
+      coordinates remain reachable via
+      ``get_events(include_children=True)``.
 
     Design decision: replaces the earlier FlowMap-based per-event
     coordinate remapping with structural slicing.  The previous
@@ -150,17 +155,12 @@ def create_unfolded_timeline(
             ``Timeline.resolve_subclass(target_unit, number_type)`` selects
             the timeline type; otherwise ``type(source_timeline)`` is used.
         include_children: If True (default), child timelines are
-            recursively sliced and included in each segment.
-        as_segment_line: If True, return the `SegmentLine` directly
-            (one segment per playthrough section).  If False (default),
-            flatten into a plain timeline of the source's concrete class.
+            recursively sliced and included in each section.
 
     Returns:
-        New Timeline (or SegmentLine if *as_segment_line* is True) with:
-
-        - Events structurally copied and reordered per flow
-        - Reverse FlowMap attached (id="source")
-        - Forward FlowMap attached (id="forward_{flow.id}")
+        New Timeline of the source's concrete type, with one appended child
+        (plus matching Region) per playthrough section, a reverse FlowMap
+        (id ``"source"``), and a forward FlowMap (id ``f"forward_{flow.id}"``).
 
     Raises:
         ValueError: If *flow_controller* is None and QB-space boundaries
@@ -178,7 +178,6 @@ def create_unfolded_timeline(
     See Also:
         `compute_qb_sections`: Computes QB boundaries from Flow + controller.
         `Timeline.get_slice`: Extracts a portion of a timeline.
-        `SegmentLine`: Container for contiguous timeline segments.
     """
     # --- 1. Compute QB-space section boundaries ---
     if flow_controller is not None:
@@ -197,7 +196,6 @@ def create_unfolded_timeline(
         uid=uid,
         target_unit=target_unit,
         include_children=include_children,
-        as_segment_line=as_segment_line,
     )
 
 
@@ -208,28 +206,36 @@ def unfold_via_flowmap(
     uid: str | None = None,
     target_unit: "TimeUnit | str | None" = None,
     include_children: bool = True,
-    as_segment_line: bool = False,
     name: str | None = None,
 ) -> "Timeline":
     """Unfold a timeline by slicing it at a FlowMap's sections.
 
     Slices *source_timeline* once per section of *forward_map* — using each
-    section's ``source_start``/``source_end`` range — and concatenates the
-    slices, in target (unfolded) order, into a new timeline. This is the
-    structural model of unfolding: assembling a new timeline by selecting and
-    concatenating contiguous portions of the folded source.
+    section's ``source_start``/``source_end`` range — and appends the slices,
+    in target (unfolded) order, as children of a new timeline of the source's
+    concrete type. Each section also becomes a named Region on the result, in
+    unfolded coordinates. This is the structural model of unfolding: assembling
+    a new timeline by selecting and concatenating contiguous portions of the
+    folded source.
 
     Unlike `create_unfolded_timeline`, this works from an already-built
     `FlowMap`, so it applies to any FlowMap regardless of how it was
     constructed (a computed flow, quarterbeat boundaries, or interval-like
     played spans).
 
+    Each section is named after its FlowMap ``label`` (falling back to
+    ``span_{i}`` when the section names nothing). A label visited more than
+    once — a repeat — appends a ``-rend2``, ``-rend3`` … suffix so every child
+    and Region has a unique name. That one name identifies the child timeline
+    (both its id and name) and the Region for the section.
+
     The returned timeline carries:
 
     - A reverse FlowMap (id ``"source"``) for folded ↔ unfolded conversion.
     - The forward FlowMap (id ``f"forward_{forward_map.id}"``).
-    - Events structurally copied via `Timeline.get_slice`, including
-      truncation of interval events at section boundaries.
+    - Events structurally copied via `Timeline.get_slice`, living in the
+      appended children; the flattened coordinates remain reachable via
+      ``get_events(include_children=True)``.
     - Children recursively sliced (when *include_children* is True).
 
     Args:
@@ -242,23 +248,19 @@ def unfold_via_flowmap(
             the timeline type; otherwise ``type(source_timeline)`` is used.
         include_children: If True (default), child timelines are recursively
             sliced and included in each section.
-        as_segment_line: If True, return the `SegmentLine` directly (one
-            segment per section). If False (default), flatten into a single
-            timeline of the source's concrete class.
         name: Optional name for the returned timeline. Defaults to
             ``f"{source_timeline.name}_unfolded"``.
 
     Returns:
-        New Timeline (or SegmentLine if *as_segment_line* is True).
+        New Timeline of the source's concrete type, with one appended child
+        (plus matching Region) per section.
 
     See Also:
         `create_unfolded_timeline`: Computes QB-space boundaries from a Flow
             and controller, then delegates here.
         `Timeline.get_slice`: Extracts a portion of a timeline.
-        `SegmentLine`: Container for contiguous timeline segments.
     """
     from ..base import Timeline
-    from ..types import SegmentLine
 
     number_type = source_timeline.number_type
     unit = source_timeline.unit if target_unit is None else target_unit
@@ -269,114 +271,40 @@ def unfold_via_flowmap(
 
     _name = name if name is not None else f"{source_timeline.name}_unfolded"
 
-    # --- Slice source at each section and assemble a SegmentLine ---
-    segment_line = SegmentLine(
-        segment_type=timeline_cls,
+    result = timeline_cls(
         length=0,
         unit=unit,
         number_type=number_type,
-        uid=(uid if as_segment_line else None),
+        uid=uid,
         name=_name,
     )
 
+    # Slice the source at each section, appending a same-type child and a
+    # matching Region per section. Repeated section labels are suffixed so
+    # every child and Region name is unique.
+    base_counts: Counter[str] = Counter()
     for i, sec in enumerate(forward_map._sections):
+        base = sec.label or f"span_{i + 1}"
+        base_counts[base] += 1
+        occurrence = base_counts[base]
+        section_name = base if occurrence == 1 else f"{base}-rend{occurrence}"
+
         slice_tl = source_timeline.get_slice(
             sec.source_start,
             sec.source_end,
             truncate_events=True,
             include_children=include_children,
         )
-        segment_line.append_segment(slice_tl, name=f"section_{i}")
-
-    # --- Build the result timeline ---
-    if as_segment_line:
-        result = segment_line
-    else:
-        # Flatten: create a plain timeline and copy all events from all segments
-        result = timeline_cls(
-            length=forward_map.total_target_length,
-            unit=unit,
-            number_type=number_type,
-            uid=uid,
-            name=_name,
+        result.append_child(
+            slice_tl, uid=section_name, name=section_name, allow_expansion=True
         )
-        _flatten_segment_line_onto(segment_line, result, include_children)
+        result.create_region(section_name, sec.target_start, sec.target_end)
 
     # --- Add FlowMaps ---
-    reverse_map = forward_map.inverse()
-    result.add_flow_map(reverse_map, id="source")
+    result.add_flow_map(forward_map.inverse(), id="source")
     result.add_flow_map(forward_map, id=f"forward_{forward_map.id}")
 
     return result
-
-
-def _flatten_segment_line_onto(
-    segment_line: "SegmentLine",
-    target: "Timeline",
-    include_children: bool = True,
-) -> None:
-    """Flatten a SegmentLine's events into a single target timeline.
-
-    Iterates over each segment in order, reads its events, shifts coordinates
-    by the segment's offset in the SegmentLine, and adds them to the target.
-
-    Args:
-        segment_line: The SegmentLine containing sliced segments.
-        target: The flat target timeline to receive all events.
-        include_children: If True, also flatten children from each segment.
-    """
-    all_shifted_events: list[dict[str, Any]] = []
-    for seg_id in segment_line._segment_order:
-        offset = segment_line._child_offsets[seg_id].value
-        segment = segment_line._children[seg_id]
-
-        # Copy parent-level events from this segment
-        events = list(segment.get_events(include_children=False))
-        if events:
-            for event in events:
-                new_event = dict(event)
-                if event.get("temporal_type") == "instant":
-                    coord = event["start"]["value"]
-                    new_event["instant"] = type(coord)(coord) + offset
-                    new_event.pop("start", None)
-                    new_event.pop("end", None)
-                    new_event.pop("duration", None)
-                elif event.get("temporal_type") == "interval":
-                    start_val = event["start"]["value"]
-                    end_val = event["end"]["value"]
-                    new_event["start"] = type(start_val)(start_val) + offset
-                    new_event["end"] = type(end_val)(end_val) + offset
-                    new_event["duration"] = new_event["end"] - new_event["start"]
-                all_shifted_events.append(new_event)
-
-        # Recursively flatten children from this segment
-        if include_children:
-            for child_id, child in segment._children.items():
-                child_offset_in_seg = segment._child_offsets[child_id].value
-                child_offset_in_target = float(child_offset_in_seg) + float(offset)
-                # Recursively unfold: flatten child's events into a new child timeline
-                child_copy = type(child)(
-                    length=child.length.value,
-                    unit=child.unit,
-                    number_type=child.number_type,
-                    name=child.name,
-                )
-                # Copy child's events directly (they're already in local coords)
-                child_events = list(child.get_events(include_children=False))
-                if child_events:
-                    child_copy.add_events(child_events, allow_expansion=True)
-                try:
-                    target.add_child(
-                        child_copy,
-                        offset=child_offset_in_target,
-                        allow_expansion=True,
-                    )
-                except (ValueError, TypeError):
-                    # Child may already exist or conflict — skip silently
-                    pass
-
-    if all_shifted_events:
-        target.add_events(all_shifted_events, allow_expansion=True)
 
 
 # endregion

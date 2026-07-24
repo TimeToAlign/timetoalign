@@ -836,9 +836,8 @@ class TestSegmentLineAssembly:
 class TestCreateUnfoldedTimelineIdentity:
     """Tests explicit identifiers on standalone unfolded timelines."""
 
-    @pytest.mark.parametrize("as_segment_line", [False, True])
-    def test_uid_is_passed_to_returned_timeline(self, as_segment_line: bool) -> None:
-        """The requested uid identifies either supported return shape."""
+    def test_uid_is_passed_to_returned_timeline(self) -> None:
+        """The requested uid identifies the same-type unfolded timeline."""
         source = ContinuousLogicalTimeline(length=Fraction(4), uid="source")
         flow = Flow.from_sections(
             [PlaythroughSection(1, 2, ("A",))],
@@ -854,10 +853,10 @@ class TestCreateUnfoldedTimelineIdentity:
             flow,
             controller,
             uid="unfolded",
-            as_segment_line=as_segment_line,
         )
 
         assert unfolded.id == "unfolded"
+        assert type(unfolded) is ContinuousLogicalTimeline
 
 
 # region TestUnfoldingGoldStandard — End-to-end validation against reference flows
@@ -1449,25 +1448,24 @@ class TestGroupUnfolding:
         """create_unfolded_timeline on CLT1 produces same length as group method.
 
         Verifies consistency between the single-timeline unfolding function
-        and the group-based approach.
+        (same-type result with one appended child per section) and the
+        group-based SegmentLine assembly used by this test module's helper.
         """
         clt1 = beethoven_score_group["clt1"]
         flow = beethoven_score_group["flow"]
         controller = beethoven_score_group["controller"]
 
-        # Single-timeline unfolding
-        clt1_single = create_unfolded_timeline(
-            clt1, flow, controller, as_segment_line=True
-        )
+        # Single-timeline unfolding: a same-type timeline with appended children.
+        clt1_single = create_unfolded_timeline(clt1, flow, controller)
 
-        # Group-based unfolding
+        # Group-based unfolding (the module helper's SegmentLine).
         clt1_group = beethoven_unfolded_group["clt1"]
 
         assert clt1_single.length.value == clt1_group.length.value, (
             f"Single-timeline {clt1_single.length.value} != "
             f"group {clt1_group.length.value}"
         )
-        assert clt1_single.n_segments == clt1_group.n_segments
+        assert clt1_single.n_children == clt1_group.n_segments
 
 
 # endregion

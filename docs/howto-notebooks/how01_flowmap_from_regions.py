@@ -40,8 +40,9 @@
 # 3. Map a folded coordinate to its performance position with
 #    `unfold_coordinate()` — and see a skipped coordinate return `[]`
 # 4. `fold()` a performance coordinate back onto the score
-# 5. Assemble the whole unfolded timeline with `unfold()`, concatenating the
-#    played spans into a {{< glossary SegmentLine >}}
+# 5. Assemble the whole unfolded timeline with `apply_flow()` — a timeline of the
+#    source's own type whose played spans are appended as named children, each
+#    also recorded as a {{< glossary Region >}}
 # 6. Recognise that FlowMap construction takes **one** argument in many shapes:
 #    region names, `Region` objects, coordinate pairs, a `Timeline`, or a
 #    collection of any of these
@@ -202,22 +203,50 @@ probe(cut_map, [downbeat(42), downbeat(43)])
 # ## Unfold the whole timeline
 #
 # Everything above maps a *single* coordinate. To materialise the entire
-# performance as its own timeline, call `unfold()` with the attached FlowMap's
-# id. Where `unfold_coordinate()` answers "where does this one coordinate land?",
-# `unfold(id)` slices the folded timeline at each played span and concatenates
-# the slices — copying their events and children — into performance order.
+# performance as its own timeline, call `apply_flow()` with the attached
+# FlowMap's id. Where `unfold_coordinate()` answers "where does this one
+# coordinate land?", `apply_flow(id)` assembles the whole performance: it returns
+# a new timeline of the **source's own concrete type** — here a plain
+# {{< glossary Timeline >}}, not some special container — and appends each played
+# span as a **child**, named for the {{< glossary Region >}} it was cut from.
 #
-# The result is a {{< glossary SegmentLine >}}: one segment per played span. Its
-# length is the two spans summed (123 QB before the cut + 21 QB after = 144 QB),
-# the 6 QB of the omitted measures removed from the folded 150.
+# Its length is the two spans summed (123 QB before the cut + 21 QB after =
+# 144 QB), the 6 QB of the omitted measures removed from the folded 150.
 
 # %%
 unfolded = score.apply_flow("cut")
 {
     "type": type(unfolded).__name__,
-    "n_segments": unfolded.n_segments,
+    "n_children": unfolded.n_children,
     "length_qb": float(unfolded.length.value),
 }
+
+# %% [markdown]
+# Each played span is now a **child** whose id and name are the source Region's
+# name, in the order they are played. `list_children()` names them and
+# `get_child()` returns one:
+
+# %%
+{
+    "children": unfolded.list_children(),
+    "before_cut": unfolded.get_child("before_cut"),
+}
+
+# %% [markdown]
+# `apply_flow()` also records each span as a {{< glossary Region >}} on the
+# result — in **performance** (unfolded) coordinates, not the folded ones. These
+# named Regions are what let the unfolding be inverted later: they carry the
+# information needed to fold a performance coordinate back onto the score.
+
+# %%
+unfolded.list_regions()
+
+# %% [markdown]
+# The flattened event stream — every child's events in performance order —
+# is available with `get_events(include_children=True)`:
+
+# %%
+unfolded.get_events(include_children=True).to_dataframe()
 
 # %% [markdown]
 # ## One argument, many shapes
@@ -277,9 +306,14 @@ probe(one_span, [downbeat(11), downbeat(46)])
 # | Coordinate folded → performance (1→N) | `flow_map.unfold_coordinate(coord)` · `timeline.unfold_coordinate(coord)` |
 # | A skipped coordinate | `unfold_coordinate()` returns `[]` |
 # | Map a coordinate performance → folded (N → 1) | `flow_map.fold(coord)` · `timeline.fold(coord, id=...)` |
-# | Assemble the whole unfolded timeline | `timeline.unfold(id)` → {{< glossary SegmentLine >}} |
+# | Assemble the whole unfolded timeline | `timeline.apply_flow(id)` → one child + Region per span |
+# | Inspect / flatten the result | `.list_children()` · `.get_events(include_children=True)` |
 #
 # The same {{< glossary FlowMap >}} also unfolds *repeats* — a span listed twice
-# plays twice, and `unfold_coordinate()` then returns two positions. For repeats
-# read straight from a score's notated {{< glossary Break >}}s and
+# plays twice, and `unfold_coordinate()` then returns two positions. In the
+# assembled timeline that span appears as two children: the first occurrence
+# bare (`before_cut`) and the second suffixed `before_cut-rend2`, following the
+# Verovio rendering-order convention (`-rend3`, `-rend4`, … for any further
+# repeats). Unnamed coordinate-pair spans fall back to `span_1`, `span_2`, … .
+# For repeats read straight from a score's notated {{< glossary Break >}}s and
 # {{< glossary Jump >}}s, see the multimodal alignment guide.

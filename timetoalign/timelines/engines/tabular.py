@@ -196,7 +196,10 @@ class TabularExportMixin:
         """
         event = self.get_event(event_id)
         if event is None:
-            raise KeyError(f"Event {event_id!r} not found")
+            raise KeyError(
+                f"Event {event_id!r} not found on timeline {self._id!r} "
+                f"({self.n_events} events)"
+            )
 
         # Extract coordinate from the start field
         start_val = event.get("start")
@@ -257,7 +260,10 @@ class TabularExportMixin:
         for event_id in event_ids:
             event = self.get_event(event_id)
             if event is None:
-                raise KeyError(f"Event {event_id!r} not found")
+                raise KeyError(
+                    f"Event {event_id!r} not found on timeline {self._id!r} "
+                    f"({self.n_events} events)"
+                )
 
             start_val = event.get("start")
             if start_val is None:

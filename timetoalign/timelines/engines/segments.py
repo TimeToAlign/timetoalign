@@ -473,17 +473,23 @@ class SegmentsMixin:
         id: str = "default",
         *,
         include_children: bool = True,
-        as_segment_line: bool = True,
         uid: str | None = None,
         name: str | None = None,
     ) -> "Timeline":
         """Yield the unfolded timeline for an attached FlowMap.
 
         Slices this timeline at each of the attached FlowMap's sections and
-        concatenates the slices, in target (unfolded) order, into a new
-        timeline. By default the result is a ``SegmentLine`` with one segment
-        per section; with ``as_segment_line=False`` the slices are flattened
-        into a single timeline of this timeline's concrete type.
+        appends the slices, in target (unfolded) order, as children of a new
+        timeline of this timeline's **same concrete type**. Each section also
+        becomes a matching named Region on the result, in unfolded
+        coordinates.
+
+        Each appended child (and its Region) takes the source section's name —
+        the region name a played span was built from. A span visited more than
+        once (a repeat) is suffixed ``-rend2``, ``-rend3`` … so every child and
+        Region has a unique name. Section events live in the appended children;
+        the flattened coordinates remain reachable via
+        ``get_events(include_children=True)``.
 
         The returned timeline carries a reverse FlowMap (id ``"source"``) for
         tracing coordinates back to the folded source, plus the forward
@@ -491,20 +497,17 @@ class SegmentsMixin:
 
         Args:
             id: Which attached FlowMap to unfold along. Passed positionally,
-                so ``timeline.unfold("A8")`` selects the FlowMap stored under
-                ``"A8"``.
+                so ``timeline.apply_flow("A8")`` selects the FlowMap stored
+                under ``"A8"``.
             include_children: If True (default), child timelines are
                 recursively sliced and included in each section.
-            as_segment_line: If True (default), return a ``SegmentLine`` with
-                one segment per section. If False, flatten into a single
-                timeline of this timeline's concrete type.
             uid: Optional identifier for the returned timeline.
             name: Optional name for the returned timeline. Defaults to
                 ``f"{self.name}_unfolded"``.
 
         Returns:
-            The unfolded timeline (a ``SegmentLine`` unless
-            ``as_segment_line`` is False).
+            The unfolded timeline (same concrete type as ``self``), with one
+            appended child and matching Region per section.
 
         Raises:
             ValueError: If no FlowMap with the given id is attached.
@@ -513,8 +516,10 @@ class SegmentsMixin:
             >>> child.create_flow_map(["A8_1", "A8_2"], id="A8")
             FlowMap(A8: 2 sections)
             >>> unfolded = child.apply_flow("A8")
-            >>> unfolded.n_segments
+            >>> unfolded.n_children
             2
+            >>> unfolded.list_children()
+            ['A8_1', 'A8_2']
         """
         flow_map = self._flow_maps.get(id)
         if flow_map is None:
@@ -527,7 +532,6 @@ class SegmentsMixin:
             flow_map,
             uid=uid,
             include_children=include_children,
-            as_segment_line=as_segment_line,
             name=name,
         )
 

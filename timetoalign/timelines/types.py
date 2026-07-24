@@ -1125,21 +1125,15 @@ class SegmentLine(Timeline, Generic[T]):
     ) -> None:
         """Append a segment at the current end coordinate.
 
-        The segment's offset is automatically set to current length.
+        Delegates to :meth:`~ChildrenMixin.append_child`, which places the
+        segment at ``offset = self.length``; ``SegmentLine.add_child`` records
+        the segment order and infers/enforces the segment type.
 
         Args:
             segment: Timeline to add as segment.
             name: Optional name override for the segment.
         """
-        offset = self.length
-
-        # Override name if provided
-        if name:
-            segment._name = name
-
-        # Use add_child (validates unit match, records the offset for
-        # exact parent<->child coordinate arithmetic)
-        self.add_child(segment, offset, allow_expansion=True)
+        self.append_child(segment, name=name, allow_expansion=True)
 
     def get_segment_at(
         self,
@@ -1265,10 +1259,14 @@ class SegmentLine(Timeline, Generic[T]):
         """
         if start_id not in self._segment_order:
             raise KeyError(
-                f"Segment '{start_id}' not found on SegmentLine '{self._id}'"
+                f"Segment '{start_id}' not found on SegmentLine '{self._id}'. "
+                f"Available segments: {list(self._segment_order)}"
             )
         if end_id not in self._segment_order:
-            raise KeyError(f"Segment '{end_id}' not found on SegmentLine '{self._id}'")
+            raise KeyError(
+                f"Segment '{end_id}' not found on SegmentLine '{self._id}'. "
+                f"Available segments: {list(self._segment_order)}"
+            )
 
         start_idx = self._segment_order.index(start_id)
         end_idx = self._segment_order.index(end_id)

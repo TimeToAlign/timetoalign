@@ -1423,7 +1423,7 @@ def test_event_data_coerces_volta_to_integer() -> None:
 
 @pytest.mark.slow
 class TestTimelineGroupUnfold:
-    """Tests for TimelineGroup.unfold() — group-level unfolding.
+    """Tests for TimelineGroup.apply_flow() — group-level unfolding.
 
     Uses the Beethoven Op.18 No.4 iv multimodal score group containing:
     - CLT1: ContinuousLogicalTimeline (ABC v2.6, 878.5 quarters)
@@ -1508,18 +1508,8 @@ class TestTimelineGroupUnfold:
             score_data["flow"], score_data["controller"], "clt1"
         )
 
-    @pytest.fixture(scope="class")
-    def unfolded_segment_lines(self, score_data):
-        """Unfold the score group once as segment lines."""
-        return score_data["group"].apply_flow(
-            score_data["flow"],
-            score_data["controller"],
-            "clt1",
-            as_segment_lines=True,
-        )
-
     def test_unfold_returns_timeline_group(self, unfolded_group):
-        """unfold() returns a TimelineGroup."""
+        """apply_flow() returns a TimelineGroup."""
         assert isinstance(unfolded_group, TimelineGroup)
 
     def test_unfold_preserves_timeline_ids(self, score_data, unfolded_group):
@@ -1547,28 +1537,36 @@ class TestTimelineGroupUnfold:
         )
         assert result.name == "My Unfolded Group"
 
-    def test_unfold_as_segment_lines_clt1_length(self, unfolded_segment_lines):
-        """CLT1 as SegmentLine has exact unfolded length (1116 QB)."""
-        clt1 = unfolded_segment_lines.get_timeline("clt1")
+    def test_unfold_clt1_length(self, unfolded_group):
+        """Unfolded CLT1 has exact unfolded length (1116 QB)."""
+        clt1 = unfolded_group.get_timeline("clt1")
         assert clt1.length.value == self.UNFOLDED_QB
 
-    def test_unfold_as_segment_lines_openscore_length(self, unfolded_segment_lines):
-        """OpenScore as SegmentLine has exact unfolded length (1116 QB)."""
-        openscore = unfolded_segment_lines.get_timeline("openscore")
+    def test_unfold_openscore_length(self, unfolded_group):
+        """Unfolded OpenScore has exact unfolded length (1116 QB)."""
+        openscore = unfolded_group.get_timeline("openscore")
         assert openscore.length.value == self.UNFOLDED_QB
 
-    def test_unfold_as_segment_lines_segment_count(self, unfolded_segment_lines):
-        """Each SegmentLine has exactly N_SECTIONS segments."""
-        for tl_id in unfolded_segment_lines.timeline_ids:
-            tl = unfolded_segment_lines.get_timeline(tl_id)
-            assert tl.n_segments == self.N_SECTIONS, (
-                f"{tl_id}: n_segments={tl.n_segments}, " f"expected {self.N_SECTIONS}"
+    def test_unfold_child_count(self, unfolded_group):
+        """Each unfolded member has exactly N_SECTIONS appended children."""
+        for tl_id in unfolded_group.timeline_ids:
+            tl = unfolded_group.get_timeline(tl_id)
+            assert tl.n_children == self.N_SECTIONS, (
+                f"{tl_id}: n_children={tl.n_children}, " f"expected {self.N_SECTIONS}"
             )
 
+    def test_unfold_members_keep_concrete_type(self, score_data, unfolded_group):
+        """Each unfolded member is the same concrete type as its source."""
+        group = score_data["group"]
+        for tl_id in unfolded_group.timeline_ids:
+            src = group.get_timeline(tl_id)
+            out = unfolded_group.get_timeline(tl_id)
+            assert type(out) is type(src)
+
     def test_unfold_flattened_has_events(self, unfolded_group):
-        """Flattened unfolded CLT1 has note events."""
+        """Unfolded CLT1 has note events (now living in its appended children)."""
         clt1 = unfolded_group.get_timeline("clt1")
-        events = clt1.get_events(event_type="Note", include_children=False)
+        events = clt1.get_events(event_type="Note", include_children=True)
         assert len(events) > 0
 
     def test_unfold_reference_has_flow_maps(self, unfolded_group):
@@ -1587,13 +1585,12 @@ class TestTimelineGroupUnfold:
                 "nonexistent",
             )
 
-    def test_unfold_consistency_with_single_timeline(
-        self, score_data, unfolded_segment_lines
-    ):
+    def test_unfold_consistency_with_single_timeline(self, score_data, unfolded_group):
         """Group unfold produces same length as create_unfolded_timeline.
 
         Verifies that the group-based approach is consistent with the
-        single-timeline function for the reference timeline.
+        single-timeline function for the reference timeline: both yield a
+        same-type timeline with one appended child per section.
         """
         from timetoalign.timelines.flow import create_unfolded_timeline
 
@@ -1601,16 +1598,11 @@ class TestTimelineGroupUnfold:
         flow = score_data["flow"]
         clt1 = score_data["clt1"]
 
-        # Group approach (SegmentLine mode for exact comparison)
-        group_clt1 = unfolded_segment_lines.get_timeline("clt1")
-
-        # Single-timeline approach
-        single_clt1 = create_unfolded_timeline(
-            clt1, flow, controller, as_segment_line=True
-        )
+        group_clt1 = unfolded_group.get_timeline("clt1")
+        single_clt1 = create_unfolded_timeline(clt1, flow, controller)
 
         assert group_clt1.length.value == single_clt1.length.value
-        assert group_clt1.n_segments == single_clt1.n_segments
+        assert group_clt1.n_children == single_clt1.n_children
 
 
 # endregion

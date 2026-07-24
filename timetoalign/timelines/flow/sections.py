@@ -846,19 +846,24 @@ def _as_interval(
     obj: object,
     *,
     resolve: Callable[[str], object] | None = None,
-) -> tuple[Fraction, Fraction]:
-    """Coerce a single interval-like descriptor to a ``(start, end)`` pair.
+) -> tuple[Fraction, Fraction, str | None]:
+    """Coerce a single interval-like descriptor to a ``(start, end, label)`` triple.
 
-    Descriptors are recognised in strict priority order:
+    Descriptors are recognised in strict priority order, and each carries a
+    best-effort identity ``label`` (``None`` when the descriptor names nothing):
 
     1. ``str`` — a named region resolved through *resolve* (typically a
-       timeline's ``get_region``). A ``str`` with no resolver is an error;
-       a string is never iterated character by character.
+       timeline's ``get_region``). The string itself is the label. A ``str``
+       with no resolver is an error; a string is never iterated character by
+       character.
     2. Any object exposing ``start`` and ``end`` — a ``Region``, an interval
-       event (``Note`` / ``Measure``), or a ``TimeIntervalStamp``.
+       event (``Note`` / ``Measure``), or a ``TimeIntervalStamp``. The label is
+       ``getattr(obj, "name", None)`` (a ``Region`` carries its ``name``).
     3. Any object exposing ``origin`` and ``length`` — a ``Timeline`` is
-       itself an interval running from its origin to its length.
-    4. A two-element sequence — an explicit ``(start, end)`` coordinate pair.
+       itself an interval running from its origin to its length. The label is
+       ``getattr(obj, "name", None) or getattr(obj, "id", None)``.
+    4. A two-element sequence — an explicit ``(start, end)`` coordinate pair,
+       which names nothing, so the label is ``None``.
 
     Args:
         obj: The descriptor to coerce.
@@ -866,7 +871,8 @@ def _as_interval(
             Required only when *obj* is a ``str``.
 
     Returns:
-        The ``(start, end)`` pair as exact ``Fraction`` values.
+        The ``(start, end, label)`` triple: the bounds as exact ``Fraction``
+        values, and the identity label (a ``str`` or ``None``).
 
     Raises:
         ValueError: If *obj* is a ``str`` and no *resolve* is given, or if a
@@ -876,11 +882,14 @@ def _as_interval(
     if isinstance(obj, str):
         if resolve is None:
             raise ValueError(f"Cannot resolve interval name {obj!r} without a resolver")
-        return _as_interval(resolve(obj), resolve=resolve)
+        start, end, _ = _as_interval(resolve(obj), resolve=resolve)
+        return (start, end, obj)
     if hasattr(obj, "start") and hasattr(obj, "end"):
-        return (_interval_value(obj.start), _interval_value(obj.end))
+        label = getattr(obj, "name", None)
+        return (_interval_value(obj.start), _interval_value(obj.end), label)
     if hasattr(obj, "origin") and hasattr(obj, "length"):
-        return (_interval_value(obj.origin), _interval_value(obj.length))
+        label = getattr(obj, "name", None) or getattr(obj, "id", None)
+        return (_interval_value(obj.origin), _interval_value(obj.length), label)
     if isinstance(obj, Sequence) and not isinstance(obj, (str, bytes)):
         if len(obj) != 2:
             raise ValueError(
@@ -888,7 +897,7 @@ def _as_interval(
                 f"got {len(obj)}: {obj!r}"
             )
         start, end = obj
-        return (_interval_value(start), _interval_value(end))
+        return (_interval_value(start), _interval_value(end), None)
     raise TypeError(f"Cannot interpret {obj!r} as an interval")
 
 
@@ -896,8 +905,8 @@ def _coerce_intervals(
     spec: object,
     *,
     resolve: Callable[[str], object] | None = None,
-) -> list[tuple[Fraction, Fraction]]:
-    """Coerce a singleton-or-collection interval spec to ``(start, end)`` pairs.
+) -> list[tuple[Fraction, Fraction, str | None]]:
+    """Coerce a singleton-or-collection spec to ``(start, end, label)`` triples.
 
     One positional argument carries both a single interval-like descriptor and
     a collection of them. Disambiguation tries the whole *spec* as a single
@@ -912,7 +921,7 @@ def _coerce_intervals(
             forwarded to :func:`_as_interval`.
 
     Returns:
-        The list of ``(start, end)`` ``Fraction`` pairs, one per interval.
+        The list of ``(start, end, label)`` triples, one per interval.
 
     Raises:
         ValueError: If any resulting interval has ``end < start``.
@@ -925,7 +934,7 @@ def _coerce_intervals(
         except (TypeError, ValueError):
             intervals = [_as_interval(x, resolve=resolve) for x in spec]
 
-    for start, end in intervals:
+    for start, end, _label in intervals:
         if end < start:
             raise ValueError(f"Interval end ({end}) cannot be before start ({start})")
     return intervals

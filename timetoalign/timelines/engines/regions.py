@@ -502,7 +502,10 @@ class RegionsMixin:
             KeyError: If no region with that name exists.
         """
         if name not in self._regions:
-            raise KeyError(f"No region named '{name}'")
+            raise KeyError(
+                f"No region named '{name}'. "
+                f"Available regions: {list(self._regions.keys())}"
+            )
         return self._regions[name]
 
     def get_regions_at(

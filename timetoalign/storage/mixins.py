@@ -1002,7 +1002,10 @@ class SemanticFieldAccessMixin:
         # priority sweep.
         all_pitch_fields = self.get_fields_satisfying(PitchLike)
         if not all_pitch_fields:
-            raise KeyError("No pitch field found in table")
+            raise KeyError(
+                "No pitch field found in table. "
+                f"Available columns: {self._table.column_names}"
+            )
 
         priority: list[type[SemanticField[Any]]] = [
             SpecificPitchField,
@@ -1065,7 +1068,10 @@ class SemanticFieldAccessMixin:
         """
         fields = self.get_fields(field_type, strict=True)
         if not fields:
-            raise KeyError(f"No field matching {field_type.__name__!r} found in table")
+            raise KeyError(
+                f"No field matching {field_type.__name__!r} found in table. "
+                f"Available columns: {self._table.column_names}"
+            )
         if len(fields) > 1:
             names = [f.name for f in fields]
             scalar_name = (
@@ -1225,7 +1231,10 @@ class HarmonyAccessMixin(SemanticFieldAccessMixin):
 
         all_harmony_fields = self.get_fields_satisfying(HarmonyLabelLike)
         if not all_harmony_fields:
-            raise KeyError("No harmony field found in table")
+            raise KeyError(
+                "No harmony field found in table. "
+                f"Available columns: {self._table.column_names}"
+            )
 
         priority: list[type[SemanticField[Any]]] = [
             DcmlHarmonyField,
