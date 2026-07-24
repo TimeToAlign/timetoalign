@@ -132,7 +132,7 @@ class FlowControllerBase(ABC):
             return FlowMap.from_qb_sections(flow, qb_sections, id=flow.mode.value)
         except (AttributeError, ValueError):
             # Fallback to MC-space for controllers without MeasureUnit data
-            return FlowMap(flow=flow, id=flow.mode.value)
+            return FlowMap(flow, id=flow.mode.value)
 
 
 class ScoreFlowController(FlowControllerBase):

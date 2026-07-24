@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import weakref
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Iterator
@@ -820,3 +821,114 @@ def load_valid_flows(csv_path: "Path | str") -> dict[FlowMode, "Flow"]:
             pass
 
     return flows
+
+
+# endregion
+
+# region Interval coercion
+
+
+def _interval_value(x: object) -> Fraction:
+    """Coerce a single coordinate-like value to an exact ``Fraction``.
+
+    Args:
+        x: A coordinate-like object exposing a ``value`` attribute
+            (``Coordinate`` / ``IdCoordinate``) or a raw ``int`` / ``float`` /
+            ``Fraction``.
+
+    Returns:
+        The position as an exact ``Fraction``.
+    """
+    return Fraction(x.value if hasattr(x, "value") else x)
+
+
+def _as_interval(
+    obj: object,
+    *,
+    resolve: Callable[[str], object] | None = None,
+) -> tuple[Fraction, Fraction]:
+    """Coerce a single interval-like descriptor to a ``(start, end)`` pair.
+
+    Descriptors are recognised in strict priority order:
+
+    1. ``str`` — a named region resolved through *resolve* (typically a
+       timeline's ``get_region``). A ``str`` with no resolver is an error;
+       a string is never iterated character by character.
+    2. Any object exposing ``start`` and ``end`` — a ``Region``, an interval
+       event (``Note`` / ``Measure``), or a ``TimeIntervalStamp``.
+    3. Any object exposing ``origin`` and ``length`` — a ``Timeline`` is
+       itself an interval running from its origin to its length.
+    4. A two-element sequence — an explicit ``(start, end)`` coordinate pair.
+
+    Args:
+        obj: The descriptor to coerce.
+        resolve: Callable mapping a region name to an interval-like object.
+            Required only when *obj* is a ``str``.
+
+    Returns:
+        The ``(start, end)`` pair as exact ``Fraction`` values.
+
+    Raises:
+        ValueError: If *obj* is a ``str`` and no *resolve* is given, or if a
+            sequence does not hold exactly two elements.
+        TypeError: If *obj* matches none of the recognised descriptor shapes.
+    """
+    if isinstance(obj, str):
+        if resolve is None:
+            raise ValueError(f"Cannot resolve interval name {obj!r} without a resolver")
+        return _as_interval(resolve(obj), resolve=resolve)
+    if hasattr(obj, "start") and hasattr(obj, "end"):
+        return (_interval_value(obj.start), _interval_value(obj.end))
+    if hasattr(obj, "origin") and hasattr(obj, "length"):
+        return (_interval_value(obj.origin), _interval_value(obj.length))
+    if isinstance(obj, Sequence) and not isinstance(obj, (str, bytes)):
+        if len(obj) != 2:
+            raise ValueError(
+                f"A coordinate-pair sequence must hold exactly two elements, "
+                f"got {len(obj)}: {obj!r}"
+            )
+        start, end = obj
+        return (_interval_value(start), _interval_value(end))
+    raise TypeError(f"Cannot interpret {obj!r} as an interval")
+
+
+def _coerce_intervals(
+    spec: object,
+    *,
+    resolve: Callable[[str], object] | None = None,
+) -> list[tuple[Fraction, Fraction]]:
+    """Coerce a singleton-or-collection interval spec to ``(start, end)`` pairs.
+
+    One positional argument carries both a single interval-like descriptor and
+    a collection of them. Disambiguation tries the whole *spec* as a single
+    interval first; only if that coercion fails is *spec* iterated as a
+    collection. A ``str`` is always a singleton — it is never iterated
+    character by character.
+
+    Args:
+        spec: One interval-like descriptor (see :func:`_as_interval`) or an
+            iterable of them.
+        resolve: Callable mapping a region name to an interval-like object,
+            forwarded to :func:`_as_interval`.
+
+    Returns:
+        The list of ``(start, end)`` ``Fraction`` pairs, one per interval.
+
+    Raises:
+        ValueError: If any resulting interval has ``end < start``.
+    """
+    if isinstance(spec, str):
+        intervals = [_as_interval(spec, resolve=resolve)]
+    else:
+        try:
+            intervals = [_as_interval(spec, resolve=resolve)]
+        except (TypeError, ValueError):
+            intervals = [_as_interval(x, resolve=resolve) for x in spec]
+
+    for start, end in intervals:
+        if end < start:
+            raise ValueError(f"Interval end ({end}) cannot be before start ({start})")
+    return intervals
+
+
+# endregion

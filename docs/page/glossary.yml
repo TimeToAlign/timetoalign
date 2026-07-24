@@ -73,9 +73,14 @@ Coordinate: |
   timeline's measuring unit. Combines a numeric value with a TimeUnit.
 
 FlowMap: |
-  A sequence of TimeIntervals specifying a particular path through a score's
-  control structure (repeats, jumps); not itself a timeline. Used for
-  unfolding a score into performance order.
+  A path through a score's control structure (repeats, jumps), expressed as an
+  ordered sequence of TimeIntervals; not itself a timeline. Used for unfolding a
+  score into performance order. A FlowMap is built from one uniform argument —
+  a single interval-like value (a Region, a coordinate pair, a Timeline, or an
+  interval event) or an iterable of them, which concatenate in performance
+  order — or from a score's computed flow of Breaks and Jumps.
+  Timeline.create_flow_map(intervals) resolves region names against the
+  timeline's own Regions, attaches the FlowMap, and returns it.
 
 GroupTimestamp: |
   A cross-section through a TimelineGroup at a given coordinate. Contains

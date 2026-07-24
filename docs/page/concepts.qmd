@@ -504,8 +504,10 @@ Three kinds of derived timelines play a central role in alignment:
     previously defined {{< glossary Region >}}s) specifying a particular
     path through the timeline's control structure (repeats, jumps). A
     {{< glossary FlowMap >}} is computed from flow-control events
-    ({{< glossary Break >}}s and {{< glossary Jump >}}s) or assembled
-    manually. Its intervals can be partitioned and concatenated, yielding a
+    ({{< glossary Break >}}s and {{< glossary Jump >}}s), or assembled directly
+    from any interval descriptions---{{< glossary Region >}}s, coordinate pairs,
+    {{< glossary Timeline >}}s, or interval events, given singly or as a
+    collection. Its intervals can be partitioned and concatenated, yielding a
     new {{< glossary SegmentLine >}} reflecting the traversal---i.e.,
     **unfolding** the score into performance order.
 

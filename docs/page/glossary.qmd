@@ -150,10 +150,17 @@ to the relevant section of the conceptual model.
 ## F
 
 **FlowMap**
-:   A sequence of {{< glossary TimeInterval >}}s specifying a particular path
-    through a score's control structure (repeats, jumps); not itself a
+:   A path through a score's control structure (repeats, jumps), expressed as an
+    ordered sequence of {{< glossary TimeInterval >}}s; not itself a
     {{< glossary Timeline >}}. Used for unfolding a score into performance
-    order.
+    order. A FlowMap is built from one uniform argument --- a single
+    interval-like value (a {{< glossary Region >}}, a coordinate pair, a
+    {{< glossary Timeline >}}, or an interval event) or an iterable of them,
+    which concatenate in performance order --- or from a score's computed flow
+    of {{< glossary Break >}}s and {{< glossary Jump >}}s.
+    `Timeline.create_flow_map(intervals)` resolves region names against the
+    timeline's own {{< glossary Region >}}s, attaches the FlowMap, and returns
+    it.
     See [Derivative timelines](concepts.qmd#derivative-timelines).
 
 ## G

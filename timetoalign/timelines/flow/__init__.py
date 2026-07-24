@@ -25,6 +25,8 @@ from .sections import (
     Flow,
     FlowDiagnostic,
     PlaythroughSection,
+    _as_interval,
+    _coerce_intervals,
     load_valid_flows,
 )
 from .unfolding import compute_qb_sections, create_unfolded_timeline

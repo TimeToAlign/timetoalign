@@ -1071,6 +1071,103 @@ surfaced as a `FlowDiagnostic`, not silently re-partitioned.
 
 ---
 
+### `test_flow_intervals.py` - Interval-Built FlowMaps
+
+**Purpose:** Validates constructing a `FlowMap` directly from anything that
+describes an interval — a singleton or a collection — through the single
+polymorphic positional argument of `FlowMap(source)`, and the
+`Timeline.create_flow_map(intervals)` convenience that constructs, attaches,
+and returns such a map. There are no new `from_*` constructors: one argument
+accepts singleton-or-collection via coercion, plus keyword-only options
+(`id`, `resolve`), matching `create_regions_from_boundaries(boundaries, *, …)`.
+
+**Motivating case.** A performance that skips score measures 42 and 43. The
+child timeline lives in quarterbeat (QB) space and keeps two played spans,
+`[0, 123)` and `[129, length)`. Measures 42–43 occupy QB `123–129`; they fall
+in the gap and map to nothing. The two played spans concatenate in the
+unfolded (target) axis, so QB `129` in the source becomes QB `123` in the
+target.
+
+#### Coercion primitives (`_interval_value`, `_as_interval`, `_coerce_intervals`)
+
+The module-private helpers in `timetoalign/timelines/flow/sections.py` are
+duck-typed (no hard imports of `Timeline`/`Region`/`Coordinate`). `_as_interval`
+recognises descriptors in strict priority order and each variant yields an
+**exact** `(Fraction, Fraction)` pair:
+
+| Input | Recognised as | Expected `(start, end)` |
+|-------|---------------|-------------------------|
+| `(0, 123)` (raw ints) | 2-element sequence | `(Fraction(0), Fraction(123))` |
+| `(Coordinate(0), Coordinate(129))` | 2-element sequence | `(Fraction(0), Fraction(129))` |
+| `Region(start=0, end=123)` | has `.start`/`.end` | `(Fraction(0), Fraction(123))` |
+| a `Timeline` of length 200 | has `.origin`/`.length` | `(Fraction(0), Fraction(200))` |
+| `Note(start=0, end=123)` interval event | has `.start`/`.end` | `(Fraction(0), Fraction(123))` |
+| `"A8_1"` with a `resolve` callable | `str` → resolved region | `(Fraction(0), Fraction(123))` |
+| `"A8_1"` with `resolve=None` | `str`, no resolver | raises `ValueError` |
+
+`_coerce_intervals` disambiguates singleton-vs-collection by trying the whole
+spec as one interval first, and only iterating on failure:
+
+- A `str` is **always** a singleton — never iterated character by character
+  (`_coerce_intervals("A8_1", resolve=…)` → one interval, not five).
+- `[0, 123]` is one coordinate pair (singleton), yielding one interval.
+- `[region1, region2]` and `["A8_1", "A8_2"]` are collections, yielding two
+  intervals each (the singleton attempt fails because the first element is not
+  a coordinate value, so the fallback iterates).
+- `[(0, 123), (129, 200)]` yields two intervals.
+- Any interval with `end < start` raises `ValueError`.
+
+All assertions are exact `Fraction` equality — no ranges, no `pytest.approx`.
+
+#### Interval-built `FlowMap`
+
+Sections are built directly from the coerced `(start, end)` ranges with a
+**cumulative target position** (identical math to `from_qb_sections`), and
+`flow` is `None`. For the two motivating spans `[0, 123)` and `[129, 252)`
+(length 252):
+
+| Query | Method | Exact result | Derivation |
+|-------|--------|--------------|------------|
+| `unfold(50)` | source → target | `[Fraction(50)]` | span 1: `0 + (50-0)` |
+| `unfold(125)` | source → target (gap) | `[]` | QB 125 is in the skipped gap |
+| `unfold(150)` | source → target | `[Fraction(144)]` | span 2: `123 + (150-129)` |
+| `fold(144)` | target → source | `Fraction(150)` | inverse of the above |
+| `fold(50)` | target → source | `Fraction(50)` | span 1 |
+| `total_target_length` | — | `Fraction(246)` | `123 + (252-129)` |
+| `n_sections` | — | `2` | two played spans |
+
+`inverse()` round-trips (`inverse().unfold(144) == [Fraction(150)]`) and does
+not require a non-`None` `flow`. `__repr__` reads the `id`, so an interval map
+built with `id="A8"` reprs as `FlowMap(A8: 2 sections)` and its inverse as
+`FlowMap(A8_inverse: 2 sections)`.
+
+#### Regression — the `Flow` and `from_qb_sections` paths are unchanged
+
+`FlowMap(flow_obj)` still builds MC-space sections from `flow.sections`
+(`unfold(3)` over two `[1, 5)` playthrough sections gives
+`[Fraction(2), Fraction(6)]`, since MC 3 is visited twice), `id` defaults to
+`flow.mode.value`, and `from_qb_sections` is untouched. The polymorphic
+positional parameter is named `source`, so `FlowMap(source=flow_obj)` works by
+keyword; the historical `FlowMap(flow=flow_obj)` keyword no longer exists (it
+raises `TypeError`) — every construction site was migrated to positional and no
+compatibility alias is retained.
+
+#### `Timeline.create_flow_map`
+
+`create_flow_map(intervals, *, id="default")` constructs the FlowMap
+(resolving region-name strings via `self.get_region`), attaches it under `id`,
+and returns it — the `create` verb×noun contract. The four equivalent target
+calls all build the same two-span map on a length-252 child:
+`create_flow_map(["A8_1", "A8_2"], id="A8")`,
+`create_flow_map([region1, region2], id="A8")`,
+`create_flow_map([(0, 123), (129, length)], id="A8")`, and the singleton
+`create_flow_map(region1, id="X")`. After construction `get_flow_map(id)`
+returns the same object, and the timeline's `unfold`/`fold` convenience
+methods delegate with the exact values above (`tl.unfold(150, "A8") == [144.0]`,
+`tl.unfold(125, "A8") == []`, `tl.fold(144, "A8") == 150.0`).
+
+---
+
 ### `test_segment_naming.py` - Customizable Atomic-Section Labelling
 
 **Purpose:** Validates `SegmentNameGenerator`, the strategy object that the

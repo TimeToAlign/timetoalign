@@ -369,6 +369,41 @@ class SegmentsMixin:
 
         return sl
 
+    def create_flow_map(self, intervals: Any, *, id: str = "default") -> "FlowMap":
+        """Construct a FlowMap from interval-like descriptors, attach it, return it.
+
+        Mirrors the ``create_*`` verb×noun convention (as in
+        :meth:`create_region` and :meth:`create_regions_from_boundaries`):
+        it constructs the FlowMap, attaches it to this timeline under *id*,
+        and returns it.
+
+        The played spans described by *intervals* concatenate contiguously in
+        the unfolded (target) axis; coordinates falling in a gap between spans
+        map to nothing (an empty ``unfold`` result).
+
+        Args:
+            intervals: One interval-like descriptor or a collection of them.
+                Accepted forms — singleton or collection — are region names
+                (``str``, resolved via :meth:`get_region`), ``Region``
+                objects, ``(start, end)`` coordinate pairs, ``Timeline``
+                objects, and interval events.
+            id: Identifier for the FlowMap. Defaults to ``"default"``.
+
+        Returns:
+            The constructed FlowMap (also attached to this timeline).
+
+        Examples:
+            >>> child.create_flow_map(["A8_1", "A8_2"], id="A8")
+            FlowMap(A8: 2 sections)
+            >>> child.create_flow_map([(0, 123), (129, child.length)], id="A8")
+            FlowMap(A8: 2 sections)
+        """
+        from ..flow import FlowMap
+
+        fm = FlowMap(intervals, id=id, resolve=self.get_region)
+        self.add_flow_map(fm, id=id)
+        return fm
+
     def add_flow_map(self, flow_map: "FlowMap", id: str | None = None) -> None:
         """Add a FlowMap to this timeline.
 

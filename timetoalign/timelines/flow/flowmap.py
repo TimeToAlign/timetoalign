@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import bisect
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from fractions import Fraction
 
-from .sections import Flow
+from .sections import Flow, _coerce_intervals
 
 
 @dataclass
@@ -42,36 +43,105 @@ class FlowMapSection:
         return self.target_start + self.duration
 
 
-@dataclass
 class FlowMap:
     """Coordinate transformation map for flow control.
 
-    FlowMap encodes one specific Flow and enables bidirectional coordinate
-    conversion between source (with flow control) and target (linearized) timelines:
+    A FlowMap enables bidirectional coordinate conversion between a source
+    timeline (with flow control) and a target (linearized) timeline:
+
     - Source -> Target conversion (1:N, since repeats duplicate coordinates)
     - Target -> Source lookup (N:1, always unique)
 
+    The single positional argument, *source*, is polymorphic:
+
+    - ``None`` — an empty map (no sections). Used by internal construction
+      such as :meth:`inverse`, which fills the section tables afterwards.
+    - a :class:`Flow` — sections are derived from the flow's measure-count
+      ranges (integer MC space); *id* defaults to the flow's mode value.
+    - a single interval-like descriptor **or** an iterable of them — sections
+      are built directly from the resulting ``(start, end)`` ranges with a
+      cumulative target position, so the played spans concatenate in the
+      target axis and any gaps between them map to nothing. *id* defaults to
+      ``"default"``. Accepted descriptors are region names (resolved through
+      *resolve*), ``Region`` objects, ``(start, end)`` coordinate pairs,
+      ``Timeline`` objects, and interval events — see
+      :func:`~timetoalign.timelines.flow.sections._coerce_intervals`.
+
     FlowMap stores sections for efficient lookup:
-    - `_sections`: List of FlowMapSection objects
-    - `_target_boundaries`: Sorted list of target section starts for binary search
+
+    - ``_sections``: List of FlowMapSection objects
+    - ``_target_boundaries``: Sorted list of target section starts for
+      binary search
 
     Attributes:
-        flow: The computed Flow.
-        id: Identifier for this FlowMap (defaults to flow.mode.value).
+        flow: The computed Flow, or ``None`` for interval-built maps.
+        id: Identifier for this FlowMap.
     """
 
-    flow: Flow
-    id: str = ""
-    _sections: list[FlowMapSection] = field(default_factory=list, repr=False)
-    _target_boundaries: list[Fraction] = field(default_factory=list, repr=False)
+    def __init__(
+        self,
+        source: Flow | object | None = None,
+        *,
+        id: str = "",
+        resolve: Callable[[str], object] | None = None,
+    ) -> None:
+        """Build a FlowMap from a Flow, interval-like descriptors, or nothing.
 
-    def __post_init__(self) -> None:
-        """Initialize id and build section lookup tables."""
+        Args:
+            source: ``None`` for an empty map, a :class:`Flow` for MC-space
+                sections, or a single/collection of interval-like descriptors
+                for directly-built sections.
+            id: Identifier for this FlowMap. Defaults to the flow's mode value
+                for a Flow source, or ``"default"`` for interval descriptors.
+            resolve: Callable mapping a region name to an interval-like object
+                (e.g. a timeline's ``get_region``), used only when *source*
+                carries region-name strings.
+        """
+        self.flow: Flow | None = None
+        self.id: str = id
+        self._sections: list[FlowMapSection] = []
+        self._target_boundaries: list[Fraction] = []
+
+        if source is None:
+            return
+
+        if isinstance(source, Flow):
+            self.flow = source
+            if not self.id:
+                self.id = source.mode.value
+            self._build_section_tables()
+            return
+
+        # Interval-like singleton or collection: build sections directly in
+        # the source coordinate space of the descriptors (e.g. quarterbeats).
         if not self.id:
-            object.__setattr__(self, "id", self.flow.mode.value)
+            self.id = "default"
+        intervals = _coerce_intervals(source, resolve=resolve)
+        self._build_from_intervals(intervals)
 
-        # Build section lookup tables from Flow sections
-        self._build_section_tables()
+    def _build_from_intervals(self, intervals: list[tuple[Fraction, Fraction]]) -> None:
+        """Build section tables from ``(start, end)`` source ranges.
+
+        Each interval becomes one FlowMapSection whose target position is the
+        cumulative sum of preceding interval durations, so the played spans
+        concatenate contiguously in the target (unfolded) axis.
+
+        Args:
+            intervals: The ``(start, end)`` source ranges, in target order.
+        """
+        target_position = Fraction(0)
+
+        for source_start, source_end in intervals:
+            section_duration = source_end - source_start
+            self._sections.append(
+                FlowMapSection(
+                    source_start=source_start,
+                    source_end=source_end,
+                    target_start=target_position,
+                )
+            )
+            self._target_boundaries.append(target_position)
+            target_position += section_duration
 
     def _build_section_tables(self) -> None:
         """Build section tables from the Flow for coordinate lookup.
@@ -79,7 +149,7 @@ class FlowMap:
         Each PlaythroughSection defines a source coordinate range (start, end)
         and its position in the target sequence is determined cumulatively.
         """
-        if not self.flow.sections:
+        if self.flow is None or not self.flow.sections:
             return
 
         target_position = Fraction(0)
@@ -204,7 +274,8 @@ class FlowMap:
                 )
             )
 
-        inverse = FlowMap(flow=self.flow, id=f"{self.id}_inverse")
+        inverse = FlowMap(id=f"{self.id}_inverse")
+        inverse.flow = self.flow
         inverse._sections = inverse_sections
         inverse._target_boundaries = [sec.source_start for sec in inverse_sections]
 
@@ -283,4 +354,4 @@ class FlowMap:
         return fm
 
     def __repr__(self) -> str:
-        return f"FlowMap({self.flow.mode.value}: {self.n_sections} sections)"
+        return f"FlowMap({self.id}: {self.n_sections} sections)"
