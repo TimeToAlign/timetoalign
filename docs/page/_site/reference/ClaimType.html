@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>idgenerator – TimeToAlign!</title>
+<title>claimtype – TimeToAlign!</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -159,7 +159,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">API Reference</a></li><li class="breadcrumb-item"><a href="../reference/IdGenerator.html">IdGenerator</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">API Reference</a></li><li class="breadcrumb-item"><a href="../reference/ClaimType.html">ClaimType</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         </a>
     </div>
@@ -254,7 +254,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
-  <a href="../reference/ClaimType.html" class="sidebar-item-text sidebar-link">
+  <a href="../reference/ClaimType.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">ClaimType</span></a>
   </div>
 </li>
@@ -458,7 +458,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
-  <a href="../reference/IdGenerator.html" class="sidebar-item-text sidebar-link active">
+  <a href="../reference/IdGenerator.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IdGenerator</span></a>
   </div>
 </li>
@@ -852,44 +852,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#timetoalign.IdGenerator" id="toc-timetoalign.IdGenerator" class="nav-link active" data-scroll-target="#timetoalign.IdGenerator">IdGenerator</a>
+  <li><a href="#timetoalign.core.ClaimType" id="toc-timetoalign.core.ClaimType" class="nav-link active" data-scroll-target="#timetoalign.core.ClaimType">ClaimType</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
-  <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
-  <ul class="collapse">
-  <li><a href="#timetoalign.IdGenerator.create" id="toc-timetoalign.IdGenerator.create" class="nav-link" data-scroll-target="#timetoalign.IdGenerator.create">create</a></li>
-  <li><a href="#timetoalign.IdGenerator.get_or_create" id="toc-timetoalign.IdGenerator.get_or_create" class="nav-link" data-scroll-target="#timetoalign.IdGenerator.get_or_create">get_or_create</a></li>
-  <li><a href="#timetoalign.IdGenerator.has_seen" id="toc-timetoalign.IdGenerator.has_seen" class="nav-link" data-scroll-target="#timetoalign.IdGenerator.has_seen">has_seen</a></li>
-  <li><a href="#timetoalign.IdGenerator.reset" id="toc-timetoalign.IdGenerator.reset" class="nav-link" data-scroll-target="#timetoalign.IdGenerator.reset">reset</a></li>
-  <li><a href="#timetoalign.IdGenerator.reset_counters" id="toc-timetoalign.IdGenerator.reset_counters" class="nav-link" data-scroll-target="#timetoalign.IdGenerator.reset_counters">reset_counters</a></li>
-  <li><a href="#timetoalign.IdGenerator.wrap" id="toc-timetoalign.IdGenerator.wrap" class="nav-link" data-scroll-target="#timetoalign.IdGenerator.wrap">wrap</a></li>
-  </ul></li>
   </ul></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">API Reference</a></li><li class="breadcrumb-item"><a href="../reference/IdGenerator.html">IdGenerator</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/index.html">API Reference</a></li><li class="breadcrumb-item"><a href="../reference/ClaimType.html">ClaimType</a></li></ol></nav></header>
 
 
 
 
-<section id="timetoalign.IdGenerator" class="level1">
-<h1>IdGenerator</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>IdGenerator(scope, _counters<span class="op">=</span><span class="bu">dict</span>(), _seen<span class="op">=</span><span class="bu">set</span>())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Generates unique IDs within a given scope.</p>
-<p>Supports both: 1. Wrapping external IDs with the scope 2. Generating new IDs when none provided</p>
-<p>Tracks seen IDs to detect collisions.</p>
-<p>Attributes: scope: The scope to apply to all generated/wrapped IDs</p>
-<p>Examples: &gt;&gt;&gt; gen = IdGenerator(“midi”)</p>
-<pre><code>&gt;&gt;&gt; gen.get_or_create("n42")  # Wrap external ID
-'midi:n42'
-
-&gt;&gt;&gt; gen.get_or_create(None, type_hint="note")  # Generate
-'midi:note_1'
-
-&gt;&gt;&gt; gen.get_or_create(None, type_hint="note")  # Generate next
-'midi:note_2'</code></pre>
+<section id="timetoalign.core.ClaimType" class="level1">
+<h1>ClaimType</h1>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>core.ClaimType()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The semantic kind of a MatchClaim, derived from its structure.</p>
+<p>A claim’s kind is never stored; it is read from whether the claim is explicit, whether it is synchronous, and how many of its two sides name an event. The members span every shape a pairwise claim can take:</p>
+<p>Members: event_match: Two identified events on different timelines correspond, temporally anchored. projection: One identified event corresponds to a bare coordinate on the other timeline (which names no event of its own). nomatch: An identified event has no counterpart on the other timeline. anchor: Two anonymous coordinates correspond, with no event identity on either side. implicit: A correspondence inferred by graph extension rather than directly asserted. conceptual: A structural correspondence with no temporal commitment — no anchors and no single orphaned event.</p>
 <section id="attributes" class="level2">
 <h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
@@ -901,82 +882,45 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.IdGenerator.count">count</a></td>
-<td>Total number of IDs generated/wrapped.</td>
+<td><a href="#timetoalign.core.ClaimType.anchor">anchor</a></td>
+<td>Two anonymous coordinates correspond (no event identity).</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.core.ClaimType.anon">anon</a></td>
+<td>Alias for anchor.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.core.ClaimType.conceptual">conceptual</a></td>
+<td>A structural correspondence with no temporal commitment (no anchors).</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.core.ClaimType.event">event</a></td>
+<td>Alias for event_match.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.core.ClaimType.event_match">event_match</a></td>
+<td>Two identified events correspond, temporally anchored.</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.core.ClaimType.implicit">implicit</a></td>
+<td>An inferred (not directly asserted) correspondence.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.core.ClaimType.nomat">nomat</a></td>
+<td>Alias for nomatch.</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.core.ClaimType.nomatch">nomatch</a></td>
+<td>An identified event has no counterpart on the other timeline.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.core.ClaimType.projection">projection</a></td>
+<td>One identified event corresponds to a bare coordinate on the other timeline.</td>
 </tr>
 </tbody>
 </table>
-</section>
-<section id="methods" class="level2">
-<h2 class="anchored" data-anchor-id="methods">Methods</h2>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><a href="#timetoalign.IdGenerator.create">create</a></td>
-<td>Generate a new unique ID (no external ID).</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.IdGenerator.get_or_create">get_or_create</a></td>
-<td>Get a scoped ID string.</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.IdGenerator.has_seen">has_seen</a></td>
-<td>Check if an ID has been generated/wrapped by this generator.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.IdGenerator.reset">reset</a></td>
-<td>Reset all counters and seen IDs.</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.IdGenerator.reset_counters">reset_counters</a></td>
-<td>Reset counters but keep seen IDs (for continuation).</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.IdGenerator.wrap">wrap</a></td>
-<td>Wrap an external ID with the scope.</td>
-</tr>
-</tbody>
-</table>
-<section id="timetoalign.IdGenerator.create" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.IdGenerator.create">create</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.create(type_hint<span class="op">=</span><span class="st">'event'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Generate a new unique ID (no external ID).</p>
-</section>
-<section id="timetoalign.IdGenerator.get_or_create" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.IdGenerator.get_or_create">get_or_create</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.get_or_create(external_id<span class="op">=</span><span class="va">None</span>, type_hint<span class="op">=</span><span class="st">'event'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Get a scoped ID string.</p>
-<p>Args: external_id: The ID from the source, if any. Will be wrapped with the scope but otherwise preserved. type_hint: A prefix for generated IDs if external_id is None.</p>
-<p>Returns: A string in “scope:local_id” format (or just “local_id” if scope is empty).</p>
-</section>
-<section id="timetoalign.IdGenerator.has_seen" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.IdGenerator.has_seen">has_seen</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.has_seen(id_str)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Check if an ID has been generated/wrapped by this generator.</p>
-</section>
-<section id="timetoalign.IdGenerator.reset" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.IdGenerator.reset">reset</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.reset()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Reset all counters and seen IDs.</p>
-</section>
-<section id="timetoalign.IdGenerator.reset_counters" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.IdGenerator.reset_counters">reset_counters</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.reset_counters()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Reset counters but keep seen IDs (for continuation).</p>
-</section>
-<section id="timetoalign.IdGenerator.wrap" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.IdGenerator.wrap">wrap</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.wrap(external_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Wrap an external ID with the scope.</p>
 
 
-</section>
 </section>
 </section>
 

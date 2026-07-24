@@ -396,7 +396,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="how-to-load-csvtsv-with-column_specs-and-field_specs" class="level1">
 <h1>How to Load CSV/TSV with <code>column_specs</code> and <code>field_specs</code></h1>
-<p>Tabular loaders in Time To Align! turn <strong>columns</strong> into <strong>fields</strong> in two explicit steps:</p>
+<p>Tabular loaders in TimeToAlign! turn <strong>columns</strong> into <strong>fields</strong> in two explicit steps:</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -427,7 +427,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>This guide walks through the Step-1 resolution chain (every entry ends at a <code>DataField</code>), the <code>CompositeFieldParser</code> mechanism for one-column-to-many-fields, and a worked example in which we build a loader from scratch for the header-less <code>.solo</code> performance-analysis format.</p>
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
-<div id="f0dec4db" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:01.575218Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:01.574851Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:08.676966Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:08.675775Z&quot;}}" data-execution_count="1">
+<div id="f0dec4db" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:51.826314Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:51.826091Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:54.907843Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:54.907208Z&quot;}}" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> __future__ <span class="im">import</span> annotations</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> tempfile</span>
@@ -487,7 +487,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="from-columns-to-fields-the-two-step-pipeline" class="level2">
 <h2 class="anchored" data-anchor-id="from-columns-to-fields-the-two-step-pipeline">1. From columns to fields: the two-step pipeline</h2>
 <p>We start with the simplest case — a CSV with a header line and one Python type per column. The keys of <code>column_specs</code> are source-column names; the values are anything that resolves through the <strong>Step-1 resolution chain</strong> (Section 2). Here, a bare <code>int</code> / <code>str</code> is enough for the columns that aren’t already canonical (the loader still resolves <code>start</code> / <code>end</code> from the underlying source on its own):</p>
-<div id="e9c5424e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:08.683817Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:08.681153Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:08.781730Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:08.780717Z&quot;}}" data-execution_count="2">
+<div id="e9c5424e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:54.909984Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:54.909641Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:54.950553Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:54.950049Z&quot;}}" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>mini_csv <span class="op">=</span> (</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">b"id,start,end,pitch,label</span><span class="ch">\n</span><span class="st">"</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">b"e0,0.0,0.5,60,intro</span><span class="ch">\n</span><span class="st">"</span></span>
@@ -521,8 +521,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <th data-quarto-table-cell-role="th">start</th>
 <th data-quarto-table-cell-role="th">end</th>
 <th data-quarto-table-cell-role="th">duration</th>
-<th data-quarto-table-cell-role="th">label</th>
 <th data-quarto-table-cell-role="th">pitch</th>
+<th data-quarto-table-cell-role="th">label</th>
 </tr>
 </thead>
 <tbody>
@@ -535,8 +535,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>{'value': 0.0, 'numerator': None, 'denominator...</td>
 <td>{'value': 0.5, 'numerator': None, 'denominator...</td>
 <td>{'value': 0.5, 'numerator': None, 'denominator...</td>
-<td>intro</td>
 <td>60</td>
+<td>intro</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">1</th>
@@ -547,8 +547,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>{'value': 0.5, 'numerator': None, 'denominator...</td>
 <td>{'value': 1.0, 'numerator': None, 'denominator...</td>
 <td>{'value': 0.5, 'numerator': None, 'denominator...</td>
-<td>intro</td>
 <td>64</td>
+<td>intro</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">2</th>
@@ -559,8 +559,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>{'value': 1.0, 'numerator': None, 'denominator...</td>
 <td>{'value': 1.5, 'numerator': None, 'denominator...</td>
 <td>{'value': 0.5, 'numerator': None, 'denominator...</td>
-<td>verse</td>
 <td>67</td>
+<td>verse</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">3</th>
@@ -571,8 +571,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>{'value': 1.5, 'numerator': None, 'denominator...</td>
 <td>{'value': 2.0, 'numerator': None, 'denominator...</td>
 <td>{'value': 0.5, 'numerator': None, 'denominator...</td>
-<td>verse</td>
 <td>72</td>
+<td>verse</td>
 </tr>
 </tbody>
 </table>
@@ -581,7 +581,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>Step 1 has produced one raw field per declared source column. The raw fields are reachable through <code>get_raw()</code>; <code>get_field()</code> is reserved for <strong>semantic</strong> fields with paired-class metadata (we meet that path in Section 4):</p>
-<div id="ff3f2b8d" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:08.786610Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:08.786190Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:08.800811Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:08.797109Z&quot;}}" data-execution_count="3">
+<div id="ff3f2b8d" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:54.952561Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:54.952376Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:54.956613Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:54.955909Z&quot;}}" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pitch"</span>: events.get_raw(<span class="st">"pitch"</span>),</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"label"</span>: events.get_raw(<span class="st">"label"</span>),</span>
@@ -641,7 +641,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 <p>The next cells run <code>resolve_field_parser</code> directly so the chain stops being abstract — every input ends at a concrete <code>DataField</code> blueprint or a <code>FieldParser</code>:</p>
-<div id="7582f4db" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:08.809111Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:08.808721Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:08.826493Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:08.823633Z&quot;}}" data-execution_count="4">
+<div id="7582f4db" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:54.958646Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:54.958459Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:54.963647Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:54.962961Z&quot;}}" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Python-type input -&gt; matching raw DataField blueprint.  ``default_name``</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co"># stands in for the dict key that a real ``column_specs`` entry would</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># carry; here we just supply a placeholder to satisfy the blueprint's</span></span>
@@ -659,7 +659,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  'Fraction': 'RationalField'}</code></pre>
 </div>
 </div>
-<div id="ec9388c6" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:08.836775Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:08.836388Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:08.856368Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:08.852852Z&quot;}}" data-execution_count="5">
+<div id="ec9388c6" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:54.965777Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:54.965510Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:54.970046Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:54.969546Z&quot;}}" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># pa.DataType input -&gt; matched by-type to the equivalent raw blueprint.</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pa.int64()"</span>: <span class="bu">type</span>(resolve_field_parser(pa.int64(), default_name<span class="op">=</span><span class="st">"x"</span>)).<span class="va">__name__</span>,</span>
@@ -672,7 +672,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  'pa.string()': 'StringField'}</code></pre>
 </div>
 </div>
-<div id="ee2894d3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:08.863564Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:08.862693Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:08.878331Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:08.877148Z&quot;}}" data-execution_count="6">
+<div id="ee2894d3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:54.971703Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:54.971517Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:54.975106Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:54.974696Z&quot;}}" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># A pre-built blueprint passes through unchanged (identity check).</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>bp <span class="op">=</span> IntField(name<span class="op">=</span><span class="st">"channel"</span>)</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>resolve_field_parser(bp) <span class="kw">is</span> bp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -681,7 +681,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>A blueprint is also accepted directly as a <code>column_specs</code> value — the chain sees that the value is already a <code>DataField</code> and returns it as-is. The blueprint’s <code>name=</code> overrides the dict key:</p>
-<div id="df39027c" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:08.887059Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:08.884744Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:08.952384Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:08.951284Z&quot;}}" data-execution_count="7">
+<div id="df39027c" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:54.976734Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:54.976559Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:54.993187Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:54.992529Z&quot;}}" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>typed_csv <span class="op">=</span> <span class="st">b"id,start,end,x</span><span class="ch">\n</span><span class="st">"</span> <span class="st">b"e0,0.0,0.5,1</span><span class="ch">\n</span><span class="st">"</span> <span class="st">b"e1,0.5,1.0,2</span><span class="ch">\n</span><span class="st">"</span> <span class="st">b"e2,1.0,1.5,3</span><span class="ch">\n</span><span class="st">"</span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>typed_path <span class="op">=</span> write_csv(<span class="st">"typed.csv"</span>, typed_csv)</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -761,7 +761,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="compositefieldparser-one-column-multiple-fields" class="level2">
 <h2 class="anchored" data-anchor-id="compositefieldparser-one-column-multiple-fields">3. <code>CompositeFieldParser</code>: one column, multiple fields</h2>
 <p>Some source columns pack several values into one string. The classic musicological example is <code>1+3/8</code> — a measure number, a literal <code>+</code>, and a fractional offset inside the measure. <code>CompositeFieldParser</code> is the universal splitter: a separator (or regex pattern) plus a <code>parts</code> declaration that follows the same resolution chain as <code>column_specs</code>:</p>
-<div id="0ca92dc0" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:08.958482Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:08.956911Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:09.019295Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:09.018307Z&quot;}}" data-execution_count="8">
+<div id="0ca92dc0" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:54.995116Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:54.994930Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:55.017875Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:55.017294Z&quot;}}" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>composite_csv <span class="op">=</span> (</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">b"id,start,end,position</span><span class="ch">\n</span><span class="st">"</span></span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">b"e0,0.0,0.5,1+0/8</span><span class="ch">\n</span><span class="st">"</span></span>
@@ -868,7 +868,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 <p>Each entry of <code>parts</code> is resolved through the same chain — so <code>int</code> becomes an <code>IntField</code> blueprint and <code>Fraction</code> becomes a <code>RationalField</code> blueprint. Composites also nest: a <code>parts</code> entry may itself be a <code>CompositeFieldParser</code>.</p>
 <p><code>RationalField</code> parses string entries like <code>"3/8"</code> into a Fraction; <code>DenominateNumberField</code> does the same and binds the result to a <code>TimeUnit</code>, so the field arrives at the next pipeline stage already carrying time-unit semantics:</p>
-<div id="add208e8" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:09.023256Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:09.022876Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:09.091126Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:09.088685Z&quot;}}" data-execution_count="9">
+<div id="add208e8" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:55.020007Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:55.019795Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:55.038351Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:55.037639Z&quot;}}" data-execution_count="9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>denom_csv <span class="op">=</span> <span class="st">b"id,start,end,duration</span><span class="ch">\n</span><span class="st">"</span> <span class="st">b"e0,0.0,0.5,1/2</span><span class="ch">\n</span><span class="st">"</span> <span class="st">b"e1,0.5,1.0,1/4</span><span class="ch">\n</span><span class="st">"</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>denom_path <span class="op">=</span> write_csv(<span class="st">"denom.csv"</span>, denom_csv)</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -942,7 +942,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Opaque alphanumeric note identifier (<code>"n1b8xktz"</code>).</li>
 </ol>
 <p>Here is the head of the Chopin specimen:</p>
-<div id="ef72ffbb" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:09.102166Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:09.100349Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:09.118629Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:09.114948Z&quot;}}" data-execution_count="10">
+<div id="ef72ffbb" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:55.040226Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:55.040053Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:55.045087Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:55.044413Z&quot;}}" data-execution_count="10">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>{<span class="st">"first lines"</span>: CHOPIN_SOLO.read_text().splitlines()[:<span class="dv">5</span>]}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="10">
 <pre><code>{'first lines': ['0+11/8\t0/1\t90\t70\t80\tn1b8xktz',
@@ -958,7 +958,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>The first column packs measure number + onset together — exactly the case <code>CompositeFieldParser</code> is for.</li>
 </ul>
 <p>The pattern for overriding the dataframe read is to set <code>header_row = -1</code> (the sentinel for “no header”) and override <code>_read_dataframe</code> to call <code>pd.read_csv(..., header=None, names=[...])</code> with positional names matching the <code>column_specs</code> declaration order. Everything else — Step 1 emissions, Step 2 promotions, property columns — works exactly as in the header-based examples above.</p>
-<div id="21a3e6a2" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:09.123838Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:09.123424Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:09.461727Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:09.454995Z&quot;}}" data-execution_count="11">
+<div id="21a3e6a2" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:55.047234Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:55.047060Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:55.121275Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:55.120497Z&quot;}}" data-execution_count="11">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ChopinSoloLoader(CsvLoader):</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Loader for the header-less ``.solo`` performance-analysis format."""</span></span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -1042,12 +1042,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <th data-quarto-table-cell-role="th">end</th>
 <th data-quarto-table-cell-role="th">duration</th>
 <th data-quarto-table-cell-role="th">note_id</th>
-<th data-quarto-table-cell-role="th">position</th>
 <th data-quarto-table-cell-role="th">velocity</th>
-<th data-quarto-table-cell-role="th">pitch</th>
+<th data-quarto-table-cell-role="th">position</th>
 <th data-quarto-table-cell-role="th">measure_number</th>
-<th data-quarto-table-cell-role="th">mn_onset</th>
+<th data-quarto-table-cell-role="th">pitch</th>
 <th data-quarto-table-cell-role="th">channel</th>
+<th data-quarto-table-cell-role="th">mn_onset</th>
 </tr>
 </thead>
 <tbody>
@@ -1061,12 +1061,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>{'value': 1.375, 'numerator': 11, 'denominator...</td>
 <td>{'value': 0.0, 'numerator': 0, 'denominator': 1}</td>
 <td>{'value': 'n1b8xktz'}</td>
-<td>{'measure_number': {'value': 0}, 'mn_onset': {...</td>
 <td>80</td>
-<td>{'midi_number': 70}</td>
+<td>{'measure_number': {'value': 0}, 'mn_onset': {...</td>
 <td>{'value': 0}</td>
-<td>{'value': 1.375, 'numerator': 11, 'denominator...</td>
+<td>{'midi_number': 70}</td>
 <td>90</td>
+<td>{'value': 1.375, 'numerator': 11, 'denominator...</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">1</th>
@@ -1078,12 +1078,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>{'value': 0.125, 'numerator': 1, 'denominator'...</td>
 <td>{'value': 0.125, 'numerator': 1, 'denominator'...</td>
 <td>{'value': 'n1b8xktz'}</td>
-<td>{'measure_number': {'value': 1}, 'mn_onset': {...</td>
 <td>0</td>
-<td>{'midi_number': 70}</td>
+<td>{'measure_number': {'value': 1}, 'mn_onset': {...</td>
 <td>{'value': 1}</td>
-<td>{'value': 0.0, 'numerator': 0, 'denominator': 1}</td>
+<td>{'midi_number': 70}</td>
 <td>90</td>
+<td>{'value': 0.0, 'numerator': 0, 'denominator': 1}</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">2</th>
@@ -1095,12 +1095,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>{'value': 0.125, 'numerator': 1, 'denominator'...</td>
 <td>{'value': 0.125, 'numerator': 1, 'denominator'...</td>
 <td>{'value': 'nh9xux4'}</td>
-<td>{'measure_number': {'value': 1}, 'mn_onset': {...</td>
 <td>80</td>
-<td>{'midi_number': 39}</td>
+<td>{'measure_number': {'value': 1}, 'mn_onset': {...</td>
 <td>{'value': 1}</td>
-<td>{'value': 0.0, 'numerator': 0, 'denominator': 1}</td>
+<td>{'midi_number': 39}</td>
 <td>90</td>
+<td>{'value': 0.0, 'numerator': 0, 'denominator': 1}</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">3</th>
@@ -1112,12 +1112,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>{'value': 0.125, 'numerator': 1, 'denominator'...</td>
 <td>{'value': 0.125, 'numerator': 1, 'denominator'...</td>
 <td>{'value': 'n4g35y0'}</td>
-<td>{'measure_number': {'value': 1}, 'mn_onset': {...</td>
 <td>80</td>
-<td>{'midi_number': 79}</td>
+<td>{'measure_number': {'value': 1}, 'mn_onset': {...</td>
 <td>{'value': 1}</td>
-<td>{'value': 0.0, 'numerator': 0, 'denominator': 1}</td>
+<td>{'midi_number': 79}</td>
 <td>90</td>
+<td>{'value': 0.0, 'numerator': 0, 'denominator': 1}</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">4</th>
@@ -1129,12 +1129,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>{'value': 0.375, 'numerator': 3, 'denominator'...</td>
 <td>{'value': 0.25, 'numerator': 1, 'denominator': 4}</td>
 <td>{'value': 'nh9xux4'}</td>
-<td>{'measure_number': {'value': 1}, 'mn_onset': {...</td>
 <td>0</td>
-<td>{'midi_number': 39}</td>
+<td>{'measure_number': {'value': 1}, 'mn_onset': {...</td>
 <td>{'value': 1}</td>
-<td>{'value': 0.125, 'numerator': 1, 'denominator'...</td>
+<td>{'midi_number': 39}</td>
 <td>90</td>
+<td>{'value': 0.125, 'numerator': 1, 'denominator'...</td>
 </tr>
 </tbody>
 </table>
@@ -1143,7 +1143,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>After Step 1, the working table holds typed fields — measure number and fractional offset broken out into the <code>position</code> struct, duration bound to quarters, the three integer columns, and the string ID. Step 2 then promotes the raw <code>pitch</code> int into a semantic <code>EnharmonicPitchField</code> and the raw <code>note_id</code> string into a paired <code>IdField</code>:</p>
-<div id="913ba2e8" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:09.467040Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:09.466608Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:09.496538Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:09.493523Z&quot;}}" data-execution_count="12">
+<div id="913ba2e8" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:55.123800Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:55.123505Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:55.128379Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:55.127587Z&quot;}}" data-execution_count="12">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>events.table.column_names</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="12">
 <pre><code>['id',
@@ -1154,16 +1154,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  'end',
  'duration',
  'note_id',
- 'position',
  'velocity',
- 'pitch',
+ 'position',
  'measure_number',
- 'mn_onset',
- 'channel']</code></pre>
+ 'pitch',
+ 'channel',
+ 'mn_onset']</code></pre>
 </div>
 </div>
 <p><code>EnharmonicPitchField</code> is now reachable by type, and indexing it returns <code>EnharmonicPitch</code> scalars. The faithfulness rule applies: the field records the MIDI pitch number that the source data carried, not anything inferred about spelling — both <code>G♯3</code> and <code>A♭3</code> show as MIDI 56 because <code>.solo</code> does not carry an accidental:</p>
-<div id="400861ab" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:09.502819Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:09.502113Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:09.536365Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:09.534861Z&quot;}}" data-execution_count="13">
+<div id="400861ab" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:55.130881Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:55.130583Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:55.137444Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:55.136742Z&quot;}}" data-execution_count="13">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>ep_field <span class="op">=</span> events.get_field(EnharmonicPitch)</span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>{<span class="st">"first 5"</span>: [ep_field[i] <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">5</span>)]}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="13">
@@ -1171,7 +1171,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p><code>IdField</code> holds the original note identifiers. The Chopin specimen re-uses some IDs across event onsets/offsets, which the shallow form preserves verbatim:</p>
-<div id="d5f047c4" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:09.550261Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:09.549836Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:09.580639Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:09.573625Z&quot;}}" data-execution_count="14">
+<div id="d5f047c4" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:55.140185Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:55.139952Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:55.145515Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:55.144782Z&quot;}}" data-execution_count="14">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>id_field <span class="op">=</span> events.get_field(Id)</span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>{<span class="st">"first 5"</span>: [id_field[i] <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">5</span>)]}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="14">
@@ -1218,7 +1218,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 <p>To exercise this we need a CSV that genuinely carries an unconsumed column. Here <code>page</code> and <code>scribbled_note</code> are present in the source but absent from <code>column_specs</code>, so they default to property columns:</p>
-<div id="5fde346e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:09.601781Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:09.601355Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:09.659200Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:09.654948Z&quot;}}" data-execution_count="15">
+<div id="5fde346e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:55.147724Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:55.147509Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:55.158863Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:55.158317Z&quot;}}" data-execution_count="15">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>extras_csv <span class="op">=</span> (</span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">b"id,start,end,pitch,label,scribbled_note,page</span><span class="ch">\n</span><span class="st">"</span></span>
 <span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">b"e0,0.0,0.5,60,intro,one,1</span><span class="ch">\n</span><span class="st">"</span></span>
@@ -1260,7 +1260,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p><code>properties=True</code> (the default) keeps every unconsumed column; <code>properties=False</code> drops them all. The string shorthand <code>properties="page"</code> and the tuple form <code>properties=("page",)</code> are equivalent — both keep just <code>page</code> as a property and drop <code>scribbled_note</code>:</p>
-<div id="27eee339" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-21T15:43:09.671870Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-21T15:43:09.671455Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-21T15:43:09.696835Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-21T15:43:09.694216Z&quot;}}" data-execution_count="16">
+<div id="27eee339" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:55.160993Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:55.160777Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:55.166845Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:55.166076Z&quot;}}" data-execution_count="16">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"properties=True  (default)"</span>: ex.get_events(properties<span class="op">=</span><span class="va">True</span>).table.column_names,</span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"properties=False"</span>: ex.get_events(properties<span class="op">=</span><span class="va">False</span>).table.column_names,</span>
@@ -1275,10 +1275,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   'start',
   'end',
   'duration',
-  'label',
-  'page',
   'scribbled_note',
-  'pitch'],
+  'pitch',
+  'label',
+  'page'],
  'properties=False': ['id',
   'name',
   'temporal_type',
@@ -1286,8 +1286,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   'start',
   'end',
   'duration',
-  'label',
-  'pitch'],
+  'pitch',
+  'label'],
  "properties='page'": ['id',
   'name',
   'temporal_type',
@@ -1295,9 +1295,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   'start',
   'end',
   'duration',
+  'pitch',
   'label',
-  'page',
-  'pitch'],
+  'page'],
  "properties=('page',)": ['id',
   'name',
   'temporal_type',
@@ -1305,9 +1305,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   'start',
   'end',
   'duration',
+  'pitch',
   'label',
-  'page',
-  'pitch']}</code></pre>
+  'page']}</code></pre>
 </div>
 </div>
 <p>Property columns let users keep source-side metadata alongside the fields without forcing every loose annotation through <code>column_specs</code>. When a property column needs to gain semantic identity — to become a <code>DataField</code> proper — that’s exactly when <code>field_specs</code> enters: name the column in Step 1 with the appropriate spec, and Step 2 promotes it (as it did with <code>pitch</code> and <code>note_id</code> in the <code>.solo</code> loader above).</p>

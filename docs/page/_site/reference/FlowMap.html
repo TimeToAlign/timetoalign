@@ -254,6 +254,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/ClaimType.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ClaimType</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/ColumnNaming.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">ColumnNaming</span></a>
   </div>
@@ -752,6 +758,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SupportPolicy.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SupportPolicy</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/TableMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">TableMap</span></a>
   </div>
@@ -848,7 +860,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.timelines.FlowMap.fold" id="toc-timetoalign.timelines.FlowMap.fold" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.fold">fold</a></li>
   <li><a href="#timetoalign.timelines.FlowMap.from_qb_sections" id="toc-timetoalign.timelines.FlowMap.from_qb_sections" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.from_qb_sections">from_qb_sections</a></li>
   <li><a href="#timetoalign.timelines.FlowMap.inverse" id="toc-timetoalign.timelines.FlowMap.inverse" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.inverse">inverse</a></li>
-  <li><a href="#timetoalign.timelines.FlowMap.unfold" id="toc-timetoalign.timelines.FlowMap.unfold" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.unfold">unfold</a></li>
+  <li><a href="#timetoalign.timelines.FlowMap.unfold_coordinate" id="toc-timetoalign.timelines.FlowMap.unfold_coordinate" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.unfold_coordinate">unfold_coordinate</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -862,11 +874,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.timelines.FlowMap" class="level1">
 <h1>FlowMap</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap(flow, <span class="bu">id</span><span class="op">=</span><span class="st">''</span>, _sections<span class="op">=</span><span class="bu">list</span>(), _target_boundaries<span class="op">=</span><span class="bu">list</span>())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap(source<span class="op">=</span><span class="va">None</span>, <span class="op">*</span>, <span class="bu">id</span><span class="op">=</span><span class="st">''</span>, resolve<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Coordinate transformation map for flow control.</p>
-<p>FlowMap encodes one specific Flow and enables bidirectional coordinate conversion between source (with flow control) and target (linearized) timelines: - Source -&gt; Target conversion (1:N, since repeats duplicate coordinates) - Target -&gt; Source lookup (N:1, always unique)</p>
-<p>FlowMap stores sections for efficient lookup: - <code>_sections</code>: List of FlowMapSection objects - <code>_target_boundaries</code>: Sorted list of target section starts for binary search</p>
-<p>Attributes: flow: The computed Flow. id: Identifier for this FlowMap (defaults to flow.mode.value).</p>
+<p>A FlowMap enables bidirectional coordinate conversion between a source timeline (with flow control) and a target (linearized) timeline:</p>
+<ul>
+<li>Source -&gt; Target conversion (1:N, since repeats duplicate coordinates)</li>
+<li>Target -&gt; Source lookup (N:1, always unique)</li>
+</ul>
+<p>The single positional argument, <em>source</em>, is polymorphic:</p>
+<ul>
+<li><code>None</code> — an empty map (no sections). Used by internal construction such as :meth:<code>inverse</code>, which fills the section tables afterwards.</li>
+<li>a :class:<code>Flow</code> — sections are derived from the flow’s measure-count ranges (integer MC space); <em>id</em> defaults to the flow’s mode value.</li>
+<li>a single interval-like descriptor <strong>or</strong> an iterable of them — sections are built directly from the resulting <code>(start, end)</code> ranges with a cumulative target position, so the played spans concatenate in the target axis and any gaps between them map to nothing. <em>id</em> defaults to <code>"default"</code>. Accepted descriptors are region names (resolved through <em>resolve</em>), <code>Region</code> objects, <code>(start, end)</code> coordinate pairs, <code>Timeline</code> objects, and interval events — see :func:<code>~timetoalign.timelines.flow.sections._coerce_intervals</code>.</li>
+</ul>
+<p>FlowMap stores sections for efficient lookup:</p>
+<ul>
+<li><code>_sections</code>: List of FlowMapSection objects</li>
+<li><code>_target_boundaries</code>: Sorted list of target section starts for binary search</li>
+</ul>
+<p>Attributes: flow: The computed Flow, or <code>None</code> for interval-built maps. id: Identifier for this FlowMap.</p>
 <section id="attributes" class="level2">
 <h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
@@ -911,7 +937,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Create the inverse FlowMap (target -&gt; source becomes source -&gt; target).</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.timelines.FlowMap.unfold">unfold</a></td>
+<td><a href="#timetoalign.timelines.FlowMap.unfold_coordinate">unfold_coordinate</a></td>
 <td>Map source coordinate to target coordinates.</td>
 </tr>
 </tbody>
@@ -941,17 +967,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create the inverse FlowMap (target -&gt; source becomes source -&gt; target).</p>
 <p>The inverse FlowMap swaps the source and target coordinate systems. This is useful for attaching to a target timeline to enable tracing back to the original source.</p>
-<p>Note: The inverse FlowMap’s unfold() returns coordinates in the original source space, which may yield multiple results if the source coord is visited multiple times.</p>
+<p>Note: The inverse FlowMap’s unfold_coordinate() returns coordinates in the original source space, which may yield multiple results if the source coord is visited multiple times.</p>
 <p>Returns: A new FlowMap with inverted sections.</p>
 </section>
-<section id="timetoalign.timelines.FlowMap.unfold" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowMap.unfold">unfold</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.unfold(coord)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="timetoalign.timelines.FlowMap.unfold_coordinate" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowMap.unfold_coordinate">unfold_coordinate</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.unfold_coordinate(coord)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Map source coordinate to target coordinates.</p>
 <p>Since a source coordinate may be visited multiple times (due to repeats), this returns a list of all corresponding target coordinates.</p>
 <p>Args: coord: Coordinate in source timeline.</p>
 <p>Returns: List of coordinates in target timeline. Empty list if coord is not within any section.</p>
-<p>Examples: &gt;&gt;&gt; # Source coord 3 appears twice due to repeat &gt;&gt;&gt; flow_map.unfold(3) [Fraction(2), Fraction(6)]</p>
+<p>Examples: &gt;&gt;&gt; # Source coord 3 appears twice due to repeat &gt;&gt;&gt; flow_map.unfold_coordinate(3) [Fraction(2), Fraction(6)]</p>
 
 
 </section>

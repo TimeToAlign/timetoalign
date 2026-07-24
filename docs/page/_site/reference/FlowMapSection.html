@@ -254,6 +254,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/ClaimType.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ClaimType</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/ColumnNaming.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">ColumnNaming</span></a>
   </div>
@@ -752,6 +758,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SupportPolicy.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SupportPolicy</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/TableMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">TableMap</span></a>
   </div>
@@ -855,11 +867,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.timelines.FlowMapSection" class="level1">
 <h1>FlowMapSection</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMapSection(source_start, source_end, target_start)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMapSection(source_start, source_end, target_start, label<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>A section mapping in a FlowMap.</p>
 <p>Represents one contiguous section that maps from a source coordinate range to a target coordinate range. Used internally by FlowMap for coordinate transformation.</p>
 <p>In the context of flow control: - Source coordinates: The “folded” timeline (with repeats/jumps compressed) - Target coordinates: The “unfolded” timeline (linear playthrough order)</p>
-<p>Attributes: source_start: Start coordinate in source timeline (inclusive). source_end: End coordinate in source timeline (exclusive). target_start: Start coordinate in target timeline.</p>
+<p>Attributes: source_start: Start coordinate in source timeline (inclusive). source_end: End coordinate in source timeline (exclusive). target_start: Start coordinate in target timeline. label: Identity of the section — the source region/section name it was built from, or <code>None</code> when the section names nothing (e.g.&nbsp;built from a bare coordinate pair). Unfolding uses this to name the child timeline and Region it produces for the section.</p>
 <section id="attributes" class="level2">
 <h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">

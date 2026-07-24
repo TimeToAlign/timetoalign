@@ -406,11 +406,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong>GraphicalBundle</strong>: Collection of sources and segments</li>
 <li><strong>GraphicalLoader</strong>: Factory for building bundles</li>
 </ul>
-<div id="687e3473" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-23T09:22:58.723060Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-23T09:22:58.722536Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-23T09:22:58.730902Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-23T09:22:58.729096Z&quot;}}" data-execution_count="1">
+<div id="687e3473" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:34:52.488715Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:34:52.487981Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:34:52.494998Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:34:52.492924Z&quot;}}" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Install dependencies if needed</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># !pip install "timetoalign[graphical]"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div id="0a606c00" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-23T09:22:58.734694Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-23T09:22:58.734374Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-23T09:23:01.045556Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-23T09:23:01.044821Z&quot;}}" data-execution_count="2">
+<div id="0a606c00" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:34:52.500726Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:34:52.500222Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:34:54.755416Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:34:54.754702Z&quot;}}" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -424,7 +424,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="example-1-single-image-with-multiple-systems" class="level2">
 <h2 class="anchored" data-anchor-id="example-1-single-image-with-multiple-systems">Example 1: Single Image with Multiple Systems</h2>
 <p>Load a musical score with multiple staff systems (horizontal lines).</p>
-<div id="7d3deffb" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-23T09:23:01.047455Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-23T09:23:01.047138Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-23T09:23:01.050476Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-23T09:23:01.049868Z&quot;}}" data-execution_count="3">
+<div id="7d3deffb" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:34:54.757108Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:34:54.756828Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:34:54.759891Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:34:54.759466Z&quot;}}" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create loader</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>loader <span class="op">=</span> GraphicalLoader(metadata<span class="op">=</span>{<span class="st">"source"</span>: <span class="st">"Example Score"</span>})</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -461,7 +461,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="example-2-coordinate-conversion" class="level2">
 <h2 class="anchored" data-anchor-id="example-2-coordinate-conversion">Example 2: Coordinate Conversion</h2>
 <p>Convert between 1D timeline coordinates and 2D image coordinates.</p>
-<div id="bd58401f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-23T09:23:01.052028Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-23T09:23:01.051880Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-23T09:23:01.054444Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-23T09:23:01.053728Z&quot;}}" data-execution_count="4">
+<div id="bd58401f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:34:54.762028Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:34:54.761807Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:34:54.764560Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:34:54.763924Z&quot;}}" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Timeline coordinate -&gt; Image coordinate</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># coord = 400  # 400 pixels into the timeline</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co"># source_idx, (x, y) = bundle.timeline_to_image(coord)</span></span>
@@ -478,7 +478,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="example-3-multiple-images-separate-pages" class="level2">
 <h2 class="anchored" data-anchor-id="example-3-multiple-images-separate-pages">Example 3: Multiple Images (Separate Pages)</h2>
 <p>Load a multi-page analysis where each page is a separate image.</p>
-<div id="d7ba3ee3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-23T09:23:01.056039Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-23T09:23:01.055891Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-23T09:23:01.058747Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-23T09:23:01.058005Z&quot;}}" data-execution_count="5">
+<div id="d7ba3ee3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:34:54.766133Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:34:54.765981Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:34:54.768685Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:34:54.768090Z&quot;}}" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create loader for multi-page document</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>loader2 <span class="op">=</span> GraphicalLoader(metadata<span class="op">=</span>{<span class="st">"source"</span>: <span class="st">"Multi-page Analysis"</span>})</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -507,7 +507,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="example-4-creating-a-timeline" class="level2">
 <h2 class="anchored" data-anchor-id="example-4-creating-a-timeline">Example 4: Creating a Timeline</h2>
 <p>Convert a GraphicalBundle into a DiscreteGraphicalTimeline.</p>
-<div id="5abcf250" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-23T09:23:01.060464Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-23T09:23:01.060304Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-23T09:23:01.062642Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-23T09:23:01.061897Z&quot;}}" data-execution_count="6">
+<div id="5abcf250" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:34:54.770165Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:34:54.770021Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:34:54.772424Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:34:54.771715Z&quot;}}" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create timeline from bundle</span></span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># timeline = bundle.create_timeline(uid="score_timeline", name="Example Score")</span></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -520,7 +520,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="example-5-visualization" class="level2">
 <h2 class="anchored" data-anchor-id="example-5-visualization">Example 5: Visualization</h2>
 <p>Draw paths and events on images.</p>
-<div id="6e61eead" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-23T09:23:01.064164Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-23T09:23:01.064020Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-23T09:23:01.066378Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-23T09:23:01.065777Z&quot;}}" data-execution_count="7">
+<div id="6e61eead" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:34:54.773890Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:34:54.773754Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:34:54.775941Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:34:54.775330Z&quot;}}" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Draw all segment paths on the source image</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="co"># viz_img = bundle.draw_segments_on_source(source_index=0, color=(0, 255, 0), line_width=2)</span></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -538,7 +538,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="advanced-custom-paths" class="level2">
 <h2 class="anchored" data-anchor-id="advanced-custom-paths">Advanced: Custom Paths</h2>
 <p>For non-horizontal timelines, use custom TimeAxisPath classes.</p>
-<div id="5f6c8d9f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-23T09:23:01.068139Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-23T09:23:01.067982Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-23T09:23:01.073400Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-23T09:23:01.072795Z&quot;}}" data-execution_count="8">
+<div id="5f6c8d9f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:34:54.777432Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:34:54.777269Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:34:54.782332Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:34:54.781768Z&quot;}}" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> timetoalign.loader.graphical <span class="im">import</span> (  <span class="co"># noqa: E402</span></span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    DiagonalLinePath,</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    ParametricPath,</span>
@@ -581,7 +581,7 @@ Spiral path length: 1424.1 pixels</code></pre>
 <li><strong>Visualization</strong> - Draw paths and events on images</li>
 <li><strong>Timeline integration</strong> - Convert bundles to DiscreteGraphicalTimeline</li>
 </ol>
-<p>Next: See <code>07_alignment.ipynb</code> for the Thoresen alignment example using these tools.</p>
+<p>Next: See <code>how01_thoresen_annotation_transfer.ipynb</code> for the Thoresen alignment example using these tools.</p>
 
 
 </section>

@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Architecture, build/test/release workflow, documentation pipeline, and contribution rules for Time To Align!">
+<meta name="description" content="Architecture, build/test/release workflow, documentation pipeline, and contribution rules for TimeToAlign!">
 
 <title>Developers’ Reference – TimeToAlign!</title>
 <style>
@@ -252,6 +252,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container">
   <a href="./reference/ClaimFilter.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">ClaimFilter</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="./reference/ClaimType.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ClaimType</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -754,6 +760,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="./reference/SupportPolicy.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SupportPolicy</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="./reference/TableMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">TableMap</span></a>
   </div>
@@ -910,7 +922,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <div>
   <div class="description">
-    Architecture, build/test/release workflow, documentation pipeline, and contribution rules for Time To Align!
+    Architecture, build/test/release workflow, documentation pipeline, and contribution rules for TimeToAlign!
   </div>
 </div>
 
@@ -927,8 +939,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>This page is the canonical reference for contributing to <strong>Time To Align!</strong>. The conceptual model lives in <a href="./concepts.html">Concepts</a> and the per-class API lives under <a href="./reference.html">API Reference</a>; everything you need to <em>build, test, document, and release</em> the library is here.</p>
-<p>The package is named <code>timetoalign</code> for machines (imports, PyPI) and written <strong>Time To Align!</strong> for humans (prose, headings, comments).</p>
+<p>This page is the canonical reference for contributing to <strong>TimeToAlign!</strong>. The conceptual model lives in <a href="./concepts.html">Concepts</a> and the per-class API lives under <a href="./reference.html">API Reference</a>; everything you need to <em>build, test, document, and release</em> the library is here.</p>
+<p>The package is named <code>timetoalign</code> for machines (imports, PyPI) and written <strong>TimeToAlign!</strong> for humans (prose, headings, comments).</p>
 <hr>
 <section id="repository-layout" class="level2">
 <h2 class="anchored" data-anchor-id="repository-layout">1. Repository Layout</h2>
@@ -971,33 +983,29 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td><code>core/</code></td>
-<td>Foundational types: enums (<code>Domain</code>, <code>TimeUnit</code>, …), <code>Coordinate</code> / <code>IdCoordinate</code>, <code>TimeStamp</code>, <code>IdGenerator</code>.</td>
+<td>Foundational types: enums (<code>Domain</code>, <code>TimeUnit</code>, …), <code>Coordinate</code> / <code>IdCoordinate</code>, <code>TimeStamp</code>, <code>IdGenerator</code>; <code>core/fields.py</code> contains the <code>SemanticField</code> bases plus the Arrow translator/builder.</td>
 </tr>
 <tr class="even">
-<td><code>fields/</code></td>
-<td><code>SemanticField</code> definitions (Layer 2 of the EventData stack).</td>
-</tr>
-<tr class="odd">
 <td><code>display/</code></td>
 <td>ASCII rendering helpers for timelines, groups, bundles, flows.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>maps/</code></td>
 <td><code>ConversionMap</code> family (<code>LinearMap</code>, <code>TableMap</code>, <code>ChainMap</code>, <code>PiecewiseMap</code>, …).</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>timelines/</code></td>
 <td><code>Timeline</code> classes for all six domain × modality combinations, <code>TimelineGroup</code>, regions, flow control, beat grids.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>alignment/</code></td>
 <td><code>MatchClaim</code>, <code>AlignmentAnchor</code>, <code>AlignmentBundle</code>, <code>MatchGraph</code>, <code>MatchLine</code>, <code>WarpMap</code>.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>storage/</code></td>
 <td>PyArrow-backed <code>EventData</code> / <code>EventStore</code> storage primitives.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>loader/</code></td>
 <td>File-format-specific ingestion.</td>
 </tr>
@@ -1028,7 +1036,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
                     └──────────────┬───────────────┘
                                    │ may import from layer 0
                     ┌──────────────▼───────────────┐
-       Layer 0 ──▶  │   core    fields    display  │
+       Layer 0 ──▶  │       core       display      │
                     └──────────────────────────────┘
                        (no internal dependencies)</code></pre>
 <p>Equivalently:</p>
@@ -1049,30 +1057,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>nothing internal</td>
 </tr>
 <tr class="even">
-<td><code>fields/</code></td>
-<td>nothing internal</td>
-</tr>
-<tr class="odd">
 <td><code>display/</code></td>
 <td>nothing internal at runtime (TYPE_CHECKING only)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>maps/</code></td>
 <td><code>core</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>storage/</code></td>
 <td>lower layers as needed; owns <code>EventData</code> and <code>EventStore</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>timelines/</code></td>
 <td><code>core</code>, <code>maps</code>, <code>storage</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>alignment/</code></td>
 <td>lower layers, including <code>timelines</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>loader/</code></td>
 <td>all lower layers</td>
 </tr>

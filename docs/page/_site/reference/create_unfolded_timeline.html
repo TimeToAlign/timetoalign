@@ -254,6 +254,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/ClaimType.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ClaimType</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/ColumnNaming.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">ColumnNaming</span></a>
   </div>
@@ -752,6 +758,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SupportPolicy.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SupportPolicy</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/TableMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">TableMap</span></a>
   </div>
@@ -860,27 +872,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    uid<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    target_unit<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    include_children<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    as_segment_line<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create an unfolded timeline from a folded source via structural slicing.</p>
-<p>Computes QB-space boundaries for each <code>PlaythroughSection</code> in the Flow, extracts slices from the source timeline at those boundaries, and concatenates the slices into a new <code>SegmentLine</code>. This is the TTA manuscript’s conceptual model: unfolding = assembling a new SegmentLine by selecting and concatenating contiguous portions of the folded source.</p>
+<p>Computes QB-space boundaries for each <code>PlaythroughSection</code> in the Flow, extracts a slice from the source timeline at each boundary, and appends the slices, in target (unfolded) order, as children of a new timeline of the source’s concrete type. This is the TTA manuscript’s conceptual model: unfolding = assembling a new timeline by selecting and concatenating contiguous portions of the folded source.</p>
 <p>The returned timeline has:</p>
 <ul>
-<li>Correct QB-space coordinates (not MC-number space)</li>
-<li>A reverse FlowMap attached (id=“source”) for folded ↔︎ unfolded conversion</li>
-<li>A forward FlowMap attached (id=“forward_{flow.id}”)</li>
-<li>Events structurally copied via <code>Timeline.get_slice()</code>, including truncation of interval events at section boundaries</li>
-<li>Children recursively sliced (when <em>include_children</em> is True)</li>
+<li>The same concrete class as <em>source_timeline</em> (unless <em>target_unit</em> selects another), with correct QB-space coordinates.</li>
+<li>One appended child per playthrough section, each named after the section (repeats add a <code>-rend2</code>, <code>-rend3</code> … suffix).</li>
+<li>A matching Region per child, in unfolded coordinates.</li>
+<li>A reverse FlowMap attached (id <code>"source"</code>) for folded ↔︎ unfolded conversion, and a forward FlowMap (id <code>f"forward_{flow.id}"</code>).</li>
+<li>Events structurally copied via <code>Timeline.get_slice()</code> (including truncation of interval events at section boundaries); the flattened coordinates remain reachable via <code>get_events(include_children=True)</code>.</li>
 </ul>
 <p>Design decision: replaces the earlier FlowMap-based per-event coordinate remapping with structural slicing. The previous approach operated in MC-number space and produced wrong coordinates for scores with non-uniform measure durations.</p>
-<p>Args: source_timeline: The folded source timeline. flow: The computed Flow (sequence of sections). flow_controller: The controller that computed the flow. Required for QB-space boundary computation. If <code>None</code>, the function raises <code>ValueError</code> because no QB-space boundaries can be computed. uid: Optional identifier for the returned timeline. target_unit: Optional unit for the unfolded timeline. When given, <code>Timeline.resolve_subclass(target_unit, number_type)</code> selects the timeline type; otherwise <code>type(source_timeline)</code> is used. include_children: If True (default), child timelines are recursively sliced and included in each segment. as_segment_line: If True, return the <code>SegmentLine</code> directly (one segment per playthrough section). If False (default), flatten into a plain timeline of the source’s concrete class.</p>
-<p>Returns: New Timeline (or SegmentLine if <em>as_segment_line</em> is True) with:</p>
-<pre><code>- Events structurally copied and reordered per flow
-- Reverse FlowMap attached (id="source")
-- Forward FlowMap attached (id="forward_{flow.id}")</code></pre>
+<p>Args: source_timeline: The folded source timeline. flow: The computed Flow (sequence of sections). flow_controller: The controller that computed the flow. Required for QB-space boundary computation. If <code>None</code>, the function raises <code>ValueError</code> because no QB-space boundaries can be computed. uid: Optional identifier for the returned timeline. target_unit: Optional unit for the unfolded timeline. When given, <code>Timeline.resolve_subclass(target_unit, number_type)</code> selects the timeline type; otherwise <code>type(source_timeline)</code> is used. include_children: If True (default), child timelines are recursively sliced and included in each section.</p>
+<p>Returns: New Timeline of the source’s concrete type, with one appended child (plus matching Region) per playthrough section, a reverse FlowMap (id <code>"source"</code>), and a forward FlowMap (id <code>f"forward_{flow.id}"</code>).</p>
 <p>Raises: ValueError: If <em>flow_controller</em> is None and QB-space boundaries cannot be computed.</p>
 <p>Examples: &gt;&gt;&gt; controller = ScoreFlowController(measure_data) &gt;&gt;&gt; flow = controller.compute_flow(FlowMode.default) &gt;&gt;&gt; unfolded = create_unfolded_timeline(source_tl, flow, controller) &gt;&gt;&gt; type(unfolded).__name__ # preserves source type ‘ContinuousLogicalTimeline’ &gt;&gt;&gt; unfolded.get_flow_map(“source”) # Reverse map to trace back FlowMap(default_inverse: 5 sections)</p>
-<p>See Also: <code>compute_qb_sections</code>: Computes QB boundaries from Flow + controller. <code>Timeline.get_slice</code>: Extracts a portion of a timeline. <code>SegmentLine</code>: Container for contiguous timeline segments.</p>
+<p>See Also: <code>compute_qb_sections</code>: Computes QB boundaries from Flow + controller. <code>Timeline.get_slice</code>: Extracts a portion of a timeline.</p>
 
 
 </section>

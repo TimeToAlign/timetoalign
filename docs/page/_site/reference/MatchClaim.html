@@ -254,6 +254,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/ClaimType.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ClaimType</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/ColumnNaming.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">ColumnNaming</span></a>
   </div>
@@ -752,6 +758,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SupportPolicy.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SupportPolicy</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/TableMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">TableMap</span></a>
   </div>
@@ -904,8 +916,24 @@ True</code></pre>
 <td>The AlignmentBundle this claim belongs to, if set.</td>
 </tr>
 <tr class="odd">
+<td><a href="#timetoalign.alignment.MatchClaim.claim_type">claim_type</a></td>
+<td>The semantic kind of this claim, derived from its structure.</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.alignment.MatchClaim.is_anonymous">is_anonymous</a></td>
+<td>Whether this anchors two coordinates with no event identity.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.alignment.MatchClaim.is_conceptual">is_conceptual</a></td>
+<td>Whether this is a structural correspondence with no anchors.</td>
+</tr>
+<tr class="even">
 <td><a href="#timetoalign.alignment.MatchClaim.is_interval">is_interval</a></td>
 <td>Whether this is an interval match (has end anchor).</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.alignment.MatchClaim.is_nomatch">is_nomatch</a></td>
+<td>Whether a named event is claimed to have no counterpart.</td>
 </tr>
 <tr class="even">
 <td><a href="#timetoalign.alignment.MatchClaim.timelines">timelines</a></td>
@@ -1054,12 +1082,12 @@ True</code></pre>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchClaim.get_matchstamp(</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    bundle<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    from_graph<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    conversion_maps<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    conversion_maps<span class="op">=</span><span class="va">False</span>,</span>
 <span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return a MatchStamp for this claim’s start anchor.</p>
 <p>With <code>from_graph=True</code> (the default), the method builds or retrieves the full MatchGraph for this claim’s coordinate from the bundle’s cache and returns the FULL MatchStamp combining timestamps from ALL groups connected at this coordinate.</p>
 <p>With <code>from_graph=False</code>, constructs a <strong>reduced</strong> MatchStamp from only the two timelines in this claim (no graph construction needed).</p>
-<p>Args: bundle: The <code>AlignmentBundle</code> containing this claim. Required for <code>from_graph=True</code>. Provides group info and the MatchGraph cache. from_graph: If True (default), build/retrieve the full MatchGraph and return the FULL MatchStamp across ALL connected groups. If False, return a reduced 2-timeline MatchStamp. conversion_maps: C-map conversions available through unit lookup.</p>
+<p>Args: bundle: The <code>AlignmentBundle</code> containing this claim. Required for <code>from_graph=True</code>. Provides group info and the MatchGraph cache. from_graph: If True (default), build/retrieve the full MatchGraph and return the FULL MatchStamp across ALL connected groups. If False, return a reduced 2-timeline MatchStamp. conversion_maps: C-map conversions available through unit lookup. Opt-in: defaults to <code>False</code>.</p>
 <p>Returns: MatchStamp with coordinates, or None if this claim is non-synchronous (NOMATCH).</p>
 <p>Raises: ValueError: If <code>from_graph=True</code> but no bundle is available (neither passed nor set via <code>set_bundle()</code>).</p>
 <p>Examples: Full stamp (default – from graph, all groups)::</p>
