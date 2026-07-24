@@ -1,7 +1,12 @@
 ---
-title: "TimeToAlign!"
-subtitle: "A Cross-Domain Timeline Model for Music Information Retrieval and Digital Musicology"
+pagetitle: "TimeToAlign!"
 ---
+
+![](figs/lead_figure.png){width="100%" fig-alt="Lead figure of the TISMIR article: musical timelines across the physical, logical, and graphical domains, connected by conversion maps within timelines and match claims across them."}
+
+# TimeToAlign! {.title}
+
+<p class="subtitle lead">A Cross-Domain Timeline Model for Music Information Retrieval and Digital Musicology</p>
 
 ## What is TimeToAlign!?
 
