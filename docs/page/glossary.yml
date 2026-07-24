@@ -281,6 +281,18 @@ StartInstant: |
   An Instant marking the start of a TimeInterval. Implies the presence of a
   corresponding EndInstant with coordinate >= StartInstant's coordinate.
 
+SupportPolicy: |
+  How a cross-timeline MatchStamp treats a timeline whose transferred coordinate
+  falls outside alignment support — the entering coordinate lies beyond the
+  transferring WarpMap's anchor hull, or the produced coordinate would fall
+  outside the target timeline's [0, length] span. omit (the default) drops that
+  timeline; clamp reports the nearest in-support boundary coordinate;
+  extrapolate keeps the linear extrapolation clipped to [0, length]. No policy
+  ever yields a negative coordinate, and the queried timeline's own coordinate
+  is never altered. Set per call via
+  AlignmentBundle.get_matchstamp_at(..., support_policy=...) or persistently via
+  AlignmentBundle.support_policy.
+
 Synchrony: |
   Strict synchrony: Instants sharing identical coordinates. Pragmatic synchrony:
   Instants binned together based on a threshold (e.g., for quantisation).

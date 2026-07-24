@@ -21,8 +21,10 @@
 # performances) using the `MatchfileLoader` to illustrate the pattern.
 
 # %%
-from timetoalign import MatchfileLoader
+from timetoalign import AlignmentBundle, MatchfileLoader, TimeUnit
+from timetoalign.core import SupportPolicy
 from timetoalign.testdata import ensure_data
+from timetoalign.timelines import Timeline
 
 DATA_DIR = ensure_data("vienna_1x22")
 
@@ -82,6 +84,100 @@ stamp
 {
     "score coordinate": stamp.get_coordinate("score:clt1"),
     "interpolated": stamp.is_interpolated,
+}
+
+# %% [markdown]
+# ## Merge Bundles and Bridge Them
+#
+# Two bundles built separately can be merged into one with
+# `AlignmentBundle.from_bundles`. Merging registers every group, timeline,
+# and `MatchClaim` from each source, but does **not** itself align the two
+# sides — you bridge them afterwards by adding `MatchClaim`s. Everything
+# below is built in memory, with no data files.
+#
+# The first bundle is a symbolic score, four measures of 4/4:
+
+# %%
+score = Timeline(length=12, unit=TimeUnit.quarters, uid="score")
+score.add_events(
+    [
+        {
+            "id": f"m{m}",
+            "temporal_type": "instant",
+            "event_type": "Measure",
+            "instant": float(4 * m),
+        }
+        for m in range(4)
+    ]
+)
+symbolic = AlignmentBundle(name="symbolic")
+symbolic.add_timeline(score, as_group="score")
+
+# %% [markdown]
+# The second bundle is one performance, its audio (`seconds`) and MIDI
+# (`ticks`) placed in a single group, so a coordinate transfers between them
+# by interpolation:
+
+# %%
+perf = Timeline(length=6.0, unit=TimeUnit.seconds, uid="perf")
+midi = Timeline(length=2880, unit=TimeUnit.ticks, uid="midi")
+audio = AlignmentBundle(name="audio")
+audio.add_timeline(perf, as_group="performance")
+audio.add_timeline(midi, aligned_to="perf")
+
+merged = AlignmentBundle.from_bundles([symbolic, audio], name="merged")
+merged
+
+# %% [markdown]
+# The merged bundle holds all three timelines but no connection between the
+# two sides yet. `create_match_claims` bridges the score to the performance
+# at the measure downbeats — quarters on `score` to seconds on `perf`:
+
+# %%
+merged.create_match_claims(
+    [
+        ({"start": q}, "score", {"start": s}, "perf")
+        for q, s in [(4.0, 1.0), (8.0, 3.0), (12.0, 5.0)]
+    ]
+)
+sorted(merged.timeline_ids)
+
+# %% [markdown]
+# ## The Transitive Union Across Both Bundles
+#
+# A single `get_matchstamp_at()` on `score` now resolves the whole chain:
+# the bridge warps `score` to `perf`, and `perf`'s own group carries the
+# reach on to `midi`. The stamp spans all three timelines even though no
+# claim ties `score` directly to `midi`.
+
+# %%
+merged.get_matchstamp_at(8.0, "score")
+
+# %% [markdown]
+# ## Out-of-Support Coordinates
+#
+# The bridge's earliest anchor is measure 2 (quarter 4). A query below it —
+# quarter 0 — lies outside the WarpMap's support, so `perf` (and the `midi`
+# reached through it) has no defined position there. `support_policy` decides
+# what happens. The default, `SupportPolicy.omit`, drops the unsupported
+# timelines; the queried timeline's own coordinate always stays:
+
+# %%
+merged.get_matchstamp_at(0.0, "score")  # support_policy defaults to omit
+
+# %% [markdown]
+# `clamp` reports the nearest in-support boundary coordinate instead of
+# dropping the timeline; `extrapolate` keeps the linear extrapolation but
+# clips it to each timeline's `[0, length]` span. No policy ever yields a
+# negative coordinate. The per-call `support_policy` argument overrides the
+# bundle-wide `AlignmentBundle.support_policy` default:
+
+# %%
+{
+    "clamp": merged.get_matchstamp_at(0.0, "score", support_policy="clamp"),
+    "extrapolate": merged.get_matchstamp_at(
+        0.0, "score", support_policy=SupportPolicy.extrapolate
+    ),
 }
 
 # %% [markdown]
