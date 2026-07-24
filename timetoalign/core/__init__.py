@@ -24,6 +24,7 @@ from __future__ import annotations
 from .enums import (
     ActivationCondition,
     AgentType,
+    ClaimType,
     ColumnNaming,
     ColumnRole,
     Domain,
@@ -153,6 +154,7 @@ __all__ = [
     # Enums
     "ActivationCondition",
     "AgentType",
+    "ClaimType",
     "ColumnNaming",
     "ColumnRole",
     "Domain",

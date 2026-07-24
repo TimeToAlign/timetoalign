@@ -883,11 +883,12 @@ class TestMatchClaimDisplay:
         assert "[0 -- 128]" in s
 
     def test_str_nomatch(self):
-        """__str__ for NOMATCH claim."""
+        """__str__ for a NOMATCH claim (orphaned event named on one side)."""
         claim = MatchClaim(
             timeline_a_id="score:clt1",
             timeline_b_id="perf:dlt1",
             is_synchronous=False,
+            event_a_id="orphan",
         )
         s = str(claim)
         assert "NOMATCH" in s
@@ -956,11 +957,12 @@ class TestMatchClaimDisplay:
         assert "score:clt1" in html
 
     def test_repr_html_nomatch_badge(self):
-        """NOMATCH claim has red badge in HTML."""
+        """NOMATCH claim (orphaned event named on one side) has red badge in HTML."""
         claim = MatchClaim(
             timeline_a_id="score:clt1",
             timeline_b_id="perf:dlt1",
             is_synchronous=False,
+            event_a_id="orphan",
         )
         html = claim._repr_html_()
         assert "NOMATCH" in html

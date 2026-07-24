@@ -46,6 +46,7 @@ from pydantic import (
 
 from timetoalign.core import (
     AgentType,
+    ClaimType,
     Coordinate,
     CoordinateSpec,
     IdCoordinate,
@@ -510,6 +511,57 @@ class MatchClaim(BaseModel):
     def is_interval(self) -> bool:
         """Whether this is an interval match (has end anchor)."""
         return self.end_anchor is not None
+
+    @property
+    def claim_type(self) -> ClaimType:
+        """The semantic kind of this claim, derived from its structure.
+
+        The classification reads only ``is_explicit``, ``is_synchronous`` and
+        which of ``event_a_id`` / ``event_b_id`` are set — no stored field
+        records the kind, so it always reflects the claim's current shape.
+
+        Returns:
+            The :class:`~timetoalign.core.enums.ClaimType` for this claim.
+
+        The cases, in evaluation order:
+
+        | Condition                          | Result        |
+        |------------------------------------|---------------|
+        | ``is_explicit`` is False           | ``implicit``  |
+        | synchronous, both sides name event | ``event_match`` |
+        | synchronous, one side names event  | ``projection``  |
+        | synchronous, neither names event   | ``anchor``    |
+        | non-synchronous, one side names it | ``nomatch``   |
+        | non-synchronous, neither / both    | ``conceptual`` |
+        """
+        if not self.is_explicit:
+            return ClaimType.implicit
+        n_events = int(self.event_a_id is not None) + int(self.event_b_id is not None)
+        if self.is_synchronous:
+            if n_events == 2:
+                return ClaimType.event_match
+            if n_events == 1:
+                return ClaimType.projection
+            return ClaimType.anchor
+        # non-synchronous (no anchors)
+        if n_events == 1:
+            return ClaimType.nomatch
+        return ClaimType.conceptual
+
+    @property
+    def is_nomatch(self) -> bool:
+        """Whether a named event is claimed to have no counterpart."""
+        return self.claim_type is ClaimType.nomatch
+
+    @property
+    def is_conceptual(self) -> bool:
+        """Whether this is a structural correspondence with no anchors."""
+        return self.claim_type is ClaimType.conceptual
+
+    @property
+    def is_anonymous(self) -> bool:
+        """Whether this anchors two coordinates with no event identity."""
+        return self.claim_type is ClaimType.anchor
 
     @property
     def bundle(self) -> Any:
@@ -1037,12 +1089,14 @@ class MatchClaim(BaseModel):
 
     def __repr__(self) -> str:
         match_type = "interval" if self.is_interval else "instant"
-        flags = []
-        if not self.is_explicit:
-            flags.append("inferred")
-        if not self.is_synchronous:
-            flags.append("NOMATCH")
-        flag_str = f" [{', '.join(flags)}]" if flags else ""
+        # The badge is the claim kind, shown for every kind except a plain
+        # event_match (which keeps the clean, badge-free form).
+        claim_type = self.claim_type
+        badge = (
+            ""
+            if claim_type is ClaimType.event_match
+            else f" [{claim_type.name.upper()}]"
+        )
 
         if not self.is_synchronous:
             if self.source_coordinate is not None:
@@ -1052,7 +1106,7 @@ class MatchClaim(BaseModel):
                 )
             else:
                 timeline_a = self.timeline_a_id
-            return f"MatchClaim({timeline_a} <-> {self.timeline_b_id}{flag_str})"
+            return f"MatchClaim({timeline_a} <-> {self.timeline_b_id}{badge})"
 
         if self.is_interval:
             start_a, end_a = self.get_coordinates_for(self.timeline_a_id)
@@ -1062,7 +1116,7 @@ class MatchClaim(BaseModel):
                 f"{self.timeline_a_id}[{float(start_a.value):.1f}-"
                 f"{float(end_a.value):.1f}] <-> "
                 f"{self.timeline_b_id}[{float(start_b.value):.1f}-"
-                f"{float(end_b.value):.1f}]{flag_str})"
+                f"{float(end_b.value):.1f}]{badge})"
             )
         else:
             return (
@@ -1070,7 +1124,7 @@ class MatchClaim(BaseModel):
                 f"{self.timeline_a_id}@"
                 f"{float(self.start_anchor.coordinate_a.value):.1f} <-> "
                 f"{self.timeline_b_id}@"
-                f"{float(self.start_anchor.coordinate_b.value):.1f}{flag_str})"
+                f"{float(self.start_anchor.coordinate_b.value):.1f}{badge})"
             )
 
     def __str__(self) -> str:
@@ -1109,9 +1163,10 @@ class MatchClaim(BaseModel):
                 return f'"{ev_name}"'
             return None
 
-        # Header
+        # Header: synchronous claims report their instant/interval shape;
+        # non-synchronous ones report their derived kind (NOMATCH vs CONCEPTUAL).
         if not self.is_synchronous:
-            header = "MatchClaim (NOMATCH)"
+            header = f"MatchClaim ({self.claim_type.name.upper()})"
         elif self.is_interval:
             header = "MatchClaim (synchronous, interval)"
         else:
@@ -1196,19 +1251,22 @@ class MatchClaim(BaseModel):
             else:
                 return f"{float(v):.6f}".rstrip("0").rstrip(".")
 
-        # Header badge
-        if not self.is_synchronous:
+        # Header badge derives from the claim kind. A plain event_match keeps
+        # the instant/interval colour scheme; every other kind shows its name.
+        claim_type = self.claim_type
+        if claim_type is ClaimType.event_match:
+            if self.is_interval:
+                badge_bg = "#e3f2fd"
+                badge_text = "synchronous, interval"
+            else:
+                badge_bg = "#e8f5e9"
+                badge_text = "synchronous, instant"
+        elif claim_type in (ClaimType.nomatch, ClaimType.conceptual):
             badge_bg = "#ffcdd2"
-            badge_text = "NOMATCH"
-        elif self.is_interval:
-            badge_bg = "#e3f2fd"
-            badge_text = "synchronous, interval"
-        else:
-            badge_bg = "#e8f5e9"
-            badge_text = "synchronous, instant"
-
-        if not self.is_explicit:
-            badge_text += " [inferred]"
+            badge_text = claim_type.name.upper()
+        else:  # projection, anchor, implicit — synchronous with anchors
+            badge_bg = "#fff3e0"
+            badge_text = claim_type.name.upper()
 
         badge = (
             f"<span style='background: {badge_bg}; padding: 0 4px; "

@@ -100,6 +100,7 @@ from __future__ import annotations
 from importlib import import_module
 
 from timetoalign.core import (
+    ClaimType,
     ColumnNaming,
     ColumnRole,
     Coordinate,
@@ -243,6 +244,7 @@ __all__ = [
     # Version
     "__version__",
     # Enums
+    "ClaimType",
     "ColumnNaming",
     "ColumnRole",
     "Domain",

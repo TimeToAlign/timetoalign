@@ -964,11 +964,16 @@ class TestMatchClaim:
         assert "0.0-975.0" in r
 
     def test_repr_non_synchronous(self) -> None:
-        """A non-synchronous claim renders the NOMATCH flag (not 'non-synchronous')."""
+        """A NOMATCH claim (orphaned event) renders the NOMATCH flag.
+
+        The orphaned event is named on exactly one side, so the claim is a
+        genuine NOMATCH; the flag word must appear and never 'non-synchronous'.
+        """
         claim = MatchClaim(
             timeline_a_id="tl1",
             timeline_b_id="tl2",
             is_synchronous=False,
+            event_a_id="e_orphan",
         )
         r = repr(claim)
         assert "NOMATCH" in r
@@ -977,9 +982,13 @@ class TestMatchClaim:
         assert "tl2" in r
 
     def test_repr_nomatch_with_coordinate_exact(self) -> None:
-        """NOMATCH claim from nomatch() renders the source coordinate exactly."""
+        """NOMATCH claim from nomatch() renders the source coordinate exactly.
+
+        The event names the orphaned note (``id``), so the claim classifies as
+        a genuine NOMATCH rather than a conceptual correspondence.
+        """
         claim = MatchClaim.nomatch(
-            event={"start": 188.8},
+            event={"id": "orphan", "start": 188.8},
             source_tl_id="score:clt1",
             target_tl_id="perf:Chopin_Ashkenazy",
             unit=TimeUnit.number,
@@ -1015,7 +1024,12 @@ class TestMatchClaim:
         assert restored.source_coordinate.value == 188.8
 
     def test_repr_synchronous_instant_unchanged(self) -> None:
-        """Regression guard: a synchronous instant repr is unchanged (no NOMATCH)."""
+        """Regression guard: an event_match instant repr shows the clean form.
+
+        Two identified events on either side make this an event_match, which
+        carries no badge — the common case must stay free of NOMATCH or any
+        other kind tag.
+        """
         claim = MatchClaim(
             timeline_a_id="score:1",
             timeline_b_id="recording:1",
@@ -1025,6 +1039,8 @@ class TestMatchClaim:
                 timeline_b_id="recording:1",
                 coordinate_b=Coordinate(45.5, TimeUnit.number),
             ),
+            event_a_id="a1",
+            event_b_id="b1",
         )
         assert claim.source_coordinate is None
         assert repr(claim) == (

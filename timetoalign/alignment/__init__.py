@@ -23,6 +23,7 @@ from .bundle import AlignmentBundle
 from .claims import (
     Agent,
     AlignmentAnchor,
+    ClaimType,
     MatchClaim,
     MatchClaimField,
     MatchMetadata,
@@ -45,6 +46,7 @@ __all__ = [
     # Anchors and Claims
     "Agent",
     "AlignmentAnchor",
+    "ClaimType",
     "MatchClaim",
     "MatchClaimField",
     "MatchMetadata",
