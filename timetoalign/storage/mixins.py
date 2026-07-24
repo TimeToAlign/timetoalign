@@ -267,7 +267,7 @@ def _get_field_class_for_scalar(
 def _parse_field_type_metadata(pa_field: pa.Field) -> str | None:
     """Extract the ``field_type`` string from a PyArrow field's metadata.
 
-    Returns ``None`` when the field carries no Time To Align! blob at
+    Returns ``None`` when the field carries no TimeToAlign! blob at
     all, or when the blob is not decodable JSON.  A blob that *is*
     readable but violates the payload contract (missing or too-new
     ``version``) propagates the ``ValueError`` raised by

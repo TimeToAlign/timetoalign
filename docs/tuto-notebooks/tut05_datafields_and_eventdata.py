@@ -16,7 +16,7 @@
 # %% [markdown]
 # # DataFields and Layered EventData
 #
-# *Learn how every music concept in Time To Align! is expressed as the
+# *Learn how every music concept in TimeToAlign! is expressed as the
 # same Protocol / Scalar / Field triple, and how a loaded `EventData`
 # affords typed views over its raw columns.*
 #

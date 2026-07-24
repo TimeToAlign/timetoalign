@@ -500,7 +500,7 @@ renders through the shared `affordance_html` helper.
 ### `test_parquet_metadata.py` - Versioned metadata blob, single ownership
 
 **Purpose:** Pins the contract of the Arrow-metadata vocabulary that travels
-with every Time To Align!-written `pa.Field` and table schema.
+with every TimeToAlign!-written `pa.Field` and table schema.
 `core/fields.py` is its sole owner: it defines the metadata key, the blob
 version, the two writers (`metadata_blob_from_dict`,
 `metadata_blob_for_model`) and the one parser (`parse_metadata_blob`).

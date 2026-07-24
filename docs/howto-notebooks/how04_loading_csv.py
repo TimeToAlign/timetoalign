@@ -16,7 +16,7 @@
 # %% [markdown]
 # # How to Load CSV/TSV with `column_specs` and `field_specs`
 #
-# Tabular loaders in Time To Align! turn **columns** into **fields** in two
+# Tabular loaders in TimeToAlign! turn **columns** into **fields** in two
 # explicit steps:
 #
 # | Term | Meaning |

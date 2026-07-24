@@ -1,15 +1,15 @@
 ---
 title: "Developers' Reference"
-description: "Architecture, build/test/release workflow, documentation pipeline, and contribution rules for Time To Align!"
+description: "Architecture, build/test/release workflow, documentation pipeline, and contribution rules for TimeToAlign!"
 ---
 
-This page is the canonical reference for contributing to **Time To Align!**.
+This page is the canonical reference for contributing to **TimeToAlign!**.
 The conceptual model lives in [Concepts](concepts.qmd) and the per-class API
 lives under [API Reference](reference.qmd); everything you need to *build,
 test, document, and release* the library is here.
 
 The package is named `timetoalign` for machines (imports, PyPI) and written
-**Time To Align!** for humans (prose, headings, comments).
+**TimeToAlign!** for humans (prose, headings, comments).
 
 ---
 

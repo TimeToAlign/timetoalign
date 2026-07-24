@@ -350,7 +350,7 @@ pd.DataFrame(tempo_by_performer).T
 
 # %% [markdown]
 # These profiles are measured features carried on the performance timelines, not
-# anything Time To Align! inferred. Loaded next to the notes and the cross-group
+# anything TimeToAlign! inferred. Loaded next to the notes and the cross-group
 # {{< glossary MatchClaim >}}s, they let one bundle hold both *what* was played
 # (the aligned notes) and *how* it was played (the measured tempo and dynamics),
 # for every one of the five recordings.

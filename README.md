@@ -1,6 +1,10 @@
 # TimeToAlign!
 
 [![DOI](https://img.shields.io/badge/DOI-10.5334%2Ftismir.296-blue)](https://doi.org/10.5334/tismir.296)
+[![PyPI](https://img.shields.io/pypi/v/timetoalign)](https://pypi.org/project/timetoalign/)
+[![Python versions](https://img.shields.io/pypi/pyversions/timetoalign)](https://pypi.org/project/timetoalign/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Documentation](https://img.shields.io/badge/docs-timetoalign.github.io-blue)](https://timetoalign.github.io/)
 
 This library is described in the TISMIR article *Time to Align! Modelling Musical Timelines for Music Information Retrieval and Digital Musicology* (2026): https://doi.org/10.5334/tismir.296.
 
@@ -242,7 +246,7 @@ tox -e lint
 
 ## Citing
 
-If you use Time To Align!, please cite:
+If you use TimeToAlign!, please cite:
 
 Hentschel, Johannes; Berndt, Axel; Cancino-Chacón, Carlos; Dixon, Simon; Foo, Anne; Gotham, Mark; Hu, Patricia; Köster, Maik; Martins, Felipe D.; Mauro, Davide A.; Müller, Meinard; Neuwirth, Markus; Pacha, Alexander; Page, Kevin R.; Peter, Silvan; Polyakov, Egor; Pugin, Laurent; Weigl, David M.; Weiß, Christof; and Widmer, Gerhard. 2026. "Time to Align! Modelling Musical Timelines for Music Information Retrieval and Digital Musicology." *Transactions of the International Society for Music Information Retrieval* 9 (1): 384--404. https://doi.org/10.5334/tismir.296.
 

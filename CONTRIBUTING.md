@@ -1,4 +1,4 @@
-# Contributing to Time To Align!
+# Contributing to TimeToAlign!
 
 The full **Developers' Reference** lives on the documentation site at
 `docs/page/contributing.qmd`. It covers:

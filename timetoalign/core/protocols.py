@@ -1,4 +1,4 @@
-"""Protocols for semantic type classification in Time To Align!
+"""Protocols for semantic type classification in TimeToAlign!
 
 This module defines the structural typing contracts (Protocols) that unify
 scalar-level types (e.g., Coordinate) and field-level types (e.g.,

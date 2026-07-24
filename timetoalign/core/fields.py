@@ -1,6 +1,6 @@
 """DataField hierarchy + pydantic → PyArrow translator + Parquet metadata.
 
-This module is the foundation of Time To Align!'s fielded storage
+This module is the foundation of TimeToAlign!'s fielded storage
 layer.  It bundles four closely-related concerns:
 
 * The **DataField hierarchy** wraps ``pa.Array`` / ``pa.ChunkedArray``
@@ -16,7 +16,7 @@ layer.  It bundles four closely-related concerns:
   validated scalar instances by traversing each scalar once and
   accumulating the per-sub-field arrays (NEVER ``model_dump`` row-wise).
 * The **Parquet-metadata** helpers produce the ``b"timetoalign"`` JSON
-  blob that travels with every Time To Align!-written ``pa.Field``.
+  blob that travels with every TimeToAlign!-written ``pa.Field``.
 
 Layout convention: five labelled sections — base hierarchy → translator
 → store builder → parquet metadata → DenominateNumberField hierarchy.
@@ -2444,19 +2444,19 @@ def parse_metadata_blob(blob: bytes | str | None) -> dict[str, Any]:
     payload = json.loads(blob)
     if not isinstance(payload, dict):
         raise ValueError(
-            f"Time To Align! metadata blob must be a JSON object, got "
+            f"TimeToAlign! metadata blob must be a JSON object, got "
             f"{type(payload).__name__}"
         )
     version = payload.get(_BLOB_VERSION_KEY)
     if not isinstance(version, int) or isinstance(version, bool):
         raise ValueError(
-            "Time To Align! metadata blob carries no integer "
+            "TimeToAlign! metadata blob carries no integer "
             f"{_BLOB_VERSION_KEY!r} entry; every blob must be written by "
             "metadata_blob_from_dict() or metadata_blob_for_model()"
         )
     if version > TIMETOALIGN_BLOB_VERSION:
         raise ValueError(
-            f"Time To Align! metadata blob declares version {version}, but this "
+            f"TimeToAlign! metadata blob declares version {version}, but this "
             f"build understands at most {TIMETOALIGN_BLOB_VERSION}"
         )
     return payload

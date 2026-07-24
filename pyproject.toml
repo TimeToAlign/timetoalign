@@ -6,7 +6,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
-    {name = "TTA Team"}
+    {name = "Johannes Hentschel and the TimeToAlign! authors and contributors"}
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",

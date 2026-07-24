@@ -1,4 +1,4 @@
-# Time To Align! -- Documentation & Notebooks
+# TimeToAlign! -- Documentation & Notebooks
 
 This directory contains the documentation homepage and the runnable
 notebooks for the `timetoalign` library.

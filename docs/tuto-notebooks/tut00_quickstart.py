@@ -17,7 +17,7 @@
 # # Quickstart
 #
 # Music exists simultaneously as audio, notation, and images --- each with
-# its own coordinate system. **Time To Align!** provides a single framework
+# its own coordinate system. **TimeToAlign!** provides a single framework
 # for connecting them.
 #
 # | Domain | Description | Examples |
@@ -42,7 +42,7 @@ DATA_DIR = Path(".").resolve().parents[1] / "tests" / "data"
 # %% [markdown]
 # ## Same content, different formats
 #
-# Before the tour, a quick demonstration of what Time To Align! is for. We
+# Before the tour, a quick demonstration of what TimeToAlign! is for. We
 # load Chopin's Etude Op. 10 No. 3 from both MusicXML and a TSV note list,
 # and check that both loaders see the same musical content.
 

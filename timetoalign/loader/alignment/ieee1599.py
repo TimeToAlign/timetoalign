@@ -16,7 +16,7 @@ projections, and ``event_ref`` is the correspondence.
 and produces a single :class:`~timetoalign.alignment.bundle.AlignmentBundle`:
 
 ============================  =========================================
-IEEE 1599 construct           Time To Align! representation
+IEEE 1599 construct           TimeToAlign! representation
 ============================  =========================================
 ``<spine>``                   ``DiscreteLogicalTimeline`` ``spine:dlt1``,
                               unit ``ticks``, ``NumberType.int``

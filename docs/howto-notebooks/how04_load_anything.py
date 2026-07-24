@@ -24,7 +24,7 @@
 # %% [markdown]
 # # How to Load Anything
 #
-# This notebook demonstrates the unified Loader API in the Time To Align! library.
+# This notebook demonstrates the unified Loader API in the TimeToAlign! library.
 # Each section exercises a loader following the same pattern:
 #
 # 1. **Loading**: `loader.load(*paths)` or `Loader.from_file(path)`
@@ -1164,7 +1164,7 @@ match_bundle.get_matchstamp_table()
 # ---
 # ## Summary
 #
-# This notebook demonstrates the unified API across all Time To Align! loaders:
+# This notebook demonstrates the unified API across all TimeToAlign! loaders:
 #
 # | API Layer | Key Methods |
 # |-----------|-------------|

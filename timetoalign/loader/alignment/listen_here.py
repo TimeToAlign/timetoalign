@@ -10,7 +10,7 @@ they form a dense alignment matrix of shape ``(recordings × grid columns)``.
 
 Unlike a pairwise score-to-performance export (one score against one
 performance), a single Listen Here! file already encodes the alignment of *all*
-recordings against one another.  The natural Time To Align! reading is therefore
+recordings against one another.  The natural TimeToAlign! reading is therefore
 a **complete pairwise topology**: at every grid column, every unordered pair of
 recordings ``(a, b)`` is directly related by a synchronous instant
 :class:`~timetoalign.alignment.claims.MatchClaim`

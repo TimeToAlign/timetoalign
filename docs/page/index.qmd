@@ -120,7 +120,7 @@ The `timetoalign` library is available on PyPI. To install it:
 pip install timetoalign
 ```
 
-The library requires Python 3.12 or later.
+The library requires Python 3.11 or later.
 
 
 ## Project Links

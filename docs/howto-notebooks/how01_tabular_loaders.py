@@ -16,7 +16,7 @@
 # %% [markdown]
 # # How to Load Tabular Data
 #
-# The fastest way to get music data into Time To Align! is through **tabular
+# The fastest way to get music data into TimeToAlign! is through **tabular
 # loaders**. If your data is in CSV or TSV format, you're just 3 lines of
 # code away from analysis.
 #
@@ -116,7 +116,7 @@ loader.events.to_dataframe().head()
 # %% [markdown]
 # ## Creating Timelines
 #
-# Time To Align! represents temporal data as **Timelines**:
+# TimeToAlign! represents temporal data as **Timelines**:
 
 # %%
 timeline = loader.create_timeline(uid="beethoven_notes")
@@ -202,7 +202,7 @@ typed.events.to_dataframe()
 
 # %% [markdown]
 # That is the entire idea: **columns are a source artefact; fields are a
-# Time To Align! artefact.** `column_specs` is the bridge. A bare type is
+# TimeToAlign! artefact.** `column_specs` is the bridge. A bare type is
 # the gentlest entry — the in-depth CSV/TSV how-to covers the full
 # resolution chain (composite columns, semantic pitch/id fields, and the
 # Step-2 `field_specs` promotion stage) for richer formats.
@@ -217,7 +217,7 @@ typed.events.to_dataframe()
 # ```
 #
 # Use `Field("column", "nested_field")` to point a coordinate attribute
-# straight at a nested value. Time To Align! parses the JSON
+# straight at a nested value. TimeToAlign! parses the JSON
 # automatically. `ComputedField` lets you derive a coordinate from a
 # small formula over those nested values:
 
@@ -285,7 +285,7 @@ graphical_tl
 # - **Physical:** `0 - 142.5 seconds` (audio time)
 # - **Graphical:** `10 - 760 pixels` (image coordinates)
 #
-# Time To Align! uses these dual representations to align graphical
+# TimeToAlign! uses these dual representations to align graphical
 # annotations with audio.
 
 # %% [markdown]
@@ -336,7 +336,7 @@ grouped_tl
 #     column_specs = {"pitch": int, "velocity": int}
 # ```
 #
-# > **Key Takeaway:** Tabular loaders map CSV/TSV columns to Time To Align!
+# > **Key Takeaway:** Tabular loaders map CSV/TSV columns to TimeToAlign!
 # > events declaratively. Unnamed columns ride along as property columns;
 # > `column_specs` promotes the ones you want as typed fields; `Field`
 # > reaches nested JSON. For the full column-to-field mechanism — composite

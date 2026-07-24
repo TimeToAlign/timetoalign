@@ -1,4 +1,4 @@
-"""Core primitives for the Time To Align! library.
+"""Core primitives for the TimeToAlign! library.
 
 Flat module layout (no sub-packages):
 

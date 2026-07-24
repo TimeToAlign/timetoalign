@@ -17,7 +17,7 @@
 # # How to Transfer Annotations Between Graphical Analyses
 #
 # This notebook demonstrates how to project graphical annotations from one
-# image-based analytical diagram onto another using the Time To Align! library.
+# image-based analytical diagram onto another using the TimeToAlign! library.
 #
 # The use case comes from Lasse Thoresen's spectromorphological analyses of
 # *Objets Obscurs* by Manuella Blackburn.  Two published editions of the same
@@ -616,5 +616,5 @@ print("All y-coordinates within their respective DGT1 system bounds")
 #    each segment's event space to the corresponding DGT1 system.
 #
 # The two construction patterns -- SegmentLine concatenation (DGT2) vs. plain
-# timeline with children (DGT1) -- illustrate how Time To Align! supports both
+# timeline with children (DGT1) -- illustrate how TimeToAlign! supports both
 # "accumulate as you go" and "known layout" approaches.
