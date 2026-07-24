@@ -143,6 +143,7 @@ interlinks:
 
 quartodoc:
   package: timetoalign
+  parser: google
   dir: reference
   sidebar: reference/_sidebar.yml
   css: reference/_styles-quartodoc.css
