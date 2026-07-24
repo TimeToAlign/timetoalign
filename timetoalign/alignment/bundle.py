@@ -792,7 +792,7 @@ class AlignmentBundle:
 
     def create_match_claims(
         self,
-        event_pairs: list[tuple[dict, str, dict, str]],
+        event_pairs: list[tuple[dict | str, str, dict | str, str]],
         *,
         synchronous: bool = True,
         agent: str = "user",
@@ -806,10 +806,12 @@ class AlignmentBundle:
         Args:
             event_pairs: List of tuples, each containing:
                 ``(event_a, timeline_a_id, event_b, timeline_b_id)``.
-                Events must have at least a ``start`` key with a coordinate.
-                If both events also have an ``end`` key, the resulting
-                `MatchClaim` will be an interval match (with both
-                ``start_anchor`` and ``end_anchor``).
+                ``event_a``/``event_b`` are either event dicts (must have at
+                least a ``start`` key with a coordinate; an ``end`` key on
+                both sides produces an interval match) or the ``id`` string
+                of an existing event on the paired timeline, resolved via
+                ``Timeline.get_event()``. The two forms may be mixed within
+                a pair.
             synchronous: Whether the matches are temporally synchronous.
             agent: Name of the agent creating the claims (for provenance).
             agent_identifier: The agent's stable identifier — a version string
@@ -822,12 +824,13 @@ class AlignmentBundle:
             the bundle's ``cross_group_claims``.
 
         Raises:
-            ValueError: If event dicts are missing required keys.
+            ValueError: If event dicts are missing required keys, or an
+                event id string doesn't resolve to an existing event.
 
         Examples:
             >>> pairs = [
             ...     ({"start": 0.0}, "score", {"start": 45.5}, "audio"),
-            ...     ({"start": 10.0}, "score", {"start": 55.0}, "audio"),
+            ...     ("note:000010", "score", "note:000042", "audio"),
             ... ]
             >>> claims = bundle.create_match_claims(pairs, agent="manual_alignment")
             >>> len(claims)
@@ -839,6 +842,11 @@ class AlignmentBundle:
 
         claims = []
         for event_a, tl_a, event_b, tl_b in event_pairs:
+            timeline_a = self.timelines[self._timeline_id_to_uid.get(tl_a, tl_a)]
+            timeline_b = self.timelines[self._timeline_id_to_uid.get(tl_b, tl_b)]
+            event_a = self._resolve_event(event_a, timeline_a, tl_a)
+            event_b = self._resolve_event(event_b, timeline_b, tl_b)
+
             metadata = MatchMetadata(
                 agent=Agent(
                     name=agent,
@@ -864,8 +872,8 @@ class AlignmentBundle:
                 tl_a_id=tl_a,
                 event_b=event_b,
                 tl_b_id=tl_b,
-                unit_a=self.timelines[self._timeline_id_to_uid.get(tl_a, tl_a)].unit,
-                unit_b=self.timelines[self._timeline_id_to_uid.get(tl_b, tl_b)].unit,
+                unit_a=timeline_a.unit,
+                unit_b=timeline_b.unit,
                 end_coord_key=end_key,
                 is_synchronous=synchronous,
                 metadata=metadata,
@@ -876,6 +884,31 @@ class AlignmentBundle:
             self.add_match_claims(claims)
 
         return claims
+
+    @staticmethod
+    def _resolve_event(
+        event: dict | str, timeline: "Timeline", timeline_id: str
+    ) -> dict:
+        """Resolve an event-dict-or-id argument to an event dict.
+
+        Args:
+            event: An event dict, or the ``id`` of an existing event.
+            timeline: The timeline ``event`` belongs to.
+            timeline_id: The timeline's id as given by the caller (for
+                error messages).
+
+        Returns:
+            The event dict.
+
+        Raises:
+            ValueError: If ``event`` is an id string with no matching event.
+        """
+        if not isinstance(event, str):
+            return event
+        resolved = timeline.get_event(event)
+        if resolved is None:
+            raise ValueError(f"No event with id {event!r} on timeline {timeline_id!r}")
+        return resolved
 
     def add_match_claims(
         self,
