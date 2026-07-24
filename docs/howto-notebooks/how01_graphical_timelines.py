@@ -204,4 +204,4 @@ print(f"Spiral path length: {spiral_path.length:.1f} pixels")
 # 4. **Visualization** - Draw paths and events on images
 # 5. **Timeline integration** - Convert bundles to DiscreteGraphicalTimeline
 #
-# Next: See `07_alignment.ipynb` for the Thoresen alignment example using these tools.
+# Next: See `how01_thoresen_annotation_transfer.ipynb` for the Thoresen alignment example using these tools.

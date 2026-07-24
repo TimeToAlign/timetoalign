@@ -127,6 +127,14 @@ The library requires Python 3.12 or later.
 
 - **Source Code**: [GitHub](https://github.com/timetoalign/timetoalign)
 - **Specimen Collection**: Real-world datasets used in the tutorials and
-  the accompanying TISMIR manuscript.
-- **TISMIR Manuscript**: The model and its five demonstration scenarios are
-  described in a manuscript currently under review.
+  the accompanying TISMIR article.
+- **TISMIR Article**: [Time to Align! Modelling Musical Timelines for Music
+  Information Retrieval and Digital Musicology](https://doi.org/10.5334/tismir.296),
+  TISMIR 9(1), 384-404, 2026.
+
+::: {.callout-note title="How to cite"}
+Please cite the published TISMIR article,
+[Time to Align! Modelling Musical Timelines for Music Information Retrieval
+and Digital Musicology](https://doi.org/10.5334/tismir.296); a BibTeX entry
+ships in the repository via the README Citing section and `CITATION.cff`.
+:::

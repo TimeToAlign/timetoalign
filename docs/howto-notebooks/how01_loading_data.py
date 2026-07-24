@@ -312,8 +312,8 @@ tsv_df.groupby(["staff", "voice"]).size().unstack(fill_value=0)
 # %% [markdown]
 # ## Next Steps
 #
-# - **03_conversion_maps.ipynb**: Learn how to convert between coordinate systems
-# - **04_building_timelines.ipynb**: Create Timeline objects from EventStores
+# - **how01_advanced_cmaps.ipynb**: Learn how to convert between coordinate systems
+# - **how01_manual_timeline_construction.ipynb**: Create Timeline objects from EventStores
 
 # %% [markdown]
 # ---
