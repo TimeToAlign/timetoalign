@@ -24,8 +24,9 @@ flow modes. The atomic flow mode defines these canonical sections.
 ## Note {.doc-section .doc-section-note}
 
 MC ranges use the **right-open interval convention** [mc_start, mc_end),
-consistent with partitura and the TTA manuscript. For example, mc_start=1
-and mc_end=5 means measures 1, 2, 3, 4 (four measures total).
+consistent with partitura and TimeToAlign's TimeInterval model. For
+example, mc_start=1 and mc_end=5 means measures 1, 2, 3, 4 (four
+measures total).
 
 ## Attributes {.doc-section .doc-section-attributes}
 

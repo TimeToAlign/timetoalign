@@ -58,12 +58,12 @@ and know: (1) tempo, (2) meter, and (3) where the first beat is.
 They do NOT need to know the total length in quarters - the library
 computes that automatically.
 
-Per TTA specification (Section 3.4 - Nested Timelines): "A timeline can
-accommodate other timelines as Children, as long as they use the same
-measuring unit." Therefore, a logical timeline (quarters) cannot be a
-child of a physical timeline (seconds). Instead, this method creates
-a standalone ContinuousLogicalTimeline and connects it to this physical
-timeline via a TimelineGroup with bidirectional linear interpolation.
+A timeline can accommodate other timelines as Children when they use
+the same measuring unit. Therefore, a logical timeline (quarters)
+cannot be a child of a physical timeline (seconds). Instead, this
+method creates a standalone ContinuousLogicalTimeline and connects it
+to this physical timeline via a TimelineGroup with bidirectional linear
+interpolation.
 
 The returned MetricalResult provides convenient access to:
 - The created grid (ContinuousLogicalTimeline in quarters)

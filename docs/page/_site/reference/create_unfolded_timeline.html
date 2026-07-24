@@ -881,7 +881,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    include_children<span class="op">=</span><span class="va">True</span>,</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create an unfolded timeline from a folded source via structural slicing.</p>
-<p>Computes QB-space boundaries for each <code>PlaythroughSection</code> in the Flow, extracts a slice from the source timeline at each boundary, and appends the slices, in target (unfolded) order, as children of a new timeline of the source’s concrete type. This is the TTA manuscript’s conceptual model: unfolding = assembling a new timeline by selecting and concatenating contiguous portions of the folded source.</p>
+<p>Computes QB-space boundaries for each <code>PlaythroughSection</code> in the Flow, extracts a slice from the source timeline at each boundary, and appends the slices, in target (unfolded) order, as children of a new timeline of the source’s concrete type. Unfolding assembles a new timeline by selecting and concatenating contiguous portions of the folded source. See the Conceptual Model documentation (https://timetoalign.github.io/concepts.html).</p>
 <p>The returned timeline has:</p>
 <ul>
 <li>The same concrete class as <em>source_timeline</em> (unless <em>target_unit</em> selects another), with correct QB-space coordinates.</li>
@@ -890,7 +890,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>A reverse FlowMap attached (id <code>"source"</code>) for folded ↔︎ unfolded conversion, and a forward FlowMap (id <code>f"forward_{flow.id}"</code>).</li>
 <li>Events structurally copied via <code>Timeline.get_slice()</code> (including truncation of interval events at section boundaries); the flattened coordinates remain reachable via <code>get_events(include_children=True)</code>.</li>
 </ul>
-<p>Design decision: replaces the earlier FlowMap-based per-event coordinate remapping with structural slicing. The previous approach operated in MC-number space and produced wrong coordinates for scores with non-uniform measure durations.</p>
+<p>Unfolding uses structural slicing because QB-space section boundaries preserve correct coordinates for scores with non-uniform measure durations.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">

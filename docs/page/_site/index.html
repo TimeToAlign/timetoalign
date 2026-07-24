@@ -196,7 +196,7 @@ A Cross-Domain Timeline Model for Music Information Retrieval and Digital Musico
 <li>A <strong>generalised cross-domain model</strong> for musical timelines and their alignments, grounded in three temporal domains (physical, logical, graphical) in both continuous and discrete variants.</li>
 <li>A <strong>working Python library</strong> (<code>timetoalign</code>) implementing this model with typed timelines, loaders for common formats, conversion maps, and alignment primitives.</li>
 </ol>
-<p>The model represents coordinate systems as nodes in a graph, connected by <button class="glossary" title="">ConversionMap</button>s within a timeline and <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (the authoring agent and a certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension). Held individually, or columnar at scale in a MatchClaimField.">MatchClaim</button> objects across timelines. This structure enables coordinate transfer, annotation propagation, and alignment queries across arbitrarily many representations of the same musical content.</p>
+<p>The model represents coordinate systems as nodes in a graph, connected by <button class="glossary" title="A typed function attached to a timeline that maps each coordinate to exactly one value (coordinate, label, or filename); also permits inverse conversion back to the timeline’s own unit. Also called C-map.">ConversionMap</button>s within a timeline and <button class="glossary" title="">MatchClaim</button> objects across timelines. This structure enables coordinate transfer, annotation propagation, and alignment queries across arbitrarily many representations of the same musical content.</p>
 </section>
 <section id="documentation-structure" class="level2">
 <h2 class="anchored" data-anchor-id="documentation-structure">Documentation Structure</h2>
@@ -299,8 +299,9 @@ Table&nbsp;1: The six timeline types arising from three domains and two number t
 <h2 class="anchored" data-anchor-id="project-links">Project Links</h2>
 <ul>
 <li><strong>Source Code</strong>: <a href="https://github.com/timetoalign/timetoalign">GitHub</a></li>
-<li><strong>Specimen Collection</strong>: Real-world datasets used in the tutorials and the accompanying TISMIR article.</li>
-<li><strong>TISMIR Article</strong>: <a href="https://doi.org/10.5334/tismir.296">Time to Align! Modelling Musical Timelines for Music Information Retrieval and Digital Musicology</a>, TISMIR 9(1), 384-404, 2026.</li>
+<li><strong>Notebooks</strong>: <a href="https://github.com/TimeToAlign/timetoalign/tree/main/docs">[README]</a></li>
+<li><strong>Specimen Collection</strong>: Forthcoming. Watch this space!</li>
+<li><strong>TISMIR Article</strong>: <a href="https://doi.org/10.5334/tismir.296">Time to Align! Modelling Musical Timelines for Music Information Retrieval and Digital Musicology</a></li>
 </ul>
 <div class="callout callout-style-default callout-note callout-titled" title="How to cite">
 <div class="callout-header d-flex align-content-center">
@@ -312,7 +313,9 @@ Table&nbsp;1: The six timeline types arising from three domains and two number t
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Please cite the published TISMIR article, <a href="https://doi.org/10.5334/tismir.296">Time to Align! Modelling Musical Timelines for Music Information Retrieval and Digital Musicology</a>; a BibTeX entry ships in the repository via the README Citing section and <code>CITATION.cff</code>.</p>
+<p>Please cite the published TISMIR article:</p>
+<pre><code>Hentschel, Johannes; Berndt, Axel; Cancino-Chacón, Carlos; Dixon, Simon; Foo, Anne; Gotham, Mark; Hu, Patricia; Köster, Maik; Martins, Felipe D.; Mauro, Davide A.; Müller, Meinard; Neuwirth, Markus; Pacha, Alexander; Page, Kevin R.; Peter, Silvan; Polyakov, Egor; Pugin, Laurent; Weigl, David M.; Weiß, Christof; and Widmer, Gerhard. 2026. "Time to Align! Modelling Musical Timelines for Music Information Retrieval and Digital Musicology." *Transactions of the International Society for Music Information Retrieval* 9 (1): 384--404. https://doi.org/10.5334/tismir.296.</code></pre>
+<p>A BibTeX entry ships in the repository via the <a href="https://github.com/TimeToAlign/timetoalign/tree/main#citing">README Citing section</a> and <code>CITATION.cff</code>.</p>
 </div>
 </div>
 

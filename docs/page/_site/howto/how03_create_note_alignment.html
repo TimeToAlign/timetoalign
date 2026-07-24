@@ -666,7 +666,7 @@ Timestamps: 2</pre>
 </section>
 <section id="create-matchlines" class="level2">
 <h2 class="anchored" data-anchor-id="create-matchlines">6. Create MatchLines</h2>
-<p>A <button class="glossary" title="An ordered sequence of AlignmentAnchors derived from MatchClaims, sorted by coordinate on a source timeline; input for WarpMap generation.">MatchLine</button> is an ordered sequence of coordinate pairs for a given source timeline. It is the input for WarpMap generation.</p>
+<p>A <button class="glossary" title="">MatchLine</button> is an ordered sequence of coordinate pairs for a given source timeline. It is the input for WarpMap generation.</p>
 <p>The <strong>direction matters</strong>: the source timeline determines the ordering.</p>
 <div id="248922d0" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:09.747732Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:09.747543Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:09.838732Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:09.838113Z&quot;}}" data-execution_count="12">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Performance-to-score: source is performance, sorted by performance time</span></span>
@@ -712,7 +712,7 @@ Timestamps: 2</pre>
 </section>
 <section id="export-to-.match-format" class="level2">
 <h2 class="anchored" data-anchor-id="export-to-.match-format">7. Export to .match Format</h2>
-<p>A <button class="glossary" title="An ordered sequence of AlignmentAnchors derived from MatchClaims, sorted by coordinate on a source timeline; input for WarpMap generation.">MatchLine</button> can be exported to the Vienna <code>.match</code> file format using <code>save_as()</code>. The <code>.match</code> format is the standard interchange format for note-level alignments in MIR.</p>
+<p>A <button class="glossary" title="">MatchLine</button> can be exported to the Vienna <code>.match</code> file format using <code>save_as()</code>. The <code>.match</code> format is the standard interchange format for note-level alignments in MIR.</p>
 <p>To produce a rich <code>.match</code> file (with real pitch, duration, and staff data rather than placeholders), supply a <code>MatchFileContext</code> built from the same DataFrames used for matching.</p>
 <div id="57608175" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:09.944796Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:09.944596Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:10.574665Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:10.574008Z&quot;}}" data-execution_count="15">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>ctx <span class="op">=</span> MatchFileContext.from_dataframes(</span>

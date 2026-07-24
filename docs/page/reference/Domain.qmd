@@ -6,10 +6,13 @@ Domain()
 
 The temporal domain of a timeline.
 
-Based on the TTA manuscript's three-domain model:
+TimeToAlign distinguishes three temporal domains:
 - logical: Logical time domain (conceptualizing, reading)
 - physical: Physical time domain (hearing, seeing dynamic)
 - graphical: Graphical time domain (seeing static, spatial)
+
+See the Conceptual Model documentation
+(https://timetoalign.github.io/concepts.html).
 
 ## Attributes
 

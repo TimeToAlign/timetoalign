@@ -419,7 +419,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="key-concepts-demonstrated">Key Concepts Demonstrated</h2>
 <ul>
 <li>Loading TiLiA JSON files via <code>TiliaJsonLoader</code></li>
-<li>Creating an <button class="glossary" title="">AlignmentBundle</button> from independent timelines</li>
+<li>Creating an <button class="glossary" title="A collection of TimelineGroups with inter-group MatchClaim connections; provides coordinate transfer via offset arithmetic, interpolation, and WarpMaps.">AlignmentBundle</button> from independent timelines</li>
 <li>Parsing a match table with <strong>synchronous</strong> and <strong>NOMATCH</strong> columns</li>
 <li>Creating synchronous vs.&nbsp;conceptual <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (the authoring agent and a certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension). Held individually, or columnar at scale in a MatchClaimField.">MatchClaim</button> objects</li>
 <li>Using <code>MatchClaim.nomatch()</code> to name a section present on one version and absent from another</li>
@@ -614,7 +614,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="create-the-alignmentbundle" class="level2">
 <h2 class="anchored" data-anchor-id="create-the-alignmentbundle">3. Create the AlignmentBundle</h2>
-<p>We add each hierarchy timeline to a single <button class="glossary" title="">AlignmentBundle</button>, assigning human-readable IDs that match the column names in <code>match_data.csv</code>.</p>
+<p>We add each hierarchy timeline to a single <button class="glossary" title="A collection of TimelineGroups with inter-group MatchClaim connections; provides coordinate transfer via offset arithmetic, interpolation, and WarpMaps.">AlignmentBundle</button>, assigning human-readable IDs that match the column names in <code>match_data.csv</code>.</p>
 <div id="af2d4564" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T14:26:56.093368Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T14:26:56.092950Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T14:26:56.104879Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T14:26:56.103535Z&quot;}}" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>bundle <span class="op">=</span> AlignmentBundle(name<span class="op">=</span><span class="st">"Hendrix Song Genesis"</span>)</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, tl <span class="kw">in</span> timelines.items():</span>

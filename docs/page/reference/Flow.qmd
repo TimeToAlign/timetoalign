@@ -29,7 +29,7 @@ access to MeasureUnits via iter_units(). Flows loaded from CSV are
 ## Note {.doc-section .doc-section-note}
 
 MC ranges use the **right-open interval convention** [mc_start, mc_end),
-consistent with partitura and the TTA manuscript.
+consistent with partitura and TimeToAlign's TimeInterval model.
 
 ## Attributes {.doc-section .doc-section-attributes}
 
