@@ -38,6 +38,19 @@ Child: |
   its own origin. Coordinate transfer between parent and child uses exact offset
   arithmetic, applied recursively. Children are locked upon insertion.
 
+ClaimType: |
+  The semantic kind of a MatchClaim, derived from its structure rather than
+  stored: read from whether the claim is explicit, whether it is synchronous,
+  and how many of its two sides name an event. Six members: event_match
+  (synchronous, both sides name an event — the case that yields
+  AlignmentAnchors), projection (synchronous, exactly one side names an event,
+  the other a bare coordinate), anchor (synchronous, neither side names an
+  event — two anonymous coordinates), nomatch (non-synchronous, exactly one
+  side names an event whose counterpart is absent — see NOMATCH), conceptual
+  (non-synchronous, neither or both sides name an event — a structural
+  correspondence with no temporal commitment), and implicit (inferred by graph
+  extension; overrides all the above).
+
 CombinationMap: |
   A MultiMap yielding outputs from multiple ConversionMaps simultaneously
   (e.g., (x, y) coordinate pairs).

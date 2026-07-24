@@ -62,6 +62,21 @@ to the relevant section of the conceptual model.
     insertion to prevent side effects from modifications.
     See [Nested timelines](concepts.qmd#nested-timelines).
 
+**ClaimType**
+:   The semantic kind of a {{< glossary MatchClaim >}}, derived from its
+    structure rather than stored --- read from whether the claim is explicit,
+    whether it is synchronous, and how many of its two sides name an event.
+    Six members: **event_match** (synchronous, both sides name an event; the
+    case that yields {{< glossary AlignmentAnchor >}}s), **projection**
+    (synchronous, exactly one side names an event, the other a bare
+    coordinate), **anchor** (synchronous, neither side names an event --- two
+    anonymous coordinates), **nomatch** (non-synchronous, exactly one side
+    names an event whose counterpart is absent; see {{< glossary NOMATCH >}}),
+    **conceptual** (non-synchronous, neither or both sides name an event ---
+    a structural correspondence with no temporal commitment), and **implicit**
+    (inferred by graph extension; overrides all the above).
+    See [Alignment](concepts.qmd#alignment).
+
 **CombinationMap**
 :   A {{< glossary MultiMap >}} yielding outputs from multiple
     {{< glossary ConversionMap >}}s simultaneously (e.g., *(x, y)*

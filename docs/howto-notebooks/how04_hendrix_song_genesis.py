@@ -40,7 +40,10 @@
 # - Creating an {{< glossary AlignmentBundle >}} from independent timelines
 # - Parsing a match table with **synchronous** and **NOMATCH** columns
 # - Creating synchronous vs. conceptual {{< glossary MatchClaim >}} objects
-# - Using `MatchClaim.nomatch()` for explicit structural absence
+# - Using `MatchClaim.nomatch()` to name a section present on one version and
+#   absent from another
+# - Reading each claim's `claim_type` to tell event matches, conceptual links,
+#   and NOMATCH claims apart
 # - Querying events by name on hierarchy timelines
 
 # %% [markdown]
@@ -113,14 +116,19 @@ bundle
 #
 # For each row in the CSV we:
 #
-# 1. Look up the named event on each timeline.
-# 2. Create **NOMATCH sentinels** where the CSV says `NOMATCH`.
-# 3. For the remaining timelines with events present, create **pairwise
-#    MatchClaims** -- synchronous or conceptual according to the
-#    `synchronous` column.
+# 1. Split the row into the sections that are **present** (named on a
+#    timeline) and the timelines from which the section is **absent** (the
+#    cell reads `NOMATCH`).
+# 2. Emit a **NOMATCH** claim from every present timeline to every absent one.
+#    The orphaned section lives on the versions that *have* it, so a genuine
+#    NOMATCH names that section and is oriented from the naming timeline to the
+#    one that lacks it -- not the reverse. A NOMATCH that named no event at all
+#    would merely be conceptual.
+# 3. For the present timelines, create **pairwise MatchClaims** -- synchronous
+#    or conceptual according to the `synchronous` column.
 #
-# The pairwise strategy fans out from the first available timeline to
-# each of the others (a "star" topology).
+# The pairwise strategy fans out from the first present timeline to each of the
+# others (a "star" topology).
 
 # %%
 metadata = MatchMetadata(
@@ -137,27 +145,17 @@ conceptual_claims = []
 nomatch_claims = []
 
 for _, row in df.iterrows():
-    match_id = row["match"]
     is_synchronous = str(row["synchronous"]).strip().upper() == "TRUE"
 
-    # Collect events and detect NOMATCH sentinels
+    # Split the row into sections that ARE present (named on a timeline) and
+    # timelines from which the section is absent (the cell reads NOMATCH).
     present = []  # (timeline_name, event_dict)
+    absent = []  # timeline_name
     for tl_name in tl_columns:
         val = str(row[tl_name]).strip()
 
         if val.upper() == "NOMATCH":
-            # Create a NOMATCH sentinel for every other timeline
-            for other_name in tl_columns:
-                if other_name == tl_name:
-                    continue
-                sentinel = MatchClaim.nomatch(
-                    event={},
-                    source_tl_id=tl_name,
-                    target_tl_id=other_name,
-                    unit=timelines[tl_name].unit,
-                    metadata=metadata,
-                )
-                nomatch_claims.append(sentinel)
+            absent.append(tl_name)
             continue
 
         # Look up the event by name
@@ -168,6 +166,21 @@ for _, row in df.iterrows():
         event_id = str(evs.table[0][0])
         event = tl.get_event(event_id)
         present.append((tl_name, event))
+
+    # A NOMATCH is oriented FROM the version that has the section (naming its
+    # orphaned event) TO the version that lacks it. Naming that event is what
+    # makes the claim a genuine NOMATCH rather than a bare conceptual link.
+    for absent_tl in absent:
+        for present_tl, present_ev in present:
+            nomatch_claims.append(
+                MatchClaim.nomatch(
+                    event=present_ev,
+                    source_tl_id=present_tl,
+                    target_tl_id=absent_tl,
+                    unit=timelines[present_tl].unit,
+                    metadata=metadata,
+                )
+            )
 
     # Create pairwise claims from the first present timeline to the others
     if len(present) < 2:
@@ -208,6 +221,24 @@ bundle.add_match_claims(all_claims)
 }
 
 # %% [markdown]
+# ### The claim kind is derived, not stored
+#
+# Every `MatchClaim` reports a `claim_type` computed from its structure --
+# whether it is synchronous and how many of its two sides name an event. A
+# synchronous event-to-event match is `ClaimType.event_match`, a structural
+# link with no temporal commitment is `ClaimType.conceptual`, and a
+# named-but-absent section is `ClaimType.nomatch`. This discriminator is what
+# keeps conceptual links and NOMATCH claims -- both non-synchronous -- visibly
+# distinct.
+
+# %%
+{
+    "sync[0]": sync_claims[0].claim_type,
+    "conceptual[0]": conceptual_claims[0].claim_type,
+    "nomatch[0]": nomatch_claims[0].claim_type,
+}
+
+# %% [markdown]
 # ## 5. Inspect the Results
 #
 # ### Synchronous claims (with AlignmentAnchors)
@@ -235,7 +266,9 @@ sync_claims[0]
 #
 # These record structural equivalence without temporal commitment — for
 # instance, "both versions have an Intro" without asserting that the intros
-# can be aligned beat-by-beat.
+# can be aligned beat-by-beat. A conceptual claim names no orphaned event, so
+# it badges as `[CONCEPTUAL]` — visibly distinct from the `[NOMATCH]` claims
+# below, even though both are non-synchronous.
 
 # %%
 # Display an example conceptual claim (no coordinates, just timeline connection)
@@ -245,19 +278,23 @@ conceptual_claims[0] if conceptual_claims else "No conceptual claims"
 {"conceptual_claims": len(conceptual_claims)}
 
 # %% [markdown]
-# ### NOMATCH sentinels
+# ### NOMATCH claims
 #
-# These explicitly record that a section has no equivalent in the target
-# version — a positive assertion of absence, not a mere gap in the data.
-# For instance, the "Instrumental Part" in the studio recording has no
-# equivalent in Demo1.
+# These explicitly record that a section present on one version has no
+# equivalent on another — a positive assertion of absence, not a mere gap in
+# the data. A NOMATCH **names the orphaned section** and is oriented from the
+# version that has it to the version that lacks it. For instance, the
+# "Instrumental Part" in the studio recording has no equivalent in Demo1, so
+# the claim names that studio section and points at Demo1. Naming the orphaned
+# event is precisely what distinguishes a NOMATCH from a conceptual link.
 
 # %%
-# Display an example NOMATCH claim
+# Display an example NOMATCH claim (names the present section, points at the
+# version that lacks it)
 nomatch_claims[0] if nomatch_claims else "No NOMATCH claims"
 
 # %%
-{"nomatch_sentinels": len(nomatch_claims)}
+{"nomatch_claims": len(nomatch_claims)}
 
 # %% [markdown]
 # ## Summary
@@ -271,7 +308,8 @@ nomatch_claims[0] if nomatch_claims else "No NOMATCH claims"
 # | Look up sections by name | `tl.get_events(name=...)` |
 # | Synchronous alignment | `MatchClaim.from_events(..., is_synchronous=True)` |
 # | Conceptual correspondence | `MatchClaim(..., is_synchronous=False)` |
-# | Explicit absence | `MatchClaim.nomatch()` |
+# | Explicit absence (names orphaned section) | `MatchClaim.nomatch(event=ev, source_tl_id=has, target_tl_id=lacks)` |
+# | Discriminate claim kinds | `claim.claim_type` |
 # | Collect in bundle | `bundle.add_match_claims(claims)` |
 
 # %%

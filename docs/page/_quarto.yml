@@ -257,6 +257,8 @@ quartodoc:
           package: timetoalign.alignment
         - name: MatchClaim
           package: timetoalign.alignment
+        - name: ClaimType
+          package: timetoalign.core
         - name: MatchClaimField
           package: timetoalign.alignment
         - name: MatchMetadata
